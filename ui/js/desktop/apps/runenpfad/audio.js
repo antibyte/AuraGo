@@ -40,7 +40,9 @@
         seq_solved: [0.25, 0.3, 0.7],
         portal_win: [0.42, 0.45, 0.9],
         duel_phase: [0.28, 0.2, 0.5],
-        duel_start: [0.32, 0.3, 0.65]
+        duel_start: [0.32, 0.3, 0.65],
+        in_boss_phase: [0.28, 0.2, 0.5],
+        in_boss_die: [0.4, 0.35, 0.8]
     };
 
     const BOSS_ATTACKS = {
@@ -334,7 +336,8 @@
         ui_deny: { cooldown: 150, synth: 'ui_deny', sg: 0.5 }, ui_buy: { cooldown: 120, synth: 'ui_buy', sg: 0.5 },
         ui_pause: { cooldown: 200, synth: 'ui_sweep', sg: 0.45, sr: 0.8 }, ui_resume: { cooldown: 200, synth: 'ui_sweep', sg: 0.45, sr: 1 },
         ui_star_1: { cooldown: 120, synth: 'ui_star', sg: 0.5, sr: 1 }, ui_star_2: { cooldown: 120, synth: 'ui_star', sg: 0.5, sr: 1.26 },
-        ui_star_3: { cooldown: 120, synth: 'ui_star', sg: 0.5, sr: 1.5874 }, ui_unlock: { cooldown: 300, synth: 'ui_unlock', sg: 0.5 }
+        ui_star_3: { cooldown: 120, synth: 'ui_star', sg: 0.5, sr: 1.5874 }, ui_unlock: { cooldown: 300, synth: 'ui_unlock', sg: 0.5 },
+        ui_page: { cooldown: 150, synth: 'rm_paper', sg: 1.2, sr: 0.9 }, ui_board: { cooldown: 200, synth: 'rm_board', sg: 1.0 }
     };
 
     function validateSoundManifest(manifest) {
@@ -829,7 +832,7 @@
             let out = cue;
             if (cue.by) {
                 const k = cue.by.key === '@biome' ? biome : (d ? d[cue.by.key] : undefined);
-                const over = cue.by.map[k] || cue.by.map['*'];
+                const over = cue.by.map[k] || (cue.by.prefix && typeof k === 'string' && k.indexOf('_') > 0 && cue.by.map[k.slice(0, k.indexOf('_'))]) || cue.by.map['*'];
                 if (over) out = Object.assign({}, cue, over);
             }
             if (cue.byEnemy && d) {
@@ -907,7 +910,7 @@
                     if (duck && duckMusicFn) duckMusicFn(duck[0], duck[1], duck[2]);
                     const tuned = root.RunenpfadSfx && root.RunenpfadSfx.cueTuning(root.RunenpfadMusic && root.RunenpfadMusic.THEMES && root.RunenpfadMusic.THEMES[biome], cue, d);
                     if (id && assetsById[id]) playSample(id, cue.gain, rate, pan, mix);
-                    if (cue.synth) playSynth(cue.synth, { gain: sg * mix, sr: sr, v: hashUnit(key, counters.get(key) || 0), count: d && d.count, freq: tuned ? tuned.freq : (cue.freq || (cue.ladder ? 1046 : 0)), notes: tuned && tuned.notes, speed: cue.speed && d ? d[cue.speed] : 0 }, pan, /^(boss_|dragon_)/.test(ev.type) || ev.type === 'player_hurt' || ev.type === 'enemy_kill');
+                    if (cue.synth) playSynth(cue.synth, { gain: sg * mix, sr: sr, v: hashUnit(key, counters.get(key) || 0), count: d && d.count, freq: tuned ? tuned.freq : (cue.freq || (cue.ladder ? 1046 : 0)), notes: tuned && tuned.notes, speed: cue.speed && d ? d[cue.speed] : 0 }, pan, /^(boss_|dragon_|in_boss_)/.test(ev.type) || ev.type === 'player_hurt' || ev.type === 'enemy_kill');
                     if (cue.also || cue.voice) playExtras(cue, key, d, pan, tuned, mix);
                 }
             }

@@ -11,7 +11,7 @@ sandbox.globalThis = sandbox;
 sandbox.fetch = () => Promise.reject(new Error('offline test'));
 vm.createContext(sandbox);
 const load = (rel) => vm.runInContext(fs.readFileSync(path.join(root, 'ui/js/desktop/apps/runenpfad', rel), 'utf8'), sandbox, { filename: rel });
-['biomes.js', 'fx.js', 'physics.js', 'behaviors.js', 'bosses.js', 'audio-dsp.js', 'sfx.js', 'audio-mix.js', 'audio.js', 'music-voices.js', 'music.js', 'music-scores.js', 'duel-music.js', 'place-music.js', 'story-music.js'].forEach(load);
+['biomes.js', 'fx.js', 'physics.js', 'behaviors.js', 'bosses.js', 'audio-dsp.js', 'sfx.js', 'sfx-rooms.js', 'audio-mix.js', 'audio.js', 'music-voices.js', 'music.js', 'music-scores.js', 'duel-music.js', 'place-music.js', 'story-music.js'].forEach(load);
 const Mix = sandbox.RunenpfadAudioMix;
 const Audio = sandbox.RunenpfadAudio;
 const Sfx = sandbox.RunenpfadSfx;
@@ -419,7 +419,7 @@ NPC_EVENTS.forEach((type) => assert.ok(Audio.CUE_MAP[type], 'cue missing for ' +
     const file = path.join(root, 'ui/js/desktop/apps/runenpfad', rel);
     if (!fs.existsSync(file)) return;
     const src = fs.readFileSync(file, 'utf8');
-    for (const m of src.matchAll(/pushEvent\x28sim, '([a-z_]+)'/g)) assert.ok(Audio.CUE_MAP[m[1]], rel + ' pushes ' + m[1] + ' without an audio cue');
+    for (const m of src.matchAll(/pushEvent\x28sim, '([a-z_]+)'/g)) assert.ok(Audio.CUE_MAP[m[1]] || Sfx.CUES[m[1]], rel + ' pushes ' + m[1] + ' without an audio cue');
 });
 const NPC_IDS = ['witch', 'wizard', 'merchant', 'chief', 'seer', 'alchemist'];
 NPC_IDS.forEach((npc) => ['a', 'b', 'c'].forEach((p) => {
@@ -489,7 +489,7 @@ PLACE_EVENTS.forEach((type) => assert.ok(Audio.CUE_MAP[type], 'cue missing for '
 ['interior.js', 'interior-mobs.js', 'places.js', 'village.js', 'folk.js'].forEach((rel) => {
     const file = path.join(root, 'ui/js/desktop/apps/runenpfad', rel);
     if (!fs.existsSync(file)) return;
-    for (const m of fs.readFileSync(file, 'utf8').matchAll(/pushEvent\x28sim, '((?:place|in)_[a-z_]+)'/g)) assert.ok(Audio.CUE_MAP[m[1]], rel + ' pushes ' + m[1] + ' without an audio cue');
+    for (const m of fs.readFileSync(file, 'utf8').matchAll(/pushEvent\x28sim, '((?:place|in)_[a-z_]+)'/g)) assert.ok(Audio.CUE_MAP[m[1]] || Sfx.CUES[m[1]], rel + ' pushes ' + m[1] + ' without an audio cue');
 });
 const MOBS = ['rat', 'slime', 'bat', 'spider', 'mummy', 'icewisp', 'clockbug'];
 MOBS.forEach((k) => ['in_mob_tell', 'in_mob_attack'].forEach((type) => assert.ok(Audio.CUE_MAP[type].by.map[k], type + ' sound missing for ' + k)));
@@ -551,10 +551,10 @@ assert.ok(Audio.CUE_MAP.in_attack.by.map.knight.sr < Audio.CUE_MAP.in_attack.by.
     assert.equal(nodeCount, before, 'play() respects mute');
     muted.dispose();
 }
-// Themes: three place loops and three story loops, deterministic, dark ones without a major third.
+// Themes: four place loops and three story loops, deterministic, dark ones without a major third.
 const PlaceMusic = sandbox.RunenpfadPlaceMusic;
 const StoryMusic = sandbox.RunenpfadStoryMusic;
-assert.equal(PlaceMusic.THEME_IDS.join(), 'village,in_cozy,in_cave');
+assert.equal(PlaceMusic.THEME_IDS.join(), 'village,in_cozy,in_cave,in_obs');
 assert.equal(StoryMusic.THEME_IDS.join(), 'story_dawn,story_dark,story_triumph');
 const NEW_THEMES = PlaceMusic.THEME_IDS.concat(StoryMusic.THEME_IDS);
 NEW_THEMES.forEach((id) => {
@@ -723,7 +723,98 @@ assert.ok(MusicScores && typeof MusicScores.compose === 'function' && typeof Mus
     mCtrl.dispose();
     aCtrl.dispose();
 }
-['audio-dsp.js', 'sfx.js', 'audio-mix.js', 'audio.js', 'music-voices.js', 'music.js', 'music-scores.js', 'duel-music.js', 'place-music.js', 'story-music.js'].forEach((rel) => {
+// ---- 7. living rooms, guardians, dice and bounties: every new event has a cue and a trim, guardian voices, the observatory theme ----
+const ROOM_EVENTS = ['in_break', 'in_push', 'in_slide', 'in_plate', 'in_lever', 'in_gate', 'in_trap_warn', 'in_trap', 'in_brazier', 'in_puzzle_fail', 'in_puzzle_done', 'in_crack',
+    'in_key', 'in_unlock', 'in_page', 'in_read', 'in_boss_tell', 'in_boss_attack', 'in_boss_phase', 'in_boss_die', 'dice_roll', 'dice_end', 'bounty_done', 'bounty_claim'];
+const roomCue = (type) => Audio.CUE_MAP[type] || Sfx.CUES[type];
+ROOM_EVENTS.forEach((type) => {
+    const cue = roomCue(type);
+    assert.ok(cue, 'cue missing for ' + type);
+    assert.ok(cue.synth || (cue.by && Object.keys(cue.by.map).length), type + ' has a synthesized voice');
+    assert.ok(Object.prototype.hasOwnProperty.call(Mix.TRIM, type), 'TRIM key missing for ' + type);
+    assert.ok(Mix.trimFor(type) > 0 && Mix.trimFor(type) < 20, type + ' has a sane trim');
+});
+['ui_page', 'ui_board'].forEach((id) => {
+    assert.ok(Audio.UI_CUES[id] && Audio.hasSynth(Audio.UI_CUES[id].synth), id + ' is a UI cue with a recipe');
+    assert.ok(Object.prototype.hasOwnProperty.call(Mix.TRIM, 'ui:' + id), 'TRIM key missing for ui:' + id);
+});
+// Every pushed event in the new modules has a cue (files that do not exist yet are skipped).
+['interior.js', 'interior-things.js', 'interior-bosses.js', 'interior-mobs.js', 'chronicle.js', 'dice.js', 'bounties.js'].forEach((rel) => {
+    const file = path.join(root, 'ui/js/desktop/apps/runenpfad', rel);
+    if (!fs.existsSync(file)) return;
+    for (const m of fs.readFileSync(file, 'utf8').matchAll(/pushEvent\x28sim, '([a-z_]+)'/g)) assert.ok(roomCue(m[1]), rel + ' pushes ' + m[1] + ' without an audio cue');
+});
+// Guardians: one voice per kind, patterns are kind + '_' + move, unknown moves fall back to the guardian default, tells and attacks differ.
+const GUARDS = ['brood', 'weaver', 'tombward', 'frostheart', 'boilerward', 'counter'];
+['in_boss_tell', 'in_boss_attack'].forEach((type) => {
+    const cue = Sfx.CUES[type];
+    assert.equal(cue.by.key, 'pattern', type + ' varies by the pattern field only');
+    assert.ok(cue.by.prefix, type + ' falls back to the guardian default');
+    GUARDS.forEach((g) => assert.ok(cue.by.map[g], type + ' default for ' + g));
+    assert.ok(cue.by.map['*'], type + ' has a catch-all');
+});
+// The move ids of interior-bosses.js (pattern = kind + '_' + move) each have their own tell and attack voice.
+const GUARD_MOVES = { brood: ['slam', 'spawn', 'split'], weaver: ['venom', 'lunge', 'web'], tombward: ['slam', 'march', 'raise'], frostheart: ['ring', 'triple', 'blink'], boilerward: ['charge', 'cross'], counter: ['clock', 'beam', 'summon'] };
+Object.keys(GUARD_MOVES).forEach((g) => GUARD_MOVES[g].forEach((mv) => ['in_boss_tell', 'in_boss_attack'].forEach((type) => {
+    assert.ok(Sfx.CUES[type].by.map[g + '_' + mv], type + ' voice for ' + g + '_' + mv);
+    assert.ok(Object.prototype.hasOwnProperty.call(Mix.TRIM, type + ':' + g + '_' + mv), 'TRIM key for ' + type + ':' + g + '_' + mv);
+})));
+['in_boss_phase', 'in_boss_die'].forEach((type) => GUARDS.forEach((g) => assert.ok(Sfx.CUES[type].by.map[g], type + ' voice for ' + g)));
+GUARDS.forEach((g) => {
+    assert.ok(Audio.hasSynth('rm_v_' + g) && Audio.hasSynth('rm_t_' + g), g + ' has a voice and a tell recipe');
+    assert.notEqual(Sfx.CUES.in_boss_tell.by.map[g].synth, Sfx.CUES.in_boss_attack.by.map[g].synth, g + ' tell differs from its attack');
+});
+assert.equal(new Set(GUARDS.map((g) => Sfx.CUES.in_boss_tell.by.map[g].synth)).size, 6, 'every guardian has its own tell');
+{
+    const played = [];
+    const names = GUARDS.map((g) => 'rm_v_' + g);
+    const originals = {};
+    names.forEach((name) => {
+        originals[name] = Sfx.SYNTHS[name];
+        Sfx.SYNTHS[name] = function (ctx, buf, dest, time, options) { played.push(name); return originals[name](ctx, buf, dest, time, options); };
+    });
+    const rc = Audio.createAudioController({ manifest });
+    rc.unlock();
+    sandbox.__t = (sandbox.__t || 0) + 5;
+    rc.handleEvents([{ type: 'in_boss_attack', detail: { kind: 'weaver', move: 'unknown_move', pattern: 'weaver_unknown_move' } }], null, null);
+    assert.ok(played.includes('rm_v_weaver'), 'an unknown weaver move still sounds like the weaver');
+    played.length = 0;
+    sandbox.__t += 5;
+    rc.handleEvents([{ type: 'in_boss_attack', detail: { kind: 'counter', move: 'x', pattern: 'nonsense' } }], null, null);
+    assert.ok(played.length > 0, 'a pattern of no known guardian still plays the catch-all');
+    ROOM_EVENTS.concat(['dice_end']).forEach((type, i) => {
+        sandbox.__t += 5;
+        const each = Audio.createAudioController({ manifest });
+        each.unlock();
+        const before = nodeCount;
+        each.handleEvents([{ type, detail: { kind: 'spikes', result: 'win', pattern: 'brood_slam', open: true, on: true, lit: true, step: 2, broken: true, first: true, page: 3 } }], null, null);
+        assert.ok(nodeCount > before, type + ' makes sound');
+        each.dispose();
+    });
+    rc.play('ui_page');
+    rc.play('ui_board');
+    rc.dispose();
+    names.forEach((name) => { Sfx.SYNTHS[name] = originals[name]; });
+}
+assert.ok(Sfx.CUES.in_brazier.scale && Sfx.CUES.in_brazier.scale.key === 'step', 'the brazier rises with its order step');
+// Theme in_obs: slow lydian with a ticking pulse, glass and celesta over a drone, and a drama layer for the guardian room.
+assert.ok(Music.THEMES.in_obs && Music.THEMES.in_obs.scaleName === 'lydian' && Music.THEMES.in_obs.bpm < 70, 'in_obs is slow and lydian');
+assert.ok(Music.composeBar('in_obs', 'perc', 0, 1).some((n) => n.type === 'clock') && Music.composeBar('in_obs', 'perc', 1, 1).some((n) => n.type === 'tick'), 'in_obs ticks');
+assert.ok(Music.composeBar('in_obs', 'arp', 0, 1).concat(Music.composeBar('in_obs', 'arp', 1, 1)).some((n) => n.type === 'glass'), 'in_obs has glass');
+assert.ok([0, 1, 2, 3, 4, 5, 6, 7].some((b) => Music.composeBar('in_obs', 'melody', b, 1).some((n) => n.type === 'celesta')), 'in_obs has celesta stars');
+assert.ok(Music.composeBar('in_obs', 'drama', 0, 1).length >= 8, 'in_obs has a drama layer for the guardian room');
+assert.equal(PlaceMusic.themeFor(interiorSim('in_obs')), 'in_obs');
+{
+    const guardianSim = (guardian) => ({ stage: { id: 1, biome: { id: 'woodland' }, enemies: [], bossId: null }, player: { x: 0, y: 0 }, state: 'playing', events: [],
+        interior: { hero: { x: 100, y: 100 }, mobs: [], guardian, room: { def: { music: 'in_obs' } } } });
+    const alive = Music.intensityFor(guardianSim({ state: 'chase', x: 600, y: 600 }));
+    assert.ok(alive.boss && alive.bossAlive && alive.drama === 1, 'a living guardian raises the drama');
+    const dead = Music.intensityFor(guardianSim({ state: 'dead' }));
+    assert.ok(!dead.boss && !dead.bossAlive && dead.drama === 0, 'a dead guardian no longer does');
+    assert.ok(!Music.intensityFor(guardianSim(null)).bossAlive, 'no guardian, no boss drama');
+    assert.equal(Music.themeIdFor(guardianSim({ state: 'chase' }), true), 'in_obs', 'the place theme keeps playing during the guardian fight');
+}
+['audio-dsp.js', 'sfx.js', 'sfx-rooms.js', 'audio-mix.js', 'audio.js', 'music-voices.js', 'music.js', 'music-scores.js', 'duel-music.js', 'place-music.js', 'story-music.js'].forEach((rel) => {
     const src = fs.readFileSync(path.join(root, 'ui/js/desktop/apps/runenpfad', rel), 'utf8');
     assert.ok(!src.includes('Math.random') && !src.includes('Date.now'), rel + ' stays deterministic');
     assert.ok(!/https?:\/\//.test(src), rel + ' has no URL strings');

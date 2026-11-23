@@ -249,6 +249,10 @@
                 if (s && !s.dead && Math.hypot((s.x || 0) - hero.x, (s.y || 0) - hero.y) < 240) { inDanger = Math.max(inDanger, 0.58); break; }
             }
             if (hero.hurtTimer > 0) inDanger = Math.max(inDanger, 0.72);
+            const guardian = sim.interior.guardian;
+            if (guardian && guardian.state !== 'dead') {
+                return { danger: Math.max(inDanger, 0.6), drama: 1, boss: true, bossAlive: true, enraged: false, scene: 'combat', urgency: 0, heroic: 0, state: sim.state };
+            }
             return { danger: inDanger, drama: inDanger, boss: false, bossAlive: false, enraged: false, scene: inDanger > 0.35 ? 'combat' : 'calm', urgency: 0, heroic: 0, state: sim.state };
         }
         const enemies = stage.enemies || [];

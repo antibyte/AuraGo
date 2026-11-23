@@ -145,10 +145,47 @@
         return out;
     }
 
+    // ---- observatory: D lydian, slow; a low drone, glass and celesta stars, a ticking pulse; the drama layer is the guardian fight ----
+    function composeObs(th, layer, bar, seed) {
+        const rng = rngFor(th, layer, bar, seed);
+        const out = [];
+        if (layer === 'pad') {
+            out.push(note(0, 3.9, deg(th, 0) - 12, 0.8, 'growl'));
+            if (bar % 2 === 1) out.push(note(1, 2.8, fold(deg(th, 4), th.root - 2, th.root + 10), 0.5, 'choir'));
+        } else if (layer === 'bass') {
+            if (bar % 2 === 0) out.push(note(0, 3.6, fold(deg(th, chordOf(th, bar)), th.root - 14, th.root - 3), 0.62, 'cello'));
+        } else if (layer === 'arp') {
+            [0, 1.5, 2.5].forEach(function (t, i) {
+                if ((bar + i) % 3 !== 0) out.push(note(t, 0.8, fold(deg(th, chordOf(th, bar) + [0, 2, 4][i] + 7), th.root + 12, th.root + 31), 0.5, 'glass'));
+            });
+        } else if (layer === 'melody') {
+            const count = rng() < 0.2 ? 0 : (rng() < 0.6 ? 1 : 2);
+            const slots = [0.5, 1.25, 2, 2.75, 3.25];
+            const degs = [0, 2, 3, 4, 6];
+            const pick = degs[Math.floor(rng() * degs.length)];
+            for (let i = 0; i < count; i++) {
+                const at = slots.splice(Math.floor(rng() * slots.length), 1)[0];
+                out.push(note(at, 0.9, deg(th, pick + (i ? 2 : 0)) + 24, 0.6 + rng() * 0.25, 'celesta'));
+            }
+            out.sort(function (a, b) { return a.t - b.t; });
+        } else if (layer === 'perc') {
+            [0, 1, 2, 3].forEach(function (t) { out.push(note(t, 0.05, null, t === 0 ? 0.42 : 0.26, t === 0 ? 'clock' : 'tick')); });
+            if (bar % 8 === 6) out.push(note(0, 0.5, null, 0.6, 'taiko'));
+        } else if (layer === 'drama') {
+            [0, 4, 0, 6, 0, 4, 3, 4].forEach(function (d, i) {
+                out.push(note(i * 0.5, 0.4, fold(deg(th, d), th.root - 12, th.root + 2), i % 2 === 0 ? 0.88 : 0.7, 'cello'));
+            });
+            [0, 1, 2, 3].forEach(function (t, i) { out.push(note(t, 0.5, null, i === 0 ? 0.9 : 0.72, i % 2 ? 'tom' : 'taiko')); });
+            [0.5, 1.5, 2.5, 3.5].forEach(function (t) { out.push(note(t, 0.05, null, 0.4, 'clock')); });
+        }
+        return out;
+    }
+
     const SPECS = {
         village: { root: 55, scale: 'ionian', bpm: 104, prog: [[0, 3, 0, 4], [0, 3, 4, 0]], compose: composeVillage, perc: 0.65, vol: 1.35 },
         in_cozy: { root: 57, scale: 'ionian', bpm: 132, prog: [[0, 3, 0, 4], [0, 3, 4, 0]], compose: composeCozy, perc: 1.0, vol: 1.75 },
-        in_cave: { root: 40, scale: 'phrygian', bpm: 54, prog: [[0, 0, 0, 0], [0, 0, 0, 0]], compose: composeCave, perc: 0.8, vol: 1.0 }
+        in_cave: { root: 40, scale: 'phrygian', bpm: 54, prog: [[0, 0, 0, 0], [0, 0, 0, 0]], compose: composeCave, perc: 0.8, vol: 1.0 },
+        in_obs: { root: 50, scale: 'lydian', bpm: 58, prog: [[0, 0, 3, 0], [0, 4, 3, 0]], compose: composeObs, perc: 0.7, vol: 1.0 }
     };
     const IDS = Object.keys(SPECS);
 
