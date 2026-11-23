@@ -136,8 +136,13 @@ function hashtagNodeView(options) {
 }
 
 function calloutMarkerNodeView(options) {
-    return node => {
+    return (node, view, getPos, decorations) => {
         let current = node;
+        let label = null;
+        // The callout plugin marks the marker atom when the first line carries a title: the title is the header text then.
+        const applyTitle = decos => {
+            if (label) label.hidden = !!(decos && decos.some(d => d.spec && d.spec.calloutHasTitle));
+        };
         const dom = document.createElement('span');
         const render = () => {
             const {value, fold} = current.attrs;
@@ -148,7 +153,7 @@ function calloutMarkerNodeView(options) {
             const icon = document.createElement('span');
             icon.className = 'notes-callout-icon';
             icon.innerHTML = (typeof options.icon === 'function' && options.icon(iconForCallout(value))) || '';
-            const label = document.createElement('span');
+            label = document.createElement('span');
             label.className = 'notes-callout-label';
             label.textContent = (typeof options.label === 'function' && options.label(value)) || value;
             dom.append(icon, label);
@@ -160,19 +165,58 @@ function calloutMarkerNodeView(options) {
             }
         };
         render();
+        applyTitle(decorations);
         return {
             dom,
-            update(next) {
+            update(next, decos) {
                 if (next.type !== current.type) return false;
                 const changed = next.attrs.value !== current.attrs.value || next.attrs.fold !== current.attrs.fold;
                 current = next;
                 if (changed) render();
+                applyTitle(decos);
                 return true;
             },
             ignoreMutation: () => true,
             stopEvent: event => event.type.startsWith('mouse') || event.type === 'click'
         };
     };
+}
+
+// Header line of a callout: [!type] Title, soft break, body. The Markdown keeps title and body in one paragraph, so the
+// layout is done with decorations only: a styled title span, a block-forcing widget at the soft break, and a flag on
+// the marker atom that hides the type label when a title is present.
+function calloutHeaderDecorations(paragraph, contentStart, decorations) {
+    const marker = paragraph.firstChild;
+    const titleStart = contentStart + marker.nodeSize;
+    let offset = marker.nodeSize;
+    let breakAt = -1;
+    let hasTitle = false;
+    let hasBody = false;
+    for (let i = 1; i < paragraph.childCount; i++) {
+        const child = paragraph.child(i);
+        const blank = child.isText && child.text.trim() === '';
+        if (breakAt < 0) {
+            if (child.type.name === 'hardbreak') breakAt = contentStart + offset;
+            else if (!blank) hasTitle = true;
+        } else if (!blank) {
+            hasBody = true;
+        }
+        offset += child.nodeSize;
+    }
+    const titleEnd = breakAt >= 0 ? breakAt : contentStart + offset;
+    if (hasTitle && titleEnd > titleStart) {
+        decorations.push(Decoration.inline(titleStart, titleEnd, {class: 'notes-callout-title', style: 'font-weight:650;color:var(--callout, currentColor)'}));
+    }
+    decorations.push(Decoration.node(contentStart, titleStart, {}, {calloutHasTitle: hasTitle}));
+    if (breakAt >= 0 && hasBody) {
+        decorations.push(Decoration.widget(breakAt, () => {
+            const br = document.createElement('span');
+            br.className = 'notes-callout-break';
+            br.setAttribute('style', 'display:block;height:0');
+            br.setAttribute('aria-hidden', 'true');
+            return br;
+        }, {side: -1, key: 'notes-callout-break', ignoreSelection: true}));
+    }
 }
 
 function calloutDecorations(doc) {
@@ -185,6 +229,7 @@ function calloutDecorations(doc) {
             const attrs = {class: 'notes-callout', 'data-callout': canonicalCallout(marker.attrs.value)};
             if (marker.attrs.fold) attrs['data-fold'] = marker.attrs.fold;
             decorations.push(Decoration.node(pos, pos + node.nodeSize, attrs));
+            calloutHeaderDecorations(paragraph, pos + 2, decorations);
         }
         return true;
     });
