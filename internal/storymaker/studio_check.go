@@ -71,6 +71,12 @@ type checkEnvironmentAnswer struct {
 // for three or more consecutive show beats of one scene with the same entry style, and spot_overlap when
 // actors or shown items share the same named spot.
 func LintForJob(st *Story) []Issue {
+	return LintForJobMode(st, ModeCatalog)
+}
+
+// LintForJobMode is LintForJob for the mode of the project. A free project has only code scenes, so its code scenes get the
+// narration budget too; the catalog mode keeps skipping them.
+func LintForJobMode(st *Story, mode string) []Issue {
 	if st == nil {
 		return nil
 	}
@@ -94,6 +100,9 @@ func LintForJob(st *Story) []Issue {
 			})
 		}
 		if sc.Kind == "code" {
+			if mode == ModeFree && !sc.Silent {
+				out = append(out, narrationBudgetIssues(sc, i)...)
+			}
 			continue
 		}
 		out = append(out, lintSceneStage(sc, i)...)
@@ -119,15 +128,22 @@ func LintForJob(st *Story) []Issue {
 		if sc.Silent {
 			continue
 		}
-		if words := WordCount(StripMarkers(sc.Narration)); float64(words) > checkHouseWords*checkOverFactor {
-			out = append(out, Issue{
-				Severity: SeverityWarning, SceneID: sc.ID, Path: jp("scenes", i) + "/narration", Code: CodeOverBudget,
-				Message: fmt.Sprintf("The narration of scene %s has %d words; the budget is about %d.", sc.ID, words, checkHouseWords),
-				Fix:     "Shorten the narration or split the scene.",
-			})
-		}
+		out = append(out, narrationBudgetIssues(sc, i)...)
 	}
 	return out
+}
+
+// narrationBudgetIssues is the over_budget lint of one scene.
+func narrationBudgetIssues(sc *Scene, index int) []Issue {
+	words := WordCount(StripMarkers(sc.Narration))
+	if float64(words) <= checkHouseWords*checkOverFactor {
+		return nil
+	}
+	return []Issue{{
+		Severity: SeverityWarning, SceneID: sc.ID, Path: jp("scenes", index) + "/narration", Code: CodeOverBudget,
+		Message: fmt.Sprintf("The narration of scene %s has %d words; the budget is about %d.", sc.ID, words, checkHouseWords),
+		Fix:     "Shorten the narration or split the scene.",
+	}}
 }
 
 // lintSceneStage checks whether a scene places two actors or an actor and a prop/text reveal on
@@ -325,7 +341,7 @@ func (s *Studio) runCheck(ctx context.Context) (CheckReport, string, error) {
 	found = append(found, LayoutIssues(summary.Layout, StoryLayoutOptions(&story))...)
 	found = append(found, LookAlikeIssues(summary.Stills)...)
 	found = append(found, ContrastIssues(summary.Stills)...)
-	found = append(found, LintForJob(&story)...)
+	found = append(found, LintForJobMode(&story, s.job.Mode)...)
 	found = append(found, s.craftIssues(ctx, &story)...)
 	found = append(found, LintWords(&story, s.job.Language)...)
 	found = dedupeCheckIssues(found)

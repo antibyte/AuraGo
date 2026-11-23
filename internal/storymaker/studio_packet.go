@@ -37,6 +37,7 @@ func (s *Studio) Packet(ctx context.Context, compact bool) (map[string]any, erro
 	if err != nil {
 		return nil, err
 	}
+	free := EffectiveMode(job.Mode) == ModeFree
 	packet := map[string]any{
 		"phase":           phase,
 		"language":        job.Language,
@@ -51,8 +52,10 @@ func (s *Studio) Packet(ctx context.Context, compact bool) (map[string]any, erro
 		packet["target_words"] = int(math.Round(float64(job.TargetSeconds) * packetWordsPerSecond))
 		packet["suggested_scenes"] = packetSuggestedScenes(job.TargetSeconds)
 		packet["templates"] = packetTemplates
-		packet["environments"] = deps.Catalog.Names("environment")
-		packet["environment_guide"] = packetEnvironmentGuide(deps.Catalog)
+		if !free {
+			packet["environments"] = deps.Catalog.Names("environment")
+			packet["environment_guide"] = packetEnvironmentGuide(deps.Catalog)
+		}
 	case PhaseCast:
 		packet["story"] = packetSummary(story)
 		packet["characters"] = deps.Catalog.Names("character")
@@ -67,11 +70,15 @@ func (s *Studio) Packet(ctx context.Context, compact bool) (map[string]any, erro
 			packet["character_looks"] = packetCharacterLooks(deps.Catalog)
 		}
 	case PhaseFill:
-		if err := packetFill(ctx, packet, story, sceneID, job, deps); err != nil {
+		fill := packetFill
+		if free {
+			fill = packetFreeFill
+		}
+		if err := fill(ctx, packet, story, sceneID, job, deps); err != nil {
 			return nil, err
 		}
 		if !compact {
-			packet["story"] = packetSummary(story)
+			packet["story"] = packetSummaryFor(story, job.Mode)
 		}
 	case PhaseCheck:
 		report, err := s.Check(ctx)
@@ -80,21 +87,25 @@ func (s *Studio) Packet(ctx context.Context, compact bool) (map[string]any, erro
 		}
 		packet["issues"] = append([]Issue{}, CapIssues(report.Issues, MaxModelIssues)...)
 		packet["advice"] = append([]Issue{}, CapIssues(report.Advice, packetAdviceLimit)...)
-		packet["cast"] = packetCast(story)
-		packet["environments"] = packetEnvironments(deps.Catalog)
+		if !free {
+			packet["cast"] = packetCast(story)
+			packet["environments"] = packetEnvironments(deps.Catalog)
+		}
 		if !compact {
-			packet["story"] = packetSummary(story)
+			packet["story"] = packetSummaryFor(story, job.Mode)
 		}
 	case PhaseRevise:
 		progress, err := s.Progress(ctx)
 		if err != nil {
 			return nil, err
 		}
-		packet["story"] = packetSummary(story)
+		packet["story"] = packetSummaryFor(story, job.Mode)
 		packet["unfilled"] = append([]string{}, progress.Unfilled...)
-		packet["issues"] = packetIssues(story, deps, "")
-		packet["cast"] = packetCast(story)
-		packet["environments"] = packetEnvironments(deps.Catalog)
+		packet["issues"] = packetIssues(story, deps, "", job.Mode)
+		if !free {
+			packet["cast"] = packetCast(story)
+			packet["environments"] = packetEnvironments(deps.Catalog)
+		}
 	default:
 		return nil, fmt.Errorf("storymaker: a packet needs a known phase, not %q", phase)
 	}
@@ -196,7 +207,7 @@ func packetFill(ctx context.Context, packet map[string]any, story *Story, sceneI
 	}
 	packet["cast"] = packetCast(story)
 	packet["environments"] = packetEnvironments(deps.Catalog)
-	packet["open_issues"] = packetIssues(story, deps, sc.ID)
+	packet["open_issues"] = packetIssues(story, deps, sc.ID, job.Mode)
 	direction := DirectionPlan(story, project.Template, deps.Catalog)[index]
 	packet["direction"] = direction.packet()
 	packet["example"] = packetFillExample(story.Cast, direction)
@@ -204,6 +215,70 @@ func packetFill(ctx context.Context, packet map[string]any, story *Story, sceneI
 		packet["note"] = packetNoVoiceNote
 	}
 	return nil
+}
+
+const packetFreeNoVoiceNote = "No voice is ready, so viewers may read instead of listen. Still write the narration, and draw one short text line in each scene."
+
+// packetFreeFill adds the fields of one scene's fill loop in a free project: the narration and its neighbours. There is no
+// environment, cast, prop or direction, because the scene's code draws everything.
+func packetFreeFill(ctx context.Context, packet map[string]any, story *Story, sceneID string, job StudioJob, deps StudioDeps) error {
+	index := -1
+	for i := range story.Scenes {
+		if story.Scenes[i].ID == sceneID {
+			index = i
+			break
+		}
+	}
+	if index < 0 {
+		return fmt.Errorf("storymaker: the scene %q is not in the story", clip(sceneID, 40))
+	}
+	project, err := deps.Projects.Get(ctx, job.ProjectID)
+	if err != nil {
+		return err
+	}
+	sc := &story.Scenes[index]
+	packet["scene"] = map[string]any{
+		"id":          sc.ID,
+		"index":       index + 1,
+		"total":       len(story.Scenes),
+		"narration":   sc.Narration,
+		"words":       WordCount(StripMarkers(sc.Narration)),
+		"word_budget": packetWordBudget(project.Template, job.TargetSeconds, len(story.Scenes)),
+	}
+	if index > 0 {
+		prev := &story.Scenes[index-1]
+		packet["previous_scene"] = map[string]any{
+			"id":        prev.ID,
+			"narration": clip(StripMarkers(prev.Narration), packetNarrationRunes),
+			"drawn":     prev.Kind == "code",
+		}
+	}
+	if index+1 < len(story.Scenes) {
+		next := &story.Scenes[index+1]
+		packet["next_scene"] = map[string]any{
+			"id":        next.ID,
+			"narration": clip(StripMarkers(next.Narration), packetNarrationRunes),
+		}
+	}
+	packet["max_code_bytes"] = StudioCodeBytes
+	packet["open_issues"] = packetIssues(story, deps, sc.ID, job.Mode)
+	packet["next"] = `get_code, then put_code with expected_rev and data.source, then put_scene with data {"kind":"code"}`
+	if !job.VoiceAvailable {
+		packet["note"] = packetFreeNoVoiceNote
+	}
+	return nil
+}
+
+// packetSummaryFor is packetSummary for the mode of the project. A free project has no environment to name: the default that
+// ApplyDefaults writes into each scene is not drawn.
+func packetSummaryFor(story *Story, mode string) map[string]any {
+	out := packetSummary(story)
+	if EffectiveMode(mode) == ModeFree {
+		for _, row := range out["scenes"].([]map[string]any) {
+			delete(row, "environment")
+		}
+	}
+	return out
 }
 
 func packetCharacterLooks(cat *Catalog) []map[string]any {
@@ -414,8 +489,8 @@ func packetSummary(story *Story) map[string]any {
 
 // packetIssues lists the validation errors and the over_budget lint, for one scene or, with sceneID "", for the story.
 // It starts no browser. scene_unfilled stays out: a fill packet is that scene's task, and a revise packet has unfilled.
-func packetIssues(story *Story, deps StudioDeps, sceneID string) []Issue {
-	all := append(Validate(story, deps.Catalog, deps.Limits), LintForJob(story)...)
+func packetIssues(story *Story, deps StudioDeps, sceneID, mode string) []Issue {
+	all := append(Validate(story, deps.Catalog, deps.Limits), LintForJobMode(story, mode)...)
 	out := []Issue{}
 	for _, is := range all {
 		if is.Code == CodeSceneUnfilled || (is.Severity != SeverityError && is.Code != CodeOverBudget) {
