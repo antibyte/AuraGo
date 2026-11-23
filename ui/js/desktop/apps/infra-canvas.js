@@ -383,17 +383,20 @@
         }
 
         // ---- regions --------------------------------------------------------------
+        // regionColor is the palette id of a coloured place or group, or '' (an unknown value draws like no colour).
+        const regionColor = node => { const color = node?.profile?.color; return color && (window.InfraAppArrange?.PALETTE || []).includes(color) ? color : ''; };
         function regionHTML(node, depth) {
             const id = esc(node.id), count = store.childrenOf(node.id).length;
             const label = model.countText(count, t('desktop.infra_region_label_one'), t('desktop.infra_region_label'), { name: node.name || node.id, kind: kindLabel(node.kind) });
             const handles = store.canWrite() && store.features.layoutParent ? RESIZE_HANDLES.map(side => `<span class="infra-region-handle" data-resize="${side}" aria-hidden="true"></span>`).join('') : '';
-            return `<div class="infra-region" data-region="${id}" data-kind="${esc(node.kind)}" data-depth="${depth}">`
+            const color = regionColor(node);
+            return `<div class="infra-region" data-region="${id}" data-kind="${esc(node.kind)}" data-depth="${depth}"${color ? ` data-color="${esc(color)}"` : ''}>`
                 + `<button type="button" class="infra-region-header" data-region-header="${id}" tabindex="-1" aria-pressed="false" aria-label="${esc(label)}">`
                 + `<img class="infra-region-icon" src="${esc(model.iconURL(node.icon))}" alt="" draggable="false"><span class="infra-region-name">${esc(node.name || node.id)}</span><span class="infra-region-count" aria-hidden="true">${count}</span></button>`
                 + `<span class="infra-region-drop" data-region-drop aria-hidden="true"></span>${handles}</div>`;
         }
         function regionSig(node, depth) {
-            return [node.name, model.iconURL(node.icon), node.kind, store.childrenOf(node.id).length, store.canWrite() && store.features.layoutParent, depth].join('\x1f');
+            return [node.name, model.iconURL(node.icon), node.kind, store.childrenOf(node.id).length, store.canWrite() && store.features.layoutParent, depth, regionColor(node)].join('\x1f');
         }
         function writeRegion(entry, rect) {
             const s = entry.el.style;
@@ -682,7 +685,7 @@
 
         // ---- minimap -------------------------------------------------------------------
         function rebuildMinimap() {
-            const regionRects = last.regions.map(region => `<rect class="region" rx="16" x="${round1(region.rect.x)}" y="${round1(region.rect.y)}" width="${round1(region.rect.w)}" height="${round1(region.rect.h)}"/>`).join('');
+            const regionRects = last.regions.map(region => `<rect class="region" rx="16"${regionColor(store.nodeById(region.id)) ? ` data-color="${esc(regionColor(store.nodeById(region.id)))}"` : ''} x="${round1(region.rect.x)}" y="${round1(region.rect.y)}" width="${round1(region.rect.w)}" height="${round1(region.rect.h)}"/>`).join('');
             const cardRects = last.cards.map(card => {
                 const node = store.nodeById(card.id), live = model.liveState(node);
                 return `<rect class="card" rx="14" x="${card.x - model.CARD_W / 2}" y="${card.y - model.CARD_H / 2}" width="${model.CARD_W}" height="${model.CARD_H}"${live ? ` data-reach="${esc(live)}"` : ''}/>`;

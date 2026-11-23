@@ -825,28 +825,15 @@
             canvas.cardEl(ids[0])?.focus({ preventScroll: true });
             if (enter) enterMoveMode(ids);
         }
+        // The Map arranges through infra-arrange.js: a selection of several drawn cards that share one parent lays just those
+        // cards out, anything else lays the whole map out by connections.
         function arrange() {
             if (!store.canWrite()) return;
             const view = app.mapView(), scene = canvas.sceneData();
             if (view === 'topology') { void arrangeTopology(); return; }
-            const selected = [...state.selection].filter(id => scene.cardById.has(id));
-            const targets = selected.length ? selected : scene.cards.filter(card => !scene.regionRects.has(store.effectiveParent(card.id, view))).map(card => card.id);
-            const targetSet = new Set(targets);
-            const nodes = targets.map(id => store.nodeById(id)).filter(Boolean);
-            const obstacles = scene.cards.filter(card => !targetSet.has(card.id)).map(card => ({ x: card.x, y: card.y }));
-            const positions = model.gridPositions(nodes, obstacles, state.nodes.length);
-            if (!positions.size) return;
-            const before = new Map(), after = new Map();
-            for (const [id, position] of positions) {
-                const current = store.currentIntent(id, view, false);
-                if (!current) continue;
-                before.set(id, current);
-                after.set(id, { x: Math.round(position.x), y: Math.round(position.y), pinned: position.pinned === true });
-            }
-            if (!after.size) return;
-            const label = t('desktop.infra_arranged');
-            void store.dispatch(commands().moveNodes(view, before, after, label));
-            app.announce(label);
+            const picked = [...state.selection].filter(id => scene.cardById.has(id));
+            const together = picked.length > 1 && new Set(picked.map(id => store.effectiveParent(id, view))).size === 1;
+            void app.arrange.arrange('connections', together ? { ids: picked } : {});
         }
         // Arrange in Topology (A22) hands the selected cards, or every card when nothing is selected, back to the
         // automatic layout: one undoable PUT /layout of unplace operations, and undo restores the previous placements
@@ -882,6 +869,12 @@
                 return;
             }
             if (event.key === 'Escape' && event.target.closest?.('[data-inspector]') && !isTyping(event.target)) { event.preventDefault(); app.inspector?.close(); return; }
+            if (mod && key === 'g' && !event.altKey && !isTyping(event.target)) {
+                // Ctrl+G groups the selection in a framed place; Ctrl+Shift+G dissolves the selected group.
+                event.preventDefault();
+                void (event.shiftKey ? app.arrange.ungroupSelection() : app.arrange.groupSelection());
+                return;
+            }
             if (mod || event.altKey) return;
             // Text fields keep their keys; a checkbox still opens the menu of its row.
             const entering = !!event.target.closest?.('textarea, select, [contenteditable="true"], [contenteditable=""], input:not([type="checkbox"]):not([type="radio"])');

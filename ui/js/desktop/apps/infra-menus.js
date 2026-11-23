@@ -10,6 +10,7 @@
     const LEGEND_POWER = ['running', 'paused', 'stopped'];
     const LEGEND_LIVE = ['live', 'offline', 'unknown'];
     const LEGEND_EDGES = ['ethernet', 'fiber', 'wifi', 'depends_on', 'powered_by'];
+    const ARRANGE_MODES = [['connections', 'desktop.infra_arrange_by_connections'], ['type', 'desktop.infra_arrange_by_type'], ['grid', 'desktop.infra_arrange_grid']];
     const isEditable = target => !!target?.closest?.('input, textarea, select, [contenteditable="true"], [contenteditable=""]');
 
     function create(app) {
@@ -33,6 +34,11 @@
             : { ...item, disabled: true, disabledHint: t('desktop.infra_read_only'), action: () => {} });
         const plain = (item, anchor) => ({ ...item, action: focusFirst(anchor, item.action) });
         const separator = { type: 'separator' };
+        // A submenu that cannot be used while the window is read-only is a plain disabled item with the usual hint.
+        const submenu = (item, children) => (canWrite() ? { ...item, items: children } : { ...item, disabled: true, disabledHint: t('desktop.infra_read_only'), action: () => {} });
+        const arrangeModes = (anchor, run) => ARRANGE_MODES.map(([mode, key]) => write({ id: `arrange-${mode}`, label: t(key), icon: 'grid', action: () => { void run(mode); } }, anchor));
+        const inMap = () => state.view !== 'table' && app.mapView() === 'atlas';
+        const ctrlHint = key => `${t('desktop.infra_kbd_ctrl')}+${key}`;
         // Keyboards may also raise the browser's own contextmenu event right after Shift+F10; it must not replace the menu.
         let keyboardAt = -1000;
 
@@ -50,6 +56,12 @@
             if (single) items.push(write({ id: 'connect', label: t('desktop.infra_connect_to'), icon: 'link', action: () => app.picker.openAssetPicker({ anchor, rect, label: t('desktop.infra_connect_to'), accept: other => other.id !== id, onPick: option => app.dialogs.openEdgeDialog('', id, option.id) }) }, anchor));
             if (single) (node.app_links || []).filter(link => model.APP_LINK_TARGETS.has(link.app)).forEach((link, index) => items.push(plain({ id: `app-${index}`, label: model.fill(t('desktop.infra_open_in_app'), { app: appLabel(link.app) }), icon: 'apps', action: () => app.openAppLink(link) }, anchor)));
             if (state.view !== 'table' && store.features.unplace && ids.some(item => store.effectivePlacement(item, view))) items.push(write({ id: 'unplace', label: view === 'topology' ? t('desktop.infra_topology_auto_place') : t('desktop.infra_remove_from_map'), icon: 'x', action: () => { void app.gestures.removeFromMap(ids); } }, anchor));
+            if (!single && inMap()) {
+                const scene = app.canvas.sceneData(), drawn = ids.filter(item => scene?.cardById?.has(item));
+                items.push(separator);
+                if (drawn.length > 1 && new Set(drawn.map(item => store.effectiveParent(item, view))).size === 1) items.push(submenu({ id: 'arrange-selection', label: t('desktop.infra_arrange_selection'), icon: 'grid' }, arrangeModes(anchor, mode => app.arrange.arrange(mode, { ids: drawn }))));
+                if (ids.some(item => !model.isContainer(store.nodeById(item)?.kind))) items.push(write({ id: 'group', label: t('desktop.infra_group'), icon: 'folder', shortcut: ctrlHint('G'), action: () => { void app.arrange.group(ids); } }, anchor));
+            }
             items.push(separator, write({ id: 'remove', label: t('desktop.infra_remove_node'), icon: 'trash', action: () => { void app.dialogs.deleteNodes(ids); } }, anchor));
             if (ids.some(item => (store.nodeById(item)?.sources || []).length)) items.push(write({ id: 'remove-ignore', label: t('desktop.infra_remove_and_ignore'), icon: 'trash', action: () => { void app.dialogs.removeAndIgnore(ids); } }, anchor));
             return items;
@@ -63,6 +75,14 @@
             items.push(write({ id: 'rename', label: t('desktop.infra_rename'), icon: 'edit', action: () => { app.inspector.open(id, 'details'); app.inspector.focusName(); } }, anchor));
             items.push(write({ id: 'move', label: t('desktop.infra_move_to_place'), icon: 'folder', action: () => app.picker.openPlacePicker({ anchor, rect, exclude: [id], onPick: placeId => { void app.gestures.moveIntoPlace([id], placeId); } }) }, anchor));
             if (state.view !== 'table' && store.features.unplace && store.effectivePlacement(id, view)) items.push(write({ id: 'unplace', label: t('desktop.infra_remove_from_map'), icon: 'x', action: () => { void app.gestures.removeFromMap([id]); } }, anchor));
+            if (inMap()) {
+                const node = store.nodeById(id), current = node.profile?.color || '';
+                items.push(separator);
+                if (app.canvas.sceneData()?.regionRects?.has(id)) items.push(submenu({ id: 'arrange-contents', label: t('desktop.infra_arrange_contents'), icon: 'grid' }, arrangeModes(anchor, mode => app.arrange.arrange(mode, { placeId: id }))));
+                const swatches = [['', 'desktop.infra_color_none'], ...app.arrange.PALETTE.map(color => [color, `desktop.infra_color_${color}`])];
+                items.push(submenu({ id: 'color', label: t('desktop.infra_color'), icon: 'image' }, swatches.map(([color, key]) => write({ id: `color-${color || 'none'}`, label: t(key), icon: color === current ? 'check-square' : 'square', action: () => { void app.arrange.setColor(id, color); } }, anchor))));
+                if (node.kind === 'group') items.push(write({ id: 'ungroup', label: t('desktop.infra_ungroup'), icon: 'folder', shortcut: `${ctrlHint('Shift')}+G`, action: () => { void app.arrange.ungroup(id); } }, anchor));
+            }
             items.push(separator, write({ id: 'remove', label: t('desktop.infra_remove_node'), icon: 'trash', action: () => { void app.dialogs.deleteNodes([id]); } }, anchor));
             return items;
         }
@@ -89,6 +109,7 @@
                 write({ id: 'add', label: t('desktop.infra_new_asset'), icon: 'plus', action: () => app.dialogs.openNodeDialog('device') }, anchor),
                 write({ id: 'add-place', label: t('desktop.infra_new_place'), icon: 'folder', action: () => app.dialogs.openNodeDialog('room', { title: t('desktop.infra_new_place') }) }, anchor),
                 write({ id: 'import', label: t('desktop.infra_import_discoveries'), icon: 'download', action: () => app.importer.open() }, anchor),
+                ...(inMap() ? [submenu({ id: 'arrange-auto', label: t('desktop.infra_arrange_auto'), icon: 'grid' }, arrangeModes(anchor, mode => app.arrange.arrange(mode)))] : []),
                 separator,
                 plain({ id: 'fit', label: t('desktop.infra_zoom_fit'), icon: 'grid', action: () => app.canvas.fit({ animate: true }) }, anchor),
             ];
@@ -184,6 +205,8 @@
                 row(combo('←', '↑', '→', '↓'), t('desktop.infra_key_arrows')),
                 row(`${combo(t('desktop.infra_kbd_enter'))} / ${combo(space)}`, t('desktop.infra_key_enter')),
                 row(combo('M'), t('desktop.infra_key_move')),
+                row(combo(ctrl, 'G'), t('desktop.infra_key_group')),
+                row(combo(ctrl, shift, 'G'), t('desktop.infra_key_ungroup')),
                 row(combo('P'), t('desktop.infra_key_place')),
                 row(combo(ctrl, 'A'), t('desktop.infra_key_select_all')),
                 row(combo(t('desktop.infra_kbd_delete')), t('desktop.infra_key_delete')),

@@ -60,6 +60,14 @@ func normalizeNodeRuntime(node *Node) {
 	node.HostInferred = false
 }
 
+// profileColors are the frame colours a place or group may carry; the UI palette uses the same ids.
+var profileColors = map[string]bool{
+	"slate": true, "blue": true, "cyan": true, "teal": true, "green": true,
+	"amber": true, "orange": true, "red": true, "pink": true, "violet": true,
+}
+
+func validProfileColor(color string) bool { return color == "" || profileColors[color] }
+
 func validateProfile(profile *Profile) error {
 	for name, value := range map[string]string{
 		"role": profile.Role, "vendor": profile.Vendor, "model": profile.Model, "serial": profile.Serial,
@@ -83,6 +91,9 @@ func validateProfile(profile *Profile) error {
 	}
 	if len(profile.Notes) > 8192 || !utf8.ValidString(profile.Notes) || strings.ContainsRune(profile.Notes, '\x00') {
 		return fmt.Errorf("%w: notes exceed 8192 bytes or contain invalid text", ErrValidation)
+	}
+	if !validProfileColor(profile.Color) {
+		return fmt.Errorf("%w: invalid colour", ErrValidation)
 	}
 	if err := validateTags(profile.Tags); err != nil {
 		return err

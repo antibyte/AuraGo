@@ -187,6 +187,7 @@
         app.importer = window.InfraAppImport.create(app);
         app.menus = window.InfraAppMenus.create(app);
         app.gestures = window.InfraAppGestures.create(app);
+        app.arrange = window.InfraAppArrange.create(app);
         const { canvas, table, library, inspector, dialogs, importer, menus, gestures } = app;
         q('[data-popover="legend"]').innerHTML = menus.legendHTML();
         inspector.el.id = `infra-inspector-${S}`;
@@ -702,7 +703,7 @@
                 library.el.removeEventListener('keydown', onLibraryKey);
                 app.picker.dispose();
                 app.cleanup.dispose();
-                gestures.dispose(); menus.dispose(); canvas.dispose(); library.dispose(); inspector.dispose(); dialogs.dispose(); importer.dispose(); table.dispose();
+                gestures.dispose(); app.arrange.dispose(); menus.dispose(); canvas.dispose(); library.dispose(); inspector.dispose(); dialogs.dispose(); importer.dispose(); table.dispose();
                 for (const element of [...toastTimers.keys()]) removeToast(element);
                 clearTimeout(announceTimer); cancelAnimationFrame(searchFrame); cancelAnimationFrame(resizeFrame); cancelAnimationFrame(chipsFrame);
                 resizeObserver?.disconnect();

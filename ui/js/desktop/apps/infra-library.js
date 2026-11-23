@@ -128,11 +128,12 @@
             const treeAttrs = tree ? ` aria-level="${level}"${hasGuests ? ` aria-expanded="${open}"` : row.kind === 'region' && row.children.length ? ' aria-expanded="true"' : ''}` : '';
             const attention = row.reasons ? ` data-attention-tab="${ATTENTION_TABS[row.reasons[0].code] || 'overview'}"` : '';
             const shortcut = sectionId === 'to-place' && write ? ' aria-keyshortcuts="P"' : '';
+            const tint = model.isContainer(node.kind) && (window.InfraAppArrange?.PALETTE || []).includes(node.profile?.color) ? `<i class="infra-color-dot" data-color="${esc(node.profile.color)}" aria-hidden="true"></i>` : '';
             const live = model.liveState(node), power = node && model.powerLabel(node.power) ? node.power : '';
             const thumb = `<span class="infra-library-row-thumb" aria-hidden="true"><img class="infra-library-row-icon" src="${esc(model.iconURL(node.icon))}" alt="" draggable="false">${live ? `<i class="infra-library-live-dot" data-reach="${esc(live)}"></i>` : ''}${power ? `<i class="infra-library-power-dot" data-power="${esc(power)}"></i>` : ''}</span>`;
             return `<li class="infra-library-row" role="none" data-library-item="${id}" data-section="${sectionId}" data-row-kind="${esc(row.kind)}" data-node-kind="${esc(node.kind)}"${draggable}${drop}>`
                 + `<button type="button" class="infra-library-row-main" role="${tree ? 'treeitem' : 'option'}" aria-selected="${state.selection.has(node.id)}"${treeAttrs}${shortcut} data-library-select="${id}"${attention} tabindex="-1" title="${name}">${thumb}`
-                + `<span class="infra-library-row-text"><span class="infra-library-row-name">${name}</span><span class="${metaClass}">${meta}</span></span>${hasGuests ? `<span class="infra-library-guest-pill" aria-hidden="true">${row.children.length}</span>` : ''}</button>${action}`
+                + `<span class="infra-library-row-text"><span class="infra-library-row-name">${tint}${name}</span><span class="${metaClass}">${meta}</span></span>${hasGuests ? `<span class="infra-library-guest-pill" aria-hidden="true">${row.children.length}</span>` : ''}</button>${action}`
                 + (kids.length ? `<ul class="infra-library-children" role="group">${kids.map(kid => rowHTML(kid, sectionId, level + 1)).join('')}</ul>` : '') + '</li>';
         }
 

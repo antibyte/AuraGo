@@ -5,7 +5,7 @@ import crypto from 'node:crypto';
 import vm from 'node:vm';
 
 const root = path.resolve(import.meta.dirname, '..');
-const files = ['infra-model.js', 'infra-lanes.js', 'infra-store.js', 'infra-picker.js', 'infra-canvas.js', 'infra-gestures.js', 'infra-library.js', 'infra-cleanup.js', 'infra-inspector-forms.js', 'infra-inspector.js', 'infra-table.js', 'infra-dialogs.js', 'infra-import.js', 'infra-menus.js', 'infra.js'];
+const files = ['infra-model.js', 'infra-lanes.js', 'infra-store.js', 'infra-picker.js', 'infra-canvas.js', 'infra-gestures.js', 'infra-arrange.js', 'infra-library.js', 'infra-cleanup.js', 'infra-inspector-forms.js', 'infra-inspector.js', 'infra-table.js', 'infra-dialogs.js', 'infra-import.js', 'infra-menus.js', 'infra.js'];
 for (const file of files) {
     const text = fs.readFileSync(path.join(root, 'ui/js/desktop/apps', file), 'utf8');
     const lines = text.split('\n').length;
@@ -2064,3 +2064,61 @@ const cssRule = selector => { const at = canvasCSS.indexOf(`${selector} {`); ret
 }
 
 console.log(`Infra UI model, grouped virtualization, and ${required.size} translation keys passed for ${locales.length} locales.`);
+
+// ---- automatic arrangement (infra-arrange.js) ----
+{
+    const arrange = window.InfraAppArrange;
+    const rectOf = pos => model.cardRect(pos);
+    const noOverlap = positions => {
+        const list = [...positions.entries()];
+        for (let i = 0; i < list.length; i += 1) for (let j = i + 1; j < list.length; j += 1) assert.ok(!model.intersects(rectOf(list[i][1]), rectOf(list[j][1])), `cards ${list[i][0]} and ${list[j][0]} overlap`);
+    };
+    const items = [
+        { id: 'pc', kind: 'device', icon: 'workstation', name: 'PC' }, { id: 'sw', kind: 'device', icon: 'switch', name: 'Switch' },
+        { id: 'rt', kind: 'device', icon: 'router', name: 'Router' }, { id: 'net', kind: 'network', icon: 'internet', name: 'Internet' },
+        { id: 'nas', kind: 'device', icon: 'nas', name: 'NAS' }, { id: 'vm', kind: 'vm', icon: 'vm', name: 'VM' }, { id: 'lonely', kind: 'device', icon: 'laptop', name: 'Lonely' },
+    ];
+    const edges = [{ from: 'net', to: 'rt', kind: 'ethernet' }, { from: 'rt', to: 'sw', kind: 'ethernet' }, { from: 'sw', to: 'pc', kind: 'ethernet' }, { from: 'sw', to: 'nas', kind: 'ethernet' }, { from: 'vm', to: 'nas', kind: 'runs_on' }];
+    const byConnections = arrange.layoutCards(items, edges, { mode: 'connections' });
+    assert.ok(byConnections.get('net').x < byConnections.get('rt').x && byConnections.get('rt').x < byConnections.get('sw').x && byConnections.get('sw').x < byConnections.get('pc').x, 'connections mode runs left to right');
+    assert.equal(byConnections.get('pc').x, byConnections.get('nas').x);
+    assert.ok(byConnections.get('lonely').y > byConnections.get('pc').y, 'isolated cards go below the connected ones');
+    assert.ok(byConnections.get('vm').y > byConnections.get('pc').y, 'a runs_on edge does not connect');
+    const minX = Math.min(...[...byConnections.values()].map(pos => pos.x - model.CARD_W / 2)), minY = Math.min(...[...byConnections.values()].map(pos => pos.y - model.CARD_H / 2));
+    assert.equal(minX, 0); assert.equal(minY, 0);
+    for (const mode of ['connections', 'type', 'grid']) {
+        const first = arrange.layoutCards(items, edges, { mode }), second = arrange.layoutCards(items.slice().reverse(), edges.slice().reverse(), { mode });
+        noOverlap(first);
+        assert.equal(first.size, items.length);
+        assert.deepEqual(plain([...first].sort()), plain([...second].sort()), `${mode} is deterministic`);
+    }
+    const typed = arrange.layoutCards(items, edges, { mode: 'type' });
+    assert.ok(typed.get('rt').y < typed.get('pc').y && typed.get('pc').y < typed.get('vm').y, 'type mode orders network gear, devices, vms in bands');
+    const many = Array.from({ length: 10 }, (_, i) => ({ id: `n${i}`, kind: 'device', icon: 'workstation', name: `N${String(i).padStart(2, '0')}` }));
+    const grid = arrange.layoutCards(many, [], { mode: 'grid' });
+    assert.equal(new Set([...grid.values()].map(pos => pos.x)).size, 4);
+    assert.equal(new Set([...grid.values()].map(pos => pos.y)).size, 3);
+
+    const blocker = { x: 100, y: 100, w: 216, h: 64 }, wanted = { x: 60, y: 60, w: 300, h: 240 };
+    const spot = arrange.freeFrame(wanted, [blocker]);
+    assert.ok(!model.intersects(model.padRect(spot, 24), blocker) && spot.w === 300 && spot.h === 240, 'a frame on a card moves to a free spot');
+    assert.deepEqual(plain(arrange.freeFrame({ x: 1000, y: 0, w: 100, h: 100 }, [blocker])), { x: 1000, y: 0, w: 100, h: 100 });
+    // planLayout: nested places hold their children with the 48 px frame
+    const nodes = new Map([['site', { id: 'site', kind: 'site', name: 'Site' }], ['rack', { id: 'rack', kind: 'rack', name: 'Rack' }], ...items.map(item => [item.id, item])]);
+    const parents = { site: '', rack: 'site', sw: 'rack', nas: 'rack', pc: 'site', rt: 'site', net: '', vm: '', lonely: '' };
+    const plan = arrange.planLayout({
+        containerId: '', cards: items.map(item => ({ id: item.id })), regions: [{ id: 'site' }, { id: 'rack' }], parentOf: id => parents[id] || '', nodeById: id => nodes.get(id),
+        edges, mode: 'connections', origin: { x: 100, y: 100 },
+    });
+    assert.equal(plan.size, items.length + 2);
+    const frame = id => plan.get(id), contains = (outer, inner) => inner.x >= outer.x && inner.y >= outer.y && inner.x + inner.w <= outer.x + outer.w && inner.y + inner.h <= outer.y + outer.h;
+    const padded = (id, pad) => model.padRect(model.cardRect(plan.get(id)), pad);
+    for (const id of ['sw', 'nas']) assert.ok(contains(frame('rack'), padded(id, 48)), `rack frame holds ${id} plus padding`);
+    for (const id of ['pc', 'rt']) assert.ok(contains(frame('site'), padded(id, 48)), `site frame holds ${id} plus padding`);
+    assert.ok(contains(frame('site'), model.padRect(frame('rack'), 48)), 'site frame holds the rack frame plus padding');
+    assert.equal(frame('rack').x % 24, 0); assert.equal(frame('rack').w % 24, 0);
+    assert.ok(!model.intersects(frame('site'), model.cardRect(plan.get('net'))) && !model.intersects(frame('site'), model.cardRect(plan.get('vm'))), 'top-level cards stay outside the site frame');
+    noOverlap(new Map([...plan].filter(([id]) => !nodes.get(id) || !model.isContainer(nodes.get(id).kind))));
+    const onlyRack = arrange.planLayout({ containerId: 'rack', cards: items.filter(item => parents[item.id] === 'rack').map(item => ({ id: item.id })), regions: [{ id: 'rack' }], parentOf: id => parents[id] || '', nodeById: id => nodes.get(id), edges, origin: { x: 240, y: 120 } });
+    assert.deepEqual(plain(onlyRack.get('rack')), { x: 240, y: 120, w: onlyRack.get('rack').w, h: onlyRack.get('rack').h, pinned: true });
+}

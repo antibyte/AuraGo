@@ -862,7 +862,7 @@
         return changed;
     };
     const FORM_GROUPS = {
-        identity: ['name', 'kind', 'icon', 'parent_id', 'profile.role', 'profile.tags'],
+        identity: ['name', 'kind', 'icon', 'parent_id', 'profile.role', 'profile.tags', 'profile.color'],
         network: ['profile.ip_address', 'profile.mac_address', 'profile.cidr', 'profile.vlan', 'profile.interfaces'],
         hardware: ['profile.vendor', 'profile.model', 'profile.serial', 'profile.os', 'profile.firmware', 'profile.cpu', 'profile.ram', 'profile.storage', 'profile.rack_position'],
         links: ['profile.links', 'profile.app_bindings'],

@@ -75,6 +75,7 @@ type Profile struct {
 	Links        []Link             `json:"links"`
 	AppBindings  []AppLink          `json:"app_bindings"`
 	Notes        string             `json:"notes,omitempty"`
+	Color        string             `json:"color,omitempty"`
 	Custom       map[string]string  `json:"custom"`
 }
 

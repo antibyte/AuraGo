@@ -1633,3 +1633,38 @@ func TestSaveLayoutUnplaceCanRestoreTheParentAtomically(t *testing.T) {
 		t.Fatalf("parent restore without placement = %#v, %v", restored, err)
 	}
 }
+
+func TestGroupColourRoundTripsAndIsValidated(t *testing.T) {
+	store, _, _ := openInfraTestStore(t)
+	ctx := context.Background()
+	group := testNode(NodeGroup, "Gruppe", "group")
+	group.Profile.Color = "teal"
+	created, err := store.CreateNode(ctx, group)
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := store.GetNode(ctx, created.ID)
+	if err != nil || loaded.Profile.Color != "teal" {
+		t.Fatalf("persisted colour = %q, err %v", loaded.Profile.Color, err)
+	}
+	snapshot, err := store.Snapshot(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, node := range snapshot.Nodes {
+		if node.ID == created.ID {
+			found = node.Profile.Color == "teal"
+		}
+	}
+	if !found {
+		t.Fatal("snapshot lost the group colour")
+	}
+	for _, bad := range []string{"purple", "#fff", "Teal"} {
+		node := testNode(NodeGroup, "Bad "+bad, "group")
+		node.Profile.Color = bad
+		if _, err := store.CreateNode(ctx, node); !errors.Is(err, ErrValidation) {
+			t.Fatalf("colour %q error = %v; want validation error", bad, err)
+		}
+	}
+}
