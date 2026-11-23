@@ -256,6 +256,28 @@
         }
     }
 
+    // Faint icy sheen on the plain floor cells of a slippery room (rough ',' cells stay matte).
+    function slipperySheen(g, map, cols, rows) {
+        g.save();
+        for (let cy = 0; cy < rows; cy++) {
+            for (let cx = 0; cx < cols; cx++) {
+                if (kindAt(map, cx, cy) !== 2) continue;
+                const x = cx * CELL;
+                const y = cy * CELL;
+                const gr = g.createLinearGradient(x, y, x + CELL, y + CELL);
+                gr.addColorStop(0, 'rgba(225, 245, 255, 0.16)');
+                gr.addColorStop(0.45, 'rgba(225, 245, 255, 0.04)');
+                gr.addColorStop(1, 'rgba(225, 245, 255, 0.10)');
+                g.fillStyle = gr;
+                g.fillRect(x, y, CELL, CELL);
+                g.fillStyle = 'rgba(255, 255, 255, 0.10)';
+                g.fillRect(x + 6, y + 6, 14, 2);
+                g.fillRect(x + 28, y + 30, 9, 2);
+            }
+        }
+        g.restore();
+    }
+
     // Soft shadows on floor cells next to walls: strongest under the north wall.
     function contactShadows(g, map, cols, rows) {
         const wallish = function (cx, cy) { return !isFloor(kindAt(map, cx, cy)); };
@@ -317,6 +339,7 @@
             const altIdx = def.floorAlt === 1 ? 1 : (def.floorAlt === 0 ? 0 : 1);
             floorLayer(g, map, cols, rows, 0, clipFrame(atlas, 'tex-' + theme + '.t' + floorIdx), th.floor, theme);
             floorLayer(g, map, cols, rows, 1, clipFrame(atlas, 'tex-' + theme + '.t' + altIdx), th.alt, theme);
+            if (def.slippery) slipperySheen(g, map, cols, rows);
             wallTops(g, map, cols, rows, th, theme);
             wallFaces(g, map, cols, rows, th, atlas, theme, def.wall === 3 ? 3 : 2);
             contactShadows(g, map, cols, rows);

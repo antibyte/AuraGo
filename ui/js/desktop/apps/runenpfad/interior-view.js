@@ -35,6 +35,9 @@
         const glows = {};
         let insetCache = TOP_INSET;
         let insetAge = 99;
+        let TV = null; // things, guardians and prompt icons (interior-things-view.js), optional
+        try { const TM = root.RunenpfadInteriorThingsView; TV = TM && typeof TM.create === 'function' ? TM.create(h) : null; } catch (err) { TV = null; }
+        function mobSheet(kind) { return TV ? TV.mobSheet(kind) : 'td-' + kind; }
 
         // ---- loading ----
 
@@ -63,9 +66,10 @@
             ask('tex-' + def.theme);
             list(def.things).forEach(function (t) {
                 if (t.prop) ask(String(t.prop).split('.')[0]);
-                if (t.mob) ask('td-' + t.mob);
+                if (t.mob) ask(mobSheet(t.mob));
                 if (t.npc) { const f = folkSheet(t.npc); if (f) ask(f.sheet); }
             });
+            if (TV) TV.sheetsOfDef(def).forEach(ask);
             void extra;
         }
 
@@ -75,7 +79,7 @@
             ask('td-' + (sim.heroId === 'ranger' ? 'ranger' : 'knight'));
             if (iv.room && iv.room.def) askRoomDef(iv.room.def);
             list(iv.room && iv.room.props).forEach(function (p) { ask(String(p.clip).split('.')[0]); });
-            list(iv.mobs).forEach(function (m) { ask('td-' + m.kind); });
+            list(iv.mobs).forEach(function (m) { ask(mobSheet(m.kind)); });
             list(iv.npcs).forEach(function (n) { const f = folkSheet(n.npcId); if (f) ask(f.sheet); });
             // The other rooms of this place, so doors between rooms never show a bare floor.
             const R = root.RunenpfadPlaceRooms;
@@ -293,6 +297,7 @@
         }
 
         function drawPickup(p, f) {
+            if (p.kind === 'key' && TV && TV.drawKey(p, f)) return;
             const bob = f.reduced ? 0 : Math.sin(f.t * 4 + p.x * 0.05) * 3;
             shadow(p.x, p.y, 10, 0.3);
             glow(p.x, p.y - 14 + bob, 28, p.kind === 'heart' ? 'rgba(253, 164, 175, 0.8)' : p.kind === 'potion' ? 'rgba(167, 139, 250, 0.8)' : 'rgba(255, 224, 102, 0.8)', 0.55);
@@ -401,22 +406,23 @@
         function drawMob(m, f) {
             const def = mobDef(m.kind);
             const r = m.r > 0 ? m.r : (def && def.r) || MOB_R[m.kind] || 12;
-            const height = clamp(r * 4.6, 34, 84);
+            const boss = !!(TV && TV.isBoss(m));
+            const height = boss ? TV.bossHeight(clamp(r * 4.6, 34, 84)) : clamp(r * 4.6, 34, 84);
             const dead = m.state === 'dead';
             let alpha = 1;
             if (dead) alpha = clamp(1 - ((m.deadT || 0) - 0.12) / 0.45, 0, 1);
             if (alpha <= 0.01) return;
             const lift = FLYERS[m.kind] && !dead ? 16 + (f.reduced ? 0 : Math.sin(f.t * 6 + m.x) * 4) : 0;
             shadow(m.x, m.y, r * 1.1 * (1 - lift / 90), 0.32 * alpha);
-            const clip = 'td-' + m.kind + '.' + (dead ? 'death' : m.state === 'tell' ? 'tell' : m.state === 'attack' ? 'attack' : m.state === 'hurt' ? 'hurt' : 'move');
+            const clip = mobSheet(m.kind) + '.' + (dead ? 'death' : m.state === 'tell' ? 'tell' : m.state === 'attack' ? 'attack' : m.state === 'hurt' ? 'hurt' : 'move');
             const flash = m.hurtT > 0 && !dead ? Math.min(0.85, m.hurtT * 6) : 0;
             const o = { flip: m.face < 0, alpha: alpha, flash: flash };
             if (f.reduced) o.frame = 0;
             const y = m.y - lift;
-            if (hasClip(clip) && spr(clip, m.state === 'move' ? f.t + m.x * 0.01 : 0, m.x, y, height, o, f.s)) return;
+            if (hasClip(clip) && spr(clip, m.state === 'move' ? f.t + m.x * 0.01 : 0, m.x, y, height, o, f.s)) { if (boss) TV.drawBossOverlay(m, f); return; }
             ctx.save();
             ctx.globalAlpha = alpha;
-            ctx.fillStyle = flash > 0.3 ? '#ffffff' : MOB_COLOR[m.kind] || '#8a6a6a';
+            ctx.fillStyle = flash > 0.3 ? '#ffffff' : MOB_COLOR[m.kind] || (boss && TV.bossColor(m.kind)) || '#8a6a6a';
             ctx.strokeStyle = 'rgba(0,0,0,0.6)';
             ctx.lineWidth = 2;
             ctx.beginPath();
@@ -427,6 +433,7 @@
             ctx.fillRect(m.x - r * 0.45, y - r * 1.1, 3, 5);
             ctx.fillRect(m.x + r * 0.2, y - r * 1.1, 3, 5);
             ctx.restore();
+            if (boss) TV.drawBossOverlay(m, f);
         }
 
         // Pulsing warning ring on the floor for the whole tell.
@@ -523,7 +530,8 @@
         // ---- shots, floats, prompt ----
 
         function drawShot(s, f) {
-            const col = SHOT_COLOR[s.kind] || '#ffb060';
+            if (TV && TV.drawShot(s)) return;
+            const col = SHOT_COLOR[s.kind] || (TV && TV.shotColor(s.kind)) || '#ffb060';
             const sp = Math.hypot(s.vx || 0, s.vy || 0) || 1;
             const tx = (s.vx || 0) / sp;
             const ty = (s.vy || 0) / sp;
@@ -619,6 +627,8 @@
                 ctx.arc(p.x, cy - 38, 6, Math.PI, 0);
                 ctx.stroke();
                 ctx.restore();
+            } else if (TV && TV.promptIcon(p.kind, p.x, cy - 28)) {
+                // new prompt kinds draw their own icon
             } else if (icon && hasClip('ui-npc-icons.' + icon)) {
                 spr('ui-npc-icons.' + icon, 0, p.x, cy - 24, 26, {}, f.s);
             }
@@ -640,6 +650,14 @@
         function flicker(l, i, f) {
             if (!l.flicker || f.reduced) return 1;
             return 1 + 0.06 * Math.sin(f.t * 9.3 + i * 1.7) + 0.04 * Math.sin(f.t * 23.1 + i * 3.1) + 0.03 * Math.sin(f.t * 41 + i);
+        }
+
+        // Static room lights plus the dynamic ones of the things (lit braziers, lecterns with a new page).
+        function lightsOf(room, iv) {
+            const base = list(room.lights);
+            const T = root.RunenpfadInteriorThings;
+            if (!T || typeof T.lights !== 'function' || !iv) return base;
+            try { const dyn = T.lights(iv); return Array.isArray(dyn) && dyn.length ? base.concat(dyn) : base; } catch (err) { return base; }
         }
 
         // Darkness over the screen, punched by the room lights and the hero light (screen space).
@@ -669,7 +687,7 @@
                 g.fillStyle = rg;
                 g.fillRect(x - rr, y - rr, rr * 2, rr * 2);
             };
-            const lights = list(room.lights);
+            const lights = lightsOf(room, iv);
             for (let i = 0; i < lights.length; i++) {
                 const l = lights[i];
                 punch(l.x, l.y, (l.r || 160) * flicker(l, i, f), 1);
@@ -683,8 +701,8 @@
         }
 
         // Warm additive glow at light sources (also in bright rooms, so fireplaces stay alive).
-        function warmGlows(room, f) {
-            const lights = list(room.lights);
+        function warmGlows(room, f, iv) {
+            const lights = lightsOf(room, iv);
             const dark = room.def && room.def.dark > 0.01;
             for (let i = 0; i < lights.length; i++) {
                 const l = lights[i];
@@ -746,6 +764,7 @@
             // Floor markers first: tell rings sit under everything.
             const mobs = list(iv.mobs);
             for (let i = 0; i < mobs.length; i++) drawTell(mobs[i], f);
+            if (TV) TV.drawFloor(iv, sim, f);
 
             const objs = [];
             list(room.props).forEach(function (p) { if (p.layer !== 'floor') objs.push({ y: p.y, k: 0, o: p }); });
@@ -753,6 +772,7 @@
             list(iv.pickups).forEach(function (p) { if (!p.taken) objs.push({ y: p.y, k: 2, o: p }); });
             list(iv.npcs).forEach(function (n) { if (n.state !== 'gone') objs.push({ y: n.y, k: 3, o: n }); });
             mobs.forEach(function (m) { objs.push({ y: m.y - (m.state === 'dead' ? 4 : 0), k: 4, o: m }); });
+            if (TV) TV.sorted(iv).forEach(function (e) { objs.push({ y: e.y, k: 6, o: e.o }); });
             objs.push({ y: iv.hero.y, k: 5, o: iv.hero });
             objs.sort(function (a, b) { return a.y - b.y; });
             for (let i = 0; i < objs.length; i++) {
@@ -763,6 +783,7 @@
                     else if (e.k === 2) drawPickup(e.o, f);
                     else if (e.k === 3) drawNpc(e.o, sim, f);
                     else if (e.k === 4) drawMob(e.o, f);
+                    else if (e.k === 6) TV.drawObject(e.o, iv, sim, f);
                     else { drawHero(iv, sim, f); drawSwing(iv, sim); }
                 } catch (err) { /* a bad sprite must not stop the room */ }
             }
@@ -774,12 +795,13 @@
             ctx.save();
             ctx.translate(tx, ty);
             ctx.scale(s, s);
-            warmGlows(room, f);
+            warmGlows(room, f, iv);
             list(iv.npcs).forEach(function (n) { if (n.state !== 'gone') drawNpcOverlay(n, sim, f); });
             drawFloats(iv);
             drawPrompt(iv, f);
             ctx.restore();
 
+            if (TV) TV.drawBossBar(iv, f, vw, f.oy);
             drawWipe(sim, vw, vh, frame);
         }
 
@@ -831,6 +853,7 @@
             lightCv = null;
             lightCtx = null;
             cam.ready = false;
+            if (TV) TV.dispose();
         }
 
         return { wants: wants, prime: prime, render: render, drawWipe: drawWipe, dispose: dispose };

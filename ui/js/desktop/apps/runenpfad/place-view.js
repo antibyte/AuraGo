@@ -159,12 +159,49 @@
             groundStrip(x, y, w * 2);
         }
 
-        function drawFacade(door) {
+        function isSealed(sim, door) {
+            const P = root.RunenpfadPlaces;
+            try { return !!(P && typeof P.sealed === 'function' && door && door.placeId && P.sealed(sim, door.placeId)); } catch (err) { return false; }
+        }
+
+        // Rune seal over a sealed door: a slow amber glow with a small ring of runes (static with reduced motion).
+        function drawSeal(x, y, frame) {
+            const pulse = frame && frame.reducedMotion ? 0.8 : 0.65 + 0.35 * Math.sin((frame ? frame.nowSec : 0) * 2.4);
+            if (typeof ctx.createRadialGradient !== 'function') return;
+            const g = ctx.createRadialGradient(x, y, 0, x, y, 54);
+            g.addColorStop(0, 'rgba(255, 210, 120, ' + (0.5 * pulse).toFixed(3) + ')');
+            g.addColorStop(1, 'rgba(255, 210, 120, 0)');
+            ctx.save();
+            ctx.globalCompositeOperation = 'lighter';
+            ctx.fillStyle = g;
+            ctx.fillRect(x - 54, y - 54, 108, 108);
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.strokeStyle = 'rgba(255, 226, 150, ' + (0.55 + 0.3 * pulse).toFixed(3) + ')';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(x, y, 18, 0, Math.PI * 2);
+            ctx.stroke();
+            for (let i = 0; i < 6; i++) {
+                const a = i * Math.PI / 3;
+                ctx.beginPath();
+                ctx.moveTo(x + Math.cos(a) * 18, y + Math.sin(a) * 18);
+                ctx.lineTo(x + Math.cos(a) * 25, y + Math.sin(a) * 25);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        function drawFacade(door, sim, frame) {
             const fc = door.facade;
             if (!fc) { fallbackDoor(door); return; }
             const cx = door.x + (fc.dx || 0);
+            const sealed = isSealed(sim, door);
+            // The sealed frame is f1 of the same sheet; the shade cache is per clip.
+            const sealedClip = sealed ? String(fc.clip).replace(/\.f0$/, '.f1') : fc.clip;
+            const clip = sealedClip !== fc.clip && frameOf(sealedClip) ? sealedClip : fc.clip;
             groundStrip(cx, door.y, Math.max(90, fc.h * 0.75));
-            if (!drawFramed(fc.clip, cx, door.y, fc.h, false)) fallbackDoor(door);
+            if (!drawFramed(clip, cx, door.y, fc.h, false)) fallbackDoor(door);
+            if (sealed) drawSeal(door.x, door.y - Math.min(70, fc.h * 0.2), frame);
         }
 
         // Plain props of the hub (and decor without a door): { clip, x, y, h, flip? }.
@@ -303,7 +340,7 @@
                 for (let i = 0; i < doors.length; i++) {
                     const d = doors[i];
                     if (d.x < x0 || d.x > x1) continue;
-                    drawFacade(d);
+                    drawFacade(d, sim, frame);
                 }
                 if (st.hub) list(st.barks).forEach(function (b) { if (b.x > x0 && b.x < x1) drawBarkSprite(b, frame); });
             } catch (err) { /* art problems must never stop the frame */ }
