@@ -23,6 +23,9 @@ import (
 // Code Studio API so the real shell, bundle, CodeMirror and xterm can run
 // headless without a container.
 type codeStudioFixtureBackend struct {
+	// searchTruncated makes the fake search answer like the server at its 200-result cap.
+	searchTruncated bool
+
 	mu          sync.Mutex
 	files       map[string]string
 	dirs        map[string]bool
@@ -176,7 +179,11 @@ func (b *codeStudioFixtureBackend) register(mux *http.ServeMux) {
 				}
 			}
 		}
-		writeJSON(w, map[string]interface{}{"status": "ok", "results": results})
+		payload := map[string]interface{}{"status": "ok", "results": results}
+		if b.searchTruncated {
+			payload["truncated"] = true
+		}
+		writeJSON(w, payload)
 	})
 	mux.HandleFunc("/api/code-studio/git/status", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]interface{}{"status": "ok", "branch": "main", "changes": []map[string]string{{"status": "M", "path": "main.go"}, {"status": "??", "path": "src/util/format.py"}}, "log": []map[string]string{{"hash": "abc1234", "message": "initial commit"}}})
