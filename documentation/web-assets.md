@@ -61,8 +61,9 @@ with its selected tag; `scripts/make_deploy.sh` uses `AURAGO_RELEASE_TAG` when p
 Local builds have no download URL. Never substitute a `latest` resource set.
 
 The compressed archive limit is 1.5 GiB; the expanded set remains limited to
-2 GiB and 20,000 files. The updater installs resources with the staged candidate
+2 GiB and 25,000 files. The updater installs resources with the staged candidate
 binary, so it applies the matching version's limits before activation.
+If the file count exceeds the limit, the manifest error reports the count and limit.
 The packer uses gzip's default compression level. An oversized archive reports
 its byte count and limit separately from an invalid binary resource pin.
 

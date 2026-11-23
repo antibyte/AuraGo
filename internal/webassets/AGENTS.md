@@ -12,8 +12,9 @@ integration and versioned HTTP serving. See `documentation/web-assets.md`.
 - Verify every file before use; keep reads under `os.Root` and manifest paths.
   Reject archive links, traversal, duplicates, modes and size/count violations.
   Serialize installs; publish a verified directory atomically. Keep old sets.
-- Archives are bounded to 1.5 GiB; expanded resources remain bounded to 2 GiB
-  and 20,000 files. Packaging, installation and verification share these limits.
+- Archives are bounded to 1.5 GiB. Expanded resources are bounded to 2 GiB
+  and 25,000 files. Packaging, installation and verification share these limits.
+  File count errors report both the actual count and the limit.
   The packer uses gzip's default compression level. Oversized archives report
   their byte count and limit separately from invalid pins, before reading data.
 - Set `Default` once before services start. Installation never hot-swaps captured

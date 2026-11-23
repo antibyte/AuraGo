@@ -62,6 +62,39 @@ func TestArchiveSizeBudgetRejectsBeforeReading(t *testing.T) {
 	}
 }
 
+func TestManifestFileCountBudget(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		count   int
+		wantErr string
+	}{
+		{"reported source update", 20005, ""},
+		{"at limit", MaxFiles, ""},
+		{"over limit", MaxFiles + 1, fmt.Sprintf("asset manifest exceeds file count limit: %d files (maximum %d files)", MaxFiles+1, MaxFiles)},
+		{"empty", 0, "asset manifest contains no files"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			manifest := Manifest{Version: 1, Files: make([]Entry, tc.count)}
+			digest := Digest(nil)
+			for i := range manifest.Files {
+				manifest.Files[i] = Entry{Path: fmt.Sprintf("ui/resource-%d.txt", i), SHA256: digest}
+			}
+			data, err := json.Marshal(manifest)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = ParseManifest(data, Digest(data))
+			var got string
+			if err != nil {
+				got = err.Error()
+			}
+			if got != tc.wantErr {
+				t.Fatalf("ParseManifest error = %q, want %q", got, tc.wantErr)
+			}
+		})
+	}
+}
+
 func TestExpandedSizeBudget(t *testing.T) {
 	for _, tc := range []struct {
 		name          string

@@ -22,7 +22,7 @@ var SetID, ArchiveSHA256, ArchiveBytes, DownloadURL string
 const ManifestName = "manifest.json"
 const MaxArchiveBytes int64 = 1536 << 20
 const MaxExpandedBytes int64 = 2 << 30
-const MaxFiles = 20000
+const MaxFiles = 25000
 
 var ErrUnavailable = errors.New("web resources unavailable; install the matching asset set and restart AuraGo")
 
@@ -80,8 +80,14 @@ func ParseManifest(data []byte, id string) (Manifest, error) {
 	if err := json.Unmarshal(data, &m); err != nil {
 		return m, fmt.Errorf("decode asset manifest: %w", err)
 	}
-	if m.Version != 1 || len(m.Files) == 0 || len(m.Files) > MaxFiles {
-		return m, fmt.Errorf("unsupported asset manifest")
+	if m.Version != 1 {
+		return m, fmt.Errorf("unsupported asset manifest version %d (expected 1)", m.Version)
+	}
+	if len(m.Files) == 0 {
+		return m, fmt.Errorf("asset manifest contains no files")
+	}
+	if len(m.Files) > MaxFiles {
+		return m, fmt.Errorf("asset manifest exceeds file count limit: %d files (maximum %d files)", len(m.Files), MaxFiles)
 	}
 	seen := make(map[string]bool)
 	var total int64
