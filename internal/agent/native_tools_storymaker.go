@@ -18,26 +18,31 @@ type StorymakerNames struct {
 // storymakerSceneFields are the scene fields patch_scene can remove with null.
 var storymakerSceneFields = []string{"kind", "environment", "variant", "narration", "speaker", "transition", "duration", "camera", "actors", "props", "beats"}
 
-// StorymakerPhaseToolSchemas returns the closed job tool schemas of one phase.
-// The tools never join the normal catalog: a job profile is their only route.
+// StorymakerPhaseToolSchemas returns the closed job tool schemas of one phase in the catalog mode.
 func StorymakerPhaseToolSchemas(phase string, compact bool, names StorymakerNames) []openai.Tool {
+	return StorymakerPhaseToolSchemasFor(storymaker.ModeCatalog, phase, compact, names)
+}
+
+// StorymakerPhaseToolSchemasFor returns the closed job tool schemas of one phase for the mode of a project.
+// The tools never join the normal catalog: a job profile is their only route.
+func StorymakerPhaseToolSchemasFor(mode, phase string, compact bool, names StorymakerNames) []openai.Tool {
 	out := []openai.Tool{}
-	for _, name := range storymaker.PhaseTools(phase) {
+	for _, name := range storymaker.PhaseToolsFor(mode, phase) {
 		var definition openai.Tool
 		switch name {
 		case storymaker.ToolStory:
-			definition = storymakerStoryTool(phase, compact, names)
+			definition = storymakerStoryTool(mode, phase, compact, names)
 		case storymaker.ToolCatalog:
-			definition = storymakerCatalogTool(phase, compact)
+			definition = storymakerCatalogTool(mode, phase, compact)
 		case storymaker.ToolCheck:
-			definition = storymakerCheckTool(phase)
+			definition = storymakerCheckTool(mode, phase)
 		default:
 			continue
 		}
 		params := definition.Function.Parameters.(map[string]interface{})
 		normalizeProviderFragileObjectSchemas(params)
 		injectAdditionalPropertiesRec(params)
-		if name == storymaker.ToolStory && slices.Contains(storymaker.PhaseOperations(phase, name), "patch_scene") {
+		if name == storymaker.ToolStory && slices.Contains(storymaker.PhaseOperationsFor(mode, phase, name), "patch_scene") {
 			storymakerAllowNullRemoval(params)
 		}
 		out = append(out, definition)
@@ -75,13 +80,13 @@ func storymakerAllowNullRemoval(params map[string]interface{}) {
 	}
 }
 
-func storymakerStoryTool(phase string, compact bool, names StorymakerNames) openai.Tool {
-	operations := storymaker.PhaseOperations(phase, storymaker.ToolStory)
+func storymakerStoryTool(mode, phase string, compact bool, names StorymakerNames) openai.Tool {
+	operations := storymaker.PhaseOperationsFor(mode, phase, storymaker.ToolStory)
 	properties := map[string]interface{}{
 		"operation":    storymakerEnum(operations...),
 		"scene_id":     storymakerTyped("string"),
 		"expected_rev": storymakerTyped("string"),
-		"data":         schema(storymakerDataProperties(phase, compact, names)),
+		"data":         schema(storymakerDataProperties(mode, phase, compact, names)),
 	}
 	if slices.Contains(operations, "move_scene") {
 		properties["after"] = storymakerTyped("string")
@@ -94,7 +99,15 @@ func storymakerStoryTool(phase string, compact bool, names StorymakerNames) open
 		schema(properties, "operation"))
 }
 
-func storymakerCatalogTool(phase string, compact bool) openai.Tool {
+func storymakerCatalogTool(mode, phase string, compact bool) openai.Tool {
+	if storymaker.EffectiveMode(mode) == storymaker.ModeFree {
+		return tool(storymaker.ToolCatalog,
+			"Read the code reference with operation reference and topic code. A free project has no catalog assets.",
+			schema(map[string]interface{}{
+				"operation": storymakerEnum(storymaker.PhaseOperationsFor(mode, phase, storymaker.ToolCatalog)...),
+				"topic":     storymakerEnum("code"),
+			}, "operation"))
+	}
 	kinds := []string{"character", "prop", "environment", "pose", "gesture", "expression", "transition", "text_style", "sfx"}
 	if !compact || phase != storymaker.PhaseCast {
 		kinds = append(kinds, "voice")
@@ -102,7 +115,7 @@ func storymakerCatalogTool(phase string, compact bool) openai.Tool {
 	return tool(storymaker.ToolCatalog,
 		"Find exact asset ids, or read the animation/code reference with operation reference and topic. Search terms are English.",
 		schema(map[string]interface{}{
-			"operation": storymakerEnum(storymaker.PhaseOperations(phase, storymaker.ToolCatalog)...),
+			"operation": storymakerEnum(storymaker.PhaseOperationsFor(mode, phase, storymaker.ToolCatalog)...),
 			"topic":     storymakerEnum("animation", "code"),
 			"query":     storymakerTyped("string"),
 			"id":        storymakerTyped("string"),
@@ -111,17 +124,29 @@ func storymakerCatalogTool(phase string, compact bool) openai.Tool {
 		}, "operation"))
 }
 
-func storymakerCheckTool(phase string) openai.Tool {
+func storymakerCheckTool(mode, phase string) openai.Tool {
 	return tool(storymaker.ToolCheck,
 		"Check the saved story. Returns the current issues, advice, scene timing and compile state.",
 		schema(map[string]interface{}{
-			"operation": storymakerEnum(storymaker.PhaseOperations(phase, storymaker.ToolCheck)...),
+			"operation": storymakerEnum(storymaker.PhaseOperationsFor(mode, phase, storymaker.ToolCheck)...),
 		}, "operation"))
 }
 
 // storymakerDataProperties is the data object of one phase. Revise offers both
 // set_meta and the scene operations, so it carries both field groups.
-func storymakerDataProperties(phase string, compact bool, names StorymakerNames) map[string]interface{} {
+func storymakerDataProperties(mode, phase string, compact bool, names StorymakerNames) map[string]interface{} {
+	if storymaker.EffectiveMode(mode) == storymaker.ModeFree {
+		switch phase {
+		case storymaker.PhaseOutline:
+			return storymakerOutlineProperties()
+		case storymaker.PhaseRevise:
+			properties := storymakerFreeSceneProperties()
+			properties["title"] = storymakerTyped("string")
+			return properties
+		default:
+			return storymakerFreeSceneProperties()
+		}
+	}
 	switch phase {
 	case storymaker.PhaseOutline:
 		return storymakerOutlineProperties()
@@ -135,6 +160,18 @@ func storymakerDataProperties(phase string, compact bool, names StorymakerNames)
 		return properties
 	default:
 		return storymakerSceneProperties(compact, names)
+	}
+}
+
+// storymakerFreeSceneProperties is the scene data of a free project: its picture is the code, so a scene has a kind, its
+// narration and timing, and the source for put_code.
+func storymakerFreeSceneProperties() map[string]interface{} {
+	return map[string]interface{}{
+		"kind":       storymakerEnum("code"),
+		"source":     map[string]interface{}{"type": "string", "maxLength": storymaker.StudioCodeBytes, "description": "put_code only; first read get_code and the code reference"},
+		"narration":  storymakerTyped("string"),
+		"transition": storymakerEnum("cut", "fade", "slide-left", "wipe"),
+		"duration":   prop("string", "auto or seconds"),
 	}
 }
 
