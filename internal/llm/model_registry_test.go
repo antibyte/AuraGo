@@ -16,8 +16,8 @@ func TestGetModelInfo(t *testing.T) {
 		wantCtx  int
 	}{
 		{"openai", "gpt-4o", true, 128000},
-		{"anthropic", "claude-3-5-sonnet-20241022", true, 200000},
-		{"deepseek", "deepseek-v4-flash", true, 1000000},
+		{"anthropic", "claude-sonnet-4-5-20250929", true, 200000},
+		{"deepseek", "deepseek-v4-flash", true, 1048576},
 		{"agnes", "agnes-2.5-flash", true, 512000},
 		{"minimax", "MiniMax-M3", true, 1000000},
 		{"openrouter", "minimax/minimax-m3", true, 1048576},
@@ -130,8 +130,8 @@ func TestDetectContextWindowFromRegistry(t *testing.T) {
 		wantOK   bool
 	}{
 		{"openai", "gpt-4o", 128000, true},
-		{"anthropic", "claude-opus-4-0", 200000, true},
-		{"deepseek", "deepseek-v4-flash", 1000000, true},
+		{"anthropic", "claude-opus-4-5", 200000, true},
+		{"deepseek", "deepseek-v4-flash", 1048576, true},
 		{"agnes", "agnes-2.5-flash", 512000, true},
 		{"moonshot", "kimi-k2.5", 262144, true},
 		{"minimax", "MiniMax-M3", 1000000, true},

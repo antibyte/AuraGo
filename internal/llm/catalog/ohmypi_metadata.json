@@ -1,8 +1,8 @@
 {
   "package_name": "@oh-my-pi/pi-catalog",
-  "version": "18.10.4",
-  "tarball_url": "https://registry.npmjs.org/@oh-my-pi/pi-catalog/-/pi-catalog-18.10.4.tgz",
-  "synced_at": "2026-10-14T13:16:02Z",
+  "version": "19.1.1",
+  "tarball_url": "https://registry.npmjs.org/@oh-my-pi/pi-catalog/-/pi-catalog-19.1.1.tgz",
+  "synced_at": "2026-11-23T21:28:12Z",
   "repository_url": "https://github.com/can1357/oh-my-pi",
   "license": "MIT",
   "copyright": "Stencil Labs, Inc. and oh-my-pi contributors",

@@ -118,6 +118,13 @@ func BuildSnapshot(modelsJSON, rulesJSON []byte, metadata PackageMetadata) (Snap
 }
 
 func ParseModelsJSON(data []byte) ([]catalog.Model, error) {
+	if isCompactCatalog(data) {
+		expanded, err := expandCompactCatalog(data)
+		if err != nil {
+			return nil, err
+		}
+		data = expanded
+	}
 	var upstream map[string]map[string]upstreamModel
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.UseNumber()

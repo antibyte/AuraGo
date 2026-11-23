@@ -80,6 +80,14 @@
     "source": "oh-my-pi"
   },
   {
+    "id": "antigravity-cli",
+    "aura_provider_type": "antigravity-cli",
+    "name": "Antigravity Cli",
+    "default_model": "gemini-4-carbon",
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
     "id": "apple",
     "aura_provider_type": "apple",
     "name": "Apple",
@@ -124,6 +132,18 @@
     "source": "oh-my-pi"
   },
   {
+    "id": "bifrost",
+    "aura_provider_type": "bifrost",
+    "name": "Bifrost",
+    "default_model": "anthropic/claude-opus-5-5",
+    "env_vars": [
+      "BIFROST_API_KEY"
+    ],
+    "dynamic_models_authoritative": true,
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
     "id": "cerebras",
     "aura_provider_type": "cerebras",
     "name": "Cerebras",
@@ -131,7 +151,7 @@
     "env_vars": [
       "CEREBRAS_API_KEY"
     ],
-    "catalog_only": true,
+    "catalog_only": false,
     "source": "oh-my-pi"
   },
   {
@@ -144,6 +164,18 @@
       "HYPER_API_KEY"
     ],
     "allow_unauthenticated": true,
+    "dynamic_models_authoritative": true,
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "chutes",
+    "aura_provider_type": "chutes",
+    "name": "Chutes",
+    "default_model": "deepseek-ai/DeepSeek-V4-Flash-0731-TEE",
+    "env_vars": [
+      "CHUTES_API_KEY"
+    ],
     "dynamic_models_authoritative": true,
     "catalog_only": true,
     "source": "oh-my-pi"
@@ -313,6 +345,7 @@
     "env_vars": [
       "COPILOT_GITHUB_TOKEN"
     ],
+    "dynamic_models_authoritative": true,
     "catalog_only": false,
     "source": "oh-my-pi"
   },
@@ -393,35 +426,6 @@
     "source": "oh-my-pi"
   },
   {
-    "id": "google-gemini-cli",
-    "aura_provider_type": "google-gemini-cli",
-    "name": "Google Gemini Cli",
-    "default_model": "gemini-3.1-pro-preview",
-    "oauth_setup": {
-      "source": "oh-my-pi",
-      "source_package": "@oh-my-pi/pi-ai",
-      "source_provider": "google-gemini-cli",
-      "flow": "authorization_code_pkce",
-      "setup_url": "https://console.cloud.google.com/apis/credentials",
-      "docs_url": "https://goo.gle/gemini-cli-auth-docs#workspace-gca",
-      "console_label": "Google Cloud Credentials",
-      "redirect_uri_field": "Authorized redirect URIs",
-      "client_id_field": "Client ID",
-      "client_secret_field": "Client secret",
-      "auth_url": "https://accounts.google.com/o/oauth2/v2/auth",
-      "token_url": "https://oauth2.googleapis.com/token",
-      "scopes": [
-        "https://www.googleapis.com/auth/cloud-platform",
-        "https://www.googleapis.com/auth/userinfo.email",
-        "https://www.googleapis.com/auth/userinfo.profile"
-      ],
-      "callback_port": 8085,
-      "callback_path": "/oauth2callback"
-    },
-    "catalog_only": true,
-    "source": "oh-my-pi"
-  },
-  {
     "id": "google-vertex",
     "aura_provider_type": "google-vertex",
     "name": "Google Vertex",
@@ -466,6 +470,18 @@
     "source": "oh-my-pi"
   },
   {
+    "id": "inception",
+    "aura_provider_type": "inception",
+    "name": "Inception",
+    "default_model": "mercury-3",
+    "env_vars": [
+      "INCEPTION_API_KEY"
+    ],
+    "dynamic_models_authoritative": true,
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
     "id": "kilo",
     "aura_provider_type": "kilo",
     "name": "Kilo Gateway",
@@ -484,6 +500,30 @@
     "default_model": "kimi-for-coding",
     "env_vars": [
       "KIMI_API_KEY"
+    ],
+    "dynamic_models_authoritative": true,
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "kiro",
+    "aura_provider_type": "kiro",
+    "name": "Kiro",
+    "default_model": "auto",
+    "env_vars": [
+      "KIRO_API_KEY"
+    ],
+    "dynamic_models_authoritative": true,
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "liquid",
+    "aura_provider_type": "liquid",
+    "name": "Liquid",
+    "default_model": "d1.2",
+    "env_vars": [
+      "LIQUID_API_KEY"
     ],
     "catalog_only": true,
     "source": "oh-my-pi"
@@ -585,6 +625,29 @@
     "source": "oh-my-pi"
   },
   {
+    "id": "modal",
+    "aura_provider_type": "modal",
+    "name": "Modal",
+    "default_model": "modal-labs--ep-kimi-k3-1-server.us-west.modal.direct",
+    "env_vars": [
+      "MODAL_PROXY_TOKEN"
+    ],
+    "dynamic_models_authoritative": true,
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "modular",
+    "aura_provider_type": "modular",
+    "name": "Modular",
+    "default_model": "google/gemma-4-31b-it",
+    "env_vars": [
+      "MODULAR_API_KEY"
+    ],
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
     "id": "moonshot",
     "aura_provider_type": "moonshot",
     "name": "Moonshot",
@@ -602,6 +665,17 @@
     "name": "Muse Code",
     "default_model": "muse-spark-1.3",
     "dynamic_models_authoritative": true,
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "nace",
+    "aura_provider_type": "nace",
+    "name": "Nace",
+    "default_model": "drex-max-v1.1",
+    "env_vars": [
+      "NACE_API_KEY"
+    ],
     "catalog_only": true,
     "source": "oh-my-pi"
   },
@@ -720,7 +794,20 @@
       "OPENROUTER_API_KEY"
     ],
     "allow_unauthenticated": true,
+    "dynamic_models_authoritative": true,
     "catalog_only": false,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "otari",
+    "aura_provider_type": "otari",
+    "name": "Otari",
+    "default_model": "deepseek/deepseek-v4.1-flash",
+    "env_vars": [
+      "OTARI_API_KEY"
+    ],
+    "dynamic_models_authoritative": true,
+    "catalog_only": true,
     "source": "oh-my-pi"
   },
   {
@@ -755,6 +842,31 @@
     "env_vars": [
       "SAKANA_API_KEY",
       "FUGU_API_KEY"
+    ],
+    "dynamic_models_authoritative": true,
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "sambanova",
+    "aura_provider_type": "sambanova",
+    "name": "SambaNova",
+    "default_model": "gpt-oss-120b",
+    "env_vars": [
+      "SAMBANOVA_API_KEY"
+    ],
+    "dynamic_models_authoritative": true,
+    "catalog_only": true,
+    "source": "oh-my-pi"
+  },
+  {
+    "id": "scaleway",
+    "aura_provider_type": "scaleway",
+    "name": "Scaleway",
+    "default_model": "glm-5.3",
+    "env_vars": [
+      "SCW_SECRET_KEY",
+      "SCW_API_KEY"
     ],
     "dynamic_models_authoritative": true,
     "catalog_only": true,
@@ -858,7 +970,7 @@
     "id": "typesafe",
     "aura_provider_type": "typesafe",
     "name": "Typesafe",
-    "default_model": "jev-latest",
+    "default_model": "jev-1.14.0",
     "env_vars": [
       "TYPESAFE_API_KEY"
     ],
@@ -1013,7 +1125,7 @@
     "id": "xiaomi",
     "aura_provider_type": "xiaomi",
     "name": "Xiaomi",
-    "default_model": "mimo-v2.5",
+    "default_model": "mimo-v2.6-flash",
     "env_vars": [
       "XIAOMI_API_KEY"
     ],
@@ -1024,7 +1136,7 @@
     "id": "xiaomi-token-plan-ams",
     "aura_provider_type": "xiaomi-token-plan-ams",
     "name": "Xiaomi Token Plan Ams",
-    "default_model": "mimo-v2.5",
+    "default_model": "mimo-v2.6-flash",
     "env_vars": [
       "XIAOMI_TOKEN_PLAN_AMS_API_KEY"
     ],
@@ -1035,7 +1147,7 @@
     "id": "xiaomi-token-plan-cn",
     "aura_provider_type": "xiaomi-token-plan-cn",
     "name": "Xiaomi Token Plan Cn",
-    "default_model": "mimo-v2.5",
+    "default_model": "mimo-v2.6-flash",
     "env_vars": [
       "XIAOMI_TOKEN_PLAN_CN_API_KEY"
     ],
@@ -1046,7 +1158,7 @@
     "id": "xiaomi-token-plan-sgp",
     "aura_provider_type": "xiaomi-token-plan-sgp",
     "name": "Xiaomi Token Plan Sgp",
-    "default_model": "mimo-v2.5",
+    "default_model": "mimo-v2.6-flash",
     "env_vars": [
       "XIAOMI_TOKEN_PLAN_SGP_API_KEY"
     ],
@@ -1057,7 +1169,7 @@
     "id": "yolo-auto",
     "aura_provider_type": "yolo-auto",
     "name": "Yolo-Auto",
-    "default_model": "qwen3.8-flash",
+    "default_model": "qwen3.8-27b",
     "env_vars": [
       "YOLO_AUTO_API_KEY"
     ],
