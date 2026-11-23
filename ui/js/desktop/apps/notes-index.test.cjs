@@ -23,6 +23,30 @@ for (const c of fixture.extract) {
     });
 }
 
+// Shared with the Go extractor and the editor's micromark layer (scripts/notes-obsidian-markdown.test.mjs).
+for (const c of fixture.blocks) {
+    test('block: ' + c.name, () => {
+        const r = json(N.extract(c.content));
+        assert.deepEqual(r.links, c.links);
+        assert.deepEqual(r.tags, c.tags);
+    });
+}
+for (const c of fixture.notLinks) {
+    test('not a link: ' + c.name, () => {
+        assert.deepEqual(json(N.extract(c.content)).links, []);
+    });
+}
+
+test('adversarial input extracts quickly', () => {
+    const size = 2 << 20;
+    const units = ['](', '](<', '](a ', '[[', '![[x', '[[x]', '#', '`', '`a', '<!--', ']](a.md)', '[a](b ', '> - ', 'x](\n'];
+    for (const unit of units) {
+        const started = Date.now();
+        N.extract(unit.repeat(Math.floor(size / unit.length)));
+        assert.ok(Date.now() - started < 3000, JSON.stringify(unit) + ' took ' + (Date.now() - started) + 'ms');
+    }
+});
+
 const lookup = N.createLookup(fixture.resolve);
 fixture.resolve.cases.forEach((c, i) => {
     test('resolve #' + i + ': ' + c.value, () => {

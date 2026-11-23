@@ -1,6 +1,7 @@
 // scripts/notes-obsidian-markdown.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {fromMarkdown} from 'mdast-util-from-markdown';
 import {toMarkdown} from 'mdast-util-to-markdown';
 import {gfm} from 'micromark-extension-gfm';
@@ -91,4 +92,39 @@ test('literal == in prose is not escaped, but an accidental highlight opener is'
 
 test('a full Obsidian note round-trips unchanged', () => {
     same('# Projekt\n\nVerweis auf [[Ideen|meine Ideen]] und #projekt/alpha.\n\n> [!info] Hinweis\n> Siehe ==wichtig== und ![[skizze.png]]\n\n- [ ] Aufgabe mit [[Aufgaben#Heute]]\n');
+});
+
+test('an escaped hash is not a hashtag and survives a round trip', () => {
+    same('use \\#notatag here\n');
+    same('(\\#x)\n');
+    const tree = parse('use \\#notatag here\n');
+    assert.equal(all(tree, 'hashtag').length, 0);
+    assert.equal(all(parse(stringify(tree)), 'hashtag').length, 0);
+    // Real hashtags and prose hashes stay untouched.
+    same('Text #projekt/sub and (#paren)\n');
+    same('C# is fine, issue # 5 too\n');
+});
+
+// Shared with the Go extractor (internal/desktop/notes_scan.go) and the client index (notes-index.js): the three must
+// agree on what is a link, so this asserts the editor's own grammar against the same fixture tables.
+const fixture = JSON.parse(readFileSync(new URL('../ui/testdata/notes-links-fixture.json', import.meta.url), 'utf8'));
+const NOTE_URL = /\.(md|png|jpe?g|gif|webp|svg|pdf)$/i;
+function editorLinks(text) {
+    const out = [];
+    (function walk(node) {
+        if (node.type === 'wikiLink') out.push({kind: 'wiki', value: node.value, embed: node.embed});
+        else if ((node.type === 'link' || node.type === 'image') && NOTE_URL.test(node.url.split(/[#?]/)[0]) && !/^[a-z][a-z0-9+.-]*:/i.test(node.url) && !/^[/#]/.test(node.url)) {
+            out.push({kind: 'markdown', value: node.url, embed: node.type === 'image'});
+        }
+        for (const child of node.children || []) walk(child);
+    })(parse(text));
+    return out;
+}
+
+test('editor grammar agrees with the shared link fixture', () => {
+    for (const c of fixture.blocks) assert.deepEqual(editorLinks(c.content), c.links, c.name);
+});
+
+test('editor grammar agrees on what is not a link', () => {
+    for (const c of fixture.notLinks) assert.deepEqual(editorLinks(c.content), [], c.name);
 });

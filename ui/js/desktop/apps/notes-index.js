@@ -131,47 +131,6 @@
         var dot = lower.lastIndexOf('.');
         return dot >= 0 && !!ATTACH_EXT[lower.slice(dot)];
     }
-    function wikiLinkSpan(line, start) {
-        var vs = start + 2, j = vs;
-        while (j < line.length) {
-            var c = line.charAt(j);
-            if (c === '\\') { j += 2; continue; }
-            if (c === '[' && line.charAt(j + 1) === '[') return null;
-            if (c === ']' && line.charAt(j + 1) === ']') {
-                var n = runeCount(line.slice(vs, j));
-                return n > 0 && n <= MAX_WIKI_RUNES ? { vs: vs, ve: j } : null;
-            }
-            j++;
-        }
-        return null;
-    }
-    function markdownLinkURL(line, start) {
-        var vs, ve;
-        if (start < line.length && line.charAt(start) === '<') {
-            var k = line.indexOf('>', start + 1);
-            if (k < 0) return null;
-            vs = start + 1; ve = k; start = ve + 1;
-        } else {
-            ve = start;
-            while (ve < line.length && ' \t)'.indexOf(line.charAt(ve)) < 0) ve++;
-            vs = start; start = ve;
-        }
-        var closeAt = line.indexOf(')', start);
-        if (closeAt < 0) return null;
-        return { vs: vs, ve: ve, after: closeAt + 1 };
-    }
-    function markdownLinkIsImage(line, close) {
-        var depth = 0;
-        for (var b = close - 1; b >= 0; b--) {
-            var c = line.charAt(b);
-            if (c === ']') depth++;
-            else if (c === '[') {
-                if (depth === 0) return b > 0 && line.charAt(b - 1) === '!';
-                depth--;
-            }
-        }
-        return false;
-    }
     // Unescaped "|" or escaped "\|" (table cells) separates the alias.
     function wikiAliasSep(value) {
         for (var i = 0; i < value.length; i++) {
@@ -190,6 +149,250 @@
         var hash = head.indexOf('#');
         if (hash >= 0) return { target: head.slice(0, hash), subpath: head.slice(hash + 1), alias: alias };
         return { target: head, subpath: '', alias: alias };
+    }
+
+    // ---- block scanner (mirrors internal/desktop/notes_scan.go step by step) ----
+    var MAX_LINK_URL = 2048;
+    var HTML_BLOCK_TAGS = {};
+    'address article aside base basefont blockquote body caption center col colgroup dd details dialog dir div dl dt fieldset figcaption figure footer form frame frameset h1 h2 h3 h4 h5 h6 head header hr html iframe legend li link main menu menuitem nav noframes ol optgroup option p param search section summary table tbody td tfoot th thead title tr track ul'.split(' ').forEach(function (n) { HTML_BLOCK_TAGS[n] = 1; });
+    var HTML_RAW_TAGS = { script: 1, pre: 1, style: 1, textarea: 1 };
+    var H_BLANK = 1, H_COMMENT = 2, H_RAW = 3, H_PI = 4;
+
+    function spanFinder(set) {
+        var f = { valid: false, end: 0, from: 0, pos: -1 };
+        f.find = function (s, start, end) {
+            if (start >= end) return -1;
+            if (f.valid && f.end === end && start >= f.from) {
+                if (f.pos < 0) return -1;
+                if (start <= f.pos) return f.pos;
+            }
+            var idx = -1;
+            for (var k = start; k < end; k++) if (set.indexOf(s.charAt(k)) >= 0) { idx = k; break; }
+            f.valid = true; f.end = end; f.from = start; f.pos = idx;
+            return idx;
+        };
+        return f;
+    }
+
+    function backtickRuns(s) {
+        var runs = {};
+        for (var i = 0; i < s.length;) {
+            if (s.charAt(i) !== '`') { i++; continue; }
+            var j = i;
+            while (j < s.length && s.charAt(j) === '`') j++;
+            (runs[j - i] = runs[j - i] || []).push(i);
+            i = j;
+        }
+        return runs;
+    }
+    function lowerBound(list, v) {
+        var lo = 0, hi = list.length;
+        while (lo < hi) { var mid = (lo + hi) >> 1; if (list[mid] < v) lo = mid + 1; else hi = mid; }
+        return lo;
+    }
+
+    function scanParagraph(para, refs, addTag) {
+        var n = para.length;
+        var brackets = [], runs = null;
+        var term = spanFinder(' \t)'), paren = spanFinder(')'), gt = spanFinder('>');
+        var noCommentClose = false, lineEnd = -1, lineFrom = 0;
+        function eol(from) {
+            if (from >= lineFrom && from <= lineEnd) return lineEnd;
+            var k = para.indexOf('\n', from);
+            lineEnd = k < 0 ? n : k;
+            lineFrom = from;
+            return lineEnd;
+        }
+        function wikiSpan(open) {
+            var vs = open + 2;
+            for (var j = vs; j < n;) {
+                if (j - vs > MAX_WIKI_RUNES * 2 + 2) return null;
+                var c = para.charAt(j);
+                if (c === '\n' || c === '[') return null;
+                if (c === '\\') {
+                    if (j + 1 >= n || para.charAt(j + 1) === '\n') return null;
+                    j += 2;
+                    continue;
+                }
+                if (c === ']') {
+                    if (j + 1 >= n || para.charAt(j + 1) !== ']') return null;
+                    var value = para.slice(vs, j);
+                    var cnt = runeCount(value);
+                    return cnt > 0 && cnt <= MAX_WIKI_RUNES && value.replace(/^[ \t]+|[ \t]+$/g, '') !== '' ? { vs: vs, ve: j } : null;
+                }
+                j++;
+            }
+            return null;
+        }
+        function linkURL(start) {
+            var end = eol(start), vs, ve, closeFrom;
+            if (start < end && para.charAt(start) === '<') {
+                var k = gt.find(para, start + 1, end);
+                if (k < 0) return null;
+                vs = start + 1; ve = k; closeFrom = k + 1;
+            } else {
+                ve = term.find(para, start, end);
+                if (ve < 0) ve = end;
+                vs = start; closeFrom = ve;
+            }
+            if (ve - vs > MAX_LINK_URL) return null;
+            var closeAt = paren.find(para, closeFrom, end);
+            if (closeAt < 0) return null;
+            return { vs: vs, ve: ve, after: closeAt + 1 };
+        }
+
+        for (var i = 0; i < n;) {
+            var c = para.charAt(i);
+            if (c === '\\') { i += 2; }
+            else if (c === '`') {
+                var cnt = 0;
+                while (i + cnt < n && para.charAt(i + cnt) === '`') cnt++;
+                if (!runs) runs = backtickRuns(para);
+                var list = runs[cnt] || [];
+                var kk = lowerBound(list, i + cnt);
+                i = kk < list.length ? list[kk] + cnt : i + cnt;
+            } else if (c === '<' && para.startsWith('<!--', i)) {
+                if (!noCommentClose) {
+                    var jc = para.indexOf('-->', i + 4);
+                    if (jc >= 0) { i = jc + 3; continue; }
+                    noCommentClose = true;
+                }
+                i++;
+            } else if ((c === '[' && para.startsWith('[[', i)) || (c === '!' && para.startsWith('![[', i))) {
+                var embed = c === '!', open = embed ? i + 1 : i;
+                var span = wikiSpan(open);
+                if (span) {
+                    refs.links.push({ kind: 'wiki', value: para.slice(span.vs, span.ve), embed: embed });
+                    i = span.ve + 2;
+                } else { brackets.push(open); i = open + 1; }
+            } else if (c === '[') { brackets.push(i); i++; }
+            else if (c === ']') {
+                var openAt = brackets.length ? brackets.pop() : -1;
+                if (i + 1 >= n || para.charAt(i + 1) !== '(') { i++; continue; }
+                var mu = linkURL(i + 2);
+                if (!mu) { i += 2; continue; }
+                var url = para.slice(mu.vs, mu.ve);
+                if (noteLinkURLOK(url)) refs.links.push({ kind: 'markdown', value: url, embed: openAt > 0 && para.charAt(openAt - 1) === '!' });
+                i = mu.after;
+            } else if (c === '#') {
+                var prevOK = i === 0;
+                if (!prevOK) {
+                    var prev = para.charAt(i - 1); // a trailing surrogate is never a space or "("
+                    prevOK = SPACE.test(prev) || prev === '(';
+                }
+                var j = i + 1;
+                if (prevOK) {
+                    while (j < n) {
+                        var cp = String.fromCodePoint(para.codePointAt(j));
+                        if (!TAG_RUNE.test(cp)) break;
+                        j += cp.length;
+                    }
+                    var value2 = para.slice(i + 1, j);
+                    if (value2 !== '' && /[^\p{Nd}]/u.test(value2)) addTag(value2);
+                }
+                i = j;
+            } else i++;
+        }
+    }
+
+    function indentOf(s) {
+        var cols = 0, bytes = 0;
+        while (bytes < s.length) {
+            var c = s.charAt(bytes);
+            if (c === ' ') cols++;
+            else if (c === '\t') cols += 4 - cols % 4;
+            else break;
+            bytes++;
+        }
+        return { cols: cols, bytes: bytes };
+    }
+    function stripCols(s, n) {
+        var cols = 0, bytes = 0;
+        while (bytes < s.length && cols < n) {
+            var c = s.charAt(bytes);
+            if (c === ' ') cols++;
+            else if (c === '\t') cols += 4 - cols % 4;
+            else return bytes;
+            bytes++;
+        }
+        return bytes;
+    }
+    function stripQuote(s, off) {
+        var ind = indentOf(s.slice(off));
+        if (ind.cols >= 4 || off + ind.bytes >= s.length || s.charAt(off + ind.bytes) !== '>') return -1;
+        off += ind.bytes + 1;
+        if (off < s.length && (s.charAt(off) === ' ' || s.charAt(off) === '\t')) off++;
+        return off;
+    }
+    function listMarker(s) {
+        var ind = indentOf(s), nb = ind.bytes;
+        if (ind.cols >= 4 || nb >= s.length) return null;
+        var p = nb, c = s.charAt(p);
+        if (c === '-' || c === '*' || c === '+') p++;
+        else if (c >= '0' && c <= '9') {
+            while (p < s.length && p - nb < 9 && s.charAt(p) >= '0' && s.charAt(p) <= '9') p++;
+            if (p >= s.length || (s.charAt(p) !== '.' && s.charAt(p) !== ')')) return null;
+            p++;
+        } else return null;
+        if (p < s.length && s.charAt(p) !== ' ' && s.charAt(p) !== '\t') return null;
+        var markerCols = ind.cols + (p - nb);
+        var sp = indentOf(s.slice(p));
+        if (p + sp.bytes >= s.length) return { width: markerCols + 1, bytes: p + sp.bytes };
+        if (sp.cols >= 5) sp = { cols: 1, bytes: 1 };
+        return { width: markerCols + sp.cols, bytes: p + sp.bytes };
+    }
+    function continueContainers(line, ops) {
+        var off = 0;
+        for (var idx = 0; idx < ops.length; idx++) {
+            var op = ops[idx];
+            if (op.quote) {
+                var next = stripQuote(line, off);
+                if (next < 0) return -1;
+                off = next;
+                continue;
+            }
+            var rest = line.slice(off);
+            if (rest.trim() === '') {
+                for (var k = idx + 1; k < ops.length; k++) if (ops[k].quote) return -1;
+                return line.length;
+            }
+            if (indentOf(rest).cols < op.indent) return -1;
+            off += stripCols(rest, op.indent);
+        }
+        return off;
+    }
+    function fenceOpener(t) {
+        if (t.length < 3 || (t.charAt(0) !== '`' && t.charAt(0) !== '~')) return null;
+        var count = 0;
+        while (count < t.length && t.charAt(count) === t.charAt(0)) count++;
+        if (count < 3 || (t.charAt(0) === '`' && t.slice(count).indexOf('`') >= 0)) return null;
+        return { char: t.charAt(0), count: count };
+    }
+    function htmlStart(t) {
+        if (t.length < 2 || t.charAt(0) !== '<') return null;
+        if (t.startsWith('<!--')) return { end: H_COMMENT, raw: '' };
+        if (t.charAt(1) === '?') return { end: H_PI, raw: '' };
+        var i = 1;
+        if (t.charAt(i) === '/') i++;
+        var j = i;
+        while (j < t.length && /[A-Za-z0-9]/.test(t.charAt(j))) j++;
+        if (j === i) return null;
+        var name = t.slice(i, j).toLowerCase();
+        var endsName = j >= t.length || t.charAt(j) === ' ' || t.charAt(j) === '\t' || t.charAt(j) === '>';
+        if (HTML_RAW_TAGS[name] && i === 1 && endsName) return { end: H_RAW, raw: name };
+        if (HTML_BLOCK_TAGS[name] && (endsName || t.startsWith('/>', j))) return { end: H_BLANK, raw: '' };
+        return null;
+    }
+    function htmlCloses(end, raw, s) {
+        if (end === H_COMMENT) return s.indexOf('-->') >= 0;
+        if (end === H_PI) return s.indexOf('?>') >= 0;
+        if (end === H_RAW) return s.toLowerCase().indexOf('</' + raw + '>') >= 0;
+        return false;
+    }
+    function atxHeading(t) {
+        var n = 0;
+        while (n < t.length && t.charAt(n) === '#') n++;
+        return n >= 1 && n <= 6 && (n === t.length || t.charAt(n) === ' ' || t.charAt(n) === '\t');
     }
 
     // ---- extraction ----
@@ -211,90 +414,98 @@
             toList(data.tags, true).forEach(addTag);
         }
 
-        var heading = '', firstLine = '', fenceChar = '', fenceLen = 0, inComment = false;
+        var heading = '', firstLine = '', leaf = null, listCtx = 0;
+        var para = { pieces: [], quote: 0 };
+        function flush() {
+            if (para.pieces.length) { scanParagraph(para.pieces.join('\n'), refs, addTag); para.pieces = []; }
+        }
         for (var pos = bodyStart; pos < content.length;) {
             var nlAt = content.indexOf('\n', pos);
             var lineEnd = nlAt < 0 ? content.length : nlAt;
-            var line = content.slice(pos, lineEnd);
+            var trimmed = content.slice(pos, lineEnd).replace(/\r+$/, '');
             pos = nlAt < 0 ? content.length : nlAt + 1;
-            var trimmed = line.replace(/\r+$/, '');
 
-            if (fenceLen > 0) {
-                var t0 = trimmed.trim();
-                if (t0.length >= fenceLen && t0.split(fenceChar).join('') === '') fenceLen = 0;
-                continue;
-            }
-            if (!inComment) {
-                var t = trimmed.replace(/^[ \t]+/, '');
-                if (t.length >= 3 && (t.charAt(0) === '`' || t.charAt(0) === '~')) {
-                    var n = 0;
-                    while (n < t.length && t.charAt(n) === t.charAt(0)) n++;
-                    if (n >= 3 && !(t.charAt(0) === '`' && t.slice(n).indexOf('`') >= 0)) {
-                        fenceChar = t.charAt(0); fenceLen = n;
-                        continue;
-                    }
+            if (leaf) {
+                var lo = continueContainers(trimmed, leaf.ops);
+                if (lo >= 0) {
+                    var lrest = trimmed.slice(lo);
+                    if (leaf.kind === 'fence') {
+                        var lt = lrest.trim();
+                        if (lt.length >= leaf.count && lt.split(leaf.char).join('') === '') leaf = null;
+                    } else if (leaf.end === H_BLANK) {
+                        if (lrest.trim() === '') leaf = null;
+                    } else if (htmlCloses(leaf.end, leaf.raw, lrest)) leaf = null;
+                    continue;
                 }
-                if (heading === '' && trimmed.indexOf('# ') === 0) heading = trimmed.slice(2).trim();
-                if (firstLine === '') firstLine = trimmed.trim();
+                leaf = null;
             }
 
-            var i = 0;
-            if (inComment) {
-                var jc = line.indexOf('-->');
-                if (jc < 0) continue;
-                i = jc + 3; inComment = false;
+            var off = 0, ops = [], quoteDepth = 0, q;
+            while ((q = stripQuote(trimmed, off)) >= 0) { off = q; ops.push({ quote: true, indent: 0 }); quoteDepth++; }
+            var consumed = 0, rest = trimmed.slice(off);
+            if (listCtx > 0 && rest.trim() !== '') {
+                if (indentOf(rest).cols >= listCtx) {
+                    off += stripCols(rest, listCtx);
+                    ops.push({ quote: false, indent: listCtx });
+                    consumed = listCtx;
+                } else if (!listMarker(rest) && !para.pieces.length) listCtx = 0;
             }
-            while (i < line.length) {
-                var c = line.charAt(i);
-                if (c === '\\') { i += 2; }
-                else if (c === '`') {
-                    var cnt = 0;
-                    while (i + cnt < line.length && line.charAt(i + cnt) === '`') cnt++;
-                    var closeAt = -1;
-                    for (var k = i + cnt; k < line.length;) {
-                        if (line.charAt(k) !== '`') { k++; continue; }
-                        var m = 0;
-                        while (k + m < line.length && line.charAt(k + m) === '`') m++;
-                        if (m === cnt) { closeAt = k; break; }
-                        k += m;
-                    }
-                    i = closeAt >= 0 ? closeAt + cnt : i + cnt;
-                } else if (c === '<' && line.startsWith('<!--', i)) {
-                    var je = line.indexOf('-->', i + 4);
-                    if (je >= 0) i = je + 3; else { inComment = true; i = line.length; }
-                } else if ((c === '[' && line.startsWith('[[', i)) || (c === '!' && line.startsWith('![[', i))) {
-                    var embed = c === '!', open = embed ? i + 1 : i;
-                    var span = wikiLinkSpan(line, open);
-                    if (span) {
-                        refs.links.push({ kind: 'wiki', value: line.slice(span.vs, span.ve), embed: embed });
-                        i = span.ve + 2;
-                    } else i = open + 1;
-                } else if (c === ']' && line.charAt(i + 1) === '(') {
-                    var mu = markdownLinkURL(line, i + 2);
-                    if (!mu) { i += 2; continue; }
-                    var url = line.slice(mu.vs, mu.ve);
-                    if (noteLinkURLOK(url)) refs.links.push({ kind: 'markdown', value: url, embed: markdownLinkIsImage(line, i) });
-                    i = mu.after;
-                } else if (c === '#') {
-                    var prevOK = i === 0;
-                    if (!prevOK) {
-                        var prev = Array.from(line.slice(Math.max(0, i - 2), i)).pop();
-                        prevOK = SPACE.test(prev) || prev === '(';
-                    }
-                    var j = i + 1;
-                    if (prevOK) {
-                        while (j < line.length) {
-                            var cp = String.fromCodePoint(line.codePointAt(j));
-                            if (!TAG_RUNE.test(cp)) break;
-                            j += cp.length;
-                        }
-                        var value = line.slice(i + 1, j);
-                        if (value !== '' && /[^\p{Nd}]/u.test(value)) addTag(value);
-                    }
-                    i = j;
-                } else i++;
+            var newItem = false;
+            for (var guard = 0; guard < 8; guard++) {
+                rest = trimmed.slice(off);
+                var ind = indentOf(rest);
+                if (ind.cols >= 4) break;
+                if (ind.bytes < rest.length && rest.charAt(ind.bytes) === '>') {
+                    off = stripQuote(trimmed, off);
+                    ops.push({ quote: true, indent: 0 });
+                    quoteDepth++;
+                    continue;
+                }
+                var item = listMarker(rest);
+                if (item) {
+                    off += item.bytes;
+                    consumed += item.width;
+                    ops.push({ quote: false, indent: item.width });
+                    listCtx = consumed;
+                    newItem = true;
+                    continue;
+                }
+                break;
             }
+            if (newItem || (quoteDepth > 0 && quoteDepth !== para.quote)) flush();
+            rest = trimmed.slice(off);
+            var cur = indentOf(rest), t = rest.slice(cur.bytes);
+            if (cur.bytes >= rest.length) { flush(); continue; }
+            if (cur.cols < 4) {
+                var fence = fenceOpener(t);
+                if (fence) { flush(); leaf = { kind: 'fence', char: fence.char, count: fence.count, ops: ops }; continue; }
+            }
+            if (heading === '' && trimmed.indexOf('# ') === 0) heading = trimmed.slice(2).trim();
+            if (firstLine === '') firstLine = trimmed.trim();
+            if (cur.cols >= 4 && !para.pieces.length) continue;
+            if (cur.cols < 4) {
+                var html = htmlStart(t);
+                if (html) {
+                    flush();
+                    var closed = false;
+                    if (html.end === H_COMMENT) closed = htmlCloses(html.end, html.raw, t.slice(4));
+                    else if (html.end === H_PI) closed = htmlCloses(html.end, html.raw, t.slice(2));
+                    else if (html.end === H_RAW) closed = htmlCloses(html.end, html.raw, t);
+                    if (!closed) leaf = { kind: 'html', end: html.end, raw: html.raw, ops: ops };
+                    continue;
+                }
+                if (atxHeading(t) || t.charAt(0) === '|') {
+                    flush();
+                    para.quote = quoteDepth;
+                    para.pieces.push(rest);
+                    flush();
+                    continue;
+                }
+            }
+            if (!para.pieces.length) para.quote = quoteDepth;
+            para.pieces.push(rest);
         }
+        flush();
 
         if (fmTitle) refs.title = fmTitle;
         else if (heading) refs.title = heading;

@@ -303,7 +303,12 @@ export function obsidianToMarkdown() {
         },
         // A literal "==" in text must not turn into a highlight on the next parse. Only "==" directly followed
         // by a non-space, non-"=" character can open one, so prose like "a == b" stays untouched.
-        unsafe: [{character: '=', before: '=', after: '[^\\s=]', inConstruct: 'phrasing'}]
+        // Likewise a literal "#word" after whitespace or "(" would reparse as a hashtag; real hashtag nodes are
+        // printed by their own handler and never pass through this rule.
+        unsafe: [
+            {character: '=', before: '=', after: '[^\\s=]', inConstruct: 'phrasing'},
+            {character: '#', before: '[\\s(]', after: '[^\\s]', inConstruct: 'phrasing'}
+        ]
     };
 }
 

@@ -1,10 +1,12 @@
 package desktop
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 type notesFixtureExtract struct {
@@ -12,6 +14,17 @@ type notesFixtureExtract struct {
 	Content string   `json:"content"`
 	Title   string   `json:"title"`
 	Aliases []string `json:"aliases"`
+	Tags    []string `json:"tags"`
+	Links   []struct {
+		Kind  string `json:"kind"`
+		Value string `json:"value"`
+		Embed bool   `json:"embed"`
+	} `json:"links"`
+}
+
+type notesFixtureBlock struct {
+	Name    string   `json:"name"`
+	Content string   `json:"content"`
 	Tags    []string `json:"tags"`
 	Links   []struct {
 		Kind  string `json:"kind"`
@@ -29,8 +42,10 @@ type notesFixtureResolveCase struct {
 }
 
 type notesFixture struct {
-	Extract []notesFixtureExtract `json:"extract"`
-	Resolve struct {
+	Extract  []notesFixtureExtract `json:"extract"`
+	Blocks   []notesFixtureBlock   `json:"blocks"`
+	NotLinks []notesFixtureBlock   `json:"notLinks"`
+	Resolve  struct {
 		Notes       []string                  `json:"notes"`
 		Aliases     map[string][]string       `json:"aliases"`
 		Attachments []string                  `json:"attachments"`
@@ -145,5 +160,98 @@ func TestRewriteNoteLinksKeepsAliasAndCode(t *testing.T) {
 	want := "See [[New|shown]] and [[New#Part]] and [x](New.md#y)\n```\n[[Old]]\n```\n"
 	if out != want {
 		t.Fatalf("got %q", out)
+	}
+}
+
+// The block and "not a link" tables are shared with the JS mirror and with the editor's micromark layer
+// (scripts/notes-obsidian-markdown.test.mjs), so all three agree on what a link is.
+func TestExtractNoteRefsBlocksFixture(t *testing.T) {
+	fixture := loadNotesFixture(t)
+	for _, tc := range fixture.Blocks {
+		t.Run(tc.Name, func(t *testing.T) {
+			refs := ExtractNoteRefs(tc.Content)
+			if !sameStrings(refs.Tags, tc.Tags) {
+				t.Fatalf("tags %v want %v", refs.Tags, tc.Tags)
+			}
+			if len(refs.Links) != len(tc.Links) {
+				t.Fatalf("links: got %+v want %+v", refs.Links, tc.Links)
+			}
+			for i, want := range tc.Links {
+				got := refs.Links[i]
+				if got.Kind != want.Kind || got.Value != want.Value || got.Embed != want.Embed || tc.Content[got.Start:got.End] != want.Value {
+					t.Fatalf("link %d: got %+v want %+v", i, got, want)
+				}
+			}
+		})
+	}
+	for _, tc := range fixture.NotLinks {
+		t.Run("not a link: "+tc.Name, func(t *testing.T) {
+			if refs := ExtractNoteRefs(tc.Content); len(refs.Links) != 0 {
+				t.Fatalf("found links %+v", refs.Links)
+			}
+		})
+	}
+}
+
+func TestRewriteNoteLinksLeavesCodeAlone(t *testing.T) {
+	in := "> ```\n> [[Old]]\n> ```\n> [[Old]]\n- ```\n  [[Old]]\n  ```\n\nx\n\n    [[Old]]\n\n`a\n[[Old]]` [[Old]]\n<div>[[Old]]</div>\n"
+	out := RewriteNoteLinks(in, func(link NoteRefLink) (string, bool) { return "New", link.Value == "Old" })
+	want := "> ```\n> [[Old]]\n> ```\n> [[New]]\n- ```\n  [[Old]]\n  ```\n\nx\n\n    [[Old]]\n\n`a\n[[Old]]` [[New]]\n<div>[[Old]]</div>\n"
+	if out != want {
+		t.Fatalf("got %q", out)
+	}
+}
+
+func TestExtractNoteRefsAdversarialInputStaysFast(t *testing.T) {
+	const size = 2 << 20
+	cases := map[string]string{
+		"](":                strings.Repeat("](", size/2),
+		"](<":               strings.Repeat("](<", size/3),
+		"](a ":              strings.Repeat("](a ", size/4),
+		"[[":                strings.Repeat("[[", size/2),
+		"![[x":              strings.Repeat("![[x", size/4),
+		"[[x]":              strings.Repeat("[[x]", size/4),
+		"#":                 strings.Repeat("#", size),
+		"# #":               strings.Repeat("# #\n", size/4),
+		"`":                 strings.Repeat("`", size),
+		"`a":                strings.Repeat("`a", size/2),
+		"``` mix":           strings.Repeat("`a``b```c", size/9),
+		"<!--":              strings.Repeat("<!--", size/4),
+		"]](a.md)":          strings.Repeat("]](a.md)", size/8),
+		"[a](b ":            strings.Repeat("[a](b ", size/6),
+		"> - ":              strings.Repeat("> - ", size/4),
+		"lines of ](":       strings.Repeat("x](\n", size/4),
+		"distinct backtick": distinctBacktickRuns(size),
+	}
+	for name, content := range cases {
+		start := time.Now()
+		ExtractNoteRefs(content)
+		if elapsed := time.Since(start); elapsed > 2*time.Second {
+			t.Errorf("%s: %d bytes took %v", name, len(content), elapsed)
+		}
+	}
+}
+
+func distinctBacktickRuns(size int) string {
+	var b strings.Builder
+	for i := 1; b.Len() < size; i++ {
+		b.WriteString(strings.Repeat("`", i%1500+1))
+		b.WriteByte('a')
+	}
+	return b.String()
+}
+
+func TestExtractNoteRefsContextCancels(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := ExtractNoteRefsContext(ctx, strings.Repeat("a [[b]]\n", 100000)); err == nil {
+		t.Fatal("expected cancellation")
+	}
+}
+
+func TestExtractNoteRefsLongLinkURLIsNotALink(t *testing.T) {
+	long := "[x](" + strings.Repeat("a", maxNoteLinkURL+1) + ".md)"
+	if refs := ExtractNoteRefs(long); len(refs.Links) != 0 {
+		t.Fatalf("got %+v", refs.Links)
 	}
 }

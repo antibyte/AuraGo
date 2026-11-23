@@ -123,12 +123,15 @@ func (s *Service) ReadNote(ctx context.Context, path string) (Note, error) {
 	if len(data) > MaxNoteBytes || !utf8.Valid(data) {
 		return Note{}, fmt.Errorf("note is not UTF-8 or exceeds 2 MiB")
 	}
-	note := noteSummary(data, entry)
+	note, err := noteSummary(ctx, data, entry)
+	if err != nil {
+		return Note{}, err
+	}
 	note.Content = string(data)
 	return note, nil
 }
 
-func noteSummary(data []byte, entry FileEntry) Note {
+func noteSummary(ctx context.Context, data []byte, entry FileEntry) (Note, error) {
 	text := string(data)
 	note := Note{Path: entry.Path, Title: strings.TrimSuffix(entry.Name, filepath.Ext(entry.Name)), Tags: []string{}, Size: entry.Size, Modified: entry.ModTime, Version: NoteVersion(data)}
 	body := text
@@ -136,14 +139,17 @@ func noteSummary(data []byte, entry FileEntry) Note {
 		body = text[start:]
 	}
 	// Frontmatter and inline #tags count; a title needs frontmatter or a heading, else the file name stays.
-	refs := ExtractNoteRefs(text)
+	refs, err := ExtractNoteRefsContext(ctx, text)
+	if err != nil {
+		return Note{}, err
+	}
 	note.Tags = refs.Tags
 	if refs.TitleSource == "frontmatter" || refs.TitleSource == "heading" {
 		note.Title = refs.Title
 	}
 	note.Snippet = stringLimit(strings.Join(strings.Fields(body), " "), 180)
 	note.Title = stringLimit(note.Title, 160)
-	return note
+	return note, nil
 }
 
 func stringLimit(value string, count int) string {
