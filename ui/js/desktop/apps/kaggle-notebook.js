@@ -26,6 +26,8 @@
         const root = document.createElement('section'); root.className = 'kg-notebook'; host.replaceChildren(root);
         const toolbar = document.createElement('div'); toolbar.className = 'kg-toolbar'; root.append(toolbar);
         const titleBar = document.createElement('div'); titleBar.className = 'kg-toolbar-title';
+        // The way back leads the toolbar, so it stays the first stop for the keyboard.
+        button('back', () => options.exit?.(), titleBar, 'quiet');
         const label = document.createElement('strong'); label.textContent = file; titleBar.append(label);
         const projectTag = document.createElement('span'); projectTag.className = 'kg-toolbar-project'; projectTag.textContent = t('project') + ' · ' + (options.projectTitle || project); titleBar.append(projectTag);
         const dirtyChip = document.createElement('span'); dirtyChip.className = 'kg-chip'; dirtyChip.dataset.tone = 'warn'; dirtyChip.hidden = true;
@@ -39,7 +41,7 @@
         const state = document.createElement('p'); state.className = 'kg-state'; state.setAttribute('role', 'status'); root.append(state);
         const cells = document.createElement('div'); cells.className = 'kg-cells'; root.append(cells);
         function button(key, action, parent = toolbar, variant) { const b = document.createElement('button'); b.type = 'button'; b.textContent = t(key); b.dataset.action = key; b.title = t(key); if (variant) b.classList.add('kg-btn-' + variant); const local = ['local', 'run_all', 'restart', 'run_cell'].includes(key); const grant = local ? 'local' : key === 'kaggle_run' ? 'execute' : ['save', 'add_code', 'add_markdown', 'up', 'down', 'remove_cell'].includes(key) ? 'write' : ''; const reason = grant ? options.unavailable?.({ grant }) : ''; if (reason) { b.disabled = true; b.title = reason; b.dataset.blocked = 'true'; } b.addEventListener('click', () => Promise.resolve(action()).catch(showError)); parent.append(b); return b; }
-        function setStatus(value) { if (disposed) return; state.textContent = value; state.dataset.tone = 'info'; state.setAttribute('role', 'status'); state.classList.remove('kg-error'); }
+        function setStatus(value, tone = 'info') { if (disposed) return; state.textContent = value; state.dataset.tone = tone; state.setAttribute('role', 'status'); state.classList.remove('kg-error'); }
         function showError(error) { if (disposed) return; state.textContent = t('error') + ': ' + error.message; state.dataset.tone = 'error'; state.setAttribute('role', 'alert'); state.classList.add('kg-error'); }
         function syncRuntime() {
             const busy = !!running || pendingCommand;
@@ -63,18 +65,18 @@
             const run = article.querySelector('[data-action="run_cell"]');
             if (run && run.dataset.blocked !== 'true') run.disabled = isRunning;
         }
-        function draft() { if (!doc) return; try { localStorage.setItem(draftKey, JSON.stringify({ doc, revision, dirty, at: Date.now() })); } catch (_) { setStatus(t('draft_storage_full')); } }
-        function edited() { runAllStopped = true; dirty = true; generation++; contentVersion++; draft(); setStatus(t('unsaved')); dirtyChip.hidden = false; }
+        function draft() { if (!doc) return; try { localStorage.setItem(draftKey, JSON.stringify({ doc, revision, dirty, at: Date.now() })); } catch (_) { setStatus(t('draft_storage_full'), 'warn'); } }
+        function edited() { runAllStopped = true; dirty = true; generation++; contentVersion++; draft(); setStatus(t('unsaved'), 'warn'); dirtyChip.hidden = false; }
         async function load() {
             const loaded = await api(path); if (disposed || options.isClosed?.()) return;
             doc = loaded.content; revision = loaded.revision;
             const prefix = 'aurago.kaggle.draft.' + project + '.' + file + '.';
             let stored;
             for (let i = 0; i < localStorage.length; i++) { const key = localStorage.key(i); if (!key.startsWith(prefix)) continue; try { const raw = localStorage.getItem(key), candidate = JSON.parse(raw); if (candidate.dirty && candidate.doc?.nbformat === 4 && Array.isArray(candidate.doc.cells) && (!stored || candidate.at > stored.at)) { stored = candidate; restoredDraft = { key, raw }; } } catch (_) {} }
-            if (stored) { doc = stored.doc; revision = stored.revision; dirty = true; dirtyChip.hidden = false; setStatus(t('draft_restored')); }
-            else setStatus(t('saved'));
+            if (stored) { doc = stored.doc; revision = stored.revision; dirty = true; dirtyChip.hidden = false; setStatus(t('draft_restored'), 'warn'); }
+            else setStatus(t('saved'), 'ok');
             doc.cells.forEach((cell, index) => { if (!cell.id) cell.id = 'cell-' + index; });
-            try { mirror = mirror || await import('/js/vendor/codemirror-bundle.esm.js'); } catch (_) { setStatus(t('editor_fallback')); }
+            try { mirror = mirror || await import('/js/vendor/codemirror-bundle.esm.js'); } catch (_) { setStatus(t('editor_fallback'), 'warn'); }
             if (disposed || options.isClosed?.()) return;
             renderCells(); connectEvents();
             const sessions = await api('/runtime', { method: 'POST', body: { operation: 'sessions' } });
@@ -141,6 +143,7 @@
                 if (cell.cell_type === 'code') button('run_cell', () => run(cell), top, 'primary');
                 const up = button('up', () => move(index, -1), top, 'quiet'); up.dataset.focus = cell.id + ':up';
                 const down = button('down', () => move(index, 1), top, 'quiet'); down.dataset.focus = cell.id + ':down';
+                if ((cell.outputs || []).length) button('clear_output', () => clearOutputs(cell), top, 'quiet');
                 const remove = button('remove_cell', () => removeCell(index), top, 'quiet'); remove.dataset.focus = cell.id + ':remove';
                 const editor = document.createElement('div'); editor.className = 'kg-cell-editor'; article.append(editor);
                 const change = value => { cell.source = Array.isArray(cell.source) ? value.split(/(?<=\n)/) : value; edited(); };
@@ -168,22 +171,22 @@
                 // advanced its own draft while this save was in flight.
                 if (restoredDraft && localStorage.getItem(restoredDraft.key) === restoredDraft.raw) localStorage.removeItem(restoredDraft.key);
                 restoredDraft = null;
-                if (contentVersion === savedVersion) { dirty = false; localStorage.removeItem(draftKey); setStatus(t('saved')); dirtyChip.hidden = true; }
-                else { dirty = true; draft(); setStatus(t('unsaved')); dirtyChip.hidden = false; }
+                if (contentVersion === savedVersion) { dirty = false; localStorage.removeItem(draftKey); setStatus(t('saved'), 'ok'); dirtyChip.hidden = true; }
+                else { dirty = true; draft(); setStatus(t('unsaved'), 'warn'); dirtyChip.hidden = false; }
                 return result;
             }).catch(error => { draft(); throw error; }).finally(() => { savePending = null; });
             return savePending;
         }
         async function start() {
             if (startPending) return;
-            if (session?.status === 'idle') { setStatus(t('kernel_ready')); return; }
+            if (session?.status === 'idle') { setStatus(t('kernel_ready'), 'ok'); return; }
             if (session && session.status !== 'stopped') throw Error(session.error || t(session.status === 'starting' ? 'starting' : 'busy'));
             startPending = true;
             try {
             if (dirty) await save();
             const files = await options.selectFiles(project); if (!files) return;
             session = await api('/runtime', { method: 'POST', body: { operation: 'start', project_id: project, file, files, internet: false } });
-            setStatus(t('starting'));
+            setStatus(t('starting'), 'busy');
             syncKernelChip();
             applySession(earlySessions.get(session.id) || session);
             } finally { startPending = false; }
@@ -205,7 +208,7 @@
             const promise = new Promise((resolve, reject) => { running = { id: response.execution_id, cell, generation: runGeneration, revision: runRevision, resolve, reject }; });
             if (generation === runGeneration) { cell.outputs = []; contentVersion++; dirty = true; draft(); dirtyChip.hidden = false; const article = [...cells.children].find(c => c.dataset.cellId === cell.id); if (article) renderOutputs(cell, article.querySelector('.kg-outputs')); }
             markRunning(cell.id, true);
-            session.status = 'busy'; syncKernelChip(); setStatus(t('running_local')); pendingCommand = false; syncRuntime(); earlyEvents.splice(0).forEach(handleCell); return promise;
+            session.status = 'busy'; syncKernelChip(); setStatus(t('running_local'), 'busy'); pendingCommand = false; syncRuntime(); earlyEvents.splice(0).forEach(handleCell); return promise;
         }
         async function runAll() { runAllStopped = false; for (const cell of [...doc.cells]) { if (runAllStopped || disposed) break; if (cell.cell_type === 'code') await run(cell); } }
         async function interrupt() { runAllStopped = true; if (session) await api('/runtime', { method: 'POST', body: { operation: 'interrupt', session_id: session.id } }); }
@@ -218,7 +221,7 @@
                 session = await api('/runtime', { method: 'POST', body: { operation: 'restart', session_id: session.id } });
                 syncKernelChip();
                 applySession(earlySessions.get(session.id) || session);
-                setStatus(t('state_lost') + (session.status === 'idle' ? ' ' + t('kernel_ready') : ''));
+                setStatus(t('state_lost') + (session.status === 'idle' ? ' ' + t('kernel_ready') : ''), 'warn');
             } finally { startPending = false; }
         }
         async function complete(context) {
@@ -232,16 +235,16 @@
             eventSource = new EventSource(endpoint('/events'));
             eventSource.addEventListener('session', event => applySession(JSON.parse(event.data)));
             eventSource.addEventListener('cell', event => handleCell(JSON.parse(event.data)));
-            eventSource.addEventListener('reset', () => { runAllStopped = true; setStatus(t('output_limited')); if (running) { const cellId = running.cell.id; running.reject(Error(t('output_limited'))); running = null; executing = false; markRunning(cellId, false); syncRuntime(); } });
-            eventSource.onerror = () => { if (!disposed) setStatus(t('reconnecting')); };
+            eventSource.addEventListener('reset', () => { runAllStopped = true; setStatus(t('output_limited'), 'warn'); if (running) { const cellId = running.cell.id; running.reject(Error(t('output_limited'))); running = null; executing = false; markRunning(cellId, false); syncRuntime(); } });
+            eventSource.onerror = () => { if (!disposed) setStatus(t('reconnecting'), 'warn'); };
         }
-        function applySession(value) { if (value.project_id !== project || value.file !== file || disposed) return; earlySessions.set(value.id, value); if (earlySessions.size > 32) earlySessions.delete(earlySessions.keys().next().value); if (!session || value.id !== session.id) return; session = value; syncKernelChip(); if (value.status === 'idle') setStatus(dirty ? t('unsaved') : t('kernel_ready')); if (value.status === 'stopped' || value.status === 'stopping') { setStatus(t(value.status === 'stopping' ? 'state_cancel_requested' : 'state_lost') + (value.error ? ' ' + value.error : '')); if (running) { running.reject(Error(t('state_lost'))); running = null; executing = false; syncRuntime(); } } }
+        function applySession(value) { if (value.project_id !== project || value.file !== file || disposed) return; earlySessions.set(value.id, value); if (earlySessions.size > 32) earlySessions.delete(earlySessions.keys().next().value); if (!session || value.id !== session.id) return; session = value; syncKernelChip(); if (value.status === 'idle') setStatus(dirty ? t('unsaved') : t('kernel_ready'), dirty ? 'warn' : 'ok'); if (value.status === 'stopped' || value.status === 'stopping') { setStatus(t(value.status === 'stopping' ? 'state_cancel_requested' : 'state_lost') + (value.error ? ' ' + value.error : ''), 'warn'); if (running) { running.reject(Error(t('state_lost'))); running = null; executing = false; syncRuntime(); } } }
         function handleCell(value) {
                 if (pendingCommand) { if (earlyEvents.length < 256) earlyEvents.push(value); return; }
                 const waiter = completionWaiters.get(value.execution_id);
                 if (waiter && value.kind === 'completion') { clearTimeout(waiter.timer); completionWaiters.delete(value.execution_id); waiter.resolve({ from: [...waiter.code].slice(0, value.content.cursor_start).join('').length, options: (value.content.matches || []).map(label => ({ label, type: 'variable' })) }); return; }
                 if (!running || value.execution_id !== running.id || value.session_id !== session?.id) return;
-                if (value.kind === 'done' || value.kind === 'error') { const finished = running; running = null; executing = false; session.status = 'idle'; syncKernelChip(); syncRuntime(); setStatus(t('unsaved')); markRunning(finished.cell.id, false); value.kind === 'done' ? finished.resolve() : finished.reject(Error(t('execution_failed'))); return; }
+                if (value.kind === 'done' || value.kind === 'error') { const finished = running; running = null; executing = false; session.status = 'idle'; syncKernelChip(); syncRuntime(); setStatus(t('unsaved'), 'warn'); markRunning(finished.cell.id, false); value.kind === 'done' ? finished.resolve() : finished.reject(Error(t('execution_failed'))); return; }
                 if (running.generation !== generation || value.revision !== running.revision) return;
                 const cell = doc.cells.find(c => c.id === value.cell_id); if (!cell) return;
                 const content = value.content || {};
@@ -252,7 +255,7 @@
                 contentVersion++; dirty = true; draft(); dirtyChip.hidden = false; const article = [...cells.children].find(c => c.dataset.cellId === cell.id); if (article) renderOutputs(cell, article.querySelector('.kg-outputs'));
         }
         function exportNotebook() { const url = URL.createObjectURL(new Blob([JSON.stringify(doc, null, 2)], { type: 'application/x-ipynb+json' })); const link = document.createElement('a'); link.href = url; link.download = file; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
-        button('back', () => options.exit?.(), titleBar, 'quiet');
+        function clearOutputs(cell) { cell.outputs = []; edited(); const article = cells.querySelector('[data-cell-id="' + cell.id + '"]'); if (!article) return; renderOutputs(cell, article.querySelector('.kg-outputs')); const action = article.querySelector('[data-action="clear_output"]'); if (action) action.hidden = true; }
         button('save', save, documentGroup, 'primary'); button('export', () => exportNotebook(), documentGroup);
         button('add_code', () => add('code'), documentGroup); button('add_markdown', () => add('markdown'), documentGroup);
         button('local', start, runtimeGroup); runAllButton = button('run_all', runAll, runtimeGroup); interruptButton = button('interrupt', interrupt, runtimeGroup); button('restart', restart, runtimeGroup);

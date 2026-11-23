@@ -406,5 +406,8 @@
   "kaggle.copy_output": "复制输出",
   "kaggle.stdout": "标准输出",
   "kaggle.stderr": "错误输出",
-  "kaggle.project": "项目"
+  "kaggle.project": "项目",
+  "kaggle.active_jobs_count": "{0} 个活动任务",
+  "kaggle.open_on_kaggle": "在 Kaggle 上打开",
+  "kaggle.clear_output": "清除输出"
 }

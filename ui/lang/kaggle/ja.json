@@ -406,5 +406,8 @@
   "kaggle.copy_output": "出力をコピー",
   "kaggle.stdout": "標準出力",
   "kaggle.stderr": "エラー出力",
-  "kaggle.project": "プロジェクト"
+  "kaggle.project": "プロジェクト",
+  "kaggle.active_jobs_count": "{0} 件の実行中ジョブ",
+  "kaggle.open_on_kaggle": "Kaggle で開く",
+  "kaggle.clear_output": "出力を消去"
 }

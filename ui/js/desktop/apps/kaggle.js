@@ -4,6 +4,8 @@
     const domains = ['overview', 'datasets', 'models', 'notebooks', 'competitions', 'benchmarks', 'forums', 'jobs'];
     const navGroups = [{ label: 'browse', domains: ['overview', 'datasets', 'models', 'notebooks', 'competitions', 'benchmarks', 'forums'] }, { label: 'activity', domains: ['jobs'] }];
     const listOperations = { datasets: 'list_datasets', models: 'list_models', notebooks: 'list_kernels', competitions: 'list_competitions', benchmarks: 'list_benchmark_tasks', forums: 'list_topics' };
+    // Every browsable resource keeps its public Kaggle page, so a result can be opened in the browser.
+    const sitePaths = { datasets: 'datasets', models: 'models', notebooks: 'code', competitions: 'competitions' };
     const verb = name => name.startsWith('batch_schedule') ? 'run' : name.includes('cancel') ? 'cancel' : name.split('_')[0];
     const fieldWords = { ownerSlug: 'owner', userName: 'owner', user: 'owner', owner: 'owner', slug: 'reference', datasetSlug: 'reference', modelSlug: 'reference', kernelSlug: 'reference', instanceSlug: 'variant', competitionName: 'reference', fileName: 'file', filePath: 'file', path: 'file', title: 'title', newTitle: 'title', search: 'search', searchQuery: 'search', description: 'description', subtitle: 'description', pageSize: 'limit', page: 'page', pageToken: 'page', versionNumber: 'version', datasetVersionNumber: 'version', versionLabel: 'version', isPrivate: 'private', isPublic: 'public', enableGpu: 'gpu', enableTpu: 'tpu', enableInternet: 'internet', language: 'language', files: 'files', text: 'source', forumSlug: 'forum', topicId: 'topic', id: 'reference', framework: 'framework', licenseName: 'license', contentLength: 'bytes', kernelExecutionType: 'execution', sessionTimeoutSeconds: 'timeout' };
     const activeStates = ['queued', 'running', 'remote_running', 'cancel_requested'];
@@ -14,29 +16,52 @@
     function render(host, windowId, ctx) {
         dispose(windowId);
         const t = key => ctx.t('kaggle.' + key);
-        let disposed = false, active = 'overview', generation = 0, editor = null, status = {}, catalog = [], defs = {}, projects = [], selectedProject = '', eventSource, jobFilter = 'all', liveState = false;
+        let disposed = false, active = 'overview', generation = 0, editor = null, status = {}, catalog = [], defs = {}, projects = [], selectedProject = '', eventSource, jobFilter = 'all', liveState = false, searchInput = null, jobCountTimer = null;
         const requests = new Set();
+        const scrollMemory = new Map(), navCounts = new Map();
         host.classList.add('kg-host');
         const root = document.createElement('section'); root.className = 'kg-app'; host.replaceChildren(root);
         const nav = document.createElement('nav'); nav.className = 'kg-nav'; nav.setAttribute('aria-label', t('navigation')); root.append(nav);
         for (const group of navGroups) {
             const wrap = document.createElement('div'); wrap.className = 'kg-nav-group';
             const label = document.createElement('span'); label.className = 'kg-nav-label'; label.textContent = t(group.label); wrap.append(label);
-            for (const domain of group.domains) { const b = button(wrap, domain, event => navigate(domain, event.detail === 0)); b.dataset.domain = domain; b.setAttribute('aria-current', 'false'); }
+            for (const domain of group.domains) {
+                const b = button(wrap, domain, event => navigate(domain, event.detail === 0)); b.dataset.domain = domain; b.setAttribute('aria-current', 'false');
+                if (domain === 'jobs') { const badge = document.createElement('span'); badge.className = 'kg-chip-count kg-nav-count'; badge.hidden = true; badge.setAttribute('aria-hidden', 'true'); const spoken = document.createElement('span'); spoken.className = 'kg-sr-only'; b.append(badge, spoken); navCounts.set(domain, { badge, spoken }); }
+            }
             nav.append(wrap);
         }
+        nav.addEventListener('keydown', event => {
+            const buttons = [...nav.querySelectorAll('button[data-domain]')];
+            const index = buttons.indexOf(document.activeElement);
+            if (index < 0) return;
+            let next = -1;
+            if (event.key === 'ArrowDown') next = (index + 1) % buttons.length;
+            else if (event.key === 'ArrowUp') next = (index - 1 + buttons.length) % buttons.length;
+            else if (event.key === 'Home') next = 0;
+            else if (event.key === 'End') next = buttons.length - 1;
+            if (next < 0) return;
+            event.preventDefault(); buttons[next].focus();
+        });
+        // "/" reaches the query field of the current view without leaving the keyboard.
+        root.addEventListener('keydown', event => {
+            if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey) return;
+            if (event.target.closest('input, textarea, select, [contenteditable]')) return;
+            if (document.querySelector('dialog[open]') || !searchInput || !searchInput.isConnected || !searchInput.offsetParent) return;
+            event.preventDefault(); searchInput.focus(); searchInput.select();
+        });
         const navFoot = document.createElement('div'); navFoot.className = 'kg-nav-foot';
-        const navChip = document.createElement('span'); navChip.className = 'kg-chip'; navChip.dataset.tone = 'muted'; navFoot.append(navChip); nav.append(navFoot);
+        const navChip = document.createElement('a'); navChip.className = 'kg-chip kg-nav-status'; navChip.href = '/config#kaggle'; navChip.target = '_blank'; navChip.rel = 'noopener'; navChip.dataset.tone = 'muted'; navFoot.append(navChip); nav.append(navFoot);
         const main = document.createElement('main'); main.className = 'kg-main'; root.append(main);
         const notice = document.createElement('div'); notice.className = 'kg-notice'; notice.hidden = true;
         const noticeText = document.createElement('p'); noticeText.className = 'kg-notice-text'; noticeText.setAttribute('role', 'status');
         const noticeClose = document.createElement('button'); noticeClose.type = 'button'; noticeClose.className = 'kg-notice-close'; noticeClose.textContent = '×'; noticeClose.setAttribute('aria-label', t('close'));
-        noticeClose.addEventListener('click', () => { notice.hidden = true; });
+        noticeClose.addEventListener('click', () => { message(''); });
         notice.append(noticeText, noticeClose); main.append(notice);
         const live = document.createElement('div'); live.className = 'kg-sr-only'; live.setAttribute('aria-live', 'polite'); live.setAttribute('aria-atomic', 'true'); main.append(live);
         const panel = document.createElement('div'); panel.className = 'kg-panel'; main.append(panel);
         function announce(value) { if (disposed || !value) return; live.textContent = ''; setTimeout(() => { if (!disposed) live.textContent = value; }, 30); }
-        function message(text, tone) { if (disposed) return; noticeText.textContent = text || ''; notice.dataset.tone = tone || 'info'; notice.hidden = !text; noticeText.setAttribute('role', tone === 'error' ? 'alert' : 'status'); }
+        function message(text, tone) { if (disposed) return; noticeText.textContent = text || ''; notice.dataset.tone = tone || 'info'; notice.hidden = !text; noticeText.setAttribute('role', tone === 'error' ? 'alert' : 'status'); main.style.setProperty('--kg-notice-height', notice.hidden ? '0px' : (notice.offsetHeight + 16) + 'px'); }
         function error(err) { message(t('error') + ': ' + err.message, 'error'); }
         async function api(path, options = {}) {
             const controller = new AbortController(); requests.add(controller);
@@ -52,12 +77,27 @@
         function showLoading(target, label) { const box = document.createElement('div'); box.className = 'kg-loading'; const spinner = document.createElement('span'); spinner.className = 'kg-spinner'; spinner.setAttribute('aria-hidden', 'true'); box.append(spinner); const p = document.createElement('p'); p.className = 'kg-loading-text'; p.textContent = label || t('loading'); box.append(p); target.append(box); return box; }
         function emptyState(target, heading, hint, action) { const box = document.createElement('div'); box.className = 'kg-empty'; const head = document.createElement('p'); head.className = 'kg-empty-title'; head.textContent = heading; box.append(head); if (hint) { const p = document.createElement('p'); p.className = 'kg-empty-text'; p.textContent = hint; box.append(p); } if (action) box.append(action); target.append(box); return box; }
         function errorState(target, err, retry) { const box = document.createElement('div'); box.className = 'kg-empty kg-error-state'; const head = document.createElement('p'); head.className = 'kg-empty-title'; head.textContent = t('load_failed'); box.append(head); if (err && err.message) { const p = document.createElement('p'); p.className = 'kg-empty-text'; p.textContent = err.message; box.append(p); } const again = document.createElement('button'); again.type = 'button'; again.className = 'kg-btn-primary'; again.textContent = t('retry'); again.addEventListener('click', () => retry && retry()); box.append(again); target.append(box); return box; }
-        function formatBytes(value) { const bytes = Number(value) || 0; if (bytes < 1024) return bytes + ' B'; if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KiB'; return (bytes / 1048576).toFixed(1) + ' MiB'; }
+        function formatBytes(value) { const bytes = Number(value) || 0; if (bytes < 1024) return bytes + ' B'; if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KiB'; if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MiB'; if (bytes < 1099511627776) return (bytes / 1073741824).toFixed(2) + ' GiB'; return (bytes / 1099511627776).toFixed(2) + ' TiB'; }
         function relativeTime(value) { const stamp = Date.parse(value || ''); if (!Number.isFinite(stamp)) return ''; const minutes = Math.round((Date.now() - stamp) / 60000); if (minutes < 1) return t('time_now'); if (minutes < 60) return t('time_minutes').replace('{0}', String(minutes)); const hours = Math.round(minutes / 60); if (hours < 24) return t('time_hours').replace('{0}', String(hours)); return t('time_days').replace('{0}', String(Math.round(hours / 24))); }
         function disposeEditor() { editor?.dispose(); editor = null; }
         function syncNavStatus() {
+            const label = !status.enabled ? t('disabled') : status.configured ? t('configured') : t('credentials_missing');
             navChip.dataset.tone = !status.enabled ? 'muted' : status.configured ? 'ok' : 'warn';
-            navChip.textContent = !status.enabled ? t('disabled') : status.configured ? t('configured') : t('credentials_missing');
+            navChip.textContent = label;
+            navChip.setAttribute('aria-label', t('settings') + ': ' + label);
+            navChip.title = t('settings');
+        }
+        // The sidebar counts the running work, so the state stays visible in every view.
+        function syncJobCount(count) {
+            const entry = navCounts.get('jobs'); if (!entry) return;
+            const running = Math.max(0, Number(count) || 0);
+            entry.badge.hidden = running === 0;
+            entry.badge.textContent = running ? String(running) : '';
+            entry.spoken.textContent = running ? t('active_jobs_count').replace('{0}', String(running)) : '';
+        }
+        function scheduleJobCount() {
+            if (jobCountTimer || disposed) return;
+            jobCountTimer = setTimeout(async () => { jobCountTimer = null; if (disposed) return; try { const all = await api('/jobs'); if (!disposed) syncJobCount(all.filter(job => activeStates.includes(job.status)).length); } catch (_) {} }, 400);
         }
         function unavailable(op) {
             const policy = status.policy || {}, access = status.access || {};
@@ -77,15 +117,20 @@
             return access.write ? '' : t('policy_help');
         }
         async function navigate(domain, focus = true) {
-            const epoch = ++generation; active = domain; disposeEditor(); panel.replaceChildren(); message(''); nav.querySelectorAll('button[data-domain]').forEach(b => b.setAttribute('aria-current', b.dataset.domain === domain ? 'page' : 'false'));
+            const epoch = ++generation;
+            if (active) scrollMemory.set(active, main.scrollTop);
+            active = domain; disposeEditor(); panel.replaceChildren(); message(''); nav.querySelectorAll('button[data-domain]').forEach(b => b.setAttribute('aria-current', b.dataset.domain === domain ? 'page' : 'false'));
+            panel.setAttribute('aria-busy', 'true');
             showLoading(panel);
             try {
                 status = await api('/status'); if (disposed || epoch !== generation) return; syncNavStatus();
                 if (domain === 'overview') await overview(epoch); else if (domain === 'jobs') await jobs(epoch); else await resources(domain, epoch);
                 if (disposed || epoch !== generation) return;
                 announce(t(domain));
+                main.scrollTop = scrollMemory.get(domain) || 0;
                 if (focus) focusPanel();
             } catch (err) { if (disposed || epoch !== generation) return; panel.replaceChildren(); errorState(panel, err, () => navigate(domain).catch(error)); error(err); }
+            finally { if (!disposed && epoch === generation) panel.removeAttribute('aria-busy'); }
         }
         function focusPanel() { const heading = panel.querySelector('h2'); if (heading) heading.focus({ preventScroll: true }); }
         async function overview(epoch) {
@@ -93,9 +138,10 @@
             status = next; projects = allProjects; syncNavStatus(); panel.replaceChildren();
             title(panel, 'overview');
             const stats = document.createElement('div'); stats.className = 'kg-stats'; panel.append(stats);
-            const tile = (label, value) => { const card = document.createElement('div'); text(card, t(label), 'small'); const strong = document.createElement('strong'); strong.textContent = value; card.append(strong); stats.append(card); return card; };
+            const tile = (label, value, action) => { const card = document.createElement(action ? 'button' : 'div'); card.className = 'kg-stat'; if (action) { card.type = 'button'; card.classList.add('kg-stat-action'); card.addEventListener('click', action); } text(card, t(label), 'small'); const strong = document.createElement('strong'); strong.textContent = value; card.append(strong); stats.append(card); return card; };
             const activeJobs = allJobs.filter(job => activeStates.includes(job.status));
-            tile('active_jobs', String(activeJobs.length));
+            syncJobCount(activeJobs.length);
+            tile('active_jobs', String(activeJobs.length), () => navigate('jobs'));
             tile('connection', !status.enabled ? t('disabled') : status.configured ? t('configured') : t('credentials_missing'));
             tile('permissions', status.read_only ? t('read_only') : t('granted'));
             const used = Number(status.storage_bytes) || 0, max = Number(status.max_storage_bytes) || 0;
@@ -153,7 +199,7 @@
         }
         async function importFiles(project) { const input = document.createElement('input'); input.type = 'file'; input.multiple = true; input.addEventListener('change', async () => { try { message(t('loading')); for (const file of input.files) { const response = await fetch('/api/kaggle/projects/' + project + '/files/' + encodeURIComponent(file.name), { method: 'PUT', credentials: 'same-origin', body: file }); if (!response.ok) throw Error((await response.json()).error || t('error')); } navigate('overview'); } catch (err) { error(err); } }); input.click(); }
         async function openNotebook(project, file) {
-            const epoch = ++generation, returnDomain = active; disposeEditor(); panel.replaceChildren(); message(''); active = 'notebooks';
+            const epoch = ++generation, returnDomain = active; disposeEditor(); scrollMemory.set(returnDomain, main.scrollTop); panel.replaceChildren(); message(''); active = 'notebooks';
             nav.querySelectorAll('button[data-domain]').forEach(b => b.setAttribute('aria-current', b.dataset.domain === active ? 'page' : 'false'));
             showLoading(panel);
             try {
@@ -174,7 +220,8 @@
             title(panel, domain); if (!status.enabled) { emptyState(panel, t('enable_first')); return; }
             const controls = document.createElement('div'); controls.className = 'kg-toolbar'; panel.append(controls);
             const searchWrap = document.createElement('div'); searchWrap.className = 'kg-search';
-            const search = document.createElement('input'); search.type = 'search'; search.placeholder = t('search'); search.setAttribute('aria-label', t('search'));
+            const search = document.createElement('input'); search.type = 'search'; search.placeholder = t('search'); search.setAttribute('aria-label', t('search')); search.setAttribute('aria-keyshortcuts', '/');
+            searchInput = search;
             const clearSearch = document.createElement('button'); clearSearch.type = 'button'; clearSearch.className = 'kg-search-clear'; clearSearch.textContent = '×'; clearSearch.setAttribute('aria-label', t('clear_search')); clearSearch.title = t('clear_search'); clearSearch.hidden = true;
             clearSearch.addEventListener('click', () => { search.value = ''; clearSearch.hidden = true; search.focus(); });
             search.addEventListener('input', () => { clearSearch.hidden = !search.value; });
@@ -223,7 +270,7 @@
             };
             executeButton = button(controls, 'execute', () => execute(), 'primary');
             refreshButton = button(controls, 'refresh', () => execute(), 'quiet'); refreshButton.hidden = true;
-            drawForm(); search.addEventListener('keydown', event => { if (event.key === 'Enter' && !executeButton.disabled) execute().catch(error); });
+            drawForm(); search.addEventListener('keydown', event => { if (event.key === 'Enter' && !executeButton.disabled) execute().catch(error); else if (event.key === 'Escape' && search.value) { event.preventDefault(); search.value = ''; clearSearch.hidden = true; } });
             if (!output.childElementCount) emptyState(output, t('resources_hint'));
         }
         function referenceOf(item) {
@@ -231,6 +278,17 @@
             if (item.ref) return String(item.ref);
             if (item.author && item.slug) return String(item.author) + '/' + String(item.slug);
             return item.slug || item.name || item.id || '';
+        }
+        // The public page of a resource, so a listed entry can be opened on Kaggle itself.
+        function siteOf(domain, item) {
+            const path = sitePaths[domain]; if (!path) return '';
+            const reference = String(referenceOf(item) || '');
+            if (!reference || /^https?:/i.test(reference)) return '';
+            const parts = reference.split('/').filter(Boolean);
+            if (!parts.length) return '';
+            if (domain === 'competitions') return 'https://www.kaggle.com/competitions/' + encodeURIComponent(parts[0]);
+            if (parts.length < 2) return '';
+            return 'https://www.kaggle.com/' + path + '/' + encodeURIComponent(parts[0]) + '/' + encodeURIComponent(parts[1]);
         }
         async function copyReference(value, source) {
             try {
@@ -267,6 +325,8 @@
                 if (reference) { const ref = document.createElement('code'); ref.className = 'kg-reference'; ref.textContent = reference; main.append(ref); }
                 const rowActions = document.createElement('div'); rowActions.className = 'kg-resource-actions';
                 if (reference) button(rowActions, 'copy', event => copyReference(reference, event.currentTarget), 'quiet');
+                const site = siteOf(domain, item);
+                if (site) { const link = document.createElement('a'); link.className = 'kg-link-button'; link.href = site; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = t('open_on_kaggle'); link.title = t('open_on_kaggle'); rowActions.append(link); }
                 button(rowActions, 'details', () => details(t(domain), item));
                 if (domain === 'notebooks') button(rowActions, 'import_notebook', () => importNotebook(item));
                 row.append(main, rowActions); listBox.append(row);
@@ -304,6 +364,7 @@
             const filters = document.createElement('div'); filters.className = 'kg-toolbar'; panel.append(filters);
             const counts = { all: all.length, active: 0, failed: 0 };
             for (const job of all) { if (activeStates.includes(job.status)) counts.active++; if (job.status === 'failed') counts.failed++; }
+            syncJobCount(counts.active);
             for (const key of ['all', 'active', 'state_failed']) {
                 const filter = key === 'state_failed' ? 'failed' : key;
                 const chipButton = button(filters, key, () => { jobFilter = filter; jobs(epoch).catch(error); }, 'quiet');
@@ -354,7 +415,7 @@
             const readers = [];
             for (const [key, original] of Object.entries(properties || {})) {
                 const schema = original.$ref ? defs[original.$ref.split('/').pop()] : original; if (!schema || depth > 8) continue;
-                const group = document.createElement('label'); group.className = 'kg-field'; const label = document.createElement('span'); label.textContent = fieldLabel(key); group.append(label); parent.append(group);
+                const group = document.createElement('label'); group.className = 'kg-field'; const label = document.createElement('span'); label.textContent = fieldLabel(key); if (schema.minLength) { const mark = document.createElement('i'); mark.className = 'kg-required'; mark.textContent = '*'; mark.setAttribute('aria-hidden', 'true'); label.append(mark); } group.append(label); parent.append(group);
                 if (schema.type === 'object') { const details = document.createElement('details'); const summary = document.createElement('summary'); summary.textContent = t('optional'); details.append(summary); group.append(details); const read = schemaFields(details, schema.properties, initial[key] || {}, depth + 1); readers.push(() => { const value = read(); return Object.keys(value).length ? [key, value] : null; }); continue; }
                 let input;
                 if (schema.enum) { input = select(group, [['', t('default')], ...schema.enum.map(value => [value, key === 'project_id' ? projects.find(p => p.id === value)?.title || value : value])], initial[key]); }
@@ -371,7 +432,7 @@
             const dialog = document.createElement('dialog'); dialog.className = 'kg-dialog'; dialog.setAttribute('aria-label', name); const hostWidth = host.clientWidth || host.getBoundingClientRect().width; if (hostWidth) dialog.style.setProperty('--kg-host-width', hostWidth + 'px'); const heading = document.createElement('h2'); heading.textContent = name; dialog.append(heading); const body = document.createElement('div'); body.className = 'kg-dialog-body'; dialog.append(body); const feedback = document.createElement('p'); feedback.className = 'kg-error'; feedback.setAttribute('role', 'alert'); dialog.append(feedback); const actions = document.createElement('div'); actions.className = 'kg-toolbar'; dialog.append(actions); root.append(dialog); const result = { body, actions, cancel: null, close() { dialog.close(); dialog.remove(); if (returnFocus?.isConnected) returnFocus.focus(); } }; dialog.addEventListener('cancel', event => { event.preventDefault(); result.cancel?.(); result.close(); }); button(actions, 'cancel', () => { result.cancel?.(); result.close(); }); dialog.showModal(); return result;
         }
         function formDialog(name, properties, initial = {}, hint = '', submit) { return new Promise(resolve => { const dialog = modal(name); if (hint) text(dialog.body, hint); const read = schemaFields(dialog.body, properties, initial, 0); button(dialog.actions, 'continue', async () => { const values = read(); const result = submit ? await submit(values) : values; if (!dialog.body.isConnected) return; dialog.close(); resolve(result); }, 'primary'); dialog.cancel = () => resolve(null); dialog.body.querySelector('input,select,textarea')?.focus(); }); }
-        (async () => { try { const [capabilities, next, allProjects] = await Promise.all([api('/capabilities'), api('/status'), api('/projects')]); if (disposed) return; catalog = capabilities.operations; defs = capabilities.definitions; status = next; projects = allProjects; syncNavStatus(); await navigate('overview', false); eventSource = new EventSource('/api/kaggle/events'); eventSource.addEventListener('job', () => { if (active === 'jobs') jobs(generation).catch(error); }); eventSource.onopen = () => { liveState = true; }; eventSource.onerror = () => { liveState = false; }; } catch (err) { error(err); } })();
+        (async () => { try { const [capabilities, next, allProjects] = await Promise.all([api('/capabilities'), api('/status'), api('/projects')]); if (disposed) return; catalog = capabilities.operations; defs = capabilities.definitions; status = next; projects = allProjects; syncNavStatus(); await navigate('overview', false); eventSource = new EventSource('/api/kaggle/events'); eventSource.addEventListener('job', () => { scheduleJobCount(); if (active === 'jobs') jobs(generation).catch(error); }); eventSource.onopen = () => { liveState = true; }; eventSource.onerror = () => { liveState = false; }; } catch (err) { error(err); } })();
         instances.set(windowId, { dispose() { disposed = true; generation++; disposeEditor(); eventSource?.close(); requests.forEach(c => c.abort()); root.querySelectorAll('dialog').forEach(d => d.dispatchEvent(new Event('cancel'))); host.classList.remove('kg-host'); } });
     }
     function dispose(id) { instances.get(id)?.dispose(); instances.delete(id); }

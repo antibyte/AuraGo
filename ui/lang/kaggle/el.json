@@ -406,5 +406,8 @@
   "kaggle.copy_output": "Αντιγραφή εξόδου",
   "kaggle.stdout": "Τυπική έξοδος",
   "kaggle.stderr": "Έξοδος σφάλματος",
-  "kaggle.project": "Έργο"
+  "kaggle.project": "Έργο",
+  "kaggle.active_jobs_count": "{0} ενεργές εργασίες",
+  "kaggle.open_on_kaggle": "Άνοιγμα στο Kaggle",
+  "kaggle.clear_output": "Καθαρισμός αποτελεσμάτων"
 }

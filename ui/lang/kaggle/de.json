@@ -385,7 +385,7 @@
   "kaggle.copied": "Kopiert",
   "kaggle.all": "Alle",
   "kaggle.active": "Aktiv",
-  "kaggle.no_results": "Keine passenden Ergebnisse. Passen Sie die Suche an oder wählen Sie eine andere Operation.",
+  "kaggle.no_results": "Keine passenden Ergebnisse. Passe die Suche an oder wähle eine andere Operation.",
   "kaggle.kernel": "Kernel",
   "kaggle.empty_notebook": "Dieses Notebook hat noch keine Zellen.",
   "kaggle.back": "Zurück",
@@ -406,5 +406,8 @@
   "kaggle.copy_output": "Ausgabe kopieren",
   "kaggle.stdout": "Standardausgabe",
   "kaggle.stderr": "Fehlerausgabe",
-  "kaggle.project": "Projekt"
+  "kaggle.project": "Projekt",
+  "kaggle.active_jobs_count": "{0} aktive Aufträge",
+  "kaggle.open_on_kaggle": "Auf Kaggle öffnen",
+  "kaggle.clear_output": "Ausgabe leeren"
 }

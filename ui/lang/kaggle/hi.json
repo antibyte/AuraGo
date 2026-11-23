@@ -406,5 +406,8 @@
   "kaggle.copy_output": "आउटपुट कॉपी करें",
   "kaggle.stdout": "मानक आउटपुट",
   "kaggle.stderr": "त्रुटि आउटपुट",
-  "kaggle.project": "प्रोजेक्ट"
+  "kaggle.project": "प्रोजेक्ट",
+  "kaggle.active_jobs_count": "{0} सक्रिय कार्य",
+  "kaggle.open_on_kaggle": "Kaggle पर खोलें",
+  "kaggle.clear_output": "आउटपुट साफ़ करें"
 }

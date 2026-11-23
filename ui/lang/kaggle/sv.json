@@ -406,5 +406,8 @@
   "kaggle.copy_output": "Kopiera utdata",
   "kaggle.stdout": "Standardutdata",
   "kaggle.stderr": "Felutdata",
-  "kaggle.project": "Projekt"
+  "kaggle.project": "Projekt",
+  "kaggle.active_jobs_count": "{0} aktiva jobb",
+  "kaggle.open_on_kaggle": "Öppna på Kaggle",
+  "kaggle.clear_output": "Rensa utdata"
 }

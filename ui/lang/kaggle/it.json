@@ -406,5 +406,8 @@
   "kaggle.copy_output": "Copia output",
   "kaggle.stdout": "Output standard",
   "kaggle.stderr": "Output di errore",
-  "kaggle.project": "Progetto"
+  "kaggle.project": "Progetto",
+  "kaggle.active_jobs_count": "{0} attività in corso",
+  "kaggle.open_on_kaggle": "Apri su Kaggle",
+  "kaggle.clear_output": "Cancella output"
 }

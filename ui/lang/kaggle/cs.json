@@ -406,5 +406,8 @@
   "kaggle.copy_output": "Kopírovat výstup",
   "kaggle.stdout": "Standardní výstup",
   "kaggle.stderr": "Chybový výstup",
-  "kaggle.project": "Projekt"
+  "kaggle.project": "Projekt",
+  "kaggle.active_jobs_count": "{0} aktivních úloh",
+  "kaggle.open_on_kaggle": "Otevřít na Kaggle",
+  "kaggle.clear_output": "Vymazat výstup"
 }

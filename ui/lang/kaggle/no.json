@@ -406,5 +406,8 @@
   "kaggle.copy_output": "Kopier utdata",
   "kaggle.stdout": "Standardutdata",
   "kaggle.stderr": "Feilutdata",
-  "kaggle.project": "Prosjekt"
+  "kaggle.project": "Prosjekt",
+  "kaggle.active_jobs_count": "{0} aktive oppgaver",
+  "kaggle.open_on_kaggle": "Åpne på Kaggle",
+  "kaggle.clear_output": "Tøm resultat"
 }
