@@ -33,7 +33,7 @@
         map: [
             '####################',
             '#.F..k...N....K..n.#',
-            '#......B..B........#',
+            '#......B..B...GYY..#',
             '#.................p#',
             '#..h..........h....#',
             '#.PL..D....C..L....#',
@@ -56,7 +56,9 @@
             guest('m', 'merchant', { progress: 11 }),
             guest('a', 'seer', { flag: 'seer.friend' }),
             guest('z', 'wizard', { progress: 21 }),
-            guest('l', 'alchemist', { flag: 'alchemist.revealed' })
+            guest('l', 'alchemist', { flag: 'alchemist.revealed' }),
+            // Gundar always sits at his dice table (meeting gambler_home in journal-story.js).
+            { at: 'G', npc: 'gambler', meeting: 'gambler_home' }, { at: 'Y', use: 'dice:gambler' }
         ]
     });
     room('tavern_cellar', {
@@ -135,12 +137,12 @@
         wall: 3, dark: 0.22, spawn: 'S', exits: { X: OUT },
         map: [
             '##################',
-            '#.f..f..LNH.f..f.#',
+            '#.f..fBBLNH.f..f.#',
             '#................#',
             '#................#',
             '#.a..b..c..g..h..#',
             '#................#',
-            '#................#',
+            '#...C......yEz...#',
             '#.q...........q..#',
             '#.......R........#',
             '#.......S........#',
@@ -154,7 +156,13 @@
             // One pedestal per world boss defeated (progress 6, 11, 16, 21) and one for the finale; unlit ones stay dark.
             { at: 'a', prop: TRD + 'p14', lit: { progress: 6 } }, { at: 'b', prop: TRD + 'p14', lit: { progress: 11 } },
             { at: 'c', prop: TRD + 'p14', lit: { progress: 16 } }, { at: 'g', prop: TRD + 'p14', lit: { progress: 21 } },
-            { at: 'h', prop: TRD + 'p14', lit: { flag: 'epilogue.paid' } }
+            { at: 'h', prop: TRD + 'p14', lit: { flag: 'epilogue.paid' } },
+            // The task board, and the guests of the epilogue: Cog after the finale, Edda and her recruits after the observatory.
+            { at: 'B', use: 'board' },
+            { at: 'C', npc: 'automaton', meeting: 'automaton_hall', if: { flag: 'epilogue.paid' } },
+            { at: 'E', npc: 'edda', meeting: 'edda_home', if: { flag: 'obs.done' } },
+            { at: 'y', npc: 'recruit_f', meeting: 'recruit_f_home', if: { flag: 'obs.done' } },
+            { at: 'z', npc: 'recruit_m', meeting: 'recruit_m_home', if: { flag: 'obs.done' } }
         ]
     });
 })(typeof window !== 'undefined' ? window : globalThis);

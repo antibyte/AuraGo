@@ -17,12 +17,13 @@
     function M() { return root.RunenpfadInteriorMobs; }
     function N() { return root.RunenpfadNpcs; }
     function D() { return root.RunenpfadDialogue || null; }
+    function T() { return root.RunenpfadInteriorThings || null; }
     function pushEvent(sim, type, detail) { P().pushEvent(sim, type, detail); }
 
     function placeState(sim, placeId) {
         const stage = sim.stage;
         if (!stage.placeState) stage.placeState = {};
-        return stage.placeState[placeId] || (stage.placeState[placeId] = { cleared: {}, sold: {}, opened: {}, used: {} });
+        return stage.placeState[placeId] || (stage.placeState[placeId] = { cleared: {}, sold: {}, opened: {}, used: {}, things: {}, keys: 0 });
     }
 
     function cc(cx, cy) { return { x: (cx + 0.5) * CELL, y: (cy + 0.5) * CELL + 7 }; }
@@ -58,6 +59,7 @@
         it.room = room;
         it.roomId = roomId;
         it.mobs = [];
+        it.guardian = null;
         it.shots = [];
         it.npcs = [];
         it.chests = [];
@@ -93,7 +95,9 @@
             } else if (t.mob && !cleared) {
                 cells(t.at).forEach(function (c) {
                     const p = cc(c.cx, c.cy);
-                    it.mobs.push(M().create(t.mob, 'm_' + mobN, p.x, p.y, mobN));
+                    const mob = M().create(t.mob, 'm_' + mobN, p.x, p.y, mobN);
+                    it.mobs.push(mob);
+                    if (M().DEFS[t.mob] && M().DEFS[t.mob].boss) it.guardian = mob;
                     mobN++;
                 });
             } else if (t.chest) {
@@ -132,6 +136,8 @@
         h.vy = 0;
         h.moving = false;
         it.wipe = { t: 0, dir: 1 };
+        if (T()) T().setup(sim, it, lay);
+        if (it.guardian && it.guardian.state !== 'dead') sim.notice = 'runenpfad.notice.boss_room';
         pushEvent(sim, 'place_room', { roomId: roomId });
     }
 
@@ -140,7 +146,7 @@
         if (!place) return null;
         const it = {
             placeId: placeId, place: place, roomId: null, room: null, doorId: doorId || null, t: 0,
-            hero: { x: 0, y: 0, vx: 0, vy: 0, dir: 'up', moving: false, walkT: 0, attackT: 0, attackCool: 0, dashT: 0, dashCool: 0, invuln: 0, hurtT: 0, ax: 0, ay: -1, dx: 0, dy: 0, kx: 0, ky: 0, kt: 0 },
+            hero: { x: 0, y: 0, vx: 0, vy: 0, dir: 'up', moving: false, walkT: 0, attackT: 0, attackCool: 0, dashT: 0, dashCool: 0, invuln: 0, hurtT: 0, slowT: 0, ax: 0, ay: -1, dx: 0, dy: 0, kx: 0, ky: 0, kt: 0 },
             mobs: [], shots: [], npcs: [], chests: [], pickups: [], floats: [], prompt: null, wipe: { t: 0, dir: 1 },
             cleared: false, result: null, leaving: null, exitArmed: false, hadMobs: false, prevNotice: sim.notice
         };
@@ -204,12 +210,13 @@
             }
             M().hit(sim, it, m, dmg, dist > 1 ? dx / dist : h.ax, dist > 1 ? dy / dist : h.ay);
         });
+        if (T()) T().swing(sim, it, cx, cy, h.ax, h.ay, cfg);
     }
 
     function stepHero(sim, it, input, dt) {
         const h = it.hero;
         const cfg = HERO[sim.heroId === 'ranger' ? 'ranger' : 'knight'];
-        ['attackT', 'attackCool', 'dashT', 'dashCool', 'invuln', 'hurtT'].forEach(function (k) { if (h[k] > 0) h[k] = Math.max(0, h[k] - dt); });
+        ['attackT', 'attackCool', 'dashT', 'dashCool', 'invuln', 'hurtT', 'slowT'].forEach(function (k) { if (h[k] > 0) h[k] = Math.max(0, h[k] - dt); });
         let mx = (input.right ? 1 : 0) - (input.left ? 1 : 0);
         let my = (input.down ? 1 : 0) - (input.up ? 1 : 0);
         const len = Math.hypot(mx, my);
@@ -222,8 +229,9 @@
             h.dy = len > 0 ? my : h.ay;
             pushEvent(sim, 'in_dash');
         }
-        let vx = mx * sim.stats.speed * 0.64;
-        let vy = my * sim.stats.speed * 0.64;
+        const walk = sim.stats.speed * 0.64 * (h.slowT > 0 ? 0.5 : 1);
+        let vx = mx * walk;
+        let vy = my * walk;
         if (h.dashT > 0) {
             vx = h.dx * cfg.dashSpeed;
             vy = h.dy * cfg.dashSpeed;
@@ -233,7 +241,13 @@
             vx += h.kx;
             vy += h.ky;
         }
-        M().slide(it.room, it.room.solid, h, vx * dt, vy * dt, HW, HH);
+        if (T()) {
+            const tv = T().heroMove(sim, it, input, vx, vy, dt);
+            vx = tv.vx;
+            vy = tv.vy;
+        }
+        const moved = M().slide(it.room, it.room.solid, h, vx * dt, vy * dt, HW, HH);
+        if (T()) T().afterMove(sim, it, input, moved, dt);
         h.vx = vx;
         h.vy = vy;
         if (len > 0 && h.dashT <= 0) {
@@ -293,6 +307,10 @@
             } else if (pk.kind === 'potion') {
                 p.potions += 1;
                 floatText(sim, '+1', '#c084fc', 'potion');
+            } else if (pk.kind === 'key') {
+                ps.keys = (ps.keys || 0) + 1;
+                sim.notice = 'runenpfad.notice.smallkey_found';
+                pushEvent(sim, 'in_key');
             }
             pk.taken = true;
             if (pk.key) ps.used[pk.key] = true;
@@ -319,6 +337,7 @@
         });
         it.chests.forEach(function (c) { if (!c.opened) consider(c.x, c.y, c.locked ? 'locked' : 'open', c); });
         it.room.rests.forEach(function (r) { if (!ps.used[r.key]) consider(r.x, r.y, 'rest', r); });
+        if (T()) T().consider(sim, it, consider);
         it.prompt = best ? { kind: best.kind, x: best.x, y: best.y } : null;
         if (input.talkPressed !== 'e') return;
         if (!best) {
@@ -334,6 +353,8 @@
             heal(sim, 1, '+1', 'heart');
             sim.notice = 'runenpfad.notice.place_rest';
             pushEvent(sim, 'in_pickup', { kind: 'heart' });
+        } else if (T() && T().use(sim, it, best, input)) {
+            return;
         } else {
             openChest(sim, it, best.ref);
         }
@@ -375,7 +396,9 @@
         stepHero(sim, it, input, dt);
         it.mobs.forEach(function (m) { M().step(sim, it, m, dt); });
         it.mobs = it.mobs.filter(function (m) { return m.state !== 'dead' || m.deadT < 0.6; });
+        if (it.guardian && it.mobs.indexOf(it.guardian) < 0) it.guardian = null;
         M().stepShots(sim, it, dt);
+        if (T()) T().step(sim, it, input, dt);
         if (it.hadMobs && !it.cleared && !it.mobs.some(function (m) { return m.state !== 'dead'; })) {
             it.cleared = true;
             placeState(sim, it.placeId).cleared[it.roomId] = true;

@@ -6,6 +6,7 @@
     const ZONE_TILES = 9;
     const NEAR_DX = 40;
     const HINT = 'runenpfad.notice.place_hint';
+    const SEALED = 'runenpfad.notice.sealed';
     const STEP = 1 / 60;
 
     function P() { return root.RunenpfadPhysics; }
@@ -58,14 +59,24 @@
         });
     }
 
-    function hint(sim, on) {
+    // key: the notice to show (default the door hint). Both door notices restore the earlier notice when the hero leaves.
+    function hint(sim, on, key) {
+        const k = key || HINT;
         if (on) {
-            if (sim.notice === HINT) return;
-            sim.placePrevNotice = sim.notice;
-            sim.notice = HINT;
-        } else if (sim.notice === HINT) {
+            if (sim.notice === k) return;
+            if (sim.notice !== HINT && sim.notice !== SEALED) sim.placePrevNotice = sim.notice;
+            sim.notice = k;
+        } else if (sim.notice === HINT || sim.notice === SEALED) {
             sim.notice = sim.placePrevNotice || '';
         }
+    }
+
+    // A place with `requires: { flag }` stays sealed until the flag is set.
+    function sealed(sim, placeId) {
+        const def = R() && R().PLACES[placeId];
+        const req = def && def.requires;
+        const N = root.RunenpfadNpcs;
+        return !!(req && req.flag && !(N && N.hasFlag(sim, req.flag)));
     }
 
     // Called every world tick (after the NPC hold): door proximity, hint and the enter key.
@@ -85,7 +96,8 @@
             door.near = near;
             if (near && !target) target = door;
         });
-        hint(sim, !!target);
+        const shut = !!target && target.kind !== 'arch' && sealed(sim, target.placeId);
+        hint(sim, !!target, shut ? SEALED : HINT);
         if (!target || target.cool > 0) return false;
         const talk = input.talkPressed;
         const ok = talk === 'e' || (talk === 'up' && p.onGround && !p.swing && !p.onLadder && Math.abs(p.vx) < 60);
@@ -93,6 +105,12 @@
         input.jumpPressed = false;
         input.attackPressed = false;
         p.vx = 0;
+        if (shut) {
+            sim.notice = SEALED;
+            pushEvent(sim, 'in_locked');
+            target.cool = 0.5;
+            return true;
+        }
         if (target.kind === 'arch') {
             sim.uiRequest = 'worldmap';
             return true;
@@ -175,6 +193,7 @@
         placeOf: placeOf,
         doorsOf: doorsOf,
         locked: locked,
+        sealed: sealed,
         lootTaken: lootTaken,
         takeLoot: takeLoot
     };

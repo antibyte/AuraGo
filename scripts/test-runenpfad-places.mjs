@@ -12,10 +12,10 @@ sandbox.window = sandbox;
 sandbox.globalThis = sandbox;
 vm.createContext(sandbox);
 
-// Same order as module-loader.js; the interiors modules sit between the duel and levels modules.
+// Same order as module-loader.js (round 10 modules included; files that do not exist yet are skipped); the interiors modules sit between the duel and levels modules.
 const MODULES = ['biomes', 'fx', 'physics', 'behaviors', 'bosses', 'variety', 'profile', 'runes', 'zones', 'zones-extra', 'gauntlets', 'swing', 'puzzles', 'dragons',
-    'npcs', 'npc-story', 'npc-story-late', 'dialogue', 'trade', 'duel-patterns', 'duel', 'place-rooms', 'interior-mobs', 'interior', 'places', 'folk', 'folk-story', 'village-rooms', 'village',
-    'levels', 'combat', 'sim'];
+    'npcs', 'npc-story', 'npc-story-late', 'dialogue', 'trade', 'duel-patterns', 'duel', 'place-rooms', 'interior-mobs', 'interior-bosses', 'interior-things', 'interior', 'places', 'folk', 'folk-story', 'journal-story', 'village-rooms',
+    'place-rooms-deep', 'village', 'chronicle', 'levels', 'combat', 'sim'];
 for (const m of MODULES) {
     const abs = path.join(rootDir, `ui/js/desktop/apps/runenpfad/${m}.js`);
     if (fs.existsSync(abs)) vm.runInContext(fs.readFileSync(abs, 'utf8'), sandbox, { filename: abs });
@@ -73,7 +73,7 @@ function enter(sim, placeId) {
 // ---- (a) data ----
 check('rooms validate', () => {
     assert.equal(JSON.stringify(Rooms.validate()), "[]");
-    assert.equal(Object.keys(Rooms.PROP_DEFS).length, 64);
+    assert.equal(Object.keys(Rooms.PROP_DEFS).length, 112);
     ['hermit_hut', 'beast_den', 'kobold_den', 'crystal_grotto', 'nomad_tent', 'sun_tomb', 'summit_hut', 'ice_cave', 'brass_lab', 'boiler_room'].forEach((id) => {
         assert.ok(Rooms.PLACES[id], id);
     });
@@ -90,7 +90,7 @@ check('rooms validate', () => {
 });
 
 // ---- (b) campaign levels ----
-const TABLE = { 1: 'hermit_hut', 3: 'beast_den', 6: 'kobold_den', 9: 'crystal_grotto', 11: 'nomad_tent', 14: 'sun_tomb', 16: 'summit_hut', 19: 'ice_cave', 22: 'brass_lab', 24: 'boiler_room' };
+const TABLE = { 1: 'hermit_hut', 3: 'beast_den', 6: 'kobold_den', 9: 'crystal_grotto', 11: 'nomad_tent', 12: 'observatory', 14: 'sun_tomb', 16: 'summit_hut', 19: 'ice_cave', 22: 'brass_lab', 24: 'boiler_room' };
 check('campaign doors', () => {
     for (let id = 1; id <= 25; id++) {
         const stage = Levels.buildStage(id);
@@ -752,13 +752,13 @@ check('the meal heals to full and costs coins', () => {
 });
 
 check('tavern guests appear only when their condition holds', () => {
-    const base = ['innkeeper', 'bard', 'patron', 'child'];
+    const base = ['innkeeper', 'bard', 'patron', 'child', 'gambler']; // Gundar is always at his dice table
     const present = (profile) => {
         const sim = hubSim(profile);
         sim.interior = Interior.create(sim, 'tavern', null);
         return sim.interior.npcs.map((n) => n.npcId).sort();
     };
-    deq(present(), base.slice().sort(), 'nobody extra at the start');
+    deq(present(), base.slice().sort(), 'nobody but the base list at the start (no conditional guest)');
     const cases = [
         ['witch', { quests: { active: [], done: ['witch_mushrooms'] } }, ['witch']],
         ['chief', { npcFlags: { 'chief.paid': 1 } }, ['chief']],
@@ -840,4 +840,313 @@ check('pedestals light up with the story', () => {
     assert.equal(lit({ unlockedLevel: 21, npcFlags: { 'epilogue.paid': 1 } }), 5);
 });
 
-console.log(`Runenpfad places checks passed: ${passed} groups (rooms, campaign doors, enter and freeze, walls, determinism, mob kinds and telegraphs, bot clears, KO, loot once, leave, interior dialogue, profile, endless, dialogue engine, village hub, village places, folk, tavern guests, cellar, pedestals).`);
+// ---- round 10: house tasks, cave exits, village guests ----
+const Things = sandbox.RunenpfadInteriorThings;
+assert.ok(Things && sandbox.RunenpfadChronicle, 'round 10 modules loaded');
+
+function houseSim(placeId, profile) {
+    const sim = hubSim(profile);
+    sim.interior = Interior.create(sim, placeId, null);
+    return sim;
+}
+const thingsOf = (it, kind) => it.things.filter((t) => t.kind === kind);
+const isFree = (it, cx, cy) => cx >= 0 && cy >= 0 && cx < it.room.cols && cy < it.room.rows && !it.room.solid[cy * it.room.cols + cx];
+function putAt(it, cx, cy, dy) {
+    it.hero.x = (cx + 0.5) * 48;
+    it.hero.y = (cy + 0.5) * 48 + 7 + (dy || 0);
+    it.hero.vx = 0;
+    it.hero.vy = 0;
+}
+function heroCell(it) { return { cx: Math.floor(it.hero.x / 48), cy: Math.floor((it.hero.y - 7) / 48) }; }
+
+// Shortest cell path over the free cells of the room as it is now (4-neighbour); null when there is none.
+function cellPath(it, from, to) {
+    const key = (c) => c.cx + ',' + c.cy;
+    const prev = { [key(from)]: null };
+    const queue = [from];
+    while (queue.length) {
+        const c = queue.shift();
+        if (c.cx === to.cx && c.cy === to.cy) {
+            const out = [];
+            for (let k = c; k; k = prev[key(k)]) out.unshift(k);
+            return out;
+        }
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            const n = { cx: c.cx + dx, cy: c.cy + dy };
+            if (!isFree(it, n.cx, n.cy) || (key(n) in prev)) continue;
+            prev[key(n)] = c;
+            queue.push(n);
+        }
+    }
+    return null;
+}
+
+// Walks the hero with real cardinal input along the cell path; returns the ticks it took.
+function walkTo(sim, it, cx, cy) {
+    const path = cellPath(it, heroCell(it), { cx, cy });
+    assert.ok(path, 'a way to ' + cx + ',' + cy);
+    let ticks = 0;
+    for (const c of path.slice(1)) {
+        const tx = (c.cx + 0.5) * 48;
+        const ty = (c.cy + 0.5) * 48 + 7;
+        for (let i = 0; i < 150 && (Math.abs(it.hero.x - tx) > 3 || Math.abs(it.hero.y - ty) > 3); i++) {
+            const input = {};
+            if (Math.abs(it.hero.x - tx) >= Math.abs(it.hero.y - ty)) input[it.hero.x < tx ? 'right' : 'left'] = true;
+            else input[it.hero.y < ty ? 'down' : 'up'] = true;
+            tick(sim, input);
+            ticks += 1;
+            assert.ok(sim.interior === it, 'still in the room while walking');
+        }
+    }
+    return ticks;
+}
+
+// Stands beside a thing (walking there) and presses against it for a moment, so the hero ends within talk range.
+function touch(sim, it, t) {
+    const side = [[0, 1, 'up'], [0, -1, 'down'], [-1, 0, 'right'], [1, 0, 'left']].filter(([dx, dy]) => isFree(it, t.cx + dx, t.cy + dy) && cellPath(it, heroCell(it), { cx: t.cx + dx, cy: t.cy + dy }))[0];
+    assert.ok(side, 'a free side of ' + t.id);
+    const ticks = walkTo(sim, it, t.cx + side[0], t.cy + side[1]);
+    const input = {};
+    input[side[2]] = true;
+    tick(sim, input, 12);
+    return ticks + 12;
+}
+// Presses the interact key at a thing; returns the events of that tick.
+function use(sim, it, t) {
+    touch(sim, it, t);
+    tick(sim, {}, 2);
+    return tick(sim, { talkPressed: 'e' });
+}
+function smash(sim, it, t) {
+    touch(sim, it, t);
+    const dir = Math.sign(heroCell(it).cx - t.cx) || 0;
+    it.hero.ax = -dir;
+    it.hero.ay = dir ? 0 : Math.sign(t.cy - heroCell(it).cy);
+    for (let i = 0; i < 120 && it.hero.attackCool > 0; i++) tick(sim, {});
+    return tick(sim, { attackPressed: true });
+}
+const closeTalk = (sim) => { assert.ok(sim.encounter && sim.encounter.kind === 'dialogue', 'a text opened'); Dialogue.close(sim); };
+
+check('cave exits: the new way on, the old exits stay first', () => {
+    const want = [['beast_den', 'beast_den_b', 'D'], ['crystal_grotto', 'crystal_grotto_b', 'D'], ['sun_tomb_b', 'sun_tomb_c', 'U'], ['ice_cave', 'ice_cave_b', 'D'], ['boiler_room_b', 'boiler_room_c', 'W']];
+    for (const [roomId, target, first] of want) {
+        const r = Rooms.ROOMS[roomId];
+        deq(Object.keys(r.exits), [first, 'X'], roomId + ' exits');
+        deq(r.exits.X, { to: target, at: 'a' });
+        const lay = Rooms.layout(roomId);
+        assert.equal(lay.markers.X.length, 1, roomId + ' one X');
+        assert.equal(lay.markers.x.length, 1, roomId + ' one x');
+        const [X] = lay.markers.X;
+        const [x] = lay.markers.x;
+        assert.equal(Math.abs(X.cx - x.cx) + Math.abs(X.cy - x.cy), 1, roomId + ': x is directly in front of X');
+        assert.ok(!r.things.some((t) => t.at === 'x' || t.at === 'X'), roomId + ': no thing on the exit markers');
+    }
+    assert.equal(Object.keys(Rooms.ROOMS.beast_den.exits)[0], 'D');
+    assert.equal(Rooms.ROOMS.beast_den.exits.D.to, 'out');
+});
+
+check('beast den: the scratch sign sits out of the way, no new thing in the open floor', () => {
+    const r = Rooms.ROOMS.beast_den;
+    const sign = r.things.filter((t) => t.sign)[0];
+    assert.equal(sign.sign, 'den_scratch');
+    assert.equal(r.things.filter((t) => ['pot', 'block', 'plate', 'lever', 'gate', 'spikes', 'dart', 'brazier', 'crack', 'page', 'use'].some((k) => t[k] != null)).length, 0);
+    const lay = Rooms.layout('beast_den');
+    const [c] = lay.markers[sign.at];
+    const walls = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx, dy]) => lay.walls[(c.cy + dy) * lay.cols + c.cx + dx]).length;
+    assert.ok(walls >= 2, 'the sign stands in a corner pocket of the wall');
+});
+
+check('hermit hut: push the crate aside, read page 1, two pots', () => {
+    const sim = houseSim('hermit_hut');
+    const it = sim.interior;
+    const crate = thingsOf(it, 'block')[0];
+    const lect = thingsOf(it, 'page')[0];
+    assert.equal(lect.n, 1);
+    assert.deepEqual([crate.cx + 1, crate.cy], [lect.cx, lect.cy], 'the crate stands in the mouth of the nook');
+    assert.equal(thingsOf(it, 'pot').length, 2);
+    assert.ok(!isFree(it, crate.cx, crate.cy), 'the nook is shut');
+    const from = { cx: crate.cx, cy: crate.cy };
+    putAt(it, crate.cx, crate.cy + 1);
+    for (let i = 0; i < 120 && crate.cy === from.cy; i++) tick(sim, { up: true });
+    tick(sim, {}, 20);
+    assert.equal(crate.cy, from.cy - 1, 'pushed one cell along the wall');
+    assert.ok(isFree(it, from.cx, from.cy), 'the mouth of the nook is free');
+    assert.equal(sim.profile.loot.includes('page_01'), false);
+    const events = use(sim, it, lect);
+    assert.ok(events.some((e) => e.type === 'in_page' && e.detail.page === 1 && e.detail.first));
+    assert.ok(sim.profile.loot.includes('page_01'));
+    closeTalk(sim);
+    const evs = thingsOf(it, 'pot').flatMap((p) => smash(sim, it, p));
+    assert.equal(evs.filter((e) => e.type === 'in_break').length, 2, 'two pots broke');
+    assert.ok(thingsOf(it, 'pot').every((p) => p.broken));
+});
+
+check('kobold den: dice table by Snik, four barrels, no lectern', () => {
+    const sim = houseSim('kobold_den');
+    const it = sim.interior;
+    assert.equal(thingsOf(it, 'page').length, 0);
+    assert.equal(thingsOf(it, 'pot').filter((p) => p.look === 'barrel').length, 4);
+    const tables = thingsOf(it, 'use');
+    assert.equal(tables.length, 2);
+    assert.ok(tables.every((t) => t.request === 'dice:barkeep' && t.cy === tables[0].cy) && Math.abs(tables[0].cx - tables[1].cx) === 1, 'a 2x1 table');
+    use(sim, it, tables[0]);
+    assert.equal(sim.uiRequest, 'dice:barkeep');
+    sim.uiRequest = null;
+    const snik = it.npcs.filter((n) => n.npcId === 'barkeep')[0];
+    assert.ok(Math.hypot(snik.x - tables[0].x, snik.y - tables[0].y) < 4 * 48, 'near Snik');
+    const evs = thingsOf(it, 'pot').flatMap((p) => smash(sim, it, p));
+    assert.equal(evs.filter((e) => e.type === 'in_break').length, 4);
+});
+
+check('nomad tent: three star scrolls at different spots, no lectern', () => {
+    const sim = houseSim('nomad_tent');
+    const it = sim.interior;
+    assert.equal(thingsOf(it, 'page').length, 0);
+    const signs = thingsOf(it, 'sign');
+    deq(signs.map((s) => s.node).sort(), ['scroll_1', 'scroll_2', 'scroll_3']);
+    for (let i = 0; i < 3; i++) for (let j = i + 1; j < 3; j++) assert.ok(Math.abs(signs[i].cx - signs[j].cx) + Math.abs(signs[i].cy - signs[j].cy) >= 4, 'scrolls are apart');
+    for (const s of signs) {
+        const events = use(sim, it, s);
+        assert.ok(events.some((e) => e.type === 'in_read'), s.node);
+        closeTalk(sim);
+    }
+});
+
+check('summit hut: three storm lamps lit in time open the gate to page 7', () => {
+    const lit = (secs) => {
+        const sim = houseSim('summit_hut');
+        const it = sim.interior;
+        const lamps = thingsOf(it, 'brazier');
+        assert.equal(lamps.length, 3);
+        assert.ok(lamps.every((l) => l.set === 'lamps' && l.timed === 9));
+        for (let i = 0; i < 3; i++) for (let j = i + 1; j < 3; j++) assert.ok(Math.abs(lamps[i].cx - lamps[j].cx) + Math.abs(lamps[i].cy - lamps[j].cy) >= 5, 'lamps are not side by side');
+        const gate = thingsOf(it, 'gate')[0];
+        assert.ok(!gate.open && it.puzzle === 'open');
+        return { sim, it, lamps, gate, secs };
+    };
+    // a quick run from the spawn: the lamp above it, then the two far ones
+    const a = lit();
+    const order = [a.lamps.filter((l) => l.bid === 'lamp_c')[0], a.lamps.filter((l) => l.bid === 'lamp_a')[0], a.lamps.filter((l) => l.bid === 'lamp_b')[0]];
+    let t = 0;
+    for (let i = 0; i < 3; i++) {
+        const before = a.sim.interior.t;
+        use(a.sim, a.it, order[i]);
+        if (i === 0) t = before;
+        assert.ok(order[i].lit, order[i].bid + ' is lit');
+    }
+    const took = a.it.t - t;
+    if (process.env.RP_VERBOSE) console.log('summit run', took.toFixed(2), 's');
+    assert.ok(took < 8.5, 'the run takes ' + took.toFixed(1) + ' s of the 9');
+    tick(a.sim, {}, 30);
+    assert.ok(a.gate.open && a.it.puzzle === 'solved', 'the gate is open for good');
+    putAt(a.it, a.gate.cx, a.gate.cy);
+    const lect = thingsOf(a.it, 'page')[0];
+    assert.equal(lect.n, 7);
+    use(a.sim, a.it, lect);
+    assert.ok(a.sim.profile.loot.includes('page_07'));
+    closeTalk(a.sim);
+    // too slow: the first lamp is out again before the last one is lit
+    const b = lit();
+    const first = b.lamps[0];
+    use(b.sim, b.it, first);
+    assert.ok(first.lit);
+    tick(b.sim, {}, 60 * 10);
+    assert.ok(!first.lit, 'the lamp went out after nine seconds');
+    assert.ok(!b.gate.open);
+});
+
+check('brass lab: three linked levers, solved by a short search, open the gate to page 9', () => {
+    const defs = Rooms.ROOMS.brass_lab.things.filter((t) => t.lever != null);
+    const ids = defs.map((d) => d.lever);
+    assert.equal(ids.length, 3);
+    const start = defs.map((d) => !!d.on);
+    const pull = (state, i) => state.map((v, k) => (k === i || (defs[i].flips || []).includes(ids[k]) ? !v : v));
+    const solved = (state) => state.every(Boolean);
+    assert.ok(!solved(start), 'not solved at the start');
+    for (let i = 0; i < 3; i++) assert.ok(!solved(pull(start, i)), 'one pull does not solve it');
+    // breadth first search over the 8 states
+    const seen = { [start.join()]: [] };
+    const queue = [start];
+    let best = null;
+    while (queue.length && !best) {
+        const s = queue.shift();
+        for (let i = 0; i < 3 && !best; i++) {
+            const n = pull(s, i);
+            if (seen[n.join()]) continue;
+            seen[n.join()] = seen[s.join()].concat(i);
+            if (solved(n)) best = seen[n.join()];
+            else queue.push(n);
+        }
+    }
+    assert.ok(best && best.length >= 2 && best.length <= 4, 'shortest solution ' + (best && best.length) + ' pulls');
+    // the same pulls with real input through the engine
+    const sim = houseSim('brass_lab');
+    const it = sim.interior;
+    const levers = thingsOf(it, 'lever');
+    const gate = thingsOf(it, 'gate')[0];
+    assert.ok(!gate.open && it.puzzle === 'open');
+    for (const i of best) {
+        const lever = levers.filter((l) => l.lid === ids[i])[0];
+        const evs = use(sim, it, lever);
+        assert.ok(evs.some((e) => e.type === 'in_lever'));
+    }
+    tick(sim, {}, 30);
+    assert.ok(levers.every((l) => l.on) && gate.open && it.puzzle === 'solved');
+    // the gate stays open when the levers are pulled again
+    use(sim, it, levers[0]);
+    tick(sim, {}, 30);
+    assert.ok(gate.open);
+    walkTo(sim, it, gate.cx, gate.cy);
+    const lect = thingsOf(it, 'page')[0];
+    assert.equal(lect.n, 9);
+    const events = use(sim, it, lect);
+    assert.ok(events.some((e) => e.type === 'in_page' && e.detail.page === 9));
+    assert.ok(sim.profile.loot.includes('page_09'));
+    closeTalk(sim);
+});
+
+check('hall: task board, Cog after the finale, Edda and the recruits after the observatory', () => {
+    const who = (flags) => {
+        const sim = houseSim('hall', flags ? { npcFlags: flags } : undefined);
+        return sim.interior.npcs.map((n) => n.npcId).sort();
+    };
+    deq(who(), ['elder'], 'nobody extra at the start');
+    deq(who({ 'epilogue.paid': 1 }), ['automaton', 'elder'], 'Cog only with epilogue.paid');
+    deq(who({ 'obs.done': 1 }), ['edda', 'elder', 'recruit_f', 'recruit_m'], 'Edda and the recruits only with obs.done');
+    deq(who({ 'epilogue.paid': 1, 'obs.done': 1 }), ['automaton', 'edda', 'elder', 'recruit_f', 'recruit_m']);
+    const sim = houseSim('hall', { npcFlags: { 'epilogue.paid': 1, 'obs.done': 1 } });
+    const it = sim.interior;
+    const board = thingsOf(it, 'use');
+    assert.equal(board.length, 2);
+    assert.ok(board.every((b) => b.request === 'board' && b.cy === board[0].cy) && Math.abs(board[0].cx - board[1].cx) === 1, 'a 2x1 board');
+    use(sim, it, board[0]);
+    assert.equal(sim.uiRequest, 'board');
+    sim.uiRequest = null;
+    for (const id of ['automaton', 'edda']) {
+        talkTo(sim, id);
+        assert.ok(Dialogue.view(sim).choices.length >= 1);
+        Dialogue.close(sim);
+    }
+    const girl = it.npcs.filter((n) => n.npcId === 'recruit_f')[0];
+    standBy(sim, girl);
+    tick(sim, {}, 2);
+    tick(sim, { talkPressed: 'e' });
+    assert.ok(!sim.encounter, 'recruits only stand around');
+});
+
+check('tavern: Gundar sits at his dice table', () => {
+    const sim = houseSim('tavern');
+    const it = sim.interior;
+    const tables = thingsOf(it, 'use');
+    assert.equal(tables.length, 2);
+    assert.ok(tables.every((t) => t.request === 'dice:gambler'));
+    talkTo(sim, 'gambler');
+    const res = Dialogue.choose(sim, 0);
+    assert.ok(res.closed);
+    assert.equal(sim.uiRequest, 'dice:gambler');
+    sim.uiRequest = null;
+    use(sim, it, tables[0]);
+    assert.equal(sim.uiRequest, 'dice:gambler');
+});
+
+console.log(`Runenpfad places checks passed: ${passed} groups (rooms, campaign doors, enter and freeze, walls, determinism, mob kinds and telegraphs, bot clears, KO, loot once, leave, interior dialogue, profile, endless, dialogue engine, village hub, village places, folk, tavern guests, cellar, pedestals, cave exits, house tasks, hall and tavern guests).`);
