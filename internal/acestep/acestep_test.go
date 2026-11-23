@@ -434,3 +434,25 @@ func TestActionFeedbackFinishesForReadyStartAndFailedStop(t *testing.T) {
 		t.Fatal("queued stop lost its pending feedback")
 	}
 }
+
+func TestAudioDurationOK(t *testing.T) {
+	for _, c := range []struct {
+		name               string
+		duration, requested float64
+		max                int
+		ok                 bool
+	}{
+		{"exact", 60, 60, 120, true},
+		{"trimmed 10s shorter", 50, 60, 120, true},
+		{"slightly longer", 61.5, 60, 120, true},
+		{"3s longer", 63, 60, 120, false},
+		{"under half", 28.9, 60, 120, false},
+		{"half boundary", 29, 60, 120, true},
+		{"below one second", 0.5, 2, 120, false},
+		{"above profile max", 122, 121, 120, false},
+	} {
+		if got := audioDurationOK(c.duration, c.requested, c.max); got != c.ok {
+			t.Errorf("%s: got %v want %v", c.name, got, c.ok)
+		}
+	}
+}

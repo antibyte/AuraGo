@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -133,7 +132,7 @@ func (m *Manager) generate(ctx context.Context, p Params, profile Profile) (Audi
 				return Audio{}, fmt.Errorf("acestep_invalid_audio_result")
 			}
 			duration := results[0].Metas.Duration
-			if duration < 1 || duration > 601 || duration > float64(profile.MaxDuration)+1 || math.Abs(duration-p.DurationSeconds) > 2 {
+			if !audioDurationOK(duration, p.DurationSeconds, profile.MaxDuration) {
 				return Audio{}, fmt.Errorf("acestep_invalid_audio_duration")
 			}
 			return m.downloadAudio(ctx, results[0].File, duration, profile.Model)
@@ -141,6 +140,13 @@ func (m *Manager) generate(ctx context.Context, p Params, profile Profile) (Audi
 			return Audio{}, fmt.Errorf("acestep_invalid_job_status")
 		}
 	}
+}
+
+// audioDurationOK accepts results up to 2s longer or down to half the requested
+// length; the runtime may trim trailing silence, so shorter results are valid.
+func audioDurationOK(duration, requested float64, maxDuration int) bool {
+	return duration >= 1 && duration <= 601 && duration <= float64(maxDuration)+1 &&
+		duration <= requested+2 && duration >= requested*0.5-1
 }
 
 func audioDownloadPath(raw string) (string, error) {

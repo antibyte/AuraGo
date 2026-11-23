@@ -2,6 +2,8 @@
 import json
 import os
 from pathlib import Path
+import shutil
+import subprocess
 import tempfile
 import threading
 import unittest
@@ -108,6 +110,48 @@ class VulkanContract(unittest.TestCase):
             self.assertIn('ceil(aces[orig_i].duration * 5)', lm.read_text())
             file.write_text('changed upstream')
             with self.assertRaises(AssertionError): patch_vulkan.patch(directory)
+
+
+def sd(*lines):
+    return chr(10).join('[silencedetect @ 0x55d0c8a0] ' + line for line in lines)
+
+
+class TrailingSilence(unittest.TestCase):
+    def test_tail_silence_cut(self):
+        log = sd('silence_start: 52.4', 'silence_end: 60.0 | silence_duration: 7.6')
+        self.assertAlmostEqual(runtime.trailing_silence_cut(log, 60.0, 60), 52.9)
+        self.assertAlmostEqual(runtime.trailing_silence_cut(sd('silence_start: 52.4'), 60.0, 60), 52.9)
+
+    def test_middle_silence_ignored(self):
+        log = sd('silence_start: 10', 'silence_end: 15 | silence_duration: 5')
+        self.assertIsNone(runtime.trailing_silence_cut(log, 60.0, 60))
+
+    def test_short_tail_ignored(self):
+        self.assertIsNone(runtime.trailing_silence_cut(sd('silence_start: 58.9'), 60.0, 60))
+
+    def test_cut_below_half_ignored(self):
+        self.assertIsNone(runtime.trailing_silence_cut(sd('silence_start: 20'), 60.0, 60))
+
+    def test_silence_end_equals_duration(self):
+        log = sd('silence_start: 40', 'silence_end: 60 | silence_duration: 20')
+        self.assertAlmostEqual(runtime.trailing_silence_cut(log, 60.0, 60), 40.5)
+
+    def test_garbage(self):
+        self.assertIsNone(runtime.trailing_silence_cut(chr(10).join(['hello', 'silence_start: abc', '[x] silence_end:']), 60.0, 60))
+        self.assertIsNone(runtime.trailing_silence_cut('', 60.0, 60))
+
+    @unittest.skipUnless(shutil.which('ffmpeg') and shutil.which('ffprobe'), 'ffmpeg not installed')
+    def test_trim_integration(self):
+        with tempfile.TemporaryDirectory() as directory:
+            part = Path(directory) / 'a.part'
+            subprocess.run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y', '-f', 'lavfi', '-i',
+                            "aevalsrc='if(lt(t,3),0.5*sin(2*PI*440*t),0)':s=44100:d=6", '-f', 'mp3', str(part)],
+                           check=True, timeout=60)
+            runtime.trim_trailing_silence(part, 6)
+            out = subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', str(part)],
+                                 capture_output=True, timeout=20, check=True)
+            self.assertTrue(3.2 <= float(out.stdout) <= 4.0, out.stdout)
+            self.assertEqual([p.name for p in Path(directory).iterdir()], ['a.part'])
 
 
 if __name__ == '__main__': unittest.main()

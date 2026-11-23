@@ -147,6 +147,54 @@ def generation_request(body, profile):
     return request
 
 
+SILENCE_TAIL_MIN = 1.5
+SILENCE_KEEP = 0.5
+SILENCE_EVENT = re.compile(r'silence_(start|end):\s*(-?\d+(?:\.\d+)?)')
+
+
+def trailing_silence_cut(silencedetect_log, duration, requested):
+    """Cut point for a silence that runs to the end of the file, or None."""
+    start = None
+    for line in str(silencedetect_log).splitlines():
+        match = SILENCE_EVENT.search(line)
+        if not match or 'silencedetect' not in line: continue
+        value = float(match.group(2))
+        if not math.isfinite(value): continue
+        if match.group(1) == 'start':
+            start = value
+        elif start is not None and value < duration - 0.1:
+            start = None
+    if start is None or duration - start < SILENCE_TAIL_MIN: return None
+    cut = start + SILENCE_KEEP
+    return cut if cut >= 0.5 * requested and cut < duration else None
+
+
+def probe_duration(path):
+    check = subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', str(path)],
+                           capture_output=True, timeout=20)
+    return float(check.stdout) if check.returncode == 0 else 0
+
+
+def trim_trailing_silence(part, requested):
+    """Stream-copy away trailing near-silence; any failure leaves the file untouched."""
+    tmp = part.with_suffix('.trim')
+    try:
+        scan = subprocess.run(['ffmpeg', '-hide_banner', '-nostats', '-i', str(part), '-af',
+                               'silencedetect=noise=-50dB:d=1.5', '-f', 'null', '-'],
+                              capture_output=True, timeout=60)
+        if scan.returncode != 0: return
+        cut = trailing_silence_cut(scan.stderr.decode('utf-8', 'replace'), probe_duration(part), requested)
+        if cut is None: return
+        done = subprocess.run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y', '-i', str(part), '-t', '%.3f' % cut,
+                               '-c', 'copy', '-map_metadata', '-1', '-f', 'mp3', str(tmp)],
+                              capture_output=True, timeout=60)
+        if done.returncode == 0 and tmp.stat().st_size > 0: tmp.replace(part)
+    except Exception:
+        pass
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
 def render(request):
     if PROFILE['lm_model']:
         raw, _ = native_job('/lm', request)
@@ -171,6 +219,11 @@ def render(request):
                                capture_output=True, timeout=20)
         duration = float(check.stdout) if check.returncode == 0 else 0
         if not math.isfinite(duration) or abs(duration - request['duration']) > 2 or not 1 <= duration <= 601:
+            raise RuntimeError('acestep_invalid_audio_duration')
+        trim_trailing_silence(part, request['duration'])
+        try: duration = probe_duration(part)
+        except (OSError, ValueError, subprocess.SubprocessError): duration = 0
+        if not math.isfinite(duration) or not 1 <= duration <= 601:
             raise RuntimeError('acestep_invalid_audio_duration')
         part.replace(path)
         return path, duration
