@@ -172,7 +172,7 @@ mark.notes-highlight{background:color-mix(in srgb,#f5d547 42%,transparent);color
 .notes-excerpt pre{padding:8px;white-space:pre-wrap}
 .notes-excerpt table{border-collapse:collapse;font-size:.92em}
 .notes-excerpt :is(td,th){border:1px solid var(--notes-border);padding:3px 6px}
-.notes-excerpt .notes-inert-link{color:var(--notes-accent);text-decoration:underline dotted;text-underline-offset:3px}
+.notes-excerpt a,.notes-excerpt .notes-inert-link{color:var(--notes-accent);text-decoration:underline dotted;text-underline-offset:3px}
 .notes-excerpt>:first-child{margin-top:0}
 .notes-preview{position:absolute;z-index:16;width:360px;max-width:calc(100% - 16px);max-height:300px;overflow:auto;padding:11px 14px 12px;border:1px solid var(--vd-mat-card-border,var(--notes-border));border-radius:var(--vd-mat-card-radius,10px);background:var(--notes-card);box-shadow:var(--vd-mat-card-shadow,0 0 #0000),0 14px 36px #0006;scrollbar-width:thin}
 .vd-notes-app .notes-preview-title{display:block;width:100%;min-height:0;margin:0 0 6px;padding:2px 0;text-align:left;font-size:13px;font-weight:650;letter-spacing:-.01em}

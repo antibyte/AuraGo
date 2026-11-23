@@ -153,6 +153,75 @@ async () => {
     check(rowGets()-base===1,'The cached note was fetched again: '+(rowGets()-base));
     await app.act('closePanel');
     result.backlinksStable=true;
+
+    // Excerpts (embeds and hover previews) carry foreign Markdown: injected markup never acts as app chrome.
+    const NL=String.fromCharCode(10);
+    const hostile=['# Inject','',
+        '<span data-action="trash">X</span>','','<div data-popup>pop</div>','','<div data-preview>prev</div>','','<div data-panel-content>pc</div>','',
+        '<div data-graph-host>gh</div>','','<div data-loading>ld</div>','','<div data-empty>em</div>','','<textarea data-instruction>evil</textarea>','',
+        '<select data-ai-scope><option>x</option></select>','',
+        '<button data-attachment-path="evil.png" data-create-wiki="Boom" data-note-path="Documents/Notes/einkauf.md" data-chip-remove="tags" data-jump="3">B</button>','',
+        '<map name=m><area shape=default href="https://example.com/boom"></map><img usemap="#m" srcset="https://example.com/y.png 2x" src="data:image/png;base64,AAAA">','',
+        '<video src="https://example.com/v.mp4" poster="https://example.com/p.png"></video>','',
+        '<a href="javascript:alert(1)" data-x=1 id=evil name=evil>harmless link</a>','',
+        '- [x] erledigt',''].join(NL);
+    await seed(DIR+'/inject.md',hostile);
+    await seed(DIR+'/host.md','# Host'+NL+NL+'Embed:'+NL+NL+'![[inject]]'+NL+NL+'Und ein Verweis [[inject]].'+NL);
+    await app.index.load();
+    await until(()=>row(DIR+'/host.md'),'host row');
+    await open(DIR+'/host.md');
+    const embedBody=await until(()=>document.querySelector('.notes-embed[data-kind=note] .notes-embed-body')?.textContent.includes('harmless link')&&document.querySelector('.notes-embed[data-kind=note] .notes-embed-body'),'embedded excerpt');
+    const unsafe='[data-action],[data-popup],[data-preview],[data-panel-content],[data-graph-host],[data-loading],[data-empty],[data-instruction],[data-ai-scope],[data-attachment-path],[data-create-wiki],[data-note-path],[data-chip-remove],[data-jump],area,map,textarea,select,video,button,form,[srcset],[usemap],[poster],[id],[name],[href],[style]';
+    const clean=(host,label)=>{
+        check(!host.querySelector(unsafe),label+' keeps unsafe markup: '+host.innerHTML);
+        check(!host.querySelector('img'),label+' keeps an image that does not resolve');
+        check(host.textContent.includes('X')&&host.textContent.includes('harmless link'),label+' lost its text');
+        check(host.querySelector('input[type=checkbox][disabled]'),label+' lost the disabled task checkbox');
+        check(![...host.querySelectorAll('*')].some(el=>[...el.attributes].some(attr=>attr.name.startsWith('data-'))),label+' keeps data attributes');
+    };
+    clean(embedBody,'Embed card');
+    const href=location.href,chrome=document.querySelector('.notes-popup'),chromePreview=document.querySelector('.notes-preview');
+    const opened=[],openOriginal=window.open;window.open=(...args)=>{opened.push(args);return null;};
+    const confirmOriginal=notesContext.confirmDialog;notesContext.confirmDialog=async()=>true;
+    // Even markup that got into an excerpt after sanitizing (a future bug) must not act as app chrome.
+    const EVIL='<span data-action="trash" id="e1">t</span><button data-attachment-path="evil.png" id="e2">a</button><button data-create-wiki="Boom" id="e3">c</button><button data-note-path="'+DIR+'/einkauf.md" id="e4">n</button><span data-jump="1" id="e5">j</span><span data-chip-remove="tags" data-value="x" id="e6">r</span><div data-popup id="e7"></div><div data-preview id="e8"></div><div data-panel-content id="e9"></div><div data-graph-host id="e10"></div><div data-loading id="e11"></div><div data-empty id="e12"></div><textarea data-instruction id="e13"></textarea><select data-ai-scope id="e14"></select><span data-right-tab="info" id="e15">tab</span><span data-crumb="'+DIR+'" id="e16">c</span>';
+    const inject=host=>{const box=document.createElement('div');box.innerHTML=EVIL;host.append(...box.childNodes);};
+    inject(embedBody);
+    // Lookups of popup, preview, panel and loading state still reach the app chrome.
+    await app.act('document');
+    check(!chrome.hidden&&chrome.querySelector('button')&&!embedBody.querySelector('#e7').children.length,'The popup lookup went to the injected element');
+    await app.act('dismiss');
+    await app.act('outline');
+    check(document.querySelector('[data-right] [data-panel-content]')&&document.querySelector('[data-right] [data-panel-content]').textContent.trim()&&!embedBody.querySelector('#e9').textContent,'The panel lookup went to the injected element');
+    await app.act('closePanel');
+    await app.act('assist');
+    check(document.querySelector('[data-right] [data-instruction]')&&document.querySelector('[data-right] [data-ai-scope]'),'Assist panel missing');
+    await app.act('closePanel');
+    const chip=[...app.editor.view.dom.querySelectorAll('.notes-wikilink')].find(el=>el.textContent.includes('inject'));
+    check(chip,'wikilink chip to inject');
+    chip.dispatchEvent(new MouseEvent('mouseenter'));
+    const card=await until(()=>!chromePreview.hidden&&chromePreview.querySelector('[data-preview-body]')?.textContent.includes('harmless link')&&chromePreview,'hover preview of the hostile note');
+    const previewBody=card.querySelector('[data-preview-body]');
+    clean(previewBody,'Preview card');
+    check(!embedBody.querySelector('#e8').children.length&&!embedBody.querySelector('#e8').textContent,'The preview lookup went to the injected element');
+    check(card.querySelector('.notes-preview-title[data-note-path]'),'Preview title lost its open action');
+    // Clicks inside the preview excerpt do nothing: no trash, no navigation, no window, no writes.
+    inject(previewBody);
+    const logBefore=log.length,pathBefore=app.path;
+    for(const id of ['e1','e2','e3','e4','e5','e6','e15','e16'])previewBody.querySelector('#'+id).click();
+    await sleep(300);
+    check(app.path===pathBefore&&location.href===href,'A click inside an excerpt navigated or trashed: '+app.path);
+    check(!opened.length,'A click inside an excerpt opened a window');
+    check(!log.slice(logBefore).some(entry=>['PATCH','POST','PUT'].includes(entry.method)),'A click inside an excerpt wrote: '+JSON.stringify(log.slice(logBefore)));
+    check(document.querySelector('[data-right]').hidden,'An excerpt opened the right sidebar');
+    chip.dispatchEvent(new MouseEvent('mouseleave'));
+    // Clicks inside an embedded card only ever trigger the card's own behaviour (opening the embedded note).
+    for(const id of ['e1','e2','e3','e5','e6','e15','e16'])embedBody.querySelector('#'+id).click();
+    await sleep(300);
+    check(!opened.length&&app.path!==DIR+'/einkauf.md'&&document.querySelector('[data-right]').hidden,'A click inside an embedded card acted as app chrome');
+    check(!log.slice(logBefore).some(entry=>['PATCH','POST','PUT'].includes(entry.method)&&!String(entry.body).includes('notes.meta.json')),'A click inside an embedded card wrote');
+    window.open=openOriginal;notesContext.confirmDialog=confirmOriginal;
+    result.excerptsInert=true;
     }finally{window.fetch=fetchOriginal;}
     check(errors.length===0,'Browser errors: '+errors.join('\n'));
     await app.act('dismiss');

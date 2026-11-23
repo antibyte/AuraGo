@@ -44,6 +44,29 @@
         if (!['ArrowLeft', 'ArrowRight'].includes(event.key) || isEditableTarget(event.target)) return '';
         return event.key === 'ArrowLeft' ? 'back' : 'forward';
     }
+    // Excerpts (embedded note cards, hover previews) render another note's Markdown inside the app. Only plain reading
+    // markup survives: no data-*, ids, forms, maps, media or links, and images only from note attachments or http(s).
+    const EXCERPT_TAGS = ['p','h1','h2','h3','h4','h5','h6','ul','ol','li','blockquote','pre','code','em','strong','del','s','mark','a','img','table','thead','tbody','tfoot','tr','th','td','hr','br','span','input'];
+    const EXCERPT_ATTRS = ['href','src','alt','title','type','checked','disabled','colspan','rowspan','align','start'];
+    const EXCERPT_FORBID_ATTR = ['id','name','srcset','usemap','poster','popover','popovertarget','form','formaction','tabindex','style','class'];
+    function sanitizeExcerpt(html, resolveSrc) {
+        const hook = node => {
+            if (node.nodeType !== 1) return;
+            if (node.nodeName === 'IMG') {
+                const url = resolveSrc(node.getAttribute('src') || '');
+                if (!/^(https?:\/\/|\/api\/desktop\/download\?)/i.test(url || '')) { node.parentNode?.removeChild(node); return; }
+                node.setAttribute('src', url); node.setAttribute('loading', 'lazy');
+            } else if (node.nodeName === 'A') {
+                for (const name of ['href', 'target', 'rel']) node.removeAttribute(name);
+            } else if (node.nodeName === 'INPUT') {
+                if (node.getAttribute('type') !== 'checkbox') { node.parentNode?.removeChild(node); return; }
+                node.setAttribute('disabled', '');
+            }
+        };
+        DOMPurify.addHook('afterSanitizeAttributes', hook);
+        try { return DOMPurify.sanitize(html, {ALLOWED_TAGS: EXCERPT_TAGS, ALLOWED_ATTR: EXCERPT_ATTRS, FORBID_ATTR: EXCERPT_FORBID_ATTR, ALLOW_DATA_ATTR: false, ALLOW_ARIA_ATTR: false}); }
+        finally { DOMPurify.removeHook('afterSanitizeAttributes', hook); }
+    }
     function render(host, windowId, ctx = {}) {
         dispose(windowId);
         const stored=readRight();
@@ -75,7 +98,10 @@
             '<main class="notes-main"><div class="notes-scroll" data-scroll><div class="notes-page"><div class="notes-properties" data-properties hidden></div><div class="notes-note-meta" data-note-meta></div><div data-editor></div></div></div><div class="notes-empty" data-empty><div class="notes-empty-icon">'+icon('md')+'</div><h2>'+esc(tr('empty_title'))+'</h2><p>'+esc(tr('empty_description'))+'</p>'+button('new','new_note',true)+'</div><div class="notes-loading" data-loading hidden>'+esc(tr('loading'))+'</div>'+
             '<section class="notes-graph" data-graph hidden aria-label="'+esc(tr('graph'))+'"><div class="notes-graph-bar" role="toolbar" aria-label="'+esc(tr('graph'))+'"><input type="search" data-graph-filter autocomplete="off" spellcheck="false" placeholder="'+esc(tr('graph_filter'))+'" aria-label="'+esc(tr('graph_filter'))+'"><span class="notes-graph-toggles">'+['tags','unresolved','orphans'].map(key=>'<button type="button" data-graph-toggle="'+key+'" aria-pressed="false">'+esc(tr(key==='tags'?'tags':'graph_'+key))+'</button>').join('')+'</span><span class="notes-graph-actions">'+button('graphFit','graph_fit')+button('graphClose','graph_close')+'</span></div><div class="notes-graph-host" data-graph-host></div><p class="notes-graph-empty" data-graph-empty hidden>'+esc(tr('graph_empty'))+'</p></section></main><aside class="notes-right" data-right hidden></aside></div>'+
             '<footer class="notes-statusbar"><button type="button" data-action="backlinks" data-backlinks disabled></button><span data-count></span><span class="notes-spacer"></span><span data-mode></span>'+button('focus','focus_mode')+'<button data-action="zoomOut" aria-label="'+esc(tr('zoom_out'))+'">−</button><button data-action="zoomReset" data-zoom>100%</button><button data-action="zoomIn" aria-label="'+esc(tr('zoom_in'))+'">+</button></footer><div class="notes-popup" data-popup hidden></div><div class="notes-preview" data-preview hidden role="dialog" aria-label="'+esc(tr('preview'))+'"></div><input data-upload type="file" multiple hidden><input data-import type="file" accept=".md,.markdown,.txt,text/markdown,text/plain" hidden></div>';
-        const root=host.firstElementChild, find=selector=>root.querySelector(selector), life=new AbortController();
+        const root=host.firstElementChild, life=new AbortController();
+        // App chrome is never looked up inside the editor or an excerpt: embedded note content must not shadow popups, panels or inputs.
+        const untrusted=el=>{const area=el.closest('[data-editor],.notes-excerpt');return !!area&&!(area===el&&el.hasAttribute('data-editor'));};
+        const find=selector=>{const first=root.querySelector(selector);if(!first||!untrusted(first))return first;for(const el of root.querySelectorAll(selector))if(!untrusted(el))return el;return null;};
         let docLife=new AbortController(), editor, queue, current, documentGeneration=0, disposed=false, busy=false, loading=false, navigating=false, navTask=null, zoom=100, right=stored.open&&TABS.includes(stored.tab)?stored.tab:'', lastTab=TABS.includes(stored.tab)?stored.tab:'backlinks', updateTimer, draftTimer, draftDeadline, sseTimer;
         let meta={version:1,pinned:[],sort:'modified',last_note:'',recent:[]}, list=[], trashNotes=[], trash=false, listGeneration=0, currentDraft, assistController, proposal;
         let sidebar, sidebarFrame=0, contextTarget=null, findCase=false;
@@ -496,9 +522,7 @@
                 const note=await request(endpoint(path),{signal:life.signal});
                 const text=NotesFrontmatter.strip(String(note.content||'')).slice(0,4000).replace(/!?\[\[([^\[\]\n]+)\]\]/g,(match,value)=>{const parsed=NotesIndex.parseWikiValue(value);return parsed.alias||parsed.target||parsed.subpath||value;});
                 const wrapper=document.createElement('div');
-                wrapper.innerHTML=DOMPurify.sanitize(marked.parse(text),{FORBID_TAGS:['style','iframe','form','input','script'],FORBID_ATTR:['style']});
-                for(const img of wrapper.querySelectorAll('img')){const url=resolveURL(img.getAttribute('src'),path);if(url)img.setAttribute('src',url);else img.remove();img.loading='lazy';}
-                for(const link of wrapper.querySelectorAll('a')){const span=document.createElement('span');span.className='notes-inert-link';span.append(...link.childNodes);link.replaceWith(span);}
+                wrapper.innerHTML=sanitizeExcerpt(marked.parse(text),src=>resolveURL(src,path));
                 const title=meta?.title||NotesFrontmatter.deriveTitle(note.content||'',basename(path).replace(/\.md$/i,'')),first=wrapper.firstElementChild;
                 if(first?.tagName==='H1'&&first.textContent.trim()===title)first.remove();
                 return {title,html:wrapper.innerHTML};
@@ -1019,7 +1043,10 @@
             else runFind(1);
         }
         on(window,'beforeunload',event=>{if(queue?.dirty){backup();event.preventDefault();event.returnValue='';}});
+        // Embedded notes and hover previews show foreign content: their markup never acts as app chrome (the card's own title and create buttons are outside the excerpt body).
+        const inExcerpt=event=>!!event.target.closest?.('.notes-excerpt,.notes-embed');
         on(root,'click',event=>{
+            if(inExcerpt(event))return;
             const toggle=event.target.closest('[data-graph-toggle]');if(toggle){graphPrefs[toggle.dataset.graphToggle]=!graphPrefs[toggle.dataset.graphToggle];writeGraphPrefs(graphPrefs);syncGraphToggles();updateGraph();if(right==='localGraph')updateLocalGraph();return;}
             const toggleProps=event.target.closest('[data-props-toggle]');if(toggleProps){propsOpen=!propsOpen;storage.set(PROPS_KEY,propsOpen?'1':'0');renderProperties(true);find('[data-props-toggle]')?.focus({preventScroll:true});return;}
             const addProps=event.target.closest('[data-props-add]');if(addProps){propsForce=true;renderProperties(true);propInput('tags')?.focus();return;}
@@ -1034,11 +1061,13 @@
             else if(!event.target.closest('[data-popup]'))find('[data-popup]').hidden=true;
         });
         on(root,'change',event=>{
+            if(inExcerpt(event))return;
             if(event.target.matches('[data-graph-depth]')){graphPrefs.depth=event.target.value==='2'?2:1;writeGraphPrefs(graphPrefs);updateLocalGraph();return;}
             if(event.target.matches('[data-style]'))editor?.command('style',event.target.value);
         });
-        on(root,'input',event=>{if(event.target.matches('[data-find]'))runFind(0);if(event.target.matches('[data-graph-filter]')){graphFilter=event.target.value;updateGraph();}});
+        on(root,'input',event=>{if(inExcerpt(event))return;if(event.target.matches('[data-find]'))runFind(0);if(event.target.matches('[data-graph-filter]')){graphFilter=event.target.value;updateGraph();}});
         on(root,'focusout',event=>{
+            if(inExcerpt(event))return;
             const input=event.target.closest?.('[data-prop-input]');
             if(!input||!input.value.trim()||input.closest('[data-properties]').contains(event.relatedTarget)||!writable())return;
             addProp(input.dataset.propInput,input.value,false);
@@ -1050,6 +1079,7 @@
         on(root,'keydown',event=>{
             if(root.__notesPalette)return;
             if(event.key==='Escape')hidePreview();
+            if(inExcerpt(event))return;
             if(event.key==='Escape'&&graphOpen&&!event.defaultPrevented&&(event.target.closest?.('[data-graph]')||graphPointer)){event.preventDefault();event.stopPropagation();closeGraph();return;}
             const bar=event.target.closest?.('[data-findbar]');
             if(bar&&!event.ctrlKey&&!event.metaKey&&!event.altKey){
