@@ -116,3 +116,7 @@ ui/img/storymaker/models/*.txt text eol=lf
 
 # AuraGo boringd patch series must apply byte-exact from Windows checkouts.
 internal/virtualcomputers/patches/*.patch text eol=lf whitespace=-blank-at-eol,-space-before-tab
+
+# Chibi Sensei: the trainer's bytes are hashed into every run; golden files and proof data are compared byte for byte.
+internal/chibisensei/trainer/** text eol=lf
+internal/chibisensei/testdata/** text eol=lf

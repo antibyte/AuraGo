@@ -315,7 +315,7 @@ func TestChibiSenseiChecksSplitPlan(t *testing.T) {
 	w = chibiDo(t, s, token, http.MethodGet, base+"/plan?preset=quick", nil)
 	chibiWant(t, w, http.StatusOK, "")
 	plan := chibiBody(t, w)
-	if plan["trainable"] != false || plan["reason_key"] != "chibi_sensei.plan.training_later" ||
+	if plan["trainable"] != true || plan["reason_key"] != "" || plan["max_train_seconds"] == nil ||
 		plan["hyper"].(map[string]any)["epochs"] != float64(1) {
 		t.Fatalf("plan = %s", w.Body.String())
 	}

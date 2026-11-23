@@ -7,8 +7,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
+
+	"aurago/internal/chibisensei/trainer"
 )
 
 // Profile is one model profile of the embedded catalog.
@@ -46,11 +49,12 @@ type ProfileLicense struct {
 }
 
 type ProfileBase struct {
-	Source    string `json:"source"`
-	Repo      string `json:"repo"`
-	Revision  string `json:"revision"`
-	AutoClass string `json:"auto_class"`
-	Gated     bool   `json:"gated"`
+	Source             string   `json:"source"`
+	Repo               string   `json:"repo"`
+	Revision           string   `json:"revision"`
+	AutoClass          string   `json:"auto_class"`
+	AutoClassFallbacks []string `json:"auto_class_fallbacks,omitempty"` // tried in order after AutoClass
+	Gated              bool     `json:"gated"`
 }
 
 type ProfileArch struct {
@@ -292,6 +296,55 @@ func ValidateProfile(p *Profile) error {
 	}
 	if len(p.Arch.Languages) == 0 {
 		return profileErr("arch.languages", "required")
+	}
+	return validateProfileNames(p)
+}
+
+var (
+	revisionPattern = regexp.MustCompile(`^[0-9a-f]{40}$`)
+	pyClassPattern  = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]{0,79}$`)
+	modulePattern   = regexp.MustCompile(`^[A-Za-z0-9_]{1,64}$`)
+)
+
+const maxAutoClassFallbacks = 4
+
+// validateProfileNames checks the values the trainer hands to Python: the pinned revision, the class names it
+// resolves with getattr(transformers, name), the LoRA module names, the extra pip pins and the GGUF type.
+func validateProfileNames(p *Profile) error {
+	if !revisionPattern.MatchString(p.Base.Revision) {
+		return profileErr("base.revision", "must be a pinned 40-character commit sha")
+	}
+	if !pyClassPattern.MatchString(p.Base.AutoClass) {
+		return profileErr("base.auto_class", "must be a transformers class name")
+	}
+	if len(p.Base.AutoClassFallbacks) > maxAutoClassFallbacks {
+		return profileErr("base.auto_class_fallbacks", "at most 4 entries")
+	}
+	seen := map[string]bool{p.Base.AutoClass: true}
+	for _, c := range p.Base.AutoClassFallbacks {
+		if !pyClassPattern.MatchString(c) || seen[c] {
+			return profileErr("base.auto_class_fallbacks", "entries must be distinct class names other than auto_class")
+		}
+		seen[c] = true
+	}
+	mods := p.Training.LoRA.TargetModules
+	if len(mods) == 0 || len(mods) > 32 {
+		return profileErr("training.lora.target_modules", "needs 1 to 32 module names")
+	}
+	seenMod := map[string]bool{}
+	for _, m := range mods {
+		if !modulePattern.MatchString(m) || seenMod[m] {
+			return profileErr("training.lora.target_modules", "entries must be distinct module names")
+		}
+		seenMod[m] = true
+	}
+	for _, pin := range p.Training.ExtraPip {
+		if !trainer.ValidPin(pin) {
+			return profileErr("training.extra_pip", `entries must be exact "name==version" pins`)
+		}
+	}
+	if p.GGUF.OutType != "q8_0" {
+		return profileErr("gguf.out_type", `must be "q8_0"`)
 	}
 	return nil
 }

@@ -29,16 +29,51 @@ func TestPresetsAndPlan(t *testing.T) {
 		h.LoRA == nil || *h.LoRA != (LoRAHyper{16, 16, 0.05}) || b.EstimateMinutes != 27 || b.SessionTimeoutMinutes != 56 {
 		t.Fatalf("balanced = %+v", b)
 	}
-	if b.Trainable || b.ReasonKey != "chibi_sensei.plan.training_later" || b.DataRev != 5 {
+	if !b.Trainable || b.ReasonKey != "" || b.DataRev != 5 || b.EvalSamples != 20 || b.MaxNewTokens != 256 ||
+		b.MaxTrainSeconds != 1048 || !b.NeedBaseGGUF || b.ArtifactsEstimatedMB != 1850 {
 		t.Fatalf("plan flags = %+v", b)
 	}
 	q := plan("quick")
-	if q.Hyper.Epochs != 1 || *q.Hyper.LoRA != (LoRAHyper{8, 16, 0.05}) || q.EstimateMinutes != 27 {
+	if q.Hyper.Epochs != 1 || *q.Hyper.LoRA != (LoRAHyper{8, 16, 0.05}) || q.EstimateMinutes != 27 || q.MaxTrainSeconds != 1048 {
 		t.Fatalf("quick = %+v", q)
 	}
 	th := plan("thorough")
-	if th.Hyper.Epochs != 3 || *th.Hyper.LoRA != (LoRAHyper{32, 32, 0.05}) || th.EstimateMinutes != 28 {
+	if th.Hyper.Epochs != 3 || *th.Hyper.LoRA != (LoRAHyper{32, 32, 0.05}) || th.EstimateMinutes != 28 || th.MaxTrainSeconds != 1108 {
 		t.Fatalf("thorough = %+v", th)
+	}
+	short := func() Plan {
+		pl, err := ComputePlan(PlanInput{Project: proj, Profile: qwen, Rows: rows, Split: split, RemoteTimeoutMinutes: 30, NeedBaseGGUF: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return pl
+	}()
+	if short.SessionTimeoutMinutes != 30 || short.MaxTrainSeconds != 300 {
+		t.Fatalf("30 minute limit = %+v", short)
+	}
+	proj.Preset = "balanced"
+	noBase, err := ComputePlan(PlanInput{Project: proj, Profile: qwen, Rows: rows, Split: split, RemoteTimeoutMinutes: 60})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if noBase.EstimateMinutes != 24 || noBase.SessionTimeoutMinutes != 51 || noBase.MaxTrainSeconds != 1018 ||
+		noBase.ArtifactsEstimatedMB != 950 || noBase.NeedBaseGGUF {
+		t.Fatalf("no base gguf = %+v", noBase)
+	}
+	proj.Preset = "quick"
+	bigRows := make([]SplitRow, 3000)
+	bigAssign := map[int64]string{}
+	for i := range bigRows {
+		bigRows[i] = SplitRow{ID: int64(i + 1), Split: "auto", EstTokens: 2000}
+		bigAssign[bigRows[i].ID] = "train"
+	}
+	capped, err := ComputePlan(PlanInput{Project: proj, Profile: qwen, Rows: bigRows,
+		Split: SplitResult{Counts: SplitCounts{Train: 3000, Eval: 20}, Assign: bigAssign}, RemoteTimeoutMinutes: 720, NeedBaseGGUF: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if capped.EstimateMinutes != 56 || capped.SessionTimeoutMinutes != 99 || capped.MaxTrainSeconds != 1800 {
+		t.Fatalf("quick cap = %+v", capped)
 	}
 
 	for _, tc := range [][3]int{{232, 2048, 256}, {233, 2048, 512}, {1900, 2048, 2048}, {0, 2048, 256}} {
