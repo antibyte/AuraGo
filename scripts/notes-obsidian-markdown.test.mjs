@@ -80,6 +80,15 @@ test('highlights allow nested phrasing and line starts', () => {
     for (const text of ['a == b\n', '===\n', 'x ==not closed\n']) assert.equal(all(parse(text), 'highlight').length, 0, text);
 });
 
+test('literal == in prose is not escaped, but an accidental highlight opener is', () => {
+    same('a == b and c==\n');
+    const tree = {type: 'root', children: [{type: 'paragraph', children: [{type: 'text', value: 'x==y==z'}]}]};
+    const md = stringify(tree);
+    const back = parse(md);
+    assert.equal(all(back, 'highlight').length, 0, md);
+    assert.equal(all(back, 'text').map(node => node.value).join(''), 'x==y==z');
+});
+
 test('a full Obsidian note round-trips unchanged', () => {
     same('# Projekt\n\nVerweis auf [[Ideen|meine Ideen]] und #projekt/alpha.\n\n> [!info] Hinweis\n> Siehe ==wichtig== und ![[skizze.png]]\n\n- [ ] Aufgabe mit [[Aufgaben#Heute]]\n');
 });

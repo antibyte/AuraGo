@@ -301,8 +301,9 @@ export function obsidianToMarkdown() {
             calloutMarker: node => '[!' + node.value + ']' + (node.fold || ''),
             highlight: handleHighlight
         },
-        // A literal "==" in text must not turn into a highlight on the next parse.
-        unsafe: [{character: '=', before: '=', inConstruct: 'phrasing'}]
+        // A literal "==" in text must not turn into a highlight on the next parse. Only "==" directly followed
+        // by a non-space, non-"=" character can open one, so prose like "a == b" stays untouched.
+        unsafe: [{character: '=', before: '=', after: '[^\\s=]', inConstruct: 'phrasing'}]
     };
 }
 
