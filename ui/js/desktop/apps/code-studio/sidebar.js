@@ -419,6 +419,7 @@
                     else if (act === 'git') toggleGitPanel();
                     else if (act === 'agent') toggleAgentPanel();
                     else if (act === 'terminal') toggleTerminal();
+                    else if (act === 'settings') openEditorSettings(); // IDE package 1A
                 }));
             }
         });

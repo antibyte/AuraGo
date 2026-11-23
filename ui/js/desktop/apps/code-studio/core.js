@@ -128,7 +128,8 @@
                 const pending = instance.openTabs.map(tab => tab.pendingSave).filter(Boolean);
                 if (pending.length) await Promise.all(pending);
                 if (!isLiveInstance(instance) || sessionRevision(instance) !== expectedRevision) return false;
-                if (sessionDirty(instance) && !await runWithInstance(instance, saveAllFiles)) return false;
+                // Save actions would change the text and break the revision handshake, so this save writes the buffers as they are.
+                if (sessionDirty(instance) && !await runWithInstance(instance, () => saveAllFiles({ skipSaveActions: true }))) return false;
                 return !sessionDirty(instance) && sessionRevision(instance) === expectedRevision
                     ? { revision: expectedRevision }
                     : false;
@@ -392,6 +393,11 @@
             method: 'POST',
             body: JSON.stringify({ command, cwd: cwd || currentDirectory(), timeout_seconds: timeoutSeconds || 300 })
         })),
+        // IDE package 1A: runs args directly and pipes stdin into the process (Format Document).
+        execInput: (args, stdin, timeoutSeconds) => api('/api/code-studio/exec', {
+            method: 'POST',
+            body: JSON.stringify({ args, stdin, timeout_seconds: timeoutSeconds || 60 })
+        }),
         search: options => api('/api/code-studio/search?' + new URLSearchParams(options)),
         agentChat: (message, context) => api('/api/desktop/chat', {
             method: 'POST',
@@ -726,6 +732,9 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h4M12 6h8M4 12h10M18 12h2M4 18h7M15 18h5"/><circle cx="10" cy="6" r="1.6"/><circle cx="16" cy="12" r="1.6"/><circle cx="13" cy="18" r="1.6"/></svg>
                     </button>
                     <span class="cs-activity-spacer"></span>
+                    <button type="button" class="cs-activity-btn" data-activity="settings" title="${esc(tr('codeStudio.settingsTitle', 'Editor Settings'))}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                    </button>
                     <button type="button" class="cs-activity-btn" data-activity="terminal" title="${esc(tr('codeStudio.toggleTerminal', 'Terminal'))}">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
                     </button>
@@ -1164,12 +1173,15 @@
             rightItems.push(`<span class="cs-status-item cs-status-problems" data-clickable data-status-problems title="${esc(tr('codeStudio.panelProblems', 'Problems'))}">${counts.errors ? `<span class="cs-status-badge error">✖ ${esc(String(counts.errors))}</span>` : ''}${counts.warnings ? `<span class="cs-status-badge warning">⚠ ${esc(String(counts.warnings))}</span>` : ''}</span>`);
         }
         if (lineInfo) rightItems.push(`<span class="cs-status-item">${esc(lineInfo)}</span>`);
+        if (isSourceTab(tab)) rightItems.push(editorIndentStatusMarkup()); // IDE package 1A
         if (lang) rightItems.push(`<span class="cs-status-item" title="${esc(tr('codeStudio.language', 'Language'))}">${esc(lang)}</span>`);
         rightItems.push(`<span class="cs-status-item" data-clickable title="${esc(tr('codeStudio.zoomReset', 'Reset Zoom'))}" data-status-zoom>${esc(clampEditorFontSize(state.editorFontSize))}px</span>`);
         rightItems.push(`<span class="cs-status-item cs-status-engine">${esc(state.editorType === 'codemirror' ? 'CodeMirror' : tr('codeStudio.editorFallback', 'Basic'))}</span>`);
         statusEl.innerHTML = leftItems.join('') + '<span class="cs-status-spacer"></span>' + rightItems.join('');
         const zoom = statusEl.querySelector('[data-status-zoom]');
         if (zoom) zoom.addEventListener('click', bind(resetEditorZoom));
+        const indent = statusEl.querySelector('[data-status-indent]');
+        if (indent) indent.addEventListener('click', bind(() => openEditorSettings())); // IDE package 1A
         const problems = statusEl.querySelector('[data-status-problems]');
         if (problems) problems.addEventListener('click', bind(() => setActivePanel('problems')));
     }
@@ -1585,13 +1597,16 @@
     }
 
     function saveCurrentFile() {
-        return saveTab(state, activeTab());
+        // IDE package 1A: an explicit save runs the save actions of the editor settings first.
+        return saveTabWithActions(state, activeTab());
     }
 
-    async function saveAllFiles() {
+    async function saveAllFiles(options) {
         const target = state;
         if (!isLiveInstance(target)) return false;
-        const results = await Promise.all(target.openTabs.filter(tab => tab.modified).map(tab => saveTab(target, tab)));
+        // IDE package 1A: the desktop's session save passes skipSaveActions and writes the buffers as they are.
+        const save = options && options.skipSaveActions === true ? saveTab : saveTabWithActions;
+        const results = await Promise.all(target.openTabs.filter(tab => tab.modified).map(tab => save(target, tab)));
         return results.every(Boolean);
     }
 
@@ -1849,10 +1864,12 @@
         const tab = activeTab();
         if (!tab || tab.kind === 'diff') return;
         const path = tab.path;
-        const content = editorValue(tab);
+        let content = editorValue(tab);
         const terminal = activeTerminalSession();
         if (tab.modified || tab.pendingSave) {
-            if (!await saveTab(target, tab)) return;
+            // IDE package 1A: the save runs the save actions, which may change the text that gets saved and run.
+            if (!await saveTabWithActions(target, tab)) return;
+            content = editorValue(tab);
         }
         if (!canWrite(target) || !target.openTabs.includes(tab) || tab.path !== path || tab.pathMutation || tab.modified || editorValue(tab) !== content) return;
         const command = runCommandFor(path);

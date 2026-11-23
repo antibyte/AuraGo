@@ -133,7 +133,8 @@
                 const pending = instance.openTabs.map(tab => tab.pendingSave).filter(Boolean);
                 if (pending.length) await Promise.all(pending);
                 if (!isLiveInstance(instance) || sessionRevision(instance) !== expectedRevision) return false;
-                if (sessionDirty(instance) && !await runWithInstance(instance, saveAllFiles)) return false;
+                // Save actions would change the text and break the revision handshake, so this save writes the buffers as they are.
+                if (sessionDirty(instance) && !await runWithInstance(instance, () => saveAllFiles({ skipSaveActions: true }))) return false;
                 return !sessionDirty(instance) && sessionRevision(instance) === expectedRevision
                     ? { revision: expectedRevision }
                     : false;
@@ -397,6 +398,11 @@
             method: 'POST',
             body: JSON.stringify({ command, cwd: cwd || currentDirectory(), timeout_seconds: timeoutSeconds || 300 })
         })),
+        // IDE package 1A: runs args directly and pipes stdin into the process (Format Document).
+        execInput: (args, stdin, timeoutSeconds) => api('/api/code-studio/exec', {
+            method: 'POST',
+            body: JSON.stringify({ args, stdin, timeout_seconds: timeoutSeconds || 60 })
+        }),
         search: options => api('/api/code-studio/search?' + new URLSearchParams(options)),
         agentChat: (message, context) => api('/api/desktop/chat', {
             method: 'POST',
@@ -731,6 +737,9 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h4M12 6h8M4 12h10M18 12h2M4 18h7M15 18h5"/><circle cx="10" cy="6" r="1.6"/><circle cx="16" cy="12" r="1.6"/><circle cx="13" cy="18" r="1.6"/></svg>
                     </button>
                     <span class="cs-activity-spacer"></span>
+                    <button type="button" class="cs-activity-btn" data-activity="settings" title="${esc(tr('codeStudio.settingsTitle', 'Editor Settings'))}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                    </button>
                     <button type="button" class="cs-activity-btn" data-activity="terminal" title="${esc(tr('codeStudio.toggleTerminal', 'Terminal'))}">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
                     </button>
@@ -1169,12 +1178,15 @@
             rightItems.push(`<span class="cs-status-item cs-status-problems" data-clickable data-status-problems title="${esc(tr('codeStudio.panelProblems', 'Problems'))}">${counts.errors ? `<span class="cs-status-badge error">✖ ${esc(String(counts.errors))}</span>` : ''}${counts.warnings ? `<span class="cs-status-badge warning">⚠ ${esc(String(counts.warnings))}</span>` : ''}</span>`);
         }
         if (lineInfo) rightItems.push(`<span class="cs-status-item">${esc(lineInfo)}</span>`);
+        if (isSourceTab(tab)) rightItems.push(editorIndentStatusMarkup()); // IDE package 1A
         if (lang) rightItems.push(`<span class="cs-status-item" title="${esc(tr('codeStudio.language', 'Language'))}">${esc(lang)}</span>`);
         rightItems.push(`<span class="cs-status-item" data-clickable title="${esc(tr('codeStudio.zoomReset', 'Reset Zoom'))}" data-status-zoom>${esc(clampEditorFontSize(state.editorFontSize))}px</span>`);
         rightItems.push(`<span class="cs-status-item cs-status-engine">${esc(state.editorType === 'codemirror' ? 'CodeMirror' : tr('codeStudio.editorFallback', 'Basic'))}</span>`);
         statusEl.innerHTML = leftItems.join('') + '<span class="cs-status-spacer"></span>' + rightItems.join('');
         const zoom = statusEl.querySelector('[data-status-zoom]');
         if (zoom) zoom.addEventListener('click', bind(resetEditorZoom));
+        const indent = statusEl.querySelector('[data-status-indent]');
+        if (indent) indent.addEventListener('click', bind(() => openEditorSettings())); // IDE package 1A
         const problems = statusEl.querySelector('[data-status-problems]');
         if (problems) problems.addEventListener('click', bind(() => setActivePanel('problems')));
     }
@@ -1590,13 +1602,16 @@
     }
 
     function saveCurrentFile() {
-        return saveTab(state, activeTab());
+        // IDE package 1A: an explicit save runs the save actions of the editor settings first.
+        return saveTabWithActions(state, activeTab());
     }
 
-    async function saveAllFiles() {
+    async function saveAllFiles(options) {
         const target = state;
         if (!isLiveInstance(target)) return false;
-        const results = await Promise.all(target.openTabs.filter(tab => tab.modified).map(tab => saveTab(target, tab)));
+        // IDE package 1A: the desktop's session save passes skipSaveActions and writes the buffers as they are.
+        const save = options && options.skipSaveActions === true ? saveTab : saveTabWithActions;
+        const results = await Promise.all(target.openTabs.filter(tab => tab.modified).map(tab => save(target, tab)));
         return results.every(Boolean);
     }
 
@@ -1854,10 +1869,12 @@
         const tab = activeTab();
         if (!tab || tab.kind === 'diff') return;
         const path = tab.path;
-        const content = editorValue(tab);
+        let content = editorValue(tab);
         const terminal = activeTerminalSession();
         if (tab.modified || tab.pendingSave) {
-            if (!await saveTab(target, tab)) return;
+            // IDE package 1A: the save runs the save actions, which may change the text that gets saved and run.
+            if (!await saveTabWithActions(target, tab)) return;
+            content = editorValue(tab);
         }
         if (!canWrite(target) || !target.openTabs.includes(tab) || tab.path !== path || tab.pathMutation || tab.modified || editorValue(tab) !== content) return;
         const command = runCommandFor(path);
@@ -2669,6 +2686,7 @@
                     else if (act === 'git') toggleGitPanel();
                     else if (act === 'agent') toggleAgentPanel();
                     else if (act === 'terminal') toggleTerminal();
+                    else if (act === 'settings') openEditorSettings(); // IDE package 1A
                 }));
             }
         });
@@ -2748,6 +2766,12 @@
         return tab && (tab.focusedView || tab.view);
     }
 
+    // IDE package 1A: a tab that holds a workspace file. Virtual tabs (Git diff, later the commit view) carry a kind;
+    // file tabs never do.
+    function isSourceTab(tab) {
+        return !!tab && !tab.kind;
+    }
+
     function usesLightEditorTheme() {
         const body = document.body;
         if (!body) return false;
@@ -2809,6 +2833,8 @@
         const cm = state.cmModule;
         if (!cm || !cm.EditorState || !cm.EditorView) return createTextareaEditor(container, tab, link);
         const light = usesLightEditorTheme();
+        // IDE package 1A: indentation, tab size and word wrap follow the editor settings live (view.csSettings).
+        const settingsCompartment = new cm.Compartment();
         const scheme = new cm.Compartment();
         const policy = new cm.Compartment();
         const extensions = [
@@ -2819,8 +2845,7 @@
             cm.dropCursor && cm.dropCursor(),
             cm.highlightActiveLine && cm.highlightActiveLine(),
             cm.EditorState.allowMultipleSelections && cm.EditorState.allowMultipleSelections.of(true),
-            cm.indentUnit && cm.indentUnit.of('    '),
-            cm.EditorView.lineWrapping,
+            settingsCompartment.of(editorSettingsExtensions(cm)),
             scheme.of(codeMirrorSchemeExtensions(cm)),
             policy.of(editorPolicyExtensions(cm)),
             cm.closeBrackets && cm.closeBrackets(),
@@ -2906,6 +2931,7 @@
                 }
                 if (!update.docChanged) return;
                 updateTabContent(tab, update.state.doc.toString());
+                scheduleAutoSave(tab);
                 renderTabs();
                 renderStatus();
             }))
@@ -2919,6 +2945,7 @@
             state: editorState.update({ effects: compartment.reconfigure(extensions) }).state,
             parent: container
         });
+        view.csSettings = settingsCompartment;
         view.csScheme = scheme;
         view.csPolicy = policy;
         view.csLight = light;
@@ -2956,6 +2983,7 @@
         textarea.addEventListener('focus', () => { tab.focusedView = view; });
         const updatePreview = bind(() => {
             updateTabContent(tab, textarea.value);
+            scheduleAutoSave(tab);
             clearTimeout(highlightTimer);
             highlightTimer = setTimeout(() => {
                 if (!wrapper.isConnected) return;
@@ -5369,6 +5397,408 @@
             });
         });
         divider.addEventListener('pointerdown', onPointerDown);
+    }
+
+;
+/* ui/js/desktop/apps/code-studio/settings.js */
+    // IDE package 1A: editor settings (A5). One settings object lives in localStorage and is shared by every Code
+    // Studio window of the page. The defaults are the editor's behaviour before the settings existed: 4 spaces, word
+    // wrap on, everything else off. Every CodeMirror view keeps the indentation, tab size and word wrap extensions in
+    // a compartment of its own (view.csSettings), so a change reaches the open editors live.
+    const EDITOR_SETTINGS_KEY = 'aurago.codeStudio.settings.v1';
+    const EDITOR_TAB_SIZES = [2, 4, 8];
+    const AUTO_SAVE_DELAY_MS = 1000;
+    let editorSettingsCache = null;
+
+    function normalizeEditorSettings(raw) {
+        const value = raw && typeof raw === 'object' ? raw : {};
+        const tabSize = Number(value.tabSize);
+        return {
+            tabSize: EDITOR_TAB_SIZES.includes(tabSize) ? tabSize : 4,
+            insertSpaces: value.insertSpaces !== false,
+            wordWrap: value.wordWrap !== false,
+            autoSave: value.autoSave === 'afterDelay' ? 'afterDelay' : 'off',
+            trimTrailingWhitespace: value.trimTrailingWhitespace === true,
+            insertFinalNewline: value.insertFinalNewline === true,
+            formatOnSave: value.formatOnSave === true
+        };
+    }
+
+    function editorSettings() {
+        if (!editorSettingsCache) {
+            let stored = null;
+            try {
+                stored = JSON.parse(localStorage.getItem(EDITOR_SETTINGS_KEY) || 'null');
+            } catch (_) {
+                stored = null;
+            }
+            editorSettingsCache = normalizeEditorSettings(stored);
+        }
+        return editorSettingsCache;
+    }
+
+    function updateEditorSettings(patch) {
+        editorSettingsCache = normalizeEditorSettings(Object.assign({}, editorSettings(), patch || {}));
+        try {
+            localStorage.setItem(EDITOR_SETTINGS_KEY, JSON.stringify(editorSettingsCache));
+        } catch (_) {}
+        applyEditorSettingsToOpenEditors();
+        return editorSettingsCache;
+    }
+
+    // The extensions behind view.csSettings: indent unit, tab size and word wrap.
+    function editorSettingsExtensions(cm) {
+        const settings = editorSettings();
+        const extensions = [];
+        if (cm.indentUnit) extensions.push(cm.indentUnit.of(settings.insertSpaces ? ' '.repeat(settings.tabSize) : '\t'));
+        if (cm.EditorState.tabSize) extensions.push(cm.EditorState.tabSize.of(settings.tabSize));
+        if (settings.wordWrap && cm.EditorView.lineWrapping) extensions.push(cm.EditorView.lineWrapping);
+        return extensions;
+    }
+
+    // Reconfigures the settings compartment of every mounted editor in every Code Studio window.
+    function applyEditorSettingsToOpenEditors() {
+        instances.forEach(instance => runWithInstance(instance, () => {
+            const cm = state.cmModule;
+            if (cm) {
+                state.openTabs.forEach(tab => (tab.views || []).forEach(view => {
+                    if (!view || !view.csSettings) return;
+                    try { view.dispatch({ effects: view.csSettings.reconfigure(editorSettingsExtensions(cm)) }); } catch (_) {}
+                }));
+            }
+            if (studioRoot()) renderStatus();
+        }));
+    }
+
+    // Status bar entry "Spaces: 4" or "Tab Size: 4"; a click opens the settings.
+    function editorIndentStatusMarkup() {
+        const settings = editorSettings();
+        const label = settings.insertSpaces
+            ? tr('codeStudio.statusSpaces', 'Spaces: {{size}}', { size: settings.tabSize })
+            : tr('codeStudio.statusTabSize', 'Tab Size: {{size}}', { size: settings.tabSize });
+        return `<span class="cs-status-item" data-clickable data-status-indent title="${esc(tr('codeStudio.settingsTitle', 'Editor Settings'))}">${esc(label)}</span>`;
+    }
+
+    // The font size of the dialog is the existing zoom state of the window.
+    function setEditorFontSize(size) {
+        const next = clampEditorFontSize(size);
+        if (next === state.editorFontSize) return;
+        state.editorFontSize = next;
+        applyEditorZoom();
+        saveState();
+        renderWindowMenus();
+        renderStatus();
+    }
+
+    function openEditorSettings() {
+        const instance = state;
+        if (!instance || instance.settingsClose) return;
+        const settings = editorSettings();
+        const title = tr('codeStudio.settingsTitle', 'Editor Settings');
+        const option = (value, label, selected) => `<option value="${esc(value)}"${selected ? ' selected' : ''}>${esc(label)}</option>`;
+        const checkbox = (key, label) => `<label class="cs-settings-check"><input type="checkbox" data-setting="${key}"${settings[key] ? ' checked' : ''}><span>${esc(label)}</span></label>`;
+        const overlay = document.createElement('div');
+        overlay.className = 'cs-modal-backdrop';
+        overlay.innerHTML = `<form class="cs-modal cs-settings-modal" role="dialog" aria-modal="true" aria-label="${esc(title)}" data-cs-settings>
+            <h3 class="cs-settings-title">${esc(title)}</h3>
+            <div class="cs-settings-grid">
+                <label class="cs-settings-row"><span>${esc(tr('codeStudio.settingsTabSize', 'Tab size'))}</span>
+                    <select data-setting="tabSize">${EDITOR_TAB_SIZES.map(size => option(size, String(size), settings.tabSize === size)).join('')}</select></label>
+                <label class="cs-settings-row"><span>${esc(tr('codeStudio.settingsIndentation', 'Indentation'))}</span>
+                    <select data-setting="insertSpaces">${option('spaces', tr('codeStudio.settingsIndentSpaces', 'Spaces'), settings.insertSpaces)}${option('tabs', tr('codeStudio.settingsIndentTabs', 'Tabs'), !settings.insertSpaces)}</select></label>
+                <label class="cs-settings-row"><span>${esc(tr('codeStudio.settingsFontSize', 'Font size'))}</span>
+                    <input type="number" data-setting="fontSize" min="${MIN_EDITOR_FONT_SIZE}" max="${MAX_EDITOR_FONT_SIZE}" step="1" value="${esc(String(clampEditorFontSize(instance.editorFontSize)))}"></label>
+                <label class="cs-settings-row"><span>${esc(tr('codeStudio.settingsAutoSave', 'Auto save'))}</span>
+                    <select data-setting="autoSave">${option('off', tr('codeStudio.settingsAutoSaveOff', 'Off'), settings.autoSave !== 'afterDelay')}${option('afterDelay', tr('codeStudio.settingsAutoSaveDelay', 'After a 1 second pause'), settings.autoSave === 'afterDelay')}</select></label>
+                ${checkbox('wordWrap', tr('codeStudio.settingsWordWrap', 'Word wrap'))}
+                ${checkbox('trimTrailingWhitespace', tr('codeStudio.settingsTrimWhitespace', 'Trim trailing whitespace on save'))}
+                ${checkbox('insertFinalNewline', tr('codeStudio.settingsFinalNewline', 'Insert final newline on save'))}
+                ${checkbox('formatOnSave', tr('codeStudio.settingsFormatOnSave', 'Format on save'))}
+            </div>
+            <div class="cs-modal-actions">
+                <button type="submit" class="cs-button primary" data-settings-close>${buttonIcon('check-square', 'Y')}<span>${esc(tr('desktop.close', 'Close'))}</span></button>
+            </div>
+        </form>`;
+        document.body.appendChild(overlay);
+        const releaseFocus = trapDialogFocus(overlay);
+        let unregister = () => {};
+        let closed = false;
+        const close = () => {
+            if (closed) return;
+            closed = true;
+            unregister();
+            instance.settingsClose = null;
+            releaseFocus();
+            overlay.remove();
+        };
+        unregister = registerDisposer(close);
+        instance.settingsClose = close;
+        overlay.querySelector('form').addEventListener('submit', event => {
+            event.preventDefault();
+            close();
+        });
+        overlay.addEventListener('mousedown', event => {
+            if (event.target === overlay) close();
+        });
+        overlay.addEventListener('keydown', event => {
+            if (event.key !== 'Escape') return;
+            event.preventDefault();
+            event.stopPropagation();
+            close();
+        });
+        // Every change applies at once; the dialog has no separate apply step.
+        overlay.addEventListener('change', bindInstance(instance, event => {
+            const control = event.target && typeof event.target.closest === 'function' ? event.target.closest('[data-setting]') : null;
+            if (!control) return;
+            const key = control.dataset.setting;
+            if (key === 'fontSize') {
+                setEditorFontSize(control.value);
+                control.value = String(state.editorFontSize);
+            } else if (key === 'tabSize') {
+                updateEditorSettings({ tabSize: Number(control.value) });
+            } else if (key === 'insertSpaces') {
+                updateEditorSettings({ insertSpaces: control.value !== 'tabs' });
+            } else if (key === 'autoSave') {
+                updateEditorSettings({ autoSave: control.value });
+            } else {
+                updateEditorSettings({ [key]: control.checked === true });
+            }
+        }));
+        const first = overlay.querySelector('[data-setting]');
+        if (first) first.focus();
+    }
+
+    // Auto save writes a dirty file tab after a 1 s pause. Read-only windows and virtual tabs (Git diff) never save,
+    // and auto save writes the buffer as it is: the save actions run on explicit saves only.
+    function scheduleAutoSave(tab) {
+        const instance = state;
+        if (!instance || !isSourceTab(tab) || !tab.modified || editorSettings().autoSave !== 'afterDelay' || !canWrite(instance)) return;
+        if (tab.autoSaveTimer) clearTimeout(tab.autoSaveTimer);
+        tab.autoSaveTimer = setTimeout(bindInstance(instance, () => {
+            tab.autoSaveTimer = null;
+            if (!tab.modified || !state.openTabs.includes(tab) || editorSettings().autoSave !== 'afterDelay') return;
+            saveTab(state, tab);
+        }), AUTO_SAVE_DELAY_MS);
+    }
+
+;
+/* ui/js/desktop/apps/code-studio/format.js */
+    // IDE package 1A: Format Document (A6) and the save actions of the editor settings.
+    // Go runs gofmt in the container and JavaScript/TypeScript the TypeScript formatter of the container; both read
+    // the text from stdin through /api/code-studio/exec. JSON is formatted in the browser. Other languages have no
+    // formatter in the image and get a notice. A result is applied as one CodeMirror transaction with its own undo
+    // step, and only when the text changed.
+    const FORMAT_SCRIPT_EXTENSIONS = ['js', 'mjs', 'cjs', 'jsx', 'ts', 'tsx'];
+
+    // Runs inside the container as: sh -c FORMAT_TS_SHELL cs-format <script> <options>. NODE_PATH points node at the
+    // global packages, so require('typescript') finds the compiler the image installs with npm install -g.
+    const FORMAT_TS_SHELL = 'NODE_PATH="$(npm root -g 2>/dev/null)" CS_FORMAT_OPTIONS="$2" node -e "$1" 2>/dev/null';
+
+    const FORMAT_TS_SCRIPT = [
+        "let ts = null;",
+        "try { ts = require('typescript'); } catch (err) { process.stdout.write('typescript is not installed in the container: ' + err.message); process.exitCode = 2; }",
+        "let input = '';",
+        "process.stdin.setEncoding('utf8');",
+        "process.stdin.on('data', chunk => { input += chunk; });",
+        "process.stdin.on('end', () => {",
+        "  if (!ts) return;",
+        "  try {",
+        "    const opts = JSON.parse(process.env.CS_FORMAT_OPTIONS || '{}');",
+        "    const fileName = opts.fileName || '/cs-format/input.ts';",
+        "    const host = {",
+        "      getScriptFileNames: () => [fileName],",
+        "      getScriptVersion: () => '1',",
+        "      getScriptSnapshot: name => name === fileName ? ts.ScriptSnapshot.fromString(input) : undefined,",
+        "      getCurrentDirectory: () => '/cs-format',",
+        "      getCompilationSettings: () => ({ allowJs: true, jsx: ts.JsxEmit.Preserve, target: ts.ScriptTarget.Latest }),",
+        "      getDefaultLibFileName: () => 'lib.d.ts',",
+        "      fileExists: name => name === fileName,",
+        "      readFile: name => name === fileName ? input : undefined",
+        "    };",
+        "    const service = ts.createLanguageService(host, ts.createDocumentRegistry());",
+        "    const settings = ts.getDefaultFormatCodeSettings(opts.newLine === 'crlf' ? String.fromCharCode(13, 10) : String.fromCharCode(10));",
+        "    settings.indentSize = opts.indentSize;",
+        "    settings.tabSize = opts.tabSize;",
+        "    settings.convertTabsToSpaces = opts.insertSpaces;",
+        "    const edits = service.getFormattingEditsForDocument(fileName, settings).slice().sort((a, b) => b.span.start - a.span.start);",
+        "    let output = input;",
+        "    for (const edit of edits) output = output.slice(0, edit.span.start) + edit.newText + output.slice(edit.span.start + edit.span.length);",
+        "    process.stdout.write(output);",
+        "  } catch (err) {",
+        "    process.stdout.write('format failed: ' + (err && err.stack || err));",
+        "    process.exitCode = 2;",
+        "  }",
+        "});"
+    ].join('\n');
+
+    function formatterKind(tab) {
+        if (!isSourceTab(tab)) return '';
+        const language = tab.language || languageForPath(tab.path);
+        if (language === 'go') return 'gofmt';
+        if (language === 'json') return 'json';
+        if (['javascript', 'jsx', 'typescript', 'tsx'].includes(language)) return 'typescript';
+        return '';
+    }
+
+    function formatJsonText(text, settings) {
+        // Numbers keep their source text (JSON.rawJSON), so large integers survive the round trip.
+        const reviver = typeof JSON.rawJSON === 'function'
+            ? (key, value, context) => (typeof value === 'number' && context && typeof context.source === 'string' ? JSON.rawJSON(context.source) : value)
+            : undefined;
+        const parsed = JSON.parse(text, reviver);
+        const newline = text.includes('\r\n') ? '\r\n' : '\n';
+        let output = JSON.stringify(parsed, null, settings.insertSpaces ? settings.tabSize : '\t');
+        if (newline !== '\n') output = output.split('\n').join(newline);
+        return /\r?\n$/.test(text) ? output + newline : output;
+    }
+
+    function formatScriptOptions(tab, text, settings) {
+        const ext = String(tab.path || '').split('.').pop().toLowerCase();
+        return {
+            fileName: '/cs-format/input.' + (FORMAT_SCRIPT_EXTENSIONS.includes(ext) ? ext : 'ts'),
+            indentSize: settings.tabSize,
+            tabSize: settings.tabSize,
+            insertSpaces: settings.insertSpaces,
+            newLine: text.includes('\r\n') ? 'crlf' : 'lf'
+        };
+    }
+
+    // Returns { text } or { error }.
+    async function runFormatter(kind, tab, text) {
+        const settings = editorSettings();
+        if (kind === 'json') {
+            try {
+                return { text: formatJsonText(text, settings) };
+            } catch (err) {
+                return { error: err && err.message ? err.message : String(err) };
+            }
+        }
+        const args = kind === 'gofmt'
+            ? ['gofmt']
+            : ['sh', '-c', FORMAT_TS_SHELL, 'cs-format', FORMAT_TS_SCRIPT, JSON.stringify(formatScriptOptions(tab, text, settings))];
+        const result = await apiClient.execInput(args, text, 60);
+        const output = String(result && result.output || '');
+        if (result && result.truncated) return { error: tr('codeStudio.formatTruncated', 'The formatter output was too large and was not applied.') };
+        if (!result || Number(result.exit_code) !== 0) return { error: output.trim() || tr('codeStudio.formatFailed', 'Formatting failed. Details are in the Output panel.') };
+        // A formatter that prints nothing for a non-empty file failed; applying that would wipe the document.
+        if (text.trim() && !output.trim()) return { error: tr('codeStudio.formatFailed', 'Formatting failed. Details are in the Output panel.') };
+        return { text: output };
+    }
+
+    function minimalTextChange(current, next) {
+        let from = 0;
+        const limit = Math.min(current.length, next.length);
+        while (from < limit && current.charCodeAt(from) === next.charCodeAt(from)) from++;
+        let toCurrent = current.length;
+        let toNext = next.length;
+        while (toCurrent > from && toNext > from && current.charCodeAt(toCurrent - 1) === next.charCodeAt(toNext - 1)) {
+            toCurrent--;
+            toNext--;
+        }
+        return { from, to: toCurrent, insert: next.slice(from, toNext) };
+    }
+
+    // Replaces the text of a tab as one transaction with its own undo step. A mounted CodeMirror view gets the
+    // smallest change, the textarea fallback its new value; a tab without a live view updates its text and its saved
+    // editor state. Returns false when the text is already equal.
+    function applyTabText(tab, next) {
+        const current = editorValue(tab);
+        if (next === current) return false;
+        const change = minimalTextChange(current, next);
+        const cm = state.cmModule;
+        const annotations = cm && cm.isolateHistory ? [cm.isolateHistory.of('full')] : [];
+        if (tab.view && tab.view.state && typeof tab.view.dispatch === 'function') {
+            tab.view.dispatch({ changes: change, annotations });
+            return true;
+        }
+        if (tab.view && typeof tab.view.setValue === 'function') {
+            tab.view.setValue(next);
+            return true;
+        }
+        const snapshot = tab.editorSnapshot;
+        if (snapshot && snapshot.state && snapshot.state.doc && snapshot.state.doc.toString() === current) {
+            tab.editorSnapshot = Object.assign({}, snapshot, { state: snapshot.state.update({ changes: change, annotations }).state });
+        } else {
+            tab.editorSnapshot = null;
+        }
+        tab.secondaryEditorSnapshot = null;
+        updateTabContent(tab, next);
+        return true;
+    }
+
+    // Formats one tab. quiet (format on save) skips the notices except failures; errors always go to the Output panel.
+    async function formatTab(target, tab, options) {
+        const quiet = !!(options && options.quiet);
+        if (!isLiveInstance(target) || !isSourceTab(tab) || !target.openTabs.includes(tab)) return false;
+        const kind = formatterKind(tab);
+        if (!kind) {
+            if (!quiet) {
+                runWithInstance(target, () => flashStatus(tr('codeStudio.formatUnavailable', 'No formatter available for {{language}}', { language: tab.language || baseName(tab.path) })));
+            }
+            return false;
+        }
+        if (!canWrite(target)) return false;
+        const source = editorValue(tab);
+        const revision = tab.revision || 0;
+        let result;
+        try {
+            result = await runFormatter(kind, tab, source);
+        } catch (err) {
+            result = { error: err && err.message ? err.message : String(err) };
+        }
+        if (!isLiveInstance(target) || !target.openTabs.includes(tab)) return false;
+        return runWithInstance(target, () => {
+            if (result.error) {
+                appendOutput(result.error, tr('codeStudio.formatOutputSource', 'Format'));
+                flashStatus(tr('codeStudio.formatFailed', 'Formatting failed. Details are in the Output panel.'));
+                if (!quiet) setActivePanel('output');
+                return false;
+            }
+            if ((tab.revision || 0) !== revision || editorValue(tab) !== source) {
+                if (!quiet) flashStatus(tr('codeStudio.formatStale', 'The document changed while it was being formatted. Format it again.'));
+                return false;
+            }
+            const changed = applyTabText(tab, result.text);
+            if (!quiet) {
+                flashStatus(changed
+                    ? tr('codeStudio.formatDone', 'Document formatted')
+                    : tr('codeStudio.formatUnchanged', 'The document is already formatted'));
+            }
+            return changed;
+        });
+    }
+
+    function formatActiveDocument() {
+        const target = state;
+        const tab = activeTab();
+        if (!isSourceTab(tab) || !canWrite(target)) return Promise.resolve(false);
+        return formatTab(target, tab, { quiet: false });
+    }
+
+    function tabNeedsSaveActions(target, tab) {
+        const settings = editorSettings();
+        return canWrite(target) && isSourceTab(tab) && (settings.formatOnSave || settings.trimTrailingWhitespace || settings.insertFinalNewline);
+    }
+
+    // Format on save runs first; trimming trailing whitespace and the final newline follow as one more transaction.
+    async function runSaveActions(target, tab) {
+        const settings = editorSettings();
+        if (settings.formatOnSave && formatterKind(tab)) await formatTab(target, tab, { quiet: true });
+        if (!isLiveInstance(target) || !target.openTabs.includes(tab)) return;
+        if (!settings.trimTrailingWhitespace && !settings.insertFinalNewline) return;
+        runWithInstance(target, () => {
+            let text = editorValue(tab);
+            if (settings.trimTrailingWhitespace) text = text.replace(/[ \t]+(?=\r?$)/gm, '');
+            if (settings.insertFinalNewline && text && !text.endsWith('\n')) text += text.includes('\r\n') ? '\r\n' : '\n';
+            applyTabText(tab, text);
+        });
+    }
+
+    // Explicit saves (Ctrl+S, Save, Save All, Run) come through here; auto save and the desktop's session save call
+    // saveTab directly and write the buffer as it is.
+    function saveTabWithActions(target, tab) {
+        if (!tabNeedsSaveActions(target, tab)) return saveTab(target, tab);
+        return runSaveActions(target, tab).catch(() => {}).then(() => saveTab(target, tab));
     }
 
 ;

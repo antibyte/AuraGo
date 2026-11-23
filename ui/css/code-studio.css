@@ -3364,3 +3364,68 @@ button.cs-sidebar-crumb:focus-visible {
     color: var(--cs-text);
     background: var(--cs-accent-soft);
 }
+
+/* Editor settings dialog (A5). */
+.cs-modal.cs-settings-modal {
+    width: min(440px, calc(100vw - 32px));
+}
+
+.cs-settings-title {
+    margin: 0 0 14px;
+    color: var(--cs-text);
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.cs-settings-grid {
+    display: grid;
+    gap: 10px;
+}
+
+.cs-modal .cs-settings-row {
+    grid-template-columns: minmax(0, 1fr) minmax(120px, 180px);
+    align-items: center;
+    gap: 12px;
+    font-weight: 500;
+}
+
+.cs-modal .cs-settings-row select,
+.cs-modal .cs-settings-row input {
+    width: 100%;
+    height: 32px;
+    padding: 0 8px;
+    border: 1px solid var(--cs-border);
+    border-radius: var(--cs-radius-sm);
+    color: var(--cs-text);
+    background: var(--cs-panel-soft);
+    font: inherit;
+}
+
+.cs-modal .cs-settings-row select option {
+    color: var(--cs-text);
+    background: var(--cs-panel);
+}
+
+.cs-modal .cs-settings-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.cs-modal .cs-settings-check input {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    padding: 0;
+    accent-color: var(--cs-accent);
+    box-shadow: none;
+}
+
+.cs-modal .cs-settings-row select:focus-visible,
+.cs-modal .cs-settings-row input:focus-visible,
+.cs-modal .cs-settings-check input:focus-visible {
+    outline: 2px solid var(--cs-accent);
+    outline-offset: 1px;
+}

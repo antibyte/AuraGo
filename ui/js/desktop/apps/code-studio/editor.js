@@ -70,6 +70,12 @@
         return tab && (tab.focusedView || tab.view);
     }
 
+    // IDE package 1A: a tab that holds a workspace file. Virtual tabs (Git diff, later the commit view) carry a kind;
+    // file tabs never do.
+    function isSourceTab(tab) {
+        return !!tab && !tab.kind;
+    }
+
     function usesLightEditorTheme() {
         const body = document.body;
         if (!body) return false;
@@ -131,6 +137,8 @@
         const cm = state.cmModule;
         if (!cm || !cm.EditorState || !cm.EditorView) return createTextareaEditor(container, tab, link);
         const light = usesLightEditorTheme();
+        // IDE package 1A: indentation, tab size and word wrap follow the editor settings live (view.csSettings).
+        const settingsCompartment = new cm.Compartment();
         const scheme = new cm.Compartment();
         const policy = new cm.Compartment();
         const extensions = [
@@ -141,8 +149,7 @@
             cm.dropCursor && cm.dropCursor(),
             cm.highlightActiveLine && cm.highlightActiveLine(),
             cm.EditorState.allowMultipleSelections && cm.EditorState.allowMultipleSelections.of(true),
-            cm.indentUnit && cm.indentUnit.of('    '),
-            cm.EditorView.lineWrapping,
+            settingsCompartment.of(editorSettingsExtensions(cm)),
             scheme.of(codeMirrorSchemeExtensions(cm)),
             policy.of(editorPolicyExtensions(cm)),
             cm.closeBrackets && cm.closeBrackets(),
@@ -228,6 +235,7 @@
                 }
                 if (!update.docChanged) return;
                 updateTabContent(tab, update.state.doc.toString());
+                scheduleAutoSave(tab);
                 renderTabs();
                 renderStatus();
             }))
@@ -241,6 +249,7 @@
             state: editorState.update({ effects: compartment.reconfigure(extensions) }).state,
             parent: container
         });
+        view.csSettings = settingsCompartment;
         view.csScheme = scheme;
         view.csPolicy = policy;
         view.csLight = light;
@@ -278,6 +287,7 @@
         textarea.addEventListener('focus', () => { tab.focusedView = view; });
         const updatePreview = bind(() => {
             updateTabContent(tab, textarea.value);
+            scheduleAutoSave(tab);
             clearTimeout(highlightTimer);
             highlightTimer = setTimeout(() => {
                 if (!wrapper.isConnected) return;
