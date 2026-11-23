@@ -2,6 +2,11 @@ FROM node:22-bookworm-slim
 
 ARG TARGETARCH
 ARG GO_VERSION=1.27.4
+# Language servers for Code Studio code intelligence (LSP). Change a version
+# only together with a local build and TestCodeStudioLSPRealImage.
+ARG GOPLS_VERSION=v0.24.0
+ARG TYPESCRIPT_LANGUAGE_SERVER_VERSION=6.1.0
+ARG PYRIGHT_VERSION=1.1.414
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV WORKSPACE=/workspace
@@ -10,6 +15,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         bash \
         ca-certificates \
+        clangd \
         curl \
         gcc \
         git \
@@ -39,7 +45,26 @@ RUN set -eux; \
 
 ENV PATH=/usr/local/go/bin:$PATH
 
+# gopls is built with the image's own Go: GOTOOLCHAIN=local never fetches
+# another toolchain. Build and module caches stay in /tmp/gopls-build and are
+# removed in the same layer.
+RUN set -eux; \
+    GOTOOLCHAIN=local CGO_ENABLED=0 GOBIN=/usr/local/bin \
+    GOPATH=/tmp/gopls-build/gopath GOCACHE=/tmp/gopls-build/cache \
+        go install -trimpath -ldflags="-s -w" "golang.org/x/tools/gopls@${GOPLS_VERSION}"; \
+    chmod -R u+w /tmp/gopls-build; \
+    rm -rf /tmp/gopls-build; \
+    gopls version
+
 RUN npm install -g --force pnpm yarn typescript tsx
+
+# typescript-language-server 6.x needs Node 22.22.2 or newer. The base tag
+# floats, so the build stops here when it resolved to an older Node.
+RUN node -e 'const want=[22,22,2];const have=process.versions.node.split(".").map(Number);for(let i=0;i<3;i++){if(have[i]>want[i])process.exit(0);if(have[i]<want[i]){console.error("Node "+process.versions.node+" is older than 22.22.2, which typescript-language-server needs: run docker pull node:22-bookworm-slim, or pin FROM node:22.22.2-bookworm-slim (or a newer 22.x tag)");process.exit(1)}}' \
+    && npm install -g "typescript-language-server@${TYPESCRIPT_LANGUAGE_SERVER_VERSION}" "pyright@${PYRIGHT_VERSION}" \
+    && npm cache clean --force \
+    && typescript-language-server --version \
+    && pyright --version
 
 RUN if getent passwd 1000 >/dev/null; then \
         existing_user="$(getent passwd 1000 | cut -d: -f1)"; \
