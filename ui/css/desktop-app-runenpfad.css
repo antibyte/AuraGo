@@ -2029,3 +2029,95 @@
     font-style: italic;
     color: var(--rp-parch-dim);
 }
+
+/* ---- round 9: volume sliders, gamepad legend row, win card sequence, HUD reactions (transitions only) ---- */
+.rp-legend-pad {
+    grid-column: 1;
+}
+
+.rp-legend-pad-label {
+    grid-column: 2 / -1;
+}
+
+.rp-volume {
+    display: grid;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.rp-volume-row {
+    display: grid;
+    grid-template-columns: minmax(7rem, 0.9fr) minmax(0, 2fr) 3.2rem;
+    align-items: center;
+    gap: 10px;
+    font-size: 12.5px;
+    color: var(--rp-parch);
+}
+
+.rp-volume-input {
+    width: 100%;
+    min-width: 0;
+    accent-color: var(--rp-gold);
+}
+
+.rp-volume-input:focus-visible {
+    outline: 2px solid var(--rp-gold);
+    outline-offset: 2px;
+}
+
+.rp-volume-val {
+    text-align: right;
+}
+
+.rp-bigstar {
+    transition: transform 0.34s cubic-bezier(0.2, 1.5, 0.4, 1), opacity 0.22s ease;
+}
+
+.rp-bigstar.is-pending {
+    opacity: 0;
+    transform: scale(0.2);
+}
+
+.rp-goals,
+.rp-plaques {
+    transition: opacity 0.4s ease;
+}
+
+.rp-goals.is-pending,
+.rp-plaques.is-pending {
+    opacity: 0;
+}
+
+.rp-chip-coin {
+    transition: transform 0.13s ease-out;
+}
+
+.rp-chip-coin.is-bump {
+    transform: scale(1.2);
+}
+
+.rp-hearts {
+    transition: filter 0.18s ease, transform 0.07s ease-out;
+}
+
+.rp-hearts.is-shake {
+    transform: translateX(-3px);
+}
+
+.rp-hearts.is-shake-back {
+    transform: translateX(3px);
+}
+
+.rp-hearts.is-beat {
+    filter: drop-shadow(0 0 9px rgba(255, 90, 110, 1)) brightness(1.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .rp-bigstar,
+    .rp-goals,
+    .rp-plaques,
+    .rp-chip-coin,
+    .rp-hearts {
+        transition: none;
+    }
+}

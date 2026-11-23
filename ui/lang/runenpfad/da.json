@@ -655,5 +655,9 @@
   "runenpfad.legend.in_attack": "Inde: angrib",
   "runenpfad.legend.in_dash": "Inde: spurt",
   "runenpfad.legend.in_talk": "Inde: tal, åbn, hvil",
-  "runenpfad.notice.inside_locked": "Ikke indenfor"
+  "runenpfad.notice.inside_locked": "Ikke indenfor",
+  "runenpfad.pause.sfx_volume": "Effektlydstyrke",
+  "runenpfad.pause.music_volume": "Musiklydstyrke",
+  "runenpfad.legend.gamepad": "Gamepad: A hop · X angreb · B special · Y helbred · RB tal · Start pause",
+  "runenpfad.notice.revive_ready": "Lejrbål tændt – dit andet liv er klar igen."
 }

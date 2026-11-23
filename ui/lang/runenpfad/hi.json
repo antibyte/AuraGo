@@ -655,5 +655,9 @@
   "runenpfad.legend.in_attack": "अंदर: हमला",
   "runenpfad.legend.in_dash": "अंदर: डैश",
   "runenpfad.legend.in_talk": "अंदर: बात, खोलो, आराम",
-  "runenpfad.notice.inside_locked": "अंदर नहीं"
+  "runenpfad.notice.inside_locked": "अंदर नहीं",
+  "runenpfad.pause.sfx_volume": "प्रभाव की आवाज़",
+  "runenpfad.pause.music_volume": "संगीत की आवाज़",
+  "runenpfad.legend.gamepad": "गेमपैड: A कूदें · X हमला · B विशेष · Y उपचार · RB बात · Start विराम",
+  "runenpfad.notice.revive_ready": "अलाव जल गया — तुम्हारा दूसरा मौका फिर तैयार है।"
 }

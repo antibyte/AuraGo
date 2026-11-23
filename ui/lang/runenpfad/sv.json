@@ -655,5 +655,9 @@
   "runenpfad.legend.in_attack": "Inne: attackera",
   "runenpfad.legend.in_dash": "Inne: rusha",
   "runenpfad.legend.in_talk": "Inne: prata, öppna, vila",
-  "runenpfad.notice.inside_locked": "Inte inomhus"
+  "runenpfad.notice.inside_locked": "Inte inomhus",
+  "runenpfad.pause.sfx_volume": "Effektvolym",
+  "runenpfad.pause.music_volume": "Musikvolym",
+  "runenpfad.legend.gamepad": "Handkontroll: A hoppa · X attackera · B special · Y läka · RB prata · Start paus",
+  "runenpfad.notice.revive_ready": "Lägerelden är tänd – din andra chans är redo igen."
 }

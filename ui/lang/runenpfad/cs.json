@@ -655,5 +655,9 @@
   "runenpfad.legend.in_attack": "Uvnitř: útok",
   "runenpfad.legend.in_dash": "Uvnitř: úprk",
   "runenpfad.legend.in_talk": "Uvnitř: mluvit, otevřít, odpočinout",
-  "runenpfad.notice.inside_locked": "Ne uvnitř"
+  "runenpfad.notice.inside_locked": "Ne uvnitř",
+  "runenpfad.pause.sfx_volume": "Hlasitost efektů",
+  "runenpfad.pause.music_volume": "Hlasitost hudby",
+  "runenpfad.legend.gamepad": "Gamepad: A skok · X útok · B speciál · Y léčení · RB mluvit · Start pauza",
+  "runenpfad.notice.revive_ready": "Táborák zapálen – tvá druhá šance je opět připravena."
 }

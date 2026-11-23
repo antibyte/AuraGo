@@ -655,5 +655,9 @@
   "runenpfad.legend.in_attack": "Inne: angrip",
   "runenpfad.legend.in_dash": "Inne: dash",
   "runenpfad.legend.in_talk": "Inne: snakk, åpne, hvil",
-  "runenpfad.notice.inside_locked": "Ikke mens du er inne"
+  "runenpfad.notice.inside_locked": "Ikke mens du er inne",
+  "runenpfad.pause.sfx_volume": "Effektvolum",
+  "runenpfad.pause.music_volume": "Musikkvolum",
+  "runenpfad.legend.gamepad": "Spillkontroller: A hopp · X angrep · B spesial · Y helbred · RB snakk · Start pause",
+  "runenpfad.notice.revive_ready": "Bålet er tent – den andre sjansen din er klar igjen."
 }

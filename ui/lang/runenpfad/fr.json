@@ -655,5 +655,9 @@
   "runenpfad.legend.in_attack": "Intérieur : attaquer",
   "runenpfad.legend.in_dash": "Intérieur : esquiver",
   "runenpfad.legend.in_talk": "Intérieur : parler, ouvrir, se reposer",
-  "runenpfad.notice.inside_locked": "Impossible à l'intérieur"
+  "runenpfad.notice.inside_locked": "Impossible à l'intérieur",
+  "runenpfad.pause.sfx_volume": "Volume des effets",
+  "runenpfad.pause.music_volume": "Volume de la musique",
+  "runenpfad.legend.gamepad": "Manette : A sauter · X attaquer · B spécial · Y soigner · RB parler · Start pause",
+  "runenpfad.notice.revive_ready": "Feu de camp allumé — ton second souffle est de nouveau prêt."
 }

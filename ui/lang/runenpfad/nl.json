@@ -655,5 +655,9 @@
   "runenpfad.legend.in_attack": "Binnen: aanvallen",
   "runenpfad.legend.in_dash": "Binnen: dash",
   "runenpfad.legend.in_talk": "Binnen: praten, openen, rusten",
-  "runenpfad.notice.inside_locked": "Niet binnen"
+  "runenpfad.notice.inside_locked": "Niet binnen",
+  "runenpfad.pause.sfx_volume": "Effectvolume",
+  "runenpfad.pause.music_volume": "Muziekvolume",
+  "runenpfad.legend.gamepad": "Gamepad: A springen · X aanvallen · B speciaal · Y helen · RB praten · Start pauze",
+  "runenpfad.notice.revive_ready": "Kampvuur aangestoken – je tweede kans staat weer klaar."
 }

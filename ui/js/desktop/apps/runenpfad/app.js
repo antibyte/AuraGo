@@ -57,6 +57,7 @@
         let heroArmTimer = 0;
         let cardKind = null; // 'won' | 'lost' while a round card is shown
         let cardShownAt = 0;
+        let newUnlock = false; // the stage just won opened the next level (win card cue)
         const CARD_GUARD_MS = 350;
 
         const keyState = Object.create(null);
@@ -77,6 +78,22 @@
             return t(key).replace(/\{([a-zA-Z0-9_]+)\}/g, function (m, name) {
                 return Object.prototype.hasOwnProperty.call(params, name) ? String(params[name]) : m;
             });
+        }
+
+        // UI cue through the audio controller (cues and volume setters come from audio.js; every call is guarded).
+        function cue(id) { if (audio && typeof audio.play === 'function') audio.play(id); }
+        // Interior rooms get their own ambience bed (audio-mix.js); everywhere else the stage ambience.
+        function amb() {
+            const Mix = root.RunenpfadAudioMix;
+            return Mix && typeof Mix.ambienceFor === 'function' ? Mix.ambienceFor(sim) : sim.stage.ambience;
+        }
+        function reduced() {
+            return !!((document.body && document.body.dataset.animations === 'false') || (root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches));
+        }
+        function applyVolumes() {
+            if (!audio) return;
+            if (typeof audio.setSfxVolume === 'function') audio.setSfxVolume(profile.sfxVol);
+            if (typeof audio.setMusicVolume === 'function') audio.setMusicVolume(profile.musicVol);
         }
 
         function readProfile() {
@@ -114,7 +131,10 @@
         const canvas = el('canvas', 'rp-canvas');
         stageWrap.append(canvas);
 
-        const hud = root.RunenpfadHud.create({ el: el, t: t, fill: fill, Levels: Levels, Sim: Sim });
+        const hud = root.RunenpfadHud.create({
+            el: el, t: t, fill: fill, Levels: Levels, Sim: Sim, play: cue, reduced: reduced,
+            gamepadSeen: function () { return !!(gamepad && gamepad.seen()); }
+        });
         const heroBtn = hud.heroBtn;
         const levelsBtn = hud.levelsBtn;
         const shopBtn = hud.shopBtn;
@@ -125,7 +145,7 @@
         const talk = root.RunenpfadDialogueUi ? root.RunenpfadDialogueUi.create({
             el: el, t: t, fill: fill, hud: hud, Sim: Sim, isBlocked: function () { return anyDialogOpen() || !!cardKind; },
             flush: function () { flushStory(); },
-            emit: function (evs) { if (!sim) return; if (renderer) renderer.handleEvents(evs, sim); if (audio) audio.handleEvents(evs, sim.stage.ambience, renderer ? renderer.getCamera() : null); }
+            emit: function (evs) { if (!sim) return; if (renderer) renderer.handleEvents(evs, sim); if (audio) audio.handleEvents(evs, amb(), renderer ? renderer.getCamera() : null); }
         }) : null;
 
         // Touch controls (visible when .rp-narrow is active)
@@ -178,40 +198,18 @@
         loseRow.append(loseRetryBtn, loseShopBtn, loseLevelsBtn);
         loseCard.append(loseTitle, loseBody, loseRow);
 
-        // Pause dialog
-        const pauseDialog = el('dialog', 'rp-dialog rp-pause-dialog');
-        const pauseHead = el('div', 'rp-dialog-head');
-        const pauseTitle = el('h2');
-        const pauseCloseX = el('button', 'rp-btn');
-        pauseCloseX.type = 'button';
-        pauseHead.append(pauseTitle, pauseCloseX);
-        const pauseControls = el('dl', 'rp-legend');
-        const pauseActions = el('div', 'rp-row-actions');
-        const resumeBtn = el('button', 'rp-btn rp-btn-primary');
-        resumeBtn.type = 'button';
-        const restartBtn = el('button', 'rp-btn');
-        restartBtn.type = 'button';
-        const soundBtn = el('button', 'rp-btn');
-        soundBtn.type = 'button';
-        soundBtn.setAttribute('aria-pressed', 'false');
-        const [musicBtn, gfxBtn] = [0, 1].map(function () {
-            const b = el('button', 'rp-btn');
-            b.type = 'button';
-            b.hidden = true;
-            b.setAttribute('aria-pressed', 'false');
-            return b;
-        });
-        const resetBtn = el('button', 'rp-btn rp-btn-danger');
-        resetBtn.type = 'button';
-        pauseActions.append(resumeBtn, restartBtn, soundBtn, musicBtn, gfxBtn, resetBtn);
-        pauseDialog.append(pauseHead, pauseControls, pauseActions);
+        // Pause dialog (hud.js builds it: legend, the six buttons in fixed order, two volume sliders)
+        const pause = hud.createPause({ onVolume: function (kind, v, commit) { profile[kind + 'Vol'] = v; applyVolumes(); if (commit) writeProfile(); } });
+        const pauseDialog = pause.dialog;
+        const { title: pauseTitle, closeBtn: pauseCloseX, controls: pauseControls } = pause;
+        const { resumeBtn, restartBtn, soundBtn, musicBtn, gfxBtn, resetBtn } = pause;
 
         // World Map / Level Select dialog (worldmap-ui.js): tabs, tiles, village entry and the story chronicle
         const wm = root.RunenpfadWorldmapUi.create({
             el: el, t: t, fill: fill, Levels: Levels, hud: hud,
             view: Math.floor((Math.min(25, Math.max(1, profile.unlockedLevel)) - 1) / 5),
             getProfile: function () { return profile; }, getSim: function () { return sim; },
-            isLocked: function () { return stageLocked(); }, onStart: launchStage, onReplay: replayScene
+            isLocked: function () { return stageLocked(); }, onStart: launchStage, onReplay: replayScene, play: cue
         });
         const levelsDialog = wm.dialog;
         const levelsCloseBtn = wm.closeBtn;
@@ -231,6 +229,15 @@
         shell.append(stageWrap, hud.root, hud.bossCard, touch, loadingCard, errorCard, winCard, loseCard, pauseDialog, levelsDialog, shopDialog);
         if (talk) shell.append(talk.root);
         host.replaceChildren(shell);
+
+        // Gamepad (gamepad.js): the pad feeds real key events into the shell; open dialogs get focus navigation instead.
+        const PAD_KEYS = { Space: ' ', KeyJ: 'j', KeyK: 'k', KeyQ: 'q', KeyE: 'e', KeyP: 'p' };
+        function padKey(type, code) { shell.dispatchEvent(new KeyboardEvent(type, { code: code, key: PAD_KEYS[code] || code, bubbles: true })); }
+        const gamepad = root.RunenpfadGamepad ? root.RunenpfadGamepad.create({
+            root: shell, press: function (c) { padKey('keydown', c); }, release: function (c) { padKey('keyup', c); }, reduced: reduced,
+            activeDialog: function () { return [pauseDialog, levelsDialog, shopDialog].find(function (d) { return d.open; }) || null; },
+            cardOpen: function () { return !!cardKind; }
+        }) : null;
 
         function anyDialogOpen() {
             return pauseDialog.open || levelsDialog.open || shopDialog.open;
@@ -276,7 +283,7 @@
                 pending = Postfx.create({
                     host: stageWrap,
                     source: canvas,
-                    reducedMotion: !!((document.body && document.body.dataset.animations === 'false') || (root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches)),
+                    reducedMotion: reduced(),
                     onFallback: function (reason) {
                         shell.dataset.rpGfxReason = String(reason || 'fallback').slice(0, 80);
                         toCanvas();
@@ -306,7 +313,7 @@
 
         // Mid-stage progress lives in the simulation's profile clone; adopt it without losing settings.
         function adoptSimProfile() {
-            const keep = { sound: profile.sound, music: profile.music, gfx: profile.gfx };
+            const keep = { sound: profile.sound, music: profile.music, gfx: profile.gfx, sfxVol: profile.sfxVol, musicVol: profile.musicVol };
             profile = Object.assign(Sim.exportProfile(sim.profile), keep);
             sim.storyDirty = false;
             writeProfile();
@@ -328,6 +335,7 @@
         }
         function lockHint() {
             if (!stageLocked()) return false;
+            cue('ui_deny');
             sim.floatingTexts.push({ x: sim.player.x, y: sim.player.y - 64, text: lockedText(), color: '#fca5a5', timer: 1.1, key: lockedKey() });
             return true;
         }
@@ -382,6 +390,7 @@
             pauseTitle.textContent = t('runenpfad.pause_title');
             setBtn(pauseCloseX, t('runenpfad.close'), 'Esc');
             hud.paintLegend(pauseControls, !!(sim && sim.interior));
+            pause.paint(profile);
             resumeBtn.textContent = t('runenpfad.pause_resume');
             restartBtn.textContent = t('runenpfad.pause_restart');
             resetBtn.textContent = resetArmed ? t('runenpfad.pause_reset_confirm') : t('runenpfad.pause_reset');
@@ -417,7 +426,7 @@
             if (sim.state === 'won') {
                 winCard.hidden = false;
                 loseCard.hidden = true;
-                if (cardKind !== 'won') hud.paintWinSummary(winStars, winGoals, winPlaques, sim);
+                if (cardKind !== 'won') hud.paintWinSummary(winStars, winGoals, winPlaques, sim, newUnlock);
                 winBody.textContent = fill('runenpfad.win_body', {
                     time: Math.floor(sim.elapsed),
                     gems: sim.gemCount,
@@ -469,6 +478,7 @@
             loseCard.hidden = true;
             cardKind = null;
             cardShownAt = 0;
+            hud.cancelWin();
             clearEdges();
             if (shell.contains(document.activeElement) && document.activeElement !== shell) shell.focus({ preventScroll: true });
             const keepLevel = options.levelId === undefined && sim && sim.mode === 'campaign' && sim.levelId === 0; // the village restarts as the village
@@ -479,9 +489,7 @@
                 hero: profile.hero,
                 profile: profile
             });
-            if (audio && audio.isEnabled()) {
-                audio.setAmbience(sim.stage.ambience);
-            }
+            if (audio && audio.isEnabled()) audio.setAmbience(amb());
             paintHud();
             syncAudioActive();
             hud.showHint();
@@ -573,6 +581,7 @@
             restartBtn.title = resetBtn.title = stageLocked() ? lockedText() : '';
             paintStaticCopy();
             pauseDialog.showModal();
+            cue('ui_pause');
             syncAudioActive();
             resumeBtn.focus({ preventScroll: true });
         }
@@ -592,6 +601,7 @@
                 pick.disabled = stageLocked();
                 if (chosen) pick.setAttribute('aria-current', 'true');
                 pick.addEventListener('click', function () {
+                    cue('ui_select');
                     chooseHero(heroId);
                     renderShopModal();
                     const again = heroGrid.querySelector('[data-rp-pick-hero="' + heroId + '"]');
@@ -620,7 +630,7 @@
                     if (res.ok) {
                         profile = res.profile;
                         writeProfile();
-                        if (audio && audio.isEnabled()) audio.playUiClick();
+                        if (audio && typeof audio.play === 'function') audio.play('ui_buy'); else if (audio && audio.isEnabled()) audio.playUiClick();
                         if (sim && sim.state === 'playing') {
                             const ex = Sim.exportProfile(profile); // merge: keep the story state the sim already holds
                             sim.profile.coins = ex.coins;
@@ -653,6 +663,7 @@
                 down: down,
                 jump: !!(keyState.Space || keyState.ArrowUp || keyState.KeyW || touchState.Space || touchState.ArrowUp),
                 // Inside a building jumpPressed is the dash: only Space (or the touch jump button) may start it, not Up or W.
+                jumpCut: true, // releasing jump early shortens the hop (sim.js reads it)
                 jumpPressed: edgeState.jumpPressed && !(sim && sim.interior && !edgeState.spaceHit && !touchState.Space),
                 jumpKey: !!(keyState.Space || touchState.Space || edgeState.spaceHit),
                 attackPressed: edgeState.attackPressed,
@@ -685,6 +696,7 @@
             rafId = root.requestAnimationFrame(tick);
             const dt = lastFrameMs ? Math.min(0.05, (nowMs - lastFrameMs) / 1000) : 1 / 60;
             lastFrameMs = nowMs;
+            if (gamepad) gamepad.poll(); // also while paused: the pad walks dialogs and round cards
             if (sim && !isPaused()) {
                 const before = sim.profile;
                 const prevCoins = before.coins;
@@ -698,13 +710,16 @@
                 if (slow) sim.fx.slowmo = Math.max(0, sim.fx.slowmo - dt);
                 const camera = renderer ? renderer.getCamera() : null;
                 if (renderer) renderer.handleEvents(events, sim);
-                if (audio) audio.handleEvents(events, sim.stage.ambience, camera);
+                if (audio) audio.handleEvents(events, amb(), camera);
+                hud.onEvents(events);
+                if (gamepad) gamepad.onEvents(events);
                 const Music = root.RunenpfadMusic;
                 if (music && Music && typeof music.update === 'function') music.update(Music.intensityFor(sim), sim);
                 const after = sim.profile;
                 if (after.coins !== prevCoins || after.unlockedLevel !== prevUnlocked || Sim.totalStars(after) !== prevStars || sim.state !== prevState || sim.storyDirty) {
                     adoptSimProfile();
                 }
+                newUnlock = sim.state === 'won' && prevState !== 'won' && sim.profile.unlockedLevel !== prevUnlocked;
                 paintHud();
                 if (sim.state === 'won' && prevState !== 'won' && sim.mode === 'campaign' && sim.levelId > 0 && root.RunenpfadCutscenes) {
                     playScenes(root.RunenpfadCutscenes.pending(profile, { type: 'won', mode: sim.mode, levelId: sim.levelId, epilogueKey: sim.epilogue && sim.epilogue.key }));
@@ -842,7 +857,7 @@
             audio.setEnabled(!audio.isEnabled());
             profile.sound = audio.isEnabled();
             writeProfile();
-            if (audio.isEnabled() && sim) audio.setAmbience(sim.stage.ambience);
+            if (audio.isEnabled() && sim) audio.setAmbience(amb());
             paintSound();
             syncAudioActive();
         }
@@ -874,9 +889,13 @@
             resetArmed = false;
             profile = Sim.createDefaultProfile();
             writeProfile();
+            applyVolumes();
             wm.setView(0);
             closePause();
             launchStage({ mode: 'campaign', levelId: 1 });
+        });
+        [winNextBtn, winReplayBtn, winShopBtn, winLevelsBtn, loseRetryBtn, loseShopBtn, loseLevelsBtn].forEach(function (b) {
+            b.addEventListener('click', function () { cue('ui_select'); });
         });
         winNextBtn.addEventListener('click', function () {
             if (!sim) return;
@@ -894,6 +913,7 @@
         [pauseDialog, levelsDialog, shopDialog].forEach(function (dlg) {
             dlg.addEventListener('close', function () {
                 if (dlg === pauseDialog) userPaused = false;
+                cue(dlg === pauseDialog ? 'ui_resume' : 'ui_back');
                 syncAudioActive();
                 if (cardKind) focusCardPrimary();
                 else shell.focus({ preventScroll: true });
@@ -972,6 +992,7 @@
                     signal: controller.signal,
                     enabled: profile.sound !== false
                 });
+                applyVolumes();
                 disposeVisuals();
                 renderer = View.createRenderer(canvas, sheets, { t: t, font: root.getComputedStyle(shell).getPropertyValue('--rp-title-font').trim() });
                 const bootRenderer = renderer;
@@ -1047,6 +1068,7 @@
                 }
                 if (ro) ro.disconnect();
                 if (cut) cut.dispose();
+                if (gamepad) gamepad.dispose();
                 root.clearTimeout(heroArmTimer);
                 hud.dispose();
                 if (talk) talk.dispose();

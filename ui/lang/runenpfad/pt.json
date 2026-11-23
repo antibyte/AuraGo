@@ -655,5 +655,9 @@
   "runenpfad.legend.in_attack": "Dentro: atacar",
   "runenpfad.legend.in_dash": "Dentro: correr",
   "runenpfad.legend.in_talk": "Dentro: falar, abrir, descansar",
-  "runenpfad.notice.inside_locked": "Aqui dentro não"
+  "runenpfad.notice.inside_locked": "Aqui dentro não",
+  "runenpfad.pause.sfx_volume": "Volume dos efeitos",
+  "runenpfad.pause.music_volume": "Volume da música",
+  "runenpfad.legend.gamepad": "Gamepad: A saltar · X atacar · B especial · Y curar · RB falar · Start pausa",
+  "runenpfad.notice.revive_ready": "Fogueira acesa — a tua segunda chance está pronta de novo."
 }

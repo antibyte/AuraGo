@@ -655,5 +655,9 @@
   "runenpfad.legend.in_attack": "Wewnątrz: atak",
   "runenpfad.legend.in_dash": "Wewnątrz: zryw",
   "runenpfad.legend.in_talk": "Wewnątrz: rozmowa, otwieranie, odpoczynek",
-  "runenpfad.notice.inside_locked": "Niemożliwe w środku"
+  "runenpfad.notice.inside_locked": "Niemożliwe w środku",
+  "runenpfad.pause.sfx_volume": "Głośność efektów",
+  "runenpfad.pause.music_volume": "Głośność muzyki",
+  "runenpfad.legend.gamepad": "Gamepad: A skok · X atak · B specjalny · Y leczenie · RB rozmowa · Start pauza",
+  "runenpfad.notice.revive_ready": "Ognisko rozpalone – twoja druga szansa jest znów gotowa."
 }

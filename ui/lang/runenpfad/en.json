@@ -655,5 +655,9 @@
   "runenpfad.legend.in_attack": "Inside: attack",
   "runenpfad.legend.in_dash": "Inside: dash",
   "runenpfad.legend.in_talk": "Inside: talk, open, rest",
-  "runenpfad.notice.inside_locked": "Not while inside"
+  "runenpfad.notice.inside_locked": "Not while inside",
+  "runenpfad.pause.sfx_volume": "Effects volume",
+  "runenpfad.pause.music_volume": "Music volume",
+  "runenpfad.legend.gamepad": "Gamepad: A jump · X attack · B special · Y heal · RB talk · Start pause",
+  "runenpfad.notice.revive_ready": "Campfire lit — your second wind is ready again."
 }

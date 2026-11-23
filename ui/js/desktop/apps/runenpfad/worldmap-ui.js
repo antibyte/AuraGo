@@ -13,6 +13,7 @@
         const fill = o.fill;
         const Levels = o.Levels;
         const hud = o.hud;
+        const select = function () { if (typeof o.play === 'function') o.play('ui_select'); }; // enabled controls only
         let view = Math.max(0, Math.min(VIEW_CHRONICLE, Math.floor(Number(o.view) || 0)));
 
         const dialog = el('dialog', 'rp-dialog rp-levels-dialog');
@@ -31,6 +32,7 @@
         dialog.append(head, villageRow, tabs, grid);
 
         villageBtn.addEventListener('click', function () {
+            select();
             dialog.close();
             o.onStart({ mode: 'campaign', levelId: 0 });
         });
@@ -44,6 +46,7 @@
             tab.type = 'button';
             if (extraText) tab.append(el('span', 'rp-tab-stars', extraText));
             tab.addEventListener('click', function () {
+                select();
                 view = index;
                 render();
                 tabs.children[index].focus({ preventScroll: true });
@@ -59,6 +62,7 @@
             startBtn.type = 'button';
             startBtn.disabled = sceneLocked();
             startBtn.addEventListener('click', function () {
+                select();
                 dialog.close();
                 o.onStart({ mode: 'endless', endlessFloor: 1 });
             });
@@ -78,7 +82,7 @@
                     const btn = el('button', 'rp-btn', t('runenpfad.cut.replay'));
                     btn.type = 'button';
                     btn.dataset.rpReplay = entry.id;
-                    btn.addEventListener('click', function () { o.onReplay(entry.id); });
+                    btn.addEventListener('click', function () { select(); o.onReplay(entry.id); });
                     row.append(btn);
                 } else {
                     row.append(el('span', 'rp-chron-title is-locked', t('runenpfad.cut.locked')));
@@ -114,6 +118,7 @@
                 }
                 btn.append(meta);
                 btn.addEventListener('click', function () {
+                    select();
                     dialog.close();
                     o.onStart({ mode: 'campaign', levelId: lvl.id });
                 });

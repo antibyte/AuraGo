@@ -655,5 +655,9 @@
   "runenpfad.legend.in_attack": "Drinnen: angreifen",
   "runenpfad.legend.in_dash": "Drinnen: Sprint",
   "runenpfad.legend.in_talk": "Drinnen: sprechen, öffnen, rasten",
-  "runenpfad.notice.inside_locked": "Drinnen nicht möglich"
+  "runenpfad.notice.inside_locked": "Drinnen nicht möglich",
+  "runenpfad.pause.sfx_volume": "Effekt-Lautstärke",
+  "runenpfad.pause.music_volume": "Musik-Lautstärke",
+  "runenpfad.legend.gamepad": "Gamepad: A springen · X angreifen · B Spezial · Y heilen · RB reden · Start Pause",
+  "runenpfad.notice.revive_ready": "Lagerfeuer entfacht – deine zweite Chance ist wieder bereit."
 }

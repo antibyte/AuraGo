@@ -20,6 +20,9 @@
         const fill = o.fill;
         const Levels = o.Levels;
         const Sim = o.Sim;
+        const play = typeof o.play === 'function' ? o.play : function () {}; // UI cue; the shell guards the audio side
+        const calm = typeof o.reduced === 'function' ? o.reduced : function () { return false; };
+        const winTimers = [];
         const icons = [];
         const crops = Object.create(null);
         let sheets = null;
@@ -462,7 +465,7 @@
 
         // Win card summary: star row, the three star goals (one small star each) and the result plaques.
         // The goals mirror the simulation's star rules: portal, all gems, par time or a flawless run.
-        function paintWinSummary(starsEl, goalsEl, plaquesEl, sim) {
+        function paintWinSummary(starsEl, goalsEl, plaquesEl, sim, unlocked) {
             paintStars(starsEl, sim.earnedStars);
             goalsEl.replaceChildren();
             [
@@ -494,6 +497,33 @@
                 }
                 plaquesEl.append(box);
             }
+            sequenceWin(starsEl, goalsEl, plaquesEl, sim.earnedStars, !!unlocked);
+        }
+
+        function cancelWin() {
+            while (winTimers.length) root.clearTimeout(winTimers.pop());
+        }
+
+        // The earned stars light up one after another (250 ms, then every 320 ms), then the goals and plaques fade in.
+        // Reduced motion shows everything at once; the cues still follow the same schedule.
+        function sequenceWin(starsEl, goalsEl, plaquesEl, earned, unlocked) {
+            cancelWin();
+            const still = calm();
+            const stars = Array.prototype.slice.call(starsEl.children, 0, earned);
+            const rest = [goalsEl, plaquesEl];
+            if (!still) {
+                stars.forEach(function (s) { s.classList.add('is-pending'); });
+                rest.forEach(function (n) { n.classList.add('is-pending'); });
+            }
+            const at = function (ms, fn) { winTimers.push(root.setTimeout(fn, ms)); };
+            stars.forEach(function (s, i) {
+                at(250 + i * 320, function () { s.classList.remove('is-pending'); play('ui_star_' + (i + 1)); });
+            });
+            const after = 250 + stars.length * 320;
+            at(after, function () {
+                rest.forEach(function (n) { n.classList.remove('is-pending'); });
+                if (unlocked) play('ui_unlock');
+            });
         }
 
         // Key legend of the pause dialog: key caps in front of each action.
@@ -527,6 +557,89 @@
                 r.keys.forEach(function (k) { keys.append(keycap(k)); });
                 container.append(keys, el('dd', 'rp-legend-label', r.label));
             });
+            if (typeof o.gamepadSeen === 'function' && o.gamepadSeen()) {
+                const pad = el('dt', 'rp-legend-keys rp-legend-pad');
+                pad.append(keycap('Pad'));
+                container.append(pad, el('dd', 'rp-legend-label rp-legend-pad-label', tf('runenpfad.legend.gamepad', 'Gamepad: A jump \u00b7 X attack \u00b7 B special \u00b7 Y heal \u00b7 RB talk \u00b7 Start pause')));
+            }
+        }
+
+        // Pause dialog DOM. Buttons keep the order resume, restart, sound, music, gfx, reset (the browser test clicks the
+        // first aria-pressed one); the two volume sliders follow the buttons. `onVolume(kind, value 0..1, commit)`.
+        function createPause(po) {
+            const dialog = el('dialog', 'rp-dialog rp-pause-dialog');
+            const head = el('div', 'rp-dialog-head');
+            const title = el('h2');
+            const closeBtn = el('button', 'rp-btn');
+            closeBtn.type = 'button';
+            head.append(title, closeBtn);
+            const controls = el('dl', 'rp-legend');
+            const actionsRow = el('div', 'rp-row-actions');
+            const mk = function (cls, pressed, hidden) {
+                const b = el('button', cls);
+                b.type = 'button';
+                if (pressed) b.setAttribute('aria-pressed', 'false');
+                b.hidden = !!hidden;
+                return b;
+            };
+            const resumeBtn = mk('rp-btn rp-btn-primary');
+            const restartBtn = mk('rp-btn');
+            const soundBtn = mk('rp-btn', true);
+            const musicBtn = mk('rp-btn', true, true);
+            const gfxBtn = mk('rp-btn', true, true);
+            const resetBtn = mk('rp-btn rp-btn-danger');
+            actionsRow.append(resumeBtn, restartBtn, soundBtn, musicBtn, gfxBtn, resetBtn);
+            [restartBtn, soundBtn, musicBtn, gfxBtn, resetBtn].forEach(function (b) { b.addEventListener('click', function () { play('ui_select'); }); });
+            const sliders = el('div', 'rp-volume');
+            const rows = ['sfx', 'music'].map(function (kind) {
+                const row = el('label', 'rp-volume-row');
+                const label = el('span', 'rp-volume-label');
+                const input = el('input', 'rp-volume-input');
+                input.type = 'range';
+                input.min = '0';
+                input.max = '100';
+                input.step = '5';
+                input.dataset.rpVolume = kind;
+                const val = el('span', 'rp-volume-val rp-num');
+                const read = function () { return Math.round((Number(input.value) || 0) / 5) * 5 / 100; };
+                input.addEventListener('input', function () { val.textContent = Math.round(read() * 100) + '%'; po.onVolume(kind, read(), false); });
+                input.addEventListener('change', function () { po.onVolume(kind, read(), true); });
+                row.append(label, input, val);
+                sliders.append(row);
+                return { label: label, input: input, val: val };
+            });
+            dialog.append(head, controls, actionsRow, sliders);
+            function paint(profile) {
+                const vols = [profile.sfxVol, profile.musicVol];
+                ['runenpfad.pause.sfx_volume', 'runenpfad.pause.music_volume'].forEach(function (key, i) {
+                    const v = Math.round((typeof vols[i] === 'number' ? vols[i] : 1) * 100);
+                    rows[i].label.textContent = tf(key, i ? 'Music volume' : 'Effects volume');
+                    rows[i].input.value = String(v);
+                    rows[i].val.textContent = v + '%';
+                });
+            }
+            return { dialog: dialog, title: title, closeBtn: closeBtn, controls: controls, resumeBtn: resumeBtn, restartBtn: restartBtn,
+                soundBtn: soundBtn, musicBtn: musicBtn, gfxBtn: gfxBtn, resetBtn: resetBtn, paint: paint };
+        }
+
+        // Short class pulses on the bar: a coin bump, a heart shake and a low-health beat. Static under reduced motion.
+        function pulse(node, cls, ms) {
+            if (calm()) return;
+            node.classList.add(cls);
+            root.clearTimeout(node['__rp' + cls]);
+            node['__rp' + cls] = root.setTimeout(function () { node.classList.remove(cls); }, ms);
+        }
+
+        function onEvents(events) {
+            if (!events) return;
+            for (let i = 0; i < events.length; i++) {
+                const type = events[i] && events[i].type;
+                if (type === 'pickup_coin') pulse(coins.box, 'is-bump', 130);
+                else if (type === 'player_hurt') {
+                    pulse(heartsRow, 'is-shake', 70);
+                    heartsRow.__rpShake2 = root.setTimeout(function () { pulse(heartsRow, 'is-shake-back', 70); }, 70);
+                } else if (type === 'heart_beat') pulse(heartsRow, 'is-beat', 180);
+            }
         }
 
         // Upgrade level as a row of pips (filled up to the current level).
@@ -540,6 +653,8 @@
 
         function dispose() {
             root.clearTimeout(hintTimer);
+            root.clearTimeout(heartsRow.__rpShake2);
+            cancelWin();
         }
 
         return {
@@ -548,7 +663,7 @@
             icon: icon, keycap: keycap, setButton: setButton, setSheets: setSheets, setArt: setArt, setText: setText,
             paint: paint, paintCopy: paintCopy, paintStars: paintStars, paintPlaques: paintPlaques,
             paintWinSummary: paintWinSummary, paintLegend: paintLegend, pips: pips, formatTime: formatTime,
-            showHint: showHint, dispose: dispose
+            showHint: showHint, dispose: dispose, createPause: createPause, onEvents: onEvents, cancelWin: cancelWin
         };
     }
 

@@ -655,5 +655,9 @@
   "runenpfad.legend.in_attack": "Μέσα: επίθεση",
   "runenpfad.legend.in_dash": "Μέσα: ταχύτητα",
   "runenpfad.legend.in_talk": "Μέσα: ομιλία, άνοιγμα, ανάπαυση",
-  "runenpfad.notice.inside_locked": "Όχι όσο είσαι μέσα"
+  "runenpfad.notice.inside_locked": "Όχι όσο είσαι μέσα",
+  "runenpfad.pause.sfx_volume": "Ένταση εφέ",
+  "runenpfad.pause.music_volume": "Ένταση μουσικής",
+  "runenpfad.legend.gamepad": "Χειριστήριο: A άλμα · X επίθεση · B ειδική · Y γιατρειά · RB ομιλία · Start παύση",
+  "runenpfad.notice.revive_ready": "Η φωτιά άναψε — η δεύτερη ευκαιρία σου είναι ξανά έτοιμη."
 }

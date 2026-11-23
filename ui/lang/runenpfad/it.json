@@ -655,5 +655,9 @@
   "runenpfad.legend.in_attack": "Dentro: attacca",
   "runenpfad.legend.in_dash": "Dentro: scatta",
   "runenpfad.legend.in_talk": "Dentro: parla, apri, riposa",
-  "runenpfad.notice.inside_locked": "Non all'interno"
+  "runenpfad.notice.inside_locked": "Non all'interno",
+  "runenpfad.pause.sfx_volume": "Volume effetti",
+  "runenpfad.pause.music_volume": "Volume musica",
+  "runenpfad.legend.gamepad": "Gamepad: A salta · X attacca · B speciale · Y cura · RB parla · Start pausa",
+  "runenpfad.notice.revive_ready": "Falò acceso: la tua seconda possibilità è di nuovo pronta."
 }

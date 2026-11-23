@@ -23,6 +23,8 @@
             sound: true,
             music: true,
             gfx: 'auto',
+            sfxVol: 1,
+            musicVol: 1,
             unlockedLevel: 1,
             endlessBestFloor: 0,
             coins: 25,
@@ -48,6 +50,12 @@
         const n = Number(val);
         if (!Number.isFinite(n)) return fallback;
         return Math.min(max, Math.max(min, Math.floor(n)));
+    }
+
+    // Volume slider value: 0..1 in steps of 0.05; anything invalid means the designed mix (1).
+    function clampVol(val) {
+        if (typeof val !== 'number' || !Number.isFinite(val)) return 1;
+        return Math.round(Math.min(1, Math.max(0, val)) * 20) / 20;
     }
 
     function isPlainObject(v) {
@@ -137,6 +145,8 @@
             sound: raw.sound !== false,
             music: raw.music !== false,
             gfx: raw.gfx === 'canvas' ? 'canvas' : 'auto',
+            sfxVol: clampVol(raw.sfxVol),
+            musicVol: clampVol(raw.musicVol),
             unlockedLevel: clampInt(raw.unlockedLevel, 1, levels.CAMPAIGN_LEVELS.length, def.unlockedLevel),
             endlessBestFloor: clampInt(raw.endlessBestFloor, 0, 9999, 0),
             coins: clampInt(raw.coins, 0, 9999999, 0),

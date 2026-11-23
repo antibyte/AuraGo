@@ -655,5 +655,9 @@
   "runenpfad.legend.in_attack": "室内：攻击",
   "runenpfad.legend.in_dash": "室内：冲刺",
   "runenpfad.legend.in_talk": "室内：交谈、开启、休息",
-  "runenpfad.notice.inside_locked": "室内不可用"
+  "runenpfad.notice.inside_locked": "室内不可用",
+  "runenpfad.pause.sfx_volume": "音效音量",
+  "runenpfad.pause.music_volume": "音乐音量",
+  "runenpfad.legend.gamepad": "手柄：A 跳跃 · X 攻击 · B 特殊 · Y 治疗 · RB 对话 · Start 暂停",
+  "runenpfad.notice.revive_ready": "篝火已点燃——你的第二次机会再次就绪。"
 }
