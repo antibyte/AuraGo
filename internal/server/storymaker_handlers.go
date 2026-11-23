@@ -340,6 +340,7 @@ type storymakerCreateRequest struct {
 	FPS      int    `json:"fps"`
 	Language string `json:"language"`
 	Silent   bool   `json:"silent"`
+	Mode     string `json:"mode"`
 }
 
 func handleStorymakerProjects(s *Server, w http.ResponseWriter, r *http.Request) {
@@ -368,7 +369,7 @@ func handleStorymakerProjects(s *Server, w http.ResponseWriter, r *http.Request)
 		dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, storymakerJSONLimit))
 		dec.DisallowUnknownFields()
 		if err := dec.Decode(&req); err != nil {
-			writeStorymakerError(w, http.StatusBadRequest, "invalid_request", "The request body must be {\"title\": ..., \"aspect\"?: ..., \"fps\"?: ..., \"language\"?: ..., \"silent\"?: ...}.", nil)
+			writeStorymakerError(w, http.StatusBadRequest, "invalid_request", "The request body must be {\"title\": ..., \"aspect\"?: ..., \"fps\"?: ..., \"language\"?: ..., \"silent\"?: ..., \"mode\"?: ...}.", nil)
 			return
 		}
 		language := strings.TrimSpace(req.Language)
@@ -378,6 +379,11 @@ func handleStorymakerProjects(s *Server, w http.ResponseWriter, r *http.Request)
 		if language == "" {
 			language = "de"
 		}
+		mode, err := storymaker.NormalizeMode(strings.TrimSpace(req.Mode))
+		if err != nil {
+			writeStorymakerError(w, http.StatusBadRequest, "invalid_mode", "The mode must be catalog or free.", nil)
+			return
+		}
 		if !req.Silent && phonon.Language(language) == "" {
 			writeStorymakerErrorWith(w, http.StatusUnprocessableEntity, render.CodeNarrationUnavailable, "Phonon supports German, English, French, Spanish and Portuguese.", map[string]any{"languages": storymakerPhononLanguages})
 			return
@@ -386,7 +392,7 @@ func handleStorymakerProjects(s *Server, w http.ResponseWriter, r *http.Request)
 		if !req.Silent {
 			voice = &storymaker.Voice{Provider: "phonon", Voice: phonon.DefaultVoiceForGender(language, ""), Language: language}
 		}
-		project, story, etag, err := acc.rt.projects.CreateWithVoice(r.Context(), req.Title, req.Aspect, req.FPS, voice)
+		project, story, etag, err := acc.rt.projects.CreateWithOptions(r.Context(), req.Title, req.Aspect, req.FPS, voice, storymaker.CreateOptions{Mode: mode})
 		if err != nil {
 			mapStorymakerError(w, err, "not_found")
 			return

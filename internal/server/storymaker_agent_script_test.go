@@ -263,6 +263,12 @@ func smScriptHappyTurns() map[string][]smScriptTurn {
 // first config snapshot is taken, and it has a ready local voice with a stub synth.
 func newSMScriptEnv(t *testing.T, model string, client *smScriptClient) *narrateJobEnv {
 	t.Helper()
+	return newSMScriptEnvMode(t, model, client, "")
+}
+
+// newSMScriptEnvMode is newSMScriptEnv with a project of the given mode (empty is the catalog mode).
+func newSMScriptEnvMode(t *testing.T, model string, client *smScriptClient, mode string) *narrateJobEnv {
+	t.Helper()
 	s, _, token := storymakerAPIFixture(t)
 	s.storymakerVoicesOverride = readyStorymakerPhononVoices
 	s.Cfg.LLM.Model, s.Cfg.LLM.ProviderType, s.Cfg.LLM.UseNativeFunctions = model, "openai", true
@@ -287,7 +293,7 @@ func newSMScriptEnv(t *testing.T, model string, client *smScriptClient) *narrate
 	}
 	t.Cleanup(func() { _ = stm.Close() })
 	s.ShortTermMem = stm
-	p := createStorymakerProject(t, s, token)
+	p := createStorymakerProjectMode(t, s, token, mode)
 	rt, err := s.storymakerRuntime()
 	if err != nil {
 		t.Fatal(err)

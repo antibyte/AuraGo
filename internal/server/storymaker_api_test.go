@@ -104,7 +104,17 @@ type apiProject struct {
 
 func createStorymakerProject(t *testing.T, s *Server, token string) apiProject {
 	t.Helper()
-	w := storymakerRequest(s, token, http.MethodPost, "/projects", strings.NewReader(`{"title":"Was ist eine Firewall?"}`), nil)
+	return createStorymakerProjectMode(t, s, token, "")
+}
+
+// createStorymakerProjectMode creates the project through the API; an empty mode leaves the field out.
+func createStorymakerProjectMode(t *testing.T, s *Server, token, mode string) apiProject {
+	t.Helper()
+	body := `{"title":"Was ist eine Firewall?"}`
+	if mode != "" {
+		body = `{"title":"Was ist eine Firewall?","mode":"` + mode + `"}`
+	}
+	w := storymakerRequest(s, token, http.MethodPost, "/projects", strings.NewReader(body), nil)
 	if w.Code != http.StatusCreated {
 		t.Fatalf("create: %d %s", w.Code, w.Body.String())
 	}

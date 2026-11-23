@@ -95,13 +95,16 @@ func storymakerAgentNames(cat *storymaker.Catalog) agent.StorymakerNames {
 }
 
 // storymakerAgentToolLimit is the tool-call limit of one loop (decision 14).
-func storymakerAgentToolLimit(phase string) int {
+func storymakerAgentToolLimit(mode, phase string) int {
 	switch phase {
 	case storymaker.PhaseOutline:
 		return 6
 	case storymaker.PhaseCast:
 		return 12
 	case storymaker.PhaseFill:
+		if storymaker.EffectiveMode(mode) == storymaker.ModeFree {
+			return 14 // get_code, put_code with a retry or two, put_scene, and a dry_run
+		}
 		return 10
 	case storymaker.PhaseCheck:
 		return 20
@@ -272,7 +275,7 @@ func (j *storymakerAgentJob) runConfig(cfg *config.Config, profile *agent.Prepar
 		runCfg.AllowedTools = append(runCfg.AllowedTools, definition.Function.Name)
 	}
 	runCfg.ExecutionHooks = j.hooks()
-	runCfg.UserIntent = storymakerAgentIntent(loop.phase)
+	runCfg.UserIntent = storymakerAgentIntentFor(j.studioJob.Mode, loop.phase)
 	runCfg.PreserveReasoning = true
 	runCfg.StableSystemPrompt = true
 	runCfg.RequireCompleteStream = true
@@ -287,7 +290,7 @@ func (j *storymakerAgentJob) runConfig(cfg *config.Config, profile *agent.Prepar
 	if !loop.advice {
 		runCfg.RunComplete = j.studio.PhaseDone
 	}
-	runCfg.RecoveryNudge = storymakerRecoveryNudge(loop.phase)
+	runCfg.RecoveryNudge = storymakerRecoveryNudgeFor(j.studioJob.Mode, loop.phase)
 	return runCfg
 }
 
@@ -320,11 +323,11 @@ func (j *storymakerAgentJob) completePacket(ctx context.Context, packet map[stri
 func (j *storymakerAgentJob) runLoop(ctx context.Context, loop storymakerAgentLoop) (string, error) {
 	cfg := *j.route.cfg
 	cfg.LLM.Temperature = storymakerAgentTemperature(loop.phase)
-	profile, err := storymakerAgentProfile(loop.phase, j.route.compact, j.route.text, j.names)
+	profile, err := storymakerAgentProfileFor(j.studioJob.Mode, loop.phase, j.route.compact, j.route.text, j.names)
 	if err != nil {
 		return "", err
 	}
-	limit := storymakerAgentToolLimit(loop.phase)
+	limit := storymakerAgentToolLimit(j.studioJob.Mode, loop.phase)
 	packet, err := j.studio.Packet(ctx, j.route.compact)
 	if err != nil {
 		return "", err
@@ -339,7 +342,7 @@ func (j *storymakerAgentJob) runLoop(ctx context.Context, loop storymakerAgentLo
 		Model: cfg.LLM.Model,
 		Messages: []openai.ChatCompletionMessage{{
 			Role:    openai.ChatMessageRoleUser,
-			Content: storymakerAgentUserMessage(loop.phase, j.voiceAvailable, data),
+			Content: storymakerAgentUserMessageFor(j.studioJob.Mode, loop.phase, j.voiceAvailable, data),
 		}},
 		Stream: true,
 	}
@@ -368,14 +371,22 @@ func (j *storymakerAgentJob) runLoop(ctx context.Context, loop storymakerAgentLo
 	return answer, nil
 }
 
-// storymakerAgentIntent is the fixed server sentence of a phase. The request itself stays in the data block.
+// storymakerAgentIntent is the fixed server sentence of a phase in the catalog mode. The request itself stays in the data block.
 func storymakerAgentIntent(phase string) string {
+	return storymakerAgentIntentFor(storymaker.ModeCatalog, phase)
+}
+
+// storymakerAgentIntentFor is the fixed server sentence of a phase for the mode of a project.
+func storymakerAgentIntentFor(mode, phase string) string {
 	switch phase {
 	case storymaker.PhaseOutline:
 		return "Write the outline of this film."
 	case storymaker.PhaseCast:
 		return "Choose the title and the cast of this film."
 	case storymaker.PhaseFill:
+		if storymaker.EffectiveMode(mode) == storymaker.ModeFree {
+			return "Draw the scene named in the context in code."
+		}
 		return "Fill the scene named in the context."
 	case storymaker.PhaseCheck:
 		return "Fix what the context lists for this film."
@@ -383,11 +394,20 @@ func storymakerAgentIntent(phase string) string {
 	return "Apply the instruction from the context to this film."
 }
 
-// storymakerAgentUserMessage is the only user message of a loop.
+// storymakerAgentUserMessage is the only user message of a loop in the catalog mode.
 func storymakerAgentUserMessage(phase string, voiceAvailable bool, data []byte) string {
-	text := storymakerAgentIntent(phase)
+	return storymakerAgentUserMessageFor(storymaker.ModeCatalog, phase, voiceAvailable, data)
+}
+
+// storymakerAgentUserMessageFor is the only user message of a loop for the mode of a project.
+func storymakerAgentUserMessageFor(mode, phase string, voiceAvailable bool, data []byte) string {
+	text := storymakerAgentIntentFor(mode, phase)
 	if phase == storymaker.PhaseFill && !voiceAvailable {
-		text += "\n" + storymakerNoVoiceNote
+		note := storymakerNoVoiceNote
+		if storymaker.EffectiveMode(mode) == storymaker.ModeFree {
+			note = storymakerFreeNoVoiceNote
+		}
+		text += "\n" + note
 	}
 	return text + "\n\nJob context (data):\n<external_data>\n" + string(data) + "\n</external_data>"
 }
@@ -612,7 +632,7 @@ func (s *Server) newStorymakerAgentJob(ctx context.Context, rt *storymakerRuntim
 	}
 	target := storymakerAgentTargetSeconds(cfg, p.LengthSeconds, project.TargetSeconds)
 	j.studioJob = storymaker.StudioJob{
-		JobID: job.ID, ProjectID: job.ProjectID, Kind: p.Kind,
+		JobID: job.ID, ProjectID: job.ProjectID, Kind: p.Kind, Mode: storymaker.EffectiveMode(project.Mode),
 		Language: language, Audience: firstNonEmpty(p.Audience, project.Audience),
 		TargetSeconds: target, VoiceAvailable: available,
 	}
@@ -783,7 +803,7 @@ func (j *storymakerAgentJob) runCheckRound(ctx context.Context) {
 	}
 }
 
-// runCreate is the create order: outline, cast, one loop per scene, then the check step.
+// runCreate is the create order: outline, cast (catalog mode only), one loop per scene, then the check step.
 func (j *storymakerAgentJob) runCreate(ctx context.Context) {
 	if _, done := j.runPhase(ctx, storymakerAgentLoop{phase: storymaker.PhaseOutline}); !done {
 		return
@@ -792,11 +812,13 @@ func (j *storymakerAgentJob) runCreate(ctx context.Context) {
 	if ctx.Err() != nil {
 		return
 	}
-	if _, done := j.runPhase(ctx, storymakerAgentLoop{phase: storymaker.PhaseCast}); !done {
-		return
-	}
-	if ctx.Err() != nil {
-		return
+	if storymaker.EffectiveMode(j.studioJob.Mode) != storymaker.ModeFree {
+		if _, done := j.runPhase(ctx, storymakerAgentLoop{phase: storymaker.PhaseCast}); !done {
+			return
+		}
+		if ctx.Err() != nil {
+			return
+		}
 	}
 	progress, err := j.studio.Progress(ctx)
 	if err != nil {
