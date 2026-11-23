@@ -88,6 +88,68 @@ for (const name of ['glass', 'bar', 'bell', 'metal', 'string']) {
   assert.ok(x1.L.every(Number.isFinite) && x1.R.every(Number.isFinite), name + ' air finite');
   assert.ok(Math.abs(x1.L[0]) < 1e-4 && Math.abs(x1.R[0]) < 1e-4, name + ' air starts at zero');
 }
+// air bed on blip, drop and pad as well; air 0 draws no random numbers
+for (const name of ['blip', 'drop', 'pad']) {
+  const m = I.MODELS[name], an = { freq: 440, dur: Math.min(m.duration(I.resolveParams(name, {})), 1.5), gain: 1, pan: 0, at: 0, detune: 0 };
+  const r0 = D.makeRng(4), r1 = D.makeRng(4);
+  const x0 = I.render(name, { air: 0 }, an, r0), x1 = I.render(name, { air: 0.05 }, an, r1);
+  assert.notEqual(fp(x0), fp(x1), name + ' air bed changes the render');
+  assert.ok(x1.L.every(Number.isFinite) && Math.abs(x1.L[0]) < 1e-4, name + ' air finite, starts at zero');
+}
+{ const cnt = (name, params) => { let c = 0; const r = D.makeRng(9); const wrap = () => { c++; return r(); };
+    I.render(name, params, { freq: 440, dur: 0.3, gain: 1, pan: 0, at: 0, detune: 0 }, wrap); return c; };
+  for (const name of ['blip', 'drop', 'pad', 'glass']) assert.ok(cnt(name, { air: 0.05 }) > cnt(name, { air: 0 }), name + ' air 0 draws no extra random numbers'); }
+// the air bed rings with the note: still audible at 0.8 x t60 of a long glass note
+{ const note = { freq: 880, dur: 1.2, gain: 1, pan: 0, at: 0, detune: 0 };
+  const a0 = I.render('glass', { t60: 1, air: 0 }, note, D.makeRng(2)), a1 = I.render('glass', { t60: 1, air: 0.2, damp: 2 }, note, D.makeRng(2));
+  const seg = o => { let m = 0; for (let i = Math.round(0.7 * SR); i < Math.round(0.8 * SR); i++) m = Math.max(m, Math.abs(o.L[i] - 0)); return m; };
+  assert.ok(seg(a1) > seg(a0), 'air bed still present late in the note'); }
+// level calibration per enum value: every value of every preset peaks between -12 and -3 dBFS with otherwise default parameters
+for (const name of NAMES) {
+  const m = I.MODELS[name];
+  for (const [k, s] of Object.entries(m.params)) {
+    if (Array.isArray(s) || !s.values) continue;
+    for (const v of s.values) {
+      const p = I.resolveParams(name, { [k]: v });
+      const peaks = [];
+      for (let seed = 1; seed <= 8; seed++) {
+        const o = I.render(name, { [k]: v }, { freq: TYPICAL[name] ?? 440, dur: m.duration(p), gain: 1, pan: 0, at: 0, detune: 0 }, D.makeRng(seed));
+        peaks.push(db(Math.max(peakOf(o.L), peakOf(o.R))));
+      }
+      peaks.sort((x, y) => x - y);
+      const med = peaks[4];
+      assert.ok(med >= -12 && med <= -3, `${name}.${k}=${v} peak ${med.toFixed(2)} dBFS`);
+    }
+  }
+}
+// bell: celesta is the default kind
+assert.equal(I.resolveParams('bell', {}).kind, 'celesta');
+// string: -60 dB of the peak at t60 (0.85..1.15 x) for every kind at 220 and 440 Hz (median over 5 seeds)
+for (const kind of ['nylon', 'harp', 'muted']) for (const freq of [220, 440]) {
+  const t60 = I.resolveParams('string', { kind }).t60, ratios = [];
+  for (let seed = 1; seed <= 5; seed++) {
+    const o = I.render('string', { kind, air: 0 }, { freq, dur: t60 * 1.6, gain: 1, pan: 0, at: 0, detune: 0 }, D.makeRng(seed));
+    const peak = Math.max(peakOf(o.L), peakOf(o.R)); let last = 0;
+    for (let i = 0; i < o.L.length; i++) if (Math.abs(o.L[i]) > peak * 0.001) last = i;
+    ratios.push(last / SR / t60);
+  }
+  ratios.sort((x, y) => x - y);
+  assert.ok(ratios[2] >= 0.85 && ratios[2] <= 1.15, `string ${kind} ${freq} Hz ends at ${ratios[2].toFixed(3)} x t60`);
+}
+// glass accepts short t60 and keeps a correct duration
+{ const p = I.resolveParams('glass', { t60: 0.04 }), m = I.MODELS.glass;
+  assert.equal(m.params.t60[0], 0.04);
+  const o = I.render('glass', { t60: 0.04 }, { freq: 880, dur: m.duration(p), gain: 1, pan: 0, at: 0, detune: 0 }, D.makeRng(1));
+  assert.equal(o.L.length, Math.ceil(m.duration(p) * SR)); assert.ok(peakOf(o.L) > 1e-3 && o.L.every(Number.isFinite)); }
+// squelch: viscous bubble cluster
+{ const m = I.MODELS.squelch, p = I.resolveParams('squelch', {});
+  assert.deepEqual(Object.keys(m.params), ['count', 'gap', 'spread', 't60', 'dip', 'rise', 'drive', 'wet', 'wetCut', 'attack', 'width']);
+  assert.ok(Math.abs(m.duration(p) - ((5 - 1) * 0.035 * 1.4 + 0.09 * 1.3 * 2.4 + 0.02)) < 1e-9);
+  assert.equal(m.minFreq(p), 130); assert.equal(m.pitched(p), true);
+  const one = I.render('squelch', { count: 1, wet: 0, drive: 0 }, { freq: 220, dur: 0.3, gain: 1, pan: 0, at: 0, detune: 0 }, D.makeRng(1));
+  assert.ok(Math.abs(one.L[100] - one.R[100]) < 1e-9, 'a single bubble is centred');
+  const many = I.render('squelch', {}, { freq: 220, dur: m.duration(p), gain: 1, pan: 0, at: 0, detune: 0 }, D.makeRng(1));
+  assert.notEqual(fp(many), fp(I.render('squelch', { count: 2 }, { freq: 220, dur: m.duration(p), gain: 1, pan: 0, at: 0, detune: 0 }, D.makeRng(1)))); }
 assert.notEqual(fp(I.render('glass', {}, { freq: 880, dur: 0.5, gain: 1, pan: 0, at: 0, detune: 4 }, D.makeRng(1))),
   fp(I.render('glass', {}, { freq: 880, dur: 0.5, gain: 1, pan: 0, at: 0, detune: 0 }, D.makeRng(1))), 'variant detune changes partials');
 assert.throws(() => I.render('kazoo', {}, { freq: 440, dur: 0.1, gain: 1, pan: 0, at: 0 }, D.makeRng(1)));

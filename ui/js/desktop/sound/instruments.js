@@ -16,6 +16,8 @@
     const lengthOf = note => Math.max(1, Math.ceil(note.dur * SR));
     // Duration to hand to kernel sources so that ceil(dur * SR) is exactly n.
     const srcDur = n => (n - 0.5) / SR;
+    // Per-enum-value level trim (multiplies the model's `trim`); 1 when a value has no entry.
+    const pt = (table, key) => table[key] ?? 1;
     const semis = st => Math.pow(2, st / 12);
     const cents = c => Math.pow(2, c / 1200);
     const zeros = n => ({ L: new Float32Array(n), R: new Float32Array(n) });
@@ -64,18 +66,18 @@
     }
     // Air bed: a faint breath of band-passed pink noise (independent L and R, centred, not panned) that follows the
     // note. Its peak is `air` times the peak of the finished tonal part. Draws no random numbers when air is 0.
-    const AIR = { lengthT60: 0.6, lengthExtra: 0.06, centerMul: 2.5, minHz: 600, maxHz: 8000, q: 0.5, attack: 0.010, decayT60: 0.5 };
+    const AIR = { lengthExtra: 0.06, centerMul: 2.5, minHz: 600, maxHz: 8000, q: 0.5, attack: 0.010 };
     function addAir(res, note, air, t60, rand) {
         if (!(air > 0)) return res;
         const n = res.L.length;
         let peak = 0;
         for (let i = 0; i < n; i++) peak = Math.max(peak, Math.abs(res.L[i]), Math.abs(res.R[i]));
-        const len = Math.min(n, Math.ceil((AIR.lengthT60 * t60 + AIR.lengthExtra) * SR));
+        const len = Math.min(n, Math.ceil((t60 + AIR.lengthExtra) * SR));
         const fc = clamp(AIR.centerMul * note.freq, AIR.minHz, AIR.maxHz);
         const beds = [0, 1].map(() => {
             const b = noise((len - 0.5) / SR, 'pink', rand);
             bandpass(b, fc, AIR.q);
-            return applyEnv(b, { attack: AIR.attack, decay: AIR.decayT60 * t60, sustain: 0 });
+            return applyEnv(b, { attack: AIR.attack, decay: t60, sustain: 0 });
         });
         let bp = 0;
         for (const b of beds) for (let i = 0; i < b.length; i++) bp = Math.max(bp, Math.abs(b[i]));
@@ -118,7 +120,8 @@
         malletMs: 0.012, malletQ: 1.2, malletLevel: 0.6, malletBase: 0.5, malletAttack: 0.0004,
         upperBase: 0.6, upperHard: 0.8,   // upper partials x (base + hard * hardness)
         bodyT60: 0.2, bodyGain: 0.3, bodyMinHz: 130,
-        trim: 0.348
+        trim: 0.348,
+        presetTrim: { marimba: 1.016, xylophone: 1.355, glockenspiel: 0.701, kalimba: 1.099, woodblock: 0.839 }
     };
 
     // ---- bell ----------------------------------------------------------------------------------
@@ -130,7 +133,8 @@
         },
         twinCents: 3, twinPan: 0.5,
         strikeMs: 0.004, strikeCenter: 5, strikeMaxHz: 9000, strikeQ: 1.2, strikeGain: 0.5, strikeAttack: 0.0003, strikeIndexMax: 1.5,
-        trim: 0.42
+        trim: 0.42,
+        presetTrim: { bell: 1, celesta: 1, tine: 1 }
     };
 
     // ---- string --------------------------------------------------------------------------------
@@ -141,17 +145,18 @@
             muted: { brightness: 0.2, pick: 0.12, t60: 0.2 }
         },
         maxFreq: 4000,
-        loopT60: 3,                       // loop loss t60 = t60 x this, the envelope then ends the note at t60
+        loopT60: 12, endDb: 0.67, lossShare: 0.85,        // loop loss t60 = t60 x loopT60, envelope decay = t60 x envT60: 1/4 + 3/4 = 1, so -60 dB lands at t60
         bodyHz: 280, bodyQ: 1.4, bodyGain: 0.5,
         pickMs: 0.002, pickBase: 1500, pickRange: 4500, pickQ: 1.5, pickGain: 0.25, pickBright: 0.4, pickAttack: 0.0002,
-        trim: 0.394
+        trim: 0.394,
+        presetTrim: { nylon: 0.945, harp: 0.793, muted: 1.139 }
     };
 
     // ---- analog --------------------------------------------------------------------------------
-    const ANALOG = { subMix: 0.35, trim: 0.446 };
+    const ANALOG = { subMix: 0.35, trim: 0.446, presetTrim: { saw: 0.994, pulse: 0.918, tri: 1.213 } };
 
     // ---- chip ----------------------------------------------------------------------------------
-    const CHIP = { lowpassHz: 9000, vibratoRamp: 0.05, trim: 0.381 };
+    const CHIP = { lowpassHz: 9000, vibratoRamp: 0.05, trim: 0.381, presetTrim: { pulse: 1, tri: 1.118 } };
 
     // ---- drop ----------------------------------------------------------------------------------
     const DROP = {
@@ -175,7 +180,8 @@
         },
         mainGain: 0.62, twinGain: 0.38, mainPan: -0.3, twinPan: 0.35,
         strikeMs: 0.006, strikeHz: 2000, strikeLevel: 0.4, strikeFloor: 0.3, strikeAttack: 0.0003,
-        trim: 0.195
+        trim: 0.195,
+        presetTrim: { plate: 0.987, pipe: 1.417, ping: 1.618 }
     };
 
     // ---- click ---------------------------------------------------------------------------------
@@ -190,24 +196,26 @@
         },
         ringShare: 0.5,                   // resonance level x (1 - ringShare * noise)
         secondGain: 0.6, doubleLevel: 0.5, doubleTone: 1.06, burstGain: 1,
-        trim: 0.68
+        trim: 0.68,
+        presetTrim: { felt: 1.256, relay: 1.096, plastic: 0.958, glass: 0.836, copper: 0.582, stone: 1.408 }
     };
 
     // ---- thud ----------------------------------------------------------------------------------
     const THUD = { noiseMs: 0.04, noiseDecay: 0.03, noiseHighpass: 130, noiseLevel: 0.6, noiseAttack: 0.0004, trim: 0.441 };
 
     // ---- noise ---------------------------------------------------------------------------------
-    const NOISE = { flutterHz: 27, trim: 1.35 };
+    const NOISE = { flutterHz: 27, trim: 1.35, presetTrim: { white: 0.396, pink: 1.104, brown: 1.14 } };
 
     // ---- squelch -------------------------------------------------------------------------------
-    const SQUELCH = { trim: 2.64 };
+    const SQUELCH = { lengthT60: 2.4, trim: 0.449 };
 
     // ---- debris --------------------------------------------------------------------------------
     const DEBRIS = {
         wood: { lo: 600, range: 1200, t60: 0.03, burstMs: 0.003, burstQ: 2, burstGain: 0.5, level: 1 },
         stone: { lo: 1500, range: 3500, burstMs: 0.002, q: 3, ringT60: 0.01, ringGain: 0.5, level: 1 },
         earth: { lo: 200, range: 500, ms: 0.006, highpass: 150, level: 4 },
-        attack: 0.0003, trim: 0.876
+        attack: 0.0003, trim: 0.876,
+        presetTrim: { wood: 0.369, stone: 1.003, earth: 3.097 }
     };
 
     // ---- parameter spec helpers ----------------------------------------------------------------
@@ -217,7 +225,7 @@
 
     MODELS.glass = {
         params: {
-            t60: num(0.1, 3, 0.9), damp: num(0, 2, 0.75), beat: num(0, 3, 0.55), attack: num(0.001, 0.05, 0.004),
+            t60: num(0.04, 3, 0.9), damp: num(0, 2, 0.75), beat: num(0, 3, 0.55), attack: num(0.001, 0.05, 0.004),
             tilt: num(-1, 2, 0), width: num(0, 1, 0.6), strike: num(0, 1, 0.08),
             spread: num(0, 12, 3), air: num(0, 0.2, 0.04)
         },
@@ -266,13 +274,13 @@
                 bandpass(m, Math.min(8000, f * (2 + 4 * h)), BAR.malletQ);
                 addInto(a, m, 0, p.mallet * (BAR.malletBase + h) * BAR.malletLevel / 0.3);
             }
-            return addAir(finishMono(a, note, BAR.trim), note, p.air, p.t60, rand);
+            return addAir(finishMono(a, note, BAR.trim * pt(BAR.presetTrim, p.kind)), note, p.air, p.t60, rand);
         }
     };
 
     MODELS.bell = {
         params: {
-            kind: wave(['bell', 'celesta', 'tine'], 'bell'),
+            kind: wave(['bell', 'celesta', 'tine'], 'celesta'),
             t60: num(0.1, 3, 1.4), index: num(0, 4, 1), attack: num(0.001, 0.03, 0.002), spread: num(0, 1, 0), air: num(0, 0.2, 0.04)
         },
         presets: { kind: BELL.kinds },
@@ -297,7 +305,7 @@
                 bandpass(s, Math.min(BELL.strikeMaxHz, BELL.strikeCenter * note.freq), BELL.strikeQ);
                 addPan(st, s, lvl, note.pan);
             }
-            return addAir(finishStereo(st, note, BELL.trim, false), note, p.air, p.t60, rand);
+            return addAir(finishStereo(st, note, BELL.trim * pt(BELL.presetTrim, p.kind), false), note, p.air, p.t60, rand);
         }
     };
 
@@ -313,16 +321,29 @@
         render(p, note, rand) {
             const n = lengthOf(note), f = offsetFreq(note.freq, note, rand);
             if (f > STRING.maxFreq) throw new Error('string: frequency above ' + STRING.maxFreq + ' Hz');
-            const out = pluck({ freq: f, dur: srcDur(n), t60: p.t60 * STRING.loopT60, brightness: p.brightness, pick: p.pick }, rand);
+            // The loop's one-pole low-pass damps the fundamental by `loss` dB/s, in proportion to the pitch. The note must fall
+            // to -60 dB of its peak at t60, so high notes get a brighter loop when the damping alone would be too steep,
+            // and the envelope supplies the rest of the decay.
+            const w = TAU * f / SR, total = 60 * STRING.endDb / p.t60, loopRate = 60 / (p.t60 * STRING.loopT60);
+            const loss = b => { const lp = 1 - b; return -20 * Math.log10((1 - lp) / Math.sqrt(1 - 2 * lp * Math.cos(w) + lp * lp)) * f; };
+            let bright = clamp(p.brightness, 0.02, 0.98);
+            const budget = STRING.lossShare * total - loopRate;
+            if (loss(bright) > budget) {
+                let lo = bright, hi = 0.98;
+                for (let k = 0; k < 30; k++) { const mid = (lo + hi) / 2; if (loss(mid) > budget) lo = mid; else hi = mid; }
+                bright = hi;
+            }
+            const rate = Math.max(total / 8, total - loss(bright) - loopRate);
+            const out = pluck({ freq: f, dur: srcDur(n), t60: p.t60 * STRING.loopT60, brightness: bright, pick: p.pick }, rand);
             if (p.body > 0) {
                 const body = bandpass(out.slice(), STRING.bodyHz, STRING.bodyQ);
                 addInto(out, body, 0, p.body * STRING.bodyGain);
             }
-            applyEnv(out, { attack: 0.001, decay: p.t60, sustain: 0 });
+            applyEnv(out, { attack: 0.001, decay: 60 / rate, sustain: 0 });
             const c = burst(rand, 'white', STRING.pickMs, STRING.pickAttack, STRING.pickMs);
             bandpass(c, STRING.pickBase + STRING.pickRange * p.brightness, STRING.pickQ);
             addInto(out, c, 0, STRING.pickGain * (STRING.pickBright + p.brightness));
-            return addAir(finishMono(out, note, STRING.trim), note, p.air, p.t60, rand);
+            return addAir(finishMono(out, note, STRING.trim * pt(STRING.presetTrim, p.kind)), note, p.air, p.t60, rand);
         }
     };
 
@@ -371,7 +392,7 @@
                 const mid = (A[i] + B[i]) * 0.5, side = (A[i] - B[i]) * 0.5;
                 st.L[i] = mid + p.width * side; st.R[i] = mid - p.width * side;
             }
-            return finishStereo(st, note, ANALOG.trim, true);
+            return finishStereo(st, note, ANALOG.trim * pt(ANALOG.presetTrim, p.wave), true);
         }
     };
 
@@ -415,14 +436,15 @@
             for (let i = 0; i < n; i++) out[i] = Math.round(out[i] * levels * 0.5) / (levels * 0.5);
             svf(out, { type: 'lp', cutoff: CHIP.lowpassHz, q: Math.SQRT1_2 });
             applyEnv(out, gateEnv(p));
-            return finishMono(out, note, CHIP.trim);
+            return finishMono(out, note, CHIP.trim * pt(CHIP.presetTrim, p.wave));
         }
     };
 
     MODELS.drop = {
         params: {
             rise: num(0, 2, 0.6), t60: num(0.02, 0.5, 0.08), attack: num(0.0005, 0.01, 0.003), count: num(1, 8, 1),
-            spread: num(0, 0.2, 0.04), pitchSpread: num(0, 12, 4), splash: num(0, 1, 0), thick: num(0, 1, 0), width: num(0, 1, 0.4)
+            spread: num(0, 0.2, 0.04), pitchSpread: num(0, 12, 4), splash: num(0, 1, 0), thick: num(0, 1, 0), width: num(0, 1, 0.4),
+            air: num(0, 0.2, 0.03)
         },
         pitched: () => true,
         minFreq: () => 130,
@@ -447,14 +469,14 @@
                 svf(s, { type: 'bp', cutoff: t => DROP.splashFrom * Math.exp(k * t), q: DROP.splashQ });
                 addPan(st, s, p.splash * DROP.splashLevel, note.pan);
             }
-            return finishStereo(st, note, DROP.trim, false);
+            return addAir(finishStereo(st, note, DROP.trim, false), note, p.air, p.t60 * DROP.lengthT60, rand);
         }
     };
 
     MODELS.blip = {
         params: {
             glide: num(-24, 24, 0), glideTime: num(0.002, 1, 0.05), boing: num(0, 1, 0), boingRate: num(4, 16, 10),
-            harm: num(0, 1, 0.1), attack: num(0.001, 0.05, 0.004), hold: num(0, 1, 0), decay: num(0.02, 2, 0.3)
+            harm: num(0, 1, 0.1), attack: num(0.001, 0.05, 0.004), hold: num(0, 1, 0), decay: num(0.02, 2, 0.3), air: num(0, 0.2, 0.03)
         },
         pitched: () => true,
         minFreq: () => 130,
@@ -472,14 +494,14 @@
                 if (ph >= TAU) ph -= TAU;
             }
             applyEnv(out, { attack: p.attack, hold: p.hold, decay: p.decay, sustain: 0 });
-            return finishMono(out, note, BLIP.trim);
+            return addAir(finishMono(out, note, BLIP.trim), note, p.air, p.decay, rand);
         }
     };
 
     MODELS.pad = {
         params: {
             partials: num(1, 8, 4), detune: num(0, 30, 8), attack: num(0.05, 1.5, 0.35), hold: num(0, 2, 0.2),
-            release: num(0.05, 2.5, 0.8), cutoff: num(400, 8000, 2500), width: num(0, 1, 0.7), shimmer: num(0, 1, 0)
+            release: num(0.05, 2.5, 0.8), cutoff: num(400, 8000, 2500), width: num(0, 1, 0.7), shimmer: num(0, 1, 0), air: num(0, 0.2, 0.03)
         },
         pitched: () => true,
         minFreq: () => 130,
@@ -518,7 +540,7 @@
             }
             const env = { attack: p.attack, hold: p.hold, sustain: 1, release: p.release, gate: p.attack + p.hold };
             applyEnv(st.L, env); applyEnv(st.R, env);
-            return finishStereo(st, note, PAD.trim, true);
+            return addAir(finishStereo(st, note, PAD.trim, true), note, p.air, p.release, rand);
         }
     };
 
@@ -545,7 +567,7 @@
             const s = burst(rand, 'white', METAL.strikeMs, METAL.strikeAttack, METAL.strikeMs);
             highpass(s, METAL.strikeHz);
             addPan(st, s, METAL.strikeLevel * (METAL.strikeFloor + (1 - METAL.strikeFloor) * p.hardness), note.pan);
-            return addAir(finishStereo(st, note, METAL.trim, false), note, p.air, p.t60, rand);
+            return addAir(finishStereo(st, note, METAL.trim * pt(METAL.presetTrim, p.kind), false), note, p.air, p.t60, rand);
         }
     };
 
@@ -577,7 +599,7 @@
             };
             put(one(tone0, 1), 0);
             if (p.double > 0) put(one(tone0 * CLICK.doubleTone, CLICK.doubleLevel), p.double);
-            return finishMono(out, note, CLICK.trim);
+            return finishMono(out, note, CLICK.trim * pt(CLICK.presetTrim, p.material));
         }
     };
 
@@ -625,27 +647,53 @@
             }
             const st = zeros(n);
             for (let i = 0; i < n; i++) { st.L[i] = A[i]; st.R[i] = (1 - p.width) * A[i] + p.width * B[i]; }
-            return finishStereo(st, note, NOISE.trim, true);
+            return finishStereo(st, note, NOISE.trim * pt(NOISE.presetTrim, p.color), true);
         }
     };
 
     MODELS.squelch = {
         params: {
-            from: num(100, 4000, 300), to: num(100, 4000, 1200), sweepTime: num(0.01, 0.5, 0.08), q: num(1, 12, 6),
-            saw: num(0, 1, 0.5), noise: num(0, 1, 0.5), drive: num(0, 4, 1), attack: num(0.001, 0.03, 0.003), decay: num(0.02, 1, 0.15)
+            count: num(1, 8, 5), gap: num(0.01, 0.1, 0.035), spread: num(0, 12, 6), t60: num(0.03, 0.3, 0.09),
+            dip: num(0, 12, 4), rise: num(0, 2, 0.7), drive: num(0, 4, 2.2), wet: num(0, 0.5, 0.12),
+            wetCut: num(200, 2000, 700), attack: num(0.002, 0.03, 0.008), width: num(0, 1, 0.4)
         },
         pitched: () => true,
-        minFreq: () => 80,
-        duration: p => p.attack + p.decay * 1.05,
+        minFreq: () => 130,
+        duration: p => (Math.round(p.count) - 1) * p.gap * 1.4 + p.t60 * 1.3 * SQUELCH.lengthT60 + 0.02,
         render(p, note, rand) {
-            const n = lengthOf(note), dur = srcDur(n), f0 = offsetFreq(note.freq, note, rand);
-            const s = osc({ wave: 'saw', freq: f0, dur, unison: 1 }, rand);
-            const w = noise(dur, 'white', rand);
-            for (let i = 0; i < n; i++) s[i] = s[i] * p.saw + w[i] * p.noise;
-            svf(s, { type: 'bp', cutoff: t => p.to + (p.from - p.to) * Math.exp(-t / p.sweepTime), q: p.q });
-            if (p.drive > 0) saturate(s, p.drive);
-            applyEnv(s, { attack: p.attack, decay: p.decay, sustain: 0 });
-            return finishMono(s, note, SQUELCH.trim);
+            const n = lengthOf(note), st = zeros(n), count = Math.round(p.count);
+            for (let j = 0; j < count; j++) {
+                const r1 = rand(), r2 = rand(), r3 = rand(), r4 = rand();
+                const at = j * p.gap * (0.6 + 0.8 * r1);
+                const off = Math.round(at * SR);
+                if (off >= n) continue;
+                const base = note.freq * semis((2 * r2 - 1) * p.spread);
+                const t60b = p.t60 * (0.7 + 0.6 * r3);
+                const len = Math.min(n - off, Math.ceil(t60b * SQUELCH.lengthT60 * SR));
+                const fmax = Math.min(4 * base, SR * 0.45), na = Math.max(1, Math.round(p.attack * SR));
+                const b = new Float32Array(len);
+                let ph = 0;
+                for (let i = 0; i < len; i++) {
+                    const t = i / SR, x = t / t60b;
+                    const e = i < na ? 0.5 - 0.5 * Math.cos(Math.PI * i / na) : 1;
+                    b[i] = Math.sin(ph) * Math.exp(-6.9 * x) * e;
+                    ph += TAU * Math.min(base * semis(-p.dip * Math.exp(-6 * x) + 12 * p.rise * x), fmax) / SR;
+                    if (ph >= TAU) ph -= TAU;
+                }
+                addPan(st, b, 1 - 0.08 * j, note.pan + (j === 0 ? 0 : (2 * r4 - 1) * p.width), at);
+            }
+            if (p.drive > 0) { saturate(st.L, p.drive); saturate(st.R, p.drive); }
+            if (p.wet > 0) {
+                let peak = 0;
+                for (let i = 0; i < n; i++) peak = Math.max(peak, Math.abs(st.L[i]), Math.abs(st.R[i]));
+                const w = noise(srcDur(n), 'pink', rand);
+                lowpass(w, p.wetCut);
+                applyEnv(w, { attack: 0.02, decay: 0.8 * n / SR, sustain: 0 });
+                let wp = 0;
+                for (let i = 0; i < n; i++) wp = Math.max(wp, Math.abs(w[i]));
+                if (wp > 1e-12) { const k = p.wet * peak / wp; for (let i = 0; i < n; i++) { st.L[i] += w[i] * k; st.R[i] += w[i] * k; } }
+            }
+            return finishStereo(st, note, SQUELCH.trim, false);
         }
     };
 
@@ -688,7 +736,7 @@
                 }
                 addPan(st, buf, level, pan, onset);
             }
-            return finishStereo(st, note, DEBRIS.trim, false);
+            return finishStereo(st, note, DEBRIS.trim * pt(DEBRIS.presetTrim, p.grain), false);
         }
     };
 
