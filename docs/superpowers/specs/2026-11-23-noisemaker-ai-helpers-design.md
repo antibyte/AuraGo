@@ -94,9 +94,9 @@ type LyricsIssue struct {
 }
 ```
 
-`google`/`google_lyria` get `SupportsLyrics=false` and no tags. Unknown provider types get the strict
-MiniMax tag rules with the Noisemaker cap of 8000 characters. Tag matching is case-insensitive and
-ignores surrounding spaces.
+`google`/`google_lyria` and unknown provider types get `SupportsLyrics=false` and no tags (Noisemaker
+already hides lyrics for them). Tag matching is case-insensitive and treats `-`, `_` and spaces alike,
+so MiniMax `[Pre-Chorus]` and `[Pre Chorus]` both pass.
 
 Lint codes (deterministic, no LLM):
 
@@ -169,8 +169,10 @@ Lint codes (deterministic, no LLM):
   ACE-Step and MiniMax tags, modifiers, parentheses meaning and the 3500-character MiniMax limit.
   A Go test asserts that every `SectionTags` entry of both guides appears in the manual.
 - The tool schema's `lyrics` description points to provider-specific tags in the manual.
-- `generate_music` dispatch: for MiniMax, lyrics over 3500 characters are rejected before the paid call
-  with a message naming the limit and allowed tags.
+- `tools.GenerateMusicResult` (shared by the agent's `generate_music`, Noisemaker and Game Maker): for
+  MiniMax, non-instrumental lyrics over 3500 characters return `invalid_lyrics_length` before the paid
+  call and before the daily quota is reserved, with a message naming the limit and the allowed tags.
+  Noisemaker's generate handler shows `result.Message` when it is set.
 
 ### 5. Documentation
 
