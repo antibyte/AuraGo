@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
@@ -257,4 +258,249 @@ func parseGitBlamePorcelain(output string) []codeStudioGitBlameLine {
 		lines = append(lines, codeStudioGitBlameLine{Line: ref.line, Hash: ref.hash, Short: short, Author: info.author, Date: date, Summary: info.summary})
 	}
 	return lines
+}
+
+// gitPathsRequest checks a write request with the body {"paths": [...]} and resolves the
+// container. The pointer receiver matters: codeContainer installs the Docker adapter on h,
+// and the calling handler runs git through that same value.
+func (h *codeStudioHandlers) gitPathsRequest(w http.ResponseWriter, r *http.Request) ([]string, string, bool) {
+	if !h.requirePermission(w, r, desktopScopeWrite) {
+		return nil, "", false
+	}
+	if h.rejectReadOnly(w) {
+		return nil, "", false
+	}
+	if r.Method != http.MethodPost {
+		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return nil, "", false
+	}
+	var body struct {
+		Paths []string `json:"paths"`
+	}
+	if err := decodeJSONRequest(w, r, &body, h.server); err != nil {
+		jsonError(w, "Invalid JSON", jsonDecodeStatus(err))
+		return nil, "", false
+	}
+	rels, err := codeStudioGitPaths(body.Paths)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadRequest)
+		return nil, "", false
+	}
+	_, containerID, err := h.codeContainer(r.Context(), true)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusServiceUnavailable)
+		return nil, "", false
+	}
+	return rels, containerID, true
+}
+
+// runGitSteps runs the commands in order and stops at the first failure, whose git output
+// is returned verbatim.
+func (h codeStudioHandlers) runGitSteps(w http.ResponseWriter, r *http.Request, containerID string, steps [][]string, fallback string) {
+	for _, args := range steps {
+		result, err := h.execGit(r.Context(), containerID, 30*time.Second, args...)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		if result.ExitCode != 0 {
+			jsonError(w, codeStudioGitExecError(result.Output, fallback), http.StatusBadRequest)
+			return
+		}
+	}
+	writeJSON(w, map[string]interface{}{"status": "ok"})
+}
+
+func (h codeStudioHandlers) handleGitStage(w http.ResponseWriter, r *http.Request) {
+	rels, containerID, ok := h.gitPathsRequest(w, r)
+	if !ok {
+		return
+	}
+	h.runGitSteps(w, r, containerID, [][]string{append([]string{"add", "--"}, rels...)}, "git add failed")
+}
+
+func (h codeStudioHandlers) handleGitUnstage(w http.ResponseWriter, r *http.Request) {
+	rels, containerID, ok := h.gitPathsRequest(w, r)
+	if !ok {
+		return
+	}
+	head, err := h.execGit(r.Context(), containerID, 10*time.Second, "rev-parse", "--verify", "-q", "HEAD")
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	args := append([]string{"restore", "--staged", "--"}, rels...)
+	if head.ExitCode != 0 {
+		// Before the first commit there is no HEAD to restore the index from.
+		args = append([]string{"rm", "--cached", "-r", "-q", "--"}, rels...)
+	}
+	h.runGitSteps(w, r, containerID, [][]string{args}, "git unstage failed")
+}
+
+func (h codeStudioHandlers) handleGitDiscard(w http.ResponseWriter, r *http.Request) {
+	rels, containerID, ok := h.gitPathsRequest(w, r)
+	if !ok {
+		return
+	}
+	// The server decides itself which paths are untracked: only those are deleted with
+	// git clean; every other path is restored from the index.
+	statusArgs := append([]string{"status", "--porcelain=v1", "-z", "--"}, rels...)
+	statusResult, err := h.execGit(r.Context(), containerID, 15*time.Second, statusArgs...)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	if statusResult.ExitCode != 0 {
+		jsonError(w, codeStudioGitExecError(statusResult.Output, "git status failed"), http.StatusBadRequest)
+		return
+	}
+	untracked := map[string]bool{}
+	for _, change := range parseGitPorcelain(statusResult.Output) {
+		if change["status"] == "??" {
+			untracked[strings.TrimSuffix(change["path"], "/")] = strings.HasSuffix(change["path"], "/")
+		}
+	}
+	var files, dirs, tracked []string
+	for _, rel := range rels {
+		isDir, isUntracked := untracked[rel]
+		switch {
+		case isUntracked && isDir:
+			dirs = append(dirs, rel)
+		case isUntracked:
+			files = append(files, rel)
+		default:
+			tracked = append(tracked, rel)
+		}
+	}
+	steps := [][]string{}
+	if len(files) > 0 {
+		steps = append(steps, append([]string{"clean", "-f", "-q", "--"}, files...))
+	}
+	if len(dirs) > 0 {
+		steps = append(steps, append([]string{"clean", "-f", "-q", "-d", "--"}, dirs...))
+	}
+	if len(tracked) > 0 {
+		steps = append(steps, append([]string{"restore", "--worktree", "--"}, tracked...))
+	}
+	h.runGitSteps(w, r, containerID, steps, "git discard failed")
+}
+
+func (h codeStudioHandlers) handleGitInit(w http.ResponseWriter, r *http.Request) {
+	if !h.requirePermission(w, r, desktopScopeWrite) {
+		return
+	}
+	if h.rejectReadOnly(w) {
+		return
+	}
+	if r.Method != http.MethodPost {
+		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	_, containerID, err := h.codeContainer(r.Context(), true)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+	probe, err := h.execGit(r.Context(), containerID, 10*time.Second, "rev-parse", "--is-inside-work-tree")
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	if probe.ExitCode == 0 {
+		jsonError(w, "workspace is already a git repository", http.StatusConflict)
+		return
+	}
+	if !codeStudioGitNotRepository(probe.Output) {
+		jsonError(w, codeStudioGitExecError(probe.Output, "git rev-parse failed"), http.StatusBadRequest)
+		return
+	}
+	h.runGitSteps(w, r, containerID, [][]string{{"init"}}, "git init failed")
+}
+
+func (h codeStudioHandlers) handleGitShow(w http.ResponseWriter, r *http.Request) {
+	if !h.requirePermission(w, r, desktopScopeRead) {
+		return
+	}
+	if r.Method != http.MethodGet {
+		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	hash := strings.TrimSpace(r.URL.Query().Get("hash"))
+	if !codeStudioGitHashPattern.MatchString(hash) {
+		jsonError(w, "invalid commit hash", http.StatusBadRequest)
+		return
+	}
+	_, containerID, err := h.codeContainer(r.Context(), true)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+	// The hash holds hex digits only, so it can never be read as an option; "--" ends the revisions.
+	metaResult, err := h.execGit(r.Context(), containerID, 15*time.Second, "-c", "core.quotePath=false", "show", "--no-color", "--name-status", codeStudioGitShowFormat, hash, "--")
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	if metaResult.ExitCode != 0 {
+		jsonError(w, codeStudioGitExecError(metaResult.Output, "git show failed"), http.StatusBadRequest)
+		return
+	}
+	commit, err := parseGitShowMeta(metaResult.Output)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	patchResult, err := h.execGit(r.Context(), containerID, 30*time.Second, "show", "--no-color", "--format=", "--patch", hash, "--")
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	if patchResult.ExitCode != 0 {
+		jsonError(w, codeStudioGitExecError(patchResult.Output, "git show failed"), http.StatusBadRequest)
+		return
+	}
+	diff, truncated := truncateCodeStudioGitDiff(strings.TrimLeft(patchResult.Output, "\n"), codeStudioGitShowDiffLimit)
+	writeJSON(w, map[string]interface{}{
+		"status":    "ok",
+		"hash":      commit.Hash,
+		"short":     commit.Short,
+		"author":    commit.Author,
+		"email":     commit.Email,
+		"date":      commit.Date,
+		"subject":   commit.Subject,
+		"body":      commit.Body,
+		"files":     commit.Files,
+		"diff":      diff,
+		"truncated": truncated,
+	})
+}
+
+func (h codeStudioHandlers) handleGitBlame(w http.ResponseWriter, r *http.Request) {
+	if !h.requirePermission(w, r, desktopScopeRead) {
+		return
+	}
+	if r.Method != http.MethodGet {
+		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	rel, err := codeStudioGitAddPath(r.URL.Query().Get("path"))
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	_, containerID, err := h.codeContainer(r.Context(), true)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+	result, err := h.execGit(r.Context(), containerID, 30*time.Second, "blame", "--porcelain", "--", rel)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	if result.ExitCode != 0 {
+		jsonError(w, codeStudioGitExecError(result.Output, "git blame failed"), http.StatusBadRequest)
+		return
+	}
+	writeJSON(w, map[string]interface{}{"status": "ok", "path": rel, "lines": parseGitBlamePorcelain(result.Output)})
 }

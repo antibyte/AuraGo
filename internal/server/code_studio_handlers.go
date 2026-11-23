@@ -95,6 +95,12 @@ func registerCodeStudioRoutes(mux *http.ServeMux, s *Server) {
 	mux.HandleFunc("/api/code-studio/git/branch", handlers.handleGitBranch)
 	mux.HandleFunc("/api/code-studio/git/identity", handlers.handleGitIdentity)
 	mux.HandleFunc("/api/code-studio/git/log", handlers.handleGitLog)
+	mux.HandleFunc("/api/code-studio/git/stage", handlers.handleGitStage)
+	mux.HandleFunc("/api/code-studio/git/unstage", handlers.handleGitUnstage)
+	mux.HandleFunc("/api/code-studio/git/discard", handlers.handleGitDiscard)
+	mux.HandleFunc("/api/code-studio/git/init", handlers.handleGitInit)
+	mux.HandleFunc("/api/code-studio/git/show", handlers.handleGitShow)
+	mux.HandleFunc("/api/code-studio/git/blame", handlers.handleGitBlame)
 }
 
 func (h *codeStudioHandlers) codeContainer(ctx context.Context, start bool) (*desktop.CodeContainerService, string, error) {
@@ -737,9 +743,10 @@ func (h codeStudioHandlers) handleGitCommit(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	var body struct {
-		Message string   `json:"message"`
-		AddAll  bool     `json:"add_all"`
-		Paths   []string `json:"paths"`
+		Message    string   `json:"message"`
+		AddAll     bool     `json:"add_all"`
+		StagedOnly bool     `json:"staged_only"`
+		Paths      []string `json:"paths"`
 	}
 	if err := decodeJSONRequest(w, r, &body, h.server); err != nil {
 		jsonError(w, "Invalid JSON", jsonDecodeStatus(err))
@@ -750,8 +757,13 @@ func (h codeStudioHandlers) handleGitCommit(w http.ResponseWriter, r *http.Reque
 		jsonError(w, "commit message is required", http.StatusBadRequest)
 		return
 	}
+	if body.AddAll && body.StagedOnly {
+		jsonError(w, "add_all and staged_only exclude each other", http.StatusBadRequest)
+		return
+	}
 	rels := []string{}
-	if !body.AddAll {
+	// staged_only commits the index as it is: no path is added first.
+	if !body.AddAll && !body.StagedOnly {
 		for _, raw := range body.Paths {
 			rel, err := codeStudioGitAddPath(raw)
 			if err != nil {
@@ -810,7 +822,7 @@ func (h codeStudioHandlers) handleGitBranch(w http.ResponseWriter, r *http.Reque
 	switch r.Method {
 	case http.MethodGet:
 		action := strings.TrimSpace(r.URL.Query().Get("action"))
-		if action == "create" || action == "switch" {
+		if action == "create" || action == "switch" || action == "delete" {
 			jsonError(w, "use POST", http.StatusMethodNotAllowed)
 			return
 		}
@@ -867,8 +879,8 @@ func (h codeStudioHandlers) mutateGitBranch(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	action := strings.TrimSpace(body.Action)
-	if action != "create" && action != "switch" {
-		jsonError(w, "action must be create or switch", http.StatusBadRequest)
+	if action != "create" && action != "switch" && action != "delete" {
+		jsonError(w, "action must be create, switch or delete", http.StatusBadRequest)
 		return
 	}
 	name, err := sanitizeGitRef(body.Name)
@@ -881,18 +893,32 @@ func (h codeStudioHandlers) mutateGitBranch(w http.ResponseWriter, r *http.Reque
 		jsonError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
-	args := []string{"checkout"}
-	if action == "create" {
-		args = append(args, "-b")
+	args := []string{"checkout", name}
+	fallback := "git checkout failed"
+	switch action {
+	case "create":
+		args = []string{"checkout", "-b", name}
+	case "delete":
+		current, err := h.execGit(r.Context(), containerID, 5*time.Second, "branch", "--show-current")
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		if current.ExitCode == 0 && strings.TrimSpace(current.Output) == name {
+			jsonError(w, "the current branch cannot be deleted", http.StatusConflict)
+			return
+		}
+		// -d (not -D) lets git refuse a branch whose commits are not merged.
+		args = []string{"branch", "-d", name}
+		fallback = "git branch -d failed"
 	}
-	args = append(args, name)
 	result, err := h.execGit(r.Context(), containerID, 15*time.Second, args...)
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusBadGateway)
 		return
 	}
 	if result.ExitCode != 0 {
-		jsonError(w, codeStudioGitExecError(result.Output, "git checkout failed"), http.StatusBadRequest)
+		jsonError(w, codeStudioGitExecError(result.Output, fallback), http.StatusBadRequest)
 		return
 	}
 	h.listGitBranches(w, r)
