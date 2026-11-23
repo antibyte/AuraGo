@@ -28,7 +28,7 @@
         const raw = String(content || '');
         const eol = detectEol(raw);
         const lines = splitLines(raw);
-        const result = { present: false, valid: false, tags: [], title: '', eol, lines };
+        const result = { present: false, valid: false, tags: [], aliases: [], title: '', eol, lines };
         if (lines[0] === undefined || lines[0].trim() !== OPEN_FENCE) return result;
         result.present = true;
         let end = -1;
@@ -54,6 +54,7 @@
                     result.tags.push(...parseTags(item[1]));
                 }
             }
+            else if ((key === 'aliases' || key === 'alias') && !result.aliases.length) result.aliases = readListAt(lines, i, end).values;
             else if (key === 'title' && !result.title) result.title = value.replace(/^["']|["']$/g, '');
         }
         return result;
@@ -73,50 +74,107 @@
         return (tags || []).map(tag=>/^[\p{L}\p{N}_-]+$/u.test(tag)?tag:JSON.stringify(tag)).join(', ');
     }
 
-    // Rewrites only the tags line. Preserves every other frontmatter line
-    // verbatim, keeps the original bracket style when replacing an existing
-    // tags line, and prepends a fresh block when no frontmatter exists.
-    function updateTags(content, tags) {
-        const nextTags = (tags || []).map(tag => String(tag).trim().toLowerCase()).filter(Boolean);
+    function parseList(value) {
+        let v = String(value || '').trim();
+        if (!v) return [];
+        try { const parsed=JSON.parse(v.startsWith('[')?v:'['+v+']'); if(Array.isArray(parsed))return parsed.filter(x=>typeof x==='string').map(x=>x.trim()).filter(Boolean); } catch (_) {}
+        if (v.startsWith('[') && v.endsWith(']')) v = v.slice(1, -1);
+        return v.split(',')
+            .map(x => x.trim().replace(/^["']|["']$/g, ''))
+            .filter(x => x.length > 0);
+    }
+
+    const KEY_LINE = /^([A-Za-z0-9_-]+)\s*:\s*(.*)$/;
+
+    // Reads the values of the list property at line index i (inline or block).
+    function readListAt(lines, i, end) {
+        const match = KEY_LINE.exec(lines[i]);
+        const value = match[2].trim();
+        const out = parseList(value);
+        let count = 1;
+        if (!value) {
+            while (i + count < end && /^\s+-\s+/.test(lines[i + count])) {
+                const item = /^\s+-\s+(.+)$/.exec(lines[i + count]);
+                if (item) out.push(...parseList(item[1]));
+                count++;
+            }
+        }
+        return { values: out, count, inline: value };
+    }
+
+    function findKey(parsed, key) {
+        const want = String(key).toLowerCase();
+        for (let i = 1; i < parsed.blockEnd; i++) {
+            const match = KEY_LINE.exec(parsed.lines[i]);
+            if (match && match[1].toLowerCase() === want) return i;
+        }
+        return -1;
+    }
+
+    function listValues(content, key) {
+        const parsed = parse(content);
+        if (!parsed.valid) return [];
+        const idx = findKey(parsed, key);
+        if (idx === -1) return [];
+        return readListAt(parsed.lines, idx, parsed.blockEnd).values;
+    }
+
+    function fields(content) {
+        const parsed = parse(content);
+        if (!parsed.valid) return [];
+        const out = [];
+        for (let i = 1; i < parsed.blockEnd; i++) {
+            const match = KEY_LINE.exec(parsed.lines[i]);
+            if (!match) continue;
+            const info = readListAt(parsed.lines, i, parsed.blockEnd);
+            const list = info.inline ? info.inline.startsWith('[') : info.count > 1;
+            out.push({ key: match[1], value: list ? info.values.join(', ') : info.inline, list });
+            i += info.count - 1;
+        }
+        return out;
+    }
+
+    // Rewrites only the given key's line (and its block-list items). Preserves
+    // every other frontmatter line verbatim, keeps the original bracket style
+    // when replacing an existing line, and prepends a fresh block when no
+    // frontmatter exists.
+    function updateList(content, key, values) {
+        const next = (values || []).map(v => String(v).trim()).filter(Boolean);
         const parsed = parse(content);
         const eol = parsed.eol;
         if (!parsed.present || !parsed.valid) {
-            if (!nextTags.length) return String(content || '');
-            const block = [OPEN_FENCE, 'tags: ' + serializeTags(nextTags), OPEN_FENCE, ''].join(eol);
+            if (!next.length) return String(content || '');
+            const block = [OPEN_FENCE, key + ': ' + serializeTags(next), OPEN_FENCE, ''].join(eol);
             return block + eol + String(content || '');
         }
         const lines = parsed.lines.slice();
-        let tagsLineIdx = -1;
+        const idx = findKey(parsed, key);
         let bracketStyle = false;
-        for (let i = 1; i < parsed.blockEnd; i++) {
-            const match = lines[i].match(/^([A-Za-z0-9_-]+)\s*:\s*(.*)$/);
-            if (match && match[1].toLowerCase() === 'tags') {
-                tagsLineIdx = i;
-                bracketStyle = match[2].trim().startsWith('[');
-                break;
-            }
+        let count = 1;
+        let lineKey = key;
+        if (idx !== -1) {
+            const info = readListAt(lines, idx, parsed.blockEnd);
+            bracketStyle = info.inline.startsWith('[');
+            count = info.count;
+            lineKey = KEY_LINE.exec(lines[idx])[1];
         }
-        let tagsLines = 1;
-        if(tagsLineIdx!==-1 && /^tags\s*:\s*$/i.test(lines[tagsLineIdx])) {
-            while(tagsLineIdx+tagsLines<parsed.blockEnd && /^\s+-\s+/.test(lines[tagsLineIdx+tagsLines]))tagsLines++;
-        }
-        if (!nextTags.length) {
-            if (tagsLineIdx === -1) return joinLines(lines, eol);
-            lines.splice(tagsLineIdx, tagsLines);
-            if (parsed.blockEnd - tagsLines <= 1) {
+        if (!next.length) {
+            if (idx === -1) return joinLines(lines, eol);
+            lines.splice(idx, count);
+            if (parsed.blockEnd - count <= 1) {
                 // frontmatter became empty: drop the whole block
-                // (the closing fence shifted one line up after the splice)
-                const rest = lines.slice(parsed.blockEnd-tagsLines+1);
-                return joinLines(rest, eol);
+                return joinLines(lines.slice(parsed.blockEnd - count + 1), eol);
             }
             return joinLines(lines, eol);
         }
-        const value = bracketStyle
-            ? '[' + serializeTags(nextTags) + ']'
-            : serializeTags(nextTags);
-        if (tagsLineIdx === -1) lines.splice(1, 0, 'tags: ' + value);
-        else lines.splice(tagsLineIdx,tagsLines,'tags: ' + value);
+        const value = bracketStyle ? '[' + serializeTags(next) + ']' : serializeTags(next);
+        if (idx === -1) lines.splice(1, 0, key + ': ' + value);
+        else lines.splice(idx, count, lineKey + ': ' + value);
         return joinLines(lines, eol);
+    }
+
+    function updateTags(content, tags) {
+        return updateList(content, 'tags', (tags || []).map(tag => String(tag).trim().toLowerCase()).filter(Boolean));
     }
 
     function strip(content) {
@@ -150,5 +208,7 @@
         return '';
     }
 
-    window.NotesFrontmatter = { parse, updateTags, strip, deriveTitle };
+    const api = { parse, updateTags, strip, deriveTitle, listValues, updateList, fields };
+    if (typeof window !== 'undefined') window.NotesFrontmatter = api;
+    if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();
