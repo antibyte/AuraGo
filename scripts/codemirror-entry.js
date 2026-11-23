@@ -10,10 +10,26 @@ export {
   rectangularSelection,
   crosshairCursor,
   highlightActiveLine,
+  gutter,
+  GutterMarker,
 } from '@codemirror/view';
 export { EditorState, Prec, Compartment } from '@codemirror/state';
-export { defaultKeymap, history, historyKeymap, indentWithTab, undo, redo } from '@codemirror/commands';
-export { searchKeymap, highlightSelectionMatches } from '@codemirror/search';
+export {
+  defaultKeymap,
+  history,
+  historyKeymap,
+  indentWithTab,
+  undo,
+  redo,
+  isolateHistory,
+  moveLineUp,
+  moveLineDown,
+  copyLineUp,
+  copyLineDown,
+  toggleComment,
+  deleteLine,
+} from '@codemirror/commands';
+export { searchKeymap, highlightSelectionMatches, selectNextOccurrence } from '@codemirror/search';
 export {
   javascript,
   javascriptLanguage,
@@ -30,7 +46,26 @@ export { html } from '@codemirror/lang-html';
 export { css } from '@codemirror/lang-css';
 export { markdown } from '@codemirror/lang-markdown';
 export { yaml } from '@codemirror/lang-yaml';
+export { sql } from '@codemirror/lang-sql';
+export { java } from '@codemirror/lang-java';
+export { php } from '@codemirror/lang-php';
+export { xml } from '@codemirror/lang-xml';
+export { shell } from '@codemirror/legacy-modes/mode/shell';
+export { dockerFile } from '@codemirror/legacy-modes/mode/dockerfile';
+export { toml } from '@codemirror/legacy-modes/mode/toml';
 export { oneDark } from '@codemirror/theme-one-dark';
-export { defaultHighlightStyle, syntaxHighlighting, indentUnit } from '@codemirror/language';
+export {
+  defaultHighlightStyle,
+  syntaxHighlighting,
+  indentUnit,
+  foldGutter,
+  foldKeymap,
+  codeFolding,
+  foldCode,
+  unfoldCode,
+  bracketMatching,
+  indentOnInput,
+  StreamLanguage,
+} from '@codemirror/language';
 export { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap } from '@codemirror/autocomplete';
 export { lintKeymap, linter, lintGutter, setDiagnostics } from '@codemirror/lint';

@@ -102,12 +102,21 @@ func TestCodeMirrorBundleExportsYAMLAndLint(t *testing.T) {
 	list = strings.TrimSuffix(strings.TrimPrefix(list, "export {"), "};")
 	exported := map[string]bool{}
 	for _, name := range strings.Split(list, ",") {
-		exported[strings.TrimSpace(name)] = true
+		name = strings.TrimSpace(name)
+		// Rollup writes "local as exported" when a local name clashes; the exported name follows "as".
+		if alias := strings.LastIndex(name, " as "); alias >= 0 {
+			name = strings.TrimSpace(name[alias+len(" as "):])
+		}
+		exported[name] = true
 	}
 	for _, want := range []string{
 		"EditorView", "EditorState", "Compartment", "keymap", "lineNumbers", "history", "defaultKeymap", "indentWithTab", "javascript", "python", "go", "rust", "cpp", "json", "html", "css", "markdown",
 		"oneDark", "syntaxHighlighting", "defaultHighlightStyle", "autocompletion", "closeBrackets", "lintKeymap",
 		"yaml", "linter", "lintGutter", "setDiagnostics",
+		// Code Studio IDE package 1A: folding, gutters for blame, more languages and the palette's editor commands.
+		"foldGutter", "foldKeymap", "codeFolding", "foldCode", "unfoldCode", "bracketMatching", "indentOnInput", "StreamLanguage",
+		"gutter", "GutterMarker", "isolateHistory", "selectNextOccurrence", "moveLineUp", "moveLineDown", "copyLineUp", "copyLineDown", "toggleComment", "deleteLine",
+		"sql", "java", "php", "xml", "shell", "dockerFile", "toml",
 	} {
 		if !exported[want] {
 			t.Errorf("CodeMirror bundle does not export %q", want)
