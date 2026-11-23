@@ -21233,6 +21233,17 @@ function updateTaskbarSystemButtonsForMobile() {
         let memoryPhosphor = 'auto';
         let dialogSeq = 0;
 
+        // C0 (0x00-0x1F, 0x7F) and C1 (0x80-0x9F) control characters; built from
+        // char codes so the source holds no literal control characters.
+        const CONTROL_CHARS = new RegExp('[' + String.fromCharCode(0) + '-' + String.fromCharCode(0x1f) + String.fromCharCode(0x7f) + '-' + String.fromCharCode(0x9f) + ']', 'g');
+
+        // Strips control characters from text that Quick Connect itself writes
+        // to the SSH terminal (device names, server messages), so it cannot
+        // carry escape sequences. The binary terminal stream is not filtered.
+        function cleanTerminalText(value) {
+            return String(value == null ? '' : value).replace(CONTROL_CHARS, '');
+        }
+
         // Phosphor choice. localStorage may be blocked (sandboxed frames, opaque
         // origins), so the last value is also kept in memory for re-renders.
         function readPhosphor() {
@@ -21459,6 +21470,7 @@ function updateTaskbarSystemButtonsForMobile() {
                 return getFilter() === 'serial' ? rows[0] : rows.find(row => row.matches('[data-device-id]')) || rows[0];
             };
             root.addEventListener('keydown', event => {
+                if (event.target.closest && event.target.closest('.vd-qc-modal-overlay')) return;
                 if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey || event.defaultPrevented) return;
                 if (event.target.closest && event.target.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"]')) return;
                 event.preventDefault();
@@ -21512,7 +21524,7 @@ function updateTaskbarSystemButtonsForMobile() {
         }
 
         return {
-            ANSI_PALETTE, PHOSPHORS, readPhosphor, writePhosphor, nextPhosphor, formatDuration,
+            ANSI_PALETTE, PHOSPHORS, cleanTerminalText, readPhosphor, writePhosphor, nextPhosphor, formatDuration,
             statusBarMarkup, bootMarkup, createStatusBar, wirePhosphor, quickConnectTerminalTheme,
             openDialog, wireKeyboard, wireTabs
         };
@@ -27252,7 +27264,7 @@ if (appId === 'pixel') {
             const release = QuickConnectConsole.openDialog(overlay, { onCancel: closeModal, initialFocus: overlay.querySelector('input[name="name"]') });
             function closeModal() { release(); overlay.remove(); }
             overlay.addEventListener('keydown', event => {
-                if (event.key === 'Enter' && !event.isComposing && event.target.matches('input:not([type="file"]):not([type="checkbox"])')) {
+                if (event.key === 'Enter' && !event.repeat && !event.isComposing && event.target.matches('input:not([type="file"]):not([type="checkbox"])')) {
                     event.preventDefault();
                     overlay.querySelector('[data-action="save"]').click();
                 }
@@ -27336,6 +27348,9 @@ if (appId === 'pixel') {
                 const credType = protocol === 'vnc' ? 'login' : 'ssh';
                 const effectiveUsername = protocol === 'vnc' ? '' : username;
 
+                const saveButton = overlay.querySelector('[data-action="save"]');
+                if (saveButton.disabled) return;
+                saveButton.disabled = true;
                 try {
                     if (isEdit) {
                         // Update credential if exists
@@ -27366,6 +27381,7 @@ if (appId === 'pixel') {
                     closeModal();
                     await loadAll();
                 } catch (err) {
+                    saveButton.disabled = false;
                     showNotify(t('desktop.qc_save_error') + ': ' + err.message);
                 }
             });
@@ -27506,7 +27522,7 @@ if (appId === 'pixel') {
             term.open(termContainer);
             activeTerm = term;
             activeFitAddon = fitAddon;
-            term.write('\x1b[2m› ' + t('desktop.qc_connecting') + ' ' + (device.name || deviceId) + (device.ip_address ? ' (' + device.ip_address + ')' : '') + '\x1b[0m\r\n');
+            term.write('\x1b[2m› ' + QuickConnectConsole.cleanTerminalText(t('desktop.qc_connecting') + ' ' + (device.name || deviceId) + (device.ip_address ? ' (' + device.ip_address + ')' : '')) + '\x1b[0m\r\n');
             const showSize = () => { if (isCurrent() && activeTerm === term) statusBar.setSize(term.cols, term.rows); };
             setTimeout(() => { if (isCurrent()) { try { fitAddon.fit(); } catch(_) {} showSize(); } }, 50);
             const resizeObserver = new ResizeObserver(() => {
@@ -27533,7 +27549,7 @@ if (appId === 'pixel') {
                 if (typeof event.data === 'string') {
                     try {
                         const msg = JSON.parse(event.data);
-                        if (msg.type === 'error') { term.write('\r\n\x1b[31m' + msg.message + '\x1b[0m\r\n'); setSessionStatus({ state: 'error' }); }
+                        if (msg.type === 'error') { term.write('\r\n\x1b[31m' + QuickConnectConsole.cleanTerminalText(msg.message) + '\x1b[0m\r\n'); setSessionStatus({ state: 'error' }); }
                         else if (msg.type === 'warning' && msg.code === 'insecure_host_key') {
                             const warning = t('desktop.qc_host_key_warning');
                             term.write('\r\n\x1b[33m' + warning + '\x1b[0m\r\n');
@@ -27541,9 +27557,9 @@ if (appId === 'pixel') {
                         }
                         else if (msg.type === 'host_key_prompt' && msg.code === 'unknown_host_key') {
                             const detail = t('desktop.qc_host_key_prompt_message')
-                                .replace('{{host}}', msg.host || '')
-                                .replace('{{key_type}}', msg.key_type || '')
-                                .replace('{{fingerprint}}', msg.fingerprint || '');
+                                .replace('{{host}}', () => QuickConnectConsole.cleanTerminalText(msg.host))
+                                .replace('{{key_type}}', () => QuickConnectConsole.cleanTerminalText(msg.key_type))
+                                .replace('{{fingerprint}}', () => QuickConnectConsole.cleanTerminalText(msg.fingerprint));
                             term.write('\r\n\x1b[33m' + detail + '\x1b[0m\r\n');
                             const accept = await showConfirmModal(t('desktop.qc_host_key_prompt_title'), detail, {
                                 okLabel: t('desktop.qc_host_key_accept'),
@@ -27558,7 +27574,7 @@ if (appId === 'pixel') {
                                 term.write('\r\n\x1b[31m' + t('desktop.qc_host_key_rejected') + '\x1b[0m\r\n');
                             }
                         }
-                        else if (msg.type === 'disconnected') term.write('\r\n\x1b[33m' + msg.message + '\x1b[0m\r\n');
+                        else if (msg.type === 'disconnected') term.write('\r\n\x1b[33m' + QuickConnectConsole.cleanTerminalText(msg.message) + '\x1b[0m\r\n');
                     } catch(_) {}
                 } else {
                     if (sessionState === 'connecting') { setSessionStatus({ state: 'connected' }); showSize(); }

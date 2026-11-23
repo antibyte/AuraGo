@@ -208,6 +208,7 @@ func TestDesktopQuickConnectConsoleContract(t *testing.T) {
 		`aria-pressed="true"`, "data-conn=", "data-qc-add-server", "data-qc-clear-search", "data-qc-retry",
 		`role="tablist"`, `role="tab"`, "data-qc-session-name", "data-qc-devices-head", "data-qc-device-count",
 		"QuickConnectConsole.openDialog", "cursorStyle: 'block'",
+		"QuickConnectConsole.cleanTerminalText(t('desktop.qc_connecting')", "QuickConnectConsole.cleanTerminalText(msg.message)",
 	} {
 		if !strings.Contains(shellText, marker) {
 			t.Errorf("quickconnect-launchpad-chat.js missing marker %q", marker)
@@ -266,6 +267,9 @@ func TestDesktopQuickConnectConsoleBehaviourBrowser(t *testing.T) {
         add.focus();add.click();
         const dialog=document.querySelector('.vd-qc-modal-overlay .vd-qc-modal');
         out.dialogRole=!!dialog&&dialog.getAttribute('role')==='dialog'&&dialog.getAttribute('aria-modal')==='true'&&!!document.getElementById(dialog.getAttribute('aria-labelledby'))&&dialog.contains(document.activeElement);
+        dialog.querySelector('[data-action="cancel"]').focus();
+        key(document.activeElement,'/');
+        out.slashStaysInDialog=dialog.contains(document.activeElement);
         key(document.activeElement,'Escape');
         out.escapeClosesAndRestoresFocus=!document.querySelector('.vd-qc-modal-overlay')&&document.activeElement===add;
         // (d) phosphor cycle survives a re-render
@@ -276,7 +280,7 @@ func TestDesktopQuickConnectConsoleBehaviourBrowser(t *testing.T) {
         serialShell.cleanup();
         serialShell.app=window.__renderQuickConnect('qc');
         await serialShell.wait(()=>document.querySelector('[data-device-id="ssh-lab"]'));
-        out.phosphorSeen=seen.join(',');
+        out.phosphorCycle=seen.join(',')==='auto,green,amber';
         out.phosphorSurvives=root().dataset.qcPhosphor==='amber';
         toggle().click();toggle().click();
         out.phosphorBackToAuto=root().dataset.qcPhosphor==='auto';
@@ -289,10 +293,12 @@ func TestDesktopQuickConnectConsoleBehaviourBrowser(t *testing.T) {
         search().value='ssh';search().dispatchEvent(new Event('input'));
         out.markSurvivesSearch=row().classList.contains('active')&&row().dataset.conn==='connected'&&document.querySelector('[data-qc-statusbar]').dataset.state==='connected';
         serialShell.cleanup();
+        const dirty=['A',String.fromCharCode(27),'[2Jb',String.fromCharCode(7),String.fromCharCode(252),String.fromCharCode(0x9b),'X',String.fromCharCode(13,10)].join('');
+        out.cleanText=QuickConnectConsole.cleanTerminalText(dirty)==='A[2Jb'+String.fromCharCode(252)+'X';
         out.errors=window.__shellErrors;
         return out;
     }`)
-	for _, key := range []string{"slashFocusesSearch", "arrowReachesRow", "noResults", "clearWorks", "dialogRole", "escapeClosesAndRestoresFocus", "phosphorSurvives", "phosphorBackToAuto", "connecting", "markSurvivesSearch"} {
+	for _, key := range []string{"slashFocusesSearch", "arrowReachesRow", "noResults", "clearWorks", "dialogRole", "slashStaysInDialog", "escapeClosesAndRestoresFocus", "phosphorCycle", "cleanText", "phosphorSurvives", "phosphorBackToAuto", "connecting", "markSurvivesSearch"} {
 		if !result.Get(key).Bool() {
 			t.Errorf("%s failed: %s", key, result.JSON("", ""))
 		}

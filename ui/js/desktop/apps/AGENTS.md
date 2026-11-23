@@ -2829,7 +2829,11 @@ buttons and menu popovers remain excluded from those gestures.
   ArrowLeft and ArrowRight. Every Quick Connect dialog opens through
   `QuickConnectConsole.openDialog`, which keeps focus in the dialog and returns
   it to the opener on the `release()` it returns. Call `release()` before
-  removing the overlay. Enter in a single-line server-dialog field saves.
+  removing the overlay. In the server dialog, Enter in a single-line input (not the
+  file input, a checkbox or the textarea) clicks save, and auto-repeat
+  (`event.repeat`) is ignored. The save button is disabled while the request runs
+  and enabled again only after an error. `/` does nothing while a dialog is open:
+  the root key handler returns for targets inside `.vd-qc-modal-overlay`.
 - Phosphor switch: `[data-qc-phosphor-toggle]` cycles auto, green, amber, ice and
   sets `data-qc-phosphor` on `.vd-quick-connect`. The choice is stored in
   localStorage under `aurago.quickConnect.phosphor`; invalid values read as
@@ -2846,6 +2850,33 @@ buttons and menu popovers remain excluded from those gestures.
   serial browser fixtures load only those files. `onStatus` and `terminalTheme` are
   optional options; without `terminalTheme` the serial terminal keeps its own
   default theme. `refreshTheme()` re-reads the theme from that option.
+- Text that Quick Connect itself writes into the SSH xterm from device data or
+  server messages passes through `QuickConnectConsole.cleanTerminalText`: the
+  connecting line, the JSON `error` and `disconnected` messages, and the host-key
+  prompt fields (`host`, `key_type`, `fingerprint`). It strips C0 and C1 control
+  characters (0x00-0x1F, 0x7F, 0x80-0x9F), so tabs and newlines go too and server
+  text cannot carry escape sequences. The binary WebSocket stream is written
+  unfiltered. Pass any new device or server text through the same helper before
+  `term.write`.
+- Quick Connect stylesheet scoping: every rule in
+  `ui/css/desktop-app-quick-connect.css` is scoped under `.vd-quick-connect`, or
+  under `.vd-qc-window .vd-quick-connect` where it overrides a shared class; the
+  container rule `.vd-qc-window` is the only exception. Agent Chat (`ui/js/desktop/apps/agent-chat.js`) reuses
+  `vd-qc-modal-overlay`, `vd-qc-confirm*` and `vd-qc-btn*` with its own rules in
+  `ui/css/desktop-app-chat.css`. For the same reason the shell's bridge entries and
+  icon rules for those classes in `ui/css/desktop-app-common.css`,
+  `ui/css/desktop-icons.css` and `ui/css/desktop-windows.css` stay; inside the app,
+  the deck overrides them with the `.vd-qc-window .vd-quick-connect` prefix. Do
+  not make a rule for these classes unscoped.
+- Skin guards: desktop skins carry element rules that reach into app content (`kbd`
+  colour, `:focus-visible` outlines, scrollbars, `::selection`, input font size and
+  icon rendering). The block headed "Skin guards: desktop skins must not reach into
+  the deck" at the end of `ui/css/desktop-app-quick-connect.css` sets these itself
+  with doubled classes (`.vd-qc-window.vd-qc-window .vd-quick-connect.vd-quick-connect`)
+  for higher specificity. `!important` is used only where a skin uses it. A new
+  element type inside the deck needs the same check: grep the skin files
+  (`ui/css/desktop-theme-*.css`) for its tag or class and add a guard to that block
+  when a skin styles it.
 - Editor fallback file-list empty-state load failures reuse
   `desktop.load_failed`. Do not dump raw `err.message` there.
 - Webamp unsupported-browser errors use

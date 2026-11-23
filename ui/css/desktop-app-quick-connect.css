@@ -2042,6 +2042,64 @@
 .vd-quick-connect .vd-qc-modal-footer .vd-qc-btn-primary .vd-qc-btn-icon,
 .vd-quick-connect .vd-qc-serial-form-actions .vd-qc-btn-primary .vd-qc-btn-icon { display: none; }
 
+/* ---------- Skin guards: desktop skins must not reach into the deck ---------- */
+/* Skins carry element rules (kbd, :focus-visible, ::selection, scrollbars, input sizes). The doubled
+   classes lift the specificity above them; !important only where a skin itself uses it. */
+
+.vd-qc-window.vd-qc-window .vd-quick-connect.vd-quick-connect .vd-qc-boot kbd {
+    min-width: 16px;
+    margin: 0;
+    padding: 2px 4px;
+    box-sizing: border-box;
+    border: 1px solid var(--qc-line-strong);
+    border-radius: var(--qc-r);
+    background: var(--qc-bg-1);
+    box-shadow: none;
+    color: var(--qc-text);
+    font-family: var(--qc-font-hud);
+    font-size: 11px;
+    font-weight: 400;
+    line-height: 1.2;
+    letter-spacing: 0;
+    text-shadow: none;
+    text-transform: none;
+}
+
+.vd-qc-window.vd-qc-window .vd-quick-connect.vd-quick-connect :focus-visible {
+    outline: 2px solid var(--qc-hud) !important;
+    outline-offset: 2px;
+}
+
+.vd-qc-window.vd-qc-window .vd-quick-connect.vd-quick-connect :is(.vd-qc-device, .vd-qc-filter, .vd-qc-serial-profile-select):focus-visible {
+    outline-offset: -2px;
+}
+
+.vd-qc-window.vd-qc-window .vd-quick-connect.vd-quick-connect :is(input, select, textarea):focus-visible {
+    outline: none !important;
+}
+
+.vd-qc-window.vd-qc-window .vd-quick-connect.vd-quick-connect ::selection {
+    background: var(--qc-term-selection);
+    color: var(--qc-text);
+    text-shadow: none;
+}
+
+/* A non-auto scrollbar-width or -color also switches off every skin's ::-webkit-scrollbar styling. */
+.vd-qc-window.vd-qc-window .vd-quick-connect.vd-quick-connect,
+.vd-qc-window.vd-qc-window .vd-quick-connect.vd-quick-connect * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--qc-line-strong) transparent;
+}
+
+/* The shell sizes text fields at 16px; the deck keeps its own scale. */
+.vd-qc-window .vd-quick-connect :is(.vd-qc-input, .vd-qc-textarea, .vd-qc-search input, .vd-qc-serial input:not([type="checkbox"], [type="radio"]), .vd-qc-serial select) {
+    font-size: 12px;
+}
+
+.vd-qc-window .vd-quick-connect :is(.vd-mini-icon, .vd-theme-image, .vd-sprite-icon, .vd-papirus-icon) {
+    image-rendering: auto;
+}
+
 /* ---------- Narrow windows: one coherent set of container queries ---------- */
 
 @container quick-connect-window (max-width: 600px) {

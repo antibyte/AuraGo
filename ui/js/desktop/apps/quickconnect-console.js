@@ -23,6 +23,17 @@
         let memoryPhosphor = 'auto';
         let dialogSeq = 0;
 
+        // C0 (0x00-0x1F, 0x7F) and C1 (0x80-0x9F) control characters; built from
+        // char codes so the source holds no literal control characters.
+        const CONTROL_CHARS = new RegExp('[' + String.fromCharCode(0) + '-' + String.fromCharCode(0x1f) + String.fromCharCode(0x7f) + '-' + String.fromCharCode(0x9f) + ']', 'g');
+
+        // Strips control characters from text that Quick Connect itself writes
+        // to the SSH terminal (device names, server messages), so it cannot
+        // carry escape sequences. The binary terminal stream is not filtered.
+        function cleanTerminalText(value) {
+            return String(value == null ? '' : value).replace(CONTROL_CHARS, '');
+        }
+
         // Phosphor choice. localStorage may be blocked (sandboxed frames, opaque
         // origins), so the last value is also kept in memory for re-renders.
         function readPhosphor() {
@@ -249,6 +260,7 @@
                 return getFilter() === 'serial' ? rows[0] : rows.find(row => row.matches('[data-device-id]')) || rows[0];
             };
             root.addEventListener('keydown', event => {
+                if (event.target.closest && event.target.closest('.vd-qc-modal-overlay')) return;
                 if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey || event.defaultPrevented) return;
                 if (event.target.closest && event.target.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"]')) return;
                 event.preventDefault();
@@ -302,7 +314,7 @@
         }
 
         return {
-            ANSI_PALETTE, PHOSPHORS, readPhosphor, writePhosphor, nextPhosphor, formatDuration,
+            ANSI_PALETTE, PHOSPHORS, cleanTerminalText, readPhosphor, writePhosphor, nextPhosphor, formatDuration,
             statusBarMarkup, bootMarkup, createStatusBar, wirePhosphor, quickConnectTerminalTheme,
             openDialog, wireKeyboard, wireTabs
         };
