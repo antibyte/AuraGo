@@ -35,15 +35,16 @@
                 space: { size: 1, rt60: 0.8, damping: 6500, predelay: 0.014, mix: 0.28 }
             },
             'notify.warning': {
-                notes: [{ v: 'chime', n: -10, t: 0, g: 1, pan: -0.1, t60: 0.55, damp: 0.9, attack: 0.006 },
-                    { v: 'chime', n: -10, t: 0.17, g: 0.85, pan: 0.1, t60: 0.65, damp: 0.9, attack: 0.006 }],
-                space: { size: 0.9, rt60: 0.8, damping: 5500, predelay: 0.01, mix: 0.24 }
+                notes: [{ v: 'chime', n: -10, t: 0, g: 1, pan: -0.1, t60: 0.55, damp: 0.9, attack: 0.006, air: 0.07 }, { v: 'chime', n: 2, t: 0, g: 0.3, pan: 0.1, t60: 0.4 },
+                    { v: 'chime', n: -10, t: 0.17, g: 0.85, pan: 0.1, t60: 0.65, damp: 0.9, attack: 0.006, air: 0.07 }, { v: 'chime', n: 2, t: 0.17, g: 0.25, pan: -0.1, t60: 0.5 }],
+                layers: [{ v: 'air', t: 0, g: 0.05, decay: 0.2 }],
+                space: { size: 0.9, rt60: 0.8, damping: 5500, predelay: 0.01, mix: 0.26 }
             },
             'notify.error': {
-                notes: [{ v: 'chime', n: -19, t: 0, g: 1, pan: -0.1, t60: 0.42, damp: 0.9, beat: 1.4, attack: 0.008 },
-                    { v: 'chime', n: -20, t: 0.14, g: 0.9, pan: 0.1, t60: 0.42, damp: 0.9, beat: 1.4, attack: 0.008 }],
-                layers: [{ v: 'knock', t: 0, g: 0.5 }, { v: 'knock', t: 0.14, g: 0.45 }],
-                space: { size: 0.7, rt60: 0.5, damping: 4500, predelay: 0.006, mix: 0.2 }
+                notes: [{ v: 'chime', n: -5, t: 0, g: 1, pan: -0.1, t60: 0.45, damp: 1, attack: 0.008, air: 0.07 },
+                    { v: 'chime', n: -11, t: 0.15, g: 0.95, pan: 0.1, t60: 0.55, damp: 1, attack: 0.008, air: 0.07 }],
+                layers: [{ v: 'air', t: 0, g: 0.05, decay: 0.2 }],
+                space: { size: 0.8, rt60: 0.6, damping: 4500, predelay: 0.008, mix: 0.24 }
             },
             'dialog.open': {
                 notes: [{ v: 'chime', n: -10, t: 0, g: 0.85, pan: -0.15, t60: 0.28 }, { v: 'chime', n: -5, t: 0.08, g: 1, pan: 0.15, t60: 0.32 }],
@@ -55,7 +56,7 @@
             },
             'dialog.cancel': {
                 notes: [{ v: 'chime', n: 4, t: 0, g: 0.85, pan: 0.15, t60: 0.28 }, { v: 'chime', n: -3, t: 0.09, g: 1, pan: -0.15, t60: 0.3 }],
-                space: { size: 0.8, rt60: 0.4, damping: 5000, predelay: 0.01, mix: 0.18 }
+                space: { size: 0.8, rt60: 0.4, damping: 6500, predelay: 0.01, mix: 0.2 }
             },
             'window.open': {
                 notes: [{ v: 'chime', n: -5, t: 0, g: 0.9, pan: -0.15, t60: 0.3 }, { v: 'chime', n: 0, t: 0.085, g: 1, pan: 0.2, t60: 0.3 }],
@@ -81,18 +82,19 @@
                 space: { size: 0.7, rt60: 0.3, damping: 6000, predelay: 0.008, mix: 0.16 }
             },
             'window.snap': {
-                layers: [{ v: 'tick', t: 0, g: 1, tone: 4400, ring: 0.02 }],
-                space: null
+                notes: [{ v: 'chime', n: -5, t: 0.002, g: 0.35, t60: 0.08, dur: 0.07, air: 0.08 }],
+                layers: [{ v: 'tick', t: 0, g: 1, tone: 3000, ring: 0.025 }],
+                space: { size: 0.4, rt60: 0.1, damping: 6500, predelay: 0.002, mix: 0.08 }
             },
             'window.deny': {
-                notes: [{ v: 'chime', n: -19, t: 0, g: 0.7, pan: 0, t60: 0.15, damp: 1.2, attack: 0.007, beat: 1.2, air: 0 }],
-                layers: [{ v: 'knock', t: 0, g: 0.8, band: [250, 1000] }],
-                space: { size: 0.5, rt60: 0.25, damping: 4500, predelay: 0.004, mix: 0.12 }
+                notes: [{ v: 'chime', n: -7, t: 0.004, g: 0.35, pan: -0.1, t60: 0.14, damp: 1.1, attack: 0.006, air: 0.05 }, { v: 'chime', n: -7, t: 0.084, g: 0.4, pan: 0.1, t60: 0.2, damp: 1.1, attack: 0.006, air: 0.05 }],
+                layers: [{ v: 'tick', material: 'felt', t: 0, g: 0.9, tone: 560, ring: 0.05, length: 0.008 }, { v: 'tick', material: 'felt', t: 0.08, g: 1, tone: 470, ring: 0.06, length: 0.008 }],
+                space: { size: 0.45, rt60: 0.14, damping: 6500, predelay: 0.003, mix: 0.1 }
             },
             'file.drop': {
-                notes: [{ v: 'chime', n: -17, t: 0, g: 0.9, pan: 0, t60: 0.25, damp: 1.3, attack: 0.006 }],
-                layers: [{ v: 'knock', t: 0, g: 0.5 }],
-                space: { size: 0.7, rt60: 0.4, damping: 5000, predelay: 0.006, mix: 0.18 }
+                notes: [{ v: 'chime', n: -5, t: 0.006, g: 0.45, pan: 0, t60: 0.22, damp: 1.1, attack: 0.006 }],
+                layers: [{ v: 'tick', material: 'felt', t: 0, g: 1, tone: 480, ring: 0.07, length: 0.008 }],
+                space: { size: 0.6, rt60: 0.3, damping: 6500, predelay: 0.005, mix: 0.16 }
             },
             'file.trash': {
                 notes: [{ v: 'chime', n: 0, t: 0, g: 0.8, pan: 0.15, t60: 0.15 }, { v: 'chime', n: -5, t: 0.05, g: 0.9, pan: 0, t60: 0.15 },
@@ -101,9 +103,9 @@
                 space: { size: 0.7, rt60: 0.4, damping: 5500, predelay: 0.006, mix: 0.16 }
             },
             'file.delete': {
-                notes: [{ v: 'chime', n: -12, t: 0, g: 0.85, pan: 0.1, t60: 0.28, damp: 1 }, { v: 'chime', n: -17, t: 0.09, g: 1, pan: -0.1, t60: 0.34, damp: 1.1, attack: 0.006 }],
-                layers: [{ v: 'knock', t: 0.09, g: 0.4 }],
-                space: { size: 0.8, rt60: 0.5, damping: 5000, predelay: 0.008, mix: 0.2 }
+                notes: [{ v: 'chime', n: -5, t: 0.004, g: 0.4, pan: 0.1, t60: 0.2, damp: 1.1, attack: 0.006 }, { v: 'chime', n: -12, t: 0.094, g: 0.5, pan: -0.1, t60: 0.26, damp: 1.1, attack: 0.006 }],
+                layers: [{ v: 'tick', material: 'felt', t: 0, g: 0.8, tone: 650, ring: 0.05, length: 0.008 }, { v: 'tick', material: 'felt', t: 0.09, g: 1, tone: 440, ring: 0.07, length: 0.008 }],
+                space: { size: 0.55, rt60: 0.25, damping: 6000, predelay: 0.004, mix: 0.12 }
             },
             'space.switch': {
                 notes: [{ v: 'chime', n: 0, t: 0.05, g: 0.5, pan: 0, t60: 0.3, attack: 0.04 }],
@@ -111,28 +113,28 @@
                 space: { size: 0.9, rt60: 0.45, damping: 6500, predelay: 0.01, mix: 0.2 }
             },
             'menu.open': {
-                notes: [{ v: 'chime', n: -12, t: 0, g: 0.9, pan: -0.1, t60: 0.1, air: 0, dur: 0.085 }, { v: 'chime', n: -5, t: 0.035, g: 1, pan: 0.1, t60: 0.1, air: 0, dur: 0.085 }],
-                space: { size: 0.4, rt60: 0.12, damping: 6000, predelay: 0.002, mix: 0.1 }
+                layers: [{ v: 'tick', t: 0, g: 0.9, tone: 2200, ring: 0.03 }, { v: 'tick', t: 0.03, g: 1, tone: 3000, ring: 0.03 }],
+                space: { size: 0.45, rt60: 0.16, damping: 6500, predelay: 0.002, mix: 0.1 }
             },
             'menu.close': {
-                notes: [{ v: 'chime', n: -5, t: 0, g: 0.9, pan: 0.1, t60: 0.1, air: 0, dur: 0.085 }, { v: 'chime', n: -12, t: 0.03, g: 1, pan: -0.1, t60: 0.1, air: 0, dur: 0.085 }],
-                space: { size: 0.4, rt60: 0.07, damping: 6000, predelay: 0.002, mix: 0.06 }
+                layers: [{ v: 'tick', t: 0, g: 0.9, tone: 3000, ring: 0.03 }, { v: 'tick', t: 0.03, g: 1, tone: 2200, ring: 0.03 }],
+                space: { size: 0.45, rt60: 0.12, damping: 6500, predelay: 0.002, mix: 0.08 }
             },
             'ui.select': {
                 layers: [{ v: 'tick', t: 0, g: 1, tone: 3400, ring: 0.025 }],
                 space: null
             },
             'ui.toggle.on': {
-                layers: [{ v: 'tick', t: 0, g: 0.9, tone: 3600, ring: 0.02 }, { v: 'tick', t: 0.04, g: 1, tone: 5000, ring: 0.02 }],
-                space: null
+                layers: [{ v: 'tick', t: 0, g: 0.9, tone: 2400, ring: 0.03 }, { v: 'tick', t: 0.04, g: 1, tone: 3200, ring: 0.03 }],
+                space: { size: 0.4, rt60: 0.1, damping: 6500, predelay: 0.002, mix: 0.08 }
             },
             'ui.toggle.off': {
-                layers: [{ v: 'tick', t: 0, g: 0.9, tone: 5000, ring: 0.02 }, { v: 'tick', t: 0.04, g: 1, tone: 3600, ring: 0.02 }],
-                space: null
+                layers: [{ v: 'tick', t: 0, g: 0.9, tone: 3200, ring: 0.03 }, { v: 'tick', t: 0.04, g: 1, tone: 2400, ring: 0.03 }],
+                space: { size: 0.4, rt60: 0.1, damping: 6500, predelay: 0.002, mix: 0.08 }
             },
             'ui.tick': {
-                layers: [{ v: 'tick', t: 0, g: 1, tone: 6000, ring: 0.012, length: 0.0015 }],
-                space: null
+                layers: [{ v: 'tick', t: 0, g: 1, tone: 3000, ring: 0.018, length: 0.002 }],
+                space: { size: 0.4, rt60: 0.06, damping: 6500, predelay: 0.002, mix: 0.06 }
             }
         },
         fx: {}
