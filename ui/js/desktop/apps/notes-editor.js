@@ -190,7 +190,10 @@
             else {
                 const fm = NotesFrontmatter.parse(text);
                 const oldPrefix = prefix;
-                prefix = fm.valid ? text.slice(0, text.length - NotesFrontmatter.strip(text).length) : '';
+                const nextPrefix = fm.valid ? text.slice(0, text.length - NotesFrontmatter.strip(text).length) : '';
+                // Only the frontmatter changed (properties bar): keep the document, caret and scroll untouched.
+                if (NotesFrontmatter.strip(text) === content().slice(prefix.length)) { if (nextPrefix !== prefix) { prefix = nextPrefix; options.changed(); } return; }
+                prefix = nextPrefix;
                 const doc = crepe.editor.action(ctx => ctx.get(lib.parserCtx)(NotesFrontmatter.strip(text)));
                 view.dispatch(lib.closeHistory(view.state.tr).replaceWith(0, view.state.doc.content.size, doc.content).setMeta('addToHistory',history));
                 if(oldPrefix !== prefix) options.changed();

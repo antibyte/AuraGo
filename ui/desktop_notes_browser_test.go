@@ -329,6 +329,11 @@ func TestDesktopNotesAppBrowser(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Log("Notes graph workflows:", page.MustEval(string(graphScript)).JSON("", ""))
+	writingScript, err := os.ReadFile("testdata/notes-writing-functional.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("Notes writing workflows:", page.MustEval(string(writingScript)).JSON("", ""))
 	out := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR")
 	if out == "" {
 		out = filepath.Join("..", "reports", "notes")
@@ -336,6 +341,47 @@ func TestDesktopNotesAppBrowser(t *testing.T) {
 	if err := os.MkdirAll(out, 0755); err != nil {
 		t.Fatal(err)
 	}
+	// Writing scenes: properties bar on the aurora note, daily note with its navigation, callout type menu.
+	page.MustSetViewport(1366, 768, 1, false)
+	page.MustEval(`async()=>{
+ const app=NotesApp.instances.get('test'),sleep=ms=>new Promise(r=>setTimeout(r,ms)),root=document.querySelector('.vd-notes-app');
+ root.classList.remove('notes-hide-library');
+ if(!document.querySelector('[data-right]').hidden)await app.act('closePanel');
+ app.sidebar.setTab('files');await sleep(200);
+ document.querySelector('.notes-tree-row[data-path="Documents/Notes/eigenschaften.md"]').click();
+ await sleep(900);
+ if(app.editor.sourceMode)await app.editor.mode(false);
+ window.writingPrevious=app.editor.content();
+{const fm=NotesFrontmatter;let c=window.writingPrevious;c=fm.updateTags(c,['design','aurora','ideen','werkstatt']);c=fm.updateList(c,'aliases',['Nordlicht','Aurora Ideen']);c=c.replace('owner: Preserve this field','owner: Preserve this field'+String.fromCharCode(10)+'status: Entwurf');app.editor.setContent(c);}
+ await sleep(500);
+ }`)
+	page.MustScreenshot(filepath.Join(out, "writing-properties-1366x768.png"))
+	page.MustSetViewport(430, 932, 1, false)
+	page.MustEval(`()=>document.querySelector('.vd-notes-app').classList.add('notes-hide-library')`)
+	time.Sleep(600 * time.Millisecond)
+	page.MustScreenshot(filepath.Join(out, "writing-properties-430x932.png"))
+	page.MustSetViewport(1366, 768, 1, false)
+	page.MustEval(`async()=>{
+ const app=NotesApp.instances.get('test'),sleep=ms=>new Promise(r=>setTimeout(r,ms)),root=document.querySelector('.vd-notes-app');
+ app.editor.setContent(window.writingPrevious);
+ root.classList.remove('notes-hide-library');
+ await app.act('daily');
+ await sleep(900);
+ }`)
+	page.MustScreenshot(filepath.Join(out, "writing-daily-1366x768.png"))
+	page.MustEval(`async()=>{
+ const app=NotesApp.instances.get('test'),sleep=ms=>new Promise(r=>setTimeout(r,ms));
+ await app.act('insert');
+ document.querySelector('[data-popup] [data-action="callout"]').click();
+ await sleep(300);
+ }`)
+	page.MustScreenshot(filepath.Join(out, "writing-callout-menu-1366x768.png"))
+	page.MustEval(`async()=>{
+ const app=NotesApp.instances.get('test'),sleep=ms=>new Promise(r=>setTimeout(r,ms));
+ document.querySelector('[data-popup]').hidden=true;
+ document.querySelector('.notes-tree-row[data-path="Documents/Notes/aurora.md"]')?.click();
+ await sleep(900);
+ }`)
 	// Obsidian syntax demo: shown once in the main editor, then restored without saving.
 	page.MustSetViewport(1366, 768, 1, false)
 	page.MustEval(`async()=>{
