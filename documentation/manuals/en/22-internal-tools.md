@@ -532,6 +532,7 @@ Create and follow explainer videos in the Storymaker desktop app. An isolated ag
 | `length_seconds` | integer | `create`: target length in seconds (default 60, the server clamps it) |
 | `format` | enum | `create`: 16:9, 9:16, 1:1 |
 | `language` | string | `create`: language of the film (default: the UI language) |
+| `mode` | enum | `create`: `catalog` builds the film from the built-in catalog (default), `free` lets the agent draw and animate everything itself in code scenes; fixed at creation |
 | `voice` | object | `create`: optional `{provider, voice}`; omit it to use the configured voice |
 | `project_id` | string | `status`, `revise`, `render`, `open`: project id from `create` or `list` |
 | `instruction` | string | `revise`: the change to make (1–2000 characters) |

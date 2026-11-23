@@ -62,7 +62,7 @@
   "storymaker.mode.catalog_hint": "Postacie, rekwizyty i sceny pochodzą z wbudowanego katalogu.",
   "storymaker.mode.free": "Twórz swobodnie",
   "storymaker.mode.free_hint": "Agent sam rysuje i animuje wszystko, bez elementów z katalogu.",
-  "storymaker.mode.badge_free": "Wolny",
+  "storymaker.mode.badge_free": "Swobodny",
   "storymaker.strip.title": "Sceny",
   "storymaker.strip.scene_n": "Scena {n}",
   "storymaker.strip.duration_s": "{seconds} s",

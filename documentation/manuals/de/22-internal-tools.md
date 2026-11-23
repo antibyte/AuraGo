@@ -563,6 +563,7 @@ Erstellt und verfolgt Erklärvideos in der Storymaker-Desktop-App. Ein isolierte
 | `length_seconds` | integer | `create`: Ziellänge in Sekunden (Standard 60, der Server begrenzt den Wert) |
 | `format` | enum | `create`: 16:9, 9:16, 1:1 |
 | `language` | string | `create`: Sprache des Films (Standard: die UI-Sprache) |
+| `mode` | enum | `create`: `catalog` baut den Film aus dem eingebauten Katalog (Standard), `free` lässt den Agenten alles selbst in Code-Szenen zeichnen und animieren; wird beim Erstellen festgelegt |
 | `voice` | object | `create`: optional `{provider, voice}`; weglassen, um die konfigurierte Stimme zu nutzen |
 | `project_id` | string | `status`, `revise`, `render`, `open`: Projekt-ID aus `create` oder `list` |
 | `instruction` | string | `revise`: die gewünschte Änderung (1–2000 Zeichen) |
