@@ -11,7 +11,7 @@ const raw = mod.exports;
 const FM = Object.fromEntries(Object.entries(raw).map(([k, fn]) => [k, (...a) => { const r = fn(...a); return typeof r === 'string' ? r : JSON.parse(JSON.stringify(r)); }]));
 
 test('updateTags adds a block to a note without frontmatter', () => {
-    assert.equal(FM.updateTags('Hello', ['A', 'b']), '---\ntags: a, b\n---\n\nHello');
+    assert.equal(FM.updateTags('Hello', ['A', 'b']), '---\ntags: a, b\n---\nHello');
     assert.equal(FM.updateTags('Hello', []), 'Hello');
 });
 test('updateTags replaces tags keeping owner and bracket style', () => {
@@ -53,7 +53,7 @@ test('updateList adds and replaces without touching other lines', () => {
     const replaced = FM.updateList(added, 'aliases', ['Zed']);
     assert.equal(replaced, '---\naliases: Zed\ntags: [x]\nowner: Preserve this field\n---\nBody');
     assert.equal(FM.updateList(added, 'aliases', []), src);
-    assert.equal(FM.updateList('Body', 'aliases', ['A']), '---\naliases: A\n---\n\nBody');
+    assert.equal(FM.updateList('Body', 'aliases', ['A']), '---\naliases: A\n---\nBody');
     assert.equal(FM.updateList('---\naliases: [A]\n---\nB', 'aliases', ['C']), '---\naliases: [C]\n---\nB');
     assert.equal(FM.updateList('---\r\naliases: A\r\n---\r\nB', 'aliases', ['C', 'D']), '---\r\naliases: C, D\r\n---\r\nB');
     assert.equal(FM.updateList('---\naliases: A\n---\nB', 'aliases', []), 'B');
@@ -73,4 +73,17 @@ test('parse returns aliases', () => {
     assert.deepEqual(FM.parse('---\naliases: [A, B]\n---\n').aliases, ['A', 'B']);
     assert.deepEqual(FM.parse('---\nalias: Solo\n---\n').aliases, ['Solo']);
     assert.deepEqual(FM.parse('x').aliases, []);
+});
+
+test('adding and removing the only value restores a plain note byte for byte', () => {
+    for (const eol of ['\n', '\r\n']) {
+        for (const note of ['Hello', 'Line one' + eol + 'Line two' + eol, '', eol + 'leading blank', '# Title' + eol + eol + 'Body']) {
+            const tagged = FM.updateTags(note, ['x']);
+            const own = note.includes('\r\n') ? '\r\n' : '\n';
+            assert.ok(tagged.startsWith('---' + own + 'tags: x' + own + '---' + own + note), 'block uses the note EOL, no blank line');
+            assert.equal(FM.updateTags(tagged, []), note);
+            const aliased = FM.updateList(note, 'aliases', ['A']);
+            assert.equal(FM.updateList(aliased, 'aliases', []), note);
+        }
+    }
 });

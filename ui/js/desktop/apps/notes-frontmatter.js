@@ -144,8 +144,8 @@
         const eol = parsed.eol;
         if (!parsed.present || !parsed.valid) {
             if (!next.length) return String(content || '');
-            const block = [OPEN_FENCE, key + ': ' + serializeTags(next), OPEN_FENCE, ''].join(eol);
-            return block + eol + String(content || '');
+            // No blank line after the closing fence: dropping the block again must restore the note byte for byte.
+            return [OPEN_FENCE, key + ': ' + serializeTags(next), OPEN_FENCE].join(eol) + eol + String(content || '');
         }
         const lines = parsed.lines.slice();
         const idx = findKey(parsed, key);
