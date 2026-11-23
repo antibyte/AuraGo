@@ -8,6 +8,8 @@ Native Kaggle resource access, permissions, bounded transfers and durable operat
 
 This package owns the Kaggle API contract. `internal/notebooks` owns local notebooks and kernels; server owns HTTP authentication and lifetime. This contract also binds config, agent, UI, release and training integration.
 
+In-process caller: Chibi Sensei drives Kaggle only through `internal/server/chibi_sensei_kaggle.go` (its `KaggleDriver`), with the server's snapshot access. It gates mutations before `Execute`, uses `RemoveFile` only for files it staged and `ReadKernelLog` only for its own run notebooks; see `../chibisensei/AGENTS.md`.
+
 ## Local Contracts
 
 - Fixed API operations come from the pinned official SDK. HTTP POST is not a mutation classification. Never expose an arbitrary service, URL or raw authenticated request.

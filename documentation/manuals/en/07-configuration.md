@@ -1341,7 +1341,7 @@ Cloud voices cost money; local providers are exempt from the character limits. A
 
 ### Chibi Sensei — Small-Model Training Studio
 
-`chibi_sensei` controls the **Chibi Sensei** desktop app, a guided studio for fine-tuning small models. P1 is the local dataset studio: projects, rows, imports, checks and JSONL export. Only generation and cleaning call a model (the configured generator route); see the [Chibi Sensei guide](../../chibi-sensei.md).
+`chibi_sensei` controls the **Chibi Sensei** desktop app, a guided studio for fine-tuning small models: projects, rows, imports, checks, JSONL export and training runs on Kaggle. Generation and cleaning call the configured generator route; training uses the Kaggle integration (`kaggle.*`, including `allowed_machine_shapes`); see the [Chibi Sensei guide](../../chibi-sensei.md#training-on-kaggle).
 
 ```yaml
 chibi_sensei:

@@ -1636,7 +1636,7 @@ The answer carries the calculators, tables, component codes and pinouts with the
 
 ### Chibi Sensei API
 
-The Chibi Sensei training studio (datasets for small language models). Reads need `desktop:read`, writes `desktop:write`; a job cancel is a stop operation and also works while the desktop is read-only. The routes need `chibi_sensei.enabled`; generation and cleaning also need a usable generator model (`GET /meta` reports `generator.available`).
+The Chibi Sensei training studio (datasets for small language models and their training on Kaggle). Reads need `desktop:read`, writes `desktop:write`; a job or run cancel is a stop operation and also works while the desktop is read-only. The routes need `chibi_sensei.enabled`; generation and cleaning also need a usable generator model (`GET /meta` reports `generator.available`).
 
 ```http
 GET  /api/desktop/chibi-sensei/meta                              # limits, recipes, profiles, generator availability
@@ -1648,10 +1648,21 @@ POST /api/desktop/chibi-sensei/projects/{id}/generate            # 202 job; one-
 POST /api/desktop/chibi-sensei/projects/{id}/clean               # 202 job; LLM review of at most 500 rows
 GET  /api/desktop/chibi-sensei/jobs/{jobId}/suggestions          # the review list of a cleaning job
 POST /api/desktop/chibi-sensei/jobs/{jobId}/apply                # {"accept":"all"} (fixes only) or {"accept":[rowIds]}
-GET  /api/desktop/chibi-sensei/projects/{id}/events              # server-sent events: job, rows, checks
+GET  /api/desktop/chibi-sensei/projects/{id}/events              # server-sent events: job, rows, checks, run, metric, stage
+GET  /api/desktop/chibi-sensei/projects/{id}/preflight?preset=   # training requirements; fix.flags names what an admin can enable
+POST /api/desktop/chibi-sensei/preflight/enable                   # admin; {"flags":[...]} switches Kaggle settings on by name
+POST /api/desktop/chibi-sensei/consents                           # 201; {"profile_id"} records the base-model license acceptance
+POST /api/desktop/chibi-sensei/projects/{id}/runs/prepare         # {"preset"}; confirmation data and a 15-minute plan token
+POST /api/desktop/chibi-sensei/projects/{id}/runs                 # 202; {"plan_token"} starts the Kaggle run; GET lists runs
+GET  /api/desktop/chibi-sensei/runs/{runId}                       # one run; .../metrics, .../events, .../artifacts, .../report, .../log
+GET  /api/desktop/chibi-sensei/runs/{runId}/artifacts/{aid}/file  # the file as an attachment (Range supported)
+POST /api/desktop/chibi-sensei/runs/{runId}/cancel                # stop operation, also on a read-only desktop
+POST /api/desktop/chibi-sensei/runs/{runId}/delete                # 204; finished runs only; local files and rows, not Kaggle
 ```
 
 Errors are flat `{"error","code","message"}` documents. Generation and cleaning answer 503 `provider_unavailable`, 429 `budget_exceeded` and 429 `generator_daily_limit`; a second job of the same kind in a project answers 409 `job_active`. At most two generation or cleaning jobs run at once across all projects; further ones stay `queued`. A job that runs out of time ends `failed` with `error_code` `timeout`, one that finds the storage full while adding rows ends `failed` with `storage_full` (it keeps the rows it added). The event stream allows 16 streams per project and 64 in total; one more answers 429 `too_many_streams` (the UI then polls). The full route list, the data model and the limits are in the [Chibi Sensei guide](../../chibi-sensei.md); the settings are in [configuration](../../configuration.md#chibi_sensei).
+
+Training answers 409 `preflight_failed`, `run_active` or `license_consent_required` with `missing` (the failing requirement IDs), 409 `plan_expired` when the plan token is unknown, used, older than 15 minutes or the plan changed, 409 `run_not_terminal`, 404 `run_not_found` and `artifact_not_found`, and 403 `admin_required`. The training POST routes require a same-origin `Origin` header from browsers (`csrf_check_failed`).
 
 ---
 

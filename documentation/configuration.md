@@ -608,7 +608,7 @@ The Storymaker video studio and its AI author. See the [Storymaker guide](storym
 
 ## `chibi_sensei`
 
-The Chibi Sensei training studio. P1 is the dataset studio. Only generation and cleaning call a model, the configured generator route; see [Chibi Sensei](chibi-sensei.md).
+The Chibi Sensei training studio: dataset studio and training runs on Kaggle. Generation and cleaning call the configured generator route; training needs the Kaggle integration and the `training` settings; see [Chibi Sensei](chibi-sensei.md#training-on-kaggle).
 
 | Key | Default | Description |
 |---|---|---|

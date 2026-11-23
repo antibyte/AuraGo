@@ -1,6 +1,6 @@
 # Chibi Sensei
 
-Chibi Sensei is the Virtual Desktop app that guides you through building a training dataset for a small language model. The first phase (P1) covers the dataset studio: you create a project, collect and clean rows, check the dataset, look at the split and an estimated training plan, and export the result as JSONL. P1 does not train anything yet; the plan is an estimate (`trainable` stays `false`).
+Chibi Sensei is the Virtual Desktop app that guides you through building a training dataset for a small language model and training the model on Kaggle. You create a project, collect and clean rows, check the dataset, look at the split and the training plan, export the result as JSONL, and train on a free Kaggle GPU; the result is a GGUF file you can download. Testing and using the model inside AuraGo come in a later phase.
 
 The app is on by default. Switch it off with `chibi_sensei.enabled: false` (see [Configuration](configuration.md#chibi_sensei)); the app disappears from the desktop and its API answers `chibi_disabled`.
 
@@ -46,7 +46,7 @@ A check run reads the whole dataset and reports findings on three levels: `block
 
 ## Split and plan
 
-The split into train, validation and evaluation rows is deterministic: it hashes the project's seed with the row id, so the same data always splits the same way. You can pin a row to `train`, `eval` or `exclude`, and you can reseed. The plan shows the preset (`quick`, `balanced`, `thorough`), the hyper-parameters, the split sizes and an estimated duration. It is an estimate and will stay one until measured values from real runs exist.
+The split into train, validation and evaluation rows is deterministic: it hashes the project's seed with the row id, so the same data always splits the same way. You can pin a row to `train`, `eval` or `exclude`, and you can reseed. The plan shows the preset (`quick`, `balanced`, `thorough`), the hyper-parameters, the split sizes and an estimated duration. It is an estimate and will stay one until measured values from real runs exist. The plan also tells whether a run must convert the base model as well (`need_base_gguf`); once a base GGUF of the same revision and converter is stored, later runs skip it.
 
 ## Export
 
@@ -75,9 +75,86 @@ A job that fails carries an `error_code` the app translates: `provider_unavailab
 
 `chibi_sensei.generator.provider` names a provider entry that allows general chat; empty means the main model. `chibi_sensei.generator.model` overrides the model. When no usable model exists, the app disables both buttons. Calls are charged to the budget category `chibi_sensei` and stop when the daily budget is used up.
 
+## Training on Kaggle
+
+Training runs on a GPU in your own Kaggle account. AuraGo prepares the data and a notebook, starts it, follows it and downloads the result.
+
+### What you need
+
+- A Kaggle account with phone verification (Kaggle gives GPU and internet to notebooks only then) and its API token saved under Config → Kaggle (it goes into the Vault).
+- The Kaggle integration switched on with these permissions: `kaggle.enabled`, not `kaggle.read_only`, `allow_create`, `allow_remote_execute`, `allow_gpu`, `allow_internet`, `allow_download`, and the GPU of `chibi_sensei.training.machine_shape` listed in `kaggle.allowed_machine_shapes`. `allow_delete` is optional; without it the uploaded data stays on Kaggle.
+- AuraGo's network and filesystem-write permissions, a writable desktop and the Vault.
+- A ready dataset: the latest check run belongs to the current rows and found nothing blocking.
+- Acceptance of the base model's license where it requires one (Gemma, LFM).
+- Enough weekly GPU quota and no other Kaggle GPU run of AuraGo (the agent's or the Kaggle app's); `kaggle.max_remote_jobs` (default 1) is the limit. A job in state `unknown` keeps its slot until an administrator releases it in the Kaggle app.
+
+### Preflight and the enable button
+
+The Training step lists every requirement, grouped by area. A red item blocks the start, a note only warns. An administrator sees **Enable for Chibi Sensei**: a dialog lists each Kaggle setting it will switch on, and confirming saves exactly those to `config.yaml` (Kaggle on, read-only off, the permissions on, the machine shape added to the allow-list). Others see what to ask the administrator for. Nothing is switched on implicitly. The connection test, the quota and the job list are read at most every 20 seconds; a start always reads them fresh.
+
+### What leaves the machine
+
+Data leaves only after you confirm the start dialog. It names the private dataset `<you>/chibi-data-<run>` and the private notebook `<you>/chibi-<project>-<run>` (`<project>` is the first 8 hex characters of the project ID), the row count and size, the license, the estimated time, the time limit, the remaining quota and what happens afterwards. The confirmation is valid for 15 minutes and for exactly that plan: if rows, settings or the profile change, prepare the start again.
+
+- To the dataset: the frozen train, validation and evaluation files and a small marker file.
+- To the notebook: the trainer script and `job.json` (profile, hyper-parameters, pinned versions). No AuraGo secret, host path or Hugging Face token.
+- The notebook itself downloads the base model from Hugging Face at a pinned revision, pinned pip packages and the pinned llama.cpp converter (checked by sha256).
+
+### During the run
+
+The monitor shows the run's phase (prepare, upload, start, train, download, cleanup) and the trainer's stages. When Kaggle serves the notebook log while it runs, AuraGo reads it every minute and draws the loss chart live; otherwise the numbers appear when the run ends. AuraGo's Kaggle operations show up in the Kaggle app's job list under `chibi-` names. A restart of AuraGo resumes the run; nothing is sent twice. If the status read fails after the run's deadline (its time limit plus 20 minutes), AuraGo waits up to 30 more minutes for a successful read before the run ends with `remote_timeout`; a successful read decides at once.
+
+### Cancel
+
+- Before the notebook started, the run stops at once on your machine, and the uploaded data is cleaned up.
+- After that, AuraGo asks Kaggle once to stop the session. Kaggle normally does not allow that through the API, so the run shows **Stop on Kaggle** with the notebook link. GPU time ends when you stop the notebook there, and at the latest at the run's time limit. AuraGo keeps following the notebook until Kaggle reports that it ended; then it ends the run as cancelled and downloads nothing but the log tail.
+- A stop that arrives while the run is cleaning up changes nothing: the response shows the run unchanged, and the run ends as it was already going to. A stop that arrives before the run reaches cleaning ends it as `cancelled`, even when its results were just checked; files that were already downloaded stay with the run until you delete it.
+- Cancel also works while the desktop is read-only.
+
+### Results
+
+A successful run stores `data/chibi_sensei/models/<run>/model-q8_0.gguf` (q8_0) and, for LoRA, the adapter, and shows a report card (loss before and after, and per task exact match, label accuracy or perplexity on the evaluation rows). A score that no evaluation row could be scored for shows `n/a`, not 0. The run's files list offers each file as a download. Deleting a finished run removes its files and records; it never touches Kaggle. With `delete_remote_after_run` and `allow_delete`, AuraGo deletes the Kaggle dataset and notebook after the run; otherwise, or when a delete fails, the run lists them as leftovers to delete on Kaggle. It lists a dataset or notebook only when Kaggle has it or it is unknown whether Kaggle created it; one that Kaggle refused to create is not listed.
+
+### Settings
+
+| Key | Default | Meaning |
+|---|---|---|
+| `chibi_sensei.training.machine_shape` | `NvidiaTeslaT4` | Kaggle GPU (`NvidiaTeslaT4` or `NvidiaL4`); must also be in `kaggle.allowed_machine_shapes` |
+| `chibi_sensei.training.delete_remote_after_run` | `true` | delete dataset and notebook on Kaggle after the run (needs `kaggle.allow_delete`) |
+| `kaggle.remote_timeout_minutes` | `60` | upper limit of a run's session; the preflight warns below 1.5 × estimate + 15 |
+| `kaggle.max_transfer_mb`, `kaggle.max_storage_mb` | `2048`, `10240` | largest single download, and the Kaggle staging storage |
+| `kaggle.max_remote_jobs` | `1` | Kaggle GPU runs at the same time (all of AuraGo) |
+| `chibi_sensei.storage.max_gb` | `20` | database plus `data/chibi_sensei/` |
+
+### When a run fails
+
+| Code | Meaning | What to do |
+|---|---|---|
+| `env_no_gpu`, `env_unsupported_gpu` | the notebook got no usable GPU | check the machine shape and the allow-list; try again later |
+| `env_no_internet` | the notebook had no internet | verify the Kaggle account by phone |
+| `install_failed`, `base_download_failed` | pip or the model download failed | usually temporary: start again |
+| `data_changed`, `data_mismatch` | the data changed after the start | start again |
+| `oom` | GPU memory ran out | preset `quick` or a smaller `max_seq_len` |
+| `train_diverged` | the loss became NaN | lower the learning rate |
+| `lora_targets_missing`, `merge_failed`, `gguf_failed`, `gguf_arch_mismatch` | the model could not be adapted, saved or converted | report it with the log tail; try another profile |
+| `kaggle_submit_unknown` | AuraGo cannot tell whether the notebook started | look at the notebook on Kaggle and stop it if it runs |
+| `remote_timeout` | the session passed its time limit | stop it on Kaggle; raise `kaggle.remote_timeout_minutes` or use `quick` |
+| `status_missing`, `manifest_invalid`, `trainer_failed` | the run left no usable result | read the log tail |
+| `download_failed`, `checksum_mismatch`, `artifact_too_large`, `storage_full` | a result could not be copied | check free disk, `kaggle.max_transfer_mb` and `chibi_sensei.storage.max_gb`; start again |
+| `upload_failed`, `dataset_failed`, `dataset_timeout`, `submit_failed`, `kaggle_slot_busy` | Kaggle refused a step | check the Kaggle app's job list and the quota; wait for other GPU runs |
+| `kaggle_unavailable` | Kaggle stayed unreachable for six hours before the notebook was running, or while the results were downloaded | wait, then start again |
+| `desktop_readonly` | the read-only desktop stopped the run before the notebook was submitted | make the desktop writable and start again |
+| `kaggle_refused` | a Kaggle setting the run needs was switched off before the notebook was submitted | switch the missing setting on in the Training step's list "Before you start" and start again |
+| `profile_changed`, `packaging_failed`, `internal_error` | AuraGo could not build or continue the run | start again; report it with the log |
+| `cancelled_by_user` | you cancelled | – |
+
+Warnings keep the run successful: `time_budget` (training stopped at the time budget; the partial result is kept), `base_gguf_skipped` and `base_gguf_invalid` (no base GGUF this time).
+
+A run that waits for Kaggle or the desktop shows a note for `kaggle_unavailable`, `desktop_readonly` or `kaggle_refused` until the wait ends. `cleanup_failed` means a Kaggle dataset or notebook could not be deleted; the run then lists it as a leftover. `staged_left` means temporary files of the run could not be removed from AuraGo's local Kaggle project folder after five attempts; the warning names the files. Cleaning retries those removals and waits while a local transfer of the run is active or cannot be read. Neither warning changes the result.
+
 ## Storage
 
-Everything lives in `data/chibi_sensei.db` (SQLite). It is part of the backup inventory, and `chibi_sensei.storage.max_gb` (default 20) caps its size including the write-ahead log. Deleting a project removes its rows, history, documents, checks, jobs and suggestions.
+The dataset lives in `data/chibi_sensei.db` (SQLite), which is part of the backup inventory. Training runs add files under `data/chibi_sensei/`: `runs/<run>/` (the frozen split files, the notebook sent to Kaggle, status, manifest, metrics, evaluation samples and the log tail), `models/<run>/` (GGUF and adapter) and `base/` (one GGUF per base model, revision and converter, shared by all runs). A stored base GGUF whose size and sha256 match its record is authoritative: a run whose manifest declares another hash fails with `checksum_mismatch` and the stored file stays as it is. A run removes a base GGUF it found invalid only when it stored that file itself and no other run uses it. `chibi_sensei.storage.max_gb` (default 20) caps the database (with its write-ahead log) and these files together; the preflight checks free disk and the cap against 1.2 × the expected download. **`data/chibi_sensei/` is not part of AuraGo backups: copy a model you want to keep.** Deleting a project removes its rows, history, documents, checks, jobs, suggestions and runs with their files, and is refused while one of its runs is active. Deleting a finished run removes its files and records; base GGUFs stay. Neither touches Kaggle.
 
 ## Settings
 
@@ -99,4 +176,6 @@ See [Configuration](configuration.md#chibi_sensei) for the details and the [API 
 
 ## Privacy and security
 
-In P1 nothing leaves the machine except the calls to the configured generator route during generation and cleaning. For those calls the app treats your rows and documents as material, never as instructions: they are fenced in `<external_data>` tags and the model is told not to follow anything inside them, and the composed prompt passes the injection scan before it is sent. Your goal text and your own instructions are your task and are not fenced. Model answers are parsed strictly against a schema and checked row by row before anything is stored. Keys and provider error texts never reach job results, events or responses.
+Without a training run nothing leaves the machine except the calls to the configured generator route during generation and cleaning. For those calls the app treats your rows and documents as material, never as instructions: they are fenced in `<external_data>` tags and the model is told not to follow anything inside them, and the composed prompt passes the injection scan before it is sent. Your goal text and your own instructions are your task and are not fenced. Model answers are parsed strictly against a schema and checked row by row before anything is stored. Keys and provider error texts never reach job results, events or responses.
+
+A training run sends the frozen split files to a private Kaggle dataset and the trainer to a private Kaggle notebook, only after you confirmed the start (see [Training on Kaggle](#training-on-kaggle)). The Kaggle token stays in the Vault; no secret, host path or Hugging Face token enters `job.json`, the notebook, the logs or the events, and Kaggle log text is scrubbed before AuraGo stores it. Result files get names AuraGo generates and are kept only when size and sha256 match the run's manifest.

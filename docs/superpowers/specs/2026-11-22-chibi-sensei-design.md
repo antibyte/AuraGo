@@ -433,7 +433,8 @@ Terminal states: `succeeded`, `failed`, `cancelled`.
 - Before `starting`: the run stops locally and the upload and dataset are cleaned up.
 - After submission: Chibi calls `Service.Cancel`. SaveKernel returns `ref`, `versionNumber` and `kernelId` but no `kernelSessionId` (`remote_lifecycle_test.go:82`), and the Kaggle contract forbids inferring one (`internal/kaggle/AGENTS.md:19`, `remote_jobs.go:213-215`). Remote cancel therefore normally fails.
 - When it fails, the run shows "Stop it on Kaggle" with a link to `https://www.kaggle.com/code/<owner>/<slug>`, keeps tracking until a terminal state and then ends `cancelled`.
-- The promise in the UI: "AuraGo stops waiting at once. GPU time ends when you stop the notebook on Kaggle, and at the latest at the run's time limit (<n> min)."
+- The promise in the UI (corrected in P2 to match the rule above): "AuraGo will not download a model from this run. If the notebook is already running, GPU time ends when you stop it on Kaggle, and at the latest at the run's time limit (<n> min). AuraGo keeps watching the notebook until it has ended and then tidies up; a new run can start after that."
+- A stop that arrives while the run is already tidying up (`cleaning`) changes nothing: the run's end state is decided.
 
 **Kaggle app job list.** Chibi's operations show up as ordinary job rows (`create_dataset`, `upload_dataset_file`, `save_kernel`, `download_kernel_output`, `delete_*`), and the `chibi-` slugs make them recognizable. The Kaggle app is not changed. Chibi's run view lists the Kaggle job IDs of each step.
 
@@ -444,7 +445,7 @@ The code allows live progress, with one gap. `get_kernel_session_logs_stream` ac
 Whether Kaggle serves the log while the session runs is UNVERIFIED.
 
 Design:
-- While `running`, the reconciler calls `ReadKernelLog(max 4 MiB)` every 60 s.
+- While `running`, the reconciler calls `ReadKernelLog(max 16 MiB)` every 60 s (P2 raised the cap from 4 MiB: Kaggle wraps every output line in a JSON entry, and the trainer's lines are size-capped).
 - `logparse.go` handles two inputs. It first tries a JSON array of `{stream_name, time, data}` entries and joins their `data`; otherwise it treats the body as plain text. It then extracts `@@chibi ` lines and dedupes them by `seq`.
 - Metrics are upserted into `metrics`; stages and warnings go to `run_events`.
 - SSE pushes `run`, `metric` and `stage` events to the window. The UI also polls `GET runs/{id}` every 2.5 s as a safety net, as Storymaker does.

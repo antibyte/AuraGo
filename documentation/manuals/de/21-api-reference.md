@@ -1645,7 +1645,7 @@ Die Antwort enthält die Rechner, Tabellen, Bauteilcodes und Steckerbelegungen m
 
 ### Chibi Sensei API
 
-Das Chibi-Sensei-Trainingsstudio (Datensätze für kleine Sprachmodelle). Lesen braucht `desktop:read`, Schreiben `desktop:write`; ein Job-Abbruch ist eine Stopp-Operation und funktioniert auch auf einem schreibgeschützten Desktop. Die Routen brauchen `chibi_sensei.enabled`; Generieren und Bereinigen brauchen zusätzlich ein nutzbares Generator-Modell (`GET /meta` meldet `generator.available`).
+Das Chibi-Sensei-Trainingsstudio (Datensätze für kleine Sprachmodelle und ihr Training auf Kaggle). Lesen braucht `desktop:read`, Schreiben `desktop:write`; ein Job- oder Lauf-Abbruch ist eine Stopp-Operation und funktioniert auch auf einem schreibgeschützten Desktop. Die Routen brauchen `chibi_sensei.enabled`; Generieren und Bereinigen brauchen zusätzlich ein nutzbares Generator-Modell (`GET /meta` meldet `generator.available`).
 
 ```http
 GET  /api/desktop/chibi-sensei/meta                              # Limits, Rezepte, Profile, Verfügbarkeit des Generators
@@ -1657,10 +1657,21 @@ POST /api/desktop/chibi-sensei/projects/{id}/generate            # 202 Job; LLM-
 POST /api/desktop/chibi-sensei/projects/{id}/clean               # 202 Job; LLM-Prüfung von höchstens 500 Zeilen
 GET  /api/desktop/chibi-sensei/jobs/{jobId}/suggestions          # die Prüfliste eines Bereinigungs-Jobs
 POST /api/desktop/chibi-sensei/jobs/{jobId}/apply                # {"accept":"all"} (nur Korrekturen) oder {"accept":[Zeilen-IDs]}
-GET  /api/desktop/chibi-sensei/projects/{id}/events              # Server-Sent Events: job, rows, checks
+GET  /api/desktop/chibi-sensei/projects/{id}/events              # Server-Sent Events: job, rows, checks, run, metric, stage
+GET  /api/desktop/chibi-sensei/projects/{id}/preflight?preset=   # Voraussetzungen fürs Training; fix.flags nennt, was ein Admin einschalten kann
+POST /api/desktop/chibi-sensei/preflight/enable                   # nur Admin; {"flags":[...]} schaltet Kaggle-Einstellungen per Name ein
+POST /api/desktop/chibi-sensei/consents                           # 201; {"profile_id"} speichert die Zustimmung zur Lizenz des Basismodells
+POST /api/desktop/chibi-sensei/projects/{id}/runs/prepare         # {"preset"}; Daten für die Bestätigung und ein Plan-Token (15 Minuten)
+POST /api/desktop/chibi-sensei/projects/{id}/runs                 # 202; {"plan_token"} startet den Kaggle-Lauf; GET listet die Läufe
+GET  /api/desktop/chibi-sensei/runs/{runId}                       # ein Lauf; .../metrics, .../events, .../artifacts, .../report, .../log
+GET  /api/desktop/chibi-sensei/runs/{runId}/artifacts/{aid}/file  # die Datei als Download (Range möglich)
+POST /api/desktop/chibi-sensei/runs/{runId}/cancel                # Stopp-Operation, auch auf einem schreibgeschützten Desktop
+POST /api/desktop/chibi-sensei/runs/{runId}/delete                # 204; nur beendete Läufe; lokale Dateien und Zeilen, nicht Kaggle
 ```
 
 Fehler sind flache Dokumente `{"error","code","message"}`. Generieren und Bereinigen antworten mit 503 `provider_unavailable`, 429 `budget_exceeded` und 429 `generator_daily_limit`; ein zweiter Job derselben Art im Projekt antwortet mit 409 `job_active`. Es laufen höchstens zwei Generierungs- oder Bereinigungsjobs gleichzeitig über alle Projekte; weitere bleiben `queued`. Ein Job, dem die Zeit ausgeht, endet `failed` mit dem `error_code` `timeout`; einer, der beim Hinzufügen von Zeilen den Speicher voll findet, endet `failed` mit `storage_full` (die bereits hinzugefügten Zeilen bleiben). Der Ereignisstrom erlaubt 16 Ströme je Projekt und 64 insgesamt; ein weiterer antwortet mit 429 `too_many_streams` (die Oberfläche fragt dann zyklisch ab). Die vollständige Routenliste, das Datenmodell und die Limits stehen im [Chibi-Sensei-Handbuch](../../chibi-sensei.md); die Einstellungen in der [Konfiguration](../../configuration.md#chibi_sensei).
+
+Das Training antwortet mit 409 `preflight_failed`, `run_active` oder `license_consent_required` samt `missing` (die IDs der fehlenden Voraussetzungen), mit 409 `plan_expired`, wenn das Plan-Token unbekannt, schon benutzt oder älter als 15 Minuten ist oder sich der Plan geändert hat, mit 409 `run_not_terminal`, 404 `run_not_found` und `artifact_not_found` sowie 403 `admin_required`. Die POST-Routen des Trainings verlangen von Browsern einen passenden `Origin`-Header (`csrf_check_failed`).
 
 ---
 

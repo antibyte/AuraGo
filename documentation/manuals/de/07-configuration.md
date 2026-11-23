@@ -903,7 +903,7 @@ Cloud-Stimmen kosten Geld; lokale Provider sind von den Zeich limits ausgenommen
 
 ### Chibi Sensei — Trainingsstudio für kleine Modelle
 
-`chibi_sensei` steuert die Desktop-App **Chibi Sensei**, ein geführtes Studio zum Feintuning kleiner Modelle. P1 ist das lokale Datensatz-Studio: Projekte, Zeilen, Importe, Prüfungen und JSONL-Export. Nur Generieren und Bereinigen rufen ein Modell auf (die konfigurierte Generator-Route); siehe das [Chibi-Sensei-Handbuch](../../chibi-sensei.md).
+`chibi_sensei` steuert die Desktop-App **Chibi Sensei**, ein geführtes Studio zum Feintuning kleiner Modelle: Projekte, Zeilen, Importe, Prüfungen, JSONL-Export und Trainingsläufe auf Kaggle. Generieren und Bereinigen rufen die konfigurierte Generator-Route auf; das Training nutzt die Kaggle-Integration (`kaggle.*`, auch `allowed_machine_shapes`); siehe das [Chibi-Sensei-Handbuch](../../chibi-sensei.md#training-on-kaggle).
 
 ```yaml
 chibi_sensei:
