@@ -3636,7 +3636,7 @@
 
     function normalizeProblem(problem) {
         const severity = ['error', 'warning', 'info'].includes(problem.severity) ? problem.severity : 'error';
-        return {
+        const normalized = {
             file: String(problem.file || ''),
             line: Math.max(1, Number(problem.line) || 1),
             column: Math.max(1, Number(problem.column) || 1),
@@ -3644,6 +3644,17 @@
             message: String(problem.message || '').trim(),
             source: String(problem.source || '')
         };
+        // IDE package 2b: language servers report where a finding ends; the squiggle then covers the whole range.
+        const endLine = Number(problem.endLine);
+        const endColumn = Number(problem.endColumn);
+        if (Number.isInteger(endLine) && Number.isInteger(endColumn)
+            && (endLine > normalized.line || (endLine === normalized.line && endColumn > normalized.column))) {
+            normalized.endLine = endLine;
+            normalized.endColumn = endColumn;
+        }
+        // IDE package 2b: the original LSP diagnostic travels with the problem, for textDocument/codeAction (plan 2c).
+        if (problem.lsp && typeof problem.lsp === 'object') normalized.lsp = problem.lsp;
+        return normalized;
     }
 
     function setProblems(problems) {
@@ -3671,6 +3682,19 @@
 
     function clearProblems() {
         setProblems([]);
+    }
+
+    // IDE package 2b: a language server always publishes the complete list of one file, so its findings for that file
+    // replace the earlier ones of the same source; other files and sources stay. List, squiggles and status counters
+    // keep coming from state.problems.
+    function replaceProblemsForFile(file, source, problems) {
+        const path = String(file || '');
+        const origin = String(source || '');
+        const current = state.problems || [];
+        const others = current.filter(problem => !(problem.file === path && problem.source === origin));
+        const mine = (problems || []).map(problem => ({ ...problem, file: path, source: origin }));
+        if (!mine.length && others.length === current.length) return;
+        setProblems([...others, ...mine]);
     }
 
     function problemsForFile(path) {
@@ -4135,7 +4159,12 @@
             const lineNumber = Math.min(Math.max(1, problem.line), doc.lines);
             const docLine = doc.line(lineNumber);
             const from = Math.min(docLine.to, docLine.from + Math.max(0, problem.column - 1));
-            const to = Math.min(docLine.to, Math.max(from + 1, docLine.from + Math.max(0, problem.column - 1)));
+            let to = Math.min(docLine.to, Math.max(from + 1, docLine.from + Math.max(0, problem.column - 1)));
+            // IDE package 2b: a finding with an end (language servers) is painted over its whole range.
+            if (problem.endLine) {
+                const endDocLine = doc.line(Math.min(Math.max(lineNumber, problem.endLine), doc.lines));
+                to = Math.max(to, Math.min(endDocLine.to, endDocLine.from + Math.max(0, problem.endColumn - 1)));
+            }
             return {
                 from,
                 to,
