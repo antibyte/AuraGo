@@ -17,11 +17,25 @@ var codeReferenceExample string
 //go:embed reference/svg-assets.js
 var svgReferenceExample string
 
+//go:embed reference/code-free.md
+var codeReferenceFree string
+
+//go:embed reference/free-motion.js
+var freeMotionExample string
+
 func init() {
-	registerStudioOp(ToolCatalog, "reference", func(_ context.Context, _ *Studio, args map[string]any) StudioResult {
+	registerStudioOp(ToolCatalog, "reference", func(_ context.Context, s *Studio, args map[string]any) StudioResult {
 		topic := studioArgString(args, "topic")
 		if topic == "" {
 			topic = "animation"
+		}
+		if s.job.Mode == ModeFree {
+			// A free project has no catalog assets: only the code reference, without api.add, serves it.
+			if topic != "code" {
+				return studioRefused("invalid_data", "A free project has only the code reference.", "Use topic code.")
+			}
+			return studioOK(map[string]any{"topic": topic, "version": "storymaker-reference/2-free",
+				"guide": codeReferenceFree + "\n\n## Motion example\n\n```javascript\n" + freeMotionExample + "\n```\n"})
 		}
 		var guide string
 		switch topic {

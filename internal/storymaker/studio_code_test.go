@@ -137,7 +137,7 @@ func TestStudioReferenceAndMetaAnimationControls(t *testing.T) {
 	if err != nil || story.Style.Rhythm != "calm" || !story.Style.AutoSFX {
 		t.Fatal(err, string(data))
 	}
-	for _, source := range []string{codeReferenceExample, svgReferenceExample} {
+	for _, source := range []string{codeReferenceExample, svgReferenceExample, freeMotionExample} {
 		if res := BundleCodeScene([]byte(source), "s1", StudioCodeBytes); len(res.Errors) != 0 {
 			t.Fatal(res.Errors)
 		}

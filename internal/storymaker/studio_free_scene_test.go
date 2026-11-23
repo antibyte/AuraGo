@@ -32,7 +32,7 @@ func TestFreeStudioWritesOnlyCodeScenes(t *testing.T) {
 		t.Fatalf("activation without source = %v", got)
 	}
 	read := codeCall(t, s, "get_code", "s1", nil, "")
-	write := codeCall(t, s, "put_code", "s1", map[string]any{"source": codeReferenceExample}, read["rev"].(string))
+	write := codeCall(t, s, "put_code", "s1", map[string]any{"source": freeMotionExample}, read["rev"].(string))
 	if write["status"] != "ok" {
 		t.Fatalf("put_code = %v", write)
 	}

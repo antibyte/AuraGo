@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"io/fs"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -13,6 +14,9 @@ import (
 const StudioCodeBytes = 8 << 10
 
 type studioCodeChange struct{ before, after [32]byte }
+
+// freeAPIAddCall matches a call of api.add, which places catalog people and props. A free project has none.
+var freeAPIAddCall = regexp.MustCompile(`\bapi\s*\.\s*add\s*\(`)
 
 func init() {
 	for _, operation := range []string{"get_code", "put_code"} {
@@ -63,6 +67,10 @@ func (s *Studio) runCode(ctx context.Context, op string, args map[string]any) St
 	}
 	if expected := studioArgString(args, "expected_rev"); expected == "" || studioRev(expected) != studioRev(rev) {
 		return sceneWriteRefused(op, id, "rev_mismatch", "The code revision is missing or stale.", "Call get_code and use its rev as expected_rev.", nil)
+	}
+	if s.job.Mode == ModeFree && freeAPIAddCall.MatchString(source) {
+		return sceneWriteRefused(op, id, "free_mode_code_only", "This project is drawn freely: api.add places catalog people and props, which a free project does not use.",
+			"Draw the motif with g.path, api.shape and api.text instead; see the code reference.", nil)
 	}
 	if s.writes[id] >= StudioSceneWriteLimit {
 		return sceneWriteRefused(op, id, "corrections_exhausted", "This scene used its write budget.", "Stop. Its last saved version stays.", nil)
