@@ -16409,9 +16409,9 @@ func handleChibiRunRoute(s *Server, w http.ResponseWriter, r *http.Request, runI
 - [ ] 7. `desktopRequestOperation` (`desktop_operation.go`). This function is HIGH risk: every desktop route depends on it. Exactly one new rule, inserted after line 46:
 
 ```diff
- 			(len(parts) == 6 && parts[0] == "api" && parts[1] == "desktop" && parts[2] == "chibi-sensei" && parts[3] == "jobs" && parts[5] == "cancel") ||
+             (len(parts) == 6 && parts[0] == "api" && parts[1] == "desktop" && parts[2] == "chibi-sensei" && parts[3] == "jobs" && parts[5] == "cancel") ||
 +			(len(parts) == 6 && parts[0] == "api" && parts[1] == "desktop" && parts[2] == "chibi-sensei" && parts[3] == "runs" && parts[5] == "cancel") ||
- 			(len(parts) == 6 && parts[0] == "api" && parts[1] == "desktop" && parts[2] == "personal-radio" && parts[3] == "stations" && (parts[5] == "stop" || parts[5] == "pause")) ||
+             (len(parts) == 6 && parts[0] == "api" && parts[1] == "desktop" && parts[2] == "personal-radio" && parts[3] == "stations" && (parts[5] == "stop" || parts[5] == "pause")) ||
 ```
 
   The test that pins the classification table is `TestDesktopReadonlyCleanupRoutes` (`desktop_audit_lifetime_test.go:12-42`). Extend both of its lists:

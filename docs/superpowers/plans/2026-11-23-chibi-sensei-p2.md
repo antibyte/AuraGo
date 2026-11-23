@@ -627,3 +627,19 @@ What happened when the plan was carried out, where it differs from the parts as 
 - **Lock.** `peft==0.22.0` (the version the CPU smoke runs used with transformers 5.24.0) and the measured hash of the llama.cpp `b9994` source tarball.
 - **Ignored files.** `.gitignore` ignores `*.lock` as well as `AGENTS.md` and `docs/`; `trainer/requirements.lock` had to be force-added.
 - **Translations.** The 14 other locales were produced as one JSON file per language and merged by a script that checks key sets and placeholders; six single words that are the same in a language and in English are listed in the locale test.
+- **Stop texts.** The spec's promise "AuraGo stops waiting at once" did not match the rule that a run keeps tracking its notebook after submission. The rule stayed; the texts (16 locales) and the spec now say that AuraGo keeps watching the notebook until it has ended.
+- **Reviews after B4.** Three read-only reviews (orchestrator against the spec, domain logic, security) found no critical defect and these important ones, all fixed with a test each:
+  - the log scan was quadratic on a body of repeated `"stream_name"` keys and dropped the plain lines of a plain-text log that contained one stream object; it is linear now (bounded decode window, at most 200000 entries) and keeps both;
+  - a run could replace or delete the base GGUF that other runs share; a stored file that matches its recorded hash is authoritative now, a manifest that declares another hash fails with `checksum_mismatch`, and a run removes a base file only if it stored it and nobody else refers to it;
+  - a stop in `cleaning` was shown as accepted while the run ended `succeeded`; it changes nothing now, and a stop stored before `cleaning` wins (files already downloaded stay with the run);
+  - a crash between the local copy of a result and the removal of its staged file caused a second download; the copy is committed first;
+  - staged files that could not be removed were reported as cleaned up; removal is retried five times and then named in the warning `staged_left`;
+  - a read-only desktop or a switched-off Kaggle setting held the single run slot for up to six hours; a run that has not reached Kaggle fails at once (`desktop_readonly`, new code `kaggle_refused`), a submitted run keeps waiting and says why;
+  - one failed status read after the deadline ended a healthy run with `remote_timeout`; the run waits 30 minutes for a successful read first;
+  - a submit that Kaggle refused was listed as a leftover notebook; leftovers need evidence that Kaggle has the object (or an unknown outcome);
+  - the trainer's output error used the stage name `finalize`, which the parser drops; it is `manifest`;
+  - a score with no scored samples was reported as 0; it is null;
+  - a lock without the llama.cpp tarball hash was accepted; the hash is mandatory.
+- **Decided not to change:** the deadline compares wall-clock timestamps (a clock jump is accepted); `logReadMaxBytes` stays 16 MiB (the spec said 4 MiB).
+- **Waiting notes.** The warn event of a waiting run carries only a code; the UI had no text for `kaggle_unavailable` and `desktop_readonly` and showed the generic note. Both, `kaggle_refused` and `staged_left` have texts in 16 locales.
+- **B5.3 detail.** `min(...)` in the artifact download window is written as an `if`, because a test file of package `server` defines its own `min`.
