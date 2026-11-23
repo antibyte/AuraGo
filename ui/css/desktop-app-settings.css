@@ -680,4 +680,6 @@
 }
 
 .vd-setting-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.vd-sound-category-actions { align-items: center; justify-content: flex-end; flex-wrap: nowrap; }
+.vd-sound-category-preview { white-space: nowrap; }
 .vd-wallpaper-path { overflow-wrap: anywhere; }

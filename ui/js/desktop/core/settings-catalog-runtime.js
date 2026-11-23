@@ -10,8 +10,8 @@
         return { type: 'select', key, label, desc, options };
     }
 
-    function settingToggle(key, label, desc) {
-        return { type: 'toggle', key, label, desc };
+    function settingToggle(key, label, desc, previewCategory) {
+        return previewCategory ? { type: 'toggle', key, label, desc, previewCategory } : { type: 'toggle', key, label, desc };
     }
 
     function settingInfo(label, value) {
@@ -152,10 +152,12 @@
                     settingToggle('sound.enabled', 'desktop.settings_sound_enabled', 'desktop.settings_sound_enabled_desc'),
                     settingSoundThemes(context),
                     settingRange('sound.volume', 'desktop.settings_sound_volume', 'desktop.settings_sound_volume_desc', 0, 1, 0.05),
-                    settingToggle('sound.windows', 'desktop.settings_sound_windows', 'desktop.settings_sound_windows_desc'),
-                    settingToggle('sound.notifications', 'desktop.settings_sound_notifications', 'desktop.settings_sound_notifications_desc'),
-                    settingToggle('sound.navigation', 'desktop.settings_sound_navigation', 'desktop.settings_sound_navigation_desc'),
-                    settingToggle('sound.files', 'desktop.settings_sound_files', 'desktop.settings_sound_files_desc')
+                    settingToggle('sound.windows', 'desktop.settings_sound_windows', 'desktop.settings_sound_windows_desc', 'windows'),
+                    settingToggle('sound.notifications', 'desktop.settings_sound_notifications', 'desktop.settings_sound_notifications_desc', 'notifications'),
+                    settingToggle('sound.navigation', 'desktop.settings_sound_navigation', 'desktop.settings_sound_navigation_desc', 'navigation'),
+                    settingToggle('sound.files', 'desktop.settings_sound_files', 'desktop.settings_sound_files_desc', 'files'),
+                    settingToggle('sound.interface', 'desktop.settings_sound_interface', 'desktop.settings_sound_interface_desc', 'interface'),
+                    settingToggle('sound.startup', 'desktop.settings_sound_startup', 'desktop.settings_sound_startup_desc', 'startup')
                 ]
             },
             {

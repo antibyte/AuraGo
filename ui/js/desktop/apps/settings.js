@@ -283,6 +283,26 @@
                 }
             });
         });
+        host.querySelectorAll('[data-sound-category-preview]').forEach(btn => {
+            btn.addEventListener('click', async event => {
+                event.preventDefault();
+                event.stopPropagation();
+                const sounds = window.DesktopSounds;
+                if (!sounds || typeof sounds.previewCategory !== 'function' || btn.disabled) return;
+                btn.disabled = true;
+                btn.setAttribute('aria-busy', 'true');
+                btn.textContent = ctx.t('desktop.settings_sound_preview_playing');
+                try { await sounds.previewCategory(btn.dataset.soundCategoryPreview, ctx.settingValue('sound.theme') || 'desktop'); }
+                catch (err) { ctx.showDesktopNotification({ title: ctx.t('desktop.notification'), message: ctx.t('desktop.settings_sound_preview_failed') }); }
+                finally {
+                    if (btn.isConnected) {
+                        btn.disabled = false;
+                        btn.removeAttribute('aria-busy');
+                        btn.textContent = ctx.t('desktop.settings_sound_preview');
+                    }
+                }
+            });
+        });
     }
 
     // Click, Enter and Space pick a theme card. A pick is ignored while the previous one is still being
@@ -434,8 +454,11 @@
         const currentValue = item.key === 'appearance.wallpaper' && typeof ctx.wallpaperForActiveSpace === 'function'
             ? ctx.wallpaperForActiveSpace()
             : settingValue(item.key);
+        const toggle = `<label class="vd-switch"><input type="checkbox" data-setting-key="${esc(item.key)}" aria-label="${esc(t(item.label))}" ${settingBool(item.key) ? 'checked' : ''}><span></span></label>`;
         const control = item.type === 'toggle'
-            ? `<label class="vd-switch"><input type="checkbox" data-setting-key="${esc(item.key)}" aria-label="${esc(t(item.label))}" ${settingBool(item.key) ? 'checked' : ''}><span></span></label>`
+            ? (item.previewCategory
+                ? `<div class="vd-setting-actions vd-sound-category-actions"><button type="button" class="vd-button vd-sound-category-preview" data-sound-category-preview="${esc(item.previewCategory)}" aria-label="${esc(t('desktop.settings_sound_preview_category', { name: t(item.label) }))}">${esc(t('desktop.settings_sound_preview'))}</button>${toggle}</div>`
+                : toggle)
             : `<select class="vd-setting-select" data-setting-key="${esc(item.key)}">${item.key === 'appearance.wallpaper' && window.AuraDesktopCustomWallpaper?.isCustom(currentValue) ? `<option value="${esc(currentValue)}" selected>${esc(window.AuraDesktopCustomWallpaper.path(currentValue))}</option>` : ''}${item.options.map(option => {
                 const normalized = normalizeSettingOption(option);
                 return `<option value="${esc(normalized.value)}" ${currentValue === normalized.value ? 'selected' : ''}>${esc(normalized.label)}</option>`;
