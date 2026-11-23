@@ -146,10 +146,20 @@ var storymakerPhaseEndings = map[string]string{
 	storymaker.PhaseRevise:  "If nothing is left to do, reply with one short sentence.",
 }
 
-// storymakerToolGuide is the tool section of a text-mode profile. Such a model gets no schemas, so the
+// storymakerToolGuide is the tool section of a catalog text-mode profile. Such a model gets no schemas, so the
 // allowed names travel here too.
 func storymakerToolGuide(phase string, names agent.StorymakerNames) string {
-	examples := storymakerToolExamples[phase]
+	return storymakerToolGuideFor(storymaker.ModeCatalog, phase, names)
+}
+
+// storymakerToolGuideFor is the tool section for the mode of a project. A free project has no poses, gestures or
+// expressions, and its reference topic is code.
+func storymakerToolGuideFor(mode, phase string, names agent.StorymakerNames) string {
+	free := storymaker.EffectiveMode(mode) == storymaker.ModeFree
+	examples, topic := storymakerToolExamples[phase], "animation"
+	if free {
+		examples, topic = storymakerFreeToolExamples[phase], "code"
+	}
 	label := "Examples:"
 	if len(examples) == 1 {
 		label = "Example:"
@@ -159,51 +169,72 @@ func storymakerToolGuide(phase string, names agent.StorymakerNames) string {
 		"Reply with exactly one raw JSON object and no other text. The field action names the tool. " + label,
 	}
 	lines = append(lines, examples...)
-	for _, name := range storymaker.PhaseTools(phase) {
-		lines = append(lines, name+" operations: "+strings.Join(storymaker.PhaseOperations(phase, name), ", "))
+	for _, name := range storymaker.PhaseToolsFor(mode, phase) {
+		lines = append(lines, name+" operations: "+strings.Join(storymaker.PhaseOperationsFor(mode, phase, name), ", "))
 	}
 	if phase != storymaker.PhaseOutline {
-		lines = append(lines, `Reference example: {"action":"storymaker_catalog","operation":"reference","topic":"animation"}`)
+		lines = append(lines, `Reference example: {"action":"storymaker_catalog","operation":"reference","topic":"`+topic+`"}`)
 	}
-	lines = append(lines,
-		"Poses: "+strings.Join(names.Poses, ", "),
-		"Gestures: "+strings.Join(names.Gestures, ", "),
-		"Expressions: "+strings.Join(names.Expressions, ", "),
-		"Transitions: "+storymakerTransitionNames,
-	)
+	if !free {
+		lines = append(lines,
+			"Poses: "+strings.Join(names.Poses, ", "),
+			"Gestures: "+strings.Join(names.Gestures, ", "),
+			"Expressions: "+strings.Join(names.Expressions, ", "),
+		)
+	}
+	lines = append(lines, "Transitions: "+storymakerTransitionNames)
 	return strings.Join(lines, "\n")
 }
 
-// storymakerAgentProfile builds the prompt profile of one phase: ground rules, house rules or house
-// style, the phase workflow, and in text mode the tool guide.
+// storymakerAgentProfile builds the prompt profile of one phase in the catalog mode.
 func storymakerAgentProfile(phase string, compact, text bool, names agent.StorymakerNames) (*agent.PreparedPromptProfile, error) {
-	workflow, ok := storymakerPhaseWorkflows[phase]
+	return storymakerAgentProfileFor(storymaker.ModeCatalog, phase, compact, text, names)
+}
+
+// storymakerAgentProfileFor builds the prompt profile of one phase for the mode of a project: ground rules, house rules or
+// house style, the code or animation guide, the phase workflow, and in text mode the tool guide.
+func storymakerAgentProfileFor(mode, phase string, compact, text bool, names agent.StorymakerNames) (*agent.PreparedPromptProfile, error) {
+	free := storymaker.EffectiveMode(mode) == storymaker.ModeFree
+	workflows, ground, rules, style, guide, name := storymakerPhaseWorkflows, storymakerGroundRules, storymakerHouseRules, storymakerHouseStyle, storymakerAnimationGuide, "storymaker/v5/"+phase
+	if free {
+		workflows, ground, rules, style, guide, name = storymakerFreePhaseWorkflows, storymakerFreeGroundRules, storymakerFreeHouseRules, storymakerFreeHouseStyle, storymakerFreeCodeGuide, "storymaker/v5/free/"+phase
+	}
+	workflow, ok := workflows[phase]
 	if !ok {
 		return nil, fmt.Errorf("storymaker: unknown agent phase %q", phase)
 	}
-	house, variant := storymakerHouseStyle, "normal"
+	house, variant := style, "normal"
 	if compact {
-		house, variant = storymakerHouseRules, "compact"
+		house, variant = rules, "compact"
 	}
-	name := "storymaker/v5/" + phase + "/" + variant
-	sections := []string{storymakerGroundRules, house}
+	name += "/" + variant
+	sections := []string{ground, house}
 	if phase == storymaker.PhaseFill || phase == storymaker.PhaseCheck || phase == storymaker.PhaseRevise {
-		sections = append(sections, storymakerAnimationGuide)
+		sections = append(sections, guide)
 	}
 	sections = append(sections, workflow)
 	if text {
 		name += "/text"
-		sections = append(sections, storymakerToolGuide(phase, names))
+		sections = append(sections, storymakerToolGuideFor(mode, phase, names))
 	}
-	return agent.NewPreparedPromptProfile(name, strings.Join(sections, "\n\n"), agent.StorymakerPhaseToolSchemas(phase, compact, names))
+	return agent.NewPreparedPromptProfile(name, strings.Join(sections, "\n\n"), agent.StorymakerPhaseToolSchemasFor(mode, phase, compact, names))
 }
 
-// storymakerRecoveryNudge builds RunConfig.RecoveryNudge for one phase.
+// storymakerRecoveryNudge builds RunConfig.RecoveryNudge for one phase in the catalog mode.
 func storymakerRecoveryNudge(phase string) func(native bool) string {
-	tools := strings.Join(storymaker.PhaseTools(phase), ", ")
+	return storymakerRecoveryNudgeFor(storymaker.ModeCatalog, phase)
+}
+
+// storymakerRecoveryNudgeFor builds RunConfig.RecoveryNudge for one phase of a project of the given mode.
+func storymakerRecoveryNudgeFor(mode, phase string) func(native bool) string {
+	tools := strings.Join(storymaker.PhaseToolsFor(mode, phase), ", ")
 	ending := storymakerPhaseEndings[phase]
+	examples := storymakerToolExamples[phase]
+	if storymaker.EffectiveMode(mode) == storymaker.ModeFree {
+		examples = storymakerFreeToolExamples[phase]
+	}
 	example := ""
-	if examples := storymakerToolExamples[phase]; len(examples) > 0 {
+	if len(examples) > 0 {
 		example = examples[0]
 	}
 	return func(native bool) string {
