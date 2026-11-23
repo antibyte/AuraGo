@@ -280,11 +280,13 @@ type EvalSample struct {
 	PromptMessages []Message  `json:"prompt_messages,omitempty"`
 	PromptText     string     `json:"prompt_text,omitempty"`
 	Expected       string     `json:"expected"`
-	BaseOutput     string     `json:"base_output"`
-	TunedOutput    string     `json:"tuned_output"`
-	BaseMS         int64      `json:"base_ms"`
-	TunedMS        int64      `json:"tuned_ms"`
-	Truncated      bool       `json:"truncated"`
+	// The four answer fields are nil when the trainer did not generate that answer (time cap or a
+	// generation failure); an empty string is a generated, empty answer.
+	BaseOutput  *string `json:"base_output"`
+	TunedOutput *string `json:"tuned_output"`
+	BaseMS      *int64  `json:"base_ms"`
+	TunedMS     *int64  `json:"tuned_ms"`
+	Truncated   bool    `json:"truncated"`
 }
 
 // ParseEvalSamples reads chibi-eval_samples.jsonl, skipping invalid lines, and returns at most limit samples.
@@ -309,9 +311,16 @@ func ParseEvalSamples(r io.Reader, limit int) ([]EvalSample, error) {
 		s.ID = FlexString(cutRunes(string(s.ID), 40))
 		s.PromptText = cutRunes(s.PromptText, maxEvalTextRunes)
 		s.Expected = cutRunes(s.Expected, maxEvalTextRunes)
-		s.BaseOutput = cutRunes(s.BaseOutput, maxEvalTextRunes)
-		s.TunedOutput = cutRunes(s.TunedOutput, maxEvalTextRunes)
-		s.BaseMS, s.TunedMS = max(s.BaseMS, 0), max(s.TunedMS, 0)
+		for _, p := range []*string{s.BaseOutput, s.TunedOutput} {
+			if p != nil {
+				*p = cutRunes(*p, maxEvalTextRunes)
+			}
+		}
+		for _, p := range []*int64{s.BaseMS, s.TunedMS} {
+			if p != nil {
+				*p = max(*p, 0)
+			}
+		}
 		out = append(out, s)
 		return len(out) < limit
 	})

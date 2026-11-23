@@ -20,7 +20,9 @@ const (
 )
 
 // TrainerStages are the stage names of the training contract in run order.
-var TrainerStages = []string{"boot", "env_check", "install", "data", "load_base", "base_eval", "train",
+// data runs before install so a bad dataset fails before the pip installs; converter probes the
+// GGUF converter (and writes the base GGUF) right after the base download, long before training.
+var TrainerStages = []string{"boot", "env_check", "data", "install", "load_base", "converter", "base_eval", "train",
 	"tuned_eval", "save", "gguf", "manifest"}
 
 var (

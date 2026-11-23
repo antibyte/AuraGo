@@ -148,7 +148,18 @@ func TestParseEvalSamples(t *testing.T) {
 		t.Errorf("limit: %d", len(ss))
 	}
 	big := `{"id":0,"prompt_text":"p","expected":"e","base_output":"b","tuned_output":"` + strings.Repeat("x", 9000) + `"}`
-	if ss, _ := ParseEvalSamples(strings.NewReader(big), 0); len(ss) != 1 || len([]rune(ss[0].TunedOutput)) != 8000 {
+	if ss, _ := ParseEvalSamples(strings.NewReader(big), 0); len(ss) != 1 || ss[0].TunedOutput == nil ||
+		len([]rune(*ss[0].TunedOutput)) != 8000 {
 		t.Errorf("cut: %+v", len(ss))
+	}
+	// An answer the trainer did not generate is null and stays nil; an empty answer stays an empty string.
+	missing := `{"id":"eval-1","prompt_text":"p","expected":"e","base_output":null,"tuned_output":"","base_ms":null,"tuned_ms":-3}`
+	ss, err = ParseEvalSamples(strings.NewReader(missing), 0)
+	if err != nil || len(ss) != 1 {
+		t.Fatalf("missing answers: %v %d", err, len(ss))
+	}
+	if s := ss[0]; s.ID != "eval-1" || s.BaseOutput != nil || s.BaseMS != nil || s.TunedOutput == nil || *s.TunedOutput != "" ||
+		s.TunedMS == nil || *s.TunedMS != 0 {
+		t.Errorf("missing answers: %+v", s)
 	}
 }
