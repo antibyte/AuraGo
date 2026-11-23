@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { storymakerHostParts, storymakerPlayerParts } from './storymaker-bundle-parts.js';
+import { desktopSoundParts } from './desktop-sound-bundle-parts.js';
 import './build-storymaker-vendor.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -165,20 +166,7 @@ const jsBundles = [
   },
   {
     out: 'ui/js/desktop/bundles/desktop-sounds.bundle.js',
-    parts: [
-      'ui/js/desktop/sound/synth-core.js',
-      'ui/js/desktop/sound/theme-crystal.js',
-      'ui/js/desktop/sound/theme-wood.js',
-      'ui/js/desktop/sound/theme-analog.js',
-      'ui/js/desktop/sound/theme-workshop.js',
-      'ui/js/desktop/sound/theme-water.js',
-      'ui/js/desktop/sound/theme-desktop.js',
-      'ui/js/desktop/sound/theme-electronic-dreams.js',
-      'ui/js/desktop/sound/theme-windows-xp.js',
-      'ui/js/desktop/sound/theme-green-slime.js',
-      'ui/js/desktop/sound/theme-voxel-world.js',
-      'ui/js/desktop/sound/theme-orbit.js'
-    ]
+    parts: desktopSoundParts
   },
   {
     out: 'ui/js/desktop/bundles/desktop-theme-fx.bundle.js',
