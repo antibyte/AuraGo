@@ -30,6 +30,7 @@ import (
 	"aurago/internal/agentmail"
 	"aurago/internal/bluetooth"
 	"aurago/internal/budget"
+	"aurago/internal/chibisensei"
 	"aurago/internal/config"
 	"aurago/internal/cyd"
 	"aurago/internal/cydcreator"
@@ -399,6 +400,12 @@ type Server struct {
 	chibiSenseiClosed bool
 	// chibiSenseiLLMOverride replaces the generator client in tests.
 	chibiSenseiLLMOverride llm.ChatClient
+	// chibiSenseiKaggleOverride replaces the Kaggle driver of the next opened runtime in tests (read in openChibiRuntime).
+	chibiSenseiKaggleOverride chibisensei.KaggleDriver
+	// chibiSenseiNoReconcile keeps the run orchestrator from starting in tests (read in chibiStartOrchestrator).
+	chibiSenseiNoReconcile bool
+	// chibiFreeDiskOverride replaces fileutil.FreeDiskBytes in the training preflight in tests (read in chibiFreeDisk).
+	chibiFreeDiskOverride func(path string) (int64, error)
 
 	// Docker Manager: the host registry and its SQLite store (docker_manager.db).
 	// DockerHosts stays nil when the store could not be opened; DockerStacks (the

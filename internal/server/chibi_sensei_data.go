@@ -141,7 +141,7 @@ func handleChibiPlan(s *Server, w http.ResponseWriter, r *http.Request, id strin
 	}
 	plan, err := chibisensei.ComputePlan(chibisensei.PlanInput{Project: proj, Profile: prof, Rows: rows,
 		Split: chibiSplitOf(rows, proj), Preset: preset,
-		RemoteTimeoutMinutes: acc.cfg.Kaggle.RemoteTimeoutMinutes, NeedBaseGGUF: true})
+		RemoteTimeoutMinutes: acc.cfg.Kaggle.RemoteTimeoutMinutes, NeedBaseGGUF: chibiNeedBaseGGUF(ctx, acc.rt.store, prof)})
 	if err != nil {
 		chibiDomainError(w, err)
 		return

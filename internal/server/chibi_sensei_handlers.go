@@ -65,6 +65,10 @@ func handleChibiSensei(s *Server) http.HandlerFunc {
 			} else {
 				handleChibiSuggestions(s, w, r, parts[1])
 			}
+		case len(parts) == 1 && parts[0] == "consents":
+			handleChibiConsents(s, w, r)
+		case len(parts) == 2 && parts[0] == "preflight" && parts[1] == "enable":
+			handleChibiPreflightEnable(s, w, r)
 		default:
 			chibiNotFound(w)
 		}
@@ -92,6 +96,8 @@ func handleChibiProjectRoute(s *Server, w http.ResponseWriter, r *http.Request, 
 			handleChibiSplit(s, w, r, id)
 		case "plan":
 			handleChibiPlan(s, w, r, id)
+		case "preflight":
+			handleChibiPreflight(s, w, r, id)
 		case "documents":
 			handleChibiDocuments(s, w, r, id)
 		case "imports":

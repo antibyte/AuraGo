@@ -124,11 +124,15 @@ type ProfileSummary struct {
 	SystemRole      string   `json:"system_role"`
 	MethodDefault   string   `json:"method_default"`
 	GGUFEstimatedMB int      `json:"gguf_estimated_mb"`
+	Methods         []string `json:"methods"`     // training methods the profile allows (A32)
+	MaxSeqCap       int      `json:"max_seq_cap"` // largest max_seq_len an override may pick (A32)
 	License         struct {
 		ID              string `json:"id"`
 		Name            string `json:"name"`
 		URL             string `json:"url"`
+		Version         string `json:"version"`
 		RequiresConsent bool   `json:"requires_consent"`
+		Accepted        bool   `json:"accepted"` // filled by the server from the consents table; Summary leaves it false
 	} `json:"license"`
 }
 
@@ -206,8 +210,10 @@ func (c *Catalog) SHA(id string) string { return c.sha[id] }
 func (p *Profile) Summary() ProfileSummary {
 	s := ProfileSummary{ID: p.ID, DisplayName: p.DisplayName, Status: p.Status, ParamsB: p.Arch.ParamsB,
 		ContextMax: p.Arch.ContextMax, Languages: append([]string{}, p.Arch.Languages...), TextOnly: p.Arch.TextOnly,
-		SystemRole: p.Chat.SystemRole, MethodDefault: p.Training.MethodDefault, GGUFEstimatedMB: p.GGUF.EstimatedMB}
+		SystemRole: p.Chat.SystemRole, MethodDefault: p.Training.MethodDefault, GGUFEstimatedMB: p.GGUF.EstimatedMB,
+		Methods: append([]string{}, p.Training.Methods...), MaxSeqCap: p.Training.MaxSeqCap}
 	s.License.ID, s.License.Name, s.License.URL = p.License.ID, p.License.Name, p.License.URL
+	s.License.Version = p.License.Version
 	s.License.RequiresConsent = p.License.RequiresConsent
 	return s
 }

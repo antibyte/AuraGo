@@ -13,9 +13,11 @@ import (
 	"sync"
 	"time"
 
+	"aurago/internal/buildinfo"
 	"aurago/internal/chibisensei"
 	"aurago/internal/config"
 	"aurago/internal/desktop"
+	"aurago/internal/fileutil"
 )
 
 const (
@@ -24,7 +26,7 @@ const (
 )
 
 // chibiSenseiRuntime is the lazily opened state of the app for one data directory: the dataset store, the
-// profile catalog, the event hub, the job runner and the delete-preview tokens.
+// profile catalog, the event hub, the job runner, the delete-preview tokens, the Kaggle driver, the run orchestrator, the plan tokens and the cache of the Kaggle reads.
 //
 // A handler holds the runtime through acquireChibiSensei until it is done. A runtime that is replaced
 // (data directory change) or shut down is retired: no new handler gets it, its job runner stops at once,
@@ -36,6 +38,11 @@ type chibiSenseiRuntime struct {
 	hub     *chibisensei.Hub
 	jobs    *chibisensei.Runner
 	deletes *chibisensei.DeleteTokens
+
+	driver      chibisensei.KaggleDriver
+	orch        *chibisensei.Orchestrator
+	plans       *chibisensei.PlanTokens
+	kaggleReads *chibiKaggleReads
 
 	retiring chan struct{} // closed when the runtime is retired; long streams end on it
 	drained  chan struct{} // closed after the store is closed
@@ -60,7 +67,8 @@ type chibiLease struct{ release func() }
 
 type chibiLeaseKey struct{}
 
-// openChibiRuntime opens the store of dataDir and everything that hangs on it.
+// openChibiRuntime opens the store of dataDir and everything that hangs on it. The run orchestrator starts only when a
+// non-terminal run exists; otherwise the first start (or a cancel) starts it.
 func (s *Server) openChibiRuntime(dataDir string) (*chibiSenseiRuntime, error) {
 	catalog, err := chibisensei.LoadCatalog()
 	if err != nil {
@@ -80,11 +88,81 @@ func (s *Server) openChibiRuntime(dataDir string) (*chibiSenseiRuntime, error) {
 		_ = store.Close()
 		return nil, err
 	}
-	return &chibiSenseiRuntime{
+	var driver chibisensei.KaggleDriver = newChibiKaggleDriver(s, store)
+	if s.chibiSenseiKaggleOverride != nil {
+		driver = s.chibiSenseiKaggleOverride
+	}
+	orch := chibisensei.NewOrchestrator(store, hub, catalog, driver, dataDir, s.chibiOrchestratorConfig)
+	if s.Logger != nil {
+		orch.SetLogger(s.Logger)
+	}
+	rt := &chibiSenseiRuntime{
 		dataDir: dataDir, store: store, catalog: catalog, hub: hub, jobs: jobs,
-		deletes:  chibisensei.NewDeleteTokens(nil),
+		deletes: chibisensei.NewDeleteTokens(nil),
+		driver:  driver, orch: orch, plans: chibisensei.NewPlanTokens(nil), kaggleReads: &chibiKaggleReads{},
 		retiring: make(chan struct{}), drained: make(chan struct{}),
-	}, nil
+	}
+	active, err := store.ActiveRuns(context.Background())
+	switch {
+	case err != nil:
+		if s.Logger != nil {
+			s.Logger.Warn("[ChibiSensei] Active training runs could not be read; the reconciler starts with the next run action", "error", err)
+		}
+	case len(active) > 0:
+		s.chibiStartOrchestrator(rt)
+	}
+	return rt, nil
+}
+
+// chibiStartOrchestrator starts the reconcile loop of rt (idempotent; a closed orchestrator ignores it). The loop lives
+// as long as the server, or until the runtime is retired.
+func (s *Server) chibiStartOrchestrator(rt *chibiSenseiRuntime) {
+	if s.chibiSenseiNoReconcile {
+		return
+	}
+	ctx := s.integrationCtx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	rt.orch.Start(ctx)
+}
+
+// chibiOrchestratorConfig feeds the orchestrator from the live configuration at every step.
+func (s *Server) chibiOrchestratorConfig() chibisensei.OrchestratorConfig {
+	out := chibisensei.OrchestratorConfig{MachineShape: config.DefaultChibiSenseiMachineShape, DeleteRemoteAfterRun: true,
+		AuraGoVersion: chibiAuraGoVersion()}
+	cfg := s.ConfigSnapshot()
+	if cfg == nil {
+		return out
+	}
+	cs := cfg.ChibiSensei
+	_ = config.NormalizeChibiSenseiConfig(&cs) // a range error elsewhere leaves the training values usable
+	if cs.Training.MachineShape != "" {
+		out.MachineShape = cs.Training.MachineShape
+	}
+	out.DeleteRemoteAfterRun = cs.Training.DeleteRemoteAfterRun
+	out.StorageMaxBytes = int64(cs.Storage.MaxGB) << 30
+	out.AllowDelete = cfg.Kaggle.AllowDelete
+	out.RemoteTimeoutMinutes = cfg.Kaggle.RemoteTimeoutMinutes
+	out.MaxTransferBytes = int64(cfg.Kaggle.MaxTransferMB) << 20
+	return out
+}
+
+// chibiAuraGoVersion is the build id written into job.json (1 to 64 characters).
+func chibiAuraGoVersion() string {
+	v := buildinfo.Current().BuildID
+	if len(v) > 64 {
+		v = v[:64]
+	}
+	return v
+}
+
+// chibiFreeDisk is fileutil.FreeDiskBytes, replaceable in tests.
+func (s *Server) chibiFreeDisk(path string) (int64, error) {
+	if s.chibiFreeDiskOverride != nil {
+		return s.chibiFreeDiskOverride(path)
+	}
+	return fileutil.FreeDiskBytes(path)
 }
 
 // acquireChibiSensei returns the runtime for the current data directory, opening
@@ -152,9 +230,10 @@ func (s *Server) chibiLeaseRelease(rt *chibiSenseiRuntime) func() {
 	}
 }
 
-// finishChibiRetire stops the job runner of a retired runtime (before its store goes) and closes the
+// finishChibiRetire stops the run orchestrator and the job runner of a retired runtime (before its store goes) and closes the
 // store when no handler holds the runtime any more; otherwise the last release closes it.
 func (s *Server) finishChibiRetire(rt *chibiSenseiRuntime) {
+	rt.orch.Close()
 	rt.jobs.Close()
 	s.chibiSenseiMu.Lock()
 	rt.jobsClosed = true
@@ -441,8 +520,19 @@ func handleChibiMeta(s *Server, w http.ResponseWriter, r *http.Request) {
 	available, model := s.chibiGeneratorStatus(acc.cfg)
 	profiles := []chibisensei.ProfileSummary{}
 	for _, p := range acc.rt.catalog.List() {
-		profiles = append(profiles, p.Summary())
+		sum := p.Summary()
+		sum.License.Accepted = !p.License.RequiresConsent
+		if p.License.RequiresConsent {
+			accepted, err := acc.rt.store.HasConsent(r.Context(), p.ID, p.License.ID, p.License.Version)
+			if err != nil {
+				chibiDomainError(w, err)
+				return
+			}
+			sum.License.Accepted = accepted
+		}
+		profiles = append(profiles, sum)
 	}
+	training := acc.cfg.ChibiSensei.Training
 	writeChibiJSON(w, http.StatusOK, map[string]any{
 		"readonly": acc.cfg.VirtualDesktop.ReadOnly,
 		"admin":    chibiRequestIsAdmin(s, r),
@@ -457,5 +547,8 @@ func handleChibiMeta(s *Server, w http.ResponseWriter, r *http.Request) {
 		"recipes":   chibisensei.Recipes(),
 		"profiles":  profiles,
 		"generator": map[string]any{"available": available, "model": model},
+		"training": map[string]any{"backend": chibisensei.BackendKaggle, "machine_shape": training.MachineShape,
+			"delete_remote_after_run": training.DeleteRemoteAfterRun},
+		"run_states": chibisensei.RunStates(),
 	})
 }
