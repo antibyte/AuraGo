@@ -14,3 +14,4 @@ export { TextSelection } from '@milkdown/kit/prose/state';
 export { Slice, Fragment } from '@milkdown/kit/prose/model';
 export { addRowAfter, addColumnAfter, deleteRow, deleteColumn, deleteTable, setCellAttr } from '@milkdown/kit/prose/tables';
 import '@milkdown/crepe/theme/common/style.css';
+export { obsidian, obsidianCommands, parseWikiValue } from './notes-obsidian.js';
