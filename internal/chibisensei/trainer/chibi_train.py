@@ -1338,7 +1338,9 @@ def template_check(ctx):
 
 def make_samples(ctx, fmt, role, max_len):
     tok, cap = ctx.tok, ctx.job["budget"]["eval_max_samples"]
-    max_prompt = max(8, max_len - ctx.job["budget"]["max_new_tokens"])
+    # The prompt keeps the length a training row may have. It is not shortened by max_new_tokens: the
+    # answer is generated after it and the models' context windows are far larger than max_seq_len.
+    max_prompt = max(8, max_len)
     out = []
     for row in (ctx.rows.get("eval") or [])[:cap]:
         s = {"id": sample_id(row)}
@@ -2524,10 +2526,29 @@ def st_answers():
     expect(split_text_prompt("one two three four") == ("one two", " three four"), "text prompt split")
 
 
+def st_samples():
+    class Holder:
+        pass
+    ctx = Holder()
+    ctx.tok, ctx.job = StubTokenizer(), sample_job()
+    # max_new_tokens as large as max_seq_len (the assistant recipe): the question must still reach the model.
+    ctx.job["budget"]["max_new_tokens"] = 256
+    row = {"_line": 1, "messages": [{"role": "user", "content": "what is in the amber fizz today"},
+                                    {"role": "assistant", "content": "tea"}]}
+    ctx.rows = {"eval": [row]}
+    full = chat_prompt_ids(ctx.tok, row["messages"][:-1], "native")
+    sample = make_samples(ctx, "messages", "native", 256)[0]
+    expect(len(full) > 8 and sample["_prompt_ids"] == full,
+           "the eval prompt is kept whole: %d of %d tokens" % (len(sample["_prompt_ids"]), len(full)))
+    expect(sample["id"] == "eval-1" and sample["base_output"] is None, "sample fields")
+    short = make_samples(ctx, "messages", "native", 16)[0]["_prompt_ids"]
+    expect(len(short) == 16 and short[0] == full[0] and short[1:] == full[-15:], "the eval prompt is cut at max_seq_len")
+
+
 SELFTESTS = (("log encoder", st_log), ("job schema", st_job), ("marker and sha256", st_marker),
              ("masking", st_masking), ("batching", st_batching), ("lora targets", st_targets),
              ("status and manifest", st_outputs), ("converter requirements", st_requirements),
-             ("budget", st_budget), ("answers", st_answers))
+             ("budget", st_budget), ("answers", st_answers), ("eval samples", st_samples))
 
 
 def selftest():
