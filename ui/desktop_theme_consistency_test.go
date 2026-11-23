@@ -82,7 +82,6 @@ func TestDesktopEverydayAppsUseThemeBridge(t *testing.T) {
 		{"css/desktop-app-file-manager.css", ".file-manager"},
 		{"css/desktop-app-file-manager.css", "var(--vd-theme-app-bg)"},
 		{"css/desktop-app-quick-connect.css", ".vd-quick-connect"},
-		{"css/desktop-app-quick-connect.css", "var(--vd-theme-app-bg)"},
 		{"css/desktop-app-mission-control.css", ".vd-mc"},
 		{"css/desktop-app-mission-control.css", "var(--vd-theme-app-bg)"},
 		{"css/desktop-app-software-store.css", ".vd-store"},

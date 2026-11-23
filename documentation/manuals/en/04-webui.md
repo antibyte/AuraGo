@@ -255,7 +255,7 @@ The Virtual Desktop opens workspace-backed apps in AuraGo's browser desktop. It 
 | **Homepage Studio** | Build, validate, and deploy managed website projects. The design picker offers 25 bundled DESIGN.md templates with a preview image each, and one selection applies to one site |
 | **Software Store** | Install and operate managed Docker apps such as Homarr, n8n, Node-RED, Open WebUI, Arcane, Termix, code-server, Dozzle, Beszel, and OliveTin |
 | **Docker Manager** | Manage local and remote Compose stacks, inspect live logs and resource usage, open a terminal, and free disk space with **Clean up** |
-| **Quick Connect** | Manage SSH/VNC connections |
+| **Quick Connect** | Manage SSH, VNC and serial connections |
 | **Network Cameras** | View go2rtc camera streams; person detection with events, zones and arming |
 | **Virtual Computers** | Operate Boring Computers machines and workspaces |
 | **MeshCore** | Desktop messenger for the MeshCore radio (see Chapter 8) |
@@ -316,6 +316,17 @@ The category picker also offers stopped containers, unused local networks and un
 - Session bytes are never logged; the Desktop audit log records each connection attempt, resolved target, result code, duration and byte counts.
 
 Details: the [Retro-Net deep dive](../../retro-net.md) and [chapter 8](08-integrations.md).
+
+### Quick Connect
+
+**Quick Connect** opens SSH terminals, VNC desktops and serial consoles in one window. The sidebar lists your devices and serial profiles; the main area shows the session.
+
+- **Add a server:** click **+** in the sidebar header, or choose **File → Add Server**.
+- **Find and connect:** press `/` to move to the search field. Arrow Down moves into the list, the arrow keys select a row, and Home and End jump to the first and last row. Enter in the search field connects the first matching device, and Enter on a selected row connects that device. Escape clears a non-empty search field and closes dialogs.
+- **Status bar:** under the session it shows the connection state, the protocol, the target (for example `user@host:22`), the session time once online and, for SSH, the terminal size.
+- **Phosphor switch:** the button at the right end of the status bar cycles **Auto → Green → Amber → Ice**. Auto takes the accent colour of the desktop theme; Green, Amber and Ice stay the same in every theme. The choice is saved in this browser, and open terminals change at once.
+
+Serial connections are described in [Quick Connect serial access](../../quick-connect-serial.md).
 
 ### Personal Radio
 

@@ -2792,6 +2792,60 @@ buttons and menu popovers remain excluded from those gestures.
 - Quick Connect device-list, generated-app host, and People content
   empty-state load failures reuse `desktop.load_failed`. Do not dump
   raw `err.message` there. People `t` takes `(context, key)`.
+- `quickconnect-console.js` (bundled before `quickconnect-sftp-navigator.js`)
+  holds the console helpers: `statusBarMarkup`/`createStatusBar` (state, protocol,
+  target, session timer, terminal size), `bootMarkup`, the phosphor switch
+  (`wirePhosphor`, `readPhosphor`, `writePhosphor`), `quickConnectTerminalTheme`,
+  `openDialog` (role, labelled title, focus in, Tab trap, Escape) and list keys
+  (`wireKeyboard`, `wireTabs`). `renderQuickConnect` in
+  `quickconnect-launchpad-chat.js` owns the session state and calls them. The
+  module holds no session state; its module-level values are the phosphor choice
+  (kept for re-renders when localStorage is blocked) and a dialog id counter. The
+  launchpad file is on the line-budget list (`ui/desktop_js_line_budget_test.go`),
+  so pure helpers belong in the console module.
+- Quick Connect session status has one writer: `setSessionStatus({ state,
+  protocol, deviceId, target, name })` in `renderQuickConnect`. Never write the
+  status bar, `.vd-qc-session-name` or a row's `.active`/`data-conn` anywhere else.
+  States are `idle`, `connecting`, `connected`, `disconnected`, `error`. SSH
+  (`connectSSH`) sets `connecting` at start, `connected` on the first binary frame,
+  `error` on a JSON `error` message or `ws.onerror`, and `disconnected` in
+  `ws.onclose` unless the state is already `error`. VNC mirrors the four states
+  of `setVNCStatus` while it is the connected protocol. Serial reports through the
+  optional `onStatus(kind, message, info)` of `QuickConnectSerial.create`: `ready`
+  maps to `idle`, the other kinds pass through, the protocol label is
+  `desktop.qc_serial_filter` and the target is the profile name. `idle` comes from
+  `closeRemoteSession`. The timer runs only in `connected`; window cleanup
+  disposes it.
+- `renderDeviceList` emits `.active` and `data-conn` on every `.vd-qc-device` from
+  the session state, so the highlight survives search, filter and reload. The
+  session's row is `.active` while the state is not `idle`, with `data-conn` set to
+  the state (`disconnected` shows as `idle`). All other rows are `data-conn="idle"`.
+- Quick Connect keyboard model: `wireKeyboard` on the app root maps `/` to the
+  search field unless focus is in an input, textarea, select or contenteditable
+  (xterm's helper textarea counts). In the search field ArrowDown focuses the first
+  visible row (first serial profile under the serial filter), Enter connects the
+  first device row and Escape clears a non-empty query. Rows move with arrows, Home
+  and End; ArrowUp on the first row returns to the search field. Tabs move with
+  ArrowLeft and ArrowRight. Every Quick Connect dialog opens through
+  `QuickConnectConsole.openDialog`, which keeps focus in the dialog and returns
+  it to the opener on the `release()` it returns. Call `release()` before
+  removing the overlay. Enter in a single-line server-dialog field saves.
+- Phosphor switch: `[data-qc-phosphor-toggle]` cycles auto, green, amber, ice and
+  sets `data-qc-phosphor` on `.vd-quick-connect`. The choice is stored in
+  localStorage under `aurago.quickConnect.phosphor`; invalid values read as
+  `auto`. A change calls `refreshTerminalThemes`, which updates the open SSH
+  terminal and `serialTerminal.refreshTheme()`.
+- xterm colours come from the `--qc-term-bg`, `--qc-term-fg`, `--qc-term-cursor` and
+  `--qc-term-selection` custom properties through `quickConnectTerminalTheme(root)`.
+  It resolves them to concrete colours with a probe element and a 1x1 canvas, so
+  `oklch()` and `color-mix()` values work, and it falls back to the built-in colours
+  on failure. Change terminal colours in the stylesheet, not in JS. The ANSI palette
+  is `ANSI_PALETTE` in `quickconnect-console.js`.
+- The serial modules (`quickconnect-serial*.js`) must keep working without
+  `quickconnect-console.js`: they must not reference `QuickConnectConsole`. The
+  serial browser fixtures load only those files. `onStatus` and `terminalTheme` are
+  optional options; without `terminalTheme` the serial terminal keeps its own
+  default theme. `refreshTheme()` re-reads the theme from that option.
 - Editor fallback file-list empty-state load failures reuse
   `desktop.load_failed`. Do not dump raw `err.message` there.
 - Webamp unsupported-browser errors use
@@ -3662,7 +3716,7 @@ buttons and menu popovers remain excluded from those gestures.
   (vendor CSS, the theme-independent skins above, `go2rtc-source-form.css` with no
   painted region). Kaggle, the QR dialog and the GOG source panels adopt the tokens.
 - Everyday apps Writer/Sheets, Todo/Calendar, Settings, Calculator, Chat, File
-  Manager, Quick Connect, Mission Control, Software Store, Gallery, Notes,
+  Manager, Mission Control, Software Store, Gallery, Notes,
   Viewer, Looper, Cheater, People, Launchpad, Zipper, Pixel, Log Viewer,
   System Info, Pet Picker, Personal Radio (the Radio receiver skin, `radio.css`,
   stays out), Camera, Code Studio, Network Cameras,
@@ -3690,8 +3744,15 @@ buttons and menu popovers remain excluded from those gestures.
   toolbars, status bars, and sheet chrome follow the active desktop theme.
 - Chat user bubbles may keep an accent wash (`--vd-theme-accent-soft`); agent
   bubbles use theme panel material instead of fixed white glass.
-- Quick Connect xterm/VNC viewports and the built-in Terminal screen may stay
-  on a dark terminal surface (`#0d1117` / `#0f172a`); toolbars follow theme.
+- Quick Connect is a theme-independent console deck. Its whole interior is painted
+  from the `--qc-*` tokens of `ui/css/desktop-app-quick-connect.css`, which must not
+  read `--vd-mat-*` and is listed in `desktopAppMaterialsExempt`
+  (`ui/desktop_app_materials_test.go`). The only theme input is `--vd-accent`, which
+  becomes the HUD colour (`--qc-ph`); the phosphor switch can replace it with fixed
+  Green, Amber or Ice. Connected, connecting, error and idle colours are fixed
+  (`--qc-ok`, `--qc-warn`, `--qc-err`, `--qc-text-dim`) and never follow the accent.
+- The built-in Terminal screen may stay on a dark terminal surface (`#0d1117` /
+  `#0f172a`); toolbars follow theme.
 - Gallery thumbnails (`.vd-gallery-thumb`), the info-panel preview
   (`.vd-gallery-info-preview`) and the lightbox stage (`.vd-lightbox-stage`)
   may stay dark for media contrast; card chrome, toolbar, info panel and the

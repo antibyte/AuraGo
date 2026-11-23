@@ -53,6 +53,19 @@ Windows and macOS may need the adapter manufacturer's driver. A busy port must
 be released by its current application. Quick Connect and MeshCore share an
 in-process reservation; neither takes over the other's connection.
 
+## Serial in the Quick Connect window
+
+Start a serial connection from the **File** menu (**New serial connection**) or
+select the **Serial** filter in the sidebar. The serial list head shows the number
+of saved profiles and an icon-only **+** button (**Create serial profile**). Select
+a profile and use its **Connect** button to open the session.
+
+While a serial session runs, the status bar under the console shows the state
+(Ready, Connecting, Online, Offline or Error), the protocol label **Serial**, the
+profile name as the target and, once online, the session time. The terminal size
+is not shown for serial sessions. The phosphor switch in the status bar works as
+it does for SSH sessions.
+
 ## Docker device passthrough
 
 For a Docker installation, edit the Compose service that runs AuraGo. Add the
