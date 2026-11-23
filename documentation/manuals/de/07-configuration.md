@@ -920,6 +920,9 @@ chibi_sensei:
         model: ""                   # Modell-Override; leer = das Modell des Providers
         max_rows_per_job: 500       # Zeilen, die ein Erzeugungsjob hinzufügen darf (10-5000)
         max_daily_rows: 5000        # erzeugte plus bereinigte Zeilen pro lokalem Tag (100-100000)
+    training:
+        machine_shape: "NvidiaTeslaT4"  # Kaggle-GPU für Trainingsläufe: NvidiaTeslaT4 oder NvidiaL4; muss auch in kaggle.allowed_machine_shapes stehen
+        delete_remote_after_run: true   # löscht nach einem Lauf den hochgeladenen Datensatz und das Notebook auf Kaggle (braucht kaggle.allow_delete)
 ```
 
 ### FindIt – Inventar und Lagerorte
@@ -955,6 +958,7 @@ kaggle:
   allow_tpu: false
   allow_internet: false
   allowed_owners: []
+  allowed_machine_shapes: []  # NvidiaTeslaT4, NvidiaL4; jeder Typ braucht zusätzlich allow_gpu
 ```
 
 Siehe [Kaggle](../../kaggle.md).

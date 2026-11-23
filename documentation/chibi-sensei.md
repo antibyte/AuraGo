@@ -92,6 +92,8 @@ Everything lives in `data/chibi_sensei.db` (SQLite). It is part of the backup in
 | `generator.model` | empty (the provider's model) | |
 | `generator.max_rows_per_job` | `500` | 10-5000 |
 | `generator.max_daily_rows` | `5000` | 100-100000 |
+| `training.machine_shape` | `NvidiaTeslaT4` | `NvidiaTeslaT4` or `NvidiaL4`; also listed in `kaggle.allowed_machine_shapes` |
+| `training.delete_remote_after_run` | `true` | needs `kaggle.allow_delete` |
 
 See [Configuration](configuration.md#chibi_sensei) for the details and the [API reference](manuals/en/21-api-reference.md#chibi-sensei-api) for the routes.
 

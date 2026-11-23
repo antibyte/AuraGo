@@ -621,6 +621,8 @@ The Chibi Sensei training studio. P1 is the dataset studio. Only generation and 
 | `generator.model` | `""` | Empty: the provider's model. |
 | `generator.max_rows_per_job` | `500` | 10–5000. |
 | `generator.max_daily_rows` | `5000` | 100–100000; cleaning counts its rows too. |
+| `training.machine_shape` | `NvidiaTeslaT4` | Kaggle GPU for training runs: `NvidiaTeslaT4` or `NvidiaL4`. It must also be listed in `kaggle.allowed_machine_shapes`. Any other value is rejected when you save. |
+| `training.delete_remote_after_run` | `true` | After a run, delete the uploaded dataset and the notebook on Kaggle. Needs `kaggle.allow_delete`; without it they stay on Kaggle and the run lists them. |
 
 ---
 
@@ -656,6 +658,7 @@ Kaggle workspace and notebook IDE. See [Kaggle](kaggle.md).
 | `allow_tpu` | `false` | Request TPU accelerators for remote runs. |
 | `allow_internet` | `false` | Allow internet access from remote notebooks. |
 | `allowed_owners` | `[]` | Your own account is always allowed; further accounts require an explicit entry. |
+| `allowed_machine_shapes` | `[]` | Machine shapes a notebook run may request: `NvidiaTeslaT4`, `NvidiaL4`. A run that names one also needs `allow_gpu` and a GPU run. Unknown names are dropped when the configuration loads. |
 
 ---
 

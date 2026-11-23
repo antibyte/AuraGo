@@ -6,14 +6,16 @@ import (
 )
 
 // ChibiSenseiConfig configures the Chibi Sensei desktop app (small-model training studio). Enabled
-// defaults to true in the loader. Later phases add Agent, Training and Runtime as sibling fields;
-// none of the fields below is renamed then.
+// and Training.DeleteRemoteAfterRun default to true in the loader, because a YAML bool cannot tell
+// "absent" from false. Later phases add Agent and Runtime as sibling fields; none of the fields
+// below is renamed then.
 type ChibiSenseiConfig struct {
 	Enabled   bool                       `yaml:"enabled" json:"enabled"`
 	Storage   ChibiSenseiStorageConfig   `yaml:"storage" json:"storage"`
 	Dataset   ChibiSenseiDatasetConfig   `yaml:"dataset" json:"dataset"`
 	Import    ChibiSenseiImportConfig    `yaml:"import" json:"import"`
 	Generator ChibiSenseiGeneratorConfig `yaml:"generator" json:"generator"`
+	Training  ChibiSenseiTrainingConfig  `yaml:"training" json:"training"`
 }
 
 // ChibiSenseiStorageConfig caps everything Chibi Sensei stores under the data directory.
@@ -40,11 +42,28 @@ type ChibiSenseiGeneratorConfig struct {
 	MaxDailyRows  int    `yaml:"max_daily_rows" json:"max_daily_rows"`     // 100..100000, default 5000
 }
 
+// DefaultChibiSenseiMachineShape is the Kaggle machine shape of a training run when none is set.
+const DefaultChibiSenseiMachineShape = "NvidiaTeslaT4"
+
+// ChibiSenseiTrainingConfig controls remote training runs on Kaggle.
+type ChibiSenseiTrainingConfig struct {
+	MachineShape         string `yaml:"machine_shape" json:"machine_shape"`                     // one of KaggleMachineShapes; default NvidiaTeslaT4
+	DeleteRemoteAfterRun bool   `yaml:"delete_remote_after_run" json:"delete_remote_after_run"` // default true (set by the loader)
+}
+
 // NormalizeChibiSenseiConfig trims the provider and model, applies defaults for zero values and
-// rejects values outside their range. It does not change Enabled.
+// rejects values outside their range or an unknown training machine shape. It changes neither
+// Enabled nor Training.DeleteRemoteAfterRun; the loader sets their defaults before decoding.
 func NormalizeChibiSenseiConfig(c *ChibiSenseiConfig) error {
 	c.Generator.Provider = strings.TrimSpace(c.Generator.Provider)
 	c.Generator.Model = strings.TrimSpace(c.Generator.Model)
+	if strings.TrimSpace(c.Training.MachineShape) == "" {
+		c.Training.MachineShape = DefaultChibiSenseiMachineShape
+	} else if shape, ok := CanonicalKaggleMachineShape(c.Training.MachineShape); ok {
+		c.Training.MachineShape = shape
+	} else {
+		return fmt.Errorf("chibi_sensei: training.machine_shape must be one of %s", strings.Join(KaggleMachineShapes, ", "))
+	}
 	for _, f := range []struct {
 		p           *int
 		def, lo, hi int

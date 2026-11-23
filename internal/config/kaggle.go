@@ -21,6 +21,7 @@ type KaggleConfig struct {
 	AllowTPU              bool              `yaml:"allow_tpu" json:"allow_tpu"`
 	AllowInternet         bool              `yaml:"allow_internet" json:"allow_internet"`
 	AllowedOwners         []string          `yaml:"allowed_owners" json:"allowed_owners"`
+	AllowedMachineShapes  []string          `yaml:"allowed_machine_shapes" json:"allowed_machine_shapes"`
 	MaxTransferMB         int               `yaml:"max_transfer_mb" json:"max_transfer_mb"`
 	MaxStorageMB          int               `yaml:"max_storage_mb" json:"max_storage_mb"`
 	MaxRemoteJobs         int               `yaml:"max_remote_jobs" json:"max_remote_jobs"`
@@ -40,6 +41,23 @@ type KaggleLocalConfig struct {
 	CellTimeoutMinutes int  `yaml:"cell_timeout_minutes" json:"cell_timeout_minutes"`
 }
 
+// KaggleMachineShapes lists the Kaggle machine shapes AuraGo may request for a notebook run, in
+// display order. NormalizeKaggleConfig keeps only these names. machineShape has no enum in the
+// pinned SDK contract, so this list and kaggle.allowed_machine_shapes are its only restriction.
+var KaggleMachineShapes = []string{"NvidiaTeslaT4", "NvidiaL4"}
+
+// CanonicalKaggleMachineShape returns the known spelling of name (trimmed, case-insensitive) and
+// whether name is a known machine shape.
+func CanonicalKaggleMachineShape(name string) (string, bool) {
+	name = strings.TrimSpace(name)
+	for _, known := range KaggleMachineShapes {
+		if strings.EqualFold(name, known) {
+			return known, true
+		}
+	}
+	return "", false
+}
+
 func DefaultKaggleConfig() KaggleConfig {
 	c := KaggleConfig{ReadOnly: true}
 	NormalizeKaggleConfig(&c)
@@ -55,6 +73,18 @@ func NormalizeKaggleConfig(c *KaggleConfig) {
 	for i := range c.AllowedOwners {
 		c.AllowedOwners[i] = strings.TrimSpace(c.AllowedOwners[i])
 	}
+	// Known names only, canonical spelling, each once, in KaggleMachineShapes order. Never nil, so
+	// JSON shows [] instead of null.
+	shapes := []string{}
+	for _, known := range KaggleMachineShapes {
+		for _, v := range c.AllowedMachineShapes {
+			if canonical, ok := CanonicalKaggleMachineShape(v); ok && canonical == known {
+				shapes = append(shapes, known)
+				break
+			}
+		}
+	}
+	c.AllowedMachineShapes = shapes
 	bounded := func(p *int, fallback, max int) {
 		if *p <= 0 {
 			*p = fallback

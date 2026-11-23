@@ -602,7 +602,10 @@ func load(path string, diagnosticBackup bool) (*Config, error) {
 	cfg.VideoStudio.Plan.Enabled = true
 
 	// Chibi Sensei is on by default: local dataset studio; never widens other permissions.
+	// Training defaults: T4 GPU, and Kaggle copies are removed after a run when allow_delete permits.
 	cfg.ChibiSensei.Enabled = true
+	cfg.ChibiSensei.Training.MachineShape = DefaultChibiSenseiMachineShape
+	cfg.ChibiSensei.Training.DeleteRemoteAfterRun = true
 
 	// HomeDash is on by default: nothing connects until a dashboard is open; the kiosk stays off.
 	cfg.HomeDash.Enabled = true

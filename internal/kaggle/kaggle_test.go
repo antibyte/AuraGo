@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -267,5 +268,137 @@ func TestKaggleUnknownOutcomePersistsWithoutReplay(t *testing.T) {
 	j, err := s.Store.Get(context.Background(), id)
 	if err != nil || j.Status != "unknown" {
 		t.Fatalf("%+v %v", j, err)
+	}
+}
+
+func TestKaggleMachineShapeGrants(t *testing.T) {
+	base := config.DefaultKaggleConfig()
+	base.Enabled, base.ReadOnly = true, false
+	base.AllowCreate, base.AllowRemoteExecute, base.AllowGPU = true, true, true
+	base.AllowedMachineShapes = []string{"NvidiaTeslaT4"}
+	a := Access{Network: true, Write: true}
+	op, _ := Lookup("notebooks", "save_kernel")
+	params := func(extra map[string]any) map[string]any {
+		p := map[string]any{"kernelExecutionType": "SAVE_AND_RUN_ALL", "enableGpu": true}
+		for k, v := range extra {
+			if v == nil {
+				delete(p, k)
+			} else {
+				p[k] = v
+			}
+		}
+		return p
+	}
+	for _, tc := range []struct {
+		name   string
+		mutate func(*config.KaggleConfig)
+		params map[string]any
+		ok     bool
+	}{
+		{"listed shape with GPU", nil, params(map[string]any{"machineShape": "NvidiaTeslaT4"}), true},
+		{"no shape", nil, params(nil), true},
+		{"empty shape", nil, params(map[string]any{"machineShape": ""}), true},
+		{"quick save with shape and GPU", nil, params(map[string]any{"kernelExecutionType": "QUICK_SAVE", "machineShape": "NvidiaTeslaT4"}), true},
+		{"second listed shape", func(c *config.KaggleConfig) { c.AllowedMachineShapes = []string{"NvidiaTeslaT4", "NvidiaL4"} }, params(map[string]any{"machineShape": "NvidiaL4"}), true},
+		{"shape without enableGpu", nil, params(map[string]any{"machineShape": "NvidiaTeslaT4", "enableGpu": nil}), false},
+		{"shape with enableGpu false", nil, params(map[string]any{"machineShape": "NvidiaTeslaT4", "enableGpu": false}), false},
+		{"shape without GPU grant", func(c *config.KaggleConfig) { c.AllowGPU = false }, params(map[string]any{"machineShape": "NvidiaTeslaT4"}), false},
+		{"known shape not listed", nil, params(map[string]any{"machineShape": "NvidiaL4"}), false},
+		{"unknown shape", nil, params(map[string]any{"machineShape": "NvidiaA100"}), false},
+		{"wrong case", nil, params(map[string]any{"machineShape": "nvidiateslat4"}), false},
+		{"empty allow-list", func(c *config.KaggleConfig) { c.AllowedMachineShapes = nil }, params(map[string]any{"machineShape": "NvidiaTeslaT4"}), false},
+		{"docker image with listed shape", nil, params(map[string]any{"machineShape": "NvidiaTeslaT4", "dockerImage": "gcr.io/kaggle-gpu-images/python"}), false},
+		{"docker image alone", nil, params(map[string]any{"dockerImage": "gcr.io/kaggle-gpu-images/python"}), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := base
+			c.AllowedMachineShapes = append([]string(nil), base.AllowedMachineShapes...)
+			if tc.mutate != nil {
+				tc.mutate(&c)
+			}
+			err := CheckGrants(c, a, op, tc.params)
+			if (err == nil) != tc.ok {
+				t.Fatalf("CheckGrants(%v) = %v, want ok=%v", tc.params, err, tc.ok)
+			}
+		})
+	}
+}
+
+func TestKaggleMachineShapeSnapshotIntersection(t *testing.T) {
+	current := config.KaggleConfig{AllowedMachineShapes: []string{"NvidiaTeslaT4", "NvidiaL4"}}
+	for _, tc := range []struct{ snapshot, want []string }{
+		{[]string{"NvidiaL4"}, []string{"NvidiaL4"}},
+		{[]string{"NvidiaL4", "NvidiaTeslaT4"}, []string{"NvidiaTeslaT4", "NvidiaL4"}},
+		{nil, []string{}},
+	} {
+		got := intersectConfig(current, config.KaggleConfig{AllowedMachineShapes: tc.snapshot}).AllowedMachineShapes
+		if !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("intersect with %v = %v, want %v", tc.snapshot, got, tc.want)
+		}
+	}
+	// Revoking a shape in the current config also revokes it for a running snapshot.
+	revoked := intersectConfig(config.KaggleConfig{AllowedMachineShapes: []string{"NvidiaL4"}}, current).AllowedMachineShapes
+	if !reflect.DeepEqual(revoked, []string{"NvidiaL4"}) {
+		t.Fatalf("revocation ignored: %v", revoked)
+	}
+	snap := config.KaggleConfig{AllowedMachineShapes: []string{"NvidiaTeslaT4"}}
+	ctx := WithConfigSnapshot(context.Background(), snap)
+	snap.AllowedMachineShapes[0] = "NvidiaL4"
+	held := ctx.Value(grantSnapshotKey{}).(config.KaggleConfig)
+	if held.AllowedMachineShapes[0] != "NvidiaTeslaT4" {
+		t.Fatal("WithConfigSnapshot shares the machine-shape slice with its caller")
+	}
+}
+
+func TestKaggleRemoveFilePathSafety(t *testing.T) {
+	s := newTestService(t)
+	ctx := context.Background()
+	p, err := s.CreateProject(ctx, "Staging")
+	if err != nil {
+		t.Fatal(err)
+	}
+	const name = "r0123456789ab-train.jsonl"
+	if _, err = s.WriteFile(ctx, p.ID, name, strings.NewReader("{}\n"), nil); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.RemoveFile(p.ID, name); err != nil {
+		t.Fatal(err)
+	}
+	if files, _ := s.Files(p.ID); len(files) != 0 {
+		t.Fatalf("file not removed: %v", files)
+	}
+	if err = s.RemoveFile(p.ID, name); err != nil {
+		t.Fatalf("missing file must not be an error: %v", err)
+	}
+	for _, bad := range []string{"", ".", "..", "../secret", "a/b", "a\b", ".hidden", "CON", "C:x"} {
+		if s.RemoveFile(p.ID, bad) == nil {
+			t.Fatalf("unsafe name %q accepted", bad)
+		}
+	}
+	if s.RemoveFile("not-a-project", "x.txt") == nil {
+		t.Fatal("invalid project ID accepted")
+	}
+	dir := filepath.Join(s.Root, p.ID, "folder")
+	if err = os.Mkdir(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if s.RemoveFile(p.ID, "folder") == nil {
+		t.Fatal("directory removed")
+	}
+	if _, err = os.Stat(dir); err != nil {
+		t.Fatal("directory lost")
+	}
+	target := filepath.Join(s.Root, p.ID, "keep.txt")
+	if err = os.WriteFile(target, []byte("keep"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// Symlink creation needs a privilege on Windows; the existing transfer test uses the same guard.
+	if err = os.Symlink(target, filepath.Join(s.Root, p.ID, "link.txt")); err == nil {
+		if s.RemoveFile(p.ID, "link.txt") == nil {
+			t.Fatal("symlink removed")
+		}
+		if _, err = os.Stat(target); err != nil {
+			t.Fatal("symlink target lost")
+		}
 	}
 }

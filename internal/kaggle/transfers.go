@@ -75,6 +75,36 @@ func (s *Service) OpenFile(project, name string) (*os.File, error) {
 	return r.Open(name)
 }
 
+// RemoveFile deletes one regular file of a project. A missing file is not an error. Symlinks,
+// directories and invalid names are refused. It applies no policy gate: it is in-process cleanup
+// for callers that apply their own gates, with no HTTP route and no agent operation.
+func (s *Service) RemoveFile(project, name string) error {
+	if !validFile(name) {
+		return errors.New("invalid project filename")
+	}
+	s.filesMu.Lock()
+	defer s.filesMu.Unlock()
+	r, err := s.projectRoot(project)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+	info, err := r.Lstat(name)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if !info.Mode().IsRegular() {
+		return errors.New("project file must be a regular file")
+	}
+	if err := r.Remove(name); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	return nil
+}
+
 type File struct {
 	Name     string    `json:"name"`
 	Size     int64     `json:"size"`
@@ -271,6 +301,30 @@ func (s *Service) WriteFileVersion(ctx context.Context, project, name, expected 
 	return n, nil
 }
 
+// followStorageRedirect follows one Kaggle storage redirect with an uncredentialed, SSRF-checked
+// client from storageFactory. A response that is not a redirect is returned unchanged. The caller
+// closes the returned body. timeout 0 keeps the storage client's default.
+func (s *Service) followStorageRedirect(ctx context.Context, resp *http.Response, timeout time.Duration) (*http.Response, error) {
+	if resp.StatusCode < 300 || resp.StatusCode >= 400 {
+		return resp, nil
+	}
+	location := resp.Header.Get("Location")
+	resp.Body.Close()
+	h, err := s.storageFactory(ctx, location, timeout)
+	if err != nil {
+		return nil, err
+	}
+	r, err := http.NewRequestWithContext(ctx, http.MethodGet, location, nil)
+	if err != nil {
+		return nil, errors.New("invalid storage request")
+	}
+	next, err := h.Do(r)
+	if err != nil {
+		return nil, errors.New("Kaggle download failed")
+	}
+	return next, nil
+}
+
 func (s *Service) download(ctx context.Context, c *Client, op Operation, params map[string]any, req Request, check func() error) (json.RawMessage, error) {
 	if req.ProjectID == "" {
 		return nil, errors.New("download requires a destination project")
@@ -286,21 +340,9 @@ func (s *Service) download(ctx context.Context, c *Client, op Operation, params 
 	if err != nil {
 		return nil, err
 	}
-	if resp.StatusCode >= 300 && resp.StatusCode < 400 {
-		location := resp.Header.Get("Location")
-		resp.Body.Close()
-		h, err := s.storageFactory(ctx, location, 0)
-		if err != nil {
-			return nil, err
-		}
-		r, err := http.NewRequestWithContext(ctx, http.MethodGet, location, nil)
-		if err != nil {
-			return nil, errors.New("invalid storage request")
-		}
-		resp, err = h.Do(r)
-		if err != nil {
-			return nil, errors.New("Kaggle download failed")
-		}
+	resp, err = s.followStorageRedirect(ctx, resp, 0)
+	if err != nil {
+		return nil, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {

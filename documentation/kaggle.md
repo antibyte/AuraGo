@@ -36,6 +36,8 @@ Remote capabilities are separately controlled by `allow_download`, `allow_create
 
 Writes are restricted to the authenticated owner unless `allowed_owners` explicitly includes another owner. Public creation and changes to existing public resources require publication permission. New resources default to private where supported; deleting old dataset versions also requires deletion permission. The granted agent operations need no extra per-action confirmation, subject to the existing global action policy.
 
+`allowed_machine_shapes` (default empty) lists the Kaggle machine shapes a notebook run may request with `machineShape`; the known names are `NvidiaTeslaT4` and `NvidiaL4`. A run that names a shape must also set `enableGpu: true`, and `allow_gpu` must be granted. Unknown names are removed when the configuration loads. Custom compute images (`dockerImage`) stay unsupported.
+
 | Default | Limit |
 | --- | --- |
 | One transfer | 2 GiB |
@@ -86,6 +88,8 @@ HTTP routes under `/api/kaggle/` include `status`, `capabilities`, `test`, `quot
 `POST /api/kaggle/jobs/{id}/resolve-unknown` accepts `{"confirmed_inactive":true}`. It requires Desktop write access (`desktop:write` or `desktop:admin` for tokens) **and** global `admin`; authenticated browser owners use the existing admin identity and same-origin CSRF check. `status.can_resolve_unknown` exposes this capability. Missing confirmation returns 400, a missing receipt 404 and any state other than `unknown`/`resolved_unknown` 409. It performs no Kaggle request.
 
 State is held in `data/kaggle.db` and `data/kaggle/projects/`. The database is part of the existing protected SQLite inventory and backup handling. Upload receipt secrets remain in the Vault. Preserve both the project files and normal encrypted Vault/database backups when migrating an installation.
+
+Chibi Sensei uses two in-process helpers that are not agent tools or HTTP routes: a read of its own notebook's session log (download grant and filesystem write, own account only, no job receipt and no project file, at most 16 MiB, scrubbed) and the removal of its staged project files.
 
 ## Runtime delivery and verification
 

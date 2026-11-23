@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"gopkg.in/yaml.v3"
@@ -25,10 +26,12 @@ func TestChibiSenseiDefaults(t *testing.T) {
 		Dataset:   ChibiSenseiDatasetConfig{MaxRows: 50000},
 		Import:    ChibiSenseiImportConfig{MaxRows: 20000, MaxFileMB: 50},
 		Generator: ChibiSenseiGeneratorConfig{MaxRowsPerJob: 500, MaxDailyRows: 5000},
+		Training:  ChibiSenseiTrainingConfig{MachineShape: "NvidiaTeslaT4", DeleteRemoteAfterRun: true},
 	}
 	for name, content := range map[string]string{
-		"empty file":   "{}\n",
-		"null section": "chibi_sensei:\n",
+		"empty file":    "{}\n",
+		"null section":  "chibi_sensei:\n",
+		"null training": "chibi_sensei:\n  training:\n",
 	} {
 		cfg, err := loadChibiSenseiYAML(t, content)
 		if err != nil {
@@ -133,4 +136,35 @@ func TestChibiSenseiGeneratorProviderReference(t *testing.T) {
 		}
 	}
 	t.Fatalf("chibi_sensei.generator.provider reference missing: %+v", c.ProviderReferences())
+}
+
+func TestChibiSenseiTrainingConfig(t *testing.T) {
+	cfg, err := loadChibiSenseiYAML(t, "chibi_sensei:\n  training:\n    delete_remote_after_run: false\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.ChibiSensei.Training.DeleteRemoteAfterRun || cfg.ChibiSensei.Training.MachineShape != "NvidiaTeslaT4" {
+		t.Fatalf("explicit false or default shape lost: %+v", cfg.ChibiSensei.Training)
+	}
+	cfg, err = loadChibiSenseiYAML(t, "chibi_sensei:\n  training:\n    machine_shape: \" nvidial4 \"\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.ChibiSensei.Training.MachineShape != "NvidiaL4" || !cfg.ChibiSensei.Training.DeleteRemoteAfterRun {
+		t.Fatalf("shape not canonical or delete default lost: %+v", cfg.ChibiSensei.Training)
+	}
+	for _, shape := range []string{"NvidiaA100", "T4", "NvidiaTeslaT4,NvidiaL4"} {
+		c := ChibiSenseiConfig{Training: ChibiSenseiTrainingConfig{MachineShape: shape}}
+		err := NormalizeChibiSenseiConfig(&c)
+		if err == nil || !strings.Contains(err.Error(), "training.machine_shape must be one of NvidiaTeslaT4, NvidiaL4") {
+			t.Errorf("shape %q: %v", shape, err)
+		}
+	}
+	if _, err := loadChibiSenseiYAML(t, "chibi_sensei:\n  training:\n    machine_shape: NvidiaA100\n"); err == nil {
+		t.Error("Load accepted an unknown machine shape")
+	}
+	var c ChibiSenseiConfig
+	if err := NormalizeChibiSenseiConfig(&c); err != nil || c.Training.MachineShape != "NvidiaTeslaT4" || c.Training.DeleteRemoteAfterRun {
+		t.Fatalf("normalize must default the shape and leave the bool alone: %+v %v", c.Training, err)
+	}
 }

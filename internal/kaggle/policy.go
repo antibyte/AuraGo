@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"aurago/internal/config"
@@ -13,6 +14,7 @@ type grantSnapshotKey struct{}
 
 func WithConfigSnapshot(ctx context.Context, c config.KaggleConfig) context.Context {
 	c.AllowedOwners = append([]string(nil), c.AllowedOwners...)
+	c.AllowedMachineShapes = append([]string(nil), c.AllowedMachineShapes...)
 	return context.WithValue(ctx, grantSnapshotKey{}, c)
 }
 func intersectConfig(a, b config.KaggleConfig) config.KaggleConfig {
@@ -38,6 +40,14 @@ func intersectConfig(a, b config.KaggleConfig) config.KaggleConfig {
 		}
 	}
 	a.AllowedOwners = owners
+	// A run keeps only the machine shapes both the current config and its admission snapshot allow.
+	shapes := []string{}
+	for _, v := range a.AllowedMachineShapes {
+		if slices.Contains(b.AllowedMachineShapes, v) {
+			shapes = append(shapes, v)
+		}
+	}
+	a.AllowedMachineShapes = shapes
 	return a
 }
 
@@ -151,8 +161,16 @@ func CheckGrants(c config.KaggleConfig, a Access, op Operation, params map[strin
 		if boolValue(params, "enableInternet") && !c.AllowInternet {
 			return errors.New("Kaggle internet permission is disabled")
 		}
-		if stringValue(params, "machineShape") != "" || stringValue(params, "dockerImage") != "" {
-			return errors.New("custom Kaggle compute images and machine shapes are not supported")
+		if stringValue(params, "dockerImage") != "" {
+			return errors.New("custom Kaggle compute images are not supported")
+		}
+		if shape := stringValue(params, "machineShape"); shape != "" {
+			if !boolValue(params, "enableGpu") || !c.AllowGPU {
+				return errors.New("a Kaggle machine shape requires a GPU run and the GPU permission")
+			}
+			if !slices.Contains(c.AllowedMachineShapes, shape) {
+				return errors.New("Kaggle machine shape is not in kaggle.allowed_machine_shapes")
+			}
 		}
 		if params["id"] != nil {
 			return errors.New("use an owner/slug reference instead of a notebook ID")
