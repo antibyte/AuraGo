@@ -464,6 +464,8 @@
                 ctx.globalAlpha = (!focus || special) ? 1 : 0.15;
                 var ty = ly + nd.r * sc + 3;
                 var text = truncate(nd.label != null ? nd.label : nd.id);
+                var half = ctx.measureText(text).width / 2 + 3;
+                if (half * 2 < w) lx = Math.max(half, Math.min(w - half, lx));
                 ctx.strokeStyle = colors.background;
                 ctx.strokeText(text, lx, ty);
                 ctx.fillStyle = colors.text;
