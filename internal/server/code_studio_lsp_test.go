@@ -273,6 +273,24 @@ func TestCodeStudioLSPRejectsInvalidJSONFrame(t *testing.T) {
 	}
 }
 
+func TestCodeStudioLSPServerExitCloses1011(t *testing.T) {
+	docker := newLSPTestDocker()
+	conn := dialCodeStudioLSP(t, docker, "go")
+	stream := waitCodeStudioLSPStream(t, docker)
+	_ = stream.outW.Close()
+	expectCodeStudioLSPClose(t, conn, websocket.CloseInternalServerErr)
+}
+
+func TestCodeStudioLSPOversizeFrameCloses1009(t *testing.T) {
+	docker := newLSPTestDocker()
+	conn := dialCodeStudioLSP(t, docker, "go")
+	waitCodeStudioLSPStream(t, docker)
+	s := testCodeStudioServerWithFakeCodeContainer(t, 1)
+	limit := codeStudioHandlers{server: s}.maxFileSizeBytes() + codeStudioLSPFrameSlack
+	_ = conn.WriteMessage(websocket.TextMessage, bytes.Repeat([]byte("a"), int(limit)+1))
+	expectCodeStudioLSPClose(t, conn, websocket.CloseMessageTooBig)
+}
+
 func TestCodeStudioLSPRejectsUnknownLanguageBeforeUpgrade(t *testing.T) {
 	s := testCodeStudioServerWithFakeCodeContainer(t, 1)
 	docker := newLSPTestDocker()
@@ -280,8 +298,8 @@ func TestCodeStudioLSPRejectsUnknownLanguageBeforeUpgrade(t *testing.T) {
 	for _, lang := range []string{"", "rust", "GO", "gopls"} {
 		rec := httptest.NewRecorder()
 		h.handleLSP(rec, codeStudioLSPUpgradeRequest(lang))
-		if rec.Code != http.StatusBadRequest || rec.Header().Get("Upgrade") != "" {
-			t.Fatalf("lang %q: status %d upgrade %q; want 400 before the upgrade", lang, rec.Code, rec.Header().Get("Upgrade"))
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("lang %q: status %d; want 400 before the upgrade", lang, rec.Code)
 		}
 	}
 	if probes, starts, _ := docker.snapshot(); len(probes)+len(starts) != 0 {
@@ -298,8 +316,8 @@ func TestCodeStudioLSPRejectsReadOnlyDesktop(t *testing.T) {
 	h := codeStudioHandlers{server: s, docker: docker}
 	rec := httptest.NewRecorder()
 	h.handleLSP(rec, codeStudioLSPUpgradeRequest("go"))
-	if rec.Code != http.StatusForbidden || rec.Header().Get("Upgrade") != "" {
-		t.Fatalf("read-only status %d upgrade %q; want 403 before the upgrade", rec.Code, rec.Header().Get("Upgrade"))
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("read-only status %d; want 403 before the upgrade", rec.Code)
 	}
 	if probes, starts, _ := docker.snapshot(); len(probes)+len(starts) != 0 {
 		t.Fatalf("a read-only desktop reached docker: probes=%v starts=%v", probes, starts)

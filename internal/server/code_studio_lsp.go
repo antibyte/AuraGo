@@ -57,6 +57,8 @@ const (
 	codeStudioLSPCheckTimeout = 15 * time.Second
 	// codeStudioLSPCloseWriteWait bounds the write of one close frame.
 	codeStudioLSPCloseWriteWait = time.Second
+	// codeStudioLSPPageWriteWait bounds the write of one data frame to the page.
+	codeStudioLSPPageWriteWait = 10 * time.Second
 
 	// Close codes of the browser contract (plan 2b). A server process that
 	// exits closes with websocket.CloseInternalServerErr (1011).
@@ -507,7 +509,9 @@ func (h codeStudioHandlers) serveCodeStudioLSP(ctx context.Context, conn *websoc
 func (h codeStudioHandlers) pipeCodeStudioLSP(ctx context.Context, conn *websocket.Conn, stream codeStudioLSPStream, tail *codeStudioLSPTail, serverDone chan<- struct{}) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	stop := context.AfterFunc(ctx, func() { _ = conn.Close() })
+	// A canceled session (failed ping, request end) must not wait for a blocked
+	// stdin write: closing the stream frees the session slot and the process.
+	stop := context.AfterFunc(ctx, func() { _ = conn.Close(); _ = stream.Close() })
 	defer stop()
 	conn.SetReadLimit(h.maxFileSizeBytes() + codeStudioLSPFrameSlack)
 	pongWait := dockerManagerTerminalServeOptions.PongWait
@@ -544,6 +548,7 @@ func (h codeStudioHandlers) pipeCodeStudioLSP(ctx context.Context, conn *websock
 				}
 				return
 			}
+			_ = conn.SetWriteDeadline(time.Now().Add(codeStudioLSPPageWriteWait))
 			if err := conn.WriteMessage(websocket.TextMessage, body); err != nil {
 				_ = conn.Close()
 				return
