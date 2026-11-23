@@ -298,8 +298,12 @@
                 '/js/vendor/purify.min.js',
                 '/js/vendor/highlight.min.js',
                 '/js/desktop/apps/notes-frontmatter.js',
+                '/js/desktop/apps/notes-index.js',
+                '/js/desktop/apps/notes-templates.js',
                 '/js/desktop/apps/writer-session.js',
                 '/js/desktop/apps/notes-editor.js',
+                '/js/desktop/apps/notes-panels.js',
+                '/js/desktop/apps/notes-graph.js',
                 '/js/desktop/apps/notes.js'
             ]
         },

@@ -76,8 +76,11 @@
                 else view.updateState(view.state.apply(transaction));
                 if (!muted && transaction.docChanged) options.changed();
                 options.selectionChanged?.();
+                if (options.suggest) updateSuggest();
             },
+            handleKeyDown: (_, event) => suggestKey(event),
             handleDOMEvents: {
+                blur: () => { closeSuggest(); return false; },
                 click: (_, event) => {
                     const link = event.target.closest('a');
                     if (link) { event.preventDefault(); options.openLink?.(link.getAttribute('href')); return true; }
@@ -85,6 +88,96 @@
                 }
             }
         });
+        // [[ autocomplete (rich mode): an own popup at the caret; source mode uses CodeMirror's autocompletion.
+        const popupHost = options.popupHost || mount;
+        let suggestState = null, suggestToken = 0, suggestEl = null;
+        function closeSuggest() {
+            suggestToken++; suggestState = null;
+            if (suggestEl) { suggestEl.remove(); suggestEl = null; }
+        }
+        function paintSuggest() {
+            if (!suggestState || !suggestEl) return;
+            suggestEl.querySelectorAll('[role=option]').forEach((el, i) => {
+                const active = i === suggestState.active;
+                el.setAttribute('aria-selected', String(active));
+                if (active) el.scrollIntoView({block: 'nearest'});
+            });
+        }
+        function placeSuggest() {
+            const at = view.coordsAtPos(suggestState.start), box = popupHost.getBoundingClientRect();
+            suggestEl.style.left = '0px'; suggestEl.style.top = '0px';
+            const width = suggestEl.offsetWidth, height = suggestEl.offsetHeight;
+            let left = at.left - box.left + popupHost.scrollLeft, top = at.bottom - box.top + popupHost.scrollTop + 4;
+            if (left + width > box.width - 8) left = Math.max(8, box.width - width - 8);
+            if (top + height > box.height - 8 && at.top - box.top - height - 4 > 8) top = at.top - box.top + popupHost.scrollTop - height - 4;
+            suggestEl.style.left = Math.round(left) + 'px'; suggestEl.style.top = Math.round(top) + 'px';
+        }
+        function showSuggest(state) {
+            const fresh = !suggestEl;
+            suggestState = state;
+            if (fresh) {
+                suggestEl = document.createElement('div');
+                suggestEl.className = 'notes-suggest'; suggestEl.setAttribute('role', 'listbox'); suggestEl.setAttribute('data-suggest', '');
+                suggestEl.setAttribute('aria-label', options.tr('suggest_links'));
+                suggestEl.addEventListener('mousedown', event => {
+                    event.preventDefault();
+                    const row = event.target.closest('[data-suggest-index]');
+                    if (row) acceptSuggest(Number(row.dataset.suggestIndex));
+                });
+                popupHost.append(suggestEl);
+            }
+            suggestEl.replaceChildren(...state.items.map((item, i) => {
+                const row = document.createElement('div'), label = document.createElement('strong');
+                row.className = 'notes-suggest-item'; row.setAttribute('role', 'option'); row.dataset.suggestIndex = String(i);
+                label.textContent = item.label; row.append(label);
+                if (item.detail) { const detail = document.createElement('span'); detail.textContent = item.detail; row.append(detail); }
+                return row;
+            }));
+            paintSuggest(); placeSuggest();
+        }
+        async function updateSuggest() {
+            if (disposed || sourceMode || options.readonly) return closeSuggest();
+            const {selection} = view.state, $from = selection.$from;
+            if (!selection.empty || !$from.parent.isTextblock || $from.parent.type.spec.code) return closeSuggest();
+            const before = $from.parent.textBetween(0, $from.parentOffset, undefined, '￼'), match = /(!?)\[\[([^\[\]\n|]*)$/.exec(before);
+            if (!match) return closeSuggest();
+            const token = ++suggestToken, start = $from.pos - match[0].length, end = $from.pos, embed = !!match[1];
+            let items;
+            try { items = await options.suggest(match[2], {embed}); } catch (_) { items = []; }
+            if (token !== suggestToken || disposed) return;
+            items = (items || []).slice(0, 8);
+            if (!items.length) return closeSuggest();
+            showSuggest({start, end, embed, items, active: suggestState && suggestState.start === start ? Math.min(suggestState.active, items.length - 1) : 0});
+        }
+        function acceptSuggest(i) {
+            const state = suggestState, item = state?.items[i];
+            if (!item) return false;
+            closeSuggest();
+            view.dispatch(view.state.tr.setSelection(lib.TextSelection.create(view.state.doc, state.start, state.end)));
+            insertWiki(item.value, state.embed);
+            return true;
+        }
+        function suggestKey(event) {
+            if (!suggestState || event.isComposing) return false;
+            const count = suggestState.items.length;
+            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                suggestState.active = (suggestState.active + (event.key === 'ArrowDown' ? 1 : count - 1)) % count;
+                paintSuggest(); event.preventDefault(); return true;
+            }
+            if (event.key === 'Enter' || event.key === 'Tab') { event.preventDefault(); return acceptSuggest(suggestState.active); }
+            if (event.key === 'Escape') { closeSuggest(); event.preventDefault(); return true; }
+            return false;
+        }
+        async function sourceCompletion(context) {
+            if (!options.suggest) return null;
+            const found = context.matchBefore(/!?\[\[[^\[\]\n|]*/);
+            if (!found) return null;
+            const embed = found.text.charAt(0) === '!', query = found.text.replace(/^!?\[\[/, '');
+            let items;
+            try { items = await options.suggest(query, {embed}); } catch (_) { return null; }
+            if (!items || !items.length) return null;
+            return {from: found.from + (embed ? 3 : 2), filter: false, options: items.slice(0, 8).map(item => ({label: item.label, detail: item.detail, apply: item.value + ']]'}))};
+        }
         const body = () => crepe.getMarkdown().replace(/\n/g, parsed.eol || '\n');
         const content = () => sourceMode ? source.state.doc.toString() : prefix + (view.state.doc.eq(originalDoc) ? originalBody : body());
         const focus = () => {
@@ -107,10 +200,11 @@
             if (value === sourceMode) return true;
             if (!value && needsSource(content())) return false;
             const text = content();
-            muted = true;
+            muted = true; closeSuggest();
             if (value) {
                 if (!source) source = new cm.EditorView({parent:sourceHost,state:cm.EditorState.create({doc:text,extensions:[
                     cm.lineNumbers(), cm.history(), cm.markdown(), cm.drawSelection(), cm.syntaxHighlighting(cm.defaultHighlightStyle),
+                    ...(options.suggest ? [cm.autocompletion({override:[sourceCompletion],icons:false}), cm.keymap.of(cm.completionKeymap)] : []),
                     cm.keymap.of([...cm.defaultKeymap,...cm.historyKeymap,...cm.searchKeymap]),
                     cm.EditorView.lineWrapping, cm.EditorState.readOnly.of(!!options.readonly), cm.EditorView.editable.of(!options.readonly),
                     cm.EditorView.contentAttributes.of({'aria-label':options.tr('markdown_source')}),
@@ -253,7 +347,7 @@
         return {content,setContent,relocateLinks,mode,selection,replaceSelection,insert,command,insertWiki,insertCallout,refreshDecorations,outline,jump,findText,focus,
             get sourceMode(){return sourceMode;},get view(){return view;},
             get text(){return sourceMode?NotesFrontmatter.strip(content()):view.state.doc.textBetween(0,view.state.doc.content.size,'\n');},
-            async destroy(){disposed=true;source?.destroy();await crepe.destroy();}
+            async destroy(){disposed=true;closeSuggest();source?.destroy();await crepe.destroy();}
         };
     }
     window.NotesEditor={create,needsSource};

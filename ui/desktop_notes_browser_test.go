@@ -26,7 +26,7 @@ func TestDesktopNotesAppBrowser(t *testing.T) {
 	}
 	var mu sync.Mutex
 	content := "---\ntags: [design, aurora]\nowner: Preserve this field\n---\n# Kleine Ideen, große Möglichkeiten\n\nEin ruhiger Ort für Gedanken, Projekte und alles, was noch wachsen darf.\n\n## Der nächste Schritt\n\n- [x] Die Idee festhalten\n- [ ] Gemeinsam etwas Besonderes entwickeln\n- [ ] Die kleinen Details nicht vergessen\n\n## Werkstattnotizen\n\nGute Werkzeuge lassen uns **konzentriert arbeiten**. Der Inhalt steht im Mittelpunkt — die Oberfläche hält sich zurück.\n\n> Eine gute Idee beginnt oft mit einer kleinen Notiz.\n\n| Projekt | Status |\n| --- | --- |\n| Aurora Workstation | In Arbeit |\n| Leafy | Wächst weiter |\n\n## Später weiterdenken\n\nMit Notizen, die sich leicht wiederfinden lassen.\n"
-	files := map[string]string{"Documents/Notes/aurora.md": content, "Documents/Notes/ideen.md": "# Ideen\n\nEine neue Perspektive.", "Documents/Notes/einkauf.md": "# Für die Werkstatt\n\n- [ ] Kaffee\n- [ ] Pflanzen"}
+	files := map[string]string{"Documents/Notes/aurora.md": content, "Documents/Notes/ideen.md": "# Ideen\n\nEine neue Perspektive. Mehr dazu in [[aurora]].", "Documents/Notes/verweise.md": "# Verweise\n\nSiehe [[ideen]] und [[Ideen#Plan|noch einmal]].\n", "Documents/Notes/einkauf.md": "# Für die Werkstatt\n\n- [ ] Kaffee\n- [ ] Pflanzen"}
 	mux := http.NewServeMux()
 	mux.Handle("/", http.FileServer(http.Dir(".")))
 	mux.HandleFunc("/api/desktop/upload", func(w http.ResponseWriter, r *http.Request) {
@@ -77,6 +77,79 @@ func TestDesktopNotesAppBrowser(t *testing.T) {
 		defer mu.Unlock()
 		w.Header().Set("Content-Type", "application/json")
 		path := r.URL.Query().Get("path")
+		if r.Method == "GET" && r.URL.Query().Get("index") == "1" {
+			result := desktop.NotesIndexResult{Notes: []desktop.NoteIndexEntry{}, Folders: []string{}, Attachments: []string{}}
+			seen := map[string]bool{}
+			for notePath, raw := range files {
+				if !strings.HasSuffix(notePath, ".md") {
+					if strings.HasPrefix(notePath, "Documents/Notes/") && !strings.HasSuffix(notePath, ".json") {
+						result.Attachments = append(result.Attachments, notePath)
+					}
+					continue
+				}
+				refs := desktop.ExtractNoteRefs(raw)
+				title := strings.TrimSuffix(notePath[strings.LastIndex(notePath, "/")+1:], ".md")
+				if refs.TitleSource == "frontmatter" || refs.TitleSource == "heading" {
+					title = refs.Title
+				}
+				entry := desktop.NoteIndexEntry{Path: notePath, Title: title, Aliases: refs.Aliases, Tags: refs.Tags, Links: []desktop.NoteIndexLink{}, Modified: time.Date(2026, 9, 10, 10, 0, 0, 0, time.UTC), Size: int64(len(raw))}
+				if entry.Aliases == nil {
+					entry.Aliases = []string{}
+				}
+				if entry.Tags == nil {
+					entry.Tags = []string{}
+				}
+				for _, link := range refs.Links {
+					entry.Links = append(entry.Links, desktop.NoteIndexLink{Target: link.Value, Embed: link.Embed, Kind: link.Kind})
+				}
+				result.Notes = append(result.Notes, entry)
+				if dir := notePath[:strings.LastIndex(notePath, "/")]; dir != "Documents/Notes" && !seen[dir] {
+					seen[dir] = true
+					result.Folders = append(result.Folders, dir)
+				}
+			}
+			json.NewEncoder(w).Encode(result)
+			return
+		}
+		if r.Method == "PATCH" {
+			var body struct {
+				Path        string `json:"path"`
+				NewPath     string `json:"new_path"`
+				Operation   string `json:"operation"`
+				UpdateLinks bool   `json:"update_links"`
+			}
+			json.NewDecoder(r.Body).Decode(&body)
+			raw, exists := files[body.Path]
+			if body.Operation != "move" || !exists || r.Header.Get("If-Match") != desktop.NoteVersion([]byte(raw)) {
+				w.WriteHeader(412)
+				fmt.Fprint(w, `{"error":"Conflict"}`)
+				return
+			}
+			delete(files, body.Path)
+			files[body.NewPath] = raw
+			updated := 0
+			if body.UpdateLinks {
+				oldName := strings.TrimSuffix(body.Path[strings.LastIndex(body.Path, "/")+1:], ".md")
+				newName := strings.TrimSuffix(body.NewPath[strings.LastIndex(body.NewPath, "/")+1:], ".md")
+				for other, content := range files {
+					if !strings.HasSuffix(other, ".md") || other == body.NewPath {
+						continue
+					}
+					files[other] = desktop.RewriteNoteLinks(content, func(link desktop.NoteRefLink) (string, bool) {
+						if link.Kind != "wiki" || !strings.EqualFold(desktop.ParseWikiValue(link.Value).Target, oldName) {
+							return "", false
+						}
+						updated++
+						return desktop.ReplaceWikiTarget(link.Value, newName), true
+					})
+				}
+			}
+			json.NewEncoder(w).Encode(struct {
+				desktop.Note
+				UpdatedLinks int `json:"updated_links"`
+			}{desktop.Note{Path: body.NewPath, Title: strings.TrimPrefix(strings.Split(raw, "\n")[0], "# "), Content: raw, Version: desktop.NoteVersion([]byte(raw)), Modified: time.Date(2026, 9, 10, 10, 0, 0, 0, time.UTC)}, updated})
+			return
+		}
 		if r.Method == "PUT" || r.Method == "POST" {
 			var body struct{ Path, Content, Title, Folder string }
 			json.NewDecoder(r.Body).Decode(&body)
@@ -122,8 +195,8 @@ func TestDesktopNotesAppBrowser(t *testing.T) {
 		fmt.Fprint(w, `<!doctype html><html lang="de"><head><meta charset="utf-8"><link rel="stylesheet" href="/js/vendor/notes/engine.css"><link rel="stylesheet" href="/css/desktop-app-notes.css"><link rel="stylesheet" href="/css/desktop-icons.css">
 <style>@font-face{font-family:Geist;src:url('/fonts/geist/Geist-Variable.woff2')}html,body{margin:0;height:100%;font-family:Geist,system-ui}body{--vd-text:#e4e8f0;--vd-theme-app-bg:#11161d;--vd-theme-panel-bg:#1b202a;--vd-theme-chrome-bg:#1d2430;--vd-theme-control-bg:#252d3a;--vd-theme-border:#ffffff1a;--vd-theme-muted:#a7b1c3;--vd-accent:#f3b676}body[data-fruity-mode=light]{--vd-text:#212b3c;--vd-theme-app-bg:#e2e7ee;--vd-theme-panel-bg:#e5e9ef;--vd-theme-chrome-bg:#d7dfe9;--vd-theme-control-bg:#f8fafc;--vd-theme-border:#65748c40;--vd-theme-muted:#536279;--vd-accent:#996419}#host{height:100%}</style></head><body class="desktop-body" data-theme="default"><div id="host"></div>
 <script>window.errors=[];addEventListener('error',e=>errors.push(e.error?.stack||e.message));addEventListener('unhandledrejection',e=>errors.push(String(e.reason)));</script>
-<script src="/js/vendor/marked.min.js"></script><script src="/js/vendor/purify.min.js"></script><script src="/js/desktop/apps/writer-session.js"></script><script src="/js/desktop/apps/notes-frontmatter.js"></script><script src="/js/desktop/apps/notes-editor.js"></script><script src="/js/desktop/apps/notes.js"></script>
-<script>window.ready=(async()=>{const labels=await(await fetch('/lang/desktop/de.json')).json();window.notesContext={path:'Documents/Notes/aurora.md',t:(key,params)=>String(labels[key]||key).replace(/\{\{(\w+)\}\}/g,(_,x)=>params?.[x]??''),promptDialog:async(title,value)=>value,confirmDialog:async()=>false,setWindowBeforeClose:(id,fn)=>window.closeGuard=fn,setWindowMenus:(id,menus)=>window.menus=menus,saveFileDialog:async()=>({path:'Documents/Notes/copy.md'}),openFileDialog:async()=>({path:'Documents/Notes/aurora.md'})};await NotesApp.render(document.getElementById('host'),'test',notesContext).ready;})();</script></body></html>`)
+<script src="/js/vendor/marked.min.js"></script><script src="/js/vendor/purify.min.js"></script><script src="/js/desktop/apps/notes-frontmatter.js"></script><script src="/js/desktop/apps/notes-index.js"></script><script src="/js/desktop/apps/notes-templates.js"></script><script src="/js/desktop/apps/writer-session.js"></script><script src="/js/desktop/apps/notes-editor.js"></script><script src="/js/desktop/apps/notes-panels.js"></script><script src="/js/desktop/apps/notes-graph.js"></script><script src="/js/desktop/apps/notes.js"></script>
+<script>window.ready=(async()=>{const labels=await(await fetch('/lang/desktop/de.json')).json();window.notesContext={path:'Documents/Notes/aurora.md',iconMarkup:name=>'<span class="notes-icon" aria-hidden="true" style="display:inline-grid;place-items:center;font-size:11px;font-weight:700">'+String(name||'?').charAt(0).toUpperCase()+'</span>',t:(key,params)=>String(labels[key]||key).replace(/\{\{(\w+)\}\}/g,(_,x)=>params?.[x]??''),promptDialog:async(title,value)=>value,confirmDialog:async()=>false,setWindowBeforeClose:(id,fn)=>window.closeGuard=fn,setWindowMenus:(id,menus)=>window.menus=menus,saveFileDialog:async()=>({path:'Documents/Notes/copy.md'}),openFileDialog:async()=>({path:'Documents/Notes/aurora.md'})};await NotesApp.render(document.getElementById('host'),'test',notesContext).ready;})();</script></body></html>`)
 	})
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
@@ -162,6 +235,11 @@ func TestDesktopNotesAppBrowser(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Log("Notes workflows:", page.MustEval(string(functional)).JSON("", ""))
+	obsidian, err := os.ReadFile("testdata/notes-obsidian-functional.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("Notes linking workflows:", page.MustEval(string(obsidian)).JSON("", ""))
 	out := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR")
 	if out == "" {
 		out = filepath.Join("..", "reports", "notes")
@@ -181,6 +259,22 @@ func TestDesktopNotesAppBrowser(t *testing.T) {
  }`)
 	page.MustScreenshot(filepath.Join(out, "obsidian-syntax-1366x768.png"))
 	page.MustEval(`()=>{const app=NotesApp.instances.get('test');app.editor.setContent(window.obsidianPrevious);}`)
+	// Linking scene: right sidebar on Backlinks and a hover preview card, restored without saving.
+	page.MustEval(`async()=>{
+ const app=NotesApp.instances.get('test'),sleep=ms=>new Promise(r=>setTimeout(r,ms));
+ if(app.editor.sourceMode)await app.editor.mode(false);
+ window.linkingPrevious=app.editor.content();
+ app.editor.setContent('# Ideen\n\nEine neue Perspektive. Mehr dazu in [[einkauf]] und [[aurora|Aurora Ideen]].\n\n> [!tip] Verknüpfen\n> Mit doppelten eckigen Klammern entstehen Verweise, zum Beispiel [[Neue Idee]].\n');
+ app.editor.refreshDecorations();
+ const open=!document.querySelector('[data-right]').hidden&&document.querySelector('[role=tab][aria-selected=true]')?.dataset.rightTab==='backlinks';
+ if(!open){if(!document.querySelector('[data-right]').hidden)await app.act('closePanel');await app.act('backlinks');}
+ await sleep(700);
+ const chip=[...document.querySelectorAll('.notes-wikilink')].find(el=>el.textContent.includes('einkauf'));
+ chip.dispatchEvent(new MouseEvent('mouseenter'));
+ await sleep(1100);
+ }`)
+	page.MustScreenshot(filepath.Join(out, "linking-1366x768.png"))
+	page.MustEval(`()=>{const app=NotesApp.instances.get('test');document.querySelectorAll('.notes-wikilink').forEach(el=>el.dispatchEvent(new MouseEvent('mouseleave')));app.editor.setContent(window.linkingPrevious);}`)
 	for _, theme := range []string{"default", "fruity-dark", "fruity-light"} {
 		for _, density := range []string{"normal", "compact"} {
 			for _, size := range [][2]int{{1920, 1080}, {1366, 768}, {430, 932}} {
