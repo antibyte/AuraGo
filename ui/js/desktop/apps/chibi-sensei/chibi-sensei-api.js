@@ -168,7 +168,28 @@
 
             plan(id, preset) { return json('GET', project(id) + '/plan' + qs({ preset })); },
 
-            // events(projectId, {onJob, onRows, onChecks, onState}) -> {close()}; onState('open' | 'error')
+            // {ready, admin, preset, checked_at, items, fix}
+            preflight(id, preset) { return json('GET', project(id) + '/preflight' + qs({ preset })); },
+            // {applied}; the server maps each flag name to its value
+            enablePreflight(flags) { return send('POST', '/preflight/enable', { flags }); },
+            async consent(profileId) { return (await send('POST', '/consents', { profile_id: profileId })).consent; },
+            // {plan_token, expires_in_s, run_id, plan, destinations, data, license, time, cleanup}
+            prepareRun(id, preset) { return send('POST', project(id) + '/runs/prepare', { preset }); },
+            async startRun(id, planToken) { return (await send('POST', project(id) + '/runs', { plan_token: planToken })).run; },
+            async listRuns(id, limit) { return list(await json('GET', project(id) + '/runs' + qs({ limit })), 'runs'); },
+            async getRun(runId) { return (await json('GET', '/runs/' + enc(runId))).run; },
+            async cancelRun(runId) { return (await send('POST', '/runs/' + enc(runId) + '/cancel', {})).run; },
+            // {metrics, max_steps, live}
+            runMetrics(runId, sinceStep) { return json('GET', '/runs/' + enc(runId) + '/metrics' + qs({ since_step: sinceStep || 0 })); },
+            async runEvents(runId, after, limit) { return list(await json('GET', '/runs/' + enc(runId) + '/events' + qs({ after: after || 0, limit })), 'events'); },
+            async runArtifacts(runId) { return list(await json('GET', '/runs/' + enc(runId) + '/artifacts'), 'artifacts'); },
+            artifactURL(runId, artifactId) { return BASE + '/runs/' + enc(runId) + '/artifacts/' + enc(artifactId) + '/file'; },
+            async runReport(runId) { return (await json('GET', '/runs/' + enc(runId) + '/report')).report || null; },
+            // {tail, bytes}
+            runLog(runId) { return json('GET', '/runs/' + enc(runId) + '/log'); },
+            deleteRun(runId) { return send('POST', '/runs/' + enc(runId) + '/delete', {}); },
+
+            // events(projectId, {onJob, onRows, onChecks, onRun, onMetric, onStage, onState}) -> {close()}; onState('open' | 'error')
             events(projectId, handlers) {
                 const h = handlers || {};
                 if (!makeEventSource) return { close() {} };
@@ -189,6 +210,19 @@
                 source.addEventListener('checks', event => {
                     const body = parse(event);
                     if (h.onChecks) h.onChecks(body && typeof body === 'object' ? body : {});
+                });
+                source.addEventListener('run', event => {
+                    const body = parse(event);
+                    const run = body && body.run ? body.run : body;
+                    if (h.onRun && run && typeof run === 'object' && typeof run.id === 'string') h.onRun(run);
+                });
+                source.addEventListener('metric', event => {
+                    const body = parse(event);
+                    if (h.onMetric && body && typeof body.run_id === 'string' && Array.isArray(body.points)) h.onMetric(body);
+                });
+                source.addEventListener('stage', event => {
+                    const body = parse(event);
+                    if (h.onStage && body && typeof body.run_id === 'string') h.onStage(body);
                 });
                 source.addEventListener('open', () => { if (h.onState) h.onState('open'); });
                 source.addEventListener('error', () => { if (h.onState) h.onState('error'); });

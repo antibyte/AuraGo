@@ -58,7 +58,7 @@
 
     function firstOpen(steps) { return steps && steps.goal === 'done' ? 'data' : 'goal'; }
 
-    // opts: {readonly, goalValid, checksRunning, rows}
+    // opts: {readonly, goalValid, checksRunning, rows, runActive, preflight, starting}
     function primaryFor(step, steps, opts) {
         const o = opts || {}, s = steps || {};
         const later = key => ({ labelKey: key, action: '', disabled: true, reasonKey: 'chibi_sensei.primary.later' });
@@ -71,7 +71,16 @@
             const reason = o.readonly ? 'chibi_sensei.readonly_banner' : (Number(o.rows) > 0 ? '' : 'chibi_sensei.primary.no_rows');
             return { labelKey: o.checksRunning ? 'chibi_sensei.checks.running' : 'chibi_sensei.primary.check_dataset', action: 'run_checks', disabled: !!reason || !!o.checksRunning, reasonKey: reason };
         }
-        if (step === 'training') return later('chibi_sensei.primary.start_training');
+        if (step === 'training') {
+            // While a run is active the primary action shows it; a read-only desktop may still look at (and cancel) a run.
+            if (o.runActive) return { labelKey: 'chibi_sensei.primary.show_run', action: 'show_run', disabled: false, reasonKey: '' };
+            let reason = '';
+            if (o.readonly) reason = 'chibi_sensei.readonly_banner';
+            else if (!o.preflight) reason = 'chibi_sensei.primary.preflight_loading';
+            else if (!o.preflight.ready) reason = 'chibi_sensei.primary.preflight_blocked';
+            const label = o.starting ? 'chibi_sensei.primary.starting' : (s.training === 'done' ? 'chibi_sensei.primary.train_again' : 'chibi_sensei.primary.start_training');
+            return { labelKey: label, action: 'start_training', disabled: !!reason || !!o.starting, reasonKey: reason };
+        }
         if (step === 'test') return later('chibi_sensei.primary.chat_model');
         return later('chibi_sensei.primary.export_model');
     }
@@ -79,7 +88,9 @@
     const TIPS = {
         goal_todo: 'chibi_sensei.tip.goal_todo', goal_in_progress: 'chibi_sensei.tip.goal_in_progress', goal_done: 'chibi_sensei.tip.goal_done',
         data_todo: 'chibi_sensei.tip.data_todo', data_in_progress: 'chibi_sensei.tip.data_in_progress', data_blocked: 'chibi_sensei.tip.data_blocked', data_ready: 'chibi_sensei.tip.data_ready',
-        training_todo: 'chibi_sensei.tip.training_todo', test_todo: 'chibi_sensei.tip.test_todo', use_todo: 'chibi_sensei.tip.use_todo'
+        training_todo: 'chibi_sensei.tip.training_todo', training_ready: 'chibi_sensei.tip.training_ready',
+        training_in_progress: 'chibi_sensei.tip.training_in_progress', training_done: 'chibi_sensei.tip.training_done', training_blocked: 'chibi_sensei.tip.training_blocked',
+        test_todo: 'chibi_sensei.tip.test_todo', use_todo: 'chibi_sensei.tip.use_todo'
     };
     function tipFor(step, state) { return TIPS[step + '_' + state] || TIPS[step + '_todo'] || TIPS.goal_todo; }
 
@@ -168,9 +179,15 @@
             hint.hidden = !reason;
             if (mascot) {
                 const jobsActive = Array.from(inst.jobs.values()).some(job => job && ACTIVE.indexOf(job.state) >= 0);
+                const runs = Array.isArray(inst.runs) ? inst.runs : [];
+                const active = P.activeRun(runs);
+                const latest = runs[0] || null;
+                const onTraining = step === 'training' && !active && !!latest;
                 mascot.setMood(P.mascot.moodFor({
-                    jobsActive, checksRunning: !!inst.checksRunning, blocked: derived.data === 'blocked' && step === 'data',
-                    jobFailed: !!inst.lastJobFailed, stepState: derived[step]
+                    jobsActive, runActive: !!active, checksRunning: !!inst.checksRunning,
+                    blocked: derived.data === 'blocked' && step === 'data', jobFailed: !!inst.lastJobFailed,
+                    runFailed: onTraining && latest.state === 'failed', runSucceeded: onTraining && latest.state === 'succeeded',
+                    stepState: derived[step]
                 }));
             }
         }

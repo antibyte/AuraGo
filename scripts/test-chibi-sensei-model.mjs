@@ -6,7 +6,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 
 const root = path.resolve(import.meta.dirname, '..');
-const files = ['chibi-sensei-core.js', 'chibi-sensei-mascot.js', 'chibi-sensei-steps.js', 'chibi-sensei-table.js', 'chibi-sensei-projects.js'];
+const files = ['chibi-sensei-core.js', 'chibi-sensei-mascot.js', 'chibi-sensei-steps.js', 'chibi-sensei-table.js', 'chibi-sensei-projects.js', 'chibi-sensei-training.js'];
 const read = file => fs.readFileSync(path.join(root, 'ui/js/desktop/apps/chibi-sensei', file), 'utf8');
 const plain = value => JSON.parse(JSON.stringify(value));
 let checks = 0;
@@ -15,7 +15,7 @@ const eq = (actual, expected, message) => { checks++; assert.deepStrictEqual(pla
 const ok = (value, message) => { checks++; assert.ok(value, message); };
 
 const window = {};
-vm.runInNewContext(files.map(read).join('\n'), { window, console, Intl, Map, Set, JSON, Math, Date });
+vm.runInNewContext(files.map(read).join('\n'), { window, console, Intl, Map, Set, JSON, Math, Date, URL });
 const P = window.ChibiSenseiParts;
 ok(P && P.steps && P.table && P.mascot, 'the modules publish their parts');
 
@@ -60,14 +60,28 @@ p = primary('data', { data: 'blocked' }, { rows: 3, readonly: true });
 ok(p.disabled && p.reasonKey === 'chibi_sensei.readonly_banner', 'read-only disables the check');
 p = primary('data', { data: 'blocked' }, { rows: 3, checksRunning: true });
 ok(p.disabled && p.labelKey === 'chibi_sensei.checks.running', 'a running check disables the button');
-for (const step of ['training', 'test', 'use']) {
+for (const step of ['test', 'use']) {
     p = primary(step, {}, {});
     ok(p.disabled && p.reasonKey === 'chibi_sensei.primary.later', step + ' comes later');
 }
+p = primary('training', { training: 'ready' }, { preflight: null });
+ok(p.action === 'start_training' && p.disabled && p.reasonKey === 'chibi_sensei.primary.preflight_loading', 'training waits for the preflight');
+p = primary('training', { training: 'ready' }, { preflight: { ready: false } });
+ok(p.disabled && p.reasonKey === 'chibi_sensei.primary.preflight_blocked', 'a blocking preflight disables the start');
+p = primary('training', { training: 'ready' }, { preflight: { ready: true } });
+ok(!p.disabled && p.labelKey === 'chibi_sensei.primary.start_training', 'a ready preflight enables the start');
+p = primary('training', { training: 'ready' }, { preflight: { ready: true }, readonly: true });
+ok(p.disabled && p.reasonKey === 'chibi_sensei.readonly_banner', 'read-only cannot start');
+eq(primary('training', { training: 'done' }, { preflight: { ready: true } }).labelKey, 'chibi_sensei.primary.train_again', 'after a success: train again');
+p = primary('training', { training: 'in_progress' }, { runActive: true, readonly: true });
+ok(p.action === 'show_run' && !p.disabled, 'an active run is shown, even read-only');
+p = primary('training', {}, { preflight: { ready: true }, starting: true });
+ok(p.disabled && p.labelKey === 'chibi_sensei.primary.starting', 'a start in flight disables the button');
 
 // ---- tipFor ---------------------------------------------------------------------------------------------------------------
 eq(P.steps.tipFor('data', 'blocked'), 'chibi_sensei.tip.data_blocked', 'tip: data blocked');
-eq(P.steps.tipFor('training', 'ready'), 'chibi_sensei.tip.training_todo', 'tip: training falls back to todo');
+eq(P.steps.tipFor('training', 'ready'), 'chibi_sensei.tip.training_ready', 'tip: training ready');
+eq(P.steps.tipFor('training', 'weird'), 'chibi_sensei.tip.training_todo', 'tip: unknown training state');
 
 // ---- table ----------------------------------------------------------------------------------------------------------------
 const T = P.table;
@@ -157,6 +171,48 @@ eq(mood({ blocked: true }), 'worried', 'mood: blocked');
 eq(mood({ jobFailed: true }), 'worried', 'mood: failed job');
 eq(mood({ stepState: 'ready' }), 'happy', 'mood: ready');
 eq(mood({}), 'idle', 'mood: idle');
+eq(mood({ runActive: true, runFailed: true }), 'thinking', 'mood: an active run is work');
+eq(mood({ runFailed: true }), 'worried', 'mood: failed run');
+eq(mood({ runSucceeded: true, stepState: 'done' }), 'celebrating', 'mood: run succeeded');
+
+// ---- runs, links ----------------------------------------------------------------------------------------------------------
+ok(P.runTerminal('failed') && !P.runTerminal('running') && !P.runTerminal('weird'), 'runTerminal');
+const runs = [{ id: 'b', state: 'running', created: '2026-11-23T10:00:00Z' }, { id: 'a', state: 'succeeded', created: '2026-11-22T10:00:00Z' }];
+eq(P.activeRun(runs).id, 'b', 'activeRun');
+eq(P.activeRun([{ id: 'x', state: 'weird' }]), null, 'an unknown state is not active');
+const up = P.upsertRun(runs, { id: 'b', state: 'downloading' });
+ok(up[0].id === 'b' && up[0].state === 'downloading' && up[0].created === '2026-11-23T10:00:00Z', 'upsert merges and keeps fields');
+eq(P.upsertRun(runs, { id: 'c', state: 'queued', created: '2026-11-24T00:00:00Z' }).map(r => r.id), ['c', 'b', 'a'], 'newest first');
+eq(P.upsertRun(runs, { id: 'c', created: '2026-11-24T00:00:00Z' }, 2).length, 2, 'limit');
+eq([P.safeLink('/config#kaggle'), P.safeLink('//evil.test/x'), P.safeLink('javascript:void(0)'), P.safeLink('http://example.test/'), P.safeLink('https://example.test/a b')],
+    ['/config#kaggle', '', '', '', 'https://example.test/a%20b'], 'safeLink');
+
+// ---- preflight, enable flags, overrides -----------------------------------------------------------------------------------
+const pf = { ready: false, items: [
+    { id: 'kaggle_enabled', group: 'kaggle', ok: false, level: 'block', flag: 'kaggle.enabled' },
+    { id: 'dataset_ready', group: 'data', ok: true, level: 'block' },
+    { id: 'mystery', group: 'elsewhere', ok: false, level: 'warn' },
+    { id: 'kaggle_allow_delete', group: 'kaggle', ok: false, level: 'warn', flag: 'kaggle.allow_delete' },
+    { id: 'kaggle_quota', group: 'quota', ok: true, level: 'block' }], fix: { flags: ['kaggle.allow_delete', 'kaggle.enabled', 'kaggle.enabled'] } };
+const g = plain(P.training.groupPreflight(pf));
+eq(g.groups.map(x => x.id), ['data', 'kaggle', 'quota', 'other'], 'groups in fixed order, unknown last');
+eq([g.blocks, g.warns, g.ready], [1, 2, false], 'preflight counts');
+eq(plain(P.training.groupPreflight({ ready: true, items: [] })).ready, true, 'an empty ready list');
+eq(P.training.enableFlags(pf), [{ flag: 'kaggle.enabled', id: 'kaggle_enabled', optional: false }, { flag: 'kaggle.allow_delete', id: 'kaggle_allow_delete', optional: true }], 'required first, deduped');
+eq(P.training.enableFlags({ items: [], fix: null }), [], 'no fix');
+const gemma = { method_default: 'full', methods: ['full', 'lora'], max_seq_cap: 2048 };
+const qwen = { method_default: 'lora', methods: ['lora'], max_seq_cap: 2048 };
+const v = (d, prof) => plain(P.training.validateOverrides(d, prof));
+eq(v({}, qwen), { overrides: {}, issues: [] }, 'empty is automatic');
+eq(v({ epochs: '3', learning_rate: '0,0002', max_seq_len: '1024', lora_r: '16', lora_alpha: '32' }, qwen).overrides,
+    { epochs: 3, learning_rate: 0.0002, max_seq_len: 1024, lora_r: 16, lora_alpha: 32 }, 'valid values');
+eq(v({ method: 'full' }, qwen).issues.map(i => i.field), ['method'], 'qwen has no full method');
+eq(v({ epochs: '11', learning_rate: '0.01', max_seq_len: '4096', lora_r: '0', lora_alpha: '1.5' }, qwen).issues.map(i => i.field),
+    ['epochs', 'learning_rate', 'max_seq_len', 'lora_r', 'lora_alpha'], 'out of range');
+eq(v({ lora_r: '999' }, gemma).issues, [], 'gemma defaults to full: LoRA fields are ignored');
+eq(v({ method: 'lora', lora_r: '999' }, gemma).issues.map(i => i.field), ['lora_r'], 'gemma with LoRA checks the rank');
+eq(v({ max_seq_len: '300' }, { method_default: 'lora', context_max: 32768 }).issues.map(i => i.field), ['max_seq_len'], 'not a bucket');
+eq(P.training.seqOptions({ method_default: 'lora', context_max: 32768 }), [256, 512, 1024, 2048, 4096], 'no cap: buckets up to 4096');
 eq(P.mascot.MOODS.length, 6, 'six moods');
 
 console.log('chibi-sensei model: ok (' + checks + ' checks)');

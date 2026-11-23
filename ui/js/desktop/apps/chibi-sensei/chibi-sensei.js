@@ -1,6 +1,6 @@
 // Chibi Sensei window: the composition root. It owns the per-window instance (the state the other modules read and the bus they
 // listen to), the start (meta call, state cards), the project list mount, the project layout (top bar, banners, step rail, main
-// area, Sensei panel), step routing, the project event stream with its fan-out, the 2.5 s poll of active jobs, the read-only
+// area, Sensei panel), step routing, the project event stream with its fan-out, the 2.5 s poll of active jobs and of the active run, the run list, the read-only
 // policy and the close guard. The step rail and the Sensei panel come from P.steps (derive, createRail, createPanel). Loaded last; publishes window.ChibiSenseiApp = {render, dispose, open}. Classic script.
 (function () {
     'use strict';
@@ -10,6 +10,8 @@
     const LIVE_CLEAR_MS = 5000;
     const POLL_MS = 2500;
     const REFRESH_MS = 1000;
+    const RUN_LIST_LIMIT = 20;
+    const RUN_END_KEYS = { succeeded: 'chibi_sensei.run.finished_notify', failed: 'chibi_sensei.run.failed_notify', cancelled: 'chibi_sensei.run.cancelled_notify' };
 
     function createInstance(host, windowId, ctx) {
         const c = ctx || {};
@@ -25,6 +27,7 @@
             goalDirty: false, editorDirty: false,
             checks: null, checksStale: true, checksRunning: false,
             split: null, documents: [], jobs: new Map(), lastJobFailed: false,
+            runs: [], preflight: null, trainingStarting: false,
             lastBatch: null,
             busOffs: [], events: null, pollTimer: 0, liveTimer: 0, refresh: null,
             content: null, root: null,
@@ -42,6 +45,9 @@
         inst.listen = (name, fn) => { inst.busOffs.push(inst.bus.on(name, fn)); };
         inst.runPrimary = action => runPrimary(inst, action);
         inst.applyJob = job => applyJob(inst, job);
+        inst.applyRun = run => applyRun(inst, run);
+        inst.reloadRuns = () => reloadRuns(inst);
+        inst.removeRun = id => removeRun(inst, id);
         return inst;
     }
 
@@ -187,6 +193,9 @@
         inst.documents = [];
         inst.jobs = new Map();
         inst.lastJobFailed = false;
+        inst.runs = [];
+        inst.preflight = null;
+        inst.trainingStarting = false;
         inst.lastBatch = null;
         inst.goalDirty = false;
         inst.editorDirty = false;
@@ -207,7 +216,8 @@
                 tolerant(inst.api.getChecks(id)),
                 tolerant(inst.api.getSplit(id)),
                 tolerant(inst.api.listDocuments(id)),
-                tolerant(inst.api.listJobs(id, true))
+                tolerant(inst.api.listJobs(id, true)),
+                tolerant(inst.api.listRuns(id, RUN_LIST_LIMIT))
             ]);
         } catch (err) {
             if (inst.disposed || seq !== inst.projectSeq || (err && err.aborted)) return false;
@@ -217,13 +227,14 @@
         if (inst.disposed || seq !== inst.projectSeq) return false;
         closeProject(inst);
         seq = inst.projectSeq;
-        const [project, checks, split, documents, jobs] = loaded;
+        const [project, checks, split, documents, jobs, runs] = loaded;
         inst.project = project;
         inst.checks = checks && checks.result ? checks.result : null;
         inst.checksStale = checks ? !!checks.stale || !checks.result : true;
         inst.split = split;
         inst.documents = Array.isArray(documents) ? documents : [];
         (Array.isArray(jobs) ? jobs : []).forEach(job => inst.jobs.set(job.id, job));
+        inst.runs = Array.isArray(runs) ? runs.slice(0, RUN_LIST_LIMIT) : [];
         inst.view = 'project';
         buildLayout(inst);
         openEvents(inst);
@@ -362,7 +373,8 @@
         if (inst.disposed || inst.view !== 'project' || !inst.parts.railView || !inst.parts.panelView) return;
         inst.derived = derive(inst);
         inst.primary = P.steps.primaryFor(inst.step, inst.derived, {
-            readonly: inst.readonly, goalValid: goalValid(inst), checksRunning: inst.checksRunning, rows: inst.project ? inst.project.rows : 0
+            readonly: inst.readonly, goalValid: goalValid(inst), checksRunning: inst.checksRunning, rows: inst.project ? inst.project.rows : 0,
+            runActive: !!P.activeRun(inst.runs), preflight: inst.preflight, starting: inst.trainingStarting
         });
         inst.parts.railView.paint(inst.derived, inst.step);
         inst.parts.panelView.paint({ step: inst.step, derived: inst.derived, primary: inst.primary });
@@ -383,6 +395,11 @@
             if (P.need(inst, 'data') && typeof P.data.runChecks === 'function') await P.data.runChecks(inst);
         } else if (id === 'goto_training') {
             showStep(inst, 'training');
+        } else if (id === 'start_training' || id === 'show_run') {
+            const view = inst.parts.view;
+            if (inst.step !== 'training') { showStep(inst, 'training'); return; }
+            if (id === 'start_training' && view && typeof view.startTraining === 'function') await view.startTraining();
+            else if (id === 'show_run' && view && typeof view.showRun === 'function') view.showRun();
         }
     }
 
@@ -427,6 +444,41 @@
         if (job.state === 'failed') inst.lastJobFailed = true;
         else if (job.state === 'queued') inst.lastJobFailed = false;
         inst.bus.emit('job', job);
+        recompute(inst);
+        syncPoll(inst);
+    }
+
+    // A run from a start, an event or the poll. The step states come from the server, so a new or finished run refreshes the project.
+    function applyRun(inst, run) {
+        if (inst.disposed || !run || typeof run.id !== 'string' || !inst.project) return;
+        if (run.project_id && run.project_id !== inst.project.id) return;
+        const before = inst.runs.find(r => r.id === run.id) || null;
+        inst.runs = P.upsertRun(inst.runs, run, RUN_LIST_LIMIT);
+        const merged = inst.runs.find(r => r.id === run.id) || run;
+        inst.bus.emit('run', merged);
+        const ended = before && !P.runTerminal(before.state) && P.runTerminal(merged.state);
+        if (ended) notify(inst, inst.t(RUN_END_KEYS[merged.state]), merged.state === 'failed' ? 'error' : 'info');
+        if ((ended || !before) && inst.refresh) inst.refresh();
+        recompute(inst);
+        syncPoll(inst);
+    }
+
+    async function reloadRuns(inst) {
+        if (inst.disposed || !inst.project) return;
+        const seq = inst.projectSeq;
+        try {
+            const runs = await inst.api.listRuns(inst.project.id, RUN_LIST_LIMIT);
+            if (inst.disposed || seq !== inst.projectSeq) return;
+            inst.runs = runs.slice(0, RUN_LIST_LIMIT);
+            inst.bus.emit('runs', inst.runs);
+            recompute(inst);
+            syncPoll(inst);
+        } catch (_) { /* the list stays; the next event or poll brings the change */ }
+    }
+
+    function removeRun(inst, id) {
+        inst.runs = inst.runs.filter(r => r.id !== id);
+        inst.bus.emit('runs', inst.runs);
         recompute(inst);
         syncPoll(inst);
     }

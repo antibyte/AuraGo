@@ -58,12 +58,12 @@
         return { el: svg, setMood, get mood() { return current; } };
     }
 
-    // Priority: switched off > a job runs > blocked or failed > run succeeded (P2) > step ready or done > idle.
+    // Priority: switched off > a job or run is working > blocked or failed (job or run) > run succeeded > step ready or done > idle.
     function moodFor(s) {
         const x = s || {};
         if (x.disabled) return 'sleeping';
-        if (x.jobsActive || x.checksRunning) return 'thinking';
-        if (x.blocked || x.jobFailed) return 'worried';
+        if (x.jobsActive || x.checksRunning || x.runActive) return 'thinking';
+        if (x.blocked || x.jobFailed || x.runFailed) return 'worried';
         if (x.runSucceeded) return 'celebrating';
         if (x.stepState === 'ready' || x.stepState === 'done') return 'happy';
         return 'idle';

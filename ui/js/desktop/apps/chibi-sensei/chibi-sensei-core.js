@@ -218,6 +218,27 @@
         // a fraction 0..1 as a whole percent
         share(fraction) {
             return Math.round(clamp(fraction, 0, 1) * 100) + ' %';
+        },
+        // seconds as "12 s", "4 min" or "1 h 5 min" in the user's language
+        duration(seconds) {
+            const s = Math.max(0, Math.round(Number(seconds) || 0));
+            const unit = (value, name) => {
+                try { return new Intl.NumberFormat(locale(), { style: 'unit', unit: name, unitDisplay: 'short' }).format(value); } catch (_) { return String(value) + ' ' + name; }
+            };
+            if (s < 60) return unit(s, 'second');
+            const m = Math.floor(s / 60);
+            return m < 60 ? unit(m, 'minute') : unit(Math.floor(m / 60), 'hour') + ' ' + unit(m % 60, 'minute');
+        },
+        bytes(n) {
+            const units = ['byte', 'kilobyte', 'megabyte', 'gigabyte'];
+            let x = Math.max(0, Number(n) || 0), i = 0;
+            while (x >= 1024 && i < units.length - 1) { x /= 1024; i++; }
+            try { return new Intl.NumberFormat(locale(), { style: 'unit', unit: units[i], unitDisplay: 'short', maximumFractionDigits: i ? 1 : 0 }).format(x); } catch (_) { return Math.round(x) + ' ' + units[i]; }
+        },
+        decimal(n, digits) {
+            const v = Number(n);
+            if (!Number.isFinite(v)) return '0';
+            try { return new Intl.NumberFormat(locale(), { maximumFractionDigits: digits == null ? 3 : digits }).format(v); } catch (_) { return String(v); }
         }
     };
 
@@ -253,7 +274,7 @@
         };
     }
 
-    const ERROR_CODES = ['network', 'unauthorized', 'desktop_scope_required', 'desktop_readonly', 'chibi_disabled', 'desktop_disabled', 'not_found', 'conflict', 'validation_failed', 'dataset_full', 'import_failed', 'job_active', 'not_archived', 'budget_exceeded', 'provider_unavailable', 'too_large', 'busy', 'precondition_required', 'confirmation_required', 'confirmation_invalid', 'generator_daily_limit', 'storage_full', 'data_changed', 'already_undone', 'file_too_large', 'unsupported_file', 'profile_unknown', 'job_not_found', 'undo_conflict', 'bad_response', 'prompt_withheld', 'output_cut', 'invalid_answer', 'model_error', 'interrupted', 'internal', 'too_many_rows', 'job_not_finished', 'timeout', 'too_many_streams'];
+    const ERROR_CODES = ['network', 'unauthorized', 'desktop_scope_required', 'desktop_readonly', 'chibi_disabled', 'desktop_disabled', 'not_found', 'conflict', 'validation_failed', 'dataset_full', 'import_failed', 'job_active', 'not_archived', 'budget_exceeded', 'provider_unavailable', 'too_large', 'busy', 'precondition_required', 'confirmation_required', 'confirmation_invalid', 'generator_daily_limit', 'storage_full', 'data_changed', 'already_undone', 'file_too_large', 'unsupported_file', 'profile_unknown', 'job_not_found', 'undo_conflict', 'bad_response', 'prompt_withheld', 'output_cut', 'invalid_answer', 'model_error', 'interrupted', 'internal', 'too_many_rows', 'job_not_finished', 'timeout', 'too_many_streams', 'preflight_failed', 'plan_expired', 'run_active', 'run_not_terminal', 'run_not_found', 'artifact_not_found', 'admin_required', 'kaggle_unavailable', 'license_consent_required'];
     const CHECK_IDS = ['count_min', 'structure', 'short_answer', 'duplicates', 'conflicts', 'too_long', 'label_balance', 'json_valid', 'split_sizes', 'language_fit'];
 
     function describeError(t, err) {
@@ -327,6 +348,52 @@
         return false;
     }
 
+    // ---- runs ------------------------------------------------------------------------------------------------------------------
+    const RUN_STATES = ['queued', 'packaging', 'uploading', 'creating_dataset', 'waiting_dataset', 'starting', 'running', 'downloading', 'verifying', 'cleaning', 'succeeded', 'failed', 'cancelled'];
+    const RUN_TERMINAL = ['succeeded', 'failed', 'cancelled'];
+    function runTerminal(state) { return RUN_TERMINAL.indexOf(state) >= 0; }
+    // runs are newest first; an unknown state is neither active nor terminal, so it never keeps a poll alive.
+    function activeRun(runs) {
+        return (Array.isArray(runs) ? runs : []).find(r => r && RUN_STATES.indexOf(r.state) >= 0 && !runTerminal(r.state)) || null;
+    }
+    // upsertRun merges a (possibly partial) run into the list: fields the update lacks are kept, the list is newest first.
+    function upsertRun(runs, run, limit) {
+        const list = Array.isArray(runs) ? runs : [];
+        const prev = list.find(r => r && r.id === run.id);
+        const next = list.filter(r => r && r.id !== run.id);
+        next.push(prev ? Object.assign({}, prev, run) : run);
+        next.sort((a, b) => String(b.created || '').localeCompare(String(a.created || '')));
+        return next.slice(0, limit || 20);
+    }
+
+    // ---- links: never an embedded outside resource; opened on demand in a new tab without referrer -----------------------
+    function safeLink(url) {
+        const s = String(url || '').trim();
+        if (s.charAt(0) === '/' && s.charAt(1) !== '/' && s.charAt(1) !== '\\') return s;
+        try { const u = new URL(s); return u.protocol === 'https:' ? u.href : ''; } catch (_) { return ''; }
+    }
+    function openLink(url) {
+        const safe = safeLink(url);
+        if (safe) window.open(safe, '_blank', 'noopener,noreferrer');
+        return !!safe;
+    }
+    // The address as selectable read-only text, a copy button and an open button (disabled for anything but https or a path).
+    function linkRow(t, url, name) {
+        const safe = safeLink(url);
+        const input = el('input', { class: 'csn-input csn-link-text', type: 'text', readonly: true, value: String(url || ''), ariaLabel: t('chibi_sensei.link.address'), dataset: { csn: name + '-url' } });
+        const note = el('span', { class: 'csn-hint', role: 'status', dataset: { csn: name + '-copied' } });
+        const copy = el('button', { type: 'button', class: 'csn-btn', dataset: { csn: name + '-copy' }, text: t('chibi_sensei.link.copy'), onClick: async () => {
+            let ok = false;
+            try { if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') { await navigator.clipboard.writeText(input.value); ok = true; } } catch (_) { ok = false; }
+            if (!ok) { input.focus(); input.select(); }
+            note.textContent = t(ok ? 'chibi_sensei.link.copied' : 'chibi_sensei.link.copy_failed');
+        } });
+        const open = el('button', { type: 'button', class: 'csn-btn', dataset: { csn: name + '-open' }, text: t('chibi_sensei.link.open'), onClick: () => openLink(url) });
+        open.disabled = !safe;
+        open.title = safe ? '' : t('chibi_sensei.link.blocked');
+        return el('div', { class: 'csn-linkrow', dataset: { csn: name } }, input, copy, open, note);
+    }
+
     P.el = el;
     P.clear = clear;
     P.icon = icon;
@@ -349,4 +416,11 @@
     P.stepKey = stepKey;
     P.need = need;
     P.ICON_NAMES = Object.keys(ICONS);
+    P.RUN_STATES = RUN_STATES;
+    P.runTerminal = runTerminal;
+    P.activeRun = activeRun;
+    P.upsertRun = upsertRun;
+    P.safeLink = safeLink;
+    P.openLink = openLink;
+    P.linkRow = linkRow;
 })();
