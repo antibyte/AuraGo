@@ -27,6 +27,7 @@
     "test:easydrag": "node scripts/test-easydrag.mjs",
     "test:easydrag:t0": "node scripts/test-easydrag-t0.mjs",
     "test:docker-manager": "node scripts/test-docker-manager-ui.mjs",
+    "test:code-studio-replace": "node scripts/test-code-studio-replace.mjs",
     "test:ecalc": "node scripts/test-ecalc-core.mjs && node scripts/test-ecalc-codes.mjs && node scripts/test-ecalc-pinouts.mjs",
     "test:cyd-creator-shell": "node scripts/test-cyd-creator-shell.mjs",
     "test:cyd-creator-flash": "node scripts/test-cyd-creator-flash.mjs",
