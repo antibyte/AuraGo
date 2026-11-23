@@ -1003,30 +1003,30 @@
             const path = st.resonancePath;
             if (path && !path.complete) {
                 const next = path.runes[path.nextRune];
-                lights.push({ x: next.x, y: next.y, radius: 86, intensity: 0.72, flicker: false });
+                lights.push({ x: next.x, y: next.y, radius: 86, intensity: 0.72, flicker: false, color: '#7ee8fa' });
             }
             (st.rituals || []).forEach(function (r) {
                 (r.braziers || []).forEach(function (b) {
-                    if (b.lit) lights.push({ x: b.x, y: b.y - 50, radius: 140, intensity: 0.75, flicker: true });
+                    if (b.lit) lights.push({ x: b.x, y: b.y - 50, radius: 140, intensity: 0.75, flicker: true, color: '#ffb060' });
                 });
             });
             (st.glyphStones || []).forEach(function (g) {
-                if (g.lit) lights.push({ x: g.x, y: g.y - 32, radius: 70, intensity: 0.45, flicker: false });
+                if (g.lit) lights.push({ x: g.x, y: g.y - 32, radius: 70, intensity: 0.45, flicker: false, color: '#7ee8fa' });
             });
             (st.oracles || []).forEach(function (o) {
-                if (o.state === 'showing' || o.state === 'input') lights.push({ x: o.x, y: o.y - 70, radius: 110, intensity: 0.5, flicker: false });
+                if (o.state === 'showing' || o.state === 'input') lights.push({ x: o.x, y: o.y - 70, radius: 110, intensity: 0.5, flicker: false, color: '#7ee8fa' });
             });
             (st.dragonRuns || []).forEach(function (r) {
                 if (r.state !== 'strafe' || !r.fire) return;
                 const f = r.fire;
-                for (let x = f.x + 30; x < f.x + f.w; x += 100) lights.push({ x: x, y: f.y + f.h / 2, radius: 150, intensity: 0.8, flicker: true });
+                for (let x = f.x + 30; x < f.x + f.w; x += 100) lights.push({ x: x, y: f.y + f.h / 2, radius: 150, intensity: 0.8, flicker: true, color: r.kind === 'frost' ? '#9be7ff' : '#ff7a2a' });
             });
             (sim.tempHazards || []).forEach(function (th) {
                 if (th.kind !== 'dragonfire') return;
-                for (let x = th.x + 30; x < th.x + th.w; x += 110) lights.push({ x: x, y: th.y + th.h / 2, radius: 150, intensity: 0.8, flicker: true });
+                for (let x = th.x + 30; x < th.x + th.w; x += 110) lights.push({ x: x, y: th.y + th.h / 2, radius: 150, intensity: 0.8, flicker: true, color: th.variant === 'frost' ? '#9be7ff' : '#ff7a2a' });
             });
             (sim.projectiles || []).forEach(function (pr) {
-                if (!pr.dead && pr.kind === 'fireball') lights.push({ x: pr.x, y: pr.y, radius: 90, intensity: 0.6, flicker: true });
+                if (!pr.dead && pr.kind === 'fireball') lights.push({ x: pr.x, y: pr.y, radius: 90, intensity: 0.6, flicker: true, color: '#ff7a2a' });
             });
         }
 

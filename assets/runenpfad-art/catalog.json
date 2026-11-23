@@ -7330,6 +7330,216 @@
    "prompt": "Create an original production PNG overlay layer for Runenpfad (rune path), an original 2D fantasy pixel-art action adventure with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: a FOREGROUND FRAME overlay for cutscenes, 16:9 landscape, 1920 x 1080 target image (a single image). Very dark, almost black pixel-art silhouettes of large gears, pipes, chains and riveted girders with a faint cool rim light, placed ONLY along the left edge, the right edge and the two top corners of the image, like the extreme foreground of a parallax scene. The whole centre of the image (at least the middle 60 percent of the width, from top to bottom) is completely empty and transparent, and the bottom edge stays empty too. genuinely transparent alpha background (a real alpha channel with alpha exactly 0 everywhere outside the artwork, not a painted checkerboard, not white, not black, no solid colour). No mist, no glow backdrop, no fog, no gradient, no floor plate, no ground strip, no shadow plate, no frame or border, no grid lines; no text, labels, letters, numbers or watermarks. Crisp chunky 16-bit era pixels. No characters, no creatures.",
    "source": "cutfg-citadel.png",
    "sourceSha256": "bef1fdf022175500714f31441f449028cf9c38cf2bdf5d8a5c339cbeede5fa2b"
+  },
+  {
+   "id": "prop-chain",
+   "file": "prop-chain.webp",
+   "cols": 4,
+   "rows": 1,
+   "pivot": "center",
+   "kind": "prop",
+   "default": "link",
+   "clips": {
+    "link": {
+     "frames": [
+      0
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "mount": {
+     "frames": [
+      1
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "shackle": {
+     "frames": [
+      2
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "rail": {
+     "frames": [
+      3
+     ],
+     "ms": 200,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: IRON CHAIN and RAIL parts for swinging blade pendulums and moving-platform tracks. Exactly 4 cells, precisely arranged in a regular 4-column by 1-row grid, read left to right then top to bottom, every cell exactly the same size. 2048 x 512 target sheet. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. Absolutely no mist, haze, fog, smoke or soft glow cloud around the objects: every pixel outside the drawn objects is fully transparent with alpha 0. IMPORTANT: these are four small isolated objects floating on an empty, completely transparent canvas. Do not paint any wall, stone surface, grey texture, cloud, vignette, gradient or dark panel behind or between the objects; at least 75 percent of the pixels of the sheet must have alpha 0. Four separate objects, one per cell, each centred in its cell. Cell 1: a short perfectly straight VERTICAL piece of heavy dark iron chain made of three interlocked oval links seen alternately from the front and from the side; the top end and the bottom end are cut flat in the middle of a link, so that copies stacked vertically join into one continuous chain; cool steel highlights and a little rust; the piece spans about 72 percent of the cell height and is narrow. Cell 2: a sturdy iron ceiling bracket bolted to a small grey stone block, with one thick iron ring hanging from it at the bottom centre, seen from the side. Cell 3: an iron shackle with a cross pin, the kind that holds a heavy blade at the end of a chain, its opening pointing down. Cell 4: a short perfectly straight HORIZONTAL piece of a flat bronze guide rail with three small engraved teal glowing rune notches; its left and right ends are cut flat and identical, so that copies placed side by side join into one continuous rail; the piece spans about 72 percent of the cell width and is thin. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds. Each object fits within 76 percent of its cell with fully transparent padding; nothing touches the cell or sheet edges. No characters, no readable letters, no ground shadow.",
+   "tool": "Codex image generation",
+   "source": "prop-chain.png",
+   "sourceSha256": "8583b413f0f7ee3d199f502d0e8d7fca4cb88a1ee331aaf17940d8f477d00937"
+  },
+  {
+   "id": "prop-conveyor",
+   "file": "prop-conveyor.webp",
+   "cols": 3,
+   "rows": 1,
+   "pivot": "center",
+   "kind": "prop",
+   "default": "left",
+   "clips": {
+    "left": {
+     "frames": [
+      0
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "mid": {
+     "frames": [
+      1
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "right": {
+     "frames": [
+      2
+     ],
+     "ms": 200,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: CONVEYOR BELT top strip in side view, three pieces that join into one long belt. Exactly 3 cells, precisely arranged in a regular 3-column by 1-row grid, read left to right then top to bottom, every cell exactly the same size. 1536 x 512 target sheet. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. Absolutely no mist, haze, fog, smoke or soft glow cloud around the objects: every pixel outside the drawn objects is fully transparent with alpha 0. Three separate objects, one per cell, each centred in its cell, all three exactly the same height and at exactly the same vertical position. Each piece is a low flat strip about four times as wide as it is tall. Cell 1, the LEFT END: a riveted brass end cap with a toothed iron drive wheel, the dark rubber belt wrapping around the wheel; its right edge is cut perfectly flat and vertical. Cell 2, the MIDDLE segment: a straight section with a flat dark rubber belt band on top and a brass side rail with evenly spaced rivets and two small iron rollers below; its left and right edges are cut perfectly flat and vertical with the same cross section, so that copies placed side by side join seamlessly. Cell 3, the RIGHT END: the mirrored counterpart of cell 1 with the wheel on the right; its left edge is cut perfectly flat and vertical. The belt band has the same thickness and the same height in all three cells, and its top surface is plain and flat with no arrows, no chevrons and no markings (movement marks are added by the game). Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds. Each piece spans about 80 percent of its cell width with fully transparent padding; nothing touches the cell or sheet edges. No characters, no readable letters, no ground shadow.",
+   "tool": "Codex image generation",
+   "source": "prop-conveyor.png",
+   "sourceSha256": "2c02246f599d4211d40b12f404e4e8571ed2f51ab3ffecd19e1b5f761ecff5be"
+  },
+  {
+   "id": "fx-projectiles",
+   "file": "fx-projectiles.webp",
+   "cols": 4,
+   "rows": 2,
+   "pivot": "center",
+   "kind": "fx",
+   "default": "arrow",
+   "clips": {
+    "arrow": {
+     "frames": [
+      0
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "spear": {
+     "frames": [
+      1
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "missile": {
+     "frames": [
+      2
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "orb": {
+     "frames": [
+      3
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "cannonball": {
+     "frames": [
+      4
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "spore": {
+     "frames": [
+      5
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "crest": {
+     "frames": [
+      6
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "shard": {
+     "frames": [
+      7
+     ],
+     "ms": 200,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: eight small PROJECTILES, one per cell, each flying to the RIGHT. Exactly 8 cells, precisely arranged in a regular 4-column by 2-row grid, read left to right then top to bottom, every cell exactly the same size. 2048 x 1024 target sheet. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. Absolutely no mist, haze, fog, smoke or soft glow cloud around the objects: every pixel outside the drawn objects is fully transparent with alpha 0. Eight separate objects, each centred in its cell with its tip pointing to the RIGHT. Row 1: cell 1 a slim hunter's arrow with a pale blue glowing rune arrowhead and green fletching; cell 2 a crude goblin throwing spear with a chipped stone head and a red rag tied behind the head; cell 3 a small brass clockwork rocket with fins and a short orange exhaust flame at its back (left side); cell 4 a round violet magic energy orb with a bright white core and two thin arcs of electricity. Row 2: cell 5 a heavy black iron cannonball with a glint and a faint orange heat edge; cell 6 a sickly green mushroom spore blob with small bubbles; cell 7 a low ground shock wave crest of cracked earth and dust rolling to the right, flat at the bottom; cell 8 a sharp pale blue ice shard with a frosty edge. All eight are drawn at a similar visual size. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds. Each object fits within 62 percent of its cell with fully transparent padding; nothing touches the cell or sheet edges. No motion blur streaks, no trails behind the objects except the rocket flame, no characters, no readable letters, no ground shadow.",
+   "tool": "Codex image generation",
+   "source": "fx-projectiles.png",
+   "sourceSha256": "e83a4e5bae725234ebf2025f4c8d377198f28dce46eeeb4ac78a2ad4f5e4b24a"
+  },
+  {
+   "id": "fx-telegraph",
+   "file": "fx-telegraph.webp",
+   "cols": 2,
+   "rows": 2,
+   "pivot": "center",
+   "kind": "fx",
+   "default": "ring",
+   "clips": {
+    "ring": {
+     "frames": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "ms": 110,
+     "loop": true
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: RUNE WARNING CIRCLE visual effect that marks the spot on the ground where a boss attack will land. Exactly 4 cells, precisely arranged in a regular 2-column by 2-row grid, read left to right then top to bottom, every cell exactly the same size. 2048 x 2048 target sheet. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. Absolutely no mist, haze, fog, smoke or soft glow cloud around the objects: every pixel outside the drawn objects is fully transparent with alpha 0. Four animation frames of the same magic circle, one per cell, each centred. The circle lies flat on the ground and is seen in strong perspective from the side, so it appears as a wide flat ellipse about three times as wide as it is tall. It is made only of thin glowing red-orange lines: an outer ring, a thinner inner ring, short tick marks between them and four simple angular Nordic rune-like glyph shapes spaced around the ring; the centre of the ellipse is EMPTY and fully transparent. Frame 1 dim and thin; frame 2 brighter with the tick marks rotated a little; frame 3 brightest with a hot yellow-white core in the lines; frame 4 like frame 2 with the tick marks rotated further. Same size, same position and same ellipse shape in all four frames. Drawn with crisp pixel-art lines and a tight bright edge, no soft halo, no filled disc, no smoke. Readable on both dark and light backgrounds. Each frame fits within 80 percent of its cell width with fully transparent padding; nothing touches the cell or sheet edges. No characters, no readable letters.",
+   "tool": "Codex image generation",
+   "source": "fx-telegraph.png",
+   "sourceSha256": "e16df762c30ff5d21937d6239b971b9aa4d780425dfc0cd2874a4a8361e05267"
+  },
+  {
+   "id": "fx-pickup",
+   "file": "fx-pickup.webp",
+   "cols": 4,
+   "rows": 2,
+   "pivot": "center",
+   "kind": "fx",
+   "default": "coin",
+   "clips": {
+    "coin": {
+     "frames": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "ms": 55,
+     "loop": false
+    },
+    "gem": {
+     "frames": [
+      4,
+      5,
+      6,
+      7
+     ],
+     "ms": 60,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: two short PICKUP SPARKLE effects. Exactly 8 cells, precisely arranged in a regular 4-column by 2-row grid, read left to right then top to bottom, every cell exactly the same size. 2048 x 1024 target sheet. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. Absolutely no mist, haze, fog, smoke or soft glow cloud around the objects: every pixel outside the drawn objects is fully transparent with alpha 0. Every effect is centred at the middle of its cell. Row 1 (frames 1-4): a gold coin collect pop: frame 1 a small bright golden four-point star flash; frame 2 a thin golden ring expanding with four tiny coin-coloured sparks flying outward; frame 3 the ring larger and breaking into short arcs, the sparks further out and smaller; frame 4 only a few last tiny golden glints. Row 2 (frames 5-8): a gem and key collect burst in white and pale cyan: frame 5 a bright white eight-point star flash; frame 6 a crystalline cyan burst of six thin diamond-shaped shards flying outward around a white core; frame 7 the shards further out and thinner with a faint thin ring; frame 8 a few last tiny cyan glints. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds. Each frame fits within 70 percent of its cell with fully transparent padding; nothing touches the cell or sheet edges. No soft glow cloud, no smoke, no characters, no readable letters.",
+   "tool": "Codex image generation",
+   "source": "fx-pickup.png",
+   "sourceSha256": "02631c07e80b29e37e3cbd57a0fd16ba8b5cdfce9087d80d3817d908a21065a8"
   }
  ]
 }

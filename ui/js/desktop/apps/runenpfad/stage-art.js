@@ -21,27 +21,37 @@
         }
 
         // ---- zones ----
+        // Adjacent conveyor tiles with the same row and speed form one run (cached per platform list).
+        const runCache = new WeakMap();
+        function conveyorRuns(platforms) {
+            let runs = runCache.get(platforms);
+            if (runs) return runs;
+            runs = [];
+            platforms.filter(function (p) { return p.kind === 'conveyor'; }).sort(function (a, b) { return a.y - b.y || a.x - b.x; }).forEach(function (p) {
+                const last = runs[runs.length - 1];
+                if (last && last.y === p.y && last.speed === p.conveyor && Math.abs(last.x + last.w - p.x) < 1) last.w += p.w;
+                else runs.push({ x: p.x, y: p.y, w: p.w, speed: p.conveyor });
+            });
+            runCache.set(platforms, runs);
+            return runs;
+        }
+
         function drawConveyors(sim, view) {
-            sim.stage.platforms.forEach(function (p) {
-                if (p.kind !== 'conveyor' || !visible(view, p.x, p.x + p.w)) return;
-                ctx.save();
-                ctx.beginPath();
-                ctx.rect(p.x, p.y - 2, p.w, 14);
-                ctx.clip();
-                ctx.fillStyle = 'rgba(20, 24, 34, 0.55)';
-                ctx.fillRect(p.x, p.y - 2, p.w, 12);
-                const dir = p.conveyor >= 0 ? 1 : -1;
-                const off = view.reducedMotion ? 0 : (view.nowSec * Math.abs(p.conveyor) * 0.5) % 16;
-                ctx.strokeStyle = dir > 0 ? 'rgba(253, 224, 71, 0.9)' : 'rgba(125, 211, 252, 0.9)';
-                ctx.lineWidth = 2.5;
-                for (let x = p.x - 16 + off * dir + (dir < 0 ? 16 : 0); x < p.x + p.w + 16; x += 16) {
-                    ctx.beginPath();
-                    ctx.moveTo(x - 4 * dir, p.y);
-                    ctx.lineTo(x + 3 * dir, p.y + 4);
-                    ctx.lineTo(x - 4 * dir, p.y + 8);
-                    ctx.stroke();
-                }
-                ctx.restore();
+            const pa = root.RunenpfadPropsArt;
+            if (!pa) return;
+            conveyorRuns(sim.stage.platforms).forEach(function (run) {
+                if (visible(view, run.x, run.x + run.w)) pa.drawConveyor(ctx, run, view.nowSec, view.reducedMotion);
+            });
+        }
+
+        // Faint rails along the travel path of each moving platform (sky rays bob freely and have none).
+        function drawTracks(sim, view) {
+            const pa = root.RunenpfadPropsArt;
+            const rays = sim.stage.skyRays || [];
+            if (!pa) return;
+            (sim.stage.movingPlatforms || []).forEach(function (mp) {
+                if (rays.indexOf(mp) >= 0 || !visible(view, mp.startX, mp.endX + mp.w)) return;
+                pa.drawRail(ctx, mp.startX + mp.w / 2, mp.y + 9, mp.endX + mp.w / 2, mp.y + 9, 0.38);
             });
         }
 
@@ -53,14 +63,7 @@
                 ctx.fillRect(pd.x - 18, 0, 36, 12);
                 ctx.fillStyle = '#4b5366';
                 ctx.fillRect(pd.x - 3, 0, 6, pd.y);
-                ctx.strokeStyle = '#8b93a7';
-                ctx.lineWidth = 4;
-                ctx.setLineDash([9, 4]);
-                ctx.beginPath();
-                ctx.moveTo(pd.x, pd.y);
-                ctx.lineTo(pd.bx, pd.by);
-                ctx.stroke();
-                ctx.setLineDash([]);
+                if (root.RunenpfadPropsArt) root.RunenpfadPropsArt.drawChain(ctx, pd.x, pd.y, pd.bx, pd.by, { shackle: true, trim: 18 });
                 ctx.fillStyle = '#c7ccd9';
                 ctx.beginPath();
                 ctx.arc(pd.x, pd.y, 7, 0, TAU);
@@ -507,33 +510,7 @@
 
         // ---- boss telegraphs ----
         function markRing(view, x, y, radius, t, color) {
-            ctx.save();
-            ctx.globalAlpha = 0.62 + 0.3 * pulse(view, t, 18);
-            ctx.fillStyle = color;
-            ctx.beginPath();
-            ctx.ellipse(x, y, radius, radius * 0.28, 0, 0, TAU);
-            ctx.fill();
-            ctx.globalAlpha = 1;
-            ctx.lineJoin = 'round';
-            ctx.strokeStyle = '#450a0a';
-            ctx.lineWidth = 7;
-            markRingPath(x, y, radius);
-            ctx.strokeStyle = '#ffd23f';
-            ctx.lineWidth = 3;
-            markRingPath(x, y, radius);
-            ctx.restore();
-        }
-
-        function markRingPath(x, y, radius) {
-            ctx.beginPath();
-            ctx.ellipse(x, y, radius, radius * 0.28, 0, 0, TAU);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(x - radius * 0.5, y - 4);
-            ctx.lineTo(x + radius * 0.5, y + 4);
-            ctx.moveTo(x + radius * 0.5, y - 4);
-            ctx.lineTo(x - radius * 0.5, y + 4);
-            ctx.stroke();
+            if (root.RunenpfadPropsArt) root.RunenpfadPropsArt.drawTelegraphRing(ctx, x, y, radius, radius * 0.28, t, color, view.reducedMotion);
         }
 
         function drawTelegraph(sim, e, view) {
@@ -1044,31 +1021,41 @@
         function collectLights(sim, view, lights) {
             for (const e of sim.stage.enemies) {
                 if (e.moth && !e.dead && visible(view, e.x, e.x)) {
-                    lights.push({ x: e.x, y: e.y - 18, radius: e.moth.state === 'tell' ? 100 : 58, intensity: 0.52, flicker: false });
+                    lights.push({ x: e.x, y: e.y - 18, radius: e.moth.state === 'tell' ? 100 : 58, intensity: 0.52, flicker: false, color: '#ffb060' });
                 }
             }
             const Z = root.RunenpfadZones;
-            if (Z && typeof Z.lights === 'function') Z.lights(sim).forEach(function (l) { lights.push(l); });
+            if (Z && typeof Z.lights === 'function') {
+                // forwarded zone lights: warm by default, cyan for glyph stones and switches, flame orange for dragon fire
+                const cool = new Set();
+                (sim.stage.glyphStones || []).forEach(function (g) { cool.add(g.x + ',' + (g.y - 30)); });
+                (sim.stage.switches || []).forEach(function (sw) { cool.add(sw.x + ',' + sw.y); });
+                Z.lights(sim).forEach(function (l) {
+                    l.color = cool.has(l.x + ',' + l.y) ? '#7ee8fa' : (l.radius === 230 ? '#ff7a2a' : '#ffb060');
+                    lights.push(l);
+                });
+            }
             (sim.stage.chests || []).forEach(function (c) {
-                if (!c.opened) lights.push({ x: c.x, y: c.y - 22, radius: 70, intensity: 0.4, flicker: true });
+                if (!c.opened) lights.push({ x: c.x, y: c.y - 22, radius: 70, intensity: 0.4, flicker: true, color: '#ffb060' });
             });
             sim.stage.collectibles.forEach(function (it) {
-                if (it.type === 'rune_orb' && !it.collected) lights.push({ x: it.x, y: it.y, radius: 90, intensity: 0.55, flicker: false });
+                if (it.type === 'rune_orb' && !it.collected) lights.push({ x: it.x, y: it.y, radius: 90, intensity: 0.55, flicker: false, color: '#7ee8fa' });
             });
             (sim.tempHazards || []).forEach(function (th) {
                 if (th.kind === 'dragonfire') return;
                 if (th.kind === 'fire') {
-                    for (let x = th.x + 30; x < th.x + th.w; x += 90) lights.push({ x: x, y: th.y + th.h / 2, radius: 120, intensity: 0.7, flicker: true });
+                    for (let x = th.x + 30; x < th.x + th.w; x += 90) lights.push({ x: x, y: th.y + th.h / 2, radius: 120, intensity: 0.7, flicker: true, color: '#ff7a2a' });
                 } else if (th.kind === 'poison') {
-                    lights.push({ x: th.x + th.w / 2, y: th.y + th.h * 0.6, radius: 90, intensity: 0.3, flicker: false });
+                    lights.push({ x: th.x + th.w / 2, y: th.y + th.h * 0.6, radius: 90, intensity: 0.3, flicker: false, color: '#9be7a8' });
                 } else {
-                    lights.push({ x: th.x + th.w / 2, y: th.y + th.h * 0.6, radius: 200, intensity: 0.9, flicker: true });
+                    lights.push({ x: th.x + th.w / 2, y: th.y + th.h * 0.6, radius: 200, intensity: 0.9, flicker: true, color: '#ff6aa8' });
                 }
             });
         }
 
         return {
             drawWorld: drawWorld,
+            drawTracks: drawTracks,
             drawOverlay: drawOverlay,
             drawGroundFire: drawGroundFire,
             collectLights: collectLights,

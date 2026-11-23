@@ -141,6 +141,13 @@ for _c in CUT_IDS:
     SHEETS["cut-%s" % _c] = (1, 1, "corner", "cut")
 for _b in BIOMES:
     SHEETS["cutfg-%s" % _b] = (1, 1, "corner", "cutfg")
+# round 9: painted props that replace primitive drawing (chains, conveyors, projectiles, warning rings, pickup pops)
+SHEETS["prop-chain"] = (4, 1, "center", "prop")
+SHEETS["prop-conveyor"] = (3, 1, "center", "prop")
+SHEETS["fx-projectiles"] = (4, 2, "center", "fx")
+SHEETS["fx-telegraph"] = (2, 2, "center", "fx")
+SHEETS["fx-pickup"] = (4, 2, "center", "fx")
+MAX_CELL_BY_ID = {"fx-telegraph": 384}   # thin rune lines need the larger cell to survive the downscale
 
 
 def is_npc_sheet(sheet_id, kind):
@@ -349,6 +356,20 @@ def clips_for(sheet_id, kind, count):
             "flash": {"frames": [1], "ms": 160, "loop": False},
             "on": {"frames": [2, 3], "ms": 200, "loop": True},
         }
+    if sheet_id in ("prop-chain", "prop-conveyor", "fx-projectiles"):
+        names = {
+            "prop-chain": ("link", "mount", "shackle", "rail"),
+            "prop-conveyor": ("left", "mid", "right"),
+            "fx-projectiles": ("arrow", "spear", "missile", "orb", "cannonball", "spore", "crest", "shard"),
+        }[sheet_id]
+        return names[0], {name: {"frames": [i], "ms": 200, "loop": False} for i, name in enumerate(names)}
+    if sheet_id == "fx-telegraph":
+        return "ring", {"ring": {"frames": [0, 1, 2, 3], "ms": 110, "loop": True}}
+    if sheet_id == "fx-pickup":
+        return "coin", {
+            "coin": {"frames": [0, 1, 2, 3], "ms": 55, "loop": False},
+            "gem": {"frames": [4, 5, 6, 7], "ms": 60, "loop": False},
+        }
     if sheet_id == "powerups":
         return "fire", {
             "fire": {"frames": [0, 4], "ms": 260, "loop": True},
@@ -484,6 +505,7 @@ def do_import(raw_dir, prompt_dir, only=None):
             limit = MAX_CELL_TD_PROPS
         if kind == "facade":
             limit = MAX_CELL_FACADE
+        limit = MAX_CELL_BY_ID.get(sheet_id, limit)
         if kind == "cutfg":
             cw, ch = CUT_SIZE
         elif kind == "bg-far":
