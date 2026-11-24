@@ -59,8 +59,8 @@ function newSim(opts) {
     return sim;
 }
 
-const TEXT = JSON.parse(fs.readFileSync(path.join(rootDir, 'docs/superpowers/plans/r10-text.json'), 'utf8'));
-const loreText = (node) => TEXT['runenpfad.npc.lore.' + node][0];
+const TEXT = JSON.parse(fs.readFileSync(path.join(rootDir, 'ui/lang/runenpfad/en.json'), 'utf8'));
+const loreText = (node) => TEXT['runenpfad.npc.lore.' + node];
 
 // ---- block puzzle model: breadth-first search over (block cells, hero region) with the engine's push and slide rules ----
 
