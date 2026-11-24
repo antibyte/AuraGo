@@ -286,6 +286,8 @@ Der Virtual Desktop öffnet Workspace-basierte Apps direkt im AuraGo-Browser-Des
 | **Launchpad** | Verwaltete URL-Sammlungen als Desktop-App: Links mit Kategorien und Symbolen (Suche im Icon-Katalog, Icon-Download) |
 | **God's Eye View** | Store-App: 3D-Globus auf Cesium-Basis im verwalteten Container. Der Store-Dialog nimmt optionale Provider-Keys (nur Vault) und erlaubte AuraGo-Ursprünge auf; Start/Stop bleibt im Store, das Fenster startet maximiert und erhält Mikrofon-Fähigkeit nur für sich selbst |
 
+Noisemaker hat KI-Helfer. **Song vorschlagen** füllt Idee, Stil, Titel und Songtext aus. Das KI-Menü der Songtexte kann Songtexte schreiben oder fortsetzen, den Refrain eingängiger machen, ihn kürzen, Reime und Fluss verbessern, eine Bridge ergänzen oder einen eigenen Wunsch umsetzen. **Tags prüfen** prüft die Abschnitts-Tags im Songtext wie [Verse] und [Chorus] gegen das, was der aktive Anbieter versteht (ACE-Step oder MiniMax), und **Mit KI korrigieren** behebt genau die gefundenen Punkte. MiniMax nimmt höchstens 3500 Zeichen Songtext an. Jede KI-Änderung lässt sich über **Rückgängig** in der Rückgängig-Leiste zurücknehmen. **Variante vorschlagen** im Kontextmenü der Bibliothek erzeugt eine neue Fassung auf Basis eines Titels. Die KI-Helfer nutzen das Chat-LLM nur, wenn auf eine Schaltfläche geklickt wird.
+
 Deep Dives zu den neueren Apps: [FindIt](../../findit.md), [Kaggle](../../kaggle.md), [Local Wikipedia](../../local-wikipedia.md), [Synth Studio](../../synth-studio.md), [AuraGolf](../../minigolf.md) und [Retro Games](../../retro-games.md); die Einrichtungsschalter für FindIt, Kaggle und die lokale Wikipedia stehen in [Kapitel 7](07-configuration.md).
 
 #### Homepage Studio: Änderungen in der Vorschau markieren

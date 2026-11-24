@@ -15,6 +15,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/acestep"
 	"aurago/internal/config"
@@ -167,6 +168,15 @@ func GenerateMusicResult(ctx context.Context, cfg *config.Config, mediaDB *sql.D
 
 	if !cfg.MusicConfigured() {
 		return MusicGenResult{Status: "error", Error: "Music generation provider not configured. Set a provider in Settings > Music Generation."}
+	}
+	if guide := LyricsGuideFor(providerType); guide.Provider == "minimax" && !params.Instrumental && guide.MaxLyricsChars > 0 {
+		if n := utf8.RuneCountInString(strings.TrimSpace(params.Lyrics)); n > guide.MaxLyricsChars {
+			return MusicGenResult{
+				Status:  "error",
+				Error:   "invalid_lyrics_length",
+				Message: fmt.Sprintf("MiniMax accepts at most %d characters of lyrics (got %d). Shorten the lyrics. Allowed section tags: %s.", guide.MaxLyricsChars, n, guide.FormatAllowedTags()),
+			}
+		}
 	}
 	if cfg.UsesLocalMusic() {
 		manager := acestep.Default()

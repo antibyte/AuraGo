@@ -66,7 +66,7 @@ func desktopRequestOperation(r *http.Request) desktopOperation {
 		return desktopStop
 	case "/api/desktop/ssh", "/api/desktop/vnc":
 		return desktopExecute
-	case "/api/desktop/embed-token", "/api/desktop/chess/commentary":
+	case "/api/desktop/embed-token", "/api/desktop/chess/commentary", "/api/desktop/noisemaker/lyrics/check":
 		return desktopRead
 	}
 	return desktopMethodOperation(r.Method)

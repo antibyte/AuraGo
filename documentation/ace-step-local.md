@@ -68,7 +68,8 @@ Duration defaults to 120 seconds and is limited by the active profile, never
 above 600 seconds. BPM is 30–300. Vocal language accepts codes such as `de`, `en`
 and `ja`. An omitted seed is random; zero is a valid deterministic seed. Without
 a local language model, provide lyrics or select instrumental. Local mode never
-silently invokes the chat/cloud LLM to write lyrics. On the Vulkan runtime,
+silently invokes the chat/cloud LLM to write lyrics; Noisemaker's AI helper
+buttons use the chat LLM only when you click them. On the Vulkan runtime,
 trailing silence of at least 1.5 seconds is trimmed without re-encoding (keeping
 0.5 seconds), so a track can be shorter than the requested duration, never longer.
 

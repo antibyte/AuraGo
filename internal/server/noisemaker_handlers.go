@@ -3,14 +3,17 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/budget"
 	"aurago/internal/config"
@@ -37,10 +40,31 @@ const (
 	noisemakerTracksDefaultLimit = 60
 	noisemakerTracksMaxLimit     = 200
 	noisemakerPatchBodyLimit     = int64(4 * 1024)
+
+	noisemakerMaxInstructionLength = 500
 )
 
 // noisemakerFavoriteTag marks a song as favorite in the media registry tags.
 const noisemakerFavoriteTag = "favorite"
+
+var (
+	errNoisemakerNothingToFix = errors.New("no tag problems to fix")
+	errNoisemakerUnreadable   = errors.New("unreadable song suggestion")
+	errNoisemakerTruncated    = errors.New("llm answer was cut off")
+	noisemakerVocalLanguageRe = regexp.MustCompile(`^[a-z]{2,3}(-[A-Za-z]{2,4})?$`)
+)
+
+// noisemakerLyricsGuide returns the lyric guide of the active music provider and
+// whether managed local ACE-Step is active. Callers hold CfgMu.
+func noisemakerLyricsGuide(cfg *config.Config) (tools.LyricsGuide, bool) {
+	if cfg == nil {
+		return tools.LyricsGuideFor(""), false
+	}
+	if cfg.UsesLocalMusic() {
+		return tools.LyricsGuideFor("acestep"), true
+	}
+	return tools.LyricsGuideFor(cfg.MusicGeneration.ProviderType), false
+}
 
 var noisemakerCoverMonthlyMu sync.Mutex
 var noisemakerCoverMonthlyReservationMonth string
@@ -103,10 +127,31 @@ func noisemakerPersistTrackText(s *Server, mediaID int64, style, lyrics string) 
 }
 
 type noisemakerEnhanceRequest struct {
-	Kind    string `json:"kind"`    // idea | style | lyrics | title
-	Text    string `json:"text"`    // current field content (may be empty for random/from-scratch)
-	Context string `json:"context"` // supporting context (idea/style of the other field)
-	Lang    string `json:"lang"`    // UI language hint for from-scratch generation
+	Kind         string                `json:"kind"`         // idea | style | lyrics | title | revise | song | variation
+	Text         string                `json:"text"`         // current field content (may be empty for random/from-scratch)
+	Context      string                `json:"context"`      // supporting context (idea/style of the other field)
+	Lang         string                `json:"lang"`         // UI language hint for from-scratch generation
+	Action       string                `json:"action"`       // revise: catchier_chorus | shorten | rhymes | add_bridge | fix_tags | custom
+	Instruction  string                `json:"instruction"`  // revise custom: the user's own request
+	Instrumental bool                  `json:"instrumental"` // song/variation: no lyrics
+	Mode         string                `json:"mode"`         // variation: style | verses | sequel
+	Base         *noisemakerSongFields `json:"base"`         // variation: the library song
+}
+
+type noisemakerSongFields struct {
+	Title  string `json:"title"`
+	Idea   string `json:"idea"`
+	Style  string `json:"style"`
+	Lyrics string `json:"lyrics"`
+}
+
+type noisemakerSongSuggestion struct {
+	Idea          string `json:"idea"`
+	Style         string `json:"style"`
+	Title         string `json:"title"`
+	Lyrics        string `json:"lyrics"`
+	BPM           int    `json:"bpm,omitempty"`
+	VocalLanguage string `json:"vocal_language,omitempty"`
 }
 
 type noisemakerTrackPatchRequest struct {
@@ -145,6 +190,7 @@ func handleNoisemakerState(s *Server) http.HandlerFunc {
 		ig := s.Cfg.ImageGeneration
 		configured := s.Cfg.MusicConfigured()
 		local := s.Cfg.UsesLocalMusic()
+		guide, _ := noisemakerLyricsGuide(s.Cfg)
 		s.CfgMu.RUnlock()
 		var localStatus any
 		if local && s.LocalMusic != nil {
@@ -163,7 +209,8 @@ func handleNoisemakerState(s *Server) http.HandlerFunc {
 			"supports_lyrics":   providerType == "minimax" || local,
 			"daily_used":        tools.MusicCounterGet(),
 			"daily_max":         mg.MaxDaily,
-			"llm_available":     s.LLMClient != nil && !local,
+			"llm_available":     s.LLMClient != nil,
+			"lyrics_guide":      guide,
 			"covers_enabled":    ig.Enabled && strings.TrimSpace(ig.APIKey) != "",
 			"cover_provider":    strings.ToLower(strings.TrimSpace(ig.ProviderType)),
 			"registry_enabled":  s.MediaRegistryDB != nil,
@@ -172,7 +219,10 @@ func handleNoisemakerState(s *Server) http.HandlerFunc {
 }
 
 // handleNoisemakerEnhance returns POST /api/desktop/noisemaker/enhance — one-shot
-// LLM helper that expands a song idea, refines a style, writes lyrics, or suggests a title.
+// LLM helpers: expand an idea, refine a style, write or revise lyrics, suggest a
+// title, a whole song or a variation of a library song. They run only on an
+// explicit request, also in local ACE-Step mode; generation itself never calls
+// the LLM in local mode.
 func handleNoisemakerEnhance(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !requireDesktopPermission(s, w, r, desktopScopeWrite) {
@@ -186,39 +236,60 @@ func handleNoisemakerEnhance(s *Server) http.HandlerFunc {
 			jsonError(w, "LLM is not available", http.StatusServiceUnavailable)
 			return
 		}
-		s.CfgMu.RLock()
-		local := s.Cfg.UsesLocalMusic()
-		s.CfgMu.RUnlock()
-		if local {
-			jsonError(w, "Local music does not use cloud enhancement. Supply lyrics or use the local music language model.", http.StatusBadRequest)
-			return
-		}
 		var body noisemakerEnhanceRequest
 		if err := decodeDesktopJSON(w, r, &body, noisemakerEnhanceBodyLimit); err != nil {
 			jsonError(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
 		body.Kind = strings.ToLower(strings.TrimSpace(body.Kind))
+		rawText := body.Text
+		if body.Kind == "revise" && utf8.RuneCountInString(strings.TrimSpace(rawText)) > noisemakerMaxLyricsLength {
+			jsonError(w, "lyrics are too long to revise", http.StatusBadRequest)
+			return
+		}
 		body.Text = limitNoisemakerText(body.Text, noisemakerMaxLyricsLength)
 		body.Context = limitNoisemakerText(body.Context, noisemakerMaxContextLength)
 		body.Lang = limitNoisemakerText(body.Lang, 16)
+		body.Action = strings.ToLower(strings.TrimSpace(body.Action))
+		body.Mode = strings.ToLower(strings.TrimSpace(body.Mode))
+		body.Instruction = limitNoisemakerText(body.Instruction, noisemakerMaxInstructionLength)
+		if body.Base != nil {
+			body.Base.Title = limitNoisemakerText(body.Base.Title, noisemakerMaxTitleLength)
+			body.Base.Idea = limitNoisemakerText(body.Base.Idea, noisemakerMaxIdeaLength)
+			body.Base.Style = limitNoisemakerText(body.Base.Style, noisemakerMaxStyleLength)
+			body.Base.Lyrics = limitNoisemakerText(body.Base.Lyrics, noisemakerMaxLyricsLength)
+		}
 
-		systemPrompt, userPrompt, maxTokens, err := noisemakerEnhancePrompts(body)
+		s.CfgMu.RLock()
+		guide, local := noisemakerLyricsGuide(s.Cfg)
+		model := ""
+		if s.Cfg != nil {
+			model = s.Cfg.LLM.Model
+		}
+		s.CfgMu.RUnlock()
+
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		systemPrompt, userPrompt, maxTokens, err := noisemakerEnhancePrompts(body, guide, local)
+		if errors.Is(err, errNoisemakerNothingToFix) {
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "text": rawText, "unchanged": true})
+			return
+		}
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		model := ""
-		if s.Cfg != nil {
-			s.CfgMu.RLock()
-			model = s.Cfg.LLM.Model
-			s.CfgMu.RUnlock()
-		}
 		ctx, cancel := context.WithTimeout(r.Context(), noisemakerEnhanceTimeout)
 		defer cancel()
-
 		text, err := noisemakerRunEnhance(budget.WithTracking(ctx, s.BudgetTracker, "music_prompt"), s.LLMClient, model, systemPrompt, userPrompt, maxTokens)
+		if errors.Is(err, errNoisemakerTruncated) {
+			if body.Kind == "revise" {
+				w.WriteHeader(http.StatusBadGateway)
+				_ = json.NewEncoder(w).Encode(map[string]string{"status": "error", "code": "ai_unreadable", "message": "The AI answer was cut off. The lyrics were not changed."})
+				return
+			}
+			err = nil
+		}
 		if err != nil {
 			if s.Logger != nil && !llm.IsContextError(err) {
 				s.Logger.Warn("Noisemaker enhance failed", "kind", body.Kind, "error", err)
@@ -226,8 +297,17 @@ func handleNoisemakerEnhance(s *Server) http.HandlerFunc {
 			jsonError(w, "AI enhancement failed", http.StatusBadGateway)
 			return
 		}
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok", "text": text})
+		if body.Kind == "song" || body.Kind == "variation" {
+			song, perr := parseNoisemakerSong(text, guide, body.Instrumental, local)
+			if perr != nil {
+				w.WriteHeader(http.StatusBadGateway)
+				_ = json.NewEncoder(w).Encode(map[string]string{"status": "error", "code": "ai_unreadable", "message": "The AI answer could not be read. Try again."})
+				return
+			}
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "song": song})
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok", "text": stripNoisemakerFence(text)})
 	}
 }
 
@@ -253,11 +333,14 @@ func noisemakerRunEnhance(ctx context.Context, client llm.ChatClient, model, sys
 	if text == "" {
 		return "", fmt.Errorf("llm returned an empty result")
 	}
+	if len(resp.Choices) > 0 && resp.Choices[0].FinishReason == openai.FinishReasonLength {
+		return text, errNoisemakerTruncated
+	}
 	return text, nil
 }
 
-// noisemakerEnhancePrompts builds system/user prompts per enhancement kind.
-func noisemakerEnhancePrompts(body noisemakerEnhanceRequest) (string, string, int, error) {
+// noisemakerEnhancePrompts builds system/user prompts per enhancement kind. Every prompt that writes lyrics or a style carries the active provider's rules.
+func noisemakerEnhancePrompts(body noisemakerEnhanceRequest, guide tools.LyricsGuide, local bool) (string, string, int, error) {
 	langRule := ""
 	if strings.TrimSpace(body.Lang) != "" {
 		langRule = fmt.Sprintf(" Write in the language with ISO code %q.", strings.TrimSpace(body.Lang))
@@ -281,7 +364,8 @@ func noisemakerEnhancePrompts(body noisemakerEnhanceRequest) (string, string, in
 	case "style":
 		sys := "You are a music expert. Turn the user's input into a concise, comma-separated list of music style tags " +
 			"for an AI music generator (genre, subgenre, mood, era, instrumentation, vocals, tempo, production style). " +
-			"Return ONLY the tag list, at most 12 tags, no explanations, no markdown. Answer in English unless the user input is clearly not English." + langRule
+			"Return ONLY the tag list, at most 12 tags, no explanations, no markdown. Answer in English unless the user input is clearly not English." +
+			guide.StyleRules() + langRule
 		usr := strings.TrimSpace(body.Text)
 		if usr == "" {
 			return "", "", 0, fmt.Errorf("text is required for style enhancement")
@@ -291,9 +375,9 @@ func noisemakerEnhancePrompts(body noisemakerEnhanceRequest) (string, string, in
 		}
 		return sys, usr, 200, nil
 	case "lyrics":
-		sys := "You are a professional songwriter. Write complete song lyrics with clear structure using bracketed " +
-			"section markers like [Verse 1], [Chorus], [Bridge], [Outro]. Match the mood and story of the given idea " +
-			"and style. Return ONLY the lyrics, no explanations. Keep the language of the user's input." + langRule
+		sys := "You are a professional songwriter. Write complete song lyrics with a clear structure that match the mood and story " +
+			"of the given idea and style. Return ONLY the lyrics, no explanations, no markdown. Keep the language of the user's input." +
+			langRule + "\n\n" + guide.PromptRules()
 		usr := ""
 		if strings.TrimSpace(body.Text) != "" {
 			usr = "Continue, improve and complete these lyrics:\n" + strings.TrimSpace(body.Text)
@@ -304,6 +388,16 @@ func noisemakerEnhancePrompts(body noisemakerEnhanceRequest) (string, string, in
 			usr += "\n\nSong idea / style:\n" + body.Context
 		}
 		return sys, usr, 1400, nil
+	case "revise":
+		return noisemakerRevisePrompts(body, guide)
+	case "song":
+		return noisemakerSongPrompts(body, guide, local, noisemakerSongSeed(body))
+	case "variation":
+		task, err := noisemakerVariationTask(body)
+		if err != nil {
+			return "", "", 0, err
+		}
+		return noisemakerSongPrompts(body, guide, local, task)
 	case "title":
 		sys := "You are a music branding expert. Suggest a single short, memorable song title (1-5 words) fitting the " +
 			"given song idea and style. Return ONLY the title, no quotes, no explanations. Keep the language of the user's input." + langRule
@@ -316,7 +410,268 @@ func noisemakerEnhancePrompts(body noisemakerEnhanceRequest) (string, string, in
 		}
 		return sys, usr, 60, nil
 	default:
-		return "", "", 0, fmt.Errorf("unknown kind %q (expected idea, style, lyrics or title)", body.Kind)
+		return "", "", 0, fmt.Errorf("unknown kind %q (expected idea, style, lyrics, title, revise, song or variation)", body.Kind)
+	}
+}
+
+var noisemakerReviseActions = map[string]string{
+	"catchier_chorus": "Make the chorus catchier: a short, memorable hook line, simple repeated words and a strong rhythm. Change the verses only where needed to lead into it.",
+	"shorten":         "Shorten the lyrics by about a third: drop weaker lines and repeated sections, keep the story, the chorus and the structure.",
+	"rhymes":          "Improve the rhymes and the flow: natural end rhymes or near rhymes, even syllable counts within each section, no forced words.",
+	"add_bridge":      "Add a bridge before the last chorus that brings a new perspective or an emotional turn. Keep the rest unchanged.",
+}
+
+func noisemakerRevisePrompts(body noisemakerEnhanceRequest, guide tools.LyricsGuide) (string, string, int, error) {
+	text := strings.TrimSpace(body.Text)
+	if text == "" {
+		return "", "", 0, fmt.Errorf("text is required for lyric revision")
+	}
+	instruction := ""
+	switch body.Action {
+	case "custom":
+		if body.Instruction == "" {
+			return "", "", 0, fmt.Errorf("instruction is required for a custom revision")
+		}
+		instruction = "Apply this request from the user: " + body.Instruction
+	case "fix_tags":
+		fixes := noisemakerTagFixes(tools.LintSong(guide, "", text))
+		if len(fixes) == 0 {
+			return "", "", 0, errNoisemakerNothingToFix
+		}
+		instruction = "Fix only these problems and change nothing else:\n- " + strings.Join(fixes, "\n- ")
+	default:
+		preset, ok := noisemakerReviseActions[body.Action]
+		if !ok {
+			return "", "", 0, fmt.Errorf("unknown action %q (expected catchier_chorus, shorten, rhymes, add_bridge, fix_tags or custom)", body.Action)
+		}
+		instruction = preset
+	}
+	sys := "You are a professional songwriter and lyric editor. Revise the user's song lyrics as instructed. Keep everything the " +
+		"instruction does not ask to change, keep valid section tags, and keep the language of the lyrics unless the instruction asks " +
+		"for another language. Return ONLY the complete revised lyrics, no explanations, no markdown.\n\n" + guide.PromptRules()
+	usr := "Instruction: " + instruction + "\n\nLyrics:\n" + text
+	if body.Context != "" {
+		usr += "\n\nSong idea / style for context:\n" + body.Context
+	}
+	maxTokens := utf8.RuneCountInString(text) + 400
+	if maxTokens < 1600 {
+		maxTokens = 1600
+	}
+	if maxTokens > 4096 {
+		maxTokens = 4096
+	}
+	return sys, usr, maxTokens, nil
+}
+
+// noisemakerTagFixes turns lint findings into instructions for the LLM.
+func noisemakerTagFixes(issues []tools.LyricsIssue) []string {
+	fixes := []string{}
+	for _, issue := range issues {
+		if issue.Severity == "info" && issue.Code != "no_section_tags" {
+			continue
+		}
+		p := issue.Params
+		line := ""
+		if issue.Line > 0 {
+			line = fmt.Sprintf("Line %d: ", issue.Line)
+		}
+		switch issue.Code {
+		case "lyrics_too_long":
+			fixes = append(fixes, fmt.Sprintf("The lyrics have %s characters; shorten them to under %s characters.", p["length"], p["max"]))
+		case "unknown_tag":
+			if p["suggestion"] != "" {
+				fixes = append(fixes, fmt.Sprintf("%sreplace the tag %s with %s.", line, p["tag"], p["suggestion"]))
+			} else {
+				fixes = append(fixes, fmt.Sprintf("%sreplace the unsupported tag %s with one of the allowed tags or remove it.", line, p["tag"]))
+			}
+		case "tag_numbered", "tag_modifier_unsupported":
+			fixes = append(fixes, fmt.Sprintf("%swrite %s instead of %s.", line, p["suggestion"], p["tag"]))
+		case "tag_too_many_modifiers":
+			fixes = append(fixes, fmt.Sprintf("%sshorten %s to at most two modifiers.", line, p["tag"]))
+		case "heading_not_tag":
+			fixes = append(fixes, fmt.Sprintf("%sturn the heading %q into the tag %s.", line, p["text"], p["suggestion"]))
+		case "repeat_marker":
+			fixes = append(fixes, line+"remove the repeat note and write the repeated lines out.")
+		case "no_section_tags":
+			fixes = append(fixes, "Add section tags on their own lines.")
+		}
+	}
+	return fixes
+}
+
+func noisemakerSongSeed(body noisemakerEnhanceRequest) string {
+	parts := []string{}
+	if idea := strings.TrimSpace(body.Text); idea != "" {
+		parts = append(parts, "Build the song around this idea: "+idea)
+	}
+	if body.Context != "" {
+		parts = append(parts, "Style direction: "+body.Context)
+	}
+	if len(parts) == 0 {
+		return "Invent one surprising, specific song (an unusual theme or genre blend)."
+	}
+	return strings.Join(parts, "\n")
+}
+
+var noisemakerVariationModes = map[string]string{
+	"style":  "Keep the theme and the story but move the song into a clearly different genre and mood. Adapt the lyrics only where the new genre needs it. Write a new style and a new title.",
+	"verses": "Keep the style, the theme and the chorus. Write new verses and a new bridge that tell the story differently. Keep the title or vary it slightly.",
+	"sequel": "Write a sequel: same style and characters, the story continues after the original ends. New title, new lyrics and a new chorus that echoes the original.",
+}
+
+func noisemakerVariationTask(body noisemakerEnhanceRequest) (string, error) {
+	base := body.Base
+	if base == nil || (base.Idea == "" && base.Style == "" && base.Lyrics == "") {
+		return "", fmt.Errorf("base song is required for a variation")
+	}
+	task, ok := noisemakerVariationModes[body.Mode]
+	if !ok {
+		return "", fmt.Errorf("unknown mode %q (expected style, verses or sequel)", body.Mode)
+	}
+	var b strings.Builder
+	b.WriteString("Original song:\n")
+	fmt.Fprintf(&b, "Title: %s\nIdea: %s\nStyle: %s\n", base.Title, base.Idea, base.Style)
+	if base.Lyrics != "" {
+		b.WriteString("Lyrics:\n" + base.Lyrics + "\n")
+	}
+	b.WriteString("\nTask: " + task)
+	return b.String(), nil
+}
+
+func noisemakerSongPrompts(body noisemakerEnhanceRequest, guide tools.LyricsGuide, local bool, userPrompt string) (string, string, int, error) {
+	withLyrics := !body.Instrumental && guide.SupportsLyrics
+	keys := `{"idea": "...", "style": "...", "title": "...", "lyrics": "..."`
+	if local {
+		keys += `, "bpm": 100, "vocal_language": "en"`
+	}
+	keys += "}"
+	var b strings.Builder
+	b.WriteString("You are a creative songwriter and music producer. Create one complete song for an AI music generator. " +
+		"Answer with ONE JSON object only, no markdown, no code fences, with exactly these keys:\n" + keys + "\n")
+	b.WriteString("- idea: 2-3 vivid sentences about subject, mood and story.\n")
+	b.WriteString("- style: comma-separated style tags (genre, subgenre, mood, era, instruments, vocals, production), at most 12, in English." + guide.StyleRules() + "\n")
+	b.WriteString("- title: 1-5 words.\n")
+	if withLyrics {
+		b.WriteString("- lyrics: complete lyrics with section tags: two verses, a memorable chorus and a bridge. Encode line breaks as JSON newlines.\n")
+	} else {
+		b.WriteString("- lyrics: always an empty string (instrumental).\n")
+	}
+	if local {
+		b.WriteString("- bpm: a fitting tempo as a number from 60 to 180.\n- vocal_language: ISO code of the lyrics language, e.g. en or de.\n")
+	}
+	if lang := strings.TrimSpace(body.Lang); lang != "" {
+		fmt.Fprintf(&b, "Write idea, title and lyrics in the language with ISO code %q unless the user's input is clearly in another language.\n", lang)
+	}
+	if withLyrics {
+		b.WriteString("\n" + guide.PromptRules())
+	}
+	return b.String(), userPrompt, 2000, nil
+}
+
+// parseNoisemakerSong reads the JSON object of a song/variation answer. It
+// tolerates code fences and prose around the object and caps every field.
+func parseNoisemakerSong(raw string, guide tools.LyricsGuide, instrumental, local bool) (noisemakerSongSuggestion, error) {
+	text := strings.TrimSpace(raw)
+	start, end := strings.Index(text, "{"), strings.LastIndex(text, "}")
+	if start < 0 || end <= start {
+		return noisemakerSongSuggestion{}, errNoisemakerUnreadable
+	}
+	var payload struct {
+		Idea          string      `json:"idea"`
+		Style         string      `json:"style"`
+		Title         string      `json:"title"`
+		Lyrics        string      `json:"lyrics"`
+		BPM           interface{} `json:"bpm"`
+		VocalLanguage string      `json:"vocal_language"`
+	}
+	if err := json.Unmarshal([]byte(text[start:end+1]), &payload); err != nil {
+		return noisemakerSongSuggestion{}, errNoisemakerUnreadable
+	}
+	song := noisemakerSongSuggestion{
+		Idea:   limitNoisemakerText(payload.Idea, noisemakerMaxIdeaLength),
+		Style:  limitNoisemakerText(payload.Style, noisemakerMaxStyleLength),
+		Title:  limitNoisemakerText(payload.Title, noisemakerMaxTitleLength),
+		Lyrics: limitNoisemakerText(payload.Lyrics, noisemakerMaxLyricsLength),
+	}
+	if song.Idea == "" && song.Style == "" {
+		return noisemakerSongSuggestion{}, errNoisemakerUnreadable
+	}
+	if instrumental || !guide.SupportsLyrics {
+		song.Lyrics = ""
+	}
+	if local {
+		if bpm := noisemakerBPMValue(payload.BPM); bpm >= 30 && bpm <= 300 {
+			song.BPM = bpm
+		}
+		if lang := strings.TrimSpace(payload.VocalLanguage); noisemakerVocalLanguageRe.MatchString(lang) {
+			song.VocalLanguage = lang
+		}
+	}
+	return song, nil
+}
+
+func noisemakerBPMValue(v interface{}) int {
+	switch value := v.(type) {
+	case float64:
+		return int(value)
+	case string:
+		if n, err := strconv.Atoi(strings.TrimSpace(value)); err == nil {
+			return n
+		}
+	}
+	return 0
+}
+
+// stripNoisemakerFence returns the inner content of the first fenced block of
+// an answer, or the trimmed answer when it has no fence.
+func stripNoisemakerFence(text string) string {
+	t := strings.TrimSpace(text)
+	start := strings.Index(t, "```")
+	if start < 0 {
+		return t
+	}
+	rest := t[start+3:]
+	if nl := strings.IndexByte(rest, '\n'); nl >= 0 {
+		rest = rest[nl+1:]
+	} else {
+		rest = ""
+	}
+	if end := strings.Index(rest, "```"); end >= 0 {
+		rest = rest[:end]
+	}
+	return strings.TrimSpace(rest)
+}
+
+// handleNoisemakerLyricsCheck returns POST /api/desktop/noisemaker/lyrics/check —
+// a deterministic check of lyrics (and style) against the active provider's tags.
+func handleNoisemakerLyricsCheck(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !requireDesktopPermission(s, w, r, desktopScopeRead) {
+			return
+		}
+		if r.Method != http.MethodPost {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		var body struct {
+			Lyrics string `json:"lyrics"`
+			Style  string `json:"style"`
+		}
+		if err := decodeDesktopJSON(w, r, &body, noisemakerEnhanceBodyLimit); err != nil {
+			jsonError(w, "Invalid JSON", http.StatusBadRequest)
+			return
+		}
+		s.CfgMu.RLock()
+		guide, _ := noisemakerLyricsGuide(s.Cfg)
+		s.CfgMu.RUnlock()
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":    "ok",
+			"issues":    tools.LintSong(guide, body.Style, body.Lyrics),
+			"length":    utf8.RuneCountInString(strings.TrimSpace(body.Lyrics)),
+			"max_chars": guide.MaxLyricsChars,
+			"provider":  guide.Provider,
+		})
 	}
 }
 
@@ -391,12 +746,12 @@ func handleNoisemakerGenerate(s *Server) http.HandlerFunc {
 				Kind:    "lyrics",
 				Context: strings.TrimSpace(body.Prompt + "\n" + body.Style),
 				Lang:    body.Lang,
-			})
+			}, tools.LyricsGuideFor(providerType), false)
 			if perr == nil {
 				llmCtx, cancel := context.WithTimeout(r.Context(), noisemakerEnhanceTimeout)
 				generated, lerr := noisemakerRunEnhance(budget.WithTracking(llmCtx, s.BudgetTracker, "music_prompt"), s.LLMClient, model, sys, usr, maxTokens)
 				cancel()
-				if lerr != nil {
+				if lerr != nil && !errors.Is(lerr, errNoisemakerTruncated) {
 					if s.Logger != nil && !llm.IsContextError(lerr) {
 						s.Logger.Warn("Noisemaker auto-lyrics failed", "error", lerr)
 					}
@@ -404,7 +759,7 @@ func handleNoisemakerGenerate(s *Server) http.HandlerFunc {
 					_ = json.NewEncoder(w).Encode(map[string]string{"status": "error", "code": "lyrics_required", "message": "Could not write lyrics automatically. Add lyrics yourself or enable instrumental."})
 					return
 				}
-				lyrics = limitNoisemakerText(generated, noisemakerMaxLyricsLength)
+				lyrics = limitNoisemakerText(stripNoisemakerFence(generated), noisemakerMaxLyricsLength)
 				autoLyrics = true
 			}
 		}
@@ -430,8 +785,12 @@ func handleNoisemakerGenerate(s *Server) http.HandlerFunc {
 			if result.Error == "lyrics_required" || strings.HasPrefix(result.Error, "invalid_") {
 				status = http.StatusBadRequest
 			}
+			message := result.Error
+			if result.Message != "" {
+				message = result.Message
+			}
 			w.WriteHeader(status)
-			_ = json.NewEncoder(w).Encode(map[string]string{"status": "error", "code": result.Error, "message": result.Error})
+			_ = json.NewEncoder(w).Encode(map[string]string{"status": "error", "code": result.Error, "message": message})
 			return
 		}
 		if s.BudgetTracker != nil && result.CostEstimate > 0 {
@@ -822,8 +1181,8 @@ func handleNoisemakerTrackPatch(s *Server) http.HandlerFunc {
 // limitNoisemakerText trims and caps user-supplied text.
 func limitNoisemakerText(value string, max int) string {
 	value = strings.TrimSpace(value)
-	if max > 0 && len(value) > max {
-		value = strings.TrimSpace(value[:max])
+	if max > 0 && utf8.RuneCountInString(value) > max {
+		value = strings.TrimSpace(string([]rune(value)[:max]))
 	}
 	return value
 }

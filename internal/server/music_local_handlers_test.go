@@ -1,7 +1,6 @@
 package server
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -61,25 +60,5 @@ func TestLocalMusicAdminAndMethodGates(t *testing.T) {
 	mux.ServeHTTP(rec, req)
 	if rec.Code != 403 || !strings.Contains(rec.Body.String(), "csrf_check_failed") {
 		t.Fatal("foreign origin accepted")
-	}
-}
-
-func TestNoisemakerLocalNoCloudLyrics(t *testing.T) {
-	cfg := noisemakerTestConfig(t)
-	cfg.MusicGeneration.Enabled = true
-	cfg.MusicGeneration.Provider = config.LocalMusicProviderID
-	cfg.ResolveProviders()
-	s := &Server{Cfg: cfg, LLMClient: noisemakerFakeChatClient{content: "must not be used"}}
-	rec := httptest.NewRecorder()
-	handleNoisemakerState(s).ServeHTTP(rec, httptest.NewRequest("GET", "/api/desktop/noisemaker/state", nil))
-	var state map[string]any
-	_ = json.Unmarshal(rec.Body.Bytes(), &state)
-	if state["enabled"] != true || state["supports_controls"] != true || state["llm_available"] != false {
-		t.Fatalf("capabilities %v", state)
-	}
-	rec = httptest.NewRecorder()
-	handleNoisemakerEnhance(s).ServeHTTP(rec, httptest.NewRequest("POST", "/api/desktop/noisemaker/enhance", strings.NewReader(`{"kind":"lyrics","text":"Piano"}`)))
-	if rec.Code != 400 {
-		t.Fatal("local provider allowed cloud lyric helper")
 	}
 }

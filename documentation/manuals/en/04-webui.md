@@ -286,6 +286,8 @@ The Virtual Desktop opens workspace-backed apps in AuraGo's browser desktop. It 
 | **Launchpad** | Managed URL collections as a desktop app: links with categories and icons (search in the icon catalog, icon download) |
 | **God's Eye View** | Store app: a Cesium-based 3D globe in a managed container. The Store setup dialog takes optional provider keys (Vault only) and allowed AuraGo origins; start/stop stays in the Store, the frame starts maximized and grants microphone capability to itself only |
 
+Noisemaker has AI helpers. **Suggest a song** fills in idea, style, title and lyrics. The lyrics AI menu can write or continue lyrics, make the chorus catchier, shorten them, improve rhymes and flow, add a bridge, or follow your own request. **Check tags** checks the section tags in the lyrics, such as [Verse] and [Chorus], against what the active provider understands (ACE-Step or MiniMax), and **Fix with AI** corrects exactly the problems it found. MiniMax accepts at most 3500 characters of lyrics. Every AI change can be reverted with **Undo** in the undo bar. **Suggest a variation** in the library context menu creates a new take based on a track. The AI helpers use the chat LLM only when you click them.
+
 Deep dives for the newer apps: [FindIt](../../findit.md), [Kaggle](../../kaggle.md), [Local Wikipedia](../../local-wikipedia.md), [Synth Studio](../../synth-studio.md), [AuraGolf](../../minigolf.md) and [Retro Games](../../retro-games.md); the setup switches for FindIt, Kaggle and the local Wikipedia are in [chapter 7](07-configuration.md).
 
 #### Homepage Studio: marking changes in the preview

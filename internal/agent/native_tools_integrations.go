@@ -1844,7 +1844,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 					"type":        "string",
 					"description": "Description of the music style, mood, genre, instruments, tempo, etc. Be specific for best results.",
 				},
-				"lyrics":           prop("string", "Song lyrics with structure tags ([Verse], [Chorus], [Bridge], etc.). If empty and not instrumental, lyrics are auto-generated from the prompt."),
+				"lyrics":           prop("string", "Song lyrics with section tags in square brackets, each on its own line. Tags differ by provider (MiniMax: only its 14 tags such as [Verse], [Pre Chorus], [Chorus], no numbers, max 3500 characters; ACE-Step: [Verse 1], [Chorus - anthemic], (parentheses) = backing vocals). If empty and not instrumental, lyrics are auto-generated from the prompt."),
 				"instrumental":     map[string]interface{}{"type": "boolean", "description": "If true, generate instrumental music without vocals (default: false)"},
 				"title":            prop("string", "Title for the generated track (optional, defaults to a truncated prompt)"),
 				"duration_seconds": prop("number", "ACE-Step only: duration in seconds, 10 to the hardware limit (maximum 600, default 120)."),

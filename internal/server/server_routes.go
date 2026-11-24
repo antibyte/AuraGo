@@ -595,6 +595,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/desktop/logs/download", handleDesktopLogDownload(s))
 	mux.HandleFunc("/api/desktop/noisemaker/state", handleNoisemakerState(s))
 	mux.HandleFunc("/api/desktop/noisemaker/enhance", handleNoisemakerEnhance(s))
+	mux.HandleFunc("/api/desktop/noisemaker/lyrics/check", handleNoisemakerLyricsCheck(s))
 	mux.HandleFunc("/api/desktop/noisemaker/generate", handleNoisemakerGenerate(s))
 	mux.HandleFunc("/api/desktop/noisemaker/tracks", handleNoisemakerTracks(s))
 	mux.HandleFunc("/api/desktop/noisemaker/tracks/", handleNoisemakerTrackItem(s))

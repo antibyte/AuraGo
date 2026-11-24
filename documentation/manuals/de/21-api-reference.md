@@ -1586,11 +1586,14 @@ Lokale Musikgenerierung (ACE-Step) hinter `music_generation.enabled`. `state` li
 ```http
 GET    /api/desktop/noisemaker/state
 POST   /api/desktop/noisemaker/enhance
+POST   /api/desktop/noisemaker/lyrics/check
 POST   /api/desktop/noisemaker/generate
 GET    /api/desktop/noisemaker/tracks
 DELETE /api/desktop/noisemaker/tracks/{id}
 PATCH  /api/desktop/noisemaker/tracks/{id}
 ```
+
+`enhance` akzeptiert `kind` = `idea | style | lyrics | title | revise | song | variation` (`revise` nimmt `action` und optional `instruction`, `variation` nimmt `mode` und `base`), und `state` liefert `lyrics_guide`.
 
 ---
 
