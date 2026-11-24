@@ -1,0 +1,60 @@
+# Drive calculators: stepper motors and motor torque, speed and power. Every name is written in all 16 desktop locales;
+# docs, variable names and warnings in English and German (other languages fall back to English). Rules are written
+# out for every direction, in the order the solver tries them: the first alternative whose variables are all known wins.
+
+- id: stepper_steps_per_mm
+  kind: calculator
+  category: drives
+  name: {cs: "Krokový motor: kroky na mm", da: "Stepmotor: trin pr. mm", de: "Schrittmotor: Schritte pro mm", el: "Βηματικός κινητήρας: βήματα ανά mm", en: "Stepper motor steps per mm", es: "Motor paso a paso: pasos por mm", fr: "Moteur pas à pas : pas par mm", hi: "स्टेपर मोटर: प्रति mm चरण", it: "Motore passo-passo: passi per mm", ja: "ステッピングモーター：1 mmあたりのステップ数", nl: "Stappenmotor: stappen per mm", no: "Stepmotor: steg per mm", pl: "Silnik krokowy: kroki na mm", pt: "Motor de passo: passos por mm", sv: "Stegmotor: steg per mm", zh: "步进电机：每毫米步数"}
+  doc:
+    en: "How many (micro)steps a stepper motor needs per millimetre of travel. Steps per revolution: full steps per revolution × microsteps per full step (200 × 16 = 3200 for a 1.8° motor at 1/16). Travel per revolution: for a toothed belt the belt pitch × the number of teeth of the driving pulley (GT2: 2 mm × 20 teeth = 40 mm); for a leadscrew the LEAD, that is the travel of the nut per screw revolution. The lead is the thread pitch multiplied by the number of starts: a T8 screw has 2 mm pitch and 4 starts, so the lead is 8 mm. Enter the lead, never the pitch of a multi-start screw: with 2 mm instead of 8 mm the result would be four times too high. For a single-start thread lead and pitch are equal (M8 rod: 1.25 mm); for inch screws the pitch is 25.4 mm divided by the threads per inch. Steps per mm = steps per revolution / travel per revolution; the travel per microstep is its reciprocal (80 steps/mm = 12.5 µm). The variable at 'Belt pitch / screw lead' means the belt pitch with the belt drive and the lead with the leadscrew; the tooth count is ignored for a screw and cannot be solved for. A gear stage between motor and pulley or screw is not included: multiply the result by the gear ratio (motor revolutions per output revolution). This is pure geometry without belt stretch, backlash or thread errors; calibrate with a measured move. The result is shown in steps per mm."
+    de: "Wie viele (Mikro-)Schritte ein Schrittmotor je Millimeter Verfahrweg braucht. Schritte pro Umdrehung: Vollschritte pro Umdrehung × Mikroschritte je Vollschritt (200 × 16 = 3200 bei einem 1,8°-Motor mit 1/16). Weg pro Umdrehung: beim Zahnriemen die Riementeilung × Zähnezahl der treibenden Riemenscheibe (GT2: 2 mm × 20 Zähne = 40 mm); bei einer Gewindespindel die STEIGUNG, also der Weg der Mutter je Spindelumdrehung. Die Steigung ist die Gewindeteilung mal die Gangzahl: Eine T8-Spindel hat 2 mm Teilung und 4 Gänge, also 8 mm Steigung. Immer die Steigung eingeben, nie die Teilung einer mehrgängigen Spindel: Mit 2 mm statt 8 mm wäre das Ergebnis viermal zu hoch. Bei eingängigem Gewinde sind Steigung und Teilung gleich (M8-Stange: 1,25 mm); bei Zollgewinden ist die Teilung 25,4 mm geteilt durch die Gänge pro Zoll. Schritte pro mm = Schritte pro Umdrehung / Weg pro Umdrehung; der Weg je Mikroschritt ist der Kehrwert (80 Schritte/mm = 12,5 µm). Die Größe 'Riementeilung / Spindelsteigung' bedeutet beim Riemen die Riementeilung und bei der Spindel die Steigung; die Zähnezahl wird bei einer Spindel ignoriert und lässt sich nicht berechnen. Eine Getriebestufe zwischen Motor und Riemenscheibe oder Spindel ist nicht enthalten: das Ergebnis mit dem Übersetzungsverhältnis (Motorumdrehungen je Abtriebsumdrehung) multiplizieren. Es ist reine Geometrie ohne Riemendehnung, Spiel oder Gewindefehler; durch Nachmessen einer gefahrenen Strecke kalibrieren. Das Ergebnis erscheint in Schritten pro mm."
+  tags: [stepper motor, steps per mm, steps/mm, microstepping, belt drive, gt2, pulley teeth, belt pitch, leadscrew, lead screw, lead, pitch, starts, t8, resolution, 3d printer, cnc, rotation distance, schrittmotor, schritte pro mm, mikroschritt, zahnriemen, riemenscheibe, zähnezahl, riementeilung, gewindespindel, trapezgewindespindel, steigung, gangzahl, auflösung, 3d-drucker, cnc-fräse]
+  source: "Klipper documentation, Rotation distance (rotation_distance = full steps per rotation × microsteps / steps per mm; belt: pitch × teeth; leadscrew: pitch × number of starts); Thomson Industries, What is the difference between screw pitch and lead? (lead = pitch × starts); RepRap wiki, Triffid Hunter's Calibration Guide (worked examples); LightBurn documentation, Steps per MM"
+  vars:
+    spr: {dim: number, label: N_rev, name: {en: "Full steps per revolution", de: "Vollschritte pro Umdrehung"}, default: 200}
+    ms: {dim: number, label: m, name: {en: "Microsteps per full step", de: "Mikroschritte je Vollschritt"}, default: 16}
+    lead: {dim: length, label: P, name: {en: "Belt pitch / screw LEAD (pitch × starts)", de: "Riementeilung / Spindel-STEIGUNG (Teilung × Gangzahl)"}, default: "2 mm", unit: mm, units: [mm, in, ""]}
+    teeth: {dim: number, label: z, name: {en: "Teeth of the driving pulley", de: "Zähne der treibenden Riemenscheibe"}, default: 20}
+    spmm: {dim: number, label: k, name: {en: "Steps per mm", de: "Schritte pro mm"}}
+  choices:
+    drive:
+      name: {cs: "Pohon", da: "Drev", de: "Antrieb", el: "Κίνηση", en: "Drive", es: "Accionamiento", fr: "Entraînement", hi: "ड्राइव", it: "Trasmissione", ja: "駆動方式", nl: "Aandrijving", no: "Drivverk", pl: "Napęd", pt: "Transmissão", sv: "Drivning", zh: "传动方式"}
+      default: belt
+      options:
+        belt:
+          name: {cs: "Řemen", da: "Rem", de: "Zahnriemen", el: "Ιμάντας", en: "Belt", es: "Correa", fr: "Courroie", hi: "बेल्ट", it: "Cinghia", ja: "ベルト", nl: "Riem", no: "Reim", pl: "Pasek", pt: "Correia", sv: "Rem", zh: "同步带"}
+          consts: {belt: 1}
+        screw:
+          name: {cs: "Trapézový šroub", da: "Gevindspindel", de: "Gewindespindel", el: "Κοχλίας", en: "Leadscrew", es: "Husillo", fr: "Vis mère", hi: "लीडस्क्रू", it: "Vite madre", ja: "リードスクリュー", nl: "Spindel", no: "Gjengespindel", pl: "Śruba pociągowa", pt: "Fuso", sv: "Ledskruv", zh: "丝杠"}
+          consts: {belt: 0}
+          ignore: [teeth]
+  dof: 4
+  rules:
+    spmm: ["spr*ms/(lead*1000*if(belt,teeth,1))"]
+    lead: ["spr*ms/(spmm*1000*if(belt,teeth,1))"]
+    ms: ["spmm*1000*lead*if(belt,teeth,1)/spr"]
+  derived:
+    rev: {dim: length, label: s_rev, name: {en: "Travel per revolution", de: "Weg pro Umdrehung"}, expr: "lead*if(belt,teeth,1)"}
+    dx: {dim: length, label: Δx, name: {en: "Travel per microstep", de: "Weg pro Mikroschritt"}, expr: "lead*if(belt,teeth,1)/(spr*ms)"}
+  formula: ["spmm = spr * ms / (lead * teeth)", "dx = 1 / spmm"]
+
+- id: motor_torque_power
+  kind: calculator
+  category: drives
+  name: {cs: "Motor: točivý moment, otáčky a výkon", da: "Motor: moment, omdrejninger og effekt", de: "Motor: Drehmoment, Drehzahl, Leistung", el: "Κινητήρας: ροπή, στροφές και ισχύς", en: "Motor torque, speed and power", es: "Motor: par, velocidad y potencia", fr: "Moteur : couple, vitesse et puissance", hi: "मोटर: टॉर्क, गति और शक्ति", it: "Motore: coppia, velocità e potenza", ja: "モーター：トルク・回転数・出力", nl: "Motor: koppel, toerental en vermogen", no: "Motor: dreiemoment, turtall og effekt", pl: "Silnik: moment, prędkość obrotowa i moc", pt: "Motor: binário, velocidade e potência", sv: "Motor: vridmoment, varvtal och effekt", zh: "电机：转矩、转速与功率"}
+  doc:
+    en: "The mechanical power at a rotating shaft is the torque times the angular velocity: P = M × ω = 2π × n × M, with the speed n in revolutions per second (in r/min: P = 2π × n × M / 60, about 0.1047 × n × M). Solved the other way, M = P / (2π × n) and n = P / (2π × M); with P in kW and n in r/min the torque is about 9549.3 × P / n. One r/min is 0.1047198 rad/s (NIST SP 811). Torque and speed must be those at the same point of the shaft; behind a gearbox use the output speed and output torque and include the efficiency of the gearbox. The rated power on a motor nameplate is the shaft power, not the electrical input. Example: 1500 r/min at 10 N·m is 1570.8 W; 1000 r/min at 0.5 N·m is 52.4 W. The speed is stored in 1/s and shown in rpm."
+    de: "Die mechanische Leistung an einer rotierenden Welle ist das Drehmoment mal die Winkelgeschwindigkeit: P = M × ω = 2π × n × M, mit der Drehzahl n in Umdrehungen pro Sekunde (in U/min: P = 2π × n × M / 60, etwa 0,1047 × n × M). Umgekehrt gilt M = P / (2π × n) und n = P / (2π × M); mit P in kW und n in U/min ist das Drehmoment etwa 9549,3 × P / n. Eine U/min sind 0,1047198 rad/s (NIST SP 811). Drehmoment und Drehzahl müssen an derselben Stelle der Welle gelten; hinter einem Getriebe Abtriebsdrehzahl und Abtriebsdrehmoment einsetzen und den Wirkungsgrad des Getriebes berücksichtigen. Die Nennleistung auf dem Typenschild eines Motors ist die Wellenleistung, nicht die elektrische Aufnahme. Beispiel: 1500 U/min bei 10 N·m sind 1570,8 W; 1000 U/min bei 0,5 N·m sind 52,4 W. Die Drehzahl wird in 1/s gespeichert und in rpm angezeigt."
+  tags: [motor power, torque, speed, rpm, mechanical power, shaft power, angular velocity, kw, nm, 9550, motorleistung, drehmoment, drehzahl, u/min, mechanische leistung, wellenleistung, winkelgeschwindigkeit]
+  source: "P = M × ω = 2π × n × M: Oriental Motor, AC Motor Glossary of Terms (entry Output Power) and Engineering Notes, Wattage Specification for Stepper Motors; FAULHABER, Motor Calculations for Coreless Brush DC Motors; conversion 1 r/min = 0.1047198 rad/s: NIST Special Publication 811, Appendix B.9"
+  vars:
+    tq: {dim: torque, label: M, name: {en: "Torque", de: "Drehmoment"}, default: "10 N·m"}
+    n: {dim: rotational_speed, label: n, name: {en: "Rotational speed", de: "Drehzahl"}, default: "1500 rpm", unit: rpm, units: [rpm, ""]}
+    p: {dim: power, label: P, name: {en: "Mechanical power", de: "Mechanische Leistung"}}
+  dof: 2
+  rules:
+    p: ["2*pi*n*tq"]
+    tq: ["p/(2*pi*n)"]
+    n: ["p/(2*pi*tq)"]
+  formula: ["p = 2 * pi * n * tq", "tq = p / (2 * pi * n)"]

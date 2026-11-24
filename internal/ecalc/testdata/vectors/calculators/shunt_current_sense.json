@@ -1,0 +1,22 @@
+{
+  "calc": "shunt_current_sense",
+  "sets": [
+    {"values": {"i": 40.0, "r": 0.0005, "gain": 200.0, "v": 0.02, "vout": 4.0, "p": 0.8}, "ref": "hand: V = I x R = 40 x 0.0005 = 0.02 V; Vout = G x V = 200 x 0.02 = 4 V; P = I^2 R = 0.8 W. published, TI INAx180 example: 40 A on 0.5 mOhm gives 20 mV and 0.8 W (below the 900 mW budget), gain 200 gives 4 V"},
+    {"values": {"i": 2.0, "r": 0.05, "gain": 20.0, "v": 0.1, "vout": 2.0, "p": 0.2}, "ref": "hand: V = I x R = 2 x 0.05 = 0.1 V; Vout = G x V = 20 x 0.1 = 2 V; P = I^2 R = 0.2 W. computed: 2 A on 50 mOhm gives 100 mV, 0.2 W, gain 20 gives 2 V"},
+    {"values": {"i": 3.2, "r": 0.1, "gain": 1.0, "v": 0.32, "vout": 0.32, "p": 1.024}, "ref": "hand: V = I x R = 3.2 x 0.1 = 0.32 V; Vout = G x V = 1 x 0.32 = 0.32 V; P = I^2 R = 1.024 W. published full-scale value of the INA219: 320 mV on 0.1 Ohm is 3.2 A, P = 1.024 W"},
+    {"values": {"i": 0.5, "r": 0.2, "gain": 50.0, "v": 0.1, "vout": 5.0, "p": 0.05}, "ref": "hand: V = I x R = 0.5 x 0.2 = 0.1 V; Vout = G x V = 50 x 0.1 = 5 V; P = I^2 R = 0.05 W. computed: 0.5 A on 0.2 Ohm gives 0.1 V, 0.05 W, gain 50 gives 5 V"},
+    {"values": {"i": 0.1, "r": 1.0, "gain": 10.0, "v": 0.1, "vout": 1.0, "p": 0.01}, "ref": "hand: V = I x R = 0.1 x 1 = 0.1 V; Vout = G x V = 10 x 0.1 = 1 V; P = I^2 R = 0.01 W. computed: 100 mA on 1 Ohm gives 0.1 V, 10 mW, gain 10 gives 1 V"}
+  ],
+  "solve": [
+    {"inputs": {"v": 0.32, "r": 0.1, "gain": 1.0}, "expect": {"i": 3.2, "p": 1.024, "vout": 0.32}, "warnings": [], "ref": "hand, published INA219 full scale: I = V / R = 0.32 V / 0.1 Ohm = 3.2 A; P = 3.2^2 x 0.1 = 1.024 W"},
+    {"inputs": {"v": 0.1, "i": 2.0, "gain": 20.0}, "expect": {"r": 0.05, "vout": 2.0, "p": 0.2}, "warnings": [], "ref": "hand: R = V / I = 0.1 V / 2 A = 50 mOhm; Vout = 20 x 0.1 V = 2 V"},
+    {"inputs": {"v": 0.02, "i": 40.0, "gain": 200.0}, "expect": {"r": 0.0005, "vout": 4.0}, "warnings": [], "ref": "hand, published TI example: R = 20 mV / 40 A = 0.5 mOhm; Vout = 200 x 20 mV = 4 V"},
+    {"inputs": {"vout": 3.3, "i": 2.0, "r": 0.05}, "expect": {"v": 0.1, "gain": 33.0}, "warnings": [], "ref": "hand: V = I R = 0.1 V; the gain that brings 2 A to a 3.3 V full scale is Vout / V = 3.3 / 0.1 = 33"},
+    {"inputs": {"vout": 4.97, "i": 40.0, "r": 0.0005}, "expect": {"v": 0.02, "gain": 248.5}, "warnings": [], "ref": "hand, published TI example: with Vout = 4.97 V (the swing limit implied by the published maximum gain) the gain is 4.97 / 20 mV = 248.5"},
+    {"inputs": {"vout": 2.0, "gain": 20.0, "r": 0.05}, "expect": {"v": 0.1, "i": 2.0}, "warnings": [], "ref": "hand: V = Vout / G = 2 / 20 = 0.1 V; I = V / R = 0.1 / 0.05 = 2 A"},
+    {"inputs": {"vout": 2.0, "gain": 20.0, "i": 2.0}, "expect": {"v": 0.1, "r": 0.05}, "warnings": [], "ref": "hand: V = Vout / G = 0.1 V; R = V / I = 0.05 Ohm"},
+    {"inputs": {"i": 0.0, "r": 0.05, "gain": 20.0}, "expect": {"v": 0.0}, "warnings": [], "ref": "hand: zero current gives zero drop (a zero current is no range error for a current)"},
+    {"inputs": {"i": 2.0, "r": 0.0, "gain": 20.0}, "expect": {"v": 0.0}, "errors": {"r": "range"}, "warnings": [], "ref": "hand: a zero resistance is out of range for a resistance"},
+    {"inputs": {"i": 2.0, "r": 0.05}, "expect": {"v": 0.1, "p": 0.2}, "errors": {"gain": "undetermined", "vout": "undetermined"}, "warnings": [], "ref": "hand: without a gain only V = 0.1 V and P = 0.2 W follow"}
+  ]
+}

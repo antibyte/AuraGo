@@ -1,0 +1,26 @@
+{
+  "calc": "ntc_beta",
+  "sets": [
+    {"values": {"r0": 100000.0, "t0": 298.15, "beta": 3977.0, "t": 373.15, "r": 6849.387230999185}, "ref": "hand: 1/T - 1/T0 = 1/373.15 - 1/298.15 = -0.00067412899; x B 3977 = -2.68101099; exp = 0.0684938723; R = 6849.387231 Ohm. published, TI SBAA338A (100 kOhm, B 3977 K, 100 degC): published 6.849 kOhm"},
+    {"values": {"r0": 100000.0, "t0": 298.15, "beta": 3977.0, "t": 248.15, "r": 1469744.1863020966}, "ref": "hand: 1/T - 1/T0 = 1/248.15 - 1/298.15 = 0.000675804238; x B 3977 = 2.68767346; exp = 14.6974419; R = 1469744.186 Ohm. published, TI SBAA338A (-25 degC): published 1469.744 kOhm"},
+    {"values": {"r0": 10000.0, "t0": 298.15, "beta": 3977.0, "t": 358.15, "r": 1070.3092720326706}, "ref": "hand: 1/T - 1/T0 = 1/358.15 - 1/298.15 = -0.000561890231; x B 3977 = -2.23463745; exp = 0.107030927; R = 1070.309272 Ohm. Vishay NTCLE100E3 R/T table value at 85 degC: table 1070 Ohm (B25/85 is defined by this point)"},
+    {"values": {"r0": 10000.0, "t0": 298.15, "beta": 3435.0, "t": 333.15, "r": 2980.8530228799123}, "ref": "hand: 1/T - 1/T0 = 1/333.15 - 1/298.15 = -0.000352365527; x B 3435 = -1.21037558; exp = 0.298085302; R = 2980.853023 Ohm. computed, B 3435 K at 60 degC"},
+    {"values": {"r0": 5000.0, "t0": 293.15, "beta": 3950.0, "t": 323.15, "r": 1431.2282885796294}, "ref": "hand: 1/T - 1/T0 = 1/323.15 - 1/293.15 = -0.000316684783; x B 3950 = -1.25090489; exp = 0.286245658; R = 1431.228289 Ohm. computed, reference temperature 20 degC instead of 25 degC"}
+  ],
+  "solve": [
+    {"inputs": {"r0": 10000.0, "t0": 298.15, "beta": 3977.0, "r": 1070.0}, "expect": {"t": 358.1593213697945}, "warnings": [], "ref": "hand: 1/T = 1/298.15 + ln(R/R0)/B = 1/298.15 + ln(1070/10000)/3977; T = 358.1593214 K (85.009321 degC). Vishay table value 1070 Ohm at 85 degC (358.159 K = 85.009 degC)"},
+    {"inputs": {"r0": 100000.0, "t0": 298.15, "beta": 3977.0, "r": 6849.0}, "expect": {"t": 373.15197944882556}, "warnings": [], "ref": "hand: 1/T = 1/298.15 + ln(R/R0)/B = 1/298.15 + ln(6849/100000)/3977; T = 373.1519794 K (100.00198 degC). TI SBAA338A: 6.849 kOhm for 100 degC (100.002 degC)"},
+    {"inputs": {"r0": 100000.0, "t0": 298.15, "beta": 3977.0, "r": 1469744.0}, "expect": {"t": 248.15000196267772}, "warnings": [], "ref": "hand: 1/T = 1/298.15 + ln(R/R0)/B = 1/298.15 + ln(1469744/100000)/3977; T = 248.150002 K (-24.999998 degC). TI SBAA338A: 1469.744 kOhm for -25 degC"},
+    {"inputs": {"r0": 10000.0, "t0": 298.15, "beta": 3435.0, "r": 5000.0}, "expect": {"t": 317.2360504592541}, "warnings": [], "ref": "hand: 1/T = 1/298.15 + ln(R/R0)/B = 1/298.15 + ln(5000/10000)/3435; T = 317.2360505 K (44.08605 degC). computed: R = R0/2, T = 317.236 K = 44.086 degC"},
+    {"inputs": {"r0": 10000.0, "t0": 298.15, "t": 358.15, "r": 1070.0}, "expect": {"beta": 3977.514330919702}, "warnings": [], "ref": "hand: B = ln(R/R0) / (1/T - 1/T0) = ln(1070/10000) / (1/358.15 - 1/298.15) = -2.23492644 / -0.000561890231 = 3977.514331 K. Vishay table: B25/85 published 3977 K"},
+    {"inputs": {"r0": 100000.0, "t0": 298.15, "t": 373.15, "r": 6849.0}, "expect": {"beta": 3977.083866336051}, "warnings": [], "ref": "hand: B = ln(R/R0) / (1/T - 1/T0) = ln(6849/100000) / (1/373.15 - 1/298.15) = -2.68106753 / -0.00067412899 = 3977.083866 K. TI SBAA338A values: published B 3977 K"},
+    {"inputs": {"r0": 100000.0, "t0": 298.15, "t": 248.15, "r": 1469744.0}, "expect": {"beta": 3976.999812433572}, "warnings": [], "ref": "hand: B = ln(R/R0) / (1/T - 1/T0) = ln(1469744/100000) / (1/248.15 - 1/298.15) = 2.68767333 / 0.000675804238 = 3976.999812 K. TI SBAA338A values: published B 3977 K"},
+    {"inputs": {"t0": 298.15, "beta": 3977.0, "t": 373.15, "r": 6849.0}, "expect": {"r0": 99994.34648697576}, "warnings": [], "ref": "hand: R0 = R / exp(B (1/T - 1/T0)) = 6849 / exp(-2.68101099) = 99994.34649 Ohm (the rounded published R of a 100 kOhm / 10 kOhm part)"},
+    {"inputs": {"t0": 298.15, "beta": 3977.0, "t": 358.15, "r": 1070.0}, "expect": {"r0": 9997.11044236697}, "warnings": [], "ref": "hand: R0 = R / exp(B (1/T - 1/T0)) = 1070 / exp(-2.23463745) = 9997.110442 Ohm (the rounded published R of a 100 kOhm / 10 kOhm part)"},
+    {"inputs": {"r0": 10000.0, "t0": 298.15, "beta": 1500.0, "t": 298.15}, "expect": {"r": 10000.0}, "warnings": [0], "ref": "hand: B 1500 K is below 2000 K, the first check fires; R = R0 at T = T0"},
+    {"inputs": {"r0": 10000.0, "t0": 298.15, "beta": 5500.0, "t": 348.15}, "expect": {"r": 707.0053908767084}, "warnings": [0], "ref": "hand: B 5500 K is above 5000 K, the first check fires; R = 10000 exp(5500 (1/348.15 - 1/298.15))"},
+    {"inputs": {"r0": 10000.0, "t0": 298.15, "t": 298.15, "r": 5000.0}, "errors": {"beta": "nonfinite"}, "warnings": [], "ref": "hand: T = T0 makes 1/T - 1/T0 = 0, so B = ln(0.5) / 0 is -Inf: B cannot be found from two equal temperatures"},
+    {"inputs": {"r0": 10000.0, "t0": 298.15, "beta": 3977.0, "r": -5.0}, "errors": {"r": "range", "t": "nonfinite"}, "warnings": [], "ref": "hand: a negative resistance is out of range and ln of it is not a number, so T is not finite"},
+    {"inputs": {"r0": 10000.0, "t0": 298.15, "beta": 3977.0}, "errors": {"t": "undetermined", "r": "undetermined"}, "warnings": [], "ref": "neither the temperature nor the resistance is known"}
+  ]
+}

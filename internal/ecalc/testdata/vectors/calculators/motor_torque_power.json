@@ -1,0 +1,19 @@
+{
+  "calc": "motor_torque_power",
+  "sets": [
+    {"values": {"tq": 0.5, "n": 16.666666666666668, "p": 52.35987755982989}, "ref": "hand: n = 1000 r/min / 60 = 16.66666667 1/s; P = 2 pi n M = 2 pi x 16.66666667 x 0.5 = 52.35987756 W. published, Oriental Motor: 1000 r/min and 0.5 N.m give 52.3 W (0.1047 x 0.5 x 1000)"},
+    {"values": {"tq": 0.2, "n": 50.0, "p": 62.83185307179586}, "ref": "hand: n = 3000 r/min / 60 = 50 1/s; P = 2 pi n M = 2 pi x 50 x 0.2 = 62.83185307 W. published, Oriental Motor: 3000 r/min and 0.2 N.m give 62.8 W"},
+    {"values": {"tq": 0.068, "n": 122.83333333333333, "p": 52.481352475768695}, "ref": "hand: n = 7370 r/min / 60 = 122.8333333 1/s; P = 2 pi n M = 2 pi x 122.8333333 x 0.068 = 52.48135248 W. published, FAULHABER sample motor: 7370 min^-1 and 68 mN.m give an output power of 52.48 W"},
+    {"values": {"tq": 10.0, "n": 25.0, "p": 1570.7963267948967}, "ref": "hand: n = 1500 r/min / 60 = 25 1/s; P = 2 pi n M = 2 pi x 25 x 10 = 1570.796327 W. computed, the defaults: 1500 r/min and 10 N.m give 1570.80 W (0.1047197551 x 1500 x 10)"},
+    {"values": {"tq": 9.87857, "n": 24.166666666666668, "p": 1499.9980754320054}, "ref": "hand: n = 1450 r/min / 60 = 24.16666667 1/s; P = 2 pi n M = 2 pi x 24.16666667 x 9.87857 = 1499.998075 W. computed: 1450 r/min and 9.87857 N.m give about 1500 W"},
+    {"values": {"tq": 2.55785, "n": 46.666666666666664, "p": 750.0007917719009}, "ref": "hand: n = 2800 r/min / 60 = 46.66666667 1/s; P = 2 pi n M = 2 pi x 46.66666667 x 2.55785 = 750.0007918 W. computed: 2800 r/min and 2.55785 N.m give about 750 W"}
+  ],
+  "solve": [
+    {"inputs": {"p": 1500.0, "n": 24.166666666666668}, "expect": {"tq": 9.878582674669365}, "warnings": [], "ref": "hand: M = P / (2 pi n) = 1500 / (2 pi x 24.16666667) = 9.878582675 N.m. B2: 1500 W at 1450 r/min: M = 60 P / (2 pi n) = 9.8786 N.m (9549.30 x 1.5 / 1450 = 9.87859)"},
+    {"inputs": {"p": 750.0, "n": 46.666666666666664}, "expect": {"tq": 2.557847299691175}, "warnings": [], "ref": "hand: M = P / (2 pi n) = 750 / (2 pi x 46.66666667) = 2.5578473 N.m. B3: 750 W at 2800 r/min: M = 2.5579 N.m"},
+    {"inputs": {"p": 1000.0, "tq": 3.2}, "expect": {"n": 49.73591971621729}, "warnings": [], "ref": "hand: n = P / (2 pi M) = 1000 / (2 pi x 3.2) = 49.73591972 1/s = 2984.155183 r/min. C2: 1000 W at 3.2 N.m: n = 60000 / (2 pi x 3.2) = 2984.16 r/min"},
+    {"inputs": {"p": 52.35987755982989, "tq": 0.5}, "expect": {"n": 16.666666666666668}, "warnings": [], "ref": "hand: n = P / (2 pi M) = 52.3598775598298873 / (2 pi x 0.5) = 16.66666667 1/s = 1000 r/min. C1: the power of 1000 r/min at 0.5 N.m returns 1000 r/min"},
+    {"inputs": {"n": 0.0, "tq": 1.0}, "expect": {"p": 0.0}, "errors": {"n": "range"}, "warnings": [], "ref": "hand: a speed of 0 is out of range for a positive speed; P = 0 at standstill for any torque"},
+    {"inputs": {"p": 100.0, "n": 0.0}, "errors": {"n": "range", "tq": "nonfinite"}, "warnings": [], "ref": "hand: at n = 0 the torque cannot be found from the power: M = 100 / 0 = +Inf"}
+  ]
+}

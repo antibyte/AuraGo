@@ -1,0 +1,34 @@
+{
+  "calc": "rtd_pt100",
+  "sets": [
+    {"choices": {"element": "pt100"}, "values": {"t": 373.15, "r": 138.5055}, "ref": "hand: R = R0 (1 + A t + B t^2) = 100 (1 + 0.0039083 100 + -5.775E-7 10000) = 138.5055 Ohm (IEC 60751 table 138.51 Ohm)"},
+    {"choices": {"element": "pt100"}, "values": {"t": 1123.15, "r": 390.481125}, "ref": "hand: R = R0 (1 + A t + B t^2) = 100 (1 + 0.0039083 850 + -5.775E-7 722500) = 390.481125 Ohm (IEC 60751 table 390.48 Ohm)"},
+    {"choices": {"element": "pt100"}, "values": {"t": 298.15, "r": 109.73465625}, "ref": "hand: R = R0 (1 + A t + B t^2) = 100 (1 + 0.0039083 25 + -5.775E-7 625) = 109.7346563 Ohm (table 109.73 Ohm)"},
+    {"choices": {"element": "pt100"}, "values": {"t": 273.15, "r": 100.0}, "ref": "hand: R = R0 (1 + 0) = 100 = 100 Ohm (R = R0 at 0 degC)"},
+    {"choices": {"element": "pt100"}, "values": {"t": 223.15, "r": 80.306281875}, "ref": "hand: t = -50 degC: A t = -0.195415, B t^2 = -0.00144375, C (t - 100) t^3 = -7.843125e-05; bracket = 0.8030628187; R = 100 x 0.8030628187 = 80.30628187 Ohm (table 80.31 Ohm)"},
+    {"choices": {"element": "pt100"}, "values": {"t": 173.15, "r": 60.25584}, "ref": "hand: t = -100 degC: A t = -0.39083, B t^2 = -0.005775, C (t - 100) t^3 = -0.0008366; bracket = 0.6025584; R = 100 x 0.6025584 = 60.25584 Ohm (table 60.26 Ohm)"},
+    {"choices": {"element": "pt100"}, "values": {"t": 73.15, "r": 18.52008}, "ref": "hand: t = -200 degC: A t = -0.78166, B t^2 = -0.0231, C (t - 100) t^3 = -0.0100392; bracket = 0.1852008; R = 100 x 0.1852008 = 18.52008 Ohm (table 18.52 Ohm)"},
+    {"choices": {"element": "pt100"}, "values": {"t": 263.15, "r": 96.085878987}, "ref": "hand: t = -10 degC: A t = -0.039083, B t^2 = -5.775e-05, C (t - 100) t^3 = -4.6013e-07; bracket = 0.9608587899; R = 100 x 0.9608587899 = 96.08587899 Ohm (table 96.09 Ohm)"},
+    {"choices": {"element": "pt1000"}, "values": {"t": 473.15, "r": 1758.56}, "ref": "hand: R = R0 (1 + A t + B t^2) = 1000 (1 + 0.0039083 200 + -5.775E-7 40000) = 1758.56 Ohm (Pt100 table 175.86 Ohm x 10)"},
+    {"choices": {"element": "pt1000"}, "values": {"t": 243.15, "r": 882.21656767}, "ref": "hand: t = -30 degC: A t = -0.117249, B t^2 = -0.00051975, C (t - 100) t^3 = -1.468233e-05; bracket = 0.8822165677; R = 1000 x 0.8822165677 = 882.2165677 Ohm (Pt100 class AA band 88.16 ... 88.28 Ohm around 88.2217 Ohm x 10)"},
+    {"choices": {"element": "pt1000"}, "values": {"t": 373.15, "r": 1385.055}, "ref": "hand: R = R0 (1 + A t + B t^2) = 1000 (1 + 0.0039083 100 + -5.775E-7 10000) = 1385.055 Ohm (Pt100 138.5055 Ohm x 10)"},
+    {"choices": {"element": "pt1000"}, "values": {"t": 73.15, "r": 185.2008}, "ref": "hand: t = -200 degC: A t = -0.78166, B t^2 = -0.0231, C (t - 100) t^3 = -0.0100392; bracket = 0.1852008; R = 1000 x 0.1852008 = 185.2008 Ohm (Pt100 18.52 Ohm x 10)"}
+  ],
+  "solve": [
+    {"inputs": {"r": 138.5055}, "choices": {"element": "pt100"}, "expect": {"t": 373.15}, "warnings": [], "ref": "hand: exact inverse of the IEC 60751 equation (Newton in 70 digits) for R = 138.5055 Ohm, R0 = 100: t = 100 degC. unrounded IEC value: 100 degC"},
+    {"inputs": {"r": 390.48}, "choices": {"element": "pt100"}, "expect": {"t": 1123.146155886123}, "warnings": [], "ref": "hand: exact inverse of the IEC 60751 equation (Newton in 70 digits) for R = 390.48 Ohm, R0 = 100: t = 849.996155886 degC. table value 390.48 Ohm: 849.996 degC (the table rounds to 0.01 Ohm)"},
+    {"inputs": {"r": 109.73}, "choices": {"element": "pt100"}, "expect": {"t": 298.13799759840526}, "warnings": [], "ref": "hand: exact inverse of the IEC 60751 equation (Newton in 70 digits) for R = 109.73 Ohm, R0 = 100: t = 24.9879975984 degC. table value 109.73 Ohm: 24.988 degC"},
+    {"inputs": {"r": 138.51}, "choices": {"element": "pt100"}, "expect": {"t": 373.1618646069643}, "warnings": [], "ref": "hand: exact inverse of the IEC 60751 equation (Newton in 70 digits) for R = 138.51 Ohm, R0 = 100: t = 100.011864607 degC. table value 138.51 Ohm: 100.012 degC"},
+    {"inputs": {"r": 18.5201}, "choices": {"element": "pt100"}, "expect": {"t": 73.15004626040256}, "warnings": [], "ref": "hand: exact inverse of the IEC 60751 equation (Newton in 70 digits) for R = 18.5201 Ohm, R0 = 100: t = -199.99995374 degC. R below R0, near the table value 18.52 Ohm (-200 degC): the quartic term is needed"},
+    {"inputs": {"r": 60.2558}, "choices": {"element": "pt100"}, "expect": {"t": 173.14990130964796}, "warnings": [], "ref": "hand: exact inverse of the IEC 60751 equation (Newton in 70 digits) for R = 60.2558 Ohm, R0 = 100: t = -100.00009869 degC. near table 60.26 Ohm (-100 degC)"},
+    {"inputs": {"r": 80.3063}, "choices": {"element": "pt100"}, "expect": {"t": 223.15004564021135}, "warnings": [], "ref": "hand: exact inverse of the IEC 60751 equation (Newton in 70 digits) for R = 80.3063 Ohm, R0 = 100: t = -49.9999543598 degC. near table 80.31 Ohm (-50 degC)"},
+    {"inputs": {"r": 96.09}, "choices": {"element": "pt100"}, "expect": {"t": 263.16051282583095}, "warnings": [], "ref": "hand: exact inverse of the IEC 60751 equation (Newton in 70 digits) for R = 96.09 Ohm, R0 = 100: t = -9.98948717417 degC. table value 96.09 Ohm: -9.9895 degC (rounded entry)"},
+    {"inputs": {"r": 1385.055}, "choices": {"element": "pt1000"}, "expect": {"t": 373.15}, "warnings": [], "ref": "hand: exact inverse of the IEC 60751 equation (Newton in 70 digits) for R = 1385.055 Ohm, R0 = 1000: t = 100 degC. Pt1000 at 100 degC"},
+    {"inputs": {"r": 882.21657}, "choices": {"element": "pt1000"}, "expect": {"t": 243.15000059069123}, "warnings": [], "ref": "hand: exact inverse of the IEC 60751 equation (Newton in 70 digits) for R = 882.21657 Ohm, R0 = 1000: t = -29.9999994093 degC. Pt1000 at -30 degC"},
+    {"inputs": {"t": 63.15}, "choices": {"element": "pt100"}, "expect": {"r": 14.178023347}, "warnings": [0], "ref": "hand: -210 degC lies outside -200 ... 850 degC; the equation still gives R = 14.17802335 Ohm and the check fires"},
+    {"inputs": {"t": 1173.15}, "choices": {"element": "pt100"}, "expect": {"r": 404.9695}, "warnings": [0], "ref": "hand: 900 degC lies outside -200 ... 850 degC; the equation still gives R = 404.9695 Ohm and the check fires"},
+    {"inputs": {"t": 68.15}, "choices": {"element": "pt1000"}, "expect": {"r": 163.537756798125}, "warnings": [0], "ref": "hand: -205 degC lies outside -200 ... 850 degC; the equation still gives R = 163.5377568 Ohm and the check fires"},
+    {"inputs": {"r": 800.0}, "choices": {"element": "pt100"}, "errors": {"t": "nonfinite"}, "warnings": [], "ref": "hand: R/R0 = 8 is above 7.612 (A^2 / (4 |B|) + 1): the quadratic has no real root, so t is not finite"},
+    {"inputs": {}, "choices": {"element": "pt100"}, "errors": {"t": "undetermined", "r": "undetermined"}, "warnings": [], "ref": "neither the temperature nor the resistance is known"}
+  ]
+}

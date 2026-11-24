@@ -1,0 +1,162 @@
+# Sensor calculators: thermistors, resistance thermometers, current loops and shunts. Every name is written in all 16
+# desktop locales; docs, variable names and warnings in English and German (other languages fall back to English).
+# Rules are written out for every direction, in the order the solver tries them: the first alternative whose variables
+# are all known wins. Temperatures are absolute (kelvin); the page shows them in °C or °F.
+
+- id: ntc_beta
+  kind: calculator
+  category: sensors
+  name: {cs: "NTC termistor (rovnice B)", da: "NTC-termistor (B-ligning)", de: "NTC-Thermistor (B-Gleichung)", el: "Θερμίστορ NTC (εξίσωση B)", en: "NTC thermistor (B equation)", es: "Termistor NTC (ecuación B)", fr: "Thermistance CTN (équation B)", hi: "NTC थर्मिस्टर (B समीकरण)", it: "Termistore NTC (equazione B)", ja: "NTCサーミスタ（B定数式）", nl: "NTC-thermistor (B-vergelijking)", no: "NTC-termistor (B-ligning)", pl: "Termistor NTC (równanie B)", pt: "Termistor NTC (equação B)", sv: "NTC-termistor (B-ekvation)", zh: "NTC热敏电阻（B值方程）"}
+  doc:
+    en: "An NTC thermistor lowers its resistance as it warms up. The B (beta) equation describes it with the resistance R_0 at a reference temperature T_0 (normally 25 °C) and the B value of the datasheet: R = R_0 × exp(B × (1/T − 1/T_0)). The temperatures are absolute (the page converts °C and °F to kelvin) and B is in kelvin. Rearranged, the equation gives the temperature from a measured resistance, B from two points and R_0 from one point. Limit of the model: B is not constant. The equation is exact only at T_0 and at the second temperature that defines B (85 °C for B25/85) and drifts away from them; TDK calls it suitable only for a restricted range around the rated temperature, and common materials have B between 2000 K and 5000 K. Compared with the Vishay NTCLE100E3 10 kΩ table (B = 3977 K) the model is about 0.8 K off at 0 °C, 0.3 K at 50 °C and 0.4 K at 100 °C, but about 2.3 K at −25 °C, 3.6 K at −40 °C, 1.4 K at 125 °C and 2.8 K at 150 °C: within roughly 0 … 100 °C the error stays near 1 K for this material, outside it grows quickly (other materials differ). Tolerances of R_0 and B come on top. For precise work use the R/T table of the datasheet or the Steinhart–Hart equation. The measuring current must not heat the thermistor. Example: 100 kΩ with B = 3977 K at 100 °C is 6.849 kΩ."
+    de: "Ein NTC-Thermistor verringert seinen Widerstand, wenn er wärmer wird. Die B-Gleichung (Beta) beschreibt ihn mit dem Widerstand R_0 bei einer Bezugstemperatur T_0 (meist 25 °C) und dem B-Wert aus dem Datenblatt: R = R_0 × exp(B × (1/T − 1/T_0)). Die Temperaturen sind absolut (die Seite rechnet °C und °F in Kelvin um), B hat die Einheit Kelvin. Umgestellt liefert die Gleichung die Temperatur aus einem gemessenen Widerstand, B aus zwei Punkten und R_0 aus einem Punkt. Grenze des Modells: B ist nicht konstant. Die Gleichung stimmt nur bei T_0 und bei der zweiten Temperatur, die B festlegt (85 °C bei B25/85), genau und weicht davon ab; TDK nennt sie nur für einen eingeschränkten Bereich um die Nenntemperatur geeignet, und übliche Werkstoffe haben B zwischen 2000 K und 5000 K. Gegenüber der Tabelle des Vishay NTCLE100E3 10 kΩ (B = 3977 K) liegt das Modell bei 0 °C etwa 0,8 K, bei 50 °C 0,3 K und bei 100 °C 0,4 K daneben, bei −25 °C aber etwa 2,3 K, bei −40 °C 3,6 K, bei 125 °C 1,4 K und bei 150 °C 2,8 K: Etwa zwischen 0 und 100 °C bleibt der Fehler für diesen Werkstoff nahe 1 K, außerhalb wächst er schnell (andere Werkstoffe weichen anders ab). Die Toleranzen von R_0 und B kommen hinzu. Für genaue Messungen die R/T-Tabelle des Datenblatts oder die Steinhart-Hart-Gleichung verwenden. Der Messstrom darf den Thermistor nicht erwärmen. Beispiel: 100 kΩ mit B = 3977 K ergeben bei 100 °C 6,849 kΩ."
+  tags: [ntc, thermistor, beta, b value, b25/85, b constant, temperature sensor, resistance temperature, steinhart-hart, negative temperature coefficient, heißleiter, b-wert, temperatursensor, temperaturfühler, widerstand temperatur, kennlinie]
+  source: "B equation of NTC thermistors, R = R25 × exp(B × (1/T − 1/298.15 K)): Vishay BCcomponents application note NTC Thermistors (document 29053), section Material constant B; Texas Instruments application note SBAA338A, Monitoring NTC Thermistor Circuit With Single-Ended ADC; EPCOS/TDK, NTC Thermistors – General technical information (validity range and B range)"
+  vars:
+    r0: {dim: resistance, label: R_0, name: {en: "Resistance at T_0", de: "Widerstand bei T_0"}, default: "10 kΩ"}
+    t0: {dim: temperature, label: T_0, name: {en: "Reference temperature", de: "Bezugstemperatur"}, default: "25 °C", unit: degC, units: [degC, degF, ""]}
+    beta: {dim: tempdiff, label: B, name: {en: "B value (in kelvin)", de: "B-Wert (in Kelvin)"}, default: "3977 K", units: [""]}
+    t: {dim: temperature, label: T, name: {en: "Thermistor temperature", de: "Temperatur des Thermistors"}, default: "85 °C", unit: degC, units: [degC, degF, ""]}
+    r: {dim: resistance, label: R, name: {en: "Resistance at T", de: "Widerstand bei T"}}
+  dof: 4
+  rules:
+    r: ["r0*exp(beta*(1/t-1/t0))"]
+    t: ["1/(1/t0+ln(r/r0)/beta)"]
+    beta: ["ln(r/r0)/(1/t-1/t0)"]
+    r0: ["r/exp(beta*(1/t-1/t0))"]
+  checks:
+    - {when: "if(beta<2000,1,beta>5000)", warn: {en: "Unusual B value: common NTC materials lie between 2000 K and 5000 K.", de: "Ungewöhnlicher B-Wert: Übliche NTC-Werkstoffe liegen zwischen 2000 K und 5000 K."}}
+  formula: ["r = r0 * exp(beta * (1/t - 1/t0))", "t = 1 / (1/t0 + ln(r/r0) / beta)", "beta = ln(r/r0) / (1/t - 1/t0)"]
+
+- id: ntc_divider
+  kind: calculator
+  category: sensors
+  name: {cs: "Napěťový dělič s NTC", da: "NTC-spændingsdeler", de: "NTC-Spannungsteiler", el: "Διαιρέτης τάσης με NTC", en: "NTC voltage divider", es: "Divisor de tensión con NTC", fr: "Diviseur de tension avec CTN", hi: "NTC वोल्टेज विभाजक", it: "Partitore di tensione con NTC", ja: "NTC分圧回路", nl: "NTC-spanningsdeler", no: "NTC-spenningsdeler", pl: "Dzielnik napięcia z NTC", pt: "Divisor de tensão com NTC", sv: "NTC-spänningsdelare", zh: "NTC分压电路"}
+  doc:
+    en: "An NTC thermistor and a fixed resistor R_fix form a voltage divider that turns the temperature into a voltage for an ADC. With the NTC on the low side (to ground) V_out = V_cc × R_NTC / (R_fix + R_NTC) and the voltage falls as it gets warmer; with the NTC on the high side (to the supply) V_out = V_cc × R_fix / (R_fix + R_NTC) and it rises. The NTC resistance follows the B equation R_NTC = R_0 × exp(B × (1/T − 1/T_0)) with absolute temperatures and B in kelvin (see the calculator NTC thermistor for the accuracy of that model: it is best between about 0 and 100 °C). Enter the measured voltage to get the temperature back, or enter the NTC resistance from the R/T table of the datasheet instead of using the B equation. The ratio k = V_out / V_cc is what a ratiometric ADC reads when it uses the same supply as its reference. The result is for an unloaded divider: a low-impedance ADC input or a long cable changes it. Close to a rail (k below 0.05 or above 0.95) little resolution is left per kelvin; choose another R_fix. P_NTC is the power the NTC dissipates and heats itself with: (V_cc / (R_fix + R_NTC))² × R_NTC. Example: 3.3 V, R_fix = 100 kΩ and a 100 kΩ NTC (B = 3977 K) at 100 °C give 0.2115 V on the low side."
+    de: "Ein NTC-Thermistor und ein fester Widerstand R_fix bilden einen Spannungsteiler, der die Temperatur für einen ADC in eine Spannung umsetzt. Mit dem NTC unten (gegen Masse) gilt V_out = V_cc × R_NTC / (R_fix + R_NTC), die Spannung sinkt bei Erwärmung; mit dem NTC oben (gegen die Versorgung) gilt V_out = V_cc × R_fix / (R_fix + R_NTC), sie steigt. Der NTC-Widerstand folgt der B-Gleichung R_NTC = R_0 × exp(B × (1/T − 1/T_0)) mit absoluten Temperaturen und B in Kelvin (zur Genauigkeit dieses Modells siehe den Rechner NTC-Thermistor: Es ist zwischen etwa 0 und 100 °C am besten). Gibt man die gemessene Spannung ein, erhält man die Temperatur zurück; alternativ kann man den NTC-Widerstand aus der R/T-Tabelle des Datenblatts eingeben, statt die B-Gleichung zu verwenden. Das Verhältnis k = V_out / V_cc liest ein ratiometrischer ADC, der dieselbe Versorgung als Referenz nutzt. Das Ergebnis gilt für einen unbelasteten Teiler: Ein niederohmiger ADC-Eingang oder eine lange Leitung verändert es. Nahe einer Versorgungsgrenze (k unter 0,05 oder über 0,95) bleibt pro Kelvin wenig Auflösung; dann anderen R_fix wählen. P_NTC ist die Leistung, die der NTC umsetzt und mit der er sich selbst erwärmt: (V_cc / (R_fix + R_NTC))² × R_NTC. Beispiel: 3,3 V, R_fix = 100 kΩ und ein 100-kΩ-NTC (B = 3977 K) bei 100 °C ergeben auf der unteren Seite 0,2115 V."
+  tags: [ntc, thermistor, voltage divider, pull-up, series resistor, adc, temperature measurement, ratiometric, self-heating, heißleiter, spannungsteiler, vorwiderstand, temperaturmessung, ratiometrisch, eigenerwärmung]
+  source: "Voltage divider of two resistors (Ohm's law) with the B equation of the NTC: Texas Instruments application note SBAA338A, Monitoring NTC Thermistor Circuit With Single-Ended ADC (NTC on the ground side, published ADC values); EPCOS/TDK, NTC Thermistors – General technical information, section 3.2.2 (constant voltage with series resistor); Microchip application note AN685, Thermistors in Single Supply Temperature Sensing Circuits"
+  vars:
+    vcc: {dim: voltage, label: V_cc, name: {en: "Supply voltage (= ADC reference)", de: "Versorgungsspannung (= ADC-Referenz)"}, default: "3.3 V"}
+    rfix: {dim: resistance, label: R_fix, name: {en: "Fixed resistor", de: "Fester Widerstand"}, default: "10 kΩ", eseries: true}
+    r0: {dim: resistance, label: R_0, name: {en: "NTC resistance at T_0", de: "NTC-Widerstand bei T_0"}, default: "10 kΩ"}
+    t0: {dim: temperature, label: T_0, name: {en: "Reference temperature", de: "Bezugstemperatur"}, default: "25 °C", unit: degC, units: [degC, degF, ""]}
+    beta: {dim: tempdiff, label: B, name: {en: "B value (in kelvin)", de: "B-Wert (in Kelvin)"}, default: "3977 K", units: [""]}
+    t: {dim: temperature, label: T, name: {en: "NTC temperature", de: "NTC-Temperatur"}, default: "25 °C", unit: degC, units: [degC, degF, ""]}
+    vout: {dim: voltage, label: V_out, name: {en: "Output voltage", de: "Ausgangsspannung"}}
+    rntc: {dim: resistance, label: R_NTC, name: {en: "NTC resistance at T", de: "NTC-Widerstand bei T"}, input: false}
+  choices:
+    pos:
+      name: {cs: "Poloha NTC", da: "NTC's placering", de: "Lage des NTC", el: "Θέση του NTC", en: "NTC position", es: "Posición del NTC", fr: "Position de la CTN", hi: "NTC की स्थिति", it: "Posizione dell'NTC", ja: "NTCの位置", nl: "Positie van de NTC", no: "NTC-plassering", pl: "Położenie NTC", pt: "Posição do NTC", sv: "NTC:ns placering", zh: "NTC位置"}
+      default: low
+      options:
+        low:
+          name: {cs: "Dole (ke GND)", da: "Nederst (mod stel)", de: "Unten (gegen Masse)", el: "Κάτω (προς γείωση)", en: "Low side (to ground)", es: "Lado bajo (a masa)", fr: "Côté bas (à la masse)", hi: "निचला पक्ष (ग्राउंड की ओर)", it: "Lato basso (a massa)", ja: "ローサイド（GND側）", nl: "Laag (naar massa)", no: "Nederst (mot jord)", pl: "Dolna strona (do masy)", pt: "Lado baixo (à massa)", sv: "Låg sida (mot jord)", zh: "低端（接地）"}
+          consts: {low: 1}
+        high:
+          name: {cs: "Nahoře (k napájení)", da: "Øverst (mod forsyning)", de: "Oben (gegen Versorgung)", el: "Πάνω (προς τροφοδοσία)", en: "High side (to supply)", es: "Lado alto (a la alimentación)", fr: "Côté haut (à l'alimentation)", hi: "ऊपरी पक्ष (आपूर्ति की ओर)", it: "Lato alto (all'alimentazione)", ja: "ハイサイド（電源側）", nl: "Hoog (naar voeding)", no: "Øverst (mot forsyning)", pl: "Górna strona (do zasilania)", pt: "Lado alto (à alimentação)", sv: "Hög sida (mot matning)", zh: "高端（接电源）"}
+          consts: {low: 0}
+  dof: 6
+  rules:
+    rntc: ["r0*exp(beta*(1/t-1/t0))", "if(low,rfix*vout/(vcc-vout),rfix*(vcc-vout)/vout)"]
+    t: ["1/(1/t0+ln(rntc/r0)/beta)"]
+    vout: ["vcc*if(low,rntc/(rfix+rntc),rfix/(rfix+rntc))"]
+    rfix: ["if(low,rntc*(vcc-vout)/vout,rntc*vout/(vcc-vout))"]
+  derived:
+    k: {dim: ratio, label: k, name: {en: "Ratio V_out / V_cc", de: "Verhältnis V_out / V_cc"}, expr: "vout/vcc", unit: pct, units: [pct, ""]}
+    pntc: {dim: power, label: P_NTC, name: {en: "Power in the NTC (self-heating)", de: "Leistung im NTC (Eigenerwärmung)"}, expr: "(vcc/(rfix+rntc))^2*rntc"}
+  checks:
+    - {when: "if(vout/vcc<0.05,1,vout/vcc>0.95)", warn: {en: "The reading is close to a rail: little resolution is left per kelvin. Choose a different fixed resistor.", de: "Der Messwert liegt nahe an einer Versorgungsgrenze: Pro Kelvin bleibt wenig Auflösung. Anderen festen Widerstand wählen."}}
+    - {when: "if(beta<2000,1,beta>5000)", warn: {en: "Unusual B value: common NTC materials lie between 2000 K and 5000 K.", de: "Ungewöhnlicher B-Wert: Übliche NTC-Werkstoffe liegen zwischen 2000 K und 5000 K."}}
+  formula: ["rntc = r0 * exp(beta * (1/t - 1/t0))", "vout = vcc * rntc / (rfix + rntc)", "vout = vcc * rfix / (rfix + rntc)"]
+  schematic: ntc_divider
+
+- id: rtd_pt100
+  kind: calculator
+  category: sensors
+  name: {cs: "Odporový teploměr Pt100/Pt1000 (IEC 60751)", da: "Pt100/Pt1000-modstandstermometer (IEC 60751)", de: "Pt100/Pt1000-Widerstandsthermometer (IEC 60751)", el: "Αντιστατικό θερμόμετρο Pt100/Pt1000 (IEC 60751)", en: "Pt100/Pt1000 resistance thermometer (IEC 60751)", es: "Termómetro de resistencia Pt100/Pt1000 (IEC 60751)", fr: "Thermomètre à résistance Pt100/Pt1000 (CEI 60751)", hi: "Pt100/Pt1000 प्रतिरोध थर्मामीटर (IEC 60751)", it: "Termometro a resistenza Pt100/Pt1000 (IEC 60751)", ja: "Pt100/Pt1000測温抵抗体（IEC 60751）", nl: "Pt100/Pt1000-weerstandsthermometer (IEC 60751)", no: "Pt100/Pt1000 motstandstermometer (IEC 60751)", pl: "Termometr rezystancyjny Pt100/Pt1000 (IEC 60751)", pt: "Termómetro de resistência Pt100/Pt1000 (IEC 60751)", sv: "Pt100/Pt1000 motståndstermometer (IEC 60751)", zh: "Pt100/Pt1000铂电阻温度计（IEC 60751）"}
+  doc:
+    en: "A platinum resistance thermometer (Pt100: 100 Ω at 0 °C, Pt1000: 1000 Ω) follows the Callendar–Van Dusen equation with the coefficients of IEC 60751 (α = 0.00385 /°C): for t ≥ 0 °C R = R_0 × (1 + A·t + B·t²), for t < 0 °C R = R_0 × (1 + A·t + B·t² + C·(t − 100)·t³), with t in °C, A = 3.9083·10⁻³ /°C, B = −5.775·10⁻⁷ /°C² and C = −4.183·10⁻¹² /°C⁴, valid from −200 °C to +850 °C. The temperature from a resistance uses the closed-form root of the quadratic for R ≥ R_0 (0 °C and above); below 0 °C the quartic term is included by two explicit Newton steps that start from that root, so no iteration is needed (the error is below 3·10⁻⁹ K over −200 … 0 °C). The page shows t in °C or °F. The coefficients are those printed in the Texas Instruments application note SBAA275A and the WIKA data sheet IN 00.17 and match the IEC table (100 °C: 138.5055 Ω, printed 138.51 Ω; −200 °C: 18.52 Ω; 850 °C: 390.48 Ω); the standard itself was not read, and tolerance classes are not part of this calculator. The equation is for IEC 60751 platinum only: sensors to JIS (0.003916) or the US curve (0.00392) have other coefficients. With a 2-wire connection the lead resistance adds to R (about 2.6 °C per ohm for a Pt100, 0.26 °C per ohm for a Pt1000, from R_0 × A = 0.39 Ω/°C); use 3-wire or 4-wire connection for accuracy. Table values are rounded to 0.01 Ω, so a table resistance gives the temperature only within about ±0.013 °C."
+    de: "Ein Platin-Widerstandsthermometer (Pt100: 100 Ω bei 0 °C, Pt1000: 1000 Ω) folgt der Callendar-Van-Dusen-Gleichung mit den Koeffizienten der IEC 60751 (α = 0,00385 /°C): Für t ≥ 0 °C gilt R = R_0 × (1 + A·t + B·t²), für t < 0 °C gilt R = R_0 × (1 + A·t + B·t² + C·(t − 100)·t³), mit t in °C, A = 3,9083·10⁻³ /°C, B = −5,775·10⁻⁷ /°C² und C = −4,183·10⁻¹² /°C⁴, gültig von −200 °C bis +850 °C. Die Temperatur aus dem Widerstand nutzt für R ≥ R_0 (ab 0 °C) die geschlossene Lösung der quadratischen Gleichung; unter 0 °C wird der Term vierter Ordnung durch zwei ausgeschriebene Newton-Schritte berücksichtigt, die von dieser Lösung ausgehen, eine Iteration ist also nicht nötig (der Fehler liegt zwischen −200 und 0 °C unter 3·10⁻⁹ K). Die Seite zeigt t in °C oder °F. Die Koeffizienten stehen in der Application Note SBAA275A von Texas Instruments und im WIKA-Datenblatt IN 00.17 und stimmen mit der IEC-Tabelle überein (100 °C: 138,5055 Ω, gedruckt 138,51 Ω; −200 °C: 18,52 Ω; 850 °C: 390,48 Ω); die Norm selbst wurde nicht gelesen, Toleranzklassen sind nicht Teil dieses Rechners. Die Gleichung gilt nur für Platin nach IEC 60751: Fühler nach JIS (0,003916) oder US-Kennlinie (0,00392) haben andere Koeffizienten. Bei Zweileiteranschluss addiert sich der Leitungswiderstand zu R (etwa 2,6 °C je Ohm bei Pt100, 0,26 °C je Ohm bei Pt1000, aus R_0 × A = 0,39 Ω/°C); für Genauigkeit Drei- oder Vierleiteranschluss verwenden. Tabellenwerte sind auf 0,01 Ω gerundet, ein Tabellenwiderstand liefert die Temperatur daher nur auf etwa ±0,013 °C genau."
+  tags: [pt100, pt1000, rtd, platinum, resistance thermometer, callendar van dusen, iec 60751, din en 60751, temperature sensor, alpha 0.00385, widerstandsthermometer, platin, platin-messwiderstand, callendar-van-dusen, temperaturfühler]
+  source: "IEC 60751 (DIN EN 60751) industrial platinum resistance thermometers, Callendar–Van Dusen equation with A = 3.9083e-3, B = −5.775e-7, C = −4.183e-12, as printed in Texas Instruments application note SBAA275A, A Basic Guide to RTD Measurements, and WIKA technical information IN 00.17; the resistance table of the standard as reproduced by Isothermal Technology, Industrial Platinum Resistance Thermometer Tables; the standard itself was not read"
+  vars:
+    t: {dim: temperature, label: T, name: {en: "Temperature", de: "Temperatur"}, default: "100 °C", unit: degC, units: [degC, degF, ""]}
+    r: {dim: resistance, label: R, name: {en: "Resistance", de: "Widerstand"}}
+  choices:
+    element:
+      name: {cs: "Čidlo", da: "Føler", de: "Fühler", el: "Αισθητήρας", en: "Sensor", es: "Sensor", fr: "Capteur", hi: "सेंसर", it: "Sensore", ja: "センサー", nl: "Sensor", no: "Føler", pl: "Czujnik", pt: "Sensor", sv: "Givare", zh: "传感器"}
+      default: pt100
+      options:
+        pt100:
+          name: {cs: "Pt100", da: "Pt100", de: "Pt100", el: "Pt100", en: "Pt100", es: "Pt100", fr: "Pt100", hi: "Pt100", it: "Pt100", ja: "Pt100", nl: "Pt100", no: "Pt100", pl: "Pt100", pt: "Pt100", sv: "Pt100", zh: "Pt100"}
+          consts: {r0: 100, cva: 3.9083e-3, cvb: -5.775e-7, cvc: -4.183e-12}
+        pt1000:
+          name: {cs: "Pt1000", da: "Pt1000", de: "Pt1000", el: "Pt1000", en: "Pt1000", es: "Pt1000", fr: "Pt1000", hi: "Pt1000", it: "Pt1000", ja: "Pt1000", nl: "Pt1000", no: "Pt1000", pl: "Pt1000", pt: "Pt1000", sv: "Pt1000", zh: "Pt1000"}
+          consts: {r0: 1000, cva: 3.9083e-3, cvb: -5.775e-7, cvc: -4.183e-12}
+  dof: 1
+  rules:
+    r: ["r0*(1+cva*(t-273.15)+cvb*(t-273.15)^2+if(t<273.15,cvc*(t-373.15)*(t-273.15)^3,0))"]
+    t: ["if(r>=r0,273.15+(-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb),273.15+(((((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))-cvc*((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))^3*(((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))-100)/(cva+((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))*(2*cvb+cvc*((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))*(4*((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))-300)))))-(1+((((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))-cvc*((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))^3*(((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))-100)/(cva+((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))*(2*cvb+cvc*((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))*(4*((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))-300)))))*(cva+((((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))-cvc*((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))^3*(((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))-100)/(cva+((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))*(2*cvb+cvc*((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))*(4*((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))-300)))))*(cvb+cvc*((((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))-cvc*((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))^3*(((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))-100)/(cva+((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))*(2*cvb+cvc*((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))*(4*((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))-300)))))*(((((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))-cvc*((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))^3*(((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))-100)/(cva+((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))*(2*cvb+cvc*((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))*(4*((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))-300)))))-100)))-r/r0)/(cva+((((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))-cvc*((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))^3*(((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))-100)/(cva+((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))*(2*cvb+cvc*((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))*(4*((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))-300)))))*(2*cvb+cvc*((((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))-cvc*((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))^3*(((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))-100)/(cva+((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))*(2*cvb+cvc*((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))*(4*((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))-300)))))*(4*((((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))-cvc*((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))^3*(((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))-100)/(cva+((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))*(2*cvb+cvc*((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))*(4*((-cva+sqrt(cva^2-4*cvb*(1-r/r0)))/(2*cvb))-300)))))-300)))))"]
+  checks:
+    - {when: "if(t<73.15,1,t>1123.15)", warn: {en: "Outside the range of the IEC 60751 equation (−200 … +850 °C).", de: "Außerhalb des Gültigkeitsbereichs der Gleichung nach IEC 60751 (−200 … +850 °C)."}}
+  formula: ["r = r0 * (1 + cva * t + cvb * t^2)"]
+
+- id: current_loop_4_20ma
+  kind: calculator
+  category: sensors
+  name: {cs: "Proudová smyčka 4–20 mA", da: "4–20 mA strømsløjfe", de: "4–20-mA-Stromschleife", el: "Βρόχος ρεύματος 4–20 mA", en: "4–20 mA current loop", es: "Lazo de corriente 4–20 mA", fr: "Boucle de courant 4–20 mA", hi: "4–20 mA करंट लूप", it: "Anello di corrente 4–20 mA", ja: "4–20 mA電流ループ", nl: "4–20 mA-stroomlus", no: "4–20 mA strømsløyfe", pl: "Pętla prądowa 4–20 mA", pt: "Laço de corrente 4–20 mA", sv: "4–20 mA-strömslinga", zh: "4–20 mA电流环"}
+  doc:
+    en: "A 4–20 mA loop sends a process value as a current: 4 mA stands for the lower range value (LRV, the value at 4 mA), 20 mA for the upper range value (URV), and the 16 mA span is linear in between (live zero: 0 mA means a broken loop). I = 4 mA + 16 mA × (PV − LRV) / (URV − LRV); the percent of span is (I − 4 mA) / 16 mA. PV, LRV and URV share any unit (°C, bar, psi, …), may be negative, and URV may be smaller than LRV (reverse acting); LRV = URV has no span. A burden resistor at the receiver turns the current into a voltage, V = I × R: 250 Ω gives 1 … 5 V, a 249 Ω shunt 0.996 … 4.98 V, and it dissipates P = I² × R (0.1 W for 250 Ω at 20 mA). The burden is an input, not a fixed value. A current outside 4 … 20 mA means under range, over range or a fault; fault limits such as NAMUR NE 43 are not applied here. The calculator assumes a linear transmitter (not a square-root flow signal). The loop supply must also cover the minimum voltage of the transmitter plus the drop across the burden and the wires at 20 mA; take that minimum voltage from the transmitter datasheet (values from 7.5 V to 12 V are common). Example: 100 … 300 °F at 200 °F gives 12 mA."
+    de: "Eine 4–20-mA-Schleife überträgt einen Prozesswert als Strom: 4 mA stehen für den Messbereichsanfang (LRV, der Wert bei 4 mA), 20 mA für das Messbereichsende (URV), dazwischen ist die Spanne von 16 mA linear (Live Zero: 0 mA bedeutet eine unterbrochene Schleife). I = 4 mA + 16 mA × (PV − LRV) / (URV − LRV); der Prozentwert der Spanne ist (I − 4 mA) / 16 mA. PV, LRV und URV haben dieselbe beliebige Einheit (°C, bar, psi, …), dürfen negativ sein, und URV darf kleiner als LRV sein (invertierte Wirkrichtung); bei LRV = URV gibt es keine Spanne. Ein Bürdenwiderstand am Empfänger macht aus dem Strom eine Spannung, V = I × R: 250 Ω ergeben 1 … 5 V, ein 249-Ω-Shunt 0,996 … 4,98 V, und er setzt P = I² × R um (0,1 W bei 250 Ω und 20 mA). Die Bürde ist eine Eingabe, kein fester Wert. Ein Strom außerhalb von 4 … 20 mA bedeutet Unter- oder Überschreitung des Messbereichs oder einen Fehler; Fehlergrenzen wie NAMUR NE 43 werden hier nicht angewendet. Der Rechner nimmt einen linearen Messumformer an (kein Wurzelsignal für Durchfluss). Die Schleifenspeisung muss außerdem die Mindestspannung des Messumformers plus den Abfall an Bürde und Leitung bei 20 mA decken; die Mindestspannung dem Datenblatt des Messumformers entnehmen (üblich sind 7,5 V bis 12 V). Beispiel: 100 … 300 °F bei 200 °F ergeben 12 mA."
+  tags: [4-20 ma, current loop, 4 to 20 ma, transmitter, process value, percent of span, lrv, urv, burden resistor, shunt, 250 ohm, 1-5 v, two-wire, live zero, stromschleife, stromschnittstelle, einheitssignal, messumformer, prozesswert, messbereich, spanne, bürde, bürdenwiderstand, zweileiter]
+  source: "4–20 mA scaling: University of Alaska Fairbanks, PRT 140 Industrial Process Instrumentation I, lesson 10 (Control Loops, Sensors, and Transmitters); T. R. Kuphaldt, Lessons in Electric Circuits, vol. I, chapter 9 (Electrical Instrumentation Signals), section Current Signal Systems; burden resistor and loop voltage: NI, 4-20 mA Current Loop Fundamentals, System Design, and Setup"
+  vars:
+    pv: {dim: ratio, label: PV, name: {en: "Process value (any unit)", de: "Prozesswert (beliebige Einheit)"}, default: "50", units: [""]}
+    lo: {dim: ratio, label: LRV, name: {en: "Value at 4 mA (lower range value)", de: "Wert bei 4 mA (Messbereichsanfang)"}, default: "0", units: [""]}
+    hi: {dim: ratio, label: URV, name: {en: "Value at 20 mA (upper range value)", de: "Wert bei 20 mA (Messbereichsende)"}, default: "100", units: [""]}
+    i: {dim: current, label: I, name: {en: "Loop current", de: "Schleifenstrom"}}
+    r: {dim: resistance, label: R, name: {en: "Burden resistor", de: "Bürdenwiderstand"}, default: "250 Ω"}
+    v: {dim: voltage, label: V, name: {en: "Voltage across the burden", de: "Spannung an der Bürde"}}
+  dof: 4
+  rules:
+    pv: ["lo+(i-0.004)/0.016*(hi-lo)"]
+    i: ["0.004+0.016*(pv-lo)/(hi-lo)", "v/r"]
+    v: ["i*r"]
+    r: ["v/i"]
+  derived:
+    pct: {dim: ratio, label: p, name: {en: "Percent of span", de: "Prozent der Spanne"}, expr: "(i-0.004)/0.016", unit: pct, units: [pct, ""]}
+    pr: {dim: power, label: P_R, name: {en: "Power in the burden", de: "Verlustleistung in der Bürde"}, expr: "i^2*r"}
+  checks:
+    - {when: "if(i<0.004,1,i>0.02)", warn: {en: "Outside the 4–20 mA span: under or over range, or the transmitter signals a fault. Near 0 mA the loop is open.", de: "Außerhalb der Spanne 4–20 mA: Messbereich unter- oder überschritten, oder der Messumformer meldet einen Fehler. Bei nahe 0 mA ist die Schleife unterbrochen."}}
+    - {when: "hi == lo", warn: {en: "The value at 4 mA and the value at 20 mA are equal: there is no span.", de: "Messbereichsanfang und -ende sind gleich: Es gibt keine Spanne."}}
+  formula: ["i = 0.004 + 0.016 * (pv - lo) / (hi - lo)", "v = i * r"]
+  schematic: current_loop_4_20ma
+
+- id: shunt_current_sense
+  kind: calculator
+  category: sensors
+  name: {cs: "Měření proudu bočníkem (shunt)", da: "Strømmåling med shunt", de: "Strommessung mit Shunt", el: "Μέτρηση ρεύματος με shunt", en: "Shunt current measurement", es: "Medición de corriente con shunt", fr: "Mesure de courant avec shunt", hi: "शंट से धारा मापन", it: "Misura di corrente con shunt", ja: "シャント抵抗による電流測定", nl: "Stroommeting met shunt", no: "Strømmåling med shunt", pl: "Pomiar prądu rezystorem shunt", pt: "Medição de corrente com shunt", sv: "Strömmätning med shunt", zh: "分流电阻电流测量"}
+  doc:
+    en: "A shunt (sense resistor) turns the current into a small voltage, V = I × R, and dissipates P = I² × R. A current-sense amplifier with the gain G scales that voltage to V_out = G × V, which should stay inside the output swing and the ADC range at the maximum current: G ≤ V_fs / (I × R), where V_fs is the ADC full scale or the usable output swing of the amplifier (enter it as V_out to get the largest gain). The largest shunt for a power budget P_max is R ≤ P_max / I². A larger shunt gives more signal and less relative offset error but more loss and more voltage burden; a milliohm shunt needs a four-terminal (Kelvin) connection so that solder joints and traces do not add to R, and the amplifier inputs go as close to the shunt as possible. Example (Texas Instruments INAx180): 40 A on 0.5 mΩ gives 20 mV and 0.8 W, and a gain of 200 gives 4 V. Low-side sensing (shunt between load and ground) is simple, but lifts the load off ground and does not see a short of the load to ground. High-side sensing (shunt between supply and load) keeps the load grounded and detects such shorts, but the amplifier must handle the supply as common-mode voltage. The values are for DC or slow currents; with fast edges the inductance of the shunt matters, and a varying current needs the RMS value for P."
+    de: "Ein Shunt (Messwiderstand) macht aus dem Strom eine kleine Spannung, V = I × R, und setzt P = I² × R um. Ein Strommessverstärker mit der Verstärkung G skaliert diese Spannung auf V_out = G × V, die beim Maximalstrom innerhalb des Ausgangshubs und des ADC-Bereichs bleiben soll: G ≤ V_fs / (I × R), wobei V_fs der ADC-Endwert oder der nutzbare Ausgangshub des Verstärkers ist (als V_out eingeben, um die größte Verstärkung zu erhalten). Der größte Shunt für ein Verlustleistungsbudget P_max ist R ≤ P_max / I². Ein größerer Shunt liefert mehr Signal und weniger relativen Offsetfehler, aber mehr Verlust und mehr Spannungsabfall; ein Milliohm-Shunt braucht Vierleiteranschluss (Kelvin), damit Lötstellen und Leiterbahnen nicht zu R addieren, und die Verstärkereingänge liegen möglichst dicht am Shunt. Beispiel (Texas Instruments INAx180): 40 A an 0,5 mΩ ergeben 20 mV und 0,8 W, eine Verstärkung von 200 ergibt 4 V. Low-Side-Messung (Shunt zwischen Last und Masse) ist einfach, hebt aber die Last von Masse ab und erkennt einen Kurzschluss der Last nach Masse nicht. High-Side-Messung (Shunt zwischen Versorgung und Last) hält die Last an Masse und erkennt solche Kurzschlüsse, doch der Verstärker muss die Versorgung als Gleichtaktspannung verkraften. Die Werte gelten für Gleichstrom oder langsame Ströme; bei schnellen Flanken zählt die Induktivität des Shunts, und bei veränderlichem Strom braucht P den Effektivwert."
+  tags: [shunt, current sense, sense resistor, current measurement, voltage drop, power dissipation, current sense amplifier, gain, high side, low side, kelvin, ina180, ina219, strommessung, messwiderstand, strommesswiderstand, spannungsabfall, verlustleistung, strommessverstärker, verstärkung, vierleiter]
+  source: "Ohm's law and P = I²R for the shunt; gain and power-budget limits (R < P_max / I², I × R × G < V_swing): Texas Instruments datasheet INAx180 (SBOS741), section RSENSE and Device Gain Selection and its design example; Microchip application note AN1332, Current Sensing Circuit Concepts and Fundamentals (low-side and high-side sensing)"
+  vars:
+    i: {dim: current, label: I, name: {en: "Current through the shunt", de: "Strom durch den Shunt"}, default: "2 A"}
+    r: {dim: resistance, label: R, name: {en: "Shunt resistance", de: "Shunt-Widerstand"}, default: "50 mΩ"}
+    gain: {dim: number, label: G, name: {en: "Amplifier gain", de: "Verstärkung des Verstärkers"}, default: 20}
+    v: {dim: voltage, label: V, name: {en: "Voltage across the shunt", de: "Spannung am Shunt"}}
+    vout: {dim: voltage, label: V_out, name: {en: "Amplifier output", de: "Verstärkerausgang"}}
+  dof: 3
+  rules:
+    v: ["i*r", "vout/gain"]
+    i: ["v/r"]
+    r: ["v/i"]
+    vout: ["v*gain"]
+    gain: ["vout/v"]
+  derived:
+    p: {dim: power, label: P, name: {en: "Power in the shunt", de: "Verlustleistung im Shunt"}, expr: "i^2*r"}
+  formula: ["v = i * r", "p = i^2 * r", "vout = gain * v"]
+  schematic: shunt_current_sense
