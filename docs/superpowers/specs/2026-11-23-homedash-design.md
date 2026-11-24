@@ -328,3 +328,35 @@ The part documents list what was not confirmed in code. The items that can chang
 5. Tabular figures in the bundled Inter, Geist, Oxanium and Barlow Condensed files (checked in the style lab).
 6. How the desktop consumes `Requires` capabilities for app visibility.
 7. Packaging of a new root-level kiosk template in the asset pack.
+
+## 12. Decisions and carry-overs after M0 (2026-11-24)
+
+M0 landed as two tracks. Their hand-over notes are `2026-11-23-homedash/m0-handover-backend.md` and
+`2026-11-23-homedash/m0-handover-frontend.md`; they list every contract reading and deviation. Lead decisions on
+the questions they raised:
+
+1. **Command dedupe.** A retry with the same `request_id` within 30 s returns the first result, a failure
+   included. Every user action gets a new `request_id` (the client creates one per command), so a user who taps
+   again is not blocked by an earlier failure. Confirmed as built.
+2. **Into M6 (kiosk, K1–K2), each with a test for a non-allowed entity:**
+   - Kiosk read routes (dashboard entities, history, snapshot, MJPEG) filter by the display's `AllowedSet`; the
+     hub's read functions take no principal.
+   - `BuildAllowedSet` also checks the bound entity's kind against the binding's allowed kinds.
+   - The HTTP layer adds per-device limiting of refused kiosk commands, the pairing limit of 5 per minute per IP,
+     `RemoteAddr` (never forwarded headers) for `last_ip`, and passes `kiosk.max_devices` to `RedeemPairing`.
+   - A display's stream ends when its dashboard's approved revision moves (`CloseApprovalChanged`); the kiosk page
+     reconnects and reloads.
+3. **Into M2 (server wiring, B5–B6):** the save path runs Normalize, Autopack and Validate (`ApplyPatch` alone does
+   not validate); the error codes of backend part section 6 that the core does not define yet
+   (`desktop_readonly`, `csrf_check_failed`, `method_not_allowed`, `body_too_large`, the `source` field of
+   `source_unavailable`) arrive with the HTTP layer. `HARequestJSON` is GET-only; service calls go through
+   `HACallServiceContext`. Dashboards built in Go set `Look.RadiusScale` and `Grid.RowUnit` explicitly.
+4. **Custom palette ON fill.** The solver must also bring `on` to at least 3:1 against `surface-solid`, not only
+   `on-ink` to 4.5:1 against `on`, because the ON fill carries state. Fixed before the look editor exposes custom
+   palettes (M4); the three custom palettes of the M1 sheets are not affected.
+5. **Into M8 hardening:** the non-blocking review findings of the backend hand-over (empty enum strings, `saved_by`
+   in Validate, `ContainsURL` gaps, the per-domain HA attribute allowlist, `stop`/`set_tilt` on garage covers,
+   revision storage size) and the guard holes of the frontend hand-over (`transition-duration` alone,
+   `-webkit-transition`, blur through `var()`).
+6. Backend part section 4 says a nil `Allowed` means unrestricted; the code fails closed (nothing allowed). The code
+   is right.
