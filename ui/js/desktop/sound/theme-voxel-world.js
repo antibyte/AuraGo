@@ -102,7 +102,7 @@
             },
             'file.drop': {
                 notes: [{ v: 'block', n: -5, t: 0.01, g: 0.7, pan: 0, t60: 0.14, hardness: 0.2, attack: 0.004 }],
-                layers: [{ v: 'earth', t: 0, g: 1, tone: 420, ring: 0.06 }, { v: 'wood', t: 0.02, g: 0.4, count: 4, spread: 0.06, decay: 0.1, size: 0.8 }],
+                layers: [{ v: 'earth', t: 0, g: 1, tone: 480, ring: 0.06 }, { v: 'wood', t: 0.02, g: 0.32, count: 4, spread: 0.06, decay: 0.1, size: 0.8, tone: 1.3 }],
                 space: { size: 0.45, rt60: 0.2, damping: 4800, predelay: 0.004, mix: 0.12 }
             },
             'file.trash': {
@@ -149,9 +149,9 @@
         fx: {
             'window.fracture': {
                 wood: {
-                    layers: [{ v: 'wood', t: 0, g: 1, count: 4, spread: 0.05, decay: 0.12, size: 0.9, tone: 0.8 },
-                        { v: 'wood', t: 0.03, g: 0.5, count: 14, spread: 0.3, decay: 0.2, size: 0.4, tone: 0.8 },
-                        { v: 'stone', t: 0, g: 0.6, tone: 1100, ring: 0.01 }, { v: 'stone', t: 0.05, g: 0.4, tone: 1300, ring: 0.01 }]
+                    layers: [{ v: 'wood', t: 0, g: 0.6, count: 6, spread: 0.08, decay: 0.16, size: 0.9, tone: 0.8 },
+                        { v: 'wood', t: 0.03, g: 0.8, count: 18, spread: 0.3, decay: 0.25, size: 0.4, tone: 0.8 },
+                        { v: 'stone', t: 0, g: 0.3, tone: 1100, ring: 0.01 }, { v: 'stone', t: 0.05, g: 0.2, tone: 1300, ring: 0.01 }]
                 },
                 stone: {
                     layers: [{ v: 'rock', t: 0, g: 1, count: 4, spread: 0.05, decay: 0.12, size: 0.9, tone: 0.9 },
