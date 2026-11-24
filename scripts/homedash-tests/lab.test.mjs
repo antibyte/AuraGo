@@ -23,7 +23,9 @@ export const tests = [
   ['probe gradient backgrounds: stops composite over the colour, the worst value counts, url() stays unmeasured', () => { const ctx = { window: {}, Math, JSON }; vm.createContext(ctx); vm.runInContext(read('ui/testdata/homedash-lab-probes.js'), ctx);
     const p = ctx.window.hdLabProbes, layers = p.gradientLayers('linear-gradient(rgba(255, 255, 255, 0.5), rgba(0, 0, 0, 0) 46%), linear-gradient(180deg, rgb(0, 0, 0), rgb(10, 10, 10) 50%)');
     assert.equal(layers.length, 2); assert.deepEqual([...layers.map(l => l.length)], [2, 2]); assert.deepEqual([...layers[0][0]], [255, 255, 255, 0.5]);
-    assert.equal(p.gradientLayers('linear-gradient(rgb(1, 1, 1), rgb(2, 2, 2)), url(x.png)'), null); assert.equal(p.gradientLayers('url("x.png")'), null); assert.equal(p.gradientLayers('linear-gradient(rgb(1, 1, 1), rgb(2, 2, 2)), none').length, 1); assert.equal(p.gradientLayers('radial-gradient(circle at 15% 0%, rgba(1, 2, 3, 0.1), transparent)')[0].length, 2);
+    assert.equal(p.gradientLayers('linear-gradient(rgb(1, 1, 1), rgb(2, 2, 2)), url(x.png)'), null); assert.equal(p.gradientLayers('url("x.png")'), null); const under = [10, 20, 30, 1], wall = p.gradientLayers('linear-gradient(rgb(1, 1, 1), rgb(2, 2, 2)), url("w.png"), linear-gradient(rgb(9, 9, 9), rgb(8, 8, 8))', under);
+    assert.equal(wall.length, 2); assert.equal(wall.opaque, true); assert.deepEqual([...wall[1][0]], under); // the wallpaper becomes the canvas underlay, layers below it are dropped
+ assert.equal(p.gradientLayers('linear-gradient(rgb(1, 1, 1), rgb(2, 2, 2)), none').length, 1); assert.equal(p.gradientLayers('radial-gradient(circle at 15% 0%, rgba(1, 2, 3, 0.1), transparent)')[0].length, 2);
     const bgs = [...p.composites([layers[0], [[0, 0, 0, 1]]]).map(c => Math.round(c[0]))].sort((a, b) => a - b); assert.deepEqual(bgs, [0, 128]); // white stop at 50 % over black, and the transparent stop
     const grey = [[0, 0, 0, 0.5]]; assert.equal(p.composites([grey, [[255, 255, 255, 1]]]).length, 1);
     const dark = [0, 0, 0, 1]; assert.equal(p.worst(dark, [[255, 255, 255, 1], [128, 128, 128, 1]]).toFixed(2), '5.32'); // the grey composite is the worst case

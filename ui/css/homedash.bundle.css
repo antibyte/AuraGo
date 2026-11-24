@@ -110,7 +110,7 @@
 .hd-root [hidden] { display: none !important; }
 .hd-sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .hd-ico { width: 24px; height: 24px; flex: none; fill: none; stroke: currentColor; stroke-width: var(--hd-icon-stroke); stroke-linecap: round; stroke-linejoin: round; }
-.hd-widget { box-sizing: border-box; container-type: size; container-name: hd-widget; contain: layout paint style; }
+.hd-widget { box-sizing: border-box; container-type: size; container-name: hd-widget; contain: layout style; } /* no paint containment: the card shadow must fade out beyond the widget box; the frame clips its own children (overflow: hidden) */
 .hd-frame { box-sizing: border-box; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; min-width: 0; min-height: 0; }
 .hd-head { display: flex; align-items: center; gap: var(--hd-space-2); min-width: 0; }
 .hd-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--hd-ink); font-size: var(--hd-text-s); font-weight: 500; }
@@ -161,13 +161,13 @@
 .hd-toggle-glyph { display: none; position: absolute; pointer-events: none; }
 .hd-toggle-key, .hd-toggle-legend, .hd-toggle-led { position: absolute; pointer-events: none; }
 /* H2 rocker */
-.hd-rocker { display: block; padding: 0; border: 0; background: transparent; cursor: pointer; block-size: min(var(--hd-body-h), calc(var(--hd-body-w) / 0.654)); aspect-ratio: 0.654; border-radius: var(--hd-radius-control); }
+.hd-rocker { position: relative; display: block; padding: 0; border: 0; background: transparent; cursor: pointer; block-size: min(var(--hd-body-h), calc(var(--hd-body-w) / 0.654)); aspect-ratio: 0.654; border-radius: var(--hd-radius-control); }
 .hd-rocker-bezel { position: relative; display: block; box-sizing: border-box; inline-size: 100%; block-size: 100%; padding: 6%; perspective: 420px; border-radius: inherit; }
 .hd-rocker-paddle { position: relative; display: grid; grid-template-rows: 1fr 1fr; block-size: 100%; transform-style: preserve-3d; border-radius: var(--hd-radius-control); }
 .hd-rocker-half { position: relative; display: grid; place-items: center; }
 .hd-rocker-led { position: absolute; inset-block-start: 4%; inset-inline-end: 4%; inline-size: 6px; block-size: 6px; display: none; }
 /* Push button reset: family paint adds the background, shadow and radius; the 44px hit size comes from the widget layout. */
-.hd-push { display: grid; place-items: center; box-sizing: border-box; padding: 0; border: 0; cursor: pointer; }
+.hd-push { position: relative; display: grid; place-items: center; box-sizing: border-box; padding: 0; border: 0; cursor: pointer; }
 /* Segmented bar (H4 mode bar): equal option grid, 44px high, at most 260px wide; the indicator is one option wide and slides by its index. */
 .hd-seg { position: relative; display: grid; grid-template-columns: repeat(var(--hd-count), minmax(0, 1fr)); box-sizing: border-box; inline-size: min(100%, 260px); block-size: 44px; padding: 0; justify-self: center; }
 .hd-seg-indicator { position: absolute; inset-block: 0; inset-inline-start: 0; inline-size: calc(100% / var(--hd-count)); transform: translateX(calc(var(--hd-index) * 100%)); }
@@ -264,11 +264,15 @@
   --hd-g-zone-u: 8; --hd-g-spark-w: 1.75px;
 }
 
+/* Square-corner themes (Amiga, Cyberpunk, Voxel World): bezel and paddle follow the control corners; the control radii below use --hd-corners-control. */
+.hd-root[data-hd-corners="square"] [data-hd-family="glass"], .hd-root[data-hd-corners="square"][data-hd-family="glass"] { --hd-g-bezel-r: 0px; --hd-g-paddle-r: 0px; }
+
 /* T5 Glass layers: theme edge on the frame, theme glow on a focused control, gradient-backdrop blur on the frame. */
 .hd-widget[data-hd-family="glass"] > .hd-frame::after { content: ""; position: absolute; inset: 0; border-radius: var(--hd-radius-card); box-shadow: var(--hd-theme-edge); pointer-events: none; }
 .hd-widget[data-hd-family="glass"] :is(.hd-toggle, .hd-seg-opt):is(:focus-visible, [data-hd-focus="ring"])::before { content: ""; position: absolute; inset: 0; border-radius: var(--hd-radius-control); box-shadow: var(--hd-theme-glow); pointer-events: none; }
 .hd-widget[data-hd-family="glass"] .hd-rocker:is(:focus-visible, [data-hd-focus="ring"])::before { content: ""; position: absolute; inset: 0; border-radius: var(--hd-g-bezel-r); box-shadow: var(--hd-theme-glow); pointer-events: none; }
-.hd-widget[data-hd-family="glass"] :is(.hd-dial, .hd-push):is(:focus-visible, [data-hd-focus="ring"])::before { content: ""; position: absolute; inset: 0; border-radius: var(--hd-radius-pill); box-shadow: var(--hd-theme-glow); pointer-events: none; }
+.hd-widget[data-hd-family="glass"] .hd-push:is(:focus-visible, [data-hd-focus="ring"])::before { content: ""; position: absolute; inset: 0; border-radius: var(--hd-corners-control); box-shadow: var(--hd-theme-glow); pointer-events: none; }
+.hd-widget[data-hd-family="glass"] .hd-dial:is(:focus-visible, [data-hd-focus="ring"])::before { content: ""; position: absolute; inset: 0; border-radius: var(--hd-radius-pill); box-shadow: var(--hd-theme-glow); pointer-events: none; }
 .hd-root[data-hd-backdrop="gradient"] .hd-widget[data-hd-family="glass"] > .hd-frame { -webkit-backdrop-filter: blur(var(--hd-glass-blur)) saturate(1.35); backdrop-filter: blur(var(--hd-glass-blur)) saturate(1.35); }
 
 /* Icon badge: a tinted circle (size in widgets.css). */
@@ -327,10 +331,10 @@
 .hd-widget[data-hd-family="glass"] .hd-dial-action { display: block; color: var(--hd-ink-muted); }
 .hd-widget[data-hd-family="glass"] .hd-dial-sub { color: var(--hd-ink-muted); }
 .hd-widget[data-hd-family="glass"] .hd-dial-sub .hd-numeral { font-weight: var(--hd-num-weight-small); }
-.hd-widget[data-hd-family="glass"] .hd-climate-steps .hd-push { color: var(--hd-ink); background: var(--hd-surface); box-shadow: var(--hd-edge-hi), var(--hd-g-surface-edge); border-radius: var(--hd-radius-pill); }
-.hd-widget[data-hd-family="glass"] .hd-seg { background: var(--hd-track); box-shadow: var(--hd-track-inset); border-radius: var(--hd-radius-pill); }
-.hd-widget[data-hd-family="glass"] .hd-seg-indicator::before { content: ""; position: absolute; inset: 3px; border-radius: var(--hd-radius-pill); background: var(--hd-thumb); box-shadow: var(--hd-thumb-shadow); }
-.hd-widget[data-hd-family="glass"] .hd-seg-opt { color: var(--hd-ink); font: 500 12.5px / 1 var(--hd-font-ui); border-radius: var(--hd-radius-pill); }
+.hd-widget[data-hd-family="glass"] .hd-climate-steps .hd-push { color: var(--hd-ink); background: var(--hd-surface); box-shadow: var(--hd-edge-hi), var(--hd-g-surface-edge); border-radius: var(--hd-corners-control); }
+.hd-widget[data-hd-family="glass"] .hd-seg { background: var(--hd-track); box-shadow: var(--hd-track-inset); border-radius: var(--hd-corners-control); }
+.hd-widget[data-hd-family="glass"] .hd-seg-indicator::before { content: ""; position: absolute; inset: 3px; border-radius: var(--hd-corners-control); background: var(--hd-thumb); box-shadow: var(--hd-thumb-shadow); }
+.hd-widget[data-hd-family="glass"] .hd-seg-opt { color: var(--hd-ink); font: 500 12.5px / 1 var(--hd-font-ui); border-radius: var(--hd-corners-control); }
 .hd-widget[data-hd-family="glass"] .hd-seg-opt[aria-checked="true"] { color: var(--hd-shadow-ink); } /* the indicator is a near-white thumb in every scheme, so its label is the dark shadow ink */
 
 /* Gauge readouts (H5, H6) and the sensor numeral (H8): light figures, units as above. */

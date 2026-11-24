@@ -24,13 +24,13 @@
 .hd-toggle-glyph { display: none; position: absolute; pointer-events: none; }
 .hd-toggle-key, .hd-toggle-legend, .hd-toggle-led { position: absolute; pointer-events: none; }
 /* H2 rocker */
-.hd-rocker { display: block; padding: 0; border: 0; background: transparent; cursor: pointer; block-size: min(var(--hd-body-h), calc(var(--hd-body-w) / 0.654)); aspect-ratio: 0.654; border-radius: var(--hd-radius-control); }
+.hd-rocker { position: relative; display: block; padding: 0; border: 0; background: transparent; cursor: pointer; block-size: min(var(--hd-body-h), calc(var(--hd-body-w) / 0.654)); aspect-ratio: 0.654; border-radius: var(--hd-radius-control); }
 .hd-rocker-bezel { position: relative; display: block; box-sizing: border-box; inline-size: 100%; block-size: 100%; padding: 6%; perspective: 420px; border-radius: inherit; }
 .hd-rocker-paddle { position: relative; display: grid; grid-template-rows: 1fr 1fr; block-size: 100%; transform-style: preserve-3d; border-radius: var(--hd-radius-control); }
 .hd-rocker-half { position: relative; display: grid; place-items: center; }
 .hd-rocker-led { position: absolute; inset-block-start: 4%; inset-inline-end: 4%; inline-size: 6px; block-size: 6px; display: none; }
 /* Push button reset: family paint adds the background, shadow and radius; the 44px hit size comes from the widget layout. */
-.hd-push { display: grid; place-items: center; box-sizing: border-box; padding: 0; border: 0; cursor: pointer; }
+.hd-push { position: relative; display: grid; place-items: center; box-sizing: border-box; padding: 0; border: 0; cursor: pointer; }
 /* Segmented bar (H4 mode bar): equal option grid, 44px high, at most 260px wide; the indicator is one option wide and slides by its index. */
 .hd-seg { position: relative; display: grid; grid-template-columns: repeat(var(--hd-count), minmax(0, 1fr)); box-sizing: border-box; inline-size: min(100%, 260px); block-size: 44px; padding: 0; justify-self: center; }
 .hd-seg-indicator { position: absolute; inset-block: 0; inset-inline-start: 0; inline-size: calc(100% / var(--hd-count)); transform: translateX(calc(var(--hd-index) * 100%)); }

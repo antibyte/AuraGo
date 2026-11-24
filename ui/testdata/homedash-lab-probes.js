@@ -32,8 +32,9 @@
         const fn = /^[a-z-]+\(/i.exec(part); if (!fn) return /^[a-z]+/i.test(part) ? /^[a-z]+/i.exec(part)[0] : null;
         let depth = 0; for (let i = 0; i < part.length; i++) { if (part[i] === '(') depth++; else if (part[i] === ')' && --depth === 0) return part.slice(0, i + 1); } return null; }
     // A computed background-image made only of gradients becomes one list of colour stops per layer (topmost first); anything with url() (or an unknown image) is null; a "none" layer (how a missing image shows up in a computed list) is skipped.
-    function gradientLayers(image) { const layers = [];
-        for (const item of splitTop(image)) { if (item === 'none') continue; const m = /^(repeating-)?(linear|radial|conic)-gradient\((.*)\)$/s.exec(item); if (!m) return null;
+    // With a url() image (a theme wallpaper) the layer is replaced by `underlay`, the resolved canvas colour (design section 8), and the layers below it are dropped; the list is marked opaque.
+    function gradientLayers(image, underlay) { const layers = [];
+        for (const item of splitTop(image)) { if (item === 'none') continue; if (underlay && /url\(/.test(item)) { layers.push([underlay]); layers.opaque = true; break; } const m = /^(repeating-)?(linear|radial|conic)-gradient\((.*)\)$/s.exec(item); if (!m) return null;
             const stops = splitTop(m[3]).map(leadingColour).filter(Boolean).map(rgba); if (!stops.length) return null; layers.push(stops); }
         return layers; }
     // Every colour a pixel behind layers (alternatives per layer, topmost layer first) can take: each alternative composited over the next layer down, over white at the bottom.
@@ -55,15 +56,19 @@
         return out; }
     // Everything one element paints as a backdrop, topmost first: its filling pseudo-elements, its gradient images, its colour. null when a url() image is involved.
     function ownLayers(n) { const out = [], cs = getComputedStyle(n), pseudo = pseudoLayers(n); if (!pseudo) return null; for (const l of pseudo) out.push(l);
-        if (cs.backgroundImage && cs.backgroundImage !== 'none') { const g = gradientLayers(cs.backgroundImage); if (!g) return null; for (const l of g) out.push(l); }
+        if (cs.backgroundImage && cs.backgroundImage !== 'none') { const g = gradientLayers(cs.backgroundImage, canvasOf(n)); if (!g) return null; for (const l of g) out.push(l); if (g.opaque) { out.opaque = true; return out; } }
         const c = rgba(cs.backgroundColor); if (c[3] > 0) out.push([c]); return out; }
+    // The root's resolved --hd-canvas colour, opaque over white: the underlay for wallpaper backdrops.
+    const canvasCache = new WeakMap();
+    function canvasOf(n) { const root = n.closest('.hd-root'); if (!root) return null; if (!canvasCache.has(root)) { const probe = document.createElement('span'); probe.style.setProperty('color', 'var(--hd-canvas)'); root.appendChild(probe);
+        try { canvasCache.set(root, over(rgba(getComputedStyle(probe).color), WHITE)); } finally { probe.remove(); } } return canvasCache.get(root); }
     // The candidate backgrounds behind an element: its ancestors' layers down to the first opaque colour, plus the layers of siblings that are painted below the chain at the
     // element's centre (the sliding indicator of a segmented bar sits below its option labels). null when a url() image is involved.
     function backgroundsOf(el) { const layers = [], rect = el.getBoundingClientRect(), stack = document.elementsFromPoint ? document.elementsFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2) : [];
         for (let n = el, prev = null; n && n.nodeType === 1; prev = n, n = n.parentElement) {
             if (prev) { const at = stack.indexOf(prev); if (at >= 0) for (const sib of stack.slice(at + 1)) if (sib.parentElement === n && !sib.contains(el)) { const l = ownLayers(sib); if (!l) return null; for (const x of l) layers.push(x); } }
             const own = ownLayers(n); if (!own) return null; for (const l of own) layers.push(l);
-            if (rgba(getComputedStyle(n).backgroundColor)[3] >= 1) break; }
+            if (own.opaque || rgba(getComputedStyle(n).backgroundColor)[3] >= 1) break; }
         return composites(layers); }
     // The worst (lowest) contrast of a foreground over every candidate background.
     function worst(fg, bgs) { let min = Infinity; for (const bg of bgs) min = Math.min(min, ratio(over(fg, bg), bg)); return min; }
@@ -98,7 +103,7 @@
             const fg = rgba(paint); fg[3] *= opacityOf(el); const min = el.closest('[aria-hidden="true"]') ? GRAPHIC_MIN : TEXT_MIN, v = worst(fg, bgs); r.contrast.checked++;
             if (v < min) r.contrast.failures.push('text ' + label(el) + ' ' + JSON.stringify(el.textContent.trim().slice(0, 24)) + ' ' + show(v) + ' < ' + min); } }
     const GRAPHICS = '.hd-dial-arc, .hd-gauge-arc, .hd-gauge-needle-shape, .hd-spark-line, .hd-slider-fill, .hd-bar-fill, .hd-seg7-seg[data-lit="true"], .hd-toggle-thumb, .hd-lamp-dot';
-    function graphics(root, r, extraSelectors, palette) { const sel = [GRAPHICS].concat(extraSelectors || []).join(', ');
+    function graphics(root, r, extraSelectors) { const sel = [GRAPHICS].concat(extraSelectors || []).join(', ');
         for (const el of root.querySelectorAll(sel)) { const rect = el.getBoundingClientRect(); if (exempt(el) || !rect.width || !rect.height) continue;
             // A switch thumb whose toggle also shows a decor glyph (the on bar or the off ring) is not the only state cue: it is a handle separated by its edge ring and contact shadow
             // (rubric G1), so its fill is not held to the 3:1 graphic threshold against the track. A thumb without a glyph stays measured.
@@ -109,7 +114,7 @@
             if (!paint && !svg) { const b = rgba(cs.backgroundColor); if (b[3] > 0) paint = b; }
             if (!paint) continue; paint[3] *= opacityOf(el) * (Number.isFinite(opacity) ? opacity : 1);
             const host = svg ? (el.ownerSVGElement ? el.ownerSVGElement.parentElement : el.parentElement) : el.parentElement, bgs = host ? backgroundsOf(host) : null; if (!bgs) { r.contrast.unmeasured++; continue; }
-            const v = worst(paint, bgs); r.contrast.checked++; if (v < GRAPHIC_MIN) { const msg = 'graphic ' + label(el) + ' ' + show(v) + ' < 3'; if (palette === 'theme') r.contrast.warnings.push(msg + ' (theme colours, reported only)'); else r.contrast.failures.push(msg); } } }
+            const v = worst(paint, bgs); r.contrast.checked++; if (v < GRAPHIC_MIN) { const msg = 'graphic ' + label(el) + ' ' + show(v) + ' < 3'; r.contrast.failures.push(msg); } } }
     const INTERACTIVE = ['button', '[role="slider"]', '[role="switch"]', '[role="radio"]', '[role="spinbutton"]', '[tabindex="0"]'].map(s => '.hd-lab-stage ' + s).join(', ');
     function hit(root, r) { for (const el of root.querySelectorAll(INTERACTIVE)) { const b = el.getBoundingClientRect(); if ((!b.width && !b.height) || getComputedStyle(el).visibility === 'hidden') continue; r.hit.checked++;
         if (b.width < HIT_MIN - EPS || b.height < HIT_MIN - EPS) r.hit.failures.push('hit ' + label(el) + ' ' + dims(b) + ' < 44x44'); } }
@@ -133,7 +138,7 @@
         catch (err) { r.resolution.failures.push('font ' + face + ' failed: ' + String((err && err.message) || err)); } } }
     async function run(o) {
         const r = { contrast: { checked: 0, failures: [], warnings: [], unmeasured: 0 }, hit: { checked: 0, failures: [] }, shift: { checked: 0, failures: [] }, animations: { checked: false, running: [], failures: [] }, backdrop: { count: 0, limit: 0, failures: [] }, resolution: { checked: 0, failures: [] } };
-        tokens(o.root, o.palette, r); text(o.root, r); graphics(o.root, r, o.graphics, o.palette); hit(o.root, r); shift(o.root, (o.entries || []).filter(e => !e.entry), o.states || [], r); backdrop(o.root, r); await fonts(r); await animations(o.motion, r);
+        tokens(o.root, o.palette, r); text(o.root, r); graphics(o.root, r, o.graphics); hit(o.root, r); shift(o.root, (o.entries || []).filter(e => !e.entry), o.states || [], r); backdrop(o.root, r); await fonts(r); await animations(o.motion, r);
         return r;
     }
     window.hdLabProbes = Object.freeze({ run, ratio, over, rgba, gradientLayers, composites, worst });
