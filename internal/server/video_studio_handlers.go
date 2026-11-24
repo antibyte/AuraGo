@@ -247,6 +247,7 @@ func handleVideoStudioStatus(s *Server, w http.ResponseWriter, r *http.Request) 
 		"registry":        registry,
 		"unavailable":     unavailable,
 		"encoder":         encoder,
+		"plan":            videoStudioPlanAvailabilityFor(cfg, videoStudioGenerationProfile(cfg, "")),
 	})
 }
 
