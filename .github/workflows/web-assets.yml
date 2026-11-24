@@ -25,6 +25,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node scripts/build-ui-bundles.js --check
+      - run: npm run test:desktop-sounds
       - run: go test ./internal/webassets ./cmd/assetpack
       - run: go run ./cmd/assetpack -out deploy -stage assets/web
       - shell: bash
