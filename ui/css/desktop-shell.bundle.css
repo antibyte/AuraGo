@@ -19625,7 +19625,7 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 }
 
 .desktop-body[data-theme="orbit"] .vd-window.active .vd-window-titlebar { border-bottom-color: rgba(92, 225, 255, .3); }
-.desktop-body[data-theme="orbit"] .vd-window.has-window-menu .vd-window-titlebar { grid-template-rows: var(--vd-orbit-bar) var(--vd-orbit-menubar); padding: 0 8px 0 14px; }
+.desktop-body[data-theme="orbit"] .vd-window.has-window-menu .vd-window-titlebar { grid-template-rows: var(--vd-orbit-bar) var(--vd-orbit-menubar); padding: 0 8px 0 14px; gap: 0 10px; }
 
 .desktop-body[data-theme="orbit"] .vd-window-title {
     color: #cfe9ff;
