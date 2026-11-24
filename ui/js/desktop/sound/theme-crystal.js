@@ -9,8 +9,7 @@
         voices: {
             chime: { model: 'glass', t60: 0.9, beat: 0.55, attack: 0.004 },
             tick: { model: 'click', material: 'glass', tone: 5200, ring: 0.03 },
-            air: { model: 'noise', color: 'pink', band: [2500, 7500], attack: 0.06, decay: 0.2 },
-            knock: { model: 'noise', color: 'pink', band: [120, 900], attack: 0.001, decay: 0.03 }
+            air: { model: 'noise', color: 'pink', band: [2500, 7500], attack: 0.06, decay: 0.2 }
         },
         events: {
             'session.start': {

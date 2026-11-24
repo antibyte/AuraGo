@@ -16,7 +16,6 @@
             squelch: { model: 'squelch', count: 4, gap: 0.035, spread: 4, t60: 0.09, dip: 4, rise: 0.7, drive: 2.2, wet: 0.05, wetCut: 1200 },
             knock: { model: 'click', material: 'felt', tone: 900, ring: 0.02, noise: 0.9, length: 0.008 },
             gel: { model: 'noise', color: 'pink', band: [300, 1200], attack: 0.02, decay: 0.14, width: 0.8 },
-            thwip: { model: 'noise', color: 'pink', band: [700, 3500], attack: 0.003, decay: 0.05, q: 1.2, width: 0.7 },
             smack: { model: 'noise', color: 'pink', band: [300, 1400], attack: 0.002, decay: 0.03, width: 0.6 }
         },
         events: {

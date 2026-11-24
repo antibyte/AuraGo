@@ -10,7 +10,6 @@
             drop: { model: 'drop', t60: 0.07, rise: 0.6, pitchSpread: 2, splash: 0.2, width: 0.5 },
             low: { model: 'drop', t60: 0.1, rise: 0.3, pitchSpread: 1, thick: 0.25, splash: 0.15, width: 0.3 },
             wash: { model: 'noise', color: 'pink', band: [180, 1500], attack: 0.1, decay: 0.3, width: 0.9 },
-            knock: { model: 'noise', color: 'pink', band: [120, 700], attack: 0.001, decay: 0.03 },
             trickle: { model: 'noise', color: 'pink', band: [600, 3500], attack: 0.01, decay: 0.08 }
         },
         events: {
