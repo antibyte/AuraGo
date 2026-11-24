@@ -56,7 +56,7 @@
   --hd-ring-alert: inset 0 0 0 1px var(--hd-t-led-red);
   --hd-vfd-glow: 0 0 6px color-mix(in srgb, var(--hd-t-amber) 50%, transparent);
   --hd-stroke-hair: 1px; --hd-stroke-1: 1.5px; --hd-stroke-2: 2px; --hd-stroke-arc: 0.06; --hd-stroke-tick: 1.25px;
-  --hd-t-needle-w: 2.5;
+  --hd-t-needle-w: 2.5; --hd-th-stroke: 12;
   --hd-font-ui: "Inter", system-ui, sans-serif;
   --hd-font-label: "HomeDash Barlow Condensed", "Inter", sans-serif; --hd-font-num: "HomeDash Barlow Condensed", "Inter", sans-serif;
   --hd-font-vfd: "Geist Mono", "JetBrains Mono", monospace;
@@ -128,6 +128,70 @@
 .hd-widget[data-hd-family="tactile"] .hd-dial-legend[data-end="min"] { inset-inline-start: 32.3%; } .hd-widget[data-hd-family="tactile"] .hd-dial-legend[data-end="max"] { inset-inline-start: 67.7%; }
 .hd-widget[data-hd-family="tactile"] .hd-dial::before { content: ""; position: absolute; inset: 13%; border-radius: var(--hd-radius-pill); box-shadow: var(--hd-shadow-cast); pointer-events: none; } /* the knurl mask would cut its own shadow: the knob casts it from here */
 
+/* H4 thermostat knob: the face is the card panel with printed ticks and numerals, a red needle at the current value (under the knob), a steel cap with a knurled rim and a pointer
+   at the target. The readout is a black window in the middle of the cap (it paints above the pointer, so the pointer shows beyond the window); the action is the lamp under it. */
+.hd-widget[data-hd-family="tactile"][data-hd-type="climate"] .hd-dial-readout { display: flex; inset: 38% 31%; background: var(--hd-t-window); box-shadow: var(--hd-window-shadow); border-radius: var(--hd-radius-control); }
+.hd-widget[data-hd-family="tactile"][data-hd-type="climate"] :is(.hd-dial-legend, .hd-dial-action, .hd-dial-marker) { display: none; }
+.hd-widget[data-hd-family="tactile"][data-hd-type="climate"] .hd-dial-readout > .hd-numeral { font-size: calc(var(--hd-th-d) * 0.13); font-weight: var(--hd-num-weight); color: var(--hd-t-amber); text-shadow: var(--hd-vfd-glow); }
+.hd-widget[data-hd-family="tactile"][data-hd-type="climate"] .hd-dial-readout .hd-num-unit { color: var(--hd-t-amber); }
+.hd-widget[data-hd-family="tactile"][data-hd-type="climate"] .hd-dial-sub { color: var(--hd-t-amber); }
+.hd-widget[data-hd-family="tactile"][data-hd-type="climate"] .hd-dial-sub .hd-numeral { font-weight: var(--hd-num-weight-small); }
+.hd-widget[data-hd-family="tactile"][data-hd-type="climate"][data-hd-stale="true"] .hd-dial-readout :is(.hd-numeral, .hd-dial-sub, .hd-num-unit) { color: color-mix(in srgb, var(--hd-t-amber) 60%, transparent); text-shadow: none; }
+.hd-widget[data-hd-family="tactile"][data-hd-type="climate"] .hd-dial-ticks { stroke: color-mix(in srgb, var(--hd-t-legend) 65%, transparent); }
+.hd-widget[data-hd-family="tactile"][data-hd-type="climate"] .hd-dial-ticks-major { display: inline; stroke: var(--hd-t-legend); stroke-width: var(--hd-stroke-2); vector-effect: non-scaling-stroke; }
+.hd-widget[data-hd-family="tactile"][data-hd-type="climate"] .hd-dial-numeral { display: inline; fill: var(--hd-t-legend); font: 600 13.5px var(--hd-font-label); text-anchor: middle; dominant-baseline: central; }
+@container hd-widget (max-height: 259px) {
+  .hd-widget[data-hd-family="tactile"][data-hd-type="climate"] .hd-dial-numeral { font-size: 19.5px; }
+  .hd-widget[data-hd-family="tactile"][data-hd-type="climate"] .hd-dial-numeral:nth-of-type(odd) { display: none; } /* D under 140: only the second, fourth and sixth numeral */
+}
+.hd-widget[data-hd-family="tactile"][data-hd-type="climate"] .hd-dial-needle { display: inline; stroke: var(--hd-t-needle); stroke-width: var(--hd-t-needle-w); }
+.hd-widget[data-hd-family="tactile"][data-hd-type="climate"] .hd-dial-cap { inset: 23%; }
+.hd-widget[data-hd-family="tactile"][data-hd-type="climate"] .hd-dial-pointer { inset: 2% 46.5% 50% 46.5%; }
+.hd-widget[data-hd-family="tactile"][data-hd-type="climate"] .hd-dial-knurl { inset: 21%; -webkit-mask: var(--hd-t-ring-92); mask: var(--hd-t-ring-92); box-shadow: none; }
+.hd-widget[data-hd-family="tactile"][data-hd-type="climate"] .hd-dial::before { inset: 21%; }
+.hd-widget[data-hd-family="tactile"] .hd-lamp { position: absolute; inset-inline-start: 50%; inset-block-start: calc(var(--hd-th-d) * 0.705); translate: -50% -50%; inline-size: 10px; block-size: 10px; border-radius: var(--hd-radius-pill); background: var(--hd-t-steel-lin); box-shadow: var(--hd-lip); } /* a steel collar: the unlit dome is dark glass on light metal */
+.hd-widget[data-hd-family="tactile"] .hd-lamp-dot { position: absolute; inset: 2px; border-radius: var(--hd-radius-pill); background: var(--hd-t-led-off); }
+.hd-widget[data-hd-family="tactile"] .hd-lamp-dot::after { content: ""; position: absolute; inset: 0; border-radius: var(--hd-radius-pill); background: var(--hd-t-led); box-shadow: var(--hd-t-led-halo); opacity: 0; }
+.hd-widget[data-hd-family="tactile"] .hd-lamp[data-hd-on="true"] .hd-lamp-dot::after, .hd-widget[data-hd-family="tactile"]:is([data-hd-pending="true"], [data-hd-tone="crit"], [data-hd-status="error"]) .hd-lamp-dot::after { opacity: 1; }
+.hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] .hd-lamp-dot { background: transparent; box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-t-muted); }
+.hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] .hd-lamp-dot::after { opacity: 0; }
+.hd-widget[data-hd-family="tactile"] .hd-climate-steps .hd-push { color: var(--hd-t-legend); background: var(--hd-t-bakelite); box-shadow: var(--hd-lip), var(--hd-shadow-cast); border-radius: var(--hd-radius-control); }
+.hd-widget[data-hd-family="tactile"] .hd-climate-steps .hd-push:active { translate: -50% calc(-50% + 1px); }
+/* Mode selector: a 4-detent rotary. The icon legends sit on an arc above the knob (at -45, -15, 15 and 45 degrees, radius 26 px around a 32 px knob; the 44 px knob and radius 40 of the plan do not fit the 44 px row),
+   each moved from the centre of its option cell; the cells stay the 44 px hit boxes. Option words are read by screen readers only. */
+.hd-widget[data-hd-family="tactile"] .hd-seg-indicator { display: none; }
+.hd-widget[data-hd-family="tactile"] .hd-seg-label { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.hd-widget[data-hd-family="tactile"] .hd-seg-opt { color: var(--hd-t-muted); }
+.hd-widget[data-hd-family="tactile"] .hd-seg-opt[aria-checked="true"] { color: var(--hd-t-legend); }
+.hd-widget[data-hd-family="tactile"] .hd-seg-opt .hd-ico { inline-size: 13px; block-size: 13px; stroke-width: var(--hd-stroke-1); }
+.hd-widget[data-hd-family="tactile"] .hd-seg { --hd-seg-w: min(var(--hd-body-w), 260px); }
+.hd-widget[data-hd-family="tactile"] .hd-seg-opt:nth-child(2) .hd-ico { translate: calc(-18.4px + var(--hd-seg-w) * 3 / 8) -12.4px; }
+.hd-widget[data-hd-family="tactile"] .hd-seg-opt:nth-child(3) .hd-ico { translate: calc(-6.7px + var(--hd-seg-w) * 1 / 8) -19.1px; }
+.hd-widget[data-hd-family="tactile"] .hd-seg-opt:nth-child(4) .hd-ico { translate: calc(6.7px - var(--hd-seg-w) * 1 / 8) -19.1px; }
+.hd-widget[data-hd-family="tactile"] .hd-seg-opt:nth-child(5) .hd-ico { translate: calc(18.4px - var(--hd-seg-w) * 3 / 8) -12.4px; }
+.hd-widget[data-hd-family="tactile"] .hd-seg-rotary { display: block; position: absolute; inset-inline-start: 50%; inset-block-end: 0; translate: -50% 0; inline-size: 32px; block-size: 32px; border-radius: var(--hd-radius-pill); background: var(--hd-t-steel); box-shadow: var(--hd-lip), var(--hd-shadow-cast); pointer-events: none; z-index: 2; }
+.hd-widget[data-hd-family="tactile"] .hd-seg-rotary-pointer { position: absolute; inset: 3px 48% 50% 48%; transform-origin: 50% 100%; transform: rotate(calc(var(--hd-index) * 30deg - 45deg)); background: var(--hd-t-pointer); }
+.hd-widget[data-hd-family="tactile"] .hd-seg:not(:has([aria-checked="true"])) .hd-seg-rotary-pointer { opacity: 0; }
+
+/* H5 needle instrument (also H6 in Tactile: the module substitutes the needle gauge): steel bezel, face with a vignette, one soft reflection, red needle with its shadow down right. */
+.hd-widget[data-hd-family="tactile"] .hd-gauge-face { display: block; box-shadow: var(--hd-shadow-cast); }
+.hd-widget[data-hd-family="tactile"] .hd-gauge-bezel { background: var(--hd-t-steel); -webkit-mask: var(--hd-t-ring-92); mask: var(--hd-t-ring-92); }
+.hd-widget[data-hd-family="tactile"] .hd-gauge-glass { background: var(--hd-t-reflection), var(--hd-t-vignette), var(--hd-t-face); box-shadow: var(--hd-recess); }
+.hd-widget[data-hd-family="tactile"] .hd-gauge-ticks[data-major="true"] { stroke: var(--hd-t-faceink); stroke-width: var(--hd-stroke-2); vector-effect: non-scaling-stroke; }
+.hd-widget[data-hd-family="tactile"] .hd-gauge-ticks[data-minor="true"] { stroke: var(--hd-t-faceink); stroke-width: var(--hd-stroke-tick); vector-effect: non-scaling-stroke; }
+.hd-widget[data-hd-family="tactile"] .hd-gauge-numeral { fill: var(--hd-t-faceink); font: 600 17px var(--hd-font-label); }
+.hd-widget[data-hd-family="tactile"] .hd-gauge-zone { stroke-width: calc(var(--hd-stroke-arc) * 200 - 4); opacity: 0.85; }
+.hd-widget[data-hd-family="tactile"] .hd-gauge-zone[data-tone="warn"] { stroke: var(--hd-warn); }
+.hd-widget[data-hd-family="tactile"] .hd-gauge-zone[data-tone="crit"] { stroke: var(--hd-alert); }
+.hd-widget[data-hd-family="tactile"] .hd-gauge-needle-shadow { display: inline; }
+.hd-widget[data-hd-family="tactile"] .hd-gauge-needle-shadow path { fill: var(--hd-t-needle-shadow); }
+.hd-widget[data-hd-family="tactile"] .hd-gauge-needle-shape { fill: color-mix(in srgb, var(--hd-t-needle) 78%, var(--hd-t-faceink)); } /* the plain red measures 2.56:1 on the ivory face */
+.hd-widget[data-hd-family="tactile"] .hd-gauge-hub { fill: var(--hd-t-faceink); }
+.hd-widget[data-hd-family="tactile"] .hd-gauge-readout { color: var(--hd-t-faceink); font-weight: var(--hd-num-weight); }
+.hd-widget[data-hd-family="tactile"] .hd-gauge-readout .hd-num-unit { color: var(--hd-t-faceink); }
+.hd-widget[data-hd-type="gauge"][data-hd-family="tactile"] .hd-gauge[data-hd-gauge="needle"] .hd-gauge-readout { inset-block-start: 74%; } /* clear of the needle tail at every angle (the tail reaches 62 % of the box) */
+.hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] :is(.hd-gauge-needle, .hd-gauge-needle-shadow) { opacity: 0.4; }
+
 /* Motion: every transition and animation sits behind the motion gate. The LED follows the travel (delay = travel time), a pending LED blinks at 2 Hz. */
 @media (prefers-reduced-motion: no-preference) {
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"] .hd-toggle-thumb { transition: transform var(--hd-dur-toggle) var(--hd-ease-snap); }
@@ -137,6 +201,11 @@
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"][data-hd-pending="true"] :is(.hd-toggle-led, .hd-rocker-led)::after { animation: hd-blink 500ms steps(1) infinite; }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"] .hd-dial-pointer { transition: transform var(--hd-dur-remote) var(--hd-ease-remote); }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"][data-hd-pending="true"] .hd-dial-dots-lit { animation: hd-blink 500ms steps(1) infinite; }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"] .hd-dial-current { transition: transform var(--hd-dur-remote) var(--hd-ease-remote); }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"] .hd-seg-rotary-pointer { transition: transform var(--hd-dur-toggle) var(--hd-ease-snap); }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"] .hd-lamp-dot::after { transition: opacity var(--hd-dur-led) linear; }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"][data-hd-pending="true"] .hd-lamp-dot::after { animation: hd-blink 500ms steps(1) infinite; }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"] :is(.hd-gauge-needle, .hd-gauge-needle-shadow) { transition: transform var(--hd-dur-needle-f) var(--hd-ease-needle); }
 }
 
 /* Unavailable: hollow lamp ring, legends read a dash. */
