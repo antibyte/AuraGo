@@ -2424,7 +2424,10 @@ Verify actual save/reload behavior with `TestDesktopSessionRestoreBrowser`.
   and the Node tools.
 - Themes are data only, validated by `DesktopSoundEngine.defineTheme`. Each
   `theme-<id>.js` makes one `defineTheme` call with plain data; local helpers that only
-  build its note lists are allowed. Every theme defines all 26 events. Theme effects live
+  build its note lists are allowed. `validateTheme` also rejects a note above a model's
+  frequency ceiling (only `string`, 4000 Hz, plus a 54-cent detune allowance) and an item
+  that starts within 0.01 s of the role maximum length. Lookups ignore inherited property
+  names. Every theme defines all 26 events. Theme effects live
   in `fx` (Voxel World, Green Slime and Orbit only), and an effect never sets `space`
   (effects use no room reverb).
 - Gates in `scripts/test-desktop-sounds.mjs` (run by `npm run test:desktop-sounds`, also
@@ -2437,8 +2440,12 @@ Verify actual save/reload behavior with `TestDesktopSessionRestoreBrowser`.
   main-thread fallback, used after a Worker error or when the first reply takes over
   4 s. `window.DesktopSoundsRenderGate` is the test seam for delaying renders: while
   it holds a promise, each render reply waits for it to settle.
-- A shell sound whose buffer arrives more than 150 ms after its request is dropped.
-  Previews wait for their buffers.
+- A shell sound whose buffer arrives later than its category's `LATE_MS` limit after
+  its request is dropped: 800 ms notifications, 400 ms files, 200 ms windows, 150 ms
+  navigation, 120 ms interface, 150 ms for any other category. Notices and dialogs
+  tolerate a cold cache; window, menu and touch sounds stay tight. `session.start` uses
+  `START_WAIT_MS` and theme effects their `THEME_FX` expiry instead. Previews wait for
+  their buffers.
 - Touch feedback: `change` on `.vd-switch > input[type="checkbox"][data-setting-key]`
   and the Quick Settings checkboxes (`ui.toggle.on` / `ui.toggle.off`); `input` on
   `input[type="range"].vd-setting-range[data-setting-key]` and the Quick Settings range

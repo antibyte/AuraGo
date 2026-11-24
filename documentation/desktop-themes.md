@@ -233,7 +233,9 @@ the shape; the real file defines all 26 events.
 - `events` holds the 26 events. A sound has `notes`, `layers` or both. Pitched voices go
   in `notes`, where `n` sets the pitch, and unpitched voices go in `layers`. The validator
   rejects the other way round. It also checks that each note's frequency is above the
-  model's minimum and at most 12 kHz.
+  model's minimum, at most 12 kHz and, for a model with a ceiling, not above it. Only
+  `string` has one: 4000 Hz, with a 54-cent allowance for detune. An item that starts
+  within 0.01 s of the role's maximum length is rejected too.
 - Each item has `v` (its voice), `t` (start in seconds), `g` (gain, 0 to 2), `pan`
   (−1 to 1), `dur` (length in seconds) and `detune` (cents). Any other key overrides a
   parameter of the voice for that item only, such as `t60` or `damp` in the excerpt.
@@ -292,10 +294,15 @@ gap of 40 ms per event and do not count against the six voices. Notices in one b
 thinned, so that at most two play within 120 ms of the first. Previews skip the category
 switches and play to the master gain.
 
-**Late sounds and the start sound.** A shell sound whose buffer arrives more than 150 ms
-after it was requested is not played. Its buffer stays cached. Previews wait for their
-buffers and are never dropped. Theme effects follow their own expiry rule (see *Effect
-sounds*).
+**Late sounds and the start sound.** A shell sound whose buffer arrives later than its
+category's limit after it was requested is not played. The limits (`LATE_MS` in
+`core/sound-runtime.js`) are 800 ms for notifications, 400 ms for files and dialogs, 200 ms
+for windows, 150 ms for navigation and 120 ms for interface sounds; any other category
+falls back to 150 ms. Notices and dialogs tolerate a cold cache, for example just after
+sounds are switched on, after a theme change or after the first unlock, while window, menu
+and touch sounds must stay tight. The buffer stays cached either way. Previews wait for
+their buffers and are never dropped. Theme effects follow their own expiry rule (see
+*Effect sounds*).
 
 `session.start` is requested once per page load, after the session restore and the
 initial app open (`sdk-events-bootstrap.js`). It plays only if the audio context runs
@@ -397,7 +404,9 @@ plays, rate-limited and expired calls per family.
   `scripts/test-desktop-sounds.mjs` holds the measured gates. They render every event and
   variant of every theme, and every effect variant, and assert the following. The catalogue
   has 26 events, each with a known category and 1 to 3 variants, and all 16 themes register.
-  Validation rejects broken definitions. Loudness lies within ±0.5 LU of the target. A
+  Validation rejects broken definitions, including a note above a model's frequency
+  ceiling (`string`, 4000 Hz) and an item that starts within 0.01 s of the role maximum.
+  Loudness lies within ±0.5 LU of the target. A
   peak-limited sound lies at most 0.5 LU above the target and at most 3 LU below it. The
   reported loudness matches a separate measurement. True peak is at or below −3 dBTP. The
   natural length is within the maximum. The first and last samples are zero, and there is
