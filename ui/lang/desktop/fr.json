@@ -1464,6 +1464,7 @@
   "desktop.ecalc_group_ics": "Circuits intégrés",
   "desktop.ecalc_group_materials": "Matériaux",
   "desktop.ecalc_group_pc_power": "Alimentation PC et ventilateurs",
+  "desktop.ecalc_group_vehicle_mains": "Véhicule et secteur",
   "desktop.ecalc_guide_values": "Valeurs indicatives. La norme en vigueur fait foi.",
   "desktop.ecalc_inputs": "Entrées",
   "desktop.ecalc_load_failed": "Impossible de charger le catalogue ECalc.",

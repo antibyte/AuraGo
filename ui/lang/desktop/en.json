@@ -1464,6 +1464,7 @@
   "desktop.ecalc_group_ics": "ICs",
   "desktop.ecalc_group_materials": "Materials",
   "desktop.ecalc_group_pc_power": "PC power and fans",
+  "desktop.ecalc_group_vehicle_mains": "Vehicle and mains",
   "desktop.ecalc_guide_values": "Guide values. The applicable standard is authoritative.",
   "desktop.ecalc_inputs": "Inputs",
   "desktop.ecalc_load_failed": "The ECalc catalog could not be loaded.",

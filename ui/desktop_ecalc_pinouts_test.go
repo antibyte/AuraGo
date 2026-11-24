@@ -14,7 +14,7 @@ import (
 // ecalcPinoutKeys lists every desktop.* string of the pinout pages (ECalc phase 4): the sections of the Pinouts list and the
 // strings of the page. The names of the pin types and of the wire colours come from the catalog, not from here.
 var ecalcPinoutKeys = []string{
-	"desktop.ecalc_group_audio", "desktop.ecalc_group_boards", "desktop.ecalc_group_data", "desktop.ecalc_group_debug", "desktop.ecalc_group_ics", "desktop.ecalc_group_pc_power",
+	"desktop.ecalc_group_audio", "desktop.ecalc_group_boards", "desktop.ecalc_group_data", "desktop.ecalc_group_debug", "desktop.ecalc_group_ics", "desktop.ecalc_group_pc_power", "desktop.ecalc_group_vehicle_mains",
 	"desktop.ecalc_pin_copy", "desktop.ecalc_pin_drawing", "desktop.ecalc_pin_face", "desktop.ecalc_pin_filter", "desktop.ecalc_pin_function", "desktop.ecalc_pin_legend",
 	"desktop.ecalc_pin_name", "desktop.ecalc_pin_no_match", "desktop.ecalc_pin_notes", "desktop.ecalc_pin_number", "desktop.ecalc_pin_pick", "desktop.ecalc_pin_rows",
 	"desktop.ecalc_pin_rows_filtered", "desktop.ecalc_pin_select", "desktop.ecalc_pin_type", "desktop.ecalc_pin_variant", "desktop.ecalc_pin_view", "desktop.ecalc_pin_wire",
@@ -29,8 +29,8 @@ var ecalcPinoutPlaceholders = map[string][]string{
 
 func TestECalcPinoutLocaleKeys(t *testing.T) {
 	t.Parallel()
-	if len(ecalcPinoutKeys) != 24 {
-		t.Errorf("%d pinout keys are listed, want the 24 of the plan", len(ecalcPinoutKeys))
+	if len(ecalcPinoutKeys) != 25 {
+		t.Errorf("%d pinout keys are listed, want the 25 of the plan", len(ecalcPinoutKeys))
 	}
 	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
 		words := readMergedLangMap(t, lang)
@@ -50,7 +50,7 @@ func TestECalcPinoutLocaleKeys(t *testing.T) {
 }
 
 // The scripts are wired into the loader after the code page and before the shell, the shell routes the kind and knows the
-// six sections of the Pinouts list in the order of ecalc.PinoutGroups.
+// seven sections of the Pinouts list in the order of ecalc.PinoutGroups.
 func TestECalcPinoutPagesAreWired(t *testing.T) {
 	t.Parallel()
 	loader := readDesktopAssetText(t, "js/desktop/core/module-loader.js")

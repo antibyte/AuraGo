@@ -1464,6 +1464,7 @@
   "desktop.ecalc_group_ics": "Układy scalone",
   "desktop.ecalc_group_materials": "Materiały",
   "desktop.ecalc_group_pc_power": "Zasilanie PC i wentylatory",
+  "desktop.ecalc_group_vehicle_mains": "Pojazd i sieć",
   "desktop.ecalc_guide_values": "Wartości orientacyjne. Obowiązująca jest aktualna norma.",
   "desktop.ecalc_inputs": "Dane wejściowe",
   "desktop.ecalc_load_failed": "Nie udało się wczytać katalogu ECalc.",

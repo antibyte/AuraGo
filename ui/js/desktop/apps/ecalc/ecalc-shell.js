@@ -17,7 +17,7 @@
     // The sections of the Tables list, in this order; a group the shell does not know follows, named by its id.
     const TABLE_GROUPS = ['conductors', 'components', 'materials', 'general'];
     // The sections of the Pinouts list (the groups of internal/ecalc PinoutGroups), in this order.
-    const PINOUT_GROUPS = ['data', 'audio', 'pc_power', 'boards', 'debug', 'ics'];
+    const PINOUT_GROUPS = ['data', 'audio', 'pc_power', 'boards', 'debug', 'ics', 'vehicle_mains'];
 
     const ICONS = {
         search: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>',

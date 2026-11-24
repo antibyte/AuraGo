@@ -106,7 +106,7 @@ func TestLoadPinoutItem(t *testing.T) {
 	if _, _, ok := p.PinsOf("x"); ok {
 		t.Error("PinsOf(x) must fail for an item without variants")
 	}
-	if !reflect.DeepEqual(PinoutGroups, []string{"data", "audio", "pc_power", "boards", "debug", "ics"}) {
+	if !reflect.DeepEqual(PinoutGroups, []string{"data", "audio", "pc_power", "boards", "debug", "ics", "vehicle_mains"}) {
 		t.Errorf("PinoutGroups = %v", PinoutGroups)
 	}
 	if !sort.StringsAreSorted(PinoutOutlines) || len(PinoutOutlines) != 16 || !reflect.DeepEqual(PinTypes, []string{"power", "ground", "signal", "data", "io", "nc"}) {
@@ -179,7 +179,7 @@ func TestLoadRejectsBrokenPinouts(t *testing.T) {
 		// item fields
 		{"wrong kind", mutate(t, basePinout, "kind: pinout", "kind: table"), "kind must be pinout in pinouts/"},
 		{"wrong category", mutate(t, basePinout, "category: pinouts", "category: tables"), "category must be pinouts"},
-		{"unknown group", mutate(t, basePinout, "group: data", "group: wires"), "group must be one of data, audio, pc_power, boards, debug, ics"},
+		{"unknown group", mutate(t, basePinout, "group: data", "group: wires"), "group must be one of data, audio, pc_power, boards, debug, ics, vehicle_mains"},
 		{"bad id", mutate(t, basePinout, "id: t_conn", "id: T-conn"), "id must match"},
 		{"missing name locale", mutate(t, basePinout, `, zh: "T"}`, `}`), `missing "zh" text`},
 		{"doc without german", mutate(t, basePinout, `doc: {en: "Doc.", de: "Doku."}`, `doc: {en: "Doc."}`), `doc: missing "de" text`},

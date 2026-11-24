@@ -19,7 +19,7 @@ import (
 const pinoutsCategory = "pinouts"
 
 // PinoutGroups are the list sections of the pinout rail, in display order.
-var PinoutGroups = []string{"data", "audio", "pc_power", "boards", "debug", "ics"}
+var PinoutGroups = []string{"data", "audio", "pc_power", "boards", "debug", "ics", "vehicle_mains"}
 
 // PinoutOutlines are the outlines of a "rows" shape (sorted); the page draws every one of them.
 var PinoutOutlines = []string{

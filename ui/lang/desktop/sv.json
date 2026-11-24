@@ -1464,6 +1464,7 @@
   "desktop.ecalc_group_ics": "Kretsar",
   "desktop.ecalc_group_materials": "Material",
   "desktop.ecalc_group_pc_power": "Datorström och fläktar",
+  "desktop.ecalc_group_vehicle_mains": "Fordon och elnät",
   "desktop.ecalc_guide_values": "Riktvärden. Gällande standard är avgörande.",
   "desktop.ecalc_inputs": "Indata",
   "desktop.ecalc_load_failed": "ECalc-katalogen kunde inte läsas in.",

@@ -1464,6 +1464,7 @@
   "desktop.ecalc_group_ics": "Kretser",
   "desktop.ecalc_group_materials": "Materialer",
   "desktop.ecalc_group_pc_power": "PC-strøm og vifter",
+  "desktop.ecalc_group_vehicle_mains": "Kjøretøy og strømnett",
   "desktop.ecalc_guide_values": "Veiledende verdier. Gjeldende standard er avgjørende.",
   "desktop.ecalc_inputs": "Inndata",
   "desktop.ecalc_load_failed": "ECalc-katalogen kunne ikke lastes.",

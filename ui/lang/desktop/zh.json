@@ -1464,6 +1464,7 @@
   "desktop.ecalc_group_ics": "集成电路",
   "desktop.ecalc_group_materials": "材料",
   "desktop.ecalc_group_pc_power": "电脑电源与风扇",
+  "desktop.ecalc_group_vehicle_mains": "车辆与市电",
   "desktop.ecalc_guide_values": "以下为参考值，以现行标准为准。",
   "desktop.ecalc_inputs": "输入",
   "desktop.ecalc_load_failed": "无法加载 ECalc 目录。",

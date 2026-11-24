@@ -1464,6 +1464,7 @@
   "desktop.ecalc_group_ics": "IC'er",
   "desktop.ecalc_group_materials": "Materialer",
   "desktop.ecalc_group_pc_power": "Pc-strøm og blæsere",
+  "desktop.ecalc_group_vehicle_mains": "Køretøj og net",
   "desktop.ecalc_guide_values": "Vejledende værdier. Den gældende standard er afgørende.",
   "desktop.ecalc_inputs": "Inputværdier",
   "desktop.ecalc_load_failed": "ECalc-kataloget kunne ikke indlæses.",
