@@ -226,16 +226,8 @@ func handleVideoStudioPlanAgent(s *Server, w http.ResponseWriter, r *http.Reques
 		writeVideoStudioErrorFields(w, http.StatusConflict, "plan_unsupported_provider", "The configured video generation cannot be used in plan mode.", map[string]any{"reason": profile.Reason})
 		return
 	}
-	undo, ok := videoStudioPlanAgentPrepare(w, r, s, svc, manager, cfg, &req, profile, body.Replace)
+	status, ok := videoStudioPlanAgentPrepare(w, r, s, svc, manager, cfg, &req, profile, body.Replace)
 	if !ok {
-		return
-	}
-	status, err := s.videoStudioPlanAgents().Start(req)
-	if err != nil {
-		if undo != nil {
-			undo()
-		}
-		writeVideoStudioPlanAgentStartError(w, err)
 		return
 	}
 	writeVideoStudioJSON(w, http.StatusAccepted, map[string]any{"agent": status})
@@ -300,20 +292,37 @@ func videoStudioPlanLanguage(raw string) (string, bool) {
 }
 
 // videoStudioPlanAgentPrepare runs the plan checks of a start under the project lock: no job may run, a create stores
-// its new plan (and returns how to undo that), a revise needs the plan and its scene. On a refusal it has answered.
-// Start is called after the lock is released.
-func videoStudioPlanAgentPrepare(w http.ResponseWriter, r *http.Request, s *Server, svc *desktop.Service, manager *videoStudioManager, cfg *config.Config, req *videoStudioPlanAgentRequest, profile storyplan.Profile, replace bool) (func(), bool) {
+// its new plan, a revise needs the plan and its scene. It then starts the job still under the lock, so two starts
+// cannot both pass the checks, and a refused start of a create is undone under the same lock. Lock order: project lock,
+// then the agents mutex (Start never waits for a project lock; the job takes it later). On a refusal it has answered.
+func videoStudioPlanAgentPrepare(w http.ResponseWriter, r *http.Request, s *Server, svc *desktop.Service, manager *videoStudioManager, cfg *config.Config, req *videoStudioPlanAgentRequest, profile storyplan.Profile, replace bool) (videoStudioPlanAgentStatus, bool) {
 	lock := manager.projectLock(req.ProjectID)
 	lock.Lock()
 	defer lock.Unlock()
 	if s.videoStudioPlanAgents().Running(req.ProjectID) {
 		writeVideoStudioError(w, http.StatusConflict, "plan_agent_running", "The planning agent is already working on this project.")
-		return nil, false
+		return videoStudioPlanAgentStatus{}, false
 	}
+	var undo func()
 	if req.Mode == agent.VideoStudioPlanModeRevise {
-		return nil, videoStudioPlanAgentCheckRevise(w, r, svc, req)
+		if !videoStudioPlanAgentCheckRevise(w, r, svc, req) {
+			return videoStudioPlanAgentStatus{}, false
+		}
+	} else {
+		var ok bool
+		if undo, ok = videoStudioPlanAgentCreatePlan(w, r, svc, manager, cfg, *req, profile, replace); !ok {
+			return videoStudioPlanAgentStatus{}, false
+		}
 	}
-	return videoStudioPlanAgentCreatePlan(w, r, svc, manager, cfg, *req, profile, replace)
+	status, err := s.videoStudioPlanAgents().Start(*req)
+	if err != nil {
+		if undo != nil {
+			undo()
+		}
+		writeVideoStudioPlanAgentStartError(w, err)
+		return videoStudioPlanAgentStatus{}, false
+	}
+	return status, true
 }
 
 // videoStudioPlanAgentCheckRevise checks that the plan and the scene of a revise job exist, and copies the plan's
@@ -336,7 +345,7 @@ func videoStudioPlanAgentCheckRevise(w http.ResponseWriter, r *http.Request, svc
 
 // videoStudioPlanAgentCreatePlan stores the empty plan of a create job with the current profile. An existing (or
 // damaged) plan is replaced only with replace. It returns how to put the previous file back when the job does not
-// start. The caller holds the project lock; on a refusal it has answered.
+// start. The caller holds the project lock (the undo runs under it too); on a refusal it has answered.
 func videoStudioPlanAgentCreatePlan(w http.ResponseWriter, r *http.Request, svc *desktop.Service, manager *videoStudioManager, cfg *config.Config, req videoStudioPlanAgentRequest, profile storyplan.Profile, replace bool) (func(), bool) {
 	_, previous, version, err := readVideoStudioPlan(r.Context(), svc, req.ProjectID)
 	expect := ""
@@ -361,10 +370,7 @@ func videoStudioPlanAgentCreatePlan(w http.ResponseWriter, r *http.Request, svc 
 		writeVideoStudioPlanWriteError(w, r, err)
 		return nil, false
 	}
-	undo := func() {
-		lock := manager.projectLock(req.ProjectID)
-		lock.Lock()
-		defer lock.Unlock()
+	undo := func() { // the caller still holds the project lock
 		_ = restoreVideoStudioPlan(r.Context(), svc, req.ProjectID, previous, written)
 	}
 	return undo, true
