@@ -10,6 +10,8 @@
   --hd-body-h: calc(100cqh - 2 * var(--hd-pad-b) - 2px - var(--hd-head-h) - var(--hd-state-h) - 2 * var(--hd-gap-in));
 }
 .hd-widget .hd-head { grid-area: head; }
+.hd-widget .hd-head > .hd-icon { display: inline-grid; place-items: center; flex: none; inline-size: var(--hd-head-h); block-size: var(--hd-head-h); } /* the badge is as high as the head row; families paint its disc */
+.hd-widget .hd-head > .hd-icon .hd-ico { inline-size: 14px; block-size: 14px; }
 .hd-widget .hd-head > :is(.hd-icon, .hd-sub):empty { display: none; } /* empty head spans take no flex gap: the title starts at the padding edge */
 .hd-widget .hd-title { font: var(--hd-label-weight) var(--hd-label-size) / var(--hd-head-h) var(--hd-font-label); letter-spacing: var(--hd-label-tracking); color: var(--hd-ink-muted); }
 .hd-widget .hd-body { grid-area: body; display: grid; place-items: center; }
@@ -49,6 +51,10 @@
   .hd-widget[data-hd-type="climate"] :is(.hd-seg, .hd-climate-steps) { display: none; }
   .hd-widget[data-hd-type="climate"] .hd-climate-dialbox { block-size: var(--hd-th-d); }
   .hd-widget[data-hd-type="climate"] .hd-dial-action { display: none; } } /* 2x2: the stack is target + current only, centred on the ring */
+.hd-widget[data-hd-type="climate"] .hd-dial-action { font: var(--hd-label-weight) var(--hd-label-size) / 1.2 var(--hd-font-label); letter-spacing: var(--hd-label-tracking); }
+/* The current temperature is 0.32 of the target numeral, which is 8px at 2x2 (D 107): floor it at 11px, the smallest size the label scale allows. */
+.hd-widget[data-hd-type="climate"] .hd-dial-sub { display: inline-flex; align-items: center; gap: 2px; font-size: max(11px, calc(var(--hd-th-d) * var(--hd-thermo-num-k) * 0.32)); }
+.hd-widget[data-hd-type="climate"] .hd-dial-sub .hd-ico { inline-size: 1.25em; block-size: 1.25em; }
 .hd-climate-dialbox { position: relative; inline-size: var(--hd-th-d); block-size: calc(var(--hd-th-d) * 0.866 + 48px); }
 .hd-climate-dialbox .hd-dial { inline-size: 100%; }
 .hd-climate-steps .hd-push { position: absolute; inline-size: 44px; block-size: 44px; translate: -50% -50%; inset-block-start: calc(var(--hd-th-d) * 0.866 + 26px); }

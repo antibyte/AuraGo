@@ -20,6 +20,14 @@ export const tests = [
     for (const f of ['ui/testdata/homedash-lab.js', 'ui/testdata/homedash-lab-probes.js']) { const t = read(f); assert.deepEqual(lintJs(t, f), []); new vm.Script(t, { filename: f }); } }],
   ['probe colour maths', () => { const ctx = { window: {}, Math, JSON }; vm.createContext(ctx); vm.runInContext(read('ui/testdata/homedash-lab-probes.js'), ctx);
     const p = ctx.window.hdLabProbes; assert.equal(p.ratio([0, 0, 0, 1], [255, 255, 255, 1]).toFixed(2), '21.00'); assert.deepEqual([...p.over([255, 255, 255, 0.5], [0, 0, 0, 1])], [127.5, 127.5, 127.5, 1]); }],
+  ['probe gradient backgrounds: stops composite over the colour, the worst value counts, url() stays unmeasured', () => { const ctx = { window: {}, Math, JSON }; vm.createContext(ctx); vm.runInContext(read('ui/testdata/homedash-lab-probes.js'), ctx);
+    const p = ctx.window.hdLabProbes, layers = p.gradientLayers('linear-gradient(rgba(255, 255, 255, 0.5), rgba(0, 0, 0, 0) 46%), linear-gradient(180deg, rgb(0, 0, 0), rgb(10, 10, 10) 50%)');
+    assert.equal(layers.length, 2); assert.deepEqual([...layers.map(l => l.length)], [2, 2]); assert.deepEqual([...layers[0][0]], [255, 255, 255, 0.5]);
+    assert.equal(p.gradientLayers('linear-gradient(rgb(1, 1, 1), rgb(2, 2, 2)), url(x.png)'), null); assert.equal(p.gradientLayers('url("x.png")'), null); assert.equal(p.gradientLayers('linear-gradient(rgb(1, 1, 1), rgb(2, 2, 2)), none').length, 1); assert.equal(p.gradientLayers('radial-gradient(circle at 15% 0%, rgba(1, 2, 3, 0.1), transparent)')[0].length, 2);
+    const bgs = [...p.composites([layers[0], [[0, 0, 0, 1]]]).map(c => Math.round(c[0]))].sort((a, b) => a - b); assert.deepEqual(bgs, [0, 128]); // white stop at 50 % over black, and the transparent stop
+    const grey = [[0, 0, 0, 0.5]]; assert.equal(p.composites([grey, [[255, 255, 255, 1]]]).length, 1);
+    const dark = [0, 0, 0, 1]; assert.equal(p.worst(dark, [[255, 255, 255, 1], [128, 128, 128, 1]]).toFixed(2), '5.32'); // the grey composite is the worst case
+    assert.ok(p.worst([255, 255, 255, 1], p.composites([layers[0], [[0, 0, 0, 1]]])) < 21); }],
   ['applyState prefers a fixture scenario and rejects bad input', async () => {
     const view = pending => ({ id: 'lab:x', kind: 'switch', name: 'Lamp', value: 'on', available: true, status: 'ok', readonly: false, capabilities: ['toggle'], pending, stale: false, tone: null });
     const { hdLab, doc } = await bootLab('?types=entity&states=off,on&palette=dark', lab => lab.fixtures.define('entity', '*', { scenarios: { pending: { from: view(false), to: view(true) }, typo: { from: 'on', to: 'pendng' } } }));

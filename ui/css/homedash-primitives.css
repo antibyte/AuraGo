@@ -29,6 +29,15 @@
 .hd-rocker-paddle { position: relative; display: grid; grid-template-rows: 1fr 1fr; block-size: 100%; transform-style: preserve-3d; border-radius: var(--hd-radius-control); }
 .hd-rocker-half { position: relative; display: grid; place-items: center; }
 .hd-rocker-led { position: absolute; inset-block-start: 4%; inset-inline-end: 4%; inline-size: 6px; block-size: 6px; display: none; }
+/* Push button reset: family paint adds the background, shadow and radius; the 44px hit size comes from the widget layout. */
+.hd-push { display: grid; place-items: center; box-sizing: border-box; padding: 0; border: 0; cursor: pointer; }
+/* Segmented bar (H4 mode bar): equal option grid, 44px high, at most 260px wide; the indicator is one option wide and slides by its index. */
+.hd-seg { position: relative; display: grid; grid-template-columns: repeat(var(--hd-count), minmax(0, 1fr)); box-sizing: border-box; inline-size: min(100%, 260px); block-size: 44px; padding: 0; justify-self: center; }
+.hd-seg-indicator { position: absolute; inset-block: 0; inset-inline-start: 0; inline-size: calc(100% / var(--hd-count)); transform: translateX(calc(var(--hd-index) * 100%)); }
+.hd-seg:not(:has([aria-checked="true"])) .hd-seg-indicator { opacity: 0; }
+.hd-seg-opt { position: relative; z-index: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-inline-size: 0; padding: 0 4px; border: 0; background: transparent; cursor: pointer; }
+.hd-seg-opt .hd-ico { inline-size: 16px; block-size: 16px; }
+.hd-seg-label { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* H3 dial */
 .hd-dial { position: relative; box-sizing: border-box; inline-size: min(var(--hd-body-w), var(--hd-body-h)); aspect-ratio: 1; border-radius: var(--hd-radius-pill); touch-action: none; }
 .hd-dial-svg { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; overflow: visible; }
@@ -48,6 +57,7 @@
 .hd-gauge-bezel, .hd-gauge-glass { position: absolute; border-radius: var(--hd-radius-pill); } .hd-gauge-bezel { inset: 0; } .hd-gauge-glass { inset: 4%; }
 .hd-gauge-readout { position: absolute; inset-inline-start: 50%; inset-block-start: 77.4%; translate: -50% -50%; font-size: calc(min(var(--hd-body-w), calc(var(--hd-body-h) / 0.84)) * 0.11); }
 .hd-gauge[data-hd-gauge="needle"] :is(.hd-gauge-min, .hd-gauge-max) { display: none; }
+.hd-gauge[data-hd-gauge="needle"] .hd-gauge-readout { inset-block-start: 81%; } /* the needle tail reaches 74 % of the box (y 124 of 168) and the 11 % readout is 18 px high, so its top (81 % - 5.5 %) clears the tail by 2px; Tactile keeps 65 % */
 .hd-gauge-numeral { font-size: 15px; text-anchor: middle; dominant-baseline: middle; }
 .hd-gauge[data-hd-gauge="arc"] .hd-gauge-readout { inset-block-start: 58.1%; font-size: min(28cqmin, calc(min(var(--hd-body-w), calc(var(--hd-body-h) / 0.86)) * 0.25)); }
 /* H6 legends sit in the bottom gap beside the arc end caps. The caps are centred at (37.8, 162.2) and (162.2, 162.2) of the 200 x 172 box, so 162.2 / 172 = 94.3 % down.

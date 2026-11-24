@@ -58,7 +58,7 @@
                 const action = dead ? null : mode === 'off' ? 'off' : ACTIONS.includes(a.hvac_action) ? a.hvac_action : 'idle';
                 const actionWord = dead ? '' : action === 'off' ? t('homedash.climate.mode_off') : t('homedash.climate.' + (action === 'heating' ? 'heating_to' : action === 'cooling' ? 'cooling_to' : 'idle'));
                 const next = rangeOf(e), common = { status: e ? e.status : 'unavailable', pending: !!(e && e.pending), readonly: !!(e && e.readonly) };
-                const disabledTemp = !e || !api.can('primary', 'set_temperature');
+                const disabledTemp = !e || (!e.readonly && !api.can('primary', 'set_temperature')); // read-only: full strength, the lock badge and aria-disabled tell
                 if (next.min !== range.min || next.max !== range.max) {
                     // The entity reports another range than the knob was built with: rebuild it in place, first child of the dialbox.
                     knob.destroy(); range = next; knob = makeKnob(range.min, range.max); box.insertBefore(knob.el, box.firstChild);
@@ -69,7 +69,7 @@
                     action: actionWord, sub: Number.isFinite(current) ? current : null, disabled: disabledTemp,
                     valueText: Number.isFinite(target) ? t('homedash.climate.valuetext', { value: F.valueText(target, { decimals: 1, lang: api.lang, unit: DEG_C }), action: actionWord }) : F.DASH }, common));
                 for (const b of [lower, raise]) b.set(Object.assign({ disabled: disabledTemp || mode === 'off' }, common));
-                seg.set(Object.assign({ value: mode, disabled: !e || !api.can('primary', 'set_hvac_mode') }, common));
+                seg.set(Object.assign({ value: mode, disabled: !e || (!e.readonly && !api.can('primary', 'set_hvac_mode')) }, common));
                 if (lamp) lamp.set({ on: action === 'heating' || action === 'cooling', text: actionWord, status: common.status });
                 api.setStatus(statusText(api, e, mode ? modeLabels[mode] : e && e.value ? String(e.value) : ''));
             },

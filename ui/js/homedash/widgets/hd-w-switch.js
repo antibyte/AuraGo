@@ -25,7 +25,7 @@
             update(view) {
                 const e = view.entities.primary, on = !!e && F.isOn(e) === true;
                 api.setTone(e && e.tone ? e.tone : null);
-                prim.set({ on, status: e ? e.status : 'unavailable', pending: !!(e && e.pending), readonly: !!(e && e.readonly), disabled: !e || !api.can('primary', 'toggle') });
+                prim.set({ on, status: e ? e.status : 'unavailable', pending: !!(e && e.pending), readonly: !!(e && e.readonly), disabled: !e || (!e.readonly && !api.can('primary', 'toggle')) }); // a read-only entity is shown at full strength (lock badge), not dimmed like a disabled one
                 if (lastOn !== null && lastOn !== on) setAttr(node, 'data-hd-tick', node.getAttribute('data-hd-tick') === 'a' ? 'b' : 'a');
                 lastOn = on;
                 api.setStatus(statusText(api, e, api.t(on ? 'homedash.state.on' : 'homedash.state.off')));

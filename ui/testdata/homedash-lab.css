@@ -7,7 +7,7 @@
 .hd-lab-rowhead { flex: 0 0 136px; font-size: 12px; color: var(--hd-ink-muted); overflow-wrap: anywhere; }
 .hd-lab-cells { display: flex; flex: 1; flex-wrap: wrap; gap: 8px; }
 .hd-lab-cells[data-hd-lab-columns] { display: grid; grid-template-columns: repeat(var(--hd-lab-columns), max-content); }
-.hd-lab-cell { display: flex; flex-direction: column; gap: 4px; min-width: 64px; padding: 6px; border-radius: 8px; background: var(--hd-surface-solid); }
+.hd-lab-cell { display: flex; flex-direction: column; gap: 4px; min-width: 64px; padding: 6px; border-radius: 8px; }
 .hd-lab-statecap { font-size: 11px; color: var(--hd-ink-muted); }
 .hd-lab-stage { display: flex; align-items: center; justify-content: center; min-height: 52px; }
 .hd-lab-stage > .hd-widget { width: var(--hd-lab-w); height: var(--hd-lab-h); }
