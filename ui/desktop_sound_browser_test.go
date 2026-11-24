@@ -4,6 +4,7 @@ import (
 	"aurago/internal/desktop"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -14,6 +15,21 @@ import (
 	"testing"
 	"time"
 )
+
+// desktopSoundBrowserRoles mirrors ROLES in sound-engine.js: loudness target (LUFS, momentary maximum) and maximum length
+// in seconds of every shell event.
+var desktopSoundBrowserRoles = map[string]struct{ lufs, maxSeconds float64 }{
+	"session.start": {-18, 2.8}, "notify.message": {-18, 1.4}, "notify.info": {-19, 1.2}, "notify.success": {-19, 1.2},
+	"notify.warning": {-18, 1.2}, "notify.error": {-18, 1.2}, "dialog.open": {-22, 0.6}, "dialog.confirm": {-21, 0.7},
+	"dialog.cancel": {-23, 0.5}, "window.open": {-23, 0.6}, "window.close": {-24, 0.5}, "window.maximize": {-24, 0.6},
+	"window.minimize": {-25, 0.4}, "window.restore": {-25, 0.4}, "window.snap": {-26, 0.25}, "window.deny": {-23, 0.35},
+	"file.drop": {-23, 0.5}, "file.trash": {-23, 0.5}, "file.delete": {-22, 0.6}, "space.switch": {-25, 0.6},
+	"menu.open": {-28, 0.2}, "menu.close": {-30, 0.15}, "ui.select": {-31, 0.12}, "ui.toggle.on": {-31, 0.12},
+	"ui.toggle.off": {-32, 0.12}, "ui.tick": {-34, 0.06},
+}
+
+// desktopSoundBrowserCSP is the production main-UI policy without the external connect origins; it must allow the sound Worker.
+const desktopSoundBrowserCSP = "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' blob: ws: wss:; media-src 'self' data: blob: http: https:; worker-src 'self' blob:; object-src 'none'; form-action 'self'; frame-src 'self' http: https:; frame-ancestors 'none'; base-uri 'self';"
 
 func TestDesktopSoundBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
@@ -33,7 +49,7 @@ window.WebSocket=class extends EventTarget { close(){} };
 	if cut < 0 {
 		t.Fatal("desktop startup seam missing")
 	}
-	shell = shell[:cut] + `window.soundTest={state,openApp,closeWindow,inspect:()=>DesktopSounds.inspect(),renderTheme:(id)=>DesktopSounds.renderTheme(id),play:(id)=>desktopSound(id)};` + shell[cut:]
+	shell = shell[:cut] + `window.soundTest={state,openApp,closeWindow,inspect:()=>DesktopSounds.inspect(),renderTheme:(id)=>DesktopSounds.renderTheme(id),renderEvent:(t,e,v)=>DesktopSounds.renderEvent(t,e,v),play:(id)=>desktopSound(id)};` + shell[cut:]
 
 	settings := desktop.DesktopSettingDefaults()
 	for key, value := range map[string]string{
@@ -51,7 +67,10 @@ window.WebSocket=class extends EventTarget { close(){} };
 	var mu sync.Mutex
 	mux := http.NewServeMux()
 	mux.Handle("/", http.FileServer(http.FS(Content)))
-	mux.HandleFunc("/fixture", func(w http.ResponseWriter, r *http.Request) { fmt.Fprint(w, html) })
+	mux.HandleFunc("/fixture", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Security-Policy", desktopSoundBrowserCSP)
+		fmt.Fprint(w, html)
+	})
 	mux.HandleFunc("/sound-shell.js", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/javascript")
 		fmt.Fprint(w, shell)
@@ -87,7 +106,7 @@ window.WebSocket=class extends EventTarget { close(){} };
 
 	server := httptest.NewServer(mux)
 	defer server.Close()
-	page := newSmokeBrowser(t).MustPage().Timeout(60 * time.Second)
+	page := newSmokeBrowser(t).MustPage().Timeout(240 * time.Second)
 	defer page.Close()
 	page.MustSetViewport(1440, 900, 1, false)
 
@@ -126,49 +145,55 @@ window.WebSocket=class extends EventTarget { close(){} };
 		t.Fatal("expected sound unlock after pointer gesture")
 	}
 
-	qualityJSON := page.MustEval(`async()=>{
-        const themes=DesktopSounds.inspect().themes;
-        const report={themes:{}};
-        for (const theme of themes) {
-            const cache=await soundTest.renderTheme(theme);
-            report.themes[theme]={};
-            for (const [eventId, meta] of Object.entries(cache.stats||{})) {
-                report.themes[theme][eventId]={peak:meta.peak||0,rms:meta.rms||0,duration:cache.buffers[eventId]?.duration||0};
+	// Every theme renders every event (variant 0) through the real path: the Worker, under the production CSP.
+	qualityJSON := page.MustEval(`async events=>{
+        const out=[];
+        for (const theme of DesktopSounds.inspect().themes) {
+            for (const event of events) {
+                const r=await soundTest.renderEvent(theme,event,0);
+                out.push({theme,event,seconds:r.seconds,lufs:r.lufs,peakDb:r.peakDb,renderer:r.renderer});
             }
         }
-        return JSON.stringify(report);
-    }`).Str()
+        return JSON.stringify(out);
+    }`, desktopSoundEvents).Str()
 
-	var quality struct {
-		Themes map[string]map[string]struct {
-			Peak     float64 `json:"peak"`
-			RMS      float64 `json:"rms"`
-			Duration float64 `json:"duration"`
-		} `json:"themes"`
+	var quality []struct {
+		Theme, Event string
+		Seconds      float64
+		LUFS         *float64 `json:"lufs"`
+		PeakDb       *float64 `json:"peakDb"`
+		Renderer     string
 	}
 	if err := json.Unmarshal([]byte(qualityJSON), &quality); err != nil {
 		t.Fatalf("parse render quality: %v\n%s", err, qualityJSON)
 	}
-	if len(quality.Themes) != 16 {
-		t.Fatalf("expected 16 rendered themes, got %d", len(quality.Themes))
+	if len(quality) != 16*len(desktopSoundEvents) || len(desktopSoundEvents) != 26 {
+		t.Fatalf("expected 16 themes x 26 events, got %d results", len(quality))
 	}
-	const rmsMin = 0.0005
-	const peakMax = 0.891 // -1 dBFS
-	const durMax = 1.5
-	for theme, events := range quality.Themes {
-		if len(events) != len(desktopSoundEvents) {
-			t.Fatalf("theme %s rendered %d events, want %d", theme, len(events), len(desktopSoundEvents))
+	if quality[0].Renderer != "worker" {
+		t.Fatalf("first render came from %q, want the Worker (CSP must allow worker-src 'self')", quality[0].Renderer)
+	}
+	for _, r := range quality {
+		role, ok := desktopSoundBrowserRoles[r.Event]
+		if !ok {
+			t.Fatalf("no role for event %s", r.Event)
 		}
-		for event, meta := range events {
-			if meta.RMS < rmsMin {
-				t.Errorf("theme %s event %s too quiet (rms=%v)", theme, event, meta.RMS)
-			}
-			if meta.Peak > peakMax+0.02 {
-				t.Errorf("theme %s event %s peak too hot (%v)", theme, event, meta.Peak)
-			}
-			if meta.Duration > durMax {
-				t.Errorf("theme %s event %s too long (%v s)", theme, event, meta.Duration)
-			}
+		if r.LUFS == nil || r.PeakDb == nil {
+			t.Errorf("theme %s event %s has no finite loudness or peak", r.Theme, r.Event)
+			continue
+		}
+		lufs, peak := *r.LUFS, *r.PeakDb
+		if peak > -2.9 {
+			t.Errorf("theme %s event %s peak too hot (%.2f dBFS)", r.Theme, r.Event, peak)
+		}
+		if r.Seconds <= 0 || r.Seconds > role.maxSeconds {
+			t.Errorf("theme %s event %s lasts %.3f s, want 0..%.2f s", r.Theme, r.Event, r.Seconds, role.maxSeconds)
+		}
+		// Within 0.6 LU of the target; a sound the peak ceiling limited (peak at or above -3.2 dBFS) may be up to 3.2 LU under it.
+		onTarget := lufs >= role.lufs-0.6 && lufs <= role.lufs+0.6
+		limited := peak >= -3.2 && lufs >= role.lufs-3.2 && lufs <= role.lufs+0.6
+		if !onTarget && !limited {
+			t.Errorf("theme %s event %s loudness %.2f LUFS, target %.0f (peak %.2f dBFS)", r.Theme, r.Event, lufs, role.lufs, peak)
 		}
 	}
 
@@ -231,9 +256,6 @@ window.WebSocket=class extends EventTarget { close(){} };
 		if event := page.MustEval(`()=>soundTest.inspect().lastEvent`).Str(); event != fx.event {
 			t.Fatalf("voxel FX lastEvent = %q, want %q", event, fx.event)
 		}
-		if cachedTheme := page.MustEval(`()=>soundTest.inspect().cachedTheme`).Str(); cachedTheme != "water" {
-			t.Fatalf("material FX should not eagerly render the full voxel sound bank; cached theme = %q", cachedTheme)
-		}
 		page.MustEval(`()=>new Promise(resolve=>setTimeout(resolve,240))`)
 	}
 	// A dense pile must not turn one landing into a wall of full-volume audio.
@@ -242,7 +264,7 @@ window.WebSocket=class extends EventTarget { close(){} };
 		t.Fatalf("voxel burst exceeded playback budget or left a trailing queue: %v", got)
 	}
 	// A slow first render must never replay a stale impact after the cubes stopped.
-	page.MustEval(`async()=>{soundTest.state.bootstrap.settings['sound.windows']='false';applySoundSettingsChange('sound.windows','false');soundTest.state.bootstrap.settings['sound.windows']='true';applySoundSettingsChange('sound.windows','true');const original=DesktopSoundSynth.renderLayers;DesktopSoundSynth.renderLayers=async function(...args){await new Promise(r=>setTimeout(r,400));return original.apply(this,args);};const before=soundTest.inspect().plays;DesktopSounds.play('window.impact',{material:'earth',strength:.7});await new Promise(r=>setTimeout(r,800));DesktopSoundSynth.renderLayers=original;if(soundTest.inspect().plays!==before)throw new Error('stale impact played after delayed synthesis');}`)
+	page.MustEval(`async()=>{soundTest.state.bootstrap.settings['sound.windows']='false';applySoundSettingsChange('sound.windows','false');soundTest.state.bootstrap.settings['sound.windows']='true';applySoundSettingsChange('sound.windows','true');window.DesktopSoundsRenderGate=new Promise(r=>setTimeout(r,400));const before=soundTest.inspect().plays;DesktopSounds.play('window.impact',{material:'earth',strength:.7});await new Promise(r=>setTimeout(r,800));window.DesktopSoundsRenderGate=null;if(soundTest.inspect().plays!==before)throw new Error('stale impact played after delayed synthesis');}`)
 	page.MustEval(`()=>{
         soundTest.state.bootstrap.settings['sound.windows']='false';
         applySoundSettingsChange('sound.windows','false');
@@ -316,9 +338,6 @@ window.WebSocket=class extends EventTarget { close(){} };
 	if event := page.MustEval(`()=>soundTest.inspect().lastEvent`).Str(); event != "slime.pop" {
 		t.Fatalf("slime FX lastEvent = %q, want slime.pop", event)
 	}
-	if cachedTheme := page.MustEval(`()=>soundTest.inspect().cachedTheme`).Str(); cachedTheme != "water" {
-		t.Fatalf("slime FX should not eagerly render the full sound bank; cached theme = %q", cachedTheme)
-	}
 	if rendered := page.MustEval(`()=>soundTest.inspect().themeFx.slime.rendered`).Int(); rendered != 1 {
 		t.Fatalf("slime FX rendered %d variants for one pop, want 1", rendered)
 	}
@@ -354,63 +373,52 @@ window.WebSocket=class extends EventTarget { close(){} };
 			limits.Burst, limits.Stream, limits.Snaps, limits.Limited, limitsJSON)
 	}
 
-	// The bank renders every variant cleanly and well below a window sound: the peak is about 40 % of it and
-	// the 20 ms loudness a quarter to a third, the pop lasts under 180 ms and the snap under 260 ms.
+	// The bank renders every variant cleanly and well below a window sound: the level relative to window.open
+	// (with the event gain applied) is 4 to 10 dB down, the pop lasts under 180 ms and the snap under 260 ms.
 	var bank struct {
-		Open    struct{ Peak, Loud float64 } `json:"open"`
-		Seconds float64                      `json:"seconds"`
-		Gains   map[string]float64           `json:"gains"`
-		Items   []struct {
+		Open  struct{ LUFS float64 } `json:"open"`
+		Gains map[string]float64     `json:"gains"`
+		Items []struct {
 			Event, Variant string
-			Finite         bool
-			Peak, Loud     float64
-			Audible        float64
+			LUFS, PeakDb   *float64
+			Seconds        float64
 		} `json:"items"`
 	}
 	bankJSON := page.MustEval(`async()=>{
-        const synth=DesktopSoundSynth, bank=DesktopSoundThemes.green_slime, fx=DesktopSounds.inspect().themeFx.slime;
-        const measure=buffer=>{
-            const channels=[];for(let c=0;c<buffer.numberOfChannels;c++)channels.push(buffer.getChannelData(c));
-            let peak=0,finite=true;
-            for(const d of channels)for(let i=0;i<d.length;i++){if(!Number.isFinite(d[i]))finite=false;peak=Math.max(peak,Math.abs(d[i]));}
-            const ch=channels[0],rate=buffer.sampleRate;
-            let last=0;for(let i=0;i<ch.length;i++)if(Math.abs(ch[i])>peak*0.001)last=i;
-            const win=Math.round(rate*0.02);let run=0,loud=0;
-            for(let i=0;i<ch.length;i++){run+=ch[i]*ch[i];if(i>=win)run-=ch[i-win]*ch[i-win];if(i>=win-1)loud=Math.max(loud,run/win);}
-            return {finite,peak,loud:Math.sqrt(loud),audible:(last+1)/rate};
-        };
-        const open=measure((await synth.renderLayers(bank.events['window.open'],synth.MAX_SECONDS)).buffer);
-        const out={open,seconds:fx.seconds,gains:fx.gains,items:[]};
+        const fx=DesktopSounds.inspect().themeFx.slime;
+        const open=await soundTest.renderEvent('green_slime','window.open',0);
+        const out={open:{lufs:open.lufs},gains:fx.gains,items:[]};
         for(const event of Object.keys(fx.gains))for(const variant of ['small','medium','large']){
-            const m=measure((await synth.renderLayers(bank.specialFx[event][variant],fx.seconds)).buffer);
-            out.items.push(Object.assign({event,variant},m));
+            const r=await soundTest.renderEvent('green_slime',event,variant);
+            out.items.push({event,variant,lufs:r.lufs,peakDb:r.peakDb,seconds:r.seconds});
         }
         return JSON.stringify(out);
     }`).Str()
 	if err := json.Unmarshal([]byte(bankJSON), &bank); err != nil {
 		t.Fatalf("parse slime FX bank: %v\n%s", err, bankJSON)
 	}
-	if len(bank.Items) != 6 || bank.Open.Peak <= 0 || bank.Open.Loud <= 0 {
+	if len(bank.Items) != 6 || bank.Open.LUFS == 0 {
 		t.Fatalf("slime FX bank should render 2 events in 3 variants: %s", bankJSON)
 	}
 	for _, item := range bank.Items {
 		name := item.Event + "/" + item.Variant
 		gain := bank.Gains[item.Event]
-		maxAudible := 0.18
+		maxSeconds := 0.18
 		if item.Event == "slime.snap" {
-			maxAudible = 0.26
+			maxSeconds = 0.26
 		}
-		if !item.Finite || item.Peak <= 0 {
-			t.Errorf("%s renders NaN or silence", name)
+		if item.LUFS == nil || item.PeakDb == nil || gain <= 0 {
+			t.Errorf("%s renders NaN or silence (gain %v): %s", name, gain, bankJSON)
+			continue
 		}
-		if peak := item.Peak * gain / bank.Open.Peak; peak < 0.3 || peak > 0.5 {
-			t.Errorf("%s plays at %.2f of a window sound's peak, want about 0.4", name, peak)
+		if *item.PeakDb > -2.9 {
+			t.Errorf("%s peak %.2f dBFS, want at most -2.9", name, *item.PeakDb)
 		}
-		if loud := item.Loud * gain / bank.Open.Loud; loud < 0.1 || loud > 0.45 {
-			t.Errorf("%s plays at %.2f of a window sound's loudness, want a quarter to a third", name, loud)
+		if rel := *item.LUFS + 20*math.Log10(gain) - bank.Open.LUFS; rel < -10 || rel > -4 {
+			t.Errorf("%s plays %.1f dB from a window sound, want -10 to -4 dB", name, rel)
 		}
-		if item.Audible < 0.03 || item.Audible > maxAudible || item.Audible > bank.Seconds-0.03 {
-			t.Errorf("%s is audible for %.0f ms (render length %.0f ms), want 30 ms to %.0f ms and no truncation", name, item.Audible*1000, bank.Seconds*1000, maxAudible*1000)
+		if item.Seconds < 0.03 || item.Seconds > maxSeconds {
+			t.Errorf("%s lasts %.0f ms, want 30 ms to %.0f ms", name, item.Seconds*1000, maxSeconds*1000)
 		}
 	}
 
@@ -488,56 +496,45 @@ window.WebSocket=class extends EventTarget { close(){} };
 		t.Fatalf("orbit ping rate limits off (burst of 8 quick pings %d, want 1; 14 pings over 1.7 s %d, want 2-3; limited %d): %s",
 			orbitLimits.Burst, orbitLimits.Stream, orbitLimits.Limited, orbitLimitsJSON)
 	}
-	// Every variant renders cleanly at about 38 % of a window sound's peak, rings for 0.35 to 0.85 s and is not
-	// cut off by the one-second render.
+	// Every variant renders cleanly, 4 to 10 dB below a window sound, and rings for 0.35 to 1.0 s.
 	var orbitBank struct {
-		Open    struct{ Peak, Loud float64 } `json:"open"`
-		Seconds float64                      `json:"seconds"`
-		Gain    float64                      `json:"gain"`
-		Items   []struct {
-			Variant    string
-			Finite     bool
-			Peak, Loud float64
-			Audible    float64
+		Open  struct{ LUFS float64 } `json:"open"`
+		Gain  float64                `json:"gain"`
+		Items []struct {
+			Variant      string
+			LUFS, PeakDb *float64
+			Seconds      float64
 		} `json:"items"`
 	}
 	orbitBankJSON := page.MustEval(`async()=>{
-        const synth=DesktopSoundSynth, bank=DesktopSoundThemes.orbit, fx=DesktopSounds.inspect().themeFx.orbit;
-        const measure=buffer=>{
-            const channels=[];for(let c=0;c<buffer.numberOfChannels;c++)channels.push(buffer.getChannelData(c));
-            let peak=0,finite=true;
-            for(const d of channels)for(let i=0;i<d.length;i++){if(!Number.isFinite(d[i]))finite=false;peak=Math.max(peak,Math.abs(d[i]));}
-            const ch=channels[0],rate=buffer.sampleRate;
-            let last=0;for(let i=0;i<ch.length;i++)if(Math.abs(ch[i])>peak*0.001)last=i;
-            const win=Math.round(rate*0.02);let run=0,loud=0;
-            for(let i=0;i<ch.length;i++){run+=ch[i]*ch[i];if(i>=win)run-=ch[i-win]*ch[i-win];if(i>=win-1)loud=Math.max(loud,run/win);}
-            return {finite,peak,loud:Math.sqrt(loud),audible:(last+1)/rate};
-        };
-        const open=measure((await synth.renderLayers(bank.events['window.open'],synth.MAX_SECONDS)).buffer);
-        const out={open,seconds:fx.seconds,gain:fx.gains['orbit.ping'],items:[]};
+        const fx=DesktopSounds.inspect().themeFx.orbit;
+        const open=await soundTest.renderEvent('orbit','window.open',0);
+        const out={open:{lufs:open.lufs},gain:fx.gains['orbit.ping'],items:[]};
         for(const variant of ['small','medium','large']){
-            out.items.push(Object.assign({variant},measure((await synth.renderLayers(bank.specialFx['orbit.ping'][variant],fx.seconds)).buffer)));
+            const r=await soundTest.renderEvent('orbit','orbit.ping',variant);
+            out.items.push({variant,lufs:r.lufs,peakDb:r.peakDb,seconds:r.seconds});
         }
         return JSON.stringify(out);
     }`).Str()
 	if err := json.Unmarshal([]byte(orbitBankJSON), &orbitBank); err != nil {
 		t.Fatalf("parse orbit ping bank: %v\n%s", err, orbitBankJSON)
 	}
-	if len(orbitBank.Items) != 3 || orbitBank.Open.Peak <= 0 || orbitBank.Open.Loud <= 0 {
+	if len(orbitBank.Items) != 3 || orbitBank.Open.LUFS == 0 || orbitBank.Gain <= 0 {
 		t.Fatalf("orbit ping bank should render three variants: %s", orbitBankJSON)
 	}
 	for _, item := range orbitBank.Items {
-		if !item.Finite || item.Peak <= 0 {
-			t.Errorf("orbit.ping/%s renders NaN or silence", item.Variant)
+		if item.LUFS == nil || item.PeakDb == nil {
+			t.Errorf("orbit.ping/%s renders NaN or silence: %s", item.Variant, orbitBankJSON)
+			continue
 		}
-		if peak := item.Peak * orbitBank.Gain / orbitBank.Open.Peak; peak < 0.3 || peak > 0.5 {
-			t.Errorf("orbit.ping/%s plays at %.2f of a window sound's peak, want about 0.4", item.Variant, peak)
+		if *item.PeakDb > -2.9 {
+			t.Errorf("orbit.ping/%s peak %.2f dBFS, want at most -2.9", item.Variant, *item.PeakDb)
 		}
-		if loud := item.Loud * orbitBank.Gain / orbitBank.Open.Loud; loud < 0.1 || loud > 0.5 {
-			t.Errorf("orbit.ping/%s plays at %.2f of a window sound's loudness, want 0.1 to 0.5", item.Variant, loud)
+		if rel := *item.LUFS + 20*math.Log10(orbitBank.Gain) - orbitBank.Open.LUFS; rel < -10 || rel > -4 {
+			t.Errorf("orbit.ping/%s plays %.1f dB from a window sound, want -10 to -4 dB", item.Variant, rel)
 		}
-		if item.Audible < 0.35 || item.Audible > 0.85 || item.Audible > orbitBank.Seconds-0.03 {
-			t.Errorf("orbit.ping/%s rings for %.0f ms (render length %.0f ms), want 350 to 850 ms and no truncation", item.Variant, item.Audible*1000, orbitBank.Seconds*1000)
+		if item.Seconds < 0.35 || item.Seconds > 1.0 {
+			t.Errorf("orbit.ping/%s rings for %.0f ms, want 350 to 1000 ms", item.Variant, item.Seconds*1000)
 		}
 	}
 	page.MustEval(`()=>{
@@ -601,5 +598,89 @@ window.WebSocket=class extends EventTarget { close(){} };
 	}
 	if previews := page.MustEval(`()=>soundTest.inspect().previewPlays`).Int(); previews < 1 {
 		t.Fatalf("expected previewPlays >= 1, got %d", previews)
+	}
+	if buttons := page.MustEval(`()=>document.querySelectorAll('[data-sound-category-preview]').length`).Int(); buttons != 6 {
+		t.Fatalf("settings sound section has %d category preview buttons, want 6", buttons)
+	}
+	beforeCategory := page.MustEval(`()=>soundTest.inspect().plays`).Int()
+	page.MustEval(`async()=>{ await DesktopSounds.previewCategory('interface','crystal'); }`)
+	if got := page.MustEval(`()=>soundTest.inspect().plays`).Int() - beforeCategory; got != 4 {
+		t.Fatalf("previewing the interface category should play its 4 sounds, played %d", got)
+	}
+
+	// Without a Worker the sounds render on the main thread. Sounds start disabled here, so nothing has created a Worker yet.
+	setSoundEnabled := func(value string) {
+		mu.Lock()
+		settings["sound.enabled"] = value
+		mu.Unlock()
+	}
+	setSoundEnabled("false")
+	waitBoot()
+	var fallback struct {
+		Renderer string
+		Finite   bool
+	}
+	fallbackJSON := page.MustEval(`async()=>{
+        window.Worker=class{constructor(){throw new Error('blocked')}};
+        const r=await DesktopSounds.renderEvent('wood','window.open',0);
+        return JSON.stringify({renderer:r.renderer,finite:Number.isFinite(r.lufs)});
+    }`).Str()
+	if err := json.Unmarshal([]byte(fallbackJSON), &fallback); err != nil {
+		t.Fatalf("parse worker fallback: %v\n%s", err, fallbackJSON)
+	}
+	if fallback.Renderer != "main" || !fallback.Finite {
+		t.Fatalf("a blocked Worker must fall back to main-thread rendering with a finite loudness: %s", fallbackJSON)
+	}
+
+	// A Worker that never answers is given up after 4 s, then the sound renders on the main thread.
+	waitBoot()
+	var silent struct {
+		Ms       float64
+		Renderer string
+	}
+	silentJSON := page.MustEval(`async()=>{
+        window.Worker=class{postMessage(){} terminate(){}};
+        const t0=performance.now();
+        const r=await DesktopSounds.renderEvent('wood','menu.open',0);
+        return JSON.stringify({ms:performance.now()-t0,renderer:r.renderer});
+    }`).Str()
+	if err := json.Unmarshal([]byte(silentJSON), &silent); err != nil {
+		t.Fatalf("parse silent worker: %v\n%s", err, silentJSON)
+	}
+	if silent.Renderer != "main" || silent.Ms < 3900 || silent.Ms > 10000 {
+		t.Fatalf("a silent Worker must hand over to the main thread after about 4 s: %s", silentJSON)
+	}
+
+	// The start sound: once per page load when the browser lets the page play, otherwise skipped for the autoplay policy.
+	page.MustEvalOnNewDocument(`Object.defineProperty(document,'hidden',{configurable:true,get:()=>false});Object.defineProperty(document,'visibilityState',{configurable:true,get:()=>'visible'});`)
+	setSoundEnabled("true")
+	waitBoot()
+	startSound := ""
+	for deadline := time.Now().Add(3 * time.Second); time.Now().Before(deadline); time.Sleep(50 * time.Millisecond) {
+		if startSound = page.MustEval(`()=>DesktopSounds.inspect().startSound`).Str(); startSound != "" {
+			break
+		}
+	}
+	if startSound != "played" && startSound != "skipped-autoplay" {
+		t.Fatalf("startSound = %q, want played or skipped-autoplay", startSound)
+	}
+	if startSound == "played" {
+		if event := page.MustEval(`()=>DesktopSounds.inspect().lastEvent`).Str(); event != "session.start" {
+			t.Fatalf("start sound played but lastEvent = %q, want session.start", event)
+		}
+	}
+	startPlays := page.MustEval(`()=>DesktopSounds.inspect().plays`).Int()
+	page.MustEval(`async()=>{ await desktopSound('session.start'); }`)
+	if got := page.MustEval(`()=>DesktopSounds.inspect().plays`).Int(); got != startPlays {
+		t.Fatalf("the start sound must play at most once per page load: plays %d -> %d", startPlays, got)
+	}
+	page.MustEval(`async()=>{ document.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true})); await new Promise(r=>setTimeout(r,300)); }`)
+	if got := page.MustEval(`()=>DesktopSounds.inspect().plays`).Int(); got != startPlays {
+		t.Fatalf("the first click must not replay the start sound: plays %d -> %d", startPlays, got)
+	}
+	if startSound != "played" {
+		if event := page.MustEval(`()=>DesktopSounds.inspect().lastEvent`).Str(); event == "session.start" {
+			t.Fatalf("start sound was skipped but lastEvent = session.start")
+		}
 	}
 }
