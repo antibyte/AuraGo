@@ -47330,6 +47330,1409 @@
     },
     {
       "kind": "pinout",
+      "id": "sn74hc00",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "SN74HC00 (DIP-14)",
+      "name_en": "SN74HC00 (DIP-14)",
+      "doc": "Quad 2-input NAND gate, drawn as the 14-pin PDIP from above.",
+      "notes": "Gates 1 and 2 run A, B, Y by rising pin number (pins 1 to 6). Gates 3 and 4 are the other way round: the output has the lowest number, 3Y is pin 8 (3A 9, 3B 10) and 4Y is pin 11 (4A 12, 4B 13).",
+      "tags": [
+        "sn74hc00",
+        "74hc00",
+        "hc00",
+        "7400",
+        "nand",
+        "gate",
+        "gatter",
+        "logic",
+        "logik",
+        "dip14",
+        "dip-14"
+      ],
+      "source": "Texas Instruments SN54HC00, SN74HC00 datasheet SCLS181H (August 2021), section 5, pin figure and Table 5-1; cross-checked against onsemi MC74HC00A/D Rev. 17 (September 2026), page 1, Figures 1 and 2",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 14,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "1A",
+          "function": "Gate 1, input A",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "1B",
+          "function": "Gate 1, input B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "1Y",
+          "function": "Gate 1, output: NAND of 1A and 1B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "2A",
+          "function": "Gate 2, input A",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "2B",
+          "function": "Gate 2, input B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "2Y",
+          "function": "Gate 2, output: NAND of 2A and 2B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "3Y",
+          "function": "Gate 3, output: NAND of 3A and 3B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "9",
+          "name": "3A",
+          "function": "Gate 3, input A",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "10",
+          "name": "3B",
+          "function": "Gate 3, input B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "11",
+          "name": "4Y",
+          "function": "Gate 4, output: NAND of 4A and 4B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "12",
+          "name": "4A",
+          "function": "Gate 4, input A",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "13",
+          "name": "4B",
+          "function": "Gate 4, input B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "14",
+          "name": "VCC",
+          "function": "Supply, 2 V to 6 V",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "sn74hc04",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "SN74HC04 (DIP-14)",
+      "name_en": "SN74HC04 (DIP-14)",
+      "doc": "Hex inverter, drawn as the 14-pin PDIP from above.",
+      "notes": "On the left side each input sits above its output (1A pin 1, 1Y pin 2); on the right side the output has the lower number: 4Y is pin 8 and 4A pin 9, 6Y is pin 12 and 6A pin 13.",
+      "tags": [
+        "sn74hc04",
+        "74hc04",
+        "hc04",
+        "7404",
+        "inverter",
+        "not",
+        "gate",
+        "gatter",
+        "logic",
+        "logik",
+        "dip14",
+        "dip-14"
+      ],
+      "source": "Texas Instruments SN54HC04, SN74HC04 datasheet SCLS078H (April 2021), section 5, Figure 5-1 and table Pin Functions; cross-checked against onsemi MC74HC04A/D Rev. 16 (September 2026), page 1, Figures 1 and 2",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 14,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "1A",
+          "function": "Inverter 1, input",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "1Y",
+          "function": "Inverter 1, output",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "2A",
+          "function": "Inverter 2, input",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "2Y",
+          "function": "Inverter 2, output",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "3A",
+          "function": "Inverter 3, input",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "3Y",
+          "function": "Inverter 3, output",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "4Y",
+          "function": "Inverter 4, output",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "9",
+          "name": "4A",
+          "function": "Inverter 4, input",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "10",
+          "name": "5Y",
+          "function": "Inverter 5, output",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "11",
+          "name": "5A",
+          "function": "Inverter 5, input",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "12",
+          "name": "6Y",
+          "function": "Inverter 6, output",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "13",
+          "name": "6A",
+          "function": "Inverter 6, input",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "14",
+          "name": "VCC",
+          "function": "Supply, 2 V to 6 V",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "sn74hc14",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "SN74HC14 (DIP-14)",
+      "name_en": "SN74HC14 (DIP-14)",
+      "doc": "Hex inverter with Schmitt-trigger inputs, drawn as the 14-pin PDIP from above.",
+      "notes": "On the left side each input sits above its output (1A pin 1, 1Y pin 2); on the right side the output has the lower number: 4Y is pin 8 and 4A pin 9. The inputs have hysteresis, so slow or noisy signals give a clean edge (TI section 7.3.2).",
+      "tags": [
+        "sn74hc14",
+        "74hc14",
+        "hc14",
+        "7414",
+        "schmitt trigger",
+        "schmitt-trigger",
+        "inverter",
+        "hysteresis",
+        "hysterese",
+        "logic",
+        "logik",
+        "dip14",
+        "dip-14"
+      ],
+      "source": "Texas Instruments SN54HC14, SN74HC14 datasheet SCLS085L (February 2025), section 4, Figure 4-1 and table Pin Functions; cross-checked against onsemi MC74HC14A/D Rev. 17 (September 2026), page 1, pin assignment and logic diagram",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 14,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "1A",
+          "function": "Inverter 1, Schmitt-trigger input",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "1Y",
+          "function": "Inverter 1, output",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "2A",
+          "function": "Inverter 2, Schmitt-trigger input",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "2Y",
+          "function": "Inverter 2, output",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "3A",
+          "function": "Inverter 3, Schmitt-trigger input",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "3Y",
+          "function": "Inverter 3, output",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "4Y",
+          "function": "Inverter 4, output",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "9",
+          "name": "4A",
+          "function": "Inverter 4, Schmitt-trigger input",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "10",
+          "name": "5Y",
+          "function": "Inverter 5, output",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "11",
+          "name": "5A",
+          "function": "Inverter 5, Schmitt-trigger input",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "12",
+          "name": "6Y",
+          "function": "Inverter 6, output",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "13",
+          "name": "6A",
+          "function": "Inverter 6, Schmitt-trigger input",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "14",
+          "name": "VCC",
+          "function": "Supply, 2 V to 6 V",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "sn74hc138",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "SN74HC138 (DIP-16)",
+      "name_en": "SN74HC138 (DIP-16)",
+      "doc": "3-to-8 line decoder and demultiplexer with three enable inputs and eight active-low outputs, drawn as the 16-pin PDIP from above.",
+      "notes": "An output goes low only when G1 is high and both G2A and G2B are low; otherwise all eight outputs are high. C, B, A form the binary number of the selected output, A is the lowest bit. Y7 sits alone on pin 7, on the other side from Y0 to Y6.",
+      "tags": [
+        "sn74hc138",
+        "74hc138",
+        "hc138",
+        "74138",
+        "decoder",
+        "dekoder",
+        "demultiplexer",
+        "address decoder",
+        "adressdekoder",
+        "3-to-8",
+        "logic",
+        "logik",
+        "dip16",
+        "dip-16"
+      ],
+      "source": "Texas Instruments SN54HC138, SN74HC138 datasheet SCLS107G (October 2021), section 5, pin figure and table Pin Functions; cross-checked against onsemi MC74HC138A/D Rev. 14 (March 2024), page 1 pin assignment and page 2",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 16,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "A",
+          "function": "Select input A, least significant bit",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "B",
+          "function": "Select input B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "C",
+          "function": "Select input C, most significant bit",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "G2A",
+          "function": "Enable input, active low",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "G2B",
+          "function": "Enable input, active low",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "G1",
+          "function": "Enable input, active high",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "Y7",
+          "function": "Output 7, low when selected",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "9",
+          "name": "Y6",
+          "function": "Output 6, low when selected",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "10",
+          "name": "Y5",
+          "function": "Output 5, low when selected",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "11",
+          "name": "Y4",
+          "function": "Output 4, low when selected",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "12",
+          "name": "Y3",
+          "function": "Output 3, low when selected",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "13",
+          "name": "Y2",
+          "function": "Output 2, low when selected",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "14",
+          "name": "Y1",
+          "function": "Output 1, low when selected",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "15",
+          "name": "Y0",
+          "function": "Output 0, low when selected",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "16",
+          "name": "VCC",
+          "function": "Supply, 2 V to 6 V",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "sn74hc165",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "SN74HC165 (DIP-16)",
+      "name_en": "SN74HC165 (DIP-16)",
+      "doc": "8-bit parallel-load shift register with serial input and complementary serial outputs, drawn as the 16-pin PDIP from above.",
+      "notes": "The parallel inputs are split, A to D on pins 11 to 14 and E to H on pins 3 to 6. A low SH/LD loads all eight inputs at once, whatever the clock does. With SH/LD high and CLK INH low, each rising edge of CLK shifts one step: H comes out at QH first, and SER moves into the first stage. CLK and CLK INH are interchangeable; change CLK INH to high only while CLK is high.",
+      "tags": [
+        "sn74hc165",
+        "74hc165",
+        "hc165",
+        "165",
+        "shift register",
+        "schieberegister",
+        "parallel in",
+        "parallel-load",
+        "piso",
+        "input expander",
+        "eingangserweiterung",
+        "logic",
+        "logik",
+        "dip16",
+        "dip-16"
+      ],
+      "source": "Texas Instruments SN54HC165, SN74HC165 datasheet SCLS116H (December 2015), section 5, pin figure and table Pin Functions; cross-checked against onsemi MC74HC165A/D Rev. 13 (April 2025), page 2, Figures 1 and 2",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 16,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "SH/LD",
+          "function": "Shift/load: low loads A to H in parallel, high enables shifting",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "CLK",
+          "function": "Clock: a rising edge shifts the data towards QH",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "E",
+          "function": "Parallel input E",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "F",
+          "function": "Parallel input F",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "G",
+          "function": "Parallel input G",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "H",
+          "function": "Parallel input H, the stage next to QH",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "~QH",
+          "function": "Complementary serial output",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "9",
+          "name": "QH",
+          "function": "Serial output",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "10",
+          "name": "SER",
+          "function": "Serial input: its level moves into the first stage on each shift",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "11",
+          "name": "A",
+          "function": "Parallel input A",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "12",
+          "name": "B",
+          "function": "Parallel input B",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "13",
+          "name": "C",
+          "function": "Parallel input C",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "14",
+          "name": "D",
+          "function": "Parallel input D",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "15",
+          "name": "CLK INH",
+          "function": "Clock inhibit: high blocks the clock",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "16",
+          "name": "VCC",
+          "function": "Supply, 2 V to 6 V",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "sn74hc245",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "SN74HC245 (DIP-20)",
+      "name_en": "SN74HC245 (DIP-20)",
+      "doc": "Octal bus transceiver with 3-state outputs, one direction input and one output-enable input, drawn as the 20-pin PDIP from above.",
+      "notes": "The B side is shifted by one row against the A side: A1 (pin 2) faces OE (pin 19), A2 (pin 3) faces B1 (pin 18), and B8 (pin 11) faces GND (pin 10). With OE low, DIR high drives the B side from the A side and DIR low drives the A side from the B side; with OE high both sides are high-impedance. TI advises a pull-up resistor from OE to VCC so that the outputs stay off during power-up.",
+      "tags": [
+        "sn74hc245",
+        "74hc245",
+        "hc245",
+        "74245",
+        "bus transceiver",
+        "transceiver",
+        "bus driver",
+        "buffer",
+        "puffer",
+        "level shifter",
+        "pegelwandler",
+        "logic",
+        "logik",
+        "dip20",
+        "dip-20"
+      ],
+      "source": "Texas Instruments SN54HC245, SN74HC245 datasheet SCLS131F (August 2022), section 5, Figure 5-1 and pin table; cross-checked against onsemi MC74HC245A/D Rev. 18 (July 2024), pages 1 and 2",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 20,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "DIR",
+          "function": "Direction: high sends A to B, low sends B to A",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "A1",
+          "function": "Bus A, bit 1",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "A2",
+          "function": "Bus A, bit 2",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "A3",
+          "function": "Bus A, bit 3",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "A4",
+          "function": "Bus A, bit 4",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "A5",
+          "function": "Bus A, bit 5",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "A6",
+          "function": "Bus A, bit 6",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "A7",
+          "function": "Bus A, bit 7",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "9",
+          "name": "A8",
+          "function": "Bus A, bit 8",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "10",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "11",
+          "name": "B8",
+          "function": "Bus B, bit 8",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "12",
+          "name": "B7",
+          "function": "Bus B, bit 7",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "13",
+          "name": "B6",
+          "function": "Bus B, bit 6",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "14",
+          "name": "B5",
+          "function": "Bus B, bit 5",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "15",
+          "name": "B4",
+          "function": "Bus B, bit 4",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "16",
+          "name": "B3",
+          "function": "Bus B, bit 3",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "17",
+          "name": "B2",
+          "function": "Bus B, bit 2",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "18",
+          "name": "B1",
+          "function": "Bus B, bit 1",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "19",
+          "name": "OE",
+          "function": "Output enable, active low: high isolates both buses",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "20",
+          "name": "VCC",
+          "function": "Supply, 2 V to 6 V",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "cd4017",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "CD4017B (DIP-16)",
+      "name_en": "CD4017B (DIP-16)",
+      "doc": "CMOS decade counter with ten decoded outputs and a carry output, drawn as the 16-pin PDIP from above.",
+      "notes": "The outputs are not in counting order around the package: Q0 is pin 3, Q1 is pin 2, Q2 is pin 4, Q3 is pin 7, Q4 is pin 10, Q5 is pin 1, Q6 is pin 5, Q7 is pin 6, Q8 is pin 9 and Q9 is pin 11. Only one output is high at a time, for one full clock cycle. To let the counter run, hold CLOCK INHIBIT and RESET low; do not leave these inputs open.",
+      "tags": [
+        "cd4017",
+        "cd4017b",
+        "4017",
+        "mc14017b",
+        "hef4017",
+        "decade counter",
+        "dekadenzähler",
+        "johnson counter",
+        "johnson-zähler",
+        "counter",
+        "zähler",
+        "led chaser",
+        "lauflicht",
+        "cmos",
+        "logic",
+        "logik",
+        "dip16",
+        "dip-16"
+      ],
+      "source": "Texas Instruments CD4017B, CD4022B datasheet SCHS027C (February 2004), page 1 terminal diagram and page 2 logic diagram; cross-checked against onsemi MC14017B/D Rev. 10 (August 2025), pin assignment, and Renesas CD4017BMS FN3297 Rev 0.00 (August 1998), page 1 pinouts",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 16,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "Q5",
+          "function": "Decoded output 5: high while the count is 5",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "Q1",
+          "function": "Decoded output 1: high while the count is 1",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "Q0",
+          "function": "Decoded output 0: high while the count is 0",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "Q2",
+          "function": "Decoded output 2: high while the count is 2",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "Q6",
+          "function": "Decoded output 6: high while the count is 6",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "Q7",
+          "function": "Decoded output 7: high while the count is 7",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "Q3",
+          "function": "Decoded output 3: high while the count is 3",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "VSS",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "9",
+          "name": "Q8",
+          "function": "Decoded output 8: high while the count is 8",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "10",
+          "name": "Q4",
+          "function": "Decoded output 4: high while the count is 4",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "11",
+          "name": "Q9",
+          "function": "Decoded output 9: high while the count is 9",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "12",
+          "name": "CARRY OUT",
+          "function": "Carry output: one cycle per ten clock pulses, high during counts 0 to 4; clocks the next counter in a chain",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "13",
+          "name": "CLOCK INHIBIT",
+          "function": "Clock inhibit: high stops the counting",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "14",
+          "name": "CLOCK",
+          "function": "Clock input with Schmitt trigger: counts on the rising edge while CLOCK INHIBIT is low",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "15",
+          "name": "RESET",
+          "function": "Reset, active high: sets the counter to zero, output 0 goes high",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "16",
+          "name": "VDD",
+          "function": "Supply, 3 V to 18 V",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "cd4051",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "CD4051B (DIP-16)",
+      "name_en": "CD4051B (DIP-16)",
+      "doc": "CMOS 8-channel analog multiplexer and demultiplexer with three select inputs, an inhibit input and a separate negative supply, drawn as the 16-pin PDIP from above.",
+      "notes": "C, B and A select the channel as a binary number, A is the lowest bit; with INH high no channel is on. The control inputs switch between VSS (0) and VDD (1). The channels are not in order around the package: 0 is pin 13, 1 is pin 14, 2 is pin 15, 3 is pin 12, 4 is pin 1, 5 is pin 5, 6 is pin 2 and 7 is pin 4. The switches conduct both ways: as a demultiplexer COM OUT/IN is the input. TI gives 3 V to 20 V for a single supply and ±3 V to ±10 V for a dual supply, with 20 V as the absolute maximum; onsemi's MC14051B stops at 18 V.",
+      "tags": [
+        "cd4051",
+        "cd4051b",
+        "4051",
+        "mc14051b",
+        "hef4051",
+        "74hc4051",
+        "analog multiplexer",
+        "analogmultiplexer",
+        "analog switch",
+        "analogschalter",
+        "mux",
+        "demux",
+        "8-channel",
+        "8-kanal",
+        "cmos",
+        "dip16",
+        "dip-16"
+      ],
+      "source": "Texas Instruments CD4051B, CD4052B, CD4053B datasheet SCHS047O (May 2026), section 4, Figure 4-1 and Table 4-1; cross-checked against onsemi MC14051B/D Rev. 15 (June 2024), pages 1, 2 and 5",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 16,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "CH 4 IN/OUT",
+          "function": "Channel 4 in/out",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "CH 6 IN/OUT",
+          "function": "Channel 6 in/out",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "COM OUT/IN",
+          "function": "Common out/in: connected to the selected channel",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "CH 7 IN/OUT",
+          "function": "Channel 7 in/out",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "CH 5 IN/OUT",
+          "function": "Channel 5 in/out",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "INH",
+          "function": "Inhibit: high switches all channels off",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "VEE",
+          "function": "Negative supply of the analog signal path",
+          "type": "power",
+          "notes": "The analog signal may swing from VEE to VDD. With a single supply connect VEE to VSS; for signals around ground give VEE a negative voltage. VEE must not be above VSS.",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "VSS",
+          "function": "Ground, the low level of the control inputs",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "9",
+          "name": "C",
+          "function": "Channel select C, most significant bit",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "10",
+          "name": "B",
+          "function": "Channel select B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "11",
+          "name": "A",
+          "function": "Channel select A, least significant bit",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "12",
+          "name": "CH 3 IN/OUT",
+          "function": "Channel 3 in/out",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "13",
+          "name": "CH 0 IN/OUT",
+          "function": "Channel 0 in/out",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "14",
+          "name": "CH 1 IN/OUT",
+          "function": "Channel 1 in/out",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "15",
+          "name": "CH 2 IN/OUT",
+          "function": "Channel 2 in/out",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "16",
+          "name": "VDD",
+          "function": "Positive supply",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
       "id": "atx_24",
       "category": "pinouts",
       "group": "pc_power",
