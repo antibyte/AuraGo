@@ -46,11 +46,20 @@ func (s *Store) CreatePairing(ctx context.Context, dashboardID, label string, vi
 	now := s.now()
 	pairing := base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(randomBytes(16))
 	expires := now.Add(ttl)
-	if _, err := s.db.ExecContext(ctx, `DELETE FROM hd_kiosk_pairings WHERE expires_at < ? OR used_at IS NOT NULL`, ts(now)); err != nil {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
 		return "", time.Time{}, err
 	}
-	if _, err := s.db.ExecContext(ctx, `INSERT INTO hd_kiosk_pairings (code_hash, dashboard_id, label, view_only, expires_at) VALUES (?, ?, ?, ?, ?)`,
+	defer tx.Rollback()
+	// Expired rows go whether used or not, so they never pile up.
+	if _, err := tx.ExecContext(ctx, `DELETE FROM hd_kiosk_pairings WHERE expires_at < ?`, ts(now)); err != nil {
+		return "", time.Time{}, err
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO hd_kiosk_pairings (code_hash, dashboard_id, label, view_only, expires_at) VALUES (?, ?, ?, ?, ?)`,
 		hashSecret(pairing), dashboardID, label, dbutil.BoolToInt(viewOnly), ts(expires)); err != nil {
+		return "", time.Time{}, err
+	}
+	if err := tx.Commit(); err != nil {
 		return "", time.Time{}, err
 	}
 	return pairing, expires, nil
@@ -83,11 +92,17 @@ func (s *Store) RedeemPairing(ctx context.Context, dashboardID, pairing, ip stri
 	if used.Valid || !parseTS(expires).After(now) {
 		return KioskDevice{}, "", errPairingInvalid
 	}
+	if maxDevices <= 0 { // fail closed: no cap configured means no pairing
+		return KioskDevice{}, "", errPairingInvalid
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM hd_kiosk_devices WHERE expires_at IS NOT NULL AND expires_at < ?`, ts(now)); err != nil {
+		return KioskDevice{}, "", err
+	}
 	var count int
 	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM hd_kiosk_devices`).Scan(&count); err != nil {
 		return KioskDevice{}, "", err
 	}
-	if maxDevices > 0 && count >= maxDevices {
+	if count >= maxDevices {
 		return KioskDevice{}, "", errPairingInvalid
 	}
 	res, err := tx.ExecContext(ctx, `UPDATE hd_kiosk_pairings SET used_at = ? WHERE code_hash = ? AND used_at IS NULL`, ts(now), hashSecret(pairing))

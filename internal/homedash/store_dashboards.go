@@ -116,11 +116,16 @@ func (s *Store) UpdateDashboard(ctx context.Context, doc Dashboard, revision int
 	}
 	defer tx.Rollback()
 	var cur, approved int64
-	err = tx.QueryRowContext(ctx, `SELECT revision, approved_revision FROM hd_dashboards WHERE id = ?`, doc.ID).Scan(&cur, &approved)
+	var storedSchema int
+	err = tx.QueryRowContext(ctx, `SELECT revision, approved_revision, schema_version FROM hd_dashboards WHERE id = ?`, doc.ID).Scan(&cur, &approved, &storedSchema)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Dashboard{}, ErrDashboardNotFound
 	} else if err != nil {
 		return Dashboard{}, err
+	}
+	if storedSchema > SchemaVersion {
+		// Written by a newer build: read-only here, so no field it added is dropped.
+		return Dashboard{}, &Error{Code: CodeSchemaTooNew, Message: fmt.Sprintf("dashboard schema %d is newer than supported %d", storedSchema, SchemaVersion)}
 	}
 	if cur != revision {
 		return Dashboard{}, &Error{Code: CodeRevisionConflict, Message: "the dashboard was changed elsewhere", CurrentRevision: cur}

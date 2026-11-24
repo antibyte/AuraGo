@@ -180,3 +180,89 @@ func TestStoreDeleteDashboardCascadesDevices(t *testing.T) {
 		t.Fatalf("dashboard after delete: %v", err)
 	}
 }
+
+func TestStoreRefusesUpdateOfNewerSchema(t *testing.T) {
+	st, _, _ := openTestStore(t)
+	ctx := context.Background()
+	d, _ := st.CreateDashboard(ctx, storeDoc("g"), SavedByUser)
+	if _, err := st.db.Exec(`UPDATE hd_dashboards SET schema_version = ? WHERE id = ?`, SchemaVersion+1, d.ID); err != nil {
+		t.Fatal(err)
+	}
+	var before string
+	if err := st.db.QueryRow(`SELECT document_json FROM hd_dashboards WHERE id = ?`, d.ID).Scan(&before); err != nil {
+		t.Fatal(err)
+	}
+	d.Name = "Changed"
+	if _, err := st.UpdateDashboard(ctx, d, 1, SavedByUser); code(err) != CodeSchemaTooNew {
+		t.Fatalf("update of newer schema: %v", err)
+	}
+	var after string
+	var rev int64
+	var schema int
+	if err := st.db.QueryRow(`SELECT document_json, revision, schema_version FROM hd_dashboards WHERE id = ?`, d.ID).Scan(&after, &rev, &schema); err != nil {
+		t.Fatal(err)
+	}
+	if after != before || rev != 1 || schema != SchemaVersion+1 {
+		t.Fatalf("row changed: rev %d schema %d", rev, schema)
+	}
+}
+
+func TestStoreDeviceCapIgnoresExpiredAndFailsClosed(t *testing.T) {
+	st, now, _ := openTestStore(t)
+	ctx := context.Background()
+	d, _ := st.CreateDashboard(ctx, storeDoc("h"), SavedByUser)
+	pair := func() string {
+		c, _, err := st.CreatePairing(ctx, d.ID, "Wall", false, 15*time.Minute)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return c
+	}
+	if _, _, err := st.RedeemPairing(ctx, d.ID, pair(), "10.0.0.1", time.Hour, 2); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := st.RedeemPairing(ctx, d.ID, pair(), "10.0.0.2", 0, 2); err != nil {
+		t.Fatal(err)
+	}
+	full := pair()
+	if _, _, err := st.RedeemPairing(ctx, d.ID, full, "10.0.0.3", 0, 2); code(err) != CodePairingInvalid {
+		t.Fatalf("cap reached: %v", err)
+	}
+	// maxDevices <= 0 refuses with the same error value and keeps the code usable.
+	_, _, err0 := st.RedeemPairing(ctx, d.ID, full, "10.0.0.3", 0, 0)
+	_, _, errFull := st.RedeemPairing(ctx, d.ID, full, "10.0.0.3", 0, 2)
+	if err0 != errPairingInvalid || errFull != errPairingInvalid {
+		t.Fatalf("not the uniform error: %v / %v", err0, errFull)
+	}
+	*now = now.Add(2 * time.Minute) // the hour-long device is still live
+	if _, _, err := st.RedeemPairing(ctx, d.ID, full, "10.0.0.3", 0, 3); err != nil {
+		t.Fatalf("code consumed by a refusal: %v", err)
+	}
+	// Expire the first device: it no longer counts against the cap.
+	*now = now.Add(2 * time.Hour)
+	if _, _, err := st.RedeemPairing(ctx, d.ID, pair(), "10.0.0.4", 0, 3); err != nil {
+		t.Fatalf("expired device still blocks pairing: %v", err)
+	}
+	if list, _ := st.ListDevices(ctx, d.ID); len(list) != 3 {
+		t.Fatalf("devices after cleanup: %d", len(list))
+	}
+}
+
+func TestStoreCreatePairingDropsExpiredRows(t *testing.T) {
+	st, now, _ := openTestStore(t)
+	ctx := context.Background()
+	d, _ := st.CreateDashboard(ctx, storeDoc("i"), SavedByUser)
+	first, _, _ := st.CreatePairing(ctx, d.ID, "A", false, 15*time.Minute)
+	if _, _, err := st.RedeemPairing(ctx, d.ID, first, "10.0.0.1", 0, 5); err != nil { // used, then expires
+		t.Fatal(err)
+	}
+	st.CreatePairing(ctx, d.ID, "B", false, 15*time.Minute) // unused, then expires
+	*now = now.Add(time.Hour)
+	if _, _, err := st.CreatePairing(ctx, d.ID, "C", false, 15*time.Minute); err != nil {
+		t.Fatal(err)
+	}
+	var n int
+	if err := st.db.QueryRow(`SELECT COUNT(*) FROM hd_kiosk_pairings`).Scan(&n); err != nil || n != 1 {
+		t.Fatalf("pairing rows left: %d %v", n, err)
+	}
+}
