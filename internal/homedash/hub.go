@@ -71,7 +71,7 @@ const (
 	CloseClosed        = "closed"
 )
 
-// stateRecorder is the history ring (history.go, Task 8); nil until then.
+// stateRecorder is the history ring (historyStore in history.go).
 type stateRecorder interface {
 	touch(id EntityID, now time.Time)
 	observe(id EntityID, v float64, at time.Time)
@@ -106,7 +106,8 @@ type Hub struct {
 	subs      map[string]*Subscriber
 	states    map[EntityID]State
 	approved  map[string]int64
-	rec       stateRecorder
+	rec       stateRecorder // *historyStore; has its own lock (order Hub.mu then its mu)
+	cmds      *commandState // command limiter, dedupe, latest-wins slots, per-source semaphores; own locks
 }
 
 // NewHub builds a hub whose goroutines end when parent is cancelled or Close is called.
@@ -115,7 +116,8 @@ func NewHub(parent context.Context, opts Options) *Hub {
 	ctx, cancel := context.WithCancel(parent)
 	h := &Hub{opts: opts, log: opts.Logger, ctx: ctx, cancel: cancel, startedAt: opts.Now(), reconf: make(chan struct{}, 1),
 		factories: map[SourceID]Factory{}, rts: map[SourceID]*sourceRT{}, subs: map[string]*Subscriber{},
-		states: map[EntityID]State{}, approved: map[string]int64{}}
+		states: map[EntityID]State{}, approved: map[string]int64{},
+		cmds: newCommandState(), rec: newHistoryStore(360, 500, time.Minute)}
 	h.wg.Add(1)
 	go h.reconfigureLoop()
 	return h

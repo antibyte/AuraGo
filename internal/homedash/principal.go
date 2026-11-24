@@ -36,3 +36,40 @@ func (a *AllowedSet) Has(id EntityID) bool {
 
 // Allows reports whether the entity may receive the command.
 func (a *AllowedSet) Allows(id EntityID, c Capability) bool { return a != nil && a.Commands[id][c] }
+
+// BuildAllowedSet gives a kiosk display the entities bound on doc (the approved revision) and the
+// commands its widgets can issue (catalog Commands); bindings without commands are read only. The
+// set derives only from the catalog: a widget of an unknown type or variant, and a binding the type
+// does not declare, contribute nothing, not even read access. Call it with the approved document only.
+func BuildAllowedSet(doc Dashboard, cat WidgetCatalog) *AllowedSet {
+	set := &AllowedSet{Commands: map[EntityID]map[Capability]bool{}}
+	for _, p := range doc.Pages {
+		for _, w := range p.Widgets {
+			wt, typed := cat.Type(w.Type)
+			if !typed {
+				continue
+			}
+			if _, known := wt.Variant(w.Variant); !known {
+				continue
+			}
+			for name, raw := range w.Bindings {
+				if _, declared := wt.Binding(name); !declared {
+					continue
+				}
+				if _, _, err := ParseEntityID(raw); err != nil {
+					continue
+				}
+				id := EntityID(raw)
+				m := set.Commands[id]
+				if m == nil {
+					m = map[Capability]bool{}
+					set.Commands[id] = m
+				}
+				for _, c := range wt.Commands[name] {
+					m[c] = true
+				}
+			}
+		}
+	}
+	return set
+}
