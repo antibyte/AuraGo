@@ -50,11 +50,11 @@
     contact: round
     drawn: plug
     positions:
-      - {pin: "Pin", angle: 0, radius: 0}
-      - {pin: "Shell", angle: 180, radius: 1}
+      - {pin: "T", angle: 0, radius: 0}
+      - {pin: "S", angle: 180, radius: 1}
   pins:
-    - {number: "Pin", name: "Signal", function: {en: "Centre pin: unbalanced audio signal (hot, +)", de: "Mittelstift: unsymmetrisches Audiosignal (heiß, +)"}, type: signal}
-    - {number: "Shell", name: "GND", function: {en: "Outer shell: ground, cable shield and signal return", de: "Außenring: Masse, Kabelschirm und Signalrückleiter"}, type: ground}
+    - {number: "T", name: "Signal", function: {en: "Centre pin: unbalanced audio signal (hot, +)", de: "Mittelstift: unsymmetrisches Audiosignal (heiß, +)"}, type: signal}
+    - {number: "S", name: "GND", function: {en: "Outer shell: ground, cable shield and signal return", de: "Außenring: Masse, Kabelschirm und Signalrückleiter"}, type: ground}
 
 - id: xlr5_dmx
   kind: pinout

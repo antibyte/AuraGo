@@ -19,7 +19,7 @@ Not reached: a connector maker's RCA drawing with terminal labels (CUI 403; REAN
 Mackie and Garmin, two independent makers, agree: the centre contact (both call it the tip) is the positive/hot signal, the outer contact (sleeve) is shield/negative. RS confirms the geometry (centre pin inside a ring) but not the assignment.
 
 ## Choices
-- Catalog item: pin numbers `Pin` and `Shell` (no numbering exists; both are within 1 to 8 characters).
+- Catalog item: contact ids `T` (centre pin, "tip") and `S` (shell, "sleeve"), the terms of the Mackie and Garmin sources; no numbering exists. The longer ids `Pin`/`Shell` did not fit inside the drawn contact.
 - `signal` for the centre pin, `ground` for the shell (Garmin's "Negative" is the signal return of an unbalanced line; Mackie's "Shield").
 - Colour codes (RS: white left, red right, yellow video) are a convention, mentioned only in the item notes; no `wire`.
 
