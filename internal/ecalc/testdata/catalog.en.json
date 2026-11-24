@@ -47330,6 +47330,1295 @@
     },
     {
       "kind": "pinout",
+      "id": "lm393",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "LM393 (DIP-8)",
+      "name_en": "LM393 (DIP-8)",
+      "doc": "Dual comparator with open-collector outputs, drawn as the 8-pin PDIP from above.",
+      "notes": "Both outputs are open collector: each only pulls low and needs a pull-up resistor to the logic supply, and an output is low while its IN- input is above IN+. Outputs tied together give an AND function. A short from an output to VCC can destroy the part. With a split supply pin 4 is the negative rail. The LM2903 of the same documents shares this drawing.",
+      "tags": [
+        "lm393",
+        "lm293",
+        "lm2903",
+        "comparator",
+        "komparator",
+        "open-collector",
+        "open-drain",
+        "dip8",
+        "dip-8",
+        "dual"
+      ],
+      "source": "Texas Instruments LM393B, LM2903B, LM193, LM293, LM393 and LM2903 datasheet SLCS005AH (April 2025), section 4, Figure 4-1 and Table 4-1; cross-checked against onsemi LM393/D Rev. 35 (November 2026), page 1, pin connections figure",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 8,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "1OUT",
+          "function": "Output of comparator 1, open collector",
+          "type": "signal",
+          "notes": "Needs a pull-up resistor to the logic supply: the output only pulls low.",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "1IN-",
+          "function": "Inverting input of comparator 1",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "1IN+",
+          "function": "Non-inverting input of comparator 1",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "2IN+",
+          "function": "Non-inverting input of comparator 2",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "2IN-",
+          "function": "Inverting input of comparator 2",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "2OUT",
+          "function": "Output of comparator 2, open collector",
+          "type": "signal",
+          "notes": "Needs a pull-up resistor to the logic supply: the output only pulls low.",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "VCC",
+          "function": "Positive supply",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "lm339",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "LM339 (DIP-14)",
+      "name_en": "LM339 (DIP-14)",
+      "doc": "Quad comparator with open-collector outputs, drawn as the 14-pin PDIP from above.",
+      "notes": "The supply pins sit in the middle, VCC on pin 3 and GND on pin 12. The output of each comparator is not next to its inputs: pins 6/7 drive pin 1, pins 4/5 drive pin 2, pins 8/9 drive pin 14, pins 10/11 drive pin 13. The makers number comparators 1 and 2 the other way round (TI's own table too), so every function text names the pins it pairs with. All outputs are open collector and need a pull-up resistor; a short from an output to VCC can destroy the part.",
+      "tags": [
+        "lm339",
+        "lm239",
+        "lm2901",
+        "comparator",
+        "komparator",
+        "quad",
+        "vierfach",
+        "open-collector",
+        "open-drain",
+        "dip14",
+        "dip-14"
+      ],
+      "source": "Texas Instruments LM339B, LM2901B, LM339, LM239, LM139, LM2901 datasheet SLCS006Z (May 2025), section 5, Figure 5-1 and Table 5-1; cross-checked against onsemi LM339/D Rev. 29 (September 2025), page 1, pin connections figure",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 14,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "1OUT",
+          "function": "Output of comparator 1 (inputs on pins 6 and 7), open collector",
+          "type": "signal",
+          "notes": "Needs a pull-up resistor: the output only pulls low.",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "2OUT",
+          "function": "Output of comparator 2 (inputs on pins 4 and 5), open collector",
+          "type": "signal",
+          "notes": "Needs a pull-up resistor: the output only pulls low.",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "VCC",
+          "function": "Positive supply",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "2IN-",
+          "function": "Inverting input of comparator 2",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "2IN+",
+          "function": "Non-inverting input of comparator 2",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "1IN-",
+          "function": "Inverting input of comparator 1",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "1IN+",
+          "function": "Non-inverting input of comparator 1",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "3IN-",
+          "function": "Inverting input of comparator 3",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "9",
+          "name": "3IN+",
+          "function": "Non-inverting input of comparator 3",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "10",
+          "name": "4IN-",
+          "function": "Inverting input of comparator 4",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "11",
+          "name": "4IN+",
+          "function": "Non-inverting input of comparator 4",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "12",
+          "name": "GND",
+          "function": "Ground (negative supply)",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "13",
+          "name": "4OUT",
+          "function": "Output of comparator 4 (inputs on pins 10 and 11), open collector",
+          "type": "signal",
+          "notes": "Needs a pull-up resistor: the output only pulls low.",
+          "wire": ""
+        },
+        {
+          "number": "14",
+          "name": "3OUT",
+          "function": "Output of comparator 3 (inputs on pins 8 and 9), open collector",
+          "type": "signal",
+          "notes": "Needs a pull-up resistor: the output only pulls low.",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "lm386",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "LM386 (DIP-8)",
+      "name_en": "LM386 (DIP-8)",
+      "doc": "Low-voltage audio power amplifier, drawn as the 8-pin PDIP from above.",
+      "notes": "With pins 1 and 8 open the gain is 20; a capacitor from pin 1 to pin 8 bypasses the internal 1.35 kOhm resistor and gives 200; a resistor in series with that capacitor sets any gain between. Both inputs are biased to ground through 50 kOhm inside, and a signal above 0.4 V either way must not reach pins 2 and 3 directly. At high gain the unused input must be bypassed to ground (0.1 uF or a short). Supply 4 V to 12 V (LM386N-4: 5 V to 18 V). Basis of the DIP drawing: TI's pin figure is captioned only for the 8-pin MSOP/SOIC package; the PDIP assignment rests on TI's single pin table plus the PDIP layout example (Figure 11-1), which confirms pins 2 to 6.",
+      "tags": [
+        "lm386",
+        "audio",
+        "amplifier",
+        "verstärker",
+        "nf",
+        "power-amp",
+        "endstufe",
+        "speaker",
+        "lautsprecher",
+        "dip8",
+        "dip-8"
+      ],
+      "source": "Texas Instruments LM386 datasheet SNAS545D (August 2023), section 5, Figure 5-1 and Table 5-1, sections 8.1 and 9.2.1.2, Figure 11-1 (PDIP layout example)",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 8,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "GAIN",
+          "function": "Gain setting; open for gain 20, a capacitor to pin 8 raises it to 200",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "-INPUT",
+          "function": "Inverting input, referenced to ground",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "+INPUT",
+          "function": "Non-inverting input, referenced to ground",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "VOUT",
+          "function": "Output, sits at half the supply; drive the speaker through a capacitor",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "VS",
+          "function": "Positive supply",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "BYPASS",
+          "function": "Bypass decoupling of the internal bias",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "GAIN",
+          "function": "Gain setting, the other end of the internal 1.35 kΩ resistor (see pin 1)",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "max232",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "MAX232 (DIP-16)",
+      "name_en": "MAX232 (DIP-16)",
+      "doc": "Dual RS-232 driver and receiver with charge pump, drawn as the 16-pin PDIP from above.",
+      "notes": "The chip needs four 1 uF capacitors: C1 between pins 1 and 3, C2 between pins 4 and 5, C3 from pin 2 to GND or VCC, C4 from pin 6 to GND, plus a 1 uF bypass on VCC. With polarized capacitors mind the polarity drawn in TI's Figure 8-1 (the plus side of C4 goes to GND). Pins 9 to 12 go to the UART or logic, pins 7, 8, 13 and 14 to the RS-232 connector, whose receiver inputs take up to 30 V. The signals are inverted: a high at TIN gives a negative RS-232 level, and an open receiver input reads as a high at ROUT. Pin 12 (R1OUT) is read from TI's Figure 4-1 and Figure 8-1, because TI's pin table leaves it out. The MAX232I shares this pinout.",
+      "tags": [
+        "max232",
+        "max232i",
+        "rs232",
+        "rs-232",
+        "uart",
+        "serial",
+        "seriell",
+        "level-shifter",
+        "pegelwandler",
+        "charge-pump",
+        "ladungspumpe",
+        "dip16",
+        "dip-16"
+      ],
+      "source": "Texas Instruments MAX232, MAX232I datasheet SLLS047N (February 2024), section 4, Figure 4-1 and Table 4-1, section 8.1 and Figure 8-1",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 16,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "C1+",
+          "function": "Positive lead of charge-pump capacitor C1 (1 µF to pin 3)",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "VS+",
+          "function": "Positive charge-pump output (about +8.5 V), for the storage capacitor only",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "C1-",
+          "function": "Negative lead of charge-pump capacitor C1",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "C2+",
+          "function": "Positive lead of charge-pump capacitor C2 (1 µF to pin 5)",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "C2-",
+          "function": "Negative lead of charge-pump capacitor C2",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "VS-",
+          "function": "Negative charge-pump output (about −8.5 V), for the storage capacitor only",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "T2OUT",
+          "function": "RS-232 output of driver 2 (input on pin 10), to the remote system",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "R2IN",
+          "function": "RS-232 input of receiver 2 (output on pin 9), from the remote system",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "9",
+          "name": "R2OUT",
+          "function": "Logic output of receiver 2, to the UART",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "10",
+          "name": "T2IN",
+          "function": "Logic input of driver 2, from the UART",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "11",
+          "name": "T1IN",
+          "function": "Logic input of driver 1, from the UART",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "12",
+          "name": "R1OUT",
+          "function": "Logic output of receiver 1, to the UART",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "13",
+          "name": "R1IN",
+          "function": "RS-232 input of receiver 1 (output on pin 12), from the remote system",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "14",
+          "name": "T1OUT",
+          "function": "RS-232 output of driver 1 (input on pin 11), to the remote system",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "15",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "16",
+          "name": "VCC",
+          "function": "Supply, 4.5 V to 5.5 V",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "l293d",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "L293D (DIP-16)",
+      "name_en": "L293D (DIP-16)",
+      "doc": "Quadruple half-H driver with clamp diodes for motors and relays, drawn as the 16-pin PDIP from above.",
+      "notes": "Two separate supplies: VCC1 (pin 16) feeds the logic, VCC2 (pin 8) feeds the outputs and must be at least VCC1. Each output follows its A input while its enable pin is high and is high impedance while the enable is low. The L293D has the clamp diodes for inductive loads built in; the L293 in the same figure has not. Up to 600 mA per channel (1.2 A peak) for the L293D. Pins 4, 5, 12 and 13 are ground and heat sink.",
+      "tags": [
+        "l293d",
+        "l293",
+        "motor",
+        "driver",
+        "treiber",
+        "h-bridge",
+        "h-brücke",
+        "halbbrücke",
+        "relay",
+        "relais",
+        "stepper",
+        "schrittmotor",
+        "dip16",
+        "dip-16"
+      ],
+      "source": "Texas Instruments L293, L293D datasheet SLRS008D (January 2016), section 5, pin figure (NE package, 16-pin PDIP) and Pin Functions table, sections 6.3 and 8.4",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 16,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "1,2EN",
+          "function": "Enable for drivers 1 and 2, active high; low turns outputs 1Y and 2Y off (high impedance)",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "1A",
+          "function": "Logic input of driver 1, non-inverting",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "1Y",
+          "function": "Output of driver 1",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "GROUND",
+          "function": "Ground and heat sink",
+          "type": "ground",
+          "notes": "Connect all four to the ground plane with several solid vias: they also carry the heat away.",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "GROUND",
+          "function": "Ground and heat sink",
+          "type": "ground",
+          "notes": "Connect all four to the ground plane with several solid vias: they also carry the heat away.",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "2Y",
+          "function": "Output of driver 2",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "2A",
+          "function": "Logic input of driver 2, non-inverting",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "VCC2",
+          "function": "Motor supply for the drivers, VCC1 to 36 V",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "9",
+          "name": "3,4EN",
+          "function": "Enable for drivers 3 and 4, active high; low turns outputs 3Y and 4Y off (high impedance)",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "10",
+          "name": "3A",
+          "function": "Logic input of driver 3, non-inverting",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "11",
+          "name": "3Y",
+          "function": "Output of driver 3",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "12",
+          "name": "GROUND",
+          "function": "Ground and heat sink",
+          "type": "ground",
+          "notes": "Connect all four to the ground plane with several solid vias: they also carry the heat away.",
+          "wire": ""
+        },
+        {
+          "number": "13",
+          "name": "GROUND",
+          "function": "Ground and heat sink",
+          "type": "ground",
+          "notes": "Connect all four to the ground plane with several solid vias: they also carry the heat away.",
+          "wire": ""
+        },
+        {
+          "number": "14",
+          "name": "4Y",
+          "function": "Output of driver 4",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "15",
+          "name": "4A",
+          "function": "Logic input of driver 4, non-inverting",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "16",
+          "name": "VCC1",
+          "function": "Logic supply, 4.5 V to 7 V (5 V typical)",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "attiny85",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "ATtiny85 (DIP-8)",
+      "name_en": "ATtiny85 (DIP-8)",
+      "doc": "8-bit AVR microcontroller in the 8-pin PDIP, seen from above. The name is the port bit; the function lists what else the pin can do.",
+      "notes": "In-system programming uses MOSI = PB0 (pin 5), MISO = PB1 (pin 6), SCK = PB2 (pin 7) and RESET (pin 1). SDA and SCL belong to the USI (Universal Serial Interface) in two-wire mode. Speed grades: ATtiny85 0-10 MHz at 2.7-5.5 V and 0-20 MHz at 4.5-5.5 V; ATtiny85V 0-4 MHz at 1.8-5.5 V and 0-10 MHz at 2.7-5.5 V. The ATtiny25 and ATtiny45 share this drawing (on the ATtiny25 only, PB3 and PB4 are exchanged in ATtiny15 compatibility mode).",
+      "tags": [
+        "attiny85",
+        "attiny45",
+        "attiny25",
+        "avr",
+        "microcontroller",
+        "mikrocontroller",
+        "mcu",
+        "digispark",
+        "usi",
+        "spi",
+        "isp",
+        "dip8",
+        "dip-8",
+        "pb5",
+        "reset"
+      ],
+      "source": "Atmel (Microchip) ATtiny25/45/85 datasheet 2586Q-AVR-08/2013, Figure 1-1, section 1.1, section 10.3.1 with Table 10-3, Table 20-10",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 8,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "PB5/RESET",
+          "function": "Reset input, active low; ADC0 (analog input 0), PCINT5, dW (debugWIRE)",
+          "type": "signal",
+          "notes": "With the RSTDISBL fuse programmed the pin becomes the weak I/O bit PB5; after that the chip can only be programmed in high-voltage serial mode.",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "PB3",
+          "function": "Port B bit 3; XTAL1/CLKI (crystal or clock input), ADC3, OC1B inverted, PCINT3",
+          "type": "io",
+          "notes": "Taken by the crystal when the fuses select one; free as I/O with the internal RC oscillator.",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "PB4",
+          "function": "Port B bit 4; XTAL2 (crystal output), CLKO, ADC2, OC1B, PCINT4",
+          "type": "io",
+          "notes": "Taken by the crystal when the fuses select one; free as I/O with the internal RC oscillator.",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "PB0",
+          "function": "Port B bit 0; MOSI (SPI and ISP), DI, SDA (USI two-wire), AIN0, OC0A, OC1A inverted, AREF, PCINT0",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "PB1",
+          "function": "Port B bit 1; MISO (SPI and ISP), DO, AIN1, OC0B, OC1A, PCINT1",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "PB2",
+          "function": "Port B bit 2; SCK (SPI and ISP), USCK, SCL (USI two-wire), ADC1, T0, INT0, PCINT2",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "VCC",
+          "function": "Supply, 2.7 V to 5.5 V (ATtiny85V: 1.8 V to 5.5 V)",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "mcp3008",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "MCP3008 (DIP-16)",
+      "name_en": "MCP3008 (DIP-16)",
+      "doc": "8-channel 10-bit A/D converter with SPI interface, drawn as the 16-pin PDIP from above.",
+      "notes": "Each analog input may swing from VSS to VREF; VREF itself may be 0.25 V to VDD. Pull CS/SHDN high between conversions. Use a 1 uF bypass capacitor close to the chip, and tie both AGND and DGND to the analog ground plane (to VSS if there is no plane). Pairs of channels can also be used as pseudo-differential inputs. The MCP3004 of the same document is a 14-pin part and not pin compatible.",
+      "tags": [
+        "mcp3008",
+        "mcp3004",
+        "adc",
+        "a/d",
+        "analog",
+        "digital",
+        "wandler",
+        "spi",
+        "10-bit",
+        "raspberry-pi",
+        "dip16",
+        "dip-16"
+      ],
+      "source": "Microchip MCP3004/3008 datasheet DS21295D (Revision D, December 2008), Package Types (page 1) and section 3.0, Table 3-1",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 16,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "CH0",
+          "function": "Analog input, channel 0",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "CH1",
+          "function": "Analog input, channel 1",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "CH2",
+          "function": "Analog input, channel 2",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "CH3",
+          "function": "Analog input, channel 3",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "CH4",
+          "function": "Analog input, channel 4",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "CH5",
+          "function": "Analog input, channel 5",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "CH6",
+          "function": "Analog input, channel 6",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "CH7",
+          "function": "Analog input, channel 7",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "9",
+          "name": "DGND",
+          "function": "Digital ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "10",
+          "name": "CS/SHDN",
+          "function": "Chip select, active low; high ends the conversion and puts the chip in standby",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "11",
+          "name": "DIN",
+          "function": "SPI serial data input: loads the channel configuration",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "12",
+          "name": "DOUT",
+          "function": "SPI serial data output: shifts out the conversion result",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "13",
+          "name": "CLK",
+          "function": "SPI serial clock",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "14",
+          "name": "AGND",
+          "function": "Analog ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "15",
+          "name": "VREF",
+          "function": "Reference voltage input; sets the full-scale input range",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "16",
+          "name": "VDD",
+          "function": "Supply, 2.7 V to 5.5 V",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "mcp23017",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "MCP23017 (DIP-28)",
+      "name_en": "MCP23017 (DIP-28)",
+      "doc": "16-bit I2C I/O expander in the 28-pin SPDIP, seen from above. The name is the port bit.",
+      "notes": "The I2C address is 0100 A2 A1 A0 (7 bits), so up to eight chips can share a bus; A0 to A2 and RESET must be biased externally, never left open. All port pins start as inputs. Port B is on pins 1 to 8, port A on pins 21 to 28. GPA7 and GPB7 are output only according to datasheet revision D (2022); older revisions and many tutorials show them as normal I/O. The SPI version MCP23S17 uses other functions on pins 11 to 14 and is not a drop-in. The pinout was read from the datasheet's text layer (Table 2-1 and the package drawing agree), not seen as an image.",
+      "tags": [
+        "mcp23017",
+        "mcp23s17",
+        "io-expander",
+        "portexpander",
+        "i2c",
+        "twi",
+        "gpio",
+        "port-expander",
+        "dip28",
+        "dip-28",
+        "spdip"
+      ],
+      "source": "Microchip MCP23017/MCP23S17 datasheet DS20001952D (Revision D, June 2022), Package Types (page 1) and section 2.0, Table 2-1, section 3.3.1 and section 3.5.1",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 28,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "GPB0",
+          "function": "Port B bit 0, bidirectional I/O; interrupt-on-change and weak pull-up selectable",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "GPB1",
+          "function": "Port B bit 1, bidirectional I/O",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "GPB2",
+          "function": "Port B bit 2, bidirectional I/O",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "GPB3",
+          "function": "Port B bit 3, bidirectional I/O",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "GPB4",
+          "function": "Port B bit 4, bidirectional I/O",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "GPB5",
+          "function": "Port B bit 5, bidirectional I/O",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "GPB6",
+          "function": "Port B bit 6, bidirectional I/O",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "GPB7",
+          "function": "Port B bit 7, output only (datasheet revision D)",
+          "type": "io",
+          "notes": "Output only on the MCP23017 (datasheet revision D, 2022): set bit 7 of IODIR to 0. Older revisions listed it as I/O.",
+          "wire": ""
+        },
+        {
+          "number": "9",
+          "name": "VDD",
+          "function": "Supply, 1.8 V to 5.5 V",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "10",
+          "name": "VSS",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "11",
+          "name": "NC",
+          "function": "Not connected (chip select on the SPI version MCP23S17)",
+          "type": "nc",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "12",
+          "name": "SCK",
+          "function": "I2C serial clock input",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "13",
+          "name": "SDA",
+          "function": "I2C serial data, bidirectional",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "14",
+          "name": "NC",
+          "function": "Not connected (serial data out on the SPI version MCP23S17)",
+          "type": "nc",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "15",
+          "name": "A0",
+          "function": "Hardware address bit 0; must be tied high or low",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "16",
+          "name": "A1",
+          "function": "Hardware address bit 1; must be tied high or low",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "17",
+          "name": "A2",
+          "function": "Hardware address bit 2; must be tied high or low",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "18",
+          "name": "RESET",
+          "function": "Hardware reset, active low; must be tied high for normal operation",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "19",
+          "name": "INTB",
+          "function": "Interrupt output for port B (active high, active low or open drain)",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "20",
+          "name": "INTA",
+          "function": "Interrupt output for port A (active high, active low or open drain)",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "21",
+          "name": "GPA0",
+          "function": "Port A bit 0, bidirectional I/O; interrupt-on-change and weak pull-up selectable",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "22",
+          "name": "GPA1",
+          "function": "Port A bit 1, bidirectional I/O",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "23",
+          "name": "GPA2",
+          "function": "Port A bit 2, bidirectional I/O",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "24",
+          "name": "GPA3",
+          "function": "Port A bit 3, bidirectional I/O",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "25",
+          "name": "GPA4",
+          "function": "Port A bit 4, bidirectional I/O",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "26",
+          "name": "GPA5",
+          "function": "Port A bit 5, bidirectional I/O",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "27",
+          "name": "GPA6",
+          "function": "Port A bit 6, bidirectional I/O",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "28",
+          "name": "GPA7",
+          "function": "Port A bit 7, output only (datasheet revision D)",
+          "type": "io",
+          "notes": "Output only on the MCP23017 (datasheet revision D, 2022): set bit 7 of IODIR to 0. Older revisions listed it as I/O.",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
       "id": "sn74hc00",
       "category": "pinouts",
       "group": "ics",
