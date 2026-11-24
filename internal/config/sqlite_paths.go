@@ -27,6 +27,8 @@ const (
 	KaggleDBFilename      = "kaggle.db"
 	// ChibiSenseiDBFilename is the Chibi Sensei store (<data_dir>/chibi_sensei.db).
 	ChibiSenseiDBFilename = "chibi_sensei.db"
+	// HomeDashDBFilename is the HomeDash store (<data_dir>/homedash.db).
+	HomeDashDBFilename = "homedash.db"
 )
 
 // FlowsDBPath returns where the EasyDrag flow store lives: next to the Game Maker
@@ -96,6 +98,7 @@ func SQLiteArchivePaths(cfg *Config) map[string]string {
 		paths["bookshelf"] = filepath.Join(dataDir, "bookshelf", "catalog.sqlite")
 		paths["findit"] = filepath.Join(dataDir, "findit.db")
 		paths["chibi_sensei"] = filepath.Join(dataDir, ChibiSenseiDBFilename)
+		paths["homedash"] = filepath.Join(dataDir, HomeDashDBFilename)
 	}
 	if gm := cfg.SQLite.GameMakerPath; gm != "" {
 		paths["detective_legacy"] = filepath.Join(filepath.Dir(gm), "detective.db")

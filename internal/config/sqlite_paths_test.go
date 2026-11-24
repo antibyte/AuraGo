@@ -47,6 +47,7 @@ func TestSQLiteDatabasePathsIncludesConfiguredAndDataDirDatabases(t *testing.T) 
 		filepath.Join(dataDir, "bookshelf", "catalog.sqlite"): true,
 		filepath.Join(dataDir, "findit.db"):                   true,
 		filepath.Join(dataDir, "chibi_sensei.db"):             true,
+		filepath.Join(dataDir, "homedash.db"):                 true,
 	}
 
 	for _, path := range got {
@@ -151,6 +152,18 @@ func TestSQLiteProtectedPathsAddsWalAndShmSidecars(t *testing.T) {
 		if got[i] != path {
 			t.Fatalf("protected[%d] = %q, want %q (full=%v)", i, got[i], path, got)
 		}
+	}
+}
+
+func TestSQLiteArchivePathsIncludeHomeDash(t *testing.T) {
+	cfg := &Config{}
+	cfg.Directories.DataDir = filepath.Join(t.TempDir(), "data")
+	want := filepath.Join(cfg.Directories.DataDir, HomeDashDBFilename)
+	if got := SQLiteArchivePaths(cfg)[SQLiteArchivePrefix+"homedash.db"]; got != want {
+		t.Fatalf("archive path %q, want %q", got, want)
+	}
+	if !containsPath(SQLiteProtectedPaths(cfg), want+"-wal") {
+		t.Fatal("homedash.db WAL is not protected from agent file tools")
 	}
 }
 
