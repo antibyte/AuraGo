@@ -2,6 +2,7 @@
 package hass
 
 import (
+	"math"
 	"regexp"
 	"slices"
 	"strconv"
@@ -121,7 +122,7 @@ func Capabilities(cfg tools.HAConfig, entityID, state string, attrs map[string]a
 		out = append(out, homedash.CapabilitySpec{Name: r, Allowed: true})
 	}
 	if spec.Kind == homedash.KindSensor {
-		if _, err := strconv.ParseFloat(state, 64); err == nil {
+		if f, err := strconv.ParseFloat(state, 64); err == nil && finite(f) {
 			out = append(out, homedash.CapabilitySpec{Name: homedash.CapNumeric, Allowed: true}, homedash.CapabilitySpec{Name: homedash.CapHistory, Allowed: true})
 		}
 	}
@@ -142,8 +143,10 @@ func blockedBy(cfg tools.HAConfig, full string) string {
 
 func fp(v float64) *float64 { return &v }
 
+func finite(f float64) bool { return !math.IsNaN(f) && !math.IsInf(f, 0) }
+
 func num(attrs map[string]any, key string, def float64) *float64 {
-	if f, ok := attrs[key].(float64); ok {
+	if f, ok := attrs[key].(float64); ok && finite(f) {
 		return &f
 	}
 	return &def

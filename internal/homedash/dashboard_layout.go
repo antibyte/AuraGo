@@ -22,14 +22,21 @@ func (v *validator) layout(path string, p Page, items []LayoutItem, cols int) {
 			continue
 		}
 		seen[it.ID] = true
-		if it.X < 0 || it.Y < 0 || it.Y > v.cat.Grid.MaxY || it.W < 1 || it.H < 1 || it.X+it.W > cols {
+		if !inGrid(it, cols, v.cat.Grid.MaxY+1) {
 			v.err(ip, IssueLayoutBounds, fmt.Sprintf("outside the %d-column grid", cols))
 			continue
 		}
-		if wt, ok := v.cat.Type(w.Type); ok {
-			if vr, ok := wt.Variant(w.Variant); ok && (it.W < vr.MinSize.W || it.H < vr.MinSize.H || it.W > wt.MaxSize.W || it.H > wt.MaxSize.H) {
-				v.err(ip, IssueSize, fmt.Sprintf("size must be %dx%d to %dx%d", vr.MinSize.W, vr.MinSize.H, wt.MaxSize.W, wt.MaxSize.H))
-			}
+		wt, ok := v.cat.Type(w.Type)
+		if !ok {
+			continue // reported by the widget validation
+		}
+		vr, ok := wt.Variant(w.Variant)
+		if !ok {
+			continue // reported by the widget validation
+		}
+		if it.W < vr.MinSize.W || it.H < vr.MinSize.H || it.W > wt.MaxSize.W || it.H > wt.MaxSize.H {
+			v.err(ip, IssueSize, fmt.Sprintf("size must be %dx%d to %dx%d", vr.MinSize.W, vr.MinSize.H, wt.MaxSize.W, wt.MaxSize.H))
+			continue
 		}
 		overlap := ""
 		for x := it.X; x < it.X+it.W && overlap == ""; x++ {
@@ -51,6 +58,13 @@ func (v *validator) layout(path string, p Page, items []LayoutItem, cols int) {
 			v.err(path, IssueLayoutMissing, "widget "+w.ID+" has no place in this layout")
 		}
 	}
+}
+
+// inGrid reports whether the item lies inside a grid of cols columns and rows rows. The comparisons
+// never add two caller-supplied numbers, so huge values cannot overflow.
+func inGrid(it LayoutItem, cols, rows int) bool {
+	return it.X >= 0 && it.Y >= 0 && it.W >= 1 && it.H >= 1 &&
+		it.W <= cols && it.X <= cols-it.W && it.H <= rows && it.Y <= rows-it.H
 }
 
 func mark(occ map[cell]string, it LayoutItem) {
@@ -82,7 +96,7 @@ func Autopack(doc *Dashboard, cat WidgetCatalog) {
 		occ, placed := map[cell]string{}, map[string]bool{}
 		for _, it := range p.Layouts.LG {
 			placed[it.ID] = true
-			if it.W > 0 && it.H > 0 && it.X >= 0 && it.Y >= 0 {
+			if inGrid(it, cols, maxY+1) {
 				mark(occ, it)
 			}
 		}

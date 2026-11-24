@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
+	"reflect"
 	"slices"
 	"testing"
+	"time"
 )
 
 func validDoc() Dashboard {
@@ -158,6 +161,58 @@ func TestDecodeKeepsExplicitLookAndGridValues(t *testing.T) {
 	raw, _ := json.Marshal(m)
 	if _, err := DecodeDashboard(raw); err == nil {
 		t.Fatal("unknown look field accepted")
+	}
+}
+
+func TestLayoutHugeItemIsRejectedQuickly(t *testing.T) {
+	const huge = 2000000000
+	for _, tc := range []struct {
+		name   string
+		bounds bool
+		mut    func(*Dashboard)
+	}{
+		{"huge height", true, func(d *Dashboard) { d.Pages[0].Layouts.LG[0].H = huge }},
+		{"huge y", true, func(d *Dashboard) { d.Pages[0].Layouts.LG[0].Y = huge }},
+		{"max x", true, func(d *Dashboard) { d.Pages[0].Layouts.LG[0].X, d.Pages[0].Layouts.LG[0].W = math.MaxInt, 1 }},
+		{"unknown type huge height", false, func(d *Dashboard) {
+			d.Pages[0].Widgets[0].Type = "toaster"
+			d.Pages[0].Layouts.LG[0].H = huge
+		}},
+	} {
+		d := validDoc()
+		tc.mut(&d)
+		done := make(chan Report, 1)
+		go func() {
+			Autopack(&d, Catalog())
+			done <- Validate(d, Catalog(), nil)
+		}()
+		select {
+		case r := <-done:
+			if r.OK() {
+				t.Errorf("%s: report is OK", tc.name)
+			}
+			if tc.bounds && !slices.ContainsFunc(r.Issues, func(i Issue) bool { return i.Code == IssueLayoutBounds }) {
+				t.Errorf("%s: no %s issue: %+v", tc.name, IssueLayoutBounds, r.Issues)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatalf("%s: Autopack/Validate did not return within 2s", tc.name)
+		}
+	}
+}
+
+func TestDashboardJSONRoundTrip(t *testing.T) {
+	orig := validDoc()
+	raw, err := json.Marshal(orig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	back, err := DecodeDashboard(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	Normalize(&back)
+	if !reflect.DeepEqual(orig, back) {
+		t.Fatalf("round trip differs:\norig %+v\nback %+v", orig, back)
 	}
 }
 

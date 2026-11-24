@@ -1,6 +1,7 @@
 package hass
 
 import (
+	"math"
 	"slices"
 	"strings"
 	"testing"
@@ -67,6 +68,24 @@ func TestHADomainMappingTable(t *testing.T) {
 		if NativeIDValid(id) != ok {
 			t.Errorf("NativeIDValid(%q)", id)
 		}
+	}
+}
+
+func TestHANumericStatesMustBeFinite(t *testing.T) {
+	for _, state := range []string{"nan", "NaN", "inf", "-Inf", "+inf", "Infinity", "-infinity"} {
+		caps := Capabilities(tools.HAConfig{}, "sensor.x", state, nil)
+		if len(caps) != 0 {
+			t.Errorf("state %q: caps %v, want none", state, capNames(caps))
+		}
+	}
+	if caps := capNames(Capabilities(tools.HAConfig{}, "sensor.x", "-3.5e2", nil)); !slices.Equal(caps, []string{"numeric", "history"}) {
+		t.Errorf("finite state: caps %v", caps)
+	}
+	if v := num(map[string]any{"min": math.NaN()}, "min", 7); *v != 7 {
+		t.Errorf("NaN attribute not replaced by the default: %v", *v)
+	}
+	if v := num(map[string]any{"min": math.Inf(1)}, "min", 7); *v != 7 {
+		t.Errorf("Inf attribute not replaced by the default: %v", *v)
 	}
 }
 
