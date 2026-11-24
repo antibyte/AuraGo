@@ -68,7 +68,7 @@ func TestDesktopAudioPlayerWindowBrowser(t *testing.T) {
 		if issues := page.MustEval(`()=>{
 			const issues=[];
 			const player=document.querySelector('.vd-player');
-			if(!player)return 'player window missing';
+			if(!player)return 'player window missing; errors='+JSON.stringify(window.fixtureErrors||[]);
 			if(document.querySelector('.vd-lightbox'))issues.push('audio must not open in the fullscreen lightbox');
 			const win=player.closest('.vd-window');
 			if(!win)issues.push('player is not inside a desktop window');
@@ -82,20 +82,28 @@ func TestDesktopAudioPlayerWindowBrowser(t *testing.T) {
 			const canvas=document.querySelector('.vd-player-canvas');
 			if(!canvas)issues.push('visualizer canvas missing');
 			else if(canvas.width<10||canvas.height<10)issues.push('visualizer canvas is not sized: '+canvas.width+'x'+canvas.height);
-			for(const sel of ['[data-play]','[data-next]','[data-prev]','[data-seek]','[data-volume]','[data-visualizer-mode]','[data-shuffle]','[data-repeat]']){
+			for(const sel of ['[data-play]','[data-next]','[data-prev]','[data-seek]','[data-volume]','[data-visualizer-mode]','[data-shuffle]','[data-repeat]','[data-eq-toggle]']){
 				if(!document.querySelector('.vd-player '+sel))issues.push('control missing: '+sel);
 			}
+			const pills=document.querySelectorAll('.vd-player [data-viz-pill]');
+			if(pills.length!==5)issues.push('expected 5 visualizer pills, got '+pills.length);
+			const overlaps=(a,b)=>a&&b&&a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top;
 			const volume=document.querySelector('.vd-player [data-volume]')?.getBoundingClientRect();
 			const speed=document.querySelector('.vd-player [data-speed]')?.getBoundingClientRect();
-			if(volume&&speed&&volume.left<speed.right&&volume.right>speed.left&&volume.top<speed.bottom&&volume.bottom>speed.top)issues.push('volume slider overlaps playback speed control');
+			const eqBtn=document.querySelector('.vd-player [data-eq-toggle]')?.getBoundingClientRect();
+			const modeBtn=document.querySelector('.vd-player [data-visualizer-mode]')?.getBoundingClientRect();
+			if(overlaps(volume,speed))issues.push('volume slider overlaps playback speed control');
+			if(overlaps(speed,modeBtn))issues.push('speed overlaps visualizer mode button');
+			if(overlaps(eqBtn,document.querySelector('.vd-player [data-prev]')?.getBoundingClientRect()))issues.push('eq toggle overlaps transport controls');
 			const root=player.getBoundingClientRect();
 			if(root.width<200||root.height<200)issues.push('player is too small: '+root.width+'x'+root.height);
+			if(player.scrollWidth>player.clientWidth+2)issues.push('horizontal overflow: '+player.scrollWidth+' > '+player.clientWidth);
 			return issues.join('\n');
 		}`).Str(); issues != "" {
 			t.Fatalf("audio player at %dx%d: %s", viewport[0], viewport[1], issues)
 		}
 
-		// The spectrum must actually paint, not only exist.
+		// The spectrum must actually paint in every single one of the 5 renderers.
 		painted := page.MustEval(`async()=>{
 			const canvas=document.querySelector('.vd-player-canvas');
 			await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
@@ -156,19 +164,107 @@ func TestDesktopAudioPlayerWindowBrowser(t *testing.T) {
             }`)
 		}
 
-		// The visualizer mode cycles through all three renderers.
-		modes := []string{}
-		for i := 0; i < 3; i++ {
-			page.MustEval(`async()=>{document.querySelector('.vd-player [data-visualizer-mode]').click();await new Promise(r=>setTimeout(r,80));}`)
-			modes = append(modes, page.MustEval(`()=>document.querySelector('.vd-player [data-visualizer-mode]').textContent.trim()`).Str())
+		// The visualizer mode cycles through all 5 distinct renderers and every mode paints non-empty pixels.
+		seenModes := map[string]bool{}
+		for i := 0; i < 5; i++ {
+			modeResult := page.MustEval(`async()=>{
+				const label=document.querySelector('.vd-player [data-visualizer-mode]').textContent.trim();
+				await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+				const canvas=document.querySelector('.vd-player-canvas');
+				const ctx=canvas.getContext('2d');
+				const data=ctx.getImageData(0,0,canvas.width,canvas.height).data;
+				let painted=0;
+				for(let p=3;p<data.length;p+=4){if(data[p]>0)painted++;}
+				document.querySelector('.vd-player [data-visualizer-mode]').click();
+				await new Promise(r=>setTimeout(r,90));
+				return {label,painted};
+			}`)
+			lbl := modeResult.Get("label").Str()
+			if lbl == "" {
+				t.Fatalf("empty visualizer label at step %d", i)
+			}
+			if modeResult.Get("painted").Int() <= 0 {
+				t.Fatalf("visualizer mode %q painted zero pixels at %dx%d", lbl, viewport[0], viewport[1])
+			}
+			seenModes[lbl] = true
 		}
-		if modes[0] == "" || modes[0] == modes[1] || modes[1] == modes[2] {
-			t.Fatalf("visualizer mode must cycle through three renderers, got %v", modes)
+		if len(seenModes) != 5 {
+			t.Fatalf("visualizer mode must cycle through 5 distinct renderers, got %v", seenModes)
+		}
+
+		// Desktop E2E verification for visualizer pills & 8-band EQ presets/profiles.
+		if viewport[0] > 800 {
+			if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
+				if err := os.MkdirAll(dir, 0755); err != nil {
+					t.Fatal(err)
+				}
+				for _, m := range []string{"bars", "radial", "wave", "nebula", "horizon"} {
+					page.MustEval(fmt.Sprintf(`async()=>{document.querySelector('.vd-player [data-viz-pill=%q]').click();await new Promise(r=>setTimeout(r,260));}`, m))
+					page.MustScreenshot(filepath.Join(dir, fmt.Sprintf("audio-player-viz-%s.png", m)))
+				}
+			}
+			page.MustEval(`async()=>{
+				localStorage.removeItem('aurago.audio-player.eq.v1');
+				document.querySelector('.vd-player [data-viz-pill="nebula"]').click();
+				await new Promise(r=>setTimeout(r,80));
+				if(!document.querySelector('.vd-player [data-viz-pill="nebula"]').classList.contains('is-active'))throw Error('nebula pill not activated');
+				document.querySelector('.vd-player [data-eq-toggle]').click();
+				const panel=document.querySelector('.vd-player [data-eq-panel]');
+				if(!panel||panel.hidden)throw Error('EQ panel did not open');
+				const sliders=[...document.querySelectorAll('.vd-player [data-eq-band]')];
+				if(sliders.length!==8)throw Error('expected 8 EQ sliders, got '+sliders.length);
+				if(panel.scrollWidth>panel.clientWidth+2)throw Error('EQ panel overflows horizontally');
+				const flatPath=document.querySelector('.vd-player [data-eq-curve-line]')?.getAttribute('d')||'';
+				if(!flatPath)throw Error('EQ SVG curve missing');
+				const sel=document.querySelector('.vd-player [data-eq-select]');
+				sel.value='preset:bass_boost';
+				sel.dispatchEvent(new Event('change',{bubbles:true}));
+				if(sliders[0].value!=='6.5')throw Error('bass_boost did not set 60Hz to 6.5, got '+sliders[0].value);
+				const boostPath=document.querySelector('.vd-player [data-eq-curve-line]')?.getAttribute('d')||'';
+				if(boostPath===flatPath)throw Error('EQ SVG curve did not update for bass_boost');
+				sliders[3].value='4.5';
+				sliders[3].dispatchEvent(new Event('input',{bubbles:true}));
+				if(document.querySelector('.vd-player [data-eq-db="3"]').textContent.trim()!=='+4.5')throw Error('band 3 db readout did not update');
+				const input=document.querySelector('.vd-player [data-eq-profile-name]');
+				input.value='Studio Night';
+				document.querySelector('.vd-player [data-eq-save]').click();
+				if(![...sel.options].some(o=>o.text==='Studio Night'))throw Error('saved profile missing from dropdown');
+			}`)
+			if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
+				page.MustScreenshot(filepath.Join(dir, "audio-player-eq-open-dark.png"))
+				page.MustEval(`()=>{fixtureTheme('fruity-light');}`)
+				page.MustScreenshot(filepath.Join(dir, "audio-player-eq-open-light.png"))
+				page.MustEval(`()=>{fixtureTheme('standard');}`)
+			}
+			// Reopen window and assert custom profile persisted.
+			page.MustEval(`async()=>{
+				[...aurora.state.windows.keys()].forEach(id=>aurora.closeWindow(id));
+				await new Promise(r=>setTimeout(r,80));
+				aurora.openApp('audio-player',{path:'Music/galaga.mp3'});
+				await new Promise(r=>setTimeout(r,400));
+				document.querySelector('.vd-player [data-eq-toggle]').click();
+				const sliders=[...document.querySelectorAll('.vd-player [data-eq-band]')];
+				if(sliders[0].value!=='6.5'||sliders[3].value!=='4.5')throw Error('custom EQ profile did not persist across reopen: '+sliders[0].value+'/'+sliders[3].value);
+				document.querySelector('.vd-player [data-eq-delete]').click();
+				const sel=document.querySelector('.vd-player [data-eq-select]');
+				if([...sel.options].some(o=>o.text==='Studio Night'))throw Error('deleted profile still present');
+				document.querySelector('.vd-player [data-eq-reset]').click();
+				if(sliders.some(s=>s.value!=='0'))throw Error('EQ reset did not zero all bands');
+				document.querySelector('.vd-player [data-eq-enabled]').click();
+				if(!document.querySelector('.vd-player [data-eq-panel]').classList.contains('is-bypassed'))throw Error('EQ bypass toggle failed');
+				document.querySelector('.vd-player [data-eq-close]').click();
+				if(!document.querySelector('.vd-player [data-eq-panel]').hidden)throw Error('EQ close button did not hide panel');
+			}`)
 		}
 
 		if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
 			if err := os.MkdirAll(dir, 0755); err != nil {
 				t.Fatal(err)
+			}
+			if viewport[0] < 800 {
+				page.MustEval(`()=>{document.querySelector('.vd-player [data-eq-toggle]').click();}`)
+				page.MustScreenshot(filepath.Join(dir, fmt.Sprintf("audio-player-eq-%dx%d.png", viewport[0], viewport[1])))
+				page.MustEval(`()=>{document.querySelector('.vd-player [data-eq-close]').click();}`)
 			}
 			page.MustScreenshot(filepath.Join(dir, fmt.Sprintf("audio-player-%dx%d.png", viewport[0], viewport[1])))
 		}

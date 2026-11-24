@@ -50,6 +50,7 @@ func TestAudioPlayerAssets(t *testing.T) {
 	for _, want := range []string{
 		"'audio-player'",
 		"/js/desktop/apps/audio-player.js",
+		"/js/desktop/apps/audio-player-eq.js",
 		"/js/desktop/apps/audio-player-visualizer.js",
 		"/js/desktop/apps/audio-player-tags.js",
 		"/css/desktop-app-audio-player.css",
@@ -92,6 +93,7 @@ func TestAudioPlayerAssets(t *testing.T) {
 	player := readDesktopAssetText(t, "js/desktop/apps/audio-player.js")
 	for _, want := range []string{
 		"window.AudioPlayerApp",
+		"window.AudioPlayerEQ",
 		"createMediaElementSource",
 		"createAnalyser",
 		"window.AuraDesktopMediaSession",
@@ -101,14 +103,29 @@ func TestAudioPlayerAssets(t *testing.T) {
 		`data-prev aria-label="${esc(t('desktop.audio_player_previous'))}"`,
 		`data-play aria-label="${esc(t('desktop.audio_player_play'))}"`,
 		`data-next aria-label="${esc(t('desktop.audio_player_next'))}"`,
+		"data-eq-toggle",
+		"data-eq-panel",
 	} {
 		if !strings.Contains(player, want) {
 			t.Fatalf("audio player implementation missing marker %q", want)
 		}
 	}
 
+	eqEngine := readDesktopAssetText(t, "js/desktop/apps/audio-player-eq.js")
+	for _, want := range []string{
+		"AudioPlayerEQ = api",
+		"createBiquadFilter",
+		"aurago.audio-player.eq.v1",
+		"buildChain",
+		"computeCurve",
+	} {
+		if !strings.Contains(eqEngine, want) {
+			t.Fatalf("audio player EQ engine missing marker %q", want)
+		}
+	}
+
 	visualizer := readDesktopAssetText(t, "js/desktop/apps/audio-player-visualizer.js")
-	for _, want := range []string{"'bars'", "'radial'", "'wave'", "getByteFrequencyData", "getByteTimeDomainData"} {
+	for _, want := range []string{"'bars'", "'radial'", "'wave'", "'nebula'", "'horizon'", "getByteFrequencyData", "getByteTimeDomainData"} {
 		if !strings.Contains(visualizer, want) {
 			t.Fatalf("audio player visualizer missing marker %q", want)
 		}
@@ -195,6 +212,35 @@ func TestAudioPlayerTranslations(t *testing.T) {
 		"desktop.audio_player_mode_bars",
 		"desktop.audio_player_mode_radial",
 		"desktop.audio_player_mode_wave",
+		"desktop.audio_player_mode_nebula",
+		"desktop.audio_player_mode_horizon",
+		"desktop.audio_player_visualizer",
+		"desktop.audio_player_eq",
+		"desktop.audio_player_eq_short",
+		"desktop.audio_player_eq_enable",
+		"desktop.audio_player_eq_reset",
+		"desktop.audio_player_eq_close",
+		"desktop.audio_player_eq_presets",
+		"desktop.audio_player_eq_profiles",
+		"desktop.audio_player_eq_custom",
+		"desktop.audio_player_eq_profile_placeholder",
+		"desktop.audio_player_eq_save",
+		"desktop.audio_player_eq_delete",
+		"desktop.audio_player_eq_saved",
+		"desktop.audio_player_eq_deleted",
+		"desktop.audio_player_eq_name_required",
+		"desktop.audio_player_eq_limit_reached",
+		"desktop.audio_player_eq_band",
+		"desktop.audio_player_eq_preset_flat",
+		"desktop.audio_player_eq_preset_bass_boost",
+		"desktop.audio_player_eq_preset_electronic",
+		"desktop.audio_player_eq_preset_rock",
+		"desktop.audio_player_eq_preset_pop",
+		"desktop.audio_player_eq_preset_vocal",
+		"desktop.audio_player_eq_preset_acoustic",
+		"desktop.audio_player_eq_preset_jazz",
+		"desktop.audio_player_eq_preset_classical",
+		"desktop.audio_player_eq_preset_late_night",
 		"desktop.audio_player_unknown_artist",
 	}
 	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
@@ -214,6 +260,9 @@ func TestAudioPlayerTranslations(t *testing.T) {
 		}
 		if !strings.Contains(values["desktop.audio_player_queue_count"], "{{count}}") {
 			t.Fatalf("%s queue count must keep the {{count}} placeholder", path)
+		}
+		if !strings.Contains(values["desktop.audio_player_eq_band"], "{{freq}}") {
+			t.Fatalf("%s eq band label must keep the {{freq}} placeholder", path)
 		}
 	}
 }

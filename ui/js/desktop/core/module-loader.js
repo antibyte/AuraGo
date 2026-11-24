@@ -221,6 +221,7 @@
             scripts: [
                 '/js/desktop/apps/audio-player-tags.js',
                 '/js/desktop/apps/audio-player-visualizer.js',
+                '/js/desktop/apps/audio-player-eq.js',
                 '/js/desktop/apps/audio-player.js'
             ]
         },
