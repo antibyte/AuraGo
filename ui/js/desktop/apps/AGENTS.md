@@ -413,7 +413,7 @@ after the built-in installers and before the markup exists. DOM work belongs in 
     infra.js calls it with `sideways: true` (only when the card is cut at a side) and never while `gestures.active()` or
     `state.interacting`; a card focused with the keyboard (`:focus-visible`) reveals itself; `ensureVisible` is `reveal(id)`.
   - Library drops snap to the 24 px grid through `slotsAt` (infra-gestures.js), which also draws the dashed `[data-drop-slot]`; the
-    ghost is centred on the pointer and drawn at the map's zoom clamped to 0.5 to 1.25. Only the map and a place row take a drop;
+    ghost is centred on the pointer and drawn at the map's zoom clamped to 0.75 to 1.25 (0.5 was unreadable); its hint pill keeps its normal size. Only the map and a place row take a drop;
     any other end of the drag announces `infra_drop_cancelled`.
   - `edgePan` pans while the pointer sits in the 36 px band at a viewport edge (armed once the pointer was well inside); card drags
     subtract the view shift, the marquee keeps its start in world space. Do not tie it to a timer other than requestAnimationFrame.

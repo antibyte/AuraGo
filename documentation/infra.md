@@ -50,7 +50,9 @@ cannot infer it. The Topology view draws four lanes, labelled Internet, Network,
 English UI (see [Topology lanes](#topology-lanes)). Assets without a topology position are laid out automatically,
 and dragging a card into another lane keeps it there. In Topology, **Arrange automatically**
 [`desktop.infra_arrange_auto`] hands the selection, or every card, back to the automatic layout; on the map,
-**Arrange** [`desktop.infra_arrange`] re-runs the grid. The List view is a sortable tree of the same assets.
+**Arrange** [`desktop.infra_arrange`] re-runs the grid for the selection (`desktop.infra_arrange_selection`) or, when
+several assets of one place are selected, the whole map (`desktop.infra_arrange_map`). The List view is a sortable tree of
+the same assets; on narrow windows it hides columns by priority (Power first, Status last) instead of scrolling sideways.
 
 Draw a connection by dragging a card's handle onto another card, or with the Connect tool (`C`). Ethernet, Fiber,
 Wi-Fi, Member of, Runs on, Depends on and Powered by stay distinct; a shared subnet does not imply a cable. Layout
@@ -269,19 +271,23 @@ The styles are `ui/css/desktop-app-infra.css` (shell, panels, dialogs) and `ui/c
   - Unset size: 360 × 240.
   - The app resizes to at least 200 × 140; the server accepts 120–20,000.
   - The drawn region is that rectangle grown to contain its children plus 48 px.
-- Drops snap to a 24 px grid. A drop onto another card moves to the nearest free grid slot; a stacked card lands 72 px away.
+- Drops snap to a 24 px grid, including library drops. A drop onto another card moves to the nearest free grid slot; a
+  stacked card lands 72 px away. The library drag ghost is drawn at the map zoom clamped to 0.75–1.25, centred on the
+  pointer, and a dashed outline (`[data-drop-slot]`) shows the landing slot at the real zoom.
 - The Map (`atlas`) and Topology (`topology`) views have separate placements. Places are drawn only on the map.
 - Semantic zoom: below zoom 0.65 a card turns compact (icon and name, without the meta line). The compact form
-  changes no geometry. Names, region headers and lane labels are counter-scaled so they stay readable on screen.
+  changes no geometry. Compact names stay on one line with an ellipsis and are hidden only where they would cover another
+  card's icon (`is-name-clash`), until the card is hovered, focused or selected. Names, region headers and lane labels are
+  counter-scaled so they stay readable on screen.
 
 ### Topology lanes
 
 | Lane | Index | World y | Assets |
 | --- | --- | --- | --- |
-| Internet | 0 | 0–383 | icons `internet`, `modem-ont`; role words modem, ONT, ISP, WAN, DSL |
+| Internet | 0 | 0–383 | icons `internet`, `modem-ont`, `cloud-service`; role words modem, ONT, ISP, WAN, DSL |
 | Network | 1 | 384–767 | kind `network`; icons `router`, `firewall`, `vpn`, `managed-switch`, `switch`, `patch-panel`, `access-point`, `mesh-node`, `lan`, `vlan`, `wlan`; role words router, firewall, VPN, switch, gateway, mesh, AP, access point |
-| Servers and storage | 2 | 768–1151 | icons `rack-server`, `tower-server`, `mini-pc`, `sbc`, `nas`, `hypervisor`, `kubernetes`, `disk-shelf`, `storage-share`, `backup`, `database`, `nvr`, `ups`, `pdu`; role words server, NAS, disk shelf, storage, database, NVR, recorder, rack, UPS, PDU, hypervisor, Proxmox, ESXi, Kubernetes, k8s; then any asset that runs guests |
-| Clients and IoT | 3 | 1152–1535 | everything else, for example cameras, printers, TVs, phones, tablets, laptops and sensors |
+| Servers and storage | 2 | 768–1151 | icons `rack-server`, `tower-server`, `mini-pc`, `nas`, `hypervisor`, `kubernetes`, `disk-shelf`, `storage-share`, `backup`, `database`, `nvr`, `ups`, `pdu`; role words server, NAS, disk shelf, storage, database, NVR, recorder, rack, UPS, PDU, hypervisor, Proxmox, ESXi, Kubernetes, k8s; then any asset that runs guests |
+| Clients and IoT | 3 | 1152–1535 | everything else, for example cameras, printers, TVs, phones, tablets, laptops and sensors; an `sbc` icon goes by role words or guests, otherwise here |
 
 - `topologyLane(node)` is the one mapping. It checks the `network` kind, then the icon, then words in the role (camel case is split, so `InternetGatewayDevice` reads as "internet gateway device"), then whether the asset runs guests. Anything else is a client.
 - The lanes are full-width stripes around x = 0 (`LANE_EXTENT`). They are decoration: they never take part in scene bounds, fit, the minimap or hit tests. Their labels are sticky (`--infra-lane-x`): they stay 12 px inside the left edge of the view while you pan. They paint above the connection layer and below the cards.
@@ -327,7 +333,9 @@ Each window keeps view preferences, never inventory data, in `localStorage`:
 
 ### Accessibility
 
-- The map is one tab stop (`role="application"`); arrow keys move between cards. The library tree and the List view are the accessible lists of the same assets. The Topology lanes are visual only.
+- The map is one tab stop (`role="application"`); arrow keys move between cards, and a card focused by Tab is scrolled into
+  view. The List body is one tab stop as well; Up/Down, Home/End move between rows, Left/Right fold a host, Space toggles
+  the checkbox and Enter opens the asset. The library tree and the List view are the accessible lists of the same assets. The Topology lanes are visual only.
 - The canvas tools are the one toolbar (`role="toolbar"`), with a roving tab stop and arrow, Home and End keys. The details panel tabs follow the tab pattern, and pickers are ARIA 1.2 comboboxes.
 - A polite live region (`[data-announce]`) announces state changes only: selection, placement, save outcome, and sync lost or back. Banners and inline errors use `role="status"` and `role="alert"`. A poll never announces, and a poll that keeps failing reports its error once; an explicit Refresh always reports.
 - Closing a panel, sheet, picker or dialog gives focus back to the control that opened it. A menu item hands focus to the trigger of its menu.

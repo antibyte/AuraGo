@@ -244,3 +244,23 @@ window-resize refit, a place field in the create dialog. They change habits or n
 `node scripts/test-infra-ui.mjs`, the UI line budget, i18n and asset guards, `npm run check:ui`, and
 `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run TestDesktopInfra`. Before and after screenshots of the reviewed
 scenes from the live preview kit. One visual pass over the other desktop themes for the changed surfaces.
+
+## Implementation notes (2026-11-24)
+
+The implementation is authoritative where it differs from the items above.
+
+Deviations:
+
+- **2.3:** the library drag ghost is drawn at the map zoom clamped to 0.75 to 1.25 (not 0.5), because at 50 % its name
+  was unreadable. The ghost is centred on the pointer and its hint pill keeps its normal size. A dashed outline
+  (`[data-drop-slot]`) shows the snapped landing spot at the real zoom.
+- **2.6:** compact names are one line with an ellipsis. A name is hidden only where it would cover another card's
+  icon, and it shows again on hover, focus or selection.
+
+Decisions:
+
+- MAC and VLAN checks follow Go's `net.ParseMAC` (six octets, `:` or `-`) and the VLAN range 0 to 4094, so the client
+  is never stricter than `internal/infra/validate.go`. IP accepts v4 or v6.
+- Library drops snap to the 24 px grid through `slotsAt`, like every other map drop.
+- 3.5: a partial import (some items failed) is an info toast, not a dialog.
+- 3.11: the F shortcut hint sits on the Fit item of the map context menu.
