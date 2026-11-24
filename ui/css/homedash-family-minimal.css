@@ -1,1 +1,126 @@
-/* HomeDash family Minimal: token block and painting. Filled in milestone M1 (style lab). */
+/* HomeDash family Minimal: token block (plan T3) and painting. Type and hairlines: flat fills only, no shadow, no gradient, no icon discs.
+   The accent appears in the focus ring and in value arcs only; every other mark is ink on the card. */
+[data-hd-family="minimal"] {
+  --hd-surface: var(--hd-surface-solid); --hd-card-bg: var(--hd-surface-solid);
+  --hd-card-border: 1px solid var(--hd-hairline); --hd-dash-unavail: 1px dashed var(--hd-hairline);
+  --hd-radius-card: var(--hd-theme-radius); --hd-radius-control: var(--hd-corners-control);
+  --hd-edge-hi: none; --hd-edge-lo: none; --hd-shadow-contact: none; --hd-shadow-card: none; --hd-shadow-press: none; --hd-ring-alert: none;
+  --hd-track: transparent; --hd-track-line: var(--hd-ink); --hd-track-fill: var(--hd-ink);
+  --hd-thumb: var(--hd-ink); --hd-thumb-on: var(--hd-surface-solid);
+  --hd-stroke-hair: 1px; --hd-stroke-1: 1.5px; --hd-stroke-2: 2px; --hd-stroke-arc: 0.04; --hd-stroke-tick: 1px;
+  --hd-m-arc-w: 3px; --hd-m-spark-w: 1.25px; --hd-m-dot-r: 4;
+  --hd-m-arc-u: 4; /* value arcs of the dials in user units (3 px at D 150): the fallback where typed calc is missing */
+  --hd-value-colour: var(--hd-accent); /* plan deviation: the colour token is --hd-value-colour, --hd-value stays the 0-1 fraction the knob and gauge primitives write */
+  --hd-font-ui: "Geist", "Inter", system-ui, sans-serif; --hd-font-label: var(--hd-font-ui); --hd-font-num: var(--hd-font-ui);
+  --hd-num-features: "tnum" 1; --hd-num-weight: 300; --hd-num-weight-small: 500; --hd-num-tracking: -0.035em;
+  --hd-num-cap: 0.71; --hd-num-hero-max: 128px; --hd-unit-scale: 0.42; --hd-dial-num-k: 0.28; --hd-thermo-num-k: 0.26;
+  --hd-label-size: 12.5px; --hd-label-weight: 500; --hd-label-tracking: 0.01em;
+  --hd-dur-toggle: 160ms; --hd-ease-toggle: var(--hd-ease-standard); --hd-dur-fill: 160ms; --hd-dur-xfade: 160ms;
+  --hd-dur-remote: 160ms; --hd-ease-remote: var(--hd-ease-standard); --hd-dur-needle-f: 420ms; --hd-dur-zone: 160ms;
+  --hd-th-stroke: 12;
+  --hd-m-rect-r: min(var(--hd-corners-control), 8px); /* rocker and bezel corners: a rectangle, square in square-corner themes */
+}
+
+/* Shared: text takes the widget ink (the root colour would not follow a widget-level override); everything is ink on the card. */
+.hd-widget[data-hd-family="minimal"] { color: var(--hd-ink); }
+.hd-widget[data-hd-family="minimal"] .hd-head > .hd-icon { color: var(--hd-ink-muted); } /* no disc, no tint */
+.hd-widget[data-hd-family="minimal"] .hd-numeral .hd-num-unit { font-weight: 400; color: var(--hd-ink-muted); }
+.hd-widget[data-hd-family="minimal"] :is(.hd-dial-readout > .hd-numeral, .hd-gauge-readout .hd-numeral, .hd-tread .hd-numeral, .hd-body > .hd-numeral) { font-weight: var(--hd-num-weight); letter-spacing: var(--hd-num-tracking); }
+
+/* Shared state language, Minimal column. Unavailable: every ink is the faint ink (the dashed border is in widgets.css). Readonly: lock badge only. Alert: triangle badge (widgets.css) and the value in alert ink, no ring. */
+.hd-widget[data-hd-family="minimal"][data-hd-status="unavailable"] { --hd-ink: var(--hd-ink-faint); --hd-ink-muted: var(--hd-ink-faint); }
+.hd-widget[data-hd-family="minimal"][data-hd-tone="crit"] :is(.hd-dial-readout > .hd-numeral, .hd-gauge-readout .hd-numeral, .hd-tread .hd-numeral, .hd-body > .hd-numeral, .hd-tread .hd-seg7) { color: var(--hd-alert-ink); }
+
+/* H1 toggle switch (pill): 1.5 px ink outline and an ink thumb, filled ink with a surface thumb when on. */
+.hd-widget[data-hd-family="minimal"] .hd-toggle { --hd-tgl-inset: 6px; --hd-m-ring: var(--hd-ink); }
+.hd-widget[data-hd-family="minimal"] .hd-toggle[aria-checked="true"] { --hd-m-ring: var(--hd-thumb-on); }
+.hd-widget[data-hd-family="minimal"] .hd-toggle-track { box-shadow: inset 0 0 0 var(--hd-stroke-1) var(--hd-track-line); }
+.hd-widget[data-hd-family="minimal"] .hd-toggle-track::before { content: ""; position: absolute; inset: 0; border-radius: var(--hd-radius-control); background: var(--hd-track-fill); opacity: 0; }
+.hd-widget[data-hd-family="minimal"] .hd-toggle[aria-checked="true"] .hd-toggle-track::before { opacity: 1; }
+.hd-widget[data-hd-family="minimal"] .hd-toggle-thumb { background: var(--hd-thumb); }
+.hd-widget[data-hd-family="minimal"] .hd-toggle[aria-checked="true"] .hd-toggle-thumb { background: var(--hd-thumb-on); } /* colour cannot transition: it swaps at the start of the 160 ms travel */
+.hd-widget[data-hd-family="minimal"] .hd-toggle-thumb::after { content: ""; position: absolute; inset: -4px; border-radius: var(--hd-radius-pill); box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-m-ring); -webkit-mask: var(--hd-arc-mask-75); mask: var(--hd-arc-mask-75); opacity: 0; }
+.hd-widget[data-hd-family="minimal"][data-hd-pending="true"] .hd-toggle-thumb::after { opacity: 1; }
+
+/* H2 rocker switch: two stacked rectangles in a 1.5 px outline; the active half is ink with the label inverted. Pending is a hairline ring around the bezel. */
+.hd-widget[data-hd-family="minimal"] .hd-rocker { border-radius: var(--hd-m-rect-r); }
+.hd-widget[data-hd-family="minimal"] .hd-rocker-bezel { padding: 0; border-radius: var(--hd-m-rect-r); box-shadow: inset 0 0 0 var(--hd-stroke-1) var(--hd-ink); }
+.hd-widget[data-hd-family="minimal"] .hd-rocker-paddle { overflow: hidden; border-radius: var(--hd-m-rect-r); }
+.hd-widget[data-hd-family="minimal"] .hd-rocker-half + .hd-rocker-half { box-shadow: inset 0 var(--hd-stroke-hair) 0 var(--hd-hairline); }
+.hd-widget[data-hd-family="minimal"] .hd-rocker-half::before { content: ""; position: absolute; inset: 0; background: var(--hd-ink); opacity: 0; }
+.hd-widget[data-hd-family="minimal"] .hd-rocker[aria-checked="true"] .hd-rocker-half[data-half="on"]::before,
+.hd-widget[data-hd-family="minimal"] .hd-rocker[aria-checked="false"] .hd-rocker-half[data-half="off"]::before { opacity: 1; }
+.hd-widget[data-hd-family="minimal"] .hd-rocker-legend { position: relative; font: 500 15px / 1 var(--hd-font-ui); color: var(--hd-ink); }
+.hd-widget[data-hd-family="minimal"] .hd-rocker[aria-checked="true"] .hd-rocker-half[data-half="on"] .hd-rocker-legend,
+.hd-widget[data-hd-family="minimal"] .hd-rocker[aria-checked="false"] .hd-rocker-half[data-half="off"] .hd-rocker-legend { color: var(--hd-surface-solid); }
+.hd-widget[data-hd-family="minimal"] .hd-rocker-bezel::after { content: ""; position: absolute; inset: -4px; border-radius: calc(var(--hd-m-rect-r) + 4px); box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-ink); opacity: 0; pointer-events: none; }
+.hd-widget[data-hd-family="minimal"][data-hd-pending="true"] .hd-rocker-bezel::after { opacity: 1; }
+
+/* H3 dimmer dial (also the base of the H4 thermostat ring): hairline track, 3 px ink arc with butt caps, a small ink dot; the numeral carries the value. */
+.hd-widget[data-hd-family="minimal"] .hd-dial-track { stroke: var(--hd-hairline); stroke-width: var(--hd-stroke-2); vector-effect: non-scaling-stroke; }
+/* The arcs are dashed through pathLength 1000: non-scaling-stroke would measure that dash in screen pixels and cut the value short (measured, 64 % drew as 52 %), so the 3 px width is converted to user units from D. */
+.hd-widget[data-hd-family="minimal"] .hd-dial { --hd-m-d: min(var(--hd-body-w), var(--hd-body-h)); }
+.hd-widget[data-hd-family="minimal"][data-hd-type="climate"] .hd-dial { --hd-m-d: var(--hd-th-d); }
+.hd-widget[data-hd-family="minimal"] .hd-dial-arc { stroke: var(--hd-ink); stroke-width: var(--hd-m-arc-u); stroke-linecap: butt; }
+.hd-widget[data-hd-family="minimal"] .hd-dial-knob { fill: var(--hd-ink); r: var(--hd-m-dot-r); }
+.hd-widget[data-hd-family="minimal"] .hd-dial::after { content: ""; position: absolute; inline-size: 14%; block-size: 14%; inset-inline-start: calc(50% + 44% * sin(var(--hd-angle, 0deg))); inset-block-start: calc(50% - 44% * cos(var(--hd-angle, 0deg)));
+  translate: -50% -50%; border-radius: var(--hd-radius-pill); box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-ink); -webkit-mask: var(--hd-arc-mask-75); mask: var(--hd-arc-mask-75); opacity: 0; pointer-events: none; }
+.hd-widget[data-hd-family="minimal"][data-hd-pending="true"] .hd-dial::after { opacity: 1; }
+
+/* H4 thermostat dial: the active segment (current to target) is a 3 px line in the action colour; no ticks. */
+.hd-widget[data-hd-family="minimal"][data-hd-type="climate"] .hd-dial-arc { display: none; }
+.hd-widget[data-hd-family="minimal"] .hd-dial-active { stroke: var(--hd-act); stroke-width: var(--hd-m-arc-u); stroke-linecap: butt; }
+@supports (width: calc(1px / 1px)) { .hd-widget[data-hd-family="minimal"] :is(.hd-dial-arc, .hd-dial-active) { stroke-width: calc(var(--hd-m-arc-w) * 200 / var(--hd-m-d)); } }
+.hd-widget[data-hd-family="minimal"] .hd-dial-marker { fill: var(--hd-ink-muted); }
+.hd-widget[data-hd-family="minimal"] .hd-dial-action { display: block; color: var(--hd-ink-muted); }
+.hd-widget[data-hd-family="minimal"] .hd-dial-sub { color: var(--hd-ink-muted); }
+.hd-widget[data-hd-family="minimal"] .hd-dial-sub .hd-numeral { font-weight: var(--hd-num-weight-small); }
+.hd-widget[data-hd-family="minimal"] .hd-climate-steps .hd-push { color: var(--hd-ink); background: transparent; box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-hairline); border-radius: var(--hd-corners-control); }
+.hd-widget[data-hd-family="minimal"] .hd-seg { box-shadow: inset 0 calc(-1 * var(--hd-stroke-hair)) 0 var(--hd-hairline); }
+.hd-widget[data-hd-family="minimal"] .hd-seg-indicator::before { content: ""; position: absolute; inset-inline: 0; inset-block-end: 0; block-size: 2px; background: var(--hd-ink); }
+.hd-widget[data-hd-family="minimal"] .hd-seg-opt { color: var(--hd-ink-muted); font: 500 12.5px / 1 var(--hd-font-ui); }
+.hd-widget[data-hd-family="minimal"] .hd-seg-opt[aria-checked="true"] { color: var(--hd-ink); }
+
+/* Gauge readouts (H5, H6) and the sensor numeral (H8). */
+.hd-widget[data-hd-family="minimal"] .hd-gauge-readout { font-weight: var(--hd-num-weight); }
+
+/* H5 needle gauge: ticks at the majors only, a hairline needle on a small hub, 2 px zone arcs. */
+.hd-widget[data-hd-family="minimal"] .hd-gauge-ticks[data-major="true"] { stroke: var(--hd-ink-muted); stroke-width: var(--hd-stroke-tick); vector-effect: non-scaling-stroke; }
+.hd-widget[data-hd-family="minimal"] .hd-gauge-ticks[data-minor="true"] { display: none; }
+.hd-widget[data-hd-family="minimal"] .hd-gauge-zone { stroke-width: var(--hd-stroke-2); vector-effect: non-scaling-stroke; }
+.hd-widget[data-hd-family="minimal"] .hd-gauge-zone[data-tone="warn"] { stroke: var(--hd-warn); }
+.hd-widget[data-hd-family="minimal"] .hd-gauge-zone[data-tone="crit"] { stroke: var(--hd-alert); }
+.hd-widget[data-hd-family="minimal"] .hd-gauge-numeral { fill: var(--hd-ink-muted); font-weight: 400; }
+.hd-widget[data-hd-family="minimal"] .hd-gauge-needle-shape { fill: var(--hd-ink); transform-box: view-box; transform-origin: 100px 100px; transform: scaleX(.25); }
+.hd-widget[data-hd-family="minimal"] .hd-gauge-hub { fill: var(--hd-ink); r: 3; }
+
+/* H6 arc gauge: 8 unit arc (4 % of D) in the value colour with butt caps, a 1 px hairline track, 2 px zone arcs; no cap dot. */
+.hd-widget[data-hd-family="minimal"] .hd-gauge-track { stroke: var(--hd-hairline); stroke-width: var(--hd-stroke-hair); vector-effect: non-scaling-stroke; }
+.hd-widget[data-hd-family="minimal"] .hd-gauge-arc { stroke: var(--hd-value-colour); stroke-width: calc(var(--hd-stroke-arc) * 200); stroke-linecap: butt; }
+.hd-widget[data-hd-family="minimal"] .hd-gauge-arc-zone { display: inline; stroke-width: calc(var(--hd-stroke-arc) * 200); stroke-linecap: butt; }
+.hd-widget[data-hd-family="minimal"] .hd-gauge[data-hd-gauge="arc"] .hd-gauge-zone { stroke-width: var(--hd-stroke-2); vector-effect: non-scaling-stroke; opacity: 0.7; }
+.hd-widget[data-hd-family="minimal"] .hd-gauge-cap { display: none; }
+
+/* H7 big temperature readout: Geist 300; the trend glyph is muted (one hue per widget). */
+.hd-widget[data-hd-family="minimal"] .hd-num-trend { color: var(--hd-ink-muted); }
+
+/* H8 sensor tile with sparkline: a 1.25 px ink line and an end dot; no area, no halo, no grid. */
+.hd-widget[data-hd-family="minimal"] .hd-spark-fill { display: none; }
+.hd-widget[data-hd-family="minimal"] .hd-spark-line { fill: none; stroke: var(--hd-ink); stroke-width: var(--hd-m-spark-w); stroke-linejoin: round; stroke-linecap: round; }
+.hd-widget[data-hd-family="minimal"] .hd-spark-last { fill: var(--hd-ink); }
+
+/* Motion: every transition and animation sits behind the motion gate. Standard curve, no overshoot; the pending ring turns once per 1.2 s. */
+@media (prefers-reduced-motion: no-preference) {
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="minimal"] .hd-toggle-thumb { transition: transform var(--hd-dur-toggle) var(--hd-ease-toggle); }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="minimal"] .hd-toggle-track::before,
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="minimal"] .hd-rocker-half::before { transition: opacity var(--hd-dur-toggle) var(--hd-ease-toggle); }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="minimal"][data-hd-pending="true"] .hd-toggle-thumb::after,
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="minimal"][data-hd-pending="true"] .hd-dial::after { animation: hd-spin 1.2s linear infinite; }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="minimal"] .hd-dial-arc { transition: stroke-dasharray var(--hd-dur-remote) var(--hd-ease-remote); }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="minimal"] :is(.hd-dial-handle, .hd-dial-current) { transition: transform var(--hd-dur-remote) var(--hd-ease-remote); }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="minimal"] .hd-dial-active { transition: opacity var(--hd-dur-xfade) var(--hd-ease-standard); }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="minimal"] .hd-seg-indicator { transition: transform var(--hd-dur-fill) var(--hd-ease-standard); }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="minimal"] :is(.hd-gauge-needle, .hd-gauge-needle-shadow) { transition: transform var(--hd-dur-needle-f) var(--hd-ease-standard); }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="minimal"] .hd-gauge-arc { transition: stroke-dasharray var(--hd-dur-remote) var(--hd-ease-remote); }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="minimal"] .hd-gauge-arc-zone { transition: stroke-dasharray var(--hd-dur-remote) var(--hd-ease-remote), opacity var(--hd-dur-zone) var(--hd-ease-standard); }
+}
