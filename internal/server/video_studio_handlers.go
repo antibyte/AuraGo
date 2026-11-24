@@ -996,15 +996,22 @@ func handleVideoStudioJobCreate(s *Server, w http.ResponseWriter, r *http.Reques
 			writeVideoStudioError(w, http.StatusBadRequest, "unsupported_duration", "Requested duration is not available for the configured provider and settings.")
 			return
 		}
-		if provider == "agnes" && (request.FirstFrameAssetID != "" || request.LastFrameAssetID != "" || len(request.ReferenceAssetIDs) != 0) {
+		// The capability profile decides the image modes, the same profile plan mode validates against (spec
+		// 2026-11-23 §4.1). Manual generation sends at most one first-frame image: last frames and references stay
+		// refused even where the profile reports last_frame (MiniMax-Hailuo-02), and providers without first_frame
+		// (Agnes) generate from text only.
+		profile := videoStudioGenerationProfile(cfg, request.Resolution)
+		withImages := request.FirstFrameAssetID != "" || request.LastFrameAssetID != "" || len(request.ReferenceAssetIDs) != 0
+		if !profile.FirstFrame && withImages {
 			writeVideoStudioError(w, http.StatusBadRequest, "unsupported_image_mode", "This provider accepts text-only generation in Video Studio.")
 			return
 		}
-		if (provider == "google" || provider == "google_veo" || provider == "minimax") && (request.LastFrameAssetID != "" || len(request.ReferenceAssetIDs) != 0) {
+		if profile.FirstFrame && (request.LastFrameAssetID != "" || len(request.ReferenceAssetIDs) != 0) {
 			writeVideoStudioError(w, http.StatusBadRequest, "unsupported_image_mode", "Video Studio currently supports only one first-frame image for this provider.")
 			return
 		}
-		if provider != "agnes" && provider != "google" && provider != "google_veo" && provider != "minimax" {
+		// A provider without durations has no generation mode; the duration check above already refuses it.
+		if len(profile.DurationsSeconds) == 0 {
 			writeVideoStudioError(w, http.StatusConflict, "generation_unavailable", "The configured provider has no supported Video Studio generation mode.")
 			return
 		}
