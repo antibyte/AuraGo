@@ -1,0 +1,25 @@
+{
+ "calc": "data_transfer_time",
+ "sets": [
+  {"choices": {"frame": "raw"}, "values": {"size": 800000000, "rate": 100000000, "t": 8, "net": 100000000, "eff": 1}, "ref": "hand: 100 MB = 100 x 10^6 B x 8 = 8e8 bit (NIST: 1 MB = 10^6 B, 1 B = 8 bit); 8e8 bit / 1e8 bit/s = 8 s; no framing: net rate = line rate, efficiency 1"},
+  {"choices": {"frame": "raw"}, "values": {"size": 838860800, "rate": 100000000, "t": 8.388608, "net": 100000000, "eff": 1}, "ref": "hand: 100 MiB = 100 x 2^20 B x 8 = 838 860 800 bit (NIST: 1 MiB = 2^20 B = 1 048 576 B); / 1e8 bit/s = 8.388608 s, 4.86 % more than 100 MB"},
+  {"choices": {"frame": "raw"}, "values": {"size": 8589934592, "rate": 143165576.53333333, "t": 60, "net": 143165576.53333333, "eff": 1}, "ref": "hand: 1 GiB = 2^30 B x 8 = 8 589 934 592 bit (NIST: 1 GiB = 1 073 741 824 B); in 60 s that is 8589934592 / 60 = 143 165 576.5 bit/s = 143.17 Mbit/s"},
+  {"choices": {"frame": "uart_8n1"}, "values": {"size": 8388608, "rate": 115200, "t": 91.02222222222223, "net": 92160, "eff": 0.8}, "ref": "hand (independent script): 8N1 = 1 start + 8 data + 1 stop = 10 bit per 8 data bits (TI SPRUGP1 data format; Microchip: 'a typical USART frame has 10 bits'); t = 8388608 bit x 10/8 / 115200 = 91.0222 s; cross-check via the net rate: 115200 x 8/10 = 92160 bit/s, 8388608 / 92160 = 91.0222 s"},
+  {"choices": {"frame": "uart_8n1"}, "values": {"size": 8000000, "rate": 115200, "t": 86.80555555555556, "net": 92160, "eff": 0.8}, "ref": "hand (independent script): 1 MB = 8e6 bit; t = 8e6 x 10/8 / 115200 = 86.8056 s, 4.86 % shorter than 1 MiB (ratio 1.048576)"},
+  {"choices": {"frame": "uart_8n1"}, "values": {"size": 524288, "rate": 9600, "t": 68.26666666666667, "net": 7680, "eff": 0.8}, "ref": "hand: 64 KiB = 65536 B = 524288 bit; t = 524288 x 10/8 / 9600 = 68.2667 s (655360 line bits / 9600)"},
+  {"choices": {"frame": "uart_8n1"}, "values": {"size": 7680, "rate": 9600, "t": 1, "net": 7680, "eff": 0.8}, "ref": "published: Microchip USART brief: 8N1 transmits BAUD_RATE/10 characters per second: 9600 Bd gives 960 characters = 960 B = 7680 bit in 1 s; net rate 9600 x 8/10 = 7680 bit/s"},
+  {"choices": {"frame": "uart_11bit"}, "values": {"size": 8388608, "rate": 115200, "t": 100.12444444444445, "net": 83781.81818181818, "eff": 0.7272727272727273}, "ref": "hand (independent script): 8E1 or 8N2 = 11 bit per 8 data bits (TI SPRUGP1: start + data + optional parity + stop bits); t = 8388608 x 11/8 / 115200 = 100.1244 s; net rate 115200 x 8/11 = 83781.8 bit/s, efficiency 8/11 = 72.7 %"},
+  {"choices": {"frame": "uart_11bit"}, "values": {"size": 8000000, "rate": 9600, "t": 1145.8333333333333, "net": 6981.818181818182, "eff": 0.7272727272727273}, "ref": "hand (independent script): 1 MB = 8e6 bit; t = 8e6 x 11/8 / 9600 = 1145.833 s; net rate 9600 x 8/11 = 6981.82 bit/s"},
+  {"choices": {"frame": "uart_11bit"}, "values": {"size": 8192, "rate": 9600, "t": 1.1733333333333333, "net": 6981.818181818182, "eff": 0.7272727272727273}, "ref": "hand: 1 KiB = 8192 bit; t = 8192 x 11/8 / 9600 = 11264 / 9600 = 1.173333 s"}
+ ],
+ "solve": [
+  {"inputs": {"size": 800000000, "rate": 100000000}, "choices": {"frame": "raw"}, "expect": {"t": 8, "net": 100000000, "eff": 1}, "errors": {}, "warnings": [], "ref": "hand: the defaults: 100 MB at 100 Mbit/s is 8e8 / 1e8 = 8 s"},
+  {"inputs": {"size": 524288, "t": 68.26666666666667}, "choices": {"frame": "uart_8n1"}, "expect": {"rate": 9600, "net": 7680}, "errors": {}, "warnings": [], "ref": "hand: inverse of the 64 KiB set: 524288 x 10/8 / 68.26667 s = 9600 baud, net rate 9600 x 8/10 = 7680 bit/s"},
+  {"inputs": {"size": 800000000, "t": 8}, "choices": {"frame": "raw"}, "expect": {"rate": 100000000}, "errors": {}, "warnings": [], "ref": "hand: 8e8 bit in 8 s = 1e8 bit/s = 100 Mbit/s"},
+  {"inputs": {"rate": 1000000, "t": 10}, "choices": {"frame": "raw"}, "expect": {"size": 10000000}, "errors": {}, "warnings": [], "ref": "hand: 1 Mbit/s for 10 s = 1e7 bit = 1 250 000 B = 1.25 MB = 1220.70 KiB"},
+  {"inputs": {"rate": 9600, "t": 1}, "choices": {"frame": "uart_8n1"}, "expect": {"size": 7680}, "errors": {}, "warnings": [], "ref": "hand: 9600 baud, 8N1, 1 s: 9600 / 1.25 = 7680 payload bit = 960 B"},
+  {"inputs": {"rate": 115200, "t": 100}, "choices": {"frame": "uart_11bit"}, "expect": {"size": 8378181.818181818}, "errors": {}, "warnings": [], "ref": "hand: 115200 x 100 s / (11/8) = 8 378 181.8 payload bit = 1 047 272.7 B"},
+  {"inputs": {"size": 800000000, "rate": 100000000}, "choices": {"frame": "bogus"}, "expect": {"t": 8}, "errors": {}, "warnings": [], "ref": "hand: an unknown option falls back to the default option (raw): 8 s"},
+  {"inputs": {"size": 800000000}, "choices": {"frame": "raw"}, "errors": {"rate": "undetermined", "t": "undetermined"}, "warnings": [], "ref": "hand: neither the rate nor the time is given, so nothing can be computed"}
+ ]
+}

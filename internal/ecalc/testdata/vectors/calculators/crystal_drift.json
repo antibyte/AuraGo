@@ -1,0 +1,20 @@
+{
+ "calc": "crystal_drift",
+ "sets": [
+  {"values": {"ppm": 2e-05, "dd": 1.728, "f": 32768, "dm": 51.84, "dy": 630.72, "df": 0.65536}, "ref": "published: 20 ppm is 'approximately 1 minute per month' (Analog Devices, former AN58); exact: 20e-6 x 86400 s = 1.728 s/day, x 2592000 s = 51.84 s per 30 d (0.864 min), x 31536000 s = 630.72 s per 365 d; df = 20e-6 x 32768 Hz = 0.65536 Hz"},
+  {"values": {"ppm": 5e-06, "dd": 0.432, "f": 32768, "dm": 12.96, "dy": 157.68, "df": 0.16384}, "ref": "published: 5.0e-6 is '13 seconds of month deviation' (Seiko Epson RX8900 application manual); exact: 5e-6 x 86400 = 0.432 s/day, x 2592000 = 12.96 s, x 31536000 = 157.68 s; df = 5e-6 x 32768 = 0.16384 Hz (TI SLAA322D: 'within +-0.16 Hz')"},
+  {"values": {"ppm": 3.4e-06, "dd": 0.29376, "f": 32768, "dm": 8.8128, "dy": 107.2224, "df": 0.1114112}, "ref": "published: 3.4e-6 is '9 seconds' per month (Seiko Epson RX8900 application manual); exact: 3.4e-6 x 86400 = 0.29376 s/day, x 2592000 = 8.8128 s, x 31536000 = 107.2224 s; df = 3.4e-6 x 32768 = 0.1114112 Hz"},
+  {"values": {"ppm": 1.1574074074074073e-05, "dd": 1, "f": 32768, "dm": 30, "dy": 365, "df": 0.37925925925925924}, "ref": "hand: one second per day is 1/86400 = 11.574074074... ppm; x 2592000 = 30 s per 30 d, x 31536000 = 365 s per 365 d (cross-check 11.574074 x 0.0864 = 1.000000); df = 32768/86400 = 0.379259259 Hz"},
+  {"values": {"ppm": 1.902587519025875e-06, "dd": 0.1643835616438356, "f": 16000000, "dm": 4.931506849315069, "dy": 60, "df": 30.441400304414003}, "ref": "hand: 60 s per 365 d is 60/31536000 = 1.902587519 ppm; x 86400 = 0.16438356 s/day, x 2592000 = 4.93150685 s per 30 d; df at 16 MHz = 16e6 x 60/31536000 = 30.4414003 Hz"},
+  {"values": {"ppm": 2e-05, "dd": 1.728, "f": 16000000, "dm": 51.84, "dy": 630.72, "df": 320}, "ref": "hand: 20e-6 x 16e6 Hz = 320 Hz; times 86400 = 1.728 s/day, 51.84 s per 30 d, 630.72 s per 365 d"},
+  {"values": {"ppm": 1e-05, "dd": 0.864, "f": 10000000, "dm": 25.92, "dy": 315.36, "df": 100}, "ref": "hand: 10e-6 x 10e6 Hz = 100 Hz (a 10 MHz crystal 10 ppm off is 100 Hz off); 0.864 s/day, 25.92 s per 30 d, 315.36 s per 365 d"}
+ ],
+ "solve": [
+  {"inputs": {"ppm": 2e-05, "f": 32768}, "expect": {"dd": 1.728, "dm": 51.84, "dy": 630.72, "df": 0.65536}, "errors": {}, "warnings": [], "ref": "hand: 20 ppm at 32768 Hz: 1.728 s/day, 51.84 s per 30 d, 630.72 s per 365 d, 0.65536 Hz"},
+  {"inputs": {"dd": 1.0, "f": 32768}, "expect": {"ppm": 1.1574074074074073e-05, "dm": 30, "dy": 365, "df": 0.37925925925925924}, "errors": {}, "warnings": [], "ref": "hand: 1 s/day = 1/86400 = 11.574 ppm; 30 s per 30 d, 365 s per 365 d, 32768/86400 = 0.37926 Hz"},
+  {"inputs": {"ppm": -2e-05, "f": 32768}, "expect": {"dd": 1.728, "dm": 51.84, "dy": 630.72, "df": 0.65536}, "errors": {}, "warnings": [], "ref": "hand: the calculator gives the magnitude of the error (time and frequency are positive quantities): -20 ppm gives the same 1.728 s/day as +20 ppm"},
+  {"inputs": {"ppm": 0.02, "f": 32768}, "expect": {"dd": 1728, "df": 655.36}, "errors": {}, "warnings": [0], "ref": "hand: 20000 ppm (2 %) x 86400 = 1728 s/day, x 32768 = 655.36 Hz; more than 10000 ppm is no crystal tolerance, the check fires"},
+  {"inputs": {"ppm": 0.01, "f": 32768}, "expect": {"dd": 864}, "errors": {}, "warnings": [], "ref": "hand: exactly 10000 ppm (1 %) x 86400 = 864 s/day; the check needs more than 10000 ppm"},
+  {"inputs": {"ppm": 2e-05}, "expect": {"dd": 1.728}, "errors": {"f": "undetermined"}, "ref": "hand: without the nominal frequency the time errors follow from ppm alone but the frequency error cannot be computed"}
+ ]
+}

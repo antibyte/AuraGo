@@ -44,5 +44,30 @@ window.ECalcSchematics = Object.assign(window.ECalcSchematics || {}, {
    {"var": "vout", "x": 22.8, "y": 5, "side": "top"},
    {"var": "vih", "x": 28.5, "y": 8, "side": "bottom"}
   ]
+ },
+ "rc_debounce": {
+  "w": 30, "h": 12,
+  "parts": [
+   {"sym": "resistor", "x": 8, "y": 3, "rot": 90},
+   {"sym": "switch", "x": 4, "y": 6, "rot": 90},
+   {"sym": "ground", "x": 4, "y": 9},
+   {"sym": "resistor", "x": 11, "y": 6},
+   {"sym": "capacitor", "x": 19, "y": 6, "rot": 90},
+   {"sym": "ground", "x": 19, "y": 9}
+  ],
+  "wires": [[[8, 1.6], [8, 3]], [[8, 6], [4, 6]], [[8, 6], [11, 6]], [[14, 6], [26, 6]]],
+  "dots": [[8, 6], [19, 6]],
+  "terminals": [[8, 1.6], [26, 6]],
+  "texts": [
+   {"x": 8.9, "y": 4.85, "text": "R1", "anchor": "start"},
+   {"x": 12.5, "y": 7.65, "text": "R2", "anchor": "middle"},
+   {"x": 26.7, "y": 6.35, "text": "Schmitt", "anchor": "start"}
+  ],
+  "anchors": [
+   {"var": "vdd", "x": 8.4, "y": 1.6, "side": "right"},
+   {"var": "r", "x": 12.5, "y": 5.2, "side": "top"},
+   {"var": "c", "x": 18.6, "y": 7.6, "side": "left"},
+   {"var": "vth", "x": 22.5, "y": 6, "side": "top"}
+  ]
  }
 });

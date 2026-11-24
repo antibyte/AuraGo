@@ -180,3 +180,80 @@
     bin: ["dec", "hex", "oct"]
     oct: ["dec", "hex", "bin"]
   formula: ["dec = hex = bin = oct"]
+
+- id: rc_debounce
+  kind: calculator
+  category: digital
+  name: {cs: "RC filtr pro odskok tlačítka", da: "RC-afprelning", de: "RC-Entprellung", el: "Αποπαλμοποίηση RC", en: "RC debounce", es: "Antirrebote RC", fr: "Antirebond RC", hi: "RC डिबाउंस", it: "Antirimbalzo RC", ja: "RCチャタリング防止", nl: "RC-ontdendering", no: "RC-avprelling", pl: "Eliminacja drgań styków RC", pt: "Debounce RC", sv: "RC-avstudsning", zh: "RC消抖"}
+  doc:
+    en: "RC debouncing of a switch in front of a Schmitt-trigger input. The circuit has a pull-up R1 from V_DD to the switch node, the switch from that node to ground, a series resistor R2 from the node to the capacitor C, and the Schmitt-trigger input at the capacitor. After the switch opens, C charges through R1 + R2 until it reaches the rising threshold V_T+: t = −R × C × ln(1 − V_T+ / V_DD). After the switch closes, C discharges through R2 until it falls to the falling threshold V_T−: t = −R × C × ln(V_T− / V_DD). Choose the edge, then enter R = R1 + R2 for the rising edge or R = R2 for the falling edge, together with the threshold of that edge. Any four of the five values can be entered when the missing one is R, C, V_T or the time (the supply must be known). The defaults are the typical thresholds of a 74HC14 at a 4.5 V supply (V_T+ 2.5 V, V_T− 1.6 V, Texas Instruments SN74HC14 datasheet), applied to a 5 V supply for a rough design. For a guaranteed minimum delay use the worst-case thresholds of the datasheet: the lowest V_T+ for the rising edge and the highest V_T− for the falling edge give the shortest times. Contact bounce can only lengthen the delay, never shorten it, because every re-closing partly recharges or discharges the capacitor; make both times longer than the bounce time (Ganssle measured bounce mostly under 10 ms and designs for 20 ms). The formulas assume that the capacitor was fully charged or discharged before the switch changed (several time constants), an ideal switch and no input current into the gate; the capacitor tolerance and the threshold spread are large. The input must have hysteresis: an ordinary logic or microcontroller input without a Schmitt trigger gives no defined result from a slow RC edge. Example with the defaults: 10 kΩ × 1 µF with the threshold at half the supply gives 10 ms × ln 2 = 6.93 ms."
+    de: "RC-Entprellung eines Schalters vor einem Schmitt-Trigger-Eingang. Die Schaltung hat einen Pull-up R1 von V_DD zum Schalterknoten, den Schalter von diesem Knoten nach Masse, einen Serienwiderstand R2 vom Knoten zum Kondensator C und den Schmitt-Trigger-Eingang am Kondensator. Nach dem Öffnen des Schalters lädt sich C über R1 + R2, bis er die obere Schaltschwelle V_T+ erreicht: t = −R · C · ln(1 − V_T+ / V_DD). Nach dem Schließen entlädt sich C über R2, bis er auf die untere Schaltschwelle V_T− fällt: t = −R · C · ln(V_T− / V_DD). Die Flanke wählen, dann R = R1 + R2 für die steigende Flanke oder R = R2 für die fallende Flanke zusammen mit der Schwelle dieser Flanke eingeben. Vier der fünf Werte können eingegeben werden, wenn der fehlende R, C, V_T oder die Zeit ist (die Versorgung muss bekannt sein). Die Standardwerte sind die typischen Schwellen eines 74HC14 bei 4,5 V Versorgung (V_T+ 2,5 V, V_T− 1,6 V, Datenblatt Texas Instruments SN74HC14), für einen groben Entwurf auf 5 V angewendet. Für eine garantierte Mindestverzögerung die ungünstigsten Schwellen des Datenblatts verwenden: das kleinste V_T+ für die steigende und das größte V_T− für die fallende Flanke ergeben die kürzesten Zeiten. Kontaktprellen kann die Verzögerung nur verlängern, nie verkürzen, weil jedes erneute Schließen den Kondensator teilweise lädt oder entlädt; beide Zeiten länger als die Prellzeit wählen (Ganssle maß Prellen meist unter 10 ms und legt auf 20 ms aus). Die Formeln setzen voraus, dass der Kondensator vor dem Umschalten voll geladen oder entladen war (mehrere Zeitkonstanten), einen idealen Schalter und keinen Eingangsstrom in das Gatter; Kondensatortoleranz und Streuung der Schwellen sind groß. Der Eingang muss Hysterese haben: Ein gewöhnlicher Logik- oder Mikrocontroller-Eingang ohne Schmitt-Trigger liefert bei einer langsamen RC-Flanke kein definiertes Ergebnis. Beispiel mit den Standardwerten: 10 kΩ × 1 µF mit der Schwelle bei der halben Versorgung ergeben 10 ms × ln 2 = 6,93 ms."
+  tags: [debounce, debouncing, switch debouncing, button, key bounce, contact bounce, rc debounce, schmitt trigger, pull-up, 74hc14, hysteresis, threshold, rc delay, time constant, entprellen, entprellung, taster, schalter, tastenprellen, kontaktprellen, rc-glied, schmitt-trigger, hysterese, schaltschwelle, verzögerung, zeitkonstante]
+  source: "RC charge and discharge of a capacitor through a resistor, v(t) = V_DD·(1 − e^(−t/RC)) and v(t) = V_DD·e^(−t/RC), solved for the time of the threshold; J. G. Ganssle: A Guide to Debouncing (The Ganssle Group, 2004, rev. 3 2008), the RC debouncer with R1, R2 and a Schmitt-trigger gate; thresholds V_T+ and V_T− from the datasheet of the gate, e.g. Texas Instruments SN74HC14, document SCLS085L"
+  vars:
+    r: {dim: resistance, label: R, name: {en: "Resistance R (rising edge: R1 + R2, falling edge: R2)", de: "Widerstand R (steigende Flanke: R1 + R2, fallende Flanke: R2)"}, default: "10k", eseries: true}
+    c: {dim: capacitance, label: C, name: {en: "Capacitor at the gate input", de: "Kondensator am Gattereingang"}, default: "1µ", eseries: true}
+    vdd: {dim: voltage, label: V_DD, name: {en: "Supply voltage", de: "Versorgungsspannung"}, default: "5 V"}
+    vth: {dim: voltage, label: V_T, name: {en: "Gate threshold of the edge (V_T+ rising, V_T− falling)", de: "Schaltschwelle der Flanke (V_T+ steigend, V_T− fallend)"}, default: "2.5 V"}
+    t: {dim: time, label: t, name: {en: "Delay until the threshold is crossed", de: "Verzögerung bis zur Schwelle"}}
+  choices:
+    edge:
+      name: {cs: "Hrana", da: "Flanke", de: "Flanke", el: "Ακμή", en: "Edge", es: "Flanco", fr: "Front", hi: "किनारा", it: "Fronte", ja: "エッジ", nl: "Flank", no: "Flanke", pl: "Zbocze", pt: "Flanco", sv: "Flank", zh: "边沿"}
+      default: rise
+      options:
+        rise:
+          name: {cs: "Vzestupná (C se nabíjí na V_T+)", da: "Stigende (C oplades til V_T+)", de: "Steigend (C lädt bis V_T+)", el: "Ανερχόμενη (ο C φορτίζει έως V_T+)", en: "Rising (C charges to V_T+)", es: "Ascendente (C se carga hasta V_T+)", fr: "Montant (C se charge jusqu'à V_T+)", hi: "बढ़ता (C, V_T+ तक चार्ज होता है)", it: "Salita (C si carica fino a V_T+)", ja: "立ち上がり（CがV_T+まで充電）", nl: "Stijgend (C laadt op tot V_T+)", no: "Stigende (C lades til V_T+)", pl: "Narastające (C ładuje się do V_T+)", pt: "Ascendente (C carrega até V_T+)", sv: "Stigande (C laddas till V_T+)", zh: "上升沿（C充电至V_T+）"}
+          consts: {up: 1}
+        fall:
+          name: {cs: "Sestupná (C se vybíjí na V_T−)", da: "Faldende (C aflades til V_T−)", de: "Fallend (C entlädt bis V_T−)", el: "Κατερχόμενη (ο C εκφορτίζεται έως V_T−)", en: "Falling (C discharges to V_T−)", es: "Descendente (C se descarga hasta V_T−)", fr: "Descendant (C se décharge jusqu'à V_T−)", hi: "घटता (C, V_T− तक डिस्चार्ज होता है)", it: "Discesa (C si scarica fino a V_T−)", ja: "立ち下がり（CがV_T−まで放電）", nl: "Dalend (C ontlaadt tot V_T−)", no: "Fallende (C utlades til V_T−)", pl: "Opadające (C rozładowuje się do V_T−)", pt: "Descendente (C descarrega até V_T−)", sv: "Fallande (C laddas ur till V_T−)", zh: "下降沿（C放电至V_T−）"}
+          consts: {up: 0}
+  dof: 4
+  rules:
+    t: ["r*c*ln(vdd/if(up,vdd-vth,vth))"]
+    r: ["t/(c*ln(vdd/if(up,vdd-vth,vth)))"]
+    c: ["t/(r*ln(vdd/if(up,vdd-vth,vth)))"]
+    vth: ["vdd*if(up,1-exp(-t/(r*c)),exp(-t/(r*c)))"]
+  derived:
+    tau: {dim: time, label: τ, name: {en: "Time constant R × C", de: "Zeitkonstante R × C"}, expr: "r*c"}
+  checks:
+    - {when: "vth >= vdd", warn: {en: "The threshold is not below the supply: the capacitor never reaches it.", de: "Die Schaltschwelle liegt nicht unter der Versorgung: Der Kondensator erreicht sie nie."}}
+    - {when: "t < 0.005", warn: {en: "Less than 5 ms: many switches bounce for up to 10 ms; 20 ms is a conservative design value.", de: "Weniger als 5 ms: Viele Schalter prellen bis zu 10 ms; 20 ms sind ein vorsichtiger Auslegungswert."}}
+  formula: ["t = r * c * ln(vdd / (vdd - vth))", "t = r * c * ln(vdd / vth)", "tau = r * c"]
+  schematic: rc_debounce
+
+- id: data_transfer_time
+  kind: calculator
+  category: digital
+  name: {cs: "Doba přenosu dat", da: "Overførselstid for data", de: "Übertragungsdauer", el: "Χρόνος μεταφοράς δεδομένων", en: "Data transfer time", es: "Tiempo de transferencia de datos", fr: "Durée de transfert de données", hi: "डेटा स्थानांतरण समय", it: "Tempo di trasferimento dati", ja: "データ転送時間", nl: "Overdrachtstijd van gegevens", no: "Overføringstid for data", pl: "Czas transmisji danych", pt: "Tempo de transferência de dados", sv: "Överföringstid för data", zh: "数据传输时间"}
+  doc:
+    en: "Time needed to send an amount of data at a given line rate: t = S × f / R, with the data size S, the line rate R in bits per second and the framing factor f (line bits per payload bit). Enter any two of size, rate and time. Sizes and rates accept bits and bytes with decimal and binary prefixes: 1 B = 8 bit; kB, MB, GB are powers of 1000 (1 MB = 10⁶ B) and KiB, MiB, GiB powers of 1024 (1 MiB = 2²⁰ B = 1 048 576 B), so 1 MiB is 4.86 % more than 1 MB. Many programs print binary sizes with the decimal symbols. Data rates are given in bits per second (Mbit/s), file sizes in bytes: the factor is 8. The framing choice covers an asynchronous serial line: with 8 data bits every byte is sent as one start bit, 8 data bits and the parity and stop bits, that is 10 line bits for 8N1 (f = 10/8 = 1.25) and 11 for 8E1 or 8N2 (f = 11/8 = 1.375); the UART baud rate counts line bits per second, so enter it as the rate. The net rate R / f and the efficiency 1 / f are shown. The result is a lower limit: characters are assumed to follow back to back, and protocol overhead (headers, checksums, USB or TCP/IP framing), pauses between characters, flow control and retransmissions make a real transfer slower. Example with the defaults: 100 MB at 100 Mbit/s take 8 s; 1 MiB through a 115 200 Bd UART with 8N1 takes 91.02 s."
+    de: "Zeit, die für das Senden einer Datenmenge mit einer gegebenen Leitungsrate nötig ist: t = S · f / R, mit der Datenmenge S, der Leitungsrate R in Bit pro Sekunde und dem Rahmenfaktor f (Leitungsbits je Nutzbit). Zwei der Größen Menge, Rate und Zeit eingeben. Mengen und Raten akzeptieren Bit und Byte mit dezimalen und binären Präfixen: 1 B = 8 bit; kB, MB, GB sind Potenzen von 1000 (1 MB = 10⁶ B) und KiB, MiB, GiB Potenzen von 1024 (1 MiB = 2²⁰ B = 1 048 576 B), also ist 1 MiB um 4,86 % größer als 1 MB. Viele Programme zeigen binäre Größen mit den dezimalen Kurzzeichen an. Datenraten werden in Bit pro Sekunde angegeben (Mbit/s), Dateigrößen in Byte: Der Faktor ist 8. Die Rahmenwahl deckt eine asynchrone serielle Leitung ab: Bei 8 Datenbits wird jedes Byte als ein Startbit, 8 Datenbits sowie Paritäts- und Stoppbits gesendet, das sind 10 Leitungsbits bei 8N1 (f = 10/8 = 1,25) und 11 bei 8E1 oder 8N2 (f = 11/8 = 1,375); die UART-Baudrate zählt Leitungsbits pro Sekunde und ist deshalb als Rate einzugeben. Die Nettorate R / f und der Wirkungsgrad 1 / f werden angezeigt. Das Ergebnis ist eine Untergrenze: Es wird angenommen, dass die Zeichen lückenlos aufeinander folgen, und Protokoll-Overhead (Header, Prüfsummen, USB- oder TCP/IP-Rahmen), Pausen zwischen den Zeichen, Flusskontrolle und Wiederholungen machen eine reale Übertragung langsamer. Beispiel mit den Standardwerten: 100 MB bei 100 Mbit/s brauchen 8 s; 1 MiB über einen UART mit 115 200 Bd und 8N1 braucht 91,02 s."
+  tags: [data transfer time, transfer time, download time, upload time, data rate, bit rate, baud, uart, serial, 8n1, start bit, stop bit, parity, overhead, throughput, kilobyte, megabyte, kibibyte, mebibyte, gibibyte, kib, mib, gib, bits and bytes, iec 80000-13, übertragungszeit, übertragungsdauer, downloadzeit, datenrate, bitrate, baudrate, seriell, startbit, stoppbit, parität, durchsatz, bit und byte, binärpräfix]
+  source: "BIPM, The International System of Units (SI), 9th edition (SI prefixes are powers of 10; the binary prefixes kibi Ki = 2^10, mebi Mi = 2^20, gibi Gi = 2^30 are described in IEC 80000-13, which was not read); NIST, Prefixes for binary multiples (1 B = 8 bit, 1 MB = 10^6 B, 1 MiB = 2^20 B); asynchronous frame of one start bit, 5 to 8 data bits, an optional parity bit and 1, 1.5 or 2 stop bits: Texas Instruments KeyStone Architecture UART User Guide, SPRUGP1 (data format)"
+  vars:
+    size: {dim: datasize, label: S, name: {en: "Data size (payload)", de: "Datenmenge (Nutzdaten)"}, default: "100 MB", unit: MB}
+    rate: {dim: datarate, label: R, name: {en: "Line rate", de: "Leitungsrate"}, default: "100 Mbit/s"}
+    t: {dim: time, label: t, name: {en: "Transfer time", de: "Übertragungsdauer"}}
+  choices:
+    frame:
+      name: {cs: "Rámec", da: "Ramme", de: "Rahmen", el: "Πλαίσιο", en: "Framing", es: "Trama", fr: "Trame", hi: "फ़्रेम", it: "Frame", ja: "フレーミング", nl: "Framing", no: "Rammer", pl: "Ramkowanie", pt: "Enquadramento", sv: "Ramning", zh: "帧格式"}
+      default: raw
+      options:
+        raw:
+          name: {cs: "Žádný (jen užitečná data)", da: "Ingen (kun nyttedata)", de: "Keiner (nur Nutzdaten)", el: "Κανένα (μόνο ωφέλιμα δεδομένα)", en: "None (payload only)", es: "Ninguno (solo datos útiles)", fr: "Aucun (données utiles seulement)", hi: "कोई नहीं (केवल पेलोड)", it: "Nessuno (solo dati utili)", ja: "なし（ペイロードのみ）", nl: "Geen (alleen nuttige gegevens)", no: "Ingen (bare nyttedata)", pl: "Brak (tylko dane użytkowe)", pt: "Nenhum (só dados úteis)", sv: "Ingen (endast nyttodata)", zh: "无（仅有效数据）"}
+          consts: {fr: 1}
+        uart_8n1:
+          name: {cs: "UART 8N1 (10 bitů na bajt)", da: "UART 8N1 (10 bit pr. byte)", de: "UART 8N1 (10 Bit je Byte)", el: "UART 8N1 (10 bit ανά byte)", en: "UART 8N1 (10 bit per byte)", es: "UART 8N1 (10 bits por byte)", fr: "UART 8N1 (10 bits par octet)", hi: "UART 8N1 (प्रति बाइट 10 बिट)", it: "UART 8N1 (10 bit per byte)", ja: "UART 8N1（1バイトあたり10ビット）", nl: "UART 8N1 (10 bit per byte)", no: "UART 8N1 (10 bit per byte)", pl: "UART 8N1 (10 bitów na bajt)", pt: "UART 8N1 (10 bits por byte)", sv: "UART 8N1 (10 bitar per byte)", zh: "UART 8N1（每字节10位）"}
+          consts: {fr: 1.25}
+        uart_11bit:
+          name: {cs: "UART 8E1 / 8N2 (11 bitů na bajt)", da: "UART 8E1 / 8N2 (11 bit pr. byte)", de: "UART 8E1 / 8N2 (11 Bit je Byte)", el: "UART 8E1 / 8N2 (11 bit ανά byte)", en: "UART 8E1 / 8N2 (11 bit per byte)", es: "UART 8E1 / 8N2 (11 bits por byte)", fr: "UART 8E1 / 8N2 (11 bits par octet)", hi: "UART 8E1 / 8N2 (प्रति बाइट 11 बिट)", it: "UART 8E1 / 8N2 (11 bit per byte)", ja: "UART 8E1 / 8N2（1バイトあたり11ビット）", nl: "UART 8E1 / 8N2 (11 bit per byte)", no: "UART 8E1 / 8N2 (11 bit per byte)", pl: "UART 8E1 / 8N2 (11 bitów na bajt)", pt: "UART 8E1 / 8N2 (11 bits por byte)", sv: "UART 8E1 / 8N2 (11 bitar per byte)", zh: "UART 8E1 / 8N2（每字节11位）"}
+          consts: {fr: 1.375}
+  dof: 2
+  rules:
+    t: ["size*fr/rate"]
+    rate: ["size*fr/t"]
+    size: ["t*rate/fr"]
+  derived:
+    net: {dim: datarate, label: R_net, name: {en: "Net data rate (payload)", de: "Nettodatenrate (Nutzdaten)"}, expr: "rate/fr"}
+    eff: {dim: ratio, label: η, name: {en: "Efficiency (payload / line bits)", de: "Wirkungsgrad (Nutzbits / Leitungsbits)"}, expr: "1/fr", unit: pct, units: [pct, ""]}
+  formula: ["t = size * fr / rate", "net = rate / fr", "eff = 1 / fr"]

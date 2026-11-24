@@ -132,3 +132,96 @@
   checks:
     - {when: "if(duty < 0, 1, duty > 1)", warn: {en: "The duty cycle must be between 0 % and 100 %.", de: "Das Tastverhältnis muss zwischen 0 % und 100 % liegen."}}
   formula: ["vavg = vl + duty * (vh - vl)", "vrms = sqrt(duty * vh^2 + (1 - duty) * vl^2)"]
+
+- id: crystal_drift
+  kind: calculator
+  category: timers
+  name: {cs: "Odchylka krystalu (ppm ↔ s/den)", da: "Krystalafvigelse (ppm ↔ s/dag)", de: "Quarzabweichung (ppm ↔ s/Tag)", el: "Απόκλιση κρυστάλλου (ppm ↔ s/ημέρα)", en: "Crystal drift (ppm ↔ s/day)", es: "Desviación del cristal (ppm ↔ s/día)", fr: "Dérive du quartz (ppm ↔ s/jour)", hi: "क्रिस्टल विचलन (ppm ↔ s/दिन)", it: "Deriva del quarzo (ppm ↔ s/giorno)", ja: "水晶の周波数偏差（ppm ↔ 秒/日）", nl: "Kristalafwijking (ppm ↔ s/dag)", no: "Krystallavvik (ppm ↔ s/døgn)", pl: "Odchyłka kwarcu (ppm ↔ s/dobę)", pt: "Desvio do cristal (ppm ↔ s/dia)", sv: "Kristallavvikelse (ppm ↔ s/dygn)", zh: "晶振偏差（ppm ↔ 秒/天）"}
+  doc:
+    en: "Converts the frequency tolerance of a crystal in ppm (parts per million, 1 ppm = 10⁻⁶) into the error of a clock that counts its oscillator, and back. The relative error is δ = Δf / f₀, so a clock that runs δ too fast gains δ × t_elapsed: Δt = δ × 86 400 s per day. One ppm is 0.0864 s per day. Because the length of a month or a year is a convention, the derived values are labelled with their days: 30 days (2 592 000 s) and 365 days (31 536 000 s). The frequency error is Δf = δ × f₀ at the nominal frequency. Enter the error in ppm or the time error per day (and the nominal frequency for Δf). The result is the magnitude of the error: the sign (a crystal that is too fast makes the clock gain, one that is too slow makes it lose) is not kept. The conversion is exact while δ stays constant over the interval. Temperature, aging and the load capacitance change δ in real life and are not part of this calculator: the value is a tolerance from the datasheet, not the error of a particular day. Example with the defaults: 20 ppm are 1.728 s per day, 51.84 s per 30 days (about a minute per month) and 630.72 s per 365 days, and 0.655 Hz at 32 768 Hz."
+    de: "Rechnet die Frequenztoleranz eines Quarzes in ppm (parts per million, 1 ppm = 10⁻⁶) in den Gangfehler einer Uhr um, die seinen Oszillator zählt, und zurück. Der relative Fehler ist δ = Δf / f₀; eine Uhr, die um δ zu schnell läuft, gewinnt δ · t_vergangen: Δt = δ · 86 400 s pro Tag. Ein ppm sind 0,0864 s pro Tag. Weil die Länge eines Monats oder Jahres eine Vereinbarung ist, tragen die abgeleiteten Werte ihre Tage im Namen: 30 Tage (2 592 000 s) und 365 Tage (31 536 000 s). Der Frequenzfehler ist Δf = δ · f₀ bei der Nennfrequenz. Den Fehler in ppm oder den Zeitfehler pro Tag eingeben (und die Nennfrequenz für Δf). Das Ergebnis ist der Betrag des Fehlers: Das Vorzeichen (ein zu schneller Quarz lässt die Uhr vorgehen, ein zu langsamer nachgehen) bleibt nicht erhalten. Die Umrechnung ist exakt, solange δ im Zeitraum konstant bleibt. Temperatur, Alterung und die Lastkapazität verändern δ in der Praxis und gehören nicht zu diesem Rechner: Der Wert ist eine Toleranz aus dem Datenblatt, nicht der Fehler eines bestimmten Tages. Beispiel mit den Standardwerten: 20 ppm sind 1,728 s pro Tag, 51,84 s pro 30 Tage (etwa eine Minute pro Monat) und 630,72 s pro 365 Tage sowie 0,655 Hz bei 32 768 Hz."
+  tags: [crystal, quartz, xtal, ppm, frequency tolerance, clock drift, time error, seconds per day, rtc accuracy, rtc, watch crystal, 32.768 kHz, parts per million, quarz, schwingquarz, frequenztoleranz, gangabweichung, ganggenauigkeit, uhrenfehler, sekunden pro tag, echtzeituhr, uhrenquarz, abweichung]
+  source: "Definition of the relative frequency error δ = Δf/f₀ in parts per million and of the time error Δt = δ·t (1 ppm = 10⁻⁶); published figures for comparison: Analog Devices (Maxim) note on crystal considerations for real-time clocks (20 ppm is about one minute per month); Seiko Epson RX8900SA/CE application manual ETM45E-10 (frequency characteristics in seconds of month deviation); Texas Instruments SLAA322D, MSP430 32-kHz crystal oscillators (frequency tolerance in Hz at 32 768 Hz)"
+  vars:
+    ppm: {dim: ratio, label: δ, name: {en: "Frequency error (ppm)", de: "Frequenzfehler (ppm)"}, default: "20 ppm", unit: ppm, units: [ppm, pct, ""]}
+    dd: {dim: time, label: Δt_d, name: {en: "Time error per day", de: "Gangfehler pro Tag"}}
+    f: {dim: frequency, label: f₀, name: {en: "Nominal frequency", de: "Nennfrequenz"}, default: "32768"}
+  dof: 2
+  rules:
+    dd: ["abs(ppm)*86400"]
+    ppm: ["dd/86400"]
+  derived:
+    dm: {dim: time, label: Δt_30d, name: {en: "Time error per 30 days", de: "Gangfehler pro 30 Tage"}, expr: "abs(ppm)*2592000"}
+    dy: {dim: time, label: Δt_365d, name: {en: "Time error per 365 days", de: "Gangfehler pro 365 Tage"}, expr: "abs(ppm)*31536000"}
+    df: {dim: frequency, label: Δf, name: {en: "Frequency error at the nominal frequency", de: "Frequenzfehler bei der Nennfrequenz"}, expr: "abs(ppm)*f"}
+  checks:
+    - {when: "abs(ppm) > 0.01", warn: {en: "More than 10 000 ppm (1 %) is not a crystal tolerance; check the unit.", de: "Mehr als 10 000 ppm (1 %) ist keine Quarztoleranz; Einheit prüfen."}}
+  formula: ["dd = abs(ppm) * 86400", "dm = abs(ppm) * 2592000", "dy = abs(ppm) * 31536000", "df = abs(ppm) * f"]
+
+- id: avr_timer
+  kind: calculator
+  category: timers
+  name: {cs: "Časovač AVR: srovnávací hodnota (CTC)", da: "AVR-timer: sammenligningsværdi (CTC)", de: "AVR-Timer-Vergleichswert (CTC)", el: "Χρονιστής AVR: τιμή σύγκρισης (CTC)", en: "AVR timer compare value (CTC)", es: "Temporizador AVR: valor de comparación (CTC)", fr: "Minuterie AVR : valeur de comparaison (CTC)", hi: "AVR टाइमर: तुलना मान (CTC)", it: "Timer AVR: valore di confronto (CTC)", ja: "AVRタイマー：比較値（CTC）", nl: "AVR-timer: vergelijkingswaarde (CTC)", no: "AVR-timer: sammenligningsverdi (CTC)", pl: "Timer AVR: wartość porównania (CTC)", pt: "Temporizador AVR: valor de comparação (CTC)", sv: "AVR-timer: jämförvärde (CTC)", zh: "AVR定时器：比较值（CTC）"}
+  doc:
+    en: "Compare value OCR of an AVR timer (ATmega328P family) in CTC mode (clear timer on compare match). The counter runs from 0 up to OCR and starts again, so one cycle takes OCR + 1 timer clocks of f_clk / N (N = prescaler). A toggled output pin needs two compare matches per period: f = f_clk / (2 × N × (1 + OCR)). The compare-match interrupt (or the cycle rate) runs twice as fast: f = f_clk / (N × (1 + OCR)); this rate follows from the same counting sequence, the datasheet prints the equation for the toggled pin. Enter f_clk (normally F_CPU) and the wanted frequency, and choose the mode and the counter width (8 bit: Timer0 and Timer2, TOP = 255; 16 bit: Timer1, TOP = 65 535). The calculator rounds the exact value f_clk / (k × N × f) to the nearest whole number of timer clocks (k = 2 or 1), subtracts the 1 and shows the real frequency and its error. The prescaler is either picked automatically (the smallest of 1, 8, 64, 256 and 1024 whose OCR fits the counter; if even 1024 is too small the warning says so) or fixed. The list 1, 8, 64, 256, 1024 is valid for Timer0 and Timer1 and also exists on Timer2; Timer2 additionally has the prescalers 32 and 128, which are not offered here. Forgetting the +1 makes the period one timer clock too long: with a 32.768 kHz crystal, prescaler 1024 and an interrupt every second the correct value is OCR = 31 (32 clocks); OCR = 32 gives 33 clocks, 1.03125 s. OCR is assumed static and the timer clock to be the I/O clock (a Timer2 in asynchronous mode runs from the crystal frequency instead). Example with the defaults: 16 MHz and 1 kHz on a toggled pin (8 bit) pick prescaler 64 and OCR = 124: 16 000 000 / (2 × 64 × 125) = 1000 Hz."
+    de: "Vergleichswert OCR eines AVR-Timers (ATmega328P-Familie) im CTC-Modus (Clear Timer on Compare Match). Der Zähler läuft von 0 bis OCR und beginnt von vorn, ein Zyklus dauert also OCR + 1 Timertakte von f_clk / N (N = Vorteiler). Ein umschaltender Ausgangspin braucht zwei Compare-Match-Ereignisse pro Periode: f = f_clk / (2 · N · (1 + OCR)). Der Compare-Match-Interrupt (oder die Zyklusrate) läuft doppelt so schnell: f = f_clk / (N · (1 + OCR)); diese Rate folgt aus derselben Zählfolge, das Datenblatt druckt die Gleichung für den umschaltenden Pin. f_clk (normalerweise F_CPU) und die gewünschte Frequenz eingeben sowie Modus und Zählerbreite wählen (8 Bit: Timer0 und Timer2, TOP = 255; 16 Bit: Timer1, TOP = 65 535). Der Rechner rundet den genauen Wert f_clk / (k · N · f) auf die nächste ganze Zahl von Timertakten (k = 2 oder 1), zieht die 1 ab und zeigt die tatsächliche Frequenz mit ihrem Fehler. Der Vorteiler wird entweder automatisch gewählt (der kleinste von 1, 8, 64, 256 und 1024, dessen OCR in den Zähler passt; reicht selbst 1024 nicht, sagt es die Warnung) oder fest vorgegeben. Die Liste 1, 8, 64, 256, 1024 gilt für Timer0 und Timer1 und gibt es auch bei Timer2; Timer2 hat zusätzlich die Vorteiler 32 und 128, die hier nicht angeboten werden. Wer die +1 vergisst, macht die Periode einen Timertakt zu lang: Mit einem 32,768-kHz-Quarz, Vorteiler 1024 und einem Interrupt pro Sekunde ist OCR = 31 richtig (32 Takte); OCR = 32 ergibt 33 Takte, 1,03125 s. OCR gilt als statisch und der Timertakt als I/O-Takt (ein Timer2 im asynchronen Modus läuft stattdessen mit der Quarzfrequenz). Beispiel mit den Standardwerten: 16 MHz und 1 kHz an einem umschaltenden Pin (8 Bit) wählen Vorteiler 64 und OCR = 124: 16 000 000 / (2 · 64 · 125) = 1000 Hz."
+  tags: [avr, atmega328p, arduino, timer, counter, ctc, ocr, ocr1a, prescaler, compare match, interrupt frequency, toggle pin, timer1, timer2, timer0, microcontroller, zähler, vorteiler, vergleichswert, interruptfrequenz, timerberechnung, mikrocontroller]
+  source: "Microchip (Atmel) ATmega328P datasheet 7810D-AVR-01/15: CTC mode of Timer/Counter0, Timer/Counter1 and Timer/Counter2, toggled output f_OCnx = f_clk_I/O / (2·N·(1 + OCRnx)) with the prescalers N = 1, 8, 64, 256, 1024 (Timer2 also 32 and 128); the compare-match interrupt rate f_clk_I/O / (N·(1 + OCR)) follows from the same counting sequence 0 … OCR; the rounding of OCR to the nearest value is the choice of this calculator"
+  vars:
+    fclk: {dim: frequency, label: f_clk, name: {en: "Timer clock (F_CPU)", de: "Timertakt (F_CPU)"}, default: "16 MHz"}
+    f: {dim: frequency, label: f, name: {en: "Wanted frequency", de: "Gewünschte Frequenz"}, default: "1 kHz"}
+  choices:
+    prescaler:
+      name: {cs: "Předdělička", da: "Forskaler", de: "Vorteiler", el: "Προδιαιρέτης", en: "Prescaler", es: "Preescalador", fr: "Prédiviseur", hi: "प्रीस्केलर", it: "Prescaler", ja: "プリスケーラ", nl: "Prescaler", no: "Forskaler", pl: "Dzielnik wstępny", pt: "Pré-escalador", sv: "Förskalare", zh: "预分频器"}
+      default: auto
+      options:
+        auto:
+          name: {cs: "Automaticky", da: "Automatisk", de: "Automatisch", el: "Αυτόματα", en: "Automatic (smallest that fits)", es: "Automático", fr: "Automatique", hi: "स्वचालित", it: "Automatico", ja: "自動", nl: "Automatisch", no: "Automatisk", pl: "Automatycznie", pt: "Automático", sv: "Automatiskt", zh: "自动"}
+          consts: {n: 0}
+        p1:
+          name: {cs: "1", da: "1", de: "1", el: "1", en: "1", es: "1", fr: "1", hi: "1", it: "1", ja: "1", nl: "1", no: "1", pl: "1", pt: "1", sv: "1", zh: "1"}
+          consts: {n: 1}
+        p8:
+          name: {cs: "8", da: "8", de: "8", el: "8", en: "8", es: "8", fr: "8", hi: "8", it: "8", ja: "8", nl: "8", no: "8", pl: "8", pt: "8", sv: "8", zh: "8"}
+          consts: {n: 8}
+        p64:
+          name: {cs: "64", da: "64", de: "64", el: "64", en: "64", es: "64", fr: "64", hi: "64", it: "64", ja: "64", nl: "64", no: "64", pl: "64", pt: "64", sv: "64", zh: "64"}
+          consts: {n: 64}
+        p256:
+          name: {cs: "256", da: "256", de: "256", el: "256", en: "256", es: "256", fr: "256", hi: "256", it: "256", ja: "256", nl: "256", no: "256", pl: "256", pt: "256", sv: "256", zh: "256"}
+          consts: {n: 256}
+        p1024:
+          name: {cs: "1024", da: "1024", de: "1024", el: "1024", en: "1024", es: "1024", fr: "1024", hi: "1024", it: "1024", ja: "1024", nl: "1024", no: "1024", pl: "1024", pt: "1024", sv: "1024", zh: "1024"}
+          consts: {n: 1024}
+    mode:
+      name: {cs: "Výstup CTC", da: "CTC-udgang", de: "CTC-Ausgabe", el: "Έξοδος CTC", en: "CTC output", es: "Salida CTC", fr: "Sortie CTC", hi: "CTC आउटपुट", it: "Uscita CTC", ja: "CTC出力", nl: "CTC-uitgang", no: "CTC-utgang", pl: "Wyjście CTC", pt: "Saída CTC", sv: "CTC-utgång", zh: "CTC输出"}
+      default: toggle
+      options:
+        toggle:
+          name: {cs: "Pin se přepíná (obdélník)", da: "Ben skifter (firkantsignal)", de: "Pin schaltet um (Rechteck)", el: "Ο ακροδέκτης εναλλάσσεται (τετραγωνικός παλμός)", en: "Pin toggles (square wave)", es: "El pin conmuta (onda cuadrada)", fr: "La broche bascule (signal carré)", hi: "पिन टॉगल होता है (वर्ग तरंग)", it: "Il pin commuta (onda quadra)", ja: "ピンがトグル（方形波）", nl: "Pin wisselt (blokgolf)", no: "Pinnen veksler (firkantbølge)", pl: "Pin przełącza się (fala prostokątna)", pt: "O pino alterna (onda quadrada)", sv: "Stiftet växlar (fyrkantsvåg)", zh: "引脚翻转（方波）"}
+          consts: {k: 2}
+        interrupt:
+          name: {cs: "Frekvence přerušení při shodě", da: "Afbrydelsesrate ved sammenligning", de: "Interrupt-Rate bei Compare-Match", el: "Ρυθμός διακοπής σε ταύτιση σύγκρισης", en: "Compare-match interrupt rate", es: "Frecuencia de interrupción por coincidencia", fr: "Fréquence d'interruption de comparaison", hi: "तुलना-मैच इंटरप्ट दर", it: "Frequenza dell'interrupt di confronto", ja: "コンペアマッチ割り込み周期", nl: "Interruptfrequentie bij compare-match", no: "Avbruddsrate ved sammenlikning", pl: "Częstotliwość przerwania porównania", pt: "Frequência da interrupção por comparação", sv: "Avbrottsfrekvens vid jämförelse", zh: "比较匹配中断频率"}
+          consts: {k: 1}
+    width:
+      name: {cs: "Šířka čítače", da: "Tællerbredde", de: "Zählerbreite", el: "Πλάτος μετρητή", en: "Counter width", es: "Ancho del contador", fr: "Largeur du compteur", hi: "काउंटर चौड़ाई", it: "Larghezza del contatore", ja: "カウンタのビット幅", nl: "Tellerbreedte", no: "Tellerbredde", pl: "Szerokość licznika", pt: "Largura do contador", sv: "Räknarbredd", zh: "计数器位宽"}
+      default: bits8
+      options:
+        bits8:
+          name: {cs: "8 bitů (Timer0, Timer2)", da: "8 bit (Timer0, Timer2)", de: "8 Bit (Timer0, Timer2)", el: "8 bit (Timer0, Timer2)", en: "8 bit (Timer0, Timer2)", es: "8 bits (Timer0, Timer2)", fr: "8 bits (Timer0, Timer2)", hi: "8 बिट (Timer0, Timer2)", it: "8 bit (Timer0, Timer2)", ja: "8ビット（Timer0、Timer2）", nl: "8 bit (Timer0, Timer2)", no: "8 bit (Timer0, Timer2)", pl: "8 bitów (Timer0, Timer2)", pt: "8 bits (Timer0, Timer2)", sv: "8 bitar (Timer0, Timer2)", zh: "8位（Timer0、Timer2）"}
+          consts: {top: 255}
+        bits16:
+          name: {cs: "16 bitů (Timer1)", da: "16 bit (Timer1)", de: "16 Bit (Timer1)", el: "16 bit (Timer1)", en: "16 bit (Timer1)", es: "16 bits (Timer1)", fr: "16 bits (Timer1)", hi: "16 बिट (Timer1)", it: "16 bit (Timer1)", ja: "16ビット（Timer1）", nl: "16 bit (Timer1)", no: "16 bit (Timer1)", pl: "16 bitów (Timer1)", pt: "16 bits (Timer1)", sv: "16 bitar (Timer1)", zh: "16位（Timer1）"}
+          consts: {top: 65535}
+  dof: 2
+  derived:
+    tot: {dim: number, label: "f_clk/(k·f)", name: {en: "Exact timer clocks per period (N × (1 + OCR), unrounded)", de: "Genaue Timertakte pro Periode (N × (1 + OCR), ungerundet)"}, expr: "fclk/(k*f)"}
+    nsel: {dim: integer, label: N, name: {en: "Prescaler used", de: "Verwendeter Vorteiler"}, expr: "if(n,n,if(round(tot)<=top+1,1,if(round(tot/8)<=top+1,8,if(round(tot/64)<=top+1,64,if(round(tot/256)<=top+1,256,1024)))))", unit: dec}
+    ocr: {dim: integer, label: OCR, name: {en: "Compare value OCR", de: "Vergleichswert OCR"}, expr: "max(round(tot/nsel)-1,0)", unit: dec}
+    fact: {dim: frequency, label: f_act, name: {en: "Real frequency", de: "Tatsächliche Frequenz"}, expr: "fclk/(k*nsel*(ocr+1))"}
+    err: {dim: ratio, label: Error, name: {en: "Frequency error", de: "Frequenzfehler"}, expr: "(fact-f)/f", unit: pct, units: [pct, ppm, ""]}
+  checks:
+    - {when: "ocr > top", warn: {en: "The compare value does not fit the timer; choose a larger prescaler or the 16-bit timer.", de: "Der Vergleichswert passt nicht in den Timer; größeren Vorteiler oder den 16-Bit-Timer wählen."}}
+    - {when: "tot/nsel < 0.5", warn: {en: "The target frequency is above the maximum for this prescaler (f_clk / (k × N)).", de: "Die Zielfrequenz liegt über dem Maximum für diesen Vorteiler (f_clk / (k × N))."}}
+    - {when: "abs(err) > 0.01", warn: {en: "The real frequency deviates by more than 1 %; try another prescaler.", de: "Die tatsächliche Frequenz weicht um mehr als 1 % ab; anderen Vorteiler probieren."}}
+  formula: ["tot = fclk / (k * f)", "ocr = round(tot / nsel) - 1", "fact = fclk / (k * nsel * (ocr + 1))", "err = (fact - f) / f"]
