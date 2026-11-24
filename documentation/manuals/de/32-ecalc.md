@@ -6,7 +6,7 @@ Rest. Bei Widerständen schlägt es außerdem den nächsten Normwert aus einer E
 Normwerten** findet Normwerte, die in Reihe oder parallel einen Zielwiderstand erreichen.
 
 ECalc enthält 113 Rechner in zwölf Kategorien, 44 Nachschlagetabellen (siehe [Tabellen](#tabellen)), sechs Bauteilcode-Seiten (siehe
-[Bauteilcodes](#bauteilcodes)) und 70 Pinbelegungen von Steckverbindern, Stiftleisten und ICs (siehe [Pinbelegungen](#pinbelegungen)).
+[Bauteilcodes](#bauteilcodes)) und 111 Pinbelegungen von Steckverbindern, Stiftleisten und ICs (siehe [Pinbelegungen](#pinbelegungen)).
 Der Agent kann mit denselben Formeln rechnen, Tabellen, Codes und Pinbelegungen lesen und für dich einen
 Rechner öffnen (siehe [ECalc mit dem Agenten nutzen](#ecalc-mit-dem-agenten-nutzen)). ECalc läuft in deinem Browser. Es braucht keinen Provider und hat keinen
 eigenen Schalter unter **Config**.
@@ -438,7 +438,7 @@ Widerstandsfarben folgen IEC 60062:2016. Wo Hersteller noch eine ältere Toleran
 
 ## Pinbelegungen
 
-Die Kategorie **Pinbelegungen** enthält 70 Pinbelegungen von Steckverbindern, Stiftleisten, IC-Gehäusen und anderen Bauteilen mit Anschlüssen. Öffne eine Pinbelegung aus der Kategorie. Die Liste ist in die Gruppen **Daten und Video**, **Audio**, **PC-Netzteil und Lüfter**, **Boards**, **Debug und Schnittstellen** und **ICs** gegliedert; die Gruppen stehen am Ende dieses Abschnitts.
+Die Kategorie **Pinbelegungen** enthält 111 Pinbelegungen von Steckverbindern, Stiftleisten, IC-Gehäusen und anderen Bauteilen mit Anschlüssen. Öffne eine Pinbelegung aus der Kategorie. Die Liste ist in die sieben Gruppen **Daten und Video**, **Audio**, **PC-Netzteil und Lüfter**, **Boards**, **Debug und Schnittstellen**, **ICs** und **Fahrzeug und Netz** gegliedert; die Gruppen stehen am Ende dieses Abschnitts.
 
 Eine Pinbelegungsseite zeigt:
 
@@ -451,7 +451,7 @@ Eine Pinbelegungsseite zeigt:
 - **Pin-Tabelle:** die Spalten **Pin**, **Name**, **Funktion**, **Typ**, **Ader** und **Hinweise**. Die Spalte Ader erscheint nur, wenn ein Pin der Variante eine Aderfarbe hat.
 - **Hinweise und Quelle:** unten auf der Seite die Hinweise der Pinbelegung und die Quelle, aus der sie stammt.
 
-**Zwei Ansichten.** 31 der 70 Pinbelegungen haben die Auswahl **Ansicht**. Ihre beiden Ansichten tragen die Namen der Pinbelegung, zum Beispiel *Stecker (Kabelende)* und *Buchse (am Host oder Hub)*. Die Zeichnung zeigt die Kontakte so, wie man sie sieht, wenn man auf die Steckseite schaut, also die Seite, an der das Gegenstück ansteckt. Stecker und Buchse liegen sich beim Stecken gegenüber. Von ihren Steckseiten gesehen sind sie deshalb spiegelbildlich: links und rechts vertauschen sich. ECalc zeichnet die gezeichnete Ansicht der Pinbelegung unverändert und die andere als Spiegelbild. Zahlen und Namen bleiben lesbar, aber die Kontakte wechseln die Seite der Zeichnung. Boards und ICs haben eine feste Ansicht ohne Auswahl; einzige Ausnahme ist die 40-polige Stiftleiste des Raspberry Pi, die eine Auswahl hat.
+**Zwei Ansichten.** 61 der 111 Pinbelegungen haben die Auswahl **Ansicht**. Ihre beiden Ansichten tragen die Namen der Pinbelegung, zum Beispiel *Stecker (Kabelende)* und *Buchse (am Host oder Hub)*. Die Zeichnung zeigt die Kontakte so, wie man sie sieht, wenn man auf die Steckseite schaut, also die Seite, an der das Gegenstück ansteckt. Stecker und Buchse liegen sich beim Stecken gegenüber. Von ihren Steckseiten gesehen sind sie deshalb spiegelbildlich: links und rechts vertauschen sich. ECalc zeichnet die gezeichnete Ansicht der Pinbelegung unverändert und die andere als Spiegelbild. Zahlen und Namen bleiben lesbar, aber die Kontakte wechseln die Seite der Zeichnung. Boards und ICs haben eine feste Ansicht ohne Auswahl; einzige Ausnahme ist die 40-polige Stiftleiste des Raspberry Pi, die eine Auswahl hat.
 
 **SOT-Gehäuse.** Die beiden SOT-Beispiele sind von oben gezeichnet, mit der Beschriftung nach oben, wie die Datenblätter sie zeigen. Bei SOT-23 liegt Pin 1 unten links, Pin 2 unten rechts und Pin 3 allein oben. Bei SOT-223 laufen die Pins 1 bis 3 unten von links nach rechts, und die Fahne ist Pin 4 oben. Wie die TO-92-Seite listen die SOT-Seiten nur Beispiele. Sie haben eine feste Ansicht ohne Auswahl.
 
@@ -468,13 +468,17 @@ Eine Pinbelegungsseite zeigt:
 
 **Aderfarben.** Eine Aderfarbe steht nur dort, wo ein Standard oder eine Anleitung sie nennt, zum Beispiel bei USB Type-A, RJ45, ATX, FTDI, Qwiic, Grove und dem Servokabel. Manche Kabel weichen von diesen Farben ab. Die Hinweise zur ATX-Belegung sagen, dass man nach der Position geht, nicht nach der Farbe.
 
-**Varianten.** Sechs Pinbelegungen haben Varianten. RJ45 (8P8C) hat T568A und T568B, die sich nur in den Aderfarben des grünen und des orangen Paars unterscheiden. Die 3,5-mm-Headset-Klinke (TRRS) hat CTIA (AHJ) und OMTP. DisplayPort hat die Quellseite (Ausgang) und die Senkenseite (Monitoreingang), die die Pins 1 bis 12 anders nummerieren. TO-92: Beispiele hat zwölf Bauteilbeispiele: BC337, BC547, BC557, PN2222A, 2N3904, 2N3906, 2N7000, BS170, LM35, 78L05, TL431 und DS18B20. SOT-23: Beispiele hat vier (BC847, MMBT3904, 2N7002 und BSS84), SOT-223: Beispiele hat zwei (LM1117 und BCP56). Zwei dieser Beispiele sind Fallen. Der BS170 ist umgekehrt belegt wie der 2N7000: Drain links, Source rechts. Der DS18B20 hat Masse links und die Versorgung rechts, umgekehrt zum LM35.
+**Varianten.** Zehn Pinbelegungen haben Varianten. RJ45 (8P8C) hat T568A und T568B, die sich nur in den Aderfarben des grünen und des orangen Paars unterscheiden. Die 3,5-mm-Headset-Klinke (TRRS) hat CTIA (AHJ) und OMTP. DisplayPort hat die Quellseite (Ausgang) und die Senkenseite (Monitoreingang), die die Pins 1 bis 12 anders nummerieren. Die 6,35-mm-Klinke hat die Varianten symmetrisch mono, unsymmetrisch Stereo und Insert. Die D-Sub-25-Buchse hat die Varianten paralleler Port (IEEE 1284, PC-Seite) und RS-232. RJ11 / RJ12 hat RJ11 (6P4C, Positionen 2 bis 5) und RJ12 (6P6C), und die microSD-Karte hat den SD-Modus und den SPI-Modus. TO-92: Beispiele hat zwölf Bauteilbeispiele: BC337, BC547, BC557, PN2222A, 2N3904, 2N3906, 2N7000, BS170, LM35, 78L05, TL431 und DS18B20. SOT-23: Beispiele hat vier (BC847, MMBT3904, 2N7002 und BSS84), SOT-223: Beispiele hat zwei (LM1117 und BCP56). Zwei dieser Beispiele sind Fallen. Der BS170 ist umgekehrt belegt wie der 2N7000: Drain links, Source rechts. Der DS18B20 hat Masse links und die Versorgung rechts, umgekehrt zum LM35.
 
 **Zeigen, anklicken, filtern.** Wenn du auf einen Kontakt in der Zeichnung oder auf eine Zeile der Tabelle zeigst, werden beide hervorgehoben, und ein Kontakt zeigt dabei seine Details im Detailfeld. Ein Klick wählt den Pin: seine Details bleiben im Detailfeld stehen, und seine Zeile wird ins Blickfeld gerollt. Ein zweiter Klick hebt die Auswahl auf. Die Zeichnung reagiert nur auf den Zeiger; mit der Tastatur nutzt du die Pin-Schaltfläche am Anfang jeder Zeile. Das Filterfeld über der Tabelle sucht in Pin-Nummer, Name, Funktion, Typname, Aderfarbe und Hinweisen. Nicht passende Pins werden in der Zeichnung abgeblendet, und ihre Zeilen werden ausgeblendet. `/` springt ins Filterfeld, Escape leert es.
 
 **Pinbelegung kopieren** kopiert die Zeilen, die nach dem Filter zu sehen sind, für die gewählte Variante. Der Text ist tabulatorgetrennt und beginnt mit einer Kopfzeile, sodass du ihn in eine Tabellenkalkulation einfügen kannst. ECalc merkt sich Variante und Ansicht jeder Pinbelegung im Browser, zusammen mit den übrigen Einstellungen.
 
 **Prüfe die Ansicht, bevor du etwas verdrahtest.** Ein Anschluss, von der anderen Seite gesehen, ist spiegelverkehrt. Ein gespiegelter Anschluss ist der typische Fehler: links und rechts vertauschen sich, und Pin 1 liegt am anderen Ende seiner Reihe. Prüfe, welche Ansicht du siehst und ob sie die Steckseite des Teils zeigt, an dem du verdrahtest. Nachbauten können von der Zeichnung abweichen; der Eintrag NodeMCU sagt das und bittet, vor dem Verdrahten mit dem Aufdruck der Platine zu vergleichen. Die TO-92- und SOT-Seiten listen nur Beispiele. Die Pinfolge hängt vom Bauteil und vom Hersteller ab, prüfe also das Datenblatt deines genauen Bauteils.
+
+**Näherungen.** Die Winkel der 13-poligen Anhängersteckdose liegen innerhalb von etwa 7 Grad der Zeichnung des Herstellers; die Kontaktnummern sind exakt. Die Winkel des Typ-2-Steckers sind aus einer kleinen Zeichnung gerundet (etwa 5 Grad). Die vier Sideband-Kontakte S1 bis S4 von 12VHPWR und 12V-2x6 sind in der Größe der Leistungskontakte gezeichnet; die echten sind kleiner.
+
+**Nicht aufgenommen.** Diese Teile fehlen, weil ihre Belegung nicht aus einer verlässlichen Quelle geprüft werden konnte: der CEE-Stecker 2P+E und 3P+N+E (Lage von Außen- und Neutralleiter), das Bluetooth-Modul HC-05, I2C-OLED-Module, der JST-XH-Balancerstecker, der speakON-Stecker NL4, die große SD-Karte und der Treiber ULN2803.
 
 ### Daten und Video
 
@@ -489,6 +493,14 @@ Eine Pinbelegungsseite zeigt:
 - VGA (DE-15)
 - RJ45 (8P8C)
 - RS-232 (DE-9)
+- DVI-I (Dual Link)
+- SCART (21-polig)
+- PS/2 (Mini-DIN 6)
+- S-Video (Mini-DIN 4)
+- D-Sub 25-polig
+- RJ11 / RJ12 (6P4C, 6P6C)
+- CAN (D-Sub 9)
+- microSD-Karte
 
 ### Audio
 
@@ -496,6 +508,10 @@ Eine Pinbelegungsseite zeigt:
 - 3,5-mm-Headset-Klinke (TRRS)
 - XLR, 3-polig (symmetrisch)
 - MIDI (DIN-5, 180°)
+- 6,35-mm-Klinke (1/4 Zoll), TRS
+- Cinch-Stecker (RCA)
+- XLR, 5-polig (DMX512)
+- Eurorack-Stromversorgung, 16-polig (Doepfer A-100)
 
 ### PC-Netzteil und Lüfter
 
@@ -508,6 +524,14 @@ Eine Pinbelegungsseite zeigt:
 - Laufwerksstrom, 4-polig (Molex)
 - Lüfter, 3-polig
 - Lüfter, 4-polig PWM
+- ATX12V-CPU-Strom, 4-polig
+- PCIe-Strom, 12VHPWR / 12V-2x6, 16-polig (12+4)
+- Frontpanel-Anschluss, 2x5
+- Interner USB-2.0-Anschluss, 2x5
+- Interner USB-3.x-Anschluss, 19-polig
+- HD-Audio-Frontpanel-Anschluss, 2x5
+- RGB-LED-Anschluss, 4-polig, 12 V
+- Adressierbarer RGB-Anschluss, 3-polig, 5 V
 
 ### Boards
 
@@ -517,6 +541,16 @@ Eine Pinbelegungsseite zeigt:
 - NodeMCU DevKit 1.0 (ESP8266)
 - Raspberry Pi 40-Pin-Stiftleiste
 - Raspberry Pi Pico / Pico W
+- Arduino Mega 2560 Rev3
+- Arduino Leonardo
+- Arduino Micro
+- Arduino Pro Mini
+- BBC micro:bit V2
+- WEMOS D1 mini
+- ESP32-C3-DevKitM-1
+- ESP32-S3-DevKitC-1
+- ESP32-CAM
+- Blue Pill (STM32F103C8)
 
 ### Debug und Schnittstellen
 
@@ -528,6 +562,12 @@ Eine Pinbelegungsseite zeigt:
 - Grove (4-polig)
 - Modellbau-Servo (3-polig)
 - OBD-II (SAE J1962)
+- ESP-01 (ESP8266)
+- Modul nRF24L01 (2×4)
+- HC-SR04
+- DHT22 / AM2302
+- mikroBUS
+- Pmod (2×6)
 
 ### ICs
 
@@ -563,6 +603,18 @@ Eine Pinbelegungsseite zeigt:
 - SN74HC245 (DIP-20)
 - CD4017B (DIP-16)
 - CD4051B (DIP-16)
+
+### Fahrzeug und Netz
+
+**Sicherheit.** Diese Steckverbinder führen Fahrzeug- und Netzstromkreise. Arbeiten daran nur durch Qualifizierte, und vor dem Verdrahten den tatsächlichen Steckverbinder prüfen. CP und PP eines Typ-2-Steckers nie überbrücken, um ein Fahrzeug vorzutäuschen, und nie außerhalb einer Ladestation Spannung anlegen.
+
+**ISO 10487.** Die Norm macht A7 zur Hauptversorgung und A4 zu einem geschalteten Plus von höchstens 0,3 A. Das weicht von der verbreiteten Regel A4 Dauerplus und A7 Zündung ab; deshalb vor dem Anschluss eines Radios beide Kontakte im Auto messen.
+
+- Anhängersteckdose, 7-polig (ISO 1724, 12N)
+- Anhängersteckdose, 13-polig (ISO 11446)
+- Ladestecker Typ 2 (IEC 62196-2)
+- Autoradio-Stecker ISO 10487, Teil A (Versorgung)
+- Autoradio-Stecker ISO 10487, Teil B (Lautsprecher)
 
 ## Quellen und Grenzen
 

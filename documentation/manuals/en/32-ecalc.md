@@ -2,7 +2,7 @@
 
 ECalc is a formula collection for electronics in the Virtual Desktop. A calculator page shows the circuit, the formula and the results side by side, and it recalculates while you type. You enter the values you know and ECalc works out the rest. For resistors it also suggests the nearest standard value from an E series, and the standard-value combiner finds standard values that reach a target resistance, in series or in parallel.
 
-ECalc has 113 calculators in twelve categories, 44 reference tables (see [Tables](#tables)), six component code pages (see [Component Codes](#component-codes)) and 70 pinouts of connectors, board headers, ICs and other parts with pins (see [Pinouts](#pinouts)). The agent can calculate with the same formulas, read the tables, codes and pinouts, and open a calculator for you (see [Using ECalc from the Agent](#using-ecalc-from-the-agent)). ECalc runs in your browser. It needs no provider and has no switch of its own in **Config**.
+ECalc has 113 calculators in twelve categories, 44 reference tables (see [Tables](#tables)), six component code pages (see [Component Codes](#component-codes)) and 111 pinouts of connectors, board headers, ICs and other parts with pins (see [Pinouts](#pinouts)). The agent can calculate with the same formulas, read the tables, codes and pinouts, and open a calculator for you (see [Using ECalc from the Agent](#using-ecalc-from-the-agent)). ECalc runs in your browser. It needs no provider and has no switch of its own in **Config**.
 
 ## Table of Contents
 1. [Opening ECalc](#opening-ecalc)
@@ -425,7 +425,7 @@ Resistor colours follow IEC 60062:2016. Where makers still print an older tolera
 
 ## Pinouts
 
-The **Pinouts** category holds 70 pinouts of connectors, board headers, IC packages and other parts with pins. Open a pinout from the category. The list is sorted into the groups **Data and video**, **Audio**, **PC power and fans**, **Boards**, **Debug and interfaces** and **ICs**; the groups are listed at the end of this section.
+The **Pinouts** category holds 111 pinouts of connectors, board headers, IC packages and other parts with pins. Open a pinout from the category. The list is sorted into the seven groups **Data and video**, **Audio**, **PC power and fans**, **Boards**, **Debug and interfaces**, **ICs** and **Vehicle and mains**; the groups are listed at the end of this section.
 
 A pinout page shows:
 
@@ -438,7 +438,7 @@ A pinout page shows:
 - **Pin table:** the columns **Pin**, **Name**, **Function**, **Type**, **Wire** and **Notes**. The Wire column appears only when a pin of the variant has a wire colour.
 - **Notes and source:** the notes of the pinout and the source it was taken from, at the foot of the page.
 
-**Two views.** 31 of the 70 pinouts have a **View** choice. Their two views carry the names of the item, for example *Plug (cable end)* and *Receptacle (on the host or hub)*. The drawing shows the contacts as you see them when you look at the mating face, the face that meets the other part. A plug and its socket face each other when they are mated, so seen from their mating faces they are mirror images: left and right swap. ECalc draws the view that the pinout stores as its drawn view as it is, and the other view as the mirror image. Numbers and names stay readable, but the contacts move to the other side of the drawing. Boards and ICs have one fixed view and no choice. The Raspberry Pi 40-pin header is the one board with a View choice.
+**Two views.** 61 of the 111 pinouts have a **View** choice. Their two views carry the names of the item, for example *Plug (cable end)* and *Receptacle (on the host or hub)*. The drawing shows the contacts as you see them when you look at the mating face, the face that meets the other part. A plug and its socket face each other when they are mated, so seen from their mating faces they are mirror images: left and right swap. ECalc draws the view that the pinout stores as its drawn view as it is, and the other view as the mirror image. Numbers and names stay readable, but the contacts move to the other side of the drawing. Boards and ICs have one fixed view and no choice. The Raspberry Pi 40-pin header is the one board with a View choice.
 
 **SOT packages.** The two SOT examples are drawn from above, with the marking side up, as the datasheets show them. On SOT-23, pin 1 is at the lower left, pin 2 at the lower right and pin 3 alone at the top. On SOT-223, pins 1 to 3 run along the bottom from left to right, and the tab is pin 4 at the top. Like the TO-92 page, the SOT pages list examples only. They have one fixed view and no **View** choice.
 
@@ -455,13 +455,17 @@ A pinout page shows:
 
 **Wire colours.** A wire colour is shown only where a standard or guide names one, for example for USB Type-A, RJ45, ATX, FTDI, Qwiic, Grove and the servo cable. Some cables differ from those colours. The ATX notes say to go by position, not by colour.
 
-**Variants.** Six pinouts have variants. RJ45 (8P8C) has T568A and T568B, which differ only in the wire colours of the green and orange pairs. The 3.5 mm headset jack (TRRS) has CTIA (AHJ) and OMTP. DisplayPort has the Source side (output) and the Sink side (monitor input), which number pins 1 to 12 differently. TO-92: examples has twelve part examples: BC337, BC547, BC557, PN2222A, 2N3904, 2N3906, 2N7000, BS170, LM35, 78L05, TL431 and DS18B20. SOT-23: examples has four (BC847, MMBT3904, 2N7002 and BSS84), and SOT-223: examples has two (LM1117 and BCP56). Two of these examples are traps. The BS170 is wired the other way round from the 2N7000: drain on the left, source on the right. The DS18B20 has ground on the left and the supply on the right, the reverse of the LM35.
+**Variants.** Ten pinouts have variants. RJ45 (8P8C) has T568A and T568B, which differ only in the wire colours of the green and orange pairs. The 3.5 mm headset jack (TRRS) has CTIA (AHJ) and OMTP. DisplayPort has the Source side (output) and the Sink side (monitor input), which number pins 1 to 12 differently. The 6.35 mm jack has the balanced, stereo and insert variants. D-Sub 25 has the parallel port (IEEE 1284, PC side) and RS-232 variants. RJ11 / RJ12 has RJ11 (6P4C, positions 2 to 5) and RJ12 (6P6C), and the microSD card has SD mode and SPI mode. TO-92: examples has twelve part examples: BC337, BC547, BC557, PN2222A, 2N3904, 2N3906, 2N7000, BS170, LM35, 78L05, TL431 and DS18B20. SOT-23: examples has four (BC847, MMBT3904, 2N7002 and BSS84), and SOT-223: examples has two (LM1117 and BCP56). Two of these examples are traps. The BS170 is wired the other way round from the 2N7000: drain on the left, source on the right. The DS18B20 has ground on the left and the supply on the right, the reverse of the LM35.
 
 **Hover, click and filter.** Hovering a contact in the drawing or a row in the table highlights both, and a hovered contact shows its details in the detail panel. A click selects the pin: its details stay in the detail panel and its row is scrolled into view. A second click clears the selection. The drawing reacts to the pointer only; with the keyboard, use the pin number button at the start of each row. The filter box above the table matches the pin number, name, function, type name, wire colour name and notes. Pins that do not match are dimmed in the drawing and their rows are hidden. Press `/` to jump to the filter box, and Escape to clear it.
 
 **Copy pinout** copies the rows that are shown, after the filter, for the chosen variant. The text is tab-separated and starts with a header line, so you can paste it into a spreadsheet. ECalc remembers the variant and the view of each pinout in the browser, with its other settings.
 
 **Check the view before you wire anything.** A connector seen from the other side is mirrored, and a mirrored connector is the classic mistake: left and right swap, and pin 1 sits at the other end of its row. Check which view you are looking at, and that it shows the mating face of the part you are wiring to. Clone boards can differ from the drawing; the NodeMCU entry says so and asks you to compare with the silk screen before wiring. The TO-92 and SOT pages list examples only. The pin order depends on the part and the maker, so check the datasheet of your exact part.
+
+**Approximations.** The angles of the 13-pin trailer socket are within about 7 degrees of the maker's drawing; the contact numbers are exact. The angles of the Type 2 connector are rounded from a small drawing (about 5 degrees). The four sideband contacts S1 to S4 of the 12VHPWR and 12V-2x6 connector are drawn at the size of the power contacts; the real ones are smaller.
+
+**Not included.** These are left out because their pins could not be verified from a reliable source: the CEE 2P+E and 3P+N+E plugs (the positions of line and neutral), the HC-05 Bluetooth module, I2C OLED modules, the JST-XH balance plug, the speakON NL4 connector, the full-size SD card and the ULN2803 driver.
 
 ### Data and video
 
@@ -476,6 +480,14 @@ A pinout page shows:
 - VGA (DE-15)
 - RJ45 (8P8C)
 - RS-232 (DE-9)
+- DVI-I (Dual Link)
+- SCART (21-pin)
+- PS/2 (Mini-DIN 6)
+- S-Video (Mini-DIN 4)
+- D-Sub 25-pin
+- RJ11 / RJ12 (6P4C, 6P6C)
+- CAN (D-Sub 9)
+- microSD card
 
 ### Audio
 
@@ -483,6 +495,10 @@ A pinout page shows:
 - 3.5 mm headset jack (TRRS)
 - XLR, 3-pin (balanced audio)
 - MIDI (DIN-5, 180°)
+- 6.35 mm (1/4 in) jack, TRS
+- RCA (cinch) connector
+- XLR, 5-pin (DMX512)
+- Eurorack power bus, 16-pin (Doepfer A-100)
 
 ### PC power and fans
 
@@ -495,6 +511,14 @@ A pinout page shows:
 - Peripheral power, 4-pin (Molex)
 - Fan, 3-pin
 - Fan, 4-pin PWM
+- ATX12V CPU power, 4-pin
+- PCIe power, 12VHPWR / 12V-2x6, 16-pin (12+4)
+- Front panel header, 2x5
+- Internal USB 2.0 header, 2x5
+- Internal USB 3.x header, 19-pin
+- HD Audio front panel header, 2x5
+- RGB LED header, 4-pin, 12 V
+- Addressable RGB header, 3-pin, 5 V
 
 ### Boards
 
@@ -504,6 +528,16 @@ A pinout page shows:
 - NodeMCU DevKit 1.0 (ESP8266)
 - Raspberry Pi 40-pin header
 - Raspberry Pi Pico / Pico W
+- Arduino Mega 2560 Rev3
+- Arduino Leonardo
+- Arduino Micro
+- Arduino Pro Mini
+- BBC micro:bit V2
+- WEMOS D1 mini
+- ESP32-C3-DevKitM-1
+- ESP32-S3-DevKitC-1
+- ESP32-CAM
+- Blue Pill (STM32F103C8)
 
 ### Debug and interfaces
 
@@ -515,6 +549,12 @@ A pinout page shows:
 - Grove (4-pin)
 - Hobby servo (3-pin)
 - OBD-II (SAE J1962)
+- ESP-01 (ESP8266)
+- nRF24L01 module (2×4)
+- HC-SR04
+- DHT22 / AM2302
+- mikroBUS
+- Pmod (2×6)
 
 ### ICs
 
@@ -550,6 +590,18 @@ A pinout page shows:
 - SN74HC245 (DIP-20)
 - CD4017B (DIP-16)
 - CD4051B (DIP-16)
+
+### Vehicle and mains
+
+**Safety.** These connectors carry vehicle and mains circuits. Work on them only if you are qualified, and check the actual connector before you wire anything. Never bridge the CP and PP contacts of a Type 2 connector to imitate a vehicle, and never apply power outside a charging station.
+
+**ISO 10487.** The standard makes A7 the main supply and A4 a switched positive of at most 0.3 A. This differs from the common rule of A4 permanent and A7 ignition, so measure both contacts in the car before you connect a radio.
+
+- Trailer socket, 7-pin (ISO 1724, 12N)
+- Trailer socket, 13-pin (ISO 11446)
+- Charging connector Type 2 (IEC 62196-2)
+- Car radio connector ISO 10487, part A (power)
+- Car radio connector ISO 10487, part B (speakers)
 
 ## Sources and Honesty
 

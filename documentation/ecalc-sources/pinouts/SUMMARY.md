@@ -1,14 +1,14 @@
 # pinouts — summary
 
-81 items in seven groups. No item was left out, and no pin number or name is unverified. Each file names which view its drawing is
+111 items in seven groups. Items whose pins could not be verified are not in the catalog: CEE 2P+E and 3P+N+E, HC-05, I2C OLED modules, JST-XH balance plug, speakON NL4, the full-size SD card and ULN2803. No pin number or name in the catalog is unverified. Each file names which view its drawing is
 written for and on what that rests.
 
 | Folder | Items | Main sources |
 | --- | --- | --- |
-| `data/` | 11 | USB-IF specifications (USB 2.0, USB 3.x, Type-C 2.5); makers and cable vendors for HDMI, DisplayPort, VGA, RJ45 and RS-232, whose standards were not read |
-| `audio/` | 4 | Neutrik, Amphenol and ITT Cannon drawings for XLR; the MIDI Association for MIDI; maker documents for the jacks |
-| `pc_power/` | 9 | PCI Express CEM figures, Intel's 4-wire fan specification, PSU and board makers |
-| `boards/` | 6 | Arduino, Espressif, the NodeMCU project and Raspberry Pi documents, including their figures |
+| `data/` | 19 | USB-IF specifications (USB 2.0, USB 3.x, Type-C 2.5); makers and cable vendors for HDMI, DisplayPort, VGA, RJ45 and RS-232, whose standards were not read; the DDWG DVI specification; device manuals for SCART; IBM, Dell and Euresys for PS/2 and S-Video; interface makers and Black Box for CAN and D-Sub 25; SanDisk, Kingston and Cactus for microSD; 47 CFR Part 68 for RJ11 |
+| `audio/` | 8 | Neutrik, Amphenol and ITT Cannon drawings for XLR; the MIDI Association for MIDI; maker documents for the jacks; Rane, Mackie and Yamaha for the 6.35 mm jack; Mackie, Garmin and RS Components for the RCA plug; ESTA's DMX512 draft for the 5-pin XLR; Doepfer for the Eurorack bus |
+| `pc_power/` | 17 | PCI Express CEM figures, Intel's 4-wire fan specification, PSU and board makers; Intel's ATX 3 guide and front-panel and USB header specifications; ASRock and MSI manuals; Corsair for 12VHPWR |
+| `boards/` | 16 | Arduino, Espressif, the NodeMCU project and Raspberry Pi documents, including their figures; SparkFun for the Pro Mini; the micro:bit Educational Foundation; WEMOS/LOLIN; ST's STM32F103 datasheet for the Blue Pill (a clone board); the ESP32-CAM has no maker document |
 | `debug/` | 14 | ARM, SEGGER, Microchip, FTDI, SparkFun, Adafruit and Seeed documents; several independent sources for OBD-II and hobby servos; Ai-Thinker, Ebyte/Nordic, Aosong, MikroElektronika and Digilent for the module and bus connectors, vendor documents for the HC-SR04 |
 | `ics/` | 32 | The makers' datasheets for the package drawn |
 | `vehicle_mains/` | 5 | Erich Jaeger and M&K for the trailer sockets, TE Connectivity for Type 2, the ISO 10487-1 preview (complete normative text) for the car radio connector |
@@ -45,8 +45,14 @@ written for and on what that rests.
 - **`to92`:** TI's table and its generic outline disagree on the TL431's pin numbers; the named figure and onsemi agree, so positions are used and the notes give TI's numbers.
 
 - **`trailer_7`, `trailer_13`:** the positions come from the maker's renders (Jaeger); the key position is unverified, so no key is drawn. The 13-pin angles are approximate (about 7 degrees), the contact numbers exact; contacts 11 and 13 have no wire id (white/black, white/red).
-- **`type2`:** one maker document (TE 108-94323); the voltages and currents there are TE's assembly ratings. CP signalling is not covered.
+- **`type2`:** one maker document (TE 108-94323); the voltages and currents there are TE's assembly ratings. The angles are rounded from a small render (about 5 degrees), and CP signalling is not covered.
 - **`iso10487_a`, `iso10487_b`:** the standard itself; A4 and A7 follow the standard, not the common folklore.
+- **`ps2`:** the six pin positions are measured on a generic mini-DIN drawing of a connector maker; the IBM and Dell figures are not dimensioned.
+- **`s_video`:** the four pin positions come from the same kind of generic drawing, and no source says which ground belongs to Y and which to C.
+- **`esp32_cam`:** no Ai-Thinker document could be opened; the layout comes from two tutorial sites and a copy of the board schematic, and clones may differ.
+- **`blue_pill`:** a clone board with no maker document; the layout comes from stm32-base.org and the Zephyr figure, and clones differ in regulator and USB pull-up.
+- **`eurorack_power`:** no source numbers the header in a view, so the column of the odd pins is undocumented; no wiring depends on it, since both pins of a row carry the same signal.
+- **`pcie_12vhpwr`:** the sideband contacts S1 to S4 are drawn at the size of the power contacts, an approximation; the real ones are smaller.
 
 ## Judgement calls on types
 
