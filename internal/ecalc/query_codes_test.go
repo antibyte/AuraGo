@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-// The query API of the codes runs against the default catalog (the five code items of part K) and against the fixture
+// The query API of the codes runs against the default catalog (the six code items) and against the fixture
 // catalog with the test-only code kind test_words. Expected values come from the IEC 60062 vectors of codes.json.
 
 func TestDescribeCode(t *testing.T) {

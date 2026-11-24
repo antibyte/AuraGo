@@ -1,5 +1,5 @@
 /* ECalc component codes: reading and writing the markings of resistors, inductors and capacitors (resistor and inductor
-   colour bands, SMD resistor codes, capacitor codes, ceramic temperature codes). A DOM-free classic script that publishes
+   colour bands, SMD resistor and inductor codes, capacitor codes, ceramic temperature codes). A DOM-free classic script that publishes
    window.ECalcCore.codes = { decode(item, code, units), encode(item, req, units) }; it mirrors internal/ecalc/codes*.go and
    is checked against the same vectors (internal/ecalc/testdata/vectors/codes.json, scripts/test-ecalc-codes.mjs).
 
@@ -561,6 +561,119 @@
         return res;
     }
 
+    // ---- smd_inductor ----------------------------------------------------------------------------------------------------------------------
+    // Three characters (three digits, or two digits and one R or N) and an optional tolerance letter. Only the tolerance letters
+    // that two makers state identically are decoded; the others are in not_cross_checked.
+    const SMDI_CODE = /^(\d\d\d|\d\d[RN]|\d[RN]\d|[RN]\d\d)([A-Z]?)$/;
+    const SMDI_LETTER = /^[A-Za-z]$/;
+    const NOT_CHECKED_TOLERANCE = 'is not cross-checked (makers disagree, or only one maker states it)';
+
+    function smdInductorIndex(item) {
+        let ix = indexes.get(item);
+        if (ix) return ix;
+        const data = item.data;
+        ix = { data, tol: new Map(data.tolerances.map(t => [t.letter, t])), not: new Set(data.not_cross_checked.tolerance) };
+        indexes.set(item, ix);
+        return ix;
+    }
+
+    function smdInductorToleranceField(res, t) {
+        if (t.nh > 0) addField(res, 'tolerance', 'Tolerance', '±' + fmtSig(t.nh, 6) + ' nH', scaleDec(t.nh, -9), 'inductance');
+        else toleranceField(res, t.percent);
+    }
+
+    function decodeSMDInductor(item, code) {
+        const ix = smdInductorIndex(item);
+        const s = code.replace(/\s+/g, '').toUpperCase().replace(/[_|]/g, '');
+        if (s === '') throw invalidCode('the code is empty');
+        const m = SMDI_CODE.exec(s);
+        if (!m) throw invalidCode('cannot read ' + JSON.stringify(s) + ' as an SMD inductor code (3 digits, or two digits with R or N as the decimal point, and an optional tolerance letter)');
+        const c = m[1];
+        let v, family;
+        if (c.includes('R')) {
+            const i = c.indexOf('R');
+            v = decimalText(c.slice(0, i), c.slice(i + 1), -6);
+            family = 'R notation (µH)';
+        } else if (c.includes('N')) {
+            const i = c.indexOf('N');
+            v = decimalText(c.slice(0, i), c.slice(i + 1), -9);
+            family = 'N notation (nH)';
+        } else {
+            v = decimal(parseInt(c.slice(0, 2), 10), parseInt(c.slice(2), 10) - 6);
+            family = '3-digit code (µH)';
+        }
+        if (v === 0) throw invalidCode('the code gives an inductance of zero');
+        let tol = null;
+        if (m[2] !== '') {
+            tol = ix.tol.get(m[2]);
+            if (!tol) {
+                if (ix.not.has(m[2])) throw unsupported('the tolerance letter ' + m[2] + ' ' + NOT_CHECKED_TOLERANCE);
+                throw invalidCode('unknown tolerance letter ' + m[2]);
+            }
+        }
+        const res = newResult('smd_inductor');
+        res.dim = 'inductance';
+        res.code = s;
+        res.value = v;
+        addField(res, 'family', 'Marking', family, NaN, '');
+        if (tol) smdInductorToleranceField(res, tol);
+        return res;
+    }
+
+    // The 3-character code of v (> 0, in H) and its family; throws when v has none.
+    function smdInductorValue(units, v) {
+        const { N, e, exact } = sigDigits(v, 2);
+        if (!exact) throw unsupported(units.format(v, 'inductance', '', 4) + ' needs more than 2 significant digits');
+        const eu = e + 6; // the exponent in µH
+        const tens = Math.floor(N / 10), ones = N % 10;
+        if (eu >= 0 && eu <= 9) return { code: String(N) + eu, family: '3-digit code (µH)' };
+        if (eu === -1) return { code: tens + 'R' + ones, family: 'R notation (µH)' };
+        if (eu === -2) return { code: 'R' + N, family: 'R notation (µH)' };
+        if (eu === -3) return { code: N + 'N', family: 'N notation (nH)' };
+        if (eu === -4) return { code: tens + 'N' + ones, family: 'N notation (nH)' };
+        if (eu === -5 && ones === 0) return { code: '0N' + tens, family: 'N notation (nH)' };
+        if (eu > 9) throw unsupported(units.format(v, 'inductance', '', 4) + ' is outside the range of the code (up to 99 × 10⁹ µH)');
+        throw unsupported(units.format(v, 'inductance', '', 4) + ' has no 3-character marking (below 0.1 µH the N notation holds 0.3 nH, 1 nH to 9.9 nH in steps of 0.1 and 10 nH to 99 nH)');
+    }
+
+    // The tolerance of an encode request: a letter or a percentage; null when empty.
+    function smdInductorTolerance(ix, text) {
+        const t = text.trim();
+        if (t === '') return null;
+        if (SMDI_LETTER.test(t)) {
+            const l = t.toUpperCase();
+            if (ix.tol.has(l)) return ix.tol.get(l);
+            if (ix.not.has(l)) throw unsupported('the tolerance letter ' + l + ' ' + NOT_CHECKED_TOLERANCE);
+            throw unsupported('no tolerance letter ' + l);
+        }
+        const p = parsePercent(t);
+        if (p === null || p <= 0) throw invalidValue('tolerance: cannot read ' + JSON.stringify(t) + ' as a letter or a percentage');
+        const found = ix.data.tolerances.find(x => x.percent > 0 && closeTo(x.percent, p));
+        if (!found) throw unsupported('no tolerance letter for ±' + fmtSig(p, 6) + ' % (cross-checked letters only)');
+        return found;
+    }
+
+    function encodeSMDInductor(item, req, units) {
+        const ix = smdInductorIndex(item);
+        if (req.value.trim() === '') throw invalidValue('give a value');
+        let v;
+        try { v = units.parse(req.value, 'inductance', ''); } catch (error) { throw parseFail('value', error); }
+        if (!(v > 0)) throw invalidValue('value: the inductance must be positive');
+        const tol = smdInductorTolerance(ix, req.tolerance);
+        const { code, family } = smdInductorValue(units, v);
+        const s = sigDigits(v, 2);
+        const res = newResult('smd_inductor');
+        res.dim = 'inductance';
+        res.code = code;
+        res.value = decimal(s.N, s.e);
+        addField(res, 'family', 'Marking', family, NaN, '');
+        if (tol) {
+            res.code += tol.letter;
+            smdInductorToleranceField(res, tol);
+        }
+        return res;
+    }
+
     // ---- capacitor ----------------------------------------------------------------------------------------------------------------------------------
     const CAP_RKM = /^(\d+)([pnuµm])(\d*)([A-Za-z]?)$/;
     const CAP_RKM_UPPER = /^(\d+)([PNU])(\d+)([A-Za-z]?)$/;
@@ -986,6 +1099,7 @@
         resistor_bands: { decode: decodeResistor, encode: encodeResistor },
         inductor_bands: { decode: decodeInductor, encode: encodeInductor },
         smd_resistor: { decode: decodeSMD, encode: encodeSMD },
+        smd_inductor: { decode: decodeSMDInductor, encode: encodeSMDInductor },
         capacitor: { decode: decodeCapacitor, encode: encodeCapacitor },
         ceramic_temp: { decode: decodeCeramic, encode: encodeCeramic }
     };

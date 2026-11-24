@@ -31,7 +31,7 @@ type codeForms struct {
 	decode, encode, fields []string
 }
 
-// codeFormsByKind describes the five code kinds of codes.go; the keys are the kind ids.
+// codeFormsByKind describes the six code kinds of codes.go; the keys are the kind ids.
 var codeFormsByKind = map[string]codeForms{
 	"resistor_bands": {
 		decode: []string{"1 to 6 band colours as English names, for example blue grey red (3 bands), brown black red gold (4), red yellow white orange brown (5)"},
@@ -47,6 +47,11 @@ var codeFormsByKind = map[string]codeForms{
 		decode: []string{"a marking as printed: 472, 4R7, 01C (EIA-96), 1L5, 4K7, 000"},
 		encode: []string{"value (required, for example 10k)", "tolerance (for example 1%; it chooses the 3-digit, 4-digit or EIA-96 marking)"},
 		fields: []string{"family", "code_3digit, code_4digit, code_eia96 (encode, those that exist)", "tolerance (encode)"},
+	},
+	"smd_inductor": {
+		decode: []string{"a marking as printed: 101 (100 µH), 4R7 (4.7 µH), R47, 47N (47 nH), 4N7, optionally with a tolerance letter (4R7M)"},
+		encode: []string{"value (required, for example 4.7u)", "tolerance (optional: a letter C, G, H, J, K or M, or a percentage such as 10%)"},
+		fields: []string{"family", "tolerance"},
 	},
 	"capacitor": {
 		decode: []string{"up to three parts as printed: a value (104, 4p7), a tolerance letter (K) and a voltage code (1H), for example 104K 1H"},

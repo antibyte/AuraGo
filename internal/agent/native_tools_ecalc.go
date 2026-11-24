@@ -35,11 +35,11 @@ func ecalcSchema() openai.Tool {
 			"operation": operationProperty("search finds items; describe lists variables, columns, code forms or variants; table reads rows or one lookup; pinout reads pins; decode/encode convert codes; open shows it in the app.", []string{"search", "describe", "calculate", "open", "table", "pinout", "decode", "encode"}),
 			"query":     prop("string", "search: topic, part or formula, English or German. Empty lists the categories."),
 			"id":        prop("string", "describe, calculate, table, pinout, open: id from search."),
-			"inputs":    pairs("calculate, open: known values as {name, value}, for example 4k7, 12 V or 25 °C. A bare number is in the variable's default unit.", "value", "Value as typed."),
+			"inputs":    pairs("calculate, open: known values as {name, value}, e.g. 4k7, 12 V or 25 °C. A bare number is in the variable's default unit.", "value", "Value as typed."),
 			"choices":   pairs("calculate, open: choice selections as {name, option}.", "option", "Option id from describe."),
 			"eseries": map[string]interface{}{
 				"type":        "string",
-				"description": "calculate: E-series for standard-value suggestions (default E24).",
+				"description": "calculate: E-series of the suggestions (default E24).",
 				"enum":        append([]string(nil), ecalc.ESeriesIDs...),
 			},
 			"limit":   prop("integer", "search 1-25 (10), table 1-50 (20), pinout 1-50 (50)."),

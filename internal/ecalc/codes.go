@@ -10,8 +10,8 @@ import (
 	"strings"
 )
 
-// Component codes: reading and writing the markings of resistors, inductors and capacitors. The five code kinds
-// (resistor_bands, inductor_bands, smd_resistor, capacitor, ceramic_temp) are registered here and in codes_*.go; their
+// Component codes: reading and writing the markings of resistors, inductors and capacitors. The six code kinds
+// (resistor_bands, inductor_bands, smd_resistor, smd_inductor, capacitor, ceramic_temp) are registered here and in codes_*.go; their
 // tables (colours, letters, voltage codes ...) are the data of the code items in catalog/codes/*.yaml. This file holds what
 // the kinds share: the result types, the errors, Decode and Encode, and the helpers for digits, tolerances and the
 // nearest standard value. The JavaScript twin is ui/js/desktop/apps/ecalc/ecalc-codes.js; both run the vectors of
@@ -132,6 +132,7 @@ func init() {
 	RegisterCodeKind("resistor_bands", CodeKind{Load: codeLoadResistorBands, JSON: codeResistorBandsJSON})
 	RegisterCodeKind("inductor_bands", CodeKind{Load: codeLoadInductorBands, JSON: codeInductorBandsJSON})
 	RegisterCodeKind("smd_resistor", CodeKind{Load: codeLoadSMDResistor, JSON: codeSMDResistorJSON})
+	RegisterCodeKind("smd_inductor", CodeKind{Load: codeLoadSMDInductor, JSON: codeSMDInductorJSON})
 	RegisterCodeKind("capacitor", CodeKind{Load: codeLoadCapacitor, JSON: codeCapacitorJSON})
 	RegisterCodeKind("ceramic_temp", CodeKind{Load: codeLoadCeramicTemp, JSON: codeCeramicTempJSON})
 }

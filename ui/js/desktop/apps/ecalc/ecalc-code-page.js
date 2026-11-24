@@ -463,8 +463,12 @@
         });
     }
 
-    // ---- SMD resistor ------------------------------------------------------------------------------------------------------
-    function smdController(ctx) {
+    // ---- SMD resistor and SMD inductor ------------------------------------------------------------------------------------------------------
+    // The two SMD kinds share the page: a code, a value and a tolerance on a chip. `cfg` names the dimension and the samples.
+    const SMD_RESISTOR = { dim: 'resistance', sample: '472', value: '4k7', tolerance: '1 %' };
+    const SMD_INDUCTOR = { dim: 'inductance', sample: '4R7', value: '4.7u', tolerance: 'K' };
+
+    function smdController(ctx, cfg) {
         const { item, units, t, codes } = ctx;
         const st = { code: '', value: '', tolerance: '', printed: '', valueSI: NaN };
         let root = null, artEl = null, codeInput = null, valueInput = null, toleranceInput = null, timer = 0, pending = null;
@@ -472,8 +476,8 @@
         function markup() {
             const input = (id, placeholder, extra) => '<input class="ec-input" id="' + ctx.uid + '-' + id + '" data-input="' + id + '" type="text" inputmode="text" maxlength="' + MAX_TEXT + '" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="' + esc(placeholder) + '"' + (extra || '') + '>';
             return '<div class="ec-code-stage ec-stage" data-block="stage"><div class="ec-code-art-host"></div></div>'
-                + '<div class="ec-code-fields">' + ctx.field('code', t(KEY.marking), input('code', '472')) + ctx.field('value', t(DIM_KEY.resistance), input('value', '4k7'))
-                + ctx.field('tolerance', t(FIELD_KEY.tolerance), input('tolerance', '1 %')) + '</div>';
+                + '<div class="ec-code-fields">' + ctx.field('code', t(KEY.marking), input('code', cfg.sample)) + ctx.field('value', t(DIM_KEY[cfg.dim]), input('value', cfg.value))
+                + ctx.field('tolerance', t(FIELD_KEY.tolerance), input('tolerance', cfg.tolerance)) + '</div>';
         }
         function paintArt() {
             const shown = st.printed || st.code.toUpperCase();
@@ -488,7 +492,7 @@
             const out = ctx.run(() => codes.decode(item, st.code, units), 'code');
             if (out.result) {
                 st.valueSI = out.result.value;
-                st.value = ctx.fmt(out.result.value, 'resistance');
+                st.value = ctx.fmt(out.result.value, cfg.dim);
                 st.printed = out.result.code;
             } else {
                 st.printed = '';
@@ -550,12 +554,12 @@
             restore(saved) {
                 const inputs = saved && saved.inputs ? saved.inputs : {};
                 st.tolerance = text64(inputs.tolerance);
-                st.code = text64(inputs.code) || '472';
+                st.code = text64(inputs.code) || cfg.sample;
                 fromCode();
             },
-            reset() { st.tolerance = ''; st.code = '472'; fromCode(); },
+            reset() { st.tolerance = ''; st.code = cfg.sample; fromCode(); },
             refresh() {
-                if (Number.isFinite(st.valueSI) && valueInput !== valueInput.ownerDocument.activeElement) st.value = ctx.fmt(st.valueSI, 'resistance');
+                if (Number.isFinite(st.valueSI) && valueInput !== valueInput.ownerDocument.activeElement) st.value = ctx.fmt(st.valueSI, cfg.dim);
                 sync();
             },
             layout() {},
@@ -825,7 +829,10 @@
         };
     }
 
-    const CONTROLLERS = { resistor_bands: resistorController, inductor_bands: inductorController, smd_resistor: smdController, capacitor: capacitorController, ceramic_temp: ceramicController };
+    const CONTROLLERS = {
+        resistor_bands: resistorController, inductor_bands: inductorController, smd_resistor: ctx => smdController(ctx, SMD_RESISTOR),
+        smd_inductor: ctx => smdController(ctx, SMD_INDUCTOR), capacitor: capacitorController, ceramic_temp: ceramicController
+    };
 
     // ---- the page ----------------------------------------------------------------------------------------------------------------
     function create(options) {

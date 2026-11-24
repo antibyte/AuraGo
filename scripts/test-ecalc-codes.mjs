@@ -31,8 +31,8 @@ const deepFreeze = value => {
     return value;
 };
 const items = new Map(catalog.items.filter(item => item.kind === 'code').map(item => [item.code, deepFreeze(item)]));
-const KINDS = ['resistor_bands', 'inductor_bands', 'smd_resistor', 'capacitor', 'ceramic_temp'];
-assert.deepStrictEqual([...items.keys()].sort(), [...KINDS].sort(), 'the catalog snapshot carries the five code items');
+const KINDS = ['resistor_bands', 'inductor_bands', 'smd_resistor', 'smd_inductor', 'capacitor', 'ceramic_temp'];
+assert.deepStrictEqual([...items.keys()].sort(), [...KINDS].sort(), 'the catalog snapshot carries the six code items');
 // A kind that is no code kind: the item is built here.
 const itemOf = kind => items.get(kind) || { kind: 'code', code: kind, data: {} };
 
@@ -118,7 +118,7 @@ cases += 5;
 
 // Decoding what was encoded gives the same result: every E12 value in a few decades, every kind that has a value.
 const E12 = core.eseries.TABLES.E12;
-for (const [kind, suffix] of [['resistor_bands', ''], ['smd_resistor', ''], ['inductor_bands', 'u'], ['capacitor', 'p']]) {
+for (const [kind, suffix] of [['resistor_bands', ''], ['smd_resistor', ''], ['smd_inductor', 'u'], ['inductor_bands', 'u'], ['capacitor', 'p']]) {
     for (const decade of [1, 10, 100, 1000, 1e4, 1e5]) {
         for (const m of E12) {
             const req = { value: String(Number((m * decade).toPrecision(6))) + suffix, tolerance: '10%' };

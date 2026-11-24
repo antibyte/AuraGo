@@ -124,6 +124,7 @@ Use `ecalc` for electronics formulas: Ohm's law, voltage dividers, filters, time
 | `resistor_bands` | 1 to 6 colours (`blue grey red` = 6.8 kΩ ±20 %) | `value`, `tolerance`, `tempco` (6 bands), `bands` 3 to 6 | `tolerance`, `tcr` |
 | `inductor_bands` | 4 colours (EIA) or 5 (MIL, silver first) | `value`, `tolerance` 5 or 10 %, `bands` 4 or 5 | `layout`, `tolerance` |
 | `smd_resistor` | `472`, `4R7`, `01C` (EIA-96), `1L5`, `000` | `value`, `tolerance` (picks the 3-digit, 4-digit or EIA-96 marking) | `family`; encode adds `code_3digit`, `code_4digit`, `code_eia96` |
+| `smd_inductor` | `101` (100 µH), `4R7` (4.7 µH), `R47`, `47N` (47 nH), `4N7`, optionally with a tolerance letter (`4R7M`); only the letters C, G, H, J, K, M are read, the other letters differ between makers and answer `unsupported` | `value`, `tolerance` (a letter or a percentage) | `family`, `tolerance` |
 | `capacitor` | up to three parts: `104`, `4p7`, `K`, `1H` (`104K 1H` = 100 nF ±10 %, 50 V) | `value`, `tolerance` (letter or %), `voltage` | `family`, `tolerance`, `voltage`; encode adds `value_code`, `rkm` |
 | `ceramic_temp` | `X7R`, `C0G`, `NP0`, `U2J` | `class` (required); class 1: `tempco`, `tolerance`; class 2: `value` as a range (`-55..125`), `tolerance` (`15%`) | class 1: `class`, `tc`, `tolerance`, `industry_code`; class 2: `class`, `temp_low`, `temp_high`, `change` |
 

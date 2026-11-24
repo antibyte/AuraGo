@@ -371,8 +371,8 @@ func TestDesktopECalcCodesBandsBrowser(t *testing.T) {
 	bandCenter := func(i int) string { return fmt.Sprintf(`.ec-band[data-index="%d"]`, i) }
 	colorsNow := func(id string) []string { return h.colorsOf(id, h.read()) }
 
-	// ---- the rail lists the five codes; the page opens with the 1 kOhm / 5 % example drawn from the data ----------------------------
-	h.same("the Codes rail counts the five code items", page.MustEval(`()=>document.querySelector('.ec-rail-btn[data-rail="codes"] .ec-count').textContent`).Str(), "5")
+	// ---- the rail lists the six codes; the page opens with the 1 kOhm / 5 % example drawn from the data ----------------------------
+	h.same("the Codes rail counts the six code items", page.MustEval(`()=>document.querySelector('.ec-rail-btn[data-rail="codes"] .ec-count').textContent`).Str(), "6")
 	h.open(resistor)
 	state := h.read()
 	h.same("page", []string{state.ID, state.Kind, state.Art, state.Count}, []string{resistor, "resistor_bands", "resistor", "4"})
@@ -905,7 +905,7 @@ func TestECalcCodePageUsesTheEngineAndTheStore(t *testing.T) {
 		"window.ECalcCodePage = { create };", "codes.decode(item, ", "codes.encode(item, ", "store.saveCalc(item.id, ", "store.calcState(item.id)", "el.dataset.code = item.id;",
 		"el.dataset.kind = String(item.code);", "Draw.bandsSVG(", "Draw.chipSVG(", `role="listbox"`, `role="option"`, "event.key === 'Escape'", "event.key === 'ArrowDown'",
 		"function describe(error)", "store.flush()", "ERROR_CODES = ['invalid_code', 'invalid_value', 'unsupported']", "const CONTROLLERS = {",
-		"resistor_bands: resistorController, inductor_bands: inductorController, smd_resistor: smdController, capacitor: capacitorController, ceramic_temp: ceramicController",
+		"resistor_bands: resistorController, inductor_bands: inductorController, smd_resistor: ctx => smdController(ctx, SMD_RESISTOR)", "smd_inductor: ctx => smdController(ctx, SMD_INDUCTOR), capacitor: capacitorController, ceramic_temp: ceramicController",
 	} {
 		if !strings.Contains(page, marker) {
 			t.Errorf("ecalc-code-page.js is missing %q", marker)

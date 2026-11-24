@@ -5,6 +5,7 @@ All CSV blocks parse; computed test vectors checked with a helper script that is
 | resistor_bands.md | 14 colours, 4 layouts, colour names in 16 locales | 7 | IEC 60062:2016, Table 1 |
 | inductor_bands.md | 13 colours, 2 layouts (EIA, MIL) | 5 | Bourns colour-code sheet, MIL-PRF-15305F |
 | smd_resistor.md | 96 EIA-96 codes, 13 letters, 5 RKM letters | 9 | Yageo, TT, Venkel, Bourns, ROHM |
+| smd_inductor.md | 3 value notations, 14 tolerance letters (6 decoded, 8 not cross-checked) | 5 | Murata, Bourns, Vishay, TDK |
 | capacitor.md | 5 value-code families, 21 tolerance rows, 31 voltage codes | 9 | Vishay, KEMET, TDK, Murata, Nichicon, Panasonic |
 | ceramic_temp.md | 48 code symbols, 12 common codes | 6 | Vishay 23140 (EIA-198-1), Murata |
 

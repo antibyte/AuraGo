@@ -150,7 +150,7 @@ func TestCodesVectors(t *testing.T) {
 			t.Errorf("%s %s %q %+v: error %q, want %s containing %q", c.Op, c.Kind, c.Code, c.Req, err, c.Error, c.Contains)
 		}
 	}
-	for _, kind := range []string{"resistor_bands", "inductor_bands", "smd_resistor", "capacitor", "ceramic_temp"} {
+	for _, kind := range []string{"resistor_bands", "inductor_bands", "smd_resistor", "smd_inductor", "capacitor", "ceramic_temp"} {
 		for _, what := range []string{"decode", "encode", "error"} {
 			if n := perKind[what+" "+kind]; n < 8 {
 				t.Errorf("%s %s has %d vectors, want at least 8", what, kind, n)
@@ -163,7 +163,7 @@ func TestCodesKindsAndItemsInTheDefaultCatalog(t *testing.T) {
 	cat := codeTestCatalog(t)
 	want := map[string]string{
 		"resistor_color_code": "resistor_bands", "inductor_color_code": "inductor_bands", "smd_resistor_code": "smd_resistor",
-		"capacitor_code": "capacitor", "ceramic_temp_code": "ceramic_temp",
+		"smd_inductor_code": "smd_inductor", "capacitor_code": "capacitor", "ceramic_temp_code": "ceramic_temp",
 	}
 	for id, kind := range want {
 		c := cat.Code(id)
@@ -222,6 +222,7 @@ func TestCodesItemJSONCarriesTheTables(t *testing.T) {
 		"resistor_bands": {"colors", "layouts", "notes"},
 		"inductor_bands": {"colors", "notes"},
 		"smd_resistor":   {"eia96", "letters", "rkm", "ambiguous", "notes"},
+		"smd_inductor":   {"tolerances", "not_cross_checked", "notes"},
 		"capacitor":      {"multipliers", "rkm", "tolerances", "voltages", "not_cross_checked", "notes"},
 		"ceramic_temp":   {"class1", "class2", "aliases", "industry", "not_cross_checked", "common", "notes"},
 	}
@@ -389,8 +390,8 @@ func TestCodesEncodeThenDecodeAgrees(t *testing.T) {
 			}
 		}
 	}
-	for _, kind := range []string{"smd_resistor", "capacitor", "inductor_bands"} {
-		dim := map[string]string{"smd_resistor": "", "capacitor": "p", "inductor_bands": "u"}[kind]
+	for _, kind := range []string{"smd_resistor", "smd_inductor", "capacitor", "inductor_bands"} {
+		dim := map[string]string{"smd_resistor": "", "smd_inductor": "u", "capacitor": "p", "inductor_bands": "u"}[kind]
 		mant, _ := ESeriesValues("E12")
 		for _, decade := range []float64{1, 10, 100, 1000, 1e4, 1e5} {
 			for _, m := range mant {
@@ -481,7 +482,7 @@ func TestCodesDecodeSurvivesGarbage(t *testing.T) {
 	for _, ch := range "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.|_" {
 		inputs = append(inputs, string(ch), string(ch)+string(ch), "1"+string(ch), string(ch)+"1", "10"+string(ch), "1"+string(ch)+"1")
 	}
-	for _, kind := range []string{"resistor_bands", "inductor_bands", "smd_resistor", "capacitor", "ceramic_temp"} {
+	for _, kind := range []string{"resistor_bands", "inductor_bands", "smd_resistor", "smd_inductor", "capacitor", "ceramic_temp"} {
 		for _, in := range inputs {
 			res, err := cat.Decode(kind, in)
 			if err != nil && AsCodeError(err) == nil {
@@ -517,6 +518,9 @@ func TestCodesLoadRejectsBrokenData(t *testing.T) {
 		{"smd_resistor", `eia96: [100, 102,`, `eia96: [100, 103,`, "eia96[1] = 103, the E96 value is 102"},
 		{"smd_resistor", `{letter: "S"}`, `{letter: "Y"}`, "ambiguous[0]"},
 		{"smd_resistor", `{letter: "K", exp: 3}`, `{letter: "k", exp: 3}`, "the letters are L, R, K, M and G"},
+		{"smd_inductor", `{letter: "G", percent: 2}`, `{letter: "g", percent: 2}`, "tolerances[1]: a unique capital letter"},
+		{"smd_inductor", `{letter: "G", percent: 2}`, `{letter: "G", percent: 2, nh: 1}`, "exactly one of percent and nh"},
+		{"smd_inductor", `["B", "D", "F", "N", "P", "S", "W", "Y"]`, `["B", "D", "F", "N", "P", "S", "W", "G"]`, "not_cross_checked.tolerance[7]"},
 		{"capacitor", `code: "3F", ratings:`, `code: "3F", volts: 3150, ratings:`, "mixes a common and maker-specific rating"},
 		{"capacitor", `maker: "Murata", volts: 3150`, `maker: "TDK", volts: 3150`, "needs distinct makers"},
 		{"capacitor", `maker: "TDK", volts: 3000`, `maker: "TDK", volts: 0`, "finite positive ratings"},

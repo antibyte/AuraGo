@@ -1,0 +1,22 @@
+- id: smd_inductor_code
+  kind: code
+  category: codes
+  code: smd_inductor
+  name: {cs: "Kódy SMD induktorů", da: "SMD-spolekoder", de: "SMD-Induktivitätscodes", el: "Κωδικοί επαγωγέων SMD", en: "SMD inductor codes", es: "Códigos de inductores SMD", fr: "Codes des inductances CMS", hi: "एसएमडी प्रेरक कोड", it: "Codici degli induttori SMD", ja: "チップインダクタの表示コード", nl: "SMD-spoelcodes", no: "SMD-spolekoder", pl: "Kody induktorów SMD", pt: "Códigos de indutores SMD", sv: "SMD-spolkoder", zh: "贴片电感代码"}
+  doc: {en: "Value marking of SMD inductors, three characters: three digits are microhenry (two significant digits and the number of zeros, 101 = 100 µH), R is the decimal point in µH (4R7 = 4.7 µH, R47 = 0.47 µH) and N is the decimal point in nH (4N7 = 4.7 nH, 47N = 47 nH). A fourth letter is the tolerance. Only the tolerance letters that two makers state in the same way are read (C, G, H, J, K, M); the others differ between makers (D is ±0.5 nH at Murata but ±0.3 nH at Bourns) or are stated by one maker only, and are not decoded. Small chip inductors are often printed with no value at all.", de: "Wertaufdruck von SMD-Induktivitäten, drei Zeichen: drei Ziffern sind Mikrohenry (zwei gültige Ziffern und die Anzahl der Nullen, 101 = 100 µH), R ist das Komma in µH (4R7 = 4,7 µH, R47 = 0,47 µH) und N ist das Komma in nH (4N7 = 4,7 nH, 47N = 47 nH). Ein vierter Buchstabe ist die Toleranz. Gelesen werden nur die Toleranzbuchstaben, die zwei Hersteller gleich angeben (C, G, H, J, K, M); die übrigen unterscheiden sich zwischen den Herstellern (D ist bei Murata ±0,5 nH, bei Bourns ±0,3 nH) oder stammen von nur einem Hersteller und werden nicht gelesen. Kleine Chip-Induktivitäten tragen oft gar keinen aufgedruckten Wert."}
+  tags: ["smd", "inductor", "induktivität", "spule", "coil", "choke", "marking", "aufdruck", "4r7", "3-digit", "nh", "µh", "murata", "bourns", "vishay", "tdk"]
+  source: "Murata part numbering for RF inductors (LQ series); Bourns CE1005Q and SRR1260 datasheets; Vishay Dale IHLP2020AB-A1 (document 34711); TDK inductor marking FAQ (read as a DigiKey copy)"
+  data:
+    tolerances:
+      - {letter: "C", nh: 0.2}
+      - {letter: "G", percent: 2}
+      - {letter: "H", percent: 3}
+      - {letter: "J", percent: 5}
+      - {letter: "K", percent: 10}
+      - {letter: "M", percent: 20}
+    not_cross_checked: {tolerance: ["B", "D", "F", "N", "P", "S", "W", "Y"]}
+    notes:
+      - {en: "3 digits are microhenry: the last digit is the number of zeros, so 100 = 10 µH and 101 = 100 µH.", de: "3 Ziffern sind Mikrohenry: die letzte Ziffer ist die Anzahl Nullen, also 100 = 10 µH und 101 = 100 µH."}
+      - {en: "R marks the decimal point in µH (4R7 = 4.7 µH, R47 = 0.47 µH); N marks the decimal point in nH (4N7 = 4.7 nH, 47N = 47 nH).", de: "R markiert das Komma in µH (4R7 = 4,7 µH, R47 = 0,47 µH); N markiert das Komma in nH (4N7 = 4,7 nH, 47N = 47 nH)."}
+      - {en: "Tolerance letters are not the same at every maker: D is ±0.5 nH at Murata but ±0.3 nH at Bourns, and ±30 % is N at Vishay but Y at Bourns. Those letters are not decoded; check the datasheet.", de: "Toleranzbuchstaben sind nicht bei jedem Hersteller gleich: D ist bei Murata ±0,5 nH, bei Bourns ±0,3 nH, und ±30 % ist bei Vishay N, bei Bourns Y. Diese Buchstaben werden nicht gelesen; Datenblatt prüfen."}
+      - {en: "Small chip inductors are often not printed with a value at all.", de: "Kleine Chip-Induktivitäten tragen oft gar keinen aufgedruckten Wert."}
