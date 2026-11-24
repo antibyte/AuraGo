@@ -209,7 +209,62 @@
 .hd-tread .hd-seg7 { block-size: calc(var(--hd-body-h) * 0.92); }
 
 /* ui/css/homedash-family-glass.css */
-/* HomeDash family Glass: token block and painting. Filled in milestone M1 (style lab). */
+/* HomeDash family Glass: token block (plan T1) and painting. Layered translucent glass lit from above; it takes the theme's colours. */
+[data-hd-family="glass"] {
+  --hd-surface: color-mix(in srgb, var(--hd-surface-solid) var(--hd-glass-alpha-s), transparent);
+  --hd-g-sheen: linear-gradient(180deg, color-mix(in srgb, var(--hd-edge-tint) 9%, transparent), transparent 46%);
+  --hd-card-bg: var(--hd-g-sheen), var(--hd-surface);
+  --hd-card-border: 1px solid color-mix(in srgb, var(--hd-edge-tint) 14%, var(--hd-theme-border));
+  --hd-dash-unavail: 1px dashed var(--hd-hairline);
+  --hd-radius-card: var(--hd-theme-radius); --hd-radius-control: var(--hd-corners-control);
+  --hd-g-bezel-r: 14px; --hd-g-paddle-r: 10px;
+  --hd-glass-blur: 18px;
+  --hd-edge-hi: inset 0 1px 0 color-mix(in srgb, var(--hd-edge-tint) 20%, transparent);
+  --hd-edge-lo: inset 0 -1px 0 color-mix(in srgb, var(--hd-shadow-ink) var(--hd-sa-1), transparent);
+  --hd-shadow-contact: 0 1px 2px color-mix(in srgb, var(--hd-shadow-ink) var(--hd-sa-1), transparent);
+  --hd-shadow-card: var(--hd-edge-hi), var(--hd-edge-lo), var(--hd-shadow-contact),
+                    0 14px 32px -10px color-mix(in srgb, var(--hd-shadow-ink) var(--hd-sa-4), transparent);
+  --hd-shadow-press: inset 0 1px 3px color-mix(in srgb, var(--hd-shadow-ink) var(--hd-sa-3), transparent);
+  --hd-ring-alert: inset 0 0 0 2px var(--hd-alert);
+  --hd-track: color-mix(in srgb, var(--hd-ink) 14%, transparent);
+  --hd-track-inset: inset 0 1px 2px color-mix(in srgb, var(--hd-shadow-ink) var(--hd-sa-3), transparent);
+  --hd-track-fill: var(--hd-on);
+  --hd-track-fill-hi: inset 0 1px 0 color-mix(in srgb, var(--hd-edge-tint) 30%, transparent),
+                      inset 0 0 0 1px color-mix(in srgb, var(--hd-on) var(--hd-fill-edge-k), #000000);
+  --hd-thumb: color-mix(in srgb, #FFFFFF 96%, var(--hd-surface-solid));
+  --hd-thumb-edge: color-mix(in srgb, var(--hd-shadow-ink) 22%, transparent);
+  --hd-thumb-shadow: 0 0 0 0.5px var(--hd-thumb-edge),
+                     0 1px 1px color-mix(in srgb, var(--hd-shadow-ink) var(--hd-sa-2), transparent),
+                     0 3px 8px color-mix(in srgb, var(--hd-shadow-ink) var(--hd-sa-3), transparent);
+  --hd-pending-ring: conic-gradient(var(--hd-accent) 0 25%, transparent 25% 100%);
+  --hd-stroke-hair: 1px; --hd-stroke-1: 1.5px; --hd-stroke-2: 2px; --hd-stroke-arc: 0.075; --hd-stroke-tick: 1.25px;
+  --hd-g-edge-u: 0.5; --hd-g-capdot-r: 10; --hd-g-shadow-a: 0.22; --hd-arc-underglow: 0.16;
+  --hd-value: var(--hd-accent);
+  --hd-font-ui: "Inter", "Geist", system-ui, sans-serif; --hd-font-label: var(--hd-font-ui); --hd-font-num: "Inter", "Geist", system-ui, sans-serif;
+  --hd-num-features: "tnum" 1, "cv11" 1; --hd-num-weight: 300; --hd-num-weight-small: 500; --hd-num-tracking: -0.02em;
+  --hd-num-cap: 0.74; --hd-num-hero-max: 112px; --hd-unit-scale: 0.42;
+  --hd-label-size: 12.5px; --hd-label-weight: 500; --hd-label-tracking: 0em;
+  --hd-dur-toggle: 280ms; --hd-ease-toggle: var(--hd-ease-spring); --hd-dur-fill: 180ms; --hd-dur-xfade: 180ms;
+  --hd-dur-remote: 320ms; --hd-ease-remote: var(--hd-ease-out); --hd-dur-zone: 220ms; --hd-dur-needle-f: 1100ms; --hd-dur-dip: 180ms;
+}
+
+/* T5 Glass layers: theme edge on the frame, theme glow on a focused control, gradient-backdrop blur on the frame. */
+.hd-widget[data-hd-family="glass"] > .hd-frame::after { content: ""; position: absolute; inset: 0; border-radius: var(--hd-radius-card); box-shadow: var(--hd-theme-edge); pointer-events: none; }
+.hd-widget[data-hd-family="glass"] :is(.hd-toggle, .hd-rocker, .hd-seg-opt):is(:focus-visible, [data-hd-focus="ring"])::before { content: ""; position: absolute; inset: 0; border-radius: var(--hd-radius-control); box-shadow: var(--hd-theme-glow); pointer-events: none; }
+.hd-widget[data-hd-family="glass"] :is(.hd-dial, .hd-push):is(:focus-visible, [data-hd-focus="ring"])::before { content: ""; position: absolute; inset: 0; border-radius: var(--hd-radius-pill); box-shadow: var(--hd-theme-glow); pointer-events: none; }
+.hd-root[data-hd-backdrop="gradient"] .hd-widget[data-hd-family="glass"] > .hd-frame { -webkit-backdrop-filter: blur(var(--hd-glass-blur)) saturate(1.35); backdrop-filter: blur(var(--hd-glass-blur)) saturate(1.35); }
+
+/* Icon badge: a tinted circle the height of the head row. */
+.hd-widget[data-hd-family="glass"] .hd-icon { display: inline-grid; place-items: center; flex: none; inline-size: var(--hd-head-h); block-size: var(--hd-head-h); border-radius: var(--hd-radius-pill); background: var(--hd-accent-soft); color: var(--hd-accent); }
+.hd-widget[data-hd-family="glass"] .hd-icon .hd-ico { inline-size: 14px; block-size: 14px; }
+
+/* Shared state language, Glass column. Unavailable: dashed border (widgets.css), dimmed body, hollow thumb. Readonly: lock badge (widgets.css), flat thumb and handle. */
+.hd-widget[data-hd-family="glass"][data-hd-status="unavailable"] .hd-body { opacity: 0.5; }
+.hd-widget[data-hd-family="glass"][data-hd-status="unavailable"] .hd-toggle-thumb { background: transparent; box-shadow: inset 0 0 0 var(--hd-stroke-1) var(--hd-ink-faint); }
+.hd-widget[data-hd-family="glass"][data-hd-status="unavailable"] :is(.hd-dial-knob, .hd-gauge-capdot, .hd-gauge-hub) { fill: transparent; stroke: var(--hd-ink-faint); stroke-width: var(--hd-stroke-1); vector-effect: non-scaling-stroke; }
+.hd-widget[data-hd-family="glass"][data-hd-status="unavailable"] .hd-dial-knob-shadow { display: none; }
+.hd-widget[data-hd-family="glass"][data-hd-readonly="true"] :is(.hd-toggle-thumb, .hd-seg-indicator) { box-shadow: none; }
+.hd-widget[data-hd-family="glass"][data-hd-readonly="true"] .hd-dial-knob-shadow { display: none; }
 
 /* ui/css/homedash-family-tactile.css */
 /* HomeDash family Tactile: token block and painting. Filled in milestone M1 (style lab). */
