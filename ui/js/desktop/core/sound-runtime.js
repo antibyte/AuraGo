@@ -26,7 +26,10 @@
         'dialog.open', 'dialog.confirm', 'dialog.cancel', 'file.drop', 'file.trash', 'file.delete',
         'notify.info', 'notify.message', 'notify.success', 'notify.warning', 'notify.error', 'session.start'];
     const WORKER_PATH = '/js/desktop/bundles/desktop-sounds.bundle.js';
-    const FIRST_REPLY_MS = 4000, LATE_MS = 150, START_WAIT_MS = 1500, FEEDBACK_GAP_MS = 45;
+    const FIRST_REPLY_MS = 4000, START_WAIT_MS = 1500, FEEDBACK_GAP_MS = 45;
+    // A sound that arrives later than this after its event is dropped instead of played out of sync.
+    // Notices and dialogs tolerate a cold cache; window, menu and touch sounds must stay tight.
+    const LATE_MS = { notifications: 800, files: 400, windows: 200, navigation: 150, interface: 120 };
 
     const THEME_IDS = ['crystal', 'wood', 'analog', 'workshop', 'water', 'amiga', 'cyberpunk', 'black_gloss', 'crazy', 'lollipop', 'organic', 'electronic_dreams', 'windows_xp', 'green_slime', 'voxel_world', 'orbit'];
     // Theme FX are sounds that a theme effect asks for by name (a block landing, a bubble bursting, a sonar ping), not shell
@@ -548,7 +551,7 @@
             } else {
                 if (!soundsEnabled() || !unlocked || themeId !== currentThemeId() || !categoryEnabled(category)) return false;
                 // A sound never plays out of sync with what the user saw; the buffer stays cached for next time.
-                if (!fx && performance.now() - requestedAt > LATE_MS) { stats.dropped++; return false; }
+                if (!fx && performance.now() - requestedAt > (LATE_MS[category] ?? 150)) { stats.dropped++; return false; }
             }
             if (fx) {
                 const now = performance.now();

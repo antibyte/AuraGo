@@ -96,6 +96,9 @@ func TestDesktopThemeSensoryBrowser(t *testing.T) {
 	}
 	s.eval(t, `()=>Object.defineProperty(document,'hidden',{configurable:true,get:()=>false})`)
 	// Delay actual synthesis, mute mid-render, then release it. No late audio may start.
+	// The scenario changes sound.enabled only in the client copy of the settings. The server's welcome message on
+	// WebSocket connect replaces that copy with the server's values shortly after boot; the 500 ms wait before the
+	// re-enable lets the welcome land first. The notify.message pre-render (renderEvent) is harmless extra warming.
 	s.eval(t, `async()=>{
         await AuraDesktopModules.loadBundle('desktop-sounds');
         auditTest.state.bootstrap.settings['sound.enabled']='true'; auditTest.applyDesktopSettings();
