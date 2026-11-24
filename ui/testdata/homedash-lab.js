@@ -9,7 +9,9 @@
             get(type, variant) { return fixtureStore.get(type + '/' + variant) || fixtureStore.get(type + '/*') || null; } },
         report(key, value) { hdLab.extra[String(key)] = value; } };
     const hdLab = window.hdLab;
-    const resolveView =(entry, s) => { if (s && typeof s === 'object') return s; const f = entry && entry.states && entry.states[s]; return typeof f === 'function' ? f(s) : f || labView(s); };
+    const resolveView = (entry, s) => { if (s && typeof s === 'object') return s; const f = entry && entry.states && entry.states[s];
+        if (typeof f === 'function') return f(s); if (f) return f;
+        if (!LAB_STATES.includes(s)) throw new Error('hdLab: unknown state ' + s); return labView(s); };
     const resolveHistory = (entry, s) => { const h = entry && entry.history; return (h && typeof s === 'string' && h[s]) || (h && h.default) || { points: [], source: 'ring' }; };
 
     const DEG_C = String.fromCodePoint(0xb0) + 'C';
@@ -84,8 +86,10 @@
         for (const s of p.sizes) if (!/^(m|l|\d+x\d+)$/.test(s)) fail('sizes', s);
         p.graphics = [];
         if (q.has('graphics')) { let g; try { g = JSON.parse(q.get('graphics')); } catch (err) { fail('graphics', q.get('graphics')); }
-            if (!Array.isArray(g) || !g.every(x => typeof x === 'string')) fail('graphics', q.get('graphics')); p.graphics = g; }
-        p.scripts = list('scripts'); for (const s of p.scripts) if (!/^\/testdata\/[\w.\/-]+\.js$/.test(s)) fail('scripts', s);
+            if (!Array.isArray(g) || !g.every(x => typeof x === 'string')) fail('graphics', q.get('graphics'));
+            for (const sel of g) { let ok = sel !== ''; if (ok) { try { document.createElement('div').querySelector(sel); } catch (err) { ok = false; } } if (!ok) fail('graphics', sel); }
+            p.graphics = g; }
+        p.scripts = list('scripts'); for (const s of p.scripts) if (!/^\/testdata\/[\w.\/-]+\.js$/.test(s) || s.includes('..')) fail('scripts', s);
         if (Math.abs(window.devicePixelRatio - p.dpr) > 0.01) throw new Error('dpr mismatch: want ' + p.dpr + ', devicePixelRatio is ' + window.devicePixelRatio);
         p.scheme = p.palette === 'dark' ? 'dark' : p.palette === 'light' ? 'light' : p.schemeParam;
         return p;
@@ -184,11 +188,14 @@
     // Rule 15.
     hdLab.seek = async ms => { await frames(1); for (const a of document.getAnimations()) { a.pause(); a.currentTime = ms; } };
 
-    // Rule 14: a state name applies to every instance; a scenario name applies from, waits two frames with motion off, then applies to.
+    // Rule 14: a scenario name wins over a state of the same name. A scenario applies from, waits two frames with motion off, then applies to;
+    // a plain state name applies to every instance.
     hdLab.applyState = async function (name) {
-        if (LAB_STATES.includes(name)) { for (const i of hdLab.instances) i.apply(name); return hdLab.instances.length; }
         const targets = hdLab.instances.filter(i => i.entry && i.entry.scenarios && i.entry.scenarios[name]);
-        if (!targets.length) throw new Error('unknown state or scenario ' + name);
+        if (!targets.length) {
+            if (LAB_STATES.includes(name)) { for (const i of hdLab.instances) i.apply(name); return hdLab.instances.length; }
+            throw new Error('unknown state or scenario ' + name);
+        }
         const root = document.querySelector('.hd-lab-panel'), motion = root.getAttribute('data-hd-motion');
         root.setAttribute('data-hd-motion', 'none'); for (const i of targets) i.apply(i.entry.scenarios[name].from);
         await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));

@@ -111,6 +111,50 @@ func homedashLabValidate(f homedashLabFile) error {
 		if !homedashLabKinds[s.Kind] {
 			return fmt.Errorf("sheet %q: unknown kind %q", s.ID, s.Kind)
 		}
+		if err := homedashLabValidateRefs(f, s); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// homedashLabValidateRefs checks the named references of one sheet, so a typo is found when the file loads.
+func homedashLabValidateRefs(f homedashLabFile, s homedashLabSpec) error {
+	for _, p := range s.Palettes {
+		if !homedashLabContains([]string{"theme", "dark", "light", "custom"}, p) {
+			return fmt.Errorf("sheet %q: unknown palette %q", s.ID, p)
+		}
+	}
+	if _, ok := f.Lists.Themes[s.Themes]; s.Themes != "" && s.Themes != "standard" && !ok {
+		return fmt.Errorf("sheet %q: unknown theme list %q", s.ID, s.Themes)
+	}
+	if _, ok := f.Lists.Custom[s.Custom]; s.Custom != "" && !ok {
+		return fmt.Errorf("sheet %q: unknown custom list %q", s.ID, s.Custom)
+	}
+	if _, err := homedashLabStates(f, s.States); err != nil {
+		return fmt.Errorf("sheet %q: %w", s.ID, err)
+	}
+	if _, err := homedashLabFloats(s.DPR); err != nil {
+		return fmt.Errorf("sheet %q: %w", s.ID, err)
+	}
+	motions, err := homedashLabStrings(s.Motion, nil)
+	if err != nil {
+		return fmt.Errorf("sheet %q: motion: %w", s.ID, err)
+	}
+	for _, m := range motions {
+		if !homedashLabContains([]string{"full", "reduced", "none"}, m) {
+			return fmt.Errorf("sheet %q: unknown motion %q", s.ID, m)
+		}
+	}
+	if len(f.Lists.Families) > 0 {
+		for _, fam := range s.Families {
+			if !homedashLabContains(f.Lists.Families, fam) {
+				return fmt.Errorf("sheet %q: family %q is not in the families list", s.ID, fam)
+			}
+		}
+	}
+	if strings.Contains(s.ID, "{hero}") && len(f.Lists.Heroes) == 0 {
+		return fmt.Errorf("sheet %q: uses {hero} but the file defines no heroes", s.ID)
 	}
 	return nil
 }
@@ -585,6 +629,31 @@ func TestHomeDashLabSheetResolve(t *testing.T) {
 	synth.Sheets = append(synth.Sheets, synth.Sheets[0])
 	if err := homedashLabValidate(synth); err == nil {
 		t.Error("duplicate id must fail")
+	}
+	for name, sheet := range map[string]string{
+		"unknown palette":        `"palettes":["neon"]`,
+		"unknown theme list":     `"palettes":["theme"],"themes":"nope"`,
+		"unknown custom list":    `"palettes":["custom"],"custom":"nope"`,
+		"unknown state set":      `"states":"nope"`,
+		"unknown state in array": `"states":["on","nope"]`,
+		"bad motion":             `"motion":["wobble"]`,
+		"family not in list":     `"families":["neon"]`,
+	} {
+		var broken homedashLabFile
+		doc := `{"lists":{"families":["glass"],"states":{"all":["off","on"]}},"sheets":[{"id":"bad-sheet","kind":"prim",` + sheet + `}]}`
+		if err := json.Unmarshal([]byte(doc), &broken); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if err := homedashLabValidate(broken); err == nil || !strings.Contains(err.Error(), "bad-sheet") {
+			t.Errorf("%s: want an error naming the sheet, got %v", name, err)
+		}
+	}
+	var good homedashLabFile
+	if err := json.Unmarshal([]byte(`{"lists":{"families":["glass"],"states":{"all":["off","on"]}},"sheets":[{"id":"ok-sheet","kind":"prim","palettes":["dark"],"motion":"full"}]}`), &good); err != nil {
+		t.Fatal(err)
+	}
+	if err := homedashLabValidate(good); err != nil {
+		t.Errorf("minimal valid file: %v", err)
 	}
 }
 

@@ -383,8 +383,27 @@ func TestDesktopHomeDashControlLabBrowser(t *testing.T) {
 	}
 
 	report := homedashLabReport{Generated: time.Now().UTC().Format(time.RFC3339), ReportOnly: reportOnly, Sheets: []homedashLabSheetReport{}, Failures: []string{}}
+	// probes.json is written once: after the loop, or by the deferred call when a helper's t.Fatalf ends the
+	// test early, so the report of the sheets done so far survives.
+	written := false
+	writeReport := func() {
+		if written {
+			return
+		}
+		written = true
+		data, err := json.MarshalIndent(report, "", "  ")
+		if err != nil {
+			t.Errorf("encode probes.json: %v", err)
+			return
+		}
+		if err := os.WriteFile(filepath.Join(outDir, "probes.json"), append(data, '\n'), 0o644); err != nil {
+			t.Errorf("write probes.json: %v", err)
+		}
+	}
+	defer writeReport()
 	for _, sheet := range sheets {
-		sr := homedashLabSheetReport{ID: sheet.ID, Panels: []homedashLabPanelReport{}}
+		report.Sheets = append(report.Sheets, homedashLabSheetReport{ID: sheet.ID, Panels: []homedashLabPanelReport{}})
+		sr := &report.Sheets[len(report.Sheets)-1]
 		var images []image.Image
 		failed := 0
 		for _, panel := range sheet.Panels {
@@ -397,16 +416,9 @@ func TestDesktopHomeDashControlLabBrowser(t *testing.T) {
 			}
 		}
 		sr.Images = homedashLabWriteSheet(t, outDir, sheet.ID, images)
-		report.Sheets = append(report.Sheets, sr)
 		t.Logf("sheet %s: %d panels, images %s, %d failures", sheet.ID, len(sheet.Panels), strings.Join(sr.Images, ","), failed)
 	}
-	data, err := json.MarshalIndent(report, "", "  ")
-	if err != nil {
-		t.Fatalf("encode probes.json: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(outDir, "probes.json"), append(data, '\n'), 0o644); err != nil {
-		t.Fatalf("write probes.json: %v", err)
-	}
+	writeReport()
 	if len(report.Failures) > 0 {
 		if reportOnly {
 			t.Logf("%d HomeDash lab probe failures (report only):\n%s", len(report.Failures), strings.Join(report.Failures, "\n"))
