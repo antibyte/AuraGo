@@ -9,6 +9,15 @@
     const FACTORY_FNS = ['entity', 'can', 'command', 'moreInfo', 'history', 'announce'];
     const STATUSES = ['ok', 'unavailable', 'unknown', 'error'];
     const noop = () => {};
+    // Shared by the hero modules: staleText(api, e) is "Updated N min ago" in whole minutes, or null when updated_at does not parse.
+    const heroStatus = Object.freeze({
+        staleText(api, e) {
+            const then = Date.parse(e && e.attributes && e.attributes.updated_at);
+            if (!Number.isFinite(then)) return null;
+            const minutes = Math.max(1, Math.floor(Math.max(0, Date.now() - then) / 60000));
+            return api.t('homedash.state.updated_ago', { age: F.duration(minutes * 60, api.lang) });
+        }
+    });
 
     function register(type, def) {
         if (typeof type !== 'string' || !/^[a-z][a-z0-9_]*$/.test(type)) throw new Error('hd-widgets: invalid widget type ' + type);
@@ -115,5 +124,5 @@
         } finally { if (probe) probe.remove(); }
     }
 
-    E.widgets = Object.freeze({ register, get, types, host, applyLook });
+    E.widgets = Object.freeze({ register, get, types, host, applyLook, heroStatus });
 })();

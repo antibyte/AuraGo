@@ -4,7 +4,6 @@
     'use strict';
     const E = window.HomeDashEngine;
     if (!E || !E.core || !E.format || !E.prim || !E.widgets) throw new Error('hd-w-switch.js: load hd-core, hd-format, the primitives and hd-widgets first');
-    if (!E.heroStatus) throw new Error('hd-w-switch.js: load hd-w-climate.js first (it provides E.heroStatus)');
     const { setAttr } = E.core, F = E.format, MID_DOT = ' ' + String.fromCodePoint(0xb7) + ' ';
     const HOST_WORDS = ['unavailable', 'unknown', 'error'];
 
@@ -13,7 +12,7 @@
         if (!e || e.available === false || HOST_WORDS.includes(e.status) || e.pending) return null;
         if (e.readonly) return word + MID_DOT + api.t('homedash.state.readonly');
         if (!api.can('primary', 'toggle')) return api.t('homedash.state.blocked');
-        if (e.stale) { const old = E.heroStatus.staleText(api, e); if (old) return old; }
+        if (e.stale) { const old = E.widgets.heroStatus.staleText(api, e); if (old) return old; }
         return word;
     }
 

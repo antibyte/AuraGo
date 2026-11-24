@@ -5,7 +5,6 @@
     'use strict';
     const E = window.HomeDashEngine;
     if (!E || !E.core || !E.format || !E.prim || !E.widgets) throw new Error('hd-w-sensor.js: load hd-core, hd-format, the primitives and hd-widgets first');
-    if (!E.heroStatus) throw new Error('hd-w-sensor.js: load hd-w-climate.js first (it provides E.heroStatus)');
     const { el, setAttr } = E.core, F = E.format, MID_DOT = ' ' + String.fromCodePoint(0xb7) + ' ';
     const DEG = String.fromCodePoint(0xb0), DEG_C = DEG + 'C', HOST_WORDS = ['unavailable', 'unknown', 'error'];
     const MIN30 = 30 * 60000, TREND_WORDS = { up: 'homedash.trend.rising', down: 'homedash.trend.falling', flat: 'homedash.trend.steady' };
@@ -16,7 +15,7 @@
     function statusText(api, e, hero) {
         if (hostWord(e) || e.pending) return null;
         if (e.readonly) return hero ? hero + MID_DOT + api.t('homedash.state.readonly') : api.t('homedash.state.readonly');
-        if (e.stale) { const old = E.heroStatus.staleText(api, e); if (old) return old; }
+        if (e.stale) { const old = E.widgets.heroStatus.staleText(api, e); if (old) return old; }
         return hero || null;
     }
     const flip = node => setAttr(node, 'data-hd-tick', node.getAttribute('data-hd-tick') === 'a' ? 'b' : 'a');

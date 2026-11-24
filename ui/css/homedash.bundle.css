@@ -259,7 +259,9 @@
 .hd-widget [data-hd-disabled="true"] { opacity: 0.45; }
 .hd-widget[data-hd-stale="true"] :is(.hd-numeral, .hd-seg7) { color: var(--hd-ink-muted); }
 /* H1 pill row layout */
-@container hd-widget (aspect-ratio >= 1.6) { .hd-widget[data-hd-type="switch"][data-hd-variant="pill"] > .hd-frame { grid-template: "head body" 1fr "state body" 1fr / minmax(0, 1fr) auto; } }
+/* 2x1: title row (head left, toggle right, centred on each other), then the state line across the full width. */
+@container hd-widget (aspect-ratio >= 1.6) { .hd-widget[data-hd-type="switch"][data-hd-variant="pill"] > .hd-frame { grid-template: "head body" minmax(0, 1fr) "state state" var(--hd-state-h) / minmax(0, 1fr) auto; }
+  .hd-widget[data-hd-type="switch"][data-hd-variant="pill"] .hd-head { align-self: center; } }
 /* H4 climate. Ring D is --hd-th-d. The lowest ring parts are the end handle at the arc ends (centre r 88 at +-135 deg, knob radius 11) and the caps: handle bottom
    = (100 + 88 * cos 45 + 11) / 200 = 0.866 D (the 12-unit stroke caps alone reach 0.841 D). The steppers hang below that, top edge = 0.866 D + 4px, so the
    dialbox is 0.866 D + 4px clearance + 44px button high. It must fit the body row above the 8px gap to the mode bar:
@@ -277,6 +279,8 @@
 .hd-climate-steps .hd-push-label { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 .hd-widget[data-hd-type="climate"] .hd-dial-readout > .hd-numeral { font-size: calc(var(--hd-th-d) * var(--hd-thermo-num-k)); }
 .hd-widget[data-hd-type="climate"] .hd-dial-marker { translate: 0 -5px; }
+/* The thermometer glyph and the main readout carry the unit; at 0.42 of the small current-temperature numeral it would be an unreadable 5-7 px. */
+.hd-widget[data-hd-type="climate"] .hd-dial-sub :is(.hd-num-unit, .hd-num-deg, .hd-seg7-unit) { display: none; }
 .hd-widget[data-hd-type="climate"] .hd-dial:not([data-buf]) .hd-dial-current { display: none; } /* no value or no current temperature: no marker, no needle */
 .hd-body[data-hd-action="heating"] { --hd-act: var(--hd-heat); } .hd-body[data-hd-action="cooling"] { --hd-act: var(--hd-cool); }
 .hd-body[data-hd-action="idle"] { --hd-act: color-mix(in srgb, var(--hd-ink) 35%, transparent); } .hd-body[data-hd-action="off"] .hd-dial-active { display: none; }
@@ -287,6 +291,11 @@
 .hd-widget[data-hd-type="gauge"] .hd-gauge[data-hd-gauge="arc"] { inline-size: min(var(--hd-body-w), calc(var(--hd-body-h) / 0.86)); aspect-ratio: 200 / 172; }
 /* H7 temperature frame */
 .hd-widget[data-hd-type="temperature"] > .hd-frame, .hd-widget[data-hd-type="sensor"][data-hd-variant="numeral"] > .hd-frame { --hd-gap-in: 2px; }
+/* 1x1 temperature readout: the trend icon would be 0.3em = 6.7px, so it is hidden (the sr text keeps the trend word). Without it the widest value "-12.5 C" is
+   2.92em (3.30em - 0.30em icon - 0.08em margin), so the width term is body-w / 3.1: 78px gives 25.2px and 73.5px of text, 4.5px clearance. */
+@container hd-widget (max-width: 139px) and (max-height: 139px) {
+  .hd-widget[data-hd-type="temperature"] .hd-tread .hd-numeral .hd-num-trend, .hd-widget[data-hd-type="temperature"] .hd-tread .hd-numeral[data-hd-empty="true"] .hd-num-trend { display: none; }
+  .hd-widget[data-hd-type="temperature"] .hd-tread .hd-numeral { font-size: min(calc(var(--hd-body-h) / var(--hd-num-cap)), calc(var(--hd-body-w) / 3.1), var(--hd-num-hero-max)); } }
 /* H8 sparkline */
 .hd-widget[data-hd-type="sensor"][data-hd-variant="sparkline"] .hd-body { position: static; place-items: start; }
 .hd-widget[data-hd-type="sensor"][data-hd-variant="sparkline"] > .hd-frame { grid-template: "head" var(--hd-head-h) "body" auto "state" var(--hd-state-h) "." 1fr / minmax(0, 1fr); }

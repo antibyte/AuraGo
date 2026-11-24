@@ -5,17 +5,6 @@
     const E = window.HomeDashEngine;
     if (!E || !E.core || !E.format || !E.prim || !E.widgets) throw new Error('hd-w-climate.js: load hd-core, hd-format, the primitives and hd-widgets first');
     const { el, setAttr } = E.core, F = E.format, MID_DOT = ' ' + String.fromCodePoint(0xb7) + ' ';
-    // Shared by the four hero modules (this file loads first). staleText: "Updated N min ago" in whole minutes, or null when updated_at does not parse.
-    if (!E.heroStatus) {
-        E.heroStatus = Object.freeze({
-            staleText(api, e) {
-                const then = Date.parse(e && e.attributes && e.attributes.updated_at);
-                if (!Number.isFinite(then)) return null;
-                const minutes = Math.max(1, Math.floor(Math.max(0, Date.now() - then) / 60000));
-                return api.t('homedash.state.updated_ago', { age: E.format.duration(minutes * 60, api.lang) });
-            }
-        });
-    }
     const DEG_C = String.fromCodePoint(0xb0) + 'C', HOST_WORDS = ['unavailable', 'unknown', 'error'];
     const ACTIONS = ['heating', 'cooling', 'idle'], MODES = ['off', 'heat', 'cool', 'auto'];
     // Defaults of the Home Assistant climate platform, used until the entity reports its range.
@@ -26,7 +15,7 @@
         if (!e || e.available === false || HOST_WORDS.includes(e.status) || e.pending) return null;
         if (e.readonly) return word + MID_DOT + api.t('homedash.state.readonly');
         if (!api.can('primary', 'set_temperature')) return api.t('homedash.state.blocked');
-        if (e.stale) { const old = E.heroStatus.staleText(api, e); if (old) return old; }
+        if (e.stale) { const old = E.widgets.heroStatus.staleText(api, e); if (old) return old; }
         return word;
     }
     const num = v => (v === null || v === undefined || v === '' ? NaN : Number(v));
