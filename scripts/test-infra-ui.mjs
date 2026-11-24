@@ -41,6 +41,15 @@ assert.equal(model.validCIDR('192.168.10.0/24'), true);
 assert.equal(model.validCIDR('192.168.10.0/44'), false);
 assert.equal(model.validHTTPLink('https://example.test/device'), true);
 assert.equal(model.validHTTPLink('https://user:password@example.test/'), false);
+// Field checks are never stricter than internal/infra/validate.go (net.ParseIP, net.ParseMAC, VLAN 0 to 4094).
+assert.deepEqual(['2001:db8::1', '::ffff:10.0.0.1', '10.0.0.7', ''].map(model.validIP), [true, true, true, true]);
+assert.deepEqual(['01.2.3.4', 'fe80::1%eth0', '1.2.3', 'nope'].map(model.validIP), [false, false, false, false]);
+assert.deepEqual(['AA-BB-CC-DD-EE-FF', 'aa:bb:cc:dd:ee:ff', '0000.5e00.5301', 'aa:bb:cc:dd:ee:ff:00:11', ''].map(model.validMAC), [true, true, true, true, true]);
+assert.deepEqual(['aa:bb-cc:dd:ee:ff', 'aa:bb:cc:dd:ee', 'zz:bb:cc:dd:ee:ff'].map(model.validMAC), [false, false, false]);
+assert.deepEqual(['', '0', '1', '4094'].map(model.validVLAN), [true, true, true, true]);
+assert.deepEqual(['4095', '1.5', '-1'].map(model.validVLAN), [false, false, false]);
+assert.equal(model.validCustomKey('rack.unit-2'), true);
+assert.equal(model.validCustomKey('Rack'), false);
 
 const manifest = JSON.parse(fs.readFileSync(path.join(root, 'ui/img/infra/manifest.json'), 'utf8'));
 const selectableIcons = manifest.icons.filter(item => item.family !== 'app');
@@ -514,11 +523,22 @@ assert.equal(patchedNodes[1].placements.atlas, undefined);
     const ignored = model.sourceLabels([...sources, { kind: 'docker', instance: 'zzzz', key: 'c9', ignored: true }], kindLabel);
     assert.equal(ignored.of(sources[0]).text, 'Docker 2', 'an ignored instance takes no number');
     assert.equal(model.sourceLabels([{ kind: 'docker', instance: 'solo' }], kindLabel).of({ kind: 'docker', instance: 'solo' }).text, 'Docker', 'a single instance is not numbered');
+    const named = model.sourceLabels(sources, kindLabel, (kind, instance) => (instance === 'b9f3c2d1e8a74f6b' ? 'a-very-long-docker-host-name' : ''));
+    assert.equal(named.of(sources[0]).text, 'Docker · a-very-long-docker-hos…', 'a named instance shows its host, shortened after 22 characters');
+    assert.equal(named.of(sources[0]).title, 'Docker · a-very-long-docker-host-name');
+    assert.equal(named.of(sources[2]).text, 'Docker 1', 'an instance without a name keeps its number');
+    const twins = model.sourceLabels(sources, kindLabel, () => 'nas');
+    assert.equal(twins.of(sources[0]).text, 'Docker 2', 'two instances with the same name fall back to numbers');
 }
 
 // ---- canvas CSS rules (A9) -----------------------------------------------------
 const canvasCSS = fs.readFileSync(path.join(root, 'ui/css/desktop-app-infra-canvas.css'), 'utf8');
 const cssRule = selector => { const at = canvasCSS.indexOf(`${selector} {`); return at < 0 ? '' : canvasCSS.slice(at, canvasCSS.indexOf('}', at)); };
+{ // 5.2: a toast sits above the menus and popovers, which sit in .infra-layer
+    const shellCSS = fs.readFileSync(path.join(root, 'ui/css/desktop-app-infra.css'), 'utf8');
+    const zOf = selector => { const at = shellCSS.indexOf(`${selector} {`); return Number(/z-index:\s*(\d+)/.exec(shellCSS.slice(at, shellCSS.indexOf('}', at)))?.[1]); };
+    assert.ok(zOf('.infra-toasts') > zOf('.infra-layer'), 'toasts are above popovers');
+}
 {
     const focus = cssRule('.infra-app .infra-viewport[data-stage]:focus-visible');
     assert.ok(focus, 'the canvas has its own keyboard focus rule');
@@ -617,8 +637,11 @@ const cssRule = selector => { const at = canvasCSS.indexOf(`${selector} {`); ret
         });
         const store = newStore(api);
         store.applySnapshot(snapshot());
+        const notices = [];
+        store.subscribe(change => { if (change.type === 'notice') notices.push(change.message); });
         await store.dispatch(InfraStore.commands.reparent('atlas', new Map([['a', { x: 0, y: 0, pinned: true, parent_id: '' }]]), new Map([['a', { x: 96, y: 0, pinned: true, parent_id: 'room' }]])));
         await store.whenLayoutIdle('atlas');
+        assert.ok(notices.includes('desktop.infra_history_cleared'), 'a conflict that clears the history says so');
         const sent = calls.filter(call => call.route === 'PUT /layout').map(call => call.body.nodes[0]);
         assert.equal(sent.length, 2, 'a conflict is retried exactly once');
         assert.deepEqual(plain(sent[1]), { id: 'a', version: 5, x: 96, y: 0, pinned: true, parent_id: 'room' }, 'the retry reapplies the intent onto the fresh version');
@@ -626,6 +649,19 @@ const cssRule = selector => { const at = canvasCSS.indexOf(`${selector} {`); ret
         assert.equal(store.nodeById('a').parent_id, 'room');
         assert.equal(store.unsavedCount('atlas'), 0);
         assert.equal(store.canUndo('atlas'), false, 'a structural conflict clears the view history');
+        store.dispose();
+    }
+    { // undo of a step whose assets are all gone changes nothing: it reports false and drops the entry
+        const { api } = fakeApi({ 'PUT /layout': echo });
+        const store = newStore(api);
+        store.applySnapshot({ nodes: [storeNode('a')], edges: [], sources: [], capabilities: { write: true } });
+        await store.dispatch(InfraStore.commands.moveNodes('atlas', new Map([['a', { x: 0, y: 0, pinned: true }]]), new Map([['a', { x: 48, y: 48, pinned: true }]])));
+        await store.whenLayoutIdle('atlas');
+        assert.equal(store.nextHistory('atlas', 'undo'), 'MoveNodes', 'the undo button can name the step');
+        assert.equal(store.nextHistory('atlas', 'redo'), '', 'there is nothing to redo yet');
+        store.removeNode('a');
+        assert.equal(await store.undo('atlas'), false, 'nothing is left to undo, so nothing is announced');
+        assert.equal(store.canUndo('atlas'), false, 'the empty entry is dropped');
         store.dispose();
     }
     { // a second conflict leaves the position unsaved until Retry
@@ -810,9 +846,9 @@ const cssRule = selector => { const at = canvasCSS.indexOf(`${selector} {`); ret
 // ---- List view, inspector and picker helpers -------------------------------------
 {
     const rows = [
-        { id: 'b', name: 'Beta', kind: 'device', power: 'running', profile: { ip_address: '192.168.6.10' }, sources: [{ kind: 'registry', state: 'current' }] },
-        { id: 'a', name: 'alpha', kind: 'vm', power: 'stopped', profile: { ip_address: '192.168.6.9' }, sources: [] },
-        { id: 'c', name: 'Gamma 10', kind: 'device', profile: {}, sources: [{ kind: 'docker', state: 'stale' }] },
+        { id: 'b', name: 'Beta', kind: 'device', power: 'running', live: 'live', profile: { ip_address: '192.168.6.10', vendor: 'Synology' }, sources: [{ kind: 'registry', state: 'current' }] },
+        { id: 'a', name: 'alpha', kind: 'vm', power: 'stopped', live: 'offline', profile: { ip_address: '192.168.6.9' }, sources: [] },
+        { id: 'c', name: 'Gamma 10', kind: 'device', live: 'live', profile: { vendor: 'Asus' }, sources: [{ kind: 'docker', state: 'stale' }] },
         { id: 'd', name: 'Gamma 9', kind: 'device', profile: { mac_address: 'aa:bb:cc:dd:ee:ff' }, sources: [{ kind: 'fritzbox', state: 'removed' }] },
     ];
     const ids = (key, dir, ctx) => plain(rows.slice().sort(model.tableComparator(key, dir, ctx)).map(row => row.id));
@@ -820,7 +856,10 @@ const cssRule = selector => { const at = canvasCSS.indexOf(`${selector} {`); ret
     assert.deepEqual(ids('name', 'desc'), ['c', 'd', 'b', 'a']);
     assert.deepEqual(ids('address', 'asc'), ['a', 'b', 'd', 'c'], 'IPv4 numerically, other addresses after, empty last');
     assert.deepEqual(ids('address', 'desc'), ['d', 'b', 'a', 'c'], 'empty stays last in both directions');
-    assert.deepEqual(ids('status', 'asc'), ['d', 'c', 'b', 'a'], 'problems first');
+    assert.deepEqual(ids('status', 'asc'), ['c', 'b', 'a', 'd'], 'reachability first (live, offline), a stale source first within a state, no signal last');
+    assert.deepEqual(ids('status', 'desc'), ['a', 'b', 'c', 'd'], 'no signal stays last in both directions');
+    assert.deepEqual(ids('hardware', 'asc'), ['c', 'b', 'a', 'd'], 'hardware sorts by vendor and model, empty last');
+    assert.equal(model.readTablePrefs('{"sort":"hardware"}').sort, 'hardware');
     assert.deepEqual(ids('power', 'asc'), ['b', 'a', 'd', 'c']);
     assert.deepEqual(ids('kind', 'asc'), ['b', 'd', 'c', 'a']);
     assert.deepEqual(ids('place', 'asc', { placeOf: id => ({ c: 'Basement', a: 'Attic' })[id] || '' }), ['a', 'c', 'b', 'd']);
@@ -1342,7 +1381,8 @@ const cssRule = selector => { const at = canvasCSS.indexOf(`${selector} {`); ret
         ctx.showConfirmModal = async () => true;
         await dialogs.deleteNodes(['a', 'b', 'c']);
         assert.equal(sent('DELETE').length, 1, 'the loop stops once the permission is gone');
-        assert.deepEqual(notices, ['desktop.infra_error_infra_readonly']);
+        assert.deepEqual(notices, ['desktop.infra_error_infra_readonly', 'desktop.infra_node_removed']);
+        assert.equal(notices.at(-1), 'desktop.infra_node_removed', 'a partial deletion shows a toast');
         assert.deepEqual(plain(store.state.nodes.map(item => item.id)), ['b', 'c']);
         store.dispose();
     }
@@ -1375,7 +1415,14 @@ const cssRule = selector => { const at = canvasCSS.indexOf(`${selector} {`); ret
         third.ctx.showConfirmModal = async () => true;
         await third.dialogs.runAction('a', dockerSource, 'stop');
         assert.equal(third.sent('POST').length, 1, 'an untouched permission still sends');
+        assert.equal(third.notices.at(-1), 'desktop.infra_action_toast_done', 'a finished action names the device and the action');
         third.store.dispose();
+        const fourth = setup({ 'POST /nodes/:id/actions': () => ({ status: 'weird' }) });
+        fourth.store.applySnapshot(snapOf([node()]));
+        fourth.ctx.showConfirmModal = async () => true;
+        await fourth.dialogs.runAction('a', dockerSource, 'stop');
+        assert.equal(fourth.notices.at(-1), 'desktop.infra_action_status_generic', 'an unknown status gets the generic status text');
+        fourth.store.dispose();
     }
     { // an unconfirmed delete or create reloads and says so; a deliberate abort stays quiet
         for (const failure of [unconfirmed, timedOut]) {
@@ -1505,7 +1552,7 @@ const cssRule = selector => { const at = canvasCSS.indexOf(`${selector} {`); ret
         if (focus) (cardEls.get(focus) || headerEls.get(focus)).focus();
         const target = () => sandbox.document.activeElement || viewport;
         const press = (key, mods = {}) => { const event = { key, shiftKey: false, altKey: false, ctrlKey: false, metaKey: false, ...mods, target: target(), defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }; listeners.get('keydown')(event); return event; };
-        return { store, gm, gl, puts, temps, announced, laneTargets, press, cleared: () => cleared, ctx, fire: (type, event) => listeners.get(type)({ target: target(), ...event }), FakeElement, gestures };
+        return { store, gm, gl, puts, temps, announced, laneTargets, press, cleared: () => cleared, ctx, fire: (type, event) => listeners.get(type)({ target: target(), ...event }), FakeElement, gestures, app };
     };
     const card = (id, x, y, extra = {}) => ({ id, version: 1, kind: 'device', name: id, icon: 'router', profile: {}, placements: { atlas: { x, y, pinned: true } }, sources: [], ...extra });
     const room = (x, y, w, h) => card('room', x, y, { kind: 'room', placements: { atlas: { x, y, w, h, pinned: true } } });
@@ -1538,6 +1585,26 @@ const cssRule = selector => { const at = canvasCSS.indexOf(`${selector} {`); ret
         await sleep(30);
         assert.equal(w.puts.length, 1);
         assert.equal(itemOf(w.puts[0], 'a').x, 48);
+        w.store.dispose();
+    }
+    { // 2.11: with no gesture Escape first returns to the Select tool, then clears the selection
+        const w = world({ nodes: [card('a', 0, 0)], selection: ['a'], focus: 'a' });
+        w.store.setTool('connect');
+        w.press('Escape');
+        assert.equal(w.store.state.tool, 'select');
+        assert.equal(w.store.state.selection.size, 1);
+        w.press('Escape');
+        assert.equal(w.store.state.selection.size, 0);
+        w.store.dispose();
+    }
+    { // 2.14: Delete on a selected connection (no selected card) removes it through the dialog
+        const w = world({ nodes: [card('a', 0, 0), card('b', 240, 0)] });
+        w.store.state.edges = [{ id: 'e1', from: 'a', to: 'b', kind: 'ethernet' }];
+        w.store.selectEdge('e1');
+        const removed = [];
+        w.app.dialogs.removeEdge = id => { removed.push(id); return Promise.resolve(true); };
+        w.press('Delete');
+        assert.deepEqual(removed, ['e1']);
         w.store.dispose();
     }
     { // a refused M says why
@@ -1778,9 +1845,13 @@ const cssRule = selector => { const at = canvasCSS.indexOf(`${selector} {`); ret
     for (const icon of ['internet', 'modem-ont']) assert.equal(lane(icon), 'internet', icon);
     for (const icon of ['router', 'firewall', 'vpn', 'managed-switch', 'switch', 'access-point', 'mesh-node', 'patch-panel', 'lan', 'vlan', 'wlan']) assert.equal(lane(icon), 'network', icon);
     // A21: servers, storage and rack infrastructure are all compute; the groups are separate loops so a failure names its group.
-    for (const icon of ['rack-server', 'tower-server', 'mini-pc', 'sbc', 'hypervisor', 'kubernetes']) assert.equal(lane(icon), 'compute', `server ${icon}`);
+    for (const icon of ['rack-server', 'tower-server', 'mini-pc', 'hypervisor', 'kubernetes']) assert.equal(lane(icon), 'compute', `server ${icon}`);
     for (const icon of ['nas', 'disk-shelf', 'storage-share', 'backup', 'database', 'nvr']) assert.equal(lane(icon), 'compute', `storage ${icon}`);
     for (const icon of ['ups', 'pdu']) assert.equal(lane(icon), 'compute', `rack infrastructure ${icon}`);
+    // 2.16: a cloud service is internet; a single-board computer goes by its role or guests, else it is a client.
+    assert.equal(lane('cloud-service'), 'internet');
+    assert.equal(lane('sbc'), 'clients');
+    assert.equal(lane('sbc', {}, { hasGuests: true }), 'compute');
     for (const icon of ['camera', 'printer', '3d-printer', 'tv', 'console', 'smartphone', 'tablet', 'laptop', 'workstation', 'sensor', 'smart-hub', 'smart-plug', 'radio-gateway', 'usb-gateway']) assert.equal(lane(icon), 'clients', `client ${icon}`);
     for (const icon of ['rack-server', 'nas', 'disk-shelf', 'nvr', 'database', 'ups', 'pdu', 'vpn', 'firewall', 'camera']) assert.ok(model.iconIds().includes(icon), `${icon} is a real icon id`);
     for (const [role, want] of [['NAS', 'compute'], ['Disk shelf', 'compute'], ['storage appliance', 'compute'], ['PostgreSQL database', 'compute'], ['NVR', 'compute'], ['Network video recorder', 'compute'], ['file server', 'compute'], ['Rack unit', 'compute'], ['APC UPS', 'compute'], ['PDU', 'compute'], ['Hypervisor', 'compute'], ['VPN', 'network'], ['Firewall', 'network'], ['VPN gateway', 'network'], ['camera', 'clients'], ['printer', 'clients'], ['mdns-device', 'clients']]) assert.equal(lane('generic-device', { profile: { role } }), want, `role ${role}`);
@@ -2057,7 +2128,8 @@ const cssRule = selector => { const at = canvasCSS.indexOf(`${selector} {`); ret
 {
     const usedGlyphs = new Set();
     for (const match of source.matchAll(/(?:app|model)\.glyph\('([a-zA-Z0-9_-]+)'\)/g)) usedGlyphs.add(match[1]);
-    for (const name of ['copy', 'check', 'stack', 'info', 'external', 'locate', 'chevronRight', ...usedGlyphs]) {
+    // infra.js calls a bare glyph(); the menu icons are listed here.
+    for (const name of ['copy', 'check', 'stack', 'info', 'external', 'locate', 'chevronRight', 'refresh', 'arrange', 'keyboard', 'legend', 'file', 'place', 'import', 'undo', 'redo', ...usedGlyphs]) {
         const svg = model.glyph(name);
         assert.ok(svg && svg.startsWith('<svg ') && svg.includes('aria-hidden="true"'), `missing or invalid Infra glyph: ${name}`);
     }

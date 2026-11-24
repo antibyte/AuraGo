@@ -8,10 +8,10 @@ import (
 	"github.com/go-rod/rod/lib/proto"
 )
 
-// TestDesktopInfraHeaderActionFitsBrowser covers the inspector header action: its label ("In Schnellverbindung
-// öffnen" in German) is longer than the 360 px inspector's text column in some locales, and the button grows with it
-// (centred lines, no fixed height) instead of letting the text spill out of its box. It checks every locale and every
-// linkable app, plus the "Edit" button of an asset without an app link.
+// TestDesktopInfraHeaderActionFitsBrowser covers the inspector header action: one compact button on one line with the
+// short label of the target app (the full sentence is its title and aria-label), left aligned under the pills. It checks
+// every locale and every linkable app, plus the "Edit" button of an asset without an app link, and that the tab strip
+// fits without a scrollbar at 360 px in German and English.
 func TestDesktopInfraHeaderActionFitsBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	fixture := newInfraAppBrowserFixture()
@@ -31,13 +31,13 @@ func TestDesktopInfraHeaderActionFitsBrowser(t *testing.T) {
 	page.MustWait(`()=>document.querySelector('.infra-app').clientWidth>1000`)
 	page.MustEval(`()=>{
 		window.infraHeaderAction=()=>{
-			const button=document.querySelector('[data-inspector] .infra-head-pills .infra-button');
+			const button=document.querySelector('[data-inspector] .infra-head-cta .infra-button');
 			if(!button) return JSON.stringify({missing:true});
 			const box=button.getBoundingClientRect(),range=document.createRange();
 			range.selectNodeContents(button);
 			const text=range.getBoundingClientRect(),column=document.querySelector('[data-inspector] .infra-head-main').getBoundingClientRect();
 			const near=(a,b)=>a<=b+1;
-			return JSON.stringify({label:button.textContent.trim(),
+			return JSON.stringify({label:button.textContent.trim(),aria:button.getAttribute('aria-label')||'',
 				fitsHeight:button.scrollHeight<=button.clientHeight+1,fitsWidth:button.scrollWidth<=button.clientWidth+1,
 				textInside:near(box.top,text.top)&&near(text.bottom,box.bottom)&&near(box.left,text.left)&&near(text.right,box.right),
 				insideColumn:near(column.left,box.left)&&near(box.right,column.right),lines:Math.round(text.height/parseFloat(getComputedStyle(button).lineHeight)),
@@ -47,7 +47,7 @@ func TestDesktopInfraHeaderActionFitsBrowser(t *testing.T) {
 
 	// Every asset in turn, so each locale repaints the header; the order never repeats an asset back to back.
 	assets := []struct{ id, app string }{{"fixture-node-0003", "quick-connect"}, {"fixture-node-0004", "network-cameras"}, {"fixture-node-0005", "software-store"}, {"fixture-node-0006", "meshcore"}, {"fixture-node-0010", ""}}
-	checked, wrapped := 0, 0
+	checked := 0
 	for _, code := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
 		var all map[string]any
 		if err := json.Unmarshal([]byte(readDesktopAssetText(t, "lang/desktop/"+code+".json")), &all); err != nil {
@@ -60,6 +60,14 @@ func TestDesktopInfraHeaderActionFitsBrowser(t *testing.T) {
 			}
 		}
 		page.MustEval(`(words)=>Object.assign(window.fixtureWords,words)`, words)
+		if code == "de" || code == "en" {
+			// At the default 360 px the four tabs fit without a scrollbar in German and English.
+			page.MustEval(`()=>document.querySelector('[data-node="fixture-node-0003"]').click()`)
+			page.MustWait(`()=>!!document.querySelector('[data-inspector-tabs]')`)
+			if !page.MustEval(`()=>{const s=document.querySelector('[data-inspector-tabs]');return s.scrollWidth<=s.clientWidth+1&&getComputedStyle(s).scrollbarWidth==='none'}`).Bool() {
+				t.Fatalf("%s: the inspector tab strip overflows at the default width or still shows a scrollbar", code)
+			}
+		}
 		for _, asset := range assets {
 			page.MustEval(`(id)=>document.querySelector('[data-node="'+id+'"]').click()`, asset.id)
 			if asset.app != "" {
@@ -69,7 +77,7 @@ func TestDesktopInfraHeaderActionFitsBrowser(t *testing.T) {
 			}
 			var got struct {
 				Missing, FitsHeight, FitsWidth, TextInside, InsideColumn bool
-				Label                                                    string
+				Label, Aria                                              string
 				Lines, InspectorWidth                                    int
 			}
 			if err := json.Unmarshal([]byte(page.MustEval(`()=>infraHeaderAction()`).Str()), &got); err != nil {
@@ -80,20 +88,18 @@ func TestDesktopInfraHeaderActionFitsBrowser(t *testing.T) {
 			}
 			checked++
 			if got.Lines > 1 {
-				wrapped++
+				t.Fatalf("%s, %s: the header action %q wraps to %d lines; it must stay on one line", code, asset.id, got.Label, got.Lines)
 			}
 			if asset.app != "" {
-				want := strings.ReplaceAll(words["desktop.infra_open_in_app"].(string), "{app}", words["desktop.infra_app_"+strings.ReplaceAll(asset.app, "-", "_")].(string))
-				if got.Label != want {
-					t.Fatalf("%s, %s: the header action reads %q; want the full label %q", code, asset.id, got.Label, want)
+				short := words["desktop.infra_app_"+strings.ReplaceAll(asset.app, "-", "_")].(string)
+				full := strings.ReplaceAll(words["desktop.infra_open_in_app"].(string), "{app}", short)
+				if got.Label != short || got.Aria != full {
+					t.Fatalf("%s, %s: the header action reads %q with aria-label %q; want the short label %q and the full sentence %q", code, asset.id, got.Label, got.Aria, short, full)
 				}
 			}
 		}
 	}
-	t.Logf("%d header actions fit their box; %d of them wrap to more than one line", checked, wrapped)
-	if wrapped == 0 {
-		t.Fatal("no locale wraps the header action: the test no longer exercises the long-label case")
-	}
+	t.Logf("%d header actions fit their box on one line", checked)
 	requireInfraBrowserClean(t, page)
 }
 
@@ -125,8 +131,8 @@ func TestDesktopInfraHeaderActionTouchSizeBrowser(t *testing.T) {
 	// Edit (an asset without an app link) and the primary open action (an asset with one) are both header actions.
 	for _, asset := range []struct{ id, action string }{{"fixture-node-0010", "edit-details"}, {"fixture-node-0003", "open-first-app"}} {
 		page.MustEval(`(id)=>document.querySelector('[data-node="'+id+'"]').click()`, asset.id)
-		page.MustWait(`(action)=>!!document.querySelector('[data-inspector] .infra-head-pills [data-action="'+action+'"]')`, asset.action)
-		if got := page.MustEval(`(action)=>document.querySelector('[data-inspector] .infra-head-pills [data-action="'+action+'"]').getBoundingClientRect().height`, asset.action).Num(); got < 43.5 {
+		page.MustWait(`(action)=>!!document.querySelector('[data-inspector] .infra-head-cta [data-action="'+action+'"]')`, asset.action)
+		if got := page.MustEval(`(action)=>document.querySelector('[data-inspector] .infra-head-cta [data-action="'+action+'"]').getBoundingClientRect().height`, asset.action).Num(); got < 43.5 {
 			t.Fatalf("on a touch screen the header action %s is %.1f px high; want at least 44", asset.action, got)
 		}
 	}

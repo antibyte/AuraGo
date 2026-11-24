@@ -87,8 +87,10 @@ func TestDesktopInfraSemanticZoomBrowser(t *testing.T) {
 		let overlaps=0;
 		for(let i=0;i<rects.length;i++)for(let j=i+1;j<rects.length;j++){const a=rects[i],b=rects[j];if(a.left<b.right-1&&a.right>b.left+1&&a.top<b.bottom-1&&a.bottom>b.top+1)overlaps++;}
 		return JSON.stringify({compact:stage.classList.contains('is-compact'),tiny:stage.classList.contains('is-tiny'),handles:getComputedStyle(card.querySelector('.infra-card-handle')).display,
-			name:Math.min(...names.map(infraOnScreen))>=12,header:infraOnScreen(header)>=13,meta:getComputedStyle(card.querySelector('.infra-card-meta')).display,box:[card.offsetWidth,card.offsetHeight],overlaps,icon:infraIconPx(card)>=0.75*card.getBoundingClientRect().height-0.5});
-	}`).Str(); got != `{"compact":true,"tiny":true,"handles":"none","name":true,"header":true,"meta":"none","box":[216,64],"overlaps":0,"icon":true}` {
+			name:Math.min(...names.map(infraOnScreen))>=12,header:infraOnScreen(header)>=13,meta:getComputedStyle(card.querySelector('.infra-card-meta')).display,box:[card.offsetWidth,card.offsetHeight],overlaps,icon:infraIconPx(card)>=0.75*card.getBoundingClientRect().height-0.5,
+			// 2.6: no name that shows covers another card's icon (a name may touch the faint border of the card below).
+			clash:names.filter(el=>getComputedStyle(el).visibility!=='hidden').some(el=>{const r=el.getBoundingClientRect(),own=el.closest('.infra-card');return [...document.querySelectorAll('[data-nodes] .infra-card')].some(c=>{if(c===own)return false;const i=c.querySelector('.infra-card-icon').getBoundingClientRect();return r.left<i.right-1&&r.right>i.left+1&&r.top<i.bottom-1&&r.bottom>i.top+1;});})});
+	}`).Str(); got != `{"compact":true,"tiny":true,"handles":"none","name":true,"header":true,"meta":"none","box":[216,64],"overlaps":0,"icon":true,"clash":false}` {
 		t.Fatalf("at about 28%% the cards must be compact with legible, non-overlapping labels and the same geometry: %s", got)
 	}
 	// Zoom back in: 0.58 is still compact (below 0.65), the full form returns from 0.68 on.
@@ -97,10 +99,10 @@ func TestDesktopInfraSemanticZoomBrowser(t *testing.T) {
 	infraPolishSettle(page)
 	if got := page.MustEval(`()=>{
 		const stage=document.querySelector('[data-stage]'),card=document.querySelector('[data-node="fixture-node-0002"]');
-		return JSON.stringify({compact:stage.classList.contains('is-compact'),tiny:stage.classList.contains('is-tiny'),handles:getComputedStyle(card.querySelector('.infra-card-handle')).display!=='none',lines:getComputedStyle(card.querySelector('.infra-card-name')).webkitLineClamp,icon:infraIconPx(card)>=18,ring:infraIconPx(card)<=21});
-	}`).Str(); got != `{"compact":true,"tiny":false,"handles":false,"lines":"2","icon":true,"ring":true}` {
+		return JSON.stringify({compact:stage.classList.contains('is-compact'),tiny:stage.classList.contains('is-tiny'),handles:getComputedStyle(card.querySelector('.infra-card-handle')).display!=='none',lines:getComputedStyle(card.querySelector('.infra-card-name')).whiteSpace,icon:infraIconPx(card)>=18,ring:infraIconPx(card)<=21});
+	}`).Str(); got != `{"compact":true,"tiny":false,"handles":false,"lines":"nowrap","icon":true,"ring":true}` {
 		// 0.28 * 1.2^3 = 0.48: below 0.5 the handles are still hidden.
-		t.Fatalf("at about 48%% the compact form shows two-line names, still no handles and an icon of 18 to 21 px: %s", got)
+		t.Fatalf("at about 48%% the compact form shows one-line names, still no handles and an icon of 18 to 21 px: %s", got)
 	}
 	page.MustEval(`()=>{for(let i=0;i<3;i++)document.querySelector('[data-action="zoom-in"]').click();}`)
 	page.MustWait(`()=>infraZoomOf()>0.8`)
@@ -142,6 +144,14 @@ func TestDesktopInfraSemanticZoomBrowser(t *testing.T) {
 			t.Fatalf("with prefers-reduced-motion %s and animations %s the form switch gave %s; want %s", motion.preference, motion.animations, got, want)
 		}
 	}
+	// 2.8: at the smallest zoom the zoom-out button is disabled and says why; zooming in enables it again.
+	page.MustEval(`()=>{for(let i=0;i<12;i++)document.querySelector('[data-action="zoom-out"]').click();}`)
+	page.MustWait(`()=>infraZoomOf()===0.25`)
+	if !page.MustEval(`()=>{const b=document.querySelector('[data-action="zoom-out"]');return b.disabled&&b.title===window.fixtureWords['desktop.infra_zoom_limit_min'];}`).Bool() {
+		t.Fatal("at 25 % the zoom-out button must be disabled with the limit as its title (2.8)")
+	}
+	page.MustEval(`()=>document.querySelector('[data-action="zoom-in"]').click()`)
+	page.MustWait(`()=>!document.querySelector('[data-action="zoom-out"]').disabled`)
 	requireInfraBrowserClean(t, page)
 }
 
@@ -194,6 +204,9 @@ func TestDesktopInfraMinimapBrowser(t *testing.T) {
 	if got := page.MustEval(`()=>infraMinimapState()`).Str(); got != `{"shown":false,"pressed":"true"}` {
 		t.Fatalf("fitting the map must hide the minimap again: %s", got)
 	}
+	// 2.9: switching the overview on while the whole map fits says why nothing appears.
+	page.MustEval(`()=>{const toggle=document.querySelector('[data-action="toggle-minimap"]');toggle.click();toggle.click();}`)
+	page.MustWait(`()=>[...document.querySelectorAll('[data-toast] span')].some(el=>el.textContent===window.fixtureWords['desktop.infra_minimap_fits'])`)
 	// Whenever it is shown it never sits on a card at fit: at fit it is hidden, at 100 % it is the user's own pan.
 	requireInfraBrowserClean(t, page)
 }
@@ -213,7 +226,7 @@ func TestDesktopInfraEdgeLabelsBrowser(t *testing.T) {
 	// The LAN label would sit under the card between its ends, the Wi-Fi label does not fit the 36 px gap between
 	// neighbours, the fibre label has a clear stretch of line.
 	got := page.MustEval(`()=>{
-		const rect=el=>el.getBoundingClientRect(),cards=[...document.querySelectorAll('[data-nodes] [data-node]')].map(rect);
+		const rect=el=>el.getBoundingClientRect(),cards=[...document.querySelectorAll('[data-nodes] [data-node], [data-nodes] .infra-card-badge')].map(rect);
 		const rows=[...document.querySelectorAll('.infra-edge')].filter(edge=>edge.querySelector('.infra-edge-label')).map(edge=>{
 			const label=edge.querySelector('.infra-edge-label'),box=rect(label),visible=getComputedStyle(label).visibility==='visible';
 			return {id:edge.dataset.edge,clash:edge.classList.contains('is-label-clash'),visible,overlap:visible&&cards.some(card=>box.left<card.right&&box.right>card.left&&box.top<card.bottom&&box.bottom>card.top)};

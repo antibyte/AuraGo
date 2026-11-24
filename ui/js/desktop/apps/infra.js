@@ -30,6 +30,8 @@
         const S = String(windowId).replace(/[^a-zA-Z0-9_-]/g, '');
         const glyph = name => model.glyph(name);
         const option = (value, label) => `<option value="${esc(value)}">${esc(label)}</option>`;
+        // A toolbar menu item: glyph, label (the label span is the one place a label is rewritten) and an optional key hint.
+        const menuRow = (name, label, extra = '') => `${glyph(name)}<span class="infra-menu-label">${esc(label)}</span>${extra}`;
         host.innerHTML = `<section class="infra-app" data-infra-app="${esc(S)}" aria-label="${esc(t('desktop.app_infra'))}" data-inspector-open="false" data-library-collapsed="false" data-library-sheet="closed" data-search-open="false" data-readonly="false">
   <header class="infra-commandbar" aria-label="${esc(t('desktop.infra_actions'))}">
     <div class="infra-brand"><img class="infra-brand-mark" src="${esc(model.assetURL('icon'))}" alt="" draggable="false"><span class="infra-brand-name">${esc(t('desktop.app_infra'))}</span></div>
@@ -71,17 +73,21 @@
   </footer>
   <div class="infra-layer" data-layer>
     <div class="infra-menu" id="infra-add-menu-${esc(S)}" data-menu="add" role="menu" hidden>
-      <button type="button" role="menuitem" data-action="add-place" disabled>${esc(t('desktop.infra_new_place'))}</button>
-      <button type="button" role="menuitem" data-action="import" disabled>${esc(t('desktop.infra_import_discoveries'))}</button>
+      <button type="button" role="menuitem" data-action="add-place" disabled>${menuRow('place', t('desktop.infra_new_place'))}</button>
+      <button type="button" role="menuitem" data-action="import" disabled>${menuRow('import', t('desktop.infra_import_discoveries'))}</button>
     </div>
     <div class="infra-menu" id="infra-more-menu-${esc(S)}" data-menu="more" role="menu" hidden>
-      <button type="button" role="menuitem" data-action="refresh">${esc(t('desktop.infra_refresh'))}</button>
-      <button type="button" role="menuitem" data-action="arrange" disabled>${esc(t('desktop.infra_arrange'))}</button>
-      <button type="button" role="menuitem" data-action="shortcuts" aria-keyshortcuts="Shift+?">${esc(t('desktop.infra_shortcuts'))}</button>
-      <button type="button" role="menuitem" data-action="legend" aria-haspopup="dialog">${esc(t('desktop.infra_legend'))}</button>
-      <button type="button" role="menuitem" data-action="export-pdf" aria-haspopup="dialog">${esc(t('desktop.infra_export_pdf'))}</button>
-      <button type="button" role="menuitem" data-action="history-undo" data-overflow-only>${esc(t('desktop.infra_undo'))}</button>
-      <button type="button" role="menuitem" data-action="history-redo" data-overflow-only>${esc(t('desktop.infra_redo'))}</button>
+      <button type="button" role="menuitem" data-action="refresh">${menuRow('refresh', t('desktop.infra_refresh'))}</button>
+      <div class="infra-menu-sep" role="separator"></div>
+      <button type="button" role="menuitem" data-action="arrange" disabled>${menuRow('arrange', t('desktop.infra_arrange'))}</button>
+      <button type="button" role="menuitem" data-action="legend" aria-haspopup="dialog">${menuRow('legend', t('desktop.infra_legend'))}</button>
+      <div class="infra-menu-sep" role="separator"></div>
+      <button type="button" role="menuitem" data-action="shortcuts" aria-keyshortcuts="Shift+?">${menuRow('keyboard', t('desktop.infra_shortcuts'), '<kbd class="infra-menu-kbd" aria-hidden="true">?</kbd>')}</button>
+      <div class="infra-menu-sep" role="separator"></div>
+      <button type="button" role="menuitem" data-action="export-pdf" aria-haspopup="dialog">${menuRow('file', t('desktop.infra_export_pdf'))}</button>
+      <div class="infra-menu-sep" role="separator" data-overflow-only></div>
+      <button type="button" role="menuitem" data-action="history-undo" data-overflow-only>${menuRow('undo', t('desktop.infra_undo'))}</button>
+      <button type="button" role="menuitem" data-action="history-redo" data-overflow-only>${menuRow('redo', t('desktop.infra_redo'))}</button>
     </div>
     <div class="infra-popover infra-filters" id="infra-filters-${esc(S)}" data-popover="filters" hidden>
       <label class="infra-select-label"><span>${esc(t('desktop.infra_type'))}</span><select data-kind-filter aria-label="${esc(t('desktop.infra_type_filter'))}"><option value="">${esc(t('desktop.infra_all_types'))}</option>${KINDS.map(kind => option(kind, t(`desktop.infra_kind_${kind}`))).join('')}</select></label>
@@ -264,15 +270,38 @@
         // Arrange needs a card to arrange. In Topology it hands cards back to the automatic layout (A22): it needs a
         // server that can unplace and a card with a saved placement, and then it reads "Arrange automatically".
         const hasPlacedCards = () => { const view = mapView(); return view === 'topology' ? gestures.canArrangeTopology() : state.nodes.some(node => store.effectivePlacement(node.id, view)); };
+        // The Arrange label names its scope (2.15): Topology hands back to auto, a selection of one parent's cards, else the whole map.
+        const ARRANGE_KEYS = { topology: 'desktop.infra_arrange_auto', selection: 'desktop.infra_arrange_selection', map: 'desktop.infra_arrange_map' };
+        app.arrangeLabelKey = () => ARRANGE_KEYS[gestures.arrangeScope()];
         function paintArrange() {
-            const write = store.canWrite(), topology = mapView() === 'topology', label = topology ? t('desktop.infra_arrange_auto') : t('desktop.infra_arrange');
-            const blocked = !write || state.busy.has('layout') || !hasPlacedCards();
+            const write = store.canWrite(), topology = mapView() === 'topology', label = t(app.arrangeLabelKey()), list = state.view === 'table';
+            const blocked = list || !write || state.busy.has('layout') || !hasPlacedCards();
             for (const button of root.querySelectorAll('[data-action="arrange"]')) {
                 button.disabled = blocked;
-                if (button.textContent !== label) button.textContent = label;
-                if (topology && write && !store.features.unplace) button.title = t('desktop.infra_arrange_unsupported'); else button.removeAttribute('title');
+                // The label sits in its own span in the toolbar menu, so the glyph in front of it survives.
+                const target = button.querySelector('.infra-menu-label') || button;
+                if (target.textContent !== label) target.textContent = label;
+                if (list) button.title = t('desktop.infra_map_only');
+                else if (topology && write && !store.features.unplace) button.title = t('desktop.infra_arrange_unsupported'); else button.removeAttribute('title');
             }
+            const legend = q('[data-menu="more"] [data-action="legend"]');
+            legend.disabled = list;
+            if (list) legend.title = t('desktop.infra_map_only'); else legend.removeAttribute('title');
         }
+        // The word a history step is named by in a button title and in the announcement (3.13).
+        const HISTORY_WORDS = { MoveNodes: 'desktop.infra_history_move', Reparent: 'desktop.infra_history_move', SetParent: 'desktop.infra_history_move', ResizePlace: 'desktop.infra_history_resize', PlaceFromLibrary: 'desktop.infra_history_place', CreateEdge: 'desktop.infra_history_connect', DeleteEdge: 'desktop.infra_remove_connection' };
+        const historyWord = (type, view) => t(type === 'Unplace' ? (view === 'topology' ? 'desktop.infra_topology_auto_place' : 'desktop.infra_remove_from_map') : HISTORY_WORDS[type] || 'desktop.infra_history_change');
+        const historyTitle = (direction, view) => {
+            const action = historyWord(store.nextHistory(view, direction), view), ctrl = t('desktop.infra_kbd_ctrl');
+            return model.fill(t(direction === 'undo' ? 'desktop.infra_undo_named' : 'desktop.infra_redo_named'), { action, keys: direction === 'undo' ? `${ctrl}+Z` : `${ctrl}+${t('desktop.infra_kbd_shift')}+Z` });
+        };
+        // One path for the toolbar, both menus and the keyboard: it announces what actually happened, named by the step.
+        async function stepHistory(direction) {
+            const view = mapView(), type = store.nextHistory(view, direction);
+            const ok = await (direction === 'undo' ? store.undo(view) : store.redo(view));
+            if (ok) announce(model.fill(t(direction === 'undo' ? 'desktop.infra_undone_named' : 'desktop.infra_redone_named'), { action: historyWord(type, view) }));
+        }
+        app.stepHistory = stepHistory;
         function paintShell() {
             if (disposed || !root.isConnected) return;
             const write = store.canWrite(), view = state.view, history = mapView();
@@ -286,9 +315,11 @@
             const canUndo = store.canUndo(history), canRedo = store.canRedo(history);
             const undo = q('.infra-history [data-action="undo"]'), redo = q('.infra-history [data-action="redo"]');
             undo.setAttribute('aria-disabled', String(!canUndo));
-            undo.title = canUndo ? t('desktop.infra_undo') : t('desktop.infra_undo_none');
+            undo.title = canUndo ? historyTitle('undo', history) : t('desktop.infra_undo_none');
+            undo.setAttribute('aria-label', canUndo ? undo.title : t('desktop.infra_undo'));
             redo.setAttribute('aria-disabled', String(!canRedo));
-            redo.title = canRedo ? t('desktop.infra_redo') : t('desktop.infra_redo_none');
+            redo.title = canRedo ? historyTitle('redo', history) : t('desktop.infra_redo_none');
+            redo.setAttribute('aria-label', canRedo ? redo.title : t('desktop.infra_redo'));
             q('[data-action="history-undo"]').disabled = !canUndo;
             q('[data-action="history-redo"]').disabled = !canRedo;
             const sync = state.busy.has('snapshot') ? 'syncing' : state.sync;
@@ -396,13 +427,13 @@
         const syncMenus = () => ctx.setWindowMenus?.(windowId, [{ id: 'infra', labelKey: 'desktop.app_infra', items: [
             { labelKey: 'desktop.infra_refresh', icon: 'refresh', action: () => void store.loadSnapshot(true) },
             { type: 'separator' },
-            { labelKey: 'desktop.infra_undo', disabled: !store.canUndo(mapView()), action: () => void store.undo(mapView()) },
-            { labelKey: 'desktop.infra_redo', disabled: !store.canRedo(mapView()), action: () => void store.redo(mapView()) },
+            { labelKey: 'desktop.infra_undo', disabled: !store.canUndo(mapView()), action: () => void stepHistory('undo') },
+            { labelKey: 'desktop.infra_redo', disabled: !store.canRedo(mapView()), action: () => void stepHistory('redo') },
             { type: 'separator' },
             { labelKey: 'desktop.infra_import_title', icon: 'download', disabled: !store.canWrite(), action: () => importer.open() },
             { labelKey: 'desktop.infra_new_asset', icon: 'plus', disabled: !store.canWrite(), action: () => dialogs.openNodeDialog('device') },
             { labelKey: 'desktop.infra_new_place', disabled: !store.canWrite(), action: () => dialogs.openNodeDialog('room', { title: t('desktop.infra_new_place') }) },
-            { labelKey: mapView() === 'topology' ? 'desktop.infra_arrange_auto' : 'desktop.infra_arrange', icon: 'grid', disabled: !store.canWrite() || (mapView() === 'topology' && !store.features.unplace), action: () => gestures.arrange() },
+            { labelKey: app.arrangeLabelKey(), icon: 'grid', disabled: !store.canWrite() || state.view === 'table' || (mapView() === 'topology' && !store.features.unplace), action: () => gestures.arrange() },
         ] }]);
 
         // ---- menus and popovers --------------------------------------------------------------
@@ -511,8 +542,8 @@
                 case 'shortcuts': if (menuItem) closeMenus({ restoreFocus: true }); menus.openShortcuts(); return;
                 case 'legend': if (menuItem) closeMenus(); openMenu('legend'); return;
                 case 'export-pdf': if (menuItem) closeMenus({ restoreFocus: true }); dialogs.openExportPdfDialog(); return;
-                case 'undo': case 'history-undo': if (store.canUndo(view)) void store.undo(view); break;
-                case 'redo': case 'history-redo': if (store.canRedo(view)) void store.redo(view); break;
+                case 'undo': case 'history-undo': if (store.canUndo(view)) void stepHistory('undo'); break;
+                case 'redo': case 'history-redo': if (store.canRedo(view)) void stepHistory('redo'); break;
                 case 'toggle-library': toggleLibrary(); return;
                 case 'retry-layout': void store.retryLayout(view); break;
                 case 'clear-search': clearSearch(); focusSearch(); break;
@@ -629,8 +660,10 @@
                 case 'source-hosts': library.render(); canvas.render(); importer.render(); break;
                 case 'candidates': importer.render(); break;
                 case 'selection':
-                    canvas.render(); library.renderSelection(); renderTable(); inspector.paint(); paintArrange(); paintInventoryStatus();
+                    canvas.render(); library.renderSelection(); renderTable(); inspector.paint(); paintArrange(); paintInventoryStatus(); syncMenus();
                     if (isNarrow() && root.dataset.inspectorOpen === 'true') closeLibrarySheet({ restoreFocus: false });
+                    // 2.1: a selected card the inspector or a sheet would cover pans into view (only sideways); never during a gesture.
+                    if (state.view !== 'table' && state.selected && !state.interacting && !gestures.active()) canvas.reveal(state.selected, { sideways: true });
                     break;
                 case 'view': paintShell(); canvas.render({ force: true }); library.render(); renderTable(); inspector.paint(); syncMenus(); break;
                 case 'filters': renderData(); paintShell(); break;
@@ -638,6 +671,7 @@
                 case 'busy': paintShell(); inspector.onBusy(change.key); dialogs.onBusy(change.key); importer.onBusy(change.key); break;
                 case 'caps':
                     if (!store.canWrite()) gestures.cancel();
+                    dialogs.onCaps();
                     app.picker.close({ restoreFocus: false });
                     syncMenus(); paintShell(); canvas.render({ force: true }); library.render(); inspector.paint(); importer.render();
                     break;

@@ -142,7 +142,7 @@ func TestDesktopInfraTopologyCurvesBrowser(t *testing.T) {
 	if got := page.MustEval(`()=>{const ds=[...document.querySelectorAll('.infra-edge-line')].map(path=>path.getAttribute('d')||'');return JSON.stringify({all:ds.length,straight:ds.filter(d=>!/C/.test(d)).length});}`).Str(); got == `{"all":0,"straight":0}` || !regexp.MustCompile(`"straight":0}$`).MatchString(got) {
 		t.Fatalf("the Map view must draw its connections as splines: %s", got)
 	}
-	// Opening the inspector on the right leaves the map where it is: the leftmost card keeps its screen position.
+	// Opening the inspector on the right leaves the map where it is unless the card would be covered (2.1): the leftmost card keeps its screen position.
 	page.MustEval(`()=>{const cards=[...document.querySelectorAll('[data-nodes] [data-node]')];cards.sort((a,b)=>a.getBoundingClientRect().left-b.getBoundingClientRect().left);cards.forEach(card=>card.removeAttribute('data-leftmost'));cards[0].setAttribute('data-leftmost','');}`)
 	beforeX, beforeY := infraPanelsCenter(page, "[data-leftmost]")
 	page.Mouse.MustMoveTo(beforeX, beforeY).MustClick(proto.InputMouseButtonLeft)
@@ -153,6 +153,26 @@ func TestDesktopInfraTopologyCurvesBrowser(t *testing.T) {
 	}
 	page.Keyboard.MustType(input.Escape)
 	page.MustWait(`()=>document.querySelector('.infra-app').dataset.inspectorOpen==='false'`)
+	// 2.1: the card nearest the right edge would sit under the inspector; the map pans so it stays in the uncovered stage with 24 px clearance.
+	page.MustEval(`()=>{const cards=[...document.querySelectorAll('[data-nodes] [data-node]')];cards.sort((a,b)=>b.getBoundingClientRect().right-a.getBoundingClientRect().right);cards.forEach(card=>card.removeAttribute('data-rightmost'));cards[0].setAttribute('data-rightmost','');}`)
+	rightX, rightY := infraPanelsCenter(page, "[data-rightmost]")
+	page.Mouse.MustMoveTo(rightX, rightY).MustClick(proto.InputMouseButtonLeft)
+	page.MustWait(`()=>document.querySelector('.infra-app').dataset.inspectorOpen==='true'`)
+	infraPanelsCenter(page, "[data-rightmost]")
+	if got := page.MustEval(`()=>{const r=document.querySelector('[data-rightmost]').getBoundingClientRect(),s=document.querySelector('[data-stage]').getBoundingClientRect();return r.right<=s.right-23&&r.left>=s.left;}`).Bool(); !got {
+		t.Fatal("a selected card near the right edge must pan clear of the docked inspector (2.1)")
+	}
+	page.Keyboard.MustType(input.Escape)
+	page.MustWait(`()=>document.querySelector('.infra-app').dataset.inspectorOpen==='false'`)
+	// 2.2: Tab onto a card that left the view reveals it.
+	page.MustEval(`()=>document.querySelector('[data-stage]').dispatchEvent(new WheelEvent('wheel',{deltaX:-3000,bubbles:true,cancelable:true}))`)
+	infraPolishSettle(page)
+	page.MustEval(`()=>document.querySelector('[data-tools] [data-tool="select"]').focus()`)
+	page.KeyActions().Press(input.ShiftLeft).Type(input.Tab).Release(input.ShiftLeft).MustDo()
+	infraPolishSettle(page)
+	if got := page.MustEval(`()=>{const a=document.activeElement;if(!a||!a.matches('[data-node]'))return false;const r=a.getBoundingClientRect(),s=document.querySelector('[data-stage]').getBoundingClientRect();return r.left>=s.left&&r.right<=s.right&&r.top>=s.top&&r.bottom<=s.bottom;}`).Bool(); !got {
+		t.Fatal("a card focused with Tab outside the view must be revealed (2.2)")
+	}
 	page.MustEval(`()=>document.querySelector('[data-view="topology"]').click()`)
 	page.MustWait(`()=>document.querySelectorAll('[data-lanes] [data-lane]').length===4&&!!document.querySelector('[data-node="tv"]')`)
 	page.MustEval(`()=>document.querySelector('[data-action="fit"]').click()`)

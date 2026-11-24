@@ -46,6 +46,20 @@ func TestDesktopInfraInspectorOverviewBrowser(t *testing.T) {
 	if !page.MustEval(`()=>fact(w('desktop.infra_placement'))===w('desktop.infra_unplaced')&&document.querySelector('[data-placement-readout] dd').textContent===w('desktop.infra_unplaced')`).Bool() {
 		t.Fatal("an unplaced asset must say so in the Overview and in the Details placement readout")
 	}
+
+	// A blocked clipboard says so instead of reporting a copy; the move hint belongs to the map views only.
+	page.MustEval(`()=>document.querySelector('[data-node="fixture-node-0003"]').click()`)
+	page.MustWait(`()=>document.querySelector('[data-inspector] h2')?.textContent==='Cold-store NAS'&&!!document.querySelector('[data-inspector-panel="overview"] [data-copy-value]')`)
+	if !page.MustEval(`()=>!!document.querySelector('[data-inspector-panel="overview"] .infra-overview-tip')`).Bool() {
+		t.Fatal("the move hint must show in a map view of a writable window")
+	}
+	page.MustEval(`()=>{Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:()=>Promise.reject(new Error('blocked'))}});document.querySelector('[data-inspector-panel="overview"] [data-copy-value]').click();}`)
+	page.MustWait(`()=>[...document.querySelectorAll('[data-toast] span')].some(span=>span.textContent===w('desktop.infra_copy_failed'))`)
+	if page.MustEval(`()=>!!document.querySelector('[data-inspector-panel="overview"] [data-copy-value][data-copied]')`).Bool() {
+		t.Fatal("a failed copy must not show the copied state")
+	}
+	page.MustEval(`()=>document.querySelector('[data-view="table"]').click()`)
+	page.MustWait(`()=>!document.querySelector('[data-inspector-panel="overview"] .infra-overview-tip')`)
 	closeInfraBrowserWindow(t, page)
 	requireInfraBrowserClean(t, page)
 }

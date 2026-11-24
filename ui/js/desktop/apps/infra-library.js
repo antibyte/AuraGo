@@ -289,7 +289,7 @@
             }
             if (target.closest('[data-action="library-add-place"]')) { if (!addButton.disabled) app.dialogs.openNodeDialog('room', { title: t('desktop.infra_new_place') }); return; }
             const place = target.closest('[data-place]');
-            if (place) { if (!place.disabled) void app.gestures.placeAtCenter([place.dataset.place], { moveMode: true }); return; }
+            if (place) { if (!place.disabled) void app.gestures.placeAtCenter([place.dataset.place]); return; }
             const expand = target.closest('[data-library-expand]');
             if (expand) {
                 const id = expand.dataset.libraryExpand;

@@ -35,6 +35,14 @@ func TestDesktopInfraListViewBrowser(t *testing.T) {
 	if want := `{"height":54,"sorted":["name:ascending"],"total":true}`; got != want {
 		t.Fatalf("list view starts as %s; want %s", got, want)
 	}
+
+	// The columns fit at every width: no sideways scrollbar and every shown header label is readable.
+	for _, width := range []int{1157, 900, 640, 360} {
+		fit := page.MustEval(`async (width)=>{const view=document.querySelector('[data-table-view]');view.style.width=width+'px';await new Promise(done=>requestAnimationFrame(()=>requestAnimationFrame(done)));const scroll=document.querySelector('[data-table-scroll]');const labels=[...document.querySelectorAll('.infra-sort-label')].filter(label=>label.offsetParent);const cut=labels.filter(label=>label.scrollWidth>label.clientWidth+1).map(label=>label.textContent);const over=scroll.scrollWidth-scroll.clientWidth;view.style.width='';return JSON.stringify({over:over<=1,cut,shown:labels.length>=2});}`, width).Str()
+		if want := `{"over":true,"cut":[],"shown":true}`; fit != want {
+			t.Fatalf("list at %d px is %s; want %s", width, fit, want)
+		}
+	}
 	page.MustEval(`()=>document.querySelector('[data-sort="name"]').click()`)
 	page.MustWait(`()=>document.querySelector('[data-sort-col="name"]').getAttribute('aria-sort')==='descending'`)
 	descending := `()=>{const names=[...document.querySelectorAll('[data-table-body] [data-row][data-depth="0"] .infra-table-name span')].map(item=>item.textContent);const cmp=(a,b)=>a.localeCompare(b,undefined,{numeric:true,sensitivity:'base'});return names.length>5&&names.every((name,index)=>index===0||cmp(names[index-1],name)>=0);}`
@@ -53,6 +61,12 @@ func TestDesktopInfraListViewBrowser(t *testing.T) {
 	page.MustEval(`()=>document.querySelector('[data-row-expand="fixture-node-0002"]').click()`)
 	page.MustWait(`()=>document.querySelector('[data-row="fixture-node-0001"]')?.dataset.depth==='1'&&document.querySelector('[data-row-expand="fixture-node-0002"]').getAttribute('aria-expanded')==='true'`)
 
+	// A click on any cell of a row (not only the name) selects the asset and opens the inspector.
+	page.MustEval(`()=>document.querySelector('[data-row="fixture-node-0005"] td[data-col="kind"]').click()`)
+	page.MustWait(`()=>!document.querySelector('[data-inspector]').hidden&&document.querySelector('[data-row="fixture-node-0005"]').classList.contains('is-selected')&&document.querySelector('[data-inspector] h2').textContent.includes(document.querySelector('[data-row="fixture-node-0005"] .infra-table-name span').textContent.trim())`)
+	page.MustEval(`()=>document.querySelector('[data-action="close-inspector"]').click()`)
+	page.MustWait(`()=>document.querySelector('[data-inspector]').hidden`)
+
 	// A click selects one row, Shift extends to a range; the bulk bar counts the selection.
 	page.MustEval(`()=>document.querySelector('[data-row-check="fixture-node-0003"]').click()`)
 	page.MustWait(`()=>document.querySelector('[data-row="fixture-node-0003"]').classList.contains('is-selected')`)
@@ -63,12 +77,20 @@ func TestDesktopInfraListViewBrowser(t *testing.T) {
 	}
 
 	// The keyboard keeps working across the repaint a selection causes.
-	page.MustEval(`()=>document.querySelector('[data-row="fixture-node-0010"] [data-row-check]').focus()`)
+	page.MustEval(`()=>document.querySelector('[data-row="fixture-node-0010"] [data-select]').focus()`)
 	page.Keyboard.MustType(input.Space)
 	page.MustWait(`()=>document.querySelector('[data-bulk-count]').textContent===window.w('desktop.infra_selected_count',{count:5})`)
-	if !page.MustEval(`()=>document.activeElement?.dataset?.rowCheck==='fixture-node-0010'`).Bool() {
-		t.Fatal("selecting a row with the keyboard must leave the focus on its checkbox")
+	if !page.MustEval(`()=>document.activeElement?.dataset?.select==='fixture-node-0010'`).Bool() {
+		t.Fatal("selecting a row with Space must leave the focus on its name button")
 	}
+	// Arrow keys move between rows and the body keeps a single Tab stop.
+	page.Keyboard.MustType(input.ArrowDown)
+	page.MustWait(`()=>{const next=document.querySelector('[data-row="fixture-node-0010"]').nextElementSibling?.dataset.row;return !!next&&document.activeElement?.dataset?.select===next;}`)
+	if !page.MustEval(`()=>[...document.querySelectorAll('[data-table-body] button,[data-table-body] input')].filter(item=>item.tabIndex>=0).length===1`).Bool() {
+		t.Fatal("the List body must have exactly one Tab stop")
+	}
+	page.Keyboard.MustType(input.ArrowUp)
+	page.MustWait(`()=>document.activeElement?.dataset?.select==='fixture-node-0010'`)
 
 	// Move to place: the selection joins Room B (layout save or asset updates, depending on the map state).
 	page.MustEval(`()=>document.querySelector('[data-row="fixture-node-0010"] [data-row-check]').click()`)

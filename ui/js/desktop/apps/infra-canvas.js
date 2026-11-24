@@ -50,6 +50,7 @@
       <div class="infra-lanes" data-lanes aria-hidden="true" hidden>${stripeMarkup}</div>
       <div class="infra-regions" data-regions></div>
       <svg class="infra-edges" data-edges width="1" height="1" viewBox="0 0 1 1" overflow="visible" aria-hidden="true" focusable="false"><g data-edge-layer></g><path class="infra-edge-preview" data-edge-preview d=""></path></svg>
+      <div class="infra-drop-slot" data-drop-slot hidden></div>
       <div class="infra-nodes" data-nodes></div>
     </div>
     <div class="infra-marquee" data-marquee hidden></div>
@@ -68,7 +69,8 @@
     <button type="button" class="infra-button infra-button-primary" data-action="show-match" hidden>${esc(t('desktop.infra_show_match'))}</button></div></div>
   <div class="infra-canvas-chip" data-layout-chip role="status" hidden>
     <span>${esc(t('desktop.infra_layout_unsaved'))}</span><button type="button" class="infra-button" data-action="retry-layout" disabled>${esc(t('desktop.infra_retry'))}</button></div>
-  <div class="infra-tools" role="toolbar" aria-label="${esc(t('desktop.infra_tools'))}" data-tools>
+  <div class="infra-mode-banner" data-mode-banner aria-hidden="true" hidden></div>
+  <div class="infra-tools"role="toolbar" aria-label="${esc(t('desktop.infra_tools'))}" data-tools>
     <button type="button" data-tool="select" aria-pressed="true" tabindex="0" aria-label="${esc(t('desktop.infra_tool_select'))}" title="${esc(t('desktop.infra_tool_select'))}">${model.glyph('select')}</button>
     <button type="button" data-tool="hand" aria-pressed="false" tabindex="-1" aria-label="${esc(t('desktop.infra_tool_hand'))}" title="${esc(t('desktop.infra_tool_hand'))}">${model.glyph('hand')}</button>
     <button type="button" data-tool="connect" aria-pressed="false" tabindex="-1" aria-label="${esc(t('desktop.infra_tool_connect'))}" title="${esc(t('desktop.infra_tool_connect'))}">${model.glyph('connect')}</button>
@@ -92,6 +94,7 @@
         const edgeLayer = q('[data-edge-layer]'), edgePreview = q('[data-edge-preview]'), marquee = q('[data-marquee]');
         const emptyEl = q('[data-empty]'), noMatchEl = q('[data-no-match]'), chipEl = q('[data-layout-chip]');
         const toolsEl = q('[data-tools]'), zoomText = q('[data-zoom]'), zoomButton = q('[data-action="zoom-reset"]');
+        const zoomInButton = q('[data-action="zoom-in"]'), zoomOutButton = q('[data-action="zoom-out"]'), bannerEl = q('[data-mode-banner]'), slotEl = q('[data-drop-slot]');
         const minimapEl = q('[data-minimap]'), minimapSvg = q('[data-minimap-map]'), minimapView = q('[data-minimap-view]');
         const minimapRegions = q('[data-minimap-regions]'), minimapCards = q('[data-minimap-cards]');
         const minimapToggle = q('[data-action="toggle-minimap"]');
@@ -112,6 +115,8 @@
         // The ids under the pointer or the keyboard focus, and the ids a filter dims: they decide which connections show (A29, A30).
         let hoverId = '', focusId = '', dimmedIds = new Set();
         let forceNext = false, mapDirty = false, revision = 0, drawnRevision = -1;
+        // nameK and iconK are the counter-scales of the compact name and icon (paintNameClash); limitsKey and limitSaid track the zoom limits (2.8); modeKind is the gesture mode the banner names (2.10).
+        let nameK = 1, iconK = 1, limitsKey = '', limitSaid = '', modeKind = '';
         let pctShown = '', levelsKey = '', cardForm = 'full', formTimer = 0, rovingId = '', dropTargetId = '', connectTargetId = '', lastSize = null, animTimer = 0, persistTimer = 0, disposed = false;
         const persistKeys = new Set();
         let mmTransform = null, mmFrozen = null, mmDragging = false, mmSelected = new Set();
@@ -160,6 +165,15 @@
                 zoomText.textContent = pct;
                 zoomButton.setAttribute('aria-label', `${t('desktop.infra_zoom_reset')} · ${pct}`);
             }
+            // 2.8: a zoom button at its limit is disabled and says why; it hands focus on first. Only a change of the flags writes.
+            const atMax = model.clampZoom(v.zoom * 1.2) <= v.zoom, atMin = model.clampZoom(v.zoom / 1.2) >= v.zoom, lk = `${atMax}|${atMin}`;
+            if (lk !== limitsKey) {
+                limitsKey = lk;
+                for (const [b, at, key, lim] of [[zoomInButton, atMax, 'desktop.infra_zoom_in', 'desktop.infra_zoom_limit_max'], [zoomOutButton, atMin, 'desktop.infra_zoom_out', 'desktop.infra_zoom_limit_min']]) {
+                    if (at && document.activeElement === b) { rovePrimary(zoomButton); zoomButton.focus({ preventScroll: true }); }
+                    b.disabled = at; b.title = t(at ? lim : key);
+                }
+            }
             drawMinimap();
         }
         // paintLaneLabels keeps the lane labels at the left edge of the viewport (A18): the shift is a world x
@@ -179,7 +193,7 @@
             if (key === levelsKey) return;
             levelsKey = key;
             const switched = levels.form !== cardForm;
-            cardForm = levels.form;
+            cardForm = levels.form; nameK = levels.name; iconK = levels.icon;
             viewport.classList.toggle('is-compact', cardForm === 'compact');
             viewport.classList.toggle('is-tiny', levels.tiny);
             viewport.classList.toggle('is-no-handles', !levels.handles);
@@ -193,6 +207,22 @@
                 clearTimeout(formTimer);
                 formTimer = setTimeout(() => viewport.classList.remove('is-form-switching'), 220);
             }
+            paintNameClash();
+        }
+        // paintNameClash (2.6): a compact name is one line, at most as wide as its card, and hangs under the card. A name that would
+        // cover another card's compact icon (24 px x the icon scale, centred in its card) hides until its card is hovered, focused or
+        // selected, like an A5 label. Names may touch the faint border of the card below. All widths are read before any class is written.
+        function paintNameClash() {
+            const on = cardForm === 'compact', cards = last.cards;
+            const icons = on ? cards.map(card => { const s = 24 * iconK; return { x: card.x - s / 2, y: card.y - s / 2, w: s, h: s }; }) : [];
+            const boxes = on ? cards.map(card => {
+                const w = Math.min(model.CARD_W, (cardEls.get(card.id)?.card.querySelector('.infra-card-name')?.offsetWidth || model.CARD_W) * nameK);
+                return { x: card.x - w / 2, y: card.y + model.CARD_H / 2 + 4, w, h: 22 * nameK };
+            }) : [];
+            cards.forEach((card, i) => {
+                const entry = cardEls.get(card.id);
+                if (entry) setFlag(entry, 'nameClash', on && icons.some((icon, j) => j !== i && model.intersects(boxes[i], icon)), v => entry.card.classList.toggle('is-name-clash', v));
+            });
         }
         function persistNow() {
             clearTimeout(persistTimer); persistTimer = 0;
@@ -208,7 +238,9 @@
         function persistSoon() { persistKeys.add(curKey()); clearTimeout(persistTimer); persistTimer = setTimeout(persistNow, 400); }
         function setView(next, { animate = false } = {}) {
             const finite = value => (Number.isFinite(value) ? value : 0);
-            views[curKey()] = { x: finite(next?.x), y: finite(next?.y), zoom: model.clampZoom(next?.zoom) };
+            const zoom = model.clampZoom(next?.zoom);
+            if (zoom !== getView().zoom) limitSaid = '';
+            views[curKey()] = { x: finite(next?.x), y: finite(next?.y), zoom };
             const placedFor = placement();
             if (placedFor.w > 0 && placedFor.h > 0) viewSize[curKey()] = placedFor;
             if (animate && app.animationsEnabled()) {
@@ -239,6 +271,14 @@
             setView(model.zoomAt(v, v.zoom * factor, point || { x: sz.w / 2, y: sz.h / 2 }));
         }
         function zoomTo(zoom) { zoomBy(model.clampZoom(zoom) / getView().zoom); }
+        // zoomStep is the keyboard zoom: a key press at a limit announces it once until the zoom changes (2.8).
+        function zoomStep(dir) {
+            const before = getView().zoom;
+            zoomBy(dir > 0 ? 1.2 : 1 / 1.2);
+            if (getView().zoom !== before) return;
+            const which = dir > 0 ? 'max' : 'min';
+            if (limitSaid !== which) { limitSaid = which; app.announce(t(`desktop.infra_zoom_limit_${which}`)); }
+        }
         function fit({ animate = false } = {}) {
             if (!last.bounds) renderNow();
             setView(model.fitView(last.bounds, size(), FIT_PADDING, 1), { animate });
@@ -252,15 +292,46 @@
         function centerOn(id, { animate = false } = {}) {
             const rect = worldRect(id);
             if (!rect) return;
-            const v = getView(), sz = size(), zoom = Math.max(v.zoom, 0.8);
-            setView({ x: sz.w / 2 - (rect.x + rect.w / 2) * zoom, y: sz.h / 2 - (rect.y + rect.h / 2) * zoom, zoom }, { animate });
+            // The item is centred in the uncovered part of the viewport (panels that overlay the map are left out).
+            const v = getView(), box = uncovered(), zoom = Math.max(v.zoom, 0.8);
+            setView({ x: (box.left + box.right) / 2 - (rect.x + rect.w / 2) * zoom, y: (box.top + box.bottom) / 2 - (rect.y + rect.h / 2) * zoom, zoom }, { animate });
         }
+        const PAD = 24;
+        // uncovered: the part of the viewport no overlay panel covers (overlay inspector, narrow library sheet, import sheet), viewport px.
+        // It reads layout offsets, not bounding rects, so a panel's slide-in transform does not skew it; a docked panel is not
+        // absolute and is skipped (the viewport has already shrunk for it).
+        function uncovered() {
+            const sz = size(), box = { left: 0, right: sz.w, top: 0, bottom: sz.h };
+            for (const panel of [app.inspector?.el, app.library?.el, app.importer?.el]) {
+                if (!panel || panel.hidden || !panel.offsetWidth || panel.offsetParent !== el.offsetParent || getComputedStyle(panel).position !== 'absolute') continue;
+                const l = panel.offsetLeft - el.offsetLeft, r = l + panel.offsetWidth;
+                if (r <= box.left || l >= box.right) continue;
+                if (l <= box.left + 1) box.left = Math.max(box.left, r); else box.right = Math.min(box.right, l);
+            }
+            return box;
+        }
+        // reveal moves the view by the smallest distance that gives the card or place header 24 px of clearance inside the
+        // uncovered part (2.1, 2.2). With sideways it only acts when the item is cut at a side, and only horizontally.
+        function reveal(id, { sideways = false } = {}) {
+            const region = last.regionRects.get(id), rect = region ? { x: region.x, y: region.y, w: Math.min(region.w, 320), h: 50 } : worldRect(id);
+            const box = uncovered();
+            if (!rect || box.right - box.left < 120) return false;
+            const v = getView(), a = model.toScreen(v, rect), b = model.toScreen(v, { x: rect.x + rect.w, y: rect.y + rect.h });
+            if (sideways && a.x >= box.left && b.x <= box.right) return false;
+            const shift = (lo, hi, min, max) => (hi - lo > max - min - 2 * PAD ? (min + max - lo - hi) / 2 : lo < min + PAD ? min + PAD - lo : hi > max - PAD ? max - PAD - hi : 0);
+            const dx = shift(a.x, b.x, box.left, box.right), dy = sideways ? 0 : shift(a.y, b.y, box.top, box.bottom);
+            if (!dx && !dy) return false;
+            setView({ x: v.x + dx, y: v.y + dy, zoom: v.zoom }, { animate: true });
+            return true;
+        }
+        // ensureVisible is the "jump to this asset" of the library, the inspector and the import sheet: an item cut by the
+        // uncovered box is centred in it at a zoom of at least 0.8 (animated); an item in view stays where it is.
         function ensureVisible(id) {
             const rect = worldRect(id);
             if (!rect) return;
-            const v = getView(), sz = size();
+            const v = getView(), box = uncovered();
             const a = model.toScreen(v, { x: rect.x, y: rect.y }), b = model.toScreen(v, { x: rect.x + rect.w, y: rect.y + rect.h });
-            if (a.x < 0 || a.y < 0 || b.x > sz.w || b.y > sz.h) centerOn(id, { animate: true });
+            if (a.x < box.left || a.y < box.top || b.x > box.right || b.y > box.bottom) centerOn(id, { animate: true });
         }
         function clientToWorld(clientX, clientY) {
             const rect = viewport.getBoundingClientRect();
@@ -468,10 +539,11 @@
                 + (edge.kind === 'fiber' ? '<path class="infra-edge-line infra-edge-core" d=""/>' : '')
                 + (caption ? `<text class="infra-edge-label" x="0" y="0">${esc(caption)}</text>` : '') + `<title>${esc(title)}</title></g>`;
         }
-        // blockersOf lists the card rectangles a connection label must stay clear of; cards in tempCards are mid-drag.
+        // blockersOf lists the rectangles a connection label must stay clear of: the cards (those in tempCards are mid-drag)
+        // and, for a host, the guest badge that hangs 14 px below its card (translate 22 px, 24 px high; 2.7).
         function blockersOf(tempCards) {
             let rects = null;
-            return () => rects || (rects = last.cards.map(card => model.cardRect(tempCards?.get(card.id) || card)));
+            return () => rects || (rects = last.cards.map(card => { const r = model.cardRect(tempCards?.get(card.id) || card); return card.guests.length ? { ...r, h: r.h + 14 } : r; }));
         }
         // applyLine draws a connection from seg: the spline of the scene (model.edgeCurve) or, in Topology, a path from
         // lanes.topologyPaths (a curve between lanes, an arc above a row). The label sits at the path's own midpoint
@@ -672,7 +744,7 @@
             const auto = view === 'topology' ? topologyAuto() : null;
             last = model.buildScene({ nodes: store.state.nodes, edges: store.state.edges, view,
                 placementOf: id => store.effectivePlacement(id, view) || auto?.get(id) || null, parentOf: id => store.effectiveParent(id, view), guests: store.guests() });
-            paintLaneLayer(view); patchRegions(last.regions, force); patchCards(last.cards, force); patchLines(last.lines, force);
+            paintLaneLayer(view); patchRegions(last.regions, force); patchCards(last.cards, force); paintNameClash(); patchLines(last.lines, force);
             if (mapDirty) { mapDirty = false; revision += 1; }
             paintOverlays(paintStates()); ensureInitialView();
             viewport.classList.toggle('is-readonly', !store.canWrite());
@@ -751,9 +823,20 @@
             const canConnect = store.canWrite();
             toolsEl.querySelector('button[data-tool="connect"]').disabled = !canConnect;
             if (tool === 'connect' && !canConnect) { store.setTool('select'); tool = store.state.tool; }
+            const switchedToConnect = tool === 'connect' && viewport.dataset.tool !== 'connect';
             viewport.dataset.tool = tool;
             for (const button of toolButtons) button.setAttribute('aria-pressed', button.dataset.tool === tool ? 'true' : 'false');
+            paintMode();
+            if (switchedToConnect) app.announce(t('desktop.infra_mode_connect'));
         }
+        // paintMode (2.10): the banner names the active mode, the keyboard move or the Connect tool. It is aria-hidden: the move
+        // modes are announced already, and the Connect text is announced once when the tool switches.
+        function paintMode() {
+            const text = modeKind === 'move' ? t('desktop.infra_mode_move') : store.state.tool === 'connect' && store.canWrite() ? t('desktop.infra_mode_connect') : '';
+            bannerEl.hidden = !text;
+            if (bannerEl.textContent !== text) bannerEl.textContent = text;
+        }
+        function setMode(kind) { modeKind = kind || ''; paintMode(); }
         const onClick = event => {
             const button = event.target.closest('button');
             if (!button || button.disabled || !button.closest('[data-tools], [data-minimap]')) return;
@@ -767,6 +850,7 @@
                     const on = !minimapOn();
                     setMinimapVisible(on);
                     app.setPref?.('minimap', on);
+                    if (on && model.sceneFits(last.bounds, getView(), size())) app.toast(t('desktop.infra_minimap_fits'), 'info');
                     break;
                 }
                 default: break;
@@ -847,6 +931,11 @@
             if (!from) { edgePreview.setAttribute('d', ''); return; }
             edgePreview.setAttribute('d', model.edgeCurve(from, point, from.half, { w: 0, h: 0 }).d);
         }
+        // showDropSlot outlines where a library drag would land (world centre of the card), or hides the outline (2.3).
+        function showDropSlot(pos) {
+            slotEl.hidden = !pos;
+            if (pos) { slotEl.style.left = px(pos.x); slotEl.style.top = px(pos.y); }
+        }
         function showMarquee(rect) {
             marquee.hidden = !rect;
             if (!rect) return;
@@ -873,7 +962,8 @@
                 el: ghost,
                 move(clientX, clientY, { scale = 1, label = '', invalid = false } = {}) {
                     const rect = app.root.getBoundingClientRect();
-                    ghost.style.transform = `translate(${clientX - rect.left + 8}px, ${clientY - rect.top + 8}px) scale(${scale})`;
+                    ghost.style.transform = `translate(${clientX - rect.left}px, ${clientY - rect.top}px) translate(-50%, -50%) scale(${scale})`;
+                    ghost.style.setProperty('--infra-ghost-k', String(scale));
                     ghost.dataset.dropLabel = label;
                     ghost.classList.toggle('is-invalid', !!invalid);
                 },
@@ -920,10 +1010,10 @@
 
         return {
             el, viewport, render, renderNow, sceneData: () => last,
-            getView, setView, fit, zoomBy, zoomTo, centerOn, ensureVisible, clientToWorld, size,
+            getView, setView, fit, zoomBy, zoomTo, zoomStep, centerOn, ensureVisible, reveal, clientToWorld, size,
             cardEl, regionEl, moveTemp, clearTemp,
-            setDropTarget, setConnectTarget, showEdgePreview, showMarquee, createGhost,
-            setRovingCard, setLaneTarget, isAutoPlaced, autoPositions, applyTool, dispose,
+            setDropTarget, setConnectTarget, showEdgePreview, showMarquee, showDropSlot, createGhost,
+            setRovingCard, setLaneTarget, setMode, isAutoPlaced, autoPositions, applyTool, dispose,
         };
     }
 

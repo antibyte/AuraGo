@@ -8,7 +8,7 @@
 (function () {
     'use strict';
 
-    const THRESHOLD = 4, LIBRARY_THRESHOLD = 5, PAN_THRESHOLD = 3;
+    const THRESHOLD = 4, LIBRARY_THRESHOLD = 5, PAN_THRESHOLD = 3, EDGE_BAND = 36, EDGE_SPEED = 18;
     const ARROWS = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
     // frame coalesces many requests into one requestAnimationFrame callback.
     const frame = fn => {
@@ -77,6 +77,31 @@
             const cap = capturePointer(viewport, event, onMove, (ev, cancelled) => { gesture = null; onEnd(ev, cancelled); });
             gesture = cap;
             return cap;
+        }
+        // edgePan (2.5): while the pointer is inside the 36 px band at a viewport edge, pan towards it every frame (faster the nearer
+        // the edge), then run step(). It arms once the pointer has been well inside (the press point counts), so a drag that
+        // enters from the library does not pan while crossing the band.
+        function edgePan(step, origin = null) {
+            let point = null, id = 0;
+            const gaps = p => { const r = viewport.getBoundingClientRect(); return [p.x - r.left, r.right - p.x, p.y - r.top, r.bottom - p.y]; };
+            let armed = !!origin && gaps({ x: origin.clientX, y: origin.clientY }).every(v => v >= EDGE_BAND);
+            const speed = d => (d >= 0 && d < EDGE_BAND ? Math.ceil(EDGE_SPEED * (1 - d / EDGE_BAND)) : 0);
+            const tick = () => {
+                id = 0;
+                if (!point) return;
+                const d = gaps(point);
+                if (!armed) { armed = d.every(v => v >= EDGE_BAND); return; }
+                const dx = speed(d[0]) - speed(d[1]), dy = speed(d[2]) - speed(d[3]);
+                if (!dx && !dy) return;
+                const v = canvas.getView();
+                canvas.setView({ x: v.x + dx, y: v.y + dy, zoom: v.zoom });
+                step();
+                id = requestAnimationFrame(tick);
+            };
+            return {
+                update(ev) { point = { x: ev.clientX, y: ev.clientY }; if (!id) id = requestAnimationFrame(tick); },
+                stop() { point = null; if (id) cancelAnimationFrame(id); id = 0; },
+            };
         }
         // A captured pointer retargets the click that follows to the capturing element (the
         // viewport), so clicks and double clicks look for the item under the pointer instead.
@@ -232,23 +257,27 @@
         function startMarquee(event) {
             const rect = viewport.getBoundingClientRect(), base = isMod(event) ? new Set(state.selection) : new Set();
             const sx = event.clientX, sy = event.clientY;
-            let started = false, lastKey = null;
+            // The start is kept in world space, so an edge pan (2.5) moves the corner with the map.
+            const startWorld = model.toWorld(canvas.getView(), { x: sx - rect.left, y: sy - rect.top });
+            let started = false, lastKey = null, lastEv = null;
             const update = ev => {
-                const a = { x: sx - rect.left, y: sy - rect.top }, b = { x: ev.clientX - rect.left, y: ev.clientY - rect.top };
+                const view = canvas.getView(), a = model.toScreen(view, startWorld), b = { x: ev.clientX - rect.left, y: ev.clientY - rect.top };
                 canvas.showMarquee(model.normalizeRect(a, b));
-                const view = canvas.getView();
-                const box = model.normalizeRect(model.toWorld(view, a), model.toWorld(view, b));
+                const box = model.normalizeRect(startWorld, model.toWorld(view, b));
                 const hits = canvas.sceneData().cards.filter(card => model.intersects(model.cardRect(card), box)).map(card => card.id);
                 const next = [...base, ...hits.filter(id => !base.has(id))], key = next.join('\x1f');
                 if (key === lastKey) return;
                 lastKey = key;
                 store.select(next);
             };
+            const pan = edgePan(() => { if (lastEv) update(lastEv); }, event);
             begin(event, ev => {
                 if (!started && Math.hypot(ev.clientX - sx, ev.clientY - sy) < THRESHOLD) return;
                 started = true;
+                lastEv = ev; pan.update(ev);
                 update(ev);
             }, (ev, cancelled) => {
+                pan.stop();
                 canvas.showMarquee(null);
                 if (!started) return;
                 if (cancelled) store.select([...base]);
@@ -257,11 +286,12 @@
         }
         function startCardDrag(event, id) {
             const view = app.mapView(), scene = canvas.sceneData(), zoom = canvas.getView().zoom, sx = event.clientX, sy = event.clientY;
-            let started = false, ids = [], positions = new Map();
-            const origin = new Map();
+            let started = false, ids = [], positions = new Map(), lastEv = null;
+            const origin = new Map(), v0 = canvas.getView();
+            // The pointer delta minus the view's own shift (an edge pan, 2.5) is the move in world space.
             const compute = ev => {
-                const o = origin.get(id);
-                const dx = model.snap(o.x + (ev.clientX - sx) / zoom) - o.x, dy = model.snap(o.y + (ev.clientY - sy) / zoom) - o.y;
+                const o = origin.get(id), v = canvas.getView();
+                const dx = model.snap(o.x + (ev.clientX - sx - (v.x - v0.x)) / zoom) - o.x, dy = model.snap(o.y + (ev.clientY - sy - (v.y - v0.y)) / zoom) - o.y;
                 positions = new Map(ids.map(cid => [cid, { x: origin.get(cid).x + dx, y: origin.get(cid).y + dy }]));
             };
             const paint = frame(() => {
@@ -270,6 +300,7 @@
                 canvas.setDropTarget(view === 'atlas' ? model.regionAt(positions.get(id), scene.regionRects, scene.regionDepth) : '');
                 if (view === 'topology') canvas.setLaneTarget(lanes.laneAt(positions.get(id).y));
             });
+            const pan = edgePan(() => { if (lastEv && started) { compute(lastEv); paint.request(); } }, event);
             begin(event, ev => {
                 if (!started) {
                     if (Math.hypot(ev.clientX - sx, ev.clientY - sy) < THRESHOLD) return;
@@ -281,9 +312,11 @@
                     root.classList.add('is-dragging');
                     started = true;
                 }
+                lastEv = ev; pan.update(ev);
                 compute(ev);
                 paint.request();
             }, (ev, cancelled) => {
+                pan.stop();
                 paint.cancel();
                 if (!started) return;
                 if (!cancelled) {
@@ -374,13 +407,20 @@
                 const id = hit && viewport.contains(hit) ? hit.dataset.node : '';
                 return id && id !== fromId ? id : '';
             };
-            begin(event, ev => {
-                if (!started && Math.hypot(ev.clientX - sx, ev.clientY - sy) < THRESHOLD) return;
-                started = true;
+            let lastEv = null;
+            const show = ev => {
                 const targetId = targetAt(ev), card = targetId ? canvas.sceneData().cardById.get(targetId) : null;
                 canvas.setConnectTarget(targetId);
                 canvas.showEdgePreview(fromId, card ? { x: card.x, y: card.y } : canvas.clientToWorld(ev.clientX, ev.clientY));
+            };
+            const pan = edgePan(() => { if (lastEv) show(lastEv); }, event);
+            begin(event, ev => {
+                if (!started && Math.hypot(ev.clientX - sx, ev.clientY - sy) < THRESHOLD) return;
+                started = true;
+                lastEv = ev; pan.update(ev);
+                show(ev);
             }, (ev, cancelled) => {
+                pan.stop();
                 const targetId = started && !cancelled ? targetAt(ev) : '';
                 canvas.setConnectTarget('');
                 canvas.showEdgePreview(fromId, null);
@@ -495,7 +535,7 @@
             if (!el) return;
             canvas.setRovingCard(next);
             el.focus({ preventScroll: true });
-            canvas.ensureVisible(next);
+            canvas.reveal?.(next);
             app.announce(el.getAttribute('aria-label') || nameOf(next));
         }
         function onKeyDown(event) {
@@ -512,7 +552,10 @@
             if (mod || event.altKey) return;
             if (ARROWS[key]) { event.preventDefault(); moveFocus(ARROWS[key]); return; }
             if (key === 'Escape') {
-                if (gesture) { gesture.abort(); event.preventDefault(); } else store.clearSelection();
+                // 2.11: with no gesture running Escape first hands a Connect or Hand tool back to Select, then clears the selection.
+                if (gesture) { gesture.abort(); event.preventDefault(); }
+                else if (state.tool !== 'select') { event.preventDefault(); store.setTool('select'); }
+                else store.clearSelection();
                 return;
             }
             if (key === ' ' && onItem) { event.preventDefault(); if (!event.repeat) { spaceDown = true; spaceUsed = false; } return; }
@@ -531,6 +574,8 @@
                 }
                 case 'Delete': case 'Backspace': {
                     if (!store.canWrite()) break;
+                    // A selected connection (the selection is empty then) goes before a merely focused card.
+                    if (!state.selection.size && state.selectedEdge) { event.preventDefault(); void app.dialogs.removeEdge(state.selectedEdge); break; }
                     const ids = state.selection.size ? [...state.selection] : focusedItem() ? [focusedItem().id] : [];
                     if (!ids.length) break;
                     event.preventDefault();
@@ -538,8 +583,8 @@
                     break;
                 }
                 case 'f': case 'F': canvas.fit({ animate: true }); break;
-                case '+': case '=': canvas.zoomBy(1.2); break;
-                case '-': canvas.zoomBy(1 / 1.2); break;
+                case '+': case '=': canvas.zoomStep?.(1); break;
+                case '-': canvas.zoomStep?.(-1); break;
                 case '0': canvas.zoomTo(1); break;
                 case 'v': case 'V': store.setTool('select'); break;
                 case 'h': case 'H': store.setTool('hand'); break;
@@ -569,7 +614,8 @@
                 return;
             }
             const item = target.closest?.('[data-node]') || target.closest?.('[data-region-header]');
-            if (item) canvas.setRovingCard(item.dataset.node || item.dataset.regionHeader);
+            // 2.2: keyboard focus (Tab) on an item outside the uncovered view reveals it; a pointer click never pans.
+            if (item) { const id = item.dataset.node || item.dataset.regionHeader; canvas.setRovingCard(id); if (target.matches?.(':focus-visible')) canvas.reveal?.(id); }
         }
         function onFocusOut(event) {
             if (viewport.contains(event.relatedTarget)) return;
@@ -621,6 +667,7 @@
                 focusTarget = canvas.regionEl(ids[0])?.querySelector('[data-region-header]');
             } else return false;
             store.beginInteraction();
+            canvas.setMode?.('move');
             app.announce(t(moveMode.kind === 'region' ? 'desktop.infra_move_mode_place' : 'desktop.infra_move_mode'));
             if (focusTarget && document.activeElement !== focusTarget) focusTarget.focus({ preventScroll: true });
             return true;
@@ -645,6 +692,7 @@
                 canvas.renderNow();
             }
             canvas.clearTemp(); canvas.setDropTarget(''); canvas.setLaneTarget(-1);
+            canvas.setMode?.('');
             store.endInteraction();
         }
         // cancelMoveMode puts everything back and says so. Only Enter keeps a keyboard move.
@@ -702,7 +750,7 @@
                 // A place row of the library takes the drop before the map does.
                 const row = mode !== 'discovery' ? hit?.closest?.('.infra-library-row') : null;
                 const dropId = row && row.hasAttribute('data-library-drop') && app.library.el.contains(row) ? row.dataset.libraryDrop : '';
-                return { over, onLibrary: !!hit && target.contains(hit), world, placeTarget: dropId && !ids.includes(dropId) ? dropId : '', region: over && view === 'atlas' ? model.regionAt(world, scene.regionRects, scene.regionDepth) : '' };
+                return { over, world, placeTarget: dropId && !ids.includes(dropId) ? dropId : '', region: over && view === 'atlas' ? model.regionAt(world, scene.regionRects, scene.regionDepth) : '' };
             };
             const paint = frame(() => {
                 if (!ghost || !last) return;
@@ -711,10 +759,14 @@
                 canvas.setDropTarget(info.placeTarget || guestsOnly ? '' : info.region);
                 const label = info.placeTarget ? model.fill(t('desktop.infra_drop_into'), { name: nameOf(info.placeTarget) })
                     : onMap ? (guestsOnly ? t('desktop.infra_drop_guest') : info.region ? model.fill(t('desktop.infra_drop_into'), { name: nameOf(info.region) }) : t('desktop.infra_drop_on_map')) : '';
-                const invalid = !info.placeTarget && !info.over && !info.onLibrary;
-                ghost.move(last.clientX, last.clientY, { scale: onMap ? canvas.getView().zoom : 1, label, invalid });
+                // 2.4: only the map and a place row take a drop; the rest of the library does not.
+                const invalid = !info.placeTarget && !info.over;
+                // 2.3: the ghost is drawn at the map's zoom (0.5 to 1.25) and a dashed outline shows where the card lands.
+                ghost.move(last.clientX, last.clientY, { scale: onMap ? Math.min(1.25, Math.max(0.75, canvas.getView().zoom)) : 1, label, invalid });
+                canvas.showDropSlot?.(onMap && !guestsOnly ? slotsAt(ids.length, info.world, mode === 'move' ? new Set(ids) : null)[0] : null);
                 root.classList.toggle('is-drag-invalid', invalid);
             });
+            const pan = edgePan(() => paint.request());
             const cap = capturePointer(target, event, ev => {
                 if (!started) {
                     const dx = ev.clientX - sx, dy = ev.clientY - sy;
@@ -726,17 +778,20 @@
                     root.classList.add('is-dragging');
                 }
                 last = ev;
+                pan.update(ev);
                 paint.request();
             }, (ev, cancelled) => {
                 gesture = null;
+                pan.stop();
                 paint.cancel();
                 if (!started) return;
                 const info = !cancelled ? probe(ev) : null;
                 ghost?.remove();
-                canvas.setDropTarget(''); app.library?.setDropTarget('');
+                canvas.setDropTarget(''); app.library?.setDropTarget(''); canvas.showDropSlot?.(null);
                 root.classList.remove('is-dragging', 'is-drag-invalid');
                 if (info?.placeTarget) void finishLibraryDrop(ids, { mode, placeTarget: info.placeTarget });
                 else if (info?.over) void finishLibraryDrop(ids, { mode, world: info.world, region: info.region });
+                else app.announce(t('desktop.infra_drop_cancelled'));
                 store.endInteraction();
                 onDragged();
             });
@@ -748,18 +803,19 @@
             if (mode === 'discovery') return world && app.importer ? app.importer.dropOnCanvas(ids, world, view === 'atlas' ? region : '') : Promise.resolve(false);
             if (placeTarget) return moveIntoPlace(ids, placeTarget);
             if (!world) return Promise.resolve(false);
-            const points = ids.length === 1 ? [world] : model.compactGrid(ids.length, world);
+            const points = slotsAt(ids.length, world, new Set(ids));
             commitPlan(view, planDrop(view, new Map(ids.map((id, index) => [id, points[index]])), { nudge: true }), mode === 'move' ? 'move' : 'place');
             store.select(ids);
             canvas.renderNow();
             return Promise.resolve(true);
         }
-        // positionsAt returns free card centres around a world point.
-        function positionsAt(count, world) {
-            const obstacles = canvas.sceneData().cards.map(model.cardRect);
-            const points = count === 1 ? [world] : model.compactGrid(count, world);
-            return points.map(point => { const pos = model.freeSlot(point, obstacles); obstacles.push(model.cardRect(pos)); return { x: Math.round(pos.x), y: Math.round(pos.y) }; });
+        // slotsAt: where count cards dropped at a world point land: snapped to the grid, spread by compactGrid and nudged into free
+        // slots (cards in moving do not block). The drop outline and the landing (2.3) and the import drop share it.
+        function slotsAt(count, world, moving = null) {
+            const obstacles = canvas.sceneData().cards.filter(card => !moving?.has(card.id)).map(model.cardRect), at = { x: model.snap(world.x), y: model.snap(world.y) };
+            return (count === 1 ? [at] : model.compactGrid(count, at)).map(point => { const pos = model.freeSlot(point, obstacles); obstacles.push(model.cardRect(pos)); return { x: Math.round(pos.x), y: Math.round(pos.y) }; });
         }
+        const positionsAt = (count, world) => slotsAt(count, world);
         // moveIntoPlace puts assets into a place ('' = out of every place): placed assets with a drawn
         // target move inside it in one layout save, the rest only change parent_id (node update).
         function moveIntoPlace(ids, placeId) {
@@ -827,13 +883,19 @@
         }
         // The Map arranges through infra-arrange.js: a selection of several drawn cards that share one parent lays just those
         // cards out, anything else lays the whole map out by connections.
+        const drawnPicks = () => { const scene = canvas.sceneData(); return [...state.selection].filter(id => scene.cardById.has(id)); };
+        // arrangeScope (2.15): what Arrange acts on: 'topology' (hand back to auto), 'selection' (several drawn cards of one parent) or 'map'.
+        function arrangeScope() {
+            const view = app.mapView();
+            if (view === 'topology') return 'topology';
+            const picked = drawnPicks();
+            return picked.length > 1 && new Set(picked.map(id => store.effectiveParent(id, view))).size === 1 ? 'selection' : 'map';
+        }
         function arrange() {
             if (!store.canWrite()) return;
-            const view = app.mapView(), scene = canvas.sceneData();
-            if (view === 'topology') { void arrangeTopology(); return; }
-            const picked = [...state.selection].filter(id => scene.cardById.has(id));
-            const together = picked.length > 1 && new Set(picked.map(id => store.effectiveParent(id, view))).size === 1;
-            void app.arrange.arrange('connections', together ? { ids: picked } : {});
+            const scope = arrangeScope();
+            if (scope === 'topology') { void arrangeTopology(); return; }
+            void app.arrange.arrange('connections', scope === 'selection' ? { ids: drawnPicks() } : {});
         }
         // Arrange in Topology (A22) hands the selected cards, or every card when nothing is selected, back to the
         // automatic layout: one undoable PUT /layout of unplace operations, and undo restores the previous placements
@@ -864,8 +926,7 @@
             }
             if (mod && !event.altKey && (key === 'z' || key === 'y') && !isTyping(event.target)) {
                 event.preventDefault();
-                const view = app.mapView(), redo = key === 'y' || event.shiftKey;
-                void (redo ? store.redo(view) : store.undo(view)).then(ok => { if (ok) app.announce(redo ? t('desktop.infra_redone') : t('desktop.infra_undone')); });
+                void app.stepHistory(key === 'y' || event.shiftKey ? 'redo' : 'undo');
                 return;
             }
             if (event.key === 'Escape' && event.target.closest?.('[data-inspector]') && !isTyping(event.target)) { event.preventDefault(); app.inspector?.close(); return; }
@@ -911,7 +972,9 @@
             attached = false;
         }
 
-        return { attach, cancel, startLibraryDrag, finishLibraryDrop, moveIntoPlace, removeFromMap, positionsAt, placeAtCenter, enterMoveMode, arrange, canArrangeTopology, onRootKeydown, dispose };
+        // active: a pointer gesture, a keyboard move or a pinch is running (the selection must not pan the map then, 2.1).
+        const active = () => !!(gesture || moveMode || pinch);
+        return { attach, cancel, active, startLibraryDrag, finishLibraryDrop, moveIntoPlace, removeFromMap, positionsAt, placeAtCenter, enterMoveMode, arrange, arrangeScope, canArrangeTopology, onRootKeydown, dispose };
     }
 
     window.InfraAppGestures = { create };

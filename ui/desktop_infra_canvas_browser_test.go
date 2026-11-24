@@ -38,6 +38,7 @@ func TestDesktopInfraCanvasGesturesBrowser(t *testing.T) {
 		infraCanvasFixtureNode("dev-a", "device", "Edge router", "router", map[string]any{"x": 160, "y": 200, "pinned": true}, ""),
 		infraCanvasFixtureNode("dev-b", "device", "Core switch", "managed-switch", map[string]any{"x": 160, "y": 420, "pinned": true}, ""),
 		infraCanvasFixtureNode("dev-unplaced", "device", "Cold NAS", "nas", nil, ""),
+		infraCanvasFixtureNode("dev-later", "device", "Spare switch", "switch", nil, ""),
 	}
 	page := infraBrowserPageWithFixture(t, fixture)
 	defer page.Close()
@@ -144,6 +145,29 @@ func TestDesktopInfraCanvasGesturesBrowser(t *testing.T) {
 		t.Fatalf("redo did not replay the move: %#v", calls[0])
 	}
 
+	// 2.5: a card dragged into the 36 px band at the stage edge pans the map towards it; Escape cancels the move.
+	page.MustEval(`()=>document.querySelector('[data-node="dev-a"]').click()`)
+	page.MustWait(`()=>document.querySelector('.infra-app').dataset.inspectorOpen==='true'`)
+	edgeX, edgeY := center(`[data-node="dev-a"]`)
+	sceneShift := func() float64 {
+		return page.MustEval(`()=>new DOMMatrix(getComputedStyle(document.querySelector('[data-scene]')).transform).e`).Num()
+	}
+	shiftBefore := sceneShift()
+	stageRight := page.MustEval(`()=>document.querySelector('[data-stage]').getBoundingClientRect().right`).Num()
+	page.Mouse.MustMoveTo(edgeX, edgeY).MustDown(proto.InputMouseButtonLeft)
+	page.Mouse.MustMoveTo((edgeX+stageRight)/2, edgeY)
+	page.Mouse.MustMoveTo(stageRight-8, edgeY)
+	time.Sleep(300 * time.Millisecond)
+	if after := sceneShift(); after >= shiftBefore-20 {
+		t.Fatalf("a card held in the right edge band must pan the map left: scene x %.1f -> %.1f", shiftBefore, after)
+	}
+	page.Keyboard.MustType(input.Escape)
+	page.Mouse.MustUp(proto.InputMouseButtonLeft)
+	page.MustEval(`()=>document.querySelector('[data-action="close-inspector"]')?.click()`)
+	page.MustWait(`()=>document.querySelector('.infra-app').dataset.inspectorOpen==='false'`)
+	page.MustEval(`()=>document.querySelector('[data-action="fit"]').click()`)
+	settleScene()
+
 	// Dragging a connection handle onto another card offers the connection popover.
 	ax, ay := center(`[data-node="dev-a"]`)
 	page.Mouse.MustMoveTo(ax, ay)
@@ -187,11 +211,20 @@ func TestDesktopInfraCanvasGesturesBrowser(t *testing.T) {
 	// Keyboard move mode: M, two steps right, Enter saves one move.
 	page.MustEval(`()=>{const card=document.querySelector('[data-node="dev-b"]');card.click();card.focus();}`)
 	start = len(layoutCalls())
-	page.Keyboard.MustType(input.KeyM, input.ArrowRight, input.ArrowRight, input.Enter)
+	// 2.10: the mode banner shows while the move mode runs, takes no pointer events and goes with Enter.
+	page.Keyboard.MustType(input.KeyM)
+	page.MustWait(`()=>{const b=document.querySelector('[data-mode-banner]');return !b.hidden&&b.textContent.trim()!==''&&getComputedStyle(b).pointerEvents==='none';}`)
+	page.Keyboard.MustType(input.ArrowRight, input.ArrowRight, input.Enter)
 	calls = waitLayoutCalls(start + 1)[start:]
 	if item := itemFor(calls[0], "dev-b"); len(calls) != 1 || item == nil || item["x"] != float64(208) || item["y"] != float64(420) {
 		t.Fatalf("keyboard move mode saved %s", fmt.Sprint(calls))
 	}
+	page.MustWait(`()=>document.querySelector('[data-mode-banner]').hidden`)
+	// 2.12: the Connect tool shows a crosshair over cards (and the banner names the tool); Select restores the default.
+	page.MustEval(`()=>document.querySelector('[data-tool="connect"]').click()`)
+	page.MustWait(`()=>getComputedStyle(document.querySelector('[data-node="dev-a"]')).cursor==='crosshair'&&!document.querySelector('[data-mode-banner]').hidden`)
+	page.MustEval(`()=>document.querySelector('[data-tool="select"]').click()`)
+	page.MustWait(`()=>getComputedStyle(document.querySelector('[data-node="dev-a"]')).cursor==='default'&&document.querySelector('[data-mode-banner]').hidden`)
 
 	// Only Enter keeps a keyboard move: Tab away restores the position and sends nothing.
 	cardCorner := func(selector string) (float64, float64) {
@@ -306,6 +339,13 @@ func TestDesktopInfraCanvasGesturesBrowser(t *testing.T) {
 	page.MustWait(`()=>document.querySelector('[data-inspector] h2')?.textContent==='Edge router'`)
 	if !page.MustEval(`()=>document.querySelector('[role="tab"][aria-selected="true"]').dataset.inspectorTab==='sources'`).Bool() {
 		t.Fatal("the selected tab is remembered per asset kind")
+	}
+
+	// 2.13: the plus button of a To place row places and selects only; it starts no hidden move mode.
+	page.MustEval(`()=>document.querySelector('[data-place="dev-later"]').click()`)
+	page.MustWait(`()=>!!document.querySelector('[data-node="dev-later"]')`)
+	if !page.MustEval(`()=>document.querySelector('[data-mode-banner]').hidden&&!document.querySelector('.infra-app').classList.contains('is-dragging')&&document.querySelector('[data-node="dev-later"]').getAttribute('aria-pressed')==='true'`).Bool() {
+		t.Fatal("placing with the plus button must select the asset and start no move mode (2.13)")
 	}
 
 	closeInfraBrowserWindow(t, page)

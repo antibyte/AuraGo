@@ -22,9 +22,9 @@
     // The ids are the model's icon catalog. Cameras, printers, TVs, phones, tablets, laptops, workstations, sensors
     // and the smart-home radios are not listed on purpose: they are the clients.
     const LANE_ICONS = {
-        internet: ['internet', 'modem-ont'],
+        internet: ['internet', 'modem-ont', 'cloud-service'],
         network: ['router', 'firewall', 'vpn', 'managed-switch', 'switch', 'patch-panel', 'access-point', 'mesh-node', 'lan', 'vlan', 'wlan'],
-        compute: ['rack-server', 'tower-server', 'mini-pc', 'sbc', 'nas', 'hypervisor', 'kubernetes', 'disk-shelf', 'storage-share', 'backup', 'database', 'nvr', 'ups', 'pdu'],
+        compute: ['rack-server', 'tower-server', 'mini-pc', 'nas', 'hypervisor', 'kubernetes', 'disk-shelf', 'storage-share', 'backup', 'database', 'nvr', 'ups', 'pdu'],
     };
     const LANE_ICON_INDEX = new Map(Object.entries(LANE_ICONS).flatMap(([lane, icons]) => icons.map((icon, rank) => [icon, { lane, rank }])));
     const LANE_ROLE_WORDS = [

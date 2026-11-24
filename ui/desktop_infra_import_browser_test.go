@@ -74,6 +74,14 @@ func TestDesktopInfraImportSheetBrowser(t *testing.T) {
 	if want := `{"counts":["2","1","1"],"folded":true,"selected":true,"checked":["docker-web","reg-printer"],"reason":true,"bound":"dup-a","modal":false}`; got != want {
 		t.Fatalf("import sheet state %s; want %s", got, want)
 	}
+	// A row is one compact line: folded at 64 px at most, with its details behind a disclosure; a possible duplicate starts open.
+	if !page.MustEval(`()=>{const r=document.querySelector('[data-candidate-row="reg-printer"]'),d=document.querySelector('[data-candidate-row="fritz-nas"]');return r.getBoundingClientRect().height<=64&&r.querySelector('[data-candidate-detail]').hidden&&r.querySelector('[data-candidate-toggle]').getAttribute('aria-expanded')==='false'&&!d.querySelector('[data-candidate-detail]').hidden}`).Bool() {
+		t.Fatal("discovery rows must be folded and compact, except the possible duplicate")
+	}
+	// One checkbox look: a 24 px hit area and the same 18 px box in a row and in the group head.
+	if !page.MustEval(`()=>{const c=document.querySelector('[data-candidate="reg-printer"]'),g=document.querySelector('[data-import-check-group="recommended"]'),r=c.getBoundingClientRect();return r.width>=24&&r.height>=24&&getComputedStyle(c,'::before').width===getComputedStyle(g,'::before').width}`).Bool() {
+		t.Fatal("the import checkboxes must share one look and a 24 px hit area")
+	}
 
 	// The search filter narrows the rows; Escape closes the sheet and returns focus to the trigger.
 	page.MustEval(`()=>{const search=document.querySelector('[data-import-search]');search.value='printer';search.dispatchEvent(new Event('input',{bubbles:true}));}`)
@@ -140,6 +148,10 @@ func TestDesktopInfraImportSheetBrowser(t *testing.T) {
 	page.Mouse.MustMoveTo((rowX+dropX)/2, (rowY+dropY)/2)
 	page.Mouse.MustMoveTo(dropX, dropY)
 	page.MustWait(`()=>document.querySelector('.infra-drag-ghost')?.dataset.dropLabel===w('desktop.infra_drop_into',{name:'Living room'})`)
+	// 2.3: the ghost is centred on the pointer and the dashed drop slot shows where the asset lands.
+	if got := page.MustEval(`(x,y)=>{const r=document.querySelector('.infra-drag-ghost').getBoundingClientRect();return Math.abs(r.left+r.width/2-x)<=1&&Math.abs(r.top+r.height/2-y)<=1&&!document.querySelector('[data-drop-slot]').hidden;}`, dropX, dropY).Bool(); !got {
+		t.Fatal("the drag ghost must be centred on the pointer and the drop slot must be visible (2.3)")
+	}
 	page.Mouse.MustUp(proto.InputMouseButtonLeft)
 	calls := waitBatches(1)
 	items, _ := calls[0]["items"].([]map[string]any)
@@ -151,6 +163,16 @@ func TestDesktopInfraImportSheetBrowser(t *testing.T) {
 	if page.MustEval(`()=>document.querySelector('[data-import-sheet]').hidden`).Bool() {
 		t.Fatal("the sheet must stay open after a drop so more discoveries can follow")
 	}
+
+	// 2.4: a drop on the sheet itself is invalid (not-allowed ghost) and a release there is announced as cancelled.
+	rowX, rowY = centreOf(`[data-candidate-row="docker-web"] .infra-candidate-copy strong`)
+	sheetPoint := page.MustEval(`()=>{const r=document.querySelector('[data-import-sheet]').getBoundingClientRect();return [r.left+r.width/2,r.top+r.height*0.9];}`).Arr()
+	page.Mouse.MustMoveTo(rowX, rowY).MustDown(proto.InputMouseButtonLeft)
+	page.Mouse.MustMoveTo(rowX+10, rowY+30)
+	page.Mouse.MustMoveTo(sheetPoint[0].Num(), sheetPoint[1].Num())
+	page.MustWait(`()=>!!document.querySelector('.infra-drag-ghost.is-invalid')`)
+	page.Mouse.MustUp(proto.InputMouseButtonLeft)
+	page.MustWait(`()=>document.querySelector('[data-announce]')?.textContent===w('desktop.infra_drop_cancelled')`)
 
 	// A guest is imported without a placement; while it is dragged the drop label names its host.
 	rowX, rowY = centreOf(`[data-candidate-row="docker-web"] .infra-candidate-copy strong`)
@@ -238,6 +260,7 @@ func TestDesktopInfraImportSourceChipsBrowser(t *testing.T) {
 		src("registry", "inventory", "reg-printer", "Studio printer"), src("registry", "inventory", "reg-tv", "Living room TV"), src("registry", "inventory", "reg-nas", "NAS"),
 		src("docker", "engine-a", "web-1", "web-front"), src("docker", "engine-a", "web-2", "web-back"), stale,
 	}
+	fixture.failCandLoads = 1
 	page := infraBrowserPageWithFixture(t, fixture)
 	defer page.Close()
 	page.MustSetViewport(1920, 1200, 1, false)
@@ -247,6 +270,9 @@ func TestDesktopInfraImportSourceChipsBrowser(t *testing.T) {
 	page.MustWait(`()=>document.querySelector('.infra-app').clientWidth>1000`)
 	page.MustEval(`()=>document.querySelector('[data-action="add-menu"]').click()`)
 	page.MustEval(`()=>document.querySelector('[data-menu="add"] [data-action="import"]').click()`)
+	// A failed load shows an error with a retry, not "no discoveries"; the retry loads them.
+	page.MustWait(`()=>!document.querySelector('[data-import-error]').hidden&&document.querySelector('[data-import-empty]').hidden`)
+	page.MustEval(`()=>document.querySelector('[data-action="retry-import"]').click()`)
 	page.MustWait(`()=>document.querySelectorAll('[data-candidate-row]').length===2&&document.querySelectorAll('.infra-source-chip').length===3`)
 	got := page.MustEval(`()=>JSON.stringify({
 		chips:[...document.querySelectorAll('.infra-source-chip')].map(chip=>chip.textContent+':'+chip.dataset.state),

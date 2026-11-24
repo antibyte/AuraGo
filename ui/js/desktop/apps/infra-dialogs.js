@@ -42,8 +42,16 @@
             q('[data-dialog-content]').innerHTML = `<h2 id="infra-dialog-title-${esc(S)}">${esc(title)}</h2>${content}`;
             if (!dialog.open) { dialogOpener = app.focusReturnTarget(document.activeElement); dialog.showModal(); }
             dialog.querySelector('.infra-dialog-close')?.addEventListener('click', event => { event.preventDefault(); dialog.close(); }, { once: true });
-            dialog.onclick = event => { if (event.target === dialog) dialog.close(); };
+            // A click beside the dialog closes it only while nothing was typed or chosen; Escape and Cancel always close.
+            delete dialog.dataset.touched;
+            dialog.oninput = () => { dialog.dataset.touched = 'true'; };
+            dialog.onclick = event => {
+                if (event.target !== dialog || dialog.dataset.touched === 'true') return;
+                const rect = dialog.getBoundingClientRect();
+                if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close();
+            };
             onRender?.(dialog);
+            onCaps();
             return dialog;
         }
         async function confirmAction(title, message, { withOwner = false, confirmLabel } = {}) {
@@ -69,12 +77,22 @@
         // ---- new asset or place ---------------------------------------------------------------
         function openNodeDialog(kind = 'device', { title } = {}) {
             if (!canWrite()) return;
-            openDialog(title || t('desktop.infra_new_node'), `<form data-new-node><label class="infra-field"><span>${esc(t('desktop.infra_name'))}</span><input name="name" maxlength="120" required autofocus></label><div class="infra-field-row"><label class="infra-field"><span>${esc(t('desktop.infra_type'))}</span><select name="kind" data-kind-select>${KINDS.map(value => `<option value="${value}" ${value === kind ? 'selected' : ''}>${esc(app.labelForKind(value))}</option>`).join('')}</select></label><label class="infra-field"><span>${esc(t('desktop.infra_icon'))}</span><select name="icon" data-icon-select>${ICON_LIST.map(value => `<option value="${value}" ${value === (DEFAULT_ICONS[kind] || 'generic-device') ? 'selected' : ''}>${esc(t(iconLabelKey(value)))}</option>`).join('')}</select></label></div><div class="infra-form-actions"><button type="button" data-close>${esc(t('desktop.cancel'))}</button><button class="infra-button-primary" type="submit">${esc(t('desktop.infra_create_node'))}</button></div></form>`, dialog => {
+            openDialog(title || t(model.isContainer(kind) ? 'desktop.infra_new_place' : 'desktop.infra_new_asset'), `<form data-new-node data-write-form novalidate><label class="infra-field"><span>${esc(t('desktop.infra_name'))}</span><input name="name" maxlength="120" required autofocus></label><p class="infra-field-error" id="infra-new-name-error-${esc(S)}" data-name-error role="alert" hidden>${esc(t('desktop.infra_name_required'))}</p><div class="infra-field-row"><label class="infra-field"><span>${esc(t('desktop.infra_type'))}</span><select name="kind" data-kind-select>${KINDS.map(value => `<option value="${value}" ${value === kind ? 'selected' : ''}>${esc(app.labelForKind(value))}</option>`).join('')}</select></label><label class="infra-field"><span>${esc(t('desktop.infra_icon'))}</span><select name="icon" data-icon-select>${ICON_LIST.map(value => `<option value="${value}" ${value === (DEFAULT_ICONS[kind] || 'generic-device') ? 'selected' : ''}>${esc(t(iconLabelKey(value)))}</option>`).join('')}</select></label></div><p class="infra-readonly-note" data-dialog-readonly hidden>${esc(t('desktop.infra_dialog_readonly'))}</p><div class="infra-form-actions"><button type="button" data-close>${esc(t('desktop.cancel'))}</button><button class="infra-button-primary" type="submit">${esc(t('desktop.infra_create_node'))}</button></div></form>`, dialog => {
                 dialog.querySelector('[data-close]').addEventListener('click', () => dialog.close());
                 const kindSelect = dialog.querySelector('[data-kind-select]'), iconSelect = dialog.querySelector('[data-icon-select]');
                 kindSelect.addEventListener('change', () => { if (iconSelect.dataset.userChosen !== 'true') iconSelect.value = DEFAULT_ICONS[kindSelect.value] || 'generic-device'; });
                 iconSelect.addEventListener('change', () => { iconSelect.dataset.userChosen = 'true'; });
-                dialog.querySelector('[data-new-node]').addEventListener('submit', event => { event.preventDefault(); void createNode(new FormData(event.currentTarget), dialog.dataset.infraOwner); });
+                const form = dialog.querySelector('[data-new-node]'), nameInput = form.elements.name, nameError = form.querySelector('[data-name-error]');
+                nameInput.addEventListener('input', () => { nameError.hidden = true; nameInput.removeAttribute('aria-invalid'); nameInput.removeAttribute('aria-describedby'); });
+                form.addEventListener('submit', event => {
+                    event.preventDefault();
+                    // A name of spaces is no name: say so and keep the focus on the field.
+                    if (!nameInput.value.trim()) {
+                        nameError.hidden = false; nameInput.setAttribute('aria-invalid', 'true'); nameInput.setAttribute('aria-describedby', nameError.id); nameInput.focus();
+                        return;
+                    }
+                    void createNode(new FormData(form), dialog.dataset.infraOwner);
+                });
             });
         }
         async function createNode(form, owner) {
@@ -90,7 +108,7 @@
                     if (ownsDialog(owner)) store.select([created.id]);
                     closeOwnedDialog(owner);
                 } else await store.loadSnapshot();
-                store.notify(t('desktop.infra_node_created'), 'success');
+                store.notify(t(model.isContainer(body.kind) ? 'desktop.infra_place_created' : 'desktop.infra_node_created'), 'success');
             } catch (error) { await store.writeFailed(error); }
             finally { store.setBusy('create', false); }
         }
@@ -107,7 +125,7 @@
             }
             const from = edge?.from || fromId, to = edge?.to || toId, fromNode = store.nodeById(from), toNode = store.nodeById(to);
             if (!fromNode || !toNode) return;
-            openDialog(edge ? t('desktop.infra_edit_relation') : t('desktop.infra_add_relation'), `<form data-edge-form><input type="hidden" name="id" value="${esc(edge?.id || '')}"><input type="hidden" name="version" value="${esc(edge?.version || 0)}"><input type="hidden" name="from" value="${esc(from)}"><input type="hidden" name="to" value="${esc(to)}"><p class="infra-connect-ends">${esc(fromNode.name)} → ${esc(toNode.name)}</p><label class="infra-field"><span>${esc(t('desktop.infra_relation_kind'))}</span><select name="kind">${EDGE_KINDS.map(kind => `<option value="${kind}">${esc(t(`desktop.infra_edge_${kind}`))}</option>`).join('')}</select></label><div class="infra-field-row"><label class="infra-field"><span>${esc(t('desktop.infra_relation_from_port'))}</span><input name="from_port"></label><label class="infra-field"><span>${esc(t('desktop.infra_relation_to_port'))}</span><input name="to_port"></label></div><div class="infra-field-row"><label class="infra-field"><span>${esc(t('desktop.infra_relation_speed'))}</span><input name="speed"></label><label class="infra-field"><span>${esc(t('desktop.infra_relation_label'))}</span><input name="label"></label></div><div class="infra-form-actions">${edge ? `<button type="button" data-delete-edge class="infra-danger-button">${esc(t('desktop.infra_remove_relation'))}</button>` : ''}<span class="infra-flex-spacer"></span><button type="button" data-close>${esc(t('desktop.cancel'))}</button><button type="submit" class="infra-button-primary">${esc(t('desktop.save'))}</button></div></form>`, dlg => {
+            openDialog(edge ? t('desktop.infra_edit_relation') : t('desktop.infra_add_relation'), `<form data-edge-form data-write-form><input type="hidden" name="id" value="${esc(edge?.id || '')}"><input type="hidden" name="version" value="${esc(edge?.version || 0)}"><input type="hidden" name="from" value="${esc(from)}"><input type="hidden" name="to" value="${esc(to)}"><p class="infra-connect-ends">${esc(fromNode.name)} → ${esc(toNode.name)}</p><label class="infra-field"><span>${esc(t('desktop.infra_relation_kind'))}</span><select name="kind">${EDGE_KINDS.map(kind => `<option value="${kind}">${esc(t(`desktop.infra_edge_${kind}`))}</option>`).join('')}</select></label><div class="infra-field-row"><label class="infra-field"><span>${esc(t('desktop.infra_relation_from_port'))}</span><input name="from_port"></label><label class="infra-field"><span>${esc(t('desktop.infra_relation_to_port'))}</span><input name="to_port"></label></div><div class="infra-field-row"><label class="infra-field"><span>${esc(t('desktop.infra_relation_speed'))}</span><input name="speed"></label><label class="infra-field"><span>${esc(t('desktop.infra_relation_label'))}</span><input name="label"></label></div><p class="infra-readonly-note" data-dialog-readonly hidden>${esc(t('desktop.infra_dialog_readonly'))}</p><div class="infra-form-actions">${edge ? `<button type="button" data-delete-edge class="infra-danger-button">${esc(t('desktop.infra_remove_relation'))}</button>` : ''}<span class="infra-flex-spacer"></span><button type="button" data-close>${esc(t('desktop.cancel'))}</button><button type="submit" class="infra-button-primary">${esc(t('desktop.save'))}</button></div></form>`, dlg => {
                 const form = dlg.querySelector('[data-edge-form]');
                 form.elements.kind.value = edge?.kind || model.defaultEdgeKind(fromNode, toNode);
                 for (const key of ['label', 'from_port', 'to_port', 'speed']) form.elements[key].value = edge?.[key] || '';
@@ -143,7 +161,7 @@
             const confirmation = await confirmAction(t('desktop.infra_remove_relation'), t('desktop.infra_remove_relation_confirm'), { withOwner: true });
             if (!confirmation.confirmed) return;
             try {
-                if (await store.dispatch(commands().deleteEdge(edge))) { closeOwnedDialog(confirmation.owner || owner); app.announce(t('desktop.infra_connection_removed')); }
+                if (await store.dispatch(commands().deleteEdge(edge))) { closeOwnedDialog(confirmation.owner || owner); store.notify(t('desktop.infra_connection_removed'), 'success'); }
             } catch (error) { await store.writeFailed(error); }
         }
 
@@ -219,12 +237,15 @@
             const message = list.length === 1
                 ? model.fill(linked(list[0]) ? t('desktop.infra_remove_node_confirm_sources') : t('desktop.infra_remove_node_confirm'), { name: store.nodeById(list[0]).name })
                 : model.fill(list.some(linked) ? t('desktop.infra_remove_selection_confirm_sources') : t('desktop.infra_remove_selection_confirm'), { count: list.length });
-            if (!await confirmAction(t('desktop.infra_remove_node'), message, { confirmLabel: t('desktop.infra_remove_node') })) return false;
+            // Only places: the dialog and the toast say "place", not "asset".
+            const places = list.every(id => model.isContainer(store.nodeById(id).kind));
+            const title = t(places ? 'desktop.infra_remove_place' : 'desktop.infra_remove_node');
+            if (!await confirmAction(title, message, { confirmLabel: title })) return false;
             const ordered = [...list.filter(id => !model.isContainer(store.nodeById(id).kind)), ...list.filter(id => model.isContainer(store.nodeById(id).kind))];
             const removed = await store.removeNodes(ordered);
             if (removed.length) {
-                const text = removed.length === 1 ? t('desktop.infra_node_removed') : model.fill(t('desktop.infra_removed_many'), { count: removed.length });
-                if (removed.length === list.length) store.notify(text, 'success'); else app.announce(text); // a refusal already said why
+                const text = removed.length === 1 ? t(places ? 'desktop.infra_place_removed' : 'desktop.infra_node_removed') : model.fill(t('desktop.infra_removed_many'), { count: removed.length });
+                store.notify(text, removed.length === list.length ? 'success' : 'info'); // a refusal already said why
             }
             return removed.length === list.length;
         }
@@ -238,7 +259,7 @@
             const removed = await store.removeNodes(list, { ignoreSources: true });
             if (removed.length) {
                 const text = model.countText(removed.length, t('desktop.infra_removed_ignored_one'), t('desktop.infra_removed_ignored'));
-                if (removed.length === list.length) store.notify(text, 'success'); else app.announce(text);
+                store.notify(text, removed.length === list.length ? 'success' : 'info');
             }
             return removed.length === list.length;
         }
@@ -249,7 +270,7 @@
             if (!canWrite()) { store.notify(t('desktop.infra_error_infra_readonly'), 'info'); return false; }
             try {
                 const ok = await store.dispatch(commands().deleteEdge(edge));
-                if (ok) app.announce(t('desktop.infra_connection_removed'));
+                if (ok) store.notify(t('desktop.infra_connection_removed'), 'success');
                 return ok;
             } catch (error) { await store.writeFailed(error); return false; }
         }
@@ -264,7 +285,7 @@
             if (!actions.length) return null;
             const blockedKey = action => store.actionBlockKey(id, sourceDescriptor, action);
             const blocked = actions.filter(action => state.actionBlocks.has(blockedKey(action)));
-            return openDialog(t('desktop.infra_source_actions'), `<p class="infra-dialog-intro">${esc(t('desktop.infra_action_warning'))}</p><div class="infra-action-list">${actions.map(action => `<button type="button" data-run-action="${esc(action)}" data-action-node="${esc(id)}" data-source-identity="${esc(sourceIdentity(sourceDescriptor))}" class="${CAUTION_ACTIONS.includes(action) ? 'is-caution' : ''}" ${state.actionBlocks.has(blockedKey(action)) ? 'disabled' : ''}><span>${esc(t(`desktop.infra_action_${action}`))}</span><small>${esc(t(`desktop.infra_action_help_${action}`))}</small><b aria-hidden="true">›</b></button>`).join('')}</div>${blocked.length ? `<section class="infra-action-review" role="status"><strong>${esc(t('desktop.infra_action_review_required'))}</strong>${blocked.map(action => `<div><span>${esc(t(`desktop.infra_action_${action}`))} · ${esc(state.actionBlocks.get(blockedKey(action))?.status || 'unknown')}</span><button type="button" data-action-rearm="${esc(action)}">${esc(t('desktop.infra_action_rearm'))}</button></div>`).join('')}</section>` : ''}`, dlg => {
+            return openDialog(t('desktop.infra_source_actions'), `<p class="infra-dialog-intro">${esc(t('desktop.infra_action_warning'))}</p><div class="infra-action-list">${actions.map(action => `<button type="button" data-run-action="${esc(action)}" data-action-node="${esc(id)}" data-source-identity="${esc(sourceIdentity(sourceDescriptor))}" class="${CAUTION_ACTIONS.includes(action) ? 'is-caution' : ''}" ${state.actionBlocks.has(blockedKey(action)) ? 'disabled' : ''}><span>${esc(t(`desktop.infra_action_${action}`))}</span><small>${esc(t(`desktop.infra_action_help_${action}`))}</small><b aria-hidden="true">›</b></button>`).join('')}</div>${blocked.length ? `<section class="infra-action-review" role="status"><strong>${esc(t('desktop.infra_action_review_required'))}</strong>${blocked.map(action => `<div><span>${esc(t(`desktop.infra_action_${action}`))} · ${esc(t(`desktop.infra_action_status_${state.actionBlocks.get(blockedKey(action))?.status || 'unknown'}`))}</span><button type="button" data-action-rearm="${esc(action)}">${esc(t('desktop.infra_action_rearm'))}</button></div>`).join('')}</section>` : ''}`, dlg => {
                 dlg.querySelectorAll('[data-run-action]').forEach(button => button.addEventListener('click', () => void runAction(id, sourceDescriptor, button.dataset.runAction, dlg)));
                 dlg.querySelectorAll('[data-action-rearm]').forEach(button => button.addEventListener('click', () => {
                     state.actionBlocks.delete(blockedKey(button.dataset.actionRearm));
@@ -299,13 +320,16 @@
                 }
                 const result = await store.request(`/nodes/${encodeURIComponent(id)}/actions`, { method: 'POST', body: { source: sourceDescriptor.kind, action, request_id, confirmed: true } });
                 if (state.disposed || !root.isConnected) return;
+                const label = t(`desktop.infra_action_${action}`), who = store.nodeById(id)?.name || '';
                 if (['running', 'accepted', 'unknown'].includes(result.status)) {
                     state.actionBlocks.set(blockKey, { status: result.status, request_id });
-                    store.notify(result.status === 'unknown' ? t('desktop.infra_action_outcome_unknown') : t('desktop.infra_action_review_required'), result.status === 'unknown' ? 'error' : 'info');
+                    store.notify(result.status === 'unknown' ? t('desktop.infra_action_outcome_unknown') : model.fill(t('desktop.infra_action_toast_running'), { name: who, action: label }), result.status === 'unknown' ? 'error' : 'info');
                     if (ownsDialog(dialogOwner) && (!dialog || dialog.open || reviewAllowed)) openActionMenu(id, sourceDescriptor);
                     return;
                 }
-                store.notify(t(`desktop.infra_action_status_${result.status}`).replace('{status}', result.status), result.status === 'failed' || result.status === 'unknown' ? 'error' : 'success');
+                // Completed and failed name the device and the action; any other answer gets the generic status text.
+                const outcome = { completed: 'desktop.infra_action_toast_done', failed: 'desktop.infra_action_toast_failed' }[result.status];
+                store.notify(outcome ? model.fill(t(outcome), { name: who, action: label }) : model.fill(t('desktop.infra_action_status_generic'), { status: String(result.status || '') }), result.status === 'completed' ? 'success' : 'error');
                 closeOwnedDialog(dialogOwner);
             } catch (error) {
                 if (state.disposed || !root.isConnected) return;
@@ -375,12 +399,7 @@
                     create.textContent = t('desktop.infra_export_pdf_busy'); create.setAttribute('aria-busy', 'true'); sync();
                     try {
                         const response = await fetch(`/api/desktop/infra/export/pdf?paper=${encodeURIComponent(paper)}&sections=${sections.join(',')}`, { credentials: 'same-origin', signal: own.signal });
-                        if (!response.ok) {
-                            let body = null;
-                            try { body = await response.json(); } catch (_) { /* not JSON */ }
-                            const detail = body?.message || body?.error?.message;
-                            throw Object.assign(new Error(typeof detail === 'string' && detail ? detail : t('desktop.infra_export_pdf_failed')), { status: response.status });
-                        }
+                        if (!response.ok) throw Object.assign(new Error('pdf'), { status: response.status });
                         const blob = await response.blob();
                         if (own.signal.aborted) return;
                         const url = URL.createObjectURL(blob), link = document.createElement('a');
@@ -391,7 +410,7 @@
                         app.toast(t('desktop.infra_export_pdf_done'), 'success');
                     } catch (error) {
                         if (error?.name === 'AbortError' || state.disposed) return;
-                        app.toast(error?.message || t('desktop.infra_export_pdf_failed'), 'error');
+                        app.toast(t('desktop.infra_export_pdf_failed'), 'error'); // never the browser's own text ("Failed to fetch")
                     } finally {
                         if (controller === own) controller = null;
                         if (dialog.isConnected && dialog.open && ownsDialog(owner)) {
@@ -407,9 +426,20 @@
         // ---- busy keys and teardown -------------------------------------------------------------------------------
         function onBusy(key) {
             const busy = state.busy.has(key);
-            if (key === 'create') { const submit = q('[data-new-node] [type="submit"]'); if (submit) submit.disabled = busy; }
-            if (key.startsWith('edge-')) { const submit = q('[data-edge-form] [type="submit"]'); if (submit) submit.disabled = busy; }
+            if (key === 'create') { const submit = q('[data-new-node] [type="submit"]'); if (submit) submit.disabled = busy || !canWrite(); }
+            if (key.startsWith('edge-')) { const submit = q('[data-edge-form] [type="submit"]'); if (submit) submit.disabled = busy || !canWrite(); }
             if (key.startsWith('action-')) dialogEl()?.querySelectorAll('[data-run-action]').forEach(button => { button.disabled = busy || state.actionBlocks.has(store.actionBlockKey(button.dataset.actionNode, button.dataset.sourceIdentity, button.dataset.runAction)); });
+        }
+        // onCaps keeps an open create or connection dialog honest when write access changes: Save is off and the dialog says why.
+        function onCaps() {
+            const dialog = dialogEl(), write = canWrite();
+            dialog?.querySelectorAll('[data-write-form]').forEach(form => {
+                const busy = state.busy.has(form.matches('[data-new-node]') ? 'create' : `edge-${form.elements.id?.value || 'new'}`);
+                form.querySelector('[type="submit"]').disabled = !write || busy;
+                form.querySelector('[data-dialog-readonly]').hidden = write;
+                form.querySelector('[data-delete-edge]')?.toggleAttribute('disabled', !write);
+            });
+            popover?.querySelector('[type="submit"]')?.toggleAttribute('disabled', !write);
         }
         function dispose() {
             closeConnectionPopover({ restoreFocus: false });
@@ -421,7 +451,7 @@
         return {
             openDialog, confirmAction, openNodeDialog, openEdgeDialog, openExportPdfDialog,
             deleteNode, deleteNodes, removeAndIgnore, removeEdge, openActionMenu, runAction, openNodeActions, createNode, saveEdge,
-            openConnectionPopover, closeConnectionPopover, onBusy, ownsDialog, closeOwnedDialog, dispose,
+            openConnectionPopover, closeConnectionPopover, onBusy, onCaps, ownsDialog, closeOwnedDialog, dispose,
         };
     }
 

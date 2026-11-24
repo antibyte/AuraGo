@@ -14,7 +14,7 @@
         const { store, state, t, esc, model } = app;
         const S = app.safeId;
         let dismissed = model.readDismissed(app.readStorage(DISMISSED_KEY));
-        const expanded = new Set(), running = new Set();
+        const expanded = new Set(), running = new Set(), restoring = new Set();
         let memoKey = null, memo = [];
 
         const nameOf = id => store.nodeById(id)?.name || id;
@@ -81,7 +81,8 @@
             const write = store.canWrite();
             list.innerHTML = rows.map(source => {
                 const identity = esc(model.sourceIdentity(source)), name = sourceName(source);
-                return `<li class="infra-ignored-row" data-ignored-source="${identity}"><span class="infra-ignored-copy"><strong title="${esc(name)}">${esc(name)}</strong><small>${esc(t(`desktop.infra_source_${source.kind}`))}</small></span><button type="button" class="infra-button" data-restore-source="${identity}" aria-label="${esc(model.fill(t('desktop.infra_restore_source'), { name }))}"${write ? '' : ' disabled'}>${esc(t('desktop.infra_restore'))}</button></li>`;
+                const busy = restoring.has(model.sourceIdentity(source));
+                return `<li class="infra-ignored-row" data-ignored-source="${identity}"><span class="infra-ignored-copy"><strong title="${esc(name)}">${esc(name)}</strong><small>${esc(t(`desktop.infra_source_${source.kind}`))}</small></span><button type="button" class="infra-button" data-restore-source="${identity}" aria-label="${esc(model.fill(t('desktop.infra_restore_source'), { name }))}"${write && !busy ? '' : ' disabled'}${busy ? ' aria-busy="true"' : ''}>${esc(t('desktop.infra_restore'))}</button></li>`;
             }).join('');
             count.textContent = String(rows.length);
             section.hidden = rows.length === 0;
@@ -95,7 +96,7 @@
             if (!await app.dialogs.confirmAction(t('desktop.infra_cleanup_remove_duplicate'), message, { confirmLabel: t('desktop.infra_cleanup_remove_duplicate') })) return;
             if (!store.canWrite()) return;
             const removed = await store.removeNodes(item.removeIds, { ignoreSources: true });
-            if (removed.length) app.announce(model.countText(removed.length, t('desktop.infra_removed_ignored_one'), t('desktop.infra_removed_ignored')));
+            if (removed.length) store.notify(model.countText(removed.length, t('desktop.infra_removed_ignored_one'), t('desktop.infra_removed_ignored')), 'success');
         }
         async function run(id, button) {
             const item = find(id);
@@ -111,7 +112,7 @@
                 else if (item.type === 'engine-host') {
                     app.picker.openAssetPicker({
                         anchor: button, rect, label: t('desktop.infra_assign_engine_host'), accept: node => node.kind === 'device', preferred: [item.inferredNodeId].filter(Boolean),
-                        onPick: async option => { if (await store.setSourceHost(item.instance, option.id)) app.announce(model.fill(t('desktop.infra_engine_host_assigned'), { name: option.label })); },
+                        onPick: async option => { if (await store.setSourceHost(item.instance, option.id)) store.notify(model.fill(t('desktop.infra_engine_host_assigned'), { name: option.label }), 'success'); },
                     });
                 } else if (item.type === 'guest-host') {
                     const guest = store.nodeById(item.nodeId);
@@ -120,7 +121,7 @@
                         anchor: button, rect, label: t('desktop.infra_choose_host'), accept: node => node.id !== guest.id && (node.kind === 'device' || (guest.kind === 'container' && node.kind === 'vm')),
                         onPick: async option => {
                             try {
-                                if (await store.dispatch(window.InfraAppStore.commands.createEdge({ from: guest.id, to: option.id, kind: 'runs_on' }))) app.announce(model.fill(t('desktop.infra_host_chosen'), { name: guest.name, host: option.label }));
+                                if (await store.dispatch(window.InfraAppStore.commands.createEdge({ from: guest.id, to: option.id, kind: 'runs_on' }))) store.notify(model.fill(t('desktop.infra_host_chosen'), { name: guest.name, host: option.label }), 'success');
                             } catch (error) { await store.writeFailed(error); }
                         },
                     });
@@ -130,11 +131,15 @@
         }
         async function restoreSource(identity) {
             const source = state.sources.find(item => item.ignored && model.sourceIdentity(item) === identity);
-            if (!source || !store.canWrite()) return;
-            if (await store.setSourcesIgnored([source], false)) {
-                app.announce(model.fill(t('desktop.infra_restored'), { name: sourceName(source) }));
-                app.importer?.reload();
-            }
+            if (!source || !store.canWrite() || restoring.has(identity) || state.busy.has('ignore')) return;
+            restoring.add(identity);
+            app.library.render();
+            try {
+                if (await store.setSourcesIgnored([source], false)) {
+                    store.notify(model.fill(t('desktop.infra_restored'), { name: sourceName(source) }), 'success');
+                    app.importer?.reload();
+                }
+            } finally { restoring.delete(identity); app.library.render(); }
         }
 
         // onClick answers true when the click belonged to the section bodies.

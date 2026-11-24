@@ -41,6 +41,7 @@ type infraAppBrowserFixture struct {
 	nodePuts          []map[string]any          // every PUT /nodes/{id} body, in order
 	targets           []map[string]any          // GET /targets answer (app link candidates)
 	candidateSources  []any                     // GET /candidates "sources" answer; nil = one registry and one Docker source
+	failCandLoads     int                       // the next N GET /candidates answer 500
 }
 
 func newInfraAppBrowserFixture() *infraAppBrowserFixture {
@@ -193,6 +194,11 @@ func (f *infraAppBrowserFixture) ServeHTTP(w http.ResponseWriter, r *http.Reques
 	case path == "/targets" && r.Method == http.MethodGet:
 		write(http.StatusOK, map[string]any{"targets": f.targets})
 	case path == "/candidates" && r.Method == http.MethodGet:
+		if f.failCandLoads > 0 {
+			f.failCandLoads--
+			write(http.StatusInternalServerError, map[string]any{"error": "infra_error"})
+			return
+		}
 		candidates := make([]map[string]any, 0, len(f.candidates))
 		for _, candidate := range f.candidates {
 			if !f.consumed[candidate["id"].(string)] && !f.candidateIgnored(candidate) {
@@ -499,6 +505,14 @@ func TestDesktopInfraAppBrowser(t *testing.T) {
 	}
 	page.MustEval(`()=>document.querySelector('[data-action="add-empty"]').click()`)
 	page.MustWait(`()=>!!document.querySelector('[data-new-node]')`)
+	// A name of spaces is no name: the dialog says so and keeps the focus on the field.
+	if !page.MustEval(`()=>{const f=document.querySelector('[data-new-node]');f.elements.name.value='   ';f.requestSubmit();return !document.querySelector('[data-name-error]').hidden&&document.activeElement===f.elements.name}`).Bool() {
+		t.Fatal("a create dialog with a blank name must show its message and focus the field")
+	}
+	// A click beside the dialog closes an untouched form only: once the name was typed the dialog stays.
+	if !page.MustEval(`()=>{const d=document.querySelector('[data-dialog]'),f=document.querySelector('[data-new-node]');f.elements.name.dispatchEvent(new Event('input',{bubbles:true}));d.dispatchEvent(new MouseEvent('click',{bubbles:true,clientX:2,clientY:2}));return d.open}`).Bool() {
+		t.Fatal("a click beside the dialog discarded typed input")
+	}
 	page.MustEval(`()=>{const form=document.querySelector('[data-new-node]');form.elements.name.value='Atlas gateway';form.elements.kind.value='device';form.elements.icon.value='router';form.requestSubmit();}`)
 	page.MustWait(`()=>!!document.querySelector('[data-place="manual-1"]')`)
 	page.MustEval(`()=>document.querySelector('[data-action="import"]').click()`)
@@ -785,6 +799,13 @@ func TestDesktopInfraAppBrowser(t *testing.T) {
 	page.MustEval(`()=>{const win=document.querySelector('.vd-window[data-app-id="infra"]');win.style.display='';document.dispatchEvent(new CustomEvent('aurago:desktop-policy',{detail:{enabled:false}}));}`)
 	page.MustWait(`()=>document.querySelector('[data-action="add"]').disabled`)
 	page.MustEval(`()=>document.dispatchEvent(new CustomEvent('aurago:desktop-policy',{detail:{enabled:true}}))`)
+	page.MustWait(`()=>!document.querySelector('[data-action="add"]').disabled`)
+	// Write access that goes away while the create dialog is open: Save is off and the dialog says why.
+	page.MustEval(`()=>document.querySelector('[data-action="add"]').click()`)
+	page.MustWait(`()=>!!document.querySelector('[data-new-node]')&&document.querySelector('[data-dialog]').open`)
+	page.MustEval(`()=>document.dispatchEvent(new CustomEvent('aurago:desktop-policy',{detail:{readonly:true}}))`)
+	page.MustWait(`()=>document.querySelector('[data-new-node] [type="submit"]').disabled&&!document.querySelector('[data-new-node] [data-dialog-readonly]').hidden`)
+	page.MustEval(`()=>{document.querySelector('[data-dialog]').close();document.dispatchEvent(new CustomEvent('aurago:desktop-policy',{detail:{readonly:false}}));}`)
 	page.MustWait(`()=>!document.querySelector('[data-action="add"]').disabled`)
 	page.MustEval(`()=>{
 		const win=document.querySelector('.vd-window[data-app-id="infra"]');

@@ -546,8 +546,10 @@
                 const outcome = canWrite() ? await sendBatch(view, lane.inflight) : 'failed';
                 if (outcome === 'conflict' && attempt === 0) {
                     attempt = 1;
+                    const hadHistory = histories[view].canUndo() || histories[view].canRedo();
                     histories[view].clear();
                     emit({ type: 'history' });
+                    if (hadHistory) notify(t('desktop.infra_history_cleared'), 'info');
                     if (await refreshSnapshot()) {
                         const { kept, dropped } = model.rebaseLayout(lane.inflight, nodeIndex());
                         if (dropped.length) notify(t('desktop.infra_layout_dropped'), 'info');
@@ -793,7 +795,11 @@
             const forward = direction === 'redo';
             const back = () => (forward ? history.pushRedo(entry) : history.pushUndo(entry));
             const done = () => (forward ? history.pushUndo(entry) : history.pushRedo(entry));
-            if (entry.optimistic) { void (forward ? entry.apply(api) : entry.revert(api)); done(); emit({ type: 'history' }); return true; }
+            if (entry.optimistic) {
+                // Every asset of the entry may be gone (deleted here or by a poll): nothing is left to change and the entry is dropped.
+                if (![...(forward ? entry.after : entry.before).keys()].some(id => nodeById(id))) { emit({ type: 'history' }); return false; }
+                void (forward ? entry.apply(api) : entry.revert(api)); done(); emit({ type: 'history' }); return true;
+            }
             state.historyBusy = true; emit({ type: 'history' });
             try {
                 const ok = forward ? await entry.apply(api) : await entry.revert(api);
@@ -804,6 +810,8 @@
         }
         const canUndo = view => !!histories[view]?.canUndo() && !state.historyBusy;
         const canRedo = view => !!histories[view]?.canRedo() && !state.historyBusy;
+        // The command type the next undo or redo would act on, so a button can name it.
+        const nextHistory = (view, direction) => (direction === 'undo' ? histories[view]?.peekUndo() : histories[view]?.peekRedo())?.type || '';
         const hasUnsavedWork = () => state.dirty.size > 0 || state.sourceDirty.size > 0 || VIEWS.some(view => !laneIdle(lanes[view]) || lanes[view].unsaved.size > 0);
 
         // ---- visibility and polling (DOM; never called by the Node test) -----------
@@ -870,7 +878,7 @@
             effectivePlacement, toPlace, attention, unplacedMatches, effectiveParent, currentIntent, layoutState, unsavedCount, queueLayout, whenLayoutIdle, retryLayout,
             createEdge, updateEdge, deleteEdgeById, dispatch, undo: view => step(view, 'undo'), redo: view => step(view, 'redo'),
             reloadSnapshot: refreshSnapshot, replaceNodes, setSourcesIgnored, setSourceHost, importBatch, removeNodes, updateNodeFields, updateParents, identityKey,
-            canUndo, canRedo, hasUnsavedWork, attach, abortRequests, dispose,
+            canUndo, canRedo, nextHistory, hasUnsavedWork, attach, abortRequests, dispose,
         };
         return api;
     }

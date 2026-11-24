@@ -9,7 +9,7 @@
 
     const GROUPS = ['recommended', 'duplicate', 'unlikely'];
     const GUEST_KINDS = new Set(['vm', 'container']);
-    const CONTROLS = ['[data-candidate]', '[data-bind]', '[data-import-one]', '[data-ignore-candidate]'];
+    const CONTROLS = ['[data-candidate]', '[data-candidate-toggle]', '[data-bind]', '[data-import-one]', '[data-ignore-candidate]'];
 
     // dropItems turns dragged discoveries into import items. Guests join their host and carry no placement. A discovery bound
     // to an asset that already stands in this view only links the source: the link would move that asset (the import is not in
@@ -49,6 +49,7 @@
   <div class="infra-import-groups" data-import-groups>
     <p class="infra-import-loading" data-import-loading>${esc(t('desktop.infra_loading_candidates'))}</p>
     <div class="infra-empty-candidates" data-import-empty hidden><strong>${esc(t('desktop.infra_no_candidates'))}</strong><p>${esc(t('desktop.infra_no_candidates_hint'))}</p></div>
+    <div class="infra-import-error" data-import-error hidden><p data-import-error-text role="alert"></p><button type="button" class="infra-button" data-action="retry-import">${esc(t('desktop.infra_retry'))}</button></div>
     ${sections}
   </div>
   <div class="infra-sheet-foot"><span data-import-count></span><button type="button" class="infra-button" data-action="ignore-selected" disabled>${esc(t('desktop.infra_ignore_selected'))}</button><button type="button" class="infra-button infra-button-primary" data-import disabled>${esc(t('desktop.infra_import_selected'))}</button></div>
@@ -56,6 +57,7 @@
         const el = holder.firstElementChild;
         const $ = selector => el.querySelector(selector);
         const search = $('[data-import-search]'), groupsEl = $('[data-import-groups]'), loadingEl = $('[data-import-loading]'), emptyEl = $('[data-import-empty]');
+        const errorEl = $('[data-import-error]'), errorText = $('[data-import-error-text]');
         const sourcesEl = $('[data-candidate-sources]'), countEl = $('[data-import-count]'), importButton = $('[data-import]'), ignoreButton = $('[data-action="ignore-selected"]');
         const groupEl = Object.fromEntries(GROUPS.map(group => [group, $(`[data-import-group="${group}"]`)]));
         const listEl = Object.fromEntries(GROUPS.map(group => [group, $(`[data-import-list="${group}"]`)]));
@@ -63,14 +65,18 @@
         const checkOf = Object.fromEntries(GROUPS.map(group => [group, $(`[data-import-check-group="${group}"]`)]));
         const toggleOf = Object.fromEntries(GROUPS.map(group => [group, $(`[data-import-group-toggle="${group}"]`)]));
         const errors = new Map(), collapsed = new Set(['unlikely']);
+        // A row starts folded, except a possible duplicate and a row with an error; opened and shut hold the rows the user flipped.
+        const opened = new Set(), shut = new Set();
         const kindLabel = kind => t(`desktop.infra_source_${kind}`);
+        // A Docker engine is named after the device it runs on, when that is known.
+        const engineName = (kind, instance) => { const host = state.sourceHosts.find(item => item.kind === kind && item.instance === instance); return store.nodeById(host?.node_id || host?.inferred_node_id)?.name || ''; };
         const noLabels = model.sourceLabels([], kindLabel);
-        let owner = '', opener = null, loading = false, sources = [], labels = noLabels, searchFrame = 0, suppressClick = false, suppressTimer = 0, disposed = false;
+        let owner = '', opener = null, loading = false, loadError = '', sources = [], labels = noLabels, searchFrame = 0, suppressClick = false, suppressTimer = 0, disposed = false;
         let memoKey = null, memo = null, byIdKey = null, byIdMap = new Map(), suggestKey = null, suggestions = new Map(), pendingFocus = null;
 
         // ---- data ----------------------------------------------------------------------------------
-        // A source is named by its kind; a kind with several instances is numbered ("Docker 1") and the opaque
-        // instance id only shows in the tooltip (model.sourceLabels).
+        // A source is named by its kind; a kind with several instances shows the name of the engine's device ("Docker · nas"),
+        // or a number ("Docker 1") when none is known, and the opaque instance id only shows in the tooltip (model.sourceLabels).
         const sourceText = source => labels.of(source).text;
         const sourceTitle = source => labels.of(source).title;
         // One chip per source (kind, and instance when a kind has several); the stalest row names its state.
@@ -115,6 +121,13 @@
             for (const id of [...state.importSelection]) if (!present.has(id)) state.importSelection.delete(id);
             for (const id of [...state.importBindings.keys()]) if (!present.has(id) || !store.nodeById(state.importBindings.get(id))) state.importBindings.delete(id);
             for (const id of [...errors.keys()]) if (!present.has(id)) errors.delete(id);
+            for (const set of [opened, shut]) for (const id of [...set]) if (!present.has(id)) set.delete(id);
+        }
+        const startsOpen = (id, group) => group === 'duplicate' || errors.has(id);
+        const isOpen = (id, group) => (startsOpen(id, group) ? !shut.has(id) : opened.has(id));
+        function setOpen(id, group, open) {
+            opened.delete(id); shut.delete(id);
+            if (open !== startsOpen(id, group)) (open ? opened : shut).add(id);
         }
 
         // ---- rendering --------------------------------------------------------------------------------
@@ -130,7 +143,7 @@
             }).filter(Boolean).join(' · ');
         }
         const optionHTML = (id, selected) => `<option value="${esc(id)}"${selected ? ' selected' : ''}>${esc(store.nodeById(id)?.name || id)}</option>`;
-        function rowHTML(candidate, group, relevance) {
+        function rowHTML(candidate, group, relevance, index) {
             const node = candidate.node || {}, source = candidate.source || {}, id = esc(candidate.id), name = nameOfCandidate(candidate);
             const write = canWrite(), busy = state.busy.has('import') || state.busy.has('ignore'), error = errors.get(candidate.id) || '';
             const bound = state.importBindings.get(candidate.id) || '';
@@ -138,10 +151,15 @@
             const draggable = write && store.features.layoutParent ? ' data-draggable="true"' : '';
             const reasons = reasonTexts(candidate, relevance), detail = [node.profile?.vendor, node.profile?.model, node.profile?.ip_address].filter(Boolean).join(' · ');
             const disabled = write && !busy ? '' : ' disabled';
-            return `<li class="infra-candidate" data-candidate-row="${id}" data-group="${group}"${draggable}><label class="infra-candidate-check"><input type="checkbox" data-candidate="${id}" aria-label="${esc(model.fill(t('desktop.infra_select_candidate'), { name }))}"${state.importSelection.has(candidate.id) ? ' checked' : ''}><span class="infra-checkbox-mark"></span></label>`
-                + `<div class="infra-candidate-icon">${app.icon(node.icon)}</div><div class="infra-candidate-copy"><strong title="${esc(name)}">${esc(name)}</strong><span title="${esc(sourceTitle(source))}">${esc(sourceText(source))}</span><small>${esc(detail)}</small>${reasons ? `<small class="infra-candidate-reason" data-candidate-reason>${esc(reasons)}</small>` : ''}</div>`
+            // A row is one compact line (checkbox, icon, name and meta, disclosure); the link select, the reason and the
+            // two buttons live in the detail below it. The error stays outside the detail so a folded row still shows it.
+            const open = isOpen(candidate.id, group), detailId = `infra-cand-${esc(S)}-${group}-${index}`, options = esc(model.fill(t('desktop.infra_candidate_options'), { name }));
+            return `<li class="infra-candidate" data-candidate-row="${id}" data-group="${group}"${draggable}><label class="infra-candidate-check"><input type="checkbox" data-candidate="${id}" aria-label="${esc(model.fill(t('desktop.infra_select_candidate'), { name }))}"${state.importSelection.has(candidate.id) ? ' checked' : ''}></label>`
+                + `<div class="infra-candidate-icon">${app.icon(node.icon)}</div><div class="infra-candidate-copy"><strong title="${esc(name)}">${esc(name)}</strong><span title="${esc(sourceTitle(source))}">${esc(sourceText(source))}</span><small>${esc(detail)}</small></div>`
+                + `<button type="button" class="infra-cmd-icon infra-candidate-toggle" data-candidate-toggle="${id}" aria-expanded="${open}" aria-controls="${detailId}" aria-label="${options}" title="${options}">${app.glyph('chevron')}</button>`
+                + `<div class="infra-candidate-detail" id="${detailId}" data-candidate-detail${open ? '' : ' hidden'}>${reasons ? `<small class="infra-candidate-reason" data-candidate-reason>${esc(reasons)}</small>` : ''}`
                 + `<label class="infra-field infra-bind-field"><span>${esc(t('desktop.infra_link_existing'))}</span><select data-bind="${id}"${write ? '' : ' disabled'}><option value="">${esc(t('desktop.infra_import_new'))}</option>${suggested.length ? `<optgroup label="${esc(t('desktop.infra_link_suggested'))}">${suggested.map(nodeId => optionHTML(nodeId, nodeId === bound)).join('')}</optgroup>` : ''}</select></label>`
-                + `<div class="infra-candidate-actions"><button type="button" class="infra-button" data-import-one="${id}"${disabled}>${esc(t('desktop.infra_import_one'))}</button><button type="button" class="infra-button" data-ignore-candidate="${id}"${disabled}>${esc(t('desktop.infra_ignore'))}</button></div>`
+                + `<div class="infra-candidate-actions"><button type="button" class="infra-button" data-import-one="${id}"${disabled}>${esc(t('desktop.infra_import_one'))}</button><button type="button" class="infra-button" data-ignore-candidate="${id}"${disabled}>${esc(t('desktop.infra_ignore'))}</button></div></div>`
                 + `<p class="infra-candidate-error" data-candidate-error role="alert"${error ? '' : ' hidden'}>${esc(error)}</p></li>`;
         }
         // The control that has focus moves to the same control of the row that takes its place.
@@ -155,7 +173,9 @@
             if (!snapshot) return;
             const same = [...listEl[snapshot.group].querySelectorAll('[data-candidate-row]')].find(row => row.dataset.candidateRow === snapshot.id);
             const next = same || listEl[snapshot.group].children[snapshot.index] || null;
-            const control = next?.querySelector(`${snapshot.selector}:not(:disabled)`) || next?.querySelector('[data-candidate]');
+            // A control inside a folded detail cannot take focus: the row's disclosure button does instead.
+            const visible = selector => [...(next?.querySelectorAll(selector) || [])].find(item => !item.disabled && !item.closest('[hidden]'));
+            const control = visible(snapshot.selector) || visible('[data-candidate-toggle]') || next?.querySelector('[data-candidate]');
             (control || search).focus({ preventScroll: true });
         }
         function syncGroupChecks() {
@@ -174,6 +194,7 @@
         function render() {
             if (disposed || el.hidden) return;
             prune();
+            labels = model.sourceLabels(sources, kindLabel, engineName);
             const snapshot = pendingFocus || focusSnapshot(), grouped = groups();
             pendingFocus = null;
             let shown = 0;
@@ -183,13 +204,16 @@
                 groupEl[group].hidden = rows.length === 0;
                 countOf[group].textContent = String(rows.length);
                 // A folded group is built when it opens.
-                listEl[group].innerHTML = collapsed.has(group) ? '' : rows.map(candidate => rowHTML(candidate, group, grouped.relevance.get(candidate.id))).join('');
+                listEl[group].innerHTML = collapsed.has(group) ? '' : rows.map((candidate, index) => rowHTML(candidate, group, grouped.relevance.get(candidate.id), index)).join('');
                 listEl[group].hidden = collapsed.has(group);
                 toggleOf[group].setAttribute('aria-expanded', String(!collapsed.has(group)));
             }
             sourcesEl.innerHTML = sourceChips();
             loadingEl.hidden = !loading;
-            emptyEl.hidden = loading || shown > 0;
+            // A failed load is an error with a retry, never the "no discoveries" state.
+            errorEl.hidden = loading || !loadError;
+            errorText.textContent = loadError;
+            emptyEl.hidden = loading || !!loadError || shown > 0;
             syncGroupChecks();
             updateCount();
             restoreFocus(snapshot);
@@ -204,7 +228,7 @@
                 if (disposed || !mine || owner !== mine) return;
                 state.candidates = Array.isArray(result?.candidates) ? result.candidates : [];
                 sources = Array.isArray(result?.sources) ? result.sources : [];
-                labels = model.sourceLabels(sources, kindLabel);
+                loadError = '';
                 const grouped = groups();
                 state.importSelection.clear();
                 for (const candidate of preserve ? state.candidates.filter(item => keep.has(item.id)) : grouped.recommended) state.importSelection.add(candidate.id);
@@ -212,7 +236,13 @@
                     const id = grouped.relevance.get(candidate.id)?.duplicateOf?.nodeId;
                     if (id && !state.importBindings.has(candidate.id) && model.bindableFor(candidate, store.nodeById(id))) state.importBindings.set(candidate.id, id);
                 }
-            } catch (error) { if (error?.name !== 'AbortError') store.notify(store.messageFor(error), 'error'); }
+            } catch (error) {
+                if (error?.name !== 'AbortError') {
+                    // A background refresh that fails keeps the rows it has; only a first load shows the error state.
+                    if (!preserve) loadError = t('desktop.infra_candidates_failed');
+                    store.notify(store.messageFor(error), 'error');
+                }
+            }
             finally {
                 if (owner === mine) { loading = false; render(); }
             }
@@ -224,7 +254,7 @@
             state.importOpen = true;
             state.importDialogOwner = owner = `sheet-${++state.dialogGeneration}`;
             state.candidates = []; state.importSelection.clear(); state.importBindings.clear();
-            errors.clear(); sources = []; labels = noLabels; search.value = ''; loading = true;
+            errors.clear(); opened.clear(); shut.clear(); sources = []; labels = noLabels; search.value = ''; loading = true; loadError = '';
             el.hidden = false;
             root.dataset.importOpen = 'true';
             render();
@@ -237,7 +267,7 @@
             el.hidden = true;
             delete root.dataset.importOpen;
             state.importOpen = false; state.importDialogOwner = ''; owner = ''; pendingFocus = null;
-            state.candidates = []; state.importSelection.clear(); state.importBindings.clear(); errors.clear();
+            state.candidates = []; state.importSelection.clear(); state.importBindings.clear(); errors.clear(); opened.clear(); shut.clear(); loadError = '';
             if (focus) app.restoreFocus(opener);
             opener = null;
         }
@@ -272,7 +302,8 @@
             const failed = new Map(result.errors.map(item => [item.candidate_id, item.message]));
             const imported = result.uncertain ? 0 : items.filter(item => !failed.has(item.candidate_id) && !state.candidates.some(candidate => candidate.id === item.candidate_id)).length;
             if (imported) store.notify(model.countText(imported, t('desktop.infra_imported_one'), t('desktop.infra_imported')), 'success');
-            if (failed.size) app.announce(model.countText(failed.size, t('desktop.infra_import_partial_one'), t('desktop.infra_import_partial')));
+            // The rows show the inline errors; the toast only says how many failed, as information.
+            if (failed.size) store.notify(model.countText(failed.size, t('desktop.infra_import_partial_one'), t('desktop.infra_import_partial')), 'info');
             if (!mine || owner !== mine) return;
             for (const item of items) errors.delete(item.candidate_id);
             for (const [id, message] of failed) errors.set(id, message);
@@ -296,7 +327,7 @@
             if (!list.length || !canWrite() || state.busy.has('ignore')) return;
             const mine = owner;
             if (!await store.setSourcesIgnored(list.map(candidate => candidate.source), true)) return;
-            app.announce(model.countText(list.length, t('desktop.infra_ignored_count_one'), t('desktop.infra_ignored_count')));
+            store.notify(model.countText(list.length, t('desktop.infra_ignored_count_one'), t('desktop.infra_ignored_count')), 'success');
             if (owner !== mine) return;
             for (const candidate of list) { state.importSelection.delete(candidate.id); state.importBindings.delete(candidate.id); errors.delete(candidate.id); }
             render();
@@ -331,6 +362,22 @@
                 const group = toggle.dataset.importGroupToggle;
                 if (collapsed.has(group)) collapsed.delete(group); else collapsed.add(group);
                 render();
+                return;
+            }
+            // The disclosure updates its row in place, so the focus stays on the button.
+            const disclose = target.closest('[data-candidate-toggle]');
+            if (disclose) {
+                const row = disclose.closest('[data-candidate-row]'), open = disclose.getAttribute('aria-expanded') !== 'true';
+                setOpen(disclose.dataset.candidateToggle, row.dataset.group, open);
+                disclose.setAttribute('aria-expanded', String(open));
+                row.querySelector('[data-candidate-detail]').hidden = !open;
+                return;
+            }
+            if (target.closest('[data-action="retry-import"]')) {
+                const focused = document.activeElement?.closest?.('[data-action="retry-import"]');
+                loadError = ''; loading = true; render();
+                if (focused) search.focus({ preventScroll: true });
+                void load(false);
                 return;
             }
             const one = target.closest('[data-import-one]');
@@ -371,7 +418,7 @@
         const onPointerDown = event => {
             fillBinding(event);
             const row = event.target.closest?.('[data-candidate-row][data-draggable="true"]');
-            if (!row || event.button !== 0 || event.target.closest('input, select, button, label, textarea, a')) return;
+            if (!row || event.button !== 0 || event.target.closest('input, select, button, label, textarea, a, [data-candidate-detail]')) return;
             const id = row.dataset.candidateRow, multi = (event.ctrlKey || event.metaKey || event.shiftKey) && state.importSelection.has(id);
             const ids = multi ? visibleIds().filter(item => state.importSelection.has(item)) : [id];
             const items = ids.map(candidateById).filter(Boolean).map(candidate => ({ icon: candidate.node?.icon, name: nameOfCandidate(candidate), guest: GUEST_KINDS.has(candidate.node?.kind) }));

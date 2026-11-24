@@ -73,6 +73,25 @@
         try { const url = new URL(String(value)); return ['http:', 'https:'].includes(url.protocol) && !!url.hostname && !url.username && !url.password; }
         catch (_) { return false; }
     };
+    // Field checks for the Details form. They never reject what internal/infra/validate.go accepts:
+    // net.ParseIP (at most 64 characters), net.ParseMAC (6, 8 or 20 octets with ":" or "-", or the dotted form), VLAN 0 to 4094.
+    const validIP = value => {
+        const text = String(value ?? '').trim();
+        if (!text) return true;
+        if (text.length > 64) return false;
+        const parts = text.split('.');
+        if (parts.length === 4 && parts.every(part => /^(0|[1-9]\d{0,2})$/.test(part) && Number(part) <= 255)) return true;
+        if (!text.includes(':') || /[^0-9a-f:.]/i.test(text)) return false;
+        try { return new URL(`http://[${text}]/`).hostname.length > 0; } catch (_) { return false; }
+    };
+    const validMAC = value => {
+        const text = String(value ?? '').trim();
+        if (!text) return true;
+        if (/^[0-9a-f]{2}([:-])[0-9a-f]{2}(\1[0-9a-f]{2})*$/i.test(text)) return [6, 8, 20].includes((text.length + 1) / 3);
+        return /^[0-9a-f]{4}(\.[0-9a-f]{4})+$/i.test(text) && [3, 4, 10].includes((text.length + 1) / 5);
+    };
+    const validVLAN = value => { const text = String(value ?? '').trim(); return text === '' || (/^\d{1,4}$/.test(text) && Number(text) <= 4094); };
+    const validCustomKey = key => /^[a-z][a-z0-9_.-]{0,63}$/.test(key);
     // edgeSegment joins two shapes at their borders: each end leaves its centre
     // towards the other and stops at its half-size rectangle. Overlapping shapes
     // keep the centre-to-centre line.
@@ -537,6 +556,8 @@
             takeRedo: () => redo.pop() ?? null,
             canUndo: () => undo.length > 0,
             canRedo: () => redo.length > 0,
+            peekUndo: () => undo.at(-1) ?? null,
+            peekRedo: () => redo.at(-1) ?? null,
             clear() { undo = []; redo = []; },
         };
     };
@@ -588,6 +609,13 @@
         external: '<path d="M6.5 3.5H3.5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V9.5M9.5 2.5h4v4M13.3 2.7L7.5 8.5"/>',
         locate: '<circle cx="8" cy="8" r="3.1"/><path d="M8 2v2M8 12v2M2 8h2M12 8h2"/>',
         chevronRight: '<path d="M6.2 4.2L10 8l-3.8 3.8"/>',
+        refresh: '<path d="M13 6a5.2 5.2 0 1 0 .2 3M13 2.5V6H9.5"/>',
+        arrange: '<rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="1"/><rect x="9" y="9" width="4.5" height="4.5" rx="1"/>',
+        keyboard: '<rect x="1.5" y="4" width="13" height="8" rx="1.5"/><path d="M4 7h.01M6.5 7h.01M9 7h.01M11.5 7h.01M5 9.5h6"/>',
+        legend: '<path d="M6 4.5h7.5M6 8h7.5M6 11.5h7.5"/><circle cx="3" cy="4.5" r=".9" fill="currentColor"/><circle cx="3" cy="8" r=".9" fill="currentColor"/><circle cx="3" cy="11.5" r=".9" fill="currentColor"/>',
+        file: '<path d="M9.5 2H4.5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V5z"/><path d="M9.5 2v3h3"/>',
+        place: '<path d="M2 4.5a1 1 0 0 1 1-1h3.2l1.5 1.6H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z"/>',
+        import: '<path d="M8 2.5v7.5M4.8 7L8 10.2 11.2 7"/><path d="M2.5 11.5v1a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-1"/>',
     };
     const glyph = name => `<svg class="infra-glyph" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${GLYPHS[name] || ''}</svg>`;
 
@@ -714,19 +742,30 @@
         return scored.sort((a, b) => b.score - a.score || naturalCompare(a.name, b.name)).slice(0, limit).map(item => item.id);
     };
     // sourceLabels names sources of one kind apart without ever showing the opaque instance id. A kind with
-    // several instances is numbered in instance order ("Docker 1", "Docker 2", stable across polls); the id only
-    // goes into the title. of(source) is {text, title}; several is the set of kinds that were numbered.
-    const sourceLabels = (sources, kindLabel) => {
+    // several instances shows the name nameOf(kind, instance) gives it ("Docker · aurago-test", shortened after 22
+    // characters, the full text is the title); an instance without a unique name is numbered in instance order
+    // ("Docker 1", "Docker 2", stable across polls) and the id only goes into the title. of(source) is {text, title};
+    // several is the set of kinds that were told apart.
+    const sourceLabels = (sources, kindLabel, nameOf = () => '') => {
         const instances = new Map();
         for (const source of sources || []) {
             if (!source || source.ignored) continue;
             instances.set(source.kind, (instances.get(source.kind) || new Set()).add(String(source.instance || '')));
         }
         const order = new Map([...instances].filter(([, set]) => set.size > 1).map(([kind, set]) => [kind, [...set].sort(naturalCompare)]));
+        // A name only counts while no other instance of the kind has the same one.
+        const names = new Map();
+        for (const [kind, list] of order) {
+            const found = list.map(instance => String(nameOf(kind, instance) || '').trim());
+            list.forEach((instance, index) => { if (found[index] && found.filter(name => name === found[index]).length === 1) names.set(`${kind}\x1f${instance}`, found[index]); });
+        }
+        const short = name => { const chars = [...name]; return chars.length > 22 ? `${chars.slice(0, 22).join('')}…` : name; };
         return {
             several: new Set(order.keys()),
             of(source) {
                 const base = kindLabel(source?.kind), instance = String(source?.instance || ''), rank = (order.get(source?.kind) || []).indexOf(instance);
+                const name = names.get(`${source?.kind}\x1f${instance}`);
+                if (name) return { text: `${base} · ${short(name)}`, title: `${base} · ${name}` };
                 return { text: rank >= 0 ? `${base} ${rank + 1}` : base, title: instance ? `${base} · ${instance}` : base };
             },
         };
@@ -775,8 +814,8 @@
     };
 
     // ---- List view, inspector and picker helpers -------------------------------
-    const TABLE_SORTS = ['name', 'kind', 'place', 'address', 'source', 'status', 'power'];
-    const STATUS_ORDER = { removed: 0, stale: 1, unknown: 2, current: 3, manual: 4 };
+    const TABLE_SORTS = ['name', 'kind', 'place', 'address', 'hardware', 'source', 'status', 'power'];
+    const REACH_ORDER = { live: 0, offline: 1, unknown: 2 };
     const POWER_ORDER = { running: 0, paused: 1, stopped: 2, unknown: 3 };
     const ipv4Number = value => { const match = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(String(value ?? '').trim()); return match ? match.slice(1).reduce((sum, part) => sum * 256 + Number(part), 0) : null; };
     const compareAddress = (a, b) => { const x = ipv4Number(a), y = ipv4Number(b); if (x !== null && y !== null) return x - y; if (x !== null) return -1; if (y !== null) return 1; return naturalCompare(a, b); };
@@ -785,7 +824,9 @@
         if (key === 'place') return ctx.placeOf(node.id);
         if (key === 'address') return node.profile?.ip_address || node.profile?.mac_address || '';
         if (key === 'source') return ctx.sourceOf(node);
-        if (key === 'status') return STATUS_ORDER[sourceState(node)];
+        if (key === 'hardware') return [node.profile?.vendor, node.profile?.model].filter(Boolean).join(' · ');
+        // Reachability first (live, offline, unknown); a stale or removed source sorts before its peers. No signal sorts last.
+        if (key === 'status') { const live = liveState(node); return live ? REACH_ORDER[live] * 2 + (['stale', 'removed'].includes(sourceState(node)) ? 0 : 1) : null; }
         if (key === 'power') return Object.prototype.hasOwnProperty.call(POWER_ORDER, node.power || '') ? POWER_ORDER[node.power] : null;
         return node.name;
     };
@@ -935,7 +976,7 @@
     window.InfraAppModel = {
         esc, clone, iconId, iconURL, assetURL, iconLabelKey, sourceActions, sourceIdentity, virtualSlice, sourceState,
         liveState, liveLabelKey,
-        visibleByCollapsed, isPlaced, validCIDR, validHTTPLink, iconIds: () => [...ICON_LIST],
+        visibleByCollapsed, isPlaced, validCIDR, validHTTPLink, validIP, validMAC, validVLAN, validCustomKey, iconIds: () => [...ICON_LIST],
         acceptsIcon, rememberIcon, versionedAsset, containerKinds: () => [...CONTAINER_KINDS], isContainer, powerLabel,
         edgeSegment, edgeCurve, edgeCaption, edgeLabelClash, gridPositions, snapshotStamp,
         layoutSnapshot, applyLayoutPatch,

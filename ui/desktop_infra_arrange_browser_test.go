@@ -75,8 +75,14 @@ func TestDesktopInfraArrangeAndGroupBrowser(t *testing.T) {
 	}
 
 	// Ctrl+G groups the selection in a coloured group.
+	// 2.15: Arrange names its scope: the whole map with nothing selected, the selection when several cards of one place are.
+	arrangeLabel := `()=>document.querySelector('[data-action="arrange"]').textContent`
+	if got, want := page.MustEval(arrangeLabel).Str(), page.MustEval(`()=>window.fixtureWords['desktop.infra_arrange_map']`).Str(); got != want {
+		t.Fatalf("with nothing selected Arrange reads %q; want %q", got, want)
+	}
 	page.MustEval(`()=>document.querySelector('[data-node="dev-a"]').click()`)
 	page.KeyActions().Press(input.ControlLeft).Type(input.KeyA).Release(input.ControlLeft).MustDo()
+	page.MustWait(`()=>document.querySelector('[data-action="arrange"]').textContent===window.fixtureWords['desktop.infra_arrange_selection']`)
 	page.KeyActions().Press(input.ControlLeft).Type(input.KeyG).Release(input.ControlLeft).MustDo()
 	calls = waitLayoutCalls(2)
 	fixture.mu.Lock()

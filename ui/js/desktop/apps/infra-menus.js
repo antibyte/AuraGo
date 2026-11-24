@@ -51,7 +51,7 @@
             const single = ids.length === 1, view = app.mapView();
             rect = rect || anchor?.getBoundingClientRect?.() || null;
             const items = [];
-            if (single && !inspector) items.push(plain({ id: 'open', label: t('desktop.infra_open'), icon: 'info', action: () => app.inspector.open(id, 'overview') }, anchor));
+            if (single && !inspector) items.push(plain({ id: 'open', label: t('desktop.infra_show_details'), icon: 'info', action: () => app.inspector.open(id, 'overview') }, anchor));
             items.push(write({ id: 'move', label: t('desktop.infra_move_to_place'), icon: 'folder', action: () => app.picker.openPlacePicker({ anchor, rect, exclude: ids, onPick: placeId => { void app.gestures.moveIntoPlace(ids, placeId); } }) }, anchor));
             if (single) items.push(write({ id: 'connect', label: t('desktop.infra_connect_to'), icon: 'link', action: () => app.picker.openAssetPicker({ anchor, rect, label: t('desktop.infra_connect_to'), accept: other => other.id !== id, onPick: option => app.dialogs.openEdgeDialog('', id, option.id) }) }, anchor));
             if (single) (node.app_links || []).filter(link => model.APP_LINK_TARGETS.has(link.app)).forEach((link, index) => items.push(plain({ id: `app-${index}`, label: model.fill(t('desktop.infra_open_in_app'), { app: appLabel(link.app) }), icon: 'apps', action: () => app.openAppLink(link) }, anchor)));
@@ -62,8 +62,10 @@
                 if (drawn.length > 1 && new Set(drawn.map(item => store.effectiveParent(item, view))).size === 1) items.push(submenu({ id: 'arrange-selection', label: t('desktop.infra_arrange_selection'), icon: 'grid' }, arrangeModes(anchor, mode => app.arrange.arrange(mode, { ids: drawn }))));
                 if (ids.some(item => !model.isContainer(store.nodeById(item)?.kind))) items.push(write({ id: 'group', label: t('desktop.infra_group'), icon: 'folder', shortcut: ctrlHint('G'), action: () => { void app.arrange.group(ids); } }, anchor));
             }
-            items.push(separator, write({ id: 'remove', label: t('desktop.infra_remove_node'), icon: 'trash', action: () => { void app.dialogs.deleteNodes(ids); } }, anchor));
-            if (ids.some(item => (store.nodeById(item)?.sources || []).length)) items.push(write({ id: 'remove-ignore', label: t('desktop.infra_remove_and_ignore'), icon: 'trash', action: () => { void app.dialogs.removeAndIgnore(ids); } }, anchor));
+            // The power actions of the asset's sources are their own group (they bring their own separator; nothing without control access).
+            if (single) items.push(...sourceActionItems(node, anchor));
+            items.push(separator, write({ id: 'remove', label: t('desktop.infra_remove_node'), icon: 'trash', shortcut: t('desktop.infra_kbd_delete'), action: () => { void app.dialogs.deleteNodes(ids); } }, anchor));
+            if (ids.some(item => (store.nodeById(item)?.sources || []).length)) items.push(write({ id: 'remove-ignore', label: t('desktop.infra_remove_and_ignore'), icon: 'eye-off', action: () => { void app.dialogs.removeAndIgnore(ids); } }, anchor));
             return items;
         }
         function placeItems(id, anchor, { inspector = false, rect = null } = {}) {
@@ -71,7 +73,7 @@
             const view = app.mapView();
             rect = rect || anchor?.getBoundingClientRect?.() || null;
             const items = [];
-            if (!inspector) items.push(plain({ id: 'open', label: t('desktop.infra_open'), icon: 'info', action: () => app.inspector.open(id, 'overview') }, anchor));
+            if (!inspector) items.push(plain({ id: 'open', label: t('desktop.infra_show_details'), icon: 'info', action: () => app.inspector.open(id, 'overview') }, anchor));
             items.push(write({ id: 'rename', label: t('desktop.infra_rename'), icon: 'edit', action: () => { app.inspector.open(id, 'details'); app.inspector.focusName(); } }, anchor));
             items.push(write({ id: 'move', label: t('desktop.infra_move_to_place'), icon: 'folder', action: () => app.picker.openPlacePicker({ anchor, rect, exclude: [id], onPick: placeId => { void app.gestures.moveIntoPlace([id], placeId); } }) }, anchor));
             if (state.view !== 'table' && store.features.unplace && store.effectivePlacement(id, view)) items.push(write({ id: 'unplace', label: t('desktop.infra_remove_from_map'), icon: 'x', action: () => { void app.gestures.removeFromMap([id]); } }, anchor));
@@ -83,7 +85,7 @@
                 items.push(submenu({ id: 'color', label: t('desktop.infra_color'), icon: 'image' }, swatches.map(([color, key]) => write({ id: `color-${color || 'none'}`, label: t(key), icon: color === current ? 'check-square' : 'square', action: () => { void app.arrange.setColor(id, color); } }, anchor))));
                 if (node.kind === 'group') items.push(write({ id: 'ungroup', label: t('desktop.infra_ungroup'), icon: 'folder', shortcut: `${ctrlHint('Shift')}+G`, action: () => { void app.arrange.ungroup(id); } }, anchor));
             }
-            items.push(separator, write({ id: 'remove', label: t('desktop.infra_remove_node'), icon: 'trash', action: () => { void app.dialogs.deleteNodes([id]); } }, anchor));
+            items.push(separator, write({ id: 'remove', label: t('desktop.infra_remove_place'), icon: 'trash', shortcut: t('desktop.infra_kbd_delete'), action: () => { void app.dialogs.deleteNodes([id]); } }, anchor));
             return items;
         }
         // Places only get their own menu while they are the one thing selected.
@@ -109,19 +111,20 @@
                 write({ id: 'add', label: t('desktop.infra_new_asset'), icon: 'plus', action: () => app.dialogs.openNodeDialog('device') }, anchor),
                 write({ id: 'add-place', label: t('desktop.infra_new_place'), icon: 'folder', action: () => app.dialogs.openNodeDialog('room', { title: t('desktop.infra_new_place') }) }, anchor),
                 write({ id: 'import', label: t('desktop.infra_import_discoveries'), icon: 'download', action: () => app.importer.open() }, anchor),
-                ...(inMap() ? [submenu({ id: 'arrange-auto', label: t('desktop.infra_arrange_auto'), icon: 'grid' }, arrangeModes(anchor, mode => app.arrange.arrange(mode)))] : []),
+                ...(inMap() ? [submenu({ id: 'arrange-auto', label: t(app.mapView() === 'topology' ? 'desktop.infra_arrange_auto' : 'desktop.infra_arrange_map'), icon: 'grid' }, arrangeModes(anchor, mode => app.arrange.arrange(mode)))] : []),
                 separator,
-                plain({ id: 'fit', label: t('desktop.infra_zoom_fit'), icon: 'grid', action: () => app.canvas.fit({ animate: true }) }, anchor),
+                plain({ id: 'fit', label: t('desktop.infra_zoom_fit'), icon: 'grid', shortcut: 'F', action: () => app.canvas.fit({ animate: true }) }, anchor),
             ];
         }
         // Source actions are only offered to operators with control access; they were the body of the old node dialog.
+        const POWER_ICONS = { start: 'play', stop: 'stop', restart: 'refresh', reboot: 'refresh', shutdown: 'stop', wake: 'play' };
         function sourceActionItems(node, anchor) {
             if (!store.canControl()) return [];
             const items = [];
             (node.sources || []).forEach(source => {
                 model.sourceActions(source.kind).filter(action => store.allowedAction(node, action, source)).forEach(action => {
                     const blocked = state.actionBlocks.has(store.actionBlockKey(node.id, source, action));
-                    items.push(plain({ id: `act-${items.length}`, label: `${t(`desktop.infra_action_${action}`)} · ${t(`desktop.infra_source_${source.kind}`)}`, icon: 'settings', disabled: blocked, action: () => { void app.dialogs.runAction(node.id, source, action); } }, anchor));
+                    items.push(plain({ id: `act-${items.length}`, label: `${t(`desktop.infra_action_${action}`)} · ${t(`desktop.infra_source_${source.kind}`)}`, icon: POWER_ICONS[action] || 'settings', disabled: blocked, action: () => { void app.dialogs.runAction(node.id, source, action); } }, anchor));
                 });
             });
             return items.length ? [separator, ...items] : [];
@@ -183,7 +186,8 @@
             if (!node) return;
             if (typeof ctx.showContextMenu !== 'function') { app.dialogs.openNodeActions(id); return; }
             const rect = button.getBoundingClientRect();
-            const items = [...itemsFor(id, button, { inspector: true }), ...sourceActionItems(node, button)];
+            // An asset's menu already carries its power actions; a place has none of its own, so the actions are added for it.
+            const items = [...itemsFor(id, button, { inspector: true }), ...(model.isContainer(node.kind) ? sourceActionItems(node, button) : [])];
             show(rect.left, rect.bottom, items);
         }
 

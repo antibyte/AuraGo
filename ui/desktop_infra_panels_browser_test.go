@@ -73,10 +73,11 @@ func infraPanelsConfirm(page *rod.Page) {
 	page.MustEval(`()=>document.querySelector('.vd-modal [data-choice="discard"]').click()`)
 }
 
-// infraPanelsMenu lists the open context menu as "id,id!" (a trailing ! marks a disabled item).
+// infraPanelsMenu lists the top-level items of the open context menu as "id,id!" (a trailing ! marks a disabled item).
+// The children of a submenu ("arrange-contents/arrange-grid") are not part of the list.
 func infraPanelsMenu(page *rod.Page) string {
 	page.MustWait(`()=>document.querySelectorAll('.vd-context-menu [data-context-action]').length>0`)
-	return page.MustEval(`()=>[...document.querySelectorAll('.vd-context-menu [data-context-action]')].map(button=>button.dataset.contextAction+(button.disabled?'!':'')).join(',')`).Str()
+	return page.MustEval(`()=>[...document.querySelectorAll('.vd-context-menu [data-context-action]')].filter(b=>!b.closest('.vd-context-submenu-popover')).map(button=>button.dataset.contextAction+(button.disabled?'!':'')).join(',')`).Str()
 }
 
 func infraPanelsCloseMenu(page *rod.Page) {
@@ -153,7 +154,8 @@ func TestDesktopInfraCleanupAndIgnoreBrowser(t *testing.T) {
 	page.MustWait(`()=>!document.querySelector('[data-cleanup^="duplicate:"]')&&!!document.querySelector('[data-node="tv"]')&&document.querySelectorAll('[data-ignored-source]').length===2`)
 
 	// Restore from Ignored.
-	page.MustEval(fmt.Sprintf(`()=>document.querySelector('[data-restore-source="%s"]').click()`, oldNas))
+	// A double click sends one request: the button is busy while the first one runs.
+	page.MustEval(fmt.Sprintf(`()=>{const b=document.querySelector('[data-restore-source="%s"]');b.click();b.click();}`, oldNas))
 	infraPanelsWait(t, fixture, "restore", func() bool { return len(fixture.ignoreCalls) == 1 })
 	fixture.mu.Lock()
 	restore := fixture.ignoreCalls[0]
@@ -162,6 +164,12 @@ func TestDesktopInfraCleanupAndIgnoreBrowser(t *testing.T) {
 		t.Fatalf("restore sent %#v", restore)
 	}
 	page.MustWait(fmt.Sprintf(`()=>!document.querySelector('[data-ignored-source="%s"]')`, oldNas))
+	fixture.mu.Lock()
+	restores := len(fixture.ignoreCalls)
+	fixture.mu.Unlock()
+	if restores != 1 {
+		t.Fatalf("a double click on Restore sent %d requests", restores)
+	}
 	closeInfraBrowserWindow(t, page)
 	requireInfraBrowserClean(t, page)
 }
@@ -218,9 +226,31 @@ func TestDesktopInfraInspectorAndListBrowser(t *testing.T) {
 	page.MustEval(`()=>document.querySelector('[data-app-picker] [data-app-target][data-target-id="conv-ipt"]').click()`)
 	page.MustWait(`()=>!!document.querySelector('[data-app-binding="meshcore:conv-ipt"]')&&!document.querySelector('[data-savebar]').hidden&&!!document.querySelector('[data-savebar] .infra-draft-banner')`)
 
+	// An invalid IP shows its message below the field after blur, keeps Save enabled, and a save attempt focuses it and saves nothing.
+	page.MustEval(`()=>{const field=document.querySelector('[data-profile="ip_address"]');field.closest('details').open=true;field.focus();field.value='nope';field.dispatchEvent(new Event('input',{bubbles:true}));field.blur();}`)
+	page.MustWait(`()=>document.querySelector('[data-profile="ip_address"]').getAttribute('aria-invalid')==='true'`)
+	if !page.MustEval(`()=>{const field=document.querySelector('[data-profile="ip_address"]'),note=document.getElementById(field.getAttribute('aria-describedby'));return !!note&&note.textContent===window.fixtureWords['desktop.infra_invalid_ip']&&!document.querySelector('[data-detail-form] [type="submit"]').disabled;}`).Bool() {
+		t.Fatal("an invalid IP must show its message and leave Save enabled")
+	}
+	page.MustEval(`()=>document.querySelector('[data-detail-form] [type="submit"]').click()`)
+	page.MustWait(`()=>document.activeElement===document.querySelector('[data-profile="ip_address"]')`)
+	fixture.mu.Lock()
+	invalidPuts := len(fixture.nodePuts)
+	fixture.mu.Unlock()
+	if invalidPuts != 0 {
+		t.Fatalf("a save attempt with an invalid IP sent %d node updates", invalidPuts)
+	}
+	page.MustEval(`()=>{const field=document.querySelector('[data-profile="ip_address"]');field.value='';field.dispatchEvent(new Event('input',{bubbles:true}));}`)
+
 	// Field markers and Ctrl S.
 	page.MustEval(`()=>{const field=document.querySelector('[data-profile="vendor"]');field.closest('details').open=true;field.value='Heltec';field.dispatchEvent(new Event('input',{bubbles:true}));field.focus();}`)
 	page.MustWait(`()=>document.querySelector('[data-field="profile.vendor"]')?.dataset.dirty==='true'&&!document.querySelector('[data-inspector-tab="details"] .infra-tab-dirty').hidden`)
+	// Leaving a dirty draft says so once; coming back finds the draft.
+	page.MustEval(`()=>document.querySelector('[data-node="tv"]').click()`)
+	page.MustWait(`()=>[...document.querySelectorAll('[data-toast] span')].some(span=>span.textContent===window.fixtureWords['desktop.infra_draft_kept'].replace('{name}','Garden relay'))`)
+	page.MustEval(`()=>document.querySelector('[data-node="relay"]').click()`)
+	page.MustWait(`()=>document.querySelector('[data-inspector] h2')?.textContent==='Garden relay'&&document.querySelector('[data-profile="vendor"]')?.value==='Heltec'`)
+	page.MustEval(`()=>document.querySelector('[data-profile="vendor"]').focus()`)
 	page.KeyActions().Press(input.ControlLeft).Type('s').MustDo()
 	infraPanelsWait(t, fixture, "the Ctrl S save", func() bool { return len(fixture.nodePuts) == 1 })
 	fixture.mu.Lock()
@@ -232,6 +262,8 @@ func TestDesktopInfraInspectorAndListBrowser(t *testing.T) {
 		t.Fatalf("Ctrl S saved %#v", saved)
 	}
 	page.MustWait(`()=>document.querySelector('[data-savebar]').hidden&&!document.querySelector('.infra-draft-banner')`)
+	// The repaint after the save gives focus back to the field it was in.
+	page.MustWait(`()=>document.activeElement===document.querySelector('[data-profile="vendor"]')`)
 
 	// List view sorting.
 	page.MustEval(`()=>document.querySelector('[data-view="table"]').click()`)
@@ -303,6 +335,10 @@ func TestDesktopInfraMenusAndShortcutsBrowser(t *testing.T) {
 	if got := infraPanelsMenu(page); got != "open,move,connect,unplace,remove,remove-ignore" {
 		t.Fatalf("card menu = %s", got)
 	}
+	// "Open" is "Show details", Remove carries the Delete hint, and the two removal items have distinct icons.
+	if !page.MustEval(`()=>{const m=document.querySelector('.vd-context-menu'),icon=a=>m.querySelector('[data-context-action="'+a+'"] .vd-context-icon').innerHTML;return m.querySelector('[data-context-action="open"] .vd-context-label').textContent===w('desktop.infra_show_details')&&m.querySelector('[data-context-action="remove"] .vd-context-shortcut')?.textContent===w('desktop.infra_kbd_delete')&&icon('remove')!==icon('remove-ignore')}`).Bool() {
+		t.Fatal("the card menu must say Show details, hint Delete on Remove and give the removal items distinct icons")
+	}
 	// The menu selects the asset it belongs to (the card repaints on the next frame).
 	page.MustWait(`()=>document.querySelector('[data-node="dev-a"]').getAttribute('aria-pressed')==='true'`)
 	page.MustEval(`()=>document.querySelector('.vd-context-menu [data-context-action="unplace"]').click()`)
@@ -340,6 +376,11 @@ func TestDesktopInfraMenusAndShortcutsBrowser(t *testing.T) {
 	}
 	page.MustEval(`()=>document.querySelector('.vd-context-menu [data-context-action="edit"]').click()`)
 	page.MustWait(`()=>!!document.querySelector('[data-edge-inline-form]')&&document.activeElement===document.querySelector('.infra-edge-inline [name="kind"]')`)
+	// Cancel in the inline form puts the stored label back and switches Save off again.
+	page.MustEval(`()=>{const field=document.querySelector('.infra-edge-inline [name="label"]');field.value='temporary';field.dispatchEvent(new Event('input',{bubbles:true}));}`)
+	page.MustWait(`()=>!document.querySelector('[data-action="cancel-edge"]').disabled&&!document.querySelector('[data-action="save-edge"]').disabled`)
+	page.MustEval(`()=>document.querySelector('[data-action="cancel-edge"]').click()`)
+	page.MustWait(`()=>document.querySelector('.infra-edge-inline [name="label"]').value===''&&document.querySelector('[data-action="save-edge"]').disabled`)
 	if got := menuOnEdge("edge-provider"); got != "edit!,remove!" {
 		t.Fatalf("provider connection menu = %s; both items must be disabled", got)
 	}
@@ -410,8 +451,24 @@ func TestDesktopInfraMenusAndShortcutsBrowser(t *testing.T) {
 		t.Fatal("legend did not restore focus", page.MustEval(`()=>JSON.stringify({hidden:document.querySelector('[data-popover="legend"]').hidden,active:document.activeElement.outerHTML,more:document.querySelector('[data-action="more"]').outerHTML})`).Str())
 	}
 
+	// A network failure of the PDF export toasts the translated text, never the browser's "Failed to fetch".
+	page.MustEval(`()=>{window.infraRealFetch=window.fetch;window.fetch=(url,...rest)=>String(url).includes('/export/pdf')?Promise.reject(new TypeError('Failed to fetch')):window.infraRealFetch(url,...rest);}`)
+	page.MustEval(`()=>document.querySelector('[data-action="more"]').click()`)
+	page.MustWait(`()=>!document.querySelector('[data-menu="more"]').hidden`)
+	page.MustEval(`()=>document.querySelector('[data-menu="more"] [data-action="export-pdf"]').click()`)
+	page.MustWait(`()=>!!document.querySelector('[data-pdf-create]')`)
+	page.MustEval(`()=>document.querySelector('[data-pdf-create]').click()`)
+	page.MustWait(`()=>[...document.querySelectorAll('[data-toast] span')].some(span=>span.textContent===w('desktop.infra_export_pdf_failed'))`)
+	// An error toast stays until it is dismissed: do that, so it never covers the bars checked below.
+	page.MustEval(`()=>{window.fetch=window.infraRealFetch;const dialog=document.querySelector('[data-dialog]');if(dialog.open)dialog.close();document.querySelectorAll('[data-action="dismiss-toast"]').forEach(button=>button.click());}`)
+	page.MustWait(`()=>!document.querySelector('[data-dialog]').open&&!document.querySelector('[data-toast]')`)
+
 	// Filter chips: one per active filter, removable, with Clear filters in the popover.
 	page.MustEval(`()=>document.querySelector('[data-action="filters"]').click()`)
+	// The three selects share one label column and one width.
+	if !page.MustEval(`()=>{const r=[...document.querySelectorAll('[data-popover="filters"] select')].map(s=>s.getBoundingClientRect());return r.length===3&&new Set(r.map(x=>Math.round(x.left))).size===1&&new Set(r.map(x=>Math.round(x.width))).size===1}`).Bool() {
+		t.Fatal("the filter selects must start at one x position and share one width")
+	}
 	page.MustEval(`()=>{const kind=document.querySelector('[data-kind-filter]');kind.value='device';kind.dispatchEvent(new Event('change',{bubbles:true}));const power=document.querySelector('[data-power-filter]');power.value='none';power.dispatchEvent(new Event('change',{bubbles:true}));}`)
 	page.MustWait(`()=>document.querySelectorAll('[data-remove-filter]').length===2&&!document.querySelector('[data-filter-chips]').hidden&&!document.querySelector('[data-action="clear-filters"]').disabled`)
 	page.MustEval(`()=>document.querySelector('[data-remove-filter="kind"]').click()`)
@@ -439,6 +496,12 @@ func TestDesktopInfraMenusAndShortcutsBrowser(t *testing.T) {
 	// A click on an asset's name still opens its panel.
 	page.MustEval(`()=>document.querySelector('[data-row="dev-b"] [data-select]').click()`)
 	page.MustWait(`()=>!document.querySelector('[data-inspector]').hidden&&document.querySelector('[data-inspector] h2')?.textContent==='Core switch'`)
+	// In the List the map-only commands say so; the shortcut item shows its key.
+	page.MustEval(`()=>document.querySelector('[data-action="more"]').click()`)
+	page.MustWait(`()=>!document.querySelector('[data-menu="more"]').hidden`)
+	if !page.MustEval(`()=>{const menu=document.querySelector('[data-menu="more"]'),item=name=>menu.querySelector('[data-action="'+name+'"]');return ['arrange','legend'].every(name=>item(name).disabled&&item(name).title===w('desktop.infra_map_only'))&&item('shortcuts').querySelector('.infra-menu-kbd')?.textContent==='?'}`).Bool() {
+		t.Fatal("in the List, Arrange and Legend must be disabled with the map-only reason and Shortcuts must show its key")
+	}
 	closeInfraBrowserWindow(t, page)
 	requireInfraBrowserClean(t, page)
 }

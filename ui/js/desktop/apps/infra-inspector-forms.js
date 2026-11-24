@@ -37,7 +37,7 @@
 
     function create(app) {
         const { store, state, t, esc, model } = app;
-        const { clone, iconId, iconLabelKey, sourceActions, sourceIdentity, validCIDR, validHTTPLink } = model;
+        const { clone, iconId, iconLabelKey, sourceActions, sourceIdentity, validCIDR, validHTTPLink, validIP, validMAC, validVLAN, validCustomKey } = model;
         const S = app.safeId;
         const ICON_LIST = model.iconIds();
         const canWrite = () => store.canWrite();
@@ -94,7 +94,7 @@
         const listEditor = (family, title, fields, rows, addKey, removeKey) => `<div class="infra-list-editor" data-list-editor="${family}" data-field="profile.${family}"><div class="infra-list-heading"><span>${esc(t(`desktop.infra_${title}`))}</span><button type="button" data-list-add="${family}" ${disabledAttr()}>＋ ${esc(t(`desktop.infra_${addKey}`))}</button></div>${rows.length ? rows.map((row, index) => `<div class="infra-list-row" data-list-row="${family}" data-index="${index}"><div class="infra-fields-grid">${fields.map(([key, type, attrs]) => inputFor(family, index, key, row[key], type, attrs || '')).join('')}</div><button type="button" class="infra-list-remove" data-list-remove="${family}" data-index="${index}" aria-label="${esc(t(`desktop.infra_${removeKey}`))}" ${disabledAttr()}>×</button></div>`).join('') : `<p class="infra-hint">${esc(t('desktop.infra_list_empty'))}</p>`}</div>`;
         const customEditor = (nodeID, profile) => {
             const rows = state.customRows.get(nodeID) || Object.entries(profile.custom || {}).map(([key, value]) => ({ key, value }));
-            return `<div class="infra-list-editor" data-list-editor="custom" data-field="profile.custom"><div class="infra-list-heading"><span>${esc(t('desktop.infra_custom_fields'))}</span><button type="button" data-list-add="custom" ${disabledAttr()}>＋ ${esc(t('desktop.infra_add_custom_field'))}</button></div>${rows.length ? rows.map((row, index) => `<div class="infra-list-row" data-list-row="custom" data-index="${index}"><div class="infra-fields-grid">${inputFor('custom', index, 'key', row.key, 'text', 'required maxlength="80" pattern="[A-Za-z0-9_.-]+"')}<label class="infra-field"><span>${esc(t('desktop.infra_custom_value'))}</span><input data-list-family="custom" data-index="${index}" data-key="value" value="${esc(row.value ?? '')}" maxlength="2048" ${readonlyAttr()}></label></div><button type="button" class="infra-list-remove" data-list-remove="custom" data-index="${index}" aria-label="${esc(t('desktop.infra_remove_custom_field'))}" ${disabledAttr()}>×</button></div>`).join('') : `<p class="infra-hint">${esc(t('desktop.infra_list_empty'))}</p>`}</div>`;
+            return `<div class="infra-list-editor" data-list-editor="custom" data-field="profile.custom"><div class="infra-list-heading"><span>${esc(t('desktop.infra_custom_fields'))}</span><button type="button" data-list-add="custom" ${disabledAttr()}>＋ ${esc(t('desktop.infra_add_custom_field'))}</button></div>${rows.length ? rows.map((row, index) => `<div class="infra-list-row" data-list-row="custom" data-index="${index}"><div class="infra-fields-grid">${inputFor('custom', index, 'key', row.key, 'text', 'required maxlength="64"')}<label class="infra-field"><span>${esc(t('desktop.infra_custom_value'))}</span><input data-list-family="custom" data-index="${index}" data-key="value" value="${esc(row.value ?? '')}" maxlength="2048" ${readonlyAttr()}></label></div><button type="button" class="infra-list-remove" data-list-remove="custom" data-index="${index}" aria-label="${esc(t('desktop.infra_remove_custom_field'))}" ${disabledAttr()}>×</button></div>`).join('') : `<p class="infra-hint">${esc(t('desktop.infra_list_empty'))}</p>`}</div>`;
         };
 
         // ---- app links ------------------------------------------------------------------------------
@@ -196,12 +196,12 @@
                     + `<label class="infra-field" data-field="profile.tags"><span>${esc(t('desktop.infra_tags'))}</span><input data-profile="tags" value="${esc((draft.profile?.tags || []).join(', '))}" placeholder="${esc(t('desktop.infra_tags_hint'))}" ${readonlyAttr()} autocomplete="off"></label>` + placementReadout(node);
             }
             if (group === 'network') {
-                const segment = draft.kind === 'network' ? `<section class="infra-network-segment"><h4>${esc(t('desktop.infra_network_segment'))}</h4><div class="infra-field-row"><label class="infra-field" data-field="profile.cidr"><span>${esc(t('desktop.infra_cidr'))}</span><input data-profile="cidr" type="text" value="${esc(draft.profile?.cidr || '')}" placeholder="192.168.10.0/24" ${readonlyAttr()}></label><label class="infra-field" data-field="profile.vlan"><span>${esc(t('desktop.infra_vlan'))}</span><input data-profile="vlan" type="number" min="1" max="4094" value="${esc(draft.profile?.vlan || '')}" placeholder="${esc(t('desktop.infra_unknown'))}" ${readonlyAttr()}></label></div><p class="infra-hint">${esc(t('desktop.infra_cidr_hint'))}</p></section>` : '';
+                const segment = draft.kind === 'network' ? `<section class="infra-network-segment"><h4>${esc(t('desktop.infra_network_segment'))}</h4><div class="infra-field-row"><label class="infra-field" data-field="profile.cidr"><span>${esc(t('desktop.infra_cidr'))}</span><input data-profile="cidr" type="text" value="${esc(draft.profile?.cidr || '')}" placeholder="192.168.10.0/24" ${readonlyAttr()}></label><label class="infra-field" data-field="profile.vlan"><span>${esc(t('desktop.infra_vlan'))}</span><input data-profile="vlan" type="number" value="${esc(draft.profile?.vlan || '')}" placeholder="${esc(t('desktop.infra_unknown'))}" ${readonlyAttr()}></label></div><p class="infra-hint">${esc(t('desktop.infra_cidr_hint'))}</p></section>` : '';
                 return `<div class="infra-fields-grid">${field(draft, 'ip_address', 'ip_address')}${field(draft, 'mac_address', 'mac_address')}</div>${segment}`
                     + listEditor('interfaces', 'interfaces', [['name', 'text', 'required maxlength="64"'], ['ip_address', 'text'], ['mac_address', 'text'], ['vlan', 'text'], ['speed', 'text']], draft.profile?.interfaces || [], 'add_interface', 'remove_interface');
             }
             if (group === 'hardware') return `<div class="infra-fields-grid">${HARDWARE_FIELDS.map(name => field(draft, name, name)).join('')}</div>`;
-            if (group === 'links') return listEditor('links', 'links', [['label', 'text', 'required maxlength="128"'], ['url', 'url', 'placeholder="https://" required maxlength="2048"']], draft.profile?.links || [], 'add_link', 'remove_link') + appLinksHTML(draft);
+            if (group === 'links') return listEditor('links', 'links', [['label', 'text', 'required maxlength="128"'], ['url', 'text', 'inputmode="url" placeholder="https://" required maxlength="2048"']], draft.profile?.links || [], 'add_link', 'remove_link') + appLinksHTML(draft);
             if (group === 'notes') return `<label class="infra-field" data-field="profile.notes"><span>${esc(t('desktop.infra_notes'))}</span><textarea data-profile="notes" rows="4" ${readonlyAttr()}>${esc(draft.profile?.notes || '')}</textarea></label>`;
             return customEditor(node.id, draft.profile || {});
         }
@@ -214,9 +214,9 @@
                 return `<details class="infra-form-group" data-form-group="${group}"${open ? ' open' : ''}><summary class="infra-form-group-head"><span class="infra-form-group-title">${esc(titles[group])}</span>${add}<span class="infra-form-group-changed" data-group-changed hidden></span></summary><div class="infra-form-group-body">${groupBody(group, node, draft)}</div></details>`;
             }).join('');
             const bar = write
-                ? `<div class="infra-savebar" data-savebar${dirty ? '' : ' hidden'}>${dirty ? `<p class="infra-draft-banner" role="status"><i aria-hidden="true"></i><span>${esc(t('desktop.infra_unsaved_changes'))}</span></p>` : ''}<span class="infra-flex-spacer"></span><button type="button" class="infra-button" data-action="revert-node">${esc(t('desktop.infra_discard'))}</button><button type="submit" class="infra-button infra-button-primary" ${dirty && !busy ? '' : 'disabled'}>${esc(busy ? t('desktop.infra_saving') : t('desktop.infra_save_in_infra'))}</button></div>`
+                ? `<div class="infra-savebar" data-savebar${dirty ? '' : ' hidden'}>${dirty ? `<p class="infra-draft-banner" role="status"><i aria-hidden="true"></i><span>${esc(t('desktop.infra_unsaved_changes'))}</span></p>` : ''}<span class="infra-flex-spacer"></span><button type="button" class="infra-button" data-action="revert-node">${esc(t('desktop.infra_discard'))}</button><button type="submit" class="infra-button infra-button-primary" data-action="save-node" ${dirty && !busy ? '' : 'disabled'}>${esc(busy ? t('desktop.infra_saving') : t('desktop.infra_save_in_infra'))}</button></div>`
                 : `<p class="infra-readonly-note">${esc(t('desktop.infra_read_only'))}</p>`;
-            return `<form class="infra-detail-form" id="infra-detail-form-${S}" data-detail-form data-node-id="${esc(node.id)}">${groups}${bar}</form>`;
+            return `<form class="infra-detail-form" id="infra-detail-form-${S}" data-detail-form novalidate data-node-id="${esc(node.id)}">${groups}${bar}</form>`;
         }
 
         // ---- drafts ----------------------------------------------------------------------------------------
@@ -225,17 +225,59 @@
             state.draftRevision.set(id, (state.draftRevision.get(id) || 0) + 1);
             syncDirty();
         }
+        // Every message is set with setCustomValidity, so validationMessage is always ours and in the app language.
+        // The checks are never stricter than internal/infra/validate.go (see the helpers in infra-model.js).
+        const FIELD_RULES = [
+            ['[data-profile="cidr"]', input => (validCIDR(input.value) ? '' : 'desktop.infra_invalid_cidr')],
+            ['[data-profile="vlan"]', input => (!input.validity.badInput && validVLAN(input.value) ? '' : 'desktop.infra_invalid_vlan')],
+            ['[data-profile="ip_address"], [data-list-family="interfaces"][data-key="ip_address"]', input => (validIP(input.value) ? '' : 'desktop.infra_invalid_ip')],
+            ['[data-profile="mac_address"], [data-list-family="interfaces"][data-key="mac_address"]', input => (validMAC(input.value) ? '' : 'desktop.infra_invalid_mac')],
+            ['[data-list-family="links"][data-key="label"], [data-list-family="interfaces"][data-key="name"]', input => (input.value.trim() ? '' : 'desktop.infra_field_required')],
+            ['[data-list-family="links"][data-key="url"]', input => (validHTTPLink(input.value) ? '' : 'desktop.infra_invalid_link')],
+        ];
+        // Which field messages are visible: after blur (keys) or after a save attempt (all). Reset per asset.
+        let shown = { id: '', keys: new Set(), all: false };
+        const resetShown = () => { shown = { id: '', keys: new Set(), all: false }; };
+        const fieldKey = input => input.dataset?.profile || (input.dataset?.listFamily ? `${input.dataset.listFamily}:${input.dataset.index}:${input.dataset.key}` : '');
+        function paintFieldErrors(form) {
+            if (shown.id !== state.selected) shown = { id: state.selected, keys: new Set(), all: false };
+            for (const input of form.elements) {
+                const key = fieldKey(input), holder = key && input.closest('.infra-field');
+                if (!holder) continue;
+                const id = `infra-field-error-${S}-${key.replace(/[^\w-]/g, '-')}`;
+                let note = holder.querySelector('.infra-field-error');
+                if ((shown.all || shown.keys.has(key)) && !input.validity.valid) {
+                    if (!note) { note = document.createElement('p'); note.className = 'infra-field-error'; holder.append(note); }
+                    note.id = id; note.textContent = input.validationMessage;
+                    input.setAttribute('aria-invalid', 'true'); input.setAttribute('aria-describedby', id);
+                } else {
+                    note?.remove();
+                    input.removeAttribute('aria-invalid'); input.removeAttribute('aria-describedby');
+                }
+            }
+        }
         function validateDetailForm(form) {
-            const cidr = form.querySelector('[data-profile="cidr"]');
-            if (cidr) cidr.setCustomValidity(validCIDR(cidr.value) ? '' : t('desktop.infra_invalid_cidr'));
-            for (const input of form.querySelectorAll('[data-list-family="links"][data-key="url"]')) input.setCustomValidity(validHTTPLink(input.value) ? '' : t('desktop.infra_invalid_link'));
+            for (const [selector, rule] of FIELD_RULES) {
+                for (const input of form.querySelectorAll(selector)) { const key = rule(input); input.setCustomValidity(key ? t(key) : ''); }
+            }
             const seen = new Set();
             for (const input of form.querySelectorAll('[data-list-family="custom"][data-key="key"]')) {
                 const key = input.value.trim();
-                input.setCustomValidity(key && seen.has(key) ? t('desktop.infra_duplicate_custom_key') : '');
+                const problem = !key ? 'desktop.infra_field_required' : !validCustomKey(key) ? 'desktop.infra_invalid_custom_key' : seen.has(key) ? 'desktop.infra_duplicate_custom_key' : '';
+                input.setCustomValidity(problem ? t(problem) : '');
                 if (key) seen.add(key);
             }
+            paintFieldErrors(form);
             return form.checkValidity();
+        }
+        // onFieldBlur shows the message of a field the user has left.
+        function onFieldBlur(event) {
+            const form = event.target.closest?.('[data-detail-form]');
+            const key = form && fieldKey(event.target);
+            if (!key) return;
+            if (shown.id !== state.selected) shown = { id: state.selected, keys: new Set(), all: false };
+            shown.keys.add(key);
+            validateDetailForm(form);
         }
         function readProfileLists(form, draft, id) {
             draft.profile ||= {};
@@ -262,7 +304,9 @@
                 else if (!dirty && banner) banner.remove();
                 const submit = bar.querySelector('[type="submit"]');
                 if (submit) {
-                    submit.disabled = !dirty || busy || !(form && validateDetailForm(form));
+                    // Save stays enabled while the draft is dirty; invalid fields explain themselves on blur or on a save attempt.
+                    submit.disabled = !dirty || busy;
+                    if (form) validateDetailForm(form);
                     submit.textContent = busy ? t('desktop.infra_saving') : t('desktop.infra_save_in_infra');
                 }
             }
@@ -316,13 +360,17 @@
         function submitDetails() {
             const form = $('[data-detail-form]');
             if (!form) return;
+            // A save attempt shows every message; an invalid form focuses its first problem and saves nothing.
+            if (shown.id !== state.selected) shown = { id: state.selected, keys: new Set(), all: false };
+            shown.all = true;
+            if (validateDetailForm(form)) { form.requestSubmit(); return; }
             const bad = [...form.elements].find(item => item.willValidate && !item.checkValidity());
-            if (!bad) { form.requestSubmit(); return; }
+            if (!bad) return;
             app.inspector.showTab('details');
             const group = bad.closest('details');
             if (group) { group.open = true; groupOpen.set(`${state.selected}:${group.dataset.formGroup}`, true); }
-            if (bad.matches('.infra-head-name-input')) app.inspector.startRename();
-            bad.reportValidity();
+            if (bad.matches('.infra-head-name-input')) { app.inspector.startRename(); return; }
+            bad.focus();
         }
 
         // ---- saving ---------------------------------------------------------------------------------------------
@@ -340,6 +388,8 @@
             const draft = clone(state.drafts.get(id));
             if (!draft) return false;
             draft.id = id;
+            // The busy state disables Save, which makes the browser drop focus: keep it for the repaint.
+            app.inspector.rememberFocus?.();
             store.setBusy(`node-${id}`, true);
             const review = async () => {
                 await store.loadSnapshot(false);
@@ -355,6 +405,7 @@
                 if ((state.draftRevision.get(id) || 0) === revision || !state.dirty.has(id)) {
                     state.dirty.delete(id); state.nodeReviews.delete(id); state.drafts.set(id, clone(store.nodeById(id) || updated));
                     state.customRows.delete(id);
+                    resetShown();
                     store.notify(t('desktop.infra_saved'), 'success');
                 } else {
                     const newer = state.drafts.get(id) || clone(updated);
@@ -430,7 +481,7 @@
             const editBtn = canEditSource() && !providerHost ? `<button type="button" data-edit-source="${esc(source.kind)}">${esc(t('desktop.infra_edit_source'))}</button>` : '';
             const actionBtn = actions.some(action => store.allowedAction(node, action, source)) ? `<button type="button" data-source-action="${esc(source.kind)}" data-source-identity="${esc(sourceIdentity(source))}">${esc(t('desktop.infra_actions'))}</button>` : '';
             const actionBar = editBtn || actionBtn ? `<div class="infra-source-actions">${editBtn}${actionBtn}</div>` : '';
-            return `<div class="infra-source-row" data-source-row data-source-kind="${esc(source.kind)}"><div class="infra-source-icon" data-source="${esc(source.kind)}">${esc(source.kind.slice(0, 1).toUpperCase())}</div><div class="infra-source-copy"><strong>${esc(t(`desktop.infra_source_${source.kind}`))}</strong><span>${esc(source.name || source.instance || source.key || '')}</span>${reasonLabel ? `<small class="infra-action-reason">${esc(blockedLabel)} · ${esc(reasonLabel)}</small>` : ''}</div>${power}<span class="infra-state-pill" data-state="${esc(source.state)}"><i></i>${esc(app.statusLabel(source.state))}</span><small>${esc(source.fetched_at ? new Date(source.fetched_at).toLocaleString() : t('desktop.infra_no_observation'))}</small>${actionBar}</div>`;
+            return `<div class="infra-source-row" data-source-row data-source-kind="${esc(source.kind)}"><div class="infra-source-icon" data-source="${esc(source.kind)}">${esc(source.kind.slice(0, 1).toUpperCase())}</div><div class="infra-source-copy"><strong>${esc(t(`desktop.infra_source_${source.kind}`))}</strong><span>${esc(source.name || source.instance || source.key || '')}</span>${reasonLabel ? `<small class="infra-action-reason">${esc(blockedLabel)} · ${esc(reasonLabel)}</small>` : ''}</div><span class="infra-source-pills">${power}<span class="infra-state-pill" data-state="${esc(source.state)}"><i></i>${esc(app.statusLabel(source.state))}</span></span><small class="infra-source-time">${esc(source.fetched_at ? new Date(source.fetched_at).toLocaleString() : t('desktop.infra_no_observation'))}</small>${actionBar}</div>`;
         };
         const sourceEditMarkup = (node, sourceEdit) => {
             const dirty = state.sourceDirty.has(node.id), blocked = state.sourceBlocked.has(node.id), pending = state.sourcePending.has(node.id), saving = state.busy.has(`source-${node.id}`);
@@ -598,7 +649,7 @@
             const box = document.createElement('div');
             box.className = 'infra-popover infra-icon-picker'; box.dataset.iconPicker = '';
             box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', t('desktop.infra_change_icon'));
-            box.innerHTML = `<input type="search" data-icon-search aria-label="${esc(t('desktop.infra_icon_search'))}" placeholder="${esc(t('desktop.infra_icon_search'))}" autocomplete="off"><div class="infra-icon-grid" role="listbox" aria-label="${esc(t('desktop.infra_change_icon'))}" data-icon-grid>${ICON_LIST.map(key => { const label = t(iconLabelKey(key)); return `<button type="button" class="infra-icon-option" role="option" data-pick-icon="${key}" aria-selected="${key === current}" tabindex="${key === current ? 0 : -1}" title="${esc(label)}" aria-label="${esc(label)}">${app.icon(key)}</button>`; }).join('')}</div>`;
+            box.innerHTML = `<input type="search" data-icon-search aria-label="${esc(t('desktop.infra_icon_search'))}" placeholder="${esc(t('desktop.infra_icon_search'))}" autocomplete="off"><div class="infra-icon-grid" role="listbox" aria-label="${esc(t('desktop.infra_change_icon'))}" data-icon-grid>${ICON_LIST.map(key => { const label = t(iconLabelKey(key)); return `<button type="button" class="infra-icon-option" role="option" data-pick-icon="${key}" aria-selected="${key === current}" tabindex="${key === current ? 0 : -1}" title="${esc(label)}" aria-label="${esc(label)}">${app.icon(key)}</button>`; }).join('')}</div><p class="infra-picker-empty" data-icon-empty hidden>${esc(t('desktop.infra_icon_no_match'))}</p>`;
             layer.append(box);
             const rect = anchor.getBoundingClientRect(), bounds = app.root.getBoundingClientRect();
             box.style.left = `${Math.max(8, Math.min(rect.left - bounds.left, bounds.width - (box.offsetWidth || 340) - 8))}px`;
@@ -610,6 +661,7 @@
             search.addEventListener('input', () => {
                 const text = search.value.trim().toLocaleLowerCase();
                 for (const option of grid.querySelectorAll('[data-pick-icon]')) option.hidden = !!text && !option.title.toLocaleLowerCase().includes(text) && !option.dataset.pickIcon.includes(text);
+                box.querySelector('[data-icon-empty]').hidden = visible().length > 0;
             });
             search.addEventListener('keydown', event => { if (event.key === 'ArrowDown') { event.preventDefault(); focusOption(visible()[0]); } });
             grid.addEventListener('keydown', event => {
@@ -675,7 +727,7 @@
                 case 'link-app': openAppPicker(button); return true;
                 case 'revert-node': {
                     const node = store.nodeById(id);
-                    if (node) { state.drafts.set(id, clone(node)); state.dirty.delete(id); state.nodeReviews.delete(id); state.customRows.delete(id); app.inspector.paint(); }
+                    if (node) { state.drafts.set(id, clone(node)); state.dirty.delete(id); state.nodeReviews.delete(id); state.customRows.delete(id); resetShown(); app.inspector.rememberFocus?.(); app.inspector.paint(); }
                     return true;
                 }
                 case 'close-source-edit': clearSourceState(id); app.inspector.paint(); return true;
@@ -710,7 +762,7 @@
 
         return {
             detailsHTML, sourcesHTML, nodeReviewMarkup, afterPaint, detach, onClick, onFieldEvent, onSourceFieldEvent, onSubmit, onToggle,
-            submitDetails, saveAllDrafts, openIconPicker, onBusy, isBusy, dispose,
+            onFieldBlur, submitDetails, saveAllDrafts, openIconPicker, onBusy, isBusy, dispose,
         };
     }
 

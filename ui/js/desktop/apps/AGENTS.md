@@ -263,9 +263,11 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   actions reuse the command bar's import/create/retry/reset handlers and permissions; resetting filters returns focus to
   the List button. Hide the empty table header, disable select-all without rows and retain known rows on refresh failure.
   The header labels filtered counts as shown; the footer keeps the inventory total. Polling updates status without replacing
-  rows or focused actions. Empty-state actions and inspector tabs retain 44 px touch targets. Inspector tabs keep readable
-  spacing and reveal the active tab within their own horizontal scrollport, including a remembered tab after repaint;
-  they never scroll the page. Verify `TestDesktopInfraListRecoveryBrowser`,
+  rows or focused actions. Empty-state actions and inspector tabs retain 44 px touch targets. Inspector tabs keep the 14 px font
+  with tight padding so the four tabs fit at 360 px in German and English without a scrollbar (`scrollbar-width: none`);
+  where they still overflow, the strip scrolls, shows a mask fade at the cut edge (`data-fade-start` / `data-fade-end`,
+  set by `paintTabFade`) and reveals the active tab with a 24 px margin within its own horizontal scrollport, including a
+  remembered tab after repaint; they never scroll the page. Verify `TestDesktopInfraListRecoveryBrowser`,
   `TestDesktopInfraListInitialStateBrowser` and `TestDesktopInfraInspectorTabVisibilityBrowser`.
 - The reachability of an asset rides on its icon. `model.liveState(node)` reads the server's `live`
   projection (`live`, `offline`, `unknown`, or nothing without a signal). The map card and the List row
@@ -275,7 +277,7 @@ after the built-in installers and before the markup exists. DOM work belongs in 
 - Load order (module-loader `infra`): `infra-model.js` (pure helpers: viewport math, geometry, regions, drop rules,
   guests, filters, scene builder, layout intents, history), `infra-lanes.js` (Topology lanes, auto layout; `window.InfraAppLanes`,
   `app.lanes`), `infra-store.js` (state, API, polling and visibility,
-  layout queue, undo), `infra-canvas.js` (keyed map rendering), `infra-gestures.js` (pointer and keyboard),
+  layout queue, undo), `infra-canvas.js` (keyed map rendering), `infra-gestures.js` (pointer and keyboard), `infra-arrange.js` (Arrange and grouping; it loads after infra-gestures.js in both lists),
   `infra-library.js`, `infra-inspector.js`, `infra-table.js`, `infra-dialogs.js`, then `infra.js` (composition root).
   Styles: `desktop-app-infra.css` (shell, panels, dialogs) and `desktop-app-infra-canvas.css` (map). Every file stays
   below 1100 lines and no file touches the DOM at load time (the Node test runs them in a vm).
@@ -323,7 +325,7 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   Delete or Ctrl A handlers: the table and the import sheet keep their own.
 - Selections made with the List checkboxes carry `state.selectionOrigin === 'check'`: in the List view the inspector
   stays closed for them and the bulk bar is the surface (below 1100 px the inspector is an overlay whose scrim would
-  cover it). Every other `store.select` resets the origin. Clicking an asset's name still opens its panel.
+  cover it). Every other `store.select` resets the origin. Clicking anywhere in an asset's row (not the checkbox, the expander or a link) opens its panel; a double click on an unplaced asset does the same.
 - Design QA batch D-fix-1 (amendments A1 to A16):
   - Cards are 216x64 (`CARD_W`, `CARD_H`); a stacked card lands 72 px away (`freeSlot` gap 8), `compactGrid` cells are
     240x96 and Arrange/Topology fall back to a 252x160 grid from (126, 100). The status glyph and the power dot ride on the icon.
@@ -342,12 +344,14 @@ after the built-in installers and before the markup exists. DOM work belongs in 
     wider gap they leave the facing sides with tangents on that axis, control offset gap / 2 (at least min(48, gap), at
     most 240, never past the ends); overlapping shapes keep the straight centre line. The label anchor is the midpoint.
   - A viewport resize keeps the world where it was inside the app (`placement()`: size plus the viewport's top-left in
-    the app root): opening the inspector or dragging the right splitter moves nothing, collapsing the library shifts the
+    the app root): opening the inspector or dragging the right splitter moves nothing unless the selected card would be covered (see Map polish below), collapsing the library shifts the
     view by the distance the left edge moved. The stored viewport (`infra.viewport.v1.*`) still keeps the centre.
   - Command bar: `fitFilterChips` shows the chips that fit and a `+N` chip (`data-filter-overflow`) that opens the filter
     popover, the search keeps 220 px from 760 px up; below 560 px the search is the `open-search` icon and opens over the bar
     (`data-search-open`, `app.focusSearch()`, which Ctrl K calls and which keeps the event from the desktop's Spotlight).
-  - `model.sourceLabels` numbers several instances of a source kind ("Docker 1"); the instance id only goes into a title.
+  - `model.sourceLabels(sources, kindLabel, nameOf)` tells several instances of a source kind apart: the name `nameOf(kind, instance)`
+    gives (the import sheet passes the name of the engine's host device, "Docker · nas", shortened after 22 characters, full text in the
+    title), else a number ("Docker 1"); a name two instances share counts as no name. The instance id only goes into a title.
     `model.APP_LINK_TARGETS` is the one list of linkable apps.
 - Topology lanes (Plan D, amended by D-fix-2, A17 to A27). The pure helpers live in `infra-lanes.js` (`window.InfraAppLanes`,
   `app.lanes`); the model no longer knows lanes (`buildScene` returns no `lanes`, its `bounds` are the drawn cards only).
@@ -359,7 +363,7 @@ after the built-in installers and before the markup exists. DOM work belongs in 
     the lanes layer once per frame so the pill sits 12 px from the viewport's left edge; `--infra-lane-k` counter-scales it.
   - A card saved `pinned: true` is in lane `laneAt(y)`; any other card is in `topologyLane(node)`: the network kind, the icon
     (`LANE_ICONS`, real ids of the icon catalog: servers, storage, NVR, database, UPS and PDU are compute, VPN and firewall
-    network, modem-ont internet), words in the role, "has guests", else clients. Auto columns sit `LANE_CELL_W` = 240 px
+    network, modem-ont and cloud-service internet; a single-board computer (`sbc`) goes by its role or guests), words in the role, "has guests", else clients. Auto columns sit `LANE_CELL_W` = 240 px
     apart; a lane has at most two rows (centres at lane top + 96 and + 240, `LANE_ROW_H` = 144), columns per row =
     max(8, ceil(n / 2)), every row centred on x = 0.
   - Order inside a lane (A20): `topologyLayout` starts from the connection order (breadth first over Ethernet, fiber and Wi-Fi)
@@ -403,6 +407,46 @@ after the built-in installers and before the markup exists. DOM work belongs in 
     selected and in view, in whichever section lists it (`library.showRow`); they never place it. Anything else that matches
     nothing the library lists (a hostless guest with nothing to attend to, a place in Topology) keeps `infra_no_match` without that
     action. Never count or reveal from a second predicate.
+- Map polish (perfection round, package 2):
+  - `canvas.reveal(id, { sideways })` pans by the smallest distance that leaves 24 px clearance in `uncovered()` (the viewport minus
+    absolute panels: overlay inspector, narrow library sheet, import sheet; layout offsets, not rects). The selection route in
+    infra.js calls it with `sideways: true` (only when the card is cut at a side) and never while `gestures.active()` or
+    `state.interacting`; a card focused with the keyboard (`:focus-visible`) reveals itself; `ensureVisible` is `reveal(id)`.
+  - Library drops snap to the 24 px grid through `slotsAt` (infra-gestures.js), which also draws the dashed `[data-drop-slot]`; the
+    ghost is centred on the pointer and drawn at the map's zoom clamped to 0.5 to 1.25. Only the map and a place row take a drop;
+    any other end of the drag announces `infra_drop_cancelled`.
+  - `edgePan` pans while the pointer sits in the 36 px band at a viewport edge (armed once the pointer was well inside); card drags
+    subtract the view shift, the marquee keeps its start in world space. Do not tie it to a timer other than requestAnimationFrame.
+  - Compact names are one line, at most 216 px wide; `paintNameClash` (infra-canvas.js) hides a name (`is-name-clash`) only when it
+    would cover another card's compact icon (24 px x the icon scale) until its card is hovered, focused or selected (z-index only).
+    Connection labels also avoid a host's guest badge (14 px below its card).
+  - `[data-mode-banner]` (aria-hidden, no pointer events) names the Connect tool and the keyboard move (`canvas.setMode('move')`);
+    Escape with no gesture first returns to the Select tool, then clears the selection; Delete with a selected connection and no
+    selected card calls `app.dialogs.removeEdge`. Zoom buttons at a limit are disabled with a title; the keys announce a limit once.
+    The Arrange label names its scope (`app.arrangeLabelKey()`: topology, selection or map).
+- Import, dialogs, menus and feedback (perfection round, packages 3 and 5):
+  - Feedback rule: a result the user cannot see where they look (a removal, ignore, restore, background save, partial import or
+    deletion, any failure) goes through `store.notify` (toast plus announcement; never both); a result under the pointer (a card that
+    lands where it was dropped, the connection popover) only `app.announce`s.
+  - Import rows are one folded line (checkbox, icon, name, one meta line, `[data-candidate-toggle]` with `aria-expanded`). The link select,
+    the reason and the Import and Ignore buttons sit in `[data-candidate-detail]`; a possible duplicate and a row with an error start open,
+    the error `<p>` stays outside the detail. The toggle updates its row in place (focus stays); `restoreFocus` skips controls in a hidden
+    detail. A failed first load shows `[data-import-error]` with `retry-import`, never the empty state; a failed background reload keeps
+    the rows.
+  - Dialogs: the create dialog is `novalidate` and says "enter a name" itself (`[data-name-error]`); a click beside a dialog closes it only
+    while nothing was typed (`dataset.touched`, set by `input`). `dialogs.onCaps()` (called from the `caps` route) disables Save in the
+    create and connection dialogs and the popover and shows `[data-dialog-readonly]` while the window is read-only. The PDF export always
+    toasts the translated failure text. A power action toasts "{name}: {action} ..." for running, completed and failed and the generic
+    status text for anything else.
+  - Toolbar menus: items are `menuRow(glyph, label, kbd)` (glyph, `.infra-menu-label`, optional `.infra-menu-kbd`) with
+    `.infra-menu-sep` separators; `paintArrange` writes the Arrange label into the label span and disables Arrange and Legend in the
+    List with the `infra_map_only` title. Card menus show "Show details", the asset's power actions as their own group (`POWER_ICONS`),
+    the Delete hint on Remove and distinct removal icons; the place menu says "Remove place".
+  - History: `store.nextHistory(view, dir)` names the next step for the undo and redo titles (`historyTitle`); `app.stepHistory(dir)` is
+    the one path for the toolbar, both menus and Ctrl Z and announces only what happened. `store.undo` of an optimistic step whose assets are
+    all gone returns false and drops it; a conflict that clears a non-empty history toasts `infra_history_cleared`.
+  - CSS: toasts (z-index 31) sit above `.infra-layer` (30); the filter popover is a two-column grid (labels, selects of 200 px);
+    checkboxes of the import sheet and the List share one look (an 18 px box in a 24 px hit area).
 - Design QA batch D-fix-3 (A28 to A31; A28 is in the Connections bullet above):
   - Which connections show (A29/A30) is one pure answer, `model.edgeState({view, kind, id, ends}, {selection, selectedEdge,
     near, dimmed})` -> `{off, linked, faded, dimmed}`, and `paintEdges` (infra-canvas.js) only toggles the classes `is-off`,
@@ -431,15 +475,31 @@ after the built-in installers and before the markup exists. DOM work belongs in 
     text colour goes through `--infra-link`. Never use the raw tokens as text colour.
   - Surfaces that float over the canvas (tools, lane labels, minimap, empty and no-match boxes) use `--vd-theme-panel-bg-strong`;
     `--vd-theme-overlay-bg` is a modal scrim (the scrim and the dialog backdrop only).
-  - The List's table view is a container (`infra-table`): fixed px column widths, the name takes the rest, and Hardware, then
-    Power and Source, then Place, then Type, then Address drop below 1142, 1011, 807, 657 and 507 px so the List never scrolls
-    sideways. Spacer rows have no colspan (a colspan would keep the hidden columns' width). An empty inventory or a query with no
-    match shows `[data-table-empty]`.
+  - The List's columns carry `data-col`. `layoutColumns` in `infra-table.js` measures the header labels once, at the first
+    visible paint (the labels are fixed when the app is created; infra.js has no language-change hook), sets `--infra-col-*` widths
+    and hides columns by priority (Power, Hardware, Source, Place, Type, Address, Status; the Power header is the short `infra_col_power`, its tooltip the full `infra_power_filter`) in `data-hidden-cols` until they fit the
+    scroller beside a name of at least 170 px, so the List never scrolls sideways and no header is cut (a `ResizeObserver` on the
+    scroller re-runs it). Spacer rows have no colspan (a colspan would keep the hidden columns' width). An empty inventory or a
+    query with no match shows `[data-table-empty]`.
+  - List rows: the body has one Tab stop (the name button of the roving row; checkbox and expander have `tabindex="-1"`). Up, Down,
+    Home and End move between rows, Right and Left open and close a host (Left on a guest goes to its host), Space toggles the
+    checkbox (Shift extends the range), Enter opens the inspector. Every column sorts, including Hardware. The status column
+    shows reachability (Live, Offline, Unknown or a dash) plus a compact "!" pill for a stale or removed source, no "Manual" pill;
+    sorting follows live, offline, unknown, then no signal last. Truncated cells carry the full text as `title`; the expander
+    gutter is 24 px. Verify `TestDesktopInfraListViewBrowser`.
   - While the import sheet is open (`data-import-open`), the tools cluster moves right of it. Compact card names sit on a chip in
     the app colour so connections leaving the bottom edge do not strike through them.
   - Field labels are never capitalised by CSS. The inspector header stacks the kind and the breadcrumbs without a separator.
-    Its action button (`.infra-head-pills .infra-button`) has no fixed height: a label too long for the 360 px panel wraps to
-    centred lines inside the button (`TestDesktopInfraHeaderActionFitsBrowser` checks all 16 locales).
+    Its action button sits left aligned in `.infra-head-cta` under the status pills: one compact button on one line with the
+    short app label (the full sentence is `title` and `aria-label`), 44 px high on coarse pointers
+    (`TestDesktopInfraHeaderActionFitsBrowser` checks all 16 locales).
+  - Inspector forms (Plan perfection, package 1): the Details form is `novalidate` and Save stays enabled while the draft is
+    dirty. `validateDetailForm` sets every message with `setCustomValidity` (CIDR, VLAN, IP, MAC, link, required, custom key);
+    a message shows below its field after blur or after a save attempt (`aria-invalid`, `aria-describedby`), and a save attempt
+    with an invalid field focuses the first one and saves nothing. The client checks (`model.validIP/validMAC/validVLAN`) are
+    never stricter than `internal/infra/validate.go`. `inspector.rememberFocus()` plus `focusKey` return focus to the same
+    control after a repaint (Save, Discard), or to the active tab. Leaving a dirty draft toasts once per asset. A directed
+    connection read from its target uses the `_inverse` label; source-reported connections show a note instead of buttons.
 - Focus return (Plan D Task 7): `app.focusReturnTarget(el)` names where focus goes back when a panel opened from `el` closes (a
   menu or popover item hands over to the trigger of its menu through `MENU_TRIGGERS`; anything outside the window, or nothing,
   hands over to the map, or to the active view button in the List) and `app.restoreFocus(el)` focuses it, falling back to the
