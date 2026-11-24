@@ -49,9 +49,11 @@
                 space: { size: 0.75, rt60: 0.5, damping: 4800, predelay: 0.01, mix: 0.2 }
             },
             'notify.error': {
-                notes: [{ v: 'low', n: 15, t: 0, g: 1, pan: -0.1, t60: 0.3 }, { v: 'kal', n: 15, t: 0, g: 0.5, pan: -0.1, t60: 0.2, hardness: 0.15 },
-                    { v: 'low', n: 9, t: 0.16, g: 1, pan: 0.1, t60: 0.34 }, { v: 'log', n: 9, t: 0.16, g: 0.7, pan: 0.1, t60: 0.1 }],
-                layers: [{ v: 'knock', t: 0, g: 0.4 }, { v: 'knock', t: 0.16, g: 0.4 }],
+                notes: [{ v: 'kal', n: 15, t: 0, g: 1, pan: -0.1, t60: 0.35, hardness: 0.15, attack: 0.005 },
+                    { v: 'low', n: 15, t: 0, g: 0.4, pan: -0.1, t60: 0.14, attack: 0.006 },
+                    { v: 'kal', n: 9, t: 0.16, g: 1, pan: 0.1, t60: 0.45, hardness: 0.15, attack: 0.005 },
+                    { v: 'low', n: 9, t: 0.16, g: 0.4, pan: 0.1, t60: 0.16, attack: 0.006 }],
+                layers: [{ v: 'knock', t: 0, g: 0.15 }, { v: 'knock', t: 0.16, g: 0.15 }],
                 space: { size: 0.65, rt60: 0.4, damping: 4500, predelay: 0.006, mix: 0.16 }
             },
             'dialog.open': {
