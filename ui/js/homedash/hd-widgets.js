@@ -98,5 +98,22 @@
         return { el: wrapper, body: frame.body, family, update, resize, setMode, destroy };
     }
 
-    E.widgets = Object.freeze({ register, get, types, host });
+    // Resolves the host's look into two derived values on `root`: --hd-hud (E.colour.hudFor of the resolved accent) and
+    // data-hd-corners="square" when the theme's card radius is 0. Called by the hosts after a palette or theme change, never at load.
+    function applyLook(root) {
+        if (!root || root.nodeType !== 1 || !E.colour || typeof E.colour.hudFor !== 'function') return;
+        const doc = root.ownerDocument, view = (doc && doc.defaultView) || (typeof window !== 'undefined' ? window : null);
+        if (!view || typeof view.getComputedStyle !== 'function') return;
+        let probe = null;
+        try {
+            probe = el('span', { 'aria-hidden': 'true' }); probe.style.setProperty('display', 'none'); probe.style.setProperty('color', 'var(--hd-accent)');
+            root.appendChild(probe);
+            const m = /^rgba?\(\s*(\d+(?:\.\d+)?)[,\s]+(\d+(?:\.\d+)?)[,\s]+(\d+(?:\.\d+)?)/.exec(String(view.getComputedStyle(probe).color || ''));
+            if (m) root.style.setProperty('--hd-hud', E.colour.hudFor(E.colour.rgbToHex([Number(m[1]), Number(m[2]), Number(m[3])])));
+            const radius = String(view.getComputedStyle(root).getPropertyValue('--vd-mat-card-radius') || ''), nums = radius.match(/-?\d*\.?\d+/g);
+            setAttr(root, 'data-hd-corners', nums && nums.every(n => Number(n) === 0) ? 'square' : null);
+        } finally { if (probe) probe.remove(); }
+    }
+
+    E.widgets = Object.freeze({ register, get, types, host, applyLook });
 })();

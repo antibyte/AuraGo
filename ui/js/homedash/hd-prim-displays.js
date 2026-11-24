@@ -29,7 +29,9 @@
     }
     const root = (tag, cls, opts, attrs) => el(tag, Object.assign({ class: cls, 'data-hd-size': (opts && opts.size) || 'm' }, opts && opts.variant ? { 'data-hd-variant': opts.variant } : {}, attrs));
     function finish(node, set, extra) { let done = false; return Object.assign({ el: node, set, destroy() { if (done) return; done = true; node.remove(); } }, extra); }
-    const util = Object.freeze({ applyState, writeValue, root, finish, deg, dash, fmtN });
+    // Path of the last lit segment of a quantized arc (empty when none is lit): segment k spans a(k-1)..a(k), a(i) = start + i * sweep / N.
+    function leadArc(start, sweep, quantize, frac) { const k = Math.round(frac * quantize); if (!(k > 0)) return ''; const step = sweep / quantize; return G.arc(100, 100, 88, start + (k - 1) * step, step); }
+    const util = Object.freeze({ applyState, writeValue, root, finish, deg, dash, fmtN, leadArc });
     E.prim.util = util;
 
     const TONES = ['ok', 'warn', 'crit'], BADGE_TONES = ['ok', 'warn', 'crit', 'info', 'neutral'], DASH = F.DASH, DEG = String.fromCodePoint(0xb0);
@@ -49,10 +51,11 @@
 
     function numeral(opts) {
         const o = opts || {}, lang = langOf(o);
-        const node = root('span', 'hd-numeral', o);
+        const node = root('span', 'hd-numeral', o), trendIcon = !!o.trendIcon;
         const int = el('span', { class: 'hd-num-int' }), frac = el('span', { class: 'hd-num-frac' }), degEl = el('span', { class: 'hd-num-deg' });
         const unitEl = el('span', { class: 'hd-num-unit' }), trendEl = el('span', { class: 'hd-num-trend', 'aria-hidden': 'true' });
         node.appendChild(int); node.appendChild(frac); node.appendChild(degEl); node.appendChild(unitEl); node.appendChild(trendEl);
+        const trendSlot = trendIcon ? iconSlot(trendEl, null, null) : null;
         setVars(node, { '--hd-num-chars': String(o.chars || 4) });
         function set(state) {
             const s = state || {}; applyState(node, s);
@@ -64,7 +67,8 @@
                 degEl.textContent = (s.degree ?? o.degree) ? DEG : '';
             }
             const glyph = Object.prototype.hasOwnProperty.call(TREND, s.trend) ? TREND[s.trend] : '';
-            trendEl.textContent = glyph; setAttr(trendEl, 'data-trend', glyph ? s.trend : null);
+            if (trendSlot) trendSlot(glyph ? 'trend-' + s.trend : null); else trendEl.textContent = glyph;
+            setAttr(trendEl, 'data-trend', glyph ? s.trend : null);
         }
         return finish(node, set);
     }
@@ -96,7 +100,7 @@
 
     // Shared gauge frame: readout numeral and min/max labels.
     function gaugeParts(o, lang) {
-        const num = numeral({ chars: o.chars || 4, unit: o.unit, decimals: o.decimals, lang });
+        const num = o.readout === 'seg7' ? segReadout({ digits: 4, decimals: o.decimals, unit: o.unit, lang }) : numeral({ chars: o.chars || 4, unit: o.unit, decimals: o.decimals, lang });
         return { num, readout: el('span', { class: 'hd-gauge-readout' }, num.el), minEl: el('span', { class: 'hd-gauge-min' }), maxEl: el('span', { class: 'hd-gauge-max' }) };
     }
     function zonePaths(zones, r, start, sweep, min, max) {
@@ -111,14 +115,20 @@
         const full = G.arc(100, 100, 88, -135, 270);
         svg.appendChild(svgEl('path', { class: 'hd-gauge-track', pathLength: 1000, d: full }));
         for (const p of zonePaths(zones, 76, -135, 270, min0, max0)) svg.appendChild(p);
+        const glowEl = o.glow ? svgEl('path', { class: 'hd-gauge-glow', pathLength: 1000, d: full }) : null; if (glowEl) svg.appendChild(glowEl);
         const arcEl = svgEl('path', { class: 'hd-gauge-arc', pathLength: 1000, d: full }); svg.appendChild(arcEl);
+        const zoneEl = o.zoneOverlay ? svgEl('path', { class: 'hd-gauge-arc-zone', pathLength: 1000, d: full }) : null; if (zoneEl) svg.appendChild(zoneEl);
+        const leadEl = o.lead && quantize > 0 ? svgEl('path', { class: 'hd-gauge-lead', d: '' }) : null; if (leadEl) svg.appendChild(leadEl);
         svg.appendChild(svgEl('g', { class: 'hd-gauge-cap' }, svgEl('circle', { class: 'hd-gauge-capdot', cx: 100, cy: 12, r: 7 })));
+        if (o.gaps > 0) svg.appendChild(svgEl('path', { class: 'hd-gauge-gaps', pathLength: 1000, d: full }));
         const parts = gaugeParts(o, lang);
         node.appendChild(svg); node.appendChild(parts.readout); node.appendChild(parts.minEl); node.appendChild(parts.maxEl);
         function set(state) {
             const s = state || {}; applyState(node, s);
             const w = writeValue(node, s, { min: o.min, max: o.max, decimals: o.decimals, lang, unit: s.unit ?? o.unit });
             setVars(node, { '--hd-angle': deg(-135 + w.frac * 270) }); dash(arcEl, w.frac, quantize);
+            if (glowEl) dash(glowEl, w.frac, quantize); if (zoneEl) dash(zoneEl, w.frac, quantize);
+            if (leadEl) leadEl.setAttribute('d', leadArc(-135, 270, quantize, w.frac));
             setAttr(node, 'data-hd-tone', toneOf(s, zones, w.v));
             parts.num.set({ value: w.v, unit: s.unit ?? o.unit, decimals: s.decimals ?? o.decimals });
             parts.minEl.textContent = F.number(w.min, { lang }); parts.maxEl.textContent = F.number(w.max, { lang });
@@ -129,6 +139,7 @@
     function needleGauge(opts) {
         const o = opts || {}, lang = langOf(o), min0 = finite(o.min) ? o.min : 0, max0 = finite(o.max) ? o.max : 100, zones = validZones(o.zones);
         const node = root('div', 'hd-gauge', o, { 'data-hd-gauge': 'needle', role: 'meter', 'aria-label': o.label });
+        if (o.face) node.appendChild(el('span', { class: 'hd-gauge-face', 'aria-hidden': 'true' }, [el('span', { class: 'hd-gauge-bezel' }), el('span', { class: 'hd-gauge-glass' })]));
         const svg = svgEl('svg', { class: 'hd-gauge-svg', viewBox: '0 0 200 ' + (o.crop || 200), 'aria-hidden': 'true' });
         const majors = o.majors ?? 10, minors = o.minors ?? 50;
         svg.appendChild(svgEl('path', { class: 'hd-gauge-ticks', 'data-major': 'true', d: G.ticks(100, 100, 72, 88, -120, 240, majors) }));
@@ -139,8 +150,10 @@
             const t = i / Math.max(1, count - 1), pt = G.point(100, 100, 54, -120 + 240 * t);
             svg.appendChild(svgEl('text', { class: 'hd-gauge-numeral', x: fmtN(pt[0]), y: fmtN(pt[1]), text: F.number(min0 + t * (max0 - min0), { lang }) }));
         }
-        svg.appendChild(svgEl('g', { class: 'hd-gauge-needle' }, [svgEl('path', { class: 'hd-gauge-needle-shape', d: G.needle(100, 100, 88, 24, 6.4, 1.6) }),
-            svgEl('circle', { class: 'hd-gauge-hub', cx: 100, cy: 100, r: 9 })]));
+        const needleD = G.needle(100, 100, 88, 24, 6.4, 1.6);
+        if (o.needleFx) svg.appendChild(svgEl('g', { class: 'hd-gauge-needle-shadow' }, svgEl('path', { d: needleD })));
+        svg.appendChild(svgEl('g', { class: 'hd-gauge-needle' }, [o.needleFx ? svgEl('path', { class: 'hd-gauge-needle-glow', d: needleD }) : null,
+            svgEl('path', { class: 'hd-gauge-needle-shape', d: needleD }), svgEl('circle', { class: 'hd-gauge-hub', cx: 100, cy: 100, r: 9 })]));
         const parts = gaugeParts(o, lang);
         node.appendChild(svg); node.appendChild(parts.readout); node.appendChild(parts.minEl); node.appendChild(parts.maxEl);
         let prev;
@@ -207,19 +220,33 @@
         const node = svgEl('svg', { class: 'hd-spark', role: 'img', 'aria-label': o.label, viewBox: '0 0 ' + w + ' ' + h, width: w, height: h, 'data-hd-size': o.size || 'm' });
         const area = o.area === false ? null : svgEl('path', { class: 'hd-spark-area' }), line = svgEl('path', { class: 'hd-spark-line' });
         const last = svgEl('circle', { class: 'hd-spark-last', r: 3, hidden: 'true' });
-        if (area) node.appendChild(area); node.appendChild(line); node.appendChild(last);
+        const fill = area && o.fade ? svgEl('svg', { class: 'hd-spark-fill', 'aria-hidden': 'true', viewBox: '0 0 ' + w + ' ' + h, width: w, height: h }, area) : null;
+        const cols = Array.isArray(o.grid) ? Math.floor(o.grid[0]) : 0, rows = Array.isArray(o.grid) ? Math.floor(o.grid[1]) : 0;
+        const grid = cols > 0 && rows > 0 ? svgEl('path', { class: 'hd-spark-grid', d: '' }) : null;
+        const halo = o.halo ? svgEl('circle', { class: 'hd-spark-halo', r: 6, hidden: 'true' }) : null;
+        if (grid) node.appendChild(grid); if (area && !fill) node.appendChild(area); node.appendChild(line); if (halo) node.appendChild(halo); node.appendChild(last);
+        // Interior grid lines only, snapped to half pixels: vertical at round(w*i/cols)+0.5, horizontal at round(h*j/rows)+0.5.
+        function gridPath() { let d = '';
+            for (let i = 1; i < cols; i++) d += 'M' + (Math.round(w * i / cols) + 0.5) + ' 0V' + h;
+            for (let j = 1; j < rows; j++) d += 'M0 ' + (Math.round(h * j / rows) + 0.5) + 'H' + w;
+            return d; }
+        function resize(nw, nh) { const wide = nw !== w, tall = nh !== h; w = nw; h = nh;
+            for (const t of fill ? [node, fill] : [node]) { setAttr(t, 'viewBox', '0 0 ' + w + ' ' + h); if (wide) setAttr(t, 'width', w); if (tall) setAttr(t, 'height', h); } }
         function set(state) {
             const s = state || {}; applyState(node, s);
-            if (finite(s.w) && finite(s.h) && (s.w !== w || s.h !== h)) { w = s.w; h = s.h; setAttr(node, 'viewBox', '0 0 ' + w + ' ' + h); setAttr(node, 'width', w); setAttr(node, 'height', h); }
-            else if (finite(s.w) && s.w !== w) { w = s.w; setAttr(node, 'viewBox', '0 0 ' + w + ' ' + h); setAttr(node, 'width', w); }
-            else if (finite(s.h) && s.h !== h) { h = s.h; setAttr(node, 'viewBox', '0 0 ' + w + ' ' + h); setAttr(node, 'height', h); }
+            if (finite(s.w) && finite(s.h) && (s.w !== w || s.h !== h)) resize(s.w, s.h);
+            else if (finite(s.w) && s.w !== w) resize(s.w, h);
+            else if (finite(s.h) && s.h !== h) resize(w, s.h);
             if (Array.isArray(s.points)) points = s.points;
             const g = G.sparkline(points, { w, h });
-            line.setAttribute('d', g.line); if (area) area.setAttribute('d', g.area);
-            if (g.last) { setAttr(last, 'cx', fmtN(g.last.x)); setAttr(last, 'cy', fmtN(g.last.y)); } setAttr(last, 'hidden', !g.last); setAttr(node, 'data-hd-empty', !g.last);
+            line.setAttribute('d', g.line); if (area) area.setAttribute('d', g.area); if (grid) grid.setAttribute('d', gridPath());
+            for (const c of halo ? [last, halo] : [last]) { if (g.last) { setAttr(c, 'cx', fmtN(g.last.x)); setAttr(c, 'cy', fmtN(g.last.y)); } setAttr(c, 'hidden', !g.last); }
+            setAttr(node, 'data-hd-empty', !g.last);
             setAttr(node, 'aria-label', typeof s.summary === 'string' && s.summary ? s.summary : o.label);
         }
-        return finish(node, set);
+        const out = finish(node, set, fill ? { fill } : undefined);
+        if (fill) { const base = out.destroy; out.destroy = () => { base(); fill.remove(); }; }
+        return out;
     }
 
     function frame(opts) {

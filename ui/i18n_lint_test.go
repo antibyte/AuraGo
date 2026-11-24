@@ -1282,6 +1282,7 @@ func TestTranslations_SectionFilesOnlyOwnPrefixes(t *testing.T) {
 	}{
 		{relPath: filepath.Join("lang", "config", "co_agents"), prefixes: []string{"config.co_agents."}},
 		{relPath: filepath.Join("lang", "config", "daemon_skills"), prefixes: []string{"config.daemon_skills.", "help.daemon_skills."}},
+		{relPath: filepath.Join("lang", "homedash"), prefixes: []string{"homedash."}},
 	}
 	langs := []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}
 

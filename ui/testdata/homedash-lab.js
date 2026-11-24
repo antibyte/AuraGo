@@ -20,6 +20,7 @@
     const PRIM_VARIANTS = { toggle: ['default'], rocker: ['default'], pushButton: ['chip', 'tile'], slider: ['h', 'v'], knob: ['ring', 'knob'], stepper: ['default'], segmented: ['default'], numeral: ['default'], segReadout: ['default'], arcGauge: ['default'], needleGauge: ['default'], bar: ['h', 'v', 'tank'], lamp: ['default'], badge: ['default'], iconBadge: ['default'], sparkline: ['default'], frame: ['default'], sheet: ['default'], colourWheel: ['default'], ctStrip: ['default'] };
     const LAB_WIDGET_SIZES = { entity: ['1x1', '2x1'] }, CELL = 96, GAP = 12;
     const LAB_WORDS = { 'homedash.state.on': 'On', 'homedash.state.off': 'Off', 'homedash.state.pending': 'Sending', 'homedash.state.unavailable': 'Unavailable', 'homedash.state.unknown': 'Unknown', 'homedash.state.error': 'Failed' };
+    let words = LAB_WORDS; // widget cell words: LAB_WORDS, then ui/lang/homedash/en.json and the lab language (loaded in main)
     function primOpts(type, variant, size, lang) {
         const o = { label: 'Lab ' + type, size, lang, min: 0, max: 100, unit: '%' };
         if (variant !== 'default') o.variant = variant;
@@ -142,7 +143,7 @@
         const api = () => ({ entity: () => resolveView(entry, cur),
             can: () => { const v = resolveView(entry, cur) || {}; return !(v.readonly || v.available === false || (Array.isArray(v.capabilities) && !v.capabilities.length)); },
             command: () => Promise.resolve({ ok: true }), moreInfo() {}, history: () => Promise.resolve(resolveHistory(entry, cur)), announce() {} });
-        const host = E.widgets.host({ widget, size: { w, h }, t: E.core.makeT(LAB_WORDS, { warn() {} }), lang: p.lang, api, moreLabel: p.more === 0 ? null : 'More', parent: stage });
+        const host = E.widgets.host({ widget, size: { w, h }, t: E.core.makeT(words, { warn() {} }), lang: p.lang, api, moreLabel: p.more === 0 ? null : 'More', parent: stage });
         host.el.style.setProperty('--hd-lab-w', width + 'px'); host.el.style.setProperty('--hd-lab-h', height + 'px');
         host.update(); host.resize({ w, h, px: { width, height } });
         if (state === 'focus') { const more = host.el.querySelector('.hd-more'); if (more) more.setAttribute('data-hd-focus', 'ring'); }
@@ -220,6 +221,7 @@
         for (const src of p.scripts) await loadScript(src);
         for (const type of p.types) if (!(has(PRIM_VARIANTS, type) && typeof E.prim[type] === 'function') && !E.widgets.get(type)) fail('types', type);
         await document.fonts.ready;
+        words = Object.assign({}, LAB_WORDS); for (const l of ['en', p.lang]) { const r = await fetch('/lang/homedash/' + l + '.json'); if (r.ok) Object.assign(words, await r.json()); }
         const root = buildPanel(E, p);
         ctx = { root, params: p, title: null };
         ctx.title = render(E, p, root);

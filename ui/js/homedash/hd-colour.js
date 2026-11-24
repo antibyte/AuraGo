@@ -63,8 +63,23 @@
         for (const n of ['heat', 'cool', 'edge-tint', 'shadow-ink']) t[n] = NEUTRAL[scheme][n];
         return { scheme, tokens: t };
     }
+    // HUD ink for the Instrument family: a light, readable tint of the accent on the near-black panel (#090c10). Monochrome accents
+    // (OKLCH chroma < 0.04) become white phosphor. Otherwise lightness starts at 0.72 and rises in 0.02 steps (cap 0.97) until the
+    // contrast is 4.5:1; chroma drops in 0.01 steps while a step leaves the sRGB gamut. Pure; returns lowercase #rrggbb.
+    const HUD_PANEL = '#090c10', HUD_MONO = '#e8edf2';
+    function hudFor(hex) {
+        const rgb = hexToRgb(hex); if (!rgb) return HUD_MONO;
+        const lch = rgbToOklch(rgb); if (lch[1] < 0.04) return HUD_MONO;
+        let L = Math.max(lch[0], 0.72), out = HUD_MONO;
+        for (;;) {
+            let C = lch[1]; while (C > 0 && !inGamut(oklchToLinear([L, C, lch[2]]))) C = Math.max(0, Math.round((C - 0.01) * 1e6) / 1e6);
+            out = rgbToHex(oklchToRgb([L, C, lch[2]])).toLowerCase();
+            if (contrast(out, HUD_PANEL) >= 4.5 || L >= 0.97) return out;
+            L = Math.min(0.97, Math.round((L + 0.02) * 1e6) / 1e6);
+        }
+    }
     const applyPalette = (el, tokens) => E.core.setVars(el, Object.fromEntries(PALETTE_TOKENS.map(n => ['--hd-' + n, tokens[n]])));
     const clearPalette = el => E.core.setVars(el, Object.fromEntries(PALETTE_TOKENS.map(n => ['--hd-' + n, null])));
     function hsvToRgb(h, s, v) { const f = n => { const k = (n + h / 60) % 6; return (v - v * s * Math.max(0, Math.min(k, 4 - k, 1))) * 255; }; return [f(5), f(3), f(1)]; }
-    E.colour = Object.freeze({ PALETTE_TOKENS, NEUTRAL, hexToRgb, rgbToHex, rgbToOklch, oklchToRgb, oklchToHex, luminance, contrast, solvePalette, applyPalette, clearPalette, hsvToRgb });
+    E.colour = Object.freeze({ PALETTE_TOKENS, NEUTRAL, hexToRgb, rgbToHex, rgbToOklch, oklchToRgb, oklchToHex, luminance, contrast, solvePalette, applyPalette, clearPalette, hsvToRgb, hudFor });
 })();

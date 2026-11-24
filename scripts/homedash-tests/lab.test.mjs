@@ -5,7 +5,7 @@ async function bootLab(search, defineFixture) {
   const doc = createDocument(), tick = cb => setTimeout(cb, 0), win = { document: doc, devicePixelRatio: 1, scrollY: 0, addEventListener() {}, hdLabEarlyErrors: [], location: { search }, URLSearchParams, requestAnimationFrame: tick };
   const scope = doc.createElement('div'); scope.setAttribute('id', 'hd-lab-scope'); const main = doc.createElement('main'); main.setAttribute('id', 'hd-lab'); scope.appendChild(main); doc.body.appendChild(scope);
   Object.assign(doc, { head: doc.createElement('head'), fonts: { ready: Promise.resolve() }, getAnimations: () => [], getElementById: id => doc.body.querySelector('#' + id), querySelector: s => doc.body.querySelector(s) });
-  const ctx = { window: win, document: doc, location: win.location, URLSearchParams, console, setTimeout, clearTimeout, AbortController, Intl, Map, Set, JSON, Math, Date, URL, Promise, requestAnimationFrame: tick };
+  const ctx = { window: win, document: doc, location: win.location, URLSearchParams, console, setTimeout, clearTimeout, AbortController, Intl, Map, Set, JSON, Math, Date, URL, Promise, requestAnimationFrame: tick, fetch: async () => ({ ok: false }) }; // no locale files in the Node double
   vm.createContext(ctx);
   for (const f of ENGINE_ORDER) vm.runInContext(read(`${ENGINE_DIR}/${f}`), ctx, { filename: f });
   vm.runInContext('window.hdLabProbes = {};', ctx); vm.runInContext(read('ui/testdata/homedash-lab.js'), ctx, { filename: 'homedash-lab.js' });
