@@ -52665,7 +52665,7 @@
       "name": "ESP-01 (ESP8266)",
       "name_en": "ESP-01 (ESP8266)",
       "doc": "The 2 × 4 pin, 0.1 inch header of the Ai-Thinker ESP-01 and ESP-01S Wi-Fi modules (ESP8266). Pin 1 is GND and pin 8 is VCC.",
-      "notes": "The numbering runs along the rows, not counter-clockwise like a DIP package: pin 5 lies below pin 1. The module runs on 3.0 to 3.6 V and must not be fed 5 V. Ai-Thinker's boot table: for flashing (download mode) IO0 must be low at reset while IO2 and EN are high; for normal running IO0 is high. IO2 must be high at boot in both modes. The module can draw about 170 mA when transmitting, more than the 3.3 V pin of many USB-serial adapters supplies. Cheap clones of other makers are not covered.",
+      "notes": "The numbering runs along the rows, not counter-clockwise like a DIP package: pin 5 lies below pin 1. The module runs on 3.0 to 3.6 V and must not be fed 5 V. Ai-Thinker's boot table: for flashing (download mode) IO0 must be low at reset while IO2 and EN are high; for normal running IO0 is high. IO2 must be high at boot in both modes. The module can draw about 170 mA when transmitting; check that the 3.3 V supply can deliver that. Cheap clones of other makers are not covered.",
       "tags": [
         "esp01",
         "esp-01",
