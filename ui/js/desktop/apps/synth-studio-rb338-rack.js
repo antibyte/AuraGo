@@ -19,19 +19,19 @@
     // Instrument legends (A6): the drum rows' selectable instruments, in instrument-number order.
     const LEGEND_808 = ['AC', 'BD', 'SD', 'LT/LC', 'MT/MC', 'HT/HC', 'RS/CL', 'CP/MA', 'CB', 'CY', 'OH', 'CH'];
     const LEGEND_909 = ['AC', 'BD', 'SD', 'LT', 'MT', 'HT', 'RS', 'CP', 'CH', 'OH', 'CC', 'RC'];
-    // Knob groups per drum machine: [group silkscreen, [control name suffixes]].
+    // Knob groups per drum machine: [group silkscreen, [control name suffixes], legend instrument indices].
     const GROUPS_808 = [
-        ['AC', ['ac_level']], ['BD', ['bd_level', 'bd_tone', 'bd_decay']], ['SD', ['sd_level', 'sd_tone', 'sd_snappy']],
-        ['LT/LC', ['lt_level', 'lt_tuning', 'slot3_switch']], ['MT/MC', ['mt_level', 'mt_tuning', 'slot4_switch']],
-        ['HT/HC', ['ht_level', 'ht_tuning', 'slot5_switch']], ['RS/CL', ['rs_level', 'slot6_switch']],
-        ['CP/MA', ['cp_level', 'slot7_switch']], ['CB', ['cb_level']], ['CY', ['cy_level', 'cy_tone', 'cy_decay']],
-        ['OH', ['oh_level', 'oh_decay']], ['CH', ['ch_level']]
+        ['AC', ['ac_level'], [0]], ['BD', ['bd_level', 'bd_tone', 'bd_decay'], [1]], ['SD', ['sd_level', 'sd_tone', 'sd_snappy'], [2]],
+        ['LT/LC', ['lt_level', 'lt_tuning', 'slot3_switch'], [3]], ['MT/MC', ['mt_level', 'mt_tuning', 'slot4_switch'], [4]],
+        ['HT/HC', ['ht_level', 'ht_tuning', 'slot5_switch'], [5]], ['RS/CL', ['rs_level', 'slot6_switch'], [6]],
+        ['CP/MA', ['cp_level', 'slot7_switch'], [7]], ['CB', ['cb_level'], [8]], ['CY', ['cy_level', 'cy_tone', 'cy_decay'], [9]],
+        ['OH', ['oh_level', 'oh_decay'], [10]], ['CH', ['ch_level'], [11]]
     ];
     const GROUPS_909 = [
-        ['AC', ['ac_level']], ['BD', ['bd_level', 'bd_tune', 'bd_attack', 'bd_decay']], ['SD', ['sd_level', 'sd_tune', 'sd_tone', 'sd_snappy']],
-        ['LT', ['lt_level', 'lt_tune', 'lt_decay']], ['MT', ['mt_level', 'mt_tune', 'mt_decay']], ['HT', ['ht_level', 'ht_tune', 'ht_decay']],
-        ['RS', ['rs_level']], ['CP', ['cp_level']], ['HH', ['hh_level']], ['CH', ['ch_decay']], ['OH', ['oh_decay']],
-        ['CC', ['cc_level', 'cc_tune']], ['RC', ['rc_level', 'rc_tune']]
+        ['AC', ['ac_level'], [0]], ['BD', ['bd_level', 'bd_tune', 'bd_attack', 'bd_decay'], [1]], ['SD', ['sd_level', 'sd_tune', 'sd_tone', 'sd_snappy'], [2]],
+        ['LT', ['lt_level', 'lt_tune', 'lt_decay'], [3]], ['MT', ['mt_level', 'mt_tune', 'mt_decay'], [4]], ['HT', ['ht_level', 'ht_tune', 'ht_decay'], [5]],
+        ['RS', ['rs_level'], [6]], ['CP', ['cp_level'], [7]], ['HH', ['hh_level'], [8, 9]], ['CH', ['ch_decay'], [8]], ['OH', ['oh_decay'], [9]],
+        ['CC', ['cc_level', 'cc_tune'], [10]], ['RC', ['rc_level', 'rc_tune'], [11]]
     ];
     const ICON = {
         play: '<path d="M4 2.5v11l9-5.5z"/>', stop: '<path d="M3.5 3.5h9v9h-9z"/>',
@@ -112,6 +112,17 @@
             '<div class="ss-rb-loopgrp">' + lcd('transport.position', 'BAR', tr('rb_bar')) + lcd('transport.loop_start', 'LOOP START', tr('rb_loop_start')) + lcd('transport.loop_end', 'LOOP LENGTH', tr('rb_loop_length')) +
             key('transport.loop', 'LOOP', '', { aria: tr('rb_loop'), cls: 'is-loop' }) + '</div></div>';
 
+        const viewbar = '<div class="ss-rb-viewbar">' +
+            '<div class="ss-rb-focus-tabs" role="tablist" aria-label="Machines">' +
+            ROWS.map((R, r) => '<button type="button" role="tab" class="ss-rb-tool ss-rb-focus-tab" data-rb-focus="' + r + '" data-kind="' + (r < 2 ? '303' : r === 2 ? '808' : '909') + '" aria-pressed="' + (r === 0) + '"><i class="ss-rb-led" data-rb-focus-led="' + r + '" aria-hidden="true"></i><span>' + E(R.name) + '</span><output class="ss-rb-pattag" data-rb-out="patlabel:' + r + '">A1</output></button>').join('') +
+            '</div>' +
+            '<div class="ss-rb-seg ss-rb-layout-tabs" role="group" aria-label="RB-338 Layout">' +
+            '<button type="button" data-rb-layout="focus" aria-pressed="true">' + E(tr('rb_view_focus')) + '</button>' +
+            '<button type="button" data-rb-layout="rack" aria-pressed="false">' + E(tr('rb_view_rack')) + '</button>' +
+            '</div>' +
+            '</div>';
+        const topDock = '<div class="ss-rb-topdock">' + toolbar + transport + viewbar + '</div>';
+
         // ---- rows ----------------------------------------------------------------------------
         const patternPlate = r => {
             const R = ROWS[r], sec = R.section, n = r + 1;
@@ -153,7 +164,7 @@
         const deviceDrum = r => {
             const R = ROWS[r], p = R.prefix, is808 = r === 2;
             const groups = is808 ? GROUPS_808 : GROUPS_909, legend = is808 ? LEGEND_808 : LEGEND_909;
-            const grp = groups.map(([name, names]) => {
+            const grp = groups.map(([name, names, insts]) => {
                 let inner = '';
                 for (const n of names) {
                     const c = M.control(p + '.' + n);
@@ -162,7 +173,7 @@
                     if (c.kind === 'switch') inner += seg(c.id, c.label, R.name, c.label.split('/').reverse(), { cls: 'is-slot' });
                     else inner += ctl(c.id, c.label.replace(/^\S+\s*/, '') || 'LEVEL', R.name, { aria: c.label, cls: c.level && is808 ? 'is-level' : '' });
                 }
-                return '<div class="ss-rb-grp" role="group" aria-label="' + E(R.name + ' ' + name) + '"><span class="ss-rb-grptitle">' + E(name) + '</span><div class="ss-rb-grpknobs">' + inner + '</div></div>';
+                return '<div class="ss-rb-grp" data-rb-grp-row="' + r + '" data-rb-grp-inst="' + insts.join(',') + '" role="group" aria-label="' + E(R.name + ' ' + name) + '"><span class="ss-rb-grptitle">' + E(name) + '</span><div class="ss-rb-grpknobs">' + inner + '</div></div>';
             }).join('');
             const flam = is808 ? '' : key(p + '.flam', 'FLAM', R.name, { cls: 'is-flam' });
             const leg = legend.map((l, i) => '<button type="button" data-rb-act="inst" data-row="' + r + '" data-inst="' + i + '" aria-pressed="false" aria-label="' + E(R.name + ' ' + l) + '">' + E(l) + '</button>').join('');
@@ -173,7 +184,8 @@
         };
         const channel = r => {
             const R = ROWS[r], c = r + 1, id = 'mixer' + c;
-            return '<div class="ss-rb-plate ss-rb-channel" role="group" aria-label="' + E(R.name + ' MIXER') + '">' + title('CH ' + c, 'is-small') +
+            return '<div class="ss-rb-plate ss-rb-channel" data-row="' + r + '" data-kind="' + (r < 2 ? '303' : r === 2 ? '808' : '909') + '" role="group" aria-label="' + E(R.name + ' MIXER') + '">' +
+                '<button type="button" class="ss-rb-chfocus" data-rb-focus="' + r + '" title="' + E(R.name) + '"><i class="ss-rb-led" aria-hidden="true"></i><span>CH ' + c + ' · ' + E(R.name.replace('TB-303 ', '303 ').replace('TR-', '')) + '</span><output class="ss-rb-pattag" data-rb-out="patlabel:' + r + '">A1</output></button>' +
                 '<div class="ss-rb-chtop">' + key(id + '.mute', 'ON', R.name, { aria: 'CH ' + c + ' ON', cls: 'is-on' }) + key(id + '.dist', 'DIST', R.name) + '</div>' +
                 '<div class="ss-rb-chfader">' + ctl(id + '.level', 'LEVEL', R.name, { kind: 'vfader', def: 100, cls: 'is-mixer' }) + meter(id + '.meter', 'v') + '</div>' +
                 '<div class="ss-rb-chknobs">' + ctl(id + '.pan', 'PAN', R.name, { cls: 'is-small' }) + ctl(id + '.delay', 'DELAY', R.name, { cls: 'is-small', def: 0 }) + '</div>' +
@@ -187,17 +199,20 @@
         const master = '<div class="ss-rb-plate ss-rb-fx ss-rb-master" role="group" aria-label="MASTER">' + title('MASTER') +
             '<div class="ss-rb-masterbody">' + meter('master.meter_l', 'v') + ctl('master.fader', 'LEVEL', 'MASTER', { kind: 'vfader', def: 100, cls: 'is-mixer' }) + meter('master.meter_r', 'v') + '</div>' +
             key('mixer.comp_id', 'COMP', 'MASTER', { value: 1, cls: 'is-radio' }) + '</div>';
-        const pcf = '<div class="ss-rb-plate ss-rb-fx ss-rb-pcf" role="group" aria-label="PCF">' + fxHead('PCF', 'pcf') +
+        const fxTabs = '<div class="ss-rb-fxtabs" role="tablist" aria-label="Effects">' +
+            [['pcf', 'PCF'], ['delay', 'DELAY'], ['dist', 'DIST'], ['comp', 'COMP']].map(([fid, lbl]) => '<button type="button" role="tab" class="ss-rb-key ss-rb-fxtab" data-rb-fxtab="' + fid + '" aria-pressed="' + (fid === 'pcf') + '"><i class="ss-rb-led" data-rb-fxled="' + fid + '" aria-hidden="true"></i><span>' + lbl + '</span></button>').join('') +
+            '</div>';
+        const pcf = '<div class="ss-rb-plate ss-rb-fx ss-rb-pcf" data-fx-panel="pcf" role="group" aria-label="PCF">' + fxHead('PCF', 'pcf') +
             '<div class="ss-rb-fxrow">' + key('pcf.on', 'ON', 'PCF', { cls: 'is-on' }) + seg('pcf.mode', 'BP/LP', 'PCF', ['BP', 'LP']) + lcd('pcf.pattern', 'WAVE', 'PCF WAVE', { init: '00', cls: 'is-steps' }) + '</div>' +
             '<div class="ss-rb-faders">' + ctl('pcf.freq', 'FREQ', 'PCF', { kind: 'vfader', cls: 'is-pcf' }) + ctl('pcf.q', 'Q', 'PCF', { kind: 'vfader', cls: 'is-pcf' }) +
             ctl('pcf.amt', 'AMT', 'PCF', { kind: 'vfader', cls: 'is-pcf' }) + ctl('pcf.dec', 'DEC', 'PCF', { kind: 'vfader', cls: 'is-pcf' }) + '</div></div>';
-        const delay = '<div class="ss-rb-plate ss-rb-fx ss-rb-delay" role="group" aria-label="DELAY">' + fxHead('DELAY', 'delay') +
+        const delay = '<div class="ss-rb-plate ss-rb-fx ss-rb-delay" data-fx-panel="delay" role="group" aria-label="DELAY">' + fxHead('DELAY', 'delay') +
             '<div class="ss-rb-fxrow">' + key('delay.on', 'ON', 'DELAY', { cls: 'is-on' }) + lcd('delay.steps', 'STEPS', 'DELAY STEPS', { init: '00', cls: 'is-steps' }) + seg('delay.triplet', 'TRIPLET/16TH', 'DELAY', ['TRIP', '16TH']) + '</div>' +
             '<div class="ss-rb-knobs">' + ctl('delay.feedback', 'F.BACK', 'DELAY') + ctl('delay.pan', 'PAN', 'DELAY') + '</div></div>';
-        const dist = '<div class="ss-rb-plate ss-rb-fx ss-rb-dist" role="group" aria-label="DIST">' + fxHead('DIST', 'dist') +
+        const dist = '<div class="ss-rb-plate ss-rb-fx ss-rb-dist" data-fx-panel="dist" role="group" aria-label="DIST">' + fxHead('DIST', 'dist') +
             '<div class="ss-rb-fxrow">' + key('dist.on', 'ON', 'DIST', { cls: 'is-on' }) + '</div>' +
             '<div class="ss-rb-knobs">' + ctl('dist.amount', 'AMOUNT', 'DIST') + ctl('dist.shape', 'SHAPE', 'DIST') + '</div></div>';
-        const comp = '<div class="ss-rb-plate ss-rb-fx ss-rb-comp" role="group" aria-label="COMP">' + fxHead('COMP', 'comp') +
+        const comp = '<div class="ss-rb-plate ss-rb-fx ss-rb-comp" data-fx-panel="comp" role="group" aria-label="COMP">' + fxHead('COMP', 'comp') +
             '<div class="ss-rb-fxrow">' + key('comp.on', 'ON', 'COMP', { cls: 'is-on' }) + '</div>' +
             '<div class="ss-rb-knobs">' + ctl('comp.ratio', 'RATIO', 'COMP') + ctl('comp.threshold', 'THRES', 'COMP') + '</div>' +
             '<div class="ss-rb-grrow"><span class="ss-rb-sil">GR</span>' + meter('comp.gr', 'g') + '</div></div>';
@@ -205,7 +220,7 @@
         const foot = '<footer class="ss-rb-foot"><span>' + E(tr('rb_license')) + '</span> <a href="/js/vendor/rb338/LICENSES.md" target="_blank" rel="noopener noreferrer">GPL-3.0</a> ' +
             '<a href="/js/vendor/rb338/sources.zip" download>' + E(tr('rb_source')) + '</a></footer>';
         return '<div class="ss-rb-loading" role="status"><i class="ss-rb-led is-on" aria-hidden="true"></i><span data-rb-loadtext>' + E(tr('rb_loading')) + '</span></div>' +
-            '<div class="ss-rb-rack">' + toolbar + transport + rows + '<div class="ss-rb-fxcol" role="group" aria-label="EFFECTS">' + master + pcf + delay + dist + comp + '</div>' + foot + '</div>';
+            '<div class="ss-rb-rack">' + topDock + rows + '<div class="ss-rb-fxcol" role="group" aria-label="EFFECTS">' + master + fxTabs + pcf + delay + dist + comp + '</div>' + foot + '</div>';
     }
 
     // ---- panel ----------------------------------------------------------------------------------
@@ -242,7 +257,7 @@
         const bindings = { ranges: [], pressed: [], outs: [], meters: [], songOnly: [], steps: [] };
 
         // T8/T9 state
-        let keyMode = 'synth', exportBars = 4;
+        let keyMode = 'synth', exportBars = 4, layoutMode = 'focus', fxTab = 'pcf';
         let undo = null, deferred = null, clip = null, lastMerges = null;
         let docName = '', draftDirty = false, autoTimer = 0, autoBusy = false, autoAgain = false, autoSavedAt = 0, autoInflight = null, editSeq = 0;
         let draftRec = null, draftState = 'idle', draftPromise = null, restoreUsed = false, restoreModified = false, lastSaved = null;
@@ -600,6 +615,10 @@
             if (id === 'mod') return 'Standard ReBirth';
             if (id === 'title') return info && info.title ? String(info.title) : '';
             if (id.startsWith('edit:')) return pad(rows[Number(id.slice(5))].editStep + 1, 2);
+            if (id.startsWith('patlabel:')) {
+                const r = Number(id.slice(9)), pat = curPattern(r);
+                return String.fromCharCode(65 + (pat >> 3)) + ((pat & 7) + 1);
+            }
             const v = getVal(id);
             return v == null ? '--' : pad(v, 2);
         }
@@ -628,6 +647,8 @@
             if (section._l !== lockNow) { section._l = lockNow; section.toggleAttribute('data-rb-locked', lockNow); }
             const mode = transport.songMode ? 'song' : 'pattern';
             if (section.dataset.rbMode !== mode) section.dataset.rbMode = mode;
+            if (section.dataset.rbLayout !== layoutMode) section.dataset.rbLayout = layoutMode;
+            if (section.dataset.rbFxtab !== fxTab) section.dataset.rbFxtab = fxTab;
             if (snap) {
                 const f = snap.faulted ? '1' : '0';
                 if (section._f !== f) { section._f = f; section.toggleAttribute('data-rb-fault', snap.faulted); }
@@ -651,6 +672,31 @@
             }
             const rowEls = section._rows || (section._rows = $$('.ss-rb-row'));
             rowEls.forEach((el, i) => { const f = i === focusRow; if (el._f !== f) { el._f = f; el.classList.toggle('is-focus', f); } });
+            const chEls = section._chs || (section._chs = $$('.ss-rb-channel'));
+            chEls.forEach((el, i) => { const f = i === focusRow; if (el._f !== f) { el._f = f; el.classList.toggle('is-focus', f); } });
+            const focusTabs = section._ftabs || (section._ftabs = $$('[data-rb-focus].ss-rb-focus-tab'));
+            focusTabs.forEach(b => {
+                const r = Number(b.dataset.rbFocus);
+                setPressed(b, r === focusRow);
+                const led = b._led || (b._led = $('[data-rb-focus-led]', b));
+                const on = !!getVal(M.ROW_LAYOUT[r].section + '.on');
+                if (led && led._on !== on) { led._on = on; led.classList.toggle('is-on', on); }
+            });
+            const layoutBtns = section._lbtns || (section._lbtns = $$('[data-rb-layout]'));
+            layoutBtns.forEach(b => setPressed(b, b.dataset.rbLayout === layoutMode));
+            const fxTabs = section._fxbtns || (section._fxbtns = $$('[data-rb-fxtab]'));
+            fxTabs.forEach(b => {
+                const id = b.dataset.rbFxtab;
+                setPressed(b, id === fxTab);
+                const led = b._led || (b._led = $('[data-rb-fxled]', b));
+                const on = !!getVal(id + '.on');
+                if (led && led._on !== on) { led._on = on; led.classList.toggle('is-on', on); }
+            });
+            const grpEls = section._grps || (section._grps = $$('.ss-rb-grp[data-rb-grp-inst]').map(el => ({ el, r: Number(el.dataset.rbGrpRow), insts: el.dataset.rbGrpInst.split(',').map(Number) })));
+            for (const g of grpEls) {
+                const on = g.insts.includes(rows[g.r].inst);
+                if (g._v !== on) { g._v = on; g.el.classList.toggle('is-active-voice', on); }
+            }
             renderMeters();
             renderToolbar();
             watchPrefs();
@@ -677,8 +723,10 @@
         on(section, 'pointerdown', e => {
             const t = e.target;
             if (t && t.type === 'range' && t.dataset && t.dataset.rb) held.add(t.dataset.rb);
-            const row = t && t.closest ? t.closest('.ss-rb-row') : null;
-            if (row) focusRow = Number(row.dataset.row);
+            if (t && t.closest && t.closest('.ss-rb-pattern, .ss-rb-device')) {
+                const row = t.closest('.ss-rb-row');
+                if (row) focusRow = Number(row.dataset.row);
+            }
         });
         for (const type of ['pointerdown', 'click', 'keydown']) on(section, type, gestureBoot, { capture: true });
         on(window, 'pointerup', () => held.clear());
@@ -715,6 +763,27 @@
         on(section, 'click', e => {
             const b = e.target.closest ? e.target.closest('button') : null;
             if (!b || !section.contains(b) || b.disabled) return;
+            if (b.dataset.rbFocus !== undefined) {
+                focusRow = clamp(Number(b.dataset.rbFocus), 0, 3);
+                if (layoutMode === 'rack') {
+                    const plate = $('.ss-rb-row[data-row="' + focusRow + '"] > .ss-rb-device');
+                    if (plate && plate.scrollIntoView) plate.scrollIntoView({ block: 'nearest' });
+                }
+                renderAll();
+                return;
+            }
+            if (b.dataset.rbLayout !== undefined) {
+                layoutMode = b.dataset.rbLayout === 'rack' ? 'rack' : 'focus';
+                renderAll();
+                return;
+            }
+            if (b.dataset.rbFxtab !== undefined) {
+                if (['pcf', 'delay', 'dist', 'comp'].includes(b.dataset.rbFxtab)) {
+                    fxTab = b.dataset.rbFxtab;
+                    renderAll();
+                }
+                return;
+            }
             if (b.dataset.rbRestart !== undefined) { restart(); return; }
             if (b.dataset.rbRepeat !== undefined) { if (e.detail === 0) bump(b.dataset.rbRepeat, Number(b.dataset.dir)); return; }
             if (b.dataset.rbAct) { runAct(b.dataset.rbAct, b, e); return; }

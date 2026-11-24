@@ -195,19 +195,10 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	waitForJSBool(t, page, `()=>{const p=document.querySelector('[data-master-panel]');return !!p&&p.hidden}`)
 	page.MustEval(`()=>{const p=synthInstance().project(),t=p.tracks[2],clip=t.clips.find(clip=>clip.length===p.ppq*4);synthInstance().editor.select(t.id,clip.id);window.generatorOriginal=JSON.stringify(synthInstance().project());window.generatorClip=()=>synthInstance().project().tracks[2].clips.find(clip=>clip.length===synthInstance().project().ppq*4);}`)
 	page.MustElement("[data-work-tab=performance]").MustClick()
-	check("performance controls keep scrolling inside the workbench", `()=>{
-        const p=document.querySelector('.ss-performance-workbench'),details=[...p.querySelectorAll('details')],opened=details.map(e=>e.open);
-        details.forEach(e=>e.open=true);
-        p.scrollTop=0;
-        let valid=true,scrolled=false;
-        for(const e of p.querySelectorAll('input,select,button')){
-            e.focus();
-            scrolled ||= p.scrollTop>0;
-            const ancestors=[p.parentElement,p.closest('.ss-main'),p.closest('.ss-workspace')];
-            if(ancestors.some(a=>a.scrollTop!==0)){valid=false;break;}
-        }
-        details.forEach((e,i)=>e.open=opened[i]);p.scrollTop=0;
-        return valid&&scrolled;
+	check("performance stage fits cleanly and keeps scroll inside panel", `()=>{
+        const p=document.querySelector('.ss-performance-workbench'),sp=document.querySelector('[data-perform-panel=stage]');
+        const r=sp.getBoundingClientRect(),b=document.querySelector('.ss-perform-bar').getBoundingClientRect(),f=document.querySelector('.ss-footer').getBoundingClientRect();
+        return !sp.hidden && r.top>=b.bottom-1 && r.bottom<=f.top+1 && sp.scrollHeight<=sp.clientHeight+24 && [p,p.parentElement,p.closest('.ss-main'),p.closest('.ss-workspace')].every(a=>a.scrollTop===0);
     }`)
 	check("chord and strum arp modes are offered", `()=>{const s=document.querySelector('[data-music=order]');return !!s?.querySelector('option[value=chord]')&&!!s?.querySelector('option[value=strum]')&&!!s?.querySelector('option[value=converge]')&&!!s?.querySelector('option[value=pinky]');}`)
 	check("extended musical scales are offered", `()=>{const s=document.querySelector('[data-music=scale]');return ['dorian','phrygian','lydian','hirajoshi'].every(v=>!!s?.querySelector('option[value='+v+']'))}`)
@@ -215,7 +206,9 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	check("live performance effects are enabled", `()=>['fxFilter','fxRiser','fxStutter','fxTapeStop','fxDub','fxRoll'].every(k=>!document.querySelector('[data-stage='+k+']').disabled)`)
 	page.MustEval(`()=>{document.querySelector('[data-stage=fxStutter]').click();document.querySelector('[data-stage=fxRiser]').click();document.querySelector('[data-stage=fxTapeStop]').click();document.querySelector('[data-stage=fxDub]').click();document.querySelector('[data-stage=fxRoll]').click();}`)
 	check("stem export is offered", `()=>!!document.querySelector('[data-export] option[value=stems]')`)
+	page.MustElement("[data-perform-tab=compose]").MustClick()
 	page.MustEval(`()=>{const e=document.querySelector('[data-music=generator]');e.value='arp';e.dispatchEvent(new Event('change',{bubbles:true}));}`)
+	check("compose master-detail switches panel cleanly", `()=>document.querySelector('.ss-compose').dataset.activeGenerator==='arp' && getComputedStyle(document.querySelector('[data-gen-panel=arp]')).display!=='none'`)
 	page.MustElement("[data-compose=generate]").MustClick()
 	check("preview keeps original unchanged", `()=>JSON.stringify(synthInstance().project())===generatorOriginal&&!document.querySelector('.ss-preview').hidden`)
 	page.MustElement("[data-compose=variant]").MustClick()
@@ -238,6 +231,8 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	check("groove lab transposes the clip", `()=>{const p=synthInstance().project(),before=JSON.parse(generatorOriginal).tracks[2].clips.find(c=>c.length===p.ppq*4).notes,after=generatorClip().notes,a=after.map(n=>n.pitch).sort((x,y)=>x-y),b=before.map(n=>n.pitch+1).sort((x,y)=>x-y);return a.length===b.length&&a.every((x,i)=>x===b[i]);}`)
 	page.MustElement("[data-action=undo]").MustClick()
 	check("groove lab is one undo step", `()=>JSON.stringify(synthInstance().project())===generatorOriginal`)
+	page.MustElement("[data-work-tab=performance]").MustClick()
+	page.MustElement("[data-perform-tab=stage]").MustClick()
 	check("rapid chord changes cancel pending audition", `async()=>{
         const audio=synthInstance().audio,unlock=audio.unlock,noteOn=audio.noteOn,resolvers=[];let sounding=0;
         audio.unlock=()=>new Promise(r=>resolvers.push(r));audio.noteOn=()=>{sounding++;return()=>sounding--;};
@@ -439,20 +434,20 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 				page.MustElement("[data-action=undo]").MustClick()
 				check("note edit restores the whole project", `()=>JSON.stringify(synthInstance().project())===beforeNoteEdit`)
 				page.MustElement("[data-work-tab=performance]").MustClick()
-				// Scroll the actual workbench, then focus its last control as keyboard
-				// navigation does. Clipping ancestors must not hide the whole panel.
-				page.MustEval(`()=>{const p=document.querySelector('.ss-performance-workbench');p.scrollTop=0;}`)
-				panelBox := page.MustElement(".ss-performance-workbench").MustShape().Box()
-				page.Mouse.MustMoveTo(panelBox.X+panelBox.Width-8, panelBox.Y+panelBox.Height/2)
-				page.Mouse.MustScroll(0, 400)
-				waitForJSBool(t, page, `()=>document.querySelector('.ss-performance-workbench').scrollTop>0`)
-				page.MustEval(`()=>document.querySelector('.ss-compose [data-compose=generate]').focus()`)
-				check("scrolling and focusing keep the performance cards visible", `()=>{
-                    const p=document.querySelector('.ss-performance-workbench'),r=p.getBoundingClientRect(),footer=document.querySelector('.ss-footer').getBoundingClientRect();
-                    const cards=[...p.querySelectorAll('.ss-stage > *, .ss-compose > *')];
-                    return r.top>=document.querySelector('.ss-modes').getBoundingClientRect().bottom-1&&r.bottom<=footer.top+1&&cards.some(e=>{const c=e.getBoundingClientRect();return c.bottom>r.top&&c.top<r.bottom})&&[p.parentElement,p.closest('.ss-main'),p.closest('.ss-workspace')].every(e=>e.scrollTop===0);
+				page.MustElement("[data-perform-tab=stage]").MustClick()
+				check("performance stage stays inside workbench", `()=>{
+                    const p=document.querySelector('.ss-performance-workbench'),sp=document.querySelector('[data-perform-panel=stage]'),r=sp.getBoundingClientRect(),footer=document.querySelector('.ss-footer').getBoundingClientRect();
+                    const cards=[...sp.children];
+                    return !sp.hidden&&r.top>=document.querySelector('.ss-perform-bar').getBoundingClientRect().bottom-1&&r.bottom<=footer.top+1&&cards.some(e=>{const c=e.getBoundingClientRect();return c.bottom>r.top&&c.top<r.bottom})&&[p,p.parentElement,p.closest('.ss-main'),p.closest('.ss-workspace')].every(e=>e.scrollTop===0);
                 }`)
-				page.MustEval(`()=>document.querySelector('.ss-performance-workbench').scrollTop=0`)
+				check("performance pads have touch targets", `()=>[...document.querySelectorAll('.ss-scene-pads button,.ss-chord-pads button')].every(e=>{const r=e.getBoundingClientRect();return r.width>=44&&r.height>=44})`)
+				page.MustElement("[data-perform-tab=compose]").MustClick()
+				page.MustEval(`()=>{document.querySelector('.ss-compose [data-compose=generate]').focus()}`)
+				check("compose workbench stays inside container", `()=>{
+                    const p=document.querySelector('.ss-performance-workbench'),cp=document.querySelector('[data-perform-panel=compose]'),r=cp.getBoundingClientRect(),footer=document.querySelector('.ss-footer').getBoundingClientRect();
+                    return !cp.hidden&&r.top>=document.querySelector('.ss-perform-bar').getBoundingClientRect().bottom-1&&r.bottom<=footer.top+1&&[p,p.parentElement,p.closest('.ss-main'),p.closest('.ss-workspace')].every(e=>e.scrollTop===0);
+                }`)
+				page.MustElement("[data-perform-tab=stage]").MustClick()
 				t.Log(theme, mode, width, page.MustEval(`()=>{const a=document.querySelector('.ss-app'),r=a.getBoundingClientRect(),f=document.querySelector('.ss-footer').getBoundingClientRect();return JSON.stringify({width:a.clientWidth,scrollWidth:a.scrollWidth,bottom:r.bottom,footerBottom:f.bottom,arrange:document.querySelector('.ss-arrangement').clientHeight})}`).Str())
 				if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
 					if err := os.MkdirAll(dir, 0755); err != nil {
@@ -462,24 +457,19 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 						t.Fatal(err)
 					}
 					if width == 1280 {
-						// The lower half of Perform: the composer cards, then the end of the workbench.
-						// The pads shot swaps in lit/queued/selected pads and restores the real markup.
-						shots := []struct{ name, js string }{
-							{"compose", `()=>{document.querySelector('.ss-compose').scrollIntoView({block:'start'})}`},
-							{"bottom", `()=>{const p=document.querySelector('.ss-performance-workbench');p.scrollTop=p.scrollHeight}`},
-							{"pads", `()=>{const p=document.querySelector('.ss-performance-workbench');p.scrollTop=0;const pads=document.querySelector('.ss-scene-pads');window.padsMarkup=pads.innerHTML;const states=['active','queued','stopped is-selected','stopped'];pads.innerHTML=Array.from({length:8},(_,i)=>i<4?'<button type="button" data-scene="x'+i+'" class="'+states[i]+'" style="--ss-scene-color:var(--ss-color-'+i+')" aria-pressed="'+(i===0)+'"><strong>Scene '+(i+1)+'</strong><span>'+states[i].split(' ')[0]+'</span></button>':'<button type="button" disabled class="stopped" style="--ss-scene-color:var(--ss-color-'+(i%6)+')"><strong>—</strong><span>stopped</span></button>').join('')}`},
+						page.MustElement("[data-perform-tab=compose]").MustClick()
+						if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf("synth-perform-compose-%s-%s-%d.png", theme, mode, width)), page.MustScreenshot(), 0644); err != nil {
+							t.Fatal(err)
 						}
-						for _, shot := range shots {
-							page.MustEval(shot.js)
-							if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf("synth-perform-%s-%s-%s-%d.png", shot.name, theme, mode, width)), page.MustScreenshot(), 0644); err != nil {
-								t.Fatal(err)
-							}
+						page.MustElement("[data-perform-tab=stage]").MustClick()
+						page.MustEval(`()=>{const sp=document.querySelector('[data-perform-panel=stage]');sp.scrollTop=0;const pads=document.querySelector('.ss-scene-pads');window.padsMarkup=pads.innerHTML;const states=['active','queued','stopped is-selected','stopped'];pads.innerHTML=Array.from({length:8},(_,i)=>i<4?'<button type="button" data-scene="x'+i+'" class="'+states[i]+'" style="--ss-scene-color:var(--ss-color-'+i+')" aria-pressed="'+(i===0)+'"><strong>Scene '+(i+1)+'</strong><span>'+states[i].split(' ')[0]+'</span></button>':'<button type="button" disabled class="stopped" style="--ss-scene-color:var(--ss-color-'+(i%6)+')"><strong>—</strong><span>stopped</span></button>').join('')}`)
+						if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf("synth-perform-pads-%s-%s-%d.png", theme, mode, width)), page.MustScreenshot(), 0644); err != nil {
+							t.Fatal(err)
 						}
-						page.MustEval(`()=>{document.querySelector('.ss-scene-pads').innerHTML=window.padsMarkup;document.querySelector('.ss-performance-workbench').scrollTop=0}`)
+						page.MustEval(`()=>{document.querySelector('.ss-scene-pads').innerHTML=window.padsMarkup;document.querySelector('[data-perform-panel=stage]').scrollTop=0}`)
 					}
 				}
 				check("responsive bounds", `()=>{const a=document.querySelector('.ss-app'),r=a.getBoundingClientRect(),f=document.querySelector('.ss-footer').getBoundingClientRect();return a.scrollWidth<=a.clientWidth+1 && f.bottom<=r.bottom+1 && document.querySelector('.ss-performance-workbench').clientHeight>=100;}`)
-				check("performance pads have touch targets", `()=>[...document.querySelectorAll('.ss-scene-pads button,.ss-chord-pads button')].every(e=>{const r=e.getBoundingClientRect();return r.width>=44&&r.height>=44})`)
 				page.MustElement("[data-work-tab=strudel]").MustClick()
 				check("Strudel editor stays inside the workbench", `()=>{const el=document.querySelector('[data-strudel-code]'),p=el.closest('section'),r=p.getBoundingClientRect();return !p.hidden&&el.clientWidth>120&&r.right<=document.querySelector('.ss-app').getBoundingClientRect().right+1&&p.scrollWidth<=p.clientWidth+1;}`)
 				if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
@@ -491,22 +481,60 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 			}
 		}
 	}
-	page.MustEval(`()=>{const w=document.querySelector('[data-app-id="synth-studio"]');w.classList.remove('maximized');w.style.width='1500px';w.style.height='800px';w.style.left='8px';w.style.top='8px';}`)
-	// Modes: one at a time, the arrangement only in Arrange, the note editor only with a clip.
+	page.MustEval(`()=>{const w=document.querySelector('[data-app-id="synth-studio"]');w.classList.remove('maximized');w.style.width='1380px';w.style.height='800px';w.style.left='8px';w.style.top='8px';}`)
+	// Modes & cockpit UX checks
 	page.MustElement("[data-work-tab=notes]").MustClick()
+	check("compact 2-bar top chrome leaves vertical room", `()=>{const h=document.querySelector('.ss-header').getBoundingClientRect().height,tr=document.querySelector('.ss-transport').getBoundingClientRect().height;return h+tr<=115;}`)
 	check("arrange shows the arrangement", `()=>document.querySelector('.ss-app').dataset.mode==='arrange'&&getComputedStyle(document.querySelector('.ss-arrangement')).display!=='none'`)
+	page.MustElement("[data-action=quickStrip]").MustClick()
+	check("quick sound strip toggles open without duplicating inspector params", `()=>!document.querySelector('[data-quick-strip]').hidden && document.querySelectorAll('.ss-inspector [data-param]').length===8`)
+	page.MustElement("[data-action=quickStrip]").MustClick()
 	page.MustEval(`()=>synthInstance().editor.select('','')`)
 	check("note editor hides without a clip", `()=>document.querySelector('.ss-note-editor').hidden`)
-	page.MustEval(`()=>{const p=synthInstance().project(),t=p.tracks[0];synthInstance().editor.select(t.id,t.clips[0].id)}`)
+	page.MustEval(`()=>{const p=synthInstance().project(),t=p.tracks.find(x=>x.instrument!=='drums-kit'&&x.instrument!=='gm-drums'&&!String(x.instrument||'').startsWith('drum-')&&x.clips.some(c=>!c.audio))||p.tracks[0];synthInstance().editor.select(t.id,t.clips[0].id)}`)
 	check("note editor opens with a clip", `()=>!document.querySelector('.ss-note-editor').hidden`)
+	if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
+		if err := os.WriteFile(filepath.Join(dir, "synth-arrange.png"), page.MustScreenshot(), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	page.MustElement("[data-scale-fold]").MustClick()
+	check("scale fold filters piano roll keys", `()=>document.querySelectorAll('.ss-keys button').length < 128`)
+	page.MustElement("[data-scale-fold]").MustClick()
+	page.MustElement("[data-editor-expand]").MustClick()
+	check("expand editor enlarges piano roll", `()=>document.querySelector('.ss-app').classList.contains('ss-note-expanded')`)
+	page.MustElement("[data-editor-expand]").MustClick()
 	page.MustElement("[data-work-tab=sound]").MustClick()
-	check("sound mode hides the arrangement and fills the area", `()=>{const a=document.querySelector('.ss-arrangement');const p=document.querySelector('.ss-sound-workbench');return getComputedStyle(a).display==='none'&&!p.hidden&&p.getBoundingClientRect().width>600}`)
+	check("sound mode hides the arrangement and shows track rail and audition dock", `()=>{const a=document.querySelector('.ss-arrangement');const p=document.querySelector('.ss-sound-workbench');const d=document.querySelector('.ss-audition-dock');return getComputedStyle(a).display==='none'&&!p.hidden&&p.getBoundingClientRect().width>600&&document.querySelectorAll('.ss-rail-item').length===synthInstance().project().tracks.length&&!!d&&d.getBoundingClientRect().bottom<=document.querySelector('.ss-footer').getBoundingClientRect().top+1}`)
+	if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
+		if err := os.WriteFile(filepath.Join(dir, "synth-sound.png"), page.MustScreenshot(), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	page.MustElement(".ss-inspector [data-action=design]").MustClick()
+	check("designer opens with source sub-tabs and pinned audition dock", `()=>!!document.querySelector('.ss-designer') && document.querySelectorAll('.ss-designer-subtab').length===3 && getComputedStyle(document.querySelector('.ss-audition-dock')).display!=='none'`)
+	if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
+		if err := os.WriteFile(filepath.Join(dir, "synth-designer.png"), page.MustScreenshot(), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	page.MustElement("[data-designer-action=close]").MustClick()
+	page.MustElement("[data-work-tab=strudel]").MustClick()
+	check("strudel hides global transport and toggles snippet reference", `()=>{const tr=document.querySelector('.ss-transport');return getComputedStyle(tr).display==='none'&&document.querySelectorAll('.ss-strudel-workbench output').length===1}`)
+	page.MustElement("[data-strudel-ref-toggle]").MustClick()
+	check("strudel reference opens with snippets", `()=>!document.querySelector('.ss-strudel-ref').hidden && document.querySelectorAll('[data-strudel-snippet]').length>6`)
+	page.MustElement("[data-strudel-ref-toggle]").MustClick()
 	page.MustElement("[data-work-tab=mix]").MustClick()
-	check("mixer opens the master panel", `()=>!document.querySelector('[data-master-panel]').hidden&&document.querySelectorAll('[data-master-panel] [data-master-param]').length===14`)
+	check("mixer opens track strips alongside docked master panel", `()=>!document.querySelector('[data-master-panel]').hidden&&document.querySelector('[data-master-panel]').classList.contains('is-docked')&&document.querySelectorAll('[data-master-panel] [data-master-param]').length===14&&document.querySelectorAll('.ss-mix-strip').length===synthInstance().project().tracks.length`)
+	if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
+		if err := os.WriteFile(filepath.Join(dir, "synth-mix.png"), page.MustScreenshot(), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
 	page.MustElement("[data-work-tab=notes]").MustClick()
 	check("leaving the mixer closes what it opened", `()=>document.querySelector('[data-master-panel]').hidden`)
 	check("mode is remembered", `()=>JSON.parse(localStorage.getItem('aurago:synth-studio:view:2')).panel==='notes'`)
-	// RB-338: the real wasm engine runs in a Worker; the rack, a step edit and Send to Arrange.
+	// RB-338: the real wasm engine runs in a Worker; Focus View default + Full Rack toggle, a step edit and Send to Arrange.
 	for _, asset := range []string{"/js/vendor/rb338/rb338-engine.wasm", "/js/vendor/rb338/Standard.rbm"} {
 		resp, err := http.Get(srv.URL + asset)
 		if err != nil {
@@ -522,10 +550,27 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	waitForJSBool(t, page, `()=>!!document.querySelector('.ss-rb338-workbench[data-rb-ready]')||document.querySelector('.ss-rb338-workbench')?.dataset.rbState==='error'`)
 	check("RB-338 engine is ready", `()=>fixtureErrors.length===0&&!!document.querySelector('.ss-rb338-workbench[data-rb-ready]')`)
 	page.MustEval(`()=>{const w=document.querySelector('[data-app-id="synth-studio"]');w.classList.remove('maximized');w.style.width='1380px';w.style.height='800px';w.style.left='8px';w.style.top='8px';}`)
+	check("RB-338 opens in Focus View with 4 live mixer channels visible", `()=>{const wb=document.querySelector('.ss-rb338-workbench');return wb.dataset.rbLayout==='focus'&&[...wb.querySelectorAll('.ss-rb-channel')].every(c=>getComputedStyle(c).display!=='none')}`)
 	check("RB-338 LOOP key stays on the loop display row at 1380px", `()=>{const k=document.querySelector('.ss-rb338-workbench [data-rb="transport.loop"]').getBoundingClientRect(),d=document.querySelector('.ss-rb338-workbench [data-rb-out="transport.loop_end"]').getBoundingClientRect(),p=document.querySelector('.ss-rb338-workbench .ss-rb-transport').getBoundingClientRect();return Math.abs(k.bottom-d.bottom)<14&&k.right<=p.right+1&&k.left>=p.left}`)
 	rbCounts := page.MustEval(`()=>{const q=s=>document.querySelectorAll('.ss-rb338-workbench '+s).length;return {d303:[...document.querySelectorAll('.ss-rb338-workbench .ss-rb-row[data-kind="303"]')].map(r=>r.querySelectorAll('.ss-rb-d303 [data-rb]').length),d303inputs:[...document.querySelectorAll('.ss-rb338-workbench .ss-rb-row[data-kind="303"]')].map(r=>r.querySelectorAll('.ss-rb-d303 input[data-rb], .ss-rb-d303 button[data-rb], .ss-rb-d303 [role=group][data-rb]').length),d808:q('.ss-rb-row[data-kind="808"] .ss-rb-device [data-rb]'),d909:q('.ss-rb-row[data-kind="909"] .ss-rb-device [data-rb]'),flam:q('[data-rb="tr909.flam"]'),faders:q('input[type=range][data-ss-kind=vfader][data-rb$=".level"]'),masterFader:q('input[type=range][data-rb="master.fader"]'),pcf:q('input[type=range][data-rb^="pcf."]')}}`)
 	if got := rbCounts.JSON("", ""); got != `{"d303":[7,7],"d303inputs":[7,7],"d808":27,"d909":28,"faders":4,"flam":1,"masterFader":1,"pcf":4}` {
 		t.Fatalf("RB-338 rack controls: %s", got)
+	}
+	page.MustElement(".ss-rb338-workbench [data-rb-fxtab='delay']").MustClick()
+	check("RB-338 FX tabs switch active effect panel", `()=>document.querySelector('.ss-rb338-workbench').dataset.rbFxtab==='delay' && getComputedStyle(document.querySelector('.ss-rb338-workbench [data-fx-panel=delay]')).display!=='none' && getComputedStyle(document.querySelector('.ss-rb338-workbench [data-fx-panel=pcf]')).display==='none'`)
+	page.MustElement(".ss-rb338-workbench .ss-rb-focus-tab[data-rb-focus='3']").MustClick()
+	waitForJSBool(t, page, `()=>document.querySelector('.ss-rb338-workbench .ss-rb-row[data-row="3"]').classList.contains('is-focus')`)
+	if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
+		if err := os.WriteFile(filepath.Join(dir, "synth-rb338-focus.png"), page.MustScreenshot(), 0644); err != nil {
+			t.Fatal(err)
+		}
+		page.MustElement(".ss-rb338-workbench [data-rb-layout='rack']").MustClick()
+		waitForJSBool(t, page, `()=>document.querySelector('.ss-rb338-workbench').dataset.rbLayout==='rack'`)
+		if err := os.WriteFile(filepath.Join(dir, "synth-rb338-rack.png"), page.MustScreenshot(), 0644); err != nil {
+			t.Fatal(err)
+		}
+		page.MustElement(".ss-rb338-workbench [data-rb-layout='focus']").MustClick()
+		waitForJSBool(t, page, `()=>document.querySelector('.ss-rb338-workbench').dataset.rbLayout==='focus'`)
 	}
 	page.MustEval(`()=>document.querySelector('.ss-rb338-workbench [data-rb-act=step][data-row="3"][data-step="0"]')?.scrollIntoView({block:'center'})`)
 	stepBefore := page.MustEval(`()=>{const b=document.querySelector('.ss-rb338-workbench [data-rb-act=step][data-row="3"][data-step="0"]');return b?b.getAttribute('aria-pressed'):'missing'}`).Str()

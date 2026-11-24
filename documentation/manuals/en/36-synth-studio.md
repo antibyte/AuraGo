@@ -10,7 +10,7 @@ guide](../../synth-studio.md).
 
 ## Table of Contents
 1. [Opening Synth Studio](#opening-synth-studio)
-2. [The Five Workspace Modes](#the-five-workspace-modes)
+2. [The Six Workspace Modes](#the-six-workspace-modes)
 3. [The Library Drawer](#the-library-drawer)
 4. [Knobs, Faders and Curves](#knobs-faders-and-curves)
 5. [The Master Strip](#the-master-strip)
@@ -26,30 +26,34 @@ guide](../../synth-studio.md).
 
 Open **Synth Studio** from the start menu, in the category **Creative**. The window opens maximized.
 
-The transport sits above the mode bar: play, pause, stop and record, the position readout, the tempo field,
-the metronome, the loop range, undo and redo, the **Master** button and the analyser. Space plays and pauses,
-Ctrl/Cmd+S saves, and Ctrl/Cmd+Z undoes.
+A compact two-bar shell keeps core controls continuously in view: the top header embeds the project title, mode tabs
+(**Arrange**, **Sound design**, **Perform**, **Mixer**, **Strudel**, **RB-338**, switchable via `Alt+1`–`Alt+6`), the
+**Library** drawer and floating **MIDI** popover toggles, and file/export actions. Directly below sits the transport bar
+with play, pause, stop and record, LCD readout, tempo, metronome, loop range, a global **Active track** switcher with M/S
+toggles, undo/redo, analyser and **Master**. Both **Strudel** and **RB-338** hide the global arrangement transport so their
+specialized surfaces fill the viewport. Space plays and pauses, `Alt+L` toggles the library, Ctrl/Cmd+S saves, Ctrl/Cmd+Z
+undoes, and `Esc` dismisses open overlays.
 
-A project uses 4/4 and a constant 40–240 BPM tempo, with at most fifteen melodic tracks and one percussion
-track. The **demo** button loads "Neon Sketch", a synthwave song in A minor at 112 BPM over 32 bars; the
-Electronic, Chill and Retro templates are sixteen-bar compositions that start paused. Hiding the browser tab
-pauses playback; minimizing only the Desktop window keeps it running.
+A project uses 4/4 and a constant 40–240 BPM tempo with up to sixteen tracks (including percussion or rendered RB-338 clips).
+The **demo** button loads "Neon Sketch", a synthwave song in A minor at 112 BPM over 32 bars; the Electronic, Chill and
+Retro templates are sixteen-bar compositions that start paused. Hiding the browser tab pauses playback; minimizing only the
+Desktop window keeps it running.
 
-## The Five Workspace Modes
+## The Six Workspace Modes
 
-The transport stays visible above a mode bar with five modes; only the active mode is shown.
+Switch between six focused, viewport-locked workbenches from the header mode bar:
 
 | Mode | What it is for |
 |------|----------------|
-| **Arrange** | The arrangement with tracks and clips. The note editor (piano roll or percussion grid) appears under the arrangement only while a clip is selected. |
-| **Sound design** | The sound panel of the selected track, including the programmable synthesizer and the effect chain. |
-| **Perform** | Chord pads, scale assistance, arpeggiator, variations, scenes and the momentary Live FX. |
-| **Strudel** | The live-coding editor. |
-| **Mixer** | The master strip with the effect inserts. |
+| **Arrange** | Compact timeline with per-track inline **FX** badges, **Scale only** folding and expand/close controls in the piano roll, and an optional **Quick sound** side strip on wide screens (`≥ 1100 px`). |
+| **Sound design** | Three-zone cockpit: left track rail for fast switching, Voice Shaper + 2×2 Effect Chain grid in the center and a pinned bottom **Octave + Audition** keyboard/drum dock; **Design sound** switches to a 3-column signal flow (tabbed **Oscillator / Sub & Noise / FM Ops**, filter curve and vertical ADSR faders). |
+| **Perform** | Shared key/scale bar over **Live Stage** (4×2 scenes, 4×2 chord pads, XY/macros, momentary Live FX and take recorder on a single desktop screen) and **Compose Studio** (master-detail generator navigator with clip selector and preview dock). |
+| **Mixer** | Horizontal console of vertical track channel strips (faders, pan, sends, M/S, FX jump) docked beside the **Master** panel. |
+| **Strudel** | Full-height live-coding editor with a collapsible clickable **Reference** snippet sidebar. |
+| **RB-338** | Dual-303/808/909 rack opening in a single-screen **Focus View** (focused machine + 4-channel live mixer strip + Master & tabbed FX) with a persisted 1-click toggle to **Full Rack**. |
 
-Perform groups its controls into cards: scenes, the XY pad with Tone/Reverb knobs, the take recorder, Live FX,
-the automation editor and the composer, one card per generator. Double-click an empty track lane to create a
-clip, and select a clip to edit notes in the piano roll or percussion grid.
+Double-click an empty track lane to create a clip, and select a clip to edit notes in the piano roll or percussion grid;
+enable **Scale only** in melodic clips to fold non-scale rows away.
 
 ## The Library Drawer
 

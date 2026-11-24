@@ -9,7 +9,7 @@ Strudel und mischst das Ergebnis. Der vollständige Vertrag steht im [Synth-Stud
 
 ## Inhaltsverzeichnis
 1. [Synth Studio öffnen](#synth-studio-öffnen)
-2. [Die fünf Arbeitsmodi](#die-fünf-arbeitsmodi)
+2. [Die sechs Arbeitsmodi](#die-sechs-arbeitsmodi)
 3. [Die Bibliothek](#die-bibliothek)
 4. [Regler, Fader und Kurven](#regler-fader-und-kurven)
 5. [Der Master-Streifen](#der-master-streifen)
@@ -25,30 +25,36 @@ Strudel und mischst das Ergebnis. Der vollständige Vertrag steht im [Synth-Stud
 
 Öffne **Synth Studio** aus dem Startmenü, in der Kategorie **Kreativ**. Das Fenster öffnet sich maximiert.
 
-Die Transportleiste sitzt über der Modusleiste: Abspielen, Pause, Stopp und Aufnahme, die Positionsanzeige, das Temposfeld,
-das Metronom, den Loop-Bereich, Rückgängig und Wiederherstellen, die Schaltfläche **Master** und den Analyser. Die Leertaste
-spielt und pausiert, Strg/Cmd+S speichert und Strg/Cmd+Z macht rückgängig.
+Die zweizeilige Steuerleiste hält alles Wesentliche kompakt im Blick: Oben sitzen neben dem Projekttitel die Modus-Tabs
+(**Arrangieren**, **Sound-Design**, **Spielen**, **Mixer**, **Strudel**, **RB-338**; per `Alt+1` bis `Alt+6` erreichbar),
+der Bibliotheks- und der schwebende **MIDI**-Schalter mit Status-LED sowie die Datei- und Export-Aktionen. Darunter sitzt
+die globale Transportleiste mit Abspielen, Pause, Stopp, Aufnahme, Positions-LCD, Tempo, Metronom, Loop-Bereich, dem
+globalen **Aktiven Track**-Wechsler samt `M`/`S`-Tasten, Rückgängig/Wiederherstellen, Analyser und **Master**. In
+**Strudel** und **RB-338** blendet die globale Transportleiste sich automatisch aus, damit die Editoren den vollen Platz
+nutzen. Die Leertaste spielt und pausiert, `Alt+L` schaltet die Bibliothek um, `Strg/Cmd+S` speichert, `Strg/Cmd+Z` macht
+rückgängig und `Esc` schließt offene Overlays.
 
-Ein Projekt nutzt 4/4 und ein konstantes Tempo von 40–240 BPM, mit höchstens fünfzehn melodischen Spuren und einer Schlagspur.
-Die Schaltfläche **Demo** lädt „Neon Sketch“, einen Synthwave-Song in a-Moll mit 112 BPM über 32 Takte; die Vorlagen
-Electronic, Chill und Retro sind Sechzehntakt-Sätze, die pausiert starten. Ein verborgenes Browser-Tab pausiert die
-Wiedergabe; wenn du nur das Desktop-Fenster minimierst, läuft sie weiter.
+Ein Projekt nutzt 4/4 und ein konstantes Tempo von 40–240 BPM, mit höchstens sechzehn Spuren (bis zu fünfzehn melodischen
+Spuren plus Drum- oder gerenderten RB-338-Audio-Clips). Die Schaltfläche **Demosong** lädt „Neon Sketch“, einen
+Synthwave-Song in a-Moll mit 112 BPM über 32 Takte; die Vorlagen Electronic, Chill und Retro sind Sechzehntakt-Sätze, die
+pausiert starten. Ein verborgenes Browser-Tab pausiert die Wiedergabe; wenn du nur das Desktop-Fenster minimierst, läuft sie
+weiter.
 
-## Die fünf Arbeitsmodi
+## Die sechs Arbeitsmodi
 
-Die Transportleiste bleibt über einer Modusleiste mit fünf Modi sichtbar; nur der aktive Modus wird angezeigt.
+Über die Modus-Tabs im Kopf wechselst du ohne langes Scrollen zwischen den sechs fokussierten Arbeitsbereichen:
 
 | Modus | Wofür er da ist |
 |-------|-----------------|
-| **Arrangieren** | Die Arrangierung mit Spuren und Clips. Der Noteneditor (Piano-Roll oder Schlagraster) erscheint unter der Arrangierung nur, solange ein Clip ausgewählt ist. |
-| **Sound-Design** | Das Klangpanel der gewählten Spur, mit dem programmierbaren Synthesizer und der Effektkette. |
-| **Spielen** | Akkordpads, Tonleitenhilfe, Arpeggiator, Variationen, Szenen und die momentanen Live FX. |
-| **Strudel** | Der Livecoding-Editor. |
-| **Mixer** | Der Master-Streifen mit den Effekt-Einschüben. |
+| **Arrangieren** | Kompakte Zeitleiste mit Spuren, Inline-**FX**-Abzeichen, **Skalen-Falt** im melodischen Piano-Roll, Vergrößern/Schließen des Noteneditors und optionaler **Schnell-Klang**-Leiste rechts (ab `1100 px`). |
+| **Sound-Design** | Dreiteiliges Sound-Cockpit: linke Spurleiste zum schnellen Wechseln, 2-Spalten-Klangformung + 2×2-Effektkette in der Mitte und das fest verankerte **Oktav- & Anhör-Dock** unten; der **Sound-Designer** ordnet Signalfluss (Oszillator / Sub & Rauschen / FM-Operatoren, Filter, Hüllkurve) klar nebeneinander an. |
+| **Spielen** | Zweigeteilt über eine gemeinsame Tonart-/Skalenleiste: **Live-Bühne** (4×2 Szenen, 4×2 Akkord-Pads, XY-Pad + Makros, Live-FX und Take-Rekorder auf einem Bildschirm) sowie das **Kompositions-Studio** als Master-Detail-Werkbank für alle Generatoren und Variationen. |
+| **Mixer** | Horizontale Konsole vertikaler Kanalzüge (Fader, Pan, Reverb/Delay-Sends, M/S, FX-Sprung) direkt neben dem angedockten **Master-Streifen**. |
+| **Strudel** | Livecoding-Editor über volle Höhe mit einblendbarer **Referenz**-Seitenleiste zum direkten Einfügen von Drum-, Synth- und Effekt-Snippets. |
+| **RB-338** | Doppel-303/808/909-Rack standardmäßig in der scrollfreien **Fokus-Ansicht** (aktives Gerät + 4-Kanal-Live-Mixer + Master & getabbte Effekte) mit Umschalter auf das klassische **Voll-Rack**. |
 
-Spielen gruppiert seine Regler in Karten: Szenen, das XY-Pad mit Tone-/Reverb-Reglern, der Take-Aufnehmer, Live FX, der
-Automatisierungseditor und der Komponist, eine Karte je Generator. Doppelklicke eine freie Spur, um einen Clip anzulegen, und
-wähle einen Clip aus, um die Noten im Piano-Roll oder im Schlagraster zu bearbeiten.
+Doppelklicke eine freie Spur, um einen Clip anzulegen, und wähle einen Clip aus, um die Noten im Piano-Roll oder im
+Schlagraster zu bearbeiten. Mit **Skalen-Falt** im Piano-Roll blendest du nicht zur gewählten Tonleiter passende Tasten aus.
 
 ## Die Bibliothek
 

@@ -303,22 +303,40 @@
 
     // --- editable field surface -----------------------------------------
     const FIELD_GROUPS = [
-        { labelKey: "grp_oscillator", fields: [
+        { labelKey: "grp_oscillator", role: "source", tab: "osc", fields: [
             { key: "wave", type: "select", options: WAVES, optionKey: value => `wave_${value}`, labelKey: "param_wave" },
-            { key: "level", type: "range", min: 0, max: 1.5, step: 0.005, labelKey: "param_level" },
             { key: "unison", type: "select", options: [1, 3, 5], optionKey: value => `unison_${value}`, labelKey: "param_unison" },
+            { key: "level", type: "range", min: 0, max: 1.5, step: 0.005, labelKey: "param_level" },
             { key: "detune", type: "range", min: 0, max: 120, step: 1, labelKey: "param_detune" },
             { key: "second", type: "range", min: 0, max: 1, step: 0.005, labelKey: "param_second" },
             { key: "pulseWidth", type: "range", min: 0, max: 0.95, step: 0.01, labelKey: "param_pulse_width" }
         ] },
-        { labelKey: "grp_sub_noise", fields: [
+        { labelKey: "grp_sub_noise", role: "source", tab: "sub", fields: [
             { key: "sub", type: "range", min: 0, max: 0.6, step: 0.005, labelKey: "param_sub" },
             { key: "subWave", type: "select", options: SUB_WAVES, optionKey: value => `wave_${value}`, labelKey: "param_sub_wave" },
             { key: "subOctave", type: "select", options: [1, 2], optionKey: value => `sub_octave_${value}`, labelKey: "param_sub_octave" },
             { key: "noise", type: "range", min: 0, max: 1, step: 0.005, labelKey: "param_noise" },
             { key: "noiseWave", type: "select", options: NOISES, optionKey: value => `wave_${value}`, labelKey: "param_noise_wave" }
         ] },
-        { labelKey: "grp_fm", fields: [
+        { labelKey: "grp_fm", role: "source", tab: "fm", rows: [
+            { label: "OP 1", fields: [
+                { key: "mod", type: "select", options: MOD_WAVES, off: true, optionKey: value => `wave_${value}`, labelKey: "param_mod" },
+                { key: "ratio", type: "range", min: 0.25, max: 16, step: 0.05, labelKey: "param_ratio" },
+                { key: "depth", type: "range", min: 0, max: 12, step: 0.05, labelKey: "param_depth" }
+            ] },
+            { label: "OP 2", fields: [
+                { key: "mod2", type: "select", options: MOD_WAVES, off: true, optionKey: value => `wave_${value}`, labelKey: "param_mod2" },
+                { key: "ratio2", type: "range", min: 0.25, max: 16, step: 0.05, labelKey: "param_ratio2" },
+                { key: "depth2", type: "range", min: 0, max: 12, step: 0.05, labelKey: "param_depth2" },
+                { key: "decay2", type: "range", min: 0.02, max: 4, step: 0.01, labelKey: "param_decay2" }
+            ] },
+            { label: "OP 3", fields: [
+                { key: "mod3", type: "select", options: MOD_WAVES, off: true, optionKey: value => `wave_${value}`, labelKey: "param_mod3" },
+                { key: "ratio3", type: "range", min: 0.25, max: 16, step: 0.05, labelKey: "param_ratio3" },
+                { key: "depth3", type: "range", min: 0, max: 12, step: 0.05, labelKey: "param_depth3" },
+                { key: "decay3", type: "range", min: 0.02, max: 4, step: 0.01, labelKey: "param_decay3" }
+            ] }
+        ], fields: [
             { key: "mod", type: "select", options: MOD_WAVES, off: true, optionKey: value => `wave_${value}`, labelKey: "param_mod" },
             { key: "ratio", type: "range", min: 0.25, max: 16, step: 0.05, labelKey: "param_ratio" },
             { key: "depth", type: "range", min: 0, max: 12, step: 0.05, labelKey: "param_depth" },
@@ -331,30 +349,35 @@
             { key: "depth3", type: "range", min: 0, max: 12, step: 0.05, labelKey: "param_depth3" },
             { key: "decay3", type: "range", min: 0.02, max: 4, step: 0.01, labelKey: "param_decay3" }
         ] },
-        { labelKey: "grp_filter", fields: [
+        { labelKey: "grp_filter", role: "filter", fields: [
             { key: "filterType", type: "select", options: FILTER_TYPES, optionKey: value => `filter_${value}`, labelKey: "param_filter_type" },
             { key: "cutoff", type: "range", min: 0.05, max: 1, step: 0.005, labelKey: "param_cutoff" },
             { key: "filterQ", type: "range", min: 0.7, max: 12, step: 0.05, labelKey: "resonance" },
             { key: "filterEnv", type: "range", min: -1, max: 1, step: 0.01, labelKey: "param_filter_env" },
             { key: "filterDecay", type: "range", min: 0.04, max: 2.5, step: 0.01, labelKey: "param_filter_decay" }
         ] },
-        { labelKey: "grp_envelope", fields: [
+        { labelKey: "grp_envelope", role: "envelope", fields: [
             { key: "attack", type: "range", kind: "vfader", min: 0, max: 4, step: 0.005, labelKey: "attack" },
             { key: "decay", type: "range", kind: "vfader", min: 0.01, max: 6, step: 0.01, labelKey: "param_decay" },
             { key: "sustain", type: "range", kind: "vfader", min: 0, max: 1.2, step: 0.005, labelKey: "param_sustain" },
             { key: "release", type: "range", kind: "vfader", min: 0.02, max: 6, step: 0.01, labelKey: "release" }
         ] },
-        { labelKey: "grp_pitch", fields: [
-            { key: "pitchEnv", type: "range", min: 0.25, max: 4, step: 0.01, labelKey: "param_pitch_env" },
-            { key: "pitchTime", type: "range", min: 0.015, max: 0.6, step: 0.005, labelKey: "param_pitch_time" }
-        ] },
-        { labelKey: "grp_lfo", fields: [
+        { labelKey: "grp_lfo", role: "mod", fields: [
             { key: "lfo.target", type: "select", options: LFO_TARGETS, optionKey: value => `lfo_${value}`, labelKey: "param_lfo_target" },
             { key: "lfo.wave", type: "select", options: LFO_WAVES, optionKey: value => `wave_${value}`, labelKey: "param_lfo_wave" },
             { key: "lfo.rate", type: "range", min: 0.05, max: 20, step: 0.05, labelKey: "param_lfo_rate" },
             { key: "lfo.depth", type: "range", min: 0, max: 1, step: 0.005, labelKey: "param_lfo_depth" },
             { key: "lfo.delay", type: "range", min: 0, max: 6, step: 0.01, labelKey: "param_lfo_delay" }
+        ] },
+        { labelKey: "grp_pitch", role: "mod", fields: [
+            { key: "pitchEnv", type: "range", min: 0.25, max: 4, step: 0.01, labelKey: "param_pitch_env" },
+            { key: "pitchTime", type: "range", min: 0.015, max: 0.6, step: 0.005, labelKey: "param_pitch_time" }
         ] }
+    ];
+    const OCTAVE_KEYS = [
+        ["C", 0, false], ["C♯", 1, true], ["D", 2, false], ["D♯", 3, true], ["E", 4, false],
+        ["F", 5, false], ["F♯", 6, true], ["G", 7, false], ["G♯", 8, true], ["A", 9, false],
+        ["A♯", 10, true], ["B", 11, false], ["C'", 12, false]
     ];
 
     function readField(patch, key) {
@@ -369,11 +392,11 @@
     }
 
     // --- editor -----------------------------------------------------------
-    // createEditor({host, tr, esc, signal, state, blocked, onChange, onAction})
+    // createEditor({host, tr, esc, signal, state, blocked, onChange, onPreview, onAction})
     // renders the parameter surface into `host`. `state` is the app's draft
     // object ({sourceId, sourceName, isUser, patch}); the editor mutates the
     // patch in place and reports every change through `onChange`. `onAction`
-    // receives 'save' | 'saveAs' | 'remove' | 'reset' | 'close'.
+    // receives 'save' | 'saveAs' | 'remove' | 'reset' | 'close' | 'mutate' | 'randomize'.
     function createEditor(options) {
         const host = options.host;
         const tr = options.tr;
@@ -385,12 +408,15 @@
         Object.keys(state.patch).forEach(key => delete state.patch[key]);
         Object.assign(state.patch, patch);
 
-        // A section is open when it shapes the sound; neutral ones start closed.
-        // What the user opens or closes wins for as long as this editor lives.
-        const userOpen = new Map();
+        if (!state.userOpen || !(state.userOpen instanceof Map)) state.userOpen = new Map();
+        const userOpen = state.userOpen;
+        if (!["osc", "sub", "fm"].includes(state.sourceTab)) state.sourceTab = "osc";
+        if (!Number.isInteger(state.octave)) state.octave = 4;
+
         const ACTIVE = {
+            grp_oscillator: () => true,
             grp_sub_noise: p => Number(p.sub) > 0 || Number(p.noise) > 0,
-            grp_fm: p => !!p.mod,
+            grp_fm: p => !!(p.mod || p.mod2 || p.mod3),
             grp_pitch: p => Math.abs(Number(p.pitchEnv) - 1) > 0.001,
             grp_lfo: p => Number(p.lfo && p.lfo.depth) > 0
         };
@@ -399,9 +425,11 @@
             const test = ACTIVE[group.labelKey];
             return test ? test(state.patch) : true;
         }
+        function isActiveGroup(group) {
+            const test = ACTIVE[group.labelKey];
+            return test ? test(state.patch) : true;
+        }
 
-        // Read-out curves (pure SVG, see synth-studio-curves.js) live inside their
-        // group. They are feedback only and follow the draft patch.
         const curves = root.SynthStudioCurves;
         function curveMarkup(group) {
             if (!curves) return "";
@@ -421,37 +449,73 @@
             const value = readField(state.patch, field.key);
             const label = esc(tr(field.labelKey));
             if (field.type === "select") {
-                const options = field.off ? ["", ...field.options] : field.options;
-                const body = options.map(option => {
+                const optionsList = field.off ? ["", ...field.options] : field.options;
+                const body = optionsList.map(option => {
                     const optionValue = String(option);
                     const text = option === "" ? tr("fx_off") : tr(field.optionKey(option));
                     return `<option value="${esc(optionValue)}"${optionValue === String(value) ? " selected" : ""}>${esc(text)}</option>`;
                 }).join("");
-                const inLfo = field.key.includes(".");
                 return `<label class="ss-designer-field"><span>${label}</span><select data-designer-param="${esc(field.key)}" aria-label="${label}">${body}</select></label>`;
             }
             const fader = field.kind === "vfader" ? ` data-ss-kind="vfader" data-ss-default="${DEFAULT_PATCH[field.key]}"` : "";
             return `<label class="ss-designer-field"><span>${label}</span><input data-designer-param="${esc(field.key)}"${fader} type="range" min="${field.min}" max="${field.max}" step="${field.step}" value="${value}" aria-label="${label}"><output>${Number(value).toFixed(2)}</output></label>`;
         }
+
+        function groupBodyMarkup(group) {
+            if (group.rows) {
+                return `<div class="ss-fm-ops">${group.rows.map(row => `<div class="ss-fm-op"><span class="ss-fm-op-label">${esc(row.label)}</span><div class="ss-param-grid">${row.fields.map(fieldMarkup).join("")}</div></div>`).join("")}</div>`;
+            }
+            return `<div class="ss-param-grid">${group.fields.map(fieldMarkup).join("")}</div>`;
+        }
+
+        function groupMarkup(group) {
+            const lit = isActiveGroup(group) ? " is-lit" : "";
+            const isOpen = group.role === "source" ? (group.tab === state.sourceTab || groupOpen(group)) : groupOpen(group);
+            return `<details class="ss-designer-group${lit}" data-group="${esc(group.labelKey)}" data-role="${esc(group.role)}"${group.tab ? ` data-source-group="${esc(group.tab)}"` : ""}${isOpen ? " open" : ""}><summary><h4>${esc(tr(group.labelKey))}</h4><span class="ss-group-chevron" aria-hidden="true"></span></summary>${curveMarkup(group)}${groupBodyMarkup(group)}</details>`;
+        }
+
         function render() {
             const disabled = options.blocked && options.blocked();
-            const groups = FIELD_GROUPS.map(group => `<details class="ss-designer-group" data-group="${esc(group.labelKey)}"${groupOpen(group) ? " open" : ""}><summary><h4>${esc(tr(group.labelKey))}</h4><span class="ss-group-chevron" aria-hidden="true"></span></summary>${curveMarkup(group)}<div class="ss-param-grid">${group.fields.map(fieldMarkup).join("")}</div></details>`).join("");
-            const keys = [60, 62, 64, 65, 67, 69, 71, 72];
-            host.innerHTML = `<section class="ss-designer" data-designer>` +
-                `<header class="ss-designer-head"><h3>${esc(tr("designer"))}</h3>` +
+            const sourceGroups = FIELD_GROUPS.filter(g => g.role === "source");
+            const filterGroup = FIELD_GROUPS.find(g => g.labelKey === "grp_filter");
+            const envGroup = FIELD_GROUPS.find(g => g.labelKey === "grp_envelope");
+            const modGroups = FIELD_GROUPS.filter(g => g.role === "mod");
+
+            const subTabs = [
+                { id: "osc", key: "designer_tab_osc", lit: true },
+                { id: "sub", key: "designer_tab_sub", lit: ACTIVE.grp_sub_noise(state.patch) },
+                { id: "fm", key: "designer_tab_fm", lit: ACTIVE.grp_fm(state.patch) }
+            ].map(tab => `<button type="button" role="tab" class="ss-designer-subtab${tab.lit ? " is-lit" : ""}" data-designer-tab="${tab.id}" aria-selected="${state.sourceTab === tab.id}"><i class="ss-key-led" aria-hidden="true"></i><span>${esc(tr(tab.key))}</span></button>`).join("");
+
+            const baseNote = (state.octave + 1) * 12;
+            const keysMarkup = OCTAVE_KEYS.map(([lbl, offset, isBlack]) => {
+                const pitch = Math.min(127, baseNote + offset);
+                return `<button type="button" class="ss-piano-key${isBlack ? " is-black" : ""}" data-designer-note="${pitch}" aria-label="${esc(tr("preview") + " " + lbl)}"><span>${esc(lbl)}</span></button>`;
+            }).join("");
+
+            host.innerHTML = `<section class="ss-designer" data-designer data-source-tab="${esc(state.sourceTab)}">` +
+                `<header class="ss-designer-head">` +
+                `<button type="button" class="ss-designer-back" data-designer-action="close" title="${esc(tr("designer_close"))}">← ${esc(tr("designer_close"))}</button>` +
+                `<h3>${esc(tr("designer"))}</h3>` +
                 (state.isUser ? `<input data-designer-name type="text" inputmode="text" enterkeyhint="done" maxlength="${MAX_NAME}" value="${esc(state.name)}" aria-label="${esc(tr("designer_name"))}">` : `<span class="ss-designer-source">${esc(state.sourceName || tr("designer"))}</span>`) +
-                `</header><p class="ss-help">${esc(tr("designer_hint"))}</p>` +
-                groups +
-                `<div class="ss-mini-keys">${keys.map(pitch => `<button data-designer-note="${pitch}" aria-label="${esc(tr("preview"))}">♪</button>`).join("")}</div>` +
-                `<footer class="ss-designer-actions">` +
-                (state.isUser ? `<button type="button" data-designer-action="save"${disabled ? " disabled" : ""}>${esc(tr("designer_update"))}</button>` : "") +
-                `<button type="button" data-designer-action="saveAs"${disabled ? " disabled" : ""}>${esc(tr("designer_save_as"))}</button>` +
-                (state.isUser ? `<button type="button" data-designer-action="remove"${disabled ? " disabled" : ""}>${esc(tr("designer_delete"))}</button>` : "") +
+                `<div class="ss-designer-actions">` +
                 `<button type="button" data-designer-action="mutate">${esc(tr("designer_mutate"))}</button>` +
                 `<button type="button" data-designer-action="randomize">${esc(tr("designer_randomize"))}</button>` +
                 `<button type="button" data-designer-action="reset">${esc(tr("designer_reset"))}</button>` +
-                `<button type="button" data-designer-action="close">${esc(tr("designer_close"))}</button>` +
-                `</footer></section>`;
+                (state.isUser ? `<button type="button" class="is-primary" data-designer-action="save"${disabled ? " disabled" : ""}>${esc(tr("designer_update"))}</button>` : "") +
+                `<button type="button" class="${state.isUser ? "" : "is-primary"}" data-designer-action="saveAs"${disabled ? " disabled" : ""}>${esc(tr("designer_save_as"))}</button>` +
+                (state.isUser ? `<button type="button" class="is-danger" data-designer-action="remove"${disabled ? " disabled" : ""}>${esc(tr("designer_delete"))}</button>` : "") +
+                `</div></header>` +
+                `<div class="ss-designer-body">` +
+                `<div class="ss-designer-flow">` +
+                `<div class="ss-designer-source-deck"><div class="ss-designer-subtabs" role="tablist">${subTabs}</div>${sourceGroups.map(groupMarkup).join("")}</div>` +
+                groupMarkup(filterGroup) +
+                groupMarkup(envGroup) +
+                `</div>` +
+                `<div class="ss-designer-mods">${modGroups.map(groupMarkup).join("")}</div>` +
+                `</div>` +
+                `<footer class="ss-audition-dock"><div class="ss-octave-shift"><span>${esc(tr("audition_octave"))}</span><button type="button" data-designer-oct="-1" aria-label="Octave -">−</button><output>C${state.octave}</output><button type="button" data-designer-oct="1" aria-label="Octave +">+</button></div><div class="ss-mini-keys">${keysMarkup}</div></footer>` +
+                `</section>`;
             paintCurves();
         }
         render();
@@ -484,6 +548,8 @@
             writeField(state.patch, field.key, control.value);
             schedulePaint();
             commit();
+            // Refresh tab LEDs when sub/noise/fm toggles change.
+            if (["mod", "mod2", "mod3"].includes(field.key)) render();
         });
         listen(host, "input", event => {
             const name = event.target.closest("[data-designer-name]");
@@ -491,6 +557,18 @@
             state.name = name.value;
         });
         listen(host, "click", event => {
+            const tab = event.target.closest("[data-designer-tab]");
+            if (tab) {
+                state.sourceTab = tab.dataset.designerTab;
+                render();
+                return;
+            }
+            const oct = event.target.closest("[data-designer-oct]");
+            if (oct) {
+                state.octave = Math.max(1, Math.min(6, state.octave + Number(oct.dataset.designerOct)));
+                render();
+                return;
+            }
             const action = event.target.closest("[data-designer-action]");
             if (action) {
                 if (typeof options.onAction === "function") options.onAction(action.dataset.designerAction, action);

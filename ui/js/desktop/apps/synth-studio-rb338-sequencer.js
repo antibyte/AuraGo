@@ -186,8 +186,11 @@
             case 'transport': press(a.name); break;
             case 'focus': {
                 focusRow = (focusRow + a.delta + 4) % 4;
-                const plate = $('.ss-rb-row[data-row="' + focusRow + '"] > .ss-rb-device');
-                if (plate && plate.scrollIntoView) plate.scrollIntoView({ block: 'nearest' });
+                if (layoutMode === 'rack') {
+                    const plate = $('.ss-rb-row[data-row="' + focusRow + '"] > .ss-rb-device');
+                    if (plate && plate.scrollIntoView) plate.scrollIntoView({ block: 'nearest' });
+                }
+                renderAll();
                 break;
             }
             case 'scroll': section.scrollTop += a.delta * Math.max(80, section.clientHeight * 0.85); break;
@@ -571,6 +574,8 @@
                 if (!p || typeof p !== 'object') return;
                 if (p.keys === 'patterns' || p.keys === 'synth') keyMode = p.keys;
                 if (Number.isInteger(p.focus)) focusRow = clamp(p.focus, 0, 3);
+                if (p.layout === 'focus' || p.layout === 'rack') layoutMode = p.layout;
+                if (['pcf', 'delay', 'dist', 'comp'].includes(p.fxTab)) fxTab = p.fxTab;
                 if (Array.isArray(p.banks)) p.banks.slice(0, 4).forEach((v, i) => { if (Number.isInteger(v)) rows[i].bank = clamp(v, 0, 3); });
                 if (Array.isArray(p.insts)) p.insts.slice(0, 4).forEach((v, i) => { if (Number.isInteger(v)) rows[i].inst = clamp(v, 0, 11); });
                 if ([1, 2, 4, 8, 16].indexOf(p.bars) >= 0) exportBars = p.bars;
@@ -580,11 +585,11 @@
             prefsTimer = 0;
             try {
                 if (typeof localStorage === 'undefined') return;
-                localStorage.setItem(PREFS_KEY, JSON.stringify({ keys: keyMode, focus: focusRow, banks: rows.map(r => r.bank), insts: rows.map(r => r.inst), bars: exportBars }));
+                localStorage.setItem(PREFS_KEY, JSON.stringify({ keys: keyMode, focus: focusRow, layout: layoutMode, fxTab, banks: rows.map(r => r.bank), insts: rows.map(r => r.inst), bars: exportBars }));
             } catch (_) { /* storage blocked or full */ }
         }
         function watchPrefs() {
-            const sigNow = keyMode + focusRow + rows.map(r => r.bank + ':' + r.inst).join(',') + exportBars;
+            const sigNow = keyMode + focusRow + layoutMode + fxTab + rows.map(r => r.bank + ':' + r.inst).join(',') + exportBars;
             if (sigNow === prefsSig) return;
             prefsSig = sigNow;
             if (!prefsTimer) prefsTimer = setTimeout(savePrefs, 400);

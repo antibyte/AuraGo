@@ -1,648 +1,1349 @@
 (function () {
     'use strict';
-    const instances=new Map(), BAR=1920, PPQ=480, MAX_TICK=10000000, MAX_EVENTS=50000, MAX_CLIPS=256, MAX_PROJECT_BYTES=5*1024*1024, RECORDING_TICKS=BAR*64;
-    const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    function utf8ByteLength(value){if(typeof TextEncoder==='function')return new TextEncoder().encode(value).byteLength;let bytes=0;for(const character of value){const code=character.codePointAt(0);bytes+=code<=0x7f?1:code<=0x7ff?2:code<=0xffff?3:4;}return bytes;}
-    function render(host,id,context) {
+    const instances = new Map(), BAR = 1920, PPQ = 480, MAX_TICK = 10000000, MAX_EVENTS = 50000, MAX_CLIPS = 256, MAX_PROJECT_BYTES = 5 * 1024 * 1024, RECORDING_TICKS = BAR * 64;
+    const escape = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    function utf8ByteLength(value) {
+        if (typeof TextEncoder === 'function') return new TextEncoder().encode(value).byteLength;
+        let bytes = 0;
+        for (const character of value) {
+            const code = character.codePointAt(0);
+            bytes += code <= 0x7f ? 1 : code <= 0x7ff ? 2 : code <= 0xffff ? 3 : 4;
+        }
+        return bytes;
+    }
+
+    function render(host, id, context) {
         dispose(id);
-        const ctx=context||{}, M=window.SynthStudioModel, P=window.SynthStudioPresets, D=window.SynthStudioDesigner, K=window.SynthStudioCurves, life=new AbortController(), signal=life.signal;
-        // Programmable synths live browser-local; install them into the
-        // preset catalog before the first render so the library, the
-        // instrument select and project validation all see them.
+        const ctx = context || {}, M = window.SynthStudioModel, P = window.SynthStudioPresets, D = window.SynthStudioDesigner, K = window.SynthStudioCurves, life = new AbortController(), signal = life.signal;
         D?.install?.();
-        const tr=(key,params)=>ctx.t?.('synthStudio.'+key,params)||key, esc=ctx.esc||escape;
-        const icon=(name,fallback)=>ctx.iconMarkup?.(name,fallback,'ss-icon',16,'action')||fallback;
-        const button=(action,key,symbol,extra='')=>'<button type="button" data-action="'+action+'" title="'+esc(tr(key))+'" aria-label="'+esc(tr(key))+'" '+extra+'>'+symbol+'</button>';
-        let history=M.history(M.create(tr('untitled'))), currentProject=history.current(), audio=window.SynthStudioAudio.create({audioBuffer:clipBuffer}), storage, editor, disposed=false, busy=false, playing=false, recording=null, cursor=0;
-        let category='all', libraryMode='instruments', revoked=false, selectedInstrument='bass-sub', countIn=true, quantize=120, latency=0, metronome=false;
-        let activeTag='', tourIndex=-1, designer=null, designerEditor=null;
-        const LIBRARY_KEY='aura:synth-studio:library';
-        let libraryPrefs={favourites:[],recent:[]};
-        try{const stored=JSON.parse(localStorage.getItem(LIBRARY_KEY)||'{}');if(stored&&typeof stored==='object'){if(Array.isArray(stored.favourites))libraryPrefs.favourites=stored.favourites;if(Array.isArray(stored.recent))libraryPrefs.recent=stored.recent;}}catch(_){}
-        const saveLibraryPrefs=()=>{try{localStorage.setItem(LIBRARY_KEY,JSON.stringify(libraryPrefs));}catch(_){}};
-        const FX_LABELS={chorus:'chorus',phaser:'phaser',delay:'delay',reverb:'reverb',gate:'gate',tremolo:'fx_tremolo',flanger:'fx_flanger',rotary:'fx_rotary',bitcrush:'fx_bitcrush',softclip:'fx_softclip',eq3:'fx_eq3',width:'fx_width',cabinet:'fx_cabinet',tape:'fx_tape',autopan:'fx_autopan',ringmod:'fx_ringmod',shimmer:'fx_shimmer',pingpong:'fx_pingpong',wavefold:'fx_wavefold',formant:'fx_formant',resonator:'fx_resonator',autofilter:'fx_autofilter'};
-        const FX_PARAM_LABELS={mix:'fx_mix',rate:'fx_rate',depth:'fx_depth',feedback:'fx_feedback',amount:'fx_amount',freq:'fx_freq',low:'fx_low',mid:'fx_mid',high:'fx_high',bits:'fx_bits',time:'fx_time',size:'fx_size',decay:'fx_decay',model:'fx_model',tone:'tone',drive:'drive',resonance:'resonance',shimmer:'fx_shimmer_amt',spread:'fx_spread',symmetry:'fx_symmetry',vowel:'fx_vowel'};
-        const FX_CHAIN_PRESETS={
-            ethereal:[['chorus',{mix:.32,rate:.55,depth:.4}],['shimmer',{mix:.48,size:.82,decay:.8,shimmer:.68,tone:.7}],['pingpong',{mix:.28,time:.34,feedback:.44,spread:.9,tone:.55}]],
-            cyber_acid:[['wavefold',{mix:.62,drive:.58,symmetry:.68,tone:.6}],['autofilter',{mix:.8,rate:2.4,depth:.72,freq:760,resonance:.68}],['delay',{mix:.26,time:.24,feedback:.38,tone:.48}]],
-            talking:[['formant',{mix:.82,vowel:.3,resonance:.68,rate:.85,depth:.48}],['chorus',{mix:.34,rate:.6,depth:.42}],['pingpong',{mix:.28,time:.3,feedback:.4,spread:.85,tone:.6}]],
-            lofi:[['tape',{mix:.55,rate:.7,depth:.52,drive:.32,tone:.38}],['bitcrush',{mix:.32,bits:8,tone:.42}],['reverb',{mix:.28,size:.45,decay:.55,tone:.45}]],
-            metallic:[['resonator',{mix:.55,freq:260,feedback:.78,tone:.62}],['flanger',{mix:.38,rate:.28,depth:.5,feedback:.45,tone:.55}],['shimmer',{mix:.36,size:.65,decay:.7,shimmer:.52,tone:.68}]],
-            dub:[['autofilter',{mix:.65,rate:.45,depth:.58,freq:680,resonance:.55}],['pingpong',{mix:.48,time:.375,feedback:.62,spread:.95,tone:.42}],['reverb',{mix:.32,size:.72,decay:.7,tone:.48}]]
+        const tr = (key, params) => ctx.t?.('synthStudio.' + key, params) || key, esc = ctx.esc || escape;
+        const icon = (name, fallback) => ctx.iconMarkup?.(name, fallback, 'ss-icon', 16, 'action') || fallback;
+        const button = (action, key, symbol, extra = '') => '<button type="button" data-action="' + action + '" title="' + esc(tr(key)) + '" aria-label="' + esc(tr(key)) + '" ' + extra + '>' + symbol + '</button>';
+
+        let history = M.history(M.create(tr('untitled'))), currentProject = history.current(), audio = window.SynthStudioAudio.create({ audioBuffer: clipBuffer }), storage, editor, disposed = false, busy = false, playing = false, recording = null, cursor = 0;
+        let category = 'all', libraryMode = 'instruments', revoked = false, selectedInstrument = 'bass-sub', countIn = true, quantize = 120, latency = 0, metronome = false;
+        let activeTag = '', tourIndex = -1, designer = null, designerEditor = null, soundOctave = 4;
+
+        const LIBRARY_KEY = 'aura:synth-studio:library';
+        let libraryPrefs = { favourites: [], recent: [] };
+        try {
+            const stored = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '{}');
+            if (stored && typeof stored === 'object') {
+                if (Array.isArray(stored.favourites)) libraryPrefs.favourites = stored.favourites;
+                if (Array.isArray(stored.recent)) libraryPrefs.recent = stored.recent;
+            }
+        } catch (_) {}
+        const saveLibraryPrefs = () => { try { localStorage.setItem(LIBRARY_KEY, JSON.stringify(libraryPrefs)); } catch (_) {} };
+
+        const FX_LABELS = { chorus: 'chorus', phaser: 'phaser', delay: 'delay', reverb: 'reverb', gate: 'gate', tremolo: 'fx_tremolo', flanger: 'fx_flanger', rotary: 'fx_rotary', bitcrush: 'fx_bitcrush', softclip: 'fx_softclip', eq3: 'fx_eq3', width: 'fx_width', cabinet: 'fx_cabinet', tape: 'fx_tape', autopan: 'fx_autopan', ringmod: 'fx_ringmod', shimmer: 'fx_shimmer', pingpong: 'fx_pingpong', wavefold: 'fx_wavefold', formant: 'fx_formant', resonator: 'fx_resonator', autofilter: 'fx_autofilter' };
+        const FX_PARAM_LABELS = { mix: 'fx_mix', rate: 'fx_rate', depth: 'fx_depth', feedback: 'fx_feedback', amount: 'fx_amount', freq: 'fx_freq', low: 'fx_low', mid: 'fx_mid', high: 'fx_high', bits: 'fx_bits', time: 'fx_time', size: 'fx_size', decay: 'fx_decay', model: 'fx_model', tone: 'tone', drive: 'drive', resonance: 'resonance', shimmer: 'fx_shimmer_amt', spread: 'fx_spread', symmetry: 'fx_symmetry', vowel: 'fx_vowel' };
+        const FX_CHAIN_PRESETS = {
+            ethereal: [['chorus', { mix: 0.32, rate: 0.55, depth: 0.4 }], ['shimmer', { mix: 0.48, size: 0.82, decay: 0.8, shimmer: 0.68, tone: 0.7 }], ['pingpong', { mix: 0.28, time: 0.34, feedback: 0.44, spread: 0.9, tone: 0.55 }]],
+            cyber_acid: [['wavefold', { mix: 0.62, drive: 0.58, symmetry: 0.68, tone: 0.6 }], ['autofilter', { mix: 0.8, rate: 2.4, depth: 0.72, freq: 760, resonance: 0.68 }], ['delay', { mix: 0.26, time: 0.24, feedback: 0.38, tone: 0.48 }]],
+            talking: [['formant', { mix: 0.82, vowel: 0.3, resonance: 0.68, rate: 0.85, depth: 0.48 }], ['chorus', { mix: 0.34, rate: 0.6, depth: 0.42 }], ['pingpong', { mix: 0.28, time: 0.3, feedback: 0.4, spread: 0.85, tone: 0.6 }]],
+            lofi: [['tape', { mix: 0.55, rate: 0.7, depth: 0.52, drive: 0.32, tone: 0.38 }], ['bitcrush', { mix: 0.32, bits: 8, tone: 0.42 }], ['reverb', { mix: 0.28, size: 0.45, decay: 0.55, tone: 0.45 }]],
+            metallic: [['resonator', { mix: 0.55, freq: 260, feedback: 0.78, tone: 0.62 }], ['flanger', { mix: 0.38, rate: 0.28, depth: 0.5, feedback: 0.45, tone: 0.55 }], ['shimmer', { mix: 0.36, size: 0.65, decay: 0.7, shimmer: 0.52, tone: 0.68 }]],
+            dub: [['autofilter', { mix: 0.65, rate: 0.45, depth: 0.58, freq: 680, resonance: 0.55 }], ['pingpong', { mix: 0.48, time: 0.375, feedback: 0.62, spread: 0.95, tone: 0.42 }], ['reverb', { mix: 0.32, size: 0.72, decay: 0.7, tone: 0.48 }]]
         };
-        const SCOPE_KEY='aura:synth-studio:scope',SCOPE_MODES=['spectrum','scope','mirror'];
-        let scopeMode='spectrum';
-        try{const savedScope=localStorage.getItem(SCOPE_KEY);if(SCOPE_MODES.includes(savedScope))scopeMode=savedScope;}catch(_){}
-        const scopePeaks=new Float32Array(48);
-        const TOUR_STEPS=[{panel:'notes',key:'tour_arrange'},{panel:'sound',key:'tour_sound'},{panel:'performance',key:'tour_performance'},{key:'tour_record'},{key:'tour_export'}];
-        let workspace, composer, stage, strudel, rb338, parameterGesture=null;
-        let live=new Map(), storageState={}, midiState={}, generation=0, ready=false;
-        const timers=new Set(), later=(fn,delay)=>{const timer=setTimeout(()=>{timers.delete(timer);fn();},delay);timers.add(timer);};
-        const eventCount=p=>p.tracks.reduce((total,t)=>total+(t.automation?.length||0)+t.clips.reduce((clipTotal,c)=>clipTotal+c.notes.length+c.controllers.length,0),0);
-        const readonly=()=>!!ctx.readonly||revoked, blocked=()=>disposed||!ready||readonly()||busy||!!storageState.loading||!!recording||!!stage?.active();
-        // Keep one validated view snapshot; MIDI packets must not clone the whole song.
-        const project=()=>currentProject, track=()=>project().tracks.find(t=>t.id===editor?.selection().trackId);
+        const OCTAVE_KEYS = [['C', 0, false], ['C♯', 1, true], ['D', 2, false], ['D♯', 3, true], ['E', 4, false], ['F', 5, false], ['F♯', 6, true], ['G', 7, false], ['G♯', 8, true], ['A', 9, false], ['A♯', 10, true], ['B', 11, false], ["C'", 12, false]];
+        const SCOPE_KEY = 'aura:synth-studio:scope', SCOPE_MODES = ['spectrum', 'scope', 'mirror'];
+        let scopeMode = 'spectrum';
+        try { const savedScope = localStorage.getItem(SCOPE_KEY); if (SCOPE_MODES.includes(savedScope)) scopeMode = savedScope; } catch (_) {}
+        const scopePeaks = new Float32Array(48);
+        const TOUR_STEPS = [{ panel: 'notes', key: 'tour_arrange' }, { panel: 'sound', key: 'tour_sound' }, { panel: 'performance', key: 'tour_performance' }, { key: 'tour_record' }, { key: 'tour_export' }];
+        const MODE_HINTS = { notes: 'shortcuts', sound: 'shortcuts_sound', performance: 'shortcuts_perform', mix: 'shortcuts_mix', strudel: 'shortcuts_strudel', rb338: 'shortcuts_rb338' };
+
+        let workspace, composer, stage, strudel, rb338, parameterGesture = null;
+        let live = new Map(), storageState = {}, midiState = {}, generation = 0, ready = false;
+        const timers = new Set(), later = (fn, delay) => { const timer = setTimeout(() => { timers.delete(timer); fn(); }, delay); timers.add(timer); };
+        const eventCount=p => p.tracks.reduce((total, t) => total + (t.automation?.length || 0) + t.clips.reduce((clipTotal, c) => clipTotal + c.notes.length + c.controllers.length, 0), 0);
+        const readonly = () => !!ctx.readonly || revoked, blocked = () => disposed || !ready || readonly() || busy || !!storageState.loading || !!recording || !!stage?.active();
+        const project = () => currentProject, track = () => project().tracks.find(t => t.id === editor?.selection().trackId);
+        const isDrumTrack = t => !!t && (t.instrument === 'drums-kit' || t.instrument === 'gm-drums' || t.instrument.startsWith('drum-'));
+        const isAudioTrack = t => !!t && t.instrument === 'audio';
+        const isDrumInstrumentId = inst => inst === 'drums-kit' || inst === 'gm-drums' || String(inst || '').startsWith('drum-');
+
         window.AuraDesktopEmail?.attach(id, '.ss-file-actions', () => ({
-            key:currentProject,signal,disabled:blocked(),subject:project().name,formats:['wav','midi',{id:'project',label:'Synth Studio (.aurasynth)'}],
-            createFiles:async format=>format==='project'?[new File([JSON.stringify(M.validate(M.clone(project())))],(project().name.replace(/[<>:"/\\|?*]/g,'_')||'Synth Studio')+'.aurasynth',{type:'application/json'})]:exportFile(format,true)
+            key: currentProject, signal, disabled: blocked(), subject: project().name, formats: ['wav', 'midi', { id: 'project', label: 'Synth Studio (.aurasynth)' }],
+            createFiles: async format => format === 'project' ? [new File([JSON.stringify(M.validate(M.clone(project())))], (project().name.replace(/[<>:"/\\|?*]/g, '_') || 'Synth Studio') + '.aurasynth', { type: 'application/json' })] : exportFile(format, true)
         }));
-        const fail=error=>{if(disposed)return;let code=typeof error==='string'?error:error?.code;if(code?.startsWith('E_PROJECT_'))code=code==='E_PROJECT_LIMIT'?'too_many_tracks':'invalid_project';else if(code==='E_MIDI_DENIED')code='denied';else if(code==='E_MIDI_UNSUPPORTED')code='unsupported';else if(code?.startsWith('E_MIDI_DEVICE'))code='no_device';else if(code?.startsWith('E_MIDI_'))code='unsupported_midi';else if(code==='SYNTH_STUDIO_RENDER_BUDGET')code='export_limit';notice(tr(['unsupported','denied','no_device','invalid_project','unsupported_midi','too_many_tracks','export_limit','readonly'].includes(code)?code:'error'));};
-        function notice(text){const n=host.querySelector('[data-notice]');if(n){n.textContent=text||'';n.hidden=!text;}}
-        host.innerHTML='<div class="ss-app" tabindex="0"><header class="ss-header"><div class="ss-brand"><span class="ss-brand-mark" aria-hidden="true">≋</span><div><strong>Synth Studio</strong><button class="ss-project-name" data-action="rename" data-project-name></button></div></div><nav class="ss-file-actions">'+button('new','new',icon('file-plus','＋'))+button('open','open',icon('folder-open','▱'))+button('save','save',icon('save','▣'))+button('saveAs','save_as',icon('copy','⧉'))+'<select data-export aria-label="'+esc(tr('export'))+'"><option value="">'+esc(tr('export'))+'</option><option value="wav">WAV</option><option value="midi">MIDI</option><option value="stems">'+esc(tr('stems'))+'</option></select>'+button('demo','demo',tr('demo'))+'</nav></header>'+
-            '<div class="ss-transport"><div class="ss-transport-buttons">'+button('play','play','▶','class="ss-play"')+button('pause','pause','Ⅱ')+button('stop','stop','■')+button('record','record','●','class="ss-record"')+'</div><output class="ss-position" data-position>01 : 01</output><label class="ss-tempo"><input data-tempo type="number" inputmode="numeric" enterkeyhint="done" min="40" max="240" value="120" aria-label="'+esc(tr('tempo'))+'"><span>BPM</span></label><span class="ss-time-signature">4/4</span><label><input data-metronome type="checkbox"> '+esc(tr('metronome'))+'</label><label><input data-loop type="checkbox"> '+esc(tr('loop'))+'</label><label class="ss-loop-range"><input data-loop-start type="number" inputmode="numeric" enterkeyhint="done" min="1" value="1" aria-label="'+esc(tr('loop_start'))+'"> — <input data-loop-end type="number" inputmode="numeric" enterkeyhint="done" min="2" value="5" aria-label="'+esc(tr('loop_end'))+'"></label><div class="ss-history">'+button('undo','undo','↶')+button('redo','redo','↷')+'</div><button type="button" class="ss-master-toggle" data-action="master" title="'+esc(tr('fx_master'))+'" aria-label="'+esc(tr('fx_master'))+'" aria-expanded="false" aria-controls="ss-master-panel">'+esc(tr('fx_master'))+'</button><canvas class="ss-analyser" data-analyser data-scope-mode="'+esc(scopeMode)+'" width="320" height="54" role="button" tabindex="0" title="'+esc(tr('scope_hint'))+'" aria-label="'+esc(tr('analyser')+' · '+tr(scopeMode==='scope'?'scope_waveform':scopeMode==='mirror'?'scope_mirror':'scope_spectrum'))+'"></canvas></div>'+
-            '<section class="ss-master-panel" id="ss-master-panel" data-master-panel hidden aria-label="'+esc(tr('fx_master'))+'"></section>'+
-            '<div class="ss-notice" data-notice role="status" hidden></div><div class="ss-workspace"><aside class="ss-library"><div class="ss-library-tabs"><button data-library-mode="instruments" aria-pressed="true">'+esc(tr('instruments'))+'</button><button data-library-mode="patterns" aria-pressed="false">'+esc(tr('patterns'))+'</button></div><input class="ss-search" data-search type="search" inputmode="search" enterkeyhint="search" placeholder="'+esc(tr('search'))+'" aria-label="'+esc(tr('search'))+'"><div class="ss-categories" data-categories></div><div class="ss-library-tags" data-library-tags></div><div class="ss-library-list" data-library-list></div><button class="ss-midi-toggle" data-action="midi">⌨ '+esc(tr('midi_connect'))+'</button></aside><main class="ss-main"><div class="ss-arrange-tools"><span>'+esc(tr('arrangement'))+'</span><label>'+esc(tr('snap'))+' <select data-snap><option value="480">1/4</option><option value="240">1/8</option><option value="120" selected>1/16</option><option value="60">1/32</option></select></label><label>'+esc(tr('zoom'))+' <input type="range" data-zoom min="20" max="100" value="40" aria-label="'+esc(tr('zoom'))+'"></label>'+button('inspector','your_sound','☷','class="ss-inspector-toggle"')+button('library','library','♫','class="ss-compact-only"')+'</div><div class="ss-editor-host" data-editor-host></div></main><aside class="ss-inspector" data-inspector></aside></div>'+
-            '<section class="ss-midi-panel" data-midi-panel hidden><strong>'+esc(tr('midi_title'))+'</strong><button data-action="connect">'+esc(tr('midi_connect'))+'</button><select data-midi-input aria-label="'+esc(tr('midi_device'))+'"><option value="">'+esc(tr('midi_device'))+'</option></select><span data-midi-state role="status"></span><label><input data-count-in type="checkbox" checked> '+esc(tr('count_in'))+'</label><label>'+esc(tr('latency'))+' <input data-latency type="number" inputmode="numeric" enterkeyhint="done" min="-200" max="200" step="1" value="0"> ms</label><label><input data-record-quantize type="checkbox" checked> '+esc(tr('quantize'))+'</label>'+button('importMidi','import_midi',tr('import_midi'))+'</section>'+
-            '<div class="ss-tour" data-tour hidden></div>'+
-            '<footer class="ss-footer"><span data-save-state role="status"></span><span class="ss-footer-hint">'+esc(tr('shortcuts'))+'</span><span class="ss-midi-led" data-midi-led aria-hidden="true"></span><span data-footer-count></span><button type="button" class="ss-tour-button" data-action="tour">'+esc(tr('tour'))+'</button></footer><input type="file" data-midi-file accept=".mid,.midi,audio/midi" hidden></div>';
-        const root=host.firstElementChild, find=q=>root.querySelector(q);
-        window.SynthStudioControls?.observe(root,signal);
-        editor=window.SynthStudioEditor.create(find('[data-editor-host]'),{getProject:project,readonly:blocked,tr,mutate,onTrackVolume:true,onAudioClip:renderAudioClip,onSelect:()=>{workspace?.setClip(!!editor?.selection().clipId);renderInspector();composer?.refresh();stage?.refresh();},onAdd:()=>insert({type:'instrument',id:selectedInstrument},'',0),onDrop:insert,onNewClip:newClip,onSeek:seek,onAudition:p=>audition(p),onNoteOn:p=>noteOn(p,.8,performance.now(),17),onNoteOff:p=>noteOff(p,performance.now(),17),onError:fail,onTrackMenu:(action,trackId)=>{if(action==='delete')deleteTrackById(trackId);else if(action==='duplicate')duplicateTrackById(trackId);}});
-        workspace=window.SynthStudioWorkspace.create(root,{tr,signal,project,blocked,onTour:()=>{tourIndex=0;renderTour();},onMix:()=>renderMaster(),onRb338:active=>{if(active)ensureRb338();rb338?.activate?.(active);}});
+
+        const fail = error => {
+            if (disposed) return;
+            let code = typeof error === 'string' ? error : error?.code;
+            if (code?.startsWith('E_PROJECT_')) code = code === 'E_PROJECT_LIMIT' ? 'too_many_tracks' : 'invalid_project';
+            else if (code === 'E_MIDI_DENIED') code = 'denied';
+            else if (code === 'E_MIDI_UNSUPPORTED') code = 'unsupported';
+            else if (code?.startsWith('E_MIDI_DEVICE')) code = 'no_device';
+            else if (code?.startsWith('E_MIDI_')) code = 'unsupported_midi';
+            else if (code === 'SYNTH_STUDIO_RENDER_BUDGET') code = 'export_limit';
+            notice(tr(['unsupported', 'denied', 'no_device', 'invalid_project', 'unsupported_midi', 'too_many_tracks', 'export_limit', 'readonly'].includes(code) ? code : 'error'));
+        };
+        function notice(text) { const n = host.querySelector('[data-notice]'); if (n) { n.textContent = text || ''; n.hidden = !text; } }
+
+        host.innerHTML = '<div class="ss-app" tabindex="0">' +
+            '<header class="ss-header">' +
+            '<div class="ss-brand"><span class="ss-brand-mark" aria-hidden="true">≋</span><div class="ss-brand-meta"><div class="ss-brand-title"><strong>Synth Studio</strong><span class="ss-dirty-dot" data-dirty-dot aria-hidden="true"></span></div><button type="button" class="ss-project-name" data-action="rename" data-project-name></button></div></div>' +
+            '<div class="ss-modes-slot" data-modes-slot></div>' +
+            '<div class="ss-header-tools">' +
+            '<button type="button" class="ss-header-toggle" data-action="library" aria-expanded="false" title="' + esc(tr('library')) + '"><i class="ss-key-led" aria-hidden="true"></i><span>' + esc(tr('library')) + '</span></button>' +
+            '<button type="button" class="ss-header-toggle ss-midi-toggle" data-action="midi" aria-expanded="false" aria-controls="ss-midi-panel" title="' + esc(tr('midi_title')) + '"><span class="ss-midi-led" data-midi-led aria-hidden="true"></span><span>MIDI</span></button>' +
+            '<nav class="ss-file-actions">' + button('new', 'new', icon('file-plus', '＋')) + button('open', 'open', icon('folder-open', '▱')) + button('save', 'save', icon('save', '▣')) + button('saveAs', 'save_as', icon('copy', '⧉')) + '<select data-export aria-label="' + esc(tr('export')) + '"><option value="">' + esc(tr('export')) + '</option><option value="wav">WAV</option><option value="midi">MIDI</option><option value="stems">' + esc(tr('stems')) + '</option></select>' + button('demo', 'demo', tr('demo')) + '</nav>' +
+            '</div>' +
+            '</header>' +
+            '<div class="ss-transport">' +
+            '<div class="ss-transport-buttons">' + button('play', 'play', '▶', 'class="ss-play"') + button('pause', 'pause', 'Ⅱ') + button('stop', 'stop', '■') + button('record', 'record', '●', 'class="ss-record"') + '</div>' +
+            '<output class="ss-position" data-position>01 : 01</output>' +
+            '<label class="ss-tempo"><input data-tempo type="number" inputmode="numeric" enterkeyhint="done" min="40" max="240" value="120" aria-label="' + esc(tr('tempo')) + '"><span>BPM</span></label>' +
+            '<span class="ss-time-signature">4/4</span>' +
+            '<label><input data-metronome type="checkbox"> ' + esc(tr('metronome')) + '</label>' +
+            '<label><input data-loop type="checkbox"> ' + esc(tr('loop')) + '</label>' +
+            '<label class="ss-loop-range"><input data-loop-start type="number" inputmode="numeric" enterkeyhint="done" min="1" value="1" aria-label="' + esc(tr('loop_start')) + '"> — <input data-loop-end type="number" inputmode="numeric" enterkeyhint="done" min="2" value="5" aria-label="' + esc(tr('loop_end')) + '"></label>' +
+            '<div class="ss-active-track" data-active-track>' +
+            '<span class="ss-track-dot" data-global-track-dot aria-hidden="true"></span>' +
+            '<select data-global-track aria-label="' + esc(tr('active_track')) + '"></select>' +
+            '<button type="button" class="ss-mini-toggle" data-global-mute aria-label="' + esc(tr('mute')) + '" aria-pressed="false">M</button>' +
+            '<button type="button" class="ss-mini-toggle" data-global-solo aria-label="' + esc(tr('solo')) + '" aria-pressed="false">S</button>' +
+            '</div>' +
+            '<div class="ss-transport-right" data-transport-meters>' +
+            '<div class="ss-history">' + button('undo', 'undo', '↶') + button('redo', 'redo', '↷') + '</div>' +
+            '<canvas class="ss-analyser" data-analyser data-scope-mode="' + esc(scopeMode) + '" width="264" height="44" role="button" tabindex="0" title="' + esc(tr('scope_hint')) + '" aria-label="' + esc(tr('analyser') + ' · ' + tr(scopeMode === 'scope' ? 'scope_waveform' : scopeMode === 'mirror' ? 'scope_mirror' : 'scope_spectrum')) + '"></canvas>' +
+            '<button type="button" class="ss-master-toggle" data-action="master" title="' + esc(tr('fx_master')) + '" aria-label="' + esc(tr('fx_master')) + '" aria-expanded="false" aria-controls="ss-master-panel">' + esc(tr('fx_master')) + '</button>' +
+            '</div>' +
+            '</div>' +
+            '<div class="ss-notice" data-notice role="status" hidden></div>' +
+            '<div class="ss-workspace">' +
+            '<aside class="ss-library">' +
+            '<div class="ss-library-head"><div class="ss-library-tabs"><button data-library-mode="instruments" aria-pressed="true">' + esc(tr('instruments')) + '</button><button data-library-mode="patterns" aria-pressed="false">' + esc(tr('patterns')) + '</button></div><button type="button" class="ss-library-close" data-action="library" aria-label="' + esc(tr('close_editor')) + '">✕</button></div>' +
+            '<input class="ss-search" data-search type="search" inputmode="search" enterkeyhint="search" placeholder="' + esc(tr('search')) + '" aria-label="' + esc(tr('search')) + '">' +
+            '<div class="ss-categories" data-categories></div>' +
+            '<div class="ss-library-tags" data-library-tags></div>' +
+            '<div class="ss-library-list" data-library-list></div>' +
+            '</aside>' +
+            '<main class="ss-main">' +
+            '<div class="ss-arrange-tools"><span>' + esc(tr('arrangement')) + '</span><span class="ss-arrange-count" data-arrange-count></span><label>' + esc(tr('snap')) + ' <select data-snap><option value="480">1/4</option><option value="240">1/8</option><option value="120" selected>1/16</option><option value="60">1/32</option></select></label><label>' + esc(tr('zoom')) + ' <input type="range" data-zoom min="20" max="100" value="40" aria-label="' + esc(tr('zoom')) + '"></label><button type="button" class="ss-quick-strip-toggle" data-action="quickStrip" aria-pressed="false"><i class="ss-key-led" aria-hidden="true"></i><span>' + esc(tr('quick_strip')) + '</span></button></div>' +
+            '<div class="ss-editor-host" data-editor-host></div>' +
+            '</main>' +
+            '<aside class="ss-quick-strip" data-quick-strip hidden aria-label="' + esc(tr('quick_strip')) + '"></aside>' +
+            '<section class="ss-master-panel" id="ss-master-panel" data-master-panel hidden aria-label="' + esc(tr('fx_master')) + '"></section>' +
+            '</div>' +
+            '<aside class="ss-inspector" data-inspector></aside>' +
+            '<section class="ss-midi-panel" id="ss-midi-panel" data-midi-panel hidden>' +
+            '<div class="ss-midi-head"><strong>' + esc(tr('midi_title')) + '</strong><button type="button" class="ss-midi-close" data-action="midi" aria-label="' + esc(tr('close_editor')) + '">✕</button></div>' +
+            '<div class="ss-midi-body"><button type="button" data-action="connect">' + esc(tr('midi_connect')) + '</button><select data-midi-input aria-label="' + esc(tr('midi_device')) + '"><option value="">' + esc(tr('midi_device')) + '</option></select><span data-midi-state role="status"></span><label><input data-count-in type="checkbox" checked> ' + esc(tr('count_in')) + '</label><label>' + esc(tr('latency')) + ' <input data-latency type="number" inputmode="numeric" enterkeyhint="done" min="-200" max="200" step="1" value="0"> ms</label><label><input data-record-quantize type="checkbox" checked> ' + esc(tr('quantize')) + '</label>' + button('importMidi', 'import_midi', tr('import_midi')) + '</div>' +
+            '</section>' +
+            '<div class="ss-tour" data-tour hidden></div>' +
+            '<footer class="ss-footer"><span data-save-state role="status"></span><span class="ss-footer-hint" data-footer-hint>' + esc(tr('shortcuts')) + '</span><span data-footer-count></span><button type="button" class="ss-tour-button" data-action="tour">' + esc(tr('tour')) + '</button></footer>' +
+            '<input type="file" data-midi-file accept=".mid,.midi,audio/midi" hidden>' +
+            '</div>';
+
+        const root = host.firstElementChild, find = q => root.querySelector(q);
+        window.SynthStudioControls?.observe(root, signal);
+
+        editor = window.SynthStudioEditor.create(find('[data-editor-host]'), {
+            getProject: project,
+            readonly: blocked,
+            tr,
+            mutate,
+            onTrackVolume: true,
+            isExpanded: () => workspace?.isNoteExpanded?.(),
+            onExpand: () => workspace?.toggleNoteExpanded?.(),
+            onOpenSound: tid => {
+                const t = project().tracks.find(x => x.id === tid);
+                if (t) {
+                    designer = null;
+                    editor.select(t.id, t.clips[0]?.id || '');
+                    workspace.panel('sound');
+                }
+            },
+            onAudioClip: renderAudioClip,
+            onSelect: () => {
+                workspace?.setClip(!!editor?.selection().clipId);
+                renderInspector();
+                renderQuickStrip();
+                renderSoundRail();
+                status();
+                composer?.refresh();
+                stage?.refresh();
+                window.SynthStudioControls?.upgradeAll?.(root);
+                window.SynthStudioControls?.sync?.(root);
+            },
+            onAdd: () => insert({ type: 'instrument', id: selectedInstrument }, '', 0),
+            onDrop: insert,
+            onNewClip: newClip,
+            onSeek: seek,
+            onAudition: p => audition(p),
+            onNoteOn: p => noteOn(p, 0.8, performance.now(), 17),
+            onNoteOff: p => noteOff(p, performance.now(), 17),
+            onError: fail,
+            onTrackMenu: (action, trackId) => {
+                if (action === 'delete') deleteTrackById(trackId);
+                else if (action === 'duplicate') duplicateTrackById(trackId);
+            }
+        });
+
+        workspace = window.SynthStudioWorkspace.create(root, {
+            tr, signal, project, blocked,
+            onTour: () => { tourIndex = 0; renderTour(); },
+            onMix: () => { renderMixer(); renderMaster(); },
+            onPanel: () => { refreshFooterHint(); },
+            onRb338: active => { if (active) ensureRb338(); rb338?.activate?.(active); }
+        });
         workspace.setClip(!!editor.selection().clipId);
-        strudel=window.SynthStudioStrudel.create(workspace.strudel,{tr,signal,blocked,readonly,beforePlay:()=>{rb338?.stop?.();generation++;composer?.stop();if(playing)stop();else{audio.stop();panic();}},confirm:()=>ctx.confirmDialog?.(tr('workspace_strudel'),tr('strudel_replace'))});
-        // RB-338 mode (optional module), built on the first visit to its tab: nothing of it exists before that.
-        // Its Play stops Synth Studio and Strudel through beforePlay.
-        function ensureRb338(){
-            if(!rb338&&!disposed&&window.SynthStudioRB338)rb338=window.SynthStudioRB338.create(workspace.rb338,{tr,esc,signal,root,windowId:id,notice,blocked,readonly,confirm:(title,text)=>ctx.confirmDialog?.(title,text),beforePlay:()=>{generation++;strudel?.stop();composer?.stop();if(playing)stop();else{audio.stop();panic();}},sendToArrange});
+
+        strudel = window.SynthStudioStrudel.create(workspace.strudel, {
+            tr, signal, blocked, readonly,
+            beforePlay: () => { rb338?.stop?.(); generation++; composer?.stop(); if (playing) stop(); else { audio.stop(); panic(); } },
+            confirm: () => ctx.confirmDialog?.(tr('workspace_strudel'), tr('strudel_replace'))
+        });
+
+        function ensureRb338() {
+            if (!rb338 && !disposed && window.SynthStudioRB338) {
+                rb338 = window.SynthStudioRB338.create(workspace.rb338, {
+                    tr, esc, signal, root, windowId: id, notice, blocked, readonly,
+                    confirm: (title, text) => ctx.confirmDialog?.(title, text),
+                    beforePlay: () => { generation++; strudel?.stop(); composer?.stop(); if (playing) stop(); else { audio.stop(); panic(); } },
+                    sendToArrange
+                });
+            }
             return rb338;
         }
-        // A restored RB-338 view must not boot the engine without a gesture: the rack waits for a click.
-        if(workspace.isRb338?.())ensureRb338()?.activate?.(true,{restored:true});
-        composer=window.SynthStudioCompose.create(workspace.performance,{tr,esc,signal,project,selection:()=>editor.selection(),cursor:()=>cursor,blocked,mutate,audio,fail,stopTransport:()=>stop(false,true),showNotes:()=>workspace.panel('notes'),onArpNote:captureArp});
-        const midi=window.SynthStudioMIDI.create({onNoteOn:e=>noteOn(e.pitch,e.velocity,e.time,e.channel),onNoteOff:e=>noteOff(e.pitch,e.time,e.channel),onController:e=>controller(e),onState:s=>{midiState=s;if(s.status!=='connected'){if(recording)stop();else panic();}renderMIDI();}});
-        stage=window.SynthStudioStage.create(workspace.performance,{tr,esc,signal,audio,project,track,mutate,playing:()=>playing,cursor:()=>cursor,editable:()=>!disposed&&ready&&!readonly()&&!busy&&!storageState.loading&&!recording,canPlay:()=>!disposed&&ready&&!busy&&!storageState.loading,play,stop,refresh,fail,prompt:(title,value)=>ctx.promptDialog?.(title,value),confirm:(title,message)=>ctx.confirmDialog?.(title,message),adopt:p=>storage.newDocument(p,{dirty:true}),transport:find('.ss-transport'),whenReady:()=>storage.ready,sessionKey:ctx.sessionKey||ctx.state?.windows?.get(id)?.sessionKey||id});
-        storage=window.SynthStudioStorage.create({...ctx,windowId:id},{serialize:project,validate:M.validate,beforeLoad:()=>stop(),onLoaded:p=>{if(p)loadProject(p);},onState:s=>{const loaded=storageState.loading&&!s.loading;storageState=s;if(loaded)refresh();else status();}});
-        function status(){
-            if(disposed)return;const p=project();find('[data-project-name]').textContent=p.name;find('[data-project-name]').disabled=blocked();
-            find('[data-save-state]').textContent=readonly()?tr('readonly'):storageState.legacyCopy?tr('legacy_copy'):storageState.error?tr('save_error'):storageState.saving?tr('saving'):storageState.dirty?tr('unsaved'):storageState.path?tr('saved'):tr('local_draft');
-            find('[data-action="record"]').classList.toggle('is-recording',!!recording);find('[data-action="record"]').setAttribute('aria-pressed',String(!!recording));
-            find('[data-action="play"]').classList.toggle('is-active',playing);find('[data-tempo]').value=p.tempo;find('[data-loop]').checked=p.loop.enabled;
-            find('[data-loop-start]').value=Math.floor(p.loop.start/BAR)+1;find('[data-loop-end]').value=Math.floor(p.loop.end/BAR)+1;
-            for(const a of ['new','save','saveAs','demo','record','importMidi'])find('[data-action="'+a+'"]')?.toggleAttribute('disabled',!ready||readonly()||busy||!!storageState.loading);
-            find('[data-action="open"]').disabled=!ready||busy||!!storageState.loading;find('[data-action="play"]').disabled=!ready||busy||!!storageState.loading;find('[data-tempo]').disabled=blocked();find('[data-loop]').disabled=blocked();find('[data-loop-start]').disabled=blocked();find('[data-loop-end]').disabled=blocked();
-            find('[data-action="undo"]').disabled=blocked()||!history.canUndo();find('[data-action="redo"]').disabled=blocked()||!history.canRedo();find('[data-export]').disabled=busy||!!recording||!!stage?.active();root.querySelectorAll('[data-insert]').forEach(el=>el.disabled=blocked());
-            const item=ctx.state?.windows?.get(id);if(item){item.context={...(item.context||{}),path:storageState.path||''};if(item.element)item.element.classList.toggle('ss-dirty',!!storageState.dirty);}
-            const counter=find('[data-footer-count]');if(counter)counter.textContent=(P.presets?.length||0)+' SYNTHS · '+(M.FX_TYPES?.length||0)+' FX · '+(P.gm?.length||0)+' GM';
+        if (workspace.isRb338?.()) ensureRb338()?.activate?.(true, { restored: true });
+
+        composer = window.SynthStudioCompose.create(workspace.performance, {
+            tr, esc, signal, project,
+            selection: () => editor.selection(),
+            cursor: () => cursor,
+            blocked, mutate, audio, fail,
+            stopTransport: () => stop(false, true),
+            showNotes: () => workspace.panel('notes'),
+            showCompose: () => workspace.performTab('compose'),
+            onSelectClip: (tid, cid) => editor.select(tid, cid),
+            onArpNote: captureArp
+        });
+
+        const midi = window.SynthStudioMIDI.create({
+            onNoteOn: e => noteOn(e.pitch, e.velocity, e.time, e.channel),
+            onNoteOff: e => noteOff(e.pitch, e.time, e.channel),
+            onController: e => controller(e),
+            onState: s => { midiState = s; if (s.status !== 'connected') { if (recording) stop(); else panic(); } renderMIDI(); }
+        });
+
+        stage = window.SynthStudioStage.create(workspace.performStage, {
+            tr, esc, signal, audio, project, track, mutate,
+            playing: () => playing,
+            cursor: () => cursor,
+            editable: () => !disposed && ready && !readonly() && !busy && !storageState.loading && !recording,
+            canPlay: () => !disposed && ready && !busy && !storageState.loading,
+            play, stop, refresh, fail,
+            prompt: (title, value) => ctx.promptDialog?.(title, value),
+            confirm: (title, message) => ctx.confirmDialog?.(title, message),
+            adopt: p => storage.newDocument(p, { dirty: true }),
+            transport: find('[data-transport-meters]'),
+            whenReady: () => storage.ready,
+            sessionKey: ctx.sessionKey || ctx.state?.windows?.get(id)?.sessionKey || id
+        });
+
+        storage = window.SynthStudioStorage.create({ ...ctx, windowId: id }, {
+            serialize: project,
+            validate: M.validate,
+            beforeLoad: () => stop(),
+            onLoaded: p => { if (p) loadProject(p); },
+            onState: s => { const loaded = storageState.loading && !s.loading; storageState = s; if (loaded) refresh(); else status(); }
+        });
+
+        function refreshFooterHint() {
+            const hint = find('[data-footer-hint]');
+            if (!hint || !workspace) return;
+            const key = MODE_HINTS[workspace.currentPanel()] || 'shortcuts';
+            const text = tr(key);
+            hint.textContent = text === key ? tr('shortcuts') : text;
         }
-        function refresh(){
-            const active=document.activeElement,attrs=['data-param','data-track-name','data-instrument','data-track-volume','data-velocity','data-master-param','data-designer-param','data-designer-name'],attr=attrs.find(a=>active?.hasAttribute(a)),value=attr?active.getAttribute(attr):'';
-            editor.render();renderInspector();renderMaster();status();workspace?.refresh();composer?.refresh();stage?.refresh();strudel?.refresh();
-            if(attr)root.querySelectorAll('['+attr+']').forEach(el=>{if(el.getAttribute(attr)===value)el.focus({preventScroll:true});});
-            window.SynthStudioControls?.sync(root);
+
+        function instrumentOptionsFor(t) {
+            const drum = isDrumTrack(t);
+            const items = drum ? [{ id: 'drums-kit', name: tr('drums') }, { id: 'gm-drums', name: tr('gm_drums') }, ...P.drums] : [...P.presets.filter(x => x.category !== 'drums'), ...P.gm];
+            if (!items.some(i => i.id === t.instrument)) items.unshift({ id: t.instrument, name: P.get(t.instrument)?.name || tr('designer_missing') });
+            return items;
         }
-        // RB-338 audio clips: the PCM is re-rendered from the clip's song by the host module and cached there.
-        const rbHost=()=>window.SynthStudioRB338Host?.clips?window.SynthStudioRB338Host:null;
-        let rbMissingNoticed=false,rbRetained=false,rbRelease=null;
-        // The clip cache is shared between windows: hold one reference from the first use, give it back on dispose.
-        function retainClips(){if(rbRetained)return;rbRetained=true;rbRelease=window.SynthStudioRB338Host?.clips?.retain?.()||null;}
-        function clipBuffer(clip){return rbHost()?.clips.buffer(clip)||null;}
-        // Renders missing clip buffers. Load does not wait for it (the editor refreshes as each clip becomes ready); exports await it.
-        function prepareClips(p){
-            if(!p.tracks.some(t=>t.clips.some(c=>c.audio)))return Promise.resolve();
-            const H=rbHost();
-            if(!H){if(!rbMissingNoticed){rbMissingNoticed=true;notice(tr('rb_clip_failed'));}return Promise.resolve();}
-            retainClips();
-            return H.clips.prepare(p,()=>{if(!disposed)refresh();}).then(()=>{if(!disposed)refresh();},()=>{});
-        }
-        function bytesOfBase64(b64){const s=atob(String(b64||'')),out=new Uint8Array(s.length);for(let i=0;i<s.length;i++)out[i]=s.charCodeAt(i);return out;}
-        function base64OfBytes(bytes){let s='';for(let i=0;i<bytes.length;i+=0x8000)s+=String.fromCharCode.apply(null,bytes.subarray(i,i+0x8000));return btoa(s);}
-        async function sendToArrange(payload){
-            if(readonly()){notice(tr('readonly'));return false;}
-            if(blocked())return false;
-            const H=rbHost();if(!H||!payload?.buffer||!payload.song){notice(tr('rb_clip_failed'));return false;}
-            retainClips();
-            const existing=project().tracks.find(t=>t.instrument==='audio'&&t.name==='RB-338');
-            if(!existing&&project().tracks.length>=16){fail('E_PROJECT_LIMIT');return false;}
-            let tempo=project().tempo;const rb=Math.round(Number(payload.tempo));
-            if(Number.isFinite(rb)&&rb>=40&&rb<=240&&rb!==tempo&&ctx.confirmDialog){
-                const yes=await ctx.confirmDialog(tr('rb_send_arrange'),tr('rb_tempo_match',{tempo:rb}));
-                if(disposed||blocked())return false;
-                if(yes)tempo=rb;
+
+        function status() {
+            if (disposed) return;
+            const p = project(), t = track();
+            find('[data-project-name]').textContent = p.name;
+            find('[data-project-name]').disabled = blocked();
+            const dot = find('[data-dirty-dot]');
+            if (dot) { dot.classList.toggle('is-dirty', !!storageState.dirty); dot.classList.toggle('is-saved', !storageState.dirty && !!storageState.path); }
+            find('[data-save-state]').textContent = readonly() ? tr('readonly') : storageState.legacyCopy ? tr('legacy_copy') : storageState.error ? tr('save_error') : storageState.saving ? tr('saving') : storageState.dirty ? tr('unsaved') : storageState.path ? tr('saved') : tr('local_draft');
+            find('[data-action="record"]').classList.toggle('is-recording', !!recording);
+            find('[data-action="record"]').setAttribute('aria-pressed', String(!!recording));
+            find('[data-action="play"]').classList.toggle('is-active', playing);
+            find('[data-tempo]').value = p.tempo;
+            find('[data-loop]').checked = p.loop.enabled;
+            find('[data-loop-start]').value = Math.floor(p.loop.start / BAR) + 1;
+            find('[data-loop-end]').value = Math.floor(p.loop.end / BAR) + 1;
+            for (const a of ['new', 'save', 'saveAs', 'demo', 'record', 'importMidi']) find('[data-action="' + a + '"]')?.toggleAttribute('disabled', !ready || readonly() || busy || !!storageState.loading);
+            find('[data-action="open"]').disabled = !ready || busy || !!storageState.loading;
+            find('[data-action="play"]').disabled = !ready || busy || !!storageState.loading;
+            find('[data-tempo]').disabled = blocked();
+            find('[data-loop]').disabled = blocked();
+            find('[data-loop-start]').disabled = blocked();
+            find('[data-loop-end]').disabled = blocked();
+            find('[data-action="undo"]').disabled = blocked() || !history.canUndo();
+            find('[data-action="redo"]').disabled = blocked() || !history.canRedo();
+            find('[data-export]').disabled = busy || !!recording || !!stage?.active();
+            root.querySelectorAll('[data-insert],[data-apply-instrument]').forEach(el => el.disabled = blocked());
+
+            // Global active track switcher in Transport
+            const globalWrap = find('[data-active-track]');
+            const globalSelect = find('[data-global-track]');
+            const globalMute = find('[data-global-mute]');
+            const globalSolo = find('[data-global-solo]');
+            const trackDot = find('[data-global-track-dot]');
+            if (globalWrap && globalSelect) {
+                globalWrap.classList.toggle('is-empty', p.tracks.length === 0);
+                if (p.tracks.length) {
+                    const opts = p.tracks.map(trItem => {
+                        const instName = P.get(trItem.instrument)?.name || trItem.instrument;
+                        return '<option value="' + esc(trItem.id) + '"' + (trItem.id === t?.id ? ' selected' : '') + '>' + esc(trItem.name + ' · ' + instName) + '</option>';
+                    }).join('');
+                    if (globalSelect.innerHTML !== opts) globalSelect.innerHTML = opts;
+                    if (t && globalSelect.value !== t.id) globalSelect.value = t.id;
+                    const cIdx = Math.max(0, p.tracks.findIndex(x => x.id === t?.id)) % 6;
+                    if (trackDot) trackDot.style.setProperty('--ss-active-track-color', 'var(--ss-color-' + cIdx + ')');
+                } else {
+                    globalSelect.innerHTML = '<option value="">' + esc(tr('tracks')) + ' (0)</option>';
+                }
+                globalSelect.disabled = !ready || busy || !!storageState.loading || !p.tracks.length;
+                if (globalMute) { globalMute.disabled = blocked() || !t; globalMute.setAttribute('aria-pressed', String(!!t?.mute)); }
+                if (globalSolo) { globalSolo.disabled = blocked() || !t; globalSolo.setAttribute('aria-pressed', String(!!t?.solo)); }
             }
-            const start=Math.floor(cursor/BAR)*BAR,length=Math.max(1,Math.round(payload.frames/44100*tempo/60*PPQ));
-            let trackId='',clipId='';
-            const ok=mutate(p=>{
-                if(tempo!==p.tempo)p.tempo=tempo;
-                let t=p.tracks.find(x=>x.instrument==='audio'&&x.name==='RB-338');
-                if(!t){t=M.addTrack(p,'audio');t.name='RB-338';}
-                const c={id:M.newID('clip'),name:payload.name||'RB-338',start,length,notes:[],controllers:[],audio:{kind:'rb338',song:base64OfBytes(payload.song),mode:payload.mode,start:payload.start,end:payload.end,frames:payload.frames}};
-                t.clips.push(c);trackId=t.id;clipId=c.id;
+
+            const arrCount = find('[data-arrange-count]');
+            if (arrCount) arrCount.textContent = p.tracks.length + ' ' + tr('tracks');
+
+            const item = ctx.state?.windows?.get(id);
+            if (item) {
+                item.context = { ...(item.context || {}), path: storageState.path || '' };
+                if (item.element) item.element.classList.toggle('ss-dirty', !!storageState.dirty);
+            }
+            const counter = find('[data-footer-count]');
+            if (counter) counter.textContent = (P.presets?.length || 0) + ' SYNTHS · ' + (M.FX_TYPES?.length || 0) + ' FX · ' + (P.gm?.length || 0) + ' GM';
+            refreshFooterHint();
+        }
+
+        function refresh() {
+            const active = document.activeElement;
+            const attrs = ['data-param', 'data-quick-param', 'data-mix-param', 'data-mix-volume', 'data-track-name', 'data-instrument', 'data-quick-instrument', 'data-track-volume', 'data-velocity', 'data-master-param', 'data-designer-param', 'data-designer-name'];
+            const attr = attrs.find(a => active?.hasAttribute(a)), value = attr ? active.getAttribute(attr) : '';
+            editor.render();
+            renderSoundRail();
+            renderInspector();
+            renderQuickStrip();
+            renderMixer();
+            renderMaster();
+            renderLibrary();
+            status();
+            workspace?.refresh();
+            composer?.refresh();
+            stage?.refresh();
+            strudel?.refresh();
+            if (attr) root.querySelectorAll('[' + attr + ']').forEach(el => { if (el.getAttribute(attr) === value) el.focus({ preventScroll: true }); });
+            window.SynthStudioControls?.upgradeAll?.(root);
+            window.SynthStudioControls?.sync?.(root);
+        }
+
+        // RB-338 audio clips: cached & rendered asynchronously via host module.
+        const rbHost = () => window.SynthStudioRB338Host?.clips ? window.SynthStudioRB338Host : null;
+        let rbMissingNoticed = false, rbRetained = false, rbRelease = null;
+        function retainClips() { if (rbRetained) return; rbRetained = true; rbRelease = window.SynthStudioRB338Host?.clips?.retain?.() || null; }
+        function clipBuffer(clip) { return rbHost()?.clips.buffer(clip) || null; }
+        function prepareClips(p) {
+            if (!p.tracks.some(t => t.clips.some(c => c.audio))) return Promise.resolve();
+            const H = rbHost();
+            if (!H) { if (!rbMissingNoticed) { rbMissingNoticed = true; notice(tr('rb_clip_failed')); } return Promise.resolve(); }
+            retainClips();
+            return H.clips.prepare(p, () => { if (!disposed) refresh(); }).then(() => { if (!disposed) refresh(); }, () => {});
+        }
+        function bytesOfBase64(b64) { const s = atob(String(b64 || '')), out = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i); return out; }
+        function base64OfBytes(bytes) { let s = ''; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(s); }
+
+        async function sendToArrange(payload) {
+            if (readonly()) { notice(tr('readonly')); return false; }
+            if (blocked()) return false;
+            const H = rbHost(); if (!H || !payload?.buffer || !payload.song) { notice(tr('rb_clip_failed')); return false; }
+            retainClips();
+            const existing = project().tracks.find(t => t.instrument === 'audio' && t.name === 'RB-338');
+            if (!existing && project().tracks.length >= 16) { fail('E_PROJECT_LIMIT'); return false; }
+            let tempo = project().tempo; const rb = Math.round(Number(payload.tempo));
+            if (Number.isFinite(rb) && rb >= 40 && rb <= 240 && rb !== tempo && ctx.confirmDialog) {
+                const yes = await ctx.confirmDialog(tr('rb_send_arrange'), tr('rb_tempo_match', { tempo: rb }));
+                if (disposed || blocked()) return false;
+                if (yes) tempo = rb;
+            }
+            const start = Math.floor(cursor / BAR) * BAR, length = Math.max(1, Math.round(payload.frames / 44100 * tempo / 60 * PPQ));
+            let trackId = '', clipId = '';
+            const ok = mutate(p => {
+                if (tempo !== p.tempo) p.tempo = tempo;
+                let t = p.tracks.find(x => x.instrument === 'audio' && x.name === 'RB-338');
+                if (!t) { t = M.addTrack(p, 'audio'); t.name = 'RB-338'; }
+                const c = { id: M.newID('clip'), name: payload.name || 'RB-338', start, length, notes: [], controllers: [], audio: { kind: 'rb338', song: base64OfBytes(payload.song), mode: payload.mode, start: payload.start, end: payload.end, frames: payload.frames } };
+                t.clips.push(c); trackId = t.id; clipId = c.id;
             });
-            if(!ok)return false;
-            const committed=project().tracks.find(t=>t.id===trackId)?.clips.find(c=>c.id===clipId);
-            if(committed)H.clips.put(committed,payload.buffer);
+            if (!ok) return false;
+            const committed = project().tracks.find(t => t.id === trackId)?.clips.find(c => c.id === clipId);
+            if (committed) H.clips.put(committed, payload.buffer);
             notice(tr('rb_sent'));
             root.querySelector('[data-work-tab="notes"]')?.click();
-            editor.select(trackId,clipId);
+            editor.select(trackId, clipId);
             return true;
         }
-        // The panel shown in the editor when an audio clip is selected.
-        function renderAudioClip(info){
-            const h=info.host,a=info.clip.audio,H=rbHost();if(!h||!a)return;
-            const bars=Math.max(1,Math.round((a.end-a.start)/768)),state=!H?'failed':H.clips.failed(info.clip)?'failed':H.clips.buffer(info.clip)?'ready':'rendering';
-            h.innerHTML='<strong>'+esc(info.clip.name)+'</strong><span>'+'RB-338 · '+esc(tr(a.mode==='song'?'rb_song_mode':'rb_pattern_mode'))+' · '+bars+'</span>'+(state==='ready'?'':'<em class="ss-audio-state" data-state="'+state+'" role="status">'+esc(tr(state==='failed'?'rb_clip_failed':'rb_clip_rendering'))+'</em>')+'<button type="button" data-audio-edit'+(!window.SynthStudioRB338?' disabled':'')+'>'+esc(tr('rb_clip_edit'))+'</button>';
-            h.querySelector('[data-audio-edit]')?.addEventListener('click',()=>{
-                let bytes;try{bytes=bytesOfBase64(a.song);}catch(_){notice(tr('rb_clip_failed'));return;}
+
+        function renderAudioClip(info) {
+            const h = info.host, a = info.clip.audio, H = rbHost(); if (!h || !a) return;
+            const bars = Math.max(1, Math.round((a.end - a.start) / 768)), state = !H ? 'failed' : H.clips.failed(info.clip) ? 'failed' : H.clips.buffer(info.clip) ? 'ready' : 'rendering';
+            h.innerHTML = '<strong>' + esc(info.clip.name) + '</strong><span>RB-338 · ' + esc(tr(a.mode === 'song' ? 'rb_song_mode' : 'rb_pattern_mode')) + ' · ' + bars + '</span>' + (state === 'ready' ? '' : '<em class="ss-audio-state" data-state="' + state + '" role="status">' + esc(tr(state === 'failed' ? 'rb_clip_failed' : 'rb_clip_rendering')) + '</em>') + '<button type="button" data-audio-edit' + (!window.SynthStudioRB338 ? ' disabled' : '') + '>' + esc(tr('rb_clip_edit')) + '</button>';
+            h.querySelector('[data-audio-edit]')?.addEventListener('click', () => {
+                let bytes; try { bytes = bytesOfBase64(a.song); } catch (_) { notice(tr('rb_clip_failed')); return; }
                 root.querySelector('[data-work-tab="rb338"]')?.click();
-                ensureRb338()?.openSong(bytes,info.clip.name);
-            },{signal});
+                ensureRb338()?.openSong(bytes, info.clip.name);
+            }, { signal });
         }
-        function loadProject(p){stop();history=M.history(M.upgrade(p));currentProject=history.current();cursor=0;editor.select(p.tracks[0]?.id||'',p.tracks[0]?.clips[0]?.id||'');workspace.performance.scrollTop=0;refresh();prepareClips(currentProject);}
-        function mutate(fn,kind='timeline'){
-            if(blocked())return false;
-            try{const next=M.clone(project());fn(next);M.validate(next);if(playing){if(kind==='mix')audio.updateTracks(next);else if(kind==='automation')audio.setAutomation(next);else if(kind!=='metadata'){audio.queueProject({...stage.runtime(next),metronome},undefined,()=>{notice('');stage.sceneApplied();});notice(tr('change_queued'));}}history.commit(next);currentProject=history.current();storage.changed();refresh();return true;}catch(error){fail(error);return false;}
+
+        function loadProject(p) {
+            stop(); designer = null;
+            history = M.history(M.upgrade(p)); currentProject = history.current(); cursor = 0;
+            editor.select(p.tracks[0]?.id || '', p.tracks[0]?.clips[0]?.id || '');
+            workspace.performance.scrollTop = 0;
+            refresh();
+            prepareClips(currentProject);
         }
-        function updatedHistory(direction){if(blocked())return;stop();history[direction]();currentProject=history.current();storage.changed();refresh();}
-        function insert(data,tid,tick){
-            if(blocked())return;let cid='',chosen=tid;
-            mutate(p=>{
-                const pattern=data.type==='pattern'?M.patterns.find(x=>x.id===data.id):null,inst=pattern?.instrument||data.id;
-                if(!pattern&&!P.get(inst)&&!['drums-kit','gm-drums'].includes(inst))throw Error('invalid_project');
-                const drum=inst.startsWith('drum-')||inst==='drums-kit'||inst==='gm-drums';
-                let t=p.tracks.find(t=>t.id===tid);
-                if(!t){t=drum?p.tracks.find(t=>t.instrument==='drums-kit'||t.instrument==='gm-drums'||t.instrument.startsWith('drum-')):null;if(!t){t=M.addTrack(p,drum?'drums-kit':inst);t.name=drum?tr('drums'):P.get(inst)?.name||tr('track');}}
-                const isDrum=t.instrument==='drums-kit'||t.instrument==='gm-drums'||t.instrument.startsWith('drum-');if(drum!==isDrum&&pattern)throw Error('invalid_project');
-                const c=pattern?M.cloneClip(pattern.clip,tick):M.createClip(t.instrument,tick);c.name=pattern?patternName(pattern):P.get(inst)?.name||tr('clip');
-                if(!pattern&&inst.startsWith('drum-'))c.notes=[{id:M.newID('note'),pitch:P.get(inst).drumNote,start:0,duration:120,velocity:.8}];
-                t.clips.push(c);chosen=t.id;cid=c.id;
-            });if(cid)editor.select(chosen,cid);
+
+        function mutate(fn, kind = 'timeline') {
+            if (blocked()) return false;
+            try {
+                const next = M.clone(project());
+                fn(next);
+                M.validate(next);
+                if (playing) {
+                    if (kind === 'mix') audio.updateTracks(next);
+                    else if (kind === 'automation') audio.setAutomation(next);
+                    else if (kind !== 'metadata') {
+                        audio.queueProject({ ...stage.runtime(next), metronome }, undefined, () => { notice(''); stage.sceneApplied(); });
+                        notice(tr('change_queued'));
+                    }
+                }
+                history.commit(next);
+                currentProject = history.current();
+                storage.changed();
+                refresh();
+                return true;
+            } catch (error) { fail(error); return false; }
         }
-        function newClip(tid,tick){let cid='';mutate(p=>{const t=p.tracks.find(t=>t.id===tid),c=M.createClip(t.instrument,tick);c.name=tr('clip');t.clips.push(c);cid=c.id;});editor.select(tid,cid);}
-        // A track can be deleted from its own head or from the sound panel. The
-        // confirmation is only asked when the host can show one, so an embedded
-        // view without a dialog service still removes the track.
-        async function deleteTrackById(id){const t=project().tracks.find(x=>x.id===id);if(!t||blocked())return;const ok=ctx.confirmDialog?await ctx.confirmDialog(tr('delete_track'),tr('delete_track_confirm')):true;if(!ok)return;mutate(p=>{p.tracks=p.tracks.filter(x=>x.id!==id);});const next=project().tracks[0];editor.select(next?next.id:'',next?.clips[0]?.id||'');}
-        function duplicateTrackById(id){let created='';mutate(p=>{const src=p.tracks.find(t=>t.id===id);if(!src)return;const copy=M.addTrack(p,src.instrument);copy.name=src.name;copy.volume=src.volume;copy.pan=src.pan;copy.mute=src.mute;copy.solo=src.solo;copy.params={...(src.params||{})};if(src.fx)copy.fx=JSON.parse(JSON.stringify(src.fx));if(src.automation)copy.automation=JSON.parse(JSON.stringify(src.automation));copy.clips=src.clips.map(c=>M.cloneClip(c,c.start));created=copy.id;});if(created){const t=project().tracks.find(x=>x.id===created);editor.select(created,t?.clips[0]?.id||'');}}
-        function patternName(pattern){return tr('pattern_'+pattern.id);}
-        function markRecent(id){const list=libraryPrefs.recent.filter(x=>x!==id);list.unshift(id);libraryPrefs.recent=list.slice(0,12);saveLibraryPrefs();}
-        function renderLibrary(){
-            const rail=[{id:'all',name:tr('all')},{id:'favourites',name:tr('lib_favourites')},{id:'recent',name:tr('lib_recent')},{id:'user',name:tr('user')},...P.categories.map(c=>({id:c.id,name:tr(c.id)})),{id:'gm',name:'General MIDI'}];
-            find('[data-categories]').innerHTML=rail.map(c=>'<button data-category="'+esc(c.id)+'" aria-pressed="'+(c.id===category)+'">'+esc(c.name)+'</button>').join('');
-            const query=find('[data-search]').value.toLowerCase();
-            const base=libraryMode==='patterns'?M.patterns:[...P.presets,...P.gm.map(p=>({...p,category:'gm'})),{id:'gm-drums',name:tr('gm_drums'),category:'gm'}];
-            const items=base.map(x=>libraryMode==='patterns'?{...x,name:patternName(x),tags:[]}:{...x,tags:Array.isArray(x.tags)?x.tags:[]})
-                .filter(x=>category==='favourites'?libraryPrefs.favourites.includes(x.id):category==='recent'?libraryPrefs.recent.includes(x.id):category==='all'||x.category===category)
-                .filter(x=>!query||x.name.toLowerCase().includes(query)||x.tags.some(t=>t.includes(query)))
-                .filter(x=>!activeTag||x.tags.includes(activeTag));
-            const vocabulary=libraryMode==='instruments'&&Array.isArray(P.tags)?P.tags:[];
-            find('[data-library-tags]').innerHTML=vocabulary.map(t=>'<button data-tag="'+esc(t)+'" aria-pressed="'+String(activeTag===t)+'">'+esc(tr('tag_'+t))+'</button>').join('');
-            find('[data-library-list]').innerHTML=items.map(x=>{
-                const favourite=libraryPrefs.favourites.includes(x.id);
-                const chips=x.tags.slice(0,2).map(t=>'<em class="ss-tag" data-tag="'+esc(t)+'">'+esc(tr('tag_'+t))+'</em>').join('');
-                const editPatch=libraryMode==='instruments'&&x.category==='user'?'<button class="ss-edit" data-edit-patch="'+esc(x.id)+'" aria-label="'+esc(tr('designer_edit'))+'">✎</button>':'';
-                return '<div class="ss-library-item '+(x.id===selectedInstrument?'is-selected':'')+'" draggable="'+!readonly()+'" data-library-id="'+esc(x.id)+'" data-library-type="'+(libraryMode==='patterns'?'pattern':'instrument')+'"><button data-preview="'+esc(x.id)+'" aria-label="'+esc(tr('preview')+' '+x.name)+'">'+(libraryMode==='patterns'?'▥':'♪')+'</button><button class="ss-library-name" data-choose="'+esc(x.id)+'"><span>'+esc(x.name)+'</span><small>'+(libraryMode==='patterns'?esc(tr('pattern')):chips)+'</small></button>'+(libraryMode==='patterns'?'':'<button class="ss-favourite" data-favourite="'+esc(x.id)+'" aria-pressed="'+String(favourite)+'" aria-label="'+esc(tr('lib_favourites'))+'">'+(favourite?'★':'☆')+'</button>')+editPatch+'<button class="ss-insert" data-insert="'+esc(x.id)+'" aria-label="'+esc(tr('add'))+'">＋</button></div>';
-            }).join('')||'<p class="ss-muted">'+esc(category==='user'&&(libraryMode==='instruments')?tr('designer_empty'):tr('no_results'))+'</p>';
-            root.querySelectorAll('[data-insert]').forEach(el=>el.disabled=blocked());
-            root.querySelectorAll('[data-library-mode]').forEach(el=>el.setAttribute('aria-pressed',String(el.dataset.libraryMode===libraryMode)));
+
+        function updatedHistory(direction) { if (blocked()) return; stop(); history[direction](); currentProject = history.current(); storage.changed(); refresh(); }
+
+        function insert(data, tid, tick) {
+            if (blocked()) return;
+            let cid = '', chosen = tid;
+            mutate(p => {
+                const pattern = data.type === 'pattern' ? M.patterns.find(x => x.id === data.id) : null, inst = pattern?.instrument || data.id;
+                if (!pattern && !P.get(inst) && !['drums-kit', 'gm-drums'].includes(inst)) throw Error('invalid_project');
+                const drum = isDrumInstrumentId(inst);
+                let t = p.tracks.find(t => t.id === tid);
+                if (!t) {
+                    t = drum ? p.tracks.find(t => isDrumTrack(t)) : null;
+                    if (!t) { t = M.addTrack(p, drum ? 'drums-kit' : inst); t.name = drum ? tr('drums') : P.get(inst)?.name || tr('track'); }
+                }
+                const isDrum = isDrumTrack(t);
+                if (drum !== isDrum && pattern) throw Error('invalid_project');
+                const c = pattern ? M.cloneClip(pattern.clip, tick) : M.createClip(t.instrument, tick);
+                c.name = pattern ? patternName(pattern) : P.get(inst)?.name || tr('clip');
+                if (!pattern && inst.startsWith('drum-')) c.notes = [{ id: M.newID('note'), pitch: P.get(inst).drumNote, start: 0, duration: 120, velocity: 0.8 }];
+                t.clips.push(c); chosen = t.id; cid = c.id;
+            });
+            if (cid) editor.select(chosen, cid);
         }
-        function renderInspector(){
-            if(designer){renderDesigner();return;}
-            const t=track(),pane=find('[data-inspector]');if(!t){pane.innerHTML='<div class="ss-inspector-empty"><span>♫</span><strong>'+esc(tr('your_sound'))+'</strong><p>'+esc(tr('inspector_hint'))+'</p></div>';return;}
-            const drum=t.instrument==='drums-kit'||t.instrument==='gm-drums'||t.instrument.startsWith('drum-'),items=drum?[{id:'drums-kit',name:tr('drums')},{id:'gm-drums',name:tr('gm_drums')},...P.drums]:[...P.presets.filter(x=>x.category!=='drums'),...P.gm];
-            // A project from another browser may reference a user synth this
-            // browser does not hold. Keep it selectable and named instead of
-            // silently repointing the track, so designing it again is offered.
-            if(!items.some(i=>i.id===t.instrument))items.unshift({id:t.instrument,name:P.get(t.instrument)?.name||tr('designer_missing')});
-            const slider=(key,min,max,step,value)=>'<label class="ss-parameter"><span>'+esc(tr(key))+'</span><input data-param="'+key+'" type="range" min="'+min+'" max="'+max+'" step="'+step+'" value="'+value+'" aria-label="'+esc(tr(key))+'"><output>'+Number(value).toFixed(2)+'</output><button type="button" data-reset-param="'+key+'" title="'+esc(tr('reset'))+'">'+esc(tr('reset'))+'</button></label>';
-            const audioTrack=t.instrument==='audio',sound=[['pan',-1,1,.01,t.pan],...(audioTrack?[]:[['tone',0,1,.01,t.params.tone],['resonance',0,1,.01,t.params.resonance??0],['drive',0,1,.01,t.params.drive??0],['attack',0,2,.01,t.params.attack],['release',.02,3,.01,t.params.release]])];
-            const sends=[['reverb',0,1,.01,t.params.reverb],['delay',0,1,.01,t.params.delay]];
-            const inserts=Array.isArray(t.fx?.inserts)?t.fx.inserts:[];
-            const rack=inserts.map((insert,index)=>{
-                const def=M.FX_TYPES.find(x=>x.id===insert.type);if(!def)return '';
-                const rows=def.params.map(p=>{const label=FX_PARAM_LABELS[p.key]||p.key;return '<label class="ss-parameter"><span>'+esc(tr(label))+'</span><input data-fx-param="'+index+':'+p.key+'" type="range" min="'+p.min+'" max="'+p.max+'" step="'+p.step+'" value="'+insert[p.key]+'" aria-label="'+esc(tr(label))+'"><output>'+Number(insert[p.key]).toFixed(2)+'</output></label>';}).join('');
-                return '<section class="ss-fx-slot" data-fx-slot="'+index+'" data-fx="'+esc(insert.type)+'"><header><select data-fx-type="'+index+'" aria-label="'+esc(tr('fx_chain'))+'">'+M.FX_TYPES.map(x=>'<option value="'+x.id+'"'+(x.id===insert.type?' selected':'')+'>'+esc(tr(FX_LABELS[x.id]||x.id))+'</option>').join('')+'</select><button type="button" data-fx-move="'+index+':-1" aria-label="'+esc(tr('fx_move_up'))+'" title="'+esc(tr('fx_move_up'))+'"'+(index===0?' disabled':'')+'>↑</button><button type="button" data-fx-move="'+index+':1" aria-label="'+esc(tr('fx_move_down'))+'" title="'+esc(tr('fx_move_down'))+'"'+(index===inserts.length-1?' disabled':'')+'>↓</button><button type="button" data-fx-remove="'+index+'" aria-label="'+esc(tr('fx_remove'))+'">✕</button></header><div class="ss-fx-params">'+rows+'</div></section>';
+
+        function newClip(tid, tick) {
+            let cid = '';
+            mutate(p => { const t = p.tracks.find(t => t.id === tid), c = M.createClip(t.instrument, tick); c.name = tr('clip'); t.clips.push(c); cid = c.id; });
+            editor.select(tid, cid);
+        }
+
+        async function deleteTrackById(trackId) {
+            const t = project().tracks.find(x => x.id === trackId);
+            if (!t || blocked()) return;
+            const ok = ctx.confirmDialog ? await ctx.confirmDialog(tr('delete_track'), tr('delete_track_confirm')) : true;
+            if (!ok) return;
+            if (designer?.applyTrackId === trackId) { designer = null; D.setPreview(null); }
+            mutate(p => { p.tracks = p.tracks.filter(x => x.id !== trackId); });
+            const next = project().tracks[0];
+            editor.select(next ? next.id : '', next?.clips[0]?.id || '');
+        }
+
+        function duplicateTrackById(trackId) {
+            let created = '';
+            mutate(p => {
+                const src = p.tracks.find(t => t.id === trackId); if (!src) return;
+                const copy = M.addTrack(p, src.instrument);
+                copy.name = src.name; copy.volume = src.volume; copy.pan = src.pan; copy.mute = src.mute; copy.solo = src.solo;
+                copy.params = { ...(src.params || {}) };
+                if (src.fx) copy.fx = JSON.parse(JSON.stringify(src.fx));
+                if (src.automation) copy.automation = JSON.parse(JSON.stringify(src.automation));
+                copy.clips = src.clips.map(c => M.cloneClip(c, c.start));
+                created = copy.id;
+            });
+            if (created) { const t = project().tracks.find(x => x.id === created); editor.select(created, t?.clips[0]?.id || ''); }
+        }
+
+        function patternName(pattern) { return tr('pattern_' + pattern.id); }
+        function markRecent(id) { const list = libraryPrefs.recent.filter(x => x !== id); list.unshift(id); libraryPrefs.recent = list.slice(0, 12); saveLibraryPrefs(); }
+
+        function renderLibrary() {
+            const rail = [{ id: 'all', name: tr('all') }, { id: 'favourites', name: tr('lib_favourites') }, { id: 'recent', name: tr('lib_recent') }, { id: 'user', name: tr('user') }, ...P.categories.map(c => ({ id: c.id, name: tr(c.id) })), { id: 'gm', name: 'General MIDI' }];
+            find('[data-categories]').innerHTML = rail.map(c => '<button type="button" data-category="' + esc(c.id) + '" aria-pressed="' + (c.id === category) + '">' + esc(c.name) + '</button>').join('');
+            const query = find('[data-search]').value.toLowerCase();
+            const base = libraryMode === 'patterns' ? M.patterns : [...P.presets, ...P.gm.map(p => ({ ...p, category: 'gm' })), { id: 'gm-drums', name: tr('gm_drums'), category: 'gm' }];
+            const items = base.map(x => libraryMode === 'patterns' ? { ...x, name: patternName(x), tags: [] } : { ...x, tags: Array.isArray(x.tags) ? x.tags : [] })
+                .filter(x => category === 'favourites' ? libraryPrefs.favourites.includes(x.id) : category === 'recent' ? libraryPrefs.recent.includes(x.id) : category === 'all' || x.category === category)
+                .filter(x => !query || x.name.toLowerCase().includes(query) || x.tags.some(t => t.includes(query)))
+                .filter(x => !activeTag || x.tags.includes(activeTag));
+            const vocabulary = libraryMode === 'instruments' && Array.isArray(P.tags) ? P.tags : [];
+            find('[data-library-tags]').innerHTML = vocabulary.map(t => '<button type="button" data-tag="' + esc(t) + '" aria-pressed="' + String(activeTag === t) + '">' + esc(tr('tag_' + t)) + '</button>').join('');
+
+            const activeTrack = track();
+            const canAssignToTrack = instId => !!activeTrack && !isAudioTrack(activeTrack) && (isDrumTrack(activeTrack) === isDrumInstrumentId(instId));
+
+            find('[data-library-list]').innerHTML = items.map(x => {
+                const favourite = libraryPrefs.favourites.includes(x.id);
+                const chips = x.tags.slice(0, 2).map(t => '<em class="ss-tag" data-tag="' + esc(t) + '">' + esc(tr('tag_' + t)) + '</em>').join('');
+                const editPatch = libraryMode === 'instruments' && x.category === 'user' ? '<button type="button" class="ss-edit" data-edit-patch="' + esc(x.id) + '" aria-label="' + esc(tr('designer_edit')) + '">✎</button>' : '';
+                const applyBtn = libraryMode === 'instruments' && canAssignToTrack(x.id) ? '<button type="button" class="ss-apply-inst" data-apply-instrument="' + esc(x.id) + '" title="' + esc(tr('apply_to_track')) + '" aria-label="' + esc(tr('apply_to_track') + ': ' + x.name) + '">→</button>' : '';
+                return '<div class="ss-library-item ' + (x.id === selectedInstrument ? 'is-selected' : '') + '" draggable="' + !readonly() + '" data-library-id="' + esc(x.id) + '" data-library-type="' + (libraryMode === 'patterns' ? 'pattern' : 'instrument') + '"><button type="button" data-preview="' + esc(x.id) + '" aria-label="' + esc(tr('preview') + ' ' + x.name) + '">' + (libraryMode === 'patterns' ? '▥' : '♪') + '</button><button type="button" class="ss-library-name" data-choose="' + esc(x.id) + '"><span>' + esc(x.name) + '</span><small>' + (libraryMode === 'patterns' ? esc(tr('pattern')) : chips) + '</small></button>' + (libraryMode === 'patterns' ? '' : '<button type="button" class="ss-favourite" data-favourite="' + esc(x.id) + '" aria-pressed="' + String(favourite) + '" aria-label="' + esc(tr('lib_favourites')) + '">' + (favourite ? '★' : '☆') + '</button>') + editPatch + applyBtn + '<button type="button" class="ss-insert" data-insert="' + esc(x.id) + '" aria-label="' + esc(tr('add')) + '">＋</button></div>';
+            }).join('') || '<p class="ss-muted">' + esc(category === 'user' && (libraryMode === 'instruments') ? tr('designer_empty') : tr('no_results')) + '</p>';
+            root.querySelectorAll('[data-insert],[data-apply-instrument]').forEach(el => el.disabled = blocked());
+            root.querySelectorAll('[data-library-mode]').forEach(el => el.setAttribute('aria-pressed', String(el.dataset.libraryMode === libraryMode)));
+        }
+
+        function renderSoundRail() {
+            const rail = workspace?.soundRail;
+            if (!rail) return;
+            const p = project(), selected = track()?.id || '';
+            rail.innerHTML = '<header class="ss-sound-rail-head"><strong>' + esc(tr('tracks')) + '</strong><button type="button" data-rail-add title="' + esc(tr('add_track')) + '" aria-label="' + esc(tr('add_track')) + '"' + (blocked() ? ' disabled' : '') + '>＋</button></header>' +
+                '<div class="ss-sound-rail-list">' +
+                (p.tracks.length ? p.tracks.map((t, i) => {
+                    const instName = t.instrument === 'audio' ? 'RB-338' : (P.get(t.instrument)?.name || t.instrument);
+                    return '<div class="ss-rail-item' + (t.id === selected ? ' is-selected' : '') + '" style="--ss-track-color:var(--ss-color-' + (i % 6) + ')">' +
+                        '<button type="button" class="ss-rail-select" data-rail-track="' + esc(t.id) + '"><strong>' + esc(t.name) + '</strong><small>' + esc(instName) + '</small></button>' +
+                        '<div class="ss-rail-actions"><button type="button" data-rail-mute="' + esc(t.id) + '" aria-pressed="' + !!t.mute + '" aria-label="' + esc(tr('mute')) + '" title="' + esc(tr('mute')) + '"' + (blocked() ? ' disabled' : '') + '>M</button><button type="button" data-rail-solo="' + esc(t.id) + '" aria-pressed="' + !!t.solo + '" aria-label="' + esc(tr('solo')) + '" title="' + esc(tr('solo')) + '"' + (blocked() ? ' disabled' : '') + '>S</button></div>' +
+                        '</div>';
+                }).join('') : '<p class="ss-muted">' + esc(tr('inspector_hint')) + '</p>') +
+                '</div>';
+        }
+
+        function auditionDockMarkup(drum) {
+            if (drum) {
+                return '<footer class="ss-audition-dock is-drums"><div class="ss-mini-keys is-drums">' +
+                    P.drums.slice(0, 12).map(d => '<button type="button" class="ss-drum-pad" data-audition="' + d.drumNote + '" title="' + esc(d.name) + '">' + esc(d.name) + '</button>').join('') +
+                    '</div></footer>';
+            }
+            const base = (soundOctave + 1) * 12;
+            return '<footer class="ss-audition-dock"><div class="ss-octave-shift"><span>' + esc(tr('audition_octave')) + '</span><button type="button" data-insp-oct="-1" aria-label="Octave -">−</button><output>C' + soundOctave + '</output><button type="button" data-insp-oct="1" aria-label="Octave +">+</button></div><div class="ss-mini-keys">' +
+                OCTAVE_KEYS.map(([lbl, off, black]) => '<button type="button" class="ss-piano-key' + (black ? ' is-black' : '') + '" data-audition="' + Math.min(127, base + off) + '" aria-label="' + esc(tr('preview') + ' ' + lbl) + '"><span>' + esc(lbl) + '</span></button>').join('') +
+                '</div></footer>';
+        }
+
+        function renderInspector() {
+            if (designer) { renderDesigner(); return; }
+            designerEditor?.dispose(); designerEditor = null;
+            const t = track(), pane = find('[data-inspector]');
+            if (!t) {
+                pane.innerHTML = '<div class="ss-inspector-empty"><span>♫</span><strong>' + esc(tr('your_sound')) + '</strong><p>' + esc(tr('inspector_hint')) + '</p></div>';
+                return;
+            }
+            const drum = isDrumTrack(t), audioTrack = isAudioTrack(t), items = instrumentOptionsFor(t);
+            const slider = (key, min, max, step, value) => '<label class="ss-parameter"><span>' + esc(tr(key)) + '</span><input data-param="' + key + '" type="range" min="' + min + '" max="' + max + '" step="' + step + '" value="' + value + '" aria-label="' + esc(tr(key)) + '"><output>' + Number(value).toFixed(2) + '</output><button type="button" data-reset-param="' + key + '" title="' + esc(tr('reset')) + '">' + esc(tr('reset')) + '</button></label>';
+            const sound = [['pan', -1, 1, 0.01, t.pan], ...(audioTrack ? [] : [['tone', 0, 1, 0.01, t.params.tone], ['resonance', 0, 1, 0.01, t.params.resonance ?? 0], ['drive', 0, 1, 0.01, t.params.drive ?? 0], ['attack', 0, 2, 0.01, t.params.attack], ['release', 0.02, 3, 0.01, t.params.release]])];
+            const sends = [['reverb', 0, 1, 0.01, t.params.reverb], ['delay', 0, 1, 0.01, t.params.delay]];
+            const inserts = Array.isArray(t.fx?.inserts) ? t.fx.inserts : [];
+            const rack = inserts.map((ins, index) => {
+                const def = M.FX_TYPES.find(x => x.id === ins.type); if (!def) return '';
+                const rows = def.params.map(p => {
+                    const label = FX_PARAM_LABELS[p.key] || p.key;
+                    return '<label class="ss-parameter"><span>' + esc(tr(label)) + '</span><input data-fx-param="' + index + ':' + p.key + '" type="range" min="' + p.min + '" max="' + p.max + '" step="' + p.step + '" value="' + ins[p.key] + '" aria-label="' + esc(tr(label)) + '"><output>' + Number(ins[p.key]).toFixed(2) + '</output></label>';
+                }).join('');
+                return '<section class="ss-fx-slot" data-fx-slot="' + index + '" data-fx="' + esc(ins.type) + '"><header><select data-fx-type="' + index + '" aria-label="' + esc(tr('fx_chain')) + '">' + M.FX_TYPES.map(x => '<option value="' + x.id + '"' + (x.id === ins.type ? ' selected' : '') + '>' + esc(tr(FX_LABELS[x.id] || x.id)) + '</option>').join('') + '</select><button type="button" data-fx-move="' + index + ':-1" aria-label="' + esc(tr('fx_move_up')) + '" title="' + esc(tr('fx_move_up')) + '"' + (index === 0 ? ' disabled' : '') + '>↑</button><button type="button" data-fx-move="' + index + ':1" aria-label="' + esc(tr('fx_move_down')) + '" title="' + esc(tr('fx_move_down')) + '"' + (index === inserts.length - 1 ? ' disabled' : '') + '>↓</button><button type="button" data-fx-remove="' + index + '" aria-label="' + esc(tr('fx_remove')) + '">✕</button></header><div class="ss-fx-params">' + rows + '</div></section>';
             }).join('');
-            const fxPresetOpts=['ethereal','cyber_acid','talking','lofi','metallic','dub'].map(id=>'<option value="'+id+'">'+esc(tr('fx_preset_'+id))+'</option>').join('')+(inserts.length?'<option value="clear">'+esc(tr('fx_preset_clear'))+'</option>':'');
-            pane.innerHTML='<section class="ss-insp-card ss-insp-track"><h3>'+esc(tr('track'))+'</h3><input data-track-name type="text" inputmode="text" enterkeyhint="done" maxlength="80" value="'+esc(t.name)+'" aria-label="'+esc(tr('name'))+'">'+(audioTrack?'':'<label>'+esc(tr('instrument'))+'<select data-instrument>'+items.map(i=>'<option value="'+esc(i.id)+'"'+(i.id===t.instrument?' selected':'')+'>'+esc(i.name)+'</option>').join('')+'</select></label>')+
-                (!drum&&!audioTrack?'<button type="button" data-action="design" class="ss-design-open">'+esc(tr('designer_open'))+'</button>':'')+'</section>'+
-                '<section class="ss-insp-card ss-insp-sound"><h4>'+esc(tr('your_sound'))+'</h4><div class="ss-param-grid">'+sound.map(p=>slider(...p)).join('')+'</div></section>'+
-                '<section class="ss-insp-card ss-insp-sends"><h4>'+esc(tr('fx_send'))+'</h4><div class="ss-param-grid">'+sends.map(p=>slider(...p)).join('')+'</div></section>'+
-                '<section class="ss-insp-card ss-insp-fx"><h4>'+esc(tr('fx_chain'))+'</h4><div class="ss-fx-rack">'+(rack||'<p class="ss-muted">'+esc(tr('fx_empty'))+'</p>')+'</div>'+
-                '<div class="ss-fx-actions">'+(inserts.length<M.MAX_INSERTS?'<button type="button" data-fx-add class="ss-fx-add">＋ '+esc(tr('fx_add'))+'</button>':'')+'<select data-fx-preset class="ss-fx-preset" aria-label="'+esc(tr('fx_presets'))+'"><option value="">'+esc(tr('fx_presets'))+'</option>'+fxPresetOpts+'</select></div></section>'+
-                (audioTrack?'':'<div class="ss-mini-keys">'+[60,62,64,65,67,69,71,72].map((p,i)=>'<button data-audition="'+(drum?P.drums[i].drumNote:p)+'" aria-label="'+esc(tr('preview'))+'">'+(drum?'•':['C','D','E','F','G','A','B','C'][i])+'</button>').join('')+'</div>')+'<button data-action="deleteTrack" class="ss-delete-track">'+esc(tr('delete_track'))+'</button><p class="ss-help">'+esc(tr('edit_hint'))+'</p>';
-            pane.querySelectorAll('input,select,[data-reset-param],[data-action="deleteTrack"],[data-action="design"],[data-fx-add],[data-fx-remove]').forEach(el=>el.disabled=blocked()&&!(stage?.active()&&['tone','reverb'].includes(el.dataset.param)));
-            if(blocked())pane.querySelectorAll('[data-fx-move]').forEach(el=>el.disabled=true);
+            const fxPresetOpts = ['ethereal', 'cyber_acid', 'talking', 'lofi', 'metallic', 'dub'].map(pid => '<option value="' + pid + '">' + esc(tr('fx_preset_' + pid)) + '</option>').join('') + (inserts.length ? '<option value="clear">' + esc(tr('fx_preset_clear')) + '</option>' : '');
+
+            pane.innerHTML = '<div class="ss-insp-shell">' +
+                '<header class="ss-insp-head">' +
+                '<input data-track-name type="text" inputmode="text" enterkeyhint="done" maxlength="80" value="' + esc(t.name) + '" aria-label="' + esc(tr('name')) + '">' +
+                (audioTrack ? '<span class="ss-insp-audio-tag">RB-338 Audio</span>' : '<select data-instrument aria-label="' + esc(tr('instrument')) + '">' + items.map(i => '<option value="' + esc(i.id) + '"' + (i.id === t.instrument ? ' selected' : '') + '>' + esc(i.name) + '</option>').join('') + '</select>') +
+                (!drum && !audioTrack ? '<button type="button" data-action="design" class="ss-design-open">✦ ' + esc(tr('designer_open')) + '</button>' : '') +
+                '<select data-fx-preset class="ss-fx-preset" aria-label="' + esc(tr('fx_presets')) + '"><option value="">' + esc(tr('fx_presets')) + '</option>' + fxPresetOpts + '</select>' +
+                (inserts.length < M.MAX_INSERTS ? '<button type="button" data-fx-add class="ss-fx-add">＋ ' + esc(tr('fx_add')) + '</button>' : '') +
+                '<button type="button" data-action="deleteTrack" class="ss-delete-track" title="' + esc(tr('delete_track')) + '" aria-label="' + esc(tr('delete_track')) + '">🗑</button>' +
+                '</header>' +
+                '<div class="ss-insp-grid">' +
+                '<div class="ss-insp-left">' +
+                '<section class="ss-insp-card ss-insp-sound"><h4>' + esc(tr('your_sound')) + '</h4><div class="ss-param-grid">' + sound.map(p => slider(...p)).join('') + '</div></section>' +
+                '<section class="ss-insp-card ss-insp-sends"><h4>' + esc(tr('fx_send')) + '</h4><div class="ss-param-grid">' + sends.map(p => slider(...p)).join('') + '</div></section>' +
+                '</div>' +
+                '<section class="ss-insp-card ss-insp-fx"><h4>' + esc(tr('fx_chain')) + ' (' + inserts.length + '/' + M.MAX_INSERTS + ')</h4><div class="ss-fx-rack">' + (rack || '<div class="ss-fx-empty"><p class="ss-muted">' + esc(tr('fx_empty')) + '</p></div>') + '</div></section>' +
+                '</div>' +
+                (audioTrack ? '' : auditionDockMarkup(drum)) +
+                '</div>';
+
+            pane.querySelectorAll('input,select,[data-reset-param],[data-action="deleteTrack"],[data-action="design"],[data-fx-add],[data-fx-remove]').forEach(el => el.disabled = blocked() && !(stage?.active() && ['tone', 'reverb'].includes(el.dataset.param)));
+            if (blocked()) pane.querySelectorAll('[data-fx-move]').forEach(el => el.disabled = true);
         }
-        // The programmable synthesizer edits a draft patch browser-local. Every
-        // control refreshes the preview instrument immediately; a track that
-        // already plays the edited user synth hears the draft on its next
-        // notes. Saving either updates the stored synth or creates a new one,
-        // and a design started from the selected track assigns the result to
-        // that track as one undoable project mutation.
-        function renderDesigner(){
-            const pane=find('[data-inspector]');
-            designerEditor?.dispose();designerEditor=null;
-            if(!designer||!D){designer=null;renderInspector();return;}
-            try{
-                designerEditor=D.createEditor({host:pane,tr,esc,signal,state:designer,blocked,
-                    onChange:()=>{D.setPreview(designer.patch);if(designer.isUser)D.live(designer.sourceId,designer.patch);},
-                    onPreview:pitch=>{D.setPreview(designer.patch);audition(pitch,D.PREVIEW_ID);},
-                    onAction:action=>{designerAction(action).catch(fail);}
+
+        function renderQuickStrip() {
+            const strip = find('[data-quick-strip]');
+            if (!strip) return;
+            const t = track();
+            if (!t) {
+                strip.innerHTML = '<div class="ss-quick-empty"><p class="ss-muted">' + esc(tr('inspector_hint')) + '</p></div>';
+                return;
+            }
+            const drum = isDrumTrack(t), audioTrack = isAudioTrack(t), items = instrumentOptionsFor(t);
+            const knob = (key, min, max, step, value) => '<label class="ss-parameter ss-quick-knob"><span>' + esc(tr(key)) + '</span><input data-quick-param="' + key + '" data-ss-kind="knob" type="range" min="' + min + '" max="' + max + '" step="' + step + '" value="' + value + '" aria-label="' + esc(tr(key)) + '"><output>' + Number(value).toFixed(2) + '</output></label>';
+            const knobs = [['pan', -1, 1, 0.01, t.pan], ...(audioTrack ? [] : [['tone', 0, 1, 0.01, t.params.tone], ['resonance', 0, 1, 0.01, t.params.resonance ?? 0], ['drive', 0, 1, 0.01, t.params.drive ?? 0]]), ['reverb', 0, 1, 0.01, t.params.reverb], ['delay', 0, 1, 0.01, t.params.delay]];
+            const fxCount = Array.isArray(t.fx?.inserts) ? t.fx.inserts.length : 0;
+            strip.innerHTML = '<header class="ss-quick-head"><strong>' + esc(t.name) + '</strong><button type="button" data-action="quickStrip" aria-label="' + esc(tr('close_editor')) + '">✕</button></header>' +
+                (audioTrack ? '' : '<label class="ss-quick-inst"><span>' + esc(tr('instrument')) + '</span><select data-quick-instrument aria-label="' + esc(tr('instrument')) + '">' + items.map(i => '<option value="' + esc(i.id) + '"' + (i.id === t.instrument ? ' selected' : '') + '>' + esc(i.name) + '</option>').join('') + '</select></label>') +
+                '<div class="ss-quick-grid">' + knobs.map(k => knob(...k)).join('') + '</div>' +
+                '<div class="ss-quick-actions"><button type="button" data-action="inspector">' + esc(tr('fx_chain')) + ' (' + fxCount + ')</button>' +
+                (!drum && !audioTrack ? '<button type="button" data-action="design">✦ ' + esc(tr('designer_open')) + '</button>' : '') +
+                '</div>';
+            strip.querySelectorAll('input,select,button[data-action="design"]').forEach(el => el.disabled = blocked());
+        }
+
+        function renderMixer() {
+            const hostEl = workspace?.mixer;
+            if (!hostEl) return;
+            const p = project(), selectedId = track()?.id || '';
+            if (!p.tracks.length) {
+                hostEl.innerHTML = '<div class="ss-mixer-empty"><span>♫</span><strong>' + esc(tr('mixer_channels')) + '</strong><p>' + esc(tr('inspector_hint')) + '</p><button type="button" data-rail-add' + (blocked() ? ' disabled' : '') + '>＋ ' + esc(tr('add_track')) + '</button></div>';
+                return;
+            }
+            hostEl.innerHTML = '<div class="ss-mix-deck">' +
+                '<header class="ss-mix-head"><strong>' + esc(tr('mixer_channels')) + ' (' + p.tracks.length + ')</strong><button type="button" data-rail-add' + (blocked() ? ' disabled' : '') + '>＋ ' + esc(tr('add_track')) + '</button></header>' +
+                '<div class="ss-mix-channels">' +
+                p.tracks.map((t, i) => {
+                    const instName = isAudioTrack(t) ? 'RB-338' : (P.get(t.instrument)?.name || t.instrument);
+                    const fxCount = Array.isArray(t.fx?.inserts) ? t.fx.inserts.length : 0;
+                    const miniKnob = (paramKey, labelKey, min, max, step, val) => '<label class="ss-mix-knob"><span>' + esc(tr(labelKey)) + '</span><input data-mix-param="' + esc(t.id + ':' + paramKey) + '" data-ss-kind="knob" type="range" min="' + min + '" max="' + max + '" step="' + step + '" value="' + val + '" aria-label="' + esc(t.name + ' ' + tr(labelKey)) + '"><output>' + Number(val).toFixed(2) + '</output></label>';
+                    return '<div class="ss-mix-strip' + (t.id === selectedId ? ' is-selected' : '') + '" style="--ss-track-color:var(--ss-color-' + (i % 6) + ')">' +
+                        '<button type="button" class="ss-mix-title" data-mix-select="' + esc(t.id) + '" title="' + esc(t.name + ' · ' + instName) + '"><strong>' + esc(t.name) + '</strong><small>' + esc(instName) + '</small></button>' +
+                        '<div class="ss-mix-knobs">' +
+                        miniKnob('pan', 'pan', -1, 1, 0.01, t.pan) +
+                        '<div class="ss-mix-sends">' + miniKnob('reverb', 'reverb', 0, 1, 0.01, t.params.reverb) + miniKnob('delay', 'delay', 0, 1, 0.01, t.params.delay) + '</div>' +
+                        '</div>' +
+                        '<button type="button" class="ss-track-fx-badge' + (fxCount ? ' has-fx' : '') + '" data-open-track-fx="' + esc(t.id) + '">' + (fxCount ? fxCount + ' FX' : '+ FX') + '</button>' +
+                        '<div class="ss-mix-ms"><button type="button" data-mix-action="mute" data-id="' + esc(t.id) + '" aria-pressed="' + !!t.mute + '" aria-label="' + esc(tr('mute')) + '">M</button><button type="button" data-mix-action="solo" data-id="' + esc(t.id) + '" aria-pressed="' + !!t.solo + '" aria-label="' + esc(tr('solo')) + '">S</button></div>' +
+                        '<label class="ss-mix-fader"><input type="range" min="0" max="1" step=".01" value="' + t.volume + '" data-mix-volume="' + esc(t.id) + '" data-ss-kind="vfader" aria-label="' + esc(t.name + ' ' + tr('volume')) + '"><output>' + Number(t.volume).toFixed(2) + '</output></label>' +
+                        '</div>';
+                }).join('') +
+                '</div></div>';
+            if (blocked()) hostEl.querySelectorAll('input,button').forEach(el => el.disabled = true);
+        }
+
+        function renderDesigner() {
+            const pane = find('[data-inspector]');
+            designerEditor?.dispose(); designerEditor = null;
+            if (!designer || !D) { designer = null; renderInspector(); return; }
+            try {
+                designerEditor = D.createEditor({
+                    host: pane, tr, esc, signal, state: designer, blocked,
+                    onChange: () => { D.setPreview(designer.patch); if (designer.isUser) D.live(designer.sourceId, designer.patch); },
+                    onPreview: pitch => { D.setPreview(designer.patch); audition(pitch, D.PREVIEW_ID); },
+                    onAction: action => { designerAction(action).catch(fail); }
                 });
-            }catch(error){designer=null;fail(error);renderInspector();}
+            } catch (error) { designer = null; fail(error); renderInspector(); }
         }
-        function openDesigner(sourceId,applyTrackId){
-            if(!D||!sourceId||sourceId==='user-preview')return;
-            const base=D.describe(sourceId);
-            if(!base.canEdit){notice(tr('designer_drum_hint'));return;}
-            designer={sourceId,sourceName:base.name,name:base.name,isUser:base.isUser,patch:base.patch,base:JSON.parse(JSON.stringify(base.patch)),applyTrackId:applyTrackId||null};
+
+        function openDesigner(sourceId, applyTrackId) {
+            if (!D || !sourceId || sourceId === 'user-preview') return;
+            const base = D.describe(sourceId);
+            if (!base.canEdit) { notice(tr('designer_drum_hint')); return; }
+            designer = { sourceId, sourceName: base.name, name: base.name, isUser: base.isUser, patch: base.patch, base: JSON.parse(JSON.stringify(base.patch)), applyTrackId: applyTrackId || null };
             D.setPreview(designer.patch);
+            if (workspace?.currentPanel() !== 'sound') workspace.panel('sound');
             refresh();
         }
-        async function designerAction(action){
-            const d=designer;
-            if(!d||!D)return;
-            if(action==='close'){designer=null;D.setPreview(null);refresh();return;}
-            if(action==='mutate'||action==='randomize'){
-                d.patch=action==='mutate'?D.mutatePatch(d.patch):D.randomPatch();
-                D.setPreview(d.patch);if(d.isUser)D.live(d.sourceId,d.patch);
-                refresh();audition(60,D.PREVIEW_ID);return;
+
+        async function designerAction(action) {
+            const d = designer;
+            if (!d || !D) return;
+            if (action === 'close') { designer = null; D.setPreview(null); refresh(); return; }
+            if (action === 'mutate' || action === 'randomize') {
+                d.patch = action === 'mutate' ? D.mutatePatch(d.patch) : D.randomPatch();
+                D.setPreview(d.patch); if (d.isUser) D.live(d.sourceId, d.patch);
+                refresh(); audition(60, D.PREVIEW_ID); return;
             }
-            if(blocked()&&action!=='reset')return;
-            if(action==='reset'){d.patch=D.normalize(d.base);d.name=d.isUser?d.name:d.sourceName;D.setPreview(d.patch);if(d.isUser)D.live(d.sourceId,d.patch);refresh();return;}
-            if(action==='save'&&d.isUser){
-                const entry=D.update(d.sourceId,d.name||d.sourceName,d.patch);
-                if(!entry)return;
-                d.sourceName=entry.name;d.name=entry.name;d.base=JSON.parse(JSON.stringify(entry.patch));d.patch=D.normalize(entry.patch);
-                D.live(d.sourceId,d.patch);D.setPreview(d.patch);
-                notice(tr('designer_saved'));refresh();return;
+            if (blocked() && action !== 'reset') return;
+            if (action === 'reset') { d.patch = D.normalize(d.base); d.name = d.isUser ? d.name : d.sourceName; D.setPreview(d.patch); if (d.isUser) D.live(d.sourceId, d.patch); refresh(); return; }
+            if (action === 'save' && d.isUser) {
+                const entry = D.update(d.sourceId, d.name || d.sourceName, d.patch);
+                if (!entry) return;
+                d.sourceName = entry.name; d.name = entry.name; d.base = JSON.parse(JSON.stringify(entry.patch)); d.patch = D.normalize(entry.patch);
+                D.live(d.sourceId, d.patch); D.setPreview(d.patch);
+                notice(tr('designer_saved')); refresh(); return;
             }
-            if(action==='saveAs'){
-                let name=(d.name||d.sourceName||tr('designer')).slice(0,D.MAX_NAME);
-                if(ctx.promptDialog){const answer=await ctx.promptDialog(tr('designer_prompt'),name);if(answer==null||!answer.trim())return;name=answer.trim().slice(0,D.MAX_NAME);}
-                const entry=D.create(name,d.patch);
-                if(!entry){notice(tr('designer_full'));return;}
-                d.sourceId=entry.id;d.sourceName=entry.name;d.name=entry.name;d.isUser=true;d.base=JSON.parse(JSON.stringify(entry.patch));d.patch=D.normalize(entry.patch);
-                if(d.applyTrackId){mutate(p=>{const t=p.tracks.find(x=>x.id===d.applyTrackId);if(t&&t.instrument!=='drums-kit'&&t.instrument!=='gm-drums'&&!t.instrument.startsWith('drum-')){t.instrument=entry.id;t.params=M.defaultParamsFor(entry.id);}});notice(tr('designer_saved_track'));}
-                else notice(tr('designer_saved'));
-                D.setPreview(d.patch);refresh();return;
+            if (action === 'saveAs') {
+                let name = (d.name || d.sourceName || tr('designer')).slice(0, D.MAX_NAME);
+                if (ctx.promptDialog) { const answer = await ctx.promptDialog(tr('designer_prompt'), name); if (answer == null || !answer.trim()) return; name = answer.trim().slice(0, D.MAX_NAME); }
+                const entry = D.create(name, d.patch);
+                if (!entry) { notice(tr('designer_full')); return; }
+                d.sourceId = entry.id; d.sourceName = entry.name; d.name = entry.name; d.isUser = true; d.base = JSON.parse(JSON.stringify(entry.patch)); d.patch = D.normalize(entry.patch);
+                if (d.applyTrackId) {
+                    mutate(p => {
+                        const t = p.tracks.find(x => x.id === d.applyTrackId);
+                        if (t && !isDrumTrack(t)) { t.instrument = entry.id; t.params = M.defaultParamsFor(entry.id); }
+                    });
+                    notice(tr('designer_saved_track'));
+                } else notice(tr('designer_saved'));
+                D.setPreview(d.patch); refresh(); return;
             }
-            if(action==='remove'){
-                if(!d.isUser)return;
-                const ok=ctx.confirmDialog?await ctx.confirmDialog(tr('designer_delete'),tr('designer_delete_confirm')):true;
-                if(!ok)return;
-                D.remove(d.sourceId);designer=null;D.setPreview(null);notice(tr('designer_deleted'));refresh();
+            if (action === 'remove') {
+                if (!d.isUser) return;
+                const ok = ctx.confirmDialog ? await ctx.confirmDialog(tr('designer_delete'), tr('designer_delete_confirm')) : true;
+                if (!ok) return;
+                D.remove(d.sourceId); designer = null; D.setPreview(null); notice(tr('designer_deleted')); refresh();
             }
         }
-        // The master strip is a project wide control. It sits in the transport
-        // area so the mix can be judged without opening the sound panel.
-        const MASTER_GROUPS=[
-            {label:'fx_output',fields:[['volume','volume',0,1.5,.01],['width','fx_width',0,2,.01]]},
-            {label:'fx_compressor',cols:3,fields:[['threshold','fx_threshold',-60,0,.5],['ratio','fx_ratio',1,20,.1],['knee','fx_knee',0,40,.5],['attack','attack',0,1,.001],['release','release',0,1,.01]]},
-            {label:'fx_eq3',curve:'eq',fields:[['low','fx_low',-18,18,.5],['mid','fx_mid',-18,18,.5],['high','fx_high',-18,18,.5]]},
-            {label:'fx_send',cols:3,fields:[['plateSize','fx_size',0,1,.01],['plateDecay','fx_decay',0,1,.01],['echoTime','fx_time',.01,2,.005],['echoFeedback','fx_feedback',0,.85,.01]],select:'echoSync'}
+
+        const MASTER_GROUPS = [
+            { label: 'fx_output', fields: [['volume', 'volume', 0, 1.5, 0.01], ['width', 'fx_width', 0, 2, 0.01]] },
+            { label: 'fx_eq3', curve: 'eq', cols: 3, fields: [['low', 'fx_low', -18, 18, 0.5], ['mid', 'fx_mid', -18, 18, 0.5], ['high', 'fx_high', -18, 18, 0.5]] },
+            { label: 'fx_compressor', cols: 3, fields: [['threshold', 'fx_threshold', -60, 0, 0.5], ['ratio', 'fx_ratio', 1, 20, 0.1], ['knee', 'fx_knee', 0, 40, 0.5], ['attack', 'attack', 0, 1, 0.001], ['release', 'release', 0, 1, 0.01]] },
+            { label: 'fx_send', cols: 2, fields: [['plateSize', 'fx_size', 0, 1, 0.01], ['plateDecay', 'fx_decay', 0, 1, 0.01], ['echoTime', 'fx_time', 0.01, 2, 0.005], ['echoFeedback', 'fx_feedback', 0, 0.85, 0.01]], select: 'echoSync' }
         ];
-        const ECHO_DIVISIONS=['off','1/4','1/8','1/8T','1/16','1/16T'];
-        // The master volume reads in dB; every other control keeps its plain number.
-        const masterReadout=(key,value)=>key==='volume'?K.formatDb(value):Number(value).toFixed(2);
-        // The EQ curve reads the live input values, so a drag redraws it before the
-        // gesture commits; one repaint per frame however fast the input events come.
-        function paintEq(){
-            const panel=find('[data-master-panel]'),svg=panel?.querySelector('[data-curve=eq]');if(!svg)return;
-            const v=key=>Number(panel.querySelector('[data-master-param='+key+']')?.value)||0;
-            K.paintEq(svg,v('low'),v('mid'),v('high'));
+        const ECHO_DIVISIONS = ['off', '1/4', '1/8', '1/8T', '1/16', '1/16T'];
+        const masterReadout = (key, value) => key === 'volume' ? K.formatDb(value) : Number(value).toFixed(2);
+        function paintEq() {
+            const panel = find('[data-master-panel]'), svg = panel?.querySelector('[data-curve=eq]'); if (!svg) return;
+            const v = key => Number(panel.querySelector('[data-master-param=' + key + ']')?.value) || 0;
+            K.paintEq(svg, v('low'), v('mid'), v('high'));
         }
-        const scheduleEq=K.scheduler(paintEq);
-        function renderMaster(){
-            const panel=find('[data-master-panel]');if(!panel)return;
-            const defaults=M.MASTER_DEFAULTS||{},m={...defaults,...(project().master||{})};
-            const field=([key,label,min,max,step])=>{const value=Number(m[key]??defaults[key]??0),hero=key==='volume';const body='<label class="ss-parameter'+(hero?' ss-master-hero':'')+'"><span>'+esc(tr(label))+'</span><input data-master-param="'+key+'" type="range" min="'+min+'" max="'+max+'" step="'+step+'" value="'+value+'" aria-label="'+esc(tr(label))+'"><output>'+masterReadout(key,value)+'</output></label>';return hero?'<div class="ss-master-hero-row">'+body+K.meterMarkup(esc(tr('master_level')))+'</div>':body;};
-            const sync=String(m.echoSync??'1/8');
-            const options=ECHO_DIVISIONS.map(value=>'<option value="'+value+'"'+(value===sync?' selected':'')+'>'+esc(value==='off'?tr('fx_off'):value)+'</option>').join('');
-            panel.innerHTML=MASTER_GROUPS.map(group=>{
-                const select=group.select?('<label class="ss-parameter ss-master-select"><span>'+esc(tr('fx_echo_sync'))+'</span><select data-master-select="'+group.select+'" aria-label="'+esc(tr('fx_echo_sync'))+'">'+options+'</select></label>'):'';
-                return '<div class="ss-master-group"><h4>'+esc(tr(group.label))+'</h4><div class="ss-master-fields" style="--ss-master-cols:'+(group.cols||2)+'">'+group.fields.map(field).join('')+select+'</div>'+(group.curve==='eq'?K.eqMarkup(esc(tr('eq_curve'))):'')+'</div>';
-            }).join('');
-            panel.querySelectorAll('input,select').forEach(el=>el.disabled=blocked());
+        const scheduleEq = K.scheduler(paintEq);
+
+        function renderMaster() {
+            const panel = find('[data-master-panel]'); if (!panel) return;
+            const defaults = M.MASTER_DEFAULTS || {}, m = { ...defaults, ...(project().master || {}) };
+            const field = ([key, label, min, max, step]) => {
+                const value = Number(m[key] ?? defaults[key] ?? 0), hero = key === 'volume';
+                const body = '<label class="ss-parameter' + (hero ? ' ss-master-hero' : '') + '"><span>' + esc(tr(label)) + '</span><input data-master-param="' + key + '" type="range" min="' + min + '" max="' + max + '" step="' + step + '" value="' + value + '" aria-label="' + esc(tr(label)) + '"><output>' + masterReadout(key, value) + '</output></label>';
+                return hero ? '<div class="ss-master-hero-row">' + body + K.meterMarkup(esc(tr('master_level'))) + '</div>' : body;
+            };
+            const sync = String(m.echoSync ?? '1/8');
+            const options = ECHO_DIVISIONS.map(value => '<option value="' + value + '"' + (value === sync ? ' selected' : '') + '>' + esc(value === 'off' ? tr('fx_off') : value) + '</option>').join('');
+            panel.innerHTML = '<div class="ss-master-head"><strong>' + esc(tr('fx_master')) + '</strong><button type="button" class="ss-master-close" data-action="master" aria-label="' + esc(tr('close_editor')) + '">✕</button></div>' +
+                '<div class="ss-master-groups">' +
+                MASTER_GROUPS.map(group => {
+                    const select = group.select ? ('<label class="ss-parameter ss-master-select"><span>' + esc(tr('fx_echo_sync')) + '</span><select data-master-select="' + group.select + '" aria-label="' + esc(tr('fx_echo_sync')) + '">' + options + '</select></label>') : '';
+                    return '<div class="ss-master-group"><h4>' + esc(tr(group.label)) + '</h4>' + (group.curve === 'eq' ? K.eqMarkup(esc(tr('eq_curve'))) : '') + '<div class="ss-master-fields" style="--ss-master-cols:' + (group.cols || 2) + '">' + group.fields.map(field).join('') + select + '</div></div>';
+                }).join('') +
+                '</div>';
+            panel.querySelectorAll('input,select').forEach(el => el.disabled = blocked());
             paintEq();
         }
 
         function controlTarget(el) {
-            if(el.dataset.masterParam)return {master:true,key:el.dataset.masterParam,value:Number(el.value)};
-            if(el.dataset.param)return {id:track()?.id,key:el.dataset.param,value:Number(el.value)};
-            if(el.dataset.fxParam){const parts=el.dataset.fxParam.split(':');return {id:track()?.id,fxIndex:Number(parts[0]),fxKey:parts[1],value:Number(el.value)};}
-            if(el.dataset.trackVolume)return {id:el.dataset.trackVolume,key:'volume',value:Number(el.value)};
+            if (el.dataset.masterParam) return { master: true, key: el.dataset.masterParam, value: Number(el.value) };
+            if (el.dataset.param) return { id: track()?.id, key: el.dataset.param, value: Number(el.value) };
+            if (el.dataset.quickParam) return { id: track()?.id, key: el.dataset.quickParam, value: Number(el.value) };
+            if (el.dataset.mixParam) { const parts = el.dataset.mixParam.split(':'); return { id: parts[0], key: parts[1], value: Number(el.value) }; }
+            if (el.dataset.mixVolume) return { id: el.dataset.mixVolume, key: 'volume', value: Number(el.value) };
+            if (el.dataset.fxParam) { const parts = el.dataset.fxParam.split(':'); return { id: track()?.id, fxIndex: Number(parts[0]), fxKey: parts[1], value: Number(el.value) }; }
+            if (el.dataset.trackVolume) return { id: el.dataset.trackVolume, key: 'volume', value: Number(el.value) };
             return null;
         }
-        function setParameter(p, c) {if(c.master){p.master={...(p.master||{}),[c.key]:c.value};return;}const t=p.tracks.find(t=>t.id===c.id);if(!t)return;
-            if(c.fxIndex!==undefined){const insert=t.fx?.inserts?.[c.fxIndex];if(insert)insert[c.fxKey]=c.value;return;}
-            if(['pan','volume'].includes(c.key))t[c.key]=c.value;else t.params[c.key]=c.value;}
+        function setParameter(p, c) {
+            if (c.master) { p.master = { ...(p.master || {}), [c.key]: c.value }; return; }
+            const t = p.tracks.find(t => t.id === c.id); if (!t) return;
+            if (c.fxIndex !== undefined) { const ins = t.fx?.inserts?.[c.fxIndex]; if (ins) ins[c.fxKey] = c.value; return; }
+            if (['pan', 'volume'].includes(c.key)) t[c.key] = c.value; else t.params[c.key] = c.value;
+        }
         function previewParameter(el) {
-            const c=controlTarget(el);if(!c||(!c.master&&!c.id))return;
-            if(!c.master&&stage?.preview(c)){const out=el.parentElement.querySelector('output');if(out)out.textContent=c.value.toFixed(2);return;}            if(c.master&&['low','mid','high'].includes(c.key))scheduleEq();
-            if(blocked())return;
-            const p={...project(),master:{...(project().master||{})},tracks:project().tracks.map(t=>({...t,params:{...t.params},fx:t.fx?{...t.fx,inserts:t.fx.inserts.map(insert=>({...insert}))}:undefined}))};setParameter(p,c);audio.updateTracks(p);
-            const out=el.parentElement.querySelector('output');if(out)out.textContent=c.master?masterReadout(c.key,c.value):Number(c.value).toFixed(2);
+            const c = controlTarget(el); if (!c || (!c.master && !c.id)) return;
+            if (!c.master && stage?.preview(c)) { const out = el.parentElement.querySelector('output'); if (out) out.textContent = c.value.toFixed(2); return; }
+            if (c.master && ['low', 'mid', 'high'].includes(c.key)) scheduleEq();
+            if (blocked()) return;
+            const p = { ...project(), master: { ...(project().master || {}) }, tracks: project().tracks.map(t => ({ ...t, params: { ...t.params }, fx: t.fx ? { ...t.fx, inserts: t.fx.inserts.map(ins => ({ ...ins })) } : undefined })) };
+            setParameter(p, c);
+            audio.updateTracks(p);
+            const out = el.parentElement.querySelector('output');
+            if (out) out.textContent = c.master ? masterReadout(c.key, c.value) : Number(c.value).toFixed(2);
         }
-        function finishParameter(cancel=false) {
-            const g=parameterGesture;if(!g)return;parameterGesture=null;
-            if(g.staged){stage.end(cancel);refresh();return;}
-            if(cancel||blocked()){audio.updateTracks(project());refresh();return;}
-            const c=controlTarget(g.element);if(c)mutate(p=>setParameter(p,{...c,id:g.id}),'mix');
+        function finishParameter(cancel = false) {
+            const g = parameterGesture; if (!g) return;
+            parameterGesture = null;
+            if (g.staged) { stage.end(cancel); refresh(); return; }
+            if (cancel || blocked()) { audio.updateTracks(project()); refresh(); return; }
+            const c = controlTarget(g.element);
+            if (c) mutate(p => setParameter(p, { ...c, id: g.id }), 'mix');
         }
-        root.addEventListener('pointerdown',e=>{const c=controlTarget(e.target);if(c&&(c.master||c.id)&&(!blocked()||(!c.master&&stage?.active()&&['tone','reverb'].includes(c.key))))parameterGesture={element:e.target,id:c.id,staged:c.master?null:stage?.begin({...c,external:true})};},{signal});
-        root.addEventListener('keydown',e=>{if(e.key==='Escape'&&parameterGesture){e.preventDefault();finishParameter(true);return;}const c=controlTarget(e.target);if(c&&(c.master||c.id)&&(!blocked()||(!c.master&&stage?.active()&&['tone','reverb'].includes(c.key)))&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End','PageUp','PageDown'].includes(e.key))parameterGesture||={element:e.target,id:c.id,staged:c.master?null:stage?.begin({...c,external:true})};},{signal});
-        window.addEventListener('pointerup',()=>finishParameter(),{signal});
-        window.addEventListener('keyup',e=>{if(parameterGesture&&e.target===parameterGesture.element)finishParameter();},{signal});
-        window.addEventListener('pointercancel',()=>finishParameter(true),{signal});
-        function renderMIDI(){
-            if(disposed)return;const input=find('[data-midi-input]'),value=input.value;
-            input.innerHTML='<option value="">'+esc(tr('midi_device'))+'</option>'+midi.inputs().map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name)+'</option>').join('');if([...input.options].some(o=>o.value===value))input.value=value;
-            find('[data-midi-state]').textContent=tr(['connected','disconnected','unsupported','denied'].includes(midiState.status)?midiState.status:'disconnected');
+
+        root.addEventListener('pointerdown', e => {
+            const c = controlTarget(e.target);
+            if (c && (c.master || c.id) && (!blocked() || (!c.master && stage?.active() && ['tone', 'reverb'].includes(c.key)))) {
+                parameterGesture = { element: e.target, id: c.id, staged: c.master ? null : stage?.begin({ ...c, external: true }) };
+            }
+        }, { signal });
+        root.addEventListener('keydown', e => {
+            if (e.key === 'Escape' && parameterGesture) { e.preventDefault(); finishParameter(true); return; }
+            const c = controlTarget(e.target);
+            if (c && (c.master || c.id) && (!blocked() || (!c.master && stage?.active() && ['tone', 'reverb'].includes(c.key))) && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'].includes(e.key)) {
+                parameterGesture ||= { element: e.target, id: c.id, staged: c.master ? null : stage?.begin({ ...c, external: true }) };
+            }
+        }, { signal });
+        window.addEventListener('pointerup', () => finishParameter(), { signal });
+        window.addEventListener('keyup', e => { if (parameterGesture && e.target === parameterGesture.element) finishParameter(); }, { signal });
+        window.addEventListener('pointercancel', () => finishParameter(true), { signal });
+
+        function renderMIDI() {
+            if (disposed) return;
+            const input = find('[data-midi-input]'), value = input.value;
+            input.innerHTML = '<option value="">' + esc(tr('midi_device')) + '</option>' + midi.inputs().map(x => '<option value="' + esc(x.id) + '">' + esc(x.name) + '</option>').join('');
+            if ([...input.options].some(o => o.value === value)) input.value = value;
+            find('[data-midi-state]').textContent = tr(['connected', 'disconnected', 'unsupported', 'denied'].includes(midiState.status) ? midiState.status : 'disconnected');
         }
-        function position(tick,meta){if(meta)stage?.onTick(tick,meta);if(recording?.phase==='record'&&tick>=recording.start+recording.maxLength){const limited=recording.timelineLimited;stop();if(limited)fail({code:'E_PROJECT_LIMIT'});return;}cursor=Math.max(0,tick);editor.setPlayhead(cursor);find('[data-position]').textContent=String(Math.floor(cursor/BAR)+1).padStart(2,'0')+' : '+String(Math.floor(cursor%BAR/PPQ)+1).padStart(2,'0');}
-        async function play(at=cursor,override,onStarted){
-            strudel?.stop();rb338?.stop?.();
-            if(disposed||busy)return;composer?.stop();const epoch=++generation;try{await audio.unlock();if(disposed||epoch!==generation)return;playing=true;status();const running=audio.play({...(override||stage.runtime(project())),metronome},at,position,()=>{if(epoch===generation){if(recording)finishRecording();stage?.stop();playing=false;refresh();}});await Promise.resolve();if(epoch===generation&&audio.running())onStarted?.();await running;}catch(error){stage?.stop();playing=false;fail(error);refresh();}
+
+        function position(tick, meta) {
+            if (meta) stage?.onTick(tick, meta);
+            if (recording?.phase === 'record' && tick >= recording.start + recording.maxLength) { const limited = recording.timelineLimited; stop(); if (limited) fail({ code: 'E_PROJECT_LIMIT' }); return; }
+            cursor = Math.max(0, tick);
+            editor.setPlayhead(cursor);
+            find('[data-position]').textContent = String(Math.floor(cursor / BAR) + 1).padStart(2, '0') + ' : ' + String(Math.floor(cursor % BAR / PPQ) + 1).padStart(2, '0');
         }
-        function panic(){for(const [key,n] of [...live.entries()])noteOff(Number(key.split(':')[1]),performance.now(),n.channel);audio.panic?.();}
-        function stop(reset=false,keepPreview=false){strudel?.stop();generation++;if(!keepPreview)composer?.stop();stage?.stop();const tick=audio.stop();notice('');if(recording)finishRecording();panic();playing=false;position(reset?0:tick||cursor);refresh();}
-        function seek(tick){const resume=playing;stop();position(tick);if(resume)play(tick);}
-        async function audition(pitch=60,instrument){
-            if(stage?.active())return;const epoch=generation;try{await audio.unlock();if(disposed||epoch!==generation)return;const targetInst=instrument||selectedInstrument,presetParams=M.defaultParamsFor?.(targetInst)||{tone:.5,resonance:0,drive:0,attack:.01,release:.3,reverb:.1,delay:0},presetInserts=M.defaultInsertsFor?.(targetInst)||[];const t=track()||{id:'audition',instrument:targetInst,volume:.65,pan:0,params:presetParams,fx:{inserts:presetInserts}};const release=audio.noteOn(instrument?{...t,id:'audition-'+instrument,instrument,params:presetParams,fx:{inserts:presetInserts}}:t,pitch,.7);later(()=>release?.(),300);}catch(error){fail(error);}
+        async function play(at = cursor, override, onStarted) {
+            strudel?.stop(); rb338?.stop?.();
+            if (disposed || busy) return;
+            composer?.stop();
+            const epoch = ++generation;
+            try {
+                await audio.unlock();
+                if (disposed || epoch !== generation) return;
+                playing = true; status();
+                const running = audio.play({ ...(override || stage.runtime(project())), metronome }, at, position, () => {
+                    if (epoch === generation) { if (recording) finishRecording(); stage?.stop(); playing = false; refresh(); }
+                });
+                await Promise.resolve();
+                if (epoch === generation && audio.running()) onStarted?.();
+                await running;
+            } catch (error) { stage?.stop(); playing = false; fail(error); refresh(); }
         }
-        function recordTick(time){const r=recording;if(!r||r.phase!=='record')return 0;return Math.min(r.start+r.maxLength,Math.max(r.start,audio.currentTick()+(time-performance.now()-latency)/1000*project().tempo/60*PPQ));}
-        function stopForRecordingLimit(){if(!recording)return;stop();fail({code:'E_PROJECT_LIMIT'});}
-        // Recorded event fields and IDs are ASCII, so JSON string length is its exact UTF-8 byte count.
-        function eventBytes(value){return JSON.stringify(value).length;}
-        async function noteOn(pitch,velocity=.8,time=performance.now(),channel=16){
-            if(stage?.active())return;const t=recording?project().tracks.find(t=>t.id===recording.trackId):track();if(!t||disposed)return;const epoch=generation,key=channel+':'+pitch;noteOff(pitch,time,channel);
-            if(project().harmony.snap&&!M.isDrumInstrument?.(t.instrument)&&!t.instrument.includes('drum'))pitch=window.SynthStudioMusic.fit(pitch,project().harmony);
-            if(composer?.enabled()){composer.hold(key,pitch,velocity);return;}
-            const r=recording&&recording.phase==='record'?recording:null,start=r?recordTick(time):null;
-            if(r){
-                if(start>=r.start+r.maxLength||r.used>=r.capacity){stopForRecordingLimit();return;}
-                const q=r.quantizeStep,relativeStart=Math.min(r.maxLength-q,Math.max(0,Math.round((start-r.start)/q)*q)),noteID=M.newID('note'),separatorBytes=r.noteCount?1:0;
-                const reservedBytes=eventBytes({id:noteID,pitch,start:relativeStart,duration:r.maxLength-relativeStart,velocity})+separatorBytes;
-                if(r.bytesUsed+reservedBytes>r.byteCapacity){stopForRecordingLimit();return;}
-                r.used++;r.noteCount++;r.bytesUsed+=reservedBytes;
-                live.set(key,{id:noteID,pitch,channel,release:null,start,velocity,recording:r,reservedBytes,separatorBytes});
-            }else{live.set(key,{pitch,channel,release:null,start:null,velocity});}
-            const note=live.get(key);
-            try{await audio.unlock();if(disposed||epoch!==generation||live.get(key)!==note)return;note.release=audio.noteOn(t,pitch,velocity);find('[data-midi-led]').classList.add('is-on');}catch(error){if(live.get(key)===note){live.delete(key);if(note.recording===recording){recording.used--;recording.noteCount--;recording.bytesUsed-=note.reservedBytes;}}fail(error);}
+        function panic() { for (const [key, n] of [...live.entries()]) noteOff(Number(key.split(':')[1]), performance.now(), n.channel); audio.panic?.(); }
+        function stop(reset = false, keepPreview = false) {
+            strudel?.stop(); generation++;
+            if (!keepPreview) composer?.stop();
+            stage?.stop();
+            const tick = audio.stop();
+            notice('');
+            if (recording) finishRecording();
+            panic();
+            playing = false;
+            position(reset ? 0 : tick || cursor);
+            refresh();
         }
-        function noteOff(pitch,time=performance.now(),channel=16){
-            const key=channel+':'+pitch,n=live.get(key);composer?.release(key);if(!n)return;n.release?.();live.delete(key);if(!live.size)find('[data-midi-led]').classList.remove('is-on');
-            if(recording?.phase==='record'&&n.recording===recording&&n.start!==null){
-                const r=recording,end=Math.min(recordTick(time),r.start+r.maxLength),q=r.quantizeStep,maxEnd=r.start+r.maxLength;
-                const absoluteStart=Math.min(maxEnd-q,Math.max(r.start,Math.round(n.start/q)*q)),start=absoluteStart-r.start;
-                const duration=Math.min(Math.max(q,Math.round((end-n.start)/q)*q),maxEnd-absoluteStart);
-                const note={id:n.id,pitch:n.pitch,start,duration,velocity:n.velocity};
-                r.bytesUsed+=eventBytes(note)+n.separatorBytes-n.reservedBytes;
+        function seek(tick) { const resume = playing; stop(); position(tick); if (resume) play(tick); }
+        async function audition(pitch = 60, instrument) {
+            if (stage?.active()) return;
+            const epoch = generation;
+            try {
+                await audio.unlock();
+                if (disposed || epoch !== generation) return;
+                const targetInst = instrument || selectedInstrument;
+                const presetParams = M.defaultParamsFor?.(targetInst) || { tone: 0.5, resonance: 0, drive: 0, attack: 0.01, release: 0.3, reverb: 0.1, delay: 0 };
+                const presetInserts = M.defaultInsertsFor?.(targetInst) || [];
+                const t = track() || { id: 'audition', instrument: targetInst, volume: 0.65, pan: 0, params: presetParams, fx: { inserts: presetInserts } };
+                const release = audio.noteOn(instrument ? { ...t, id: 'audition-' + instrument, instrument, params: presetParams, fx: { inserts: presetInserts } } : t, pitch, 0.7);
+                later(() => release?.(), 300);
+            } catch (error) { fail(error); }
+        }
+        function recordTick(time) { const r = recording; if (!r || r.phase !== 'record') return 0; return Math.min(r.start + r.maxLength, Math.max(r.start, audio.currentTick() + (time - performance.now() - latency) / 1000 * project().tempo / 60 * PPQ)); }
+        function stopForRecordingLimit() { if (!recording) return; stop(); fail({ code: 'E_PROJECT_LIMIT' }); }
+        function eventBytes(value) { return JSON.stringify(value).length; }
+
+        async function noteOn(pitch, velocity = 0.8, time = performance.now(), channel = 16) {
+            if (stage?.active()) return;
+            const t = recording ? project().tracks.find(t => t.id === recording.trackId) : track();
+            if (!t || disposed) return;
+            const epoch = generation, key = channel + ':' + pitch;
+            noteOff(pitch, time, channel);
+            if (project().harmony.snap && !M.isDrumInstrument?.(t.instrument) && !t.instrument.includes('drum')) pitch = window.SynthStudioMusic.fit(pitch, project().harmony);
+            if (composer?.enabled()) { composer.hold(key, pitch, velocity); return; }
+            const r = recording && recording.phase === 'record' ? recording : null, start = r ? recordTick(time) : null;
+            if (r) {
+                if (start >= r.start + r.maxLength || r.used >= r.capacity) { stopForRecordingLimit(); return; }
+                const q = r.quantizeStep, relativeStart = Math.min(r.maxLength - q, Math.max(0, Math.round((start - r.start) / q) * q)), noteID = M.newID('note'), separatorBytes = r.noteCount ? 1 : 0;
+                const reservedBytes = eventBytes({ id: noteID, pitch, start: relativeStart, duration: r.maxLength - relativeStart, velocity }) + separatorBytes;
+                if (r.bytesUsed + reservedBytes > r.byteCapacity) { stopForRecordingLimit(); return; }
+                r.used++; r.noteCount++; r.bytesUsed += reservedBytes;
+                live.set(key, { id: noteID, pitch, channel, release: null, start, velocity, recording: r, reservedBytes, separatorBytes });
+            } else {
+                live.set(key, { pitch, channel, release: null, start: null, velocity });
+            }
+            const note = live.get(key);
+            try {
+                await audio.unlock();
+                if (disposed || epoch !== generation || live.get(key) !== note) return;
+                note.release = audio.noteOn(t, pitch, velocity);
+                if (typeof root !== 'undefined') root.querySelectorAll('[data-midi-led]').forEach(el => el.classList.add('is-on'));
+                else find('[data-midi-led]').classList.add('is-on');
+            } catch (error) {
+                if (live.get(key) === note) {
+                    live.delete(key);
+                    if (note.recording === recording) { recording.used--; recording.noteCount--; recording.bytesUsed -= note.reservedBytes; }
+                }
+                fail(error);
+            }
+        }
+        function noteOff(pitch, time = performance.now(), channel = 16) {
+            const key = channel + ':' + pitch, n = live.get(key);
+            composer?.release(key);
+            if (!n) return;
+            n.release?.(); live.delete(key);
+            if (!live.size) {
+                if (typeof root !== 'undefined') root.querySelectorAll('[data-midi-led]').forEach(el => el.classList.remove('is-on'));
+                else find('[data-midi-led]').classList.remove('is-on');
+            }
+            if (recording?.phase === 'record' && n.recording === recording && n.start !== null) {
+                const r = recording, end = Math.min(recordTick(time), r.start + r.maxLength), q = r.quantizeStep, maxEnd = r.start + r.maxLength;
+                const absoluteStart = Math.min(maxEnd - q, Math.max(r.start, Math.round(n.start / q) * q)), start = absoluteStart - r.start;
+                const duration = Math.min(Math.max(q, Math.round((end - n.start) / q) * q), maxEnd - absoluteStart);
+                const note = { id: n.id, pitch: n.pitch, start, duration, velocity: n.velocity };
+                r.bytesUsed += eventBytes(note) + n.separatorBytes - n.reservedBytes;
                 r.notes.push(note);
             }
         }
-        function captureArp(track,pitch,velocity,at,duration){
-            const r=recording;if(!r||r.phase!=='record'||r.trackId!==track.id)return;
-            const seconds=60/project().tempo/PPQ,q=r.quantizeStep;
-            const raw=audio.currentTick()+(at-audio.clock())/seconds-r.start;
-            if(raw<0)return;const start=Math.max(0,Math.round(raw/q)*q);
-            if(start>=r.maxLength){stopForRecordingLimit();return;}
-            const note={id:M.newID('note'),pitch,start,duration:Math.min(r.maxLength-start,Math.max(q,Math.round(duration/seconds/q)*q)),velocity};
-            const bytes=eventBytes(note)+(r.noteCount?1:0);
-            if(r.used>=r.capacity||r.bytesUsed+bytes>r.byteCapacity){stopForRecordingLimit();return;}
-            r.notes.push(note);r.used++;r.noteCount++;r.bytesUsed+=bytes;
+        function captureArp(trackItem, pitch, velocity, at, duration) {
+            const r = recording; if (!r || r.phase !== 'record' || r.trackId !== trackItem.id) return;
+            const seconds = 60 / project().tempo / PPQ, q = r.quantizeStep;
+            const raw = audio.currentTick() + (at - audio.clock()) / seconds - r.start;
+            if (raw < 0) return;
+            const start = Math.max(0, Math.round(raw / q) * q);
+            if (start >= r.maxLength) { stopForRecordingLimit(); return; }
+            const note = { id: M.newID('note'), pitch, start, duration: Math.min(r.maxLength - start, Math.max(q, Math.round(duration / seconds / q) * q)), velocity };
+            const bytes = eventBytes(note) + (r.noteCount ? 1 : 0);
+            if (r.used >= r.capacity || r.bytesUsed + bytes > r.byteCapacity) { stopForRecordingLimit(); return; }
+            r.notes.push(note); r.used++; r.noteCount++; r.bytesUsed += bytes;
         }
-        function controller(e){const t=recording?project().tracks.find(t=>t.id===recording.trackId):track();if(!t)return;const r=recording?.phase==='record'?recording:null;if(r){const tick=recordTick(e.time)-r.start;if(tick>=r.maxLength||r.used>=r.capacity){stopForRecordingLimit();return;}const event={tick:Math.min(r.maxLength-1,Math.max(0,Math.round(tick))),type:e.type,value:e.value},bytes=eventBytes(event)+(r.controllerCount?1:0);if(r.bytesUsed+bytes>r.byteCapacity){stopForRecordingLimit();return;}r.used++;r.controllerCount++;r.bytesUsed+=bytes;r.controllers.push(event);}audio.addController?.(t,e.type,e.value);}
-        async function startRecording(){
-            if(!ready||readonly()||busy||storageState.loading)return;if(recording){stop();return;}
-            const existingEvents=eventCount(project());if(existingEvents>=MAX_EVENTS){if(playing)stop();fail({code:'E_PROJECT_LIMIT'});return;}
-            const start=Math.floor(cursor/BAR)*BAR,availableLength=Math.floor((MAX_TICK-start)/BAR)*BAR,maxLength=Math.min(RECORDING_TICKS,availableLength);
-            if(!Number.isFinite(start)||start<0||maxLength<BAR){if(playing)stop();fail({code:'E_PROJECT_LIMIT'});return;}
-            if(!track()){
-                const isDrum=selectedInstrument.startsWith('drum-')||selectedInstrument==='drums-kit'||selectedInstrument==='gm-drums';
-                const drumTrack=isDrum?project().tracks.find(t=>t.instrument==='drums-kit'||t.instrument==='gm-drums'||t.instrument.startsWith('drum-')):null;
-                const insertEvents=selectedInstrument.startsWith('drum-')?1:0;
-                if(existingEvents+insertEvents>=MAX_EVENTS||(drumTrack&&drumTrack.clips.length>=MAX_CLIPS-1)){if(playing)stop();fail({code:'E_PROJECT_LIMIT'});return;}
-                insert({type:'instrument',id:selectedInstrument},'',cursor);
+        function controller(e) {
+            const t = recording ? project().tracks.find(t => t.id === recording.trackId) : track(); if (!t) return;
+            const r = recording?.phase === 'record' ? recording : null;
+            if (r) {
+                const tick = recordTick(e.time) - r.start;
+                if (tick >= r.maxLength || r.used >= r.capacity) { stopForRecordingLimit(); return; }
+                const event = { tick: Math.min(r.maxLength - 1, Math.max(0, Math.round(tick))), type: e.type, value: e.value }, bytes = eventBytes(event) + (r.controllerCount ? 1 : 0);
+                if (r.bytesUsed + bytes > r.byteCapacity) { stopForRecordingLimit(); return; }
+                r.used++; r.controllerCount++; r.bytesUsed += bytes; r.controllers.push(event);
             }
-            const selected=track();if(!selected)return;
-            if(selected.clips.length>=MAX_CLIPS){if(playing)stop();fail({code:'E_PROJECT_LIMIT'});return;}
-            const capacity=MAX_EVENTS-eventCount(project());if(capacity<=0){if(playing)stop();fail({code:'E_PROJECT_LIMIT'});return;}
-            const clip=M.createClip(selected.instrument,start);clip.name=tr('recording');clip.length=maxLength;
-            const serializedProject=JSON.stringify(project()),byteCapacity=MAX_PROJECT_BYTES-utf8ByteLength(serializedProject)-utf8ByteLength(JSON.stringify(clip))-(selected.clips.length?1:0);
-            if(byteCapacity<eventBytes({tick:0,type:'bend',value:0})){if(playing)stop();fail({code:'E_PROJECT_LIMIT'});return;}
-            stop();const pending=++generation,quantized=find('[data-record-quantize]').checked;
-            const session={trackId:selected.id,start,maxLength,phase:'starting',notes:[],controllers:[],quantize:quantized,quantizeStep:quantized?quantize:1,capacity,used:0,noteCount:0,controllerCount:0,bytesUsed:0,byteCapacity,clip,timelineLimited:availableLength<RECORDING_TICKS};
-            recording=session;refresh();
-            try{await audio.unlock();}catch(error){if(recording===session){recording=null;refresh();}fail(error);return;}
-            if(disposed||pending!==generation||readonly()){if(recording===session){recording=null;refresh();}return;}
-            recording.phase=countIn?'countin':'record';
-            const epoch=++generation;
-            const begin=()=>{
-                if(disposed||epoch!==generation||!recording)return;
-                recording.phase='record';
-                const p=M.clone(project());p.loop.enabled=false;p.metronome=metronome;
-                const t=p.tracks.find(t=>t.id===selected.id),silent=M.createClip(t.instrument,start);silent.notes=[];silent.length=maxLength;t.clips.push(silent);
-                playing=true;audio.play(p,start,position,()=>{if(recording){const limited=recording.timelineLimited;stop();if(limited)fail({code:'E_PROJECT_LIMIT'});}}).catch(error=>{if(recording)stop();fail(error);});refresh();
+            audio.addController?.(t, e.type, e.value);
+        }
+        async function startRecording() {
+            if (!ready || readonly() || busy || storageState.loading) return;
+            if (recording) { stop(); return; }
+            const existingEvents = eventCount(project());
+            if (existingEvents >= MAX_EVENTS) { if (playing) stop(); fail({ code: 'E_PROJECT_LIMIT' }); return; }
+            const start = Math.floor(cursor / BAR) * BAR, availableLength = Math.floor((MAX_TICK - start) / BAR) * BAR, maxLength = Math.min(RECORDING_TICKS, availableLength);
+            if (!Number.isFinite(start) || start < 0 || maxLength < BAR) { if (playing) stop(); fail({ code: 'E_PROJECT_LIMIT' }); return; }
+            if (!track()) {
+                const isDrum = isDrumInstrumentId(selectedInstrument);
+                const drumTrack = isDrum ? project().tracks.find(t => isDrumTrack(t)) : null;
+                const insertEvents = selectedInstrument.startsWith('drum-') ? 1 : 0;
+                if (existingEvents + insertEvents >= MAX_EVENTS || (drumTrack && drumTrack.clips.length >= MAX_CLIPS - 1)) { if (playing) stop(); fail({ code: 'E_PROJECT_LIMIT' }); return; }
+                insert({ type: 'instrument', id: selectedInstrument }, '', cursor);
+            }
+            const selected = track(); if (!selected) return;
+            if (selected.clips.length >= MAX_CLIPS) { if (playing) stop(); fail({ code: 'E_PROJECT_LIMIT' }); return; }
+            const capacity = MAX_EVENTS - eventCount(project()); if (capacity <= 0) { if (playing) stop(); fail({ code: 'E_PROJECT_LIMIT' }); return; }
+            const clip = M.createClip(selected.instrument, start); clip.name = tr('recording'); clip.length = maxLength;
+            const serializedProject = JSON.stringify(project()), byteCapacity = MAX_PROJECT_BYTES - utf8ByteLength(serializedProject) - utf8ByteLength(JSON.stringify(clip)) - (selected.clips.length ? 1 : 0);
+            if (byteCapacity < eventBytes({ tick: 0, type: 'bend', value: 0 })) { if (playing) stop(); fail({ code: 'E_PROJECT_LIMIT' }); return; }
+            stop();
+            const pending = ++generation, quantized = find('[data-record-quantize]').checked;
+            const session = { trackId: selected.id, start, maxLength, phase: 'starting', notes: [], controllers: [], quantize: quantized, quantizeStep: quantized ? quantize : 1, capacity, used: 0, noteCount: 0, controllerCount: 0, bytesUsed: 0, byteCapacity, clip, timelineLimited: availableLength < RECORDING_TICKS };
+            recording = session; refresh();
+            try { await audio.unlock(); } catch (error) { if (recording === session) { recording = null; refresh(); } fail(error); return; }
+            if (disposed || pending !== generation || readonly()) { if (recording === session) { recording = null; refresh(); } return; }
+            recording.phase = countIn ? 'countin' : 'record';
+            const epoch = ++generation;
+            const begin = () => {
+                if (disposed || epoch !== generation || !recording) return;
+                recording.phase = 'record';
+                const p = M.clone(project()); p.loop.enabled = false; p.metronome = metronome;
+                const t = p.tracks.find(t => t.id === selected.id), silent = M.createClip(t.instrument, start); silent.notes = []; silent.length = maxLength; t.clips.push(silent);
+                playing = true;
+                audio.play(p, start, position, () => { if (recording) { const limited = recording.timelineLimited; stop(); if (limited) fail({ code: 'E_PROJECT_LIMIT' }); } }).catch(error => { if (recording) stop(); fail(error); });
+                refresh();
             };
-            playing=true;refresh();
-            if(countIn){const p=M.create('Count in'),t=M.addTrack(p,'drums-kit'),c=M.createClip('drums-kit',0);c.notes=[];c.length=BAR;t.clips.push(c);p.tempo=project().tempo;p.metronome=true;try{await audio.play(p,0,tick=>{find('[data-position]').textContent=tr('count_in')+' '+(Math.floor(tick/PPQ)+1);},begin);}catch(error){if(recording===session)stop();fail(error);}}else begin();
+            playing = true; refresh();
+            if (countIn) {
+                const p = M.create('Count in'), t = M.addTrack(p, 'drums-kit'), c = M.createClip('drums-kit', 0); c.notes = []; c.length = BAR; t.clips.push(c); p.tempo = project().tempo; p.metronome = true;
+                try { await audio.play(p, 0, tick => { find('[data-position]').textContent = tr('count_in') + ' ' + (Math.floor(tick / PPQ) + 1); }, begin); } catch (error) { if (recording === session) stop(); fail(error); }
+            } else begin();
         }
-        function finishRecording(){
-            if(!recording)return;const r=recording;for(const n of [...live.values()])noteOff(n.pitch,performance.now(),n.channel);recording=null;
-            if(r.phase==='record'&&(r.notes.length||r.controllers.length)){
-                try{const p=M.clone(project()),t=p.tracks.find(t=>t.id===r.trackId),c=r.clip;c.notes=r.notes;c.controllers=r.controllers;c.length=Math.max(BAR,Math.ceil(Math.max(...r.notes.map(n=>n.start+n.duration),...r.controllers.map(c=>c.tick+1),1)/BAR)*BAR);t.clips.push(c);history.commit(M.validate(p));currentProject=history.current();storage.changed();editor.select(t.id,c.id);}catch(error){fail(error);}
-            }refresh();
+        function finishRecording() {
+            if (!recording) return;
+            const r = recording;
+            for (const n of [...live.values()]) noteOff(n.pitch, performance.now(), n.channel);
+            recording = null;
+            if (r.phase === 'record' && (r.notes.length || r.controllers.length)) {
+                try {
+                    const p = M.clone(project()), t = p.tracks.find(t => t.id === r.trackId), c = r.clip;
+                    c.notes = r.notes; c.controllers = r.controllers;
+                    c.length = Math.max(BAR, Math.ceil(Math.max(...r.notes.map(n => n.start + n.duration), ...r.controllers.map(c => c.tick + 1), 1) / BAR) * BAR);
+                    t.clips.push(c);
+                    history.commit(M.validate(p)); currentProject = history.current(); storage.changed(); editor.select(t.id, c.id);
+                } catch (error) { fail(error); }
+            }
+            refresh();
         }
-        async function replaceProject(p){stop();await storage.newDocument(p,{dirty:true});}
-        async function exportFile(type,asFile=false){
-            if(busy||recording||stage.active())return;busy=true;stop();status();notice(tr('export')+' '+type.toUpperCase()+'…');const snapshot=M.clone(project()),epoch=++generation;snapshot.loop.enabled=false;
+        async function replaceProject(p) { stop(); await storage.newDocument(p, { dirty: true }); }
+        async function exportFile(type, asFile = false) {
+            if (busy || recording || stage.active()) return;
+            busy = true; stop(); status(); notice(tr('export') + ' ' + type.toUpperCase() + '…');
+            const snapshot = M.clone(project()), epoch = ++generation; snapshot.loop.enabled = false;
             try {
-                let blob,extension;
-                if(type==='stems'){
-                    await prepareClips(snapshot);blob=await window.SynthStudioExport.exportStems(snapshot,{audioBuffer:clipBuffer,onProgress:(done,total,track)=>notice(tr('export')+' '+tr('stems')+' '+done+'/'+total+' · '+track)});
-                    extension='-stems.zip';
-                }else if(type==='wav'){
-                    await prepareClips(snapshot);blob=await window.SynthStudioAudio.renderWav(snapshot,{audioBuffer:clipBuffer});extension='.wav';
-                }else{
-                    blob=new Blob([window.SynthStudioMIDI.exportFile(snapshot)],{type:'audio/midi'});extension='.mid';
+                let blob, extension;
+                if (type === 'stems') {
+                    await prepareClips(snapshot);
+                    blob = await window.SynthStudioExport.exportStems(snapshot, { audioBuffer: clipBuffer, onProgress: (done, total, trackName) => notice(tr('export') + ' ' + tr('stems') + ' ' + done + '/' + total + ' · ' + trackName) });
+                    extension = '-stems.zip';
+                } else if (type === 'wav') {
+                    await prepareClips(snapshot);
+                    blob = await window.SynthStudioAudio.renderWav(snapshot, { audioBuffer: clipBuffer });
+                    extension = '.wav';
+                } else {
+                    blob = new Blob([window.SynthStudioMIDI.exportFile(snapshot)], { type: 'audio/midi' });
+                    extension = '.mid';
                 }
-                if(disposed||epoch!==generation)return [];
-                const name=(snapshot.name.replace(/[<>:"/\\|?*]/g,'_')||'Synth Studio')+extension;
-                if(asFile)return [new File([blob],name,{type:blob.type})];
-                const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);
-                notice(type==='midi'?tr('midi_export_hint')+' '+tr('midi_automation_hint'):'');
-            }catch(error){if(asFile)throw error;fail(error);}finally{busy=false;status();}
-        }
-        const actions={play:()=>playing?stop():play(),pause:()=>stop(),stop:()=>stop(true),record:startRecording,new:()=>replaceProject(M.create(tr('untitled'))),demo:()=>{const p=M.demo();p.tracks.forEach(t=>{const pat=M.patterns.find(x=>x.instrument===t.instrument);if(pat){t.name=patternName(pat);t.clips.forEach(c=>c.name=patternName(pat));}});return replaceProject(p);},open:()=>{stop();return storage.open();},save:()=>storage.save(false),saveAs:()=>storage.save(true),undo:()=>updatedHistory('undo'),redo:()=>updatedHistory('redo'),library:()=>{root.classList.remove('ss-inspector-open');root.classList.toggle('ss-library-open');},inspector:()=>{root.classList.remove('ss-library-open');root.classList.toggle('ss-inspector-open');},midi:()=>{find('[data-midi-panel]').hidden=!find('[data-midi-panel]').hidden;},connect:async()=>{await midi.connect();renderMIDI();},importMidi:()=>find('[data-midi-file]').click(),master:()=>{const panel=find('[data-master-panel]');if(!panel)return;panel.hidden=!panel.hidden;const toggle=find('[data-action="master"]');if(toggle)toggle.setAttribute('aria-expanded',String(!panel.hidden));},tour:()=>{tourIndex=0;renderTour();},tourNext:()=>{tourIndex=Math.min(TOUR_STEPS.length-1,tourIndex+1);renderTour();},tourBack:()=>{tourIndex=Math.max(0,tourIndex-1);renderTour();},tourSkip:()=>{tourIndex=-1;renderTour();},rename:async()=>{if(blocked())return;const value=await ctx.promptDialog?.(tr('name'),project().name);if(value?.trim())mutate(p=>{p.name=value.trim().slice(0,80);});},deleteTrack:async()=>{await deleteTrackById(track()?.id||'');},design:()=>{const t=track();openDesigner(t?.instrument,t?.id||null);}};
-
-        // A five step tour that walks through the workbench panels so the new
-        // features are discoverable without a manual.
-        function renderTour(){
-            const overlay=find('[data-tour]');
-            if(tourIndex<0){overlay.hidden=true;overlay.innerHTML='';return;}
-            const step=TOUR_STEPS[tourIndex];
-            if(step.panel)workspace.panel(step.panel);
-            overlay.hidden=false;
-            overlay.innerHTML='<div class="ss-tour-card"><span class="ss-tour-step">'+(tourIndex+1)+' / '+TOUR_STEPS.length+'</span><p>'+esc(tr(step.key))+'</p><div class="ss-tour-actions">'+button('tourBack','tour_back','←')+button('tourNext','tour_next','→')+'<button type="button" data-action="tourSkip">'+esc(tr('tour_skip'))+'</button></div></div>';
+                if (disposed || epoch !== generation) return [];
+                const name = (snapshot.name.replace(/[<>:"/\\|?*]/g, '_') || 'Synth Studio') + extension;
+                if (asFile) return [new File([blob], name, { type: blob.type })];
+                const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(url), 30000);
+                notice(type === 'midi' ? tr('midi_export_hint') + ' ' + tr('midi_automation_hint') : '');
+            } catch (error) { if (asFile) throw error; fail(error); } finally { busy = false; status(); }
         }
 
-        // The master analyser is feedback only: it never influences the audio.
-        function cycleScopeMode(){
-            scopeMode=SCOPE_MODES[(SCOPE_MODES.indexOf(scopeMode)+1)%SCOPE_MODES.length];
-            try{localStorage.setItem(SCOPE_KEY,scopeMode);}catch(_){}
-            const canvas=find('[data-analyser]');
-            if(canvas){
-                canvas.dataset.scopeMode=scopeMode;
-                canvas.setAttribute('aria-label',tr('analyser')+' · '+tr(scopeMode==='scope'?'scope_waveform':scopeMode==='mirror'?'scope_mirror':'scope_spectrum'));
+        const actions = {
+            play: () => playing ? stop() : play(),
+            pause: () => stop(),
+            stop: () => stop(true),
+            record: startRecording,
+            new: () => replaceProject(M.create(tr('untitled'))),
+            demo: () => {
+                const p = M.demo();
+                p.tracks.forEach(t => { const pat = M.patterns.find(x => x.instrument === t.instrument); if (pat) { t.name = patternName(pat); t.clips.forEach(c => c.name = patternName(pat)); } });
+                return replaceProject(p);
+            },
+            open: () => { stop(); return storage.open(); },
+            save: () => storage.save(false),
+            saveAs: () => storage.save(true),
+            undo: () => updatedHistory('undo'),
+            redo: () => updatedHistory('redo'),
+            library: () => workspace.toggleLibrary(),
+            quickStrip: () => workspace.toggleQuickStrip(),
+            inspector: () => { designer = null; workspace.panel('sound'); refresh(); },
+            midi: () => {
+                const panel = find('[data-midi-panel]');
+                if (!panel) return;
+                panel.hidden = !panel.hidden;
+                root.querySelectorAll('[data-action="midi"]').forEach(b => b.setAttribute('aria-expanded', String(!panel.hidden)));
+            },
+            connect: async () => { await midi.connect(); renderMIDI(); },
+            importMidi: () => find('[data-midi-file]').click(),
+            master: () => {
+                const panel = find('[data-master-panel]');
+                if (!panel) return;
+                if (workspace.currentPanel() === 'mix') { panel.hidden = false; return; }
+                panel.hidden = !panel.hidden;
+                const toggle = find('[data-action="master"]');
+                if (toggle) toggle.setAttribute('aria-expanded', String(!panel.hidden));
+            },
+            tour: () => { tourIndex = 0; renderTour(); },
+            tourNext: () => { tourIndex = Math.min(TOUR_STEPS.length - 1, tourIndex + 1); renderTour(); },
+            tourBack: () => { tourIndex = Math.max(0, tourIndex - 1); renderTour(); },
+            tourSkip: () => { tourIndex = -1; renderTour(); },
+            rename: async () => { if (blocked()) return; const value = await ctx.promptDialog?.(tr('name'), project().name); if (value?.trim()) mutate(p => { p.name = value.trim().slice(0, 80); }); },
+            deleteTrack: async () => { await deleteTrackById(track()?.id || ''); },
+            design: () => { const t = track(); openDesigner(t?.instrument, t?.id || null); }
+        };
+
+        function renderTour() {
+            const overlay = find('[data-tour]');
+            if (tourIndex < 0) { overlay.hidden = true; overlay.innerHTML = ''; return; }
+            const step = TOUR_STEPS[tourIndex];
+            if (step.panel) workspace.panel(step.panel);
+            overlay.hidden = false;
+            overlay.innerHTML = '<div class="ss-tour-card"><span class="ss-tour-step">' + (tourIndex + 1) + ' / ' + TOUR_STEPS.length + '</span><p>' + esc(tr(step.key)) + '</p><div class="ss-tour-actions">' + button('tourBack', 'tour_back', '←') + button('tourNext', 'tour_next', '→') + '<button type="button" data-action="tourSkip">' + esc(tr('tour_skip')) + '</button></div></div>';
+        }
+
+        function cycleScopeMode() {
+            scopeMode = SCOPE_MODES[(SCOPE_MODES.indexOf(scopeMode) + 1) % SCOPE_MODES.length];
+            try { localStorage.setItem(SCOPE_KEY, scopeMode); } catch (_) {}
+            const canvas = find('[data-analyser]');
+            if (canvas) {
+                canvas.dataset.scopeMode = scopeMode;
+                canvas.setAttribute('aria-label', tr('analyser') + ' · ' + tr(scopeMode === 'scope' ? 'scope_waveform' : scopeMode === 'mirror' ? 'scope_mirror' : 'scope_spectrum'));
             }
         }
-        let meterColor='',meterFrames=0;const meterRgb=canvas=>{if(!meterColor||++meterFrames>=30){meterColor=getComputedStyle(canvas).getPropertyValue('--ss-meter').trim()||'#3fe0b0';meterFrames=0;}const hex=meterColor.replace('#',''),full=hex.length===3?hex.split('').map(c=>c+c).join(''):hex,n=parseInt(full,16);return Number.isFinite(n)?[(n>>16)&255,(n>>8)&255,n&255]:[63,224,176];};function drawAnalyser(){
-            if(disposed)return;
-            const canvas=find('[data-analyser]');
-            if(canvas&&canvas.isConnected){
-                const ctx2d=canvas.getContext?.('2d');
-                if(ctx2d){
-                    const tint=meterRgb(canvas),width=canvas.width,height=canvas.height;
-                    ctx2d.clearRect(0,0,width,height);
-                    if(scopeMode==='scope'){
-                        const wave=audio.waveform?.(160);
-                        ctx2d.strokeStyle='rgba('+tint[0]+','+tint[1]+','+tint[2]+',.14)';
-                        ctx2d.lineWidth=1;
-                        ctx2d.beginPath();ctx2d.moveTo(0,height/2);ctx2d.lineTo(width,height/2);ctx2d.stroke();
-                        ctx2d.strokeStyle='rgba('+tint[0]+','+tint[1]+','+tint[2]+',.92)';
-                        ctx2d.lineWidth=1.6;
+        let meterColor = '', meterFrames = 0;
+        const meterRgb = canvas => {
+            if (!meterColor || ++meterFrames >= 30) { meterColor = getComputedStyle(canvas).getPropertyValue('--ss-meter').trim() || '#3fe0b0'; meterFrames = 0; }
+            const hex = meterColor.replace('#', ''), full = hex.length === 3 ? hex.split('').map(c => c + c).join('') : hex, n = parseInt(full, 16);
+            return Number.isFinite(n) ? [(n >> 16) & 255, (n >> 8) & 255, n & 255] : [63, 224, 176];
+        };
+        function drawAnalyser() {
+            if (disposed) return;
+            const canvas = find('[data-analyser]');
+            if (canvas && canvas.isConnected) {
+                const ctx2d = canvas.getContext?.('2d');
+                if (ctx2d) {
+                    const tint = meterRgb(canvas), width = canvas.width, height = canvas.height;
+                    ctx2d.clearRect(0, 0, width, height);
+                    if (scopeMode === 'scope') {
+                        const wave = audio.waveform?.(160);
+                        ctx2d.strokeStyle = 'rgba(' + tint[0] + ',' + tint[1] + ',' + tint[2] + ',.14)'; ctx2d.lineWidth = 1;
+                        ctx2d.beginPath(); ctx2d.moveTo(0, height / 2); ctx2d.lineTo(width, height / 2); ctx2d.stroke();
+                        ctx2d.strokeStyle = 'rgba(' + tint[0] + ',' + tint[1] + ',' + tint[2] + ',.92)'; ctx2d.lineWidth = 1.6;
                         ctx2d.beginPath();
-                        if(wave&&wave.length){
-                            for(let i=0;i<wave.length;i++){
-                                const x=(i/(wave.length-1))*width;
-                                const y=height/2-Math.max(-1,Math.min(1,wave[i]))*(height*0.44);
-                                if(i===0)ctx2d.moveTo(x,y);else ctx2d.lineTo(x,y);
+                        if (wave && wave.length) {
+                            for (let i = 0; i < wave.length; i++) {
+                                const x = (i / (wave.length - 1)) * width, y = height / 2 - Math.max(-1, Math.min(1, wave[i])) * (height * 0.44);
+                                if (i === 0) ctx2d.moveTo(x, y); else ctx2d.lineTo(x, y);
                             }
-                        }else{ctx2d.moveTo(0,height/2);ctx2d.lineTo(width,height/2);}
+                        } else { ctx2d.moveTo(0, height / 2); ctx2d.lineTo(width, height / 2); }
                         ctx2d.stroke();
-                    }else{
-                        const data=audio.spectrum(48),bins=data?data.length:0;
-                        if(bins){
-                            const step=width/bins,mid=height/2;
-                            for(let i=0;i<bins;i++){
-                                const value=data[i]/255;
-                                if(scopeMode==='mirror'){
-                                    const half=Math.max(1,value*(mid-2));
-                                    ctx2d.fillStyle=value>.82?'rgba(255,180,84,'+(0.5+value*0.5).toFixed(3)+')':'rgba('+tint[0]+','+tint[1]+','+tint[2]+','+(0.25+value*0.75).toFixed(3)+')';
-                                    ctx2d.fillRect(i*step,mid-half,Math.max(1,step-1),half*2);
-                                }else{
-                                    const bar=Math.max(1,value*height);
-                                    scopePeaks[i]=value>=scopePeaks[i]?value:Math.max(0,scopePeaks[i]-0.012);
-                                    ctx2d.fillStyle='rgba('+tint[0]+','+tint[1]+','+tint[2]+','+(0.25+value*0.75).toFixed(3)+')';
-                                    ctx2d.fillRect(i*step,height-bar,Math.max(1,step-1),bar);
-                                    if(scopePeaks[i]>0.03){
-                                        const py=Math.max(0,height-scopePeaks[i]*height-2);
-                                        ctx2d.fillStyle=scopePeaks[i]>.82?'rgba(255,180,84,.92)':'rgba('+tint[0]+','+tint[1]+','+tint[2]+',.9)';
-                                        ctx2d.fillRect(i*step,py,Math.max(1,step-1),2);
+                    } else {
+                        const data = audio.spectrum(48), bins = data ? data.length : 0;
+                        if (bins) {
+                            const step = width / bins, mid = height / 2;
+                            for (let i = 0; i < bins; i++) {
+                                const value = data[i] / 255;
+                                if (scopeMode === 'mirror') {
+                                    const half = Math.max(1, value * (mid - 2));
+                                    ctx2d.fillStyle = value > 0.82 ? 'rgba(255,180,84,' + (0.5 + value * 0.5).toFixed(3) + ')' : 'rgba(' + tint[0] + ',' + tint[1] + ',' + tint[2] + ',' + (0.25 + value * 0.75).toFixed(3) + ')';
+                                    ctx2d.fillRect(i * step, mid - half, Math.max(1, step - 1), half * 2);
+                                } else {
+                                    const bar = Math.max(1, value * height);
+                                    scopePeaks[i] = value >= scopePeaks[i] ? value : Math.max(0, scopePeaks[i] - 0.012);
+                                    ctx2d.fillStyle = 'rgba(' + tint[0] + ',' + tint[1] + ',' + tint[2] + ',' + (0.25 + value * 0.75).toFixed(3) + ')';
+                                    ctx2d.fillRect(i * step, height - bar, Math.max(1, step - 1), bar);
+                                    if (scopePeaks[i] > 0.03) {
+                                        const py = Math.max(0, height - scopePeaks[i] * height - 2);
+                                        ctx2d.fillStyle = scopePeaks[i] > 0.82 ? 'rgba(255,180,84,.92)' : 'rgba(' + tint[0] + ',' + tint[1] + ',' + tint[2] + ',.9)';
+                                        ctx2d.fillRect(i * step, py, Math.max(1, step - 1), 2);
                                     }
                                 }
                             }
-                        }else{
-                            ctx2d.fillStyle='rgba('+tint[0]+','+tint[1]+','+tint[2]+',.4)';
-                            ctx2d.fillRect(0,scopeMode==='mirror'?height/2:height-1,width,1);
+                        } else {
+                            ctx2d.fillStyle = 'rgba(' + tint[0] + ',' + tint[1] + ',' + tint[2] + ',.4)';
+                            ctx2d.fillRect(0, scopeMode === 'mirror' ? height / 2 : height - 1, width, 1);
                         }
                     }
-                    ctx2d.fillStyle='rgba('+tint[0]+','+tint[1]+','+tint[2]+',.55)';
-                    ctx2d.font='9px monospace';
-                    ctx2d.textAlign='right';
-                    ctx2d.fillText(scopeMode==='scope'?'OSC':scopeMode==='mirror'?'SYM':'RTA',width-4,10);
+                    ctx2d.fillStyle = 'rgba(' + tint[0] + ',' + tint[1] + ',' + tint[2] + ',.55)';
+                    ctx2d.font = '9px monospace'; ctx2d.textAlign = 'right';
+                    ctx2d.fillText(scopeMode === 'scope' ? 'OSC' : scopeMode === 'mirror' ? 'SYM' : 'RTA', width - 4, 10);
                 }
             }
             drawLedMeter();
-            analyserFrame=requestAnimationFrame(drawAnalyser);
+            analyserFrame = requestAnimationFrame(drawAnalyser);
         }
-        // The LED meter beside the master volume reads the same analyser peak. It only
-        // runs while the master panel is open and only touches the DOM when a segment changes.
-        let ledLevel=0;
-        function drawLedMeter(){
-            const panel=find('[data-master-panel]');if(!panel||panel.hidden)return;
-            const led=panel.querySelector('[data-led-meter]');if(!led)return;
-            ledLevel=K.meterFollow(ledLevel,K.meterLit(audio.meter()));
-            K.paintMeter(led,Math.ceil(ledLevel));
+        let ledLevel = 0;
+        function drawLedMeter() {
+            const panel = find('[data-master-panel]'); if (!panel || panel.hidden) return;
+            const led = panel.querySelector('[data-led-meter]'); if (!led) return;
+            ledLevel = K.meterFollow(ledLevel, K.meterLit(audio.meter()));
+            K.paintMeter(led, Math.ceil(ledLevel));
         }
-        let analyserFrame=0;
+        let analyserFrame = 0;
 
-        actions.library=()=>workspace.toggleLibrary();
-        actions.inspector=()=>workspace.panel('sound');
-        root.addEventListener('click',e=>{
-            if(e.target.closest('[data-analyser]')){cycleScopeMode();return;}
-            const target=e.target.closest('button');if(!target)return;
-            if(target.dataset.template){replaceProject(M.template(target.dataset.template,tr('template_'+target.dataset.template))).catch(fail);return;}
-            if(target.dataset.resetParam){const key=target.dataset.resetParam,t=track();if(t)mutate(p=>setParameter(p,{id:t.id,key,value:key==='pan'?0:M.defaultParamsFor(t.instrument)[key]}),'mix');return;}
-            if(target.dataset.editPatch){openDesigner(target.dataset.editPatch,null);return;}
-            if(target.dataset.favourite){const id=target.dataset.favourite,list=libraryPrefs.favourites,at=list.indexOf(id);if(at>=0)list.splice(at,1);else list.unshift(id);saveLibraryPrefs();renderLibrary();return;}
-            if(target.dataset.tag){activeTag=activeTag===target.dataset.tag?'':target.dataset.tag;renderLibrary();return;}
-            // data-fx-add is a valueless marker, so its dataset value is an
-            // empty string: test for the attribute, not for a truthy value.
-            if(target.hasAttribute('data-fx-add')){mutate(p=>{const t=p.tracks.find(t=>t.id===track()?.id);if(!t)return;if(!t.fx)t.fx={inserts:[]};if(t.fx.inserts.length>=M.MAX_INSERTS)return;t.fx.inserts.push(M.insertSpec('chorus',{mix:.3}));},'mix');return;}
-            if(target.dataset.fxMove){const [idxStr,dirStr]=target.dataset.fxMove.split(':'),index=Number(idxStr),to=index+Number(dirStr);mutate(p=>{const list=p.tracks.find(t=>t.id===track()?.id)?.fx?.inserts;if(!list||index<0||to<0||index>=list.length||to>=list.length)return;const [item]=list.splice(index,1);list.splice(to,0,item);},'mix');return;}
-            if(target.dataset.fxRemove){const index=Number(target.dataset.fxRemove);mutate(p=>{const t=p.tracks.find(t=>t.id===track()?.id);if(t?.fx?.inserts)t.fx.inserts.splice(index,1);},'mix');return;}
-            if(target.dataset.choose){selectedInstrument=target.dataset.choose;markRecent(target.dataset.choose);renderLibrary();return;}
-            if(target.dataset.action){Promise.resolve().then(()=>actions[target.dataset.action]?.()).catch(fail);return;}
-            if(target.dataset.category){category=target.dataset.category;activeTag='';renderLibrary();return;}
-            if(target.dataset.libraryMode){libraryMode=target.dataset.libraryMode;activeTag='';renderLibrary();return;}
-            if(target.dataset.insert){selectedInstrument=target.dataset.insert;markRecent(target.dataset.insert);insert({type:libraryMode==='patterns'?'pattern':'instrument',id:target.dataset.insert},'',cursor);renderLibrary();return;}
-            if(target.dataset.preview){const pattern=M.patterns.find(p=>p.id===target.dataset.preview);if(pattern&&libraryMode==='patterns'){const p=M.create('Preview'),t=M.addTrack(p,pattern.instrument.startsWith('drum-')?'drums-kit':pattern.instrument);t.clips.push(M.cloneClip(pattern.clip,0));stop();audio.play(p,0,()=>{},()=>{playing=false;status();}).catch(fail);}else{const preset=P.get(target.dataset.preview);markRecent(target.dataset.preview);audition(preset?.drumNote||60,target.dataset.preview);}return;}
-            if(target.dataset.audition)audition(Number(target.dataset.audition));
-        },{signal});
-        root.addEventListener('dragstart',e=>{const item=e.target.closest('[data-library-id]');if(!item||blocked()){e.preventDefault();return;}e.dataTransfer.setData('application/x-aurago-synth',JSON.stringify({type:item.dataset.libraryType,id:item.dataset.libraryId}));e.dataTransfer.effectAllowed='copy';},{signal});
-        root.addEventListener('input',e=>{previewParameter(e.target);if(e.target.hasAttribute('data-search'))renderLibrary();if(e.target.hasAttribute('data-zoom'))editor.setZoom(Number(e.target.value));},{signal});
-        root.addEventListener('change',e=>{
-            const el=e.target;
-            if(el.hasAttribute('data-export')){const value=el.value;el.value='';if(value)exportFile(value);}
-            if(el.hasAttribute('data-tempo'))mutate(p=>{p.tempo=Number(el.value);});
-            if(el.hasAttribute('data-loop'))mutate(p=>{p.loop.enabled=el.checked;});
-            if(el.hasAttribute('data-loop-start')||el.hasAttribute('data-loop-end'))mutate(p=>{p.loop.start=(Number(find('[data-loop-start]').value)-1)*BAR;p.loop.end=(Number(find('[data-loop-end]').value)-1)*BAR;});
-            if(el.hasAttribute('data-metronome'))metronome=el.checked;
-            if(el.hasAttribute('data-snap')){quantize=Number(el.value);editor.setSnap(quantize);}
-            if(el.hasAttribute('data-track-name'))mutate(p=>{p.tracks.find(t=>t.id===track().id).name=el.value;});
-            if(el.hasAttribute('data-instrument'))mutate(p=>{const t=p.tracks.find(t=>t.id===track().id);t.instrument=el.value;if(M.defaultParamsFor)t.params=M.defaultParamsFor(el.value);});
-            if(el.hasAttribute('data-fx-type')){const index=Number(el.dataset.fxType),type=el.value;mutate(p=>{const t=p.tracks.find(t=>t.id===track()?.id);if(t?.fx?.inserts?.[index])t.fx.inserts[index]=M.insertSpec(type,{});},'mix');}
-            if(el.hasAttribute('data-fx-preset')){const presetId=el.value;el.value='';if(presetId==='clear')mutate(p=>{const t=p.tracks.find(t=>t.id===track()?.id);if(t)t.fx={inserts:[]};},'mix');else if(FX_CHAIN_PRESETS[presetId])mutate(p=>{const t=p.tracks.find(t=>t.id===track()?.id);if(t)t.fx={inserts:FX_CHAIN_PRESETS[presetId].slice(0,M.MAX_INSERTS).map(([type,ov])=>M.insertSpec(type,ov))};},'mix');}
-            if(el.hasAttribute('data-master-select')){const key=el.dataset.masterSelect;mutate(p=>{p.master={...(p.master||{}),[key]:el.value};},'mix');}
-            const parameter=controlTarget(el);if(parameter&&(parameter.master||parameter.id)&&!parameterGesture)mutate(p=>setParameter(p,parameter),'mix');
-            if(el.hasAttribute('data-midi-input')){panic();midi.select(el.value).catch(fail);}
-            if(el.hasAttribute('data-count-in'))countIn=el.checked;
-            if(el.hasAttribute('data-latency'))latency=Math.max(-200,Math.min(200,Number(el.value)||0));
-            if(el.hasAttribute('data-midi-file')){const file=el.files[0];el.value='';if(file){if(file.size>10*1024*1024){fail('invalid_project');return;}file.arrayBuffer().then(bytes=>window.SynthStudioMIDI.importFile(bytes)).then(replaceProject).catch(fail);}}
-        },{signal});
-        const keyboard={a:60,w:61,s:62,e:63,d:64,f:65,t:66,g:67,y:68,h:69,u:70,j:71,k:72};
-        root.addEventListener('keydown',e=>{
-            if(e.defaultPrevented||e.target.matches('input,textarea,select')||e.repeat)return;
-            // The RB-338 rack owns the keyboard while its tab is shown (it checks focus and target itself).
-            if(workspace.isRb338?.()){if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s')e.preventDefault();return;}
-            if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();storage.save(e.shiftKey).catch(fail);return;}
-            if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();updatedHistory(e.shiftKey?'redo':'undo');return;}
-            if(e.ctrlKey||e.metaKey||e.altKey)return;
-            if(e.target.hasAttribute('data-analyser')&&(e.code==='Space'||e.key==='Enter')){e.preventDefault();cycleScopeMode();return;}
-            if(e.code==='Space'&&!e.target.closest('button')){e.preventDefault();actions.play();return;}
-            if(keyboard[e.key.toLowerCase()]!=null){e.preventDefault();noteOn(keyboard[e.key.toLowerCase()],.8);}
-        },{signal});
-        window.addEventListener('keyup',e=>{if(keyboard[e.key.toLowerCase()]!=null)noteOff(keyboard[e.key.toLowerCase()]);},{signal});
-        window.addEventListener('blur',()=>{if(recording)stop();else {composer?.stop();panic();}},{signal});
-        document.addEventListener('visibilitychange',()=>{if(document.hidden)stop();},{signal});
-        document.addEventListener('aurago:desktop-policy',e=>{if(typeof e.detail?.readonly==='boolean'){revoked=e.detail.readonly;ctx.readonly=revoked;if(revoked)stop();refresh();}},{signal});
-        document.addEventListener('aurago:auth-ended',()=>dispose(id),{signal});
-        window.addEventListener('beforeunload',e=>{if(storage.state.dirty||rb338?.isModified?.()){e.preventDefault();e.returnValue='';}},{signal});
-        window.addEventListener('pagehide',()=>dispose(id),{signal});
-        const guard=async()=>{stop();await stage?.guard();return storage.guard();};
-        ctx.setWindowBeforeClose?.(id,guard);
-        const sessionRevision=()=>JSON.stringify([storage.state.revision,!!stage?.active(),stage?.readyTake?.()||null]);
-        ctx.registerSessionAction?.(id,{
-            inspect:()=>({dirty:!!storage.state.dirty||!!stage?.active()||!!stage?.readyTake?.(),revision:sessionRevision(),label:storage.state.name||tr('untitled')}),
-            decide:snapshot=>ctx.decideSessionAction?.({title:snapshot.title,label:snapshot.label,dirty:snapshot.dirty}),
-            save:async expected=>{
-                if(disposed||busy||recording||stage?.active()||sessionRevision()!==expected)return false;
-                if(stage?.guard && await stage.guard()===false)return false;
-                if(sessionRevision()!==expected)return false;
-                const saved=storage.state.dirty?await storage.save(false):true;
-                return saved===true&&!storage.state.dirty&&sessionRevision()===expected?{revision:expected}:false;
+        root.addEventListener('click', e => {
+            if (e.target.closest('[data-analyser]')) { cycleScopeMode(); return; }
+            const target = e.target.closest('button'); if (!target) return;
+            if (target.dataset.template) { replaceProject(M.template(target.dataset.template, tr('template_' + target.dataset.template))).catch(fail); return; }
+            if (target.dataset.resetParam) { const key = target.dataset.resetParam, t = track(); if (t) mutate(p => setParameter(p, { id: t.id, key, value: key === 'pan' ? 0 : M.defaultParamsFor(t.instrument)[key] }), 'mix'); return; }
+            if (target.dataset.editPatch) { openDesigner(target.dataset.editPatch, null); return; }
+            if (target.dataset.favourite) { const fid = target.dataset.favourite, list = libraryPrefs.favourites, at = list.indexOf(fid); if (at >= 0) list.splice(at, 1); else list.unshift(fid); saveLibraryPrefs(); renderLibrary(); return; }
+            if (target.dataset.tag) { activeTag = activeTag === target.dataset.tag ? '' : target.dataset.tag; renderLibrary(); return; }
+            if (target.dataset.inspOct) { soundOctave = Math.max(1, Math.min(6, soundOctave + Number(target.dataset.inspOct))); renderInspector(); window.SynthStudioControls?.upgradeAll?.(root); window.SynthStudioControls?.sync?.(root); return; }
+            if (target.dataset.railTrack) {
+                const tid = target.dataset.railTrack, t = project().tracks.find(x => x.id === tid);
+                if (t) { if (designer && (isDrumTrack(t) || isAudioTrack(t))) { designer = null; D.setPreview(null); } editor.select(t.id, t.clips[0]?.id || ''); }
+                return;
+            }
+            if (target.dataset.railMute) { const tid = target.dataset.railMute; mutate(p => { const t = p.tracks.find(x => x.id === tid); if (t) t.mute = !t.mute; }, 'mix'); return; }
+            if (target.dataset.railSolo) { const tid = target.dataset.railSolo; mutate(p => { const t = p.tracks.find(x => x.id === tid); if (t) t.solo = !t.solo; }, 'mix'); return; }
+            if (target.hasAttribute('data-rail-add')) { insert({ type: 'instrument', id: selectedInstrument }, '', 0); return; }
+            if (target.dataset.mixSelect) { const tid = target.dataset.mixSelect, t = project().tracks.find(x => x.id === tid); if (t) editor.select(t.id, t.clips[0]?.id || ''); return; }
+            if (target.dataset.mixAction) { const a = target.dataset.mixAction, tid = target.dataset.id; mutate(p => { const t = p.tracks.find(x => x.id === tid); if (t) t[a] = !t[a]; }, 'mix'); return; }
+            if (target.dataset.openTrackFx) {
+                const tid = target.dataset.openTrackFx, t = project().tracks.find(x => x.id === tid);
+                if (t) { designer = null; editor.select(t.id, t.clips[0]?.id || ''); workspace.panel('sound'); }
+                return;
+            }
+            if (target.hasAttribute('data-global-mute')) { const t = track(); if (t) mutate(p => { p.tracks.find(x => x.id === t.id).mute = !t.mute; }, 'mix'); return; }
+            if (target.hasAttribute('data-global-solo')) { const t = track(); if (t) mutate(p => { p.tracks.find(x => x.id === t.id).solo = !t.solo; }, 'mix'); return; }
+            if (target.dataset.applyInstrument) {
+                const instId = target.dataset.applyInstrument, t = track();
+                if (t && !isAudioTrack(t) && isDrumTrack(t) === isDrumInstrumentId(instId)) {
+                    selectedInstrument = instId; markRecent(instId);
+                    mutate(p => { const targetTrack = p.tracks.find(x => x.id === t.id); targetTrack.instrument = instId; if (M.defaultParamsFor) targetTrack.params = M.defaultParamsFor(instId); });
+                }
+                return;
+            }
+            // data-fx-add is a valueless marker; test with hasAttribute, never truthy dataset.
+            if (target.hasAttribute('data-fx-add')) { mutate(p => { const t = p.tracks.find(t => t.id === track()?.id); if (!t) return; if (!t.fx) t.fx = { inserts: [] }; if (t.fx.inserts.length >= M.MAX_INSERTS) return; t.fx.inserts.push(M.insertSpec('chorus', { mix: 0.3 })); }, 'mix'); return; }
+            if (target.dataset.fxMove) { const [idxStr, dirStr] = target.dataset.fxMove.split(':'), index = Number(idxStr), to = index + Number(dirStr); mutate(p => { const list = p.tracks.find(t => t.id === track()?.id)?.fx?.inserts; if (!list || index < 0 || to < 0 || index >= list.length || to >= list.length) return; const [item] = list.splice(index, 1); list.splice(to, 0, item); }, 'mix'); return; }
+            if (target.dataset.fxRemove) { const index = Number(target.dataset.fxRemove); mutate(p => { const t = p.tracks.find(t => t.id === track()?.id); if (t?.fx?.inserts) t.fx.inserts.splice(index, 1); }, 'mix'); return; }
+            if (target.dataset.choose) { selectedInstrument = target.dataset.choose; markRecent(target.dataset.choose); renderLibrary(); return; }
+            if (target.dataset.action) { Promise.resolve().then(() => actions[target.dataset.action]?.()).catch(fail); return; }
+            if (target.dataset.category) { category = target.dataset.category; activeTag = ''; renderLibrary(); return; }
+            if (target.dataset.libraryMode) { libraryMode = target.dataset.libraryMode; activeTag = ''; renderLibrary(); return; }
+            if (target.dataset.insert) { selectedInstrument = target.dataset.insert; markRecent(target.dataset.insert); insert({ type: libraryMode === 'patterns' ? 'pattern' : 'instrument', id: target.dataset.insert }, '', cursor); renderLibrary(); return; }
+            if (target.dataset.preview) {
+                const pattern = M.patterns.find(p => p.id === target.dataset.preview);
+                if (pattern && libraryMode === 'patterns') {
+                    const p = M.create('Preview'), t = M.addTrack(p, pattern.instrument.startsWith('drum-') ? 'drums-kit' : pattern.instrument);
+                    t.clips.push(M.cloneClip(pattern.clip, 0)); stop();
+                    audio.play(p, 0, () => {}, () => { playing = false; status(); }).catch(fail);
+                } else {
+                    const preset = P.get(target.dataset.preview); markRecent(target.dataset.preview);
+                    audition(preset?.drumNote || 60, target.dataset.preview);
+                }
+                return;
+            }
+            if (target.dataset.audition) audition(Number(target.dataset.audition));
+        }, { signal });
+
+        // Close floating MIDI popover on outside click.
+        document.addEventListener('pointerdown', e => {
+            const midiPanel = find('[data-midi-panel]');
+            if (midiPanel && !midiPanel.hidden && !midiPanel.contains(e.target) && !e.target.closest('[data-action="midi"]')) {
+                midiPanel.hidden = true;
+                root.querySelectorAll('[data-action="midi"]').forEach(b => b.setAttribute('aria-expanded', 'false'));
+            }
+        }, { signal });
+
+        root.addEventListener('dragstart', e => {
+            const item = e.target.closest('[data-library-id]');
+            if (!item || blocked()) { e.preventDefault(); return; }
+            e.dataTransfer.setData('application/x-aurago-synth', JSON.stringify({ type: item.dataset.libraryType, id: item.dataset.libraryId }));
+            e.dataTransfer.effectAllowed = 'copy';
+        }, { signal });
+        root.addEventListener('input', e => {
+            previewParameter(e.target);
+            if (e.target.hasAttribute('data-search')) renderLibrary();
+            if (e.target.hasAttribute('data-zoom')) editor.setZoom(Number(e.target.value));
+        }, { signal });
+        root.addEventListener('change', e => {
+            const el = e.target;
+            if (el.hasAttribute('data-export')) { const value = el.value; el.value = ''; if (value) exportFile(value); }
+            if (el.hasAttribute('data-tempo')) mutate(p => { p.tempo = Number(el.value); });
+            if (el.hasAttribute('data-loop')) mutate(p => { p.loop.enabled = el.checked; });
+            if (el.hasAttribute('data-loop-start') || el.hasAttribute('data-loop-end')) mutate(p => { p.loop.start = (Number(find('[data-loop-start]').value) - 1) * BAR; p.loop.end = (Number(find('[data-loop-end]').value) - 1) * BAR; });
+            if (el.hasAttribute('data-metronome')) metronome = el.checked;
+            if (el.hasAttribute('data-snap')) { quantize = Number(el.value); editor.setSnap(quantize); }
+            if (el.hasAttribute('data-global-track')) {
+                const t = project().tracks.find(x => x.id === el.value);
+                if (t) { if (designer && (isDrumTrack(t) || isAudioTrack(t))) { designer = null; D.setPreview(null); } editor.select(t.id, t.clips[0]?.id || ''); }
+                return;
+            }
+            if (el.hasAttribute('data-track-name')) mutate(p => { p.tracks.find(t => t.id === track().id).name = el.value; });
+            if (el.hasAttribute('data-instrument') || el.hasAttribute('data-quick-instrument')) mutate(p => { const t = p.tracks.find(t => t.id === track().id); t.instrument = el.value; if (M.defaultParamsFor) t.params = M.defaultParamsFor(el.value); });
+            if (el.hasAttribute('data-fx-type')) { const index = Number(el.dataset.fxType), type = el.value; mutate(p => { const t = p.tracks.find(t => t.id === track()?.id); if (t?.fx?.inserts?.[index]) t.fx.inserts[index] = M.insertSpec(type, {}); }, 'mix'); }
+            if (el.hasAttribute('data-fx-preset')) {
+                const presetId = el.value; el.value = '';
+                if (presetId === 'clear') mutate(p => { const t = p.tracks.find(t => t.id === track()?.id); if (t) t.fx = { inserts: [] }; }, 'mix');
+                else if (FX_CHAIN_PRESETS[presetId]) mutate(p => { const t = p.tracks.find(t => t.id === track()?.id); if (t) t.fx = { inserts: FX_CHAIN_PRESETS[presetId].slice(0, M.MAX_INSERTS).map(([type, ov]) => M.insertSpec(type, ov)) }; }, 'mix');
+            }
+            if (el.hasAttribute('data-master-select')) { const key = el.dataset.masterSelect; mutate(p => { p.master = { ...(p.master || {}), [key]: el.value }; }, 'mix'); }
+            const parameter = controlTarget(el);
+            if (parameter && (parameter.master || parameter.id) && !parameterGesture) mutate(p => setParameter(p, parameter), 'mix');
+            if (el.hasAttribute('data-midi-input')) { panic(); midi.select(el.value).catch(fail); }
+            if (el.hasAttribute('data-count-in')) countIn = el.checked;
+            if (el.hasAttribute('data-latency')) latency = Math.max(-200, Math.min(200, Number(el.value) || 0));
+            if (el.hasAttribute('data-midi-file')) {
+                const file = el.files[0]; el.value = '';
+                if (file) {
+                    if (file.size > 10 * 1024 * 1024) { fail('invalid_project'); return; }
+                    file.arrayBuffer().then(bytes => window.SynthStudioMIDI.importFile(bytes)).then(replaceProject).catch(fail);
+                }
+            }
+        }, { signal });
+
+        const keyboard = { a: 60, w: 61, s: 62, e: 63, d: 64, f: 65, t: 66, g: 67, y: 68, h: 69, u: 70, j: 71, k: 72 };
+        const MODE_KEYS = { '1': 'notes', '2': 'sound', '3': 'performance', '4': 'mix', '5': 'strudel', '6': 'rb338' };
+        root.addEventListener('keydown', e => {
+            if (e.defaultPrevented || e.target.matches('input,textarea,select') || e.repeat) return;
+            if (e.altKey && !e.ctrlKey && !e.metaKey) {
+                const k = e.key.toLowerCase();
+                if (MODE_KEYS[k]) { e.preventDefault(); workspace.panel(MODE_KEYS[k]); return; }
+                if (k === 'l') { e.preventDefault(); workspace.toggleLibrary(); return; }
+            }
+            if (e.key === 'Escape') {
+                const midiPanel = find('[data-midi-panel]');
+                if (midiPanel && !midiPanel.hidden) { e.preventDefault(); actions.midi(); return; }
+                const masterPanel = find('[data-master-panel]');
+                if (masterPanel && !masterPanel.hidden && workspace.currentPanel() !== 'mix') { e.preventDefault(); actions.master(); return; }
+            }
+            // The RB-338 rack owns the keyboard while its tab is shown.
+            if (workspace.isRb338?.()) { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') e.preventDefault(); return; }
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); storage.save(e.shiftKey).catch(fail); return; }
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); updatedHistory(e.shiftKey ? 'redo' : 'undo'); return; }
+            if (e.ctrlKey || e.metaKey || e.altKey) return;
+            if (e.target.hasAttribute('data-analyser') && (e.code === 'Space' || e.key === 'Enter')) { e.preventDefault(); cycleScopeMode(); return; }
+            if (e.code === 'Space' && !e.target.closest('button')) { e.preventDefault(); actions.play(); return; }
+            if (keyboard[e.key.toLowerCase()] != null) { e.preventDefault(); noteOn(keyboard[e.key.toLowerCase()], 0.8); }
+        }, { signal });
+        window.addEventListener('keyup', e => { if (keyboard[e.key.toLowerCase()] != null) noteOff(keyboard[e.key.toLowerCase()]); }, { signal });
+        window.addEventListener('blur', () => { if (recording) stop(); else { composer?.stop(); panic(); } }, { signal });
+        document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); }, { signal });
+        document.addEventListener('aurago:desktop-policy', e => { if (typeof e.detail?.readonly === 'boolean') { revoked = e.detail.readonly; ctx.readonly = revoked; if (revoked) stop(); refresh(); } }, { signal });
+        document.addEventListener('aurago:auth-ended', () => dispose(id), { signal });
+        window.addEventListener('beforeunload', e => { if (storage.state.dirty || rb338?.isModified?.()) { e.preventDefault(); e.returnValue = ''; } }, { signal });
+        window.addEventListener('pagehide', () => dispose(id), { signal });
+
+        const guard = async () => { stop(); await stage?.guard(); return storage.guard(); };
+        ctx.setWindowBeforeClose?.(id, guard);
+        const sessionRevision = () => JSON.stringify([storage.state.revision, !!stage?.active(), stage?.readyTake?.() || null]);
+        ctx.registerSessionAction?.(id, {
+            inspect: () => ({ dirty: !!storage.state.dirty || !!stage?.active() || !!stage?.readyTake?.(), revision: sessionRevision(), label: storage.state.name || tr('untitled') }),
+            decide: snapshot => ctx.decideSessionAction?.({ title: snapshot.title, label: snapshot.label, dirty: snapshot.dirty }),
+            save: async expected => {
+                if (disposed || busy || recording || stage?.active() || sessionRevision() !== expected) return false;
+                if (stage?.guard && await stage.guard() === false) return false;
+                if (sessionRevision() !== expected) return false;
+                const saved = storage.state.dirty ? await storage.save(false) : true;
+                return saved === true && !storage.state.dirty && sessionRevision() === expected ? { revision: expected } : false;
             }
         });
-        ctx.registerWindowCleanup?.(id,()=>dispose(id));
-        const instance={guard,dispose(){if(disposed)return;stage?.stop();disposed=true;generation++;cancelAnimationFrame(analyserFrame);audio.stop();composer?.stop();rb338?.dispose?.();rbRelease?.();rbRelease=null;panic();timers.forEach(clearTimeout);timers.clear();life.abort();midi.dispose();audio.dispose();storage.dispose();editor.dispose();},project:()=>M.clone(project()),editor,storage,stage,audio};
-        instances.set(id,instance);renderLibrary();refresh();analyserFrame=requestAnimationFrame(drawAnalyser);
-        Promise.resolve(storage.ready).catch(fail).finally(()=>{if(!disposed){ready=true;refresh();}});
+        ctx.registerWindowCleanup?.(id, () => dispose(id));
+
+        const instance = {
+            guard,
+            dispose() {
+                if (disposed) return;
+                stage?.stop(); disposed = true; generation++;
+                cancelAnimationFrame(analyserFrame); audio.stop(); composer?.stop(); rb338?.dispose?.(); rbRelease?.(); rbRelease = null;
+                panic(); timers.forEach(clearTimeout); timers.clear(); life.abort(); midi.dispose(); audio.dispose(); storage.dispose(); editor.dispose();
+            },
+            project: () => M.clone(project()),
+            editor, storage, stage, audio
+        };
+        instances.set(id, instance);
+        renderLibrary(); refresh();
+        analyserFrame = requestAnimationFrame(drawAnalyser);
+        Promise.resolve(storage.ready).catch(fail).finally(() => { if (!disposed) { ready = true; refresh(); } });
         return instance;
     }
-    function dispose(id){const instance=instances.get(id);if(instance){instances.delete(id);instance.dispose();}}
-    window.SynthStudioApp={render,dispose,instances};
+
+    function dispose(id) { const instance = instances.get(id); if (instance) { instances.delete(id); instance.dispose(); } }
+    window.SynthStudioApp = { render, dispose, instances };
 })();

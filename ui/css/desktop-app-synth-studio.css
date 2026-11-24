@@ -102,25 +102,28 @@
 .ss-track-label {position:sticky;left:0;z-index:5;width:180px;padding:7px 11px;color:var(--vd-mat-label-color,var(--ss-muted));font-size:10px;font-family:var(--vd-mat-label-font,inherit);letter-spacing:var(--vd-mat-label-tracking,normal);text-transform:var(--vd-mat-label-transform,none);background:var(--ss-side);border-right:1px solid var(--ss-line)}
 .ss-ruler-grid {position:relative;height:27px;background:repeating-linear-gradient(90deg,var(--ss-border) 0 1px,transparent 1px calc(var(--ss-beat)*4));cursor:crosshair}
 .ss-ruler-grid span {position:absolute;padding:6px 7px;font:10px monospace;font-family:var(--vd-mat-mono-font,monospace);color:var(--ss-muted)}
-.ss-track {display:flex;height:75px;border-bottom:1px solid var(--ss-line)}
-.ss-track-head {position:sticky;left:0;z-index:3;flex-shrink:0;width:180px;display:grid;grid-template-columns:1fr 92px;grid-template-rows:32px 20px;padding:7px 9px 5px 11px;gap:3px;background:var(--ss-side);box-shadow:var(--ss-side-edge);border-left:3px solid var(--ss-track-color);border-right:1px solid var(--ss-line)}
-.ss-track-head input {grid-column:1/-1;width:142px!important;accent-color:var(--ss-track-color)!important}
-.ss-track-name {text-align:left;font-size:11px!important;padding:0!important;line-height:1.2;overflow:hidden;text-overflow:ellipsis;max-width:72px;color:var(--ss-track-color);font-weight:600}
+.ss-track {display:flex;height:60px;border-bottom:1px solid var(--ss-line)}
+.ss-track-head {position:sticky;left:0;z-index:3;flex-shrink:0;width:180px;display:grid;grid-template-columns:1fr 92px;grid-template-rows:24px 20px;padding:6px 8px 5px 10px;gap:3px;background:var(--ss-side);box-shadow:var(--ss-side-edge);border-left:3px solid var(--ss-track-color);border-right:1px solid var(--ss-line)}
+.ss-track-subrow {grid-column:1/-1;display:flex;align-items:center;gap:6px;min-width:0}
+.ss-track-subrow input {flex:1;min-width:0;width:auto!important;accent-color:var(--ss-track-color)!important}
+.ss-track-fx-badge {flex:none;font-size:9px;min-height:18px;padding:1px 6px;border-radius:4px;border:1px solid var(--ss-border);color:var(--ss-muted);background:transparent}
+.ss-track-fx-badge.has-fx {color:var(--ss-track-color);border-color:color-mix(in srgb,var(--ss-track-color) 55%,transparent)}
+.ss-track-name {text-align:left;font-size:11px!important;padding:0!important;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:72px;color:var(--ss-track-color);font-weight:600}
 .ss-track-buttons {display:flex;gap:1px;align-items:center}
 .ss-track-buttons button {font-size:9px;min-height:22px;width:22px;padding:3px}
 .ss-track-buttons button[aria-pressed=true] {color:var(--ss-track-color);border-color:var(--ss-track-color);background:color-mix(in srgb,var(--ss-track-color) 18%,transparent)}
 .ss-track.is-selected .ss-track-head {background:linear-gradient(90deg,color-mix(in srgb,var(--ss-track-color) 22%,var(--ss-side-color)),var(--ss-side-color))}
 .ss-lane {position:relative;flex-shrink:0;background-image:repeating-linear-gradient(90deg,var(--ss-border) 0 1px,transparent 1px calc(var(--ss-beat)*4)),repeating-linear-gradient(90deg,color-mix(in srgb,var(--ss-border) 40%,transparent) 0 1px,transparent 1px var(--ss-beat));}
-.ss-clip {position:absolute;top:7px;height:59px;border-radius:5px;border:1px solid color-mix(in srgb,var(--ss-track-color) 60%,transparent);background:linear-gradient(180deg,color-mix(in srgb,var(--ss-track-color) 20%,transparent),color-mix(in srgb,var(--ss-track-color) 7%,transparent)),var(--ss-well-color);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ss-track-color) 10%,transparent);overflow:hidden;cursor:grab;touch-action:none;user-select:none}
-.ss-clip>span {display:block;padding:4px 7px;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ss-track-color);font-weight:600;background:color-mix(in srgb,var(--ss-track-color) 24%,transparent);border-bottom:1px solid color-mix(in srgb,var(--ss-track-color) 32%,transparent)}
+.ss-clip {position:absolute;top:5px;height:48px;border-radius:5px;border:1px solid color-mix(in srgb,var(--ss-track-color) 60%,transparent);background:linear-gradient(180deg,color-mix(in srgb,var(--ss-track-color) 20%,transparent),color-mix(in srgb,var(--ss-track-color) 7%,transparent)),var(--ss-well-color);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ss-track-color) 10%,transparent);overflow:hidden;cursor:grab;touch-action:none;user-select:none}
+.ss-clip>span {display:block;padding:3px 7px;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ss-track-color);font-weight:600;background:color-mix(in srgb,var(--ss-track-color) 24%,transparent);border-bottom:1px solid color-mix(in srgb,var(--ss-track-color) 32%,transparent)}
 .ss-clip.is-selected {outline:2px solid var(--ss-track-color);outline-offset:1px;background:linear-gradient(180deg,color-mix(in srgb,var(--ss-track-color) 38%,transparent),color-mix(in srgb,var(--ss-track-color) 16%,transparent)),var(--ss-well-color);box-shadow:0 0 0 1px color-mix(in srgb,var(--ss-track-color) 45%,transparent),0 6px 18px color-mix(in srgb,var(--ss-track-color) 20%,transparent)}
 .ss-clip.is-selected>span {background:color-mix(in srgb,var(--ss-track-color) 42%,transparent)}
-.ss-clip-notes {position:relative;height:25px;margin:0 7px;pointer-events:none}
+.ss-clip-notes {position:relative;height:18px;margin:0 7px;pointer-events:none}
 .ss-clip-notes i {position:absolute;height:2px;background:var(--ss-track-color);border-radius:1px;opacity:.85}
 .ss-clip-resize {position:absolute;right:0;top:0;bottom:0;width:9px;cursor:ew-resize;background:color-mix(in srgb,var(--ss-track-color) 12%,transparent)}
-.ss-playhead {position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--ss-accent);pointer-events:none;z-index:2;box-shadow:0 0 10px color-mix(in srgb,var(--ss-accent) 70%,transparent)}
+.ss-playhead,.ss-roll-playhead {position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--ss-accent);pointer-events:none;z-index:2;box-shadow:0 0 10px color-mix(in srgb,var(--ss-accent) 70%,transparent)}
 .ss-playhead:before {content:'';position:absolute;top:0;left:-3px;width:8px;height:8px;background:var(--ss-accent);clip-path:polygon(0 0,100% 0,50% 100%)}
-.ss-add-lane {height:75px;display:flex;align-items:center;gap:24px;padding:15px;color:var(--ss-muted);border-bottom:1px dashed var(--ss-border)}
+.ss-add-lane {height:56px;display:flex;align-items:center;gap:24px;padding:10px 15px;color:var(--ss-muted);border-bottom:1px dashed var(--ss-border)}
 .ss-add-lane button {width:148px;border:1px dashed var(--ss-border);font-size:11px}
 .ss-add-lane span {font-size:11px}
 .ss-note-editor {flex:0 0 230px;border-top:1px solid var(--ss-line);border-left:3px solid var(--ss-track-color);background:var(--ss-well);box-shadow:var(--ss-well-shadow);display:flex;flex-direction:column;min-height:0;overflow:hidden;--ss-track-color:var(--ss-accent)}

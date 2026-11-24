@@ -6,8 +6,40 @@ browser; the AuraGo server stores project files through the existing Desktop
 file API. No cloud music service or audio sidecar is required.
 
 Planned expansions — new sounds, a rebuilt demo, a parameterised effect chain and
-a UI refresh — were tracked in `documentation/synth-studio-plan.md` and are now
-implemented. That plan remains the record of the intended scope.
+the viewport-locked cockpit redesign — are implemented cleanly over the validated
+audio/project core.
+
+## Workspace Cockpit & Navigation
+
+- **Compact 2-bar header and transport.** Mode tabs (**Arrange**, **Sound design**,
+  **Perform**, **Mixer**, **Strudel**, **RB-338**) live directly in the header alongside
+  the dirty indicator, the **Library** drawer toggle, the **MIDI** popover toggle (with
+  activity LED) and file/export actions. The transport bar adds a global **Active track**
+  selector with direct M/S buttons, while **Strudel** and **RB-338** hide the global
+  arrangement transport so their own editors fill the workspace (`Alt+1`–`Alt+6` switches
+  modes, `Alt+L` toggles the library, `Esc` closes popovers/drawers).
+- **Arrange & Quick Sound Strip.** Compact tracks (`60 px`) show an inline **FX** count
+  pill jumping straight to **Sound design**. Melodic piano rolls offer **Scale only**
+  (hiding non-scale keys) alongside **Expand** / **Close** controls and an internal live
+  playhead. On wide screens (`≥ 1100 px`), **Quick sound** opens an optional right-side
+  inspector strip for fast tweakable track knobs while keeping the main timeline dominant.
+- **Sound Design & Signal Flow Designer.** A left **Tracks** rail switches and solos
+  instruments without leaving the cockpit; Voice Shaper, Sends and the 2×2 **Effect Chain**
+  grid stay visible above a pinned bottom **Octave + Audition** keyboard/drum dock. The
+  programmable synthesizer (**Design sound**) lays out a sticky action header, a 3-column
+  signal flow (tabbed **Oscillator / Sub & Noise / FM Ops** source deck, **Filter** curve,
+  and vertical **Envelope** faders) and collapsible **LFO / Pitch** modules.
+- **Perform & Mixer.** **Perform** shares key/scale controls above **Live Stage** (a
+  single-screen grid of 4×2 scenes, 4×2 chord pads, XY/macro controls, momentary Live FX
+  and take capture) and **Compose Studio** (master-detail generator navigator with
+  compatibility badges and a sticky clip/generate/preview dock). **Mixer** renders per-track
+  vertical fader/pan/send channel strips directly beside the docked **Master** panel;
+  outside **Mixer**, **Master** opens as a floating right overlay drawer.
+- **Strudel & RB-338.** **Strudel** adds a collapsible clickable **Reference** snippet
+  sidebar alongside the code screen. **RB-338** opens by default in **Focus View**
+  (sticky toolbar/transport/machine tabs, focused instrument pattern + controls, 4-channel
+  mixer strip below, Master and tabbed PCF/Delay/Dist/Comp effects) with a persisted toggle
+  to **Full Rack** (`aurago:synth-studio:rb338:1`).
 
 ## Strudel live coding
 

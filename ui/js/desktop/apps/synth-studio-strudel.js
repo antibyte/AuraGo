@@ -254,9 +254,15 @@
             ')'
         ].join('\n')
     };
+    const REF_GROUPS = [
+        { key: 'strudel_ref_drums', items: [['bd', 's("bd*4")'], ['sd', 's("~ sd ~ sd")'], ['cp', 's("~ cp ~ cp")'], ['hh', 's("hh*8")'], ['oh', 's("~ ~ ~ oh")'], ['rim', 's("rim(3,8)")'], ['cb', 's("~ cb ~ ~")'], ['lt', 'lt'], ['mt', 'mt'], ['ht', 'ht']] },
+        { key: 'strudel_ref_synths', items: [['sawtooth', '.s("sawtooth")'], ['supersaw', '.s("supersaw").unison(4)'], ['pulse', '.s("pulse").pw(.3)'], ['triangle', '.s("triangle")'], ['sine', '.s("sine")'], ['square', '.s("square")']] },
+        { key: 'strudel_ref_fx', items: [['lpf', '.lpf(1200)'], ['hpf', '.hpf(240)'], ['lpq', '.lpq(6)'], ['room', '.room(.45)'], ['delay', '.delay(.35)'], ['distort', '.distort(.35)'], ['crush', '.crush(6)'], ['phaser', '.phaser(.4)']] }
+    ];
+
     function create(host, options) {
         const { tr, signal } = options;
-        let frame = null, request = 0, timer = 0, loading = false, running = false, disposed = false;
+        let frame = null, request = 0, timer = 0, loading = false, running = false, disposed = false, refOpen = false;
         const el = (tag, text) => { const node = document.createElement(tag); if (text) node.textContent = text; return node; };
         host.className = 'ss-strudel-workbench';
         const tools = el('div'); tools.className = 'ss-strudel-tools';
@@ -267,6 +273,8 @@
         for (const key of Object.keys(examples)) select.append(new Option(tr('strudel_' + key), key));
         const importButton = el('button', tr('strudel_open')), download = el('button', tr('strudel_download'));
         importButton.type = download.type = 'button';
+        const refToggle = el('button', tr('strudel_ref'));
+        refToggle.type = 'button'; refToggle.dataset.strudelRefToggle = ''; refToggle.setAttribute('aria-expanded', 'false');
         const file = el('input'); file.type = 'file'; file.accept = '.strudel,.txt,text/plain'; file.hidden = true;
         const guide = el('a', tr('strudel_guide')); guide.href = 'https://strudel.cc/workshop/getting-started/'; guide.target = '_blank'; guide.rel = 'noopener noreferrer';
         const source = el('a', tr('strudel_source')); source.href = '/js/vendor/strudel/sources.zip'; source.download = 'strudel-1.3.0-sources.zip';
@@ -276,8 +284,10 @@
         try { const saved = localStorage.getItem(KEY); if (fits(saved)) code.value = saved; } catch (_) {}
         const hint = el('p', tr('strudel_hint')), status = el('output', tr('strudel_idle'));
         status.dataset.strudelState = 'idle'; status.setAttribute('role', 'status');
-        // Toolbar: transport, status, then file actions. Editor: line gutter + code, the hint is its footer.
-        tools.append(status, select, importButton, download, guide, source);
+        // Toolbar: transport, status, examples, file actions, quick reference.
+        tools.append(status, select, importButton, download, refToggle, guide, source);
+
+        const main = el('div'); main.className = 'ss-strudel-main';
         const editor = el('div'), gutter = el('div');
         editor.className = 'ss-strudel-editor'; gutter.className = 'ss-strudel-gutter'; gutter.setAttribute('aria-hidden', 'true');
         code.wrap = 'off'; hint.className = 'ss-strudel-hint';
@@ -287,10 +297,34 @@
             gutter.scrollTop = code.scrollTop;
         };
         editor.append(gutter, code);
-        host.append(tools, editor, hint, file);
+
+        const refPane = el('aside'); refPane.className = 'ss-strudel-ref'; refPane.hidden = true;
+        refPane.setAttribute('aria-label', tr('strudel_ref'));
+        for (const group of REF_GROUPS) {
+            const sec = el('div'); sec.className = 'ss-strudel-ref-group';
+            const heading = el('strong', tr(group.key));
+            const chips = el('div'); chips.className = 'ss-strudel-ref-chips';
+            for (const [label, snippet] of group.items) {
+                const chip = el('button', label);
+                chip.type = 'button';
+                chip.dataset.strudelSnippet = snippet;
+                chip.title = snippet;
+                chips.append(chip);
+            }
+            sec.append(heading, chips);
+            refPane.append(sec);
+        }
+
+        main.append(editor, refPane);
+        host.append(tools, main, hint, file);
         const message = (key, detail = '') => { status.dataset.strudelState = key; status.textContent = tr('strudel_' + key) + (detail ? ': ' + detail : ''); };
         const persist = () => { lines(); if (!fits(code.value)) { message('error'); return; } try { localStorage.setItem(KEY, code.value); } catch (_) { message('draft_error'); } };
-        function refresh() { run.disabled = disposed || loading || options.blocked(); code.readOnly = options.readonly(); select.disabled = importButton.disabled = options.readonly(); }
+        function refresh() {
+            run.disabled = disposed || loading || options.blocked();
+            code.readOnly = options.readonly();
+            select.disabled = importButton.disabled = options.readonly();
+            refPane.querySelectorAll('button').forEach(b => { b.disabled = options.readonly(); });
+        }
         function stop() {
             request++; clearTimeout(timer); frame?.remove(); frame = null; loading = running = false;
             if (!disposed) { message('idle'); refresh(); }
@@ -306,7 +340,7 @@
             if (frame) { send(); return; }
             frame = el('iframe'); frame.title = tr('strudel_sound'); frame.sandbox = 'allow-scripts'; frame.allow = 'autoplay'; frame.referrerPolicy = 'no-referrer'; frame.hidden = true;
             frame.src = '/api/desktop/synth-studio/strudel';
-            host.insertBefore(frame, editor);
+            host.insertBefore(frame, main);
             // Ready comes from the initialized engine, rather than the document load event.
             frame._send = send;
         }
@@ -321,6 +355,24 @@
         }, { signal });
         run.addEventListener('click', evaluate, { signal });
         stopButton.addEventListener('click', stop, { signal });
+        refToggle.addEventListener('click', () => {
+            refOpen = !refOpen;
+            refPane.hidden = !refOpen;
+            refToggle.setAttribute('aria-expanded', String(refOpen));
+        }, { signal });
+        refPane.addEventListener('click', event => {
+            const btn = event.target.closest('[data-strudel-snippet]');
+            if (!btn || options.readonly()) return;
+            const snippet = btn.dataset.strudelSnippet;
+            const start = code.selectionStart ?? code.value.length;
+            const end = code.selectionEnd ?? start;
+            const next = code.value.slice(0, start) + snippet + code.value.slice(end);
+            if (!fits(next)) { message('error'); return; }
+            code.value = next;
+            code.focus();
+            code.setSelectionRange(start + snippet.length, start + snippet.length);
+            persist();
+        }, { signal });
         code.addEventListener('input', persist, { signal });
         code.addEventListener('keydown', event => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); evaluate(); } }, { signal });
         select.addEventListener('change', async () => {

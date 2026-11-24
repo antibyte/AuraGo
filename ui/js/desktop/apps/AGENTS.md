@@ -722,12 +722,14 @@ after the built-in installers and before the markup exists. DOM work belongs in 
 
 ## Synth Studio
 
-- The RB-338 panel bundle concatenates the rack and sequencer sources in a single scope. Keep the model and host ahead of the panel in the module loader. Include both panel sources when regenerating the corresponding-source archive with scripts/build-rb338-vendor.mjs.
+- The RB-338 panel bundle concatenates `synth-studio-rb338-model.js` → `host.js` → `rack.js` → `sequencer.js` in a single scope. Keep the model and host ahead of the panel in the module loader, and include both panel sources (`rack.js`, `sequencer.js`) when regenerating the corresponding-source archive with `scripts/build-rb338-vendor.mjs`. `rack.js` + `sequencer.js` default to **Focus View** (`layoutMode = 'focus'`, `fxTab = 'pcf'`, persisted alongside `focus`/`banks`/`insts`/`keys`/`bars` in `aurago:synth-studio:rb338:1`) with a sticky `.ss-rb-topdock` (`ss-rb-viewbar` machine focus tabs + Focus/Full Rack switcher), 4-channel strip (`CH 1–4`), tabbed FX (`[data-rb-fxtab]`), active-voice drum group highlights (`.ss-rb-grp.is-active-voice`), and rack fallback (`layoutMode = 'rack'`). Both `TestDesktopSynthStudioBrowser` (clicking `[data-rb-focus]` before editing a specific machine's steps) and `node scripts/test-synth-studio-rb338.mjs` cover it.
 
 - `synth-studio-strudel.js` owns the Strudel workbench, a 64 KiB browser-local
-  scratch draft (`aurago:synth-studio:strudel:1`), explicit `.strudel` import/download
-  and eight sample-free showcase examples (`synthwave`, `acid`, `dnb`, `ambient`,
-  `dub_techno`, `melody`, `groove`, `chiptune`). `bd`, `sd`, `cp`, `hh`, `oh`,
+  scratch draft (`aurago:synth-studio:strudel:1`), explicit `.strudel` import/download,
+  a collapsible snippet sidebar (`[data-strudel-ref-toggle]`) inserting into the
+  code cursor, and eight sample-free showcase examples (`synthwave`, `acid`, `dnb`, `ambient`,
+  `dub_techno`, `melody`, `groove`, `chiptune`). Keep `status` as the sole `<output>`
+  inside `.ss-strudel-workbench` (`TestSynthStudioStrudel*` queries the first `<output>`). `bd`, `sd`, `cp`, `hh`, `oh`,
   `rim`, `cb`, `lt`, `mt` and `ht` use local Web Audio / Strudel drum synthesis
   registered in `synth-studio-strudel-player.js`, which also bridges superdough's
   inlined `data:` AudioWorklet modules to temporary `blob:` URLs during `initAudio`
@@ -750,22 +752,38 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   registration/recording checks and `node scripts/build-strudel-vendor.mjs --check`.
 - `synth-studio` is a native Creative app with the `synthStudio.*` locale prefix.
   Keep its 120 factory presets (five banks of twenty-four), 128 synthesized GM
-  programs and percussion bank local. See `documentation/synth-studio.md` for
-  supported music formats, controls and resource limits.
+  programs and percussion bank local. `synth-studio.js` owns the 2-bar header/transport
+  cockpit (including `[data-global-track]`/`M`/`S`, anchored `.ss-midi-panel` popover,
+  `.ss-quick-strip` using `data-quick-param`, 3-zone Sound inspector + pinned
+  `.ss-audition-dock`, and multi-track `.ss-mix-strip` Mixer using `data-mix-param` /
+  `data-mix-volume`), keeping `[data-param]` exclusively inside `.ss-inspector` (8 controls).
+  Preserve `const eventCount=` and `find`-safe MIDI LED updates inside `noteOn`/`noteOff`
+  because `scripts/test-synth-studio-recording.mjs` extracts those functions via VM harness.
+  See `documentation/synth-studio.md` for supported music formats, controls and resource limits.
 - `synth-studio-designer.js` owns the programmable synthesizer: it normalizes
   drafts against the voice-engine bounds (including the fourteen periodic/base
   waveforms `organ`, `metallic`, `warm_saw`, `hollow`), provides browser-local
   draft `mutatePatch`/`randomPatch` helpers, keeps the browser-local user patch
   bank (max twenty-four, `aurago:synth-studio:patches:1`), registers the stored
   synths into `synth-studio-presets.js` (category `user` plus a runtime-only
-  preview entry that never lists) and renders the parameter editor inside the
-  sound panel. Projects only reference the `user-*` instrument id; validation
+  preview entry that never lists) and renders the sticky-header 3-column Signal-Flow
+  editor (tabbed `[data-designer-tab="osc"|"sub"|"fm"]` source deck + Filter + Envelope +
+  collapsible LFO/Pitch + pinned `.ss-audition-dock` preserving `sourceTab`, `octave` and
+  open groups across Mutate/Randomize/Reset). Projects only reference the `user-*` instrument id; validation
   accepts well-formed user ids even when the patch is missing in that browser
   (plain-wave fallback, "Missing synth" option), and saving/assigning a synth to
   its track stays one undoable mutation. Keep `scripts/test-synth-studio-designer.mjs`
   green.
-- `synth-studio-workspace.js` owns workbench tabs, resizing, templates and local
-  view preferences. Parameter gestures update existing audio buses and commit one
+- `synth-studio-workspace.js` owns `[data-modes-slot]` mode tabs (`notes`, `sound`,
+  `performance`, `mix`, `strudel`, `rb338`), Perform sub-tabs (`stage` | `compose`,
+  marked on `performance.dataset.activePerformTab` so `[data-perform-tab]` remains unique
+  to tab buttons), `.is-docked` on `[data-master-panel]` in `mix` mode vs floating drawer
+  elsewhere, piano-roll grip resizing, templates and persisted `aurago:synth-studio:view:2`
+  flags (`panel`, `height`, `library`, `quickStrip`, `performTab`, `noteExpanded`).
+  `synth-studio-editor.js` adds compact `60 px` track rows, `.ss-track-fx-badge` quick-jump,
+  melodic `[data-scale-fold]`, `[data-editor-expand]`, `[data-close-editor]` and live
+  `.ss-roll-playhead`.
+  Parameter gestures update existing audio buses and commit one
   undo step; cancellation restores the initial value. Structural edits wait for
   the next bar without restarting transport; cancel obsolete reserved voices even
   inside look-ahead. Stop/deadline takes priority over queued changes. Verify scheduler tests
@@ -774,9 +792,12 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   groove, transpose, reverse, chord-progression, bassline, motif `melody` and
   scale-locked `harmonize` transforms across all nine supported scales (`major`,
   `minor`, `dorian`, `phrygian`, `lydian`, `mixolydian`, `harmonic_minor`,
-  `pentatonic_minor`, `hirajoshi`); `synth-studio-compose.js` owns
-  preview/apply, held live inputs and the arp latch. Preview/cancel never
-  changes the project; Apply commits ordinary notes once. Groove humanisation
+  `pentatonic_minor`, `hirajoshi`); `synth-studio-compose.js` splits Harmony into
+  `[data-perform-harmony]`, Chord Pads + Arp Live/Latch into `[data-perform-panel="stage"]`
+  (sharing Live Stage with `synth-studio-stage.js`), and the Master-Detail generator
+  navigator + `[data-compose-clip]` dock into `[data-perform-panel="compose"]`, keeping all
+  `<details>`/`[data-music=*]` hooks present in the DOM (falling back to single-host markup if mounted standalone). Preview/cancel never
+  changes the project; Apply commits ordinary notes once and calls `options.showNotes()`. Groove humanisation
   and melody generation are seeded and repeatable; progression, bassline,
   melody and harmonizer follow the selected harmony rather than fixed pitches.
   The arpeggiator supports `up`, `down`, `pendulum`, `converge`, `diverge`,
