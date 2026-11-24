@@ -368,6 +368,9 @@ type Server struct {
 	videoStudio               *videoStudioManager
 	videoStudioClosed         bool
 	videoStudioConfigRevoking atomic.Bool
+	// Video Studio plan agent: the lazily created job manager (see videoStudioPlanAgents).
+	videoStudioPlanAgentsOnce sync.Once
+	videoStudioPlanAgentsMgr  *videoStudioPlanAgents
 
 	// Storymaker: the lazily created runtime (project store, catalog, render jobs). storymakerUI is
 	// the ui tree it reads; nil selects the embedded asset set (tests inject a tree).
