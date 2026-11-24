@@ -99,8 +99,10 @@
                 space: null
             },
             'window.deny': {
-                notes: [{ v: 'low', n: -12, t: 0, g: 0.9, pan: 0, t60: 0.15 }],
-                layers: [{ v: 'knock', t: 0, g: 0.7 }],
+                notes: [{ v: 'low', n: -12, t: 0, g: 0.8, pan: 0, t60: 0.16, attack: 0.006 },
+                    { v: 'glow', n: -12, t: 0, g: 0.8, pan: 0, t60: 0.2, tilt: -1, damp: 1.5, attack: 0.012 },
+                    { v: 'bell', n: -12, t: 0, g: 0.25, pan: 0, t60: 0.12 }],
+                layers: [{ v: 'knock', t: 0, g: 0.3 }],
                 space: { size: 0.6, rt60: 0.25, damping: 4200, predelay: 0.004, mix: 0.12 }
             },
             'file.drop': {
