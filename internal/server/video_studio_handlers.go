@@ -105,6 +105,8 @@ func handleVideoStudio(s *Server) http.HandlerFunc {
 				handleVideoStudioPreviewFile(s, w, r, parts[1], parts[3])
 			case len(parts) == 4 && parts[2] == "exports":
 				handleVideoStudioExportFile(s, w, r, parts[1], parts[3])
+			case len(parts) == 3 && parts[2] == "plan":
+				handleVideoStudioPlan(s, w, r, parts[1])
 			default:
 				writeVideoStudioError(w, http.StatusNotFound, "not_found", "Video Studio endpoint not found.")
 			}
