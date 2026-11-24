@@ -16,43 +16,47 @@
             soft: { model: 'bell', kind: 'tine', t60: 0.7, index: 0.5, attack: 0.008, spread: 0.3 },
             cel: { model: 'bell', kind: 'celesta', t60: 0.6, index: 0.5, attack: 0.008, spread: 0.3 },
             mellow: { model: 'analog', wave: 'saw', unison: 3, detune: 12, drift: 4, sub: 0, cutoff: 0.7, env: 2.5, envDecay: 0.25, q: 1, drive: 1, attack: 0.015, decay: 0.4, width: 0.7 },
+            swell: { model: 'analog', wave: 'tri', unison: 3, detune: 9, drift: 4, sub: 0, cutoff: 0.8, env: 1.5, envDecay: 0.3, q: 0.8, drive: 0.4, attack: 0.045, decay: 0.3, release: 0.12, width: 0.8 },
+            sonar: { model: 'blip', harm: 0.35, attack: 0.008, decay: 0.4, air: 0.1, glide: 3, glideTime: 0.045 },
+            breath: { model: 'noise', color: 'pink', band: [250, 2600], sweep: 1, q: 0.5, attack: 0.16, decay: 0.12, width: 1 },
             knock: { model: 'bar', kind: 'woodblock', t60: 0.12, hardness: 0.1, mallet: 0.2, attack: 0.002 },
             hiss: { model: 'noise', color: 'pink', band: [2500, 8000], q: 0.5, attack: 0.02, decay: 0.12, width: 1 },
             dock: { model: 'click', material: 'plastic', tone: 2800, ring: 0.02, noise: 0.75, q: 1.5 }
         },
         events: {
             'session.start': {
-                notes: [{ v: 'pad', n: -5, t: 0, g: 0.9, pan: 0, attack: 0.4, release: 1.0 }, { v: 'pad', n: 0, t: 0.05, g: 0.8, pan: 0, attack: 0.45, release: 1.0 },
-                    { v: 'soft', n: 4, t: 0.3, g: 0.8, pan: -0.25 }, { v: 'mellow', n: 4, t: 0.3, g: 0.45, pan: -0.25 },
-                    { v: 'cel', n: 6, t: 0.58, g: 0.85, pan: 0.1 }, { v: 'soft', n: 11, t: 0.86, g: 0.9, pan: -0.1 }, { v: 'mellow', n: 11, t: 0.86, g: 0.45, pan: -0.1 },
-                    { v: 'cel', n: 14, t: 1.14, g: 0.9, pan: 0.2 }, { v: 'soft', n: 16, t: 1.42, g: 0.9, pan: 0 }, { v: 'mellow', n: 16, t: 1.42, g: 0.5, pan: 0 },
-                    { v: 'ping', n: 0, t: 1.0, g: 0.3, pan: 0.3, decay: 0.3 }],
-                layers: [{ v: 'whoosh', t: 0, g: 0.35, attack: 0.3, decay: 0.5 }],
-                echo: { time: 0.34, feedback: 0.14, tone: 3000, mix: 0.2, spread: 0.6 },
-                space: { size: 1.6, rt60: 0.9, damping: 4500, predelay: 0.03, mix: 0.36 }
+                notes: [{ v: 'pad', n: -5, t: 0, g: 0.4, pan: 0, attack: 0.4, release: 1.0 }, { v: 'pad', n: 0, t: 0.05, g: 0.35, pan: 0, attack: 0.45, release: 1.0 },
+                    { v: 'swell', n: 4, t: 0.25, g: 0.9, pan: -0.25, unison: 5, detune: 14 }, { v: 'swell', n: 7, t: 0.47, g: 0.9, pan: 0.2, unison: 5, detune: 14 },
+                    { v: 'swell', n: 11, t: 0.69, g: 0.95, pan: -0.1, unison: 5, detune: 14 }, { v: 'swell', n: 16, t: 0.91, g: 1, pan: 0.1, unison: 5, detune: 14, decay: 0.5 }, { v: 'cel', n: 16, t: 0.93, g: 0.4, pan: 0.1, t60: 0.6 },
+                    { v: 'sonar', n: 23, t: 1.2, g: 0.8, pan: 0.15, decay: 0.4 }],
+                layers: [{ v: 'breath', t: 0, g: 0.9, attack: 0.3, decay: 0.3 }, { v: 'breath', t: 0.8, g: 0.5, attack: 0.25, decay: 0.4, band: [600, 4500], sweep: -1 }],
+                chorus: { rate: 0.4, depth: 0.003, delay: 0.015, mix: 0.35 },
+                echo: { time: 0.3, feedback: 0.2, tone: 3000, mix: 0.36, spread: 0.7 },
+                space: { size: 1.8, rt60: 0.6, damping: 4500, predelay: 0.03, mix: 0.45 }
             },
             'notify.message': {
-                notes: [{ v: 'pad', n: 4, t: 0, g: 0.5, attack: 0.08, hold: 0.05, release: 0.6 },
-                    { v: 'soft', n: 4, t: 0, g: 0.85, pan: -0.2 }, { v: 'mellow', n: 4, t: 0, g: 0.4, pan: -0.2, decay: 0.3 },
-                    { v: 'cel', n: 6, t: 0.15, g: 0.9, pan: 0.15 }, { v: 'soft', n: 11, t: 0.3, g: 1, pan: 0, t60: 0.8 }, { v: 'mellow', n: 11, t: 0.3, g: 0.45, pan: 0, decay: 0.4 },
-                    { v: 'ping', n: 12, t: 0.3, g: 0.2, pan: 0.2, decay: 0.2 }],
-                echo: { time: 0.22, feedback: 0.14, tone: 3000, mix: 0.2, spread: 0.5 },
-                space: { size: 1.4, rt60: 0.34, damping: 4500, predelay: 0.02, mix: 0.32 }
+                notes: [{ v: 'pad', n: 4, t: 0, g: 0.6, attack: 0.15, hold: 0.05, release: 0.5 },
+                    { v: 'swell', n: 4, t: 0.06, g: 0.9, pan: -0.2 }, { v: 'swell', n: 6, t: 0.24, g: 0.9, pan: 0.15 },
+                    { v: 'swell', n: 11, t: 0.42, g: 1, pan: 0, decay: 0.35 },
+                    { v: 'sonar', n: 18, t: 0.56, g: 0.8, pan: 0.2, decay: 0.22 }],
+                layers: [{ v: 'breath', t: 0, g: 0.5 }],
+                echo: { time: 0.15, feedback: 0.16, tone: 3000, mix: 0.26, spread: 0.6 },
+                space: { size: 1.4, rt60: 0.22, damping: 4500, predelay: 0.02, mix: 0.32 }
             },
             'notify.info': {
-                notes: [{ v: 'pad', n: 0, t: 0, g: 0.5, attack: 0.08, hold: 0, release: 0.4 },
-                    { v: 'soft', n: 0, t: 0, g: 0.85, pan: -0.15 }, { v: 'mellow', n: 0, t: 0, g: 0.4, pan: -0.15, decay: 0.25 },
-                    { v: 'cel', n: 7, t: 0.14, g: 1, pan: 0.15, t60: 0.7 }, { v: 'mellow', n: 7, t: 0.14, g: 0.4, pan: 0.15, decay: 0.35 }],
-                echo: { time: 0.24, feedback: 0.14, tone: 3000, mix: 0.18, spread: 0.5 },
-                space: { size: 1.3, rt60: 0.26, damping: 4500, predelay: 0.018, mix: 0.3 }
+                notes: [{ v: 'pad', n: 0, t: 0, g: 0.6, attack: 0.12, hold: 0, release: 0.4 },
+                    { v: 'swell', n: 0, t: 0.08, g: 0.9, pan: -0.15 }, { v: 'swell', n: 7, t: 0.27, g: 1, pan: 0.15, decay: 0.3 }],
+                layers: [{ v: 'breath', t: 0, g: 0.35, attack: 0.1 }],
+                echo: { time: 0.2, feedback: 0.1, tone: 3000, mix: 0.16, spread: 0.5 },
+                space: { size: 1.3, rt60: 0.2, damping: 4500, predelay: 0.018, mix: 0.3 }
             },
             'notify.success': {
-                notes: [{ v: 'pad', n: 0, t: 0, g: 0.5, attack: 0.08, hold: 0, release: 0.35 },
-                    { v: 'soft', n: 0, t: 0, g: 0.8, pan: -0.2 }, { v: 'cel', n: 7, t: 0.12, g: 0.9, pan: 0.1 },
-                    { v: 'soft', n: 12, t: 0.24, g: 1, pan: 0, t60: 0.4 }, { v: 'mellow', n: 12, t: 0.24, g: 0.45, pan: 0, decay: 0.4 },
-                    { v: 'ping', n: 19, t: 0.3, g: 0.15, pan: 0.2, decay: 0.2 }],
-                echo: { time: 0.26, feedback: 0.08, tone: 3000, mix: 0.18, spread: 0.5 },
-                space: { size: 1.3, rt60: 0.14, damping: 4500, predelay: 0.018, mix: 0.3 }
+                notes: [{ v: 'pad', n: 0, t: 0, g: 0.6, attack: 0.12, hold: 0, release: 0.35 },
+                    { v: 'swell', n: 0, t: 0.08, g: 0.85, pan: -0.2 }, { v: 'swell', n: 7, t: 0.28, g: 0.9, pan: 0.1 },
+                    { v: 'swell', n: 12, t: 0.46, g: 1, pan: 0, decay: 0.3 }],
+                layers: [{ v: 'breath', t: 0, g: 0.3, attack: 0.1 }],
+                echo: { time: 0.2, feedback: 0.08, tone: 3000, mix: 0.14, spread: 0.5 },
+                space: { size: 1.3, rt60: 0.1, damping: 4500, predelay: 0.018, mix: 0.3 }
             },
             'notify.warning': {
                 notes: [{ v: 'pad', n: -3, t: 0, g: 0.5, attack: 0.06, hold: 0, release: 0.4 },
