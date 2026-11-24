@@ -49,17 +49,23 @@
 .hd-gauge-readout { position: absolute; inset-inline-start: 50%; inset-block-start: 77.4%; translate: -50% -50%; font-size: calc(min(var(--hd-body-w), calc(var(--hd-body-h) / 0.84)) * 0.11); }
 .hd-gauge[data-hd-gauge="needle"] :is(.hd-gauge-min, .hd-gauge-max) { display: none; }
 .hd-gauge-numeral { font-size: 15px; text-anchor: middle; dominant-baseline: middle; }
-.hd-gauge[data-hd-gauge="arc"] .hd-gauge-readout { inset-block-start: 58.1%; font-size: min(28cqmin, calc(min(var(--hd-body-w), calc(var(--hd-body-h) / 0.86)) * 0.3)); }
-.hd-gauge[data-hd-gauge="arc"] :is(.hd-gauge-min, .hd-gauge-max) { position: absolute; inset-block-end: 0; font-size: 11px; color: var(--hd-ink-muted); }
-.hd-gauge[data-hd-gauge="arc"] .hd-gauge-min { inset-inline-start: 19.5%; translate: -50% 0; } .hd-gauge[data-hd-gauge="arc"] .hd-gauge-max { inset-inline-start: 80.5%; translate: -50% 0; }
+.hd-gauge[data-hd-gauge="arc"] .hd-gauge-readout { inset-block-start: 58.1%; font-size: min(28cqmin, calc(min(var(--hd-body-w), calc(var(--hd-body-h) / 0.86)) * 0.25)); }
+/* H6 legends sit in the bottom gap beside the arc end caps. The caps are centred at (37.8, 162.2) and (162.2, 162.2) of the 200 x 172 box, so 162.2 / 172 = 94.3 % down.
+   The widest cap is the Glass cap dot (r 10 units), so its inner edge is at 37.8 + 10 = 47.8 units = 23.9 % of the width; the legends keep 4px beyond it. */
+.hd-gauge[data-hd-gauge="arc"] :is(.hd-gauge-min, .hd-gauge-max) { position: absolute; inset-block-start: 94.3%; translate: 0 -50%; font-size: 11px; line-height: 1; color: var(--hd-ink-muted); white-space: nowrap; }
+.hd-gauge[data-hd-gauge="arc"] .hd-gauge-min { inset-inline-start: calc(23.9% + 4px); } .hd-gauge[data-hd-gauge="arc"] .hd-gauge-max { inset-inline-end: calc(23.9% + 4px); }
 .hd-gauge-arc-zone { opacity: 0; } .hd-gauge[data-hd-tone="warn"] .hd-gauge-arc-zone { stroke: var(--hd-warn); opacity: 1; } .hd-gauge[data-hd-tone="crit"] .hd-gauge-arc-zone { stroke: var(--hd-alert); opacity: 1; }
 /* Unit scale (deviation: the plan gives --hd-unit-scale as a bare number, which is invalid as a font-size) */
 .hd-numeral .hd-num-unit { font-size: calc(var(--hd-unit-scale) * 1em); }
+/* Empty numeral (no value): only the en dash shows. Frac, degree, unit and trend are dropped; the temperature readout keeps its box width by hiding them instead. */
+.hd-widget .hd-numeral[data-hd-empty="true"] :is(.hd-num-frac, .hd-num-deg, .hd-num-unit, .hd-num-trend), .hd-widget .hd-seg7[data-hd-empty="true"] .hd-seg7-unit { display: none; }
+.hd-widget .hd-tread .hd-numeral[data-hd-empty="true"] :is(.hd-num-frac, .hd-num-deg, .hd-num-unit, .hd-num-trend), .hd-widget .hd-tread .hd-seg7[data-hd-empty="true"] .hd-seg7-unit { display: revert; visibility: hidden; }
 /* H7 temperature readout */
 .hd-tread { display: flex; align-items: flex-end; inline-size: 100%; }
-.hd-tread .hd-numeral { font-size: min(calc(var(--hd-body-h) / var(--hd-num-cap)), calc(var(--hd-body-w) / 2.1), var(--hd-num-hero-max)); line-height: var(--hd-num-cap);
+/* Width term: the widest fixture value "-12.5 C" with trend icon is 3.30em wide (1.95em integer box + frac + degree + unit + trend), so body-w / 3.5 leaves 4.5px at 1x1; 2x1 stays height-limited (170 / 3.5 = 48.6 = body-h / 0.74). */
+.hd-tread .hd-numeral { font-size: min(calc(var(--hd-body-h) / var(--hd-num-cap)), calc(var(--hd-body-w) / 3.5), var(--hd-num-hero-max)); line-height: var(--hd-num-cap);
   font-weight: var(--hd-num-weight); letter-spacing: var(--hd-num-tracking); display: inline-flex; align-items: flex-start; }
-.hd-tread .hd-num-int { min-inline-size: calc(var(--hd-num-chars) * 0.5ch); text-align: end; }
+.hd-tread .hd-num-int { min-inline-size: calc((var(--hd-num-chars) - 1) * 0.65em); text-align: end; } /* 0.65em per integer digit slot (a tabular digit is 0.63em): 1.95em for chars 4 holds "-12" (1.94em), so no value shifts the numeral */
 .hd-tread :is(.hd-num-frac, .hd-num-deg) { line-height: 1; } .hd-tread .hd-num-frac { font-size: 0.5em; } .hd-tread .hd-num-deg { font-size: 0.45em; }
 .hd-tread .hd-num-unit { font-size: calc(var(--hd-unit-scale) * 1em); color: var(--hd-ink-muted); line-height: 1; }
 .hd-tread .hd-num-trend { align-self: flex-end; margin-inline-start: 0.08em; } .hd-tread .hd-num-trend .hd-ico { inline-size: 0.3em; block-size: 0.3em; }

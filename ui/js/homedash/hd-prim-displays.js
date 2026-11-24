@@ -238,7 +238,8 @@
             else if (finite(s.w) && s.w !== w) resize(s.w, h);
             else if (finite(s.h) && s.h !== h) resize(w, s.h);
             if (Array.isArray(s.points)) points = s.points;
-            const g = G.sparkline(points, { w, h });
+            // The end dot (r 3) and its halo (r 6) are never clipped: every side of the plot keeps the dot radius (halo radius when drawn) plus 1px.
+            const g = G.sparkline(points, { w, h, pad: (halo ? 6 : 3) + 1 });
             line.setAttribute('d', g.line); if (area) area.setAttribute('d', g.area); if (grid) grid.setAttribute('d', gridPath());
             for (const c of halo ? [last, halo] : [last]) { if (g.last) { setAttr(c, 'cx', fmtN(g.last.x)); setAttr(c, 'cy', fmtN(g.last.y)); } setAttr(c, 'hidden', !g.last); }
             setAttr(node, 'data-hd-empty', !g.last);

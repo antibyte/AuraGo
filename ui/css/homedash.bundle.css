@@ -186,17 +186,23 @@
 .hd-gauge-readout { position: absolute; inset-inline-start: 50%; inset-block-start: 77.4%; translate: -50% -50%; font-size: calc(min(var(--hd-body-w), calc(var(--hd-body-h) / 0.84)) * 0.11); }
 .hd-gauge[data-hd-gauge="needle"] :is(.hd-gauge-min, .hd-gauge-max) { display: none; }
 .hd-gauge-numeral { font-size: 15px; text-anchor: middle; dominant-baseline: middle; }
-.hd-gauge[data-hd-gauge="arc"] .hd-gauge-readout { inset-block-start: 58.1%; font-size: min(28cqmin, calc(min(var(--hd-body-w), calc(var(--hd-body-h) / 0.86)) * 0.3)); }
-.hd-gauge[data-hd-gauge="arc"] :is(.hd-gauge-min, .hd-gauge-max) { position: absolute; inset-block-end: 0; font-size: 11px; color: var(--hd-ink-muted); }
-.hd-gauge[data-hd-gauge="arc"] .hd-gauge-min { inset-inline-start: 19.5%; translate: -50% 0; } .hd-gauge[data-hd-gauge="arc"] .hd-gauge-max { inset-inline-start: 80.5%; translate: -50% 0; }
+.hd-gauge[data-hd-gauge="arc"] .hd-gauge-readout { inset-block-start: 58.1%; font-size: min(28cqmin, calc(min(var(--hd-body-w), calc(var(--hd-body-h) / 0.86)) * 0.25)); }
+/* H6 legends sit in the bottom gap beside the arc end caps. The caps are centred at (37.8, 162.2) and (162.2, 162.2) of the 200 x 172 box, so 162.2 / 172 = 94.3 % down.
+   The widest cap is the Glass cap dot (r 10 units), so its inner edge is at 37.8 + 10 = 47.8 units = 23.9 % of the width; the legends keep 4px beyond it. */
+.hd-gauge[data-hd-gauge="arc"] :is(.hd-gauge-min, .hd-gauge-max) { position: absolute; inset-block-start: 94.3%; translate: 0 -50%; font-size: 11px; line-height: 1; color: var(--hd-ink-muted); white-space: nowrap; }
+.hd-gauge[data-hd-gauge="arc"] .hd-gauge-min { inset-inline-start: calc(23.9% + 4px); } .hd-gauge[data-hd-gauge="arc"] .hd-gauge-max { inset-inline-end: calc(23.9% + 4px); }
 .hd-gauge-arc-zone { opacity: 0; } .hd-gauge[data-hd-tone="warn"] .hd-gauge-arc-zone { stroke: var(--hd-warn); opacity: 1; } .hd-gauge[data-hd-tone="crit"] .hd-gauge-arc-zone { stroke: var(--hd-alert); opacity: 1; }
 /* Unit scale (deviation: the plan gives --hd-unit-scale as a bare number, which is invalid as a font-size) */
 .hd-numeral .hd-num-unit { font-size: calc(var(--hd-unit-scale) * 1em); }
+/* Empty numeral (no value): only the en dash shows. Frac, degree, unit and trend are dropped; the temperature readout keeps its box width by hiding them instead. */
+.hd-widget .hd-numeral[data-hd-empty="true"] :is(.hd-num-frac, .hd-num-deg, .hd-num-unit, .hd-num-trend), .hd-widget .hd-seg7[data-hd-empty="true"] .hd-seg7-unit { display: none; }
+.hd-widget .hd-tread .hd-numeral[data-hd-empty="true"] :is(.hd-num-frac, .hd-num-deg, .hd-num-unit, .hd-num-trend), .hd-widget .hd-tread .hd-seg7[data-hd-empty="true"] .hd-seg7-unit { display: revert; visibility: hidden; }
 /* H7 temperature readout */
 .hd-tread { display: flex; align-items: flex-end; inline-size: 100%; }
-.hd-tread .hd-numeral { font-size: min(calc(var(--hd-body-h) / var(--hd-num-cap)), calc(var(--hd-body-w) / 2.1), var(--hd-num-hero-max)); line-height: var(--hd-num-cap);
+/* Width term: the widest fixture value "-12.5 C" with trend icon is 3.30em wide (1.95em integer box + frac + degree + unit + trend), so body-w / 3.5 leaves 4.5px at 1x1; 2x1 stays height-limited (170 / 3.5 = 48.6 = body-h / 0.74). */
+.hd-tread .hd-numeral { font-size: min(calc(var(--hd-body-h) / var(--hd-num-cap)), calc(var(--hd-body-w) / 3.5), var(--hd-num-hero-max)); line-height: var(--hd-num-cap);
   font-weight: var(--hd-num-weight); letter-spacing: var(--hd-num-tracking); display: inline-flex; align-items: flex-start; }
-.hd-tread .hd-num-int { min-inline-size: calc(var(--hd-num-chars) * 0.5ch); text-align: end; }
+.hd-tread .hd-num-int { min-inline-size: calc((var(--hd-num-chars) - 1) * 0.65em); text-align: end; } /* 0.65em per integer digit slot (a tabular digit is 0.63em): 1.95em for chars 4 holds "-12" (1.94em), so no value shifts the numeral */
 .hd-tread :is(.hd-num-frac, .hd-num-deg) { line-height: 1; } .hd-tread .hd-num-frac { font-size: 0.5em; } .hd-tread .hd-num-deg { font-size: 0.45em; }
 .hd-tread .hd-num-unit { font-size: calc(var(--hd-unit-scale) * 1em); color: var(--hd-ink-muted); line-height: 1; }
 .hd-tread .hd-num-trend { align-self: flex-end; margin-inline-start: 0.08em; } .hd-tread .hd-num-trend .hd-ico { inline-size: 0.3em; block-size: 0.3em; }
@@ -227,6 +233,7 @@
   --hd-body-h: calc(100cqh - 2 * var(--hd-pad-b) - 2px - var(--hd-head-h) - var(--hd-state-h) - 2 * var(--hd-gap-in));
 }
 .hd-widget .hd-head { grid-area: head; }
+.hd-widget .hd-head > :is(.hd-icon, .hd-sub):empty { display: none; } /* empty head spans take no flex gap: the title starts at the padding edge */
 .hd-widget .hd-title { font: var(--hd-label-weight) var(--hd-label-size) / var(--hd-head-h) var(--hd-font-label); letter-spacing: var(--hd-label-tracking); color: var(--hd-ink-muted); }
 .hd-widget .hd-body { grid-area: body; display: grid; place-items: center; }
 .hd-widget .hd-state { grid-area: state; font: 400 12.5px / var(--hd-state-h) var(--hd-font-ui); }
@@ -235,6 +242,7 @@
 @container hd-widget (max-width: 139px) and (max-height: 139px) {
   .hd-widget > .hd-frame { --hd-pad-b: 8px; --hd-pad-i: 8px; --hd-head-h: 14px; --hd-state-h: 14px; --hd-gap-in: 3px; }
   .hd-widget .hd-title, .hd-widget .hd-state { font-size: 11px; }
+  .hd-widget .hd-head > .hd-icon { display: none; } /* 1x1: the title gets the full width */
 }
 /* T5 shared painting from card tokens */
 .hd-widget > .hd-frame { background: var(--hd-card-bg); border: var(--hd-card-border); border-radius: var(--hd-radius-card); box-shadow: var(--hd-shadow-card); overflow: hidden; }
@@ -252,17 +260,24 @@
 .hd-widget[data-hd-stale="true"] :is(.hd-numeral, .hd-seg7) { color: var(--hd-ink-muted); }
 /* H1 pill row layout */
 @container hd-widget (aspect-ratio >= 1.6) { .hd-widget[data-hd-type="switch"][data-hd-variant="pill"] > .hd-frame { grid-template: "head body" 1fr "state body" 1fr / minmax(0, 1fr) auto; } }
-/* H4 climate */
-.hd-widget[data-hd-type="climate"] .hd-body { grid-template-rows: minmax(0, 1fr) 44px; row-gap: 8px; --hd-th-d: calc(min(var(--hd-body-w), var(--hd-body-h) - 52px) * 0.86); }
+/* H4 climate. Ring D is --hd-th-d. The lowest ring parts are the end handle at the arc ends (centre r 88 at +-135 deg, knob radius 11) and the caps: handle bottom
+   = (100 + 88 * cos 45 + 11) / 200 = 0.866 D (the 12-unit stroke caps alone reach 0.841 D). The steppers hang below that, top edge = 0.866 D + 4px, so the
+   dialbox is 0.866 D + 4px clearance + 44px button high. It must fit the body row above the 8px gap to the mode bar:
+   D = min(0.86 * min(w, h - 52px), (h - 52px - 48px) / 0.866); at 3x3 (body 278 x 232) the second term wins: D = 132 / 0.866 = 152.4 (was 154.8). */
+.hd-widget[data-hd-type="climate"] .hd-body { grid-template-rows: minmax(0, 1fr) 44px; row-gap: 8px;
+  --hd-th-d: min(calc(min(var(--hd-body-w), var(--hd-body-h) - 52px) * 0.86), calc((var(--hd-body-h) - 100px) / 0.866)); }
 @container hd-widget (max-height: 259px) { .hd-widget[data-hd-type="climate"] .hd-body { grid-template-rows: minmax(0, 1fr); --hd-th-d: calc(min(var(--hd-body-w), var(--hd-body-h)) * 0.86); }
-  .hd-widget[data-hd-type="climate"] :is(.hd-seg, .hd-climate-steps) { display: none; } }
-.hd-climate-dialbox { position: relative; inline-size: var(--hd-th-d); block-size: var(--hd-th-d); }
+  .hd-widget[data-hd-type="climate"] :is(.hd-seg, .hd-climate-steps) { display: none; }
+  .hd-widget[data-hd-type="climate"] .hd-climate-dialbox { block-size: var(--hd-th-d); }
+  .hd-widget[data-hd-type="climate"] .hd-dial-action { display: none; } } /* 2x2: the stack is target + current only, centred on the ring */
+.hd-climate-dialbox { position: relative; inline-size: var(--hd-th-d); block-size: calc(var(--hd-th-d) * 0.866 + 48px); }
 .hd-climate-dialbox .hd-dial { inline-size: 100%; }
-.hd-climate-steps .hd-push { position: absolute; inline-size: 44px; block-size: 44px; translate: -50% -50%; inset-block-start: 87%; }
+.hd-climate-steps .hd-push { position: absolute; inline-size: 44px; block-size: 44px; translate: -50% -50%; inset-block-start: calc(var(--hd-th-d) * 0.866 + 26px); }
 .hd-climate-steps .hd-push[data-dir="-1"] { inset-inline-start: 33.5%; } .hd-climate-steps .hd-push[data-dir="1"] { inset-inline-start: 66.5%; }
 .hd-climate-steps .hd-push-label { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 .hd-widget[data-hd-type="climate"] .hd-dial-readout > .hd-numeral { font-size: calc(var(--hd-th-d) * var(--hd-thermo-num-k)); }
 .hd-widget[data-hd-type="climate"] .hd-dial-marker { translate: 0 -5px; }
+.hd-widget[data-hd-type="climate"] .hd-dial:not([data-buf]) .hd-dial-current { display: none; } /* no value or no current temperature: no marker, no needle */
 .hd-body[data-hd-action="heating"] { --hd-act: var(--hd-heat); } .hd-body[data-hd-action="cooling"] { --hd-act: var(--hd-cool); }
 .hd-body[data-hd-action="idle"] { --hd-act: color-mix(in srgb, var(--hd-ink) 35%, transparent); } .hd-body[data-hd-action="off"] .hd-dial-active { display: none; }
 /* H5 and H6 gauge boxes */
@@ -275,7 +290,10 @@
 /* H8 sparkline */
 .hd-widget[data-hd-type="sensor"][data-hd-variant="sparkline"] .hd-body { position: static; place-items: start; }
 .hd-widget[data-hd-type="sensor"][data-hd-variant="sparkline"] > .hd-frame { grid-template: "head" var(--hd-head-h) "body" auto "state" var(--hd-state-h) "." 1fr / minmax(0, 1fr); }
-@container hd-widget (aspect-ratio >= 1.6) { .hd-widget[data-hd-type="sensor"][data-hd-variant="sparkline"] > .hd-frame { grid-template: "head head" var(--hd-head-h) "body state" auto ". ." 1fr / minmax(0, 1fr) auto; } }
+@container hd-widget (aspect-ratio >= 1.6) { .hd-widget[data-hd-type="sensor"][data-hd-variant="sparkline"] > .hd-frame { grid-template: "head head" var(--hd-head-h) "body state" auto ". ." 1fr / auto minmax(0, 1fr); } }
+/* 2x1: the body column never shrinks below the numeral, the state column takes the rest (right-aligned, ellipsis, 12px column gap) on the numeral baseline. */
+@container hd-widget (aspect-ratio >= 1.6) { .hd-widget[data-hd-type="sensor"][data-hd-variant="sparkline"] :is(.hd-body, .hd-state) { align-self: baseline; }
+  .hd-widget[data-hd-type="sensor"][data-hd-variant="sparkline"] .hd-state { text-align: end; } }
 .hd-widget[data-hd-type="sensor"] :is(.hd-spark, .hd-spark-fill) { position: absolute; inset-inline-start: 0; inset-block-end: 0; }
 .hd-widget[data-hd-type="sensor"][data-hd-family="tactile"] :is(.hd-spark, .hd-spark-fill) { inset-inline-start: 8px; inset-block-end: 8px; }
 .hd-widget[data-hd-type="sensor"] .hd-body > .hd-numeral { font-size: 22cqmin; }

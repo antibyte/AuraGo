@@ -12,14 +12,22 @@
 .hd-lab-stage { display: flex; align-items: center; justify-content: center; min-height: 52px; }
 .hd-lab-stage > .hd-widget { width: var(--hd-lab-w); height: var(--hd-lab-h); }
 .hd-lab-probe { position: absolute; visibility: hidden; pointer-events: none; }
-[data-hd-family="placeholder"] :is(.hd-toggle, .hd-rocker, .hd-push, .hd-step, .hd-seg-opt, .hd-more) { box-sizing: border-box; min-width: 44px; min-height: 44px; padding: 0 8px; border: 1px solid var(--hd-ink-muted); border-radius: 6px; background: var(--hd-btn); color: var(--hd-btn-ink); font: inherit; display: inline-flex; align-items: center; justify-content: center; gap: 4px; }
-[data-hd-family="placeholder"] :is(.hd-toggle, .hd-rocker, .hd-push, .hd-seg-opt)[data-hd-on="true"], [data-hd-family="placeholder"] .hd-seg-opt[aria-checked="true"] { background: var(--hd-on); color: var(--hd-on-ink); }
+/* Placeholder look. Rules without the guard only PAINT (colour, border, radius, fill, stroke) and may reach into widgets.
+   Rules with :where(:not(.hd-widget *)) size and place primitives in the M0 gallery and entity sheets only; inside a widget the shared M1 geometry decides. */
+[data-hd-family="placeholder"] :is(.hd-rocker, .hd-push, .hd-step, .hd-seg-opt, .hd-more) { box-sizing: border-box; border: 1px solid var(--hd-ink-muted); border-radius: 6px; background: var(--hd-btn); color: var(--hd-btn-ink); font: inherit; }
+[data-hd-family="placeholder"] :is(.hd-push, .hd-step, .hd-seg-opt, .hd-more) { min-width: 44px; min-height: 44px; padding: 0 8px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; }
+[data-hd-family="placeholder"] .hd-toggle:where(:not(.hd-widget *)) { box-sizing: border-box; border: 1px solid var(--hd-ink-muted); border-radius: 6px; background: var(--hd-btn); color: var(--hd-btn-ink); font: inherit; }
+[data-hd-family="placeholder"] :is(.hd-toggle, .hd-rocker):where(:not(.hd-widget *)) { min-width: 44px; min-height: 44px; padding: 0 8px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; }
+[data-hd-family="placeholder"] :is(.hd-rocker, .hd-push, .hd-seg-opt)[data-hd-on="true"], [data-hd-family="placeholder"] .hd-toggle[data-hd-on="true"]:where(:not(.hd-widget *)), [data-hd-family="placeholder"] .hd-seg-opt[aria-checked="true"] { background: var(--hd-on); color: var(--hd-on-ink); }
 [data-hd-family="placeholder"] :is(.hd-toggle-glyph, .hd-seg-indicator, .hd-dial-cap, .hd-lamp-halo, .hd-rocker-led) { display: none; }
-[data-hd-family="placeholder"] .hd-toggle-track { position: relative; display: block; width: 36px; height: 20px; border-radius: 10px; background: var(--hd-sunken); }
-[data-hd-family="placeholder"] .hd-toggle-thumb { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--hd-ink); }
-[data-hd-family="placeholder"] .hd-toggle[aria-checked="true"] .hd-toggle-thumb { transform: translateX(16px); background: var(--hd-on-ink); }
+[data-hd-family="placeholder"] .hd-toggle-track { border-radius: var(--hd-radius-pill); background: var(--hd-sunken); }
+[data-hd-family="placeholder"] .hd-toggle-track:where(:not(.hd-widget *)) { position: relative; display: block; width: 36px; height: 20px; border-radius: 10px; }
+[data-hd-family="placeholder"] .hd-toggle-thumb { border-radius: 50%; background: var(--hd-ink); }
+[data-hd-family="placeholder"] .hd-toggle-thumb:where(:not(.hd-widget *)) { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; }
+[data-hd-family="placeholder"] .hd-toggle[aria-checked="true"] .hd-toggle-thumb:where(:not(.hd-widget *)) { transform: translateX(16px); }
+[data-hd-family="placeholder"] .hd-toggle[aria-checked="true"] .hd-toggle-thumb { background: var(--hd-on-ink); }
 [data-hd-family="placeholder"] .hd-toggle[aria-checked="true"] .hd-toggle-track { background: var(--hd-on); }
-[data-hd-family="placeholder"] .hd-rocker-paddle { display: flex; flex-direction: column; gap: 2px; }
+[data-hd-family="placeholder"] .hd-rocker-paddle:where(:not(.hd-widget *)) { display: flex; flex-direction: column; gap: 2px; }
 [data-hd-family="placeholder"] .hd-slider, [data-hd-family="placeholder"] .hd-ct { position: relative; display: flex; align-items: center; min-width: 120px; min-height: 44px; }
 [data-hd-family="placeholder"] .hd-slider[data-hd-variant="v"] { min-width: 44px; min-height: 120px; justify-content: center; }
 [data-hd-family="placeholder"] :is(.hd-slider-track, .hd-ct-track) { position: relative; display: block; flex: 1; height: 6px; border-radius: 3px; background: var(--hd-sunken); }
@@ -29,29 +37,38 @@
 [data-hd-family="placeholder"] .hd-slider[data-hd-variant="v"] .hd-slider-fill { transform-origin: center bottom; transform: scaleY(var(--hd-value, 0)); }
 [data-hd-family="placeholder"] :is(.hd-slider-thumb, .hd-ct-thumb) { position: absolute; top: 50%; left: calc(var(--hd-value, 0) * 100%); width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; background: var(--hd-ink); }
 [data-hd-family="placeholder"] .hd-slider[data-hd-variant="v"] .hd-slider-thumb { top: calc((1 - var(--hd-value, 0)) * 100%); left: 50%; }
-[data-hd-family="placeholder"] :is(.hd-dial, .hd-gauge) { position: relative; width: 104px; height: 104px; }
-[data-hd-family="placeholder"] :is(.hd-dial-svg, .hd-gauge-svg) { display: block; width: 100%; height: 100%; }
+[data-hd-family="placeholder"] :is(.hd-dial, .hd-gauge):where(:not(.hd-widget *)) { position: relative; width: 104px; height: 104px; }
+[data-hd-family="placeholder"] :is(.hd-dial-svg, .hd-gauge-svg):where(:not(.hd-widget *)) { display: block; width: 100%; height: 100%; }
 [data-hd-family="placeholder"] :is(.hd-dial-track, .hd-gauge-track) { fill: none; stroke: var(--hd-sunken); stroke-width: 14; }
 [data-hd-family="placeholder"] :is(.hd-dial-arc, .hd-gauge-arc) { fill: none; stroke: var(--hd-ink); stroke-width: 14; }
 [data-hd-family="placeholder"] .hd-dial-active { fill: none; stroke: var(--hd-ink-muted); stroke-width: 6; }
 [data-hd-family="placeholder"] .hd-gauge-zone { fill: none; stroke: var(--hd-ink-muted); stroke-width: 6; }
 [data-hd-family="placeholder"] :is(.hd-dial-ticks, .hd-gauge-ticks) { fill: none; stroke: var(--hd-ink-muted); stroke-width: 2.5; }
 [data-hd-family="placeholder"] :is(.hd-dial-knob, .hd-gauge-capdot, .hd-gauge-hub, .hd-gauge-needle-shape, .hd-dial-marker) { fill: var(--hd-ink); }
-[data-hd-family="placeholder"] .hd-gauge-numeral { fill: var(--hd-ink-muted); font-size: 18px; text-anchor: middle; dominant-baseline: middle; }
-[data-hd-family="placeholder"] .hd-dial-legend { position: absolute; bottom: 0; font-size: 11px; color: var(--hd-ink-muted); }
-[data-hd-family="placeholder"] .hd-dial-legend[data-end="min"] { left: 8px; } [data-hd-family="placeholder"] .hd-dial-legend[data-end="max"] { right: 8px; }
-[data-hd-family="placeholder"] .hd-num-deg { font-size: 13px; }
-[data-hd-family="placeholder"] :is(.hd-dial-readout, .hd-gauge-readout) { position: absolute; inset: 0; display: grid; place-items: center; font-size: 13px; line-height: 15px; }
-[data-hd-family="placeholder"] :is(.hd-dial-readout, .hd-gauge-readout) .hd-numeral { min-width: 0; font-size: 13px; line-height: 15px; }
-[data-hd-family="placeholder"] .hd-gauge[data-hd-gauge="needle"] .hd-gauge-readout { inset: 73px 0 auto 0; height: 15px; }
-[data-hd-family="placeholder"] :is(.hd-gauge-min, .hd-gauge-max) { position: absolute; bottom: 0; font-size: 11px; color: var(--hd-ink-muted); }
-[data-hd-family="placeholder"] .hd-gauge-min { left: 8px; } [data-hd-family="placeholder"] .hd-gauge-max { right: 8px; }
+[data-hd-family="placeholder"] .hd-gauge-numeral { fill: var(--hd-ink-muted); }
+[data-hd-family="placeholder"] .hd-gauge-numeral:where(:not(.hd-widget *)) { font-size: 18px; text-anchor: middle; dominant-baseline: middle; }
+[data-hd-family="placeholder"] .hd-dial-legend { color: var(--hd-ink-muted); }
+[data-hd-family="placeholder"] .hd-dial-legend:where(:not(.hd-widget *)) { position: absolute; bottom: 0; font-size: 11px; }
+[data-hd-family="placeholder"] .hd-dial-legend[data-end="min"]:where(:not(.hd-widget *)) { left: 8px; } [data-hd-family="placeholder"] .hd-dial-legend[data-end="max"]:where(:not(.hd-widget *)) { right: 8px; }
+[data-hd-family="placeholder"] .hd-num-deg:where(:not(.hd-widget *)) { font-size: 13px; }
+[data-hd-family="placeholder"] :is(.hd-dial-readout, .hd-gauge-readout):where(:not(.hd-widget *)) { position: absolute; inset: 0; display: grid; place-items: center; font-size: 13px; line-height: 15px; }
+[data-hd-family="placeholder"] :is(.hd-dial-readout, .hd-gauge-readout) .hd-numeral:where(:not(.hd-widget *)) { min-width: 0; font-size: 13px; line-height: 15px; }
+[data-hd-family="placeholder"] .hd-gauge[data-hd-gauge="needle"] .hd-gauge-readout:where(:not(.hd-widget *)) { inset: 73px 0 auto 0; height: 15px; }
+[data-hd-family="placeholder"] :is(.hd-gauge-min, .hd-gauge-max) { color: var(--hd-ink-muted); }
+[data-hd-family="placeholder"] :is(.hd-gauge-min, .hd-gauge-max):where(:not(.hd-widget *)) { position: absolute; bottom: 0; font-size: 11px; }
+[data-hd-family="placeholder"] .hd-gauge-min:where(:not(.hd-widget *)) { left: 8px; } [data-hd-family="placeholder"] .hd-gauge-max:where(:not(.hd-widget *)) { right: 8px; }
+[data-hd-family="placeholder"] .hd-gauge[data-hd-gauge="arc"] :is(.hd-gauge-min, .hd-gauge-max):where(:not(.hd-widget *)) { inset-block: auto 0; translate: -50% 0; line-height: normal; } /* M0 gallery keeps the pre-M1 legend placement */
+[data-hd-family="placeholder"] .hd-gauge[data-hd-gauge="arc"] .hd-gauge-min:where(:not(.hd-widget *)) { inset-inline: 19.5% auto; } [data-hd-family="placeholder"] .hd-gauge[data-hd-gauge="arc"] .hd-gauge-max:where(:not(.hd-widget *)) { inset-inline: 80.5% auto; }
 [data-hd-family="placeholder"] .hd-stepper, [data-hd-family="placeholder"] .hd-seg { display: flex; align-items: center; gap: 4px; }
 [data-hd-family="placeholder"] .hd-step-value { display: grid; place-items: center; min-width: 64px; min-height: 44px; }
-[data-hd-family="placeholder"] .hd-numeral { display: inline-flex; align-items: baseline; justify-content: flex-end; min-width: calc(var(--hd-num-chars, 4) * 1ch + 2ch); font-size: 22px; color: var(--hd-ink); }
-[data-hd-family="placeholder"] :is(.hd-num-frac, .hd-num-unit, .hd-num-trend) { font-size: 13px; } [data-hd-family="placeholder"] .hd-num-unit { margin-left: 2px; color: var(--hd-ink-muted); }
-[data-hd-family="placeholder"] .hd-seg7 { display: inline-flex; align-items: flex-end; gap: 4px; color: var(--hd-ink); }
-[data-hd-family="placeholder"] .hd-seg7-svg { height: 32px; width: 102px; } [data-hd-family="placeholder"] :is(.hd-seg7-seg, .hd-seg7-dp) { fill: var(--hd-ink); opacity: .08; }
+[data-hd-family="placeholder"] .hd-numeral { color: var(--hd-ink); }
+[data-hd-family="placeholder"] .hd-numeral:where(:not(.hd-widget *)) { display: inline-flex; align-items: baseline; justify-content: flex-end; min-width: calc(var(--hd-num-chars, 4) * 1ch + 2ch); font-size: 22px; }
+[data-hd-family="placeholder"] .hd-num-unit { color: var(--hd-ink-muted); }
+[data-hd-family="placeholder"] :is(.hd-num-frac, .hd-num-unit, .hd-num-trend):where(:not(.hd-widget *)) { font-size: 13px; } [data-hd-family="placeholder"] .hd-num-unit:where(:not(.hd-widget *)) { margin-left: 2px; }
+[data-hd-family="placeholder"] .hd-seg7 { color: var(--hd-ink); }
+[data-hd-family="placeholder"] .hd-seg7:where(:not(.hd-widget *)) { display: inline-flex; align-items: flex-end; gap: 4px; }
+[data-hd-family="placeholder"] .hd-seg7-svg:where(:not(.hd-widget *)) { height: 32px; width: 102px; }
+[data-hd-family="placeholder"] :is(.hd-seg7-seg, .hd-seg7-dp) { fill: var(--hd-ink); opacity: .08; }
 [data-hd-family="placeholder"] :is(.hd-seg7-seg, .hd-seg7-dp)[data-lit="true"] { opacity: 1; }
 [data-hd-family="placeholder"] .hd-bar { display: flex; align-items: center; gap: 8px; min-width: 140px; }
 [data-hd-family="placeholder"] .hd-bar-track { position: relative; display: block; flex: 1; height: 10px; overflow: hidden; border-radius: 5px; background: var(--hd-sunken); }
@@ -70,17 +87,15 @@
 [data-hd-family="placeholder"] .hd-iconbadge .hd-ico { width: 20px; height: 20px; }
 [data-hd-family="placeholder"] .hd-spark { display: block; } [data-hd-family="placeholder"] .hd-spark-line { fill: none; stroke: var(--hd-ink); stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
 [data-hd-family="placeholder"] .hd-spark-area { fill: var(--hd-ink); opacity: .12; } [data-hd-family="placeholder"] .hd-spark-last { fill: var(--hd-ink); }
-[data-hd-family="placeholder"] .hd-frame { width: 100%; height: 100%; min-width: 180px; min-height: 96px; gap: 4px; padding: 8px; border: 1px solid var(--hd-hairline); border-radius: 8px; background: var(--hd-surface-solid); }
-[data-hd-family="placeholder"] .hd-widget .hd-frame { min-width: 0; min-height: 0; } [data-hd-family="placeholder"] .hd-head .hd-ico { width: 18px; height: 18px; }
+[data-hd-family="placeholder"] .hd-frame { border: 1px solid var(--hd-hairline); border-radius: 8px; background: var(--hd-surface-solid); }
+[data-hd-family="placeholder"] .hd-frame:where(:not(.hd-widget *)) { width: 100%; height: 100%; min-width: 180px; min-height: 96px; gap: 4px; padding: 8px; }
+[data-hd-family="placeholder"] .hd-head .hd-ico { width: 18px; height: 18px; }
 [data-hd-family="placeholder"] .hd-tile { display: flex; align-items: center; gap: 6px; }
 [data-hd-family="placeholder"] .hd-sheet-layer { position: static; } [data-hd-family="placeholder"] .hd-sheet { width: 200px; padding: 8px; border: 1px solid var(--hd-hairline); border-radius: 8px; background: var(--hd-surface-raised); }
 [data-hd-family="placeholder"] .hd-sheet-title { margin: 0; font-size: 14px; color: var(--hd-ink); }
 [data-hd-family="placeholder"] .hd-wheel { position: relative; width: 120px; height: 120px; } [data-hd-family="placeholder"] .hd-wheel-canvas { width: 100%; height: 100%; }
 [data-hd-family="placeholder"] .hd-wheel-thumb { position: absolute; left: calc(var(--hd-wheel-x, .5) * 100%); top: calc(var(--hd-wheel-y, .5) * 100%); width: 14px; height: 14px; margin: -7px; border: 2px solid var(--hd-ink); border-radius: 50%; box-sizing: border-box; }
-[data-hd-family="placeholder"] .hd-frame { position: relative; overflow: hidden; grid-template-rows: 30px minmax(0, 1fr) 16px; grid-auto-rows: 0; row-gap: 4px; }
-[data-hd-family="placeholder"] .hd-frame > .hd-head { grid-row: 1; box-sizing: border-box; height: 30px; padding-right: 48px; align-items: flex-start; overflow: hidden; }
-[data-hd-family="placeholder"] .hd-frame > .hd-body { grid-row: 2; display: flex; align-items: center; overflow: hidden; }
-[data-hd-family="placeholder"] .hd-frame > .hd-state { grid-row: 3; box-sizing: border-box; height: 16px; min-height: 0; font-size: 12px; line-height: 16px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+[data-hd-family="placeholder"] .hd-frame:has(> .hd-more) > .hd-head { padding-inline-end: 28px; } /* the placeholder more button is 44px wide at the frame edge: 44 - 16px frame padding */
 [data-hd-family="placeholder"] .hd-frame > .hd-more { position: absolute; top: 0; right: 0; width: 44px; height: 44px; margin: 0; padding: 0; background: none; }
 [data-hd-family="placeholder"] .hd-tile { flex: 1 1 auto; min-width: 0; overflow: hidden; gap: 4px; }
 [data-hd-family="placeholder"] .hd-tile .hd-iconbadge { flex: none; width: 20px; height: 20px; }
@@ -88,3 +103,7 @@
 [data-hd-family="placeholder"] .hd-tile .hd-numeral { flex: 0 1 auto; min-width: 0; font-size: 15px; line-height: 20px; white-space: nowrap; }
 [data-hd-family="placeholder"] .hd-tile .hd-lamp { flex: none; }
 [data-hd-family="placeholder"] .hd-widget[data-hd-size="1x1"] .hd-tile .hd-lamp { display: none; }
+[data-hd-family="placeholder"] .hd-frame:where(:not(.hd-widget *)) { position: relative; overflow: hidden; grid-template-rows: 30px minmax(0, 1fr) 16px; grid-auto-rows: 0; row-gap: 4px; }
+[data-hd-family="placeholder"] .hd-frame:where(:not(.hd-widget *)) > .hd-head { grid-row: 1; box-sizing: border-box; height: 30px; padding-right: 48px; align-items: flex-start; overflow: hidden; }
+[data-hd-family="placeholder"] .hd-frame:where(:not(.hd-widget *)) > .hd-body { grid-row: 2; display: flex; align-items: center; overflow: hidden; }
+[data-hd-family="placeholder"] .hd-frame:where(:not(.hd-widget *)) > .hd-state { grid-row: 3; box-sizing: border-box; height: 16px; min-height: 0; font-size: 12px; line-height: 16px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }

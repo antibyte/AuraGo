@@ -5,6 +5,17 @@
     const E = window.HomeDashEngine;
     if (!E || !E.core || !E.format || !E.prim || !E.widgets) throw new Error('hd-w-climate.js: load hd-core, hd-format, the primitives and hd-widgets first');
     const { el, setAttr } = E.core, F = E.format, MID_DOT = ' ' + String.fromCodePoint(0xb7) + ' ';
+    // Shared by the four hero modules (this file loads first). staleText: "Updated N min ago" in whole minutes, or null when updated_at does not parse.
+    if (!E.heroStatus) {
+        E.heroStatus = Object.freeze({
+            staleText(api, e) {
+                const then = Date.parse(e && e.attributes && e.attributes.updated_at);
+                if (!Number.isFinite(then)) return null;
+                const minutes = Math.max(1, Math.floor(Math.max(0, Date.now() - then) / 60000));
+                return api.t('homedash.state.updated_ago', { age: E.format.duration(minutes * 60, api.lang) });
+            }
+        });
+    }
     const DEG_C = String.fromCodePoint(0xb0) + 'C', HOST_WORDS = ['unavailable', 'unknown', 'error'];
     const ACTIONS = ['heating', 'cooling', 'idle'], MODES = ['off', 'heat', 'cool', 'auto'];
     // Defaults of the Home Assistant climate platform, used until the entity reports its range.
@@ -15,10 +26,7 @@
         if (!e || e.available === false || HOST_WORDS.includes(e.status) || e.pending) return null;
         if (e.readonly) return word + MID_DOT + api.t('homedash.state.readonly');
         if (!api.can('primary', 'set_temperature')) return api.t('homedash.state.blocked');
-        if (e.stale) {
-            const then = Date.parse(e.attributes && e.attributes.updated_at), age = Number.isFinite(then) ? F.duration(Math.max(0, (Date.now() - then) / 1000), api.lang) : '';
-            return api.t('homedash.state.updated_ago', { age });
-        }
+        if (e.stale) { const old = E.heroStatus.staleText(api, e); if (old) return old; }
         return word;
     }
     const num = v => (v === null || v === undefined || v === '' ? NaN : Number(v));
@@ -26,14 +34,19 @@
 
     function dial(api) {
         const inst = api.family === 'instrument', tact = api.family === 'tactile', glass = api.family === 'glass', t = api.t;
-        const first = api.entity('primary'), attrs = (first && first.attributes) || {};
-        let min = finiteOr(attrs.min_temp, FALLBACK_MIN), max = finiteOr(attrs.max_temp, FALLBACK_MAX);
-        if (!(max > min)) { min = FALLBACK_MIN; max = FALLBACK_MAX; }
-        const knob = api.prim.knob({ label: api.widget.title, variant: 'ring', min, max, step: 0.5, decimals: 1, unit: DEG_C, activeSegment: true, legends: true,
-            ticks: inst || tact ? (max - min) * 2 : 0, ticksMajor: tact ? (max - min) / 5 : 0, numerals: tact ? 6 : 0,
-            dots: glass ? { count: max - min + 1, r: 74, size: 1.4, lit: false } : null, hardware: tact, needle: tact, handleShadow: glass,
-            readout: inst ? 'seg7' : 'numeral', extra: true, subReadout: inst ? 'seg7' : 'numeral', subIcon: 'thermometer',
-            captions: inst ? [t('homedash.climate.target'), t('homedash.climate.current')] : null, lang: api.lang });
+        // Range the entity reports; the Home Assistant defaults stand in until it does.
+        function rangeOf(e) {
+            const a = (e && e.attributes) || {}, lo = finiteOr(a.min_temp, FALLBACK_MIN), hi = finiteOr(a.max_temp, FALLBACK_MAX);
+            return hi > lo ? { min: lo, max: hi } : { min: FALLBACK_MIN, max: FALLBACK_MAX };
+        }
+        function makeKnob(min, max) {
+            return api.prim.knob({ label: api.widget.title, variant: 'ring', min, max, step: 0.5, decimals: 1, unit: DEG_C, activeSegment: true, legends: true,
+                ticks: inst || tact ? (max - min) * 2 : 0, ticksMajor: tact ? (max - min) / 5 : 0, numerals: tact ? 6 : 0,
+                dots: glass ? { count: max - min + 1, r: 74, size: 1.4, lit: false } : null, hardware: tact, needle: tact, handleShadow: glass,
+                readout: inst ? 'seg7' : 'numeral', extra: true, subReadout: inst ? 'seg7' : 'numeral', subIcon: 'thermometer',
+                captions: inst ? [t('homedash.climate.target'), t('homedash.climate.current')] : null, lang: api.lang });
+        }
+        let range = rangeOf(api.entity('primary')), knob = makeKnob(range.min, range.max);
         const lower = api.prim.pushButton({ label: t('homedash.climate.lower'), icon: 'minus', dir: -1, variant: 'chip' });
         const raise = api.prim.pushButton({ label: t('homedash.climate.raise'), icon: 'plus', dir: 1, variant: 'chip' });
         const modeLabels = { off: t('homedash.climate.mode_off'), heat: t('homedash.climate.mode_heat'), cool: t('homedash.climate.mode_cool'), auto: t('homedash.climate.mode_auto') };
@@ -45,18 +58,25 @@
         if (lamp) box.insertBefore(lamp.el, box.lastChild);
         api.body.appendChild(box); api.body.appendChild(seg.el);
         setAttr(api.body, 'data-hd-nodata', t('homedash.state.no_data'));
-        const all = [knob, lower, raise, seg].concat(lamp ? [lamp] : []);
+        const others = [lower, raise, seg].concat(lamp ? [lamp] : []);
         return {
             update(view) {
-                const e = view.entities.primary, a = (e && e.attributes) || {}, mode = e && MODES.includes(e.value) ? e.value : null;
-                const target = e ? num(a.temperature) : NaN, current = e ? num(a.current_temperature) : NaN;
-                const action = mode === 'off' ? 'off' : ACTIONS.includes(a.hvac_action) ? a.hvac_action : 'idle';
-                const actionWord = action === 'off' ? t('homedash.climate.mode_off') : t('homedash.climate.' + (action === 'heating' ? 'heating_to' : action === 'cooling' ? 'cooling_to' : 'idle'));
-                const lo = finiteOr(a.min_temp, min), hi = finiteOr(a.max_temp, max), common = { status: e ? e.status : 'unavailable', pending: !!(e && e.pending), readonly: !!(e && e.readonly) };
+                const e = view.entities.primary, a = (e && e.attributes) || {};
+                // No live data (no entity, unavailable or unknown): no old values, no action word, no marker, no selected mode.
+                const dead = !e || e.available === false || e.status === 'unavailable' || e.status === 'unknown';
+                const mode = !dead && MODES.includes(e.value) ? e.value : null;
+                const target = dead ? NaN : num(a.temperature), current = dead ? NaN : num(a.current_temperature);
+                const action = dead ? null : mode === 'off' ? 'off' : ACTIONS.includes(a.hvac_action) ? a.hvac_action : 'idle';
+                const actionWord = dead ? '' : action === 'off' ? t('homedash.climate.mode_off') : t('homedash.climate.' + (action === 'heating' ? 'heating_to' : action === 'cooling' ? 'cooling_to' : 'idle'));
+                const next = rangeOf(e), common = { status: e ? e.status : 'unavailable', pending: !!(e && e.pending), readonly: !!(e && e.readonly) };
                 const disabledTemp = !e || !api.can('primary', 'set_temperature');
-                setAttr(api.body, 'data-hd-action', e ? action : null);
+                if (next.min !== range.min || next.max !== range.max) {
+                    // The entity reports another range than the knob was built with: rebuild it in place, first child of the dialbox.
+                    knob.destroy(); range = next; knob = makeKnob(range.min, range.max); box.insertBefore(knob.el, box.firstChild);
+                }
+                setAttr(api.body, 'data-hd-action', action);
                 api.setTone(e && e.tone ? e.tone : null);
-                knob.set(Object.assign({ value: Number.isFinite(target) ? target : null, current: Number.isFinite(current) ? current : null, min: hi > lo ? lo : min, max: hi > lo ? hi : max,
+                knob.set(Object.assign({ value: Number.isFinite(target) ? target : null, current: Number.isFinite(current) ? current : null, min: range.min, max: range.max,
                     action: actionWord, sub: Number.isFinite(current) ? current : null, disabled: disabledTemp,
                     valueText: Number.isFinite(target) ? t('homedash.climate.valuetext', { value: F.valueText(target, { decimals: 1, lang: api.lang, unit: DEG_C }), action: actionWord }) : F.DASH }, common));
                 for (const b of [lower, raise]) b.set(Object.assign({ disabled: disabledTemp || mode === 'off' }, common));
@@ -64,7 +84,7 @@
                 if (lamp) lamp.set({ on: action === 'heating' || action === 'cooling', text: actionWord, status: common.status });
                 api.setStatus(statusText(api, e, mode ? modeLabels[mode] : e && e.value ? String(e.value) : ''));
             },
-            destroy() { for (const p of all) p.destroy(); box.remove(); seg.el.remove(); }
+            destroy() { knob.destroy(); for (const p of others) p.destroy(); box.remove(); seg.el.remove(); }
         };
     }
 

@@ -5,6 +5,7 @@
     'use strict';
     const E = window.HomeDashEngine;
     if (!E || !E.core || !E.format || !E.prim || !E.widgets) throw new Error('hd-w-sensor.js: load hd-core, hd-format, the primitives and hd-widgets first');
+    if (!E.heroStatus) throw new Error('hd-w-sensor.js: load hd-w-climate.js first (it provides E.heroStatus)');
     const { el, setAttr } = E.core, F = E.format, MID_DOT = ' ' + String.fromCodePoint(0xb7) + ' ';
     const DEG = String.fromCodePoint(0xb0), DEG_C = DEG + 'C', HOST_WORDS = ['unavailable', 'unknown', 'error'];
     const MIN30 = 30 * 60000, TREND_WORDS = { up: 'homedash.trend.rising', down: 'homedash.trend.falling', flat: 'homedash.trend.steady' };
@@ -15,10 +16,7 @@
     function statusText(api, e, hero) {
         if (hostWord(e) || e.pending) return null;
         if (e.readonly) return hero ? hero + MID_DOT + api.t('homedash.state.readonly') : api.t('homedash.state.readonly');
-        if (e.stale) {
-            const then = Date.parse(e.attributes && e.attributes.updated_at), age = Number.isFinite(then) ? F.duration(Math.max(0, (Date.now() - then) / 1000), api.lang) : '';
-            return api.t('homedash.state.updated_ago', { age });
-        }
+        if (e.stale) { const old = E.heroStatus.staleText(api, e); if (old) return old; }
         return hero || null;
     }
     const flip = node => setAttr(node, 'data-hd-tick', node.getAttribute('data-hd-tick') === 'a' ? 'b' : 'a');
@@ -90,8 +88,11 @@
     // ---- H7 temperature/numeral and sensor/numeral ----
     function tread(api, isTemperature) {
         const cfg = isTemperature ? { chars: 4, decimals: 1, degree: true, trend: true } : { chars: 5, decimals: 0, degree: false, trend: false };
-        const { prim, inst } = readoutOf(api, cfg), sr = el('span', { class: 'hd-sr-only' });
-        const vfd = el('div', { class: 'hd-vfd' }, [prim.el, sr]), node = el('div', { class: 'hd-tread' }, vfd);
+        const { prim, inst } = readoutOf(api, cfg);
+        // The visible numeral is aria-hidden and the sr-only span speaks value, unit and trend; the seven-segment readout is role=img with its own label.
+        const sr = inst ? null : el('span', { class: 'hd-sr-only' });
+        if (sr) setAttr(prim.el, 'aria-hidden', 'true');
+        const vfd = el('div', { class: 'hd-vfd' }, sr ? [prim.el, sr] : [prim.el]), node = el('div', { class: 'hd-tread' }, vfd);
         api.body.appendChild(node);
         setAttr(api.body, 'data-hd-nodata', api.t('homedash.state.no_data'));
         let last = null, lastView = null, range = null, trend = null, lastShown;
@@ -100,10 +101,10 @@
             const t = isTemperature && v !== null ? trend : null;
             api.setTone(e && e.tone ? e.tone : null);
             prim.set({ value: v, unit, trend: t, status: e ? e.status : 'unavailable', stale: !!(e && e.stale), readonly: !!(e && e.readonly) });
-            sr.textContent = readoutText(api, cfg, cfg.degree ? unit.replace(DEG, '') : unit, v, t);
+            if (sr) sr.textContent = readoutText(api, cfg, cfg.degree ? unit.replace(DEG, '') : unit, v, t);
             if (lastShown !== undefined && lastShown !== v) flip(node);
             lastShown = v;
-            const rangeText = isTemperature && range ? api.t('homedash.temperature.range', { min: F.valueText(range.min, { decimals: 1, lang: api.lang, unit: DEG_C }), max: F.valueText(range.max, { decimals: 1, lang: api.lang, unit: DEG_C }) }) : null;
+            const rangeText = isTemperature && range ? api.t('homedash.temperature.range', { min: F.valueText(range.min, { decimals: 1, lang: api.lang }), max: F.valueText(range.max, { decimals: 1, lang: api.lang, unit: DEG_C }) }) : null;
             api.setStatus(statusText(api, e, rangeText));
         }
         if (isTemperature) history(api, s => { range = extent(s.points); trend = trendOf(s.points); if (lastView) render(); });
@@ -115,12 +116,17 @@
         const inst = api.family === 'instrument', tact = api.family === 'tactile', glass = api.family === 'glass';
         const cfg = { chars: 5, decimals: 0, degree: false, trend: false }, { prim } = readoutOf(api, cfg);
         const spark = api.prim.sparkline({ label: api.widget.title, area: true, fade: glass, grid: tact || inst ? [4, 3] : null, halo: true });
+        // Same rule as H7: aria-hidden numeral plus an sr-only reading, none for the seven-segment readout.
+        const sr = inst ? null : el('span', { class: 'hd-sr-only' });
+        if (sr) setAttr(prim.el, 'aria-hidden', 'true');
         api.body.appendChild(prim.el);
+        if (sr) api.body.appendChild(sr);
         if (spark.fill) api.body.appendChild(spark.fill);
         api.body.appendChild(spark.el);
         setAttr(api.body, 'data-hd-nodata', api.t('homedash.state.no_data'));
         let lastView = null, hist = [], dims = null, lastShown;
-        // The host passes resize({w, h, px: {width, height}}); create gets no size, so the spark keeps its default box until the first resize.
+        // Host duty: resize(size) must carry px: {width, height} (the lab passes it; M2 hosts must too). A resize without px is ignored, and create gets
+        // no size, so the spark keeps its default box until the first resize with px.
         function sparkState() {
             const e = lastView && lastView.entities.primary, pts = hostWord(e) ? [] : hist.map(p => p[1]), ext = extent(hist), s = { points: pts };
             if (dims) { s.w = dims.w; s.h = dims.h; }
@@ -132,6 +138,7 @@
             const e = lastView && lastView.entities.primary, v = e && !hostWord(e) ? numberOf(e.value) : null;
             api.setTone(e && e.tone ? e.tone : null);
             prim.set({ value: v, unit: (e && e.unit) || '', status: e ? e.status : 'unavailable', stale: !!(e && e.stale), readonly: !!(e && e.readonly) });
+            if (sr) sr.textContent = readoutText(api, cfg, (e && e.unit) || '', v, null);
             if (lastShown !== undefined && lastShown !== v) flip(prim.el);
             lastShown = v;
             spark.set(sparkState());
@@ -146,7 +153,7 @@
                 dims = { w: Math.max(1, tact ? w - 16 : w), h: Math.max(1, tact ? h - 8 : h) };
                 if (lastView) spark.set(sparkState());
             },
-            destroy() { prim.destroy(); spark.destroy(); }
+            destroy() { prim.destroy(); spark.destroy(); if (sr) sr.remove(); }
         };
     }
 

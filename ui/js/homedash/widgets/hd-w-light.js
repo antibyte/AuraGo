@@ -4,6 +4,7 @@
     'use strict';
     const E = window.HomeDashEngine;
     if (!E || !E.core || !E.format || !E.prim || !E.widgets) throw new Error('hd-w-light.js: load hd-core, hd-format, the primitives and hd-widgets first');
+    if (!E.heroStatus) throw new Error('hd-w-light.js: load hd-w-climate.js first (it provides E.heroStatus)');
     const { setAttr } = E.core, F = E.format, MID_DOT = ' ' + String.fromCodePoint(0xb7) + ' ';
     const HOST_WORDS = ['unavailable', 'unknown', 'error'];
 
@@ -12,10 +13,7 @@
         if (!e || e.available === false || HOST_WORDS.includes(e.status) || e.pending) return null;
         if (e.readonly) return hero + MID_DOT + api.t('homedash.state.readonly');
         if (!api.can('primary', 'brightness')) return api.t('homedash.state.blocked');
-        if (e.stale) {
-            const then = Date.parse(e.attributes && e.attributes.updated_at), age = Number.isFinite(then) ? F.duration(Math.max(0, (Date.now() - then) / 1000), api.lang) : '';
-            return api.t('homedash.state.updated_ago', { age });
-        }
+        if (e.stale) { const old = E.heroStatus.staleText(api, e); if (old) return old; }
         return hero;
     }
 
@@ -31,16 +29,17 @@
         return {
             update(view) {
                 const e = view.entities.primary, on = !!e && F.isOn(e) === true, raw = e && e.attributes ? Number(e.attributes.brightness) : NaN;
-                const pct = on && Number.isFinite(raw) ? Math.min(100, Math.max(0, Math.round(raw / 2.55))) : 0;
-                const onWord = api.t('homedash.state.on');
+                // On without a usable brightness (null, 0 or not a number): dial full, word "On", no percentage anywhere.
+                const known = on && Number.isFinite(raw) && raw > 0;
+                const pct = known ? Math.min(100, Math.max(1, Math.round(raw / 2.55))) : on ? 100 : 0;
+                const onWord = api.t('homedash.state.on'), offWord = api.t('homedash.state.off');
                 api.setTone(e && e.tone ? e.tone : null);
-                prim.set({ value: on ? pct : 0, word: on ? null : api.t('homedash.state.off'), status: e ? e.status : 'unavailable', pending: !!(e && e.pending),
+                prim.set({ value: pct, word: known ? null : on ? onWord : offWord, status: e ? e.status : 'unavailable', pending: !!(e && e.pending),
                     readonly: !!(e && e.readonly), disabled: !e || !api.can('primary', 'brightness'),
-                    valueText: on ? api.t('homedash.light.valuetext', { value: pct, state: onWord }) : api.t('homedash.state.off') });
-                const shown = on ? pct : 0;
-                if (readout && lastPct !== null && lastPct !== shown) setAttr(readout, 'data-hd-tick', readout.getAttribute('data-hd-tick') === 'a' ? 'b' : 'a');
-                lastPct = shown;
-                api.setStatus(statusText(api, e, on ? onWord + MID_DOT + pct + ' %' : api.t('homedash.state.off')));
+                    valueText: known ? api.t('homedash.light.valuetext', { value: pct, state: onWord }) : on ? onWord : offWord });
+                if (readout && lastPct !== null && lastPct !== pct) setAttr(readout, 'data-hd-tick', readout.getAttribute('data-hd-tick') === 'a' ? 'b' : 'a');
+                lastPct = pct;
+                api.setStatus(statusText(api, e, known ? onWord + MID_DOT + pct + ' %' : on ? onWord : offWord));
             },
             destroy() { prim.destroy(); }
         };
