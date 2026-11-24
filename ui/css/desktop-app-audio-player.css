@@ -85,6 +85,11 @@
 }
 
 .vd-player-glow {
+    /* The pulse is written on this element, never on .vd-player: a custom
+       property is inherited, so a write on an ancestor invalidates the style
+       of every descendant on each frame. With a long playlist that is
+       thousands of queue nodes per frame and the whole desktop stutters. */
+    --pl-pulse: 0;
     position: absolute;
     left: 50%;
     bottom: 8%;

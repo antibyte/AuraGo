@@ -116,6 +116,15 @@
         const opts = options || {};
         const mediaQuery = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
 
+        // The shell switches its animations off with data-animations="false".
+        // Every other animated part of the desktop honours that switch, and so
+        // does this stage: without it the player keeps a 60 fps canvas loop
+        // running while the user asked for a calm desktop.
+        function motionAllowed() {
+            if (document.body && document.body.dataset.animations === 'false') return false;
+            return !(mediaQuery && mediaQuery.matches);
+        }
+
         const state = {
             mode: MODES.indexOf(opts.mode) >= 0 ? opts.mode : 'bars',
             playing: false,
@@ -136,7 +145,7 @@
             smoothBass: 0,
             smoothEnergy: 0,
             sentBass: -1,
-            reduced: !!(mediaQuery && mediaQuery.matches),
+            reduced: !motionAllowed(),
             destroyed: false,
             visible: true,
             cacheKey: '',
@@ -165,7 +174,7 @@
         seedMotes();
 
         function onMotionChange() {
-            state.reduced = !!(mediaQuery && mediaQuery.matches);
+            state.reduced = !motionAllowed();
             seedMotes();
             state.cacheKey = '';
         }
@@ -175,6 +184,11 @@
         } else if (mediaQuery && typeof mediaQuery.addListener === 'function') {
             mediaQuery.addListener(onMotionChange);
         }
+
+        const motionObserver = (typeof MutationObserver === 'function' && document.body)
+            ? new MutationObserver(onMotionChange)
+            : null;
+        if (motionObserver) motionObserver.observe(document.body, { attributes: true, attributeFilter: ['data-animations'] });
 
         function resize() {
             if (state.destroyed) return;
@@ -820,6 +834,7 @@
                 stop();
                 if (observer) observer.disconnect();
                 if (visibilityObserver) visibilityObserver.disconnect();
+                if (motionObserver) motionObserver.disconnect();
                 window.removeEventListener('resize', queueResize);
                 document.removeEventListener('visibilitychange', onVisibility);
                 if (mediaQuery && typeof mediaQuery.removeEventListener === 'function') {

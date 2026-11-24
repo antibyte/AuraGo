@@ -129,6 +129,47 @@ func TestAudioPlayerAssets(t *testing.T) {
 	}
 }
 
+func TestAudioPlayerKeepsFrameUpdatesOffThePlaylist(t *testing.T) {
+	t.Parallel()
+
+	// The visualizer writes --pl-pulse on every frame. A custom property is
+	// inherited, so writing it on the player root invalidates the style of the
+	// whole player subtree - with a long playlist that is thousands of queue
+	// nodes per frame and the entire desktop stalls. The pulse belongs to the
+	// glow, which is an empty element.
+	player := readDesktopAssetText(t, "js/desktop/apps/audio-player.js")
+	if !strings.Contains(player, "glow: host.querySelector('.vd-player-glow')") {
+		t.Fatal("audio player must keep a reference to the glow element")
+	}
+	if !strings.Contains(player, "const pulseTarget = els.glow || root;") {
+		t.Fatal("the pulse must be written on the glow, not on the player root")
+	}
+	if strings.Contains(player, "root.style.setProperty('--pl-pulse'") {
+		t.Fatal("the pulse must not be written on the player root")
+	}
+
+	css := readDesktopAssetText(t, "css/desktop-app-audio-player.css")
+	glow := css[strings.Index(css, ".vd-player-glow {"):]
+	if !strings.Contains(glow[:strings.Index(glow, "}")], "--pl-pulse") {
+		t.Fatal("the glow must own the --pl-pulse default")
+	}
+
+	// The stage must honour the shell's animation switch like every other
+	// animated part of the desktop, otherwise a calm desktop still runs a 60 fps
+	// canvas loop as soon as the player is opened.
+	visualizer := readDesktopAssetText(t, "js/desktop/apps/audio-player-visualizer.js")
+	for _, want := range []string{
+		"document.body.dataset.animations === 'false'",
+		"function motionAllowed()",
+		"reduced: !motionAllowed()",
+		"attributeFilter: ['data-animations']",
+	} {
+		if !strings.Contains(visualizer, want) {
+			t.Fatalf("audio player visualizer missing motion marker %q", want)
+		}
+	}
+}
+
 func TestAudioPlayerTranslations(t *testing.T) {
 	t.Parallel()
 

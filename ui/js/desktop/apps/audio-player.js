@@ -234,6 +234,7 @@
             volume: host.querySelector('[data-volume]'),
             speed: host.querySelector('[data-speed]'),
             mode: host.querySelector('[data-visualizer-mode]'),
+            glow: host.querySelector('.vd-player-glow'),
             queue: host.querySelector('[data-queue]'),
             queueTitle: host.querySelector('[data-queue-title]'),
             queueFoot: host.querySelector('[data-queue-foot]'),
@@ -551,15 +552,15 @@
         }
 
         function renderQueue() {
-            els.queue.innerHTML = '';
+            // One parse for the whole playlist. Building the list entry by
+            // entry costs one HTML parse per track, which stalls the desktop
+            // for seconds when the library is large.
+            const rows = [];
             state.tracks.forEach((track, index) => {
-                const item = document.createElement('li');
-                item.className = 'vd-player-queue-item';
-                item.dataset.index = String(index);
-                if (index === state.index) item.classList.add('is-current');
                 const title = track.title || stripExtension(track.name);
                 const meta = [track.artist, track.album].filter(Boolean).join(' · ');
-                item.innerHTML = `<button type="button" class="vd-player-queue-btn" data-select="${index}">
+                const current = index === state.index ? ' is-current' : '';
+                rows.push(`<li class="vd-player-queue-item${current}" data-index="${index}"><button type="button" class="vd-player-queue-btn" data-select="${index}">
           <span class="vd-player-queue-mark">
             <span class="vd-player-queue-index">${index + 1}</span>
             <span class="vd-player-eq" aria-hidden="true"><span></span><span></span><span></span></span>
@@ -569,9 +570,9 @@
             ${meta ? `<span class="vd-player-queue-meta">${esc(meta)}</span>` : ''}
           </span>
           <span class="vd-player-queue-duration">${track.duration ? esc(formatTime(track.duration)) : ''}</span>
-        </button>`;
-                els.queue.appendChild(item);
+        </button></li>`);
             });
+            els.queue.innerHTML = rows.join('');
             const active = els.queue.querySelector('.is-current');
             if (active && typeof active.scrollIntoView === 'function') active.scrollIntoView({ block: 'nearest' });
             els.queueFoot.textContent = state.tracks.length
@@ -916,7 +917,13 @@
                 getAnalyser: () => (state.graph ? state.graph.analyser : null),
                 onEnergy: (bass, energy) => {
                     const pulse = Math.max(0, Math.min(1, (Number(bass) || 0) * 0.78 + (Number(energy) || 0) * 0.30));
-                    root.style.setProperty('--pl-pulse', pulse.toFixed(3));
+                    // The pulse belongs to the glow, not to the player root. An
+                    // inherited custom property is written on every frame, and a
+                    // write on the root invalidates the style of the whole
+                    // player subtree - with a full playlist that is thousands of
+                    // queue nodes - so the entire desktop stalls.
+                    const pulseTarget = els.glow || root;
+                    pulseTarget.style.setProperty('--pl-pulse', pulse.toFixed(3));
                 }
             });
         }
