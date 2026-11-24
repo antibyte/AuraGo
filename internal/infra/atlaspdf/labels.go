@@ -13,6 +13,7 @@ import (
 var defaultTexts = map[string]string{
 	"desktop.infra_pdf_title":             "Homelab map",
 	"desktop.infra_pdf_assets":            "{count} assets",
+	"desktop.infra_pdf_assets_one":        "1 asset",
 	"desktop.infra_pdf_overview":          "Overview",
 	"desktop.infra_pdf_part":              "Part {n}/{total}",
 	"desktop.infra_pdf_unplaced":          "Not on the map",
@@ -31,6 +32,7 @@ var defaultTexts = map[string]string{
 	"desktop.infra_pdf_hostless":          "Without host",
 	"desktop.infra_pdf_continued":         "continued",
 	"desktop.infra_pdf_guests":            "{count} guests",
+	"desktop.infra_pdf_guests_one":        "1 guest",
 	"desktop.infra_pdf_inventory_title":   "Inventory",
 	"desktop.infra_pdf_connections_title": "Connections",
 	"desktop.infra_pdf_no_place":          "No place",
@@ -132,9 +134,15 @@ func (l *labels) part(n, total int) string {
 	return l.format("desktop.infra_pdf_part", "n", strconv.Itoa(n), "total", strconv.Itoa(total))
 }
 func (l *labels) assets(n int) string {
+	if n == 1 {
+		return l.get("desktop.infra_pdf_assets_one")
+	}
 	return l.format("desktop.infra_pdf_assets", "count", strconv.Itoa(n))
 }
 func (l *labels) guests(n int) string {
+	if n == 1 {
+		return l.get("desktop.infra_pdf_guests_one")
+	}
 	return l.format("desktop.infra_pdf_guests", "count", strconv.Itoa(n))
 }
 func (l *labels) generated(t string) string {

@@ -149,7 +149,10 @@
             const bound = state.importBindings.get(candidate.id) || '';
             const suggested = [...new Set([bound, ...suggestionsFor(candidate)].filter(Boolean))].filter(nodeId => store.nodeById(nodeId));
             const draggable = write && store.features.layoutParent ? ' data-draggable="true"' : '';
-            const reasons = reasonTexts(candidate, relevance), detail = [node.profile?.vendor, node.profile?.model, node.profile?.ip_address].filter(Boolean).join(' · ');
+            const reasons = reasonTexts(candidate, relevance);
+            const sameAsSource = text => !!text && [source.kind, kindLabel(source.kind)].some(value => String(value || '').toLocaleLowerCase() === String(text).toLocaleLowerCase());
+            // The meta line already names the source kind, so a vendor that only repeats it ("Docker", "Proxmox") is left out.
+            const detail = [sameAsSource(node.profile?.vendor) ? '' : node.profile?.vendor, node.profile?.model, node.profile?.ip_address].filter(Boolean).join(' · ');
             const disabled = write && !busy ? '' : ' disabled';
             // A row is one compact line (checkbox, icon, name and meta, disclosure); the link select, the reason and the
             // two buttons live in the detail below it. The error stays outside the detail so a folded row still shows it.

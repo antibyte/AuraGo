@@ -740,6 +740,8 @@
             gesture?.abort(); // a press that never saw its release
             const target = event.currentTarget || app.library?.el;
             if (!target) return;
+            // Old selected text under the press would start a native text drag, which cancels the pointer.
+            if (event.pointerType !== 'touch') window.getSelection?.()?.removeAllRanges();
             const sx = event.clientX, sy = event.clientY, touch = event.pointerType === 'touch', view = app.mapView();
             let started = false, ghost = null, last = null;
             // Discovered guests join their host; the map position under the pointer means nothing to them.

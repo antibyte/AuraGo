@@ -16,9 +16,9 @@ func TestInfraPDFLocaleKeysInEveryDesktopLocale(t *testing.T) {
 		"desktop.infra_export_pdf_create", "desktop.infra_export_pdf_busy", "desktop.infra_export_pdf_done", "desktop.infra_export_pdf_failed",
 	}
 	for _, name := range []string{
-		"title", "assets", "overview", "part", "unplaced", "page", "page_ref", "generated",
+		"title", "assets", "assets_one", "overview", "part", "unplaced", "page", "page_ref", "generated",
 		"stat_devices", "stat_vms", "stat_containers", "stat_services", "stat_networks", "stat_connections", "stat_running",
-		"legend", "hosts_title", "hostless", "continued", "guests", "inventory_title", "connections_title", "no_place",
+		"legend", "hosts_title", "hostless", "continued", "guests", "guests_one", "inventory_title", "connections_title", "no_place",
 		"col_name", "col_kind", "col_address", "col_mac", "col_host", "col_system", "col_sources", "col_power",
 		"col_from", "col_to", "col_port", "col_speed", "col_label", "empty",
 	} {
