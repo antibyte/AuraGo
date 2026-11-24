@@ -1,203 +1,189 @@
+// Orbit: sonar pings with a soft echo, drifting whooshes, airlock hiss and a slow pad. Key E4 (64), E Lydian (0, 2, 4, 6, 7, 9, 11).
+// Deep space: the long tail belongs to the notices and the start sound; frequent events stay short with at most one faint echo.
+// fx: 'orbit.ping' is a sonar ping in three sizes (larger = lower and longer), each with its own echo.
 (function () {
     'use strict';
-    const S = window.DesktopSoundSynth;
-    const L = S.layer;
-
-    // Orbit sounds like a quiet space station: soft synth whooshes, sonar pings, airlock hiss and small HUD
-    // blips. Everything is built from sines and band-limited noise with 3 to 30 ms attacks and rounded tails,
-    // so a window that opens or closes forty times a day never clicks or bites. Nothing sits above about
-    // 4 kHz, and the sparkle of a dissolving window is a handful of faint grains, not a shimmer.
-    // The synth peak-normalises every buffer, so this file only balances the layers inside one sound. The key
-    // is A: the pings are A5, C#6 and E6, and every shell sound moves between notes of that chord and its
-    // neighbours. No layer uses the synth's reverb pool, because its convolver is shared by all layers of one
-    // render and would smear a layer into the envelope of its neighbour; the echo of a chime is a second,
-    // quieter and darker tone instead.
-
-    // A rounded sine blip with an optional pitch glide: attack, a short fall to `sustain` and an exponential
-    // release. The oscillator is kept running for attack + decay, and the synth adds the release to that, so
-    // it never stops while the envelope is still audible.
-    function blip(freq, at, o) {
-        o = o || {};
-        const attack = o.attack || 0.004;
-        const decay = o.decay || 0.03;
-        return L('tone', {
-            freq, glide: o.to, glideTime: o.glideTime || 0.04, at, duration: attack + decay,
-            gain: o.gain == null ? 0.3 : o.gain, attack, decay,
-            sustain: o.sustain == null ? 0.2 : o.sustain, release: o.release || 0.08,
-            type: 'sine', partials: o.partials, pan: o.pan,
-            filter: { type: 'lowpass', freq: o.cutoff || 3200, q: 0.5 }
-        });
-    }
-
-    // A pitched swoosh: a sine that glides from one note to another.
-    function glide(from, to, at, time, o) {
-        o = o || {};
-        return blip(from, at, Object.assign({ to, glideTime: time, attack: 0.012, decay: time * 0.8,
-            sustain: 0.1, release: 0.06, cutoff: 2600 }, o));
-    }
-
-    // A whoosh: noise through a band-pass filter whose centre sweeps from one frequency to another. The level
-    // rises over `attack` seconds and falls over `decay` seconds, so a rising whoosh peaks late and a falling
-    // one early.
-    function whoosh(from, to, at, dur, o) {
-        o = o || {};
-        return L('noise', {
-            at, duration: dur, gain: o.gain == null ? 0.4 : o.gain,
-            attack: o.attack || dur * 0.45, decay: o.decay || dur * 0.55, release: 0.02,
-            color: 'pink', decayPower: 0.3, filter: { type: 'bandpass', q: o.q || 1.1 },
-            sweep: { from, to, time: dur }
-        });
-    }
-
-    // A soft puff of air (an airlock seal, a latch) through a low-pass filter.
-    function puff(at, dur, cutoff, gain) {
-        return L('noise', {
-            at, duration: dur, gain, attack: 0.006, decay: dur * 0.9, release: 0.02,
-            color: 'pink', decayPower: 1.6, filter: { type: 'lowpass', freq: cutoff, q: 0.6 }
-        });
-    }
-
-    // Faint grains of the dissolving window: very short sines on notes of the key, alternating left and right.
-    const GRAINS = [
-        { at: 0.095, note: 2217, gain: 0.085, pan: -0.5 }, { at: 0.128, note: 1760, gain: 0.08, pan: 0.45 },
-        { at: 0.152, note: 2637, gain: 0.066, pan: -0.3 }, { at: 0.190, note: 1976, gain: 0.06, pan: 0.5 },
-        { at: 0.214, note: 1480, gain: 0.05, pan: -0.45 }, { at: 0.247, note: 1760, gain: 0.04, pan: 0.3 },
-        { at: 0.280, note: 1319, gain: 0.03, pan: -0.2 }
-    ];
-
-    function sparkle() {
-        return GRAINS.map(g => blip(g.note, g.at, { gain: g.gain, pan: g.pan, attack: 0.003, decay: 0.012,
-            sustain: 0.3, release: 0.03, cutoff: 4000 }));
-    }
-
-    // A sonar-ish chime of two sine notes with a body of a quiet second partial and a darker, quieter echo of
-    // the last note.
-    const BELL = [{ ratio: 1, gain: 1 }, { ratio: 2, gain: 0.16, type: 'triangle' }];
-
-    function chime(first, second, gap, echoAfter, o) {
-        o = o || {};
-        return [
-            blip(first, 0, { gain: 0.3, partials: BELL, decay: 0.07, sustain: 0.12, release: o.release || 0.24, cutoff: 3600 }),
-            blip(second, gap, { gain: 0.34, partials: BELL, decay: 0.08, sustain: 0.12, release: (o.release || 0.24) + 0.08, cutoff: 3600 }),
-            blip(second, gap + echoAfter, { gain: 0.12, decay: 0.06, sustain: 0.1, release: o.echoRelease || 0.22, cutoff: 1900 })
-        ];
-    }
-
-    // A low, muted pair of blips: it informs without scolding.
-    const MUTED = [{ ratio: 1, gain: 1 }, { ratio: 2, gain: 0.26, type: 'triangle' }];
-
-    function lowBlips(first, second, gap, gain, release) {
-        return [
-            blip(first, 0, { gain, partials: MUTED, decay: 0.03, sustain: 0.18, release, cutoff: 700 }),
-            blip(second, gap, { gain: gain * 0.9, partials: MUTED, decay: 0.03, sustain: 0.18, release, cutoff: 650 })
-        ];
-    }
-
-    const events = {
-        // Materialise: a whoosh that builds, a soft chirp rising an octave and a faint FM glint on the arrival.
-        'window.open': [
-            whoosh(280, 2300, 0, 0.22, { gain: 0.5, attack: 0.15, decay: 0.07, q: 1.0 }),
-            glide(392, 880, 0.03, 0.15, { gain: 0.3, attack: 0.03, decay: 0.12, release: 0.07 }),
-            L('fm', { midi: 88, at: 0.12, duration: 0.1, gain: 0.13, attack: 0.01, decay: 0.07, sustain: 0, release: 0.08,
-                modRatio: 2, index: 120, indexDecay: 0.14, filter: { type: 'lowpass', freq: 3800, q: 0.5 } })
-        ],
-        // Dissolve: a falling whoosh, a sinking chirp and a tail of faint grains.
-        'window.close': [
-            whoosh(2400, 260, 0, 0.26, { gain: 0.42, attack: 0.05, decay: 0.21, q: 1.0 }),
-            glide(740, 330, 0, 0.22, { gain: 0.26, attack: 0.01, decay: 0.19, release: 0.06 })
-        ].concat(sparkle()),
-        'window.minimize': [
-            whoosh(1900, 520, 0, 0.15, { gain: 0.4, attack: 0.03, decay: 0.12, q: 1.2 }),
-            glide(587, 294, 0, 0.14, { gain: 0.28, attack: 0.008, release: 0.05 })
-        ],
-        'window.restore': [
-            whoosh(500, 2100, 0, 0.16, { gain: 0.38, attack: 0.11, decay: 0.05, q: 1.2 }),
-            glide(294, 587, 0, 0.15, { gain: 0.26, attack: 0.02, release: 0.05 }),
-            blip(1319, 0.12, { gain: 0.1, release: 0.07 })
-        ],
-        'window.maximize': [
-            whoosh(220, 1700, 0, 0.22, { gain: 0.42, attack: 0.15, decay: 0.07, q: 0.9 }),
-            glide(220, 440, 0, 0.2, { gain: 0.32, attack: 0.02, decay: 0.17, release: 0.06 }),
-            blip(880, 0.17, { gain: 0.14, release: 0.1 }),
-            blip(1319, 0.2, { gain: 0.09, release: 0.12 })
-        ],
-        // An airlock seal: a soft thump, a puff of air and a tiny latch.
-        'window.snap': [
-            glide(190, 120, 0, 0.06, { gain: 0.42, attack: 0.003, decay: 0.04, release: 0.06, cutoff: 900 }),
-            puff(0, 0.06, 1700, 0.22),
-            blip(1760, 0.045, { gain: 0.07, release: 0.06 })
-        ],
-        'window.deny': lowBlips(196, 165, 0.1, 0.42, 0.06),
-        'notify.info': chime(659, 880, 0.12, 0.17),
-        'notify.message': chime(988, 1319, 0.09, 0.14, { release: 0.2, echoRelease: 0.18 }),
-        'notify.error': lowBlips(220, 185, 0.11, 0.46, 0.09),
-        // The tiny HUD blips of menus: a short glide up to open and down to close.
-        'menu.open': [blip(880, 0, { to: 1175, glideTime: 0.035, gain: 0.3, decay: 0.02, sustain: 0.15, release: 0.05 })],
-        'menu.close': [blip(1047, 0, { to: 698, glideTime: 0.035, gain: 0.26, decay: 0.02, sustain: 0.15, release: 0.05 })],
-        'space.switch': [
-            L('noise', { duration: 0.15, gain: 0.34, attack: 0.08, decay: 0.07, release: 0.02, color: 'pink', decayPower: 0.3,
-                filter: { type: 'bandpass', q: 2.2 }, sweep: { from: 900, to: 1500, time: 0.15 } }),
-            blip(659, 0.07, { gain: 0.14, release: 0.07 }),
-            blip(880, 0.12, { gain: 0.16, release: 0.1 })
-        ],
-        'dialog.open': [
-            blip(880, 0, { gain: 0.26, release: 0.08 }),
-            blip(1319, 0.05, { gain: 0.24, release: 0.12 }),
-            puff(0, 0.05, 1500, 0.1)
-        ],
-        'dialog.confirm': [
-            blip(880, 0, { gain: 0.26, partials: BELL, release: 0.18, cutoff: 3600 }),
-            blip(1319, 0.07, { gain: 0.32, partials: BELL, release: 0.28, cutoff: 3600 }),
-            blip(1319, 0.24, { gain: 0.11, release: 0.18, cutoff: 1900 })
-        ],
-        'dialog.cancel': [
-            blip(1047, 0, { gain: 0.24, release: 0.08, cutoff: 2400 }),
-            blip(784, 0.06, { gain: 0.22, release: 0.1, cutoff: 2400 })
-        ],
-        'file.trash': [
-            whoosh(1300, 600, 0, 0.16, { gain: 0.38, attack: 0.015, decay: 0.145, q: 1.0 }),
-            glide(300, 170, 0, 0.1, { gain: 0.25, attack: 0.006, release: 0.06 })
-        ],
-        'file.delete': [
-            whoosh(2000, 500, 0, 0.26, { gain: 0.45, attack: 0.02, decay: 0.24, q: 0.9 }),
-            glide(220, 110, 0, 0.14, { gain: 0.36, attack: 0.006, release: 0.07, cutoff: 900 }),
-            blip(165, 0.17, { gain: 0.2, release: 0.08, cutoff: 800 })
-        ],
-        'file.drop': [
-            puff(0, 0.07, 1300, 0.25),
-            glide(260, 190, 0, 0.06, { gain: 0.35, attack: 0.004, decay: 0.04, release: 0.05, cutoff: 900 }),
-            blip(1319, 0.05, { gain: 0.09, release: 0.08 })
-        ]
-    };
-    events._default = events['notify.info'];
-
-    // Theme FX: orbit.ping is not a shell event. The Orbit desktop effect asks for it by name through
-    // sound-runtime.js when the desktop is clicked and passes a variant for how far the pulse travels. A
-    // sonar ping is a sine with a 6 ms attack that decays exponentially over 420 to 700 ms, an echo 180 ms
-    // later that is 9 dB quieter and a little darker, and a faint noise click at the start. The runtime plays
-    // it at 0.38 of a window sound, at most once per 350 ms and three times per 2 s.
-    const PING = {
-        small: { freq: 1320, release: 0.42 },
-        medium: { freq: 1100, release: 0.56 },
-        large: { freq: 880, release: 0.7 }
-    };
-    const ECHO_AT = 0.18;
-    const ECHO_GAIN = Math.pow(10, -9 / 20);
-
-    function ping(s) {
-        const ring = { duration: 0.01, attack: 0.006, decay: 0.001, sustain: 1, release: s.release, type: 'sine' };
-        return [
-            L('noise', { duration: 0.004, gain: 0.05, attack: 0.001, decay: 0.004, color: 'white', decayPower: 1,
-                filter: { type: 'bandpass', freq: 2400, q: 0.9 } }),
-            L('tone', Object.assign({ freq: s.freq, gain: 0.5, filter: { type: 'lowpass', freq: s.freq * 2.5, q: 0.5 } }, ring)),
-            L('tone', Object.assign({ freq: s.freq, at: ECHO_AT, gain: 0.5 * ECHO_GAIN,
-                filter: { type: 'lowpass', freq: s.freq * 1.6, q: 0.5 } }, ring))
-        ];
-    }
-
-    const specialFx = { 'orbit.ping': {} };
-    Object.keys(PING).forEach(size => { specialFx['orbit.ping'][size] = ping(PING[size]); });
-
-    window.DesktopSoundThemes = window.DesktopSoundThemes || {};
-    window.DesktopSoundThemes.orbit = { id: 'orbit', events, specialFx };
+    self.DesktopSoundEngine.defineTheme({
+        id: 'orbit',
+        key: 64,
+        space: { size: 1.4, rt60: 1.5, damping: 5000, predelay: 0.02, mix: 0.26 },
+        voices: {
+            ping: { model: 'blip', harm: 0.5, attack: 0.006, decay: 0.28, air: 0.1, glide: 2, glideTime: 0.025 },
+            ring: { model: 'metal', kind: 'ping', t60: 0.3, damp: 0.8, beat: 0.8, hardness: 0.15, attack: 0.004, width: 0.6, spread: 2, air: 0.06 },
+            deep: { model: 'blip', harm: 0.4, attack: 0.012, decay: 0.3, glide: 2, glideTime: 0.08, air: 0.08 },
+            pad: { model: 'pad', partials: 4, detune: 9, attack: 0.25, hold: 0.1, release: 0.9, cutoff: 1800, width: 0.8, shimmer: 0.4 },
+            whoosh: { model: 'noise', color: 'pink', band: [300, 3200], sweep: 1.2, q: 0.6, attack: 0.12, decay: 0.2, width: 1 },
+            hiss: { model: 'noise', color: 'pink', band: [2500, 8000], q: 0.5, attack: 0.02, decay: 0.12, width: 1 },
+            dock: { model: 'click', material: 'plastic', tone: 2800, ring: 0.02, noise: 0.75, q: 1.5 }
+        },
+        events: {
+            'session.start': {
+                notes: [{ v: 'pad', n: -5, t: 0, g: 0.9, pan: 0, attack: 0.35, release: 0.8 }, { v: 'pad', n: 0, t: 0.05, g: 0.8, pan: 0, attack: 0.4, release: 0.7 },
+                    { v: 'ping', n: 4, t: 0.3, g: 0.8, pan: -0.25, decay: 0.35 }, { v: 'ring', n: 4, t: 0.3, g: 0.32, pan: -0.25, t60: 0.30 }, { v: 'ping', n: 6, t: 0.55, g: 0.85, pan: 0.1, decay: 0.35 }, { v: 'ring', n: 6, t: 0.55, g: 0.34, pan: 0.1, t60: 0.30 },
+                    { v: 'ping', n: 11, t: 0.8, g: 0.9, pan: -0.1, decay: 0.4 }, { v: 'ring', n: 11, t: 0.8, g: 0.36, pan: -0.1, t60: 0.30 }, { v: 'ping', n: 14, t: 1.05, g: 0.9, pan: 0.2, decay: 0.4 }, { v: 'ring', n: 14, t: 1.05, g: 0.36, pan: 0.2, t60: 0.30 },
+                    { v: 'ping', n: 16, t: 1.35, g: 0.85, pan: 0, decay: 0.35 }, { v: 'ring', n: 16, t: 1.35, g: 0.34, pan: 0, t60: 0.30 }],
+                layers: [{ v: 'whoosh', t: 0, g: 0.5, attack: 0.3, decay: 0.5 }, { v: 'hiss', t: 1.3, g: 0.2, attack: 0.1, decay: 0.3 }],
+                echo: { time: 0.28, feedback: 0.12, tone: 3500, mix: 0.3, spread: 0.6 },
+                space: { size: 1.5, rt60: 0.3, damping: 4500, predelay: 0.03, mix: 0.34 }
+            },
+            'notify.message': {
+                notes: [{ v: 'pad', n: 4, t: 0, g: 0.45, attack: 0.05, hold: 0, release: 0.55 },
+                    { v: 'ping', n: 4, t: 0, g: 0.8, pan: -0.2, decay: 0.3 }, { v: 'ring', n: 4, t: 0, g: 0.32, pan: -0.2, t60: 0.30 }, { v: 'ping', n: 6, t: 0.14, g: 0.9, pan: 0.15, decay: 0.3 }, { v: 'ring', n: 6, t: 0.14, g: 0.36, pan: 0.15, t60: 0.30 },
+                    { v: 'ping', n: 11, t: 0.28, g: 1, pan: 0, decay: 0.45 }, { v: 'ring', n: 11, t: 0.28, g: 0.40, pan: 0, t60: 0.30 }],
+                layers: [{ v: 'hiss', t: 0, g: 0.3, attack: 0.04, decay: 0.2 }, { v: 'hiss', t: 0.28, g: 0.2, decay: 0.2 }],
+                echo: { time: 0.2, feedback: 0.14, tone: 3500, mix: 0.28, spread: 0.5 },
+                space: { size: 1.3, rt60: 0.32, damping: 4500, predelay: 0.02, mix: 0.3 }
+            },
+            'notify.info': {
+                notes: [{ v: 'pad', n: 0, t: 0, g: 0.4, attack: 0.05, hold: 0, release: 0.35 },
+                    { v: 'ping', n: 0, t: 0, g: 0.85, pan: -0.15, decay: 0.25 }, { v: 'ring', n: 0, t: 0, g: 0.34, pan: -0.15, t60: 0.28 }, { v: 'ping', n: 7, t: 0.12, g: 1, pan: 0.15, decay: 0.35 }, { v: 'ring', n: 7, t: 0.12, g: 0.40, pan: 0.15, t60: 0.30 }],
+                layers: [{ v: 'hiss', t: 0, g: 0.3, attack: 0.04, decay: 0.2 }],
+                echo: { time: 0.22, feedback: 0.14, tone: 3500, mix: 0.25, spread: 0.5 },
+                space: { size: 1.2, rt60: 0.24, damping: 4500, predelay: 0.018, mix: 0.28 }
+            },
+            'notify.success': {
+                notes: [{ v: 'pad', n: 0, t: 0, g: 0.4, attack: 0.05, hold: 0, release: 0.5 },
+                    { v: 'ping', n: 0, t: 0, g: 0.8, pan: -0.2, decay: 0.25 }, { v: 'ring', n: 0, t: 0, g: 0.32, pan: -0.2, t60: 0.28 }, { v: 'ping', n: 7, t: 0.1, g: 0.9, pan: 0.1, decay: 0.2 }, { v: 'ring', n: 7, t: 0.1, g: 0.36, pan: 0.1, t60: 0.22 },
+                    { v: 'ping', n: 12, t: 0.2, g: 1, pan: 0, decay: 0.28 }, { v: 'ring', n: 12, t: 0.2, g: 0.40, pan: 0, t60: 0.30 }],
+                layers: [{ v: 'hiss', t: 0, g: 0.3, attack: 0.04, decay: 0.2 }, { v: 'hiss', t: 0.2, g: 0.15, decay: 0.15 }],
+                echo: { time: 0.24, feedback: 0.10, tone: 3500, mix: 0.25, spread: 0.5 },
+                space: { size: 1.2, rt60: 0.20, damping: 4500, predelay: 0.018, mix: 0.28 }
+            },
+            'notify.warning': {
+                notes: [{ v: 'pad', n: -3, t: 0, g: 0.4, attack: 0.05, hold: 0, release: 0.35 },{ v: 'deep', n: 9, t: 0, g: 1, pan: -0.1, decay: 0.22, glide: 0 }, { v: 'ring', n: 9, t: 0, g: 0.45, pan: -0.1, t60: 0.22 }, { v: 'deep', n: 9, t: 0.2, g: 0.85, pan: 0.1, decay: 0.3, glide: 0 }, { v: 'ring', n: 9, t: 0.2, g: 0.38, pan: 0.1, t60: 0.30 }],
+                layers: [{ v: 'hiss', t: 0, g: 0.25, attack: 0.04, decay: 0.15 }, { v: 'dock', t: 0, g: 0.3, tone: 2200 }],
+                echo: { time: 0.2, feedback: 0.14, tone: 3000, mix: 0.2, spread: 0.4 },
+                space: { size: 1, rt60: 0.21, damping: 4500, predelay: 0.012, mix: 0.24 }
+            },
+            'notify.error': {
+                notes: [{ v: 'pad', n: -6, t: 0, g: 0.4, attack: 0.05, hold: 0, release: 0.35 },{ v: 'deep', n: 6, t: 0, g: 1, pan: -0.1, decay: 0.28, attack: 0.01, harm: 0.5, glide: 0 }, { v: 'ring', n: 6, t: 0, g: 0.7, pan: -0.1, t60: 0.28 },
+                    { v: 'deep', n: 0, t: 0.18, g: 1, pan: 0.1, decay: 0.4, attack: 0.012, harm: 0.5, glide: -2 }, { v: 'ring', n: 0, t: 0.18, g: 0.7, pan: 0.1, t60: 0.30 }],
+                layers: [{ v: 'hiss', t: 0, g: 0.25, attack: 0.04, decay: 0.2 }, { v: 'dock', t: 0, g: 0.4, tone: 1200, material: 'felt' }, { v: 'dock', t: 0.18, g: 0.4, tone: 900, material: 'felt' },
+                    { v: 'whoosh', t: 0.18, g: 0.3, band: [200, 1200], sweep: -1, decay: 0.2 }],
+                echo: { time: 0.2, feedback: 0.17, tone: 2500, mix: 0.18, spread: 0.4 },
+                space: { size: 0.9, rt60: 0.21, damping: 3800, predelay: 0.008, mix: 0.22 }
+            },
+            'dialog.open': {
+                notes: [{ v: 'pad', n: 0, t: 0, g: 0.3, attack: 0.05, hold: 0, release: 0.3 },
+                    { v: 'ping', n: 0, t: 0, g: 0.85, pan: -0.15, decay: 0.12 }, { v: 'ring', n: 0, t: 0, g: 0.34, pan: -0.15, t60: 0.13 }, { v: 'ping', n: 7, t: 0.08, g: 1, pan: 0.15, decay: 0.18 }, { v: 'ring', n: 7, t: 0.08, g: 0.40, pan: 0.15, t60: 0.20 }],
+                layers: [{ v: 'hiss', t: 0, g: 0.3, attack: 0.04, decay: 0.15 }],
+                echo: { time: 0.12, feedback: 0.14, tone: 3500, mix: 0.18, spread: 0.4 },
+                space: { size: 0.9, rt60: 0.14, damping: 5000, predelay: 0.01, mix: 0.2 }
+            },
+            'dialog.confirm': {
+                notes: [{ v: 'pad', n: 4, t: 0, g: 0.3, attack: 0.05, hold: 0, release: 0.3 },
+                    { v: 'ping', n: 4, t: 0, g: 0.85, pan: -0.15, decay: 0.12 }, { v: 'ring', n: 4, t: 0, g: 0.34, pan: -0.15, t60: 0.13 }, { v: 'ping', n: 11, t: 0.08, g: 1, pan: 0.15, decay: 0.2 }, { v: 'ring', n: 11, t: 0.08, g: 0.40, pan: 0.15, t60: 0.22 }],
+                layers: [{ v: 'hiss', t: 0, g: 0.3, attack: 0.04, decay: 0.15 }],
+                echo: { time: 0.13, feedback: 0.14, tone: 3500, mix: 0.18, spread: 0.4 },
+                space: { size: 0.9, rt60: 0.14, damping: 5000, predelay: 0.01, mix: 0.2 }
+            },
+            'dialog.cancel': {
+                notes: [{ v: 'pad', n: -1, t: 0, g: 0.25, attack: 0.05, hold: 0, release: 0.25 },
+                    { v: 'ping', n: 11, t: 0, g: 0.85, pan: 0.15, decay: 0.1 }, { v: 'ring', n: 11, t: 0, g: 0.34, pan: 0.15, t60: 0.11 }, { v: 'ping', n: 4, t: 0.08, g: 1, pan: -0.15, decay: 0.14 }, { v: 'ring', n: 4, t: 0.08, g: 0.40, pan: -0.15, t60: 0.15 }],
+                echo: { time: 0.1, feedback: 0.10, tone: 3000, mix: 0.12, spread: 0.4 },
+                space: { size: 0.8, rt60: 0.21, damping: 4500, predelay: 0.008, mix: 0.16 }
+            },
+            'window.open': {
+                notes: [{ v: 'ping', n: 2, t: 0, g: 0.85, pan: -0.15, decay: 0.1 }, { v: 'ring', n: 2, t: 0, g: 0.34, pan: -0.15, t60: 0.11 }, { v: 'ping', n: 9, t: 0.07, g: 1, pan: 0.2, decay: 0.14 }, { v: 'ring', n: 9, t: 0.07, g: 0.40, pan: 0.2, t60: 0.15 }],
+                layers: [{ v: 'whoosh', t: 0, g: 0.3, attack: 0.05, decay: 0.08, band: [500, 3500] }],
+                echo: { time: 0.11, feedback: 0.10, tone: 3500, mix: 0.15, spread: 0.4 },
+                space: { size: 0.8, rt60: 0.21, damping: 5000, predelay: 0.008, mix: 0.18 }
+            },
+            'window.close': {
+                notes: [{ v: 'ping', n: 9, t: 0, g: 0.85, pan: 0.2, decay: 0.08 }, { v: 'ring', n: 9, t: 0, g: 0.34, pan: 0.2, t60: 0.09 }, { v: 'ping', n: 2, t: 0.07, g: 1, pan: -0.15, decay: 0.12 }, { v: 'ring', n: 2, t: 0.07, g: 0.40, pan: -0.15, t60: 0.13 }],
+                layers: [{ v: 'whoosh', t: 0, g: 0.3, attack: 0.04, decay: 0.08, band: [500, 3500], sweep: -1.2 }],
+                echo: { time: 0.1, feedback: 0.08, tone: 3000, mix: 0.12, spread: 0.4 },
+                space: { size: 0.7, rt60: 0.17, damping: 4500, predelay: 0.006, mix: 0.15 }
+            },
+            'window.maximize': {
+                notes: [{ v: 'ping', n: 0, t: 0, g: 0.85, pan: -0.2, decay: 0.14 }, { v: 'ring', n: 0, t: 0, g: 0.34, pan: -0.2, t60: 0.14 }, { v: 'ping', n: 11, t: 0.09, g: 1, pan: 0.2, decay: 0.15 }, { v: 'ring', n: 11, t: 0.09, g: 0.40, pan: 0.2, t60: 0.14 }],
+                layers: [{ v: 'whoosh', t: 0, g: 0.4, attack: 0.05, decay: 0.06, band: [400, 4000] }],
+                echo: { time: 0.1, feedback: 0.03, tone: 3500, mix: 0.12, spread: 0.5 },
+                space: { size: 0.8, rt60: 0.10, damping: 5000, predelay: 0.012, mix: 0.24 }
+            },
+            'window.minimize': {
+                notes: [{ v: 'ping', n: 9, t: 0, g: 0.85, pan: 0.15, decay: 0.07 }, { v: 'ring', n: 9, t: 0, g: 0.34, pan: 0.15, t60: 0.08 }, { v: 'ping', n: 2, t: 0.055, g: 1, pan: -0.15, decay: 0.1 }, { v: 'ring', n: 2, t: 0.055, g: 0.40, pan: -0.15, t60: 0.11 }],
+                echo: { time: 0.08, feedback: 0.07, tone: 3000, mix: 0.1, spread: 0.3 },
+                space: { size: 0.6, rt60: 0.14, damping: 4500, predelay: 0.005, mix: 0.12 }
+            },
+            'window.restore': {
+                notes: [{ v: 'ping', n: 2, t: 0, g: 0.85, pan: -0.15, decay: 0.07 }, { v: 'ring', n: 2, t: 0, g: 0.34, pan: -0.15, t60: 0.08 }, { v: 'ping', n: 9, t: 0.055, g: 1, pan: 0.15, decay: 0.1 }, { v: 'ring', n: 9, t: 0.055, g: 0.40, pan: 0.15, t60: 0.11 }],
+                echo: { time: 0.08, feedback: 0.07, tone: 3000, mix: 0.1, spread: 0.3 },
+                space: { size: 0.6, rt60: 0.14, damping: 4500, predelay: 0.005, mix: 0.12 }
+            },
+            'window.snap': {
+                layers: [{ v: 'dock', t: 0, g: 1, tone: 3000, ring: 0.015, noise: 0.4, q: 2.5 }, { v: 'hiss', t: 0, g: 0.12, decay: 0.03, attack: 0.003 }],
+                space: null
+            },
+            'window.deny': {
+                notes: [{ v: 'deep', n: -5, t: 0, g: 0.8, pan: 0, decay: 0.12, attack: 0.01, glide: 0, harm: 0.4 }, { v: 'ring', n: -5, t: 0, g: 0.36, pan: 0, t60: 0.12 }],
+                layers: [{ v: 'dock', t: 0, g: 0.8, tone: 600, material: 'felt', ring: 0.04 }],
+                space: { size: 0.5, rt60: 0.14, damping: 4000, predelay: 0.004, mix: 0.12 }
+            },
+            'file.drop': {
+                notes: [{ v: 'deep', n: -5, t: 0.01, g: 0.8, pan: 0, decay: 0.2, attack: 0.01, glide: 0, harm: 0.4 }, { v: 'ring', n: -5, t: 0.01, g: 0.36, pan: 0, t60: 0.20 }],
+                layers: [{ v: 'dock', t: 0, g: 0.9, tone: 700, material: 'felt', ring: 0.05 }, { v: 'hiss', t: 0.02, g: 0.15, decay: 0.08 }],
+                echo: { time: 0.14, feedback: 0.07, tone: 2500, mix: 0.12, spread: 0.3 },
+                space: { size: 0.7, rt60: 0.10, damping: 4000, predelay: 0.006, mix: 0.16 }
+            },
+            'file.trash': {
+                notes: [{ v: 'ping', n: 11, t: 0, g: 0.8, pan: 0.15, decay: 0.08 }, { v: 'ring', n: 11, t: 0, g: 0.32, pan: 0.15, t60: 0.09 }, { v: 'ping', n: 6, t: 0.05, g: 0.9, pan: 0, decay: 0.08 }, { v: 'ring', n: 6, t: 0.05, g: 0.36, pan: 0, t60: 0.09 },
+                    { v: 'ping', n: 2, t: 0.1, g: 1, pan: -0.15, decay: 0.1 }, { v: 'ring', n: 2, t: 0.1, g: 0.40, pan: -0.15, t60: 0.11 }],
+                layers: [{ v: 'whoosh', t: 0, g: 0.45, band: [400, 3000], sweep: -2, attack: 0.03, decay: 0.1 }],
+                echo: { time: 0.12, feedback: 0.07, tone: 3000, mix: 0.12, spread: 0.3 },
+                space: { size: 0.7, rt60: 0.07, damping: 4500, predelay: 0.006, mix: 0.15 }
+            },
+            'file.delete': {
+                notes: [{ v: 'ping', n: 7, t: 0, g: 0.8, pan: 0.1, decay: 0.12 }, { v: 'ring', n: 7, t: 0, g: 0.32, pan: 0.1, t60: 0.13 }, { v: 'deep', n: -5, t: 0.1, g: 1, pan: -0.1, decay: 0.18, glide: 0, attack: 0.01, harm: 0.4 }, { v: 'ring', n: -5, t: 0.1, g: 0.45, pan: -0.1, t60: 0.18 }],
+                layers: [{ v: 'whoosh', t: 0, g: 0.5, band: [300, 2500], sweep: -2, attack: 0.04, decay: 0.12 }, { v: 'dock', t: 0.1, g: 0.5, tone: 700, material: 'felt', ring: 0.05 }],
+                echo: { time: 0.16, feedback: 0.04, tone: 2500, mix: 0.15, spread: 0.4 },
+                space: { size: 0.9, rt60: 0.06, damping: 4000, predelay: 0.008, mix: 0.2 }
+            },
+            'space.switch': {
+                notes: [{ v: 'pad', n: 0, t: 0.02, g: 0.8, pan: 0, attack: 0.12, hold: 0, release: 0.25 }],
+                layers: [{ v: 'whoosh', t: 0, g: 0.9, attack: 0.15, decay: 0.2, band: [250, 3000], sweep: 1.5 }],
+                space: { size: 1, rt60: 0.28, damping: 4500, predelay: 0.01, mix: 0.2 }
+            },
+            'menu.open': {
+                notes: [{ v: 'ping', n: 4, t: 0, g: 0.85, pan: -0.1, decay: 0.05, dur: 0.08 }, { v: 'ring', n: 4, t: 0, g: 0.34, pan: -0.1, t60: 0.06 }, { v: 'ping', n: 11, t: 0.035, g: 1, pan: 0.1, decay: 0.05, dur: 0.09 }, { v: 'ring', n: 11, t: 0.035, g: 0.40, pan: 0.1, t60: 0.06 }],
+                space: { size: 0.5, rt60: 0.07, damping: 5000, predelay: 0.002, mix: 0.1 }
+            },
+            'menu.close': {
+                notes: [{ v: 'ping', n: 11, t: 0, g: 0.85, pan: 0.1, decay: 0.05, dur: 0.07 }, { v: 'ring', n: 11, t: 0, g: 0.34, pan: 0.1, t60: 0.06 }, { v: 'ping', n: 4, t: 0.03, g: 1, pan: -0.1, decay: 0.05, dur: 0.07 }, { v: 'ring', n: 4, t: 0.03, g: 0.40, pan: -0.1, t60: 0.06 }],
+                space: { size: 0.5, rt60: 0.05, damping: 5000, predelay: 0.002, mix: 0.07 }
+            },
+            'ui.select': {
+                layers: [{ v: 'dock', t: 0, g: 1, tone: 2600, ring: 0.02 }, { v: 'hiss', t: 0, g: 0.1, decay: 0.04 }],
+                space: { size: 0.4, rt60: 0.06, damping: 6000, predelay: 0.002, mix: 0.08 }
+            },
+            'ui.toggle.on': {
+                layers: [{ v: 'hiss', t: 0, g: 0.1, attack: 0.005, decay: 0.05 }, { v: 'dock', t: 0, g: 0.9, tone: 2400, ring: 0.015 }, { v: 'dock', t: 0.04, g: 1, tone: 3400, ring: 0.015 }],
+                space: null
+            },
+            'ui.toggle.off': {
+                layers: [{ v: 'hiss', t: 0, g: 0.1, attack: 0.005, decay: 0.05 }, { v: 'dock', t: 0, g: 0.9, tone: 3400, ring: 0.015 }, { v: 'dock', t: 0.04, g: 1, tone: 2400, ring: 0.015 }],
+                space: null
+            },
+            'ui.tick': {
+                layers: [{ v: 'dock', t: 0, g: 1, tone: 3800, ring: 0.01, length: 0.002 }],
+                space: null
+            }
+        },
+        fx: {
+            'orbit.ping': {
+                small: {
+                    notes: [{ v: 'ping', n: 12, t: 0, g: 1, decay: 0.15, attack: 0.005 }],
+                    echo: { time: 0.12, feedback: 0.18, tone: 4000, mix: 0.4, spread: 0.5 }
+                },
+                medium: {
+                    notes: [{ v: 'ping', n: 7, t: 0, g: 1, decay: 0.25, attack: 0.006 }],
+                    echo: { time: 0.17, feedback: 0.18, tone: 3500, mix: 0.4, spread: 0.6 }
+                },
+                large: {
+                    notes: [{ v: 'ping', n: 0, t: 0, g: 1, decay: 0.2, attack: 0.008 }],
+                    echo: { time: 0.2, feedback: 0.12, tone: 3000, mix: 0.4, spread: 0.7 }
+                }
+            }
+        }
+    });
 })();
