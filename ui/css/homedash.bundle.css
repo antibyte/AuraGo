@@ -806,7 +806,7 @@
   --hd-i-gap-dash: 0 20 5 0;
   --hd-i-mount-l: 0 1px 2px color-mix(in srgb, #000000 30%, transparent), 0 6px 16px -6px color-mix(in srgb, #000000 35%, transparent);
   --hd-stroke-hair: 1px; --hd-stroke-1: 1.5px; --hd-stroke-2: 2px; --hd-stroke-arc: 0.08; --hd-stroke-tick: 1.25px;
-  --hd-i-glow-add: 6; --hd-i-gap-add: 2; --hd-th-stroke: 12;
+  --hd-i-glow-add: 6; --hd-i-gap-add: 2; --hd-th-stroke: 12; --hd-i-needle-glow-u: 3;
   --hd-font-ui: "Oxanium", "Geist", system-ui, sans-serif; --hd-font-label: var(--hd-font-ui);
   --hd-font-num: "HomeDash Share Tech Mono", "Geist Mono", monospace;
   --hd-num-features: "tnum" 1; --hd-num-weight: 400; --hd-num-weight-small: 400; --hd-num-tracking: 0em; --hd-num-cap: 0.74;
@@ -852,10 +852,10 @@
 /* Seven-segment readouts: a window of ghost segments (7 % HUD) with the lit ones in the widget's one glow colour; the unit is Share Tech Mono.
    The scan lines live inside this window only (I4). The block size comes from the readout's context (dial 0.2 D, temperature 0.92 of the body, ...). */
 .hd-widget[data-hd-family="instrument"] .hd-seg7 { position: relative; display: inline-flex; align-items: flex-end; gap: 0.3em; color: var(--hd-i-val); block-size: var(--hd-i-seg-h, 1em); }
-/* Digit height per context (four digits are 3.2 digit heights wide): the dial 0.2 D (structure), the arc gauge 0.2 D, the needle gauge 0.1375 D, the temperature readout the body height, held to the body width. */
+/* Digit height per context (four digits are 3.2 digit heights wide): the dial 0.2 D (structure), the arc gauge 0.2 D, the needle gauge 0.11 D, the temperature readout the body height, held to the body width. */
 .hd-widget[data-hd-family="instrument"] .hd-dial-readout > .hd-seg7 { --hd-i-seg-h: calc(min(var(--hd-body-w), var(--hd-body-h)) * 0.2); }
 .hd-widget[data-hd-family="instrument"] .hd-gauge[data-hd-gauge="arc"] .hd-gauge-readout .hd-seg7 { --hd-i-seg-h: 0.8em; }
-.hd-widget[data-hd-family="instrument"] .hd-gauge[data-hd-gauge="needle"] .hd-gauge-readout .hd-seg7 { --hd-i-seg-h: 1.25em; }
+.hd-widget[data-hd-family="instrument"] .hd-gauge[data-hd-gauge="needle"] .hd-gauge-readout .hd-seg7 { --hd-i-seg-h: 1em; }
 .hd-widget[data-hd-family="instrument"] .hd-tread .hd-seg7 { --hd-i-seg-h: min(calc(var(--hd-body-h) * 0.92), calc((var(--hd-body-w) - 24px) / 3.2)); }
 .hd-widget[data-hd-family="instrument"] .hd-seg7-svg { display: block; flex: none; block-size: 100%; inline-size: auto; overflow: visible; }
 .hd-widget[data-hd-family="instrument"] .hd-seg7-unit { flex: none; font: 400 max(11px, calc(var(--hd-i-seg-h) * 0.42)) / 1 var(--hd-font-num); color: var(--hd-ink-muted); }
@@ -948,6 +948,59 @@
 }
 /* H4 at 2 x 2 (ring 107 px): the stack of two readouts fills the ring, so the TARGET and CURRENT captions would touch the tick scale. They are left out there; the 3 x 3 ring has room. */
 @container hd-widget (max-height: 259px) { .hd-widget[data-hd-family="instrument"] .hd-dial-caption { display: none; } }
+
+/* Head icon badge: a hairline box in the HUD tint (the icon is the widget's own glyph). */
+.hd-widget[data-hd-family="instrument"] .hd-head > .hd-icon { box-shadow: inset 0 0 0 var(--hd-stroke-hair) color-mix(in srgb, var(--hd-i-hud) 30%, transparent); border-radius: var(--hd-radius-control); }
+
+/* H5 needle gauge: no face; luminous ticks (HUD 55 %), zone bands in their state colour, the needle in the one glow colour with a 3 unit outline glow at 25 %, a HUD ring for the hub. */
+.hd-widget[data-hd-family="instrument"] .hd-gauge-ticks { stroke: color-mix(in srgb, var(--hd-i-hud) 55%, transparent); vector-effect: non-scaling-stroke; }
+.hd-widget[data-hd-family="instrument"] .hd-gauge-ticks[data-major="true"] { stroke-width: var(--hd-stroke-2); }
+.hd-widget[data-hd-family="instrument"] .hd-gauge-ticks[data-minor="true"] { stroke-width: var(--hd-stroke-tick); }
+.hd-widget[data-hd-family="instrument"] .hd-gauge-zone { stroke-width: calc(var(--hd-stroke-arc) * 100); }
+.hd-widget[data-hd-family="instrument"] .hd-gauge[data-hd-gauge="arc"] .hd-gauge-zone { stroke-width: var(--hd-stroke-2); vector-effect: non-scaling-stroke; opacity: 0.7; }
+.hd-widget[data-hd-family="instrument"] .hd-gauge-zone[data-tone="warn"] { stroke: var(--hd-warn); }
+.hd-widget[data-hd-family="instrument"] .hd-gauge-zone[data-tone="crit"] { stroke: var(--hd-alert); }
+.hd-widget[data-hd-family="instrument"] .hd-gauge-numeral { fill: var(--hd-ink-muted); font-family: var(--hd-font-num); }
+.hd-widget[data-hd-family="instrument"] .hd-gauge-numeral:is(:first-of-type, :last-of-type) { display: none; } /* the end numerals 0 and 100 would sit under the readout window and its unit; the scale keeps 20 to 80 and the ticks */
+.hd-widget[data-hd-family="instrument"] .hd-gauge-needle-shape { fill: var(--hd-i-val); }
+.hd-widget[data-hd-family="instrument"] .hd-gauge-needle-glow { display: inline; fill: none; stroke: color-mix(in srgb, var(--hd-i-val) 25%, transparent); stroke-width: var(--hd-i-needle-glow-u); stroke-linejoin: round; }
+.hd-widget[data-hd-family="instrument"] .hd-gauge-hub { fill: var(--hd-i-mid); stroke: var(--hd-i-hud); stroke-width: var(--hd-stroke-2); }
+
+/* H6 arc gauge: the same 40 segment arc as the dimmer (value 70 %, glow 25 %, leading segment, gap overlay); warn tints the leading segment, crit switches the whole arc through --hd-i-val. */
+.hd-widget[data-hd-family="instrument"] .hd-gauge-track { stroke: color-mix(in srgb, var(--hd-i-hud) 10%, transparent); stroke-width: calc(var(--hd-stroke-arc) * 200); }
+.hd-widget[data-hd-family="instrument"] .hd-gauge-arc { stroke: color-mix(in srgb, var(--hd-i-val) 70%, transparent); stroke-width: calc(var(--hd-stroke-arc) * 200); }
+.hd-widget[data-hd-family="instrument"] .hd-gauge-glow { display: inline; stroke: color-mix(in srgb, var(--hd-i-val) 25%, transparent); stroke-width: calc(var(--hd-stroke-arc) * 200 + var(--hd-i-glow-add)); }
+.hd-widget[data-hd-family="instrument"] .hd-gauge-lead { display: inline; stroke: var(--hd-i-val); stroke-width: calc(var(--hd-stroke-arc) * 200); }
+.hd-widget[data-hd-family="instrument"] .hd-gauge[data-hd-tone="warn"] .hd-gauge-lead { stroke: var(--hd-warn); }
+.hd-widget[data-hd-family="instrument"] .hd-gauge-gaps { display: inline; stroke: var(--hd-i-mid); stroke-width: calc(var(--hd-stroke-arc) * 200 + var(--hd-i-gap-add)); stroke-dasharray: var(--hd-i-gap-dash); }
+.hd-widget[data-hd-family="instrument"] .hd-gauge-cap { display: none; }
+.hd-widget[data-hd-family="instrument"] .hd-gauge-min, .hd-widget[data-hd-family="instrument"] .hd-gauge-max { font-family: var(--hd-font-num); }
+
+/* H8 sensor tile: the readout size follows the tile, HUD line (round joins), grid at HUD 8 %, end dot with a 35 % halo, no area. */
+.hd-widget[data-hd-family="instrument"][data-hd-type="sensor"] .hd-body > .hd-seg7 { --hd-i-seg-h: min(18cqmin, calc((var(--hd-body-w) - 36px) / 4)); }
+.hd-widget[data-hd-family="instrument"] .hd-spark-area { display: none; }
+.hd-widget[data-hd-family="instrument"] .hd-spark-grid { display: inline; stroke: color-mix(in srgb, var(--hd-i-hud) 8%, transparent); stroke-width: var(--hd-stroke-hair); vector-effect: non-scaling-stroke; }
+.hd-widget[data-hd-family="instrument"] .hd-spark-line { fill: none; stroke: var(--hd-i-val); stroke-width: var(--hd-stroke-1); stroke-linejoin: round; stroke-linecap: round; }
+.hd-widget[data-hd-family="instrument"] .hd-spark-halo { display: inline; fill: color-mix(in srgb, var(--hd-i-val) 35%, transparent); }
+.hd-widget[data-hd-family="instrument"] .hd-spark-last { fill: var(--hd-i-val); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"] :is(.hd-gauge-needle, .hd-gauge-needle-shadow) { transition: transform var(--hd-dur-needle-f) var(--hd-ease-needle); }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"] :is(.hd-tread, .hd-body > .hd-seg7)[data-hd-tick="a"] { animation: hd-dip-a var(--hd-dur-dip) var(--hd-ease-hud); }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"] :is(.hd-tread, .hd-body > .hd-seg7)[data-hd-tick="b"] { animation: hd-dip-b var(--hd-dur-dip) var(--hd-ease-hud); }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"][data-hd-pending="true"] .hd-gauge-lead { animation: hd-blink calc(4 * var(--hd-dur-chase)) steps(1) infinite; }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"][data-hd-tone="crit"] .hd-gauge-needle-shape,
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"][data-hd-tone="crit"] .hd-gauge-needle-glow,
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"] .hd-gauge[data-hd-tone="crit"] .hd-gauge-arc,
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"] .hd-gauge[data-hd-tone="crit"] .hd-gauge-glow,
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"] .hd-gauge[data-hd-tone="crit"] .hd-gauge-lead,
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"][data-hd-tone="crit"] .hd-gauge-readout .hd-seg7,
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"][data-hd-tone="crit"] .hd-tread .hd-seg7,
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"][data-hd-tone="crit"] .hd-body > .hd-seg7,
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"][data-hd-tone="crit"] .hd-spark-line,
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"][data-hd-tone="crit"] .hd-spark-halo,
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"][data-hd-tone="crit"] .hd-spark-last { animation: hd-pulse 1s linear 6; }
+}
 
 /* ui/css/homedash-widgets.css */
 /* HomeDash widgets: frame grid, shared frame painting from the card tokens, state badges and per-hero layout (container queries and rules qualified by data-hd-type / data-hd-variant).
