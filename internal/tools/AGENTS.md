@@ -28,6 +28,10 @@ Agent filesystem, external service and Docker tool safety boundaries.
   calls check each concrete entity's effective service as well; unresolved group,
   area, device, label, floor and all-target selections are refused. Read-only and
   blocked services always win. Verify `TestHA*Service*` and `TestHAGenericTargets*`.
+  `HARequestJSON`/`HAGetBytes` (`homeassistant_raw.go`) are thin read-only wrappers over
+  `haDo`, the single Home Assistant HTTP path: GET only, endpoints under `/api/` with
+  strict validation, binary reads capped at 8 MiB; they report non-2xx answers as
+  `HAHTTPError` without the body. Writes go through `HACallServiceContext`.
 
 - Ansible local and sidecar inventory/execution share `../../ansible_api/AGENTS.md`. Read-only denies check/dry-run as well as playbook writes. Managed containers reconcile read-only/default-inventory policy; older sidecars cannot execute or expose raw inventory.
 - Ansible policy 4 validates read-only module arguments in both modes, including decoded JSON. It rejects extra-variable connection/engine overrides and inventory templates in both modes. Exported inventories and resolved host lists are checked before execution. Local probes share the caller's timeout and require live and run-scoped Docker write permission to receive Docker client variables or a socket grant. Verify `TestAnsibleSharedLiteralPolicy`, `TestAnsibleManagedPolicyChecksImageBeforeReplacingContainer` and opt-in `TestAnsibleLocalRealTargetPolicy`.
