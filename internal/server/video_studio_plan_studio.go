@@ -161,12 +161,34 @@ func (st *videoStudioPlanStudio) Call(ctx context.Context, tc agent.ToolCall) []
 		issues := videoStudioPlanStudioIssues(st.plan, st.env)
 		return videoStudioPlanStudioJSON(map[string]any{"status": "ok", "issues": issues, "blocking": storyplan.HasBlocking(issues)})
 	}
-	issues := videoStudioPlanStudioIssues(st.plan, st.env)
+	issues := st.finishIssues()
 	if storyplan.HasBlocking(issues) {
 		return videoStudioPlanStudioJSON(map[string]any{"status": "error", "code": "blocking_issues", "message": "Fix the blocking issues first, then call vs_plan_finish again.", "issues": issues})
 	}
 	st.finished = true
 	return videoStudioPlanStudioJSON(map[string]any{"status": "ok"})
+}
+
+// finishIssues are the issues that decide vs_plan_finish. A create job answers for the whole plan. A revise job can
+// change only its scene and the transition_in of the next one, so only issues of those two scenes count; the rest of
+// the plan (including plan-level issues) is the user's. vs_plan_check still lists everything.
+func (st *videoStudioPlanStudio) finishIssues() []storyplan.Issue {
+	issues := videoStudioPlanStudioIssues(st.plan, st.env)
+	if st.mode != agent.VideoStudioPlanModeRevise {
+		return issues
+	}
+	own := videoStudioPlanStudioSceneIndex(st.plan, st.sceneID)
+	scoped := []storyplan.Issue{}
+	for _, issue := range issues {
+		if issue.SceneID == "" {
+			continue
+		}
+		index := videoStudioPlanStudioSceneIndex(st.plan, issue.SceneID)
+		if index >= 0 && own >= 0 && (index == own || index == own+1) {
+			scoped = append(scoped, issue)
+		}
+	}
+	return scoped
 }
 
 func (st *videoStudioPlanStudio) read(ctx context.Context) []byte {

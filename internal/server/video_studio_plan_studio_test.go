@@ -231,3 +231,30 @@ func TestVideoStudioPlanStudioReviseScopeAndConflict(t *testing.T) {
 		t.Fatalf("the conflicting write was saved: %+v", after)
 	}
 }
+
+// A revise job is judged on its own scene and the next one only: a blocking issue elsewhere (here scene s3) does not
+// keep it from finishing, while vs_plan_check still lists it.
+func TestVideoStudioPlanStudioReviseFinishIgnoresOtherScenes(t *testing.T) {
+	s, _, projectID := vspFixture(t)
+	plan := vspNewPlan(t, s, 18)
+	plan.Status = storyplan.StatusReview
+	broken := vspScene("s1", "Hafen im Nebel", "")
+	other := vspScene("s3", "Die Bucht", "")
+	plan.Scenes = []storyplan.Scene{broken, vspScene("s2", "Ausfahrt", vspPromptTwo), other}
+	vspSeed(t, s, projectID, plan)
+	st := vspStudio(t, s, projectID, agent.VideoStudioPlanModeRevise, "s1")
+	st.SetPhase(agent.VideoStudioPlanPhaseRevise)
+
+	if got := vspCall(t, st, agent.VideoStudioPlanToolFinish, nil); got["code"] != "blocking_issues" || st.PhaseDone() {
+		t.Fatalf("finish with the job's own scene broken = %v", got)
+	}
+	if got := vspCall(t, st, agent.VideoStudioPlanToolPatchScene, map[string]any{"scene_id": "s1", "scene": map[string]any{"video_prompt": vspPromptOne}}); got["status"] != "ok" {
+		t.Fatalf("fix = %v", got)
+	}
+	if got := vspCall(t, st, agent.VideoStudioPlanToolCheck, nil); got["blocking"] != true {
+		t.Fatalf("check should still list the issue of s3: %v", got)
+	}
+	if got := vspCall(t, st, agent.VideoStudioPlanToolFinish, nil); got["status"] != "ok" || !st.PhaseDone() {
+		t.Fatalf("finish with a blocking issue in s3 only = %v", got)
+	}
+}
