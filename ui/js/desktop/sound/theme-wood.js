@@ -48,8 +48,11 @@
                 space: { size: 0.7, rt60: 0.5, damping: 5000, predelay: 0.01, mix: 0.2 }
             },
             'notify.error': {
-                notes: [{ v: 'low', n: -7, t: 0, g: 1, pan: -0.1, t60: 0.3 }, { v: 'low', n: -13, t: 0.15, g: 1, pan: 0.1, t60: 0.34 }],
-                layers: [{ v: 'knock', t: 0, g: 0.4 }, { v: 'knock', t: 0.15, g: 0.35 }],
+                notes: [{ v: 'mar', n: 0, t: 0, g: 1, pan: -0.1, t60: 0.3, hardness: 0.2, attack: 0.005 },
+                    { v: 'low', n: -6, t: 0, g: 0.4, pan: -0.1, t60: 0.14, attack: 0.006 },
+                    { v: 'mar', n: -6, t: 0.15, g: 1, pan: 0.1, t60: 0.38, hardness: 0.2, attack: 0.005 },
+                    { v: 'low', n: -12, t: 0.15, g: 0.4, pan: 0.1, t60: 0.16, attack: 0.006 }],
+                layers: [{ v: 'knock', t: 0, g: 0.15 }, { v: 'knock', t: 0.15, g: 0.15 }],
                 space: { size: 0.6, rt60: 0.4, damping: 4500, predelay: 0.006, mix: 0.16 }
             },
             'dialog.open': {
@@ -95,8 +98,9 @@
                 space: null
             },
             'window.deny': {
-                notes: [{ v: 'low', n: -7, t: 0, g: 0.8, pan: 0, t60: 0.14 }],
-                layers: [{ v: 'knock', t: 0, g: 0.6 }],
+                notes: [{ v: 'low', n: -7, t: 0, g: 0.8, pan: 0, t60: 0.16, attack: 0.006 },
+                    { v: 'mar', n: -7, t: 0, g: 0.9, pan: 0, t60: 0.2, hardness: 0.15, attack: 0.005, damp: 2 }],
+                layers: [{ v: 'knock', t: 0, g: 0.3 }],
                 space: { size: 0.5, rt60: 0.22, damping: 4500, predelay: 0.004, mix: 0.1 }
             },
             'file.drop': {
