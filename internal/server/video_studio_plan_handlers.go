@@ -7,8 +7,12 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"unicode/utf8"
 
+	"aurago/internal/agent"
 	"aurago/internal/config"
+	"aurago/internal/desktop"
+	"aurago/internal/uid"
 	"aurago/internal/videostudio/storyplan"
 )
 
@@ -180,4 +184,234 @@ func writeVideoStudioPlanWriteError(w http.ResponseWriter, r *http.Request, err 
 	default:
 		writeVideoStudioError(w, http.StatusInternalServerError, "plan_save_failed", "Plan could not be saved.")
 	}
+}
+
+// videoStudioPlanAgentBody is the body of POST .../plan/agent.
+type videoStudioPlanAgentBody struct {
+	Mode          string `json:"mode"`
+	Idea          string `json:"idea"`
+	TargetSeconds int    `json:"target_seconds"`
+	Language      string `json:"language"`
+	SceneID       string `json:"scene_id"`
+	Note          string `json:"note"`
+	Replace       bool   `json:"replace"`
+}
+
+// handleVideoStudioPlanAgent answers POST .../plan/agent. It checks the request, prepares the plan (a create stores a
+// new empty plan) and starts the planning job. When the start is refused, a create's plan write is undone.
+func handleVideoStudioPlanAgent(s *Server, w http.ResponseWriter, r *http.Request, id string) {
+	if r.Method != http.MethodPost {
+		writeVideoStudioMethodError(w)
+		return
+	}
+	svc, manager, cfg, ok := videoStudioMutationAccess(s, w, r, desktopScopeWrite)
+	if !ok {
+		return
+	}
+	var body videoStudioPlanAgentBody
+	if err := decodeVideoStudioJSON(w, r, &body, desktopSmallJSONBodyLimit); err != nil {
+		writeVideoStudioError(w, http.StatusBadRequest, "invalid_request", "Planning request is invalid or too large.")
+		return
+	}
+	req, ok := videoStudioPlanAgentRequestFrom(w, id, body)
+	if !ok {
+		return
+	}
+	if !cfg.VideoStudio.Plan.Enabled {
+		writeVideoStudioError(w, http.StatusConflict, "plan_disabled", "Plan mode is disabled in configuration.")
+		return
+	}
+	profile := videoStudioGenerationProfile(cfg, "")
+	if !profile.PlanSupported {
+		writeVideoStudioErrorFields(w, http.StatusConflict, "plan_unsupported_provider", "The configured video generation cannot be used in plan mode.", map[string]any{"reason": profile.Reason})
+		return
+	}
+	undo, ok := videoStudioPlanAgentPrepare(w, r, s, svc, manager, cfg, &req, profile, body.Replace)
+	if !ok {
+		return
+	}
+	status, err := s.videoStudioPlanAgents().Start(req)
+	if err != nil {
+		if undo != nil {
+			undo()
+		}
+		writeVideoStudioPlanAgentStartError(w, err)
+		return
+	}
+	writeVideoStudioJSON(w, http.StatusAccepted, map[string]any{"agent": status})
+}
+
+// videoStudioPlanAgentRequestFrom checks the body of a start request and returns the job request. On a refusal it
+// has answered.
+func videoStudioPlanAgentRequestFrom(w http.ResponseWriter, projectID string, body videoStudioPlanAgentBody) (videoStudioPlanAgentRequest, bool) {
+	req := videoStudioPlanAgentRequest{ProjectID: projectID, Mode: strings.TrimSpace(body.Mode)}
+	switch req.Mode {
+	case agent.VideoStudioPlanModeCreate:
+		req.Idea = strings.TrimSpace(body.Idea)
+		if req.Idea == "" || utf8.RuneCountInString(req.Idea) > int(storyplan.MaxIdeaChars) {
+			writeVideoStudioError(w, http.StatusBadRequest, "invalid_idea", "The idea must be 1 to 4000 characters.")
+			return req, false
+		}
+		if body.TargetSeconds < int(storyplan.MinTargetSeconds) || body.TargetSeconds > int(storyplan.MaxTotalSeconds) {
+			writeVideoStudioError(w, http.StatusBadRequest, "invalid_target_seconds", "The target length must be 5 to 120 seconds.")
+			return req, false
+		}
+		req.TargetSeconds = body.TargetSeconds
+		language, ok := videoStudioPlanLanguage(body.Language)
+		if !ok {
+			writeVideoStudioError(w, http.StatusBadRequest, "invalid_language", "The language must be a short language tag such as de or en.")
+			return req, false
+		}
+		req.Language = language
+	case agent.VideoStudioPlanModeRevise:
+		req.SceneID = strings.TrimSpace(body.SceneID)
+		if req.SceneID == "" {
+			writeVideoStudioError(w, http.StatusBadRequest, "invalid_scene_id", "Name the scene to revise.")
+			return req, false
+		}
+		req.Note = strings.TrimSpace(body.Note)
+		if req.Note == "" || utf8.RuneCountInString(req.Note) > int(storyplan.MaxNoteChars) {
+			writeVideoStudioError(w, http.StatusBadRequest, "invalid_note", "The note must be 1 to 1000 characters.")
+			return req, false
+		}
+	default:
+		writeVideoStudioError(w, http.StatusBadRequest, "invalid_mode", "The mode must be create or revise.")
+		return req, false
+	}
+	return req, true
+}
+
+// videoStudioPlanLanguage returns the plan language of a start request: a lower-case tag of 2 to 16 letters, digits,
+// hyphens or underscores. Empty means en.
+func videoStudioPlanLanguage(raw string) (string, bool) {
+	language := strings.ToLower(strings.TrimSpace(raw))
+	if language == "" {
+		return "en", true
+	}
+	if len(language) < 2 || len(language) > 16 {
+		return "", false
+	}
+	for _, r := range language {
+		if !(r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '-' || r == '_') {
+			return "", false
+		}
+	}
+	return language, true
+}
+
+// videoStudioPlanAgentPrepare runs the plan checks of a start under the project lock: no job may run, a create stores
+// its new plan (and returns how to undo that), a revise needs the plan and its scene. On a refusal it has answered.
+// Start is called after the lock is released.
+func videoStudioPlanAgentPrepare(w http.ResponseWriter, r *http.Request, s *Server, svc *desktop.Service, manager *videoStudioManager, cfg *config.Config, req *videoStudioPlanAgentRequest, profile storyplan.Profile, replace bool) (func(), bool) {
+	lock := manager.projectLock(req.ProjectID)
+	lock.Lock()
+	defer lock.Unlock()
+	if s.videoStudioPlanAgents().Running(req.ProjectID) {
+		writeVideoStudioError(w, http.StatusConflict, "plan_agent_running", "The planning agent is already working on this project.")
+		return nil, false
+	}
+	if req.Mode == agent.VideoStudioPlanModeRevise {
+		return nil, videoStudioPlanAgentCheckRevise(w, r, svc, req)
+	}
+	return videoStudioPlanAgentCreatePlan(w, r, svc, manager, cfg, *req, profile, replace)
+}
+
+// videoStudioPlanAgentCheckRevise checks that the plan and the scene of a revise job exist, and copies the plan's
+// idea, target and language into req. On a refusal it has answered.
+func videoStudioPlanAgentCheckRevise(w http.ResponseWriter, r *http.Request, svc *desktop.Service, req *videoStudioPlanAgentRequest) bool {
+	plan, _, _, err := readVideoStudioPlan(r.Context(), svc, req.ProjectID)
+	if err != nil {
+		writeVideoStudioPlanReadError(w, err)
+		return false
+	}
+	for _, scene := range plan.Scenes {
+		if scene.ID == req.SceneID {
+			req.Idea, req.TargetSeconds, req.Language = plan.Idea, plan.TargetSeconds, plan.Language
+			return true
+		}
+	}
+	writeVideoStudioError(w, http.StatusBadRequest, "scene_not_found", "The plan has no scene with this id.")
+	return false
+}
+
+// videoStudioPlanAgentCreatePlan stores the empty plan of a create job with the current profile. An existing (or
+// damaged) plan is replaced only with replace. It returns how to put the previous file back when the job does not
+// start. The caller holds the project lock; on a refusal it has answered.
+func videoStudioPlanAgentCreatePlan(w http.ResponseWriter, r *http.Request, svc *desktop.Service, manager *videoStudioManager, cfg *config.Config, req videoStudioPlanAgentRequest, profile storyplan.Profile, replace bool) (func(), bool) {
+	_, previous, version, err := readVideoStudioPlan(r.Context(), svc, req.ProjectID)
+	expect := ""
+	switch {
+	case err == nil:
+		expect = version
+	case errors.Is(err, errVideoStudioPlanNotFound):
+	case errors.Is(err, errVideoStudioPlanInvalid):
+		expect = "*" // a damaged plan is replaced whatever it holds; the project lock keeps other writers out
+	default:
+		writeVideoStudioPlanReadError(w, err)
+		return nil, false
+	}
+	if expect != "" && !replace {
+		writeVideoStudioError(w, http.StatusConflict, "plan_exists", "This project already has a plan. Confirm to replace it.")
+		return nil, false
+	}
+	ref := storyplan.ProfileRef{Provider: profile.Provider, Model: profile.Model, Resolution: profile.Resolution}
+	plan := storyplan.NewPlan("plan_"+uid.New(), req.Idea, req.TargetSeconds, req.Language, ref)
+	written, err := writeVideoStudioPlan(r.Context(), svc, manager, cfg, req.ProjectID, plan, expect)
+	if err != nil {
+		writeVideoStudioPlanWriteError(w, r, err)
+		return nil, false
+	}
+	undo := func() {
+		lock := manager.projectLock(req.ProjectID)
+		lock.Lock()
+		defer lock.Unlock()
+		_ = restoreVideoStudioPlan(r.Context(), svc, req.ProjectID, previous, written)
+	}
+	return undo, true
+}
+
+// restoreVideoStudioPlan undoes the plan write of a create whose job did not start: previous goes back, or plan.json
+// is removed when there was none. Nothing changes when the file is no longer the written version. The caller holds
+// manager.projectLock(projectID).
+func restoreVideoStudioPlan(ctx context.Context, svc *desktop.Service, projectID string, previous []byte, written string) error {
+	current, err := readVideoStudioPlanBytes(ctx, svc, projectID)
+	if err != nil {
+		return err
+	}
+	if desktop.NoteVersion(current) != written {
+		return nil
+	}
+	path := videoStudioPlanPath(projectID)
+	if previous == nil {
+		return svc.DeletePath(ctx, path, desktop.SourceUser)
+	}
+	_, err = svc.WriteFileBytesConditional(ctx, path, previous, desktop.SourceUser, videoStudioPlanPrecondition(path, written))
+	return err
+}
+
+// writeVideoStudioPlanAgentStartError answers a refused videoStudioPlanAgents.Start.
+func writeVideoStudioPlanAgentStartError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, errVideoStudioPlanAgentBusy):
+		writeVideoStudioError(w, http.StatusConflict, "plan_agent_running", "The planning agent is already working on this project.")
+	case errors.Is(err, errVideoStudioPlanAgentDailyLimit):
+		writeVideoStudioError(w, http.StatusTooManyRequests, "plan_daily_limit", "The daily limit of planning jobs is reached.")
+	case errors.Is(err, errVideoStudioPlanAgentUnavailable):
+		writeVideoStudioError(w, http.StatusServiceUnavailable, "plan_agent_unavailable", "No language model is available for the planning agent.")
+	default:
+		writeVideoStudioError(w, http.StatusInternalServerError, "plan_agent_start_failed", "The planning agent could not start.")
+	}
+}
+
+// handleVideoStudioPlanAgentStop answers POST .../plan/agent/stop with whether a running job was stopped. Like job
+// cancel, stopping stays allowed on a read-only desktop or Video Studio, so a running job can always be ended.
+func handleVideoStudioPlanAgentStop(s *Server, w http.ResponseWriter, r *http.Request, id string) {
+	if r.Method != http.MethodPost {
+		writeVideoStudioMethodError(w)
+		return
+	}
+	if !requireDesktopOperation(s, w, r, desktopScopeWrite, desktopStop) {
+		return
+	}
+	writeVideoStudioJSON(w, http.StatusOK, map[string]bool{"stopped": s.videoStudioPlanAgents().Stop(id)})
 }
