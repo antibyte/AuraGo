@@ -31,7 +31,8 @@ var videoStudioPlanFixtureScripts = []string{
 
 // The fake API: status with plan availability and a generation profile, one project, and the plan routes of brief §7.
 // After a create, the first read answers "planning" (ETag "p1"); the next read answers the plan in review ("p2").
-// ?plan=review seeds the reviewed plan, ?readonly makes the studio read-only.
+// ?plan=review seeds the reviewed plan, ?readonly makes the studio read-only, ?agent=running seeds a running job.
+// window.fixturePutFailures = n makes the next n plan PUTs answer 500 (the server stores nothing then).
 const videoStudioPlanFixtureJS = `
 window.fixtureErrors=[];window.addEventListener('error',e=>fixtureErrors.push(String(e.message)));window.addEventListener('unhandledrejection',e=>fixtureErrors.push(String(e.reason)));
 const params=new URLSearchParams(location.search);
@@ -40,6 +41,8 @@ window.fixtureReviewPlan=__REVIEW__;window.fixtureReviewIssues=__ISSUES__;
 const profile=__PROFILE__,availability={enabled:true,supported:true,image_generation:true,tts:true,music:true},project=__PROJECT__;
 window.fixturePlan=null;window.fixturePlanTag='';window.fixtureIssues=[];window.fixtureAgent=null;window.fixtureGetsAfterStart=null;
 if(params.get('plan')==='review'){window.fixturePlan=structuredClone(window.fixtureReviewPlan);window.fixtureIssues=structuredClone(window.fixtureReviewIssues);window.fixturePlanTag='"p2"';}
+window.fixturePutFailures=0;
+if(params.get('agent')==='running')window.fixtureAgent={state:'running',mode:'create',phase:'details',tokens:10,started_at:'2026-11-24T09:00:00Z',finished_at:'0001-01-01T00:00:00Z'};
 const json=(data,status,headers)=>new Response(JSON.stringify(data),{status:status||200,headers:Object.assign({'Content-Type':'application/json'},headers||{})});
 const planBody=()=>({plan:window.fixturePlan,etag:window.fixturePlanTag,issues:window.fixtureIssues,profile,availability,agent:window.fixtureAgent});
 const base='/api/desktop/video-studio',planPath=base+'/projects/p1/plan',originalFetch=window.fetch;
@@ -55,6 +58,7 @@ window.fetch=async(url,options={})=>{const path=String(url),method=String(option
   if(headers.get('If-None-Match')===window.fixturePlanTag&&!window.fixtureAgent&&window.fixturePlan.status!=='planning')return new Response(null,{status:304,headers:{ETag:window.fixturePlanTag}});
   return json(planBody(),200,{ETag:window.fixturePlanTag});}
  if(path===planPath&&method==='PUT'){const ifMatch=headers.get('If-Match')||'';window.fixturePlanPuts.push({ifMatch,body:JSON.parse(options.body)});
+  if(window.fixturePutFailures>0){window.fixturePutFailures--;return json({error:'internal',code:'internal',message:'Could not save the plan.'},500);}
   if(!ifMatch)return json({error:'precondition_required',code:'precondition_required',message:'Save requires the current plan ETag in If-Match.'},428);
   if(window.fixtureAgent&&window.fixtureAgent.state==='running')return json({error:'plan_agent_running',code:'plan_agent_running',message:'The planning agent is working on this plan.'},409);
   if(!window.fixturePlan)return json({error:'plan_not_found',code:'plan_not_found',message:'This project has no plan yet.'},404);
@@ -67,7 +71,7 @@ window.fetch=async(url,options={})=>{const path=String(url),method=String(option
   window.fixtureAgent={state:'running',mode:body.mode,phase:'outline',tokens:0,started_at:'2026-11-24T09:00:00Z',finished_at:'0001-01-01T00:00:00Z'};window.fixtureIssues=[];window.fixturePlanTag='"p1"';window.fixtureGetsAfterStart=0;
   // Part C's Start answers before the job has a phase.
   return json({agent:{state:'running',mode:body.mode,tokens:0,started_at:'2026-11-24T09:00:00Z',finished_at:'0001-01-01T00:00:00Z'}},202);}
- if(path===planPath+'/agent/stop'&&method==='POST')return json({stopped:!!(window.fixtureAgent&&window.fixtureAgent.state==='running')});
+ if(path===planPath+'/agent/stop'&&method==='POST'){const running=!!(window.fixtureAgent&&window.fixtureAgent.state==='running');if(running)window.fixtureAgent=Object.assign({},window.fixtureAgent,{state:'stopped',finished_at:'2026-11-24T09:02:00Z'});return json({stopped:running});}
  return originalFetch(url,options);};
 document.documentElement.lang='en';
 const t=key=>window.fixtureLocales[key]||key;
@@ -215,5 +219,52 @@ func TestDesktopVideoStudioPlanBrowser(t *testing.T) {
 	readonly := page.MustEval(`()=>{const board=document.querySelector('[data-plan-board]'),fields=[...board.querySelectorAll('[data-plan-field]')];return JSON.stringify({actions:board.querySelectorAll('[data-plan-action],[data-plan-submit]').length,fields:fields.length>10,editable:fields.filter(el=>!el.disabled).length,puts:window.fixturePlanPuts.length,errors:window.fixtureErrors})}`).Str()
 	if want := `{"actions":0,"fields":true,"editable":0,"puts":0,"errors":[]}`; readonly != want {
 		t.Fatalf("read-only board: got %s, want %s", readonly, want)
+	}
+}
+
+// Stop stays available on a read-only desktop while the agent plans (brief §13.7); every other action stays blocked.
+func TestDesktopVideoStudioPlanReadonlyStop(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	server := videoStudioPlanFixture(t)
+	page := newSmokeBrowser(t).MustPage().Timeout(60 * time.Second)
+	defer page.MustClose()
+	page.MustSetViewport(1280, 900, 1, false)
+	page.MustNavigate(server.URL + "/fixture?readonly&plan=review&agent=running")
+	page.MustWaitLoad()
+	waitForJSBool(t, page, `()=>{const sw=document.querySelector('[data-plan-switch]');return !!sw&&!sw.hidden}`)
+	page.MustElement(`[data-plan-mode="plan"]`).MustClick()
+	waitForJSBool(t, page, `()=>!!document.querySelector('[data-plan-agent] [data-plan-action="stop"]:not([disabled])')`)
+	if got := page.MustEval(`()=>document.querySelectorAll('[data-plan-board] [data-plan-action]').length`).Int(); got != 1 {
+		t.Fatalf("read-only planning board shows %d actions, want only Stop", got)
+	}
+	page.MustElement(`[data-plan-agent] [data-plan-action="stop"]`).MustClick()
+	waitForJSBool(t, page, `()=>window.fixtureCalls.some(c=>c[0]==='POST'&&c[1].endsWith('/plan/agent/stop'))&&!document.querySelector('[data-plan-action="stop"]')`)
+	if errs := page.MustEval(`()=>JSON.stringify(window.fixtureErrors)`).Str(); errs != "[]" {
+		t.Fatalf("page errors: %s", errs)
+	}
+}
+
+// A failed save must not start the agent: the reload after the start would drop the unsaved edits.
+func TestDesktopVideoStudioPlanFailedSaveBlocksStart(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	server := videoStudioPlanFixture(t)
+	page := newSmokeBrowser(t).MustPage().Timeout(60 * time.Second)
+	defer page.MustClose()
+	page.MustSetViewport(1280, 900, 1, false)
+	page.MustNavigate(server.URL + "/fixture?plan=review")
+	page.MustWaitLoad()
+	waitForJSBool(t, page, `()=>{const sw=document.querySelector('[data-plan-switch]');return !!sw&&!sw.hidden}`)
+	page.MustElement(`[data-plan-mode="plan"]`).MustClick()
+	waitForJSBool(t, page, `()=>!!document.querySelector('[data-plan-card="s1"]')`)
+	// The debounced save and the save before the start both fail.
+	page.MustEval(`()=>{window.fixturePutFailures=2;const input=document.querySelector('[data-plan-card="s1"] [data-plan-field="title"]');input.value='Unsaved title';input.dispatchEvent(new Event('input',{bubbles:true}))}`)
+	waitForJSBool(t, page, `()=>window.fixturePlanPuts.length===1`)
+	page.MustElement(`[data-plan-action="replan"]`).MustClick()
+	page.MustElement(`[data-plan-start-form] button[type="submit"]`).MustClick()
+	waitForJSBool(t, page, `()=>window.fixturePlanPuts.length===2`)
+	time.Sleep(600 * time.Millisecond)
+	got := page.MustEval(`()=>JSON.stringify({agentPosts:window.fixtureAgentBodies.length,title:document.querySelector('[data-plan-card="s1"] [data-plan-field="title"]').value,locked:!!document.querySelector('[data-plan-agent] [data-plan-action="stop"]'),errors:window.fixtureErrors})`).Str()
+	if want := `{"agentPosts":0,"title":"Unsaved title","locked":false,"errors":[]}`; got != want {
+		t.Fatalf("start after a failed save: got %s, want %s", got, want)
 	}
 }

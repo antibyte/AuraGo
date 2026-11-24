@@ -327,7 +327,7 @@
         window.addEventListener('blur', () => { if (s.shuttle) s.shuttle.release('k'); }, { signal });
         if (typeof ctx.setWindowBeforeClose === 'function') ctx.setWindowBeforeClose(id, async () => {
             if (s.readonly) return true;
-            if (window.VideoStudioPlan) await window.VideoStudioPlan.flush(s);
+            if (window.VideoStudioPlan && !(await window.VideoStudioPlan.flush(s))) return false;
             await P.flushArtwork(s);
             while (s.dirty && !s.disposed) {
                 const saved = await saveProject(s);

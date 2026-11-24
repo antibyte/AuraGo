@@ -107,7 +107,7 @@
         if (view.phase === 'planning') {
             // A job that just started has no phase yet (Part C's Start): a revise job has one phase, create starts with the outline.
             const phase = agent && own(PHASES, agent.phase) ? agent.phase : agent && agent.mode === 'revise' ? 'revise' : 'outline';
-            const stop = view.readonly ? '' : `<button type="button" class="vs-chip-button vs-plan-stop" data-plan-action="stop">${icon('close', 14)}<span>${label(s, 'plan.stop', 'Stop')}</span></button>`;
+            const stop = `<button type="button" class="vs-chip-button vs-plan-stop" data-plan-action="stop">${icon('close', 14)}<span>${label(s, 'plan.stop', 'Stop')}</span></button>`;
             status = `${icon('spinner', 15, 'vs-icon vs-spin')}<strong>${label(s, 'plan.planning', 'Planning')}</strong><span data-plan-phase="${esc(s, phase)}">${label(s, 'plan.phase.' + phase, PHASES[phase])}</span>${profile}${stop}`;
         } else {
             const stopped = !!agent && (agent.state === 'stopped' || agent.error === 'stopped');

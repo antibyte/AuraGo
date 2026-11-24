@@ -109,6 +109,8 @@
         const data = ps && ps.data;
         return !!data && !!data.plan && (data.plan.status === 'planning' || !!(data.agent && data.agent.state === 'running'));
     }
+    // Read-only for the user: the agent works, or its start request is still in flight.
+    function busy(ps) { return !!ps && (!!ps.starting || planning(ps)); }
     // Shape guard for drawing only; the server normalizes the stored plan.
     function normalize(plan) {
         plan.scenes = Array.isArray(plan.scenes) ? plan.scenes : [];
@@ -122,8 +124,22 @@
         });
         return plan;
     }
-    function adopt(ps, body, etag) {
+    // Typed after the last save: the local plan stays and saves; the server's etag, agent, profile and availability are taken.
+    // A plan the agent is planning cannot take edits, so the server copy wins then.
+    function adopt(s, ps, body, etag) {
         if (!body || !body.plan || typeof body.plan !== 'object') { ps.error = !ps.data; return; }
+        const incoming = body.plan.status === 'planning' || (body.agent && body.agent.state === 'running');
+        if (ps.data && ps.data.plan && ps.revision !== ps.savedRevision && !incoming) {
+            ps.data.profile = body.profile || null;
+            ps.data.availability = body.availability || null;
+            ps.data.agent = body.agent || null;
+            ps.etag = etag || body.etag || ps.etag;
+            ps.missing = false;
+            ps.damaged = false;
+            ps.error = false;
+            if (!ps.saveTimer && !ps.savePromise) queueSave(s, ps);
+            return;
+        }
         ps.data = { plan: normalize(body.plan), issues: Array.isArray(body.issues) ? body.issues : [], profile: body.profile || null, availability: body.availability || null, agent: body.agent || null };
         ps.etag = etag || body.etag || '';
         ps.missing = false;
@@ -142,7 +158,7 @@
             const headers = conditional && ps.etag ? { 'If-None-Match': ps.etag } : {};
             const response = await P.request(planURL(ps), { headers, signal: s.abort.signal });
             if (!current(s, ps)) return;
-            adopt(ps, response.body, response.etag);
+            adopt(s, ps, response.body, response.etag);
         } catch (error) {
             if (!current(s, ps)) return;
             if (error.status === 304) changed = false;
@@ -232,20 +248,26 @@
     }
     async function startAgent(s, body) {
         const ps = state(s);
-        if (s.readonly || planning(ps)) return false;
-        await flush(s);
-        if (!current(s, ps)) return false;
+        if (s.readonly || busy(ps)) return false;
+        ps.starting = true;
+        render(s);
         let response;
         try {
+            // A failed save must not start the agent: the reload after the start would drop the unsaved edits.
+            if (!(await flush(s))) { ps.starting = false; if (current(s, ps)) render(s); return false; }
+            if (!current(s, ps)) { ps.starting = false; return false; }
             response = await P.request(planURL(ps) + '/agent', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: s.abort.signal });
         } catch (error) {
+            ps.starting = false;
             if (current(s, ps)) {
+                render(s);
                 const [key, fallback] = own(AGENT_ERRORS, error.message) ? AGENT_ERRORS[error.message] : error.status === 403 ? ['readonly', 'Read-only mode prevents editing.'] : ['plan.errStart', 'Planning could not be started.'];
                 P.showNotice(s, key, fallback, true);
                 if (RELOAD_AFTER_START.has(error.message)) load(s);
             }
             return false;
         }
+        ps.starting = false;
         if (!current(s, ps)) return false;
         const agent = (response.body && response.body.agent) || { state: 'running', mode: body.mode, phase: body.mode === 'revise' ? 'revise' : 'outline' };
         if (body.mode === 'create') {
@@ -261,7 +283,7 @@
     }
     async function stopAgent(s) {
         const ps = state(s);
-        if (s.readonly) return false;
+        // Stopping a running job is allowed on a read-only desktop (the server's stop route allows it).
         try { await P.request(planURL(ps) + '/agent/stop', { method: 'POST', signal: s.abort.signal }); } catch (_) { /* the next read shows the real state */ }
         if (current(s, ps)) await load(s);
         return true;
@@ -294,7 +316,7 @@
         const profile = (data && data.profile) || generation.profile || {};
         const plan = data ? data.plan : null;
         let phase = 'loading';
-        if (plan) phase = planning(ps) ? 'planning' : 'review';
+        if (plan) phase = busy(ps) ? 'planning' : 'review';
         else if (ps.missing) phase = availability.supported === false ? 'unsupported' : 'empty';
         else if (ps.error) phase = 'error';
         const blends = blendTypes(s);
@@ -342,7 +364,7 @@
     // Writes one field into the model: 'save' (no redraw), 'render' (the card changes shape) or false.
     function write(s, el) {
         const ps = s.planState, plan = ps && ps.data && ps.data.plan;
-        if (!plan || s.readonly || planning(ps)) return false;
+        if (!plan || s.readonly || busy(ps)) return false;
         const field = el.dataset.planField, value = el.value;
         const number = () => { const n = Number(value); return value !== '' && Number.isFinite(n) ? n : null; };
         if (el.dataset.planScene) {
@@ -427,8 +449,8 @@
         if (!button || button.disabled) return;
         const action = button.dataset.planAction;
         if (action === 'retry') { load(s); return; }
+        if (action === 'stop') { if (view(s).phase === 'planning') stopAgent(s); return; }
         if (s.readonly) return;
-        if (action === 'stop') { stopAgent(s); return; }
         const shown = view(s);
         if (shown.phase !== 'review' || !B()) return;
         if (action === 'replan') { B().openStart(s, shown, values => startAgent(s, Object.assign({ mode: 'create', language: uiLanguage(), replace: true }, values))); return; }
