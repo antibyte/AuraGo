@@ -749,7 +749,7 @@
 .hd-widget[data-hd-family="minimal"] .hd-gauge-zone[data-tone="warn"] { stroke: var(--hd-warn); }
 .hd-widget[data-hd-family="minimal"] .hd-gauge-zone[data-tone="crit"] { stroke: var(--hd-alert); }
 .hd-widget[data-hd-family="minimal"] .hd-gauge-numeral { fill: var(--hd-ink-muted); font-weight: 400; }
-.hd-widget[data-hd-family="minimal"] .hd-gauge-needle-shape { fill: var(--hd-ink); transform-box: view-box; transform-origin: 100px 100px; transform: scaleX(.25); }
+.hd-widget[data-hd-family="minimal"] .hd-gauge-needle-shape { fill: var(--hd-ink); transform-box: view-box; transform-origin: 100px 100px; transform: scaleX(.25); clip-path: inset(0 0 21.4286% 0) fill-box; } /* no tail: the shape is 112 units tall (88 up, 24 down); the bottom 24 are cut at the hub, in the shape's own box, so the clip turns with the needle */
 .hd-widget[data-hd-family="minimal"] .hd-gauge-hub { fill: var(--hd-ink); r: 3; }
 
 /* H6 arc gauge: 8 unit arc (4 % of D) in the value colour with butt caps, a 1 px hairline track, 2 px zone arcs; no cap dot. */
