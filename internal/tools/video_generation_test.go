@@ -129,6 +129,20 @@ func TestMiniMaxVideoModelForAPI(t *testing.T) {
 	}
 }
 
+func TestMiniMaxVideoAPIModel(t *testing.T) {
+	for input, want := range map[string]string{
+		"":                        "MiniMax-Hailuo-2.3",
+		"hailuo-02":               "MiniMax-Hailuo-02",
+		"Hailuo-2.3-768P":         "MiniMax-Hailuo-2.3",
+		"MiniMax-M2.7":            "MiniMax-Hailuo-2.3",
+		"MiniMax-Hailuo-2.3-Fast": "MiniMax-Hailuo-2.3-Fast",
+	} {
+		if got := MiniMaxVideoAPIModel(input); got != want {
+			t.Errorf("MiniMaxVideoAPIModel(%q) = %q, want %q", input, got, want)
+		}
+	}
+}
+
 func TestGenerateVideoGoogleFlow(t *testing.T) {
 	tmpDir := t.TempDir()
 	videoBytes := []byte("fake google mp4 data")

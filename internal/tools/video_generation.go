@@ -583,6 +583,14 @@ func miniMaxVideoModelForAPI(model string) (apiModel, displayModel string) {
 	return defaultMiniMaxVideoModel, defaultMiniMaxVideoModel
 }
 
+// MiniMaxVideoAPIModel returns the model id a generation request sends to MiniMax's video API for a configured model
+// name: aliases and the legacy preset map to the official ids, and chat or Google model names fall back to
+// MiniMax-Hailuo-2.3 (miniMaxVideoModelForAPI).
+func MiniMaxVideoAPIModel(model string) string {
+	apiModel, _ := miniMaxVideoModelForAPI(model)
+	return apiModel
+}
+
 func pollMiniMaxVideo(ctx context.Context, baseURL, apiKey, taskID string, pollIntervalSeconds, timeoutSeconds int) (string, error) {
 	deadline := time.Now().Add(videoTimeout(timeoutSeconds))
 	interval := videoPollInterval(pollIntervalSeconds)
