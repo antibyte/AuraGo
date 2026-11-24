@@ -1,0 +1,57 @@
+{
+  "pinout": "l293d",
+  "variants": [
+    {
+      "variant": "",
+      "counts": {
+        "signal": 10,
+        "ground": 4,
+        "power": 2
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "1,2EN",
+          "type": "signal",
+          "ref": "TI SLRS008D, pin figure and Pin Functions table (page 3)"
+        },
+        {
+          "number": "4",
+          "name": "GROUND",
+          "type": "ground",
+          "ref": "TI SLRS008D, pin figure (\"HEAT SINK AND GROUND\") and Pin Functions table (page 3)"
+        },
+        {
+          "number": "8",
+          "name": "VCC2",
+          "type": "power",
+          "ref": "TI SLRS008D, pin figure and Pin Functions table (page 3)"
+        },
+        {
+          "number": "9",
+          "name": "3,4EN",
+          "type": "signal",
+          "ref": "TI SLRS008D, pin figure and Pin Functions table (page 3)"
+        },
+        {
+          "number": "13",
+          "name": "GROUND",
+          "type": "ground",
+          "ref": "TI SLRS008D, pin figure and Pin Functions table (page 3)"
+        },
+        {
+          "number": "14",
+          "name": "4Y",
+          "type": "signal",
+          "ref": "TI SLRS008D, pin figure (page 3)"
+        },
+        {
+          "number": "16",
+          "name": "VCC1",
+          "type": "power",
+          "ref": "TI SLRS008D, pin figure and Pin Functions table (page 3)"
+        }
+      ]
+    }
+  ]
+}

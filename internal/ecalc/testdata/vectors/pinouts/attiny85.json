@@ -1,0 +1,52 @@
+{
+  "pinout": "attiny85",
+  "variants": [
+    {
+      "variant": "",
+      "counts": {
+        "signal": 1,
+        "io": 5,
+        "ground": 1,
+        "power": 1
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "PB5/RESET",
+          "type": "signal",
+          "ref": "Atmel 2586Q, Figure 1-1 (page 2); section 1.1.4 (page 3); Table 10-3 (page 60)"
+        },
+        {
+          "number": "2",
+          "name": "PB3",
+          "type": "io",
+          "ref": "Atmel 2586Q, Figure 1-1 (page 2); Table 10-3 (page 60)"
+        },
+        {
+          "number": "4",
+          "name": "GND",
+          "type": "ground",
+          "ref": "Atmel 2586Q, Figure 1-1 (page 2); section 1.1.2 (page 2)"
+        },
+        {
+          "number": "5",
+          "name": "PB0",
+          "type": "io",
+          "ref": "Atmel 2586Q, Figure 1-1 (page 2); section 10.3.1 \"Port B, Bit 0\" (page 62); Table 20-10 (page 151)"
+        },
+        {
+          "number": "7",
+          "name": "PB2",
+          "type": "io",
+          "ref": "Atmel 2586Q, Figure 1-1 (page 2); section 10.3.1 \"Port B, Bit 2\" (page 61); Table 20-10 (page 151)"
+        },
+        {
+          "number": "8",
+          "name": "VCC",
+          "type": "power",
+          "ref": "Atmel 2586Q, Figure 1-1 (page 2); section 1.1.1 (page 2)"
+        }
+      ]
+    }
+  ]
+}

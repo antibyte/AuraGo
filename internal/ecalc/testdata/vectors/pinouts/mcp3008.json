@@ -1,0 +1,64 @@
+{
+  "pinout": "mcp3008",
+  "variants": [
+    {
+      "variant": "",
+      "counts": {
+        "signal": 9,
+        "ground": 2,
+        "data": 4,
+        "power": 1
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "CH0",
+          "type": "signal",
+          "ref": "Microchip DS21295D, Table 3-1 (page 15); Package Types (page 1)"
+        },
+        {
+          "number": "9",
+          "name": "DGND",
+          "type": "ground",
+          "ref": "Microchip DS21295D, Table 3-1 (page 15); Package Types (page 1)"
+        },
+        {
+          "number": "10",
+          "name": "CS/SHDN",
+          "type": "data",
+          "ref": "Microchip DS21295D, Table 3-1 and section 3.7 (page 15)"
+        },
+        {
+          "number": "12",
+          "name": "DOUT",
+          "type": "data",
+          "ref": "Microchip DS21295D, Table 3-1 and section 3.6 (page 15)"
+        },
+        {
+          "number": "13",
+          "name": "CLK",
+          "type": "data",
+          "ref": "Microchip DS21295D, Table 3-1 and section 3.4 (page 15)"
+        },
+        {
+          "number": "14",
+          "name": "AGND",
+          "type": "ground",
+          "ref": "Microchip DS21295D, Table 3-1 (page 15)"
+        },
+        {
+          "number": "15",
+          "name": "VREF",
+          "type": "signal",
+          "ref": "Microchip DS21295D, Table 3-1 (page 15)"
+        },
+        {
+          "number": "16",
+          "name": "VDD",
+          "type": "power",
+          "ref": "Microchip DS21295D, Table 3-1 (page 15)"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "pinout": "lm386",
+  "variants": [
+    {
+      "variant": "",
+      "counts": {
+        "signal": 6,
+        "ground": 1,
+        "power": 1
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "GAIN",
+          "type": "signal",
+          "ref": "TI SNAS545D, Table 5-1 (page 3); sections 8.1 and 9.2.1.2.1 \"pins 1 and 8\" (pages 9, 10)"
+        },
+        {
+          "number": "2",
+          "name": "-INPUT",
+          "type": "signal",
+          "ref": "TI SNAS545D, Table 5-1 (page 3); Figure 11-1 PDIP, pin to ground plane (page 18)"
+        },
+        {
+          "number": "4",
+          "name": "GND",
+          "type": "ground",
+          "ref": "TI SNAS545D, Table 5-1 (page 3); Figure 11-1 PDIP (page 18)"
+        },
+        {
+          "number": "5",
+          "name": "VOUT",
+          "type": "signal",
+          "ref": "TI SNAS545D, Table 5-1 (page 3); Figure 11-1 PDIP, output capacitor (page 18)"
+        },
+        {
+          "number": "6",
+          "name": "VS",
+          "type": "power",
+          "ref": "TI SNAS545D, Table 5-1 (page 3); Figure 11-1 PDIP, 5 V via (page 18)"
+        },
+        {
+          "number": "7",
+          "name": "BYPASS",
+          "type": "signal",
+          "ref": "TI SNAS545D, Table 5-1 (page 3)"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "pinout": "lm393",
+  "variants": [
+    {
+      "variant": "",
+      "counts": {
+        "signal": 6,
+        "ground": 1,
+        "power": 1
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "1OUT",
+          "type": "signal",
+          "ref": "TI SLCS005AH, Table 4-1, column SOIC/VSSOP/PDIP/SO/DDF/TSSOP (page 3)"
+        },
+        {
+          "number": "3",
+          "name": "1IN+",
+          "type": "signal",
+          "ref": "TI SLCS005AH, Table 4-1, same column (page 3)"
+        },
+        {
+          "number": "4",
+          "name": "GND",
+          "type": "ground",
+          "ref": "TI SLCS005AH, Table 4-1, same column (page 3)"
+        },
+        {
+          "number": "6",
+          "name": "2IN-",
+          "type": "signal",
+          "ref": "TI SLCS005AH, Table 4-1, same column (page 3)"
+        },
+        {
+          "number": "7",
+          "name": "2OUT",
+          "type": "signal",
+          "ref": "TI SLCS005AH, Table 4-1, same column (page 3)"
+        },
+        {
+          "number": "8",
+          "name": "VCC",
+          "type": "power",
+          "ref": "TI SLCS005AH, Table 4-1, same column (page 3)"
+        }
+      ]
+    }
+  ]
+}

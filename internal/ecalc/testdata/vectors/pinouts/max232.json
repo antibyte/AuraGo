@@ -1,0 +1,64 @@
+{
+  "pinout": "max232",
+  "variants": [
+    {
+      "variant": "",
+      "counts": {
+        "signal": 4,
+        "power": 3,
+        "data": 8,
+        "ground": 1
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "C1+",
+          "type": "signal",
+          "ref": "TI SLLS047N, Figure 4-1 and Table 4-1 (page 3); Figure 8-1 (page 10)"
+        },
+        {
+          "number": "2",
+          "name": "VS+",
+          "type": "power",
+          "ref": "TI SLLS047N, Figure 4-1 and Table 4-1 (page 3)"
+        },
+        {
+          "number": "6",
+          "name": "VS-",
+          "type": "power",
+          "ref": "TI SLLS047N, Figure 4-1 and Table 4-1 (page 3)"
+        },
+        {
+          "number": "11",
+          "name": "T1IN",
+          "type": "data",
+          "ref": "TI SLLS047N, Figure 4-1 and Table 4-1 (page 3); Figure 8-1 (page 10)"
+        },
+        {
+          "number": "12",
+          "name": "R1OUT",
+          "type": "data",
+          "ref": "TI SLLS047N, Figure 4-1 (page 3) and Figure 8-1 (page 10); not in Table 4-1"
+        },
+        {
+          "number": "14",
+          "name": "T1OUT",
+          "type": "data",
+          "ref": "TI SLLS047N, Figure 4-1 and Table 4-1 (page 3)"
+        },
+        {
+          "number": "15",
+          "name": "GND",
+          "type": "ground",
+          "ref": "TI SLLS047N, Figure 4-1 and Table 4-1 (page 3)"
+        },
+        {
+          "number": "16",
+          "name": "VCC",
+          "type": "power",
+          "ref": "TI SLLS047N, Figure 4-1 and Table 4-1 (page 3)"
+        }
+      ]
+    }
+  ]
+}

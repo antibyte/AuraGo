@@ -1,0 +1,66 @@
+{
+  "pinout": "mcp23017",
+  "variants": [
+    {
+      "variant": "",
+      "counts": {
+        "io": 16,
+        "power": 1,
+        "ground": 1,
+        "nc": 2,
+        "data": 2,
+        "signal": 6
+      },
+      "pins": [
+        {
+          "number": "8",
+          "name": "GPB7",
+          "type": "io",
+          "ref": "Microchip DS20001952D, Table 2-1 (page 11); Features (page 1)"
+        },
+        {
+          "number": "9",
+          "name": "VDD",
+          "type": "power",
+          "ref": "Microchip DS20001952D, Table 2-1 (page 11)"
+        },
+        {
+          "number": "10",
+          "name": "VSS",
+          "type": "ground",
+          "ref": "Microchip DS20001952D, Table 2-1 (page 11)"
+        },
+        {
+          "number": "12",
+          "name": "SCK",
+          "type": "data",
+          "ref": "Microchip DS20001952D, Table 2-1 (page 11)"
+        },
+        {
+          "number": "13",
+          "name": "SDA",
+          "type": "data",
+          "ref": "Microchip DS20001952D, Table 2-1 (page 11)"
+        },
+        {
+          "number": "18",
+          "name": "RESET",
+          "type": "signal",
+          "ref": "Microchip DS20001952D, Table 2-1 (page 11); Table 1-2 (page 5)"
+        },
+        {
+          "number": "20",
+          "name": "INTA",
+          "type": "signal",
+          "ref": "Microchip DS20001952D, Table 2-1 (page 11)"
+        },
+        {
+          "number": "21",
+          "name": "GPA0",
+          "type": "io",
+          "ref": "Microchip DS20001952D, Table 2-1 (page 11)"
+        }
+      ]
+    }
+  ]
+}

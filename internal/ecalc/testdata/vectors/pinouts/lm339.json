@@ -1,0 +1,57 @@
+{
+  "pinout": "lm339",
+  "variants": [
+    {
+      "variant": "",
+      "counts": {
+        "signal": 12,
+        "power": 1,
+        "ground": 1
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "1OUT",
+          "type": "signal",
+          "ref": "TI SLCS006Z, Figure 5-1 (page 4); Table 5-1 row OUT1, column D/DB/N/NS/PW/DYY/J = 1 (page 4)"
+        },
+        {
+          "number": "3",
+          "name": "VCC",
+          "type": "power",
+          "ref": "TI SLCS006Z, Figure 5-1 and Table 5-1 (page 4)"
+        },
+        {
+          "number": "6",
+          "name": "1IN-",
+          "type": "signal",
+          "ref": "TI SLCS006Z, Figure 5-1 and Table 5-1 row IN1– = 6 (page 4)"
+        },
+        {
+          "number": "9",
+          "name": "3IN+",
+          "type": "signal",
+          "ref": "TI SLCS006Z, Figure 5-1 and Table 5-1 row IN3+ = 9 (page 4)"
+        },
+        {
+          "number": "12",
+          "name": "GND",
+          "type": "ground",
+          "ref": "TI SLCS006Z, Figure 5-1 and Table 5-1 (page 4); onsemi LM339/D Rev. 29, page 1"
+        },
+        {
+          "number": "13",
+          "name": "4OUT",
+          "type": "signal",
+          "ref": "TI SLCS006Z, Figure 5-1 and Table 5-1 row OUT4 = 13 (page 4)"
+        },
+        {
+          "number": "14",
+          "name": "3OUT",
+          "type": "signal",
+          "ref": "TI SLCS006Z, Figure 5-1 and Table 5-1 row OUT3 = 14 (page 4)"
+        }
+      ]
+    }
+  ]
+}
