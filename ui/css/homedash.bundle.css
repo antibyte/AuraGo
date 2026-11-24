@@ -398,7 +398,95 @@
 .hd-widget[data-hd-family="glass"][data-hd-readonly="true"] .hd-dial-knob-shadow { display: none; }
 
 /* ui/css/homedash-family-tactile.css */
-/* HomeDash family Tactile: token block and painting. Filled in milestone M1 (style lab). */
+/* HomeDash family Tactile: token block (plan T2) and painting. Quiet hardware from one well-made appliance: one key light from the top left,
+   so every highlight sits top left and every cast shadow bottom right. Dark scheme = anodised graphite and black bakelite, light = brushed aluminium and ivory. */
+[data-hd-family="tactile"] {
+  --hd-t-panel-hi-d: #2A2E35; --hd-t-panel-lo-d: #1F2228; --hd-t-panel-mid-d: #24282E;
+  --hd-t-panel-hi-l: #D9DDE3; --hd-t-panel-lo-l: #BFC4CC; --hd-t-panel-mid-l: #CCD0D7;
+  --hd-t-bakelite-d: #1C1A18; --hd-t-bakelite-l: #ECE6D8; --hd-t-spec-d: 14%; --hd-t-spec-l: 22%;
+  --hd-t-legend-d: #C9CDD3; --hd-t-legend-l: #33373D; --hd-t-muted-d: #9AA1AB; --hd-t-muted-l: #4A4F57;
+  --hd-t-face-d: #101215; --hd-t-face-l: #F2EDE1; --hd-t-faceink-d: #E4E1D8; --hd-t-faceink-l: #23262B;
+  --hd-t-emboss-d: 0 -1px 0 color-mix(in srgb, #000000 60%, transparent);
+  --hd-t-emboss-l: 0 1px 0 color-mix(in srgb, #FFFFFF 50%, transparent);
+  --hd-t-panel-hi: var(--hd-t-panel-hi-d); --hd-t-panel-lo: var(--hd-t-panel-lo-d); --hd-t-panel-mid: var(--hd-t-panel-mid-d);
+  --hd-t-bakelite-c: var(--hd-t-bakelite-d); --hd-t-spec: var(--hd-t-spec-d);
+  --hd-t-legend: var(--hd-t-legend-d); --hd-t-muted: var(--hd-t-muted-d); --hd-t-emboss: var(--hd-t-emboss-d);
+  --hd-t-face: var(--hd-t-face-d); --hd-t-faceink: var(--hd-t-faceink-d);
+  --hd-t-window: #07090B; --hd-t-amber: #FFB547; --hd-t-vfd: #FFC266; --hd-t-needle: #D2463A;
+  --hd-t-led-green: #3DDC84; --hd-t-led-amber: #FFB547; --hd-t-led-red: #FF4D3D; --hd-t-led-base: #111111;
+  --hd-t-knurl-a: #3A3E45; --hd-t-knurl-b: #5A606A;
+  --hd-led: var(--hd-t-led-green);
+  --hd-t-brush: linear-gradient(transparent, transparent); /* flat below 2 device px per CSS px; the grain is switched on by the media block below */
+  --hd-t-panel: var(--hd-t-brush), linear-gradient(180deg, var(--hd-t-panel-hi), var(--hd-t-panel-lo));
+  --hd-t-bakelite: radial-gradient(ellipse 70% 55% at 30% 20%, color-mix(in srgb, #FFFFFF var(--hd-t-spec), transparent), transparent 55%), var(--hd-t-bakelite-c);
+  --hd-t-steel: conic-gradient(from 18deg, #C7CCD4, #F3F5F8 11%, #A8AEB7 24%, #E4E7EC 37%, #979EA8 50%, #EFF1F4 63%, #B0B6BF 76%, #ECEFF3 89%, #C7CCD4);
+  --hd-t-steel-lin: linear-gradient(135deg, #E9ECF0, #B9BFC7 45%, #DDE1E6 60%, #A9AFB8);
+  --hd-t-grip: repeating-linear-gradient(90deg, color-mix(in srgb, #000000 28%, transparent) 0 1px, color-mix(in srgb, #FFFFFF 40%, transparent) 1px 2px) center / 10px 12px no-repeat;
+  --hd-t-knurl: repeating-conic-gradient(var(--hd-t-knurl-a) 0deg 2.6deg, var(--hd-t-knurl-b) 3.4deg 5.6deg, var(--hd-t-knurl-a) 6.4deg 7.2deg);
+  --hd-t-ring-86: radial-gradient(farthest-side, transparent 86%, #000000 87%);
+  --hd-t-ring-92: radial-gradient(farthest-side, transparent 91.5%, #000000 92.5%);
+  --hd-t-pointer: linear-gradient(180deg, var(--hd-t-faceink-l) 0 62%, transparent 62%);
+  --hd-t-led: radial-gradient(circle at 36% 30%, color-mix(in srgb, var(--hd-led) 35%, #FFFFFF) 0 16%, var(--hd-led) 46%, color-mix(in srgb, var(--hd-led) 55%, #000000) 100%);
+  --hd-t-led-off: radial-gradient(circle at 36% 30%, color-mix(in srgb, #FFFFFF 12%, transparent) 0 14%, transparent 30%), color-mix(in srgb, var(--hd-led) 22%, var(--hd-t-led-base));
+  --hd-t-led-halo: 0 0 6px 1px color-mix(in srgb, var(--hd-led) 60%, transparent);
+  --hd-t-dot-off: color-mix(in srgb, var(--hd-t-amber) 18%, var(--hd-t-led-base));
+  --hd-t-shade: color-mix(in srgb, #000000 12%, transparent);
+  --hd-t-needle-shadow: color-mix(in srgb, #000000 30%, transparent);
+  --hd-t-grid-ink: color-mix(in srgb, var(--hd-t-amber) 10%, transparent);
+  --hd-t-hatch: repeating-linear-gradient(135deg, color-mix(in srgb, var(--hd-ink) 6%, transparent) 0 2px, transparent 2px 6px);
+  --hd-t-vignette: radial-gradient(circle, transparent 82%, color-mix(in srgb, #000000 6%, transparent) 100%);
+  --hd-t-reflection: radial-gradient(ellipse 60% 30% at 34% 24%, color-mix(in srgb, #FFFFFF 8%, transparent), transparent 70%);
+  --hd-surface-solid: var(--hd-t-panel-mid); --hd-surface: var(--hd-t-panel-mid);
+  --hd-ink: var(--hd-t-legend); --hd-ink-muted: var(--hd-t-muted);
+  --hd-ink-faint: color-mix(in srgb, var(--hd-t-legend) 45%, var(--hd-t-panel-mid));
+  --hd-sunken: var(--hd-t-window); --hd-focus-gap: var(--hd-t-panel-mid);
+  --hd-hairline: color-mix(in srgb, #000000 30%, var(--hd-t-panel-mid));
+  --hd-card-bg: var(--hd-t-panel);
+  --hd-card-border: 1px solid color-mix(in srgb, #000000 35%, var(--hd-t-panel-lo));
+  --hd-dash-unavail: 1px dashed color-mix(in srgb, #000000 35%, var(--hd-t-panel-lo));
+  --hd-radius-card: calc(12px * var(--hd-radius-scale)); --hd-radius-control: calc(6px * var(--hd-radius-scale));
+  --hd-t-bezel-r: calc(8px * var(--hd-radius-scale));
+  --hd-shadow-card: inset 1px 1px 0 color-mix(in srgb, #FFFFFF 10%, transparent), inset -1px -1px 0 color-mix(in srgb, #000000 30%, transparent),
+                    2px 3px 8px color-mix(in srgb, #000000 var(--hd-sa-4), transparent);
+  --hd-shadow-contact: 1px 2px 3px color-mix(in srgb, #000000 var(--hd-sa-4), transparent);
+  --hd-shadow-cast: 2px 4px 10px color-mix(in srgb, #000000 var(--hd-sa-5), transparent);
+  --hd-recess: inset 1px 2px 4px color-mix(in srgb, #000000 60%, transparent), inset -1px -1px 0 color-mix(in srgb, #FFFFFF 8%, transparent);
+  --hd-window-shadow: inset 0 2px 6px color-mix(in srgb, #000000 70%, transparent);
+  --hd-lip: inset 1px 1px 0 color-mix(in srgb, #FFFFFF 22%, transparent), inset -1px -1px 0 color-mix(in srgb, #000000 30%, transparent);
+  --hd-ring-alert: inset 0 0 0 1px var(--hd-t-led-red);
+  --hd-vfd-glow: 0 0 6px color-mix(in srgb, var(--hd-t-amber) 50%, transparent);
+  --hd-stroke-hair: 1px; --hd-stroke-1: 1.5px; --hd-stroke-2: 2px; --hd-stroke-arc: 0.06; --hd-stroke-tick: 1.25px;
+  --hd-t-needle-w: 2.5;
+  --hd-font-ui: "Inter", system-ui, sans-serif;
+  --hd-font-label: "HomeDash Barlow Condensed", "Inter", sans-serif; --hd-font-num: "HomeDash Barlow Condensed", "Inter", sans-serif;
+  --hd-font-vfd: "Geist Mono", "JetBrains Mono", monospace;
+  --hd-num-features: "tnum" 1; --hd-num-weight: 600; --hd-num-weight-small: 600; --hd-num-tracking: 0em; --hd-num-cap: 0.74;
+  --hd-num-hero-max: 72px; --hd-unit-scale: 0.42;
+  --hd-label-size: 12px; --hd-label-weight: 600; --hd-label-tracking: 0.06em;
+  --hd-dur-toggle: 120ms; --hd-ease-toggle: var(--hd-ease-snap); --hd-dur-led: 60ms; --hd-dur-fill: 60ms; --hd-dur-xfade: 60ms;
+  --hd-dur-remote: 220ms; --hd-ease-remote: var(--hd-ease-out); --hd-dur-needle-f: 1100ms; --hd-dur-zone: 60ms;
+}
+/* Brushed grain: a 4 px period is a visible stripe at DPR 1 and 1.5 (measured), so the grain only exists at 2 device px per CSS px and above (rubric T1). */
+@media (min-resolution: 2dppx) {
+  [data-hd-family="tactile"] { --hd-t-brush: repeating-linear-gradient(180deg, transparent 0, color-mix(in srgb, #FFFFFF 5%, transparent) 2px, transparent 4px); }
+}
+.hd-root[data-hd-scheme="light"] [data-hd-family="tactile"],
+.hd-root[data-hd-scheme="light"][data-hd-family="tactile"] {
+  --hd-t-panel-hi: var(--hd-t-panel-hi-l); --hd-t-panel-lo: var(--hd-t-panel-lo-l); --hd-t-panel-mid: var(--hd-t-panel-mid-l);
+  --hd-t-bakelite-c: var(--hd-t-bakelite-l); --hd-t-spec: var(--hd-t-spec-l);
+  --hd-t-legend: var(--hd-t-legend-l); --hd-t-muted: var(--hd-t-muted-l); --hd-t-emboss: var(--hd-t-emboss-l);
+  --hd-t-face: var(--hd-t-face-l); --hd-t-faceink: var(--hd-t-faceink-l);
+}
+.hd-widget[data-hd-family="tactile"][data-hd-pending="true"] { --hd-led: var(--hd-t-led-amber); }
+.hd-widget[data-hd-family="tactile"][data-hd-status="error"], .hd-widget[data-hd-family="tactile"][data-hd-tone="crit"] { --hd-led: var(--hd-t-led-red); }
+
+/* Shared state language, Tactile column (plan T5). Unavailable: the panel gets a covered look (hatch over the card panel), lamps are hollow rings, legends read a dash.
+   Readonly: the lock badge (widgets.css) and no lift shadow under the hardware. Alert: red LED plus a 1px red rim (--hd-ring-alert, widgets.css). */
+.hd-widget[data-hd-family="tactile"] .hd-title { color: var(--hd-t-legend); text-shadow: var(--hd-t-emboss); }
+.hd-widget[data-hd-family="tactile"] .hd-state { color: color-mix(in srgb, var(--hd-t-muted) 55%, var(--hd-t-legend)); } /* the plain muted ink measures 4.47:1 on the lightest panel stop */
+.hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] { --hd-card-bg: var(--hd-t-hatch), var(--hd-t-panel); }
+.hd-widget[data-hd-family="tactile"][data-hd-readonly="true"] { --hd-shadow-cast: 0 0 0 0 transparent; }
+.hd-widget[data-hd-family="tactile"] :is(.hd-toggle, .hd-rocker, .hd-dial):is(:focus-visible, [data-hd-focus="ring"]) :is(.hd-toggle-thumb, .hd-rocker-paddle, .hd-dial-cap) { translate: 0 -1px; }
 
 /* ui/css/homedash-family-minimal.css */
 /* HomeDash family Minimal: token block and painting. Filled in milestone M1 (style lab). */
