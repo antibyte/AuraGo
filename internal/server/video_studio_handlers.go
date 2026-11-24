@@ -176,7 +176,7 @@ func handleVideoStudioStatus(s *Server, w http.ResponseWriter, r *http.Request) 
 	if provider == "agnes" {
 		model = tools.AgnesVideoModel(model)
 	}
-	configured := cfg.VideoGeneration.Enabled && strings.TrimSpace(cfg.VideoGeneration.APIKey) != "" && provider != ""
+	configured := videoStudioGenerationConfigured(cfg)
 	issue := ""
 	switch {
 	case !cfg.VideoStudio.Enabled:
@@ -225,6 +225,8 @@ func handleVideoStudioStatus(s *Server, w http.ResponseWriter, r *http.Request) 
 		"durations_seconds": videoStudioDurationOptions(cfg, "", false),
 		"image_modes":       videoStudioImageModes(provider),
 		"budget_blocked":    s.BudgetTracker != nil && s.BudgetTracker.IsBlocked("video_generation"),
+		// The capability profile at the default resolution; plan mode and the storyboard read it.
+		"profile": videoStudioGenerationProfile(cfg, ""),
 	}
 	var encoder interface{}
 	if runtime.Ready && cfg.VideoStudio.Enabled {
@@ -256,46 +258,6 @@ func videoStudioUnavailableJSON(set videostudio.UnavailableSet) videostudio.Unav
 		}
 	}
 	return set
-}
-
-func videoStudioDurationOptions(cfg *config.Config, resolution string, hasReferences bool) []int {
-	provider := strings.ToLower(cfg.VideoGeneration.ProviderType)
-	resolution = strings.ToLower(firstNonEmptyVideoStudio(resolution, cfg.VideoGeneration.DefaultResolution))
-	switch provider {
-	case "google", "google_veo":
-		if strings.Contains(resolution, "1080") || hasReferences {
-			return []int{8}
-		}
-		return []int{4, 6, 8}
-	case "minimax":
-		model := strings.ToLower(cfg.VideoGeneration.ResolvedModel)
-		if model == "" {
-			model = strings.ToLower(cfg.VideoGeneration.Model)
-		}
-		if strings.Contains(resolution, "1080") || (!strings.Contains(model, "hailuo") && model != "") {
-			return []int{6}
-		}
-		return []int{6, 10}
-	case "agnes":
-		values := make([]int, tools.AgnesVideoMaxSeconds-tools.AgnesVideoMinSeconds+1)
-		for i := range values {
-			values[i] = i + tools.AgnesVideoMinSeconds
-		}
-		return values
-	default:
-		return []int{}
-	}
-}
-
-func videoStudioImageModes(provider string) []string {
-	switch strings.ToLower(provider) {
-	case "minimax":
-		return []string{"first_frame"}
-	case "google", "google_veo":
-		return []string{"first_frame"}
-	default:
-		return []string{}
-	}
 }
 
 func firstNonEmptyVideoStudio(values ...string) string {
