@@ -258,7 +258,7 @@ func TestECalcPinoutFixtureCoversEveryShape(t *testing.T) {
 			t.Errorf("the fixture has no item with the outline %s", outline)
 		}
 	}
-	for _, kind := range []string{"type: 'circular'", "type: 'dip'", "type: 'to'", "type: 'jack'", "type: 'board'", "package: 'to92'", "package: 'to220'", "contact", "variants"} {
+	for _, kind := range []string{"type: 'circular'", "type: 'dip'", "type: 'to'", "type: 'jack'", "type: 'board'", "package: 'to92'", "package: 'to220'", "package: 'sot23'", "package: 'sot223'", "contact", "variants"} {
 		if !strings.Contains(source, kind) {
 			t.Errorf("the fixture never uses %s", kind)
 		}

@@ -31,6 +31,9 @@
      makes the gradient ids unique (several windows can show the same drawing); the same spec gives the same markup. The first
      child is the <defs> of the materials. One g.ec-pin per contact (data-pin, data-type, data-num="in" | "out"); the page toggles
      data-hover, data-selected and data-dim on it. Over the body of a contact (the fill of its type) lies a soft ec-pin-sheen.
+   The shape `to` draws four packages: to92 and to220 seen from the front (leads down), sot23 and sot223 seen from above (marking
+     side up, `drawn` is 'top'): epoxy body, tin gull-wing leads as filled shapes, the feet as contacts, a pin-1 dot (recess); the
+     tab of the sot223 is the last pin and is drawn in tin at the top.
    ECalcPinoutDraw.OUTLINES -> the sixteen outlines of `rows` (the list of ecalc.PinoutOutlines).
    ECalcPinoutDraw.fitNumber(text, kind, width, height) -> the font size (11, 10 or 9) at which the number fits inside a contact
      of that kind, or 0 when it does not: the page and the tests use the same rule as the drawing.
@@ -471,7 +474,56 @@
 
     // ---- to ---------------------------------------------------------------------------------------------------------------
 
+    // The surface-mount packages sot23 and sot223, seen from above with the marking side up (the pin order is in pinouts.go): the
+    // epoxy body, tin gull-wing leads (filled rectangles that run under the body to the foot) and the feet as contacts. sot23 lists
+    // [1 lower left, 2 lower right, 3 top centre]; sot223 lists [1, 2, 3 along the bottom, then the tab (pin 4) at the top, in tin
+    // with its contact in the middle]. The names of the bottom row are staggered under the feet like the TO leads, the name of the
+    // top pin stands to the right of it. The dot at the lower left corner marks pin 1.
+    function layoutSot(shape, map) {
+        const numbers = (Array.isArray(shape.pins) ? shape.pins : []).map(String), is223 = shape.package === 'sot223';
+        const nb = Math.max(numbers.length - 1, 1), bodyW = is223 ? 100 : 76, bodyH = is223 ? 54 : 40, gap = is223 ? 34 : 50;
+        const foot = { w: 24, h: 18 }, leadLen = 14, tabW = 68, tabH = 30;
+        const x0 = MARGIN, y0 = MARGIN, cx = x0 + bodyW / 2;
+        const by = y0 + (is223 ? tabH : foot.h + leadLen), footY = by + bodyH + leadLen + foot.h / 2;
+        const body = solid('ec-shell', roundRect(x0, by, bodyW, bodyH, 3), 'epoxy');
+        const shell = [cast(body)], contacts = [];
+        const lead = (x, ya, yb) => solid('ec-shell-lead', 'M' + round(x - 3) + ' ' + round(ya) + 'h6V' + round(yb) + 'h-6Z', 'tin', { across: 'x' });
+        const bottom = [];
+        numbers.slice(0, nb).forEach((number, i) => {
+            const x = cx + (i - (nb - 1) / 2) * gap;
+            shell.push(lead(x, by + bodyH - 2, footY));
+            bottom.push(inside(contact(map, number, { shape: 'rect', kind: 'square', x, y: footY, w: foot.w, h: foot.h, r: 2 }), fitNumber(number, 'square', foot.w, foot.h) || 9));
+        });
+        const upper = numbers[nb];
+        let upperRight = cx + foot.w / 2;
+        if (upper !== undefined) {
+            let c;
+            if (is223) {
+                const tab = solid('ec-shell-tab', roundRect(cx - tabW / 2, y0, tabW, tabH + 2, 3), 'tin', { across: 'x' });
+                shell.splice(1, 0, cast(tab));
+                shell.push(tab);
+                c = contact(map, upper, { shape: 'rect', kind: 'square', x: cx, y: y0 + tabH / 2, w: 44, h: foot.h, r: 2 });
+                upperRight = cx + tabW / 2;
+            } else {
+                shell.push(lead(cx, y0 + foot.h / 2, by + 2));
+                c = contact(map, upper, { shape: 'rect', kind: 'square', x: cx, y: y0 + foot.h / 2, w: foot.w, h: foot.h, r: 2 });
+            }
+            inside(c, fitNumber(upper, 'square', c.w, c.h) || 9);
+            c.label = { x: upperRight + 8, y: c.y + NAME_FS * 0.36, anchor: 'start', rotate: 0 };
+            contacts.push(c);
+        }
+        shell.push(body, layer('ec-shell-detail', roundRect(x0 + 4, by + 2, bodyW - 8, 1.5, 0.75), 'glint', { fx: true }),
+            layer('ec-shell-detail', circle(x0 + 9, by + bodyH - 9, 2.6), 'recess'));
+        contacts.unshift(...bottom);
+        markFirst(contacts);
+        const names = staggerNames(bottom, footY + foot.h / 2 + 6, 16);
+        const nameReach = upper === undefined ? 0 : upperRight + 8 + textWidth((map.get(upper) || {}).name || '', NAME_FS);
+        const width = Math.max(x0 + bodyW, names.reach, nameReach) + MARGIN, height = names.bottom + MARGIN;
+        return { width, height, shellBox: [x0, by, x0 + bodyW, by + bodyH], shell, face: '', texts: [], contacts, mirrorable: false };
+    }
+
     function layoutTo(shape, map) {
+        if (shape.package === 'sot23' || shape.package === 'sot223') return layoutSot(shape, map);
         const numbers = (Array.isArray(shape.pins) ? shape.pins : []).map(String), n = Math.max(numbers.length, 2), gap = 28;
         const is220 = shape.package === 'to220';
         const bodyW = Math.max(is220 ? 76 : 64, (n - 1) * gap + (is220 ? 40 : 36));

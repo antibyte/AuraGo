@@ -34,6 +34,16 @@ func plural(n int, one, many string) string {
 	return fmt.Sprintf("%d %s", n, many)
 }
 
+// pinoutPackageNames are the display names of the packages of a "to" shape.
+var pinoutPackageNames = map[string]string{"to92": "TO-92", "to220": "TO-220", "sot23": "SOT-23", "sot223": "SOT-223"}
+
+func packageName(id string) string {
+	if n := pinoutPackageNames[id]; n != "" {
+		return n
+	}
+	return strings.ToUpper(id)
+}
+
 // pinoutConnector is the short English text for the shape of a pinout: what it is and how many pins it has.
 func pinoutConnector(p *Pinout, pinCount int) string {
 	s := p.Shape
@@ -48,7 +58,7 @@ func pinoutConnector(p *Pinout, pinCount int) string {
 	case "dip":
 		return "DIP package, " + pins
 	case "to":
-		return strings.ToUpper(s.Package[:2]) + "-" + s.Package[2:] + " package, " + pins
+		return packageName(s.Package) + " package, " + pins
 	case "circular":
 		return fmt.Sprintf("Circular connector, %s contacts, %s", s.Contact, pins)
 	case "jack":
@@ -95,7 +105,13 @@ func pinoutView(p *Pinout) string {
 		if s.Package == "to220" {
 			side = "label side"
 		}
-		return fmt.Sprintf("%s seen from the front (%s), leads pointing down, pins left to right.", strings.ToUpper(s.Package[:2])+"-"+s.Package[2:], side)
+		switch s.Package {
+		case "sot23":
+			return "SOT-23 seen from above, marking side up: pin 1 at the lower left, pin 2 at the lower right, pin 3 at the top centre."
+		case "sot223":
+			return "SOT-223 seen from above, marking side up: pins 1, 2 and 3 along the bottom from left to right, the tab (pin 4) at the top."
+		}
+		return fmt.Sprintf("%s seen from the front (%s), leads pointing down, pins left to right.", packageName(s.Package), side)
 	case "jack":
 		return "Plug seen from the side, tip at the left, segments from tip to sleeve."
 	case "board":

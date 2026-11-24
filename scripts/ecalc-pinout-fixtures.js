@@ -3,7 +3,7 @@
 // test scripts/test-ecalc-pinouts.mjs evaluates it in a vm, ui/desktop_ecalc_pinouts_browser_test.go puts the same text into
 // the served catalog. The names are German like the rest of the fixture catalog. The pins are made up (no real connector).
 //   Every outline of `rows` appears once (fx_pin_<outline>), plus the dense ones: usb_c (24 contacts), hdmi_a (19),
-//   fx_pin_header40 (2 x 20), fx_pin_board38 (38 pins), fx_pin_dip28; the shapes circular (two), dip (two), to (to92, to220),
+//   fx_pin_header40 (2 x 20), fx_pin_board38 (38 pins), fx_pin_dip28; the shapes circular (two), dip (two), to (to92, to220, sot23, sot223),
 //   jack (TRS, TRRS with variants) and board (two, with inner headers); a single row with wires and variants (fx_pin_rj45); a
 //   page with long notes and long names (fx_pin_long); an item with 8-character numbers (fx_pin_wide_numbers).
 () => {
@@ -87,6 +87,8 @@
     out.push(item('fx_pin_dip28', 'ics', 'Fixture: DIP-28', shape({ type: 'dip', drawn: 'top', pins: 28 }), range(1, 28)));
     out.push(item('fx_pin_to92', 'ics', 'Fixture: TO-92', shape({ type: 'to', drawn: 'front', package: 'to92', pins: ['1', '2', '3'] }), ['1', '2', '3']));
     out.push(item('fx_pin_to220', 'ics', 'Fixture: TO-220', shape({ type: 'to', drawn: 'front', package: 'to220', pins: ['IN', 'GND', 'OUT'] }), ['IN', 'GND', 'OUT']));
+    out.push(item('fx_pin_sot23', 'ics', 'Fixture: SOT-23', shape({ type: 'to', drawn: 'top', package: 'sot23', pins: ['1', '2', '3'] }), ['1', '2', '3']));
+    out.push(item('fx_pin_sot223', 'ics', 'Fixture: SOT-223', shape({ type: 'to', drawn: 'top', package: 'sot223', pins: ['1', '2', '3', '4'] }), ['1', '2', '3', '4']));
     out.push(item('fx_pin_trs', 'audio', 'Fixture: Klinke 3,5 mm', shape({ type: 'jack', drawn: 'side', segments: ['T', 'R', 'S'] }), ['T', 'R', 'S']));
     const trrs = item('fx_pin_trrs', 'audio', 'Fixture: Klinke 4-polig', shape({ type: 'jack', drawn: 'side', segments: ['T', 'R1', 'R2', 'S'] }), ['T', 'R1', 'R2', 'S']);
     trrs.variants = [{ id: 'ctia', name: 'CTIA', pins: trrs.pins }, { id: 'omtp', name: 'OMTP', pins: trrs.pins.map(pin => Object.assign({}, pin, { name: pin.name + '*' })) }];

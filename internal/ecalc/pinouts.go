@@ -32,7 +32,7 @@ var (
 	pinoutDrawn      = []string{"plug", "socket"}
 	pinoutRowKeys    = []string{"none", "top", "bottom", "left", "right"}
 	pinoutConnectors = []string{"top", "bottom", "left", "right", "none"}
-	pinoutPackages   = []string{"to92", "to220"}
+	pinoutPackages   = []string{"to92", "to220", "sot23", "sot223"}
 	pinoutShapeTypes = []string{"rows", "dip", "to", "circular", "jack", "board"}
 )
 
@@ -79,7 +79,10 @@ type PinoutInner struct {
 //
 //	rows:     Outline, Contact, Drawn (plug|socket), Rows, Key (none|top|bottom|left|right, none unless the outline is rect)
 //	dip:      DipPins (even, 4 to 64; the pins are "1" ... "N")
-//	to:       Package (to92|to220), ToPins (left to right)
+//	to:       Package (to92|to220|sot23|sot223), ToPins. to92/to220 list the pins left to right as seen from the front.
+//	          The SOT packages are seen from above (marking side up): sot23 lists [pin 1 lower left, pin 2 lower right,
+//	          pin 3 top centre] (exactly 3); sot223 lists [pins 1, 2, 3 along the bottom from left to right, then the
+//	          tab = pin 4 at the top] (exactly 4, the tab is the last entry).
 //	circular: Contact, Drawn (plug|socket), KeyAngle (nil = no notch), Positions
 //	jack:     Segments (tip to sleeve, 2 to 5)
 //	board:    Left, Right (top to bottom), Top, Bottom (left to right), "" = a gap of one pitch; Connector, Inner
@@ -553,12 +556,18 @@ func buildShape(raw *rawPinoutShape, fail func(string, ...any)) (PinoutShape, []
 		if need("package") {
 			s.Package = oneOf("package", raw.Package, pinoutPackages)
 		}
+		if strings.HasPrefix(raw.Package, "sot") {
+			s.Drawn = "top" // the SOT packages are drawn from above, marking side up
+		}
+		sotPins := map[string]int{"sot23": 3, "sot223": 4}[raw.Package]
 		if need("pins") {
 			var list []string
 			switch {
 			case raw.Pins.Kind != yaml.SequenceNode || raw.Pins.Decode(&list) != nil:
 				fail("shape: pins of a to shape must be the list of pin numbers, left to right")
-			case len(list) < 2 || len(list) > 5:
+			case sotPins > 0 && len(list) != sotPins:
+				fail("shape: a %s shape has exactly %d pins, got %d", raw.Package, sotPins, len(list))
+			case sotPins == 0 && (len(list) < 2 || len(list) > 5):
 				fail("shape: a to shape has 2 to 5 pins, got %d", len(list))
 			default:
 				for _, n := range list {

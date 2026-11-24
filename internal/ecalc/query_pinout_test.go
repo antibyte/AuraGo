@@ -310,6 +310,8 @@ func TestPinoutTextsCoverEveryOutlineAndShape(t *testing.T) {
 		{PinoutShape{Type: "circular", Drawn: "plug"}, "Pin positions as seen looking at the mating face of the male connector (pins)."},
 		{PinoutShape{Type: "to", Package: "to92"}, "TO-92 seen from the front (flat side), leads pointing down, pins left to right."},
 		{PinoutShape{Type: "to", Package: "to220"}, "TO-220 seen from the front (label side), leads pointing down, pins left to right."},
+		{PinoutShape{Type: "to", Package: "sot23"}, "SOT-23 seen from above, marking side up: pin 1 at the lower left, pin 2 at the lower right, pin 3 at the top centre."},
+		{PinoutShape{Type: "to", Package: "sot223"}, "SOT-223 seen from above, marking side up: pins 1, 2 and 3 along the bottom from left to right, the tab (pin 4) at the top."},
 		{PinoutShape{Type: "jack"}, "Plug seen from the side, tip at the left, segments from tip to sleeve."},
 		{PinoutShape{Type: "board", Connector: "none"}, "Board seen from the component side, portrait, without a main connector."},
 		{PinoutShape{Type: "board", Connector: "top"}, "Board seen from the component side, portrait, main connector at the top."},
