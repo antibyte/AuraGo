@@ -39330,6 +39330,86 @@
     },
     {
       "kind": "code",
+      "id": "smd_inductor_code",
+      "category": "codes",
+      "code": "smd_inductor",
+      "name": "SMD inductor codes",
+      "name_en": "SMD inductor codes",
+      "doc": "Value marking of SMD inductors, three characters: three digits are microhenry (two significant digits and the number of zeros, 101 = 100 µH), R is the decimal point in µH (4R7 = 4.7 µH, R47 = 0.47 µH) and N is the decimal point in nH (4N7 = 4.7 nH, 47N = 47 nH). A fourth letter is the tolerance. Only the tolerance letters that two makers state in the same way are read (C, G, H, J, K, M); the others differ between makers (D is ±0.5 nH at Murata but ±0.3 nH at Bourns) or are stated by one maker only, and are not decoded. Small chip inductors are often printed with no value at all.",
+      "tags": [
+        "smd",
+        "inductor",
+        "induktivität",
+        "spule",
+        "coil",
+        "choke",
+        "marking",
+        "aufdruck",
+        "4r7",
+        "3-digit",
+        "nh",
+        "µh",
+        "murata",
+        "bourns",
+        "vishay",
+        "tdk"
+      ],
+      "source": "Murata part numbering for RF inductors (LQ series); Bourns CE1005Q and SRR1260 datasheets; Vishay Dale IHLP2020AB-A1 (document 34711); TDK inductor marking FAQ (read as a DigiKey copy)",
+      "data": {
+        "tolerances": [
+          {
+            "letter": "C",
+            "percent": 0,
+            "nh": 0.2
+          },
+          {
+            "letter": "G",
+            "percent": 2,
+            "nh": 0
+          },
+          {
+            "letter": "H",
+            "percent": 3,
+            "nh": 0
+          },
+          {
+            "letter": "J",
+            "percent": 5,
+            "nh": 0
+          },
+          {
+            "letter": "K",
+            "percent": 10,
+            "nh": 0
+          },
+          {
+            "letter": "M",
+            "percent": 20,
+            "nh": 0
+          }
+        ],
+        "not_cross_checked": {
+          "tolerance": [
+            "B",
+            "D",
+            "F",
+            "N",
+            "P",
+            "S",
+            "W",
+            "Y"
+          ]
+        },
+        "notes": [
+          "3 digits are microhenry: the last digit is the number of zeros, so 100 = 10 µH and 101 = 100 µH.",
+          "R marks the decimal point in µH (4R7 = 4.7 µH, R47 = 0.47 µH); N marks the decimal point in nH (4N7 = 4.7 nH, 47N = 47 nH).",
+          "Tolerance letters are not the same at every maker: D is ±0.5 nH at Murata but ±0.3 nH at Bourns, and ±30 % is N at Vishay but Y at Bourns. Those letters are not decoded; check the datasheet.",
+          "Small chip inductors are often not printed with a value at all."
+        ]
+      }
+    },
+    {
+      "kind": "code",
       "id": "smd_resistor_code",
       "category": "codes",
       "code": "smd_resistor",
@@ -47058,7 +47138,7 @@
       "name": "TO-92: examples",
       "name_en": "TO-92: examples",
       "doc": "The pin order of a TO-92 part depends on the part, not on the package: this page lists examples only, so check the datasheet of your exact part and maker. Each is drawn from the front, flat side towards you and leads pointing down, and the numbers are positions from left to right.",
-      "notes": "The PN2222A entry is the plastic TO-92 type from onsemi (formerly Fairchild). It does not apply to the round metal-can 2N2222 (TO-18), whose leads form a triangle, and the similarly named onsemi P2N2222A has collector and emitter swapped: collector left, emitter right. The 78L05 runs the opposite way to the L78xx in TO-220: its input is on the right. TI's table numbers the TL431 leads against the positions used here; see its pin notes.",
+      "notes": "The PN2222A entry is the plastic TO-92 type from onsemi (formerly Fairchild). It does not apply to the round metal-can 2N2222 (TO-18), whose leads form a triangle, and the similarly named onsemi P2N2222A has collector and emitter swapped: collector left, emitter right. The 78L05 runs the opposite way to the L78xx in TO-220: its input is on the right. TI's table numbers the TL431 leads against the positions used here; see its pin notes. The BS170 runs the opposite way to the 2N7000: drain left, source right. The DS18B20 has ground on the left and the supply on the right, the reverse of the LM35. The BC337 and BC557 have the same order as the BC547 (collector left), the 2N3906 the same as the 2N3904 (emitter left).",
       "tags": [
         "to92",
         "to-92",
@@ -47088,9 +47168,18 @@
         "temperature sensor",
         "temperatursensor",
         "voltage reference",
-        "spannungsreferenz"
+        "spannungsreferenz",
+        "bc337",
+        "bc557",
+        "2n3906",
+        "bs170",
+        "ds18b20",
+        "pnp",
+        "1-wire",
+        "onewire",
+        "thermometer"
       ],
-      "source": "onsemi BC546/D Rev. 8 (BC547); onsemi/Fairchild PN2222A Rev. 1.1.0 and onsemi P2N2222A/D Rev. 7; multicomp 2N2222 sheet V1.0 (TO-18); onsemi 2N3903/D Rev. 9 (2N3904); onsemi NDS7002A/D Rev. 11 (2N7000); TI LM35 SNIS159H; TI UA78L SLVS010X and onsemi MC78L00A/D Rev. 21 (78L05); TI TL431 SLVS543S and onsemi TL431/D Rev. 45",
+      "source": "onsemi BC546/D Rev. 8 (BC547); onsemi/Fairchild PN2222A Rev. 1.1.0 and onsemi P2N2222A/D Rev. 7; multicomp 2N2222 sheet V1.0 (TO-18); onsemi 2N3903/D Rev. 9 (2N3904); onsemi NDS7002A/D Rev. 11 (2N7000); TI LM35 SNIS159H; TI UA78L SLVS010X and onsemi MC78L00A/D Rev. 21 (78L05); TI TL431 SLVS543S and onsemi TL431/D Rev. 45; Diotec BC337 and BC556 to BC559 (version 2026-03-30); onsemi BC556B/D Rev. 3 (BC557); onsemi 2N3906/D Rev. 4; onsemi BS170/D Rev. 7, MMBF170/D Rev. 9 and Vishay 70226 (BS170); Dallas DS18B20 datasheet (footer 050400)",
       "views": null,
       "shape": {
         "type": "to",
@@ -47322,6 +47411,877 @@
               "function": "Cathode, carries the shunt current",
               "type": "signal",
               "notes": "Position 3 here; TI's table calls it pin 1, onsemi pin 3.",
+              "wire": ""
+            }
+          ]
+        },
+        {
+          "id": "bc337",
+          "name": "BC337",
+          "pins": [
+            {
+              "number": "1",
+              "name": "C",
+              "function": "Collector",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "2",
+              "name": "B",
+              "function": "Base",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "3",
+              "name": "E",
+              "function": "Emitter",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            }
+          ]
+        },
+        {
+          "id": "bc557",
+          "name": "BC557",
+          "pins": [
+            {
+              "number": "1",
+              "name": "C",
+              "function": "Collector",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "2",
+              "name": "B",
+              "function": "Base",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "3",
+              "name": "E",
+              "function": "Emitter",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            }
+          ]
+        },
+        {
+          "id": "q2n3906",
+          "name": "2N3906",
+          "pins": [
+            {
+              "number": "1",
+              "name": "E",
+              "function": "Emitter",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "2",
+              "name": "B",
+              "function": "Base",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "3",
+              "name": "C",
+              "function": "Collector",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            }
+          ]
+        },
+        {
+          "id": "bs170",
+          "name": "BS170",
+          "pins": [
+            {
+              "number": "1",
+              "name": "D",
+              "function": "Drain",
+              "type": "signal",
+              "notes": "Drain on the left: the BS170 runs the opposite way to the 2N7000 (source on the left).",
+              "wire": ""
+            },
+            {
+              "number": "2",
+              "name": "G",
+              "function": "Gate",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "3",
+              "name": "S",
+              "function": "Source of the N-channel MOSFET",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            }
+          ]
+        },
+        {
+          "id": "ds18b20",
+          "name": "DS18B20",
+          "pins": [
+            {
+              "number": "1",
+              "name": "GND",
+              "function": "Ground",
+              "type": "ground",
+              "notes": "Ground on the left: the DS18B20 has supply and ground swapped compared with the LM35, whose supply is on the left.",
+              "wire": ""
+            },
+            {
+              "number": "2",
+              "name": "DQ",
+              "function": "1-Wire data input/output, open drain; also supplies the part in parasite-power mode",
+              "type": "data",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "3",
+              "name": "VDD",
+              "function": "Optional supply; tie to ground in parasite-power mode",
+              "type": "power",
+              "notes": "Supply on the right: the opposite of the LM35. Order from the maker's (Dallas) own datasheet; the current Analog Devices datasheet could not be opened.",
+              "wire": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "pinout",
+      "id": "pc817",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "PC817 (DIP-4)",
+      "name_en": "PC817 (DIP-4)",
+      "doc": "Phototransistor optocoupler of the Sharp PC817 series, drawn as the 4-pin DIP from above.",
+      "notes": "Input side (LED) on pins 1 and 2, output side (phototransistor) on pins 3 and 4; the two sides are isolated from each other. Pin 1 is marked by a dot on the top. The LED needs a series resistor. The SMT gull-wing version of the same series has the same pin numbers.",
+      "tags": [
+        "pc817",
+        "optocoupler",
+        "optokoppler",
+        "photocoupler",
+        "opto-isolator",
+        "fototransistor",
+        "phototransistor",
+        "isolator",
+        "dip4",
+        "dip-4",
+        "sharp",
+        "anode",
+        "cathode",
+        "kathode",
+        "emitter",
+        "collector",
+        "kollektor"
+      ],
+      "source": "Sharp PC817XxNSZ1B series datasheet OP18002EN (15 January 2018), page 2, Internal Connection Diagram and Outline 1 (through-hole)",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 4,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "Anode",
+          "function": "Anode of the infrared LED (input +)",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "Cathode",
+          "function": "Cathode of the infrared LED (input −)",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "Emitter",
+          "function": "Emitter of the output phototransistor",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "Collector",
+          "function": "Collector of the output phototransistor",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "irf540n",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "IRF540N / IRLZ44N (TO-220)",
+      "name_en": "IRF540N / IRLZ44N (TO-220)",
+      "doc": "N-channel power MOSFETs IRF540N (100 V) and IRLZ44N (logic level) of Infineon, formerly International Rectifier, drawn from the front: label side towards you, leads pointing down.",
+      "notes": "The metal tab is connected to the drain (pin 2): a heat sink on the tab carries the drain voltage, so insulate it from metal at any other potential. The IRLZ44N (logic-level) has the same pinout in its own Infineon datasheet.",
+      "tags": [
+        "irf540n",
+        "irf540",
+        "irlz44n",
+        "irlz44",
+        "mosfet",
+        "n-channel",
+        "n-kanal",
+        "hexfet",
+        "power mosfet",
+        "logic level",
+        "logikpegel",
+        "gate",
+        "drain",
+        "source",
+        "to220",
+        "to-220",
+        "infineon"
+      ],
+      "source": "Infineon IRF540NPbF datasheet Rev. 2.1 (24 July 2026), page 1 (symbol, TO-220 picture, legend) and page 8 (TO-220 package outline); Infineon IRLZ44NPbF datasheet Rev. 2.1 (12 August 2026), page 1",
+      "views": null,
+      "shape": {
+        "type": "to",
+        "outline": "",
+        "contact": "",
+        "drawn": "front",
+        "key": null,
+        "rows": [],
+        "pins": [
+          "1",
+          "2",
+          "3"
+        ],
+        "package": "to220",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "G",
+          "function": "Gate",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "D",
+          "function": "Drain, also on the tab",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "S",
+          "function": "Source",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "tip120",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "TIP120 (TO-220)",
+      "name_en": "TIP120 (TO-220)",
+      "doc": "NPN Darlington power transistor, 60 V and 5 A, drawn from the front: label side towards you, leads pointing down.",
+      "notes": "The metal tab is connected to the collector (pin 2): a heat sink on the tab carries the collector voltage, so insulate it from metal at any other potential. The sheet also covers the TIP121 and TIP122 (NPN) and the PNP types TIP125 to TIP127 in the same case; only the TIP120 is drawn here.",
+      "tags": [
+        "tip120",
+        "darlington",
+        "npn",
+        "transistor",
+        "power transistor",
+        "leistungstransistor",
+        "base",
+        "basis",
+        "collector",
+        "kollektor",
+        "emitter",
+        "to220",
+        "to-220",
+        "onsemi"
+      ],
+      "source": "onsemi TIP120/D Rev. 10 (June 2024), page 1 (picture and legend, TO-220AB CASE 221A STYLE 1) and PDF page 8 (case 221A outline)",
+      "views": null,
+      "shape": {
+        "type": "to",
+        "outline": "",
+        "contact": "",
+        "drawn": "front",
+        "key": null,
+        "rows": [],
+        "pins": [
+          "1",
+          "2",
+          "3"
+        ],
+        "package": "to220",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "B",
+          "function": "Base",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "C",
+          "function": "Collector, also on the tab",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "E",
+          "function": "Emitter",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "bt136",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "BT136 (TO-220)",
+      "name_en": "BT136 (TO-220)",
+      "doc": "4-quadrant triac BT136-600, 600 V and 4 A, in SOT78 (TO-220AB), drawn from the front: label side towards you, leads pointing down.",
+      "notes": "The metal tab is connected to T2 (pin 2), which usually carries mains voltage: never touch it in operation and insulate the heat sink. Not for the BT136X, the isolated full-pack version (TO-220F): its tab is not connected, and this page does not cover it.",
+      "tags": [
+        "bt136",
+        "bt136-600",
+        "triac",
+        "thyristor",
+        "ween",
+        "nxp",
+        "mt1",
+        "mt2",
+        "t1",
+        "t2",
+        "gate",
+        "sot78",
+        "to220",
+        "to-220",
+        "to-220ab"
+      ],
+      "source": "WeEn Semiconductors BT136-600 4Q Triac product data sheet Rev.02 (25 September 2024), section 5 Table 2 Pinning information, simplified outline and symbol (page 2)",
+      "views": null,
+      "shape": {
+        "type": "to",
+        "outline": "",
+        "contact": "",
+        "drawn": "front",
+        "key": null,
+        "rows": [],
+        "pins": [
+          "1",
+          "2",
+          "3"
+        ],
+        "package": "to220",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "T1",
+          "function": "Main terminal 1 (MT1), the reference for the gate",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "T2",
+          "function": "Main terminal 2 (MT2), also on the tab",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "G",
+          "function": "Gate",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "lm1117",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "LM1117 (TO-220)",
+      "name_en": "LM1117 (TO-220)",
+      "doc": "800 mA low-dropout linear regulator, adjustable or fixed output, TI package NDE, drawn from the front: label side towards you, leads pointing down.",
+      "notes": "The metal tab is connected to pin 2 (OUTPUT), as on the LM317: a heat sink on the tab carries the output voltage. The order is the same as the LM317 (adjust, output, input), not the L78xx (input, ground, output). Pin 1 is the adjust input on the adjustable version and ground on the fixed versions.",
+      "tags": [
+        "lm1117",
+        "regulator",
+        "spannungsregler",
+        "regler",
+        "ldo",
+        "low dropout",
+        "adjustable",
+        "einstellbar",
+        "adj",
+        "gnd",
+        "vin",
+        "vout",
+        "to220",
+        "to-220",
+        "nde"
+      ],
+      "source": "Texas Instruments LM1117 datasheet SNOS412Q (January 2023), section 6, Figure 6-2 (NDE package, TO-220) and Table 6-1 Pin Functions",
+      "views": null,
+      "shape": {
+        "type": "to",
+        "outline": "",
+        "contact": "",
+        "drawn": "front",
+        "key": null,
+        "rows": [],
+        "pins": [
+          "1",
+          "2",
+          "3"
+        ],
+        "package": "to220",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "ADJ/GND",
+          "function": "Adjust input on the adjustable version, ground on the fixed versions",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "OUTPUT",
+          "function": "Regulated output, also on the tab",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "INPUT",
+          "function": "Unregulated input voltage",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "sot23",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "SOT-23: examples",
+      "name_en": "SOT-23: examples",
+      "doc": "The pin order of a SOT-23 part depends on the part, not on the package: this page lists examples only, so check the datasheet of your exact part and maker. Each is drawn from above with the marking side up: pin 1 lower left, pin 2 lower right, pin 3 alone at the top.",
+      "notes": "The pin order of a SOT-23 part depends on the part, not on the package: transistors, MOSFETs, diodes and regulators in the same case use different orders. The examples here all have pin 3 alone on one side. The 2N7002 in SOT-23 (gate, source, drain) runs differently from the 2N7000 in TO-92 (source, gate, drain), and the MMBT3904 (base, emitter, collector) differently from the 2N3904 in TO-92 (emitter, base, collector).",
+      "tags": [
+        "sot23",
+        "sot-23",
+        "to-236",
+        "to236",
+        "smd",
+        "transistor",
+        "mosfet",
+        "bc847",
+        "bc846",
+        "bc848",
+        "mmbt3904",
+        "2n7002",
+        "bss84",
+        "npn",
+        "p-channel",
+        "p-kanal",
+        "n-channel",
+        "n-kanal",
+        "base",
+        "basis",
+        "collector",
+        "kollektor",
+        "emitter",
+        "gate",
+        "source",
+        "drain"
+      ],
+      "source": "onsemi BC846ALT1/D Rev. 21 (BC847), MMBT3904LT1/D Rev. 15 (MMBT3904), NDS7002A/D Rev. 11 (2N7002), BSS84/D Rev. 5 (BSS84), case 318 outline ISSUE AU; Diodes Incorporated DS11108 Rev. 28-2 (BC847), DS30036 Rev. 27-2 (MMBT3904), DS11303 Rev. 40-2 (2N7002), DS30149 Rev. 27-2 (BSS84)",
+      "views": null,
+      "shape": {
+        "type": "to",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": [
+          "1",
+          "2",
+          "3"
+        ],
+        "package": "sot23",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [],
+      "variants": [
+        {
+          "id": "bc847",
+          "name": "BC847",
+          "pins": [
+            {
+              "number": "1",
+              "name": "B",
+              "function": "Base",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "2",
+              "name": "E",
+              "function": "Emitter",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "3",
+              "name": "C",
+              "function": "Collector",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            }
+          ]
+        },
+        {
+          "id": "mmbt3904",
+          "name": "MMBT3904",
+          "pins": [
+            {
+              "number": "1",
+              "name": "B",
+              "function": "Base",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "2",
+              "name": "E",
+              "function": "Emitter",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "3",
+              "name": "C",
+              "function": "Collector",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            }
+          ]
+        },
+        {
+          "id": "q2n7002",
+          "name": "2N7002",
+          "pins": [
+            {
+              "number": "1",
+              "name": "G",
+              "function": "Gate",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "2",
+              "name": "S",
+              "function": "Source of the N-channel MOSFET",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "3",
+              "name": "D",
+              "function": "Drain",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            }
+          ]
+        },
+        {
+          "id": "bss84",
+          "name": "BSS84",
+          "pins": [
+            {
+              "number": "1",
+              "name": "G",
+              "function": "Gate",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "2",
+              "name": "S",
+              "function": "Source of the P-channel MOSFET, normally the more positive side",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "3",
+              "name": "D",
+              "function": "Drain",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "pinout",
+      "id": "sot223",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "SOT-223: examples",
+      "name_en": "SOT-223: examples",
+      "doc": "The pin order of a SOT-223 part depends on the part, not on the package: this page lists examples only, so check the datasheet of your exact part and maker. Each is drawn from above with the marking side up: pins 1 to 3 along the bottom from left to right, the tab at the top as pin 4.",
+      "notes": "The tab is connected to the middle pin in both examples: to the output of the LM1117 and to the collector of the BCP56. A copper area or heat sink on the tab therefore carries that potential. This is a property of these parts, not of the package.",
+      "tags": [
+        "sot223",
+        "sot-223",
+        "to-261",
+        "smd",
+        "lm1117",
+        "bcp56",
+        "bcp54",
+        "bcp55",
+        "regulator",
+        "spannungsregler",
+        "ldo",
+        "transistor",
+        "npn",
+        "tab",
+        "fahne",
+        "adj",
+        "vin",
+        "vout",
+        "base",
+        "basis",
+        "collector",
+        "kollektor",
+        "emitter"
+      ],
+      "source": "Texas Instruments LM1117 datasheet SNOS412Q (January 2023), section 6, Figure 6-1 (DCY package, SOT-223) and Table 6-1; onsemi BCP56T1/D Rev. 16 (August 2024), page 1; Diodes Incorporated BCP54/55/56 datasheet DS35367 Rev. 7-2 (January 2021), page 1",
+      "views": null,
+      "shape": {
+        "type": "to",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": [
+          "1",
+          "2",
+          "3",
+          "4"
+        ],
+        "package": "sot223",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [],
+      "variants": [
+        {
+          "id": "lm1117",
+          "name": "LM1117",
+          "pins": [
+            {
+              "number": "1",
+              "name": "ADJ/GND",
+              "function": "Adjust input on the adjustable version, ground on the fixed versions",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "2",
+              "name": "OUTPUT",
+              "function": "Regulated output, also on the tab",
+              "type": "power",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "3",
+              "name": "INPUT",
+              "function": "Unregulated input voltage",
+              "type": "power",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "4",
+              "name": "OUTPUT",
+              "function": "Tab, connected to the output (pin 2)",
+              "type": "power",
+              "notes": "",
+              "wire": ""
+            }
+          ]
+        },
+        {
+          "id": "bcp56",
+          "name": "BCP56",
+          "pins": [
+            {
+              "number": "1",
+              "name": "B",
+              "function": "Base",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "2",
+              "name": "C",
+              "function": "Collector, also on the tab",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "3",
+              "name": "E",
+              "function": "Emitter",
+              "type": "signal",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "4",
+              "name": "C",
+              "function": "Tab, connected to the collector (pin 2)",
+              "type": "signal",
+              "notes": "",
               "wire": ""
             }
           ]
