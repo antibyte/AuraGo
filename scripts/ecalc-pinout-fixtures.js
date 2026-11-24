@@ -97,6 +97,12 @@
         positions: Array.from({ length: 11 }, (_, i) => ({ pin: String(i + 1), angle: 30 * i + 15, radius: 0.8 })).concat([{ pin: '12', angle: 0, radius: 0 }])
     }), range(1, 12), { fields: { views: two } }));
 
+    // the only item of the group vehicle_mains: a small round plug (the fixture catalog covers all seven groups)
+    out.push(item('fx_pin_vehicle', 'vehicle_mains', 'Fixture: Fahrzeugstecker 4 (rund)', shape({
+        type: 'circular', contact: 'round', drawn: 'plug', key: 180,
+        positions: [['1', 315, 0.6], ['2', 45, 0.6], ['3', 135, 0.6], ['4', 225, 0.6]].map(p => ({ pin: p[0], angle: p[1], radius: p[2] }))
+    }), ['1', '2', '3', '4'], { fields: { views: two } }));
+
     // ---- dip, to, jack ----
     out.push(item('fx_pin_dip8', 'ics', 'Fixture: DIP-8', shape({ type: 'dip', drawn: 'top', pins: 8 }), range(1, 8)));
     out.push(item('fx_pin_dip28', 'ics', 'Fixture: DIP-28', shape({ type: 'dip', drawn: 'top', pins: 28 }), range(1, 28)));

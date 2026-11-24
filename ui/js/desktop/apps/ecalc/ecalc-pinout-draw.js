@@ -174,7 +174,8 @@
         // The receptacle with the analog block to the right (rows: 1..8, gap, C1 C2 / 9..16, gap, C5 / 17..24, gap, C3 C4): C5, the flat
         // ground blade between the four pins, is as wide as the block and sits half a pitch to the right of its column.
         dvi: { p: 26, rp: 26, padX: 16, padT: 14, padB: 14, bladeH: 16, cap: 18, tune: (number, dims, p) => (number === 'C5' ? { kind: 'blade', w: p + dims.w, h: 13, dx: 0.5 } : null) },
-        scart: { p: 22, rp: 26, padX: 22, padT: 12, padB: 14, bladeH: 16, cap: 17 },
+        // Contacts as large as those of dsub (21 at pitch 26): the two-digit numbers (10..21) then fit inside the circle in the real font.
+        scart: { p: 26, rp: 28, padX: 22, padT: 12, padB: 14, bladeH: 16, cap: 21 },
         // The contact side of a microSD card: pads 4 and 6 are the long ones (base height), the others end at the same line but are shorter.
         card: { p: 20, rp: 26, padX: 12, padT: 10, padB: 120, bladeH: 42, cap: 20, tune: number => (number === '4' || number === '6' ? null : { h: 28, dy: 7 }) }
     };
