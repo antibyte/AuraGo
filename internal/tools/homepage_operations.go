@@ -103,10 +103,8 @@ func ExecuteHomepageOperation(cfg HomepageConfig, db *sql.DB, op HomepageOperati
 			return ErrorJSON(err.Error())
 		}
 		if op.Name == "webserver_start" || op.Name == "publish_local" {
-			if saved, build := loadWebserverState(cfg.WorkspacePath); saved != "" {
-				if info, err := os.Stat(filepath.Join(cfg.WorkspacePath, saved, build)); err == nil && info.IsDir() {
-					op.ProjectDir = saved
-				}
+			if saved, _ := loadWebserverState(cfg.WorkspacePath); saved != "" {
+				op.ProjectDir = saved
 			}
 			if op.ProjectDir == "" {
 				op.ProjectDir, _ = findServableProject(cfg.WorkspacePath)

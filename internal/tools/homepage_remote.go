@@ -71,19 +71,12 @@ var homepageConfiguredProbeClient = func(raw string) (*http.Client, error) {
 // These are also used by automatic server/config callers, not just the agent dispatcher.
 func HomepageManagedWebServerStart(cfg HomepageConfig, db *sql.DB, projectDir, buildDir, reason string, logger *slog.Logger) string {
 	return ExecuteHomepageOperation(cfg, db, HomepageOperation{Name: "webserver_start", ProjectDir: projectDir, Reason: reason, Actor: "system", Source: "homepage_server", FilesMayChange: true}, logger, func(c HomepageConfig) string {
-		dir, build := projectDir, buildDir
-		if dir == "" {
-			dir = c.ManagedProjectDir
-			if saved, savedBuild := loadWebserverState(c.WorkspacePath); saved == dir && build == "" {
-				build = savedBuild
-			}
-		}
-		raw := HomepageWebServerStart(c, dir, build, logger)
+		raw := HomepageWebServerStart(c, projectDir, buildDir, logger)
 		parsed, outcome := homepageOperationOutcome(raw)
 		if outcome != "succeeded" {
 			return raw
 		}
-		dir = firstLedgerString(parsed, "project_dir")
+		dir := firstLedgerString(parsed, "project_dir")
 		if dir == "" {
 			dir = projectDir
 		}

@@ -780,38 +780,17 @@ func GetLatestHomepageRevision(db *sql.DB, projectDir string) (*HomepageRevision
 
 // DispatchHomepageRegistry handles tool calls for the homepage_registry action.
 func DispatchHomepageRegistry(db *sql.DB, operation, query, name, description, framework, projectDir, url, status, reason, problem, notes string, tags []string, id int64, lighthouseScore string, limit, offset int) (result string) {
+	var mutatedProjectID int64
 	defer func() {
-		switch operation {
-		case "register", "update", "delete", "log_edit", "log_deploy", "log_problem", "resolve_problem":
-		default:
+		if mutatedProjectID <= 0 {
 			return
 		}
-		parsed := map[string]interface{}{}
-		if json.Unmarshal([]byte(result), &parsed) != nil || parsed["status"] != "success" {
-			return
+		why := reason
+		if why == "" {
+			why = "unknown"
 		}
-		projectID := id
-		if value, ok := parsed["id"].(float64); ok {
-			projectID = int64(value)
-		}
-		if projectID <= 0 && projectDir != "" {
-			if p, err := GetProjectByDir(db, projectDir); err == nil {
-				projectID = p.ID
-			}
-		}
-		if projectID <= 0 && name != "" {
-			if p, err := GetProjectByName(db, name); err == nil {
-				projectID = p.ID
-			}
-		}
-		if projectID > 0 {
-			why := reason
-			if why == "" {
-				why = "unknown"
-			}
-			if _, err := RecordHomepageEvent(db, projectID, "registry_"+operation, "homepage_registry", "Registry "+operation, map[string]interface{}{"reason": why, "actor": "agent"}); err != nil {
-				result = ErrorJSONf("registry updated but event recording failed: %v", err)
-			}
+		if _, err := RecordHomepageEvent(db, mutatedProjectID, "registry_"+operation, "homepage_registry", "Registry "+operation, map[string]interface{}{"reason": why, "actor": "agent"}); err != nil {
+			result = ErrorJSONf("registry updated but event recording failed: %v", err)
 		}
 	}()
 
@@ -840,12 +819,13 @@ func DispatchHomepageRegistry(db *sql.DB, operation, query, name, description, f
 		if dup {
 			return fmt.Sprintf(`{"status":"duplicate","id":%d,"message":"Project already exists."}`, newID)
 		}
+		mutatedProjectID = newID
 		return fmt.Sprintf(`{"status":"success","id":%d,"message":"Project registered."}`, newID)
 
 	case "search":
 		projects, total, err := SearchProjects(db, query, status, tags, limit, offset)
 		if err != nil {
-			return fmt.Sprintf(`{"status":"error","message":"%s"}`, err.Error())
+			return ErrorJSON(err.Error())
 		}
 		b, _ := json.Marshal(projects)
 		return fmt.Sprintf(`{"status":"success","total":%d,"projects":%s}`, total, string(b))
@@ -854,7 +834,7 @@ func DispatchHomepageRegistry(db *sql.DB, operation, query, name, description, f
 		if id > 0 {
 			p, err := GetProject(db, id)
 			if err != nil {
-				return fmt.Sprintf(`{"status":"error","message":"%s"}`, err.Error())
+				return ErrorJSON(err.Error())
 			}
 			b, _ := json.Marshal(p)
 			return fmt.Sprintf(`{"status":"success","project":%s}`, string(b))
@@ -862,7 +842,7 @@ func DispatchHomepageRegistry(db *sql.DB, operation, query, name, description, f
 		if name != "" {
 			p, err := GetProjectByName(db, name)
 			if err != nil {
-				return fmt.Sprintf(`{"status":"error","message":"%s"}`, err.Error())
+				return ErrorJSON(err.Error())
 			}
 			b, _ := json.Marshal(p)
 			return fmt.Sprintf(`{"status":"success","project":%s}`, string(b))
@@ -872,7 +852,7 @@ func DispatchHomepageRegistry(db *sql.DB, operation, query, name, description, f
 	case "list":
 		projects, total, err := ListProjects(db, status, limit, offset)
 		if err != nil {
-			return fmt.Sprintf(`{"status":"error","message":"%s"}`, err.Error())
+			return ErrorJSON(err.Error())
 		}
 		b, _ := json.Marshal(projects)
 		return fmt.Sprintf(`{"status":"success","total":%d,"projects":%s}`, total, string(b))
@@ -882,7 +862,7 @@ func DispatchHomepageRegistry(db *sql.DB, operation, query, name, description, f
 			// Resolve by name
 			p, err := GetProjectByName(db, name)
 			if err != nil {
-				return fmt.Sprintf(`{"status":"error","message":"%s"}`, err.Error())
+				return ErrorJSON(err.Error())
 			}
 			id = p.ID
 		}
@@ -917,13 +897,14 @@ func DispatchHomepageRegistry(db *sql.DB, operation, query, name, description, f
 		if err := UpdateProject(db, id, fields); err != nil {
 			return errJSON("%s", err.Error())
 		}
+		mutatedProjectID = id
 		return `{"status":"success","message":"Project updated."}`
 
 	case "delete":
 		if id <= 0 && name != "" {
 			p, err := GetProjectByName(db, name)
 			if err != nil {
-				return fmt.Sprintf(`{"status":"error","message":"%s"}`, err.Error())
+				return ErrorJSON(err.Error())
 			}
 			id = p.ID
 		}
@@ -931,15 +912,16 @@ func DispatchHomepageRegistry(db *sql.DB, operation, query, name, description, f
 			return `{"status":"error","message":"'id' or 'name' is required for delete."}`
 		}
 		if _, err := db.Exec("UPDATE homepage_projects SET status = 'archived', updated_at = CURRENT_TIMESTAMP WHERE id = ?", id); err != nil {
-			return fmt.Sprintf(`{"status":"error","message":"%s"}`, err.Error())
+			return ErrorJSON(err.Error())
 		}
+		mutatedProjectID = id
 		return `{"status":"success","message":"Project archived; locations and history retained."}`
 
 	case "log_edit":
 		if id <= 0 && name != "" {
 			p, err := GetProjectByName(db, name)
 			if err != nil {
-				return fmt.Sprintf(`{"status":"error","message":"%s"}`, err.Error())
+				return ErrorJSON(err.Error())
 			}
 			id = p.ID
 		}
@@ -950,15 +932,16 @@ func DispatchHomepageRegistry(db *sql.DB, operation, query, name, description, f
 			return `{"status":"error","message":"'reason' is required for log_edit."}`
 		}
 		if err := LogEdit(db, id, reason); err != nil {
-			return fmt.Sprintf(`{"status":"error","message":"%s"}`, err.Error())
+			return ErrorJSON(err.Error())
 		}
+		mutatedProjectID = id
 		return `{"status":"success","message":"Edit logged."}`
 
 	case "log_deploy":
 		if id <= 0 && name != "" {
 			p, err := GetProjectByName(db, name)
 			if err != nil {
-				return fmt.Sprintf(`{"status":"error","message":"%s"}`, err.Error())
+				return ErrorJSON(err.Error())
 			}
 			id = p.ID
 		}
@@ -969,13 +952,14 @@ func DispatchHomepageRegistry(db *sql.DB, operation, query, name, description, f
 		if err := LogDeploy(db, id, deployURL); err != nil {
 			return errJSON("%s", err.Error())
 		}
+		mutatedProjectID = id
 		return `{"status":"success","message":"Deploy logged."}`
 
 	case "log_problem":
 		if id <= 0 && name != "" {
 			p, err := GetProjectByName(db, name)
 			if err != nil {
-				return fmt.Sprintf(`{"status":"error","message":"%s"}`, err.Error())
+				return ErrorJSON(err.Error())
 			}
 			id = p.ID
 		}
@@ -986,15 +970,16 @@ func DispatchHomepageRegistry(db *sql.DB, operation, query, name, description, f
 			return `{"status":"error","message":"'problem' is required."}`
 		}
 		if err := LogProblem(db, id, problem); err != nil {
-			return fmt.Sprintf(`{"status":"error","message":"%s"}`, err.Error())
+			return ErrorJSON(err.Error())
 		}
+		mutatedProjectID = id
 		return `{"status":"success","message":"Problem logged."}`
 
 	case "resolve_problem":
 		if id <= 0 && name != "" {
 			p, err := GetProjectByName(db, name)
 			if err != nil {
-				return fmt.Sprintf(`{"status":"error","message":"%s"}`, err.Error())
+				return ErrorJSON(err.Error())
 			}
 			id = p.ID
 		}
@@ -1005,11 +990,12 @@ func DispatchHomepageRegistry(db *sql.DB, operation, query, name, description, f
 			return `{"status":"error","message":"'problem' description to resolve is required."}`
 		}
 		if err := ResolveProblem(db, id, problem); err != nil {
-			return fmt.Sprintf(`{"status":"error","message":"%s"}`, err.Error())
+			return ErrorJSON(err.Error())
 		}
+		mutatedProjectID = id
 		return `{"status":"success","message":"Problem resolved."}`
 
 	default:
-		return fmt.Sprintf(`{"status":"error","message":"Unknown homepage_registry operation '%s'. Use: register, search, get, list, update, delete, log_edit, log_deploy, log_problem, resolve_problem."}`, operation)
+		return ErrorJSONf("Unknown homepage_registry operation %q. Use: register, search, get, list, update, delete, log_edit, log_deploy, log_problem, resolve_problem.", operation)
 	}
 }

@@ -280,6 +280,21 @@ func TestCaptureProxyKeepsTheLoopbackEscapeHatchMeaning(t *testing.T) {
 	}
 }
 
+func TestCaptureProxyCanDisableLoopbackOverride(t *testing.T) {
+	_, internal := captureProxyTestOrigins(t)
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
+	p, err := StartCaptureProxy(nil, CaptureProxyLimits{}, func(proxy *CaptureProxy) {
+		proxy.ignoreLoopbackOverride = true
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.Close()
+	if _, _, status := rawConnect(t, p, internal.hostPort()); status != http.StatusForbidden {
+		t.Fatalf("public-only proxy returned %d for restricted destination", status)
+	}
+}
+
 func TestCaptureProxyRejectsUnsupportedRequests(t *testing.T) {
 	allowed, _ := captureProxyTestOrigins(t)
 	p := startTestCaptureProxy(t, allowed, CaptureProxyLimits{})

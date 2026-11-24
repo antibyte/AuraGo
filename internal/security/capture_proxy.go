@@ -102,7 +102,8 @@ type CaptureProxy struct {
 	conns  map[net.Conn]struct{}
 	closed bool
 
-	checkNonce string // non-empty: answer captureEgressCheckHost with this nonce
+	checkNonce             string // non-empty: answer captureEgressCheckHost with this nonce
+	ignoreLoopbackOverride bool
 
 	done chan struct{} // closed when the listener has stopped serving, for any reason
 
@@ -408,6 +409,12 @@ func (p *CaptureProxy) destination(ctx context.Context, hostPort string) (string
 			return "", err // not a policy refusal: the name does not resolve
 		}
 		return "", fmt.Errorf("%w: %v", errCaptureDestinationBlocked, err)
+	}
+	if p.ignoreLoopbackOverride {
+		ip, _, err := net.SplitHostPort(target)
+		if err != nil || IsRestrictedNetworkIP(net.ParseIP(ip)) {
+			return "", fmt.Errorf("%w: only public network destinations are reachable", errCaptureDestinationBlocked)
+		}
 	}
 	return target, nil
 }

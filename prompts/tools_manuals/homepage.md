@@ -203,7 +203,7 @@ For framework projects, `build` runs inside the managed `aurago-homepage` contai
 ### dev — Start the dev server
 Starts the dev server (e.g. `npm run dev`) in the background. When the Caddy web container is running and a `project_dir` is specified, a reverse_proxy route is automatically registered so the app is accessible through the Caddy web server at `/<project_dir>/`.
 
-The dev container and Caddy web container are connected via a shared Docker network (`aurago-homepage-net`), allowing Caddy to forward requests to the dev server. Proxy routes are persisted in the workspace (`.aurago-proxy-routes.json`) and survive container restarts.
+The dev container and Caddy web container share the Docker network `aurago-homepage-net`. AuraGo persists validated proxy routes in protected publication storage, where they survive container restarts.
 
 ```json
 {"action": "homepage", "operation": "dev", "project_dir": "my-site"}
@@ -216,14 +216,14 @@ Runs `tsc --noEmit` (if `tsconfig.json` exists) followed by ESLint. Missing runt
 ```
 
 ### check_js — Check for JavaScript runtime errors
-Uses Playwright to load a page in headless Chromium and captures JavaScript errors and console errors. Useful for detecting runtime issues that linting alone cannot catch.
+Loads a public page in headless Chromium through AuraGo's public-only browser proxy. Reports JavaScript exceptions and console errors. Requires Chromium on the machine running AuraGo.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `url` | string | yes | URL to check (e.g. `http://localhost:3000`) |
+| `url` | string | yes | Public HTTP or HTTPS URL to check |
 
 ```json
-{"action": "homepage", "operation": "check_js", "url": "http://localhost:3000"}
+{"action": "homepage", "operation": "check_js", "url": "https://example.com"}
 ```
 
 **Response fields:**
@@ -293,7 +293,7 @@ Both the dev container (`aurago-homepage`) and the Caddy web container (`aurago-
 1. **Static file serving** — Caddy serves build output from `/srv` (default)
 2. **Reverse proxy to dev servers** — When a dev server is started via the `dev` operation, Caddy automatically proxies `/<project_dir>/*` to the dev container. This makes Next.js, Vite, and other framework dev servers accessible through the same Caddy URL without needing a separate port.
 
-Proxy routes are persisted in the workspace as `.aurago-proxy-routes.json` and are automatically included when Caddy starts or reloads.
+AuraGo loads validated routes from protected publication storage when Caddy starts or reloads. After upgrading an older local publication, publish the project explicitly and restart the dev servers to recreate their routes.
 
 ### Caddy Config with Proxy Routes
 

@@ -3,13 +3,42 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+
+	"aurago/internal/security"
 )
+
+func TestHomepageCheckJSUsesPublicOnlyEgress(t *testing.T) {
+	old := homepageLaunchCheckBrowser
+	t.Cleanup(func() { homepageLaunchCheckBrowser = old })
+	calls := 0
+	type ctxKey struct{}
+	ctx := context.WithValue(context.Background(), ctxKey{}, "call")
+	homepageLaunchCheckBrowser = func(callCtx context.Context, opts security.EgressBrowserOptions) (*security.EgressBrowser, error) {
+		calls++
+		if callCtx.Value(ctxKey{}) != "call" || opts.AllowedOrigin != nil || !opts.Sandbox || !opts.IgnoreLoopbackOverride {
+			t.Fatal("browser launch lost the caller context or public egress policy")
+		}
+		return nil, errors.New("fixture browser unavailable")
+	}
+	for _, url := range []string{"http://0.0.0.0", "http://[::]", "http://127.0.0.1", "http://100.64.0.1"} {
+		if raw := HomepageCheckJS(ctx, HomepageConfig{}, url, nil); !strings.Contains(raw, "requires a public URL") {
+			t.Fatalf("unexpected result for restricted URL: %s", raw)
+		}
+	}
+	if calls != 0 {
+		t.Fatalf("restricted URLs launched %d browsers", calls)
+	}
+	if raw := HomepageCheckJS(ctx, HomepageConfig{}, "https://8.8.8.8", nil); !strings.Contains(raw, "fixture browser unavailable") || calls != 1 {
+		t.Fatalf("expected protected browser launch failure, got %s (%d calls)", raw, calls)
+	}
+}
 
 func TestHomepageQualityResultUsesExitStatus(t *testing.T) {
 	for _, tc := range []struct {
@@ -86,7 +115,7 @@ func TestHomepageLintCommandPreservesFailures(t *testing.T) {
 	}
 }
 
-func TestHomepageBrowserChecksUsePinnedRuntime(t *testing.T) {
+func TestHomepageScreenshotUsesPinnedRuntime(t *testing.T) {
 	old := homepageDockerExecFunc
 	t.Cleanup(func() { homepageDockerExecFunc = old })
 	var commands []string
@@ -95,7 +124,6 @@ func TestHomepageBrowserChecksUsePinnedRuntime(t *testing.T) {
 		return `{"status":"ok","exit_code":0}`
 	}
 	HomepageScreenshot(context.Background(), HomepageConfig{}, "https://example.com", "", nil)
-	HomepageCheckJS(context.Background(), HomepageConfig{}, "https://example.com", nil)
 	for _, command := range commands {
 		if !strings.Contains(command, homepagePlaywrightModule) || strings.Contains(command, "npx ") {
 			t.Fatalf("browser check must use the installed pinned runtime: %s", command)

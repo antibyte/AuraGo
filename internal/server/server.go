@@ -1269,6 +1269,16 @@ func Start(opts StartOptions) error {
 		logger.Info("Docker is disabled; skipping security proxy auto-start")
 	}
 
+	if homepageDevAutoStartAllowed(cfg) || homepageWebServerAutoStartAllowed(cfg) {
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			defer cancel()
+			if err := tools.HomepageRetireLegacyWebServer(ctx, cfg.Docker.Host); err != nil {
+				logger.Warn("Could not retire the legacy Homepage web server", "error", err)
+			}
+		}()
+	}
+
 	// Auto-start Homepage dev container (aurago-homepage) if homepage is enabled.
 	// HomepageInit is idempotent: it starts a stopped container or creates it fresh.
 	if homepageDevAutoStartAllowed(cfg) {
@@ -1317,6 +1327,7 @@ func Start(opts StartOptions) error {
 			homepageCfg := tools.HomepageConfig{
 				DockerHost:            cfg.Docker.Host,
 				WorkspacePath:         cfg.Homepage.WorkspacePath,
+				DataDir:               cfg.Directories.DataDir,
 				WebServerPort:         cfg.Homepage.WebServerPort,
 				WebServerDomain:       cfg.Homepage.WebServerDomain,
 				WebServerInternalOnly: cfg.Homepage.WebServerInternalOnly,

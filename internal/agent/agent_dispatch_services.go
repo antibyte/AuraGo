@@ -1149,7 +1149,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					return "Tool Output: " + tools.HomepageScreenshot(ctx, homepageCfg, req.URL, req.Viewport, logger)
 				case "check_js":
 					logger.Info("LLM requested homepage check_js", "url", req.URL)
-					return "Tool Output: " + tools.HomepageCheckJS(ctx, homepageCfg, req.URL, logger)
+					return externalToolOutput(ctx, tools.HomepageCheckJS(ctx, homepageCfg, req.URL, logger))
 				case "lint":
 					logger.Info("LLM requested homepage lint", "dir", req.ProjectDir)
 					return "Tool Output: " + tools.HomepageLint(homepageCfg, req.ProjectDir, logger)

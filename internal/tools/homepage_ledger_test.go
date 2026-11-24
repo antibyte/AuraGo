@@ -416,6 +416,34 @@ func TestRecordHomepageDeploymentFromResultStrictKeepsArtifactWarningsNonFatal(t
 	}
 }
 
+func TestHomepageArtifactManifestKeepsBuildPathInsideProject(t *testing.T) {
+	workspace := t.TempDir()
+	cfg := HomepageConfig{WorkspacePath: workspace}
+	writeNetlifyDeployFiles(t, filepath.Join(workspace, "site"), map[string]string{"index.html": "<html>Site</html>"})
+	writeNetlifyDeployFiles(t, filepath.Join(workspace, "neighbor"), map[string]string{"index.html": "<html>Neighbor</html>"})
+	for _, build := range []string{"../neighbor", "../missing", filepath.Join(workspace, "neighbor")} {
+		if _, err := BuildHomepageArtifactManifest(cfg, 0, "site", 0, "", build); err == nil ||
+			err.Error() != "build_dir must be relative to the homepage project" {
+			t.Fatalf("unexpected artifact path result: %v", err)
+		}
+	}
+	outsideManifest := filepath.Join(workspace, "neighbor", homepageArtifactManifestName)
+	manifest := HomepageArtifactManifest{ProjectDir: "site", BuildDir: ".", ManifestPath: outsideManifest}
+	if err := WriteHomepageArtifactManifest(cfg, manifest); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(outsideManifest); !os.IsNotExist(err) {
+		t.Fatalf("untrusted manifest path was used: %v", err)
+	}
+	if err := os.Symlink(filepath.Join(workspace, "neighbor"), filepath.Join(workspace, "site", "alias")); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	manifest.BuildDir = "alias"
+	if err := WriteHomepageArtifactManifest(cfg, manifest); err == nil {
+		t.Fatal("manifest writer followed a build directory link")
+	}
+}
+
 func TestRecordHomepageDeploymentFromResultUsesNetlifyFallbackProjectAndBuildDir(t *testing.T) {
 	db := newHomepageLedgerTestDB(t)
 	workspace := t.TempDir()

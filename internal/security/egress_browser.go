@@ -73,6 +73,8 @@ type EgressBrowserOptions struct {
 	MaxConnections int
 	// Sandbox true removes --no-sandbox even inside a container.
 	Sandbox bool
+	// IgnoreLoopbackOverride keeps the proxy public-only except for AllowedOrigin.
+	IgnoreLoopbackOverride bool
 }
 
 // EgressBrowser is a headless Chrome whose whole network traffic goes through
@@ -132,7 +134,9 @@ func LaunchEgressBrowser(ctx context.Context, opts EgressBrowserOptions) (*Egres
 	}
 	proxy, err := StartCaptureProxy(opts.AllowedOrigin, CaptureProxyLimits{
 		MaxConcurrent: 16, MaxConnections: maxConns, MaxBytes: maxBytes,
-	}, withEgressCheck(nonce))
+	}, withEgressCheck(nonce), func(proxy *CaptureProxy) {
+		proxy.ignoreLoopbackOverride = opts.IgnoreLoopbackOverride
+	})
 	if err != nil {
 		return fail(fmt.Errorf("egress proxy: %w", err))
 	}

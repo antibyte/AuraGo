@@ -5,33 +5,47 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 
 	"aurago/internal/fileutil"
 )
 
-const homepageNetworkName = "aurago-homepage-net"
+const (
+	homepageNetworkName      = "aurago-homepage-net"
+	homepageCaddyfileName    = ".aurago-Caddyfile"
+	homepagePublicationLabel = "com.aurago.homepage.publication"
+)
 
 // ProxyRoute describes a single reverse_proxy route that the Caddy web container
-// should forward to the dev container.  Routes are persisted as a JSON file in
-// the workspace so they survive container restarts.
+// should forward to the dev container. Routes are persisted with publication state.
 type ProxyRoute struct {
 	Path        string `json:"path"`
 	Port        int    `json:"port"`
 	StripPrefix bool   `json:"strip_prefix,omitempty"`
 }
 
-var (
-	proxyRoutesMu sync.Mutex
-)
+var proxyRoutesMu sync.Mutex
+var homepageProxyMatcher = regexp.MustCompile(`^/[\p{L}\p{M}\p{N}._~/-]+\*?$`)
+
+func validateHomepageProxyRoute(route ProxyRoute) error {
+	if !homepageProxyMatcher.MatchString(route.Path) || strings.Contains(route.Path, "//") || strings.Contains(route.Path, "..") {
+		return fmt.Errorf("invalid Homepage proxy path")
+	}
+	if route.Port < 1 || route.Port > 65535 {
+		return fmt.Errorf("Homepage proxy port must be between 1 and 65535")
+	}
+	return nil
+}
 
 // proxyRoutesPath returns the path to the persistent proxy-routes JSON file.
-func proxyRoutesPath(workspacePath string) string {
-	return filepath.Join(workspacePath, ".aurago-proxy-routes.json")
+func proxyRoutesPath(publicationDir string) string {
+	return filepath.Join(publicationDir, ".aurago-proxy-routes.json")
 }
 
 // loadProxyRoutes reads the persisted proxy routes from disk.
@@ -39,7 +53,11 @@ func proxyRoutesPath(workspacePath string) string {
 // when the file cannot be read or parsed. A damaged route file is never
 // reported as an empty route set.
 func loadProxyRoutes(workspacePath string) ([]ProxyRoute, error) {
-	data, err := os.ReadFile(proxyRoutesPath(workspacePath))
+	dir, err := homepagePublicationDir(workspacePath)
+	if err != nil {
+		return nil, err
+	}
+	data, err := os.ReadFile(proxyRoutesPath(dir))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
@@ -48,7 +66,12 @@ func loadProxyRoutes(workspacePath string) ([]ProxyRoute, error) {
 	}
 	var routes []ProxyRoute
 	if err := json.Unmarshal(data, &routes); err != nil {
-		return nil, fmt.Errorf("failed to parse proxy routes %s: %w", proxyRoutesPath(workspacePath), err)
+		return nil, fmt.Errorf("failed to parse Homepage proxy routes: %w", err)
+	}
+	for i, route := range routes {
+		if err := validateHomepageProxyRoute(route); err != nil {
+			return nil, fmt.Errorf("proxy route %d: %w", i+1, err)
+		}
 	}
 	return routes, nil
 }
@@ -59,11 +82,20 @@ func loadProxyRoutes(workspacePath string) ([]ProxyRoute, error) {
 //
 // The caller owns the routes lock.
 func saveProxyRoutes(workspacePath string, routes []ProxyRoute) error {
+	for _, route := range routes {
+		if err := validateHomepageProxyRoute(route); err != nil {
+			return err
+		}
+	}
+	dir, err := ensureHomepagePublicationDir(workspacePath)
+	if err != nil {
+		return err
+	}
 	data, err := json.MarshalIndent(routes, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal proxy routes: %w", err)
 	}
-	if err := fileutil.WriteFileContext(context.Background(), proxyRoutesPath(workspacePath), data, 0644); err != nil {
+	if err := fileutil.WriteFileContext(context.Background(), proxyRoutesPath(dir), data, 0600); err != nil {
 		return fmt.Errorf("failed to write proxy routes: %w", err)
 	}
 	return nil
@@ -97,6 +129,9 @@ func homepageMutateProxyRoutes(workspacePath string, mutate func([]ProxyRoute) [
 // RegisterProxyRoute adds or updates a proxy route and persists it.
 // If a route with the same path already exists it is replaced.
 func RegisterProxyRoute(workspacePath string, route ProxyRoute) error {
+	if err := validateHomepageProxyRoute(route); err != nil {
+		return err
+	}
 	_, err := homepageMutateProxyRoutes(workspacePath, func(routes []ProxyRoute) []ProxyRoute {
 		for i, r := range routes {
 			if r.Path == route.Path {
@@ -205,8 +240,11 @@ func connectContainerToNetwork(dockerCfg DockerConfig, containerName string, log
 // Static file serving is the default (catch-all).  Proxy routes are matched
 // first via `handle` blocks.  The dev container is reachable inside the shared
 // Docker network as `aurago-homepage`.
-func buildCaddyfileWithProxies(domain string, port int, routes []ProxyRoute) string {
+func buildCaddyfileWithProxies(domain string, port int, routes []ProxyRoute) (string, error) {
 	devHost := homepageContainerName
+	if port == 0 {
+		port = 8080
+	}
 
 	var sb strings.Builder
 
@@ -229,6 +267,9 @@ func buildCaddyfileWithProxies(domain string, port int, routes []ProxyRoute) str
 	sb.WriteString("\troute {\n\t\thandle /.well-known/* {\n\t\t\tfile_server\n\t\t}\n\t\trespond @private 404\n\t\trespond @cors_preflight 204\n")
 
 	for _, r := range routes {
+		if err := validateHomepageProxyRoute(r); err != nil {
+			return "", err
+		}
 		proxyPath := r.Path
 		if !strings.HasSuffix(proxyPath, "*") {
 			proxyPath += "*"
@@ -251,7 +292,7 @@ func buildCaddyfileWithProxies(domain string, port int, routes []ProxyRoute) str
 
 	sb.WriteString("}\n")
 
-	return sb.String()
+	return sb.String(), nil
 }
 
 // reloadCaddy sends a SIGHUP to the Caddy process inside the web container so
@@ -322,8 +363,15 @@ func writeHomepageBindMountedFile(path string, content []byte) error {
 // container mount) and reloads Caddy.  Used when a dev server starts/stops
 // and the proxy routes change while the web container is already running.
 func rewriteCaddyfileWithProxyRoutes(cfg HomepageConfig, dockerCfg DockerConfig, routes []ProxyRoute, logger *slog.Logger) error {
-	caddyfile := buildCaddyfileWithProxies(cfg.WebServerDomain, cfg.WebServerPort, routes)
-	caddyfilePath := filepath.Join(cfg.WorkspacePath, ".aurago-Caddyfile")
+	caddyfile, err := buildCaddyfileWithProxies(cfg.WebServerDomain, cfg.WebServerPort, routes)
+	if err != nil {
+		return err
+	}
+	dir, err := homepagePublicationDir(cfg.WorkspacePath)
+	if err != nil {
+		return err
+	}
+	caddyfilePath := filepath.Join(dir, homepageCaddyfileName)
 	if err := writeHomepageBindMountedFile(caddyfilePath, []byte(caddyfile)); err != nil {
 		return fmt.Errorf("failed to write Caddyfile: %w", err)
 	}
@@ -335,6 +383,62 @@ func rewriteCaddyfileWithProxyRoutes(cfg HomepageConfig, dockerCfg DockerConfig,
 	if err != nil {
 		return fmt.Errorf("failed to reload Caddy after writing proxy routes: host_caddyfile_path=%s container_config_path=/etc/caddy/Caddyfile webserver_container=%s port=%d output=%s: %w",
 			caddyfilePath, homepageWebContainer, cfg.WebServerPort, truncateStr(reloadOutput, 500), err)
+	}
+	return nil
+}
+
+type homepageWebContainerInfo struct {
+	ID     string `json:"Id"`
+	Config struct {
+		Labels map[string]string
+	}
+	Mounts []struct {
+		Source      string
+		Destination string
+	}
+}
+
+func (info homepageWebContainerInfo) protectedPublication() bool {
+	return info.Config.Labels[homepagePublicationLabel] != ""
+}
+
+func (info homepageWebContainerInfo) legacyPublication() bool {
+	for _, mount := range info.Mounts {
+		if mount.Destination == "/etc/caddy/Caddyfile" && filepath.Base(mount.Source) == homepageCaddyfileName {
+			return !info.protectedPublication()
+		}
+	}
+	return false
+}
+
+// HomepageRetireLegacyWebServer stops an existing Caddy container whose config
+// was mounted from the dev workspace. Docker's restart policy otherwise keeps
+// that mount active across upgrades, even when AuraGo no longer uses its state.
+func HomepageRetireLegacyWebServer(ctx context.Context, dockerHost string) error {
+	dockerCfg := DockerConfig{Context: ctx, Host: dockerHost}
+	data, code, err := dockerRequest(dockerCfg, "GET", "/containers/"+homepageWebContainer+"/json", "")
+	if err != nil {
+		return err
+	}
+	if code == http.StatusNotFound {
+		return nil
+	}
+	var info homepageWebContainerInfo
+	if code != http.StatusOK || json.Unmarshal(data, &info) != nil {
+		return fmt.Errorf("cannot inspect Homepage web server (HTTP %d)", code)
+	}
+	if !info.legacyPublication() {
+		return nil
+	}
+	if !DockerNameValid(info.ID) {
+		return fmt.Errorf("cannot identify the legacy Homepage web server")
+	}
+	_, code, err = dockerRequest(dockerCfg, "POST", "/containers/"+info.ID+"/stop?t=10", "")
+	if err != nil {
+		return err
+	}
+	if code != http.StatusNoContent && code != http.StatusNotModified && code != http.StatusNotFound {
+		return fmt.Errorf("cannot stop legacy Homepage web server (HTTP %d)", code)
 	}
 	return nil
 }

@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -19,7 +20,6 @@ import (
 	"sync"
 	"time"
 
-	"aurago/internal/fileutil"
 	"aurago/internal/security"
 )
 
@@ -549,29 +549,16 @@ func recordHomepageDeploymentFromResult(cfg HomepageConfig, db *sql.DB, projectD
 	}
 	gitSHA := HomepageProjectGitSHA(cfg, proj.ProjectDir)
 	artifactHash := ""
-	buildRoot := filepath.Join(homepageLocalRoot(cfg, proj.ProjectDir), filepath.FromSlash(buildDir))
-	if info, err := os.Stat(buildRoot); err != nil {
+	manifest, err := BuildHomepageArtifactManifest(cfg, proj.ID, proj.ProjectDir, revisionID, gitSHA, buildDir)
+	if err != nil {
 		if logger != nil {
 			logger.Warn("[Homepage] Artifact manifest failed", "project_dir", proj.ProjectDir, "build_dir", buildDir, "error", err)
 		}
-		result.Warnings = append(result.Warnings, fmt.Sprintf("artifact manifest failed: build directory %q unavailable: %v", buildDir, err))
-	} else if !info.IsDir() {
-		err := fmt.Errorf("build path is not a directory")
-		if logger != nil {
-			logger.Warn("[Homepage] Artifact manifest failed", "project_dir", proj.ProjectDir, "build_dir", buildDir, "error", err)
-		}
-		result.Warnings = append(result.Warnings, fmt.Sprintf("artifact manifest failed: build path %q is not a directory", buildDir))
+		result.Warnings = append(result.Warnings, fmt.Sprintf("artifact manifest failed: %v", err))
 	} else {
-		if manifest, err := BuildHomepageArtifactManifest(cfg, proj.ID, proj.ProjectDir, revisionID, gitSHA, buildDir); err == nil {
-			artifactHash = manifest.ArtifactHash
-			if writeErr := WriteHomepageArtifactManifest(cfg, manifest); writeErr != nil {
-				result.Warnings = append(result.Warnings, fmt.Sprintf("artifact manifest write failed: %v", writeErr))
-			}
-		} else {
-			if logger != nil {
-				logger.Warn("[Homepage] Artifact manifest failed", "project_dir", proj.ProjectDir, "build_dir", buildDir, "error", err)
-			}
-			result.Warnings = append(result.Warnings, fmt.Sprintf("artifact manifest failed: %v", err))
+		artifactHash = manifest.ArtifactHash
+		if writeErr := WriteHomepageArtifactManifest(cfg, manifest); writeErr != nil {
+			result.Warnings = append(result.Warnings, fmt.Sprintf("artifact manifest write failed: %v", writeErr))
 		}
 	}
 	targetKeys := []string{"site_id", "new_site_id", "deploy_site_id", "project_id"}
@@ -635,11 +622,12 @@ func BuildHomepageArtifactManifest(cfg HomepageConfig, projectID int64, projectD
 	if buildDir == "" {
 		buildDir = "."
 	}
-	if err := sanitizeProjectDir(buildDir); err != nil {
+	root, err := openHomepageBuildRoot(cfg, canonical, buildDir)
+	if err != nil {
 		return HomepageArtifactManifest{}, err
 	}
-	root := filepath.Join(homepageLocalRoot(cfg, canonical), filepath.FromSlash(buildDir))
-	files, _, err := enumerateProjectFiles(root, nil, false)
+	defer root.Close()
+	files, _, err := enumerateHomepageRootFiles(root, nil, false)
 	if err != nil {
 		return HomepageArtifactManifest{}, err
 	}
@@ -664,24 +652,50 @@ func BuildHomepageArtifactManifest(cfg HomepageConfig, projectID int64, projectD
 		BuildDir:     filepath.ToSlash(filepath.Clean(buildDir)),
 		ArtifactHash: hex.EncodeToString(h.Sum(nil)),
 		Files:        manifestFiles,
-		ManifestPath: filepath.Join(root, homepageArtifactManifestName),
+		ManifestPath: filepath.Join(root.Name(), homepageArtifactManifestName),
 	}, nil
+}
+
+func openHomepageBuildRoot(cfg HomepageConfig, projectDir, buildDir string) (*os.Root, error) {
+	if buildDir == "" {
+		buildDir = "."
+	}
+	if err := sanitizeProjectDir(buildDir); err != nil || !filepath.IsLocal(filepath.FromSlash(buildDir)) || isWindowsDriveAbsolutePath(buildDir) {
+		return nil, fmt.Errorf("build_dir must be relative to the homepage project")
+	}
+	workspace, err := os.OpenRoot(cfg.WorkspacePath)
+	if err != nil {
+		return nil, fmt.Errorf("homepage workspace is unavailable")
+	}
+	defer workspace.Close()
+	project, err := openHomepageDirectory(workspace, projectDir)
+	if err != nil {
+		return nil, fmt.Errorf("homepage project directory is unavailable")
+	}
+	defer project.Close()
+	root, err := openHomepageDirectory(project, buildDir)
+	if err != nil {
+		return nil, fmt.Errorf("homepage build directory %q is unavailable", buildDir)
+	}
+	return root, nil
 }
 
 // WriteHomepageArtifactManifest writes .aurago-site-manifest.json into the build directory.
 func WriteHomepageArtifactManifest(cfg HomepageConfig, manifest HomepageArtifactManifest) error {
-	if manifest.ManifestPath == "" {
-		root := filepath.Join(homepageLocalRoot(cfg, manifest.ProjectDir), filepath.FromSlash(manifest.BuildDir))
-		manifest.ManifestPath = filepath.Join(root, homepageArtifactManifestName)
-	}
-	if err := os.MkdirAll(filepath.Dir(manifest.ManifestPath), 0755); err != nil {
+	canonical, err := canonicalHomepageProjectDir(cfg, manifest.ProjectDir)
+	if err != nil {
 		return err
 	}
+	root, err := openHomepageBuildRoot(cfg, canonical, manifest.BuildDir)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
 	b, err := json.MarshalIndent(manifest, "", "  ")
 	if err != nil {
 		return err
 	}
-	if err := fileutil.WriteFileContext(context.Background(), manifest.ManifestPath, b, 0644); err != nil {
+	if err := writeRootFromReaderAtomic(root, homepageArtifactManifestName, bytes.NewReader(b), 0644, false); err != nil {
 		return fmt.Errorf("write artifact manifest: %w", err)
 	}
 	return nil

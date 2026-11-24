@@ -1473,6 +1473,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 						homepageCfg := tools.HomepageConfig{
 							DockerHost:            newCfg.Docker.Host,
 							WorkspacePath:         newCfg.Homepage.WorkspacePath,
+							DataDir:               newCfg.Directories.DataDir,
 							WebServerPort:         newCfg.Homepage.WebServerPort,
 							WebServerDomain:       newCfg.Homepage.WebServerDomain,
 							WebServerInternalOnly: newCfg.Homepage.WebServerInternalOnly,

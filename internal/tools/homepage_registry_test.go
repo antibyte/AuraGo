@@ -2,11 +2,54 @@ package tools
 
 import (
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 )
+
+func TestHomepageRevisionStatusRequiresDirectoryInsideWorkspace(t *testing.T) {
+	db := newHomepageLedgerTestDB(t)
+	parent := t.TempDir()
+	workspace := filepath.Join(parent, "workspace")
+	if err := os.MkdirAll(filepath.Join(workspace, "site"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	check := func(project, want string) {
+		t.Helper()
+		raw := HomepageRevisionStatus(HomepageConfig{WorkspacePath: workspace}, db, project, nil)
+		var result map[string]any
+		if err := json.Unmarshal([]byte(raw), &result); err != nil || result["status"] != want {
+			t.Fatalf("revision status for %q: %s (%v)", project, raw, err)
+		}
+	}
+	check("site", "ok")
+	check("../workspace", "error")
+	check("../missing", "error")
+	check("missing", "error")
+	if err := os.Symlink(parent, filepath.Join(workspace, "alias")); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	check("alias", "error")
+}
+
+func TestHomepageRegistryLookupEscapesNamesWithoutRecordingMutations(t *testing.T) {
+	db := newHomepageLedgerTestDB(t)
+	name := "missing \"quoted\" project\nsecond line"
+	for _, operation := range []string{"get", "update", "delete", "log_edit", "log_deploy", "log_problem", "resolve_problem"} {
+		raw := DispatchHomepageRegistry(db, operation, "", name, "description", "", "", "", "", "test", "problem", "", nil, 0, "", 0, 0)
+		var result map[string]string
+		if err := json.Unmarshal([]byte(raw), &result); err != nil || len(result) != 2 ||
+			result["status"] != "error" || !strings.Contains(result["message"], name) {
+			t.Fatalf("%s returned an invalid lookup error: %s (%v)", operation, raw, err)
+		}
+	}
+	var count int
+	if err := db.QueryRow("SELECT COUNT(*) FROM homepage_site_events").Scan(&count); err != nil || count != 0 {
+		t.Fatalf("failed lookups recorded %d events: %v", count, err)
+	}
+}
 
 func TestInitHomepageRegistryDB(t *testing.T) {
 	db, err := InitHomepageRegistryDB(filepath.Join(t.TempDir(), "test_homepage.db"))

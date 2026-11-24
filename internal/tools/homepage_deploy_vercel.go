@@ -189,7 +189,9 @@ func HomepageDeployVercel(cfg HomepageConfig, vcfg VercelConfig, projectDir, bui
 	}
 	publicationHash := ""
 	if staticOutputDeploy {
-		snapshot, _, err := homepageLocalSnapshot(cfg, projectDir, candidate.BuildDir)
+		// The Vercel CLI runs in the dev container, so its temporary upload
+		// directory must be visible there. Never use it for local serving.
+		snapshot, _, err := homepageStaticSnapshot(cfg, projectDir, candidate.BuildDir, cfg.WorkspacePath, ".aurago/published")
 		if err != nil {
 			return errJSON("Cannot prepare a private Vercel publication: %v", err)
 		}

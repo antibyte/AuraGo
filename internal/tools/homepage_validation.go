@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"aurago/internal/security"
 	"unicode/utf8"
 )
 
@@ -72,9 +74,9 @@ func isPrivateHost(hostname string) bool {
 	return false
 }
 
-// isPrivateIP returns true for loopback, private, and link-local addresses.
+// isPrivateIP reports whether the IP is unsuitable for public outbound traffic.
 func isPrivateIP(ip net.IP) bool {
-	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast()
+	return security.IsRestrictedNetworkIP(ip)
 }
 
 // extractHostFromURL extracts the hostname from a URL string.
@@ -327,6 +329,17 @@ func resolveHomepagePath(workspacePath, relPath string) (string, error) {
 		return "", fmt.Errorf("path %q resolves outside the homepage workspace", relPath)
 	}
 	return fullPath, nil
+}
+
+// openHomepageDirectory opens a real subdirectory relative to an already bound root.
+func openHomepageDirectory(root *os.Root, relative string) (*os.Root, error) {
+	if !filepath.IsLocal(filepath.FromSlash(relative)) {
+		return nil, fmt.Errorf("homepage directory must be relative to its root")
+	}
+	if err := validateHereNowDirectoryComponents(root, relative); err != nil {
+		return nil, err
+	}
+	return root.OpenRoot(filepath.FromSlash(relative))
 }
 
 // resolveHomepageExistingPrefix resolves the symlinks of the longest existing

@@ -101,7 +101,7 @@ func TestRemoveProxyRoute(t *testing.T) {
 // error, never a silently empty route set.
 func TestLoadProxyRoutesReportsParseError(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.WriteFile(proxyRoutesPath(dir), []byte("{not json"), 0644); err != nil {
+	if err := os.WriteFile(proxyRoutesPath(testHomepagePublicationDir(t, dir)), []byte("{not json"), 0644); err != nil {
 		t.Fatalf("write: %v", err)
 	}
 	routes, err := loadProxyRoutes(dir)
@@ -117,13 +117,13 @@ func TestLoadProxyRoutesReportsParseError(t *testing.T) {
 // be read is never overwritten.
 func TestRegisterProxyRouteKeepsDamagedRouteFile(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.WriteFile(proxyRoutesPath(dir), []byte("{not json"), 0644); err != nil {
+	if err := os.WriteFile(proxyRoutesPath(testHomepagePublicationDir(t, dir)), []byte("{not json"), 0644); err != nil {
 		t.Fatalf("write: %v", err)
 	}
 	if err := RegisterProxyRoute(dir, ProxyRoute{Path: "/app", Port: 3000}); err == nil {
 		t.Fatal("expected registering a route to fail on a damaged route file")
 	}
-	data, err := os.ReadFile(proxyRoutesPath(dir))
+	data, err := os.ReadFile(proxyRoutesPath(testHomepagePublicationDir(t, dir)))
 	if err != nil {
 		t.Fatalf("read: %v", err)
 	}
@@ -140,7 +140,7 @@ func TestSaveProxyRoutesKeepsPreviousContentWhenWriteFails(t *testing.T) {
 	if err := saveProxyRoutes(dir, original); err != nil {
 		t.Fatalf("save: %v", err)
 	}
-	before, err := os.ReadFile(proxyRoutesPath(dir))
+	before, err := os.ReadFile(proxyRoutesPath(testHomepagePublicationDir(t, dir)))
 	if err != nil {
 		t.Fatalf("read: %v", err)
 	}
@@ -155,7 +155,7 @@ func TestSaveProxyRoutesKeepsPreviousContentWhenWriteFails(t *testing.T) {
 		t.Fatal("expected the blocked write to fail")
 	}
 
-	after, err := os.ReadFile(proxyRoutesPath(dir))
+	after, err := os.ReadFile(proxyRoutesPath(testHomepagePublicationDir(t, dir)))
 	if err != nil {
 		t.Fatalf("read: %v", err)
 	}
@@ -236,7 +236,10 @@ func TestRegisterAndRemoveProxyRouteConcurrent(t *testing.T) {
 }
 
 func TestBuildCaddyfileWithProxiesNoRoutes(t *testing.T) {
-	result := buildCaddyfileWithProxies("", 8080, nil)
+	result, err := buildCaddyfileWithProxies("", 8080, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !strings.Contains(result, "file_server") {
 		t.Fatal("expected file_server in Caddyfile")
 	}
@@ -253,7 +256,10 @@ func TestBuildCaddyfileWithProxiesWithRoutes(t *testing.T) {
 		{Path: "/phaser-demo", Port: 3000},
 		{Path: "/api", Port: 8080, StripPrefix: true},
 	}
-	result := buildCaddyfileWithProxies("", 8080, routes)
+	result, err := buildCaddyfileWithProxies("", 8080, routes)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !strings.Contains(result, "handle /phaser-demo*") {
 		t.Fatal("expected handle /phaser-demo*")
 	}
@@ -271,8 +277,38 @@ func TestBuildCaddyfileWithProxiesWithRoutes(t *testing.T) {
 	}
 }
 
+func TestHomepageProxyMatchersRejectInvalidPathsAndPorts(t *testing.T) {
+	workspace := t.TempDir()
+	dir := testHomepagePublicationDir(t, workspace)
+	for _, strip := range []bool{false, true} {
+		for _, route := range []ProxyRoute{
+			{Path: "/with\nnewline", Port: 3000, StripPrefix: strip},
+			{Path: "/with space", Port: 3000, StripPrefix: strip},
+			{Path: "/wild*card", Port: 3000, StripPrefix: strip},
+			{Path: "/valid", Port: 65536, StripPrefix: strip},
+		} {
+			if out, err := buildCaddyfileWithProxies("", 8080, []ProxyRoute{route}); err == nil || out != "" {
+				t.Fatalf("renderer accepted invalid route: %+v", route)
+			}
+			if err := RegisterProxyRoute(workspace, route); err == nil {
+				t.Fatalf("registration accepted invalid route: %+v", route)
+			}
+			persisted := fmt.Sprintf(`[{"path":%q,"port":%d,"strip_prefix":%t}]`, route.Path, route.Port, strip)
+			if err := os.WriteFile(proxyRoutesPath(dir), []byte(persisted), 0600); err != nil {
+				t.Fatal(err)
+			}
+			if routes, err := loadProxyRoutes(workspace); err == nil || len(routes) != 0 {
+				t.Fatalf("reader accepted invalid route: %+v", route)
+			}
+		}
+	}
+}
+
 func TestBuildCaddyfileWithProxiesAllowsSandboxedPreviewAssets(t *testing.T) {
-	result := buildCaddyfileWithProxies("", 8080, []ProxyRoute{{Path: "/app", Port: 3000}})
+	result, err := buildCaddyfileWithProxies("", 8080, []ProxyRoute{{Path: "/app", Port: 3000}})
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, want := range []string{
 		`Access-Control-Allow-Origin "*"`,
 		`Access-Control-Allow-Methods "GET, HEAD, OPTIONS"`,
@@ -288,7 +324,10 @@ func TestBuildCaddyfileWithProxiesAllowsSandboxedPreviewAssets(t *testing.T) {
 
 func TestBuildCaddyfileWithProxiesDomain(t *testing.T) {
 	routes := []ProxyRoute{{Path: "/app", Port: 3000}}
-	result := buildCaddyfileWithProxies("example.com", 443, routes)
+	result, err := buildCaddyfileWithProxies("example.com", 443, routes)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !strings.HasPrefix(result, "example.com") {
 		t.Fatal("expected Caddyfile to start with domain")
 	}
@@ -318,6 +357,7 @@ func TestReloadCaddyReturnsErrorOutputAndDoesNotSuppressFailure(t *testing.T) {
 
 func TestRewriteCaddyfileWithProxyRoutesReportsReloadDiagnostics(t *testing.T) {
 	dir := t.TempDir()
+	publicationDir := testHomepagePublicationDir(t, dir)
 	oldExec := homepageDockerExecFunc
 	defer func() { homepageDockerExecFunc = oldExec }()
 
@@ -327,7 +367,7 @@ func TestRewriteCaddyfileWithProxyRoutesReportsReloadDiagnostics(t *testing.T) {
 
 	err := rewriteCaddyfileWithProxyRoutes(
 		HomepageConfig{WorkspacePath: dir, WebServerPort: 8080},
-		DockerConfig{},
+		DockerConfig{Host: unavailableHomepageDockerHost(t)},
 		[]ProxyRoute{{Path: "/app", Port: 3000}},
 		discardLogger(),
 	)
@@ -336,7 +376,7 @@ func TestRewriteCaddyfileWithProxyRoutesReportsReloadDiagnostics(t *testing.T) {
 	}
 	msg := err.Error()
 	for _, want := range []string{
-		filepath.Join(dir, ".aurago-Caddyfile"),
+		filepath.Join(publicationDir, homepageCaddyfileName),
 		"/etc/caddy/Caddyfile",
 		homepageWebContainer,
 		"reload failed: file not found",
@@ -352,7 +392,10 @@ func TestBuildCaddyfileWithProxiesPathSuffix(t *testing.T) {
 		{Path: "/trailing/", Port: 3000},
 		{Path: "/wildcard*", Port: 4000},
 	}
-	result := buildCaddyfileWithProxies("", 80, routes)
+	result, err := buildCaddyfileWithProxies("", 80, routes)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !strings.Contains(result, "handle /trailing/*") {
 		t.Fatalf("expected /trailing/*, got:\n%s", result)
 	}
@@ -370,7 +413,10 @@ func TestFilterProxyRoutesForStaticProjectRemovesConflictingDevRoute(t *testing.
 	}
 
 	filtered := filterProxyRoutesForStaticProject(routes, "ki-news-static")
-	caddyfile := buildCaddyfileWithProxies("", 8080, filtered)
+	caddyfile, err := buildCaddyfileWithProxies("", 8080, filtered)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if strings.Contains(caddyfile, "handle /ki-news*") {
 		t.Fatalf("expected stale /ki-news proxy to be removed, got:\n%s", caddyfile)
@@ -390,8 +436,8 @@ func TestFilterProxyRoutesForStaticProjectRemovesConflictingDevRoute(t *testing.
 
 func TestProxyRoutesFilePersistence(t *testing.T) {
 	dir := t.TempDir()
-	p := proxyRoutesPath(dir)
-	expected := filepath.Join(dir, ".aurago-proxy-routes.json")
+	p := proxyRoutesPath(testHomepagePublicationDir(t, dir))
+	expected := filepath.Join(testHomepagePublicationDir(t, dir), ".aurago-proxy-routes.json")
 	if p != expected {
 		t.Fatalf("expected path %q, got %q", expected, p)
 	}

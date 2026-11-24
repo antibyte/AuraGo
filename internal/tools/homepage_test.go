@@ -70,6 +70,8 @@ func TestIsValidHomepageURL_RejectsSSRF(t *testing.T) {
 		"http://10.0.0.1",
 		"http://172.16.0.1",
 		"http://[::1]:3000",
+		"http://0.0.0.0:3000",
+		"http://[::]:3000",
 	}
 	for _, u := range ssrf {
 		if isValidHomepageURL(u) {
@@ -978,20 +980,6 @@ func TestHomepageWriteFile_SizeLimit(t *testing.T) {
 }
 
 // ─── HomepageCheckJS Fallback ────────────────────────────────────────────
-
-func TestHomepageCheckJS_PlaywrightMissing(t *testing.T) {
-	oldDockerExec := homepageDockerExecFunc
-	defer func() { homepageDockerExecFunc = oldDockerExec }()
-
-	homepageDockerExecFunc = func(cfg DockerConfig, containerName, command, user string) string {
-		return `{"exit_code":1,"output":"Error: Cannot find module 'playwright'"}`
-	}
-
-	got := HomepageCheckJS(context.Background(), HomepageConfig{}, "https://8.8.8.8", nil)
-	if !strings.Contains(got, "Playwright not available") {
-		t.Errorf("expected Playwright not available error, got: %s", got)
-	}
-}
 
 func TestHomepageCheckJS_RejectsEmptyURL(t *testing.T) {
 	got := HomepageCheckJS(context.Background(), HomepageConfig{}, "", nil)

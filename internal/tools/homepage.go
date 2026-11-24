@@ -1069,7 +1069,13 @@ func copyReferencedAssetsAfterBuild(cfg HomepageConfig, project homepageProjectI
 		}
 		return
 	}
-	copyAssetsToBuildDir(candidate.Path, cfg.DataDir, logger)
+	root, err := openHomepageBuildRoot(cfg, project.ProjectDir, candidate.BuildDir)
+	if err != nil {
+		logger.Warn("[Homepage] Could not bind the build directory for asset bundling", "error", err)
+		return
+	}
+	defer root.Close()
+	copyHomepageBuildAssets(root, cfg.DataDir, logger)
 }
 
 func homepageValidateDeployableBuildOutput(cfg HomepageConfig, project homepageProjectInfo, buildStarted time.Time) error {
@@ -1342,43 +1348,4 @@ func HomepageLint(cfg HomepageConfig, projectDir string, logger *slog.Logger) st
 	logger.Info("[Homepage] Lint", "dir", projectDir)
 	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
 	return homepageQualityResult(homepageDockerExecFunc(dockerCfg, homepageContainerName, homepageLintCommand(homepageContainerProjectPath(projectDir)), ""))
-}
-
-// HomepageCheckJS navigates to a URL and captures any JavaScript console errors.
-func HomepageCheckJS(ctx context.Context, cfg HomepageConfig, url string, logger *slog.Logger) string {
-	cfg.Context = nativeHTTPContext(ctx)
-	if url == "" {
-		return errJSON("url is required for check_js")
-	}
-	if !isValidHomepageURL(url) {
-		return errJSON("invalid URL: must be a valid http:// or https:// URL without shell metacharacters")
-	}
-	if logger != nil {
-		logger.Info("[Homepage] CheckJS", "url", url)
-	}
-	dockerCfg := DockerConfig{Context: cfg.Context, Host: cfg.DockerHost}
-
-	containerURL := rewriteLocalhostForContainer(url)
-	js := fmt.Sprintf(`
-const {chromium} = require(%q);
-(async()=>{
-  const errors = [];
-  const b = await chromium.launch({args:['--no-sandbox']});
-  try {
-    const p = await b.newPage();
-    p.on('pageerror', e => errors.push({type:'error',message:e.message}));
-    p.on('console', m => { if(m.type()==='error') errors.push({type:'console-error',message:m.text()}); });
-    await p.goto(%q,{waitUntil:'networkidle',timeout:30000});
-    await new Promise(r=>setTimeout(r,2000));
-  } finally { await b.close(); }
-  console.log(JSON.stringify({errorCount:errors.length,errors:errors.slice(0,20)}));
-  process.exitCode = errors.length ? 1 : 0;
-})().catch(e=>{ console.error(e.message); process.exitCode=1; });`, homepagePlaywrightModule, containerURL)
-	script := "node -e " + shellSingleQuote(js)
-
-	result := homepageDockerExecFunc(dockerCfg, homepageContainerName, script, "")
-	if strings.Contains(result, "Cannot find module 'playwright'") || strings.Contains(result, "MODULE_NOT_FOUND") {
-		return errJSON("Playwright not available in homepage container. Rebuild the Homepage container to install the package matching its bundled browsers.")
-	}
-	return homepageQualityResult(result)
 }

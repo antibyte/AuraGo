@@ -116,11 +116,16 @@ URL alone does not establish reachability. These reads never publish a website.
 The "Publication unconfirmed" badge means the ledger has no confirmed publication
 for the current version. It does not prove that no copy exists on an external host.
 
-Local publication serves a filtered immutable snapshot, mounted read-only into
-Caddy. Editing source files cannot alter it. Restart restores the saved snapshot
-and refuses invalid state or a changed index hash. Failed activation restores the
-previous container and Caddyfile. Retained snapshots under `.aurago/published`
-are reserved managed state and require reviewed cleanup.
+Local publication keeps Caddy configuration, proxy routes, restart state and
+snapshots in a sibling directory named `<workspace>.aurago-publication`. AuraGo
+needs write access to the workspace's parent directory. Caddy mounts the
+filtered snapshot read-only at `/srv`. Restart restores the saved snapshot and
+checks its index hash. A failed activation restores the previous protected
+publication. Retained snapshots under `published/` require reviewed cleanup.
+
+On upgrade from in-workspace publication storage, AuraGo stops the old Caddy
+container. Publish the project explicitly once to create the protected snapshot,
+then start any dev servers again to recreate their proxy routes.
 
 Static verification checks complete bounded HTML (up to 2 MiB), article balance,
 truncation markers, expected index SHA-256 and critical assets. Vercel checks

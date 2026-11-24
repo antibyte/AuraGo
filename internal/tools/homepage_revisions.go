@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -74,6 +75,10 @@ func enumerateProjectFiles(basePath string, logger *slog.Logger, includeContent 
 		return nil, nil, err
 	}
 	defer root.Close()
+	return enumerateHomepageRootFiles(root, logger, includeContent)
+}
+
+func enumerateHomepageRootFiles(root *os.Root, logger *slog.Logger, includeContent bool) ([]fileEntry, []string, error) {
 	var entries []fileEntry
 	var skipped []string
 	contentBytes := 0
@@ -81,26 +86,25 @@ func enumerateProjectFiles(basePath string, logger *slog.Logger, includeContent 
 	if includeContent {
 		prefixLimit = maxRevisionFileSize + 1
 	}
-	err = filepath.Walk(basePath, func(p string, info os.FileInfo, walkErr error) error {
+	err := fs.WalkDir(root.FS(), ".", func(rel string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
-		rel, err := filepath.Rel(basePath, p)
-		if err != nil {
-			return err
-		}
-		rel = filepath.ToSlash(rel)
 		if rel == "." {
 			return nil
 		}
 		if shouldExcludePath(rel) {
-			if info.IsDir() {
-				return filepath.SkipDir
+			if entry.IsDir() {
+				return fs.SkipDir
 			}
 			return nil
 		}
-		if info.IsDir() {
+		if entry.IsDir() {
 			return nil
+		}
+		info, err := root.Lstat(filepath.FromSlash(rel))
+		if err != nil {
+			return err
 		}
 		if !info.Mode().IsRegular() {
 			// Lstat semantics: a symlink is never a regular file, so its
@@ -211,12 +215,12 @@ type revisionStatus struct {
 	UnifiedDelta  revisionDelta `json:"unified_delta"`
 }
 
-func computeUnifiedDelta(db *sql.DB, projectDir, basePath string, baseRevID int64, logger *slog.Logger) (*revisionDelta, error) {
+func computeUnifiedDelta(db *sql.DB, projectDir string, root *os.Root, baseRevID int64, logger *slog.Logger) (*revisionDelta, error) {
 	baseline, err := reconstructProjectState(db, projectDir, baseRevID, logger)
 	if err != nil {
 		return nil, err
 	}
-	currentFiles, _, err := enumerateProjectFiles(basePath, logger, true)
+	currentFiles, _, err := enumerateHomepageRootFiles(root, logger, true)
 	if err != nil {
 		return nil, err
 	}
@@ -789,10 +793,21 @@ func HomepageRevisionStatus(cfg HomepageConfig, db *sql.DB, projectDir string, l
 	if projectDir == "" {
 		return `{"status":"error","message":"project_dir is required"}`
 	}
-	basePath := filepath.Join(cfg.WorkspacePath, projectDir)
-	if _, err := os.Stat(basePath); os.IsNotExist(err) {
-		return fmt.Sprintf(`{"status":"error","message":"project directory '%s' does not exist"}`, projectDir)
+	canonical, err := NormalizeHomepageProjectIdentity(projectDir, true)
+	if err != nil {
+		return ErrorJSON(err.Error())
 	}
+	workspace, err := os.OpenRoot(cfg.WorkspacePath)
+	if err != nil {
+		return ErrorJSON("homepage workspace is unavailable")
+	}
+	defer workspace.Close()
+	root, err := openHomepageDirectory(workspace, canonical)
+	if err != nil {
+		return ErrorJSONf("project directory %q is unavailable", canonical)
+	}
+	defer root.Close()
+	projectDir = canonical
 	status := &revisionStatus{ProjectDir: projectDir}
 	latest, err := GetLatestHomepageRevision(db, projectDir)
 	if err != nil || latest == nil {
@@ -807,9 +822,9 @@ func HomepageRevisionStatus(cfg HomepageConfig, db *sql.DB, projectDir string, l
 	status.HasRevisions = true
 	status.LatestRevID = latest.ID
 	status.LatestMessage = latest.Message
-	delta, err := computeUnifiedDelta(db, projectDir, basePath, latest.ID, logger)
+	delta, err := computeUnifiedDelta(db, projectDir, root, latest.ID, logger)
 	if err != nil {
-		return fmt.Sprintf(`{"status":"error","message":"%s"}`, err.Error())
+		return ErrorJSON(err.Error())
 	}
 	status.UnifiedDelta = *delta
 	b, _ := json.Marshal(map[string]interface{}{

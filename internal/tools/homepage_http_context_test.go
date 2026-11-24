@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestHomepageBrowserChecksUseExplicitContext(t *testing.T) {
+func TestHomepageScreenshotUsesExplicitContext(t *testing.T) {
 	original := homepageDockerExecFunc
 	t.Cleanup(func() { homepageDockerExecFunc = original })
 	ctx, cancel := context.WithCancel(context.Background())
@@ -22,9 +22,8 @@ func TestHomepageBrowserChecksUseExplicitContext(t *testing.T) {
 		return `{"status":"cancelled"}`
 	}
 	HomepageScreenshot(ctx, HomepageConfig{}, "https://example.com", "", nil)
-	HomepageCheckJS(ctx, HomepageConfig{}, "https://example.com", nil)
-	if calls != 2 {
-		t.Fatalf("Docker calls = %d, want 2", calls)
+	if calls != 1 {
+		t.Fatalf("Docker calls = %d, want 1", calls)
 	}
 }
 

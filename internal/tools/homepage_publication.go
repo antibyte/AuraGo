@@ -10,6 +10,55 @@ import (
 	"time"
 )
 
+const homepagePublicationsFolder = "published"
+
+// The directory is a sibling of the resolved source workspace, which the dev
+// container mounts read-write. Never reuse publication state found in that mount.
+func homepagePublicationDir(workspace string) (string, error) {
+	if strings.TrimSpace(workspace) == "" {
+		return "", fmt.Errorf("homepage workspace is not configured")
+	}
+	abs, err := filepath.Abs(workspace)
+	if err != nil {
+		return "", err
+	}
+	parent := filepath.Dir(abs)
+	if parent == abs {
+		return "", fmt.Errorf("homepage workspace cannot be a filesystem root")
+	}
+	resolvedParent, err := filepath.EvalSymlinks(parent)
+	if err != nil {
+		return "", err
+	}
+	if info, err := os.Lstat(abs); err == nil {
+		if !info.IsDir() || info.Mode()&(os.ModeSymlink|os.ModeIrregular) != 0 {
+			return "", fmt.Errorf("homepage workspace must be a real directory")
+		}
+	} else if !os.IsNotExist(err) {
+		return "", err
+	}
+	dir := filepath.Join(resolvedParent, filepath.Base(abs)+".aurago-publication")
+	if info, err := os.Lstat(dir); err == nil {
+		if !info.IsDir() || info.Mode()&(os.ModeSymlink|os.ModeIrregular) != 0 {
+			return "", fmt.Errorf("homepage publication directory must be a real directory")
+		}
+	} else if !os.IsNotExist(err) {
+		return "", err
+	}
+	return dir, nil
+}
+
+func ensureHomepagePublicationDir(workspace string) (string, error) {
+	dir, err := homepagePublicationDir(workspace)
+	if err != nil {
+		return "", err
+	}
+	if err := os.Mkdir(dir, 0700); err != nil && !os.IsExist(err) {
+		return "", err
+	}
+	return homepagePublicationDir(workspace)
+}
+
 func homepageNonPublicArtifact(relative string) bool {
 	// Credential paths retain their callers' explicit reject/filter policy.
 	if hereNowSensitivePath(relative) {
@@ -29,20 +78,26 @@ func homepageNonPublicArtifact(relative string) bool {
 }
 
 func homepageLocalSnapshot(cfg HomepageConfig, projectDir, buildDir string) (*hereNowPublishSnapshot, string, error) {
-	root, err := os.OpenRoot(cfg.WorkspacePath)
+	dir, err := ensureHomepagePublicationDir(cfg.WorkspacePath)
+	if err != nil {
+		return nil, "", err
+	}
+	return homepageStaticSnapshot(cfg, projectDir, buildDir, dir, homepagePublicationsFolder)
+}
+
+func homepageStaticSnapshot(cfg HomepageConfig, projectDir, buildDir, parent, relativeParent string) (*hereNowPublishSnapshot, string, error) {
+	root, err := os.OpenRoot(parent)
 	if err != nil {
 		return nil, "", err
 	}
 	defer root.Close()
-	const relativeParent = ".aurago/published"
 	if err := root.MkdirAll(relativeParent, 0700); err != nil {
 		return nil, "", err
 	}
 	if err := validateHereNowDirectoryComponents(root, relativeParent); err != nil {
 		return nil, "", err
 	}
-	parent := filepath.Join(cfg.WorkspacePath, filepath.FromSlash(relativeParent))
-	snapshot, err := buildHomepageSnapshotIn(cfg.WorkspacePath, filepath.ToSlash(filepath.Join(projectDir, buildDir)), parent, netlifyZipMaxBytes)
+	snapshot, err := buildHomepageSnapshotIn(cfg.WorkspacePath, filepath.ToSlash(filepath.Join(projectDir, buildDir)), filepath.Join(parent, filepath.FromSlash(relativeParent)), netlifyZipMaxBytes)
 	if err != nil {
 		return nil, "", err
 	}
@@ -54,12 +109,12 @@ func homepageLocalSnapshot(cfg HomepageConfig, projectDir, buildDir string) (*he
 	return snapshot, hash, nil
 }
 
-func homepageSavedSnapshot(workspace string, state webserverState) (string, error) {
+func homepageSavedSnapshot(publicationDir string, state webserverState) (string, error) {
 	rel := filepath.ToSlash(state.SnapshotDir)
-	if !strings.HasPrefix(rel, ".aurago/published/") || strings.Contains(rel, "..") || state.IndexSHA256 == "" {
+	if !strings.HasPrefix(rel, homepagePublicationsFolder+"/") || strings.Contains(rel, "..") || state.IndexSHA256 == "" {
 		return "", fmt.Errorf("saved publication snapshot is invalid; publish the project explicitly")
 	}
-	root, err := os.OpenRoot(workspace)
+	root, err := os.OpenRoot(publicationDir)
 	if err != nil {
 		return "", err
 	}
@@ -67,7 +122,7 @@ func homepageSavedSnapshot(workspace string, state webserverState) (string, erro
 	if err := validateHereNowDirectoryComponents(root, rel); err != nil {
 		return "", err
 	}
-	full := filepath.Join(workspace, filepath.FromSlash(rel))
+	full := filepath.Join(publicationDir, filepath.FromSlash(rel))
 	hash, err := homepageStaticIndexHash(full)
 	if err != nil {
 		return "", err
