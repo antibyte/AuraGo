@@ -564,7 +564,7 @@
     // ---- smd_inductor ----------------------------------------------------------------------------------------------------------------------
     // Three characters (three digits, or two digits and one R or N) and an optional tolerance letter. Only the tolerance letters
     // that two makers state identically are decoded; the others are in not_cross_checked.
-    const SMDI_CODE = /^(\d\d\d|\d\d[RN]|\d[RN]\d|[RN]\d\d)([A-Z]?)$/;
+    const SMDI_CODE = /^(\d\d\d|\d\d[RN]|\d[RN]\d|R\d\d)([A-Z]?)$/;
     const SMDI_LETTER = /^[A-Za-z]$/;
     const NOT_CHECKED_TOLERANCE = 'is not cross-checked (makers disagree, or only one maker states it)';
 
@@ -633,7 +633,7 @@
         if (eu === -4) return { code: tens + 'N' + ones, family: 'N notation (nH)' };
         if (eu === -5 && ones === 0) return { code: '0N' + tens, family: 'N notation (nH)' };
         if (eu > 9) throw unsupported(units.format(v, 'inductance', '', 4) + ' is outside the range of the code (up to 99 × 10⁹ µH)');
-        throw unsupported(units.format(v, 'inductance', '', 4) + ' has no 3-character marking (below 0.1 µH the N notation holds 0.3 nH, 1 nH to 9.9 nH in steps of 0.1 and 10 nH to 99 nH)');
+        throw unsupported(units.format(v, 'inductance', '', 4) + ' has no 3-character marking (below 0.1 µH only the N notation applies: 10 nH to 99 nH, 1 nH to 9.9 nH and 0.1 nH to 0.9 nH, each in steps of 0.1 nH or two digits, so nothing below 0.1 nH and nothing like 0.15 nH)');
     }
 
     // The tolerance of an encode request: a letter or a percentage; null when empty.

@@ -81,7 +81,7 @@ func codeSMDInductorJSON(data any, lang string) any {
 
 // A value code of three characters (three digits, or two digits and one R or N) and an optional tolerance letter.
 var (
-	codeSMDIRe       = regexp.MustCompile(`^(\d\d\d|\d\d[RN]|\d[RN]\d|[RN]\d\d)([A-Z]?)$`)
+	codeSMDIRe       = regexp.MustCompile(`^(\d\d\d|\d\d[RN]|\d[RN]\d|R\d\d)([A-Z]?)$`)
 	codeSMDILetterRe = regexp.MustCompile(`^[A-Za-z]$`)
 )
 
@@ -176,7 +176,7 @@ func codeSMDInductorValue(u *Units, v float64) (code, family string, err error) 
 	case eu > 9:
 		return "", "", codeErr(CodeUnsupported, "%s is outside the range of the code (up to 99 × 10⁹ µH)", u.Format(v, "inductance", "", 4))
 	}
-	return "", "", codeErr(CodeUnsupported, "%s has no 3-character marking (below 0.1 µH the N notation holds 0.3 nH, 1 nH to 9.9 nH in steps of 0.1 and 10 nH to 99 nH)", u.Format(v, "inductance", "", 4))
+	return "", "", codeErr(CodeUnsupported, "%s has no 3-character marking (below 0.1 µH only the N notation applies: 10 nH to 99 nH, 1 nH to 9.9 nH and 0.1 nH to 0.9 nH, each in steps of 0.1 nH or two digits, so nothing below 0.1 nH and nothing like 0.15 nH)", u.Format(v, "inductance", "", 4))
 }
 
 // tolerancePick finds the letter an encode request means: a letter or a percentage.

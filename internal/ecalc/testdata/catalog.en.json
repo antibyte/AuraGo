@@ -47179,7 +47179,7 @@
         "onewire",
         "thermometer"
       ],
-      "source": "onsemi BC546/D Rev. 8 (BC547); onsemi/Fairchild PN2222A Rev. 1.1.0 and onsemi P2N2222A/D Rev. 7; multicomp 2N2222 sheet V1.0 (TO-18); onsemi 2N3903/D Rev. 9 (2N3904); onsemi NDS7002A/D Rev. 11 (2N7000); TI LM35 SNIS159H; TI UA78L SLVS010X and onsemi MC78L00A/D Rev. 21 (78L05); TI TL431 SLVS543S and onsemi TL431/D Rev. 45; Diotec BC337 and BC556 to BC559 (version 2026-03-30); onsemi BC556B/D Rev. 3 (BC557); onsemi 2N3906/D Rev. 4; onsemi BS170/D Rev. 7, MMBF170/D Rev. 9 and Vishay 70226 (BS170); Dallas DS18B20 datasheet (footer 050400)",
+      "source": "onsemi BC546/D Rev. 8 (BC547); onsemi/Fairchild PN2222A Rev. 1.1.0 and onsemi P2N2222A/D Rev. 7; multicomp 2N2222 sheet V1.0 (TO-18); onsemi 2N3903/D Rev. 9 (2N3904); onsemi NDS7002A/D Rev. 11 (2N7000); TI LM35 SNIS159H; TI UA78L SLVS010X and onsemi MC78L00A/D Rev. 21 (78L05); TI TL431 SLVS543S and onsemi TL431/D Rev. 45; Diotec BC337 and BC556 to BC559 (version 2026-03-30); onsemi BC556B/D Rev. 3 (BC557); onsemi 2N3906/D Rev. 4; onsemi BS170/D Rev. 7, MMBF170/D Rev. 9 and Vishay 70226 (BS170); Dallas DS18B20 preliminary datasheet (2000, footer 050400)",
       "views": null,
       "shape": {
         "type": "to",
