@@ -60,25 +60,40 @@ mode and touch-only devices retain system cursors. App canvases and remote deskt
 surfaces keep their own tool cursors. Standard, Fruity and Minimal retain system cursors.
 
 In **Settings → Sound**, enable **UI sounds** to hear the feedback. Sounds remain
-off by default. **Follow desktop theme** automatically picks the matching sound
-set (Crystal for Standard, Fruity and Minimal); a manually chosen set remains selected
-when changing the desktop theme. Existing saved sound choices are preserved.
-Volume and the window, notification, navigation and file category switches still
-apply. The **Preview** buttons play a short sample without enabling UI sounds.
+off by default. **Follow desktop theme** (`sound.theme` set to `desktop`) picks the sound
+set that belongs to the desktop theme: Crystal for Standard, Fruity and Minimal, and the
+set of each of the other eleven themes. A sound set chosen by name stays selected when
+the desktop theme changes. Existing saved sound choices are preserved.
+
+Six category switches decide which events may sound: **Windows** (`sound.windows`),
+**Notifications** (`sound.notifications`), **Navigation** (`sound.navigation`),
+**Files and dialogs** (`sound.files`), **Click feedback** (`sound.interface`) and
+**Start sound** (`sound.startup`). Volume applies to all of them. Each category row has
+a **Preview** button that plays that category's events of the selected theme in
+sequence, without enabling UI sounds. The theme card's **Preview** plays three sounds
+(`window.open`, `notify.message` and `window.close`) without enabling UI sounds. The
+start sound plays only when the browser allows audio without a click. Otherwise it is
+skipped and never played later.
 
 | Theme | Cursor artwork | Sound character |
 | --- | --- | --- |
-| Amiga | Pixel steps, white outlines, orange inlays | Short square waves and retro arpeggios |
-| Cyberpunk | Angular neon-yellow pointers and cyan circuit details | FM pulses, metallic signals, static transients |
-| Black Gloss | Graphite and silver bevels | Glass partials and restrained reverberation |
-| Crazy | Purple ribbons and mint accents | Rising bubble tones and unexpected intervals |
-| Lollipop | Rounded candy stripes and heart details | Celesta chimes and light pops |
-| Organic | Leaf silhouette with walnut and brass inlays | Wooden harmonics and soft filtered air |
-| Electronic Dreams | Teal signal traces and warm pointer lights | Relay ticks, soft analog sweeps and filtered signal noise |
-| Windows XP | Classic pointer with blue and gold details | Bright friendly chimes with short, rounded tails |
-| Green Slime | Glossy lime slime pointer | Low-pass wet plips, elastic sweeps and soft squelches, plus quiet blub pops for bursting bubbles and a wet thwip-plop for parting strands |
-| Voxel World | Block-edged pointer in earth and green tones | Dry taps and wood, stone and earth impacts |
-| Orbit | Sleek cyan-violet arrow with an amber orbit ring | Soft synth whooshes, sonar pings and airlock hiss; a window opens with a rising whoosh and closes with a falling whoosh and sparkle grains |
+| Amiga | Pixel steps, white outlines, orange inlays | Square-wave notes and retro arpeggios |
+| Cyberpunk | Angular neon-yellow pointers and cyan circuit details | Deep electronic pulses, metallic signals and static clicks |
+| Black Gloss | Graphite and silver bevels | Polished glass tones and soft, spacious tails |
+| Crazy | Purple ribbons and mint accents | Bouncing bubbles and surprising, colourful sequences |
+| Lollipop | Rounded candy stripes and heart details | Celesta chimes and candy pops |
+| Organic | Leaf silhouette with walnut and brass inlays | Warm wooden notes, soft air and water-like tones |
+| Electronic Dreams | Teal signal traces and warm pointer lights | Copper clicks, mellow synth pulses and an amber signal arpeggio |
+| Windows XP | Classic pointer with blue and gold details | Bright synthesized chimes, soft clicks and classic digital tones |
+| Green Slime | Glossy lime slime pointer | Gel pops, bubbly drops and low squelches |
+| Voxel World | Block-edged pointer in earth and green tones | Wooden taps, stone ticks and blocky percussive notes |
+| Orbit | Sleek cyan-violet arrow with an amber orbit ring | Soft synth whooshes, sonar pings and airlock hiss |
+
+Crystal (glass chimes, a breath of air and a bright hall) is the set of Standard, Fruity
+and Minimal. Wood (marimba taps and felt clicks), Analog (a detuned synth with chorus and
+a plate), Workshop (relay clicks, a pneumatic hiss and metal rings) and Water (drops,
+bubbles and an underwater wash) belong to no desktop theme. Choose them by name in Settings.
+They have no cursor artwork.
 
 `cursorTheme` and `soundTheme` on each registry descriptor own the pairing.
 `core/cursor-runtime.js` applies versioned, local SVG cursor URLs with native
@@ -88,53 +103,294 @@ The 132 cursor SVGs, eleven cursor preview sheets and eleven theme sound-set cov
 by `node scripts/build-desktop-cursors.mjs`; use `--check` to verify reproducibility.
 No third-party cursor artwork or sampled operating-system sounds are included.
 
-Electronic Dreams, Windows XP, Green Slime, Voxel World and Orbit each have a separate
-sound bank in `sound/theme-electronic-dreams.js`, `sound/theme-windows-xp.js`,
-`sound/theme-green-slime.js`, `sound/theme-voxel-world.js` and
-`sound/theme-orbit.js`. Each bank supplies
-the shell events through the shared lazy Web Audio synthesizer; the five themes
-do not share one generic theme bank. In-flight synthesis is shared; mute, theme
-changes and tab hiding cancel pending playback. Audio unlock remains bound to a
-user gesture. Turning sound off releases the AudioContext immediately.
-Verify `TestDesktopThemeSensoryBrowser`, `TestDesktopSoundBrowser` (all sixteen
-sets, the voxel, slime and orbit effect sounds and their rate limits) and
-`TestThemeSensorySettingsPersistIndependently`, then rebuild UI bundles.
+**Sound system.** The sound system has six layers. The sources are in
+`ui/js/desktop/sound/`, and the lazy bundle `bundles/desktop-sounds.bundle.js` loads
+them in this order:
+
+- **Kernel** (`dsp-kernel.js`, `self.DesktopSoundDSP`): the seeded random generator,
+  envelopes, oscillators, resonators, noise, filters, reverb, chorus, echo, saturation,
+  loudness and true-peak meters. It knows no events and no themes.
+- **Instruments** (`instruments.js`, `self.DesktopSoundInstruments`): fifteen models
+  (`glass`, `bar`, `bell`, `string`, `analog`, `chip`, `drop`, `blip`, `pad`, `metal`,
+  `click`, `thud`, `noise`, `squelch` and `debris`), each with a parameter specification.
+- **Engine** (`sound-engine.js`, `self.DesktopSoundEngine`): the event catalogue
+  (`EVENTS`, `ROLES`, `CATEGORIES`, `FX_ROLES`), theme validation, the theme registry
+  and the render pipeline.
+- **Theme data** (`theme-<id>.js`, one file per theme, sixteen in all): one
+  `defineTheme` call with data only. File names use dashes where the theme id uses
+  underscores (`theme-black-gloss.js` for `black_gloss`).
+- **Render host** (`render-host.js`): answers render requests inside a Worker and does
+  nothing in a window.
+- **Runtime** (`ui/js/desktop/core/sound-runtime.js`): the only part in the main bundle.
+  It owns playback, settings, unlock, rate limits, the theme-effect gates, the Worker
+  client, variants, the start sound, touch feedback and the public API.
+
+The kernel, instruments, engine and theme files attach to `self`, so the same files run
+in a window, in a Worker and in Node. `scripts/desktop-sound-bundle-parts.js` lists
+them. The bundle builder and the Node tools read that list, and
+`scripts/desktop-sound-loader.mjs` loads the files into Node in the same order.
+
+**Events.** Every theme defines all 26 events. `ROLES` in `sound-engine.js` is the single
+source for each event's category, loudness target, maximum length and number of variants.
+The runtime's `EVENT_CATEGORY` and `EVENT_VARIANTS` mirror it.
+
+| Event | Category | Target (LUFS) | Max length | Variants |
+| --- | --- | --- | --- | --- |
+| `session.start` | startup | −18 | 2.8 s | 1 |
+| `notify.message` | notifications | −18 | 1.4 s | 1 |
+| `notify.info` | notifications | −19 | 1.2 s | 1 |
+| `notify.success` | notifications | −19 | 1.2 s | 1 |
+| `notify.warning` | notifications | −18 | 1.2 s | 1 |
+| `notify.error` | notifications | −18 | 1.2 s | 1 |
+| `dialog.open` | files | −22 | 0.6 s | 1 |
+| `dialog.confirm` | files | −21 | 0.7 s | 1 |
+| `dialog.cancel` | files | −23 | 0.5 s | 1 |
+| `window.open` | windows | −23 | 0.6 s | 3 |
+| `window.close` | windows | −24 | 0.5 s | 3 |
+| `window.maximize` | windows | −24 | 0.6 s | 3 |
+| `window.minimize` | windows | −25 | 0.4 s | 3 |
+| `window.restore` | windows | −25 | 0.4 s | 3 |
+| `window.snap` | windows | −26 | 0.25 s | 3 |
+| `window.deny` | windows | −23 | 0.35 s | 2 |
+| `file.drop` | files | −23 | 0.5 s | 3 |
+| `file.trash` | files | −23 | 0.5 s | 2 |
+| `file.delete` | files | −22 | 0.6 s | 2 |
+| `space.switch` | navigation | −25 | 0.6 s | 2 |
+| `menu.open` | navigation | −28 | 0.2 s | 3 |
+| `menu.close` | navigation | −30 | 0.15 s | 3 |
+| `ui.select` | interface | −31 | 0.12 s | 3 |
+| `ui.toggle.on` | interface | −31 | 0.12 s | 3 |
+| `ui.toggle.off` | interface | −32 | 0.12 s | 3 |
+| `ui.tick` | interface | −34 | 0.06 s | 3 |
+
+The loudness target is the maximum momentary loudness, K-weighted after ITU-R BS.1770
+(400 ms window), measured before the volume setting. The master gain brings each sound
+to its target. The true-peak ceiling of −3 dBTP limits the gain, so a very short sound
+can land below its target. That is intended: a tick should not carry the energy of a
+chime. The maximum length includes the reverb tail. A longer sound is cut at its maximum
+with a 15 ms fade-out. The gates measure the natural length, so a theme shortens its own
+tails.
+
+**Rendering.** Each note and layer is rendered by its instrument into a stereo mix. The
+bus then applies drive, tone, chorus, echo and room, in that order. The master applies a
+fourth-order low cut at 110 Hz, trims the quiet tail, applies the length cap and sets the
+loudness target. Every random value comes from a generator seeded by theme, event, variant
+and note, so the same request always gives the same samples, at 48 kHz.
+
+**Theme data.** A theme file makes one `defineTheme` call with data only. This excerpt
+of `theme-crystal.js` shows the shape; the real file defines all 26 events.
+
+```js
+(function () {
+    'use strict';
+    self.DesktopSoundEngine.defineTheme({
+        id: 'crystal',
+        key: 81,                                  // tonal centre, a MIDI note (36 to 96)
+        space: { size: 0.9, rt60: 0.85, damping: 7000, predelay: 0.012, mix: 0.24 },
+        voices: {
+            chime: { model: 'glass', t60: 0.9, beat: 0.55, attack: 0.004 },
+            tick: { model: 'click', material: 'glass', tone: 5200, ring: 0.03 },
+            air: { model: 'noise', color: 'pink', band: [2500, 7500], attack: 0.06, decay: 0.2 }
+        },
+        events: {
+            'window.open': {
+                notes: [{ v: 'chime', n: -5, t: 0, g: 0.9, pan: -0.15, t60: 0.3 }, { v: 'chime', n: 0, t: 0.085, g: 1, pan: 0.2, t60: 0.3 }],
+                layers: [{ v: 'air', t: 0, g: 0.05, decay: 0.12 }],
+                space: { size: 0.8, rt60: 0.4, damping: 7000, predelay: 0.01, mix: 0.2 }
+            },
+            'ui.select': {
+                layers: [{ v: 'tick', t: 0, g: 1, tone: 3400, ring: 0.025 }],
+                space: null
+            }
+            // ... the other 24 events
+        },
+        fx: {}
+    });
+})();
+```
+
+- `id` is one of the sixteen theme ids. `key` is the tonal centre as a MIDI note from 36
+  to 96. A note's `n` is a semitone offset from it.
+- `space` is the theme's room: `size`, `rt60`, `damping`, `predelay`, `mix` and `lowcut`,
+  each checked against its range. It is required.
+- `voices` maps a name to `{ model, ...parameters }`. Each parameter is checked against
+  the model's specification: numeric ranges, enumerated values, pairs and lists.
+- `events` holds the 26 events. A sound has `notes`, `layers` or both. Pitched voices go
+  in `notes`, where `n` sets the pitch, and unpitched voices go in `layers`. The validator
+  rejects the other way round. It also checks that each note's frequency is above the
+  model's minimum and at most 12 kHz.
+- Each item has `v` (its voice), `t` (start in seconds), `g` (gain, 0 to 2), `pan`
+  (−1 to 1), `dur` (length in seconds) and `detune` (cents). Any other key overrides a
+  parameter of the voice for that item only, such as `t60` or `damp` in the excerpt.
+- A sound may set `space` to an object that overrides the theme's room, or to `null` for
+  a dry sound. It may also set `drive` (0 to 6), `tone` (`low` and `high` shelves of
+  ±12 dB at 250 Hz and 5 kHz), `chorus` (`rate`, `depth`, `delay` and `mix`, with `depth`
+  below `delay`) and `echo` (`time`, `feedback`, `tone`, `mix` and `spread`). The bus
+  applies them in the order drive, tone, chorus, echo, room.
+- `fx` holds the theme's effects (see *Effect sounds*). It is `{}` for a theme without
+  effects.
+- `defineTheme` runs `validateTheme`. In Node tests an invalid theme throws. In the
+  browser it is logged once and skipped.
+
+**Sound language.** Every theme follows the same grammar. Only the instruments, the key
+and the room change.
+
+- **Direction.** Opening, arriving and affirming gestures rise. Closing, leaving and
+  declining gestures fall. The mirrored pairs (`window.open` and `window.close`,
+  `window.restore` and `window.minimize`, `menu.open` and `menu.close`, `dialog.confirm`
+  and `dialog.cancel`, `ui.toggle.on` and `ui.toggle.off`) use the same notes. The gates
+  check that each pair renders differently.
+- **Size.** `window.maximize` is the open gesture made wider. `window.snap` is one dry
+  tick, the shortest window sound.
+- **Notices.** Info is two rising notes. Message is the theme's signature three-note
+  motif. Success rises and resolves on the key. Warning repeats one note and does not
+  resolve. Error is two low falling notes a semitone or a tritone apart, with a soft
+  attack, never a buzzer.
+- **Deny, files and space.** Deny is one muted low knock. Drop is a soft, low, damped
+  landing. Trash is a short falling flick with a little noise. Delete is lower and more
+  final than trash. A space switch is a short swell of the theme's texture.
+- **Touch.** Toggle is a two-tone tick, up for on and down for off. Tick is the shortest
+  click. Select is a soft press.
+- **Start.** Four or five notes that state the message motif in the theme's fullest room.
+- **Harmony.** All tonal content uses the theme's key and scale.
+- **Spectrum.** Main energy lies between 250 Hz and 5 kHz, nothing sits below 110 Hz, and
+  the highs are restrained. Tonal attacks take 2 to 8 ms. Ticks are shaped transients,
+  never single-sample clicks.
+
+**Variants.** Frequent events have two or three variants (see the table). The runtime
+plays them round-robin and never the same variant twice in a row. A variant differs only a
+little: partial tuning within ±4 cents, mallet or strike hardness by up to ±0.08, a timing
+offset of up to ±2 ms, a different noise seed and a level within ±0.4 dB. The level change
+is applied after mastering, so it cannot break the loudness gate. A peak-limited sound only
+gets a lower level. Notices, dialogs and the start sound have one variant, so their
+signature sound is always identical. Theme effects have their own variant names.
+
+**Playback and rate limits.** A shell sound goes from its category gain to the master gain
+(the volume setting, squared), then through a safety limiter (threshold −2 dB, ratio 12,
+attack 3 ms, release 120 ms) to the output. Mastered sounds peak at or below −3 dBTP and
+pass the limiter untouched; the limiter only catches overlaps. A shell event starts at most
+once every 70 ms, and at most six voices start in any 250 ms. `ui.*` events have their own
+gap of 40 ms per event and do not count against the six voices. Notices in one burst are
+thinned, so that at most two play within 120 ms of the first. Previews skip the category
+switches and play to the master gain.
+
+**Late sounds and the start sound.** A shell sound whose buffer arrives more than 150 ms
+after it was requested is not played. Its buffer stays cached. Previews wait for their
+buffers and are never dropped. Theme effects follow their own expiry rule (see *Effect
+sounds*).
+
+`session.start` is requested once per page load, after the session restore and the
+initial app open (`sdk-events-bootstrap.js`). It plays only if the audio context runs
+without a user gesture at that moment (the runtime waits up to 200 ms for it to resume)
+and its buffer is ready within 1.5 s. Otherwise it is skipped and never plays later on a
+click. `DesktopSounds.inspect().startSound` reports `played`, `skipped-off`,
+`skipped-autoplay` or `skipped-late`.
+
+**Rendering in a Worker.** Renders run in a Web Worker,
+`/js/desktop/bundles/desktop-sounds.bundle.js`, which is created on first need: sounds
+enabled and unlocked, or a preview. A request is `{ id, theme, event, variant }`. The reply
+carries the two channel buffers as transferables and the measured values. One render runs
+at a time, and each sound is cached per theme, event and variant. A category switch keeps
+the cache. A theme change drops the cache and the queued renders.
+
+If the Worker cannot be created, reports an error, or does not answer the first request
+within 4 s, the runtime loads the same bundle into the page and renders on the main
+thread, one sound per task. `DesktopSounds.inspect().renderer` reports `worker` or `main`.
+After unlock the runtime prewarms the active theme: variant 0 of every event in priority
+order (window and menu sounds first, notices and the start sound last), then the other
+variants. A sound that is needed before its buffer exists moves to the front of the queue.
+Turning sound off, `pagehide` and the end of authentication stop renders, drop the queue
+and terminate the Worker. `DesktopSounds.renderEvent(theme, event, variant)` resolves to
+the measured values of one sound and is used by the browser tests.
+
+**Touch feedback.** Delegated listeners in the runtime (capture phase, on `document`)
+play the **Click feedback** category.
+
+- `change` on a shell switch plays `ui.toggle.on` or `ui.toggle.off`. The switches are the
+  Settings checkboxes (`.vd-switch > input[type="checkbox"][data-setting-key]`) and the
+  Quick Settings checkboxes (`data-quick-setting` and `data-quick-dnd`).
+- `input` on a shell range slider plays `ui.tick`, at most once every 45 ms. Its playback
+  rate follows the slider position within ±1 semitone. The sliders are
+  `input[type="range"].vd-setting-range[data-setting-key]` and the Quick Settings range
+  inputs.
+- `click` on a dock or taskbar button plays `ui.select`. The buttons are
+  `#vd-taskbar-apps .vd-dock-button` and `#vd-taskbar-apps .vd-task-button`. Keyboard
+  activation also fires `click`.
+
+An element with `data-sound="off"`, or an element inside one, makes no sound, and neither
+does a disabled control. Apps are not touched: they add no click sounds of their own. A few
+apps call `desktopSound` for completed actions, such as a deleted file.
+
+**Notices.** `showDesktopNotification` chooses the notice from the payload. MeshCore
+messages play `notify.message`. `error` plays `notify.error`, `warning` and `warn` play
+`notify.warning`, and `success` plays `notify.success`. Anything else plays `notify.info`.
+The type is compared case-insensitively.
 
 **Effect sounds.** Voxel World, Green Slime and Orbit also have sounds that their desktop
 effect asks for by name, not shell events: `window.fracture` and `window.impact`
-(Voxel World; wood, stone or earth) and `slime.pop` and `slime.snap` (Green Slime;
-small, medium or large) and `orbit.ping` (Orbit; small, medium or large). A bank supplies them as
-`specialFx[event][variant]`. The effect only calls `DesktopSounds.play(event, { variant | material, strength, pan })`
-(`strength` 0 to 1, `pan` -1 to 1) and `core/sound-runtime.js` decides whether
-anything is heard. It plays them only when UI sounds are on and unlocked, the
-event's category is on (**Windows** for the Voxel World and Green Slime sounds,
-**Navigation** for `orbit.ping`), the effective sound theme is the owning theme, the page
-is visible, no session restore runs and the call is not a preview. Calls within
-75 ms (Voxel World) or 80 ms (Green Slime and Orbit) merge into the loudest one, and a call
-that is older than 240 ms by the time its sound is rendered is dropped. Each sound
-is rendered on first use and cached per theme, event and variant, so the full bank
-is never rendered for it. `inspect().themeFx` counts requests, plays, rate-limited
-and expired calls per family.
+(Voxel World; `wood`, `stone` or `earth`), `slime.pop` and `slime.snap` (Green Slime;
+`small`, `medium` or `large`) and `orbit.ping` (Orbit; `small`, `medium` or `large`).
+A theme defines them in its `fx` block as `fx[event][variant]`, each one a sound with
+the same `notes` and `layers` as a shell event. The effect only calls
+`DesktopSounds.play(event, { variant | material, strength, pan })` (`strength` 0 to 1,
+`pan` -1 to 1) and `core/sound-runtime.js` decides whether anything is heard. It plays
+them only when UI sounds are on and unlocked, the event's category is on (**Windows** for
+the Voxel World and Green Slime sounds, **Navigation** for `orbit.ping`), the effective
+sound theme is the owning theme, the page is visible, no session restore runs and the
+call is not a preview. Calls within 75 ms (Voxel World) or 80 ms (Green Slime and Orbit)
+merge into the loudest one, and a call that is older than 240 ms by the time its sound is
+rendered is dropped. Each sound is rendered on first use and cached per theme, event and
+variant, so the full bank is never rendered for it. `inspect().themeFx` counts requests,
+plays, rate-limited and expired calls per family.
 
-- Green Slime pop: a soft sine blop with a fast upward glide (about 240 to 520 Hz for
-  a large bubble, 520 to 1100 Hz for a small one), a very short band-passed tick of
-  the film tearing and a faint low-passed tail, under 180 ms in all.
-- Green Slime snap: a band-passed noise sweep downward (25 to 40 ms), then about
-  40 ms later a soft low plop (about 180 to 120 Hz for a large strand), under 260 ms
-  in all. The plop carries a quiet octave above it so small speakers still carry it.
-- Orbit ping: a sine at 1320, 1100 or 880 Hz for a small, medium or large ping,
-  with a 6 ms attack, a 420 to 700 ms release, a faint noise click at the start
-  and an echo 180 ms later at 9 dB less. The runtime plays it at 0.38 of a window
-  sound.
-- Levels: the synth peak-normalises every buffer, so the runtime sets the level. A pop
-  plays at 0.40 and a snap at 0.42 of a window sound at full strength (about 25 to
-  33 % in 20 ms loudness), and the strength curve makes the smallest ones softer
-  still. The master volume and the category of the event apply as usual.
-- Rate limits: at most one pop per 350 ms, one snap per 900 ms and three Green Slime
-  sounds per 2 s; Voxel World keeps four per second and 190 ms apart. Orbit allows one ping per
-  350 ms and three Orbit sounds per 2 s.
-- No layer of these banks uses the synth's reverb pool: its convolver is shared by all
-  layers of one render and would smear one layer into the envelope of the next.
+- **Sound design.** The effects use the shared instruments and the sound language.
+  `window.fracture` and `window.impact` are built from `debris`, the wood-block `bar`,
+  the stone `click` and `thud`, one set per material. `slime.pop` and `slime.snap` use
+  `drop` and `squelch`. `orbit.ping` is a `blip` sonar with its own short echo. The
+  maximum lengths are 0.7 s (Voxel World), 0.3 s (Green Slime) and 1.0 s (Orbit).
+- **Levels.** Each effect is mastered to the window level (−23 LUFS). At playback the
+  runtime scales it by `strength` to the power 0.85, times the gain of its event: 0.52
+  for Voxel World, 0.40 for a pop, 0.42 for a snap and 0.38 for an Orbit ping. At full
+  strength a pop sits about 8 dB under a window sound. The power curve makes weak calls
+  slightly louder than a linear scale would. The master volume and the category of the
+  event apply as usual.
+- **Rate limits.** Merge windows, expiry and rates are unchanged: at most one pop per
+  350 ms, one snap per 900 ms and three Green Slime sounds per 2 s; Voxel World keeps four
+  per second and 190 ms apart. Orbit allows one ping per 350 ms and three Orbit sounds per
+  2 s.
+- **Room.** Effects use no room reverb. A theme cannot give an effect a `space`, and the
+  engine applies no room to an effect. An effect may carry its own short `echo`, which the
+  Orbit ping uses.
+
+**Tools and tuning.**
+
+- `npm run test:desktop-sounds` runs three Node scripts in order.
+  `scripts/test-desktop-sound-dsp.mjs` holds the kernel unit tests: the seeded generator,
+  the pitch and decay of the modal and string models, filters, loudness, true peak, the
+  master and the reverb and echo tails. `scripts/test-desktop-sound-instruments.mjs`
+  holds the contract tests of every model: parameter defaults, length, finite samples, a
+  start at zero, determinism and the pitch of the tonal models.
+  `scripts/test-desktop-sounds.mjs` holds the measured gates. They render every event and
+  variant of every theme, and every effect variant, and assert the following. The catalogue
+  has 26 events, each with a known category and 1 to 3 variants, and all 16 themes register. Validation rejects broken
+  definitions. Loudness lies within ±0.5 LU of the target, or below it when the peak ceiling
+  binds. The reported loudness matches a separate measurement. True peak is at or below
+  −3 dBTP. The natural length is within the maximum. The first and last samples are zero,
+  and there is no DC offset. Energy below 90 Hz is at least 30 dB under the total. Rendering
+  is deterministic. Variants differ from each other by at most 1 LU. Mirrored pairs differ,
+  and in a full run no two themes render identical audio for an event. A theme renders
+  within 6000 ms (`DESKTOP_SOUNDS_THEME_BUDGET_MS` overrides it). `--theme <id>[,<id>]`
+  runs the gates for the named themes only, without the cross-theme checks.
+- `node scripts/render-desktop-sounds.mjs --theme <id> --out <dir> [--event <id>]
+  [--variant 0|name|all] [--json]` writes one 24-bit WAV per sound (`<event>.v<n>.wav`, and
+  `<event>.<name>.wav` for effects), a contact sheet of every event in sequence
+  (`<theme>-contact-sheet.wav`) and `levels.json` with the measured values. `--theme all`
+  renders every theme. `--json` prints the level table as JSON.
+
+The gates prove levels, lengths and cleanliness. They do not prove how a theme sounds. A
+theme is judged by listening: render its contact sheet and its key events, check them
+against the sound language and the theme's identity, and change the theme data, never the
+core, until they fit.
 
 ### Architecture
 
@@ -648,7 +904,7 @@ Post-processing adds bloom, a vignette, chromatic aberration, film grain and a s
 - `ui/js/vendor/desktop-themes/orbit-runtime.js`: the vendor bundle with Three.js 0.186.1, GLTFLoader and the post passes, built by `scripts/build-desktop-theme-vendor.mjs`. It loads only when the scene starts.
 - `ui/css/desktop-theme-orbit.css`: the skin.
 - `ui/img/wallpapers/themes/orbit.webp`: the poster, regenerated by `TestDesktopOrbitPosterBrowser` (see *Tests*).
-- `ui/js/desktop/sound/theme-orbit.js`: the sound bank.
+- `ui/js/desktop/sound/theme-orbit.js`: the Orbit sound theme (data only; see *Matching cursors and sounds*).
 - `assets/desktop-theme-orbit/generate.py` and `ui/3d/desktop-theme-orbit/v1/`: the model source, the GLBs, the manifest and the licence.
 
 **Tests.**

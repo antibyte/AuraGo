@@ -2367,9 +2367,9 @@ This subtree owns built-in virtual desktop app modules that are loaded lazily by
   Keep all labels in the sixteen desktop locales and preserve both import flows.
 
 Shell chrome helpers live in the main desktop bundle (not lazy apps):
-`core/sound-runtime.js` (opt-in synthesized UI sounds; lazy
-`bundles/desktop-sounds.bundle.js` with `sound/synth-core.js` and five theme
-modules), `core/screensaver-runtime.js` (opt-in idle detection and wake
+`core/sound-runtime.js` (opt-in UI sounds, see *Desktop UI sound contract*; the
+lazy `bundles/desktop-sounds.bundle.js` holds the `sound/` modules),
+`core/screensaver-runtime.js` (opt-in idle detection and wake
 handling; the lazy overlay and scenes live in `js/desktop/screensavers/`,
 see its child contract), `core/session-runtime.js` (session restore, dock pins, recent files, default
 apps), `core/spaces-runtime.js` (three virtual desktops / Spaces v1: window
@@ -2399,27 +2399,59 @@ Verify actual save/reload behavior with `TestDesktopSessionRestoreBrowser`.
 
 ### Desktop UI sound contract
 
-- Opt-in via `sound.enabled` (default off). Persisted keys:
-  `sound.theme`, `sound.volume`, `sound.windows`, `sound.notifications`,
-  `sound.navigation`, `sound.files` (`internal/desktop/types.go`).
+- Opt-in via `sound.enabled` (default off). Persisted keys
+  (`internal/desktop/types.go`): `sound.enabled`, `sound.theme` (`desktop`, which
+  follows the desktop theme, or one of the 16 sound set ids), `sound.volume`, the
+  category switches `sound.windows`, `sound.notifications`, `sound.navigation`,
+  `sound.files`, `sound.interface` and `sound.startup` (all default on).
 - Shell API: `desktopSound(eventId)` only. No playback when disabled, tab hidden,
-  session restore, category off, or before the first user gesture unlocks Web
-  Audio. Preview in Settings may render/play without changing the saved theme.
-- Event vocabulary (19 ids, all five themes): `window.*`, `notify.*`, `menu.*`,
-  `space.switch`, `dialog.*`, `file.*`. Hooks live in window shell/interactions,
-  notifications, menus, spaces, dialogs and file drops — no business-logic changes.
-- Offline render once per theme into cached `AudioBuffer`s; master gain uses
-  perceptual `volume²`, category gains, compressor and voice rate limits.
+  session restore, category off, or before the first user gesture unlocks audio.
+  The start sound is the exception: it plays without a gesture only when the browser
+  lets the audio context run (the runtime tries to resume it for up to 200 ms), and
+  it is never played later. Preview in Settings
+  may render/play without changing the saved theme.
+- Event vocabulary: 26 shell events in 6 categories. `windows` (`window.*`),
+  `notifications` (`notify.*`), `navigation` (`menu.*`, `space.switch`), `files`
+  (`dialog.*`, `file.*`), `interface` (`ui.*`) and `startup` (`session.start`). Hooks
+  live in window shell/interactions, notifications, menus, spaces, dialogs, file drops
+  and the sound runtime's touch feedback — no business-logic changes.
+- Adding an event: add it to `EVENTS` and `ROLES` in `sound-engine.js`; to
+  `EVENT_CATEGORY`, `EVENT_VARIANTS` and `PREWARM_ORDER` in `sound-runtime.js`; give
+  it a sound in all 16 `theme-*.js` files; and extend `TestDesktopSoundThemeEvents`.
+- Sound sources in `ui/js/desktop/sound/` attach to `self`, because they run in a
+  Worker and in Node. They use no `Math.random()`, no DOM and no Web Audio. The part
+  list is `scripts/desktop-sound-bundle-parts.js`, read by `scripts/build-ui-bundles.js`
+  and the Node tools.
+- Themes are data only, validated by `DesktopSoundEngine.defineTheme`. Every theme
+  defines all 26 events. Theme effects live in `fx`, and an effect never sets `space`
+  (effects use no room reverb).
+- Rendering happens in a Worker (`bundles/desktop-sounds.bundle.js`) with a
+  main-thread fallback, used after a Worker error or when the first reply takes over
+  4 s. `window.DesktopSoundsRenderGate` is the test seam for delaying renders: while
+  it holds a promise, each render reply waits for it to settle.
+- A shell sound whose buffer arrives more than 150 ms after its request is dropped.
+  Previews wait for their buffers.
+- Touch feedback: `change` on `.vd-switch > input[type="checkbox"][data-setting-key]`
+  and the Quick Settings checkboxes (`ui.toggle.on` / `ui.toggle.off`); `input` on
+  `input[type="range"].vd-setting-range[data-setting-key]` and the Quick Settings range
+  (`ui.tick`, at most one per 45 ms); `click` on `#vd-taskbar-apps .vd-dock-button` and
+  `#vd-taskbar-apps .vd-task-button` (`ui.select`). An element inside
+  `[data-sound="off"]` is skipped. Apps do not call `desktopSound` for their own clicks.
 - Settings app section `sound` exposes master toggle, theme cards with preview,
-  volume range and category toggles. Keep `desktop.settings_sound_*` in all 16
+  volume range, the category switches with a preview button on each row, and the
+  start sound and click feedback switches. Keep `desktop.settings_sound_*` (including
+  `_interface`, `_startup` and `_preview_category`, which takes `{{name}}`) in all 16
   desktop locales. Saving `sound.volume` must not rebuild the Settings pane
   (that resets scroll). Other setting saves restore `.vd-settings-pane` scroll.
   `sound-symbolic` maps to the speaker mini icon; theme-SVG fallbacks use a
   currentColor mask so they are not black on dark chrome.
-- Verify with `TestDesktopSoundRuntimeMarkers`, `TestDesktopSoundHookMarkers`,
-  `TestDesktopSoundThemeEvents`, `TestDesktopSoundTranslations`,
-  `TestDesktopSoundSettingsUIMarkers`, `TestDesktopSettingsSymbolicIconAssetsStayCompact`,
-  service settings tests, and opt-in `TestDesktopSoundBrowser`
+- Verify with `npm run test:desktop-sounds`, `npm run check:ui`,
+  `TestDesktopSoundRuntimeMarkers`, `TestDesktopSoundHookMarkers`,
+  `TestDesktopSoundThemeEvents`, `TestDesktopThemeFxSoundRuntimeContract`,
+  `TestGreenSlimeSoundFxContract`, `TestDesktopSoundSettingsUIMarkers`,
+  `TestDesktopSoundTranslations`, the settings service test
+  (`TestServiceSettingsUseDefaultsAndValidateWrites`), and the opt-in browser tests
+  `TestDesktopSoundBrowser` and `TestDesktopThemeSensoryBrowser`
   (`AURAGO_RUN_BROWSER_SMOKE=1`).
 
 Resize handles in `core/window-interactions-runtime.js` honor the shell's
