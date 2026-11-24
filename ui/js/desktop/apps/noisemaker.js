@@ -252,6 +252,7 @@
             notify: message => toast(S, message, 'error'),
             formatDuration: lib.formatDuration,
             windowId: S.windowId,
+            menu: (x, y, items) => { if (typeof S.ctx.showContextMenu === 'function') S.ctx.showContextMenu(x, y, items); },
             mode: S.prefs.mode,
             form: { style: S.prefs.style, instrumental: S.prefs.instrumental, cover: S.prefs.cover }
         }));
@@ -659,8 +660,7 @@
         });
     }
 
-    function useTemplate(S, track) {
-        if (!track || !S.create) return;
+    function templateFields(track) {
         let idea = String(track.prompt || '');
         let style = String(track.style || '');
         const sep = idea.indexOf(' — ');
@@ -668,13 +668,24 @@
             if (!style) style = idea.slice(0, sep);
             idea = idea.startsWith(style + ' — ') ? idea.slice(style.length + 3) : idea.slice(sep + 3);
         }
-        const lyrics = String(track.lyrics || '');
-        if (lyrics) S.create.setMode('custom');
-        S.create.setForm({ idea, style, lyrics, title: '', instrumental: !!track.instrumental });
-        S.prefs.style = style;
-        S.prefs.instrumental = !!track.instrumental;
+        return { idea, style, lyrics: String(track.lyrics || ''), instrumental: !!track.instrumental };
+    }
+
+    function useTemplate(S, track) {
+        if (!track || !S.create) return;
+        const fields = templateFields(track);
+        if (fields.lyrics) S.create.setMode('custom');
+        S.create.setForm({ idea: fields.idea, style: fields.style, lyrics: fields.lyrics, title: '', instrumental: fields.instrumental });
+        S.prefs.style = fields.style;
+        S.prefs.instrumental = fields.instrumental;
         savePrefs(S.prefs);
         focusCreate(S);
+    }
+
+    function suggestVariation(S, track, mode) {
+        if (!track || !S.create || S.readonly) return;
+        focusCreate(S);
+        S.create.suggestVariation(Object.assign({ title: String(track.title || '') }, templateFields(track)), mode);
     }
 
     function focusCreate(S) {
@@ -726,7 +737,8 @@
                 shuffle: S.prefs.shuffle,
                 repeat: S.prefs.repeat,
                 queueLength: S.player ? S.player.queue().length : 0,
-                compact: S.compact
+                compact: S.compact,
+                aiAvailable: !!(S.caps && S.caps.llm_available)
             }
         };
     }
@@ -764,6 +776,7 @@
             enqueueTracks: list => enqueueTracks(S, list),
             toggleFavorite: track => toggleFavorite(S, track, !track.favorite),
             useTemplate: track => useTemplate(S, track),
+            suggestVariation: (track, mode) => suggestVariation(S, track, mode),
             downloadTracks: list => downloadTracks(S, list),
             openDetails: track => openDetails(S, track),
             toggleSelection: track => { if (S.library) S.library.toggleSelection(track); },

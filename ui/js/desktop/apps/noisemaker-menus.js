@@ -90,7 +90,7 @@
     }
 
     function trackContextItems(m, track) {
-        const { t, readonly, actions } = m;
+        const { t, s, readonly, actions } = m;
         const targets = actions.targetTracks(track);
         const multi = targets.length > 1;
         const selected = actions.isSelected(track);
@@ -103,6 +103,16 @@
         }
         items.push({ separator: true });
         if (!multi) items.push({ id: 'template', label: t('desktop.noisemaker_track_use_template'), icon: 'edit', fallback: 'T', action: () => actions.useTemplate(track) });
+        if (!multi && s && s.aiAvailable) {
+            items.push({
+                id: 'variation', label: t('desktop.noisemaker_variation'), icon: 'edit', fallback: '*', disabled: readonly,
+                items: [
+                    { id: 'variation-style', label: t('desktop.noisemaker_variation_style'), action: () => actions.suggestVariation(track, 'style') },
+                    { id: 'variation-verses', label: t('desktop.noisemaker_variation_verses'), action: () => actions.suggestVariation(track, 'verses') },
+                    { id: 'variation-sequel', label: t('desktop.noisemaker_variation_sequel'), action: () => actions.suggestVariation(track, 'sequel') }
+                ]
+            });
+        }
         items.push({ id: 'download', label: t('desktop.noisemaker_track_download'), icon: 'download', fallback: 'D', action: () => actions.downloadTracks(targets) });
         if (!multi) items.push({ id: 'details', label: t('desktop.noisemaker_details'), icon: 'info', fallback: 'i', action: () => actions.openDetails(track) });
         items.push({ separator: true });

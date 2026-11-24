@@ -40,11 +40,12 @@ window.api=async(path,options={})=>{
  requests.push({path,body:options.body});
 if(path.endsWith('/state')){if(window.failState)throw new Error('Network unavailable');return window.stateResponse || structuredClone(caps)}
  if(path.includes('/tracks'))return {items:structuredClone(tracks),total:tracks.length};
+ if(path.endsWith('/lyrics/check'))return structuredClone(window.checkResponse||{issues:[]});
  if(path.endsWith('/enhance'))return new Promise(resolve=>enhancements.push(resolve));
  if(path.endsWith('/generate'))return {title:'New song',web_path:'/audio.mp3',daily_used:1};
  return {};
 };
-window.mount=(readonly=false)=>{NoisemakerApp.render(document.getElementById('host'),'audit',{t,esc,api,readonly,notify:n=>notices.push(n),confirmDialog:async()=>false})};
+window.mount=(readonly=false)=>{NoisemakerApp.render(document.getElementById('host'),'audit',{t,esc,api,readonly,notify:n=>notices.push(n),confirmDialog:async()=>false,showContextMenu:(x,y,items)=>{window.lastMenu=items}})};
 window.input=(field,value)=>{const e=document.querySelector('[data-nm-field="'+field+'"]');if(e.type==='checkbox')e.checked=value;else e.value=value;e.dispatchEvent(new Event('input',{bubbles:true}))};
 window.submitShortcut=()=>document.querySelector('[data-nm-field="idea"]').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',ctrlKey:true,bubbles:true}));
 window.generated=()=>requests.filter(r=>r.path.endsWith('/generate'));
@@ -118,6 +119,41 @@ return grid.scrollWidth<=grid.clientWidth+1 && rows.length===6 && rows.every(row
 		waitForJSBool(t, page, `() => !document.querySelector('[data-nm-enhance="idea"]').disabled`)
 		if page.MustEval(`() => document.querySelector('[data-nm-field="idea"]').value`).Str() != "Newer suggestion" {
 			t.Fatal("older request replaced newer suggestion")
+		}
+	})
+	t.Run("ai_helpers", func(t *testing.T) {
+		page := pageFor(t)
+		page.MustEval(`() => {caps.lyrics_guide={provider:'minimax',max_chars:3500};requests=[];enhancements=[];mount()}`)
+		waitForJSBool(t, page, `() => !!document.querySelector('[data-nm-song]')`)
+		page.MustEval(`() => {input('idea','Rain');document.querySelector('[data-nm-song]').click()}`)
+		waitForJSBool(t, page, `() => enhancements.length === 1`)
+		if body := page.MustEval(`() => JSON.parse(requests.filter(r=>r.path.endsWith('/enhance')).pop().body)`); body.Get("kind").Str() != "song" || body.Get("text").Str() != "Rain" {
+			t.Fatalf("song request = %v", body)
+		}
+		page.MustEval(`() => enhancements[0]({status:'ok',song:{idea:'A rainy night',style:'lo-fi',title:'Rain',lyrics:'[Verse 1]\nla'}})`)
+		waitForJSBool(t, page, `() => document.querySelector('[data-nm-field="lyrics"]')?.value === '[Verse 1]\nla' && !document.querySelector('[data-nm-undo]').hidden`)
+		page.MustEval(`() => document.querySelector('[data-nm-undo-btn]').click()`)
+		waitForJSBool(t, page, `() => document.querySelector('[data-nm-field="idea"]').value === 'Rain' && document.querySelector('[data-nm-field="lyrics"]').value === '' && document.querySelector('[data-nm-undo]').hidden`)
+
+		page.MustEval(`() => {input('lyrics','[Verse 1]\nla');checkResponse={provider:'minimax',issues:[{code:'tag_numbered',severity:'warning',line:1,params:{tag:'[Verse 1]',suggestion:'[Verse]'}}]};document.querySelector('[data-nm-lyrics-menu]').click()}`)
+		waitForJSBool(t, page, `() => Array.isArray(lastMenu) && lastMenu.some(i=>i.id==='lyrics-check')`)
+		page.MustEval(`() => lastMenu.find(i=>i.id==='lyrics-check').action()`)
+		waitForJSBool(t, page, `() => document.querySelector('[data-nm-check]')?.innerText.includes('[Verse 1]') && !!document.querySelector('[data-nm-check-fix]')`)
+		page.MustEval(`() => document.querySelector('[data-nm-check-fix]').click()`)
+		waitForJSBool(t, page, `() => enhancements.length === 2`)
+		if body := page.MustEval(`() => JSON.parse(requests.filter(r=>r.path.endsWith('/enhance')).pop().body)`); body.Get("kind").Str() != "revise" || body.Get("action").Str() != "fix_tags" {
+			t.Fatalf("fix request = %v", body)
+		}
+		page.MustEval(`() => enhancements[1]({status:'ok',text:'[Verse]\nla'})`)
+		waitForJSBool(t, page, `() => document.querySelector('[data-nm-field="lyrics"]').value === '[Verse]\nla'`)
+
+		page.MustEval(`() => {const card=document.querySelector('.nm-card, .nm-row');card.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,clientX:40,clientY:40}))}`)
+		waitForJSBool(t, page, `() => Array.isArray(lastMenu) && lastMenu.some(i=>i.id==='variation')`)
+		page.MustEval(`() => lastMenu.find(i=>i.id==='variation').items.find(i=>i.id==='variation-sequel').action()`)
+		waitForJSBool(t, page, `() => enhancements.length === 3`)
+		body := page.MustEval(`() => JSON.parse(requests.filter(r=>r.path.endsWith('/enhance')).pop().body)`)
+		if body.Get("kind").Str() != "variation" || body.Get("mode").Str() != "sequel" || body.Get("base").Get("title").Str() == "" {
+			t.Fatalf("variation request = %v", body)
 		}
 	})
 	t.Run("readonly_cover_and_local_validation", func(t *testing.T) {

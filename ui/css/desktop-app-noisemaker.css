@@ -335,6 +335,26 @@
 .nm-ai + .nm-ai { margin-left: 0; }
 .nm-ai:hover:not(:disabled) { background: var(--nm-btn-hover); }
 .nm-ai.is-busy .nm-ai-glyph { animation: nm-spin 1s linear infinite; display: inline-block; }
+.nm-ai-row { align-items: center; display: flex; gap: 8px; }
+.nm-ai--song { font-size: 12.5px; margin-left: 0; padding: 7px 12px; }
+.nm-create.is-suggesting .nm-create-form > :not(.nm-ai-row) { opacity: .6; transition: opacity .2s ease; }
+.nm-undo { align-items: center; background: var(--nm-accent-soft); border-radius: var(--nm-field-radius); display: flex; flex-wrap: wrap; font-size: 12px; gap: 8px; padding: 7px 10px; }
+.nm-undo[hidden], .nm-instruction[hidden], .nm-check[hidden] { display: none; }
+.nm-undo-text { flex: 1; min-width: 0; }
+.nm-instruction { align-items: center; display: flex; gap: 6px; }
+.nm-instruction .nm-input { flex: 1; min-width: 0; }
+.nm-check { background: var(--nm-field); border: 1px solid var(--nm-field-border); border-radius: var(--nm-field-radius); display: grid; gap: 8px; padding: 10px 12px; }
+.nm-check-head { align-items: center; display: flex; font-size: 12.5px; gap: 8px; justify-content: space-between; }
+.nm-check-list { display: grid; font-size: 12px; gap: 6px; list-style: none; margin: 0; padding: 0; }
+.nm-check-item { align-items: baseline; display: flex; gap: 6px; }
+.nm-check-item--error .nm-check-text { color: var(--nm-danger); }
+.nm-check-item--warning .nm-check-sev { color: var(--nm-warn); }
+.nm-check-item--info .nm-check-sev { color: var(--nm-info); }
+.nm-check-line { flex: none; font-variant-numeric: tabular-nums; }
+.nm-check-ok { color: var(--nm-ok); font-size: 12px; margin: 0; }
+.nm-check-error { color: var(--nm-danger); }
+.nm-check-fix { justify-self: start; }
+.nm-counter.is-over { color: var(--nm-danger); font-weight: 600; }
 .nm-input, .nm-textarea {
     background: var(--nm-field);
     border: 1px solid var(--nm-field-border);
@@ -808,6 +828,7 @@
     .nm-cover--empty::after,
     .nm-chip--busy::before,
     .nm-ai.is-busy .nm-ai-glyph,
+    .nm-create.is-suggesting .nm-create-form > :not(.nm-ai-row),
     .nm-skeleton-cover, .nm-skeleton-line,
     .nm-card.is-highlighted, .nm-row.is-highlighted { animation: none; }
     .nm-card:hover, .nm-preset:hover { transform: none; }

@@ -6,7 +6,7 @@
     // local ACE-Step controls). Emits `generate(params)`; the shell runs the
     // request and reports progress/result back through setGeneration().
     // Factory: create(deps) with deps = { esc, t, lang, readonly, request, notify,
-    // formatDuration, form, mode, windowId }.
+    // formatDuration, menu, form, mode, windowId }.
 
     const IDEA_MAX = 2000;
     const STYLE_MAX = 500;
@@ -25,6 +25,29 @@
         { id: 'ambient', glyph: '🌌', style: 'cinematic ambient, slow, evolving pads, atmospheric, no drums, reverb', instrumental: true }
     ];
 
+    const SONG_FIELDS = ['idea', 'style', 'title', 'lyrics'];
+    const FIELD_LABELS = {
+        idea: { labelKey: 'desktop.noisemaker_idea_label' },
+        style: { labelKey: 'desktop.noisemaker_style_label' },
+        title: { labelKey: 'desktop.noisemaker_title_label' },
+        lyrics: { labelKey: 'desktop.noisemaker_lyrics_label' },
+        bpm: { labelKey: 'desktop.noisemaker_bpm' },
+        vocal_language: { labelKey: 'desktop.noisemaker_vocal_language' }
+    };
+    const ISSUE_TEXT = {
+        lyrics_too_long: { messageKey: 'desktop.noisemaker_issue_lyrics_too_long' },
+        unknown_tag: { messageKey: 'desktop.noisemaker_issue_unknown_tag' },
+        unknown_tag_suggest: { messageKey: 'desktop.noisemaker_issue_unknown_tag_suggest' },
+        tag_numbered: { messageKey: 'desktop.noisemaker_issue_tag_numbered' },
+        tag_modifier_unsupported: { messageKey: 'desktop.noisemaker_issue_tag_modifier_unsupported' },
+        tag_too_many_modifiers: { messageKey: 'desktop.noisemaker_issue_tag_too_many_modifiers' },
+        heading_not_tag: { messageKey: 'desktop.noisemaker_issue_heading_not_tag' },
+        repeat_marker: { messageKey: 'desktop.noisemaker_issue_repeat_marker' },
+        no_section_tags: { messageKey: 'desktop.noisemaker_issue_no_section_tags' },
+        bpm_in_style: { messageKey: 'desktop.noisemaker_issue_bpm_in_style' }
+    };
+    const PROVIDER_NAMES = { acestep: 'ACE-Step', minimax: 'MiniMax', google: 'Google Lyria' };
+
     function defaultForm() {
         return { idea: '', style: '', lyrics: '', title: '', instrumental: false, cover: true, duration_seconds: '120', bpm: '', vocal_language: '', seed: '' };
     }
@@ -42,6 +65,7 @@
         const lang = String(deps.lang || 'en');
         const windowId = String(deps.windowId || 'nm');
         const readonly = deps.readonly === true;
+        const menu = deps.menu || (() => {});
 
         const handlers = {};
         const on = (name, cb) => { (handlers[name] = handlers[name] || []).push(cb); };
@@ -50,11 +74,15 @@
         const form = Object.assign(defaultForm(), deps.form || {});
         const fieldRevisions = Object.create(null);
         const enhancementRequests = Object.create(null);
+        const enhancementBusyEls = Object.create(null);
         let mode = deps.mode === 'custom' ? 'custom' : 'simple';
         let caps = null;
         let generation = emptyGeneration();
         let timerId = null;
         let disposed = false;
+        let undoState = null;      // { before: { field: previousValue } }
+        let checkState = null;     // { loading, issues, provider, error, token }
+        let songRequestId = 0;
 
         const root = document.createElement('div');
         root.className = 'nm-create';
@@ -84,6 +112,39 @@
             if (!caps || caps.llm_available === false) return '';
             return '<button type="button" class="nm-ai" data-nm-enhance="' + action + '"' + (readonly ? ' disabled title="' + esc(t('desktop.noisemaker_readonly_hint')) + '"' : '') + '>' +
                 '<span class="nm-ai-glyph" aria-hidden="true">' + (glyph || '✨') + '</span>' + esc(t('desktop.noisemaker_' + key)) + '</button>';
+        }
+
+        function aiAvailable() {
+            return !!(caps && caps.llm_available !== false);
+        }
+
+        function songRowMarkup() {
+            if (!aiAvailable()) return '';
+            return '<div class="nm-ai-row">' +
+                '<button type="button" class="nm-ai nm-ai--song" data-nm-song title="' + esc(t('desktop.noisemaker_song_suggest_hint')) + '"' + (readonly ? ' disabled' : '') + '>' +
+                    '<span class="nm-ai-glyph" aria-hidden="true">✨</span>' + esc(t('desktop.noisemaker_song_suggest')) + '</button>' +
+            '</div>';
+        }
+
+        function undoMarkup() {
+            return '<div class="nm-undo" data-nm-undo role="status" aria-live="polite" hidden></div>';
+        }
+
+        function lyricsToolsMarkup() {
+            if (aiAvailable()) {
+                return '<button type="button" class="nm-ai" data-nm-lyrics-menu aria-haspopup="menu">' +
+                    '<span class="nm-ai-glyph" aria-hidden="true">✨</span>' + esc(t('desktop.noisemaker_lyrics_ai_menu')) + ' <span aria-hidden="true">▾</span></button>';
+            }
+            return '<button type="button" class="nm-ai" data-nm-lyrics-check>' +
+                '<span class="nm-ai-glyph" aria-hidden="true">✓</span>' + esc(t('desktop.noisemaker_lyrics_check')) + '</button>';
+        }
+
+        function instructionMarkup() {
+            return '<div class="nm-instruction" data-nm-instruction hidden>' +
+                '<input class="nm-input" data-nm-instruction-input maxlength="500" placeholder="' + esc(t('desktop.noisemaker_revise_custom_placeholder')) + '" aria-label="' + esc(t('desktop.noisemaker_revise_custom')) + '">' +
+                '<button type="button" class="nm-btn nm-btn--primary" data-nm-instruction-apply>' + esc(t('desktop.noisemaker_revise_apply')) + '</button>' +
+                '<button type="button" class="nm-icon-btn nm-icon-btn--small" data-nm-instruction-close aria-label="' + esc(t('desktop.noisemaker_panel_close')) + '" title="' + esc(t('desktop.noisemaker_panel_close')) + '">×</button>' +
+            '</div>';
         }
 
         function ideaFieldMarkup() {
@@ -138,10 +199,12 @@
             const requirement = required ? 'desktop.noisemaker_lyrics_required_label' : 'desktop.noisemaker_optional';
             const body = c.supports_lyrics === false
                 ? '<p class="nm-hint">' + esc(t('desktop.noisemaker_lyrics_unsupported')) + '</p>'
-                : '<div class="nm-field-head">' + aiButton('lyrics', 'lyrics_generate') + '</div>' +
+                : '<div class="nm-field-head">' + lyricsToolsMarkup() + '</div>' +
                   '<textarea class="nm-textarea nm-textarea--lyrics" data-nm-field="lyrics" maxlength="' + LYRICS_MAX + '" placeholder="' + esc(t('desktop.noisemaker_lyrics_placeholder')) + '"></textarea>' +
                   '<div class="nm-field-foot"><span class="nm-counter" data-nm-counter="lyrics"></span></div>' +
-                  '<p class="nm-hint" data-nm-lyrics-required-hint' + (required && c.llm_available === false ? '' : ' hidden') + '>' + esc(t('desktop.noisemaker_lyrics_required_hint')) + '</p>';
+                  instructionMarkup() +
+                  '<div class="nm-check" data-nm-check aria-live="polite" hidden></div>' +
+                  '<p class="nm-hint" data-nm-lyrics-required-hint' + (required ? '' : ' hidden') + '>' + esc(t('desktop.noisemaker_lyrics_required_hint')) + '</p>';
             return '<details class="nm-collapsible" data-nm-lyrics-wrap' + (form.lyrics || required ? ' open' : '') + '>' +
                 '<summary>' + esc(t('desktop.noisemaker_lyrics_label')) + ' <span class="nm-hint" data-nm-lyrics-requirement>(' + esc(t(requirement)) + ')</span></summary>' +
                 '<div class="nm-collapsible-body">' + body + '</div>' +
@@ -224,7 +287,8 @@
 
         function renderForm() {
             const c = caps || {};
-            formEl.innerHTML = (readonly ? '<p class="nm-hint" role="status">' + esc(t('desktop.noisemaker_readonly_hint')) + '</p>' : '') + (mode === 'simple'
+            formEl.innerHTML = (readonly ? '<p class="nm-hint" role="status">' + esc(t('desktop.noisemaker_readonly_hint')) + '</p>' : '') +
+                songRowMarkup() + undoMarkup() + (mode === 'simple'
                 ? ideaFieldMarkup() + presetsMarkup() + switchesMarkup()
                 : ideaFieldMarkup() + styleFieldMarkup() + switchesMarkup() + lyricsMarkup() + titleMarkup() + (c.supports_controls ? localControlsMarkup() : ''));
             root.dataset.nmCreateMode = mode;
@@ -237,6 +301,8 @@
             syncPresets();
             syncCounters();
             syncCreateButton();
+            renderUndo();
+            renderCheck();
         }
 
         function applyFormToInputs() {
@@ -267,12 +333,19 @@
             }
         }
 
+        function lyricsMax() {
+            const guide = caps && caps.lyrics_guide;
+            const max = guide ? Number(guide.max_chars) : 0;
+            return max > 0 ? Math.min(max, LYRICS_MAX) : LYRICS_MAX;
+        }
+
         function syncCounters() {
             root.querySelectorAll('[data-nm-counter]').forEach(el => {
                 const field = el.dataset.nmCounter;
                 const len = String(form[field] || '').length;
-                const max = field === 'lyrics' ? LYRICS_MAX : IDEA_MAX;
+                const max = field === 'lyrics' ? lyricsMax() : IDEA_MAX;
                 el.textContent = len > 0 ? len + ' / ' + max : '';
+                el.classList.toggle('is-over', len > max);
             });
         }
 
@@ -321,7 +394,7 @@
             const input = qs('[data-nm-field="lyrics"]');
             const wrap = qs('[data-nm-lyrics-wrap]');
             if (label) label.textContent = '(' + t(required ? 'desktop.noisemaker_lyrics_required_label' : 'desktop.noisemaker_optional') + ')';
-            if (hint) hint.hidden = !(required && caps && caps.llm_available === false);
+            if (hint) hint.hidden = !required;
             if (input) {
                 input.required = required;
                 input.setAttribute('aria-required', required ? 'true' : 'false');
@@ -418,12 +491,58 @@
             });
         }
 
-        function setForm(patch) {
+        function writeForm(patch) {
             assignForm(patch);
             applyFormToInputs();
             syncPresets();
             syncCounters();
             syncCreateButton();
+            if (patch && Object.prototype.hasOwnProperty.call(patch, 'lyrics')) closeCheck();
+        }
+
+        // setForm is used for user-driven and external changes; it drops the AI undo.
+        function setForm(patch) {
+            clearUndo();
+            writeForm(patch);
+        }
+
+        function applyAiChange(patch) {
+            const before = {};
+            Object.keys(patch).forEach(field => { before[field] = form[field]; });
+            writeForm(patch);
+            undoState = { before };
+            renderUndo();
+            emit('change', getForm());
+        }
+
+        function clearUndo() {
+            if (!undoState) return;
+            undoState = null;
+            renderUndo();
+        }
+
+        function undoAi() {
+            if (!undoState) return;
+            const before = undoState.before;
+            undoState = null;
+            writeForm(before);
+            renderUndo();
+            emit('change', getForm());
+        }
+
+        function renderUndo() {
+            const bar = qs('[data-nm-undo]');
+            if (!bar) return;
+            if (!undoState) { bar.hidden = true; bar.innerHTML = ''; return; }
+            const names = Object.keys(undoState.before).filter(field => FIELD_LABELS[field]).map(field => t(FIELD_LABELS[field].labelKey));
+            bar.hidden = false;
+            bar.innerHTML = '<span class="nm-undo-text">' + esc(t('desktop.noisemaker_ai_applied', { fields: names.join(', ') })) + '</span>' +
+                '<button type="button" class="nm-link-btn" data-nm-undo-btn>' + esc(t('desktop.noisemaker_ai_undo')) + '</button>';
+        }
+
+        function openLyrics() {
+            const wrap = qs('[data-nm-lyrics-wrap]');
+            if (wrap) wrap.open = true;
         }
 
         function getForm() {
@@ -454,6 +573,7 @@
             const value = next === 'custom' ? 'custom' : 'simple';
             if (value === mode && formEl.childElementCount) return;
             mode = value;
+            clearUndo(); checkState = null;
             renderForm();
             emit('mode', mode);
         }
@@ -471,41 +591,212 @@
             return [String(form.idea || '').trim(), String(form.style || '').trim()].filter(Boolean).join('\n');
         }
 
-        async function enhance(kind, button) {
+        function setBusy(el, on) {
+            if (!el) return;
+            el.classList.toggle('is-busy', on);
+            el.disabled = on;
+        }
+
+        function aiErrorMessage(err) {
+            if (err && err.body && err.body.code === 'ai_unreadable') return t('desktop.noisemaker_ai_unreadable');
+            return (err && err.message) || t('desktop.noisemaker_enhance_failed');
+        }
+
+        async function runFieldRequest(field, busyEl, body) {
             if (readonly || disposed) return;
+            const revision = fieldRevisions[field] || 0;
+            const requestId = (enhancementRequests[field] || 0) + 1;
+            enhancementRequests[field] = requestId;
+            enhancementBusyEls[field] = busyEl;
+            const isCurrent = () => !disposed && enhancementRequests[field] === requestId && (fieldRevisions[field] || 0) === revision;
+            setBusy(busyEl, true);
+            try {
+                const data = await request('/api/desktop/noisemaker/enhance', { method: 'POST', body });
+                if (!isCurrent()) return;
+                if (data && !data.unchanged && typeof data.text === 'string' && data.text && data.text !== form[field]) {
+                    applyAiChange({ [field]: data.text });
+                    if (field === 'lyrics') openLyrics();
+                }
+            } catch (err) {
+                if (!isCurrent()) return;
+                notify(aiErrorMessage(err));
+            } finally {
+                // a superseded request keeps a shared button busy only while the newer one uses the same button
+                if (enhancementRequests[field] === requestId || enhancementBusyEls[field] !== busyEl) setBusy(busyEl, false);
+            }
+        }
+
+        function enhance(kind, button) {
             const apiKind = kind === 'random' ? 'idea' : kind;
             const fieldFor = { idea: 'idea', random: 'idea', style: 'style', lyrics: 'lyrics', title: 'title' };
             const field = fieldFor[kind];
             if (!field) return;
-            const revision = fieldRevisions[field] || 0;
-            const requestId = (enhancementRequests[field] || 0) + 1;
-            enhancementRequests[field] = requestId;
-            const isCurrent = () => !disposed && enhancementRequests[field] === requestId && (fieldRevisions[field] || 0) === revision;
             const currentValue = kind === 'random' ? '' : String(form[field] || '');
             if (kind === 'style' && !currentValue.trim()) return;
-            button.classList.add('is-busy');
-            button.disabled = true;
+            runFieldRequest(field, button, { kind: apiKind, text: currentValue, context: enhanceContextFor(apiKind), lang });
+        }
+
+        function revise(action, instruction) {
+            const text = String(form.lyrics || '');
+            if (!text.trim()) return;
+            runFieldRequest('lyrics', qs('[data-nm-lyrics-menu]'), {
+                kind: 'revise', action, instruction: instruction || '', text, context: enhanceContextFor('lyrics'), lang
+            });
+        }
+
+        async function suggestSong(body, overrides) {
+            if (readonly || disposed || !aiAvailable()) return;
+            const extra = overrides || {};
+            const instrumental = Object.prototype.hasOwnProperty.call(extra, 'instrumental') ? !!extra.instrumental : !!form.instrumental;
+            const controls = !!(caps && caps.supports_controls);
+            const fields = SONG_FIELDS.concat(['instrumental'], controls ? ['bpm', 'vocal_language'] : []);
+            fields.forEach(field => { enhancementRequests[field] = (enhancementRequests[field] || 0) + 1; });
+            const revisions = fields.map(field => fieldRevisions[field] || 0);
+            const requestId = ++songRequestId;
+            const isCurrent = () => !disposed && songRequestId === requestId && fields.every((field, i) => (fieldRevisions[field] || 0) === revisions[i]);
+            setBusy(qs('[data-nm-song]'), true);
+            root.classList.add('is-suggesting');
             try {
-                const data = await request('/api/desktop/noisemaker/enhance', {
-                    method: 'POST',
-                    body: { kind: apiKind, text: currentValue, context: enhanceContextFor(apiKind), lang }
-                });
-                if (!isCurrent()) return;
-                if (data && data.text) {
-                    setForm({ [field]: data.text });
-                    if (field === 'lyrics') {
-                        const wrap = qs('[data-nm-lyrics-wrap]');
-                        if (wrap) wrap.open = true;
-                    }
-                    emit('change', getForm());
-                }
+                const data = await request('/api/desktop/noisemaker/enhance', { method: 'POST', body: Object.assign({ lang, instrumental }, body) });
+                if (!isCurrent() || !data || !data.song) return;
+                const song = data.song;
+                const patch = { idea: String(song.idea || ''), style: String(song.style || ''), title: String(song.title || '') };
+                if (instrumental !== !!form.instrumental) patch.instrumental = instrumental;
+                if (!instrumental && !(caps && caps.supports_lyrics === false)) patch.lyrics = String(song.lyrics || '');
+                if (controls && song.bpm) patch.bpm = String(song.bpm);
+                if (controls && song.vocal_language) patch.vocal_language = String(song.vocal_language);
+                if (mode !== 'custom') setMode('custom');
+                applyAiChange(patch);
+                openLyrics();
             } catch (err) {
-                if (!isCurrent()) return;
-                notify((err && err.message) || t('desktop.noisemaker_enhance_failed'));
+                if (isCurrent()) notify(aiErrorMessage(err));
             } finally {
-                button.classList.remove('is-busy');
-                button.disabled = false;
+                if (songRequestId === requestId) {
+                    setBusy(qs('[data-nm-song]'), false);
+                    root.classList.remove('is-suggesting');
+                }
             }
+        }
+
+        function suggestVariation(base, variationMode) {
+            if (!base) return;
+            suggestSong({
+                kind: 'variation',
+                mode: variationMode,
+                base: { title: String(base.title || ''), idea: String(base.idea || ''), style: String(base.style || ''), lyrics: String(base.lyrics || '') }
+            }, { instrumental: !!base.instrumental });
+        }
+
+        function openLyricsMenu(button) {
+            const hasText = !!String(form.lyrics || '').trim();
+            const aiOff = readonly || !aiAvailable();
+            const items = [
+                { id: 'lyrics-write', label: hasText ? t('desktop.noisemaker_lyrics_continue') : t('desktop.noisemaker_lyrics_generate'), icon: 'edit', fallback: '+', disabled: aiOff, action: () => enhance('lyrics', button) },
+                { separator: true },
+                { id: 'lyrics-chorus', label: t('desktop.noisemaker_revise_catchier_chorus'), icon: 'audio', fallback: '♪', disabled: aiOff || !hasText, action: () => revise('catchier_chorus') },
+                { id: 'lyrics-shorten', label: t('desktop.noisemaker_revise_shorten'), icon: 'x', fallback: '-', disabled: aiOff || !hasText, action: () => revise('shorten') },
+                { id: 'lyrics-rhymes', label: t('desktop.noisemaker_revise_rhymes'), icon: 'refresh', fallback: '~', disabled: aiOff || !hasText, action: () => revise('rhymes') },
+                { id: 'lyrics-bridge', label: t('desktop.noisemaker_revise_add_bridge'), icon: 'plus', fallback: '+', disabled: aiOff || !hasText, action: () => revise('add_bridge') },
+                { id: 'lyrics-custom', label: t('desktop.noisemaker_revise_custom'), icon: 'edit', fallback: '…', disabled: aiOff || !hasText, action: () => openInstruction() },
+                { separator: true },
+                { id: 'lyrics-check', label: t('desktop.noisemaker_lyrics_check'), icon: 'check-square', fallback: '✓', disabled: !hasText, action: () => checkLyrics() }
+            ];
+            const rect = button.getBoundingClientRect();
+            menu(rect.left, rect.bottom + 4, items);
+        }
+
+        function openInstruction() {
+            const row = qs('[data-nm-instruction]');
+            if (!row) return;
+            openLyrics();
+            row.hidden = false;
+            const input = row.querySelector('[data-nm-instruction-input]');
+            if (input) input.focus();
+        }
+
+        function closeInstruction() {
+            const row = qs('[data-nm-instruction]');
+            if (row) row.hidden = true;
+        }
+
+        function applyInstruction() {
+            const input = qs('[data-nm-instruction-input]');
+            const value = input ? input.value.trim() : '';
+            if (!value) { if (input) input.focus(); return; }
+            input.value = '';
+            closeInstruction();
+            revise('custom', value);
+        }
+
+        function closeCheck() {
+            if (!checkState) return;
+            checkState = null;
+            renderCheck();
+        }
+
+        async function checkLyrics() {
+            if (disposed) return;
+            const lyrics = String(form.lyrics || '');
+            if (!lyrics.trim()) return;
+            const revision = fieldRevisions.lyrics || 0;
+            const token = {};
+            checkState = { loading: true, issues: [], token };
+            openLyrics();
+            renderCheck();
+            try {
+                const data = await request('/api/desktop/noisemaker/lyrics/check', { method: 'POST', body: { lyrics, style: String(form.style || '') } });
+                if (disposed || !checkState || checkState.token !== token || (fieldRevisions.lyrics || 0) !== revision) return;
+                checkState = { loading: false, issues: Array.isArray(data && data.issues) ? data.issues : [], provider: String((data && data.provider) || ''), token };
+            } catch (err) {
+                if (disposed || !checkState || checkState.token !== token) return;
+                checkState = { loading: false, issues: [], error: (err && err.message) || t('desktop.noisemaker_check_failed'), token };
+            }
+            renderCheck();
+        }
+
+        function issueText(issue) {
+            const params = Object.assign({}, issue.params || {});
+            let entry = ISSUE_TEXT[issue.code];
+            if (issue.code === 'unknown_tag' && params.suggestion) entry = ISSUE_TEXT.unknown_tag_suggest;
+            return entry ? t(entry.messageKey, params) : String(issue.code || '');
+        }
+
+        function renderCheck() {
+            const el = qs('[data-nm-check]');
+            if (!el) return;
+            if (!checkState) { el.hidden = true; el.innerHTML = ''; return; }
+            el.hidden = false;
+            const closeLabel = esc(t('desktop.noisemaker_panel_close'));
+            const head = '<div class="nm-check-head"><strong>' + esc(t('desktop.noisemaker_check_title')) + '</strong>' +
+                '<button type="button" class="nm-icon-btn nm-icon-btn--small" data-nm-check-close aria-label="' + closeLabel + '" title="' + closeLabel + '">×</button></div>';
+            if (checkState.loading) { el.innerHTML = head + '<p class="nm-hint">' + esc(t('desktop.noisemaker_check_running')) + '</p>'; return; }
+            if (checkState.error) { el.innerHTML = head + '<p class="nm-hint nm-check-error">' + esc(checkState.error) + '</p>'; return; }
+            const issues = checkState.issues;
+            if (!issues.length) {
+                const provider = PROVIDER_NAMES[checkState.provider] || checkState.provider || '';
+                el.innerHTML = head + '<p class="nm-check-ok">✓ ' + esc(t('desktop.noisemaker_check_ok', { provider })) + '</p>';
+                return;
+            }
+            const fixable = issues.some(issue => issue.severity === 'error' || issue.severity === 'warning');
+            const canFix = fixable && aiAvailable() && !readonly;
+            const glyph = { error: '⛔', warning: '⚠', info: 'ℹ' };
+            el.innerHTML = head + '<ul class="nm-check-list">' + issues.map(issue =>
+                '<li class="nm-check-item nm-check-item--' + esc(issue.severity) + '">' +
+                    '<span class="nm-check-sev" aria-hidden="true">' + (glyph[issue.severity] || 'ℹ') + '</span>' +
+                    (issue.line ? '<button type="button" class="nm-link-btn nm-check-line" data-nm-check-line="' + Number(issue.line) + '">' + esc(t('desktop.noisemaker_check_line', { line: issue.line })) + '</button>' : '') +
+                    '<span class="nm-check-text">' + esc(issueText(issue)) + '</span></li>').join('') + '</ul>' +
+                (canFix ? '<button type="button" class="nm-btn nm-btn--primary nm-check-fix" data-nm-check-fix>✨ ' + esc(t('desktop.noisemaker_check_fix')) + '</button>' : '');
+        }
+
+        function selectLyricsLine(lineNo) {
+            const area = qs('[data-nm-field="lyrics"]');
+            if (!area || !(lineNo > 0)) return;
+            const lines = area.value.split('\n');
+            let start = 0;
+            for (let i = 0; i < lineNo - 1 && i < lines.length; i++) start += lines[i].length + 1;
+            const end = start + (lines[lineNo - 1] || '').length;
+            area.focus();
+            area.setSelectionRange(start, end);
         }
 
         // ---------- generate ----------
@@ -569,7 +860,10 @@
         root.addEventListener('input', event => {
             const input = event.target.closest('[data-nm-field]');
             if (!input) return;
-            assignForm({ [input.dataset.nmField]: input.type === 'checkbox' ? input.checked : input.value });
+            const field = input.dataset.nmField;
+            assignForm({ [field]: input.type === 'checkbox' ? input.checked : input.value });
+            if (undoState && Object.prototype.hasOwnProperty.call(undoState.before, field)) clearUndo();
+            if (field === 'lyrics') closeCheck();
             syncCounters();
             syncPresets();
             syncCreateButton();
@@ -579,7 +873,9 @@
         root.addEventListener('change', event => {
             const input = event.target.closest('[data-nm-field]');
             if (!input || input.type !== 'checkbox') return;
-            assignForm({ [input.dataset.nmField]: input.checked });
+            const field = input.dataset.nmField;
+            assignForm({ [field]: input.checked });
+            if (undoState && Object.prototype.hasOwnProperty.call(undoState.before, field)) clearUndo();
             syncCreateButton();
             emit('change', getForm());
         });
@@ -600,6 +896,17 @@
             if (event.target.closest('[data-nm-clear-style]')) { setForm({ style: '' }); emit('change', getForm()); return; }
             const chip = event.target.closest('[data-nm-chip]');
             if (chip) { appendStyle(chip.dataset.nmChip); return; }
+            if (event.target.closest('[data-nm-song]')) { suggestSong({ kind: 'song', text: String(form.idea || '').trim(), context: String(form.style || '').trim() }); return; }
+            const lyricsMenuBtn = event.target.closest('[data-nm-lyrics-menu]');
+            if (lyricsMenuBtn) { openLyricsMenu(lyricsMenuBtn); return; }
+            if (event.target.closest('[data-nm-lyrics-check]')) { checkLyrics(); return; }
+            if (event.target.closest('[data-nm-undo-btn]')) { undoAi(); return; }
+            if (event.target.closest('[data-nm-instruction-apply]')) { applyInstruction(); return; }
+            if (event.target.closest('[data-nm-instruction-close]')) { closeInstruction(); return; }
+            if (event.target.closest('[data-nm-check-close]')) { closeCheck(); return; }
+            if (event.target.closest('[data-nm-check-fix]')) { closeCheck(); revise('fix_tags'); return; }
+            const lineBtn = event.target.closest('[data-nm-check-line]');
+            if (lineBtn) { selectLyricsLine(Number(lineBtn.dataset.nmCheckLine)); return; }
             const ai = event.target.closest('[data-nm-enhance]');
             if (ai) { enhance(ai.dataset.nmEnhance, ai); return; }
             if (event.target.closest('[data-nm-create-btn]') || event.target.closest('[data-nm-retry]')) { submit(); return; }
@@ -609,6 +916,11 @@
         });
 
         root.addEventListener('keydown', event => {
+            if (event.target.closest('[data-nm-instruction-input]')) {
+                if (event.key === 'Enter' && !event.isComposing) { event.preventDefault(); applyInstruction(); }
+                else if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeInstruction(); }
+                return;
+            }
             if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && event.target.closest('[data-nm-field]')) {
                 event.preventDefault();
                 submit();
@@ -628,7 +940,7 @@
         return {
             element: root,
             setCaps, setMode, getMode: () => mode,
-            setForm, getForm, setGeneration, focusIdea,
+            setForm, getForm, setGeneration, focusIdea, suggestVariation,
             on, dispose
         };
     }
