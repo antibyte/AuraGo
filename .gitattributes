@@ -29,6 +29,13 @@ ui/js/desktop/bundles/*.js text eol=lf
 ui/js/desktop/aura-desktop-sdk.js text eol=lf
 ui/js/storymaker/*.bundle.js text eol=lf
 
+# HomeDash: the CSS parts are concatenated into one bundle and checked as LF by scripts/homedash-tests.
+ui/css/homedash-*.css      text eol=lf
+ui/js/homedash/**          text eol=lf
+ui/testdata/homedash-lab*  text eol=lf
+scripts/homedash-tests/**  text eol=lf
+scripts/test-homedash-ui.mjs text eol=lf
+
 # Reproducible icon output and its pinned import inputs.
 assets/desktop-icon-themes/** text=auto eol=lf
 ui/img/tela/** text=auto eol=lf
