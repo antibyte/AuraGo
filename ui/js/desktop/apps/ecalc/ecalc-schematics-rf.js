@@ -16,10 +16,10 @@ window.ECalcSchematics = Object.assign(window.ECalcSchematics || {}, {
   ],
   "anchors": [
    {"var": "f", "x": 7.4, "y": 5.5, "side": "left"},
-   {"var": "rs", "x": 10.5, "y": 3.3, "side": "top"},
-   {"var": "l", "x": 15.5, "y": 3.3, "side": "top"},
+   {"var": "rs", "x": 9.5, "y": 3.3, "side": "top"},
+   {"var": "l", "x": 16.5, "y": 3.3, "side": "top"},
    {"var": "c", "x": 20.4, "y": 6.2, "side": "left"},
-   {"var": "rl", "x": 26.6, "y": 6.2, "side": "right"}
+   {"var": "rl", "x": 26, "y": 3.3, "side": "top"}
   ]
  }
 });

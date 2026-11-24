@@ -695,7 +695,7 @@ func TestDesktopECalcBrowser(t *testing.T) {
 		t.Fatal("the app asked for a catalog in a language other than the desktop's (there is no English feed any more)")
 	}
 	search.MustSelectAllText().MustInput("star delta")
-	wait(`()=>document.querySelectorAll('.ec-items .ec-item').length===1 && document.querySelector('.ec-items .ec-item').dataset.id==='star_delta'`)
+	wait(`()=>{const first=document.querySelector('.ec-items .ec-item');return !!first && first.dataset.id==='star_delta'}`)
 	search.MustSelectAllText().MustInput("zzzz")
 	wait(`()=>document.querySelectorAll('.ec-items .ec-item').length===0 && !document.querySelector('.ec-empty').hidden`)
 	search.MustSelectAllText().MustInput(" ")

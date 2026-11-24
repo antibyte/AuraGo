@@ -21,7 +21,7 @@ window.ECalcSchematics = Object.assign(window.ECalcSchematics || {}, {
   ]
  },
  "current_loop_4_20ma": {
-  "w": 24, "h": 11,
+  "w": 26, "h": 11,
   "parts": [
    {"sym": "isource", "x": 8, "y": 3, "rot": 90},
    {"sym": "resistor", "x": 16, "y": 2, "rot": 90}
@@ -36,7 +36,7 @@ window.ECalcSchematics = Object.assign(window.ECalcSchematics || {}, {
   ]
  },
  "shunt_current_sense": {
-  "w": 31, "h": 11,
+  "w": 31, "h": 13,
   "parts": [
    {"sym": "isource", "x": 4, "y": 3, "rot": 90},
    {"sym": "resistor", "x": 12, "y": 2, "rot": 90},
@@ -47,11 +47,11 @@ window.ECalcSchematics = Object.assign(window.ECalcSchematics || {}, {
   "dots": [[12, 2], [12, 5], [8, 9]],
   "terminals": [[27, 6]],
   "anchors": [
-   {"var": "i", "x": 3.4, "y": 4.5, "side": "left"},
+   {"var": "i", "x": 4.6, "y": 7.3, "side": "right"},
    {"var": "r", "x": 11.6, "y": 3.6, "side": "left"},
    {"var": "v", "x": 17.2, "y": 3.4, "side": "right"},
    {"var": "gain", "x": 21.5, "y": 8.9, "side": "bottom"},
-   {"var": "vout", "x": 27.6, "y": 6, "side": "right"}
+   {"var": "vout", "x": 27.2, "y": 5.7, "side": "top"}
   ]
  }
 });

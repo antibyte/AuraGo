@@ -170,9 +170,9 @@ window.ECalcSchematics = Object.assign(window.ECalcSchematics || {}, {
   "dots": [[15, 7], [24, 8]],
   "terminals": [[4, 7], [27, 8]],
   "anchors": [
-   {"var": "f", "x": 3.4, "y": 7, "side": "left"},
+   {"var": "f", "x": 4.5, "y": 7.7, "side": "bottom"},
    {"var": "r1", "x": 6.5, "y": 6.3, "side": "top"},
-   {"var": "c", "x": 11.5, "y": 6.3, "side": "top"},
+   {"var": "c", "x": 11.5, "y": 7.7, "side": "bottom"},
    {"var": "r", "x": 18.5, "y": 3.4, "side": "top"},
    {"var": "a", "x": 25.5, "y": 8.6, "side": "bottom"}
   ]

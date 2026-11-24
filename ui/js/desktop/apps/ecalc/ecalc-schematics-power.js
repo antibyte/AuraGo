@@ -139,7 +139,7 @@ window.ECalcSchematics = Object.assign(window.ECalcSchematics || {}, {
   ]
  },
  "pf_correction": {
-  "w": 27, "h": 12,
+  "w": 27, "h": 14,
   "parts": [
    {"sym": "acsource", "x": 6, "y": 6, "rot": 90},
    {"sym": "inductor", "x": 13, "y": 6, "rot": 90},
@@ -151,8 +151,8 @@ window.ECalcSchematics = Object.assign(window.ECalcSchematics || {}, {
    {"x": 12.4, "y": 7.6, "text": "Load", "anchor": "end"}
   ],
   "anchors": [
-   {"var": "v", "x": 5.4, "y": 7.5, "side": "left"},
-   {"var": "f", "x": 9, "y": 3.7, "side": "top"},
+   {"var": "v", "x": 6, "y": 10.5, "side": "bottom"},
+   {"var": "f", "x": 7, "y": 4.3, "side": "top"},
    {"var": "p", "x": 13, "y": 3.7, "side": "top"},
    {"var": "c", "x": 20, "y": 3.7, "side": "top"}
   ]
@@ -167,7 +167,7 @@ window.ECalcSchematics = Object.assign(window.ECalcSchematics || {}, {
   "wires": [[[8, 5], [8, 4], [11, 4]], [[14, 4], [18, 4], [18, 5]], [[8, 8], [8, 9], [18, 9], [18, 8]]],
   "anchors": [
    {"var": "v1", "x": 7.4, "y": 6.5, "side": "left"},
-   {"var": "c", "x": 9, "y": 6.5, "side": "right"},
+   {"var": "c", "x": 8.5, "y": 3.7, "side": "top"},
    {"var": "t", "x": 12.5, "y": 4.7, "side": "bottom"},
    {"var": "i", "x": 18.9, "y": 6.5, "side": "right"}
   ]

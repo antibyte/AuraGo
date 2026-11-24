@@ -170,7 +170,7 @@ window.ECalcSchematics = Object.assign(window.ECalcSchematics || {}, {
   ]
  },
  "lc_lowpass": {
-  "w": 28, "h": 12,
+  "w": 29, "h": 12,
   "parts": [
    {"sym": "acsource", "x": 4, "y": 4, "rot": 90},
    {"sym": "resistor", "x": 6, "y": 4},
@@ -241,7 +241,7 @@ window.ECalcSchematics = Object.assign(window.ECalcSchematics || {}, {
   ]
  },
  "speaker_crossover": {
-  "w": 24, "h": 18,
+  "w": 25, "h": 18,
   "parts": [
    {"sym": "acsource", "x": 3, "y": 9, "rot": 90},
    {"sym": "inductor", "x": 8, "y": 4},
@@ -262,7 +262,7 @@ window.ECalcSchematics = Object.assign(window.ECalcSchematics || {}, {
    {"x": 19.8, "y": 14.85, "text": "R", "anchor": "start"}
   ],
   "anchors": [
-   {"var": "f", "x": 2.4, "y": 10.5, "side": "left"},
+   {"var": "f", "x": 3, "y": 8.4, "side": "top"},
    {"var": "l", "x": 9.5, "y": 3.3, "side": "top"},
    {"var": "c", "x": 13.4, "y": 5.8, "side": "left"},
    {"var": "r", "x": 19.6, "y": 5.8, "side": "right"}

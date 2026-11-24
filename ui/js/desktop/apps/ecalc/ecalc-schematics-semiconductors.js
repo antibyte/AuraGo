@@ -164,19 +164,19 @@ window.ECalcSchematics = Object.assign(window.ECalcSchematics || {}, {
    {"x": 12.5, "y": 5, "dir": 0}
   ],
   "anchors": [
-   {"var": "vin", "x": 4.4, "y": 7.5, "side": "left"},
-   {"var": "r1", "x": 8.5, "y": 4.4, "side": "top"},
-   {"var": "iled", "x": 11.5, "y": 5.6, "side": "bottom"},
-   {"var": "vf", "x": 15.9, "y": 6.5, "side": "right"},
-   {"var": "ctr", "x": 21.4, "y": 9, "side": "left"},
-   {"var": "vcc", "x": 24.4, "y": 1, "side": "left"},
-   {"var": "rl", "x": 25.9, "y": 3.5, "side": "right"},
-   {"var": "ic", "x": 25.9, "y": 6, "side": "right"},
-   {"var": "vcesat", "x": 25.9, "y": 9, "side": "right"}
+   {"var": "vin", "x": 5.7, "y": 7.5, "side": "right"},
+   {"var": "r1", "x": 8, "y": 4.4, "side": "top"},
+   {"var": "iled", "x": 14.5, "y": 4.1, "side": "top"},
+   {"var": "vf", "x": 15.9, "y": 5.5, "side": "right"},
+   {"var": "ctr", "x": 21.9, "y": 9, "side": "left"},
+   {"var": "vcc", "x": 24.4, "y": 1.6, "side": "left"},
+   {"var": "rl", "x": 25.4, "y": 2.6, "side": "right"},
+   {"var": "ic", "x": 25.4, "y": 5.6, "side": "right"},
+   {"var": "vcesat", "x": 25.4, "y": 8.6, "side": "right"}
   ]
  },
  "mosfet_gate_drive": {
-  "w": 28, "h": 14,
+  "w": 28, "h": 16,
   "parts": [
    {"sym": "source", "x": 6, "y": 5, "rot": 90},
    {"sym": "resistor", "x": 9, "y": 5},
@@ -191,14 +191,14 @@ window.ECalcSchematics = Object.assign(window.ECalcSchematics || {}, {
    {"x": 13, "y": 12.6, "text": "R_int = driver + internal gate resistance", "anchor": "middle"}
   ],
   "anchors": [
-   {"var": "vdrv", "x": 5.4, "y": 6.5, "side": "left"},
-   {"var": "rg", "x": 10.5, "y": 4.4, "side": "top"},
+   {"var": "vdrv", "x": 5.6, "y": 3.7, "side": "top"},
+   {"var": "rg", "x": 11.4, "y": 4.4, "side": "top"},
    {"var": "rint", "x": 10.5, "y": 5.7, "side": "bottom"},
-   {"var": "qgd", "x": 15.4, "y": 7.2, "side": "left"},
-   {"var": "vpl", "x": 15.4, "y": 8.7, "side": "left"},
-   {"var": "qg", "x": 20, "y": 4.4, "side": "right"},
-   {"var": "f", "x": 20, "y": 6, "side": "right"},
-   {"var": "t", "x": 20, "y": 7.6, "side": "right"}
+   {"var": "qgd", "x": 20, "y": 6, "side": "right"},
+   {"var": "vpl", "x": 20, "y": 8.7, "side": "right"},
+   {"var": "qg", "x": 20, "y": 3.3, "side": "right"},
+   {"var": "f", "x": 20, "y": 11.4, "side": "right"},
+   {"var": "t", "x": 20, "y": 14.1, "side": "right"}
   ]
  }
 });

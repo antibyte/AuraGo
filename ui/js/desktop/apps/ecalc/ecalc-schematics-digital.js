@@ -64,7 +64,7 @@ window.ECalcSchematics = Object.assign(window.ECalcSchematics || {}, {
    {"x": 26.7, "y": 6.35, "text": "Schmitt", "anchor": "start"}
   ],
   "anchors": [
-   {"var": "vdd", "x": 8.4, "y": 1.6, "side": "right"},
+   {"var": "vdd", "x": 7.6, "y": 1.6, "side": "left"},
    {"var": "r", "x": 12.5, "y": 5.2, "side": "top"},
    {"var": "c", "x": 18.6, "y": 7.6, "side": "left"},
    {"var": "vth", "x": 22.5, "y": 6, "side": "top"}
