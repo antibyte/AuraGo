@@ -1,0 +1,5 @@
+{"pinout": "s_video", "variants": [{"variant": "", "counts": {"ground": 2, "signal": 2, "power": 0, "data": 0, "nc": 0, "io": 0}, "pins": [
+  {"number": "1", "name": "GND", "type": "ground", "ref": "Euresys Picolo handbook, S-VIDEO Connector (pin 1 GND); Apple table 31 (1 Analog GND)"},
+  {"number": "2", "name": "GND", "type": "ground", "ref": "Euresys Picolo handbook (pin 2 GND); Apple table 31 (2 Analog GND)"},
+  {"number": "3", "name": "Y", "type": "signal", "ref": "Euresys Picolo handbook (pin 3 LUMA (Y)); Apple table 31 (3 Video Y, luminance)"},
+  {"number": "4", "name": "C", "type": "signal", "ref": "Euresys Picolo handbook (pin 4 CHROMA (C)); Apple table 31 (4 Video C, chroma)"}]}]}

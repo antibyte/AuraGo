@@ -1,0 +1,103 @@
+{
+ "pinout": "rj11",
+ "variants": [
+  {
+   "variant": "rj11",
+   "counts": {
+    "signal": 4,
+    "nc": 2,
+    "power": 0,
+    "ground": 0,
+    "data": 0,
+    "io": 0
+   },
+   "pins": [
+    {
+     "number": "1",
+     "name": "NC",
+     "type": "nc",
+     "ref": "47 CFR 68.502(a)(1): conductors 1, 2, 5 and 6 reserved for the telephone company; a 6P4C jack has no contact at the positions 1 and 6"
+    },
+    {
+     "number": "2",
+     "name": "T2",
+     "type": "signal",
+     "ref": "47 CFR 68.502(c)(1), RJ14C wiring diagram (T2 R1 T1 R2)"
+    },
+    {
+     "number": "3",
+     "name": "R1",
+     "type": "signal",
+     "ref": "47 CFR 68.502(a)(1), RJ11C (conductor 3 = R); Aastra TA710i table 12 (pin 3 ring)"
+    },
+    {
+     "number": "4",
+     "name": "T1",
+     "type": "signal",
+     "ref": "47 CFR 68.502(a)(1), RJ11C (conductor 4 = T); Aastra TA710i table 12 (pin 4 tip)"
+    },
+    {
+     "number": "5",
+     "name": "R2",
+     "type": "signal",
+     "ref": "47 CFR 68.502(c)(1), RJ14C wiring diagram (T2 R1 T1 R2)"
+    },
+    {
+     "number": "6",
+     "name": "NC",
+     "type": "nc",
+     "ref": "47 CFR 68.502(a)(1): conductors 1, 2, 5 and 6 reserved for the telephone company; a 6P4C jack has no contact at the positions 1 and 6"
+    }
+   ]
+  },
+  {
+   "variant": "rj12",
+   "counts": {
+    "signal": 4,
+    "nc": 2,
+    "power": 0,
+    "ground": 0,
+    "data": 0,
+    "io": 0
+   },
+   "pins": [
+    {
+     "number": "1",
+     "name": "NC",
+     "type": "nc",
+     "ref": "47 CFR 68.502(a)(1): conductors 1, 2, 5 and 6 reserved for the telephone company"
+    },
+    {
+     "number": "2",
+     "name": "T2",
+     "type": "signal",
+     "ref": "47 CFR 68.502(c)(1), RJ14C wiring diagram (T2 R1 T1 R2)"
+    },
+    {
+     "number": "3",
+     "name": "R1",
+     "type": "signal",
+     "ref": "47 CFR 68.502(a)(1), RJ11C (conductor 3 = R); Aastra TA710i table 12 (pin 3 ring)"
+    },
+    {
+     "number": "4",
+     "name": "T1",
+     "type": "signal",
+     "ref": "47 CFR 68.502(a)(1), RJ11C (conductor 4 = T); Aastra TA710i table 12 (pin 4 tip)"
+    },
+    {
+     "number": "5",
+     "name": "R2",
+     "type": "signal",
+     "ref": "47 CFR 68.502(c)(1), RJ14C wiring diagram (T2 R1 T1 R2)"
+    },
+    {
+     "number": "6",
+     "name": "NC",
+     "type": "nc",
+     "ref": "47 CFR 68.502(a)(1): conductors 1, 2, 5 and 6 reserved for the telephone company"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,103 @@
+{
+ "pinout": "dsub25",
+ "variants": [
+  {
+   "variant": "parallel",
+   "counts": {
+    "signal": 9,
+    "data": 8,
+    "ground": 8,
+    "power": 0,
+    "io": 0,
+    "nc": 0
+   },
+   "pins": [
+    {
+     "number": "1",
+     "name": "nStrobe",
+     "type": "signal",
+     "ref": "Dell PowerEdge 8450 table 2 (STB#); Sun Enterprise 220R A.5.2 (Data_Strobe_L); HP 8924E parallel port (nStrobe)"
+    },
+    {
+     "number": "2",
+     "name": "D0",
+     "type": "data",
+     "ref": "Dell PowerEdge 8450 table 2; Sun Enterprise 220R A.5.2 (data bit 0)"
+    },
+    {
+     "number": "11",
+     "name": "Busy",
+     "type": "signal",
+     "ref": "Dell PowerEdge 8450 table 2 (busy); Sun Enterprise 220R A.5.2"
+    },
+    {
+     "number": "12",
+     "name": "PError",
+     "type": "signal",
+     "ref": "Dell PowerEdge 8450 table 2 (PE, paper end); HP 8924E (PError)"
+    },
+    {
+     "number": "18",
+     "name": "GND",
+     "type": "ground",
+     "ref": "Dell PowerEdge 8450 table 2; Sun Enterprise 220R A.5.2 (ground, pins 18 to 25)"
+    },
+    {
+     "number": "25",
+     "name": "GND",
+     "type": "ground",
+     "ref": "Dell PowerEdge 8450 table 2; Sun Enterprise 220R A.5.2 (ground, pins 18 to 25)"
+    }
+   ]
+  },
+  {
+   "variant": "rs232",
+   "counts": {
+    "ground": 2,
+    "data": 4,
+    "signal": 16,
+    "nc": 3,
+    "power": 0,
+    "io": 0
+   },
+   "pins": [
+    {
+     "number": "1",
+     "name": "Shield",
+     "type": "ground",
+     "ref": "Datapro report 2741 table EIA-232-D (protective ground); Black Box 1A"
+    },
+    {
+     "number": "2",
+     "name": "TXD",
+     "type": "data",
+     "ref": "Datapro report 2741 (transmitted data from the DTE); Black Box 1A"
+    },
+    {
+     "number": "7",
+     "name": "GND",
+     "type": "ground",
+     "ref": "Datapro report 2741 (signal ground); Black Box 1A"
+    },
+    {
+     "number": "9",
+     "name": "Test",
+     "type": "nc",
+     "ref": "Datapro report 2741 (reserved for testing); Black Box 1A (reserved for testing)"
+    },
+    {
+     "number": "20",
+     "name": "DTR",
+     "type": "signal",
+     "ref": "Datapro report 2741 (DTE ready); Black Box 1A (control, to DCE)"
+    },
+    {
+     "number": "22",
+     "name": "RI",
+     "type": "signal",
+     "ref": "Datapro report 2741 (ring indicator); Black Box 1A"
+    }
+   ]
+  }
+ ]
+}

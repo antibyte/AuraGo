@@ -1,0 +1,7 @@
+{"pinout": "scart", "variants": [{"variant": "", "counts": {"signal": 11, "ground": 8, "data": 2, "power": 0, "nc": 0, "io": 0}, "pins": [
+  {"number": "1", "name": "Audio Out R", "type": "signal", "ref": "Pioneer KRP-600A table (input 1); LG 32LC2D table 1"},
+  {"number": "8", "name": "Function Switch", "type": "signal", "ref": "LG 32LC2D table 1 (0 to 2 V, 5 to 8 V, 9.5 to 12 V); Daewoo 2898ST (TV 0 to 2 V, PERI 9.5 to 12 V)"},
+  {"number": "16", "name": "Blanking", "type": "signal", "ref": "LG 32LC2D table 1 (high 1 to 3 V RGB, low 0 to 0.4 V composite); Daewoo 2898ST"},
+  {"number": "19", "name": "Video Out", "type": "signal", "ref": "Pioneer KRP-600A; Daewoo 2898ST; LG 32LC2D table 2"},
+  {"number": "20", "name": "Video In", "type": "signal", "ref": "Pioneer KRP-600A; Daewoo 2898ST; LG 32LC2D table 2"},
+  {"number": "21", "name": "Shield", "type": "ground", "ref": "Pioneer KRP-600A (plug shield); Daewoo 2898ST (common earth); LG 32LC2D (common ground, shield)"}]}]}

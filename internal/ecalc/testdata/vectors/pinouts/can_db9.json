@@ -1,0 +1,6 @@
+{"pinout": "can_db9", "variants": [{"variant": "", "counts": {"data": 2, "ground": 3, "power": 1, "nc": 3, "signal": 0, "io": 0}, "pins": [
+  {"number": "2", "name": "CAN_L", "type": "data", "ref": "PEAK PCAN-USB manual 4.1 table; HMS Ixxat Sub-D9 table; Beckhoff CX7050 X003 table"},
+  {"number": "3", "name": "CAN_GND", "type": "ground", "ref": "PEAK PCAN-USB manual 4.1 table; HMS Ixxat Sub-D9 table; Beckhoff CX7050 X003 table"},
+  {"number": "6", "name": "GND", "type": "ground", "ref": "HMS Ixxat (optional CAN ground); Beckhoff X003 (CAN ground, internally connected to pin 3); PEAK (CAN_GND)"},
+  {"number": "7", "name": "CAN_H", "type": "data", "ref": "PEAK PCAN-USB manual 4.1 table; HMS Ixxat Sub-D9 table; Beckhoff CX7050 X003 table"},
+  {"number": "9", "name": "CAN_V+", "type": "power", "ref": "PEAK PCAN-USB manual (CAN_V+ optional); HMS Ixxat (optional external voltage supply); Beckhoff names it not used"}]}]}

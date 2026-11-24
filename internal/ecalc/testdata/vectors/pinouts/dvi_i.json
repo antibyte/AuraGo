@@ -1,0 +1,8 @@
+{"pinout": "dvi_i", "variants": [{"variant": "", "counts": {"data": 16, "ground": 6, "power": 1, "signal": 6, "nc": 0, "io": 0}, "pins": [
+  {"number": "1", "name": "TMDS Data2-", "type": "data", "ref": "DDWG DVI 1.0 table 5-2 (T.M.D.S. Data2-); Apple Xserve G4 developer note table 3-9"},
+  {"number": "8", "name": "Analog Vertical Sync", "type": "signal", "ref": "DDWG DVI 1.0 table 5-2 (analog vertical sync, no connect in the digital-only table 5-1); Apple table 3-9"},
+  {"number": "14", "name": "+5V Power", "type": "power", "ref": "DDWG DVI 1.0 table 5-2 and section 2.2.6 (+5 V, 55 mA); Apple table 3-9"},
+  {"number": "16", "name": "Hot Plug Detect", "type": "signal", "ref": "DDWG DVI 1.0 table 5-2 and section 2.2.9.2; Apple table 3-9"},
+  {"number": "23", "name": "TMDS Clock+", "type": "data", "ref": "DDWG DVI 1.0 table 5-2; Apple table 3-9; Euresys DVI-I Input connector"},
+  {"number": "C1", "name": "Analog Red", "type": "signal", "ref": "DDWG DVI 1.0 table 5-2; Apple table 3-10"},
+  {"number": "C5", "name": "Analog Ground", "type": "ground", "ref": "DDWG DVI 1.0 table 5-2 (analog common ground return); Apple table 3-10"}]}]}

@@ -1,0 +1,7 @@
+{"pinout": "ps2", "variants": [{"variant": "", "counts": {"data": 2, "ground": 1, "power": 1, "nc": 2, "signal": 0, "io": 0}, "pins": [
+  {"number": "1", "name": "Data", "type": "data", "ref": "IBM Keyboards technical reference figure 22 (+KBD DATA); Dell PowerEdge 8450 table 3; Dell PowerEdge 1600SC table B-4"},
+  {"number": "2", "name": "NC", "type": "nc", "ref": "IBM figure 22 (reserved); Dell PowerEdge 1600SC table B-4 (NC)"},
+  {"number": "3", "name": "GND", "type": "ground", "ref": "IBM figure 22 (ground); Dell PowerEdge 8450 table 3"},
+  {"number": "4", "name": "+5V", "type": "power", "ref": "IBM figure 22 (+5.0 Vdc); Dell PowerEdge 8450 table 3 (fused supply voltage)"},
+  {"number": "5", "name": "Clock", "type": "data", "ref": "IBM figure 22 (+KBD CLK); Dell PowerEdge 8450 tables 3 and 4"},
+  {"number": "6", "name": "NC", "type": "nc", "ref": "IBM figure 22 (reserved); Dell PowerEdge 1600SC table B-4 (NC)"}]}]}

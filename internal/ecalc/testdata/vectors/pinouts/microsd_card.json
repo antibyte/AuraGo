@@ -1,0 +1,13 @@
+{"pinout": "microsd_card", "variants": [
+ {"variant": "sd", "counts": {"data": 5, "signal": 1, "power": 1, "ground": 1, "nc": 0, "io": 0}, "pins": [
+  {"number": "1", "name": "DAT2", "type": "data", "ref": "SanDisk OEM manual 3.1 table 4; Kingston SDCIT table 3; Cactus table 3-5"},
+  {"number": "3", "name": "CMD", "type": "data", "ref": "SanDisk OEM manual 3.1 table 4; Kingston SDCIT table 3; Cactus table 3-5"},
+  {"number": "4", "name": "VDD", "type": "power", "ref": "SanDisk OEM manual 3.1 table 4; Kingston SDCIT table 3; Cactus table 3-5; long pad in both figures"},
+  {"number": "6", "name": "VSS", "type": "ground", "ref": "SanDisk OEM manual 3.1 table 4; Kingston SDCIT table 3; Cactus table 3-5 (VSS2); long pad in both figures"},
+  {"number": "7", "name": "DAT0", "type": "data", "ref": "Kingston SDCIT table 3; Cactus table 3-5; SanDisk table 4 (name DAT0)"}]},
+ {"variant": "spi", "counts": {"data": 2, "signal": 2, "power": 1, "ground": 1, "nc": 2, "io": 0}, "pins": [
+  {"number": "1", "name": "RSV", "type": "nc", "ref": "SanDisk OEM manual 3.1 table 4 and Kingston SDCIT table 3 (RSV); Cactus table 3-5 (NC)"},
+  {"number": "2", "name": "CS", "type": "signal", "ref": "SanDisk OEM manual 3.1 table 4; Kingston SDCIT table 3; Cactus table 3-5"},
+  {"number": "3", "name": "DI", "type": "data", "ref": "Kingston SDCIT table 3 (DI); SanDisk table 4 (data in); Cactus table 3-5 (SDI)"},
+  {"number": "5", "name": "SCLK", "type": "signal", "ref": "SanDisk OEM manual 3.1 table 4; Kingston SDCIT table 3; Cactus table 3-5"},
+  {"number": "7", "name": "DO", "type": "data", "ref": "Kingston SDCIT table 3 (DO); Cactus table 3-5 (SDO); SanDisk table 4 (data out)"}]}]}
