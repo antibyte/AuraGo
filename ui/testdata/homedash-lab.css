@@ -18,6 +18,7 @@
 [data-hd-family="placeholder"] .hd-toggle-track { position: relative; display: block; width: 36px; height: 20px; border-radius: 10px; background: var(--hd-sunken); }
 [data-hd-family="placeholder"] .hd-toggle-thumb { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--hd-ink); }
 [data-hd-family="placeholder"] .hd-toggle[aria-checked="true"] .hd-toggle-thumb { transform: translateX(16px); background: var(--hd-on-ink); }
+[data-hd-family="placeholder"] .hd-toggle[aria-checked="true"] .hd-toggle-track { background: var(--hd-on); }
 [data-hd-family="placeholder"] .hd-rocker-paddle { display: flex; flex-direction: column; gap: 2px; }
 [data-hd-family="placeholder"] .hd-slider, [data-hd-family="placeholder"] .hd-ct { position: relative; display: flex; align-items: center; min-width: 120px; min-height: 44px; }
 [data-hd-family="placeholder"] .hd-slider[data-hd-variant="v"] { min-width: 44px; min-height: 120px; justify-content: center; }
@@ -40,7 +41,9 @@
 [data-hd-family="placeholder"] .hd-dial-legend { position: absolute; bottom: 0; font-size: 11px; color: var(--hd-ink-muted); }
 [data-hd-family="placeholder"] .hd-dial-legend[data-end="min"] { left: 8px; } [data-hd-family="placeholder"] .hd-dial-legend[data-end="max"] { right: 8px; }
 [data-hd-family="placeholder"] .hd-num-deg { font-size: 13px; }
-[data-hd-family="placeholder"] :is(.hd-dial-readout, .hd-gauge-readout) { position: absolute; inset: 0; display: grid; place-items: center; }
+[data-hd-family="placeholder"] :is(.hd-dial-readout, .hd-gauge-readout) { position: absolute; inset: 0; display: grid; place-items: center; font-size: 13px; line-height: 15px; }
+[data-hd-family="placeholder"] :is(.hd-dial-readout, .hd-gauge-readout) .hd-numeral { min-width: 0; font-size: 13px; line-height: 15px; }
+[data-hd-family="placeholder"] .hd-gauge[data-hd-gauge="needle"] .hd-gauge-readout { inset: 73px 0 auto 0; height: 15px; }
 [data-hd-family="placeholder"] :is(.hd-gauge-min, .hd-gauge-max) { position: absolute; bottom: 0; font-size: 11px; color: var(--hd-ink-muted); }
 [data-hd-family="placeholder"] .hd-gauge-min { left: 8px; } [data-hd-family="placeholder"] .hd-gauge-max { right: 8px; }
 [data-hd-family="placeholder"] .hd-stepper, [data-hd-family="placeholder"] .hd-seg { display: flex; align-items: center; gap: 4px; }
@@ -61,6 +64,7 @@
 [data-hd-family="placeholder"] .hd-lamp-dot { box-sizing: border-box; width: 14px; height: 14px; border: 2px solid var(--hd-ink-muted); border-radius: 50%; }
 [data-hd-family="placeholder"] .hd-lamp[data-hd-on="true"] .hd-lamp-dot { border-color: var(--hd-ink); background: var(--hd-ink); }
 [data-hd-family="placeholder"] .hd-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border: 1px solid var(--hd-ink-muted); border-radius: 999px; font-size: 12px; color: var(--hd-ink); }
+[data-hd-family="placeholder"] .hd-badge-text { box-sizing: content-box; flex: none; inline-size: 11ch; text-align: center; white-space: nowrap; }
 [data-hd-family="placeholder"] .hd-badge .hd-ico, [data-hd-family="placeholder"] .hd-push .hd-ico, [data-hd-family="placeholder"] .hd-seg-opt .hd-ico { width: 16px; height: 16px; }
 [data-hd-family="placeholder"] .hd-iconbadge { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--hd-sunken); color: var(--hd-ink); }
 [data-hd-family="placeholder"] .hd-iconbadge .hd-ico { width: 20px; height: 20px; }
@@ -73,3 +77,14 @@
 [data-hd-family="placeholder"] .hd-sheet-title { margin: 0; font-size: 14px; color: var(--hd-ink); }
 [data-hd-family="placeholder"] .hd-wheel { position: relative; width: 120px; height: 120px; } [data-hd-family="placeholder"] .hd-wheel-canvas { width: 100%; height: 100%; }
 [data-hd-family="placeholder"] .hd-wheel-thumb { position: absolute; left: calc(var(--hd-wheel-x, .5) * 100%); top: calc(var(--hd-wheel-y, .5) * 100%); width: 14px; height: 14px; margin: -7px; border: 2px solid var(--hd-ink); border-radius: 50%; box-sizing: border-box; }
+[data-hd-family="placeholder"] .hd-frame { position: relative; overflow: hidden; grid-template-rows: 30px minmax(0, 1fr) 16px; grid-auto-rows: 0; row-gap: 4px; }
+[data-hd-family="placeholder"] .hd-frame > .hd-head { grid-row: 1; box-sizing: border-box; height: 30px; padding-right: 48px; align-items: flex-start; overflow: hidden; }
+[data-hd-family="placeholder"] .hd-frame > .hd-body { grid-row: 2; display: flex; align-items: center; overflow: hidden; }
+[data-hd-family="placeholder"] .hd-frame > .hd-state { grid-row: 3; box-sizing: border-box; height: 16px; min-height: 0; font-size: 12px; line-height: 16px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+[data-hd-family="placeholder"] .hd-frame > .hd-more { position: absolute; top: 0; right: 0; width: 44px; height: 44px; margin: 0; padding: 0; background: none; }
+[data-hd-family="placeholder"] .hd-tile { flex: 1 1 auto; min-width: 0; overflow: hidden; gap: 4px; }
+[data-hd-family="placeholder"] .hd-tile .hd-iconbadge { flex: none; width: 20px; height: 20px; }
+[data-hd-family="placeholder"] .hd-tile .hd-iconbadge .hd-ico { width: 14px; height: 14px; }
+[data-hd-family="placeholder"] .hd-tile .hd-numeral { flex: 0 1 auto; min-width: 0; font-size: 15px; line-height: 20px; white-space: nowrap; }
+[data-hd-family="placeholder"] .hd-tile .hd-lamp { flex: none; }
+[data-hd-family="placeholder"] .hd-widget[data-hd-size="1x1"] .hd-tile .hd-lamp { display: none; }

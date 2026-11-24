@@ -206,6 +206,8 @@
             const scope = document.getElementById('hd-lab-scope');
             scope.classList.add('desktop-body'); scope.setAttribute('data-theme', p.theme); scope.setAttribute('data-scheme', p.scheme); scope.setAttribute('data-accent', 'teal');
             scope.setAttribute('data-animations', p.motion === 'full' ? 'true' : 'false');
+            // The desktop shell writes data-fruity-mode on the body for every theme and the fruity theme CSS reads it.
+            scope.setAttribute('data-fruity-mode', p.scheme);
             await loadLink('/css/desktop-shell.bundle.css', bundle);
         }
         for (const src of p.scripts) await loadScript(src);
