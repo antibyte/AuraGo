@@ -191,7 +191,8 @@ func strictSchemasForActiveTools(snapshot *nativeToolSchemaSnapshot, active []op
 			continue
 		}
 		// patch_scene reads null as "remove this field"; required-and-nullable would delete fields.
-		if strings.HasPrefix(schema.Function.Name, "storymaker_") {
+		// The Video Studio plan tools take partial scenes: a strict projection would force every optional field.
+		if strings.HasPrefix(schema.Function.Name, "storymaker_") || strings.HasPrefix(schema.Function.Name, VideoStudioPlanToolPrefix) {
 			out = append(out, schema)
 			continue
 		}

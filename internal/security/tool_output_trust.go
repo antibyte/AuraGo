@@ -63,7 +63,9 @@ func classifyToolOutput(action string) toolOutputTrust {
 		"cyd_creator_read_project", "cyd_creator_read_file", "cyd_creator_build", "cyd_creator_api_reference",
 		// Storymaker job tools return story JSON and fix examples that weak models
 		// copy: the quotes must stay unescaped.
-		"storymaker_story", "storymaker_catalog", "storymaker_check":
+		"storymaker_story", "storymaker_catalog", "storymaker_check",
+		// Video Studio plan job tools return plan JSON whose prompts the model copies.
+		"vs_plan_read", "vs_plan_write", "vs_plan_patch_scene", "vs_plan_check", "vs_plan_finish":
 		return toolOutputSourceData
 	case
 		"adguard",

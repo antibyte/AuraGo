@@ -333,7 +333,7 @@ func checkDispatchActionPolicy(ctx context.Context, tc ToolCall, dc *DispatchCon
 			break
 		}
 	}
-	private := dc.ExecutionHooks != nil && dc.ToolScopeRestricted && dispatchToolAllowed(dc, tc.Action) && (strings.HasPrefix(tc.Action, "game_maker_") || strings.HasPrefix(tc.Action, "cyd_creator_") || strings.HasPrefix(tc.Action, "storymaker_"))
+	private := dc.ExecutionHooks != nil && dc.ToolScopeRestricted && dispatchToolAllowed(dc, tc.Action) && (strings.HasPrefix(tc.Action, "game_maker_") || strings.HasPrefix(tc.Action, "cyd_creator_") || strings.HasPrefix(tc.Action, "storymaker_") || strings.HasPrefix(tc.Action, VideoStudioPlanToolPrefix))
 	missingCatalog := !enabled && !private
 	if missingCatalog {
 		// Private prepared-profile hooks retain their existing policy-off route;
