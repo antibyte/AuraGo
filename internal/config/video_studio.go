@@ -17,10 +17,30 @@ type VideoStudioConfig struct {
 	RenderTimeoutSeconds int    `yaml:"render_timeout_seconds" json:"render_timeout_seconds"`
 	HardwareEncoding     string `yaml:"hardware_encoding" json:"hardware_encoding"`
 	HardwareDevice       string `yaml:"hardware_device" json:"hardware_device"`
+
+	// Plan configures plan mode: the agent that plans a clip as a storyboard.
+	Plan VideoStudioPlanConfig `yaml:"plan" json:"plan"`
 }
 
-// NormalizeVideoStudioConfig applies defaults without enabling the editor.
+// VideoStudioPlanConfig configures plan mode: an agent plans a clip from an idea as a storyboard that the user reviews
+// and edits (docs/superpowers/specs/2026-11-23-video-studio-plan-mode-design.md). Enabled defaults to true in the
+// loader.
+type VideoStudioPlanConfig struct {
+	Enabled bool `yaml:"enabled" json:"enabled"`
+	// AgentProvider is a provider id for planning jobs; empty means the main route.
+	AgentProvider string `yaml:"agent_provider" json:"agent_provider"`
+	// AgentModel overrides the provider's model; empty means the provider's model.
+	AgentModel string `yaml:"agent_model" json:"agent_model"`
+	// MaxDailyJobs limits planning job starts (new plans and scene revisions) per local day.
+	MaxDailyJobs int `yaml:"max_daily_jobs" json:"max_daily_jobs"`
+	// JobTimeoutSeconds bounds one planning job.
+	JobTimeoutSeconds int `yaml:"job_timeout_seconds" json:"job_timeout_seconds"`
+}
+
+// NormalizeVideoStudioConfig applies defaults without enabling the editor. The plan settings go through
+// normalizeVideoStudioPlan, which never fails.
 func NormalizeVideoStudioConfig(c *VideoStudioConfig) error {
+	normalizeVideoStudioPlan(&c.Plan)
 	if c.MaxProjectSizeMB == 0 {
 		c.MaxProjectSizeMB = 16384
 	}
@@ -63,4 +83,25 @@ func NormalizeVideoStudioConfig(c *VideoStudioConfig) error {
 	c.MaxAssetSizeMB = min(c.MaxAssetSizeMB, c.MaxProjectSizeMB)
 	c.MaxExportSizeMB = min(c.MaxExportSizeMB, c.MaxProjectSizeMB)
 	return nil
+}
+
+const (
+	videoStudioPlanDefaultMaxDailyJobs      = 20
+	videoStudioPlanDefaultJobTimeoutSeconds = 900
+)
+
+// normalizeVideoStudioPlan trims the agent route and applies the defaults for unset (zero) values. Limits outside
+// their range are clamped, not rejected: 1 to 1000 jobs per day, 120 to 3600 seconds per job. It does not change
+// Enabled.
+func normalizeVideoStudioPlan(p *VideoStudioPlanConfig) {
+	p.AgentProvider = strings.TrimSpace(p.AgentProvider)
+	p.AgentModel = strings.TrimSpace(p.AgentModel)
+	if p.MaxDailyJobs == 0 {
+		p.MaxDailyJobs = videoStudioPlanDefaultMaxDailyJobs
+	}
+	p.MaxDailyJobs = min(max(p.MaxDailyJobs, 1), 1000)
+	if p.JobTimeoutSeconds == 0 {
+		p.JobTimeoutSeconds = videoStudioPlanDefaultJobTimeoutSeconds
+	}
+	p.JobTimeoutSeconds = min(max(p.JobTimeoutSeconds, 120), 3600)
 }

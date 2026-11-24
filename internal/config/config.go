@@ -598,6 +598,9 @@ func load(path string, diagnosticBackup bool) (*Config, error) {
 	cfg.Storymaker.Enabled = true
 	cfg.Storymaker.Agent.Enabled = true
 
+	// Video Studio plan mode is on by default; the editor itself stays opt-in (video_studio.enabled).
+	cfg.VideoStudio.Plan.Enabled = true
+
 	// Chibi Sensei is on by default: local dataset studio; never widens other permissions.
 	cfg.ChibiSensei.Enabled = true
 

@@ -2398,6 +2398,12 @@ video_studio:
     render_timeout_seconds: 7200
     hardware_encoding: auto
     hardware_device: ""
+    plan:
+        enabled: true               # plan mode: the agent plans a clip as a storyboard you review before anything is generated
+        agent_provider: ""          # provider id for planning jobs; empty = main route
+        agent_model: ""             # model override for planning jobs; empty = the provider's model
+        max_daily_jobs: 20          # planning jobs (new plans and scene revisions) per local day (1-1000)
+        job_timeout_seconds: 900    # limit of one planning job (120-3600)
 
 # Desktop explainer-video maker. Export renders frames in a headless Chrome/Chromium and encodes
 # them with FFmpeg (video_studio.ffmpeg_path, or PATH). The editor and preview work without both.

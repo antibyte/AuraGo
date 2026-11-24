@@ -273,7 +273,10 @@ func videoStudioConfigRootsChanged(previous, next *config.Config) bool {
 	if previous == nil || next == nil {
 		return false
 	}
-	if previous.VideoStudio != next.VideoStudio {
+	// Plan mode settings only steer the planning agent, so saving them must not cancel running FFmpeg jobs.
+	previousStudio, nextStudio := previous.VideoStudio, next.VideoStudio
+	previousStudio.Plan, nextStudio.Plan = config.VideoStudioPlanConfig{}, config.VideoStudioPlanConfig{}
+	if previousStudio != nextStudio {
 		return true
 	}
 	return !sameVideoStudioRoot(previous.Directories.DataDir, next.Directories.DataDir) ||
