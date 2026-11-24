@@ -22,5 +22,8 @@ export const tests = [
     const lay = { lg: [it('a',0,0,12,1)], md: null, sm: [it('a',0,0,4,1)] }; const added = l.addToLayouts(lay, { id: 'n', w: 4, h: 2 });
     eq(map(added.lg).n, [0,1,4,2]); assert.equal(added.md, null); eq(map(added.sm).n, [0,1,1,2]);
     const removed = l.removeFromLayouts(added, ['n']); eq(map(removed.lg), { a: [0,0,12,1] }); eq(map(removed.sm), { a: [0,0,4,1] });
-    const mat = l.materialiseOverride({ lg: LG, md: null, sm: null }, 'md'); eq(map(mat.md), map(l.derive(LG, 8))); assert.equal(l.resetOverride(mat, 'md').md, null); }]
+    const mat = l.materialiseOverride({ lg: LG, md: null, sm: null }, 'md'); eq(map(mat.md), map(l.derive(LG, 8))); assert.equal(l.resetOverride(mat, 'md').md, null); }],
+  ['addToLayouts stores the clamped size', () => { const l = Lx();
+    const r = l.addToLayouts({ lg: [], md: null, sm: null }, { id: 'x', w: 20, h: 1 }, null).lg[0]; assert.equal(r.w, 12); assert.ok(r.x + r.w <= 12);
+    const f = l.addToLayouts({ lg: [], md: [], sm: null }, { id: 'y', w: 2.6, h: 0 }, null); eq([f.lg[0].w, f.lg[0].h], [3, 1]); assert.equal(f.md[0].h, 1); }]
 ];

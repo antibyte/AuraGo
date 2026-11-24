@@ -5,19 +5,69 @@ class Text { constructor(doc, t) { this.nodeType = 3; this.ownerDocument = doc; 
   get textContent() { return this._t; } set textContent(v) { this._t = String(v); } remove() { if (this.parentNode) this.parentNode._drop(this); } }
 class Style { constructor() { this._p = new Map(); } setProperty(n, v) { this._p.set(n, String(v)); }
   getPropertyValue(n) { return this._p.has(n) ? this._p.get(n) : ''; } removeProperty(n) { const v = this.getPropertyValue(n); this._p.delete(n); return v; } }
+// Strict selector engine: supports tag, *, #id, .class, [attr], [attr=v], [attr="v"], [attr='v'], descendant, ">" child, comma lists.
+// Anything else throws, so a test can never pass on a node matched by syntax this double does not implement.
+function unsupported(selector) { return new Error('fake DOM: unsupported selector ' + selector); }
+// Split on a top-level character set (outside [...] and quotes). Returns pieces; for combinator splitting keeps separators.
+function splitTop(text, isSep, keepSep) {
+  const out = []; let cur = ''; let depth = 0; let quote = '';
+  for (const ch of text) {
+    if (quote) { cur += ch; if (ch === quote) quote = ''; continue; }
+    if (ch === '"' || ch === "'") { quote = ch; cur += ch; continue; }
+    if (ch === '[') depth++; else if (ch === ']') depth = Math.max(0, depth - 1);
+    if (depth === 0 && isSep(ch)) { out.push(cur); if (keepSep) out.push(ch); cur = ''; continue; }
+    cur += ch;
+  }
+  out.push(cur); return out;
+}
+function parseCompound(text, selector) {
+  const c = { tag: null, id: null, classes: [], attrs: [] }; let s = text; let m;
+  if (s === '*') return c;
+  if ((m = /^[a-zA-Z][\w-]*/.exec(s))) { c.tag = m[0].toLowerCase(); s = s.slice(m[0].length); }
+  while (s.length) {
+    if ((m = /^#([\w-]+)/.exec(s))) c.id = m[1];
+    else if ((m = /^\.([\w-]+)/.exec(s))) c.classes.push(m[1]);
+    else if ((m = /^\[([\w-]+)(?:=(?:"([^"]*)"|'([^']*)'|([^\]"'\s]+)))?\]/.exec(s))) c.attrs.push({ name: m[1], value: m[2] ?? m[3] ?? m[4] });
+    else throw unsupported(selector);
+    s = s.slice(m[0].length);
+  }
+  if (!c.tag && !c.id && !c.classes.length && !c.attrs.length) throw unsupported(selector);
+  return c;
+}
+// A complex selector becomes [compound, comb, compound, ...] where comb is ' ' or '>'.
+function parseComplex(text, selector) {
+  const pieces = splitTop(text.trim(), ch => ch === '>' || /\s/.test(ch), true);
+  const seq = []; let comb = null; let expectCompound = true;
+  for (const p of pieces) {
+    if (p === '>') { if (expectCompound) throw unsupported(selector); comb = '>'; expectCompound = true; continue; }
+    if (p === '') continue;
+    if (/^\s$/.test(p)) { if (!expectCompound && comb === null) comb = ' '; continue; }
+    seq.push(...(seq.length ? [comb] : []), parseCompound(p, selector)); comb = null; expectCompound = false;
+  }
+  if (!seq.length || expectCompound || comb === '>') throw unsupported(selector);
+  return seq;
+}
+function parseSelector(selector) {
+  if (typeof selector !== 'string') throw unsupported(selector);
+  return splitTop(selector, ch => ch === ',').map(part => parseComplex(part, selector));
+}
 function matchCompound(el, c) {
-  if (c === '*') return true;
-  const tag = /^[a-zA-Z][\w-]*/.exec(c); if (tag && el.localName.toLowerCase() !== tag[0].toLowerCase()) return false;
-  for (const m of c.matchAll(/\.([\w-]+)/g)) if (!el.classList.contains(m[1])) return false;
-  for (const m of c.matchAll(/\[([\w-]+)(?:="([^"]*)")?\]/g)) { if (!el.hasAttribute(m[1])) return false; if (m[2] !== undefined && el.getAttribute(m[1]) !== m[2]) return false; }
+  if (c.tag && el.localName.toLowerCase() !== c.tag) return false;
+  if (c.id !== null && el.getAttribute('id') !== c.id) return false;
+  for (const k of c.classes) if (!el.classList.contains(k)) return false;
+  for (const a of c.attrs) { if (!el.hasAttribute(a.name)) return false; if (a.value !== undefined && el.getAttribute(a.name) !== a.value) return false; }
   return true;
 }
-function matchComplex(el, sel) {
-  const parts = sel.trim().split(/\s+/); if (!matchCompound(el, parts.pop())) return false;
-  let node = el.parentNode;
-  for (let i = parts.length - 1; i >= 0; i--) { while (node && node.nodeType === 1 && !matchCompound(node, parts[i])) node = node.parentNode; if (!node || node.nodeType !== 1) return false; node = node.parentNode; }
-  return true;
+function matchSeq(el, seq, i) {
+  if (!matchCompound(el, seq[i])) return false;
+  if (i === 0) return true;
+  const comb = seq[i - 1]; const parent = el.parentNode;
+  if (!parent || parent.nodeType !== 1) return false;
+  if (comb === '>') return matchSeq(parent, seq, i - 2);
+  for (let n = parent; n && n.nodeType === 1; n = n.parentNode) if (matchSeq(n, seq, i - 2)) return true;
+  return false;
 }
+function matchesParsed(el, list) { return list.some(seq => matchSeq(el, seq, seq.length - 1)); }
 export class FakeElement {
   constructor(doc, tag, ns) {
     this.nodeType = 1; this.ownerDocument = doc; this.namespaceURI = ns || 'http://www.w3.org/1999/xhtml';
@@ -42,18 +92,18 @@ export class FakeElement {
   set textContent(v) { this.replaceChildren(); const s = String(v ?? ''); if (s) this.appendChild(new Text(this.ownerDocument, s)); }
   appendChild(n) { if (n.parentNode) n.parentNode._drop(n); n.parentNode = this; this.childNodes.push(n); return n; }
   append(...ns) { for (const n of ns) this.appendChild(typeof n === 'string' ? new Text(this.ownerDocument, n) : n); }
-  insertBefore(n, ref) { if (!ref) return this.appendChild(n); if (n.parentNode) n.parentNode._drop(n); n.parentNode = this; this.childNodes.splice(this.childNodes.indexOf(ref), 0, n); return n; }
+  insertBefore(n, ref) { if (!ref) return this.appendChild(n); if (!this.childNodes.includes(ref)) throw new Error('fake DOM: insertBefore reference is not a child'); if (n.parentNode) n.parentNode._drop(n); n.parentNode = this; this.childNodes.splice(this.childNodes.indexOf(ref), 0, n); return n; }
   replaceChildren(...ns) { for (const c of this.childNodes) c.parentNode = null; this.childNodes = []; this.append(...ns); }
   remove() { if (this.parentNode) this.parentNode._drop(this); }
   _drop(n) { const i = this.childNodes.indexOf(n); if (i >= 0) this.childNodes.splice(i, 1); n.parentNode = null; }
-  matches(sel) { return sel.split(',').some(s => matchComplex(this, s)); }
+  matches(sel) { return matchesParsed(this, parseSelector(sel)); }
   closest(sel) { for (let n = this; n && n.nodeType === 1; n = n.parentNode) if (n.matches(sel)) return n; return null; }
-  querySelectorAll(sel) { const out = []; const walk = n => { for (const c of n.children) { if (c.matches(sel)) out.push(c); walk(c); } }; walk(this); return out; }
+  querySelectorAll(sel) { const list = parseSelector(sel); const out = []; const walk = n => { for (const c of n.children) { if (matchesParsed(c, list)) out.push(c); walk(c); } }; walk(this); return out; }
   querySelector(sel) { return this.querySelectorAll(sel)[0] || null; }
   addEventListener(t, fn, o) { if (o && o.signal) { if (o.signal.aborted) return; o.signal.addEventListener('abort', () => this.removeEventListener(t, fn)); }
     if (!this._l.has(t)) this._l.set(t, new Set()); this._l.get(t).add(fn); }
   removeEventListener(t, fn) { const s = this._l.get(t); if (s) s.delete(fn); }
-  dispatchEvent(ev) { for (const fn of [...(this._l.get(ev.type) || [])]) fn.call(this, ev); return true; }
+  dispatchEvent(ev) { if (!ev.target) ev.target = this; if (!ev.currentTarget) ev.currentTarget = this; for (const fn of [...(this._l.get(ev.type) || [])]) fn.call(this, ev); return true; }
   getBoundingClientRect() { return { x: 0, y: 0, width: 0, height: 0, top: 0, left: 0, right: 0, bottom: 0 }; }
   focus() { this.ownerDocument.activeElement = this; }
 }

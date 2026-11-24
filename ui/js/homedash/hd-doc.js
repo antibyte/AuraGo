@@ -8,10 +8,10 @@
     const WIDGET_DEFAULTS = { variant: '', title: '', bindings: {}, options: {}, actions: {}, confirm: false };
     function normalisePage(raw, index, sizeOf) {
         const p = isObj(raw) ? raw : {}, seen = new Set();
-        const widgets = (Array.isArray(p.widgets) ? p.widgets : []).filter(w => isObj(w) && typeof w.id === 'string' && typeof w.type === 'string' && !seen.has(w.id) && seen.add(w.id)).map(w => Object.assign({}, WIDGET_DEFAULTS, clone(w)));
+        const widgets = (Array.isArray(p.widgets) ? p.widgets : []).filter(w => isObj(w) && typeof w.id === 'string' && typeof w.type === 'string' && !seen.has(w.id) && seen.add(w.id)).map(w => Object.assign(clone(WIDGET_DEFAULTS), clone(w)));
         const ids = new Set(widgets.map(w => w.id)), L = isObj(p.layouts) ? p.layouts : {};
         let layouts = { lg: E.grid.repair(L.lg, COLS.lg, null, { ids, compact: p.compact !== false }), md: null, sm: null };
-        for (const bp of ['md', 'sm']) if (Array.isArray(L[bp])) layouts[bp] = E.grid.repair(L[bp], COLS[bp], null, { ids, compact: true });
+        for (const bp of ['md', 'sm']) if (Array.isArray(L[bp])) layouts[bp] = E.grid.repair(L[bp], COLS[bp], null, { ids, compact: p.compact !== false });
         for (const w of widgets) if (!layouts.lg.some(i => i.id === w.id)) layouts = E.layout.addToLayouts(layouts, Object.assign({ id: w.id }, sizeOf(w)), null);
         for (const bp of ['md', 'sm']) if (Array.isArray(layouts[bp])) for (const w of widgets) if (!layouts[bp].some(i => i.id === w.id)) {
             const s = E.layout.derivedSize(layouts.lg.find(i => i.id === w.id), COLS[bp], {}), q = E.grid.place(layouts[bp], s.w, s.h, COLS[bp]);
@@ -64,7 +64,8 @@
     function layoutOps(doc, pageId, next) { const page = pageOf(doc, pageId), ops = [];
         for (const bp of ['lg', 'md', 'sm']) if (keyOf(page.layouts[bp]) !== keyOf(next[bp])) ops.push(op(doc, ['pages', pageId, 'layouts', bp], next[bp])); return ops; }
     function addWidget(doc, pageId, widget, size, C) {
-        const page = pageOf(doc, pageId), w = Object.assign({}, WIDGET_DEFAULTS, clone(widget)); if (!w.id) w.id = randomId('w', 8);
+        const page = pageOf(doc, pageId), w = Object.assign(clone(WIDGET_DEFAULTS), clone(widget)); if (!w.id) w.id = randomId('w', 8);
+        else if (page.widgets.some(x => x.id === w.id)) throw new Error('hd-doc: duplicate widget id ' + w.id);
         return command('add', [op(doc, ['pages', pageId, 'widgets', w.id], w), ...layoutOps(doc, pageId, E.layout.addToLayouts(page.layouts, { id: w.id, w: size.w, h: size.h }, C))], { kind: 'add', ids: [w.id] });
     }
     function removeWidgets(doc, pageId, ids) {

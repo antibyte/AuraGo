@@ -32,5 +32,20 @@ export const tests = [
     h.seal(); h.push(E.doc.setField(D2, N, 'four', { coalesce: 'k', window: 800, at: 2500 })); assert.equal(h.size(), 3);
     const u = h.undo(D2); assert.ok(u && h.canRedo()); h.push(E.doc.setField(D2, N, 'x', { at: 9000 })); assert.equal(h.canRedo(), false);
     const g = E.history.create(); for (let i = 0; i < 105; i++) g.push(E.doc.setField(D, N, 'n' + i, { at: i })); assert.equal(g.size(), 100);
-    const k = E.history.create(); k.push(c1); assert.equal(k.undo(D1).doc.pages[0].name, ''); assert.equal(k.redo(D).doc.pages[0].name, 'one'); }]
+    const k = E.history.create(); k.push(c1); assert.equal(k.undo(D1).doc.pages[0].name, ''); assert.equal(k.redo(D).doc.pages[0].name, 'one'); }],
+  ['widget defaults are never shared between widgets', () => { const E = boot();
+    const a = E.doc.normalise({ pages: [{ widgets: [{ id: 'w', type: 't' }] }] }); a.pages[0].widgets[0].options.x = 1; a.pages[0].widgets[0].bindings.y = 2; a.pages[0].widgets[0].actions.z = 3;
+    const b = E.doc.normalise({ pages: [{ widgets: [{ id: 'w', type: 't' }] }] }); eq([b.pages[0].widgets[0].options, b.pages[0].widgets[0].bindings, b.pages[0].widgets[0].actions], [{}, {}, {}]);
+    const D = base(E), c1 = E.doc.addWidget(D, 'main', { id: 'n1', type: 'sensor' }, { w: 2, h: 1 }); c1.ops[0].after.options.x = 1;
+    const c2 = E.doc.addWidget(D, 'main', { id: 'n2', type: 'sensor' }, { w: 2, h: 1 }); eq(c2.ops[0].after.options, {});
+    const A = E.doc.apply(D, c2.ops); A.pages[0].widgets.find(w => w.id === 'n2').options.q = 1;
+    const c3 = E.doc.addWidget(D, 'main', { id: 'n3', type: 'sensor' }, { w: 2, h: 1 }); eq(E.doc.apply(D, c3.ops).pages[0].widgets.find(w => w.id === 'n3').options, {}); }],
+  ['manual md/sm overrides follow page.compact', () => { const E = boot();
+    const mk = compact => { const page = { id: 'main', widgets: [{ id: 'w1', type: 't' }, { id: 'w2', type: 't' }], layouts: { lg: [{ id: 'w1', x: 0, y: 0, w: 2, h: 1 }, { id: 'w2', x: 2, y: 0, w: 2, h: 1 }], md: [{ id: 'w1', x: 0, y: 0, w: 4, h: 1 }, { id: 'w2', x: 0, y: 3, w: 4, h: 1 }] } };
+      if (compact !== undefined) page.compact = compact; return E.doc.normalise({ pages: [page] }).pages[0].layouts.md.find(i => i.id === 'w2').y; };
+    assert.equal(mk(false), 3); assert.equal(mk(true), 1); assert.equal(mk(undefined), 1); }],
+  ['addWidget rejects a duplicate id', () => { const E = boot(), D = base(E);
+    assert.throws(() => E.doc.addWidget(D, 'main', { id: 'w1', type: 'sensor' }, { w: 2, h: 1 }), /duplicate widget id w1/);
+    const c = E.doc.addWidget(D, 'main', { id: 'fresh', type: 'sensor' }, { w: 2, h: 1 }); assert.equal(E.doc.apply(D, c.ops).pages[0].widgets.length, 3);
+    const r = E.doc.addWidget(D, 'main', { type: 'sensor' }, { w: 2, h: 1 }); assert.equal(typeof r.meta.ids[0], 'string'); }]
 ];

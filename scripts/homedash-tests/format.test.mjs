@@ -18,5 +18,8 @@ export const tests = [
     const w = v => f.stateWord(v);
     assert.equal(w(null), 'unavailable'); assert.equal(w({ available: false }), 'unavailable'); assert.equal(w({ status: 'unknown' }), 'unknown');
     assert.equal(w({ status: 'error', value: 'on' }), 'error'); assert.equal(w({ pending: true, value: 'on' }), 'pending'); assert.equal(w({ value: 'off' }), 'off'); assert.equal(w({ value: 3 }), 'value');
-    assert.equal(f.stateText({ value: 'on' }, k => '[' + k + ']'), '[homedash.state.on]'); assert.equal(f.stateText({ value: 3 }, k => k), ''); }]
+    assert.equal(f.stateText({ value: 'on' }, k => '[' + k + ']'), '[homedash.state.on]'); assert.equal(f.stateText({ value: 3 }, k => k), ''); }],
+  ['a value that rounds to zero has no sign', () => { const f = F();
+    assert.equal(f.number(-0.04, { decimals: 1 }), '0.0'); assert.equal(f.split(-0.4, { decimals: 0 }).int, '0'); assert.equal(f.number(-1.5, { decimals: 1 }), '-1.5');
+    assert.equal(f.percent(-0.001), '0%'); assert.equal(f.percent(-0.5), '-50%'); }]
 ];

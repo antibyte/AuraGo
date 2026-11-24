@@ -28,5 +28,12 @@ export const tests = [
     eq(g.place([it('a',0,0,12,1)], 2, 1, 12), { x: 0, y: 1 }); eq(g.place([it('a',0,0,4,1), it('b',6,0,6,1)], 2, 1, 12), { x: 4, y: 0 });
     eq(g.place([it('a',0,0,4,1), it('b',6,0,6,1)], 3, 1, 12), { x: 0, y: 1 }); eq(g.place([], 2, 1, 12, 3), { x: 0, y: 3 }); eq(g.place([], 20, 1, 12), { x: 0, y: 0 }); }],
   ['repair clamps, drops duplicates and unknown ids', () => { const g = G();
-    eq(map(g.repair([{ id: 'a', x: 11, y: -2, w: 2, h: 1 }, it('a',0,0,1,1), it('zz',0,0,1,1), { id: 'b', x: '3', y: null, w: 20, h: 0 }], 12, { b: { minW: 2, maxW: 4, minH: 1, maxH: 2 } }, { ids: new Set(['a','b']) })), { a: [10,0,2,1], b: [3,0,4,1] }); }]
+    eq(map(g.repair([{ id: 'a', x: 11, y: -2, w: 2, h: 1 }, it('a',0,0,1,1), it('zz',0,0,1,1), { id: 'b', x: '3', y: null, w: 20, h: 0 }], 12, { b: { minW: 2, maxW: 4, minH: 1, maxH: 2 } }, { ids: new Set(['a','b']) })), { a: [10,0,2,1], b: [3,0,4,1] }); }],
+  ['fractional input never yields negative or fractional cells', () => { const g = G();
+    assert.equal(g.compact([it('a',0,0.4,2,1)])[0].y, 0); assert.equal(g.compact([it('a',0,1.6,2,1)], false)[0].y, 2);
+    const ok = L => L.every(i => [i.x, i.y, i.w, i.h].every(Number.isInteger) && i.y >= 0 && i.x >= 0);
+    const L = [it('a',0,0,2,1), it('b',2,0,2,1), it('c',0,1,2,1)], before = JSON.stringify(L);
+    assert.ok(ok(g.moveItems(L, ['a'], { x: 2.6, y: 0.4 }, 12))); assert.ok(ok(g.moveItems(L, ['a'], { x: 1.5, y: -0.4 }, 12, { compact: false })));
+    assert.ok(ok(g.resizeItem(L, 'a', 'se', { dx: 0.6, dy: 1.4 }, 12))); assert.ok(ok(g.resizeItem(L, 'b', 'nw', { dx: -0.6, dy: -0.4 }, 12)));
+    assert.equal(JSON.stringify(L), before); }]
 ];

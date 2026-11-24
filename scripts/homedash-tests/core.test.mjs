@@ -31,5 +31,18 @@ export const tests = [
     assert.equal(E.core.isTyping(i), true); i.setAttribute('type', 'checkbox'); assert.equal(E.core.isTyping(i), false);
     assert.equal(E.core.isTyping(document.createElement('textarea')), true); assert.equal(E.core.isTyping(null), false);
     const r = document.createElement('div'); r.setAttribute('data-hd-motion', 'none'); assert.equal(E.core.motionReduced(r), true);
-    r.setAttribute('data-hd-motion', 'full'); assert.equal(E.core.motionReduced(r), false); }]
+    r.setAttribute('data-hd-motion', 'full'); assert.equal(E.core.motionReduced(r), false); }],
+  ['el turns numbers into text nodes', () => { const { E } = boot();
+    const n = E.el('span', null, 42); assert.equal(n.textContent, '42'); assert.equal(n.childNodes.length, 1); assert.equal(n.childNodes[0].nodeType, 3);
+    assert.equal(E.el('span', null, [1, 'a']).textContent, '1a'); }],
+  ['the fake DOM rejects unsupported selectors', () => { const { document } = boot();
+    const mk = (tag, a) => { const n = document.createElement(tag); for (const k in a || {}) n.setAttribute(k, a[k]); return n; };
+    const root = mk('div'), p = mk('div', { id: 'x' }), s1 = mk('span', { 'data-a': 'b' }), inner = mk('div'), s2 = mk('span');
+    inner.appendChild(s2); p.appendChild(s1); p.appendChild(inner); root.appendChild(p);
+    assert.deepEqual(root.querySelectorAll('#x > span'), [s1]); assert.deepEqual(root.querySelectorAll('#x>span'), [s1]); assert.deepEqual(root.querySelectorAll('#x span'), [s1, s2]);
+    assert.equal(root.querySelector('#x'), p); assert.equal(root.querySelector('[data-a=b]'), s1); assert.equal(root.querySelector("[data-a='b']"), s1);
+    assert.equal(root.querySelector('[data-a="b"], #nope'), s1); assert.equal(root.querySelector('[data-a="b,c"]'), null);
+    for (const bad of ['span:is(.a)', 'a + b', 'a ~ b', '[data-a^="b"]', '[data-a$=b]', '[data-a*=b]', '[data-a~=b]', ':not(.a)']) assert.throws(() => root.querySelector(bad), /unsupported selector/, bad);
+    assert.throws(() => p.insertBefore(mk('i'), s2), /not a child/); p.insertBefore(mk('i'), inner); assert.equal(p.childNodes[1].localName, 'i');
+    const ev = { type: 'x' }; p.dispatchEvent(ev); assert.equal(ev.target, p); assert.equal(ev.currentTarget, p); }]
 ];

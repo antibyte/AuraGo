@@ -10,7 +10,7 @@
     function compact(L, gravity) {
         const placed = [];
         for (const src of sortReading(L)) {
-            const it = item(src);
+            const it = item(src); it.y = Math.max(0, Math.round(it.y));
             if (gravity !== false) while (it.y > 0 && !placed.some(p => collides(p, Object.assign({}, it, { y: it.y - 1 })))) it.y--;
             while (placed.some(p => collides(p, it))) it.y++;
             placed.push(it);
@@ -40,7 +40,7 @@
     function moveItems(L, ids, target, cols, opts) {
         const idSet = new Set(ids), out = L.map(item), S = out.filter(i => idSet.has(i.id));
         if (!S.length) return settle(out, opts);
-        const B = bbox(S), dx = clamp(target.x, 0, Math.max(0, cols - B.w)) - B.x, dy = Math.max(0, target.y) - B.y;
+        const B = bbox(S), dx = clamp(Math.round(target.x), 0, Math.max(0, cols - B.w)) - B.x, dy = Math.max(0, Math.round(target.y)) - B.y;
         if (!dx && !dy) return settle(out, opts);
         for (const s of S) { s.x += dx; s.y += dy; }
         if (S.length === 1) {
@@ -55,7 +55,7 @@
         if (!r) return settle(out, opts);
         const k = c || {}, minW = Math.max(1, k.minW || 1), minH = Math.max(1, k.minH || 1);
         const maxW = Math.max(minW, Math.min(k.maxW || cols, cols)), maxH = Math.max(minH, k.maxH || Infinity);
-        const right = r.x + r.w, bottom = r.y + r.h, dx = (d && d.dx) || 0, dy = (d && d.dy) || 0;
+        const right = r.x + r.w, bottom = r.y + r.h, dx = Math.round((d && d.dx) || 0), dy = Math.round((d && d.dy) || 0);
         let { x, y, w, h } = r;
         if (edge.includes('e')) w += dx;
         if (edge.includes('w')) { x += dx; w -= dx; }

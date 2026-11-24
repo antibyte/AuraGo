@@ -46,11 +46,12 @@
         return { '--hd-cols': cols, '--hd-rows': rows, '--hd-colw': r(m.colW) + 'px', '--hd-rowh': r(m.rowH) + 'px', '--hd-gap': gap + 'px', '--hd-offx': r(m.offX) + 'px' }; }
     const rows = L => L.reduce((m, i) => Math.max(m, i.y + i.h), 0);
     function addToLayouts(layouts, item, C) {
-        const p = G.place(layouts.lg, item.w, item.h, COLS.lg);
-        const out = { lg: layouts.lg.concat([{ id: item.id, x: p.x, y: p.y, w: item.w, h: item.h }]), md: layouts.md == null ? null : layouts.md, sm: layouts.sm == null ? null : layouts.sm };
+        const w = clamp(Math.round(Number(item.w)) || 1, 1, COLS.lg), h = Math.max(1, Math.round(Number(item.h)) || 1);
+        const p = G.place(layouts.lg, w, h, COLS.lg);
+        const out = { lg: layouts.lg.concat([{ id: item.id, x: p.x, y: p.y, w, h }]), md: layouts.md == null ? null : layouts.md, sm: layouts.sm == null ? null : layouts.sm };
         for (const bp of ['md', 'sm']) {
             if (!Array.isArray(layouts[bp])) continue;
-            const s = derivedSize(item, COLS[bp], constraintOf(C, item.id)), q = G.place(layouts[bp], s.w, s.h, COLS[bp]);
+            const s = derivedSize({ w, h }, COLS[bp], constraintOf(C, item.id)), q = G.place(layouts[bp], s.w, s.h, COLS[bp]);
             out[bp] = layouts[bp].concat([{ id: item.id, x: q.x, y: q.y, w: s.w, h: s.h }]);
         }
         return out;

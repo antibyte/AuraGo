@@ -28,7 +28,7 @@
     function append(node, children) {
         for (const child of [].concat(children == null ? [] : children)) {
             if (child === null || child === undefined || child === false) continue;
-            node.appendChild(typeof child === 'string' ? document.createTextNode(child) : child);
+            node.appendChild(typeof child === 'string' || typeof child === 'number' ? document.createTextNode(String(child)) : child);
         }
         return node;
     }

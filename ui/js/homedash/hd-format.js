@@ -11,7 +11,7 @@
     const isNum = v => typeof v === 'number' && Number.isFinite(v);
     function nf(lang, d, grouping) {
         const key = (lang || 'en') + '|' + d + '|' + grouping;
-        if (!cache.has(key)) cache.set(key, new Intl.NumberFormat(lang || 'en', { minimumFractionDigits: d, maximumFractionDigits: d, useGrouping: grouping }));
+        if (!cache.has(key)) cache.set(key, new Intl.NumberFormat(lang || 'en', { minimumFractionDigits: d, maximumFractionDigits: d, useGrouping: grouping, signDisplay: 'negative' }));
         return cache.get(key);
     }
     const decimalsOf = (v, o) => (o.decimals === undefined || o.decimals === null ? (Number.isInteger(v) ? 0 : Math.abs(v) < 100 ? 1 : 0) : o.decimals);
@@ -24,7 +24,7 @@
         return { int, frac, unit, empty: false };
     }
     function valueText(value, opts) { const t = number(value, opts); if (!t) return DASH; const u = opts && opts.unit; return u ? t + NBSP + u : t; }
-    const percent = (fr, opts) => (isNum(fr) ? new Intl.NumberFormat((opts && opts.lang) || 'en', { style: 'percent', maximumFractionDigits: 0 }).format(fr) : DASH);
+    const percent = (fr, opts) => (isNum(fr) ? new Intl.NumberFormat((opts && opts.lang) || 'en', { style: 'percent', maximumFractionDigits: 0, signDisplay: 'negative' }).format(fr) : DASH);
     function relTime(then, now, lang) {
         if (!isNum(then) || !isNum(now)) return '';
         const s = Math.round((then - now) / 1000), a = Math.abs(s), r = new Intl.RelativeTimeFormat(lang || 'en', { numeric: 'auto' });
