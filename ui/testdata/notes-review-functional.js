@@ -222,6 +222,38 @@ async () => {
     check(!log.slice(logBefore).some(entry=>['PATCH','POST','PUT'].includes(entry.method)&&!String(entry.body).includes('notes.meta.json')),'A click inside an embedded card wrote');
     window.open=openOriginal;notesContext.confirmDialog=confirmOriginal;
     result.excerptsInert=true;
+
+    // Names with # ^ [ ] cannot be linked by wikilinks: new folders, new notes and moves refuse them before any request.
+    const press=(name,options,target)=>target.dispatchEvent(new KeyboardEvent('keydown',{key:name,bubbles:true,cancelable:true,...options}));
+    const promptOriginal=notesContext.promptDialog;
+    const writes=()=>log.slice(namesLog).filter(entry=>['PATCH','POST','PUT'].includes(entry.method)&&!String(entry.body).includes('notes.meta.json'));
+    const refused=async(what)=>{
+        await until(()=>!document.querySelector('[data-notice]').hidden&&document.querySelector('[data-notice]').dataset.error==='true',what+' notice');
+        check(!writes().length,what+' reached the server: '+JSON.stringify(writes()));
+        await app.act('dismiss');
+    };
+    let namesLog=log.length;
+    for(const ch of ['#','^','[',']']){
+        namesLog=log.length;
+        notesContext.promptDialog=async()=>'ordner'+ch+'x';
+        document.querySelector('[data-act=new-folder]').click();
+        await refused('Folder name with '+ch);
+        namesLog=log.length;
+        press('o',{ctrlKey:true},app.editor.view.dom);
+        const input=await until(()=>document.querySelector('.notes-palette-input'),'switcher for '+ch);
+        input.value='Notiz'+ch+'x';input.dispatchEvent(new Event('input',{bubbles:true}));
+        await until(()=>document.querySelector('.notes-palette-row.is-create'),'create row for '+ch);
+        press('Enter',{shiftKey:true},input);
+        await refused('Note name with '+ch);
+        document.querySelector('.notes-palette-input')&&press('Escape',{},document.querySelector('.notes-palette-input'));
+        await until(()=>!document.querySelector('.notes-palette'),'switcher closed');
+        namesLog=log.length;
+        notesContext.promptDialog=async()=>DIR+'/ziel'+ch+'name.md';
+        await app.act('move');
+        await refused('Move target with '+ch);
+    }
+    notesContext.promptDialog=promptOriginal;
+    result.invalidNames=true;
     }finally{window.fetch=fetchOriginal;}
     check(errors.length===0,'Browser errors: '+errors.join('\n'));
     await app.act('dismiss');

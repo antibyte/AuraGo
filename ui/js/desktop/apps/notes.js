@@ -36,7 +36,7 @@
     // "# ^ [ ]" cannot appear in a wikilink target (Obsidian forbids them in note names for that reason).
     const INVALID_NAME=/[\\:*?"<>|#^\[\]]/, PROPS_KEY='aurago.notes.properties', CALLOUTS=['note','info','tip','success','question','warning','danger','bug','example','quote'], RESERVED_PROPS=['tags','aliases','alias'];
     // History shortcuts: Alt+Arrow (Cmd+Alt+Arrow on macOS, where Option+Arrow moves by word). They never fire from editable targets.
-    const IS_MAC = /mac|iphone|ipad/i.test(String(navigator.userAgentData?.platform || navigator.platform || ''));
+    const IS_MAC = /mac|iphone|ipad/i.test(String(typeof navigator === 'undefined' ? '' : navigator.userAgentData?.platform || navigator.platform || ''));
     const HISTORY_KEYS = {back: IS_MAC ? '⌘⌥←' : 'Alt+←', forward: IS_MAC ? '⌘⌥→' : 'Alt+→'};
     const isEditableTarget = el => !!el?.closest?.('input,textarea,select,[contenteditable]:not([contenteditable=false]),.cm-content');
     function historyShortcut(event) {
