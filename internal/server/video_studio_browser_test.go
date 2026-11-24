@@ -104,6 +104,8 @@ func videoStudioBrowserServer(t *testing.T) *httptest.Server {
 <script src="/js/desktop/apps/video-studio-projects.js"></script>
 <script src="/js/desktop/apps/video-studio-mediabin.js"></script>
 <script src="/js/desktop/apps/video-studio-menus.js"></script>
+<script src="/js/desktop/apps/video-studio-plan-board.js"></script>
+<script src="/js/desktop/apps/video-studio-plan.js"></script>
 <script src="/js/desktop/apps/video-studio.js"></script>
 <script>
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

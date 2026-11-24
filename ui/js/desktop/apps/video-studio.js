@@ -96,6 +96,7 @@
         clearTimeout(s.toastTimer);
         if (s.textTimers) P.cancelTextApplies(s);
         clearInterval(s.jobsTimer);
+        if (window.VideoStudioPlan) window.VideoStudioPlan.dispose(s);
         s.xhrs.forEach(xhr => { try { xhr.abort(); } catch (_) { /* finished */ } });
         if (s.resizeObserver) s.resizeObserver.disconnect();
         if (s.modalObserver) s.modalObserver.disconnect();
@@ -139,6 +140,7 @@
         return `<div class="vs-app" tabindex="0">
 <header class="vs-toolbar">
  <div class="vs-tb-group vs-tb-project"><div class="vs-menu-anchor"><button type="button" class="vs-project-button" data-action="project-menu" aria-haspopup="dialog" aria-expanded="false" title="${label('projects', 'Projects')}">${icon('project', 18)}<span class="vs-project-name" data-project-name>${label('noProject', 'No project')}</span>${icon('chevronDown', 14)}</button><div class="vs-popover vs-project-popover" data-project-popover role="dialog" aria-label="${label('projects', 'Projects')}" hidden></div></div><button type="button" class="vs-save-chip" data-action="save" data-save-state></button></div>
+ ${window.VideoStudioPlan ? window.VideoStudioPlan.switchMarkup(s) : ''}
  <div class="vs-tb-group vs-tb-edit"><button type="button" class="vs-icon-button" data-action="undo" aria-label="${label('undo', 'Undo')}" title="${label('undo', 'Undo')} (${esc(s, key('Ctrl'))}+Z)" disabled>${icon('undo', 18)}</button><button type="button" class="vs-icon-button" data-action="redo" aria-label="${label('redo', 'Redo')}" title="${label('redo', 'Redo')} (${esc(s, key('Ctrl'))}+${esc(s, key('Shift'))}+Z)" disabled>${icon('redo', 18)}</button><label class="vs-format" title="${label('format', 'Format')}">${icon('film', 16)}<select data-canvas aria-label="${label('format', 'Format')}"></select></label></div>
  <div class="vs-tb-group vs-tb-actions"><div class="vs-menu-anchor"><button type="button" class="vs-jobs-button" data-action="jobs" aria-haspopup="dialog" aria-expanded="false" hidden><span class="vs-jobs-icon" data-jobs-icon></span><span data-jobs-label></span></button><div class="vs-popover vs-jobs-popover" data-jobs-popover role="dialog" aria-label="${label('backgroundJobs', 'Background jobs')}" hidden><h3>${label('backgroundJobs', 'Background jobs')}</h3><section class="vs-jobs" data-jobs></section></div></div><div class="vs-menu-anchor"><button type="button" class="vs-icon-button" data-action="shortcuts" aria-haspopup="dialog" aria-expanded="false" aria-label="${label('shortcuts', 'Keyboard shortcuts')}" title="${label('shortcuts', 'Keyboard shortcuts')}">${icon('keyboard', 18)}</button><div class="vs-popover vs-shortcuts-popover" data-shortcuts-popover role="dialog" aria-label="${label('shortcuts', 'Keyboard shortcuts')}" hidden><h3>${label('shortcuts', 'Keyboard shortcuts')}</h3><dl>${shortcuts.map(([keys, key, fallback]) => `<div><dt>${keys.map(k => `<kbd>${esc(s, k)}</kbd>`).join('')}</dt><dd>${label(key, fallback)}</dd></div>`).join('')}</dl></div></div><button type="button" class="vs-inspector-toggle" data-action="toggle-inspector" aria-label="${label('inspector', 'Inspector')}" title="${label('inspector', 'Inspector')}">${icon('sliders', 17)}<span>${label('inspector', 'Inspector')}</span></button><button type="button" class="vs-export-button vs-primary" data-action="export">${icon('export', 17)}<span>${label('export', 'Export')}</span></button></div>
 </header>
@@ -183,6 +185,7 @@
    <button type="button" data-source-action="overwrite" title="${label('sourceOverwrite', 'Overwrite')} (.)">${label('sourceOverwrite', 'Overwrite')}</button>
   </div>
  </section>
+ ${window.VideoStudioPlanBoard ? window.VideoStudioPlanBoard.shellMarkup(s) : ''}
  </main>
  <button type="button" class="vs-inspector-scrim" data-action="close-inspector" aria-label="${label('close', 'Close')}"></button>
  <aside class="vs-inspector" aria-label="${label('inspector', 'Inspector')}"><div class="vs-inspector-head"><h2>${label('properties', 'Properties')}</h2><button type="button" class="vs-inspector-close" data-action="close-inspector" aria-label="${label('close', 'Close')}" title="${label('close', 'Close')}">${icon('close', 16)}</button></div><div data-inspector class="vs-inspector-body"></div></aside>
@@ -305,6 +308,8 @@
         if (P.wireScopes) P.wireScopes(s);
         if (P.wireEffectStack) P.wireEffectStack(s);
         P.wireSource(s);
+        // Plan mode (video-studio-plan.js): the Edit | Plan switch and the storyboard listeners.
+        if (window.VideoStudioPlan) window.VideoStudioPlan.install(s);
         if (typeof MutationObserver === 'function') {
             s.modalObserver = new MutationObserver(() => P.syncInert(s));
             [s.q('[data-modal-host]'), s.q('[data-conflict-host]')].forEach(node => s.modalObserver.observe(node, { childList: true }));
@@ -322,6 +327,7 @@
         window.addEventListener('blur', () => { if (s.shuttle) s.shuttle.release('k'); }, { signal });
         if (typeof ctx.setWindowBeforeClose === 'function') ctx.setWindowBeforeClose(id, async () => {
             if (s.readonly) return true;
+            if (window.VideoStudioPlan) await window.VideoStudioPlan.flush(s);
             await P.flushArtwork(s);
             while (s.dirty && !s.disposed) {
                 const saved = await saveProject(s);
@@ -551,6 +557,7 @@
         }
         if (P.syncRangeRender) P.syncRangeRender(s);
         renderJobsButton(s);
+        if (window.VideoStudioPlan) window.VideoStudioPlan.sync(s);
     }
     // Auto keeps the long edge at most 1920 px so 4K projects stay fluid; full, half and quarter are explicit.
     function previewScale(s) {
@@ -878,6 +885,8 @@
             if (items.length) { const first = items[0], last = items[items.length - 1]; if (event.shiftKey && (document.activeElement === first || !trap.contains(document.activeElement))) { event.preventDefault(); last.focus(); } else if (!event.shiftKey && (document.activeElement === last || !trap.contains(document.activeElement))) { event.preventDefault(); first.focus(); } }
         }
         if (s.q('[data-modal-host] .vs-modal, [data-conflict-host] .vs-modal')) return;
+        // Plan mode shows the storyboard instead of the stage and the timeline: no editor shortcut applies there.
+        if (s.planMode) return;
         // The source position slider is an input that takes no text: in source mode it passes everything but its own
         // keys (arrows, Home, End, Page Up/Down stay native), so I, O, the comma, Space and Escape keep working after
         // a scrub.

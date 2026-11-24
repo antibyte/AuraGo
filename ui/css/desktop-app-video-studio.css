@@ -1246,3 +1246,85 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin-right: 3p
 .vs-app .vs-fx-p-tint input[type=range] { background: linear-gradient(90deg, #3fbf6a, #d9dde6 50%, #d65ad6); }
 .vs-app .vs-fx-p-temperature input[type=range]::-webkit-slider-thumb, .vs-app .vs-fx-p-tint input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border: 2px solid #0b0d11; border-radius: 50%; background: #fff; }
 .vs-app .vs-fx-p-temperature input[type=range]::-moz-range-thumb, .vs-app .vs-fx-p-tint input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border: 2px solid #0b0d11; border-radius: 50%; background: #fff; }
+
+
+/* === Plan mode (storyboard) === */
+/* video-studio-plan.js and video-studio-plan-board.js. The Edit | Plan switch sits in the toolbar between the project
+   and the edit groups and shows only with an open project while status.plan.enabled. .vs-plan-mode on .vs-app hides
+   the monitor bar, the stage, the transport, the source monitor, the scopes, the timeline, the inspector and the edit
+   group (undo, redo, format act on the timeline); the storyboard fills the centre column and the library stays. At
+   600 px or less the switch takes its own toolbar row (the 390 px toolbar has no room left). */
+.vs-app .vs-mode-switch { flex: 0 0 auto; margin-top: 0; }
+.vs-app .vs-mode-switch button { min-height: 28px; white-space: nowrap; }
+.vs-plan-mode .vs-center > :not(.vs-plan), .vs-plan-mode > .vs-resize, .vs-plan-mode > .vs-timeline-panel,
+.vs-plan-mode .vs-inspector, .vs-plan-mode .vs-inspector-scrim, .vs-plan-mode .vs-inspector-toggle, .vs-plan-mode .vs-tb-edit { display: none !important; }
+.vs-plan-mode .vs-workspace { grid-template-columns: var(--vs-lib-w) minmax(0, 1fr); }
+.vs-plan-mode .vs-center { background: var(--vs-canvas); }
+.vs-plan-mode .vs-toast { bottom: 64px; }
+.vs-plan { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.vs-plan-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 16px; }
+.vs-plan-inner { display: grid; gap: 12px; width: 100%; max-width: 860px; min-width: 0; margin: 0 auto; }
+.vs-plan-state { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px; padding: 32px 16px; color: var(--vs-muted); }
+.vs-plan-empty { display: grid; gap: 4px; width: 100%; max-width: 560px; min-width: 0; margin: 16px auto; padding: 20px; border: 1px solid var(--vs-border); border-radius: var(--vs-card-radius); background: var(--vs-card-flat); }
+.vs-plan-empty h2 { margin: 2px 0; font-family: var(--vs-head-font); font-size: 19px; color: var(--vs-head-color); }
+.vs-plan-empty > p { margin: 0; color: var(--vs-muted); line-height: 1.5; }
+.vs-plan-head, .vs-plan-settings, .vs-plan-card { min-width: 0; padding: 12px 14px; border: 1px solid var(--vs-border); border-radius: var(--vs-card-radius); background: var(--vs-card-flat); }
+.vs-plan-head { display: grid; gap: 8px; }
+.vs-plan-idea > p:last-child { margin: 2px 0 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.vs-plan-agent { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; min-width: 0; font-size: 12.5px; color: var(--vs-muted); }
+.vs-plan-agent strong { color: var(--vs-text); }
+.vs-plan-agent small { min-width: 0; overflow-wrap: anywhere; }
+.vs-plan-agent .vs-plan-stop { margin-left: auto; }
+.vs-plan-ended { flex: 1 1 100%; color: color-mix(in srgb, var(--vs-warn) 70%, var(--vs-text)); }
+.vs-plan-settings > summary { display: flex; align-items: center; gap: 7px; cursor: pointer; font-weight: 650; }
+.vs-plan-label { margin: 10px 0 0; font-size: 12px; color: var(--vs-muted); }
+.vs-plan-character { display: grid; grid-template-columns: minmax(0, 180px) minmax(0, 1fr) auto; gap: 6px; align-items: start; margin-top: 6px; }
+.vs-plan-character textarea { min-height: 38px; resize: vertical; }
+.vs-plan-characters > .vs-chip-button, .vs-plan-none .vs-chip-button { margin-top: 8px; }
+.vs-plan-scenes { display: grid; margin: 0; padding: 0; list-style: none; }
+.vs-plan-item { display: grid; min-width: 0; }
+.vs-plan-card-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.vs-plan-num { flex: none; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--vs-accent-soft); color: var(--vs-accent); font-size: 12px; font-weight: 700; }
+.vs-plan-card-head input { flex: 1 1 auto; min-width: 0; font-weight: 650; }
+.vs-plan-chip { flex: none; padding: 2px 8px; border-radius: 999px; background: var(--vs-inset); color: var(--vs-muted); font-size: 11.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vs-plan-card .vs-field, .vs-plan-settings .vs-field { margin-top: 8px; }
+.vs-plan-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.vs-plan-neg { margin-top: 8px; font-size: 12px; color: var(--vs-muted); }
+.vs-plan-neg > summary { cursor: pointer; }
+.vs-plan-neg textarea { width: 100%; margin-top: 6px; color: var(--vs-text); }
+.vs-plan-fixed { margin: 0; padding: 7px 10px; border-radius: var(--vs-field-radius); background: var(--vs-inset); color: var(--vs-text); }
+.vs-plan-transition { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; padding: 6px 0; color: var(--vs-muted); font-size: 12px; }
+.vs-plan-transition select, .vs-plan-transition input { max-width: 100%; padding: 4px 8px; font-size: 12px; }
+.vs-plan-transition input { width: 72px; }
+.vs-plan-inline { display: inline-flex; align-items: center; gap: 6px; }
+.vs-plan-transition > [data-plan-issues] { flex: 1 1 100%; }
+.vs-plan-transition .vs-plan-issue { justify-content: center; }
+.vs-plan-issue { display: flex; align-items: flex-start; gap: 6px; margin: 6px 0 0; font-size: 12px; line-height: 1.4; color: color-mix(in srgb, var(--vs-warn) 70%, var(--vs-text)); }
+.vs-plan-issue.is-blocking { color: color-mix(in srgb, var(--vs-danger) 78%, var(--vs-text)); }
+.vs-plan-issue span { min-width: 0; overflow-wrap: anywhere; }
+.vs-plan [data-plan-issues]:empty { display: none; }
+.vs-plan-actions { margin-top: 10px; }
+.vs-plan-up { transform: rotate(180deg); }
+.vs-plan-bar { flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 8px 14px; border-top: 1px solid var(--vs-border); background: var(--vs-bar); box-shadow: var(--vs-bar-edge); }
+.vs-plan-facts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; min-width: 0; font-size: 12.5px; color: var(--vs-muted); font-variant-numeric: tabular-nums; }
+.vs-plan-facts > span { display: inline-flex; align-items: center; gap: 5px; }
+.vs-plan-facts .is-blocking { color: color-mix(in srgb, var(--vs-danger) 78%, var(--vs-text)); }
+.vs-plan-facts .is-ok .vs-icon { color: var(--vs-ok); }
+.vs-plan-bar .vs-primary { margin-left: auto; }
+@container vs-app (max-width: 650px) {
+    .vs-plan-mode .vs-workspace { grid-template-columns: minmax(0, 1fr); }
+}
+@container vs-app (max-width: 600px) {
+    .vs-toolbar { flex-wrap: wrap; row-gap: 6px; }
+    .vs-app .vs-mode-switch { order: 9; flex: 1 1 100%; }
+    .vs-app .vs-mode-switch button { flex: 1 1 0; }
+}
+@container vs-center (max-width: 600px) {
+    .vs-plan-scroll { padding: 10px; }
+    .vs-plan-empty { margin: 4px auto; padding: 14px; }
+    .vs-plan-character { grid-template-columns: minmax(0, 1fr) auto; }
+    .vs-plan-character textarea { grid-column: 1 / -1; grid-row: 2; }
+}
+@container vs-center (max-width: 420px) {
+    .vs-plan-grid { grid-template-columns: minmax(0, 1fr); }
+}
