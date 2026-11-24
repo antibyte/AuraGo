@@ -45964,6 +45964,933 @@
     },
     {
       "kind": "pinout",
+      "id": "esp01",
+      "category": "pinouts",
+      "group": "debug",
+      "name": "ESP-01 (ESP8266)",
+      "name_en": "ESP-01 (ESP8266)",
+      "doc": "The 2 × 4 pin, 0.1 inch header of the Ai-Thinker ESP-01 and ESP-01S Wi-Fi modules (ESP8266). Pin 1 is GND and pin 8 is VCC.",
+      "notes": "The numbering runs along the rows, not counter-clockwise like a DIP package: pin 5 lies below pin 1. The module runs on 3.0 to 3.6 V and must not be fed 5 V. Ai-Thinker's boot table: for flashing (download mode) IO0 must be low at reset while IO2 and EN are high; for normal running IO0 is high. IO2 must be high at boot in both modes. The module can draw about 170 mA when transmitting, more than the 3.3 V pin of many USB-serial adapters supplies. Cheap clones of other makers are not covered.",
+      "tags": [
+        "esp01",
+        "esp-01",
+        "esp01s",
+        "esp-01s",
+        "esp8266",
+        "ai-thinker",
+        "aithinker",
+        "wifi",
+        "wlan",
+        "at",
+        "uart",
+        "gpio0",
+        "gpio2",
+        "ch_pd",
+        "reset",
+        "flash",
+        "8-pin",
+        "8-polig",
+        "modul",
+        "module"
+      ],
+      "source": "Shenzhen Ai-Thinker Technology, ESP-01/07/12 Series Modules User's Manual, version 1.3 (figure 2.1, tables 2.2 and 2.3, tables 3.1 and 3.2, figure 4.1)",
+      "views": {
+        "plug": "Pin side of the module, seen from below",
+        "socket": "Female header of the host, seen from above (module from its component side, antenna at the top)"
+      },
+      "shape": {
+        "type": "rows",
+        "outline": "rect",
+        "contact": "square",
+        "drawn": "socket",
+        "key": "none",
+        "rows": [
+          {
+            "pins": [
+              "1",
+              "2",
+              "3",
+              "4"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "5",
+              "6",
+              "7",
+              "8"
+            ],
+            "offset": 0
+          }
+        ],
+        "pins": null,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "IO2",
+          "function": "GPIO2; must be high at boot (both boot modes)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "IO0",
+          "function": "GPIO0; low at boot = download (flash) mode, high = run mode",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "RXD",
+          "function": "UART0 receive (GPIO3), input of the module",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "TXD",
+          "function": "UART0 transmit (GPIO1), output of the module",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "EN",
+          "function": "Chip enable (CH_PD), active high; pull up to run",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "RST",
+          "function": "Reset, active low",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "VCC",
+          "function": "Supply 3.0 to 3.6 V (3.3 V typical); not 5 V",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "nrf24l01",
+      "category": "pinouts",
+      "group": "debug",
+      "name": "nRF24L01 module (2×4)",
+      "name_en": "nRF24L01 module (2×4)",
+      "doc": "The common 2 × 4 pin, 0.1 inch header of nRF24L01 radio modules, as documented for the Ebyte E01 modules. The signal names are those of Nordic's chip.",
+      "notes": "This is the pin order that Ebyte documents for its E01 modules. Unbranded nRF24L01 modules have no maker document: check the silkscreen of your board. Supply 3.3 V only: Ebyte states 2.0 to 3.6 V for its modules, Nordic 1.9 to 3.6 V for the chip, and above 3.6 V the module is destroyed. Keep 5 V signal lines away or use series resistors, as Ebyte advises. Modules with a power amplifier draw more than 100 mA when sending (Ebyte: 130 mA at 20 dBm, the supply must deliver more than 300 mA).",
+      "tags": [
+        "nrf24l01",
+        "nrf24l01+",
+        "nrf24",
+        "nordic",
+        "ebyte",
+        "e01",
+        "e01-ml01dp5",
+        "radio",
+        "funk",
+        "2.4 ghz",
+        "spi",
+        "ce",
+        "csn",
+        "irq",
+        "sck",
+        "mosi",
+        "miso",
+        "8-pin",
+        "8-polig",
+        "modul",
+        "module"
+      ],
+      "source": "Chengdu Ebyte, E01-ML01DP5 user manual v4.5 (pin definition, electrical parameters, schematic); Nordic Semiconductor, nRF24L01+ Single Chip 2.4GHz Transceiver Product Specification v1.0 (table 1, operating conditions)",
+      "views": {
+        "plug": "Pin side of the module, seen from below",
+        "socket": "Female header of the host, seen from above (module from its component side, antenna at the right)"
+      },
+      "shape": {
+        "type": "rows",
+        "outline": "rect",
+        "contact": "square",
+        "drawn": "socket",
+        "key": "none",
+        "rows": [
+          {
+            "pins": [
+              "1",
+              "2"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "3",
+              "4"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "5",
+              "6"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "7",
+              "8"
+            ],
+            "offset": 0
+          }
+        ],
+        "pins": null,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "VCC",
+          "function": "Supply 2.0 to 3.6 V (Ebyte); above 3.6 V the module is destroyed",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "CE",
+          "function": "Chip enable, input: activates RX or TX mode",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "CSN",
+          "function": "SPI chip select, input",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "SCK",
+          "function": "SPI clock, input",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "MOSI",
+          "function": "SPI data into the module",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "MISO",
+          "function": "SPI data out of the module (tri-state)",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "IRQ",
+          "function": "Interrupt output, active low",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "hc_sr04",
+      "category": "pinouts",
+      "group": "debug",
+      "name": "HC-SR04",
+      "name_en": "HC-SR04",
+      "doc": "The 4-pin header of the HC-SR04 ultrasonic ranging module: VCC, Trig, Echo, GND. The module prints no pin numbers, so the pins are named by their signals.",
+      "notes": "Echo is a 5 V signal: a 3.3 V controller needs a voltage divider or a level shifter there (this advice follows from the 5 V level, it is not a statement of the vendors). Connect GND first, before VCC, as both vendor documents ask. Both documents are vendor reproductions, no document of the original maker was found; clone boards with another layout exist (the HC-SR04P and RCWL types were not read), so check the silkscreen.",
+      "tags": [
+        "hc-sr04",
+        "hcsr04",
+        "ultrasonic",
+        "ultraschall",
+        "distance",
+        "entfernung",
+        "abstand",
+        "sonar",
+        "ranging",
+        "trig",
+        "echo",
+        "trigger",
+        "4-pin",
+        "4-polig",
+        "sensor",
+        "modul",
+        "module",
+        "elecfreaks",
+        "cytron"
+      ],
+      "source": "ElecFreaks, Ultrasonic Ranging Module HC-SR04 (SparkFun copy, pages 1 to 3); Cytron Technologies, Product User's Manual HC-SR04 Ultrasonic Sensor, V1.0 (pages 5 to 7)",
+      "views": {
+        "plug": "Module seen from the front (transducers facing you, pins down)",
+        "socket": "Module seen from the back (component side, pins down)"
+      },
+      "shape": {
+        "type": "rows",
+        "outline": "rect",
+        "contact": "square",
+        "drawn": "plug",
+        "key": "none",
+        "rows": [
+          {
+            "pins": [
+              "VCC",
+              "Trig",
+              "Echo",
+              "GND"
+            ],
+            "offset": 0
+          }
+        ],
+        "pins": null,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "VCC",
+          "name": "VCC",
+          "function": "5 V supply (4.5 to 5.5 V)",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "Trig",
+          "name": "Trig",
+          "function": "Trigger input: a high pulse of at least 10 µs starts a measurement",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "Echo",
+          "name": "Echo",
+          "function": "Echo output: high for a time proportional to the distance (µs / 58 = cm), 5 V level",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "GND",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "dht22",
+      "category": "pinouts",
+      "group": "debug",
+      "name": "DHT22 / AM2302",
+      "name_en": "DHT22 / AM2302",
+      "doc": "The 4-pin humidity and temperature sensor of Aosong, also sold as AM2302. Pins 1, 2 and 4 are used (VDD, DATA, GND); pin 3 stays free.",
+      "notes": "Drawn from the front, the side with the perforated grille, pins down, pin 1 at the left. Stay within 3.3 to 5.5 V: one edition of Aosong's datasheet gives 3.3 to 6 V, the other 3.3 to 5.5 V. DATA is a single-bus line (not Dallas/Maxim 1-Wire) with a pull-up to VDD; Aosong draws 1 kΩ. Wait at least 1 s after power-up before the first request and 2 s between readings. Only the 4-pin sensor is covered: breakout boards with 3 pins have their own order. The wired AM2302 in the big case uses red for the supply, black for GND and yellow for data.",
+      "tags": [
+        "dht22",
+        "am2302",
+        "aosong",
+        "humidity",
+        "feuchte",
+        "luftfeuchtigkeit",
+        "temperature",
+        "temperatur",
+        "sensor",
+        "single bus",
+        "data",
+        "vdd",
+        "4-pin",
+        "4-polig",
+        "dht",
+        "rht03"
+      ],
+      "source": "Aosong, Digital-output relative humidity & temperature sensor/module DHT22 (also named AM2302), datasheet edition read at SparkFun (pages 2, 4, 5, 9); Aosong, Digital relative humidity & temperature sensor AM2302/DHT22, datasheet edition read at Adafruit (pages 1, 2, 5)",
+      "views": {
+        "plug": "Sensor seen from the front (grille facing you, pins down)",
+        "socket": "Sensor seen from the back (pins down)"
+      },
+      "shape": {
+        "type": "rows",
+        "outline": "rect",
+        "contact": "square",
+        "drawn": "plug",
+        "key": "none",
+        "rows": [
+          {
+            "pins": [
+              "1",
+              "2",
+              "3",
+              "4"
+            ],
+            "offset": 0
+          }
+        ],
+        "pins": null,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "VDD",
+          "function": "Supply, 3.3 to 6 V DC (edition A) or 3.3 to 5.5 V DC (edition B)",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "DATA",
+          "function": "Single-bus data line, needs a pull-up to VDD (1 kΩ in Aosong's diagram)",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "NC",
+          "function": "Not connected, leave free",
+          "type": "nc",
+          "notes": "One datasheet edition prints GND for pin 3. Its own connection diagram leaves pin 3 out, and the other edition lists it as NULL and \"NC\", so it is treated as not connected here. Leave it free.",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "mikrobus",
+      "category": "pinouts",
+      "group": "debug",
+      "name": "mikroBUS",
+      "name_en": "mikroBUS",
+      "doc": "The mikroBUS socket of MikroElektronika for add-on (click) boards: two 1 × 8 female headers, 0.1 inch pitch, with SPI, I2C, UART, analog, PWM, interrupt and reset lines and 3.3 V and 5 V supplies.",
+      "notes": "The mikroBUS standard 2.00 defines positions and names, not numbers. The numbers 1 to 16 are those of Microchip's board guides: down the left column, then up the right column, so the two GND pins are 8 and 9. The notch lies at the lower right of the socket, and the two square pads (AN, PWM) mark the top. The columns are 900 mil apart; the gap is not drawn. The UART names follow the socket (mainboard) side: the add-on board's silkscreen is crossed, so a pin printed TX on the add-on board sits on the socket's RX pin. The add-on board prints SDI and SDO where the socket says MOSI and MISO. The standard gives no supply current limit.",
+      "tags": [
+        "mikrobus",
+        "mikroe",
+        "mikroelektronika",
+        "click",
+        "click board",
+        "clickboard",
+        "spi",
+        "i2c",
+        "uart",
+        "pwm",
+        "an",
+        "rst",
+        "cs",
+        "sck",
+        "miso",
+        "mosi",
+        "sda",
+        "scl",
+        "int",
+        "16-pin",
+        "16-polig",
+        "socket",
+        "sockel"
+      ],
+      "source": "MikroElektronika, mikroBUS Standard specifications, revision 2.00 (pages 6, 7, 9, 11, 12); Microchip, PIC32CK SG01/GC01 Curiosity Ultra User's Guide, section 2.4 (table 2-3); Microchip, PIC32 WFI32E Curiosity Board User's Guide, section 3.5 (table 3-5)",
+      "views": {
+        "plug": "Add-on board, pin side seen from below",
+        "socket": "Socket on the mainboard, seen from above (logo at the top)"
+      },
+      "shape": {
+        "type": "rows",
+        "outline": "rect",
+        "contact": "square",
+        "drawn": "socket",
+        "key": "none",
+        "rows": [
+          {
+            "pins": [
+              "1",
+              "16"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "2",
+              "15"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "3",
+              "14"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "4",
+              "13"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "5",
+              "12"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "6",
+              "11"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "7",
+              "10"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "8",
+              "9"
+            ],
+            "offset": 0
+          }
+        ],
+        "pins": null,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "AN",
+          "function": "Analog input",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "RST",
+          "function": "Reset",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "CS",
+          "function": "SPI chip select",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "SCK",
+          "function": "SPI clock",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "MISO",
+          "function": "SPI data, master in slave out (add-on board marks it SDO)",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "MOSI",
+          "function": "SPI data, master out slave in (add-on board marks it SDI)",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "+3.3V",
+          "function": "3.3 V supply",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "GND",
+          "function": "Reference ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "9",
+          "name": "GND",
+          "function": "Reference ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "10",
+          "name": "+5V",
+          "function": "5 V supply",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "11",
+          "name": "SDA",
+          "function": "I2C data",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "12",
+          "name": "SCL",
+          "function": "I2C clock",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "13",
+          "name": "TX",
+          "function": "UART transmit of the mainboard (add-on board marks this pin RX)",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "14",
+          "name": "RX",
+          "function": "UART receive of the mainboard (add-on board marks this pin TX)",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "15",
+          "name": "INT",
+          "function": "Hardware interrupt",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "16",
+          "name": "PWM",
+          "function": "PWM output",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "pmod",
+      "category": "pinouts",
+      "group": "debug",
+      "name": "Pmod (2×6)",
+      "name_en": "Pmod (2×6)",
+      "doc": "The generic 12-pin Digilent Pmod connector (2 × 6, 0.1 inch): eight signal pins, two ground pins and two supply pins, two six-pin interfaces stacked.",
+      "notes": "This page shows the generic layout, with the eight signals as general I/O. The Pmod type of the module decides what each signal does (SPI, UART, I2C, H-bridge and others); the type tables differ between the editions of the Digilent specification, so read the manual of the module. For SPI (type 2) both the 2011 specification and Wikipedia give pin 1 CS, 2 MOSI, 3 MISO, 4 SCK. VCC is normally 3.3 V; some hosts can switch it to 5 V, and both VCC pins always carry the same voltage. The pin numbering is mirrored between the host connector and the module. Pin 1 is the square pad, in the column farther from the board edge.",
+      "tags": [
+        "pmod",
+        "digilent",
+        "fpga",
+        "12-pin",
+        "12-polig",
+        "2x6",
+        "spi",
+        "uart",
+        "i2c",
+        "gpio",
+        "peripheral module",
+        "host",
+        "modul",
+        "module",
+        "vcc",
+        "gnd"
+      ],
+      "source": "Digilent, Digilent Pmod Interface Specification, Doc 510-002, revision of November 20, 2011 (pages 1 to 4, 6, 7); Wikipedia, Pmod Interface (generic pin table and list of specification editions)",
+      "views": {
+        "plug": "Peripheral module, board edge at the left, seen from above (male angled header)",
+        "socket": "Host board, connector at the right board edge, seen from above (female angled socket)"
+      },
+      "shape": {
+        "type": "rows",
+        "outline": "rect",
+        "contact": "square",
+        "drawn": "socket",
+        "key": "none",
+        "rows": [
+          {
+            "pins": [
+              "1",
+              "7"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "2",
+              "8"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "3",
+              "9"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "4",
+              "10"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "5",
+              "11"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "6",
+              "12"
+            ],
+            "offset": 0
+          }
+        ],
+        "pins": null,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "IO1",
+          "function": "I/O 1 (on an SPI module: CS)",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "IO2",
+          "function": "I/O 2",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "IO3",
+          "function": "I/O 3",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "IO4",
+          "function": "I/O 4",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "VCC",
+          "function": "Supply from the host, usually 3.3 V",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "IO5",
+          "function": "I/O 5",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "IO6",
+          "function": "I/O 6",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "9",
+          "name": "IO7",
+          "function": "I/O 7",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "10",
+          "name": "IO8",
+          "function": "I/O 8",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "11",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "12",
+          "name": "VCC",
+          "function": "Supply from the host, same voltage as pin 6",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
       "id": "ne555",
       "category": "pinouts",
       "group": "ics",
@@ -52256,6 +53183,811 @@
           "type": "signal",
           "notes": "Target 25 kHz, allowed 21 to 28 kHz; at most 5.25 V open circuit and 5 mA short circuit.",
           "wire": "blue"
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "trailer_7",
+      "category": "pinouts",
+      "group": "vehicle_mains",
+      "name": "Trailer socket, 7-pin (ISO 1724, 12N)",
+      "name_en": "Trailer socket, 7-pin (ISO 1724, 12N)",
+      "doc": "The 7-pin 12 V trailer socket of ISO 1724 (type N, 12N): direction indicators, brake, tail and fog lights on one common return, drawn from the socket face.",
+      "notes": "Work on mains and vehicle electrics only if you are qualified, and check the actual connector before wiring. This is the 12 V socket of ISO 1724 (12N), not the white 12S socket of ISO 3732, which uses the same contact numbers for other functions. Contact 3 is the common return of all lamps. Contacts 5 and 7 are the two sides of the tail lights, so no lamp may be connected to both. The core colours are given for information. The makers' documents do not show a key position, so none is drawn; the radius of the outer ring is a drawing value, not a dimension from the standard.",
+      "tags": [
+        "trailer",
+        "anhänger",
+        "anhängerkupplung",
+        "towbar",
+        "7-pin",
+        "7-polig",
+        "iso 1724",
+        "iso1724",
+        "12n",
+        "type n",
+        "caravan",
+        "wohnwagen",
+        "blinker",
+        "indicator",
+        "brake",
+        "bremslicht",
+        "nebelschluss",
+        "fog",
+        "din 72552",
+        "din 72577"
+      ],
+      "source": "Erich Jaeger, ISO 1724: The international standard for 7-pin trailer connectors (scope and application, contact table and the figures of socket, rear view and plug); M&K catalogue pages 14 and 15, 7-polige 12-Volt-Steckvorrichtung ISO 1724 / ISO 3732 (Conrad item 808849), Kontaktbelegung Connector N-type",
+      "views": {
+        "plug": "Trailer plug (pins)",
+        "socket": "Vehicle socket (face, cover open)"
+      },
+      "shape": {
+        "type": "circular",
+        "outline": "",
+        "contact": "round",
+        "drawn": "socket",
+        "key": null,
+        "rows": [],
+        "pins": null,
+        "package": "",
+        "positions": [
+          {
+            "pin": "1",
+            "angle": 0,
+            "radius": 0.6
+          },
+          {
+            "pin": "2",
+            "angle": 60,
+            "radius": 0.6
+          },
+          {
+            "pin": "3",
+            "angle": 120,
+            "radius": 0.6
+          },
+          {
+            "pin": "4",
+            "angle": 180,
+            "radius": 0.6
+          },
+          {
+            "pin": "5",
+            "angle": 240,
+            "radius": 0.6
+          },
+          {
+            "pin": "6",
+            "angle": 300,
+            "radius": 0.6
+          },
+          {
+            "pin": "7",
+            "angle": 0,
+            "radius": 0
+          }
+        ],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "L",
+          "function": "Left-hand direction indicator",
+          "type": "power",
+          "notes": "",
+          "wire": "yellow"
+        },
+        {
+          "number": "2",
+          "name": "54g",
+          "function": "Rear fog light",
+          "type": "power",
+          "notes": "",
+          "wire": "blue"
+        },
+        {
+          "number": "3",
+          "name": "31",
+          "function": "Earth (common return), 2.5 mm²",
+          "type": "ground",
+          "notes": "",
+          "wire": "white"
+        },
+        {
+          "number": "4",
+          "name": "R",
+          "function": "Right-hand direction indicator",
+          "type": "power",
+          "notes": "",
+          "wire": "green"
+        },
+        {
+          "number": "5",
+          "name": "58R",
+          "function": "Right-hand rear position and marker lights, number-plate light",
+          "type": "power",
+          "notes": "",
+          "wire": "brown"
+        },
+        {
+          "number": "6",
+          "name": "54",
+          "function": "Stop (brake) lights",
+          "type": "power",
+          "notes": "",
+          "wire": "red"
+        },
+        {
+          "number": "7",
+          "name": "58L",
+          "function": "Left-hand rear position and marker lights, number-plate light",
+          "type": "power",
+          "notes": "",
+          "wire": "black"
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "trailer_13",
+      "category": "pinouts",
+      "group": "vehicle_mains",
+      "name": "Trailer socket, 13-pin (ISO 11446)",
+      "name_en": "Trailer socket, 13-pin (ISO 11446)",
+      "doc": "The 13-pin 12 V trailer socket of ISO 11446 (Jaeger system): contacts 1 to 7 as on the 7-pin socket, plus reversing light, permanent and ignition-switched supply with their own returns, drawn from the socket face.",
+      "notes": "Work on mains and vehicle electrics only if you are qualified, and check the actual connector before wiring. The drawing follows Jaeger's figure and the angles are approximate (within about 7 degrees of the maker's rendering, rounded to a 36 degree pattern); the contact numbers are exact. Contacts 9 (permanent +) and 10 (ignition +) each have their own return, 13 and 11: do not use contact 3 for them. Contact 9 is live with the ignition off; Jaeger states no current rating for 9 and 10. No key is drawn because it rests on a render only. This is the 12 V version; the 24 V version is not covered.",
+      "tags": [
+        "trailer",
+        "anhänger",
+        "anhängerkupplung",
+        "towbar",
+        "13-pin",
+        "13-polig",
+        "iso 11446",
+        "iso11446",
+        "jaeger",
+        "caravan",
+        "wohnwagen",
+        "dauerplus",
+        "zündungsplus",
+        "rückfahrleuchte",
+        "reversing",
+        "permanent",
+        "ignition"
+      ],
+      "source": "Erich Jaeger, ISO 11446 scope and application (contact table, nominal voltage and the figures of socket, rear view and plug); Erich Jaeger, ISO 11446 overview; Erich Jaeger and M&K ISO 1724 tables for contacts 1 to 7",
+      "views": {
+        "plug": "Trailer plug (pins)",
+        "socket": "Vehicle socket (face)"
+      },
+      "shape": {
+        "type": "circular",
+        "outline": "",
+        "contact": "round",
+        "drawn": "socket",
+        "key": null,
+        "rows": [],
+        "pins": null,
+        "package": "",
+        "positions": [
+          {
+            "pin": "1",
+            "angle": 0,
+            "radius": 0.35
+          },
+          {
+            "pin": "2",
+            "angle": 90,
+            "radius": 0.35
+          },
+          {
+            "pin": "3",
+            "angle": 180,
+            "radius": 0.35
+          },
+          {
+            "pin": "4",
+            "angle": 270,
+            "radius": 0.35
+          },
+          {
+            "pin": "8",
+            "angle": 0,
+            "radius": 0.75
+          },
+          {
+            "pin": "9",
+            "angle": 36,
+            "radius": 0.75
+          },
+          {
+            "pin": "10",
+            "angle": 72,
+            "radius": 0.75
+          },
+          {
+            "pin": "11",
+            "angle": 108,
+            "radius": 0.75
+          },
+          {
+            "pin": "12",
+            "angle": 144,
+            "radius": 0.75
+          },
+          {
+            "pin": "13",
+            "angle": 216,
+            "radius": 0.75
+          },
+          {
+            "pin": "5",
+            "angle": 252,
+            "radius": 0.75
+          },
+          {
+            "pin": "6",
+            "angle": 288,
+            "radius": 0.75
+          },
+          {
+            "pin": "7",
+            "angle": 324,
+            "radius": 0.75
+          }
+        ],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "Indicator L",
+          "function": "Left-hand direction indicator, 1.5 mm²",
+          "type": "power",
+          "notes": "",
+          "wire": "yellow"
+        },
+        {
+          "number": "2",
+          "name": "Rear fog",
+          "function": "Rear fog light, 1.5 mm²",
+          "type": "power",
+          "notes": "",
+          "wire": "blue"
+        },
+        {
+          "number": "3",
+          "name": "GND 1-8",
+          "function": "Common return for contacts 1 to 8, 2.5 mm²",
+          "type": "ground",
+          "notes": "",
+          "wire": "white"
+        },
+        {
+          "number": "4",
+          "name": "Indicator R",
+          "function": "Right-hand direction indicator, 1.5 mm²",
+          "type": "power",
+          "notes": "",
+          "wire": "green"
+        },
+        {
+          "number": "5",
+          "name": "Tail R",
+          "function": "Right-hand rear, position, marker and licence-plate lights, 1.5 mm²",
+          "type": "power",
+          "notes": "",
+          "wire": "brown"
+        },
+        {
+          "number": "6",
+          "name": "Brake",
+          "function": "Brake lights, 1.5 mm²",
+          "type": "power",
+          "notes": "",
+          "wire": "red"
+        },
+        {
+          "number": "7",
+          "name": "Tail L",
+          "function": "Left-hand rear, position, marker and licence-plate lights, 1.5 mm²",
+          "type": "power",
+          "notes": "",
+          "wire": "black"
+        },
+        {
+          "number": "8",
+          "name": "Reverse",
+          "function": "Reversing light, 1.5 mm²",
+          "type": "power",
+          "notes": "",
+          "wire": "pink"
+        },
+        {
+          "number": "9",
+          "name": "Permanent +",
+          "function": "Power supply, steady (permanent), 2.5 mm²; return on 13",
+          "type": "power",
+          "notes": "",
+          "wire": "orange"
+        },
+        {
+          "number": "10",
+          "name": "Ignition +",
+          "function": "Power supply controlled by the ignition switch, 2.5 mm²; return on 11",
+          "type": "power",
+          "notes": "",
+          "wire": "grey"
+        },
+        {
+          "number": "11",
+          "name": "GND 10",
+          "function": "Common return for contact 10, 2.5 mm²",
+          "type": "ground",
+          "notes": "Core colour white/black; the wire colours of the app have no striped white/black.",
+          "wire": ""
+        },
+        {
+          "number": "12",
+          "name": "Reserved",
+          "function": "Reserved for future allocation, no core",
+          "type": "nc",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "13",
+          "name": "GND 9",
+          "function": "Common return for contact 9, 2.5 mm²",
+          "type": "ground",
+          "notes": "Core colour white/red; the wire colours of the app have no striped white/red.",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "type2",
+      "category": "pinouts",
+      "group": "vehicle_mains",
+      "name": "Charging connector Type 2 (IEC 62196-2)",
+      "name_en": "Charging connector Type 2 (IEC 62196-2)",
+      "doc": "The Type 2 connector of IEC 62196-2 for AC charging of electric vehicles: five power contacts (PE, N, L1 to L3) and the two signal contacts CP and PP, drawn on the pin face.",
+      "notes": "Work on mains and vehicle electrics only if you are qualified, and check the actual connector before wiring. Never bridge CP or PP to fake a vehicle and never apply power outside a charging station. Single-phase cables and inlets use L1 and N only. Contact sequence when plugging in: PE first, then N, the phases, and CP and PP last; unplugging runs in reverse (TE table 4-11). The Rc values of PP follow TE table 4-7 (from IEC 61851-22 Annex B). The voltages and currents in TE's document (250 V AC, 20 A three-phase, 32 A single-phase, 2 A 30 V for CP and PP) are TE's assembly ratings, not the limits of the Type 2 system. CP signalling (the PWM levels) is not covered. The angles are rounded from a small render (about 5 degrees).",
+      "tags": [
+        "type 2",
+        "typ 2",
+        "type2",
+        "typ2",
+        "mennekes",
+        "iec 62196",
+        "iec 62196-2",
+        "ev",
+        "ladestecker",
+        "ladekabel",
+        "wallbox",
+        "charging",
+        "laden",
+        "elektroauto",
+        "electric vehicle",
+        "control pilot",
+        "proximity",
+        "cp",
+        "pp",
+        "iec 61851"
+      ],
+      "source": "TE Connectivity, Product Specification 108-94323 Rev A (01 FEB 16), IEC 62196 Electric Vehicle Charge Connector Assembly (Type 2 for Mode 2 and 3), pages 1, 2, 3, 5, 7 and 11 to 13",
+      "views": {
+        "plug": "Pin face: vehicle inlet or station plug (pins)",
+        "socket": "Contact-tube face: vehicle connector or wallbox socket-outlet"
+      },
+      "shape": {
+        "type": "circular",
+        "outline": "",
+        "contact": "round",
+        "drawn": "plug",
+        "key": 0,
+        "rows": [],
+        "pins": null,
+        "package": "",
+        "positions": [
+          {
+            "pin": "PE",
+            "angle": 0,
+            "radius": 0
+          },
+          {
+            "pin": "CP",
+            "angle": 30,
+            "radius": 0.55
+          },
+          {
+            "pin": "N",
+            "angle": 90,
+            "radius": 0.55
+          },
+          {
+            "pin": "L3",
+            "angle": 150,
+            "radius": 0.55
+          },
+          {
+            "pin": "L2",
+            "angle": 210,
+            "radius": 0.55
+          },
+          {
+            "pin": "L1",
+            "angle": 270,
+            "radius": 0.55
+          },
+          {
+            "pin": "PP",
+            "angle": 330,
+            "radius": 0.55
+          }
+        ],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "PE",
+          "name": "PE",
+          "function": "Protective earth, centre contact; mates first, breaks last",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "L1",
+          "name": "L1",
+          "function": "Phase 1 (single-phase charging uses L1 and N)",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "L2",
+          "name": "L2",
+          "function": "Phase 2 (three-phase only)",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "L3",
+          "name": "L3",
+          "function": "Phase 3 (three-phase only)",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "N",
+          "name": "N",
+          "function": "Neutral",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "CP",
+          "name": "CP",
+          "function": "Control pilot, signal contact (rated 2 A, 30 V in TE's assembly); connects last when plugging in",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "PP",
+          "name": "PP",
+          "function": "Proximity: resistor Rc to PE in the plug codes the cable's current capacity (13 A 1.5 kΩ, 20 A 680 Ω, 32 A 220 Ω) and shows a plug is present",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "iso10487_a",
+      "category": "pinouts",
+      "group": "vehicle_mains",
+      "name": "Car radio connector ISO 10487, part A (power)",
+      "name_en": "Car radio connector ISO 10487, part A (power)",
+      "doc": "Part A of the ISO 10487 car radio connector: battery positive, ground, illumination and the antenna supply, as the standard draws it from the rear of the radio.",
+      "notes": "Work on mains and vehicle electrics only if you are qualified, and check the actual connector before wiring. The standard makes A7 the main supply (permanent, or switched in the vehicle only when A4 is not switched) and A4 a switched positive of at most 0.3 A, which differs from the common folklore of A4 permanent and A7 ignition: some vehicles and radios use their own split, so measure both contacts in the car before connecting a radio. A5 is an output of the radio for an antenna amplifier (max. 0.3 A), not a supply into the radio. Contacts 9 and 10 do not exist in part A. The standard gives no wire colours.",
+      "tags": [
+        "iso 10487",
+        "iso10487",
+        "iso-stecker",
+        "iso connector",
+        "autoradio",
+        "car radio",
+        "radio",
+        "a4",
+        "a7",
+        "dauerplus",
+        "zündungsplus",
+        "permanent",
+        "ignition",
+        "antenne",
+        "antenna",
+        "beleuchtung",
+        "illumination",
+        "radioanschluss",
+        "radio harness",
+        "autoradiostecker"
+      ],
+      "source": "ISO 10487-1:1992, Passenger car radio connections, Part 1: Dimensions and general requirements (official preview with the complete normative text: clauses 3 and 4, figure 1, table 1)",
+      "views": {
+        "plug": "Radio's connector, rear view (tabs; the standard calls it the socket)",
+        "socket": "Harness plug (receptacles), mating face"
+      },
+      "shape": {
+        "type": "rows",
+        "outline": "rect",
+        "contact": "blade",
+        "drawn": "plug",
+        "key": "left",
+        "rows": [
+          {
+            "pins": [
+              "1",
+              "3",
+              "5",
+              "7"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "2",
+              "4",
+              "6",
+              "8"
+            ],
+            "offset": 0
+          }
+        ],
+        "pins": null,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "Speed signal",
+          "function": "Volume control, vehicle-speed related (input to the radio)",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "GND A1",
+          "function": "Ground for A1",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "Reserved",
+          "function": "Not allocated (for future application)",
+          "type": "nc",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "Batt+ switched",
+          "function": "Battery positive, switched in the vehicle only when A7 is not switched; 0.3 A max",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "Antenna +",
+          "function": "Battery positive switched by the radio for the antenna supply; max 0.3 A (output of the radio)",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "Illumination",
+          "function": "Battery positive for the radio illumination, controlled by the dashboard illumination",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "Batt+ main",
+          "function": "Battery positive for the main power supply: permanent, or switched in the vehicle only when A4 is not switched",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "Batt-",
+          "function": "Battery negative (ground)",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "iso10487_b",
+      "category": "pinouts",
+      "group": "vehicle_mains",
+      "name": "Car radio connector ISO 10487, part B (speakers)",
+      "name_en": "Car radio connector ISO 10487, part B (speakers)",
+      "doc": "Part B of the ISO 10487 car radio connector: the four loudspeaker channels, each with its own positive and negative contact, as the standard draws it from the rear of the radio.",
+      "notes": "Work on mains and vehicle electrics only if you are qualified, and check the actual connector before wiring. Each speaker has its own negative line: never join the negative lines or connect them to ground, because ISO 10487-1 (table 1, footnote 2) does not allow common negative wiring in the vehicle, and a negative line on ground can damage the output stage of a bridged amplifier. Each positive contact sits directly above its negative contact. Contacts 9 and 10 do not exist in part B. The standard gives no wire colours.",
+      "tags": [
+        "iso 10487",
+        "iso10487",
+        "iso-stecker",
+        "iso connector",
+        "autoradio",
+        "car radio",
+        "lautsprecher",
+        "speaker",
+        "loudspeaker",
+        "front",
+        "rear",
+        "vorn",
+        "hinten",
+        "radioanschluss",
+        "radio harness",
+        "autoradiostecker",
+        "b1",
+        "b8"
+      ],
+      "source": "ISO 10487-1:1992, Passenger car radio connections, Part 1: Dimensions and general requirements (official preview with the complete normative text: figure 1 and table 1, part B, footnote 2)",
+      "views": {
+        "plug": "Radio's connector, rear view (tabs; the standard calls it the socket)",
+        "socket": "Harness plug (receptacles), mating face"
+      },
+      "shape": {
+        "type": "rows",
+        "outline": "rect",
+        "contact": "blade",
+        "drawn": "plug",
+        "key": "left",
+        "rows": [
+          {
+            "pins": [
+              "1",
+              "3",
+              "5",
+              "7"
+            ],
+            "offset": 0
+          },
+          {
+            "pins": [
+              "2",
+              "4",
+              "6",
+              "8"
+            ],
+            "offset": 0
+          }
+        ],
+        "pins": null,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "RR+",
+          "function": "Loudspeaker positive, rear right channel",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "RR-",
+          "function": "Loudspeaker negative, rear right channel",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "FR+",
+          "function": "Loudspeaker positive, front right channel",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "FR-",
+          "function": "Loudspeaker negative, front right channel",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "FL+",
+          "function": "Loudspeaker positive, front left channel",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "FL-",
+          "function": "Loudspeaker negative, front left channel",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "RL+",
+          "function": "Loudspeaker positive, rear left channel",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "RL-",
+          "function": "Loudspeaker negative, rear left channel",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
         }
       ],
       "variants": []
