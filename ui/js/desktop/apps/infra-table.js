@@ -13,7 +13,7 @@
     // Column widths in px; a measured header label may widen its column. Columns drop in DROP order until the rest fits.
     const BASE = { kind: 110, place: 150, address: 120, hardware: 130, source: 130, status: 120, power: 75 };
     const DROP = ['power', 'hardware', 'source', 'place', 'kind', 'address', 'status'];
-    const NAME_MIN = 170, CHECK_W = 40, ROW_H = 54;
+    const NAME_MIN = 150, CHECK_W = 40, ROW_H = 54;
     const ROW_SKIP = 'a, .infra-col-check, [data-row-expand]';
     const isTyping = target => !!target?.matches?.('textarea, select, [contenteditable="true"], input:not([type="checkbox"])');
 
@@ -57,8 +57,10 @@
             const next = Object.keys(BASE).filter(key => !shown.has(key)).join(' ');
             if (next !== hiddenCols) { hiddenCols = next; table.dataset.hiddenCols = next; }
         }
-        const resize = typeof ResizeObserver === 'function' ? new ResizeObserver(layoutColumns) : null;
-        resize?.observe(scroll);
+        // The observed view is sized by the window (inline-size container, min-width 0), never by its columns,
+        // so laying out inside the callback cannot resize it again.
+        const resize = typeof ResizeObserver === 'function' ? new ResizeObserver(() => layoutColumns()) : null;
+        resize?.observe(el);
 
         // ---- rows ------------------------------------------------------------------------------------
         // The sorted tree is rebuilt only when the data, the filters, the sort or the open hosts change.

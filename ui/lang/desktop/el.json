@@ -9235,7 +9235,7 @@
   "desktop.infra_region_label": "{name}, {kind}, {count} στοιχεία",
   "desktop.infra_new_place": "Νέος χώρος",
   "desktop.infra_place_on_map": "Τοποθέτηση στον χάρτη",
-  "desktop.infra_move_hint": "Επίλεξέ το στον χάρτη και πάτησε M για να το μετακινήσεις με τα βέλη.",
+  "desktop.infra_move_hint": "Πάτησε M στον χάρτη για να το μετακινήσεις με τα βέλη.",
   "desktop.infra_connection": "Σύνδεση",
   "desktop.infra_connection_new": "Νέα σύνδεση",
   "desktop.infra_connection_kind": "Τύπος σύνδεσης",

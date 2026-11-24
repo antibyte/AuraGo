@@ -10555,7 +10555,7 @@
   "desktop.infra_region_label": "{name}, {kind}, {count} assets",
   "desktop.infra_new_place": "New place",
   "desktop.infra_place_on_map": "Place on map",
-  "desktop.infra_move_hint": "Select it on the map and press M to move it with the arrow keys.",
+  "desktop.infra_move_hint": "Press M on the map to move it with the arrow keys.",
   "desktop.infra_connection": "Connection",
   "desktop.infra_connection_new": "New connection",
   "desktop.infra_connection_kind": "Connection type",

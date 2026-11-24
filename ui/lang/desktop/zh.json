@@ -9235,7 +9235,7 @@
   "desktop.infra_region_label": "{name}，{kind}，{count} 项资产",
   "desktop.infra_new_place": "新建场所",
   "desktop.infra_place_on_map": "放置到地图上",
-  "desktop.infra_move_hint": "在地图上选中它，然后按 M，即可用方向键移动。",
+  "desktop.infra_move_hint": "在地图上按 M，即可用方向键移动。",
   "desktop.infra_connection": "连接",
   "desktop.infra_connection_new": "新建连接",
   "desktop.infra_connection_kind": "连接类型",

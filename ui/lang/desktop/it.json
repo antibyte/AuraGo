@@ -9235,7 +9235,7 @@
   "desktop.infra_region_label": "{name}, {kind}, {count} risorse",
   "desktop.infra_new_place": "Nuovo luogo",
   "desktop.infra_place_on_map": "Posiziona sulla mappa",
-  "desktop.infra_move_hint": "Selezionalo sulla mappa e premi M per spostarlo con i tasti freccia.",
+  "desktop.infra_move_hint": "Premi M sulla mappa per spostarlo con i tasti freccia.",
   "desktop.infra_connection": "Connessione",
   "desktop.infra_connection_new": "Nuova connessione",
   "desktop.infra_connection_kind": "Tipo di connessione",

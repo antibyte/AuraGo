@@ -9235,7 +9235,7 @@
   "desktop.infra_region_label": "{name}, {kind}, {count} tillgångar",
   "desktop.infra_new_place": "Ny plats",
   "desktop.infra_place_on_map": "Placera på kartan",
-  "desktop.infra_move_hint": "Markera den på kartan och tryck på M för att flytta den med piltangenterna.",
+  "desktop.infra_move_hint": "Tryck på M på kartan för att flytta den med piltangenterna.",
   "desktop.infra_connection": "Anslutning",
   "desktop.infra_connection_new": "Ny anslutning",
   "desktop.infra_connection_kind": "Anslutningstyp",

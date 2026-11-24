@@ -9235,7 +9235,7 @@
   "desktop.infra_region_label": "{name}, {kind}, aktiv: {count}",
   "desktop.infra_new_place": "Nové místo",
   "desktop.infra_place_on_map": "Umístit na mapu",
-  "desktop.infra_move_hint": "Vyber ho na mapě a stiskni M, pak ho můžeš přesouvat šipkami.",
+  "desktop.infra_move_hint": "Stiskni na mapě M a pak ho můžeš přesouvat šipkami.",
   "desktop.infra_connection": "Spojení",
   "desktop.infra_connection_new": "Nové spojení",
   "desktop.infra_connection_kind": "Typ spojení",

@@ -9235,7 +9235,7 @@
   "desktop.infra_region_label": "{name}, {kind}, {count} équipements",
   "desktop.infra_new_place": "Nouveau lieu",
   "desktop.infra_place_on_map": "Placer sur la carte",
-  "desktop.infra_move_hint": "Sélectionne-le sur la carte et appuie sur M pour le déplacer avec les flèches.",
+  "desktop.infra_move_hint": "Appuie sur M sur la carte pour le déplacer avec les flèches.",
   "desktop.infra_connection": "Connexion",
   "desktop.infra_connection_new": "Nouvelle connexion",
   "desktop.infra_connection_kind": "Type de connexion",

@@ -9235,7 +9235,7 @@
   "desktop.infra_region_label": "{name}, {kind}, assets: {count}",
   "desktop.infra_new_place": "Nieuwe plek",
   "desktop.infra_place_on_map": "Op kaart plaatsen",
-  "desktop.infra_move_hint": "Selecteer het op de kaart en druk op M om het met de pijltjestoetsen te verplaatsen.",
+  "desktop.infra_move_hint": "Druk op de kaart op M om het met de pijltjestoetsen te verplaatsen.",
   "desktop.infra_connection": "Verbinding",
   "desktop.infra_connection_new": "Nieuwe verbinding",
   "desktop.infra_connection_kind": "Verbindingstype",

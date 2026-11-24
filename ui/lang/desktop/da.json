@@ -9235,7 +9235,7 @@
   "desktop.infra_region_label": "{name}, {kind}, {count} aktiver",
   "desktop.infra_new_place": "Nyt sted",
   "desktop.infra_place_on_map": "Placér på kortet",
-  "desktop.infra_move_hint": "Vælg det på kortet, og tryk på M for at flytte det med piletasterne.",
+  "desktop.infra_move_hint": "Tryk på M på kortet for at flytte det med piletasterne.",
   "desktop.infra_connection": "Forbindelse",
   "desktop.infra_connection_new": "Ny forbindelse",
   "desktop.infra_connection_kind": "Forbindelsestype",

@@ -9235,7 +9235,7 @@
   "desktop.infra_region_label": "{name}, {kind}, {count} संसाधन",
   "desktop.infra_new_place": "नया स्थान",
   "desktop.infra_place_on_map": "मैप पर रखें",
-  "desktop.infra_move_hint": "इसे मैप पर चुनें और ऐरो कीज़ से हिलाने के लिए M दबाएँ।",
+  "desktop.infra_move_hint": "ऐरो कीज़ से हिलाने के लिए मैप पर M दबाएँ।",
   "desktop.infra_connection": "कनेक्शन",
   "desktop.infra_connection_new": "नया कनेक्शन",
   "desktop.infra_connection_kind": "कनेक्शन का प्रकार",

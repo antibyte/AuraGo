@@ -9235,7 +9235,7 @@
   "desktop.infra_region_label": "{name}, {kind}, {count} activos",
   "desktop.infra_new_place": "Nuevo lugar",
   "desktop.infra_place_on_map": "Colocar en el mapa",
-  "desktop.infra_move_hint": "Selecciónalo en el mapa y pulsa M para moverlo con las flechas.",
+  "desktop.infra_move_hint": "Pulsa M en el mapa para moverlo con las flechas.",
   "desktop.infra_connection": "Conexión",
   "desktop.infra_connection_new": "Nueva conexión",
   "desktop.infra_connection_kind": "Tipo de conexión",

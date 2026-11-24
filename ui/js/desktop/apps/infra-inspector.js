@@ -58,9 +58,13 @@
             const copyBtn = value => `<button type="button" class="infra-fact-copy" data-copy-value="${esc(value)}" aria-label="${esc(t('desktop.copy'))}" title="${esc(t('desktop.copy'))}">${app.glyph('copy')}</button>`;
             const copyable = value => (value ? `<span class="infra-fact-inline"><span class="infra-fact-num">${esc(value)}</span>${copyBtn(value)}</span>` : esc(none));
             const placeValue = crumbs.length ? `<button type="button" class="infra-fact-link" data-crumb="${esc(crumbs.at(-1).id)}">${esc(place)}</button>` : esc(place);
-            let facts = row(t('desktop.infra_address'), copyable(profile.ip_address)) + row(t('desktop.infra_field_mac_address'), copyable(profile.mac_address))
-                + row(t('desktop.infra_group_hardware'), esc([profile.vendor, profile.model].filter(Boolean).join(' · ') || none))
-                + row(t('desktop.infra_place'), placeValue);
+            const dash = value => (value ? esc(value) : esc(none));
+            // A network is described by its range, the places (site, room, rack, group) have no address or hardware at all.
+            const identityFacts = node.kind === 'network' ? row(t('desktop.infra_field_cidr'), dash(profile.cidr)) + row(t('desktop.infra_field_vlan'), dash(profile.vlan))
+                : ['site', 'room', 'rack', 'group'].includes(node.kind) ? ''
+                    : row(t('desktop.infra_address'), copyable(profile.ip_address)) + row(t('desktop.infra_field_mac_address'), copyable(profile.mac_address))
+                        + row(t('desktop.infra_group_hardware'), esc([profile.vendor, profile.model].filter(Boolean).join(' · ') || none));
+            let facts = identityFacts + row(t('desktop.infra_place'), placeValue);
             // The Overview only says whether the asset is on the map; the coordinates are in the Details tab.
             if (!hostId) {
                 const placeText = autoPlaced ? t('desktop.infra_topology_auto') : placement ? t('desktop.infra_on_map') : t('desktop.infra_unplaced');

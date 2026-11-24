@@ -9235,7 +9235,7 @@
   "desktop.infra_region_label": "{name}、{kind}、資産{count}件",
   "desktop.infra_new_place": "新しい置き場所",
   "desktop.infra_place_on_map": "マップに配置",
-  "desktop.infra_move_hint": "マップで選択し、Mキーを押すと矢印キーで移動できます。",
+  "desktop.infra_move_hint": "マップ上でMキーを押すと、矢印キーで移動できます。",
   "desktop.infra_connection": "接続",
   "desktop.infra_connection_new": "新しい接続",
   "desktop.infra_connection_kind": "接続の種類",

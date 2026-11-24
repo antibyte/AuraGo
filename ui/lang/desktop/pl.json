@@ -9235,7 +9235,7 @@
   "desktop.infra_region_label": "{name}, {kind}, zasobów: {count}",
   "desktop.infra_new_place": "Nowe miejsce",
   "desktop.infra_place_on_map": "Umieść na mapie",
-  "desktop.infra_move_hint": "Zaznacz je na mapie i naciśnij M, aby przesunąć je strzałkami.",
+  "desktop.infra_move_hint": "Naciśnij M na mapie, aby przesunąć je strzałkami.",
   "desktop.infra_connection": "Połączenie",
   "desktop.infra_connection_new": "Nowe połączenie",
   "desktop.infra_connection_kind": "Typ połączenia",
