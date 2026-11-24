@@ -70,7 +70,6 @@
     - {when: "if(vout/vcc<0.05,1,vout/vcc>0.95)", warn: {en: "The reading is close to a rail: little resolution is left per kelvin. Choose a different fixed resistor.", de: "Der Messwert liegt nahe an einer Versorgungsgrenze: Pro Kelvin bleibt wenig Auflösung. Anderen festen Widerstand wählen."}}
     - {when: "if(beta<2000,1,beta>5000)", warn: {en: "Unusual B value: common NTC materials lie between 2000 K and 5000 K.", de: "Ungewöhnlicher B-Wert: Übliche NTC-Werkstoffe liegen zwischen 2000 K und 5000 K."}}
   formula: ["rntc = r0 * exp(beta * (1/t - 1/t0))", "vout = vcc * rntc / (rfix + rntc)", "vout = vcc * rfix / (rfix + rntc)"]
-  schematic: ntc_divider
 
 - id: rtd_pt100
   kind: calculator

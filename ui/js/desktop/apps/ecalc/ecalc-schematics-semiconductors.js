@@ -193,7 +193,7 @@ window.ECalcSchematics = Object.assign(window.ECalcSchematics || {}, {
   "anchors": [
    {"var": "vdrv", "x": 5.6, "y": 3.7, "side": "top"},
    {"var": "rg", "x": 11.4, "y": 4.4, "side": "top"},
-   {"var": "rint", "x": 10.5, "y": 5.7, "side": "bottom"},
+   {"var": "rint", "x": 6.6, "y": 6.6, "side": "right"},
    {"var": "qgd", "x": 20, "y": 6, "side": "right"},
    {"var": "vpl", "x": 20, "y": 8.7, "side": "right"},
    {"var": "qg", "x": 20, "y": 3.3, "side": "right"},

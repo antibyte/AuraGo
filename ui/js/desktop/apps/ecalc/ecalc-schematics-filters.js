@@ -169,27 +169,6 @@ window.ECalcSchematics = Object.assign(window.ECalcSchematics || {}, {
    {"var": "rp", "x": 11.4, "y": 6.2, "side": "left"}
   ]
  },
- "lc_lowpass": {
-  "w": 29, "h": 12,
-  "parts": [
-   {"sym": "acsource", "x": 4, "y": 4, "rot": 90},
-   {"sym": "resistor", "x": 6, "y": 4},
-   {"sym": "inductor", "x": 11, "y": 4},
-   {"sym": "capacitor", "x": 17, "y": 4, "rot": 90},
-   {"sym": "resistor", "x": 22, "y": 4, "rot": 90},
-   {"sym": "ground", "x": 13, "y": 10}
-  ],
-  "wires": [[[4, 4], [6, 4]], [[9, 4], [11, 4]], [[14, 4], [22, 4]], [[4, 7], [4, 10], [22, 10]], [[17, 7], [17, 10]], [[22, 7], [22, 10]]],
-  "dots": [[17, 4], [17, 10], [13, 10]],
-  "texts": [
-   {"x": 7.5, "y": 3.2, "text": "R", "anchor": "middle"}
-  ],
-  "anchors": [
-   {"var": "l", "x": 12.5, "y": 3.3, "side": "top"},
-   {"var": "c", "x": 16.4, "y": 5.8, "side": "left"},
-   {"var": "r", "x": 22.6, "y": 5.8, "side": "right"}
-  ]
- },
  "sallen_key_highpass": {
   "w": 32, "h": 14,
   "parts": [

@@ -158,18 +158,19 @@ window.ECalcSchematics = Object.assign(window.ECalcSchematics || {}, {
   ]
  },
  "supercap_backup": {
-  "w": 24, "h": 11,
+  "w": 28, "h": 13,
   "parts": [
    {"sym": "polarized", "x": 8, "y": 5, "rot": 90},
    {"sym": "switch", "x": 11, "y": 4},
-   {"sym": "isource", "x": 18, "y": 5, "rot": 90}
+   {"sym": "ic", "x": 17, "y": 4, "w": 3, "h": 6, "text": "load", "pins": [{"n": "+", "s": "l", "y": 1}, {"n": "−", "s": "l", "y": 5}]}
   ],
-  "wires": [[[8, 5], [8, 4], [11, 4]], [[14, 4], [18, 4], [18, 5]], [[8, 8], [8, 9], [18, 9], [18, 8]]],
+  "wires": [[[8, 5], [8, 4], [11, 4]], [[14, 4], [15, 4], [15, 5], [17, 5]], [[8, 8], [8, 11], [15, 11], [15, 9], [17, 9]]],
   "anchors": [
    {"var": "v1", "x": 7.4, "y": 6.5, "side": "left"},
    {"var": "c", "x": 8.5, "y": 3.7, "side": "top"},
    {"var": "t", "x": 12.5, "y": 4.7, "side": "bottom"},
-   {"var": "i", "x": 18.9, "y": 6.5, "side": "right"}
+   {"var": "i", "x": 20.6, "y": 5.2, "side": "right"},
+   {"var": "p", "x": 20.6, "y": 8.4, "side": "right"}
   ]
  },
  "inverting_buck_boost": {

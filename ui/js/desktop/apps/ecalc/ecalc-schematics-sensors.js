@@ -1,25 +1,4 @@
 window.ECalcSchematics = Object.assign(window.ECalcSchematics || {}, {
- "ntc_divider": {
-  "w": 27, "h": 11,
-  "parts": [
-   {"sym": "source", "x": 8, "y": 3, "rot": 90},
-   {"sym": "resistor", "x": 16, "y": 2, "rot": 90},
-   {"sym": "resistor", "x": 16, "y": 5, "rot": 90},
-   {"sym": "ground", "x": 12, "y": 9}
-  ],
-  "wires": [[[8, 3], [8, 2], [16, 2]], [[8, 6], [8, 9], [16, 9]], [[16, 8], [16, 9]], [[16, 5], [19, 5]], [[16, 9], [19, 9]]],
-  "dots": [[16, 5], [12, 9], [16, 9]],
-  "terminals": [[19, 5], [19, 9]],
-  "texts": [
-   {"x": 17.4, "y": 6.9, "text": "NTC", "anchor": "start"}
-  ],
-  "anchors": [
-   {"var": "vcc", "x": 7.4, "y": 4.5, "side": "left"},
-   {"var": "rfix", "x": 15.6, "y": 3.65, "side": "left"},
-   {"var": "rntc", "x": 15.6, "y": 6.6, "side": "left"},
-   {"var": "vout", "x": 19.8, "y": 7, "side": "right"}
-  ]
- },
  "current_loop_4_20ma": {
   "w": 26, "h": 11,
   "parts": [

@@ -14,7 +14,7 @@
   vars:
     spr: {dim: number, label: N_rev, name: {en: "Full steps per revolution", de: "Vollschritte pro Umdrehung"}, default: 200}
     ms: {dim: number, label: m, name: {en: "Microsteps per full step", de: "Mikroschritte je Vollschritt"}, default: 16}
-    lead: {dim: length, label: P, name: {en: "Belt pitch / screw LEAD (pitch × starts)", de: "Riementeilung / Spindel-STEIGUNG (Teilung × Gangzahl)"}, default: "2 mm", unit: mm, units: [mm, in, ""]}
+    lead: {dim: length, label: L, name: {en: "Belt pitch / screw LEAD (pitch × starts)", de: "Riementeilung / Spindel-STEIGUNG (Teilung × Gangzahl)"}, default: "2 mm", unit: mm, units: [mm, in, ""]}
     teeth: {dim: number, label: z, name: {en: "Teeth of the driving pulley", de: "Zähne der treibenden Riemenscheibe"}, default: 20}
     spmm: {dim: number, label: k, name: {en: "Steps per mm", de: "Schritte pro mm"}}
   choices:
@@ -37,7 +37,7 @@
   derived:
     rev: {dim: length, label: s_rev, name: {en: "Travel per revolution", de: "Weg pro Umdrehung"}, expr: "lead*if(belt,teeth,1)"}
     dx: {dim: length, label: Δx, name: {en: "Travel per microstep", de: "Weg pro Mikroschritt"}, expr: "lead*if(belt,teeth,1)/(spr*ms)"}
-  formula: ["spmm = spr * ms / (lead * teeth)", "dx = 1 / spmm"]
+  formula: ["spmm = spr * ms / (lead * teeth)", "spmm = spr * ms / lead", "dx = 1 / spmm"]
 
 - id: motor_torque_power
   kind: calculator

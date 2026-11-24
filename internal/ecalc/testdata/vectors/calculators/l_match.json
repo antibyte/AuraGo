@@ -14,7 +14,8 @@
   "solve": [
     {"inputs": {"rs": 100, "rl": 1700, "f": 900000000}, "choices": {"variant": "lowpass"}, "expect": {"l": 7.073553026306459e-08, "c": 4.1609135448861524e-13, "q": 4.0, "xs": 400.0, "xp": 425.0}, "errors": {}, "warnings": [], "ref": "published, Steer section 6.4: 70.7 nH and 0.416 pF (low-pass default option)"},
     {"inputs": {"rs": 100, "rl": 1000, "f": 100000000}, "choices": {"variant": "highpass"}, "expect": {"l": 5.305164769729844e-07, "c": 5.3051647697298444e-12, "q": 3.0}, "errors": {}, "warnings": [], "ref": "hand: high-pass, 100 Ω to 1000 Ω at 100 MHz: C = 5.305 pF, L = 530.5 nH"},
-    {"inputs": {"rs": 1700, "rl": 100, "f": 900000000}, "choices": {"variant": "lowpass"}, "expect": {"l": 7.073553026306459e-08, "c": 4.1609135448861524e-13, "q": 4.0}, "errors": {}, "warnings": [], "ref": "hand: source and load swapped give the same values, only R_hi and R_lo matter"},
+    {"inputs": {"rs": 1700, "rl": 100, "f": 900000000}, "choices": {"variant": "lowpass"}, "expect": {"l": 7.073553026306459e-08, "c": 4.1609135448861524e-13, "q": 4.0}, "errors": {}, "warnings": [1], "ref": "hand: source and load swapped give the same values, only R_hi and R_lo matter; R_S above R_L fires the mirror warning (check 1)"},
+    {"inputs": {"rs": 50, "rl": 5, "f": 433000000}, "choices": {"variant": "lowpass"}, "expect": {"l": 5.513450684476744e-09, "c": 2.2053802737906975e-11, "q": 3.0, "xs": 15.0, "xp": 16.666666666666668}, "errors": {}, "warnings": [1], "ref": "published, Frenzel, Electronic Design 2012: 50 Ω to 5 Ω at 433 MHz: Q = 3, X_s = 15 Ω, X_p = 16.667 Ω, L = 5.51 nH, C = 22.05 pF; source above the load, so the network is mirrored (check 1)"},
     {"inputs": {"rs": 50, "rl": 50, "f": 100000000}, "choices": {"variant": "lowpass"}, "expect": {"q": 0, "xs": 0}, "errors": {"l": "range", "c": "range"}, "warnings": [0], "ref": "hand: equal resistances need no network (Q = 0): L and C come out zero or infinite and are out of range"}
   ]
 }

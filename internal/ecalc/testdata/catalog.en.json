@@ -3928,7 +3928,7 @@
       "category": "digital",
       "name": "RC debounce",
       "name_en": "RC debounce",
-      "doc": "RC debouncing of a switch in front of a Schmitt-trigger input. The circuit has a pull-up R1 from V_DD to the switch node, the switch from that node to ground, a series resistor R2 from the node to the capacitor C, and the Schmitt-trigger input at the capacitor. After the switch opens, C charges through R1 + R2 until it reaches the rising threshold V_T+: t = −R × C × ln(1 − V_T+ / V_DD). After the switch closes, C discharges through R2 until it falls to the falling threshold V_T−: t = −R × C × ln(V_T− / V_DD). Choose the edge, then enter R = R1 + R2 for the rising edge or R = R2 for the falling edge, together with the threshold of that edge. Any four of the five values can be entered when the missing one is R, C, V_T or the time (the supply must be known). The defaults are the typical thresholds of a 74HC14 at a 4.5 V supply (V_T+ 2.5 V, V_T− 1.6 V, Texas Instruments SN74HC14 datasheet), applied to a 5 V supply for a rough design. For a guaranteed minimum delay use the worst-case thresholds of the datasheet: the lowest V_T+ for the rising edge and the highest V_T− for the falling edge give the shortest times. Contact bounce can only lengthen the delay, never shorten it, because every re-closing partly recharges or discharges the capacitor; make both times longer than the bounce time (Ganssle measured bounce mostly under 10 ms and designs for 20 ms). The formulas assume that the capacitor was fully charged or discharged before the switch changed (several time constants), an ideal switch and no input current into the gate; the capacitor tolerance and the threshold spread are large. The input must have hysteresis: an ordinary logic or microcontroller input without a Schmitt trigger gives no defined result from a slow RC edge. Example with the defaults: 10 kΩ × 1 µF with the threshold at half the supply gives 10 ms × ln 2 = 6.93 ms.",
+      "doc": "RC debouncing of a switch in front of a Schmitt-trigger input. The circuit has a pull-up R1 from V_DD to the switch node, the switch from that node to ground, a series resistor R2 from the node to the capacitor C, and the Schmitt-trigger input at the capacitor. After the switch opens, C charges through R1 + R2 until it reaches the rising threshold V_T+: t = −R × C × ln(1 − V_T+ / V_DD). After the switch closes, C discharges through R2 until it falls to the falling threshold V_T−: t = −R × C × ln(V_T− / V_DD). Choose the edge, then enter R = R1 + R2 for the rising edge or R = R2 for the falling edge, together with the threshold of that edge. Any four of the five values can be entered when the missing one is R, C, V_T or the time (the supply must be known). The defaults are the typical thresholds of a 74HC14 at a 4.5 V supply (V_T+ 2.5 V, V_T− 1.6 V, Texas Instruments SN74HC14 datasheet), applied to a 5 V supply for a rough design. For a guaranteed minimum delay use the worst-case thresholds of the datasheet: the lowest V_T+ for the rising edge and the highest V_T− for the falling edge give the shortest times. Contact bounce can only lengthen the delay, never shorten it, because every re-closing partly recharges or discharges the capacitor; make both times longer than the bounce time (Ganssle measured bounce mostly under 10 ms and designs for 20 ms). The formulas assume that the capacitor was fully charged or discharged before the switch changed (several time constants), an ideal switch and no input current into the gate; the capacitor tolerance and the threshold spread are large. The input must have hysteresis: an ordinary logic or microcontroller input without a Schmitt trigger gives no defined result from a slow RC edge. Example with the defaults: 10 kΩ × 2.2 µF with the threshold at half the supply gives 22 ms × ln 2 = 15.2 ms.",
       "tags": [
         "debounce",
         "debouncing",
@@ -3977,7 +3977,7 @@
           "dim": "capacitance",
           "label": "C",
           "name": "Capacitor at the gate input",
-          "default": 0.000001,
+          "default": 0.0000022,
           "default_list": null,
           "unit": "",
           "units": [],
@@ -4098,8 +4098,8 @@
           "warn": "The threshold is not below the supply: the capacitor never reaches it."
         },
         {
-          "when": "t < 0.005",
-          "warn": "Less than 5 ms: many switches bounce for up to 10 ms; 20 ms is a conservative design value."
+          "when": "t < 0.01",
+          "warn": "Below 10 ms: many switches bounce for up to 10 ms; 20 ms is a conservative design value."
         }
       ],
       "formula": [
@@ -4406,7 +4406,7 @@
         {
           "id": "lead",
           "dim": "length",
-          "label": "P",
+          "label": "L",
           "name": "Belt pitch / screw LEAD (pitch × starts)",
           "default": 0.002,
           "default_list": null,
@@ -4524,6 +4524,7 @@
       "checks": [],
       "formula": [
         "spmm = spr * ms / (lead * teeth)",
+        "spmm = spr * ms / lead",
         "dx = 1 / spmm"
       ],
       "schematic": "",
@@ -6132,7 +6133,7 @@
           "id": "r",
           "dim": "resistance",
           "label": "R",
-          "name": "Source and load resistance (each)",
+          "name": "Load resistance (with both ends terminated also the source resistance)",
           "default": 50,
           "default_list": null,
           "unit": "",
@@ -6284,7 +6285,7 @@
         "c = kc / (2 * pi * fc * r)",
         "f0 = 1 / (2 * pi * sqrt(l * c))"
       ],
-      "schematic": "lc_lowpass",
+      "schematic": "",
       "finder": "",
       "chart": null,
       "sets": [
@@ -6345,7 +6346,7 @@
         "rumpelfilter",
         "trittschallfilter"
       ],
-      "source": "Unity-gain Sallen-Key high-pass with equal capacitors: f_0 = 1/(2πC√(R_1R_2)), Q = ½√(R_2/R_1), R_1 the feedback resistor; Texas Instruments, Op Amps for Everyone (SLOD006B), chapter 16 (active filter design techniques); Texas Instruments, Analysis of the Sallen-Key Architecture (SLOA024B), high-pass circuit; Texas Instruments, Single-supply, 2nd-order, Sallen-Key high-pass filter circuit (SBOA225); R. P. Sallen, E. L. Key: A Practical Method of Designing RC Active Filters, IRE Transactions on Circuit Theory, 1955",
+      "source": "Unity-gain Sallen-Key high-pass with equal capacitors: f_0 = 1/(2πC√(R_1R_2)), Q = ½√(R_2/R_1), R_1 the feedback resistor; Texas Instruments, Op Amps for Everyone (SLOD006B), chapter 16 (active filter design techniques); Texas Instruments, Analysis of the Sallen-Key Architecture (SLOA024B), high-pass circuit; Texas Instruments, Single-supply, 2nd-order, Sallen-Key high-pass filter circuit (SBOA225)",
       "vars": [
         {
           "id": "r1",
@@ -15040,7 +15041,7 @@
       "category": "power",
       "name": "LED strip supply (WS2812)",
       "name_en": "LED strip supply (WS2812)",
-      "doc": "Current, power and end-of-strip voltage of an addressable LED strip (WS2812 and similar) fed from one end. The total current is I = N × I_led, the power P = V × I. The strip is a long conductor loaded along its whole length, so the voltage drop to the far end is half of the current times the resistance of both rails: ΔV = I × R_s / 2 (a load spread uniformly along the line, as treated for distribution feeders in W. H. Kersting, Distribution System Modeling and Analysis, in the chapter on uniformly distributed loads). The estimate assumes every pixel draws the same current whatever its local voltage; for N pixels the exact sum is larger by the factor (1 + 1 / N). The check compares the voltage at the far end with the lowest supply voltage the pixels accept. Current per pixel: the default of 36 mA is 3 × 12 mA, the working current per colour of the WS2812B-V5/W datasheet with red, green and blue at full brightness; the WS2812 datasheet gives 18.5 mA per colour (55.5 mA), the 2013 WS2812B datasheet states no current at all, and the common figure of 60 mA per pixel is a rounded worst case from Adafruit's NeoPixel Überguide (about 20 mA is typical for mixed animations). The minimum voltage default of 4.5 V is the lower end of the supply range for which the 2013 WS2812B datasheet specifies its electrical characteristics (4.5 to 5.5 V); take the value from the datasheet of your part. The rail resistance R_s (both rails together, whole strip) is not in the LED datasheets: the default 0.2 Ω is only a placeholder for about a metre, so measure it (short the far end and measure from + to − at the feed). The cable from the supply is not included. If the far end falls too low, feed the strip from both ends or inject power at several points (Adafruit advises a power connection within about a metre of every pixel); this calculator gives no number for that. Size the supply with generous headroom.",
+      "doc": "Current, power and end-of-strip voltage of an addressable LED strip (WS2812 and similar) fed from one end. The total current is I = N × I_led, the power P = V × I. The strip is a long conductor loaded along its whole length, so the voltage drop to the far end is half of the current times the resistance of both rails: ΔV = I × R_s / 2 (a load spread uniformly along the line, as treated for distribution feeders in the lecture notes Purdue University ECE 595, Lecture 3 Approximate Feeder Analysis, and Iowa State University EE 455, Approximate Method of Analysis). The estimate assumes every pixel draws the same current whatever its local voltage; for N pixels the exact sum is larger by the factor (1 + 1 / N). The check compares the voltage at the far end with the lowest supply voltage the pixels accept. Current per pixel: the default of 36 mA is 3 × 12 mA, the working current per colour of the WS2812B-V5/W datasheet with red, green and blue at full brightness; the WS2812 datasheet gives 18.5 mA per colour (55.5 mA), the 2013 WS2812B datasheet states no current at all, and the common figure of 60 mA per pixel is a rounded worst case from Adafruit's NeoPixel Überguide (about 20 mA is typical for mixed animations). The minimum voltage default of 4.5 V is the lower end of the supply range for which the 2013 WS2812B datasheet specifies its electrical characteristics (4.5 to 5.5 V); take the value from the datasheet of your part. The rail resistance R_s (both rails together, whole strip) is not in the LED datasheets: the default 0.2 Ω is only a placeholder for about a metre, so measure it (short the far end and measure from + to − at the feed). The cable from the supply is not included. If the far end falls too low, feed the strip from both ends or inject power at several points (Adafruit advises a power connection within about a metre of every pixel); this calculator gives no number for that. Size the supply with generous headroom.",
       "tags": [
         "led strip",
         "ws2812b",
@@ -15061,7 +15062,7 @@
         "einspeisung",
         "spannungsabfall"
       ],
-      "source": "Datasheets of Worldsemi: WS2812 (18.5 mA per colour), WS2812B-V5/W (12 mA working current per colour), WS2812B (2013, supply range 4.5 to 5.5 V); Adafruit NeoPixel Überguide, Powering NeoPixels (60 mA worst case, 20 mA typical per pixel); voltage drop ΔV = I × R / 2 of a uniformly distributed load: W. H. Kersting, Distribution System Modeling and Analysis, chapter on uniformly distributed loads",
+      "source": "Datasheets of Worldsemi: WS2812 (18.5 mA per colour), WS2812B-V5/W (12 mA working current per colour), WS2812B (2013, supply range 4.5 to 5.5 V); Adafruit NeoPixel Überguide, Powering NeoPixels (60 mA worst case, 20 mA typical per pixel); voltage drop ΔV = I × R / 2 of a uniformly distributed load: Purdue University, ECE 595 Power Distribution System Analysis, Lecture 3 Approximate Feeder Analysis; Iowa State University, EE 455 Introduction to Energy Distribution Systems, 03 Approximate Method of Analysis",
       "vars": [
         {
           "id": "n",
@@ -15247,7 +15248,7 @@
       "category": "power",
       "name": "Supercapacitor hold-up time",
       "name_en": "Supercapacitor hold-up time",
-      "doc": "How long a supercapacitor can supply a load while its voltage falls from the start voltage V₁ to the cut-off voltage V₂ at which the load stops working. With a constant current I the voltage falls linearly and t = C × (V₁ − V₂) / I. With a constant power P (for example a DC/DC converter) the current rises as the voltage falls and t = C × (V₁² − V₂²) / (2 × P). The usable energy is E = ½ × C × (V₁² − V₂²). Choose the load type: the value that the type does not use is dimmed. The equivalent series resistance (ESR) is ignored: it makes the real time shorter, because the voltage step I × R_ESR at the start and the loss in the ESR use up part of the voltage swing (with a high ESR or a large current this is not small, and the supercapacitor may not deliver the constant power at all near V₂). Capacitance also falls and ESR rises with age and at low temperature (end of life is often taken as −30 % capacitance and double ESR), the capacitance depends on voltage and discharge rate, and leakage is ignored, so add margin. For cells in series enter the values of the whole stack (C = C_cell / n) and never exceed the rated cell voltage. The defaults (1 F from 5 V to 3 V) last 200 s at 10 mA or 160 s at 50 mW.",
+      "doc": "How long a supercapacitor can supply a load while its voltage falls from the start voltage V₁ to the cut-off voltage V₂ at which the load stops working. With a constant current I the voltage falls linearly and t = C × (V₁ − V₂) / I. With a constant power P (for example a DC/DC converter) the current rises as the voltage falls and t = C × (V₁² − V₂²) / (2 × P). The usable energy is E = ½ × C × (V₁² − V₂²). Choose the load type: the value that the type does not use is dimmed. The equivalent series resistance (ESR) is ignored: it makes the real time shorter, because the voltage step I × R_ESR at the start and the loss in the ESR use up part of the voltage swing (with a high ESR or a large current this is not small, and the supercapacitor may not deliver the constant power at all near V₂). Capacitance also falls and ESR rises with age and at low temperature, the capacitance depends on voltage and discharge rate, and leakage is ignored, so add margin. For cells in series enter the values of the whole stack (C = C_cell / n) and never exceed the rated cell voltage. The defaults (1 F from 5 V to 3 V) last 200 s at 10 mA or 160 s at 50 mW.",
       "tags": [
         "supercapacitor",
         "supercap",
@@ -15482,7 +15483,7 @@
         "Schaltregler",
         "DC/DC-Wandler"
       ],
-      "source": "Inverting buck-boost power stage in continuous conduction (D = |V_out| / (V_in + |V_out|), I_L = I_out / (1 − D), ΔI_L = V_in × D / (f_sw × L), discontinuous limit I_out = ΔI_L × (1 − D) / 2): Texas Instruments SLVA059B, Understanding Inverting Buck-Boost Power Stages in Switch Mode Power Supplies; Texas Instruments SNVA856B, Working With Inverting Buck-Boost Converters; Texas Instruments SLYT286, Using a buck converter in an inverting buck-boost topology (Analog Applications Journal 4Q 2007); Analog Devices AN-1083, Designing an Inverting Buck Boost Using the ADP2300 and ADP2301 Switching Regulators",
+      "source": "Inverting buck-boost power stage in continuous conduction (D = |V_out| / (V_in + |V_out|), I_L = I_out / (1 − D), ΔI_L = V_in × D / (f_sw × L)): Texas Instruments SLVA059B, Understanding Inverting Buck-Boost Power Stages in Switch Mode Power Supplies; Texas Instruments SNVA856B, Working With Inverting Buck-Boost Converters; Texas Instruments SLYT286, Using a buck converter in an inverting buck-boost topology (Analog Applications Journal 4Q 2007); discontinuous-mode limit I_out = ΔI_L × (1 − D) / 2: Texas Instruments SLVA059B and Analog Devices AN-1083, Designing an Inverting Buck Boost Using the ADP2300 and ADP2301 Switching Regulators",
       "vars": [
         {
           "id": "vin",
@@ -17191,7 +17192,7 @@
       "category": "rf",
       "name": "L-network matching",
       "name_en": "L-network matching",
-      "doc": "Two reactive parts, one in series and one in parallel, transform a load resistance to a different source resistance at one frequency, for maximum power transfer. With R_hi the larger and R_lo the smaller of the two resistances the Q is fixed by their ratio: Q = √(R_hi / R_lo − 1). The series reactance is X_s = Q × R_lo (on the low-resistance side) and the parallel reactance is X_p = R_hi / Q (across the high resistance), so X_s × X_p = R_hi × R_lo. Low-pass variant (passes DC, attenuates harmonics): L = X_s / (2π f) in series, C = 1 / (2π f X_p) in parallel. High-pass variant (blocks DC): C = 1 / (2π f X_s) in series, L = X_p / (2π f) in parallel. Source and load can be swapped: only R_hi and R_lo matter. Example: 100 Ω to 1 kΩ at 100 MHz gives Q = 3, X_s = 300 Ω, X_p = 333 Ω, so L = 477 nH and C = 4.77 pF (low-pass). Valid for purely resistive source and load, ideal lossless parts and one frequency; reactive parts of the source or load must be compensated first. With lumped parts this works up to roughly 1 to 2 GHz. The calculator gives no bandwidth: the Q of an L-network is fixed by the ratio and is not the loaded Q of a resonator, so the rule bandwidth = f / Q must not be used. For another Q use a three-element network.",
+      "doc": "Two reactive parts, one in series and one in parallel, transform a load resistance to a different source resistance at one frequency, for maximum power transfer. With R_hi the larger and R_lo the smaller of the two resistances the Q is fixed by their ratio: Q = √(R_hi / R_lo − 1). The series reactance is X_s = Q × R_lo (on the low-resistance side) and the parallel reactance is X_p = R_hi / Q (across the high resistance), so X_s × X_p = R_hi × R_lo. Low-pass variant (passes DC, attenuates harmonics): L = X_s / (2π f) in series, C = 1 / (2π f X_p) in parallel. High-pass variant (blocks DC): C = 1 / (2π f X_s) in series, L = X_p / (2π f) in parallel. The part values depend only on R_hi and R_lo, so source and load can be swapped, but the network must then be mirrored: the series element always sits on the low-resistance side and the shunt element across the high-resistance side. The drawing shows R_S < R_L (series element next to the source); with R_S > R_L put the series element next to R_L and the shunt element across R_S. Example: 100 Ω to 1 kΩ at 100 MHz gives Q = 3, X_s = 300 Ω, X_p = 333 Ω, so L = 477 nH and C = 4.77 pF (low-pass). Valid for purely resistive source and load, ideal lossless parts and one frequency; reactive parts of the source or load must be compensated first. With lumped parts this works up to roughly 1 to 2 GHz. The calculator gives no bandwidth: the Q of an L-network is fixed by the ratio and is not the loaded Q of a resonator, so the rule bandwidth = f / Q must not be used. For another Q use a three-element network.",
       "tags": [
         "l-match",
         "l match",
@@ -17370,6 +17371,10 @@
         {
           "when": "rs == rl",
           "warn": "Source and load are equal: no matching network is needed."
+        },
+        {
+          "when": "rs > rl",
+          "warn": "R_S is larger than R_L: the values are right, but mirror the drawn network (series element next to R_L, shunt element across R_S)."
         }
       ],
       "formula": [
@@ -20403,7 +20408,7 @@
         "vout = vcc * rntc / (rfix + rntc)",
         "vout = vcc * rfix / (rfix + rntc)"
       ],
-      "schematic": "ntc_divider",
+      "schematic": "",
       "finder": "",
       "chart": null,
       "sets": [

@@ -13,7 +13,7 @@
   {"choices": {"edge": "fall"}, "values": {"r": 10000, "c": 0.0001, "vdd": 5, "vth": 1.25, "t": 1.3862943611198906, "tau": 1}, "ref": "published: Michigan EECS 373 RC review: discharge from 80 % to 20 % takes 1.39 tau (ratio 1/4: ln 4 = 1.386294 tau); here V_T = 1.25 V = 25 % of 5 V, tau = 1 s: t = ln 4 = 1.386294 s"}
  ],
  "solve": [
-  {"inputs": {"r": 10000, "c": 1e-06, "vdd": 5, "vth": 2.5}, "choices": {"edge": "rise"}, "expect": {"t": 0.006931471805599453, "tau": 0.01}, "errors": {}, "warnings": [], "ref": "hand: the defaults: 10 ms x ln 2 = 6.931472 ms"},
+  {"inputs": {"r": 10000, "c": 2.2e-06, "vdd": 5, "vth": 2.5}, "choices": {"edge": "rise"}, "expect": {"t": 0.015249237972318797, "tau": 0.022}, "errors": {}, "warnings": [], "ref": "hand: the defaults: 10 k x 2.2 uF = 22 ms; x ln 2 = 15.249238 ms, above 10 ms, no warning"},
   {"inputs": {"t": 0.02, "c": 1e-07, "vdd": 5, "vth": 1.7}, "choices": {"edge": "fall"}, "expect": {"r": 185389.5150935695}, "errors": {}, "warnings": [], "ref": "published: Ganssle: R2 = -t / (C ln(Vth / Vinitial)) = 0.02 / (1e-7 x 1.078809661) = 185 390 ohm ('R2 is 185K')"},
   {"inputs": {"t": 0.02, "c": 1e-06, "vdd": 5, "vth": 1.7}, "choices": {"edge": "fall"}, "expect": {"r": 18538.95150935695}, "errors": {}, "warnings": [], "ref": "published: Ganssle: with C = 1 uF R2 = 18 539 ohm ('R2 is now 18K')"},
   {"inputs": {"t": 0.02, "r": 100780.57644177607, "vdd": 5, "vth": 0.9}, "choices": {"edge": "rise"}, "expect": {"c": 1e-06}, "errors": {}, "warnings": [], "ref": "hand: C = -t / (R ln(1 - Vth / Vfinal)) = 0.02 / (100780.6 x 0.1984509387) = 1.00000 uF"},
@@ -22,8 +22,9 @@
   {"inputs": {"t": 0.01941857390469474, "r": 18000, "c": 1e-06, "vdd": 5}, "choices": {"edge": "fall"}, "expect": {"vth": 1.7}, "errors": {}, "warnings": [], "ref": "hand: V_T- = Vcc x e^(-t / RC) with t = 19.41857 ms, RC = 18 ms: 5 x e^(-1.078809661) = 1.70000 V"},
   {"inputs": {"r": 10000, "c": 1e-06, "vdd": 5, "vth": 5}, "choices": {"edge": "rise"}, "errors": {"t": "nonfinite"}, "warnings": [0], "ref": "hand: the threshold equals the supply: the capacitor never reaches it, ln(5 / 0) is infinite, check 0 fires and the time is reported as non-finite"},
   {"inputs": {"r": 10000, "c": 1e-06, "vdd": 5, "vth": 6}, "choices": {"edge": "fall"}, "errors": {"t": "range"}, "warnings": [0, 1], "ref": "hand: a falling threshold above the supply is never crossed (ln(5 / 6) < 0, a negative time), checks 0 and 1 fire and the negative time is out of range"},
-  {"inputs": {"r": 1000, "c": 1e-07, "vdd": 5, "vth": 2.5}, "choices": {"edge": "rise"}, "expect": {"t": 6.931471805599453e-05}, "errors": {}, "warnings": [1], "ref": "hand: 1 k x 100 nF = 100 us; x ln 2 = 69.31 us: below 5 ms, the short-time check 1 fires"},
-  {"inputs": {"r": 10000, "c": 1e-06, "vdd": 5, "vth": 2.5}, "choices": {"edge": "fall"}, "expect": {"t": 0.006931471805599453}, "errors": {}, "warnings": [], "ref": "hand: ln 2 x 10 ms = 6.93 ms is above 5 ms, no warning (the falling edge at half the supply gives the same time as the rising one)"},
+  {"inputs": {"r": 1000, "c": 1e-07, "vdd": 5, "vth": 2.5}, "choices": {"edge": "rise"}, "expect": {"t": 6.931471805599453e-05}, "errors": {}, "warnings": [1], "ref": "hand: 1 k x 100 nF = 100 us; x ln 2 = 69.31 us: below 10 ms, the short-time check 1 fires"},
+  {"inputs": {"r": 10000, "c": 2.2e-06, "vdd": 5, "vth": 2.5}, "choices": {"edge": "fall"}, "expect": {"t": 0.015249237972318797}, "errors": {}, "warnings": [], "ref": "hand: ln 2 x 22 ms = 15.25 ms is above 10 ms, no warning (the falling edge at half the supply gives the same time as the rising one)"},
+  {"inputs": {"r": 10000, "c": 1e-06, "vdd": 5, "vth": 2.5}, "choices": {"edge": "rise"}, "expect": {"t": 0.006931471805599453}, "errors": {}, "warnings": [1], "ref": "hand: 10 k x 1 uF = 10 ms; x ln 2 = 6.931472 ms is below 10 ms (typical bounce up to 10 ms), check 1 fires"},
   {"inputs": {"r": 10000, "c": 1e-06, "vdd": 5}, "choices": {"edge": "rise"}, "errors": {"t": "undetermined", "vth": "undetermined"}, "warnings": [], "ref": "hand: the threshold is missing, so the time cannot be computed"}
  ]
 }
