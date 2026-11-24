@@ -98,8 +98,11 @@
 .vd-quick-settings input:disabled,
 .vd-quick-settings select:disabled { cursor: not-allowed; opacity: .62; }
 .vd-quick-settings-close { flex: 0 0 36px; font-size: 1.2rem !important; }
-.vd-quick-dnd { border-bottom: 0; }
-.vd-quick-media { padding-top: 4px; }
+/* Group rhythm: every group is closed by a divider except the last one (the panel's own padding closes it), so the do-not-disturb row
+   is divided from "Media" and nothing hangs under the final group. */
+.vd-quick-settings-group:last-of-type { border-bottom: 0; padding-bottom: 4px; }
+/* The scheme row is only rendered for themes with a light/dark switch; the empty slot must not add a flex gap. */
+.vd-quick-settings [data-quick-scheme-slot]:empty { display: none; }
 .vd-quick-media-content { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
 .vd-quick-media-track { display: flex; flex: 1; flex-direction: column; gap: 3px; min-width: 0; }
 .vd-quick-media-track strong,

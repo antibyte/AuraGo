@@ -419,7 +419,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 10px 16px;
-    border-bottom: 1px solid var(--ds-color-border-subtle);
+    border-bottom: 1px solid var(--vd-theme-border, var(--ds-color-border-subtle));
     position: relative;
 
     background: var(--vd-theme-chrome-bg);
@@ -453,10 +453,6 @@
     gap: 10px;
 
     border-bottom: 1px solid var(--vd-theme-border);
-}
-
-.vd-wm-card-builtin {
-    border-color: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.2);
 }
 
 .vd-wm-card-head {
@@ -501,12 +497,12 @@
 }
 
 .vd-wm-badge-off {
-    background: rgba(255, 255, 255, 0.08);
+    background: color-mix(in srgb, var(--vd-text) 9%, transparent);
     color: var(--ds-color-fg-muted);
 }
 
 .vd-wm-badge-builtin {
-    background: rgba(242, 184, 75, 0.18);
+    background: color-mix(in srgb, var(--vd-amber) 18%, transparent);
     color: var(--vd-amber);
 }
 
@@ -539,8 +535,8 @@
 
 .vd-wm-btn {
     padding: 4px 10px;
-    border: 1px solid var(--ds-color-border-subtle);
-    border-radius: 6px;
+    border: 1px solid var(--vd-theme-border, var(--ds-color-border-subtle));
+    border-radius: var(--ds-radius-sm, 6px);
     background: var(--vd-theme-control-bg);
     color: var(--ds-color-fg-muted);
     font: inherit;
@@ -552,7 +548,7 @@
 }
 
 .vd-wm-btn:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--vd-theme-control-hover);
     color: var(--ds-color-fg-primary);
 }
 
@@ -571,12 +567,12 @@
 }
 
 .vd-wm-btn-delete {
-    border-color: rgba(255, 128, 102, 0.3);
+    border-color: color-mix(in srgb, var(--vd-coral) 30%, transparent);
     color: var(--vd-coral);
 }
 
 .vd-wm-btn-delete:hover {
-    background: rgba(255, 128, 102, 0.12);
+    background: color-mix(in srgb, var(--vd-coral) 12%, transparent);
 }
 
 @media (max-width: 720px) {

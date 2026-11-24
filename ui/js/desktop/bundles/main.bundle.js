@@ -15896,20 +15896,24 @@ function wireWindow(win, id) {
 
     // Tray popovers open away from their bar: below an anchor in the upper half of the viewport
     // (the Fruity menubar), above it otherwise. The placement also steers the entrance motion in
-    // desktop-polish.css.
+    // desktop-polish.css. The 8 px gap is measured from the edge of the bar that holds the anchor,
+    // not from the anchor itself: tray buttons sit inset in their bar by a skin-dependent amount,
+    // and measuring from the button made popovers overlap the taskbar or hang loose under the menubar.
     function placeTrayPopover(panel, anchor) {
         if (!panel || !anchor || !anchor.getBoundingClientRect) return;
         const rect = anchor.getBoundingClientRect();
+        const bar = anchor.closest?.('.vd-taskbar, .vd-global-bar');
+        const edge = bar ? bar.getBoundingClientRect() : rect;
         const below = rect.top + rect.height / 2 < window.innerHeight / 2;
         panel.dataset.placement = below ? 'below' : 'above';
         panel.style.right = Math.max(8, Math.min(window.innerWidth - rect.right, window.innerWidth - panel.offsetWidth - 8)) + 'px';
-        panel.style.maxHeight = Math.max(0, below ? window.innerHeight - rect.bottom - 16 : rect.top - 16) + 'px';
+        panel.style.maxHeight = Math.max(0, below ? window.innerHeight - edge.bottom - 16 : edge.top - 16) + 'px';
         if (below) {
             panel.style.bottom = '';
-            panel.style.top = Math.round(rect.bottom + 8) + 'px';
+            panel.style.top = Math.round(edge.bottom + 8) + 'px';
         } else {
             panel.style.top = '';
-            panel.style.bottom = Math.max(8, window.innerHeight - rect.top + 8) + 'px';
+            panel.style.bottom = Math.max(8, Math.round(window.innerHeight - edge.top + 8)) + 'px';
         }
     }
 

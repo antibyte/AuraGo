@@ -48,6 +48,7 @@
     color-scheme: light;
     font-synthesis: none;
     accent-color: var(--vd-accent); /* ink checkboxes, radios and sliders */
+    --vd-accessibility-focus: var(--vd-accent); /* keyboard focus ring: ink, not the shared amber */
 
     /* Core */
     --vd-bg: #f7f6f3;
@@ -386,10 +387,15 @@
     color: var(--vd-text);
 }
 
+/* Keyboard focus on the bar: a 2px ink ring, rounded like the control, no leftover coloured border from the shared rule. */
+.desktop-body[data-theme="minimal"] :is(.vd-fullscreen-button, .vd-taskbar-widget-btn, .vd-show-desktop-btn, .vd-notification-button, .vd-live-speech-button, .vd-taskbar-pin):focus-visible { border-color: transparent; outline: 2px solid var(--vd-accent); outline-offset: 1px; }
+.desktop-body[data-theme="minimal"] .vd-task-button:focus-visible { border-radius: 4px; }
 .desktop-body[data-theme="minimal"] .vd-fullscreen-button[aria-pressed="true"] { border-color: var(--vd-theme-border-strong); background: transparent; color: var(--vd-text); }
 .desktop-body[data-theme="minimal"] .vd-show-desktop-btn::before { width: 16px; height: 16px; }
-.desktop-body[data-theme="minimal"] .vd-notification-badge { top: -2px; right: -2px; min-width: 14px; height: 14px; padding: 0 3px; background: var(--vd-accent); color: var(--vd-accent-contrast); font-size: .6rem; font-weight: 500; line-height: 14px; }
-.desktop-body[data-theme="minimal"] .vd-notification-icon { opacity: .85; }
+/* The bell is an emoji, so it cannot take a text colour: the light scheme darkens its grayscale to ink, the dark one keeps the shared gray. The badge sits on the corner, beside the glyph. */
+.desktop-body[data-theme="minimal"] .vd-notification-badge { top: -5px; right: -4px; min-width: 14px; height: 14px; padding: 0 3px; background: var(--vd-accent); color: var(--vd-accent-contrast); font-size: .6rem; font-weight: 500; line-height: 14px; box-shadow: 0 0 0 2px var(--vd-bg); }
+.desktop-body[data-theme="minimal"]:not([data-scheme="dark"]) .vd-notification-button:not(:hover):not(:focus-visible) .vd-notification-icon { filter: grayscale(1) brightness(.3); }
+.desktop-body[data-theme="minimal"] .vd-notification-icon { font-size: 15px; opacity: 1; }
 
 .desktop-body[data-theme="minimal"] .vd-space-pager { gap: 2px; margin-right: 2px; }
 
@@ -414,7 +420,7 @@
 .desktop-body[data-theme="minimal"] .vd-status-dot[data-state="online"] { background: var(--vd-text); box-shadow: none; }
 .desktop-body[data-theme="minimal"] .vd-status-dot[data-state="reconnecting"] { background: var(--vd-theme-muted); box-shadow: none; animation: none; }
 
-.desktop-body[data-theme="minimal"] .vd-clock { padding: 0 8px; color: var(--vd-text); font-size: 12px; font-weight: 400; letter-spacing: .02em; font-variant-numeric: tabular-nums; }
+.desktop-body[data-theme="minimal"] .vd-clock { padding: 0 8px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--vd-text); font-size: 12px; font-weight: 400; letter-spacing: .02em; font-variant-numeric: tabular-nums; }
 .desktop-body[data-theme="minimal"] .vd-live-speech-button { width: 28px; height: 28px; border-radius: 6px; }
 .desktop-body[data-theme="minimal"] .vd-live-speech-button[data-active="true"]::after { box-shadow: none; }
 
@@ -503,15 +509,14 @@
     height: 12px;
     margin: auto;
     box-sizing: border-box;
-    border: 1px solid var(--vd-theme-border-strong);
+    border: 1px solid color-mix(in srgb, var(--vd-text) 52%, var(--vd-theme-app-bg)); /* about 3.4:1 on the bar, both schemes */
     border-radius: 50%;
     background: transparent;
     pointer-events: none;
     transition: background-color 160ms ease, border-color 160ms ease;
 }
 
-.desktop-body[data-theme="minimal"] .vd-window:not(.active) .vd-window-titlebar .vd-window-button:where(:not(.vd-window-ai-button))::before { border-color: var(--vd-border); }
-.desktop-body[data-theme="minimal"] .vd-window-titlebar .vd-window-button:where(:not(.vd-window-ai-button)):hover::before { background: var(--vd-theme-control-hover); border-color: var(--vd-theme-border-strong); }
+.desktop-body[data-theme="minimal"] .vd-window-titlebar .vd-window-button:where(:not(.vd-window-ai-button)):hover::before { background: var(--vd-theme-control-hover); border-color: var(--vd-text); }
 .desktop-body[data-theme="minimal"] .vd-window-titlebar .vd-window-button[data-action="close"]:hover::before { background: var(--vd-accent); border-color: var(--vd-accent); }
 
 .desktop-body[data-theme="minimal"] .vd-window-titlebar .vd-window-control-icon {
@@ -642,6 +647,8 @@
     cursor: pointer;
 }
 
+.desktop-body[data-theme="minimal"] :is(.vd-notification-actions button, .vd-toast-action) { min-height: 30px; padding: 0 12px; border: 1px solid var(--vd-theme-border-strong); border-radius: 6px; background: transparent; color: var(--vd-text); font-size: 12px; }
+.desktop-body[data-theme="minimal"] :is(.vd-notification-actions button, .vd-toast-action):hover:not(:disabled) { border-color: var(--vd-text); background: var(--vd-theme-control-hover); }
 .desktop-body[data-theme="minimal"] .vd-notification-clear:hover { border-color: var(--vd-theme-border-strong); background: var(--vd-theme-control-hover); }
 
 .desktop-body[data-theme="minimal"] .vd-toast { padding: 12px 14px; border: 1px solid var(--vd-border); border-radius: 8px; background: var(--vd-theme-panel-bg); box-shadow: var(--ds-elevation-4); -webkit-backdrop-filter: none; backdrop-filter: none; }
@@ -650,9 +657,8 @@
 .desktop-body[data-theme="minimal"] .vd-toast-close:hover { background: var(--vd-theme-control-hover); color: var(--vd-text); }
 .desktop-body[data-theme="minimal"] .vd-toast::after { height: 1px; background: var(--vd-accent); opacity: .4; }
 .desktop-body[data-theme="minimal"] .vd-toast[data-type="error"]::after { background: var(--ds-color-danger-fg); opacity: .9; }
-
 /* ---- Dialogs and controls ---- */
-.desktop-body[data-theme="minimal"] :is(.vd-modal-backdrop, .vd-file-dialog-backdrop, .vd-shortcuts-overlay, .vd-spotlight-backdrop, .vd-shortcuts-help, .vd-window-switcher, .vd-start-menu-backdrop) {
+.desktop-body[data-theme="minimal"] :is(.vd-modal-backdrop, .vd-file-dialog-backdrop, .vd-shortcuts-overlay, .vd-spotlight-backdrop, .vd-shortcuts-help, .vd-start-menu-backdrop) {
     background: var(--vd-theme-overlay-bg);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
@@ -719,6 +725,10 @@
 
 /* ---- Polish round 5: secondary surfaces, hairlines only ---- */
 .desktop-body[data-theme="minimal"] :is(.vd-spotlight, .vd-shortcuts-panel, .vd-widget-drawer) { border: 1px solid var(--vd-border); border-radius: 10px; background: var(--vd-theme-panel-bg); box-shadow: var(--ds-elevation-4); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.desktop-body[data-theme="minimal"] :is(.vd-spotlight-filter :is(input, select), .vd-spotlight-filter-clear) { border: 1px solid var(--vd-theme-border-strong); border-radius: 6px; background: transparent; color: var(--vd-text); }
+.desktop-body[data-theme="minimal"] .vd-spotlight-filter :is(input, select):focus { border-color: var(--vd-accent); outline: none; box-shadow: 0 0 0 3px var(--vd-theme-control-hover); }
+.desktop-body[data-theme="minimal"] .vd-spotlight-filter-clear:hover { border-color: var(--vd-text); background: var(--vd-theme-control-hover); }
+.desktop-body[data-theme="minimal"] .vd-file-dialog-status:empty { display: none; }
 .desktop-body[data-theme="minimal"] .vd-spotlight-input { border-width: 0 0 1px; border-radius: 0; padding-left: 2px; }
 .desktop-body[data-theme="minimal"] .vd-spotlight-input:focus { box-shadow: none; }
 .desktop-body[data-theme="minimal"] .vd-spotlight-label { color: var(--vd-theme-muted); font-weight: 500; letter-spacing: var(--vd-minimal-caps); text-transform: uppercase; }
@@ -739,8 +749,6 @@
 .desktop-body[data-theme="minimal"] .vd-sticky-paper::after { display: none; }
 .desktop-body[data-theme="minimal"] .vd-file-dialog-sidebar-item { border-radius: 4px; }
 .desktop-body[data-theme="minimal"] .vd-file-dialog-sidebar-item.active { background: transparent; box-shadow: inset 2px 0 0 var(--vd-accent); color: var(--vd-text); }
-.desktop-body[data-theme="minimal"] .vd-switcher-item { border: 1px solid var(--vd-border); border-radius: 6px; background: var(--vd-theme-panel-bg); box-shadow: none; }
-.desktop-body[data-theme="minimal"] .vd-switcher-item.active { border-color: var(--vd-accent); transform: none; }
 .desktop-body[data-theme="minimal"] .vd-icon.selected .vd-icon-label { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 
 /* A letter stands in for a missing icon: plain ink instead of the shared accent-to-amber gradient. */
@@ -751,6 +759,11 @@
 .desktop-body[data-theme="minimal"] .vd-window-content ::-webkit-scrollbar,
 .desktop-body[data-theme="minimal"] .vd-scroll::-webkit-scrollbar,
 .desktop-body[data-theme="minimal"] .vd-start-apps::-webkit-scrollbar { width: 8px; height: 8px; }
+
+.desktop-body[data-theme="minimal"] .vd-window-content ::-webkit-scrollbar-button,
+.desktop-body[data-theme="minimal"] .vd-scroll::-webkit-scrollbar-button,
+.desktop-body[data-theme="minimal"] .vd-start-apps::-webkit-scrollbar-button,
+.desktop-body[data-theme="minimal"] .vd-notification-list::-webkit-scrollbar-button { display: none; }
 
 .desktop-body[data-theme="minimal"] .vd-window-content ::-webkit-scrollbar-track,
 .desktop-body[data-theme="minimal"] .vd-scroll::-webkit-scrollbar-track,

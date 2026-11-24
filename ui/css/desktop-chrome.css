@@ -37,8 +37,9 @@
     outline-offset: 1px;
 }
 
-/* Tray controls share the button material used inside the desktop's apps. */
-:is(.vd-quick-settings-button, .vd-quick-settings button, .vd-clock-calendar-nav button, .vd-clock-calendar-retry) {
+/* The popover's buttons and the calendar controls share the button material used inside the desktop's apps. The tray button itself
+   (.vd-quick-settings-button) belongs to the tray family above and in desktop-polish.css, like the bell and the fullscreen button. */
+:is(.vd-quick-settings button, .vd-clock-calendar-nav button, .vd-clock-calendar-retry) {
     border: 1px solid var(--vd-mat-btn-border);
     border-radius: var(--vd-mat-btn-radius);
     background: var(--vd-mat-btn);
@@ -47,16 +48,9 @@
 }
 
 @media (hover: hover) {
-    :is(.vd-quick-settings-button, .vd-quick-settings button, .vd-clock-calendar-nav button, .vd-clock-calendar-retry):where(:enabled:not([aria-disabled="true"]):hover) {
+    :is(.vd-quick-settings button, .vd-clock-calendar-nav button, .vd-clock-calendar-retry):where(:enabled:not([aria-disabled="true"]):hover) {
         background: var(--vd-mat-btn-hover);
     }
-}
-
-.vd-quick-settings-button[aria-expanded="true"] {
-    border-color: var(--vd-mat-primary-border);
-    background: var(--vd-mat-selected);
-    box-shadow: var(--vd-mat-selected-edge);
-    color: var(--vd-mat-selected-text);
 }
 
 .vd-quick-settings-button[aria-expanded="true"] circle:first-of-type { transform: translateX(5px); }
@@ -138,7 +132,11 @@
 }
 
 .vd-notification-center { max-height: calc(100dvh - 80px); overflow: auto; }
-.vd-notification-header { flex-wrap: wrap; }
+/* Title on its own line, then both actions share one row at equal height; labels that do not fit side by side
+   (longer translations, 420 px) drop to one full-width row each instead of leaving a single orphan button. */
+.vd-notification-header { flex-wrap: wrap; align-items: stretch; }
+.vd-notification-title { flex: 1 0 100%; }
+.vd-notification-header .vd-notification-clear { flex: 1 1 auto; height: auto; min-height: 28px; padding-block: 3px; line-height: 1.25; }
 .vd-notification-policy { padding: 10px 12px; border-bottom: 1px solid var(--vd-theme-border, var(--vd-border)); }
 .vd-notification-policy label { display: flex; align-items: center; gap: 8px; min-height: 36px; }
 .vd-notification-policy select { flex: 1; min-width: 0; max-width: 100%; color: var(--vd-text); background: var(--vd-theme-control-bg, var(--ds-color-surface-2)); }
@@ -334,6 +332,8 @@
     padding: 12px 14px 0;
     font-weight: 600;
 }
+
+.vd-shortcuts-panel > p { margin: 0; padding: 10px 14px; color: var(--vd-theme-muted, var(--vd-muted)); font-size: 0.85em; }
 
 .vd-spotlight-input {
     width: calc(100% - 28px);
@@ -873,6 +873,21 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     border-radius: 5px;
 }
 .vd-global-bar .vd-window-menu-popover { top: calc(100% + 4px); min-width: 230px; }
+/* In the bar the menubar is part of the bar's own surface: no window-strip wash (that made a hard edge after the app name), no divider,
+   and the menus follow the app name from the left even where windows centre them (Fruity). */
+.desktop-body.desktop-body .vd-global-bar .vd-window-menubar { justify-content: flex-start; background: transparent; box-shadow: none; border: 0; padding: 0; }
+/* When the menus do not fit between the app name and the tray (834 px), the items shrink and ellipsise instead of running
+   underneath the tray icons. The popovers hang off the bar, so the strip itself must not clip. */
+.vd-global-bar .vd-window-menubar { min-width: 0; }
+.vd-global-bar .vd-window-menu { flex: 0 1 auto; min-width: 0; }
+.vd-global-bar .vd-window-menu-button { max-width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Before any name is ellipsised the bar gives room: below 1024px the app name steps aside (the window title bar names the app) and the menu
+   buttons tighten. The ellipsis above stays the last resort. */
+@media (max-width: 1023px) {
+    .vd-global-bar .vd-global-appname { display: none; }
+    .vd-global-bar .vd-window-menubar { gap: 0; }
+    .desktop-body .vd-global-bar .vd-window-menu-button { padding-inline: 7px; }
+}
 .desktop-body[data-global-menus="true"] .vd-shell {
     padding-top: calc(var(--vd-global-bar-height) + env(safe-area-inset-top, 0px));
 }

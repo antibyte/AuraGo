@@ -835,10 +835,6 @@
     border-bottom-color: rgba(255, 255, 255, 0.1);
 }
 
-.desktop-body[data-theme] .vd-switcher-item {
-    border-radius: 10px;
-}
-
 .desktop-body[data-theme] :where(
     .vd-notification-center,
     .vd-clock-popup,
@@ -853,15 +849,14 @@
     backdrop-filter: var(--vd-theme-blur);
 }
 
-.desktop-body[data-theme] :where(.vd-spotlight-backdrop, .vd-shortcuts-help, .vd-window-switcher) {
+.desktop-body[data-theme] :where(.vd-spotlight-backdrop, .vd-shortcuts-help) {
     background: var(--vd-theme-overlay-bg);
 }
 
 .desktop-body[data-theme] :where(
     .vd-notification-button,
     .vd-spotlight-input,
-    .vd-space-pager-btn,
-    .vd-switcher-item
+    .vd-space-pager-btn
 ) {
     border-color: var(--vd-theme-border);
     background: var(--vd-theme-control-bg);

@@ -1253,9 +1253,19 @@
     color: var(--ds-color-fg-primary);
 }
 
-.desktop-body[data-theme="fruity"] .vd-button-primary {
-    background: rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.16);
-    border-color: rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.34);
+/* The primary action is a filled accent button with the accent's own ink (white on the deep blue in light, dark ink on the bright blue in dark).
+   The raised specificity beats the plain and the dark-scheme .vd-button rules above and below. */
+.desktop-body.desktop-body.desktop-body[data-theme="fruity"] .vd-button.vd-button-primary {
+    background: var(--vd-accent);
+    border-color: color-mix(in srgb, var(--vd-accent) 78%, #000);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 1px 2px rgba(0, 20, 60, 0.18);
+    color: var(--vd-accent-contrast);
+    font-weight: 600;
+}
+
+.desktop-body.desktop-body.desktop-body[data-theme="fruity"] .vd-button.vd-button-primary:hover {
+    background: color-mix(in srgb, var(--vd-accent) 88%, #fff);
+    color: var(--vd-accent-contrast);
 }
 
 .desktop-body[data-theme="fruity"] .vd-panel,
@@ -1476,6 +1486,11 @@
 .desktop-body[data-shell="dock"] .vd-dock-scroll::-webkit-scrollbar {
     display: none;
 }
+
+/* Icons that run into a scroll arrow fade out instead of being cut off by a hard edge (only on the side that still scrolls). */
+.desktop-body[data-shell="dock"] .vd-taskbar-apps.vd-dock-overflowing:not(.vd-dock-at-end) .vd-dock-scroll { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 20px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 20px), transparent); }
+.desktop-body[data-shell="dock"] .vd-taskbar-apps.vd-dock-overflowing:not(.vd-dock-at-start) .vd-dock-scroll { -webkit-mask-image: linear-gradient(90deg, transparent, #000 20px); mask-image: linear-gradient(90deg, transparent, #000 20px); }
+.desktop-body[data-shell="dock"] .vd-taskbar-apps.vd-dock-overflowing:not(.vd-dock-at-start):not(.vd-dock-at-end) .vd-dock-scroll { -webkit-mask-image: linear-gradient(90deg, transparent, #000 20px, #000 calc(100% - 20px), transparent); mask-image: linear-gradient(90deg, transparent, #000 20px, #000 calc(100% - 20px), transparent); }
 
 @media (hover: none), (pointer: coarse) {
     .desktop-body[data-shell="dock"] .vd-dock-scroll {

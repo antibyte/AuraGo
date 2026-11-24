@@ -390,7 +390,7 @@
 }
 
 .desktop-body[data-theme="standard"] .vd-task-button {
-    min-width: 46px;
+    min-width: 42px;
     border-radius: 9px;
     border-color: transparent;
     background: transparent;
@@ -447,6 +447,28 @@
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+/* Crowded bar: once a button would get less than about 85px (icon, gaps and a label of 4 to 5 letters), its label would shrink to one or two letters and an
+   ellipsis. Below that the label is dropped and the button keeps its icon (the title attribute still names the app).
+   The width comes from the bar itself (a size container), the count from :has(), so no JS is involved. */
+.desktop-body:not([data-shell="dock"]) .vd-taskbar-apps { container-type: inline-size; }
+
+/* Water-filling: the row is a grid whose tracks stop at their button's natural width (max-content) and share the rest of the bar equally, so a short name
+   keeps its whole label and only long names get the ellipsis. The track minimum is the button's own min-width (42px here, skins may set theirs), which is
+   the icon-only button; a bar that is still too full scrolls. */
+.desktop-body:not([data-shell="dock"]) .vd-taskbar-windows { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(auto, max-content); justify-content: start; }
+:where(.desktop-body:not([data-shell="dock"])) .vd-taskbar-windows > .vd-task-button { min-width: 42px; }
+
+@container (max-width: 339px) { .vd-taskbar-windows:has(> .vd-task-button:nth-child(4)) .vd-task-label { display: none; } .vd-taskbar-windows:has(> .vd-task-button:nth-child(4)) > .vd-task-button { justify-content: center; } }
+@container (max-width: 424px) { .vd-taskbar-windows:has(> .vd-task-button:nth-child(5)) .vd-task-label { display: none; } .vd-taskbar-windows:has(> .vd-task-button:nth-child(5)) > .vd-task-button { justify-content: center; } }
+@container (max-width: 509px) { .vd-taskbar-windows:has(> .vd-task-button:nth-child(6)) .vd-task-label { display: none; } .vd-taskbar-windows:has(> .vd-task-button:nth-child(6)) > .vd-task-button { justify-content: center; } }
+@container (max-width: 594px) { .vd-taskbar-windows:has(> .vd-task-button:nth-child(7)) .vd-task-label { display: none; } .vd-taskbar-windows:has(> .vd-task-button:nth-child(7)) > .vd-task-button { justify-content: center; } }
+@container (max-width: 679px) { .vd-taskbar-windows:has(> .vd-task-button:nth-child(8)) .vd-task-label { display: none; } .vd-taskbar-windows:has(> .vd-task-button:nth-child(8)) > .vd-task-button { justify-content: center; } }
+@container (max-width: 764px) { .vd-taskbar-windows:has(> .vd-task-button:nth-child(9)) .vd-task-label { display: none; } .vd-taskbar-windows:has(> .vd-task-button:nth-child(9)) > .vd-task-button { justify-content: center; } }
+@container (max-width: 849px) { .vd-taskbar-windows:has(> .vd-task-button:nth-child(10)) .vd-task-label { display: none; } .vd-taskbar-windows:has(> .vd-task-button:nth-child(10)) > .vd-task-button { justify-content: center; } }
+@container (max-width: 934px) { .vd-taskbar-windows:has(> .vd-task-button:nth-child(11)) .vd-task-label { display: none; } .vd-taskbar-windows:has(> .vd-task-button:nth-child(11)) > .vd-task-button { justify-content: center; } }
+@container (max-width: 1019px) { .vd-taskbar-windows:has(> .vd-task-button:nth-child(12)) .vd-task-label { display: none; } .vd-taskbar-windows:has(> .vd-task-button:nth-child(12)) > .vd-task-button { justify-content: center; } }
+
 
 .vd-task-button.running::after {
     content: '';
@@ -612,6 +634,25 @@
         min-width: 42px;
         height: 40px;
     }
+}
+
+/* Tablet width: the labelled agent button (about 120px) takes the room the task buttons need. Below 900px it is icon-only; the label is clipped
+   visually, not removed, so the button keeps its accessible name (and its title). */
+@media (max-width: 899px) {
+    .desktop-body:not([data-shell="dock"]) .vd-taskbar-system .vd-agent-button { min-width: 40px; width: 40px; padding: 0; gap: 0; }
+    .desktop-body:not([data-shell="dock"]) .vd-taskbar-system .vd-agent-button > span:last-child { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
+
+@media (min-width: 521px) and (max-width: 899px) {
+    .desktop-body:not([data-shell="dock"]) .vd-taskbar-system { gap: 6px; }
+}
+
+/* Phone width: the tray (fullscreen, widgets, show desktop, status dot, bell, quick settings, clock, speech,
+   agent) is wider than the bar and pushed the agent button out of it. Drop the two least useful items and
+   tighten the gaps so every remaining control stays inside the bar. */
+@media (max-width: 520px) {
+    .vd-taskbar-system { gap: 4px; }
+    .vd-taskbar-system :is(.vd-fullscreen-button, .vd-status-dot) { display: none; }
 }
 
 /* Compact touch taskbar; Fruity keeps its separate dock layout. */

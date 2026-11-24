@@ -394,6 +394,13 @@
     white-space: nowrap;
 }
 
+/* Search results have no icon column: their single text child used to land in the 36px icon track and was cut to
+   four letters. */
+.vd-start-item[data-start-result] { grid-template-columns: minmax(0, 1fr); }
+.vd-start-item-text { display: grid; gap: 1px; min-width: 0; }
+.vd-start-item-text > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vd-start-item-text small { color: var(--vd-muted); font-size: 0.78em; }
+
 .vd-start-item:focus-visible {
     outline: var(--ds-focus-ring-width) solid var(--ds-color-border-focus);
     outline-offset: 1px;

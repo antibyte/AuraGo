@@ -55,46 +55,6 @@
     display: none;
 }
 
-.vd-switcher-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-height: 44px;
-    padding: 8px 14px;
-    border: 1px solid transparent;
-    border-radius: var(--ds-radius-md);
-    background: transparent;
-    color: var(--vd-text);
-    font: inherit;
-    font-size: 13px;
-    cursor: pointer;
-    text-align: left;
-}
-
-.vd-switcher-item:hover,
-.vd-switcher-item.active {
-    background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.15);
-    border-color: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.4);
-}
-
-.vd-switcher-icon {
-    flex-shrink: 0;
-}
-
-.vd-switcher-label {
-    white-space: nowrap;
-}
-
-/* The overlay itself (full screen, items centred) lives in desktop-chrome.css; only the fade-in stays here. */
-.desktop-body:not([data-animations="false"]) .vd-window-switcher {
-    animation: vd-switcher-in 150ms var(--ds-motion-ease-emphasized) both;
-}
-
-@keyframes vd-switcher-in {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
 .vd-window {
     position: absolute;
     width: min(820px, calc(100vw - 32px));
@@ -545,6 +505,19 @@
     background: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.12);
     color: var(--vd-text);
     outline: none;
+}
+
+/* A narrow window must not push its menu strip past its own frame. The titlebar is a size container; below about 440px the menu buttons
+   tighten (smaller padding and type, so all names stay whole), and as the last resort every button gives up width itself (its text is
+   cut inside the button, never an ellipsis) so the strip ends at the frame. The dropdown lives in the wrapper, not in the button, so it
+   is not clipped and the strip itself is not an overflow container. */
+.vd-window.has-window-menu > .vd-window-titlebar { container: vd-window-titlebar / inline-size; }
+
+@container vd-window-titlebar (max-width: 440px) {
+    .vd-window-menubar { gap: 0; padding: 0 2px; }
+    .vd-window-menubar > .vd-window-menu { flex: 0 1 auto; min-width: 0; }
+    .desktop-body .vd-window .vd-window-menubar .vd-window-menu-button { min-width: 0; padding: 0 6px; flex-shrink: 1; overflow: hidden; text-overflow: clip; }
+    :where(.vd-window) .vd-window-menubar .vd-window-menu-button { font-size: 12.5px; } /* low specificity: a skin with its own menu type size keeps it */
 }
 
 .vd-window-menu-popover {

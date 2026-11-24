@@ -624,7 +624,7 @@ Do not add a selector of an app that paints itself to a bridge group: a bridge r
 - `animateThen` removes a state class (`vd-window-opening`, `-closing`, `-minimizing`, `-restoring`, `vd-context-menu-opening` and `-closing`, `vd-window-menu-popover-closing`, `vd-start-menu-opening` and `-closing`) on the first `animationend` or `transitionend` whose target is that element. Events of the element's own `::before` and `::after` count as the element. While a state class is active, the element must not run a shorter pseudo-element animation or a transition of its own; animations on child elements are safe. An animation on a state class ends about 20 ms before the theme's `motion` timer, so the event removes the class before the fallback timer does.
 - A skin that replaces the toast entrance animation scopes it to `.vd-toast:not(.vd-toast-closing)`, so the base exit animation still plays.
 - `@font-face` families start with `Desktop Theme `.
-- A skin file has at most 1000 lines. Crazy has at most 6 `infinite` animations (it has 6).
+- A skin file has at most 1150 lines. Crazy has at most 6 `infinite` animations (it has 6).
 - A thumbnail has at most 8192 bytes and no `<script>`, `<foreignObject>`, `on*=` handler, `javascript:` or `http(s)://` URL, apart from the XML namespace declarations.
 - For `!important`, `clip-path` and `will-change` conventions, see `ui/AGENTS.md`.
 
@@ -651,7 +651,7 @@ Crazy's `menuOpen` timer is 300 ms. Green Slime's `menuOpen` and `startOpen` tim
 
 ### Secondary surfaces
 
-Round 5 themed the secondary shell surfaces, which until then only took the theme's colour tokens: the window switcher, the snap preview, the desktop selection marquee and selected icons, Spotlight, the keyboard shortcuts overlay (F1), desktop widgets with the widget drawer and widget manager, the shell file dialog's rows and sidebar, shell scrollbars and `::selection`. Standard and Fruity have no skin file; their rules are in the block "Polish round 5" at the end of `desktop-polish.css`. Round 5 did not restyle the spaces overview; it keeps the look it had before (token-based in most themes).
+Round 5 themed the secondary shell surfaces, which until then only took the theme's colour tokens: the Alt+Tab window overview (`.vd-window-overview*`, which replaced the `.vd-window-switcher` classes in round 6), the snap preview, the desktop selection marquee and selected icons, Spotlight, the keyboard shortcuts overlay (F1), desktop widgets with the widget drawer and widget manager, the shell file dialog's rows and sidebar, shell scrollbars and `::selection`. Standard and Fruity have no skin file; their rules are in the block "Polish round 5" at the end of `desktop-polish.css`. Round 5 did not restyle the spaces overview; it keeps the look it had before (token-based in most themes).
 
 **Rules.**
 
@@ -680,6 +680,22 @@ Round 5 themed the secondary shell surfaces, which until then only took the them
 - **Green Slime:** the gel slab material now also covers the switcher tiles, Spotlight, the F1 panel, widgets, the drawer and the widget manager. The active switcher tile gets a lime rim and a jelly pop. The snap preview is a gel sheet with a thick lime rim. The marquee is a lime film. The gel pill behind the icon labels now extends to the whole icon on hover, focus and selection. Key caps and scrollbars are gel. There are no drips.
 - **Voxel World:** the snap preview is a block-selection outline: dark, square, with a two-step fade. The marquee is white and dashed, and selected icons get a pressed inventory slot. Widgets are item frames. The drawer is an inventory panel with slot cards. Sticky notes have a hard pixel edge. Key caps are pixel-styled. Entrances use `steps()`.
 - **Minimal:** hairline treatment throughout. Spotlight has a small-caps label, an underlined input and a 2 px ink marker on the active row. Key caps are hairline. Widgets, the drawer and the switcher use hairline cards. The active file-dialog sidebar item has an ink marker. Sticky notes are quiet paper in the panel colour, with a hairline instead of yellow. Selected icon labels have an underline.
+
+### Shell contracts for skins (round 6)
+
+These rules live in the base shell files, so every skin gets them. A skin changes the look of a surface through its own rules; it must not change placement, clipping or the focus logic described here.
+
+- **Tray popovers.** `placeTrayPopover` (`core/shell-chrome-runtime.js`) places the clock popup, the notification centre and the quick settings panel 8 px below or above the edge of the bar that holds their anchor (`.vd-taskbar` or `.vd-global-bar`), not from the button. Horizontal placement follows the anchor. Do not offset these panels in a skin. `data-placement` (`above` or `below`) records the side.
+- The paint of these panels is clipped on the bar side (`clip-path` on `[data-placement]`, `desktop-polish.css`), so a panel shadow never darkens the bar. A skin may still draw shadows on the other sides.
+- **Keyboard focus.** `--vd-accessibility-focus` is the shell ring colour: amber in dark schemes and a deep blue under `.desktop-body:where([data-scheme="light"])` (`desktop-accessibility.css`). A skin sets it in its root rule to change the ring. Black Gloss, Crazy, Lollipop, Minimal and Voxel World do.
+- Shell text inputs show one ring. The field border takes the ring colour and the field's own glow is dropped.
+- The page stylesheet's teal focus halo (`--accent` and `--accent-dim` in `shared-components.css`) is blanked on shell surfaces. A shell control with no focus rule of its own gets the shell ring. App content inside windows keeps the page styles.
+- **Taskbar task buttons.** The window row is a grid. Each track stops at the button's natural width, up to the per-button cap (`max-width: 186px`, `desktop-taskbar.css`), and the tracks share the rest of the bar. Short labels stay whole and long ones are ellipsised. Labels are dropped (icon only; the title still names the app) only when the bar is too narrow for the number of buttons (container queries for 4 to 12 buttons, `desktop-taskbar.css`). A skin limits button width with `min-width`, `max-width` or grid columns. Windows XP sets `min-width` and `max-width` (`desktop-theme-windows-xp.css`); the `flex` declaration in the same rule has no effect on a grid item.
+- Below 900 px the agent button is icon only. Its label is clipped, not removed, so the button keeps its name.
+- **Tray buttons.** Fullscreen, bell, quick settings, pager, clock and the other tray controls share one hover and press rule (`desktop-polish.css`). While a popover is open, its button carries `aria-expanded="true"`, and the bell, quick settings and clock take an open state from the accent tokens.
+- **Error toasts.** `.vd-toast[data-type="error"]` has a danger title (`--ds-color-danger-fg`) in the base. The base also draws a 3 px danger inset edge, but only for Standard, Fruity, Black Gloss, Green Slime and Minimal (the selector list at `desktop-polish.css`, line 256). Amiga, Cyberpunk, Crazy, Lollipop, Windows XP, Voxel World, Orbit, Organic and Electronic Dreams draw their own error edge or blink and are not in that list. Green Slime is in the list, but its own error rule (`desktop-theme-green-slime.css`) wins on specificity.
+- **Global menu bar (dock shells).** Below 1024 px the app name is hidden and the menu buttons tighten before any name is ellipsised (`desktop-chrome.css`). A window menubar inside a titlebar narrower than 440 px tightens its gap and padding instead of overflowing (`desktop-windows.css`, container query).
+- **Removed classes.** `.vd-window-switcher` and `.vd-switcher-item`, `.vd-switcher-icon` and `.vd-switcher-label` no longer exist. The Alt+Tab switcher is the window overview, styled by `.vd-window-overview*`.
 
 ### Effects API
 

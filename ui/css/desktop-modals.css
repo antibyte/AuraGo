@@ -339,6 +339,11 @@
     font-weight: 600;
 }
 
+/* An empty status line must not push the title above the close button's centre; the header keeps the height
+   it has while a status is shown, so the dialog does not jump when one appears. */
+.vd-file-dialog-header { min-height: 58px; box-sizing: border-box; }
+.vd-file-dialog-status:empty { display: none; }
+
 .vd-file-dialog-status {
     min-height: 18px;
     margin-top: 3px;

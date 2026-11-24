@@ -283,7 +283,10 @@
     overflow: hidden;
     align-self: start; /* keep the content height; a stretched item would clip the extra lines */
     box-sizing: border-box;
-    max-width: 100%;
+    /* The label may be a little wider than the icon box (grid pitch 92px, box 86px): a 13-letter word such
+       as "Einstellungen" stays on one line; longer names still wrap and clamp. */
+    width: max-content;
+    max-width: calc(100% + 10px);
     font-size: 0.76rem;
     line-height: 1.2;
     text-align: center;

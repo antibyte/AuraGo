@@ -177,7 +177,7 @@
     color: #f1f7dc;
     box-shadow: inset 0 1px #b9d47e26;
 }
-.desktop-body[data-theme="green_slime"] :is(.vd-window-menu-popover, .vd-context-menu, .vd-context-submenu-popover, .vd-start-menu) {
+.desktop-body[data-theme="green_slime"] :is(.vd-window-menu-popover, .vd-context-menu, .vd-context-submenu-popover, .vd-start-menu, .vd-window-layout-menu) {
     border: 1px solid #6d8540;
     border-radius: 16px 18px 14px 20px;
     background: linear-gradient(145deg, #303f21, #222e17 70%);
@@ -185,20 +185,29 @@
     box-shadow: 0 16px 36px rgba(0, 0, 0, .5), inset 0 2px 2px rgba(239, 255, 189, .12);
 }
 .desktop-body[data-theme="green_slime"] :is(.vd-window-menu-item, .vd-context-item, .vd-start-item, .vd-start-category):is(:hover, :focus-visible, [aria-selected="true"]) { border-radius: 11px 14px 10px 13px; background: #40532a; color: #f8ffdf; outline-color: #a5d941; }
-.desktop-body[data-theme="green_slime"] :is(.vd-modal, .vd-file-dialog, .vd-shortcuts-modal, .vd-toast, .vd-notification-center, .vd-clock-popup) { border: 1px solid #738a45; border-radius: 20px 17px 22px 16px; background: linear-gradient(145deg, #303e20, #222e17); color: #f1f7dc; box-shadow: var(--vd-theme-shadow-modal), inset 0 2px 2px rgba(239, 255, 189, .14); }
+.desktop-body[data-theme="green_slime"] :is(.vd-modal, .vd-file-dialog, .vd-toast, .vd-notification-center, .vd-clock-popup, .vd-quick-settings, .vd-window-overview-panel, .vd-spaces-overview-panel, .vd-widget-manager, .vd-taskbar-thumbnail) { border: 1px solid #738a45; border-radius: 20px 17px 22px 16px; background: linear-gradient(145deg, #303e20, #222e17); color: #f1f7dc; box-shadow: var(--vd-theme-shadow-modal), inset 0 2px 2px rgba(239, 255, 189, .14); }
 .desktop-body[data-theme="green_slime"] :is(.vd-button, .vd-modal-input, .vd-file-dialog-search, .vd-file-dialog-filter, .vd-file-dialog-name input, .vd-shortcuts-row) { border: 1px solid #667f3a; border-radius: 12px 9px 13px 10px; background: #1a2712; color: #f1f7dc; box-shadow: inset 0 2px 3px rgba(0, 0, 0, .28), inset 0 1px rgba(218, 248, 148, .08); }
-.desktop-body[data-theme="green_slime"] .vd-button-primary { border-color: #a5d941; background: linear-gradient(145deg, #c2e866, #8dbf32); color: #17210b; box-shadow: inset 0 1px 2px #efffbf, 0 3px 7px rgba(0, 0, 0, .25); }
+/* Primary: bright lime gel bead; .vd-button.vd-button-primary outranks the shared :is() button rule above (it contains a tag selector). */
+.desktop-body[data-theme="green_slime"] .vd-button.vd-button-primary { border-color: #c9ef7a; background: linear-gradient(145deg, #d3f27e, #98cb36); color: #142008; font-weight: 700; box-shadow: inset 0 1px 2px #f6ffd6, inset 0 -2px 3px rgba(70, 110, 10, .35), 0 3px 8px rgba(0, 0, 0, .3), 0 0 10px rgba(180, 235, 80, .3); }
+.desktop-body[data-theme="green_slime"] .vd-button.vd-button-primary:hover:not(:disabled) { border-color: #e3fa9b; background: linear-gradient(145deg, #e0f78f, #a6d842); }
+.desktop-body[data-theme="green_slime"] .vd-button.vd-button-primary:active:not(:disabled) { background: linear-gradient(145deg, #b4dd55, #86b82c); box-shadow: inset 0 3px 5px rgba(30, 55, 5, .4), inset 0 1px rgba(246, 255, 214, .3); }
 .desktop-body[data-theme="green_slime"] :is(.vd-window-content, .vd-start-apps, .vd-modal, .vd-file-dialog) ::-webkit-scrollbar { width: 13px; height: 13px; }
 .desktop-body[data-theme="green_slime"] :is(.vd-window-content, .vd-start-apps, .vd-modal, .vd-file-dialog) ::-webkit-scrollbar-track { border-radius: 8px; background: #17220f; }
 .desktop-body[data-theme="green_slime"] :is(.vd-window-content, .vd-start-apps, .vd-modal, .vd-file-dialog) ::-webkit-scrollbar-thumb { border: 2px solid #17220f; border-radius: 9px; background: linear-gradient(90deg, #718d39, #a5d941, #719137); }
 .desktop-body[data-theme="green_slime"] :is(.vd-taskbar, .vd-start-menu, .vd-window, .vd-modal, .vd-file-dialog, .vd-context-menu, .vd-toast) :is(button, input, select, textarea, [tabindex]):focus-visible { outline: 2px solid #c2ea69; outline-offset: 2px; }
+/* The task strip clips its children: draw the ring inside the button so all four sides show. */
+.desktop-body[data-theme="green_slime"] .vd-taskbar .vd-task-button:focus-visible { outline-offset: -3px; }
+/* Bell badge: a lime bead needs dark ink (white on lime is about 1.9:1). */
+.desktop-body[data-theme="green_slime"] .vd-notification-badge { color: var(--vd-accent-contrast); font-weight: 700; }
 .desktop-body[data-theme="green_slime"] ::selection { background: #a5d941; color: #17210b; }
 /* ---- Polish round 4: thick gel slabs, squishy controls, jelly arrivals and drips ---- */
 /* Panels: a bright curved lip along the top, a lime rim and a darker belly, so they read as gel slabs. */
-.desktop-body[data-theme="green_slime"] :is(.vd-window-menu-popover, .vd-context-menu, .vd-context-submenu-popover, .vd-start-menu, .vd-notification-center, .vd-clock-popup, .vd-modal, .vd-toast, .vd-switcher-item, .vd-spotlight, .vd-shortcuts-panel, .vd-widget-manager, .vd-widget-drawer, .vd-widget:not(.vd-sticky-note):not([data-leafy-owner])) {
+.desktop-body[data-theme="green_slime"] :is(.vd-window-menu-popover, .vd-context-menu, .vd-context-submenu-popover, .vd-start-menu, .vd-notification-center, .vd-clock-popup, .vd-modal, .vd-toast, .vd-quick-settings, .vd-window-overview-panel, .vd-spaces-overview-panel, .vd-file-dialog, .vd-window-layout-menu, .vd-taskbar-thumbnail, .vd-spotlight, .vd-shortcuts-panel, .vd-widget-manager, .vd-widget-drawer, .vd-widget:not(.vd-sticky-note):not([data-leafy-owner])) {
     background: radial-gradient(ellipse 85% 20px at 50% 0, rgba(238, 255, 176, .3), transparent), linear-gradient(180deg, rgba(228, 255, 150, .16) 0, rgba(228, 255, 150, .05) 16px, transparent 36px), linear-gradient(160deg, #334524, #223017 62%, #19230f);
     box-shadow: 0 16px 36px rgba(0, 0, 0, .5), inset 0 2px 0 rgba(240, 255, 196, .5), inset 0 0 0 1px rgba(165, 217, 65, .2), inset 0 -3px 0 rgba(160, 214, 70, .4), inset 0 -14px 16px -8px rgba(4, 9, 1, .5);
 }
+/* Error toast: the slab rule above replaces the base danger bar, so it is put back as a coral gel edge (doubled class ties its specificity, later wins). */
+.desktop-body[data-theme="green_slime"] .vd-toast.vd-toast[data-type="error"] { border-color: #b8745f; box-shadow: inset 4px 0 0 var(--ds-color-danger-fg), 0 16px 36px rgba(0, 0, 0, .5), inset 0 2px 0 rgba(240, 255, 196, .5), inset 0 -3px 0 rgba(160, 214, 70, .4), inset 0 -14px 16px -8px rgba(4, 9, 1, .5); }
 /* Desktop icon labels: a small gel pill with a lime rim light, brighter when pointed at or selected. */
 .desktop-body[data-theme="green_slime"] .vd-icon .vd-icon-label {
     padding: 1px 6px;
@@ -223,6 +232,7 @@
 /* Taskbar beads: swell on hover, squash when pressed, the active task glows from inside. */
 .desktop-body[data-theme="green_slime"] :is(.vd-start-button, .vd-task-button, .vd-taskbar-pin, .vd-taskbar-system button):hover { transform: scale(1.04); }
 .desktop-body[data-theme="green_slime"] :is(.vd-start-button, .vd-task-button, .vd-taskbar-pin, .vd-taskbar-system button):active { transform: scale(1.06, .92); }
+.desktop-body[data-theme="green_slime"] .vd-taskbar .vd-clock { border-radius: 999px; } /* a pill, so its focus ring follows it like the beads around it */
 .desktop-body[data-theme="green_slime"] .vd-task-button.active { border-color: #c2ea69; box-shadow: inset 0 2px 2px rgba(245, 255, 208, .3), inset 0 0 14px rgba(190, 240, 90, .5), 0 0 8px rgba(165, 217, 65, .25); }
 .desktop-body[data-theme="green_slime"] .vd-start-button { overflow: hidden; }
 .desktop-body[data-theme="green_slime"] .vd-start-button::after {
@@ -270,10 +280,13 @@
 .desktop-body[data-theme="green_slime"]:not([data-animations="false"]) .vd-start-menu-opening { transform-origin: 0 100%; animation: vd-theme-green-slime-jelly 260ms ease-out both; }
 .desktop-body[data-theme="green_slime"]:not([data-animations="false"]) .vd-toast:not(.vd-toast-closing) { transform-origin: 100% 0; animation: vd-theme-green-slime-jelly 380ms ease-out both; }
 .desktop-body[data-theme="green_slime"]:not([data-animations="false"]) .vd-notification-item.unread::before { animation: vd-theme-green-slime-bead 460ms ease-in-out 180ms 2 both; }
-/* ---- Polish round 5: switcher, snap, selection, spotlight, F1 keys, widget drawer ---- */
-.desktop-body[data-theme="green_slime"] .vd-switcher-item { border: 2px solid rgba(165, 217, 65, .34); border-radius: 18px 16px 19px 15px; transition: transform 160ms ease, border-color 160ms ease; }
-.desktop-body[data-theme="green_slime"] .vd-switcher-item:hover { border-color: rgba(194, 234, 105, .7); }
-.desktop-body[data-theme="green_slime"] .vd-switcher-item.active { border-color: #c8f070; transform: translateY(-3px) scale(1.04, 1.02); box-shadow: 0 14px 30px rgba(0, 0, 0, .5), 0 0 14px rgba(165, 217, 65, .4), inset 0 2px 0 rgba(240, 255, 196, .6), inset 0 -3px 0 rgba(190, 240, 90, .6), inset 0 -14px 16px -8px rgba(4, 9, 1, .5); }
+/* ---- Polish round 5: snap, selection, spotlight, F1 keys, widget drawer ---- */
+/* Window overview: cards are small gel slabs; the selected one swells and glows from inside. */
+.desktop-body[data-theme="green_slime"] .vd-window-overview-card { border: 2px solid rgba(165, 217, 65, .34); border-radius: 18px 16px 19px 15px; transition: transform 160ms ease, border-color 160ms ease; }
+.desktop-body[data-theme="green_slime"] .vd-window-overview-card:hover { border-color: rgba(194, 234, 105, .7); }
+.desktop-body[data-theme="green_slime"] .vd-window-overview-card.is-selected { border-color: #c8f070; box-shadow: 0 10px 24px rgba(0, 0, 0, .45), 0 0 14px rgba(165, 217, 65, .4), inset 0 2px 0 rgba(240, 255, 196, .6), inset 0 -3px 0 rgba(190, 240, 90, .5); }
+/* The clock popup hangs close to the bar: keep its big shadow off the pins. */
+.desktop-body[data-theme="green_slime"] .vd-clock-popup { box-shadow: 0 -8px 24px rgba(0, 0, 0, .45), inset 0 2px 0 rgba(240, 255, 196, .5), inset 0 0 0 1px rgba(165, 217, 65, .2), inset 0 -3px 0 rgba(160, 214, 70, .4); }
 .desktop-body[data-theme="green_slime"] .vd-snap-overlay { border: 3px solid rgba(190, 236, 96, .85); border-radius: 22px; background: radial-gradient(ellipse 80% 22px at 50% 0, rgba(238, 255, 176, .45), transparent), linear-gradient(180deg, rgba(190, 240, 90, .26), rgba(120, 180, 40, .16)); box-shadow: inset 0 3px 0 rgba(240, 255, 196, .5), inset 0 -4px 0 rgba(165, 217, 65, .45), 0 0 24px rgba(165, 217, 65, .3); }
 .desktop-body[data-theme="green_slime"] .vd-desktop-selection-marquee { border: 1px solid rgba(200, 240, 117, .85); border-radius: 12px; background: linear-gradient(180deg, rgba(210, 250, 130, .3), rgba(150, 210, 60, .14)); box-shadow: inset 0 2px 0 rgba(240, 255, 196, .5), inset 0 -2px 0 rgba(165, 217, 65, .4), 0 0 12px rgba(165, 217, 65, .25); }
 .desktop-body[data-theme="green_slime"] .vd-icon { border-radius: 18px; transition: background-color 140ms ease, box-shadow 140ms ease; }
@@ -289,12 +302,6 @@
 .desktop-body[data-theme="green_slime"] .vd-widget-drawer-card:hover { border-color: #b6de66; transform: scale(1.025, 1.01); }
 .desktop-body[data-theme="green_slime"] .vd-widget-drawer-card:active { transform: scale(.98, .95); }
 .desktop-body[data-theme="green_slime"] .vd-widget-drawer-close:hover { background: #40532a; border-radius: 50%; }
-@keyframes vd-theme-green-slime-pop {
-    0% { transform: scale(.94, .9); }
-    55% { transform: scale(1.07, .98); }
-    100% { transform: scale(1.04, 1.02); }
-}
-.desktop-body[data-theme="green_slime"]:not([data-animations="false"]) .vd-switcher-item.active { animation: vd-theme-green-slime-pop 240ms ease-out; }
 .desktop-body[data-theme="green_slime"]:not([data-animations="false"]) :is(.vd-spotlight, .vd-shortcuts-panel) { transform-origin: 50% 0; animation: vd-theme-green-slime-jelly 300ms ease-out both; }
 @media (pointer: coarse) {
     .desktop-body[data-theme="green_slime"] .vd-window-titlebar { border-radius: 0; }

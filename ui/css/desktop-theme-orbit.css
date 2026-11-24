@@ -227,6 +227,21 @@
 
 .desktop-body[data-theme="orbit"] .vd-window.active .vd-window-titlebar { border-bottom-color: rgba(92, 225, 255, .3); }
 .desktop-body[data-theme="orbit"] .vd-window.has-window-menu .vd-window-titlebar { grid-template-rows: var(--vd-orbit-bar) var(--vd-orbit-menubar); padding: 0 8px 0 14px; gap: 0 10px; }
+/* With a menu row the lower brackets frame the title row (they would run through the menu labels at the foot of the taller bar). */
+.desktop-body[data-theme="orbit"] .vd-window.has-window-menu .vd-window-titlebar {
+    background:
+        radial-gradient(circle 240px at var(--vd-orbit-mx, 50%) var(--vd-orbit-my, 0%), var(--vd-orbit-sheen), transparent 70%) 0 0 / auto no-repeat,
+        linear-gradient(var(--vd-orbit-bracket), var(--vd-orbit-bracket)) left 6px top 6px / 10px 1px no-repeat,
+        linear-gradient(var(--vd-orbit-bracket), var(--vd-orbit-bracket)) left 6px top 6px / 1px 10px no-repeat,
+        linear-gradient(var(--vd-orbit-bracket), var(--vd-orbit-bracket)) right 6px top 6px / 10px 1px no-repeat,
+        linear-gradient(var(--vd-orbit-bracket), var(--vd-orbit-bracket)) right 6px top 6px / 1px 10px no-repeat,
+        linear-gradient(var(--vd-orbit-bracket), var(--vd-orbit-bracket)) left 6px top calc(var(--vd-orbit-bar) - 7px) / 10px 1px no-repeat,
+        linear-gradient(var(--vd-orbit-bracket), var(--vd-orbit-bracket)) left 6px top calc(var(--vd-orbit-bar) - 16px) / 1px 10px no-repeat,
+        linear-gradient(var(--vd-orbit-bracket), var(--vd-orbit-bracket)) right 6px top calc(var(--vd-orbit-bar) - 7px) / 10px 1px no-repeat,
+        linear-gradient(var(--vd-orbit-bracket), var(--vd-orbit-bracket)) right 6px top calc(var(--vd-orbit-bar) - 16px) / 1px 10px no-repeat,
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, .025) 0 1px, transparent 1px 3px) 0 0 / auto,
+        rgba(14, 22, 48, .55);
+}
 
 .desktop-body[data-theme="orbit"] .vd-window-title {
     color: #cfe9ff;
@@ -245,7 +260,7 @@
     --vd-orbit-disc: 92, 225, 255;
     border: 0;
     border-radius: 50%;
-    background: radial-gradient(circle at 50% 50%, rgba(var(--vd-orbit-disc), .2) 0 5.5px, rgba(var(--vd-orbit-disc), .6) 6px 6.5px, transparent 7px);
+    background: radial-gradient(circle at 50% 50%, rgba(var(--vd-orbit-disc), .26) 0 5.5px, rgba(var(--vd-orbit-disc), .9) 6px 6.5px, transparent 7px);
     color: #dff3ff;
     overflow: visible;
     transition: filter 140ms ease, color 140ms ease, background 140ms ease;
@@ -356,6 +371,8 @@
     transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease, transform 140ms cubic-bezier(.2, .9, .25, 1);
 }
 
+.desktop-body[data-theme="orbit"] .vd-agent-button { min-width: 0; } /* the base reserves 122px; the content decides, the row gets the room */
+
 .desktop-body[data-theme="orbit"] .vd-task-button:hover { border-color: rgba(92, 225, 255, .35); background: rgba(92, 225, 255, .1); transform: translateY(-2px); }
 .desktop-body[data-theme="orbit"] .vd-task-button:hover:active { transform: translateY(-1px) scale(.96); }
 .desktop-body[data-theme="orbit"] .vd-task-button.active { border-color: rgba(92, 225, 255, .45); background: rgba(92, 225, 255, .12); box-shadow: 0 0 16px rgba(92, 225, 255, .18), inset 0 1px 0 rgba(210, 235, 255, .1); }
@@ -377,6 +394,11 @@
 .desktop-body[data-theme="orbit"] .vd-task-button.active::after { background: #5ce1ff; box-shadow: 0 0 6px 1px rgba(92, 225, 255, .8); }
 
 .desktop-body[data-theme="orbit"] .vd-clock { color: #cfe9ff; font: 600 15px/1 var(--vd-orbit-display); letter-spacing: .08em; text-shadow: 0 0 8px rgba(92, 225, 255, .45); }
+/* 420 px: the tray scrolls inside the pill when it is wider than 100vw - 152px, which hid the agent button: tighter gaps and tracking keep it whole. */
+@media (max-width: 520px) {
+    .desktop-body[data-theme="orbit"] .vd-taskbar-system { gap: 3px; padding-left: 4px; }
+    .desktop-body[data-theme="orbit"] .vd-taskbar-system .vd-clock { padding-inline: 2px; font-size: 14px; letter-spacing: .03em; }
+}
 
 .desktop-body[data-theme="orbit"] :is(.vd-fullscreen-button, .vd-notification-button, .vd-show-desktop-btn, .vd-space-pager-btn, .vd-agent-button, .vd-taskbar-widget-btn, .vd-live-speech-button, .vd-taskbar-pin) {
     border: 1px solid rgba(140, 200, 255, .16);
@@ -483,6 +505,24 @@
 .desktop-body[data-theme="orbit"] :is(.vd-context-separator, .vd-window-menu-separator, .vd-start-rail-separator) { background: rgba(140, 200, 255, .16); }
 .desktop-body[data-theme="orbit"] :is(.vd-notification-header, .vd-clock-popup-head, .vd-clock-popup-section, .vd-spotlight-label, .vd-shortcuts-heading, .vd-modal-title, .vd-file-dialog-title, .vd-shortcuts-title, .vd-toast-title) { font-family: var(--vd-orbit-display); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
 .desktop-body[data-theme="orbit"] :is(.vd-modal-title, .vd-file-dialog-title, .vd-shortcuts-title) { color: #5ce1ff; }
+/* The condensed face runs small at the shell's body size: titles get a larger size, the header buttons go back to the UI face. */
+.desktop-body[data-theme="orbit"] :is(.vd-notification-title, .vd-modal-title, .vd-file-dialog-title, .vd-shortcuts-title, .vd-clock-popup-head) { font-size: 1.05rem; }
+.desktop-body[data-theme="orbit"] .vd-notification-header { gap: 10px; padding: 12px 14px; }
+.desktop-body[data-theme="orbit"] .vd-notification-clear, .desktop-body[data-theme="orbit"] .vd-clock-popup-open { font: 500 12.5px/1.25 var(--vd-font-ui); letter-spacing: .01em; text-transform: none; }
+
+/* Tray popovers overlap the bar: the shadow falls upwards so it does not dim the bell, pager and clock below. */
+.desktop-body[data-theme="orbit"] :is(.vd-clock-popup, .vd-notification-center, .vd-quick-settings) { box-shadow: 0 -18px 50px -20px rgba(0, 0, 8, .8), 0 0 0 1px rgba(92, 225, 255, .05), inset 0 1px 0 rgba(210, 235, 255, .08); }
+.desktop-body[data-theme="orbit"] .vd-clock { border-radius: 10px; } /* the focus ring follows the pill */
+.desktop-body[data-theme="orbit"] .vd-form-dialog h2 { color: #5ce1ff; font: 600 1.05rem/1.2 var(--vd-orbit-display); letter-spacing: .08em; text-transform: uppercase; }
+
+/* Spaces overview: smoked glass panel, condensed cyan title, rounded glass columns and cards. */
+.desktop-body[data-theme="orbit"] .vd-spaces-overview-panel { border: 1px solid rgba(140, 200, 255, .18); border-radius: 18px; background: rgba(10, 16, 36, .82); box-shadow: var(--vd-theme-shadow-modal); }
+.desktop-body[data-theme="orbit"] .vd-spaces-overview-title { color: #5ce1ff; font: 600 1.05rem/1.2 var(--vd-orbit-display); letter-spacing: .08em; text-transform: uppercase; }
+.desktop-body[data-theme="orbit"] .vd-spaces-overview-close, .desktop-body[data-theme="orbit"] .vd-toast-action { border: 1px solid rgba(140, 200, 255, .25); border-radius: 10px; background: rgba(92, 225, 255, .06); color: var(--vd-text); }
+.desktop-body[data-theme="orbit"] :is(.vd-spaces-overview-close, .vd-toast-action):hover { border-color: rgba(92, 225, 255, .6); background: rgba(92, 225, 255, .16); color: #fff; }
+.desktop-body[data-theme="orbit"] .vd-space-column { border-radius: 14px; border-color: rgba(140, 200, 255, .16); background: rgba(92, 225, 255, .04); }
+.desktop-body[data-theme="orbit"] .vd-space-column-head { color: #5ce1ff; font: 600 .95rem/1.2 var(--vd-orbit-display); letter-spacing: .08em; text-transform: uppercase; }
+.desktop-body[data-theme="orbit"] .vd-space-window-card:hover { border-color: rgba(92, 225, 255, .5); box-shadow: inset 2px 0 0 #5ce1ff; }
 .desktop-body[data-theme="orbit"] .vd-clock-popup-time { font-family: var(--vd-orbit-display); letter-spacing: .08em; text-shadow: 0 0 8px rgba(92, 225, 255, .4); }
 .desktop-body[data-theme="orbit"] :is(.vd-file-dialog-header, .vd-file-dialog-footer) { background: rgba(14, 22, 48, .6); border-color: rgba(140, 200, 255, .14); }
 .desktop-body[data-theme="orbit"] .vd-file-dialog-sidebar { background: rgba(4, 8, 22, .4); border-right-color: rgba(140, 200, 255, .14); }
@@ -524,7 +564,7 @@
 }
 
 .desktop-body[data-theme="orbit"] .vd-icon:is(:hover, :focus-visible, .selected)::before { opacity: .85; }
-.desktop-body[data-theme="orbit"] .vd-icon-label { font-family: var(--vd-orbit-display); font-size: .9rem; font-weight: 600; letter-spacing: .04em; }
+.desktop-body[data-theme="orbit"] .vd-icon-label { padding: 1px 5px; border-radius: 6px; font-family: var(--vd-orbit-display); font-size: .9rem; font-weight: 600; letter-spacing: .04em; }
 
 /* Menu rows: a small cyan marker slides in from the left next to the 2px light bar. */
 .desktop-body[data-theme="orbit"] :is(.vd-context-item, .vd-window-menu-item) { position: relative; }
@@ -783,7 +823,7 @@
 }
 
 /* === Secondary surfaces: docking frame, scan box and holo cards share one reticle (::before, four corner ticks) === */
-.desktop-body[data-theme="orbit"] :is(.vd-snap-overlay, .vd-desktop-selection-marquee, .vd-switcher-item.active, .vd-widget)::before {
+.desktop-body[data-theme="orbit"] :is(.vd-snap-overlay, .vd-desktop-selection-marquee, .vd-widget)::before {
     --vd-orbit-c: 12px;
     content: "";
     position: absolute;
@@ -798,13 +838,6 @@
 .desktop-body[data-theme="orbit"] .vd-desktop-selection-marquee::before { --vd-orbit-c: 9px; }
 .desktop-body[data-theme="orbit"] .vd-icon.selected::before { filter: drop-shadow(0 0 3px #5ce1ff); }
 
-.desktop-body[data-theme="orbit"] .vd-window-switcher { background: radial-gradient(ellipse at 50% 50%, transparent 30%, rgba(0, 0, 8, .55) 100%), rgba(2, 4, 14, .5); }
-.desktop-body[data-theme="orbit"] .vd-switcher-item { position: relative; border: 1px solid rgba(140, 200, 255, .18); border-radius: 12px; background: rgba(10, 16, 36, .78); box-shadow: inset 0 1px 0 rgba(210, 235, 255, .08), 0 14px 34px -10px rgba(0, 0, 8, .8); transition: border-color 140ms ease, background-color 140ms ease; }
-.desktop-body[data-theme="orbit"] .vd-switcher-item:hover { border-color: rgba(92, 225, 255, .45); }
-.desktop-body[data-theme="orbit"] .vd-switcher-item.active { --vd-orbit-in: 4px; border-color: rgba(92, 225, 255, .6); background: rgba(92, 225, 255, .1); box-shadow: inset 0 1px 0 rgba(210, 235, 255, .12), 0 0 22px rgba(92, 225, 255, .22), 0 14px 34px -10px rgba(0, 0, 8, .8); }
-.desktop-body[data-theme="orbit"] .vd-switcher-item.active::before { --vd-orbit-c: 8px; }
-.desktop-body[data-theme="orbit"] .vd-switcher-item.active::after { content: ""; position: absolute; left: 50%; bottom: -3px; width: 5px; height: 5px; margin-left: -2.5px; background: #ffb547; box-shadow: 0 0 8px #ffb547; transform: rotate(45deg); pointer-events: none; }
-.desktop-body[data-theme="orbit"] .vd-switcher-label { font: 600 .9rem/1.2 var(--vd-orbit-display); letter-spacing: .08em; text-transform: uppercase; }
 
 /* Spotlight console and shortcuts: cyan label, a bar on the active row, holo key caps. */
 .desktop-body[data-theme="orbit"] :is(.vd-spotlight-label, .vd-shortcuts-heading) { color: #5ce1ff; font-size: .8rem; }

@@ -246,6 +246,17 @@
     background: linear-gradient(90deg, #ff6b6b, #ff9a7a);
 }
 
+/* An error reads as an error before it is read: the title takes the danger ink everywhere (a skin with its own error title sets its colour with
+   a longer selector), and the skins without an error look of their own get a 3px danger bar on the leading edge. The skins that draw their own
+   edge, bar or blink (Amiga, Cyberpunk, Crazy, Lollipop, XP, Voxel, Orbit, Organic, Electronic Dreams) are not in the list, so nothing doubles. */
+.vd-toast[data-type="error"] .vd-toast-title {
+    color: var(--ds-color-danger-fg);
+}
+
+.desktop-body:is([data-theme="standard"], [data-theme="fruity"], [data-theme="black_gloss"], [data-theme="green_slime"], [data-theme="minimal"]) .vd-toast[data-type="error"] {
+    box-shadow: inset 3px 0 0 var(--ds-color-danger-fg), var(--vd-theme-shadow-modal), var(--vd-chrome-highlight);
+}
+
 .desktop-body:not([data-animations="false"]) .vd-toast::after {
     animation: vd-toast-life var(--vd-toast-life, 5500ms) linear forwards;
 }
@@ -257,6 +268,20 @@
 @keyframes vd-toast-life {
     from { transform: scaleX(1); }
     to { transform: scaleX(0); }
+}
+
+/* A tray popover is stacked above its bar, so its drop shadow (the themes' panel shadows reach 60 px and
+ * more) would dim the bar's own buttons next to the anchor. Clip the paint on the bar side only. */
+.vd-notification-center[data-placement="above"],
+.vd-clock-popup[data-placement="above"],
+.vd-quick-settings[data-placement="above"] {
+    clip-path: inset(-100vmax -100vmax 0 -100vmax);
+}
+
+.vd-notification-center[data-placement="below"],
+.vd-clock-popup[data-placement="below"],
+.vd-quick-settings[data-placement="below"] {
+    clip-path: inset(0 -100vmax -100vmax -100vmax);
 }
 
 /* Tray popovers rise out of their anchor: the clock popup and the notification centre open away from
@@ -286,14 +311,14 @@
 }
 
 /* Keyboard focus: the tray controls, the clock and pinned launchers share the shell ring. */
-.desktop-body :is(.vd-taskbar-widget-btn, .vd-show-desktop-btn, .vd-fullscreen-button, .vd-notification-button, .vd-clock, .vd-live-speech-button, .vd-agent-button, .vd-space-pager-btn, .vd-taskbar-pin, .vd-notification-clear, .vd-clock-popup-open):focus-visible {
+.desktop-body :is(.vd-taskbar-widget-btn, .vd-show-desktop-btn, .vd-fullscreen-button, .vd-notification-button, .vd-quick-settings-button, .vd-clock,.vd-live-speech-button, .vd-agent-button, .vd-space-pager-btn, .vd-taskbar-pin, .vd-notification-clear, .vd-clock-popup-open):focus-visible {
     outline: var(--ds-focus-ring-width, 2px) solid var(--ds-color-border-focus, var(--vd-accent));
     outline-offset: 1px;
 }
 
 /* Hover and press: the bell, pinned launchers and the small tray buttons answer like the rest of the
  * bar. */
-.desktop-body :is(.vd-fullscreen-button, .vd-notification-button, .vd-taskbar-pin, .vd-space-pager-btn, .vd-show-desktop-btn, .vd-taskbar-widget-btn, .vd-live-speech-button) {
+.desktop-body :is(.vd-fullscreen-button, .vd-notification-button, .vd-quick-settings-button, .vd-taskbar-pin, .vd-space-pager-btn, .vd-show-desktop-btn, .vd-taskbar-widget-btn, .vd-live-speech-button) {
     transition:
         background-color var(--ds-motion-duration-fast, 120ms) var(--ds-motion-ease-standard, ease),
         color var(--ds-motion-duration-fast, 120ms) var(--ds-motion-ease-standard, ease),
@@ -304,12 +329,24 @@
 
 .desktop-body .vd-fullscreen-button:enabled:hover,
 .desktop-body .vd-notification-button:hover,
+.desktop-body .vd-quick-settings-button:hover,
 .desktop-body .vd-taskbar-pin:hover {
     background-color: var(--vd-theme-control-hover, var(--ds-color-control-hover));
     border-color: var(--vd-theme-border-strong, var(--vd-border-bright));
 }
 
-.desktop-body :is(.vd-fullscreen-button:enabled, .vd-notification-button, .vd-taskbar-pin, .vd-space-pager-btn, .vd-show-desktop-btn, .vd-taskbar-widget-btn, .vd-live-speech-button):active {
+/* Open: while its popover is up, the bell, the quick settings button and the clock keep the quiet accent state of a pressed tray button. */
+.desktop-body :is(.vd-notification-button, .vd-quick-settings-button, .vd-clock)[aria-expanded="true"] {
+    background-color: var(--vd-theme-accent-soft);
+    border-color: var(--vd-theme-accent-border);
+}
+
+.desktop-body .vd-clock[aria-expanded="true"] {
+    border-radius: var(--ds-radius-sm);
+    box-shadow: inset 0 0 0 1px var(--vd-theme-accent-border);
+}
+
+.desktop-body :is(.vd-fullscreen-button:enabled, .vd-notification-button, .vd-quick-settings-button, .vd-taskbar-pin, .vd-space-pager-btn, .vd-show-desktop-btn, .vd-taskbar-widget-btn, .vd-live-speech-button):active {
     transform: scale(0.94);
 }
 
@@ -342,7 +379,7 @@
     .desktop-body[data-theme="standard"] .vd-task-button::after,
     .vd-toast,
     .vd-icon > :is(.vd-sprite-icon, .vd-theme-icon, .vd-app-logo-icon, .vd-icon-letter),
-    .desktop-body :is(.vd-fullscreen-button, .vd-notification-button, .vd-taskbar-pin, .vd-space-pager-btn, .vd-show-desktop-btn, .vd-taskbar-widget-btn, .vd-live-speech-button) {
+    .desktop-body :is(.vd-fullscreen-button, .vd-notification-button, .vd-quick-settings-button, .vd-taskbar-pin, .vd-space-pager-btn, .vd-show-desktop-btn, .vd-taskbar-widget-btn, .vd-live-speech-button) {
         transition: none;
     }
 
@@ -655,47 +692,6 @@
  * Polish round 5: Standard and Fruity, secondary surfaces.
  * Neutral tints are mixed from --vd-text so one rule serves Fruity light and dark.
  * ========================================================================== */
-
-/* ---- Window switcher: big icons, accent ring and lift on the active card, short drop-in ---- */
-.desktop-body:is([data-theme="standard"], [data-theme="fruity"]) .vd-switcher-item {
-    min-width: 132px;
-    padding: 16px 12px 12px;
-    transition: transform 160ms var(--ds-motion-ease-standard, ease), box-shadow 160ms ease, border-color 160ms ease, background-color 160ms ease;
-}
-
-.desktop-body:is([data-theme="standard"], [data-theme="fruity"]) .vd-switcher-icon {
-    transform: scale(1.35);
-    margin: 6px 0 4px;
-}
-
-.desktop-body:is([data-theme="standard"], [data-theme="fruity"]) .vd-switcher-item.active {
-    transform: translateY(-4px) scale(1.04);
-    background: color-mix(in srgb, var(--vd-accent) 16%, var(--vd-theme-control-bg, var(--ds-color-surface-2)));
-    box-shadow: 0 0 0 1px rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.5), 0 10px 26px rgba(0, 0, 0, 0.28);
-}
-
-.desktop-body[data-theme="standard"] .vd-switcher-item.active .vd-switcher-label {
-    color: var(--vd-text);
-    font-weight: 600;
-}
-
-.desktop-body[data-theme="fruity"] .vd-switcher-item {
-    border-radius: 22px;
-    background: color-mix(in srgb, var(--vd-theme-panel-bg-strong, var(--ds-color-bg-modal)) 78%, transparent);
-    backdrop-filter: blur(18px) saturate(1.4);
-}
-
-.desktop-body[data-theme="fruity"] .vd-switcher-item.active {
-    transition-timing-function: cubic-bezier(0.3, 1.5, 0.5, 1);
-}
-
-.desktop-body[data-theme="standard"]:not([data-animations="false"]) .vd-switcher-item {
-    animation: vd-theme-standard-drop-in 180ms var(--ds-motion-ease-emphasized, ease-out) both;
-}
-
-.desktop-body[data-theme="fruity"]:not([data-animations="false"]) .vd-switcher-item {
-    animation: vd-theme-fruity-pop-in 300ms cubic-bezier(0.3, 1.5, 0.5, 1) both;
-}
 
 @keyframes vd-theme-standard-drop-in {
     from { opacity: 0; transform: translateY(-8px); }

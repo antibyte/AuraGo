@@ -4,6 +4,21 @@
     --vd-accessibility-focus: #ffcf70;
 }
 
+/* The amber ring is about 1.3:1 on light panels; light schemes get a deep blue (about 7:1 on white).
+   :where() keeps the specificity of the rule above, so a skin's own token still wins. */
+.desktop-body:where([data-scheme="light"]) {
+    --vd-accessibility-focus: #1a45c4;
+}
+
+/* One focus indicator for shell text fields: the keyboard ring above. The field's own focus border takes the ring's
+   colour and its own glow is dropped, so the amber ring is never stacked on a second, different one. The raised
+   specificity beats the per-surface and per-skin :focus rules. */
+.desktop-body.desktop-body.desktop-body :is(.vd-start-search input, .vd-spotlight-input, .vd-modal-input, .vd-file-dialog-search, .vd-file-dialog-filter, .vd-file-dialog-name input):focus-visible {
+    border-color: var(--vd-accessibility-focus);
+    outline-offset: -1px; /* the ring starts on the field's own 1px border: one outline, not ring + gap + border */
+    box-shadow: none;
+}
+
 .desktop-body :is(.vd-taskbar, .vd-global-bar, .vd-start-menu, .vd-notification-center,
     .vd-toast, .vd-context-menu, .vd-window-titlebar, .vd-window-controls,
     .vd-spaces-overview, .vd-spotlight, .vd-tray-popover, .vd-window-overview-panel, .vd-window-overview-backdrop,
@@ -12,6 +27,18 @@
 .desktop-body > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager) :focus-visible,
 .desktop-body > .vd-file-dialog-backdrop > .vd-file-dialog :focus-visible {
     outline: 3px solid var(--vd-accessibility-focus);
+    outline-offset: 2px;
+}
+
+/* The page stylesheet (shared-components.css) rings every focused button, link and field with the web pages' teal
+   halo (box-shadow from --accent and --accent-dim) and drops the outline. On shell surfaces the theme draws its own
+   ring, so the halo is blanked there (no shell stylesheet reads those two tokens) and a control without a focus style
+   of its own still gets the shell ring. Zero specificity beyond :focus-visible, so every shell or skin focus rule
+   wins; app content inside windows keeps the page styles. */
+:where(.desktop-body :is(button, a, input, textarea, select):not(.vd-window-content *)):focus-visible {
+    --accent: transparent;
+    --accent-dim: transparent;
+    outline: var(--ds-focus-ring-width, 2px) solid var(--vd-accessibility-focus);
     outline-offset: 2px;
 }
 
@@ -30,6 +57,19 @@
     .vd-window-overview-panel, .vd-window-overview-backdrop, .vd-shortcuts-help, .vd-settings-app)
     :is(button, a, label, p, small, strong, span, div, summary, h1, h2, h3, input, select, textarea):not([aria-hidden="true"]) {
     font-size: var(--vd-shell-text-size) !important;
+}
+
+/* The category rail is a fixed 196 px; at larger text the labels (Alle Apps, Entwicklung, Kommunikation) were cut. */
+.desktop-body[data-text-size="125"] .vd-start-rail { flex-basis: 232px; }
+.desktop-body[data-text-size="150"] .vd-start-rail { flex-basis: 264px; }
+/* Fruity's tile grid is 96px minimum; names such as Musikplayer or Personal Radio were cut at larger text. */
+.desktop-body[data-theme="fruity"][data-text-size="125"] .vd-start-grid { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); }
+.desktop-body[data-theme="fruity"][data-text-size="150"] .vd-start-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+
+/* Larger text needs more room per task button: the icon-only fallback of desktop-taskbar.css starts earlier. */
+@container (max-width: 900px) {
+    .desktop-body:is([data-text-size="125"], [data-text-size="150"]) .vd-taskbar-windows:has(> .vd-task-button:nth-child(4)) .vd-task-label { display: none; }
+    .desktop-body:is([data-text-size="125"], [data-text-size="150"]) .vd-taskbar-windows:has(> .vd-task-button:nth-child(4)) > .vd-task-button { justify-content: center; }
 }
 
 /* Body-mounted dialogs are Desktop chrome; window/app documents stay independent. */
