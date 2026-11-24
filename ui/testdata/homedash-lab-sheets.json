@@ -1,0 +1,37 @@
+{
+  "defaultSheets": ["prim-placeholder", "prim-placeholder~reduced", "type-entity-placeholder", "themes-placeholder"],
+  "lists": {
+    "families": ["glass", "tactile", "minimal", "instrument", "placeholder"],
+    "states": {
+      "all": ["off", "on", "pending", "disabled", "unavailable", "stale", "readonly", "error", "alert", "min", "max", "focus"],
+      "core": ["off", "on", "pending", "unavailable", "alert", "focus"],
+      "extra": ["disabled", "stale", "readonly", "error", "min", "max"],
+      "trio": ["off", "on", "alert"]
+    },
+    "themes": {
+      "standard": [{"theme": "standard", "scheme": "dark"}],
+      "themes16": [{"theme": "standard", "scheme": "dark"}, {"theme": "fruity", "scheme": "light"}, {"theme": "fruity", "scheme": "dark"}, {"theme": "amiga", "scheme": "light"},
+        {"theme": "cyberpunk", "scheme": "dark"}, {"theme": "black_gloss", "scheme": "dark"}, {"theme": "crazy", "scheme": "dark"}, {"theme": "lollipop", "scheme": "light"},
+        {"theme": "organic", "scheme": "dark"}, {"theme": "electronic_dreams", "scheme": "dark"}, {"theme": "windows_xp", "scheme": "light"}, {"theme": "green_slime", "scheme": "dark"},
+        {"theme": "voxel_world", "scheme": "light"}, {"theme": "orbit", "scheme": "dark"}, {"theme": "minimal", "scheme": "light"}, {"theme": "minimal", "scheme": "dark"}],
+      "risk6": [{"theme": "fruity", "scheme": "light"}, {"theme": "lollipop", "scheme": "light"}, {"theme": "amiga", "scheme": "light"}, {"theme": "crazy", "scheme": "dark"}, {"theme": "cyberpunk", "scheme": "dark"}, {"theme": "green_slime", "scheme": "dark"}],
+      "risk8": [{"theme": "fruity", "scheme": "light"}, {"theme": "lollipop", "scheme": "light"}, {"theme": "amiga", "scheme": "light"}, {"theme": "crazy", "scheme": "dark"}, {"theme": "cyberpunk", "scheme": "dark"}, {"theme": "green_slime", "scheme": "dark"}, {"theme": "standard", "scheme": "dark"}, {"theme": "organic", "scheme": "dark"}]
+    },
+    "custom": {
+      "custom3": [{"name": "warm-light", "accent": "C2410C", "hue": 40, "scheme": "light"}, {"name": "purple", "accent": "8B5CF6", "hue": 270, "scheme": "dark"}, {"name": "near-black", "accent": "22D3EE", "hue": 220, "scheme": "dark"}]
+    },
+    "heroes": {
+      "H1": {"type": "switch", "variant": "pill"}, "H2": {"type": "switch", "variant": "rocker"}, "H3": {"type": "light", "variant": "dial"}, "H4": {"type": "climate", "variant": "dial"},
+      "H5": {"type": "gauge", "variant": "needle"}, "H6": {"type": "gauge", "variant": "arc"}, "H7": {"type": "temperature", "variant": "numeral"}, "H8": {"type": "sensor", "variant": "sparkline"}
+    }
+  },
+  "sheets": [
+    {"id": "prim-{family}", "kind": "prim", "palettes": ["dark", "light", "theme"], "themes": "standard", "states": "all", "sizes": ["m"], "dpr": 1, "motion": "full"},
+    {"id": "prim-{family}~reduced", "kind": "prim", "palettes": ["dark"], "states": "all", "sizes": ["m"], "dpr": 1, "motion": "reduced"},
+    {"id": "prim-{family}~gradient", "kind": "prim", "palettes": ["dark", "light"], "states": "core", "sizes": ["m"], "backdrop": "gradient"},
+    {"id": "prim-{family}~custom", "kind": "prim", "palettes": ["custom"], "custom": "custom3", "states": "trio", "sizes": ["m"]},
+    {"id": "type-{type}-{family}", "kind": "type", "palettes": ["dark", "light", "theme"], "themes": "standard", "states": "all"},
+    {"id": "themes-{family}", "kind": "themes", "palettes": ["theme"], "themes": "themes16", "types": ["toggle", "slider", "arcGauge", "numeral"], "states": "trio", "sizes": ["m"]},
+    {"id": "motion-type-{type}-{family}", "kind": "motion", "palettes": ["dark"], "states": ["off"], "motion": ["full"], "frames": [0, 50, 100, 200, 400, 800], "scenarios": ["on"]}
+  ]
+}
