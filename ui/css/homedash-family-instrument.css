@@ -223,6 +223,6 @@
 .hd-widget[data-hd-family="instrument"][data-hd-type="climate"] .hd-dial-readout { gap: 4px; }
 /* H6: the digits are 0.66 em so the unit stays clear of the 2 px zone arc. */
 .hd-widget[data-hd-family="instrument"] .hd-gauge[data-hd-gauge="arc"] .hd-gauge-readout .hd-seg7 { --hd-i-seg-h: 0.66em; }
-/* H8 at 2 x 1: an 11 px readout and the 11 px state size (the smallest the label scale allows) leave the state text its width. */
-@container hd-widget (aspect-ratio >= 1.6) { .hd-widget[data-hd-family="instrument"][data-hd-type="sensor"] .hd-body > .hd-seg7 { --hd-i-seg-h: 11px; }
+/* H8 at 2 x 1: the readout is 15 px high, the cap height of the other families numeral, and the 11 px state text (the smallest the label scale allows) may end in an ellipsis; the 12 px column gap stays. */
+@container hd-widget (aspect-ratio >= 1.6) { .hd-widget[data-hd-family="instrument"][data-hd-type="sensor"] .hd-body > .hd-seg7 { --hd-i-seg-h: 15px; }
   .hd-widget[data-hd-family="instrument"][data-hd-type="sensor"] .hd-state { font-size: 11px; } }
