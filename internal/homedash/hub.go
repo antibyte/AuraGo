@@ -164,6 +164,7 @@ func (h *Hub) Close() {
 			rt.idle.Stop()
 			rt.idle = nil
 		}
+		stopRecheckLocked(rt)
 		h.stopLocked(rt)
 	}
 	for _, s := range h.subs {
@@ -307,10 +308,9 @@ func (h *Hub) Entities(ctx context.Context, f Filter) (items []Entity, total int
 		}
 		rt.warmUntil = now.Add(h.opts.CatalogTTL)
 		notes = append(notes, h.reconcileLocked(rt))
-		sid := id
-		time.AfterFunc(h.opts.CatalogTTL+10*time.Millisecond, func() { h.recheck(sid) })
+		h.armRecheckLocked(rt)
 		if h.catalogStale(rt, now) {
-			jobs = append(jobs, catalogJob{id: id, src: rt.src})
+			jobs = append(jobs, h.catalogJobLocked(rt))
 		}
 	}
 	h.mu.Unlock()
@@ -388,7 +388,7 @@ func (h *Hub) Entity(ctx context.Context, id EntityID) (Entity, error) {
 	}
 	var jobs []catalogJob
 	if h.catalogStale(rt, now) {
-		jobs = append(jobs, catalogJob{id: src, src: rt.src})
+		jobs = append(jobs, h.catalogJobLocked(rt))
 	}
 	h.mu.Unlock()
 	h.fetchCatalogs(ctx, jobs)

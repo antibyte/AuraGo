@@ -18,11 +18,18 @@ type FakeSource struct {
 	CommandErr    error
 	CommandResult homedash.CommandResult
 
+	// ExitDelay holds Run back after its context ended; CatalogDelay blocks Catalog without watching its
+	// context; CatalogScript scripts the next Catalog calls in order. Set them before the source is used.
+	ExitDelay     time.Duration
+	CatalogDelay  time.Duration
+	CatalogScript []CatalogStep
+
 	id                       homedash.SourceID
 	mu                       sync.Mutex
 	catalog                  []homedash.Entity
 	sink                     homedash.Sink
 	runs, running, inCommand int
+	maxRunning, catalogCalls int
 	interest                 []string
 	commands                 []homedash.Command
 }
@@ -39,6 +46,7 @@ func (f *FakeSource) Run(ctx context.Context, sink homedash.Sink) error {
 	f.runs++
 	n := f.runs
 	f.running++
+	f.maxRunning = max(f.maxRunning, f.running)
 	f.sink = sink
 	f.mu.Unlock()
 	defer func() {
@@ -54,6 +62,9 @@ func (f *FakeSource) Run(ctx context.Context, sink homedash.Sink) error {
 	}
 	sink.Status(homedash.SourceStatus{Source: f.id, State: homedash.StatusLive})
 	<-ctx.Done()
+	if f.ExitDelay > 0 {
+		time.Sleep(f.ExitDelay)
+	}
 	return nil
 }
 
@@ -63,11 +74,43 @@ func (f *FakeSource) SetInterest(natives []string) {
 	f.mu.Unlock()
 }
 
+// CatalogStep is one scripted Catalog call: it sleeps Delay (ignoring the context) and then returns
+// Entities and Err.
+type CatalogStep struct {
+	Delay    time.Duration
+	Entities []homedash.Entity
+	Err      error
+}
+
 func (f *FakeSource) Catalog(context.Context) ([]homedash.Entity, error) {
 	f.mu.Lock()
-	defer f.mu.Unlock()
-	return slices.Clone(f.catalog), nil
+	f.catalogCalls++
+	list, delay := slices.Clone(f.catalog), f.CatalogDelay
+	var err error
+	if len(f.CatalogScript) > 0 {
+		step := f.CatalogScript[0]
+		f.CatalogScript = f.CatalogScript[1:]
+		list, delay, err = slices.Clone(step.Entities), step.Delay, step.Err
+	}
+	f.mu.Unlock()
+	if delay > 0 {
+		time.Sleep(delay)
+	}
+	return list, err
 }
+
+// SetCatalog replaces the catalog later Catalog calls return.
+func (f *FakeSource) SetCatalog(entities ...homedash.Entity) {
+	f.mu.Lock()
+	f.catalog = slices.Clone(entities)
+	f.mu.Unlock()
+}
+
+// MaxRunning is the highest number of concurrent Run calls seen.
+func (f *FakeSource) MaxRunning() int { f.mu.Lock(); defer f.mu.Unlock(); return f.maxRunning }
+
+// CatalogCalls counts Catalog calls.
+func (f *FakeSource) CatalogCalls() int { f.mu.Lock(); defer f.mu.Unlock(); return f.catalogCalls }
 
 func (f *FakeSource) Command(ctx context.Context, cmd homedash.Command) (homedash.CommandResult, error) {
 	f.mu.Lock()

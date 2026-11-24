@@ -18,8 +18,16 @@ func gatesChanged(a, b RuntimeConfig) bool {
 	if a.ReadOnly != b.ReadOnly || a.DesktopReadOnly != b.DesktopReadOnly {
 		return true
 	}
-	for id, s := range b.Sources {
-		if a.Sources[id].Control != s.Control {
+	// Compare the union of both key sets: a source that vanishes, appears or changes its gate inputs
+	// changes controlBlock for its entities.
+	for id, nb := range b.Sources {
+		na, ok := a.Sources[id]
+		if !ok || na.Control != nb.Control || na.ConfigKey != nb.ConfigKey {
+			return true
+		}
+	}
+	for id := range a.Sources {
+		if _, ok := b.Sources[id]; !ok {
 			return true
 		}
 	}
@@ -64,8 +72,21 @@ func (h *Hub) applyConfig() {
 			rt.idle = nil
 			rt.idleGen++
 		}
+		stopRecheckLocked(rt)
 		done := h.stopLocked(rt)
+		// A rebuilt source drops its old catalog and cached states; subscribers keep their interest and
+		// receive fresh data once the new catalog arrives.
 		rt.src, rt.active, rt.fp, rt.catalogAt = nil, false, fp, time.Time{}
+		if len(rt.catalog) > 0 && want {
+			if rt.dropped == nil {
+				rt.dropped = map[EntityID]struct{}{}
+			}
+			for eid := range rt.catalog {
+				rt.dropped[eid] = struct{}{}
+			}
+		}
+		rt.catalog, rt.failedFrom = nil, SourceStatus{}
+		h.dropSourceStatesLocked(id)
 		if want {
 			if src, ok := callFactory(h.factories[id], cfg); ok && src != nil {
 				rt.src, rt.active = src, true
@@ -75,7 +96,7 @@ func (h *Hub) applyConfig() {
 		if rt.active {
 			state = StatusIdle
 		} else {
-			rt.catalog = nil
+			rt.dropped = nil // inactive: the disable path owns its subscribers
 		}
 		h.setStatusLocked(rt, state, "")
 		changed = append(changed, change{rt, done})
@@ -113,7 +134,7 @@ func (h *Hub) applyConfig() {
 		}
 		notes = append(notes, h.reconcileLocked(c.rt))
 		if len(c.rt.natives) > 0 {
-			jobs = append(jobs, catalogJob{c.rt.id, c.rt.src})
+			jobs = append(jobs, h.catalogJobLocked(c.rt))
 		}
 	}
 	h.mu.Unlock()

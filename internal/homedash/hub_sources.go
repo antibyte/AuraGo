@@ -28,6 +28,15 @@ type sourceRT struct {
 	catalog   map[EntityID]Entity
 	catalogAt time.Time
 
+	// guarded by Hub.mu
+	lastDone   chan struct{} // done channel of the newest run goroutine, kept after stop so the next run can wait for it
+	catSeq     int           // catalog fetch numbers issued
+	catApplied int           // highest catalog number applied
+	recheck    *time.Timer   // single catalog recheck timer
+	recheckGen int
+	failedFrom SourceStatus          // status before a catalog failure overwrote it
+	dropped    map[EntityID]struct{} // ids of the catalog a rebuild cleared; removal base for the next catalog
+
 	seq       int        // interest notes issued; guarded by Hub.mu
 	dmu       sync.Mutex // serializes SetInterest delivery; never held together with Hub.mu
 	delivered int        // highest note seq delivered; guarded by dmu
@@ -43,6 +52,42 @@ type interestNote struct {
 type catalogJob struct {
 	id  SourceID
 	src Source
+	seq int
+}
+
+// catalogJobLocked numbers a catalog fetch; results older than the last applied one are dropped.
+func (h *Hub) catalogJobLocked(rt *sourceRT) catalogJob {
+	rt.catSeq++
+	return catalogJob{id: rt.id, src: rt.src, seq: rt.catSeq}
+}
+
+// armRecheckLocked keeps one catalog recheck timer per runtime and pushes it out.
+func (h *Hub) armRecheckLocked(rt *sourceRT) {
+	d := h.opts.CatalogTTL + 10*time.Millisecond
+	if rt.recheck != nil {
+		rt.recheck.Reset(d)
+		return
+	}
+	rt.recheckGen++
+	gen, id := rt.recheckGen, rt.id
+	rt.recheck = time.AfterFunc(d, func() { h.recheck(id, gen) })
+}
+
+func stopRecheckLocked(rt *sourceRT) {
+	if rt.recheck != nil {
+		rt.recheck.Stop()
+		rt.recheck = nil
+		rt.recheckGen++
+	}
+}
+
+// dropSourceStatesLocked forgets every cached state of one source.
+func (h *Hub) dropSourceStatesLocked(id SourceID) {
+	for eid := range h.states {
+		if src, _, err := ParseEntityID(string(eid)); err == nil && src == id {
+			delete(h.states, eid)
+		}
+	}
 }
 
 func (rt *sourceRT) interested(now time.Time) bool {
@@ -113,10 +158,10 @@ func (h *Hub) reconcileLocked(rt *sourceRT) *interestNote {
 	return &interestNote{rt: rt, src: rt.src, natives: natives, seq: rt.seq}
 }
 
-func (h *Hub) recheck(id SourceID) {
+func (h *Hub) recheck(id SourceID, gen int) {
 	h.mu.Lock()
 	var note *interestNote
-	if rt := h.rts[id]; rt != nil {
+	if rt := h.rts[id]; rt != nil && rt.recheck != nil && rt.recheckGen == gen {
 		note = h.reconcileLocked(rt)
 	}
 	h.mu.Unlock()
@@ -126,11 +171,13 @@ func (h *Hub) recheck(id SourceID) {
 func (h *Hub) startLocked(rt *sourceRT) {
 	ctx, cancel := context.WithCancel(h.ctx)
 	rt.runGen++
+	prev := rt.lastDone
 	rt.running, rt.cancel, rt.done = true, cancel, make(chan struct{})
+	rt.lastDone = rt.done
 	h.setStatusLocked(rt, StatusStarting, "")
 	sink := &hubSink{h: h, id: rt.id, src: rt.src, gen: rt.runGen}
 	h.wg.Add(1)
-	go h.runLoop(ctx, rt.id, rt.src, sink, rt.done)
+	go h.runLoop(ctx, rt.id, rt.src, sink, rt.done, prev)
 }
 
 // stopLocked cancels a running source; the returned channel closes when its goroutine ended.
@@ -144,9 +191,17 @@ func (h *Hub) stopLocked(rt *sourceRT) chan struct{} {
 	return done
 }
 
-func (h *Hub) runLoop(ctx context.Context, id SourceID, src Source, sink *hubSink, done chan struct{}) {
+func (h *Hub) runLoop(ctx context.Context, id SourceID, src Source, sink *hubSink, done, prev chan struct{}) {
 	defer h.wg.Done()
 	defer close(done)
+	// Runs of one source never overlap. The wait is not cut short by ctx: done must only close once
+	// no earlier run of this runtime is left, otherwise a later run could overtake a hung one.
+	if prev != nil {
+		<-prev
+	}
+	if ctx.Err() != nil {
+		return
+	}
 	attempt := 0
 	for {
 		started := time.Now()
@@ -222,40 +277,96 @@ func (h *Hub) setStatusLocked(rt *sourceRT, state, reason string) {
 }
 
 // fetchCatalogs runs Catalog for each job concurrently (CatalogTimeout each, outside the lock) and
-// applies results whose source is still current. A failure marks a stopped source unavailable.
+// applies results whose source is still current. A failure marks a stopped source (or one without any
+// catalog) unavailable. It returns after the timeout even when a source ignores its context; the late
+// result still passes the generation and sequence guards.
 func (h *Hub) fetchCatalogs(ctx context.Context, jobs []catalogJob) {
-	var wg sync.WaitGroup
-	for _, j := range jobs {
-		wg.Add(1)
-		go func(j catalogJob) {
-			defer wg.Done()
-			cctx, cancel := context.WithTimeout(ctx, h.opts.CatalogTimeout)
-			defer cancel()
-			list, err := catalogGuarded(cctx, j.src)
-			h.mu.Lock()
-			defer h.mu.Unlock()
-			rt := h.rts[j.id]
-			if h.closed || rt == nil || rt.src != j.src {
-				return
-			}
-			if err != nil {
-				h.log.Warn("homedash: catalog failed", "source", j.id, "error", err)
-				if !rt.running {
-					h.setStatusLocked(rt, StatusUnavailable, ReasonCatalogFailed)
-				}
-				return
-			}
-			h.applyCatalogLocked(rt, list)
-			if !rt.running && rt.status.State == StatusUnavailable && rt.status.Reason == ReasonCatalogFailed {
-				h.setStatusLocked(rt, StatusIdle, "")
-			}
-		}(j)
+	if len(jobs) == 0 {
+		return
 	}
-	wg.Wait()
+	fin := make(chan int, len(jobs))
+	for i, j := range jobs {
+		go func(i int, j catalogJob) {
+			defer func() { fin <- i }()
+			h.fetchOne(ctx, j)
+		}(i, j)
+	}
+	timer := time.NewTimer(h.opts.CatalogTimeout + catalogSlack)
+	defer timer.Stop()
+	finished := make([]bool, len(jobs))
+	for left := len(jobs); left > 0; {
+		select {
+		case i := <-fin:
+			finished[i] = true
+			left--
+		case <-timer.C:
+			h.mu.Lock()
+			for i, j := range jobs {
+				if finished[i] {
+					continue
+				}
+				h.log.Warn("homedash: catalog timed out", "source", j.id)
+				if rt := h.rts[j.id]; !h.closed && rt != nil && rt.src == j.src {
+					h.catalogFailedLocked(rt)
+				}
+			}
+			h.mu.Unlock()
+			return
+		}
+	}
+}
+
+// catalogSlack is added to CatalogTimeout before fetchCatalogs stops waiting for a source that
+// ignores its context.
+const catalogSlack = 100 * time.Millisecond
+
+func (h *Hub) fetchOne(ctx context.Context, j catalogJob) {
+	cctx, cancel := context.WithTimeout(ctx, h.opts.CatalogTimeout)
+	defer cancel()
+	list, err := catalogGuarded(cctx, j.src)
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	rt := h.rts[j.id]
+	if h.closed || rt == nil || rt.src != j.src {
+		return
+	}
+	if err != nil {
+		h.log.Warn("homedash: catalog failed", "source", j.id, "error", err)
+		h.catalogFailedLocked(rt)
+		return
+	}
+	if !h.applyCatalogLocked(rt, list, j.seq) {
+		return
+	}
+	if rt.status.State == StatusUnavailable && rt.status.Reason == ReasonCatalogFailed {
+		if rt.running && rt.failedFrom.State != "" {
+			h.setStatusLocked(rt, rt.failedFrom.State, rt.failedFrom.Reason)
+		} else if !rt.running {
+			h.setStatusLocked(rt, StatusIdle, "")
+		}
+	}
+}
+
+// catalogFailedLocked marks a source whose catalog could not be fetched; a running source that
+// already has a catalog keeps its own status.
+func (h *Hub) catalogFailedLocked(rt *sourceRT) {
+	if rt.running && rt.catalog != nil {
+		return
+	}
+	if rt.status.State == StatusUnavailable && rt.status.Reason == ReasonCatalogFailed {
+		return
+	}
+	rt.failedFrom = rt.status
+	h.setStatusLocked(rt, StatusUnavailable, ReasonCatalogFailed)
 }
 
 // applyCatalogLocked replaces a source's catalog and pushes entity/removed frames for subscribed ids.
-func (h *Hub) applyCatalogLocked(rt *sourceRT, list []Entity) {
+// seq orders results: one not newer than the last applied is dropped (false).
+func (h *Hub) applyCatalogLocked(rt *sourceRT, list []Entity, seq int) bool {
+	if seq <= rt.catApplied {
+		return false
+	}
+	rt.catApplied = seq
 	if len(list) > MaxCatalogEntities {
 		list = list[:MaxCatalogEntities]
 	}
@@ -271,6 +382,15 @@ func (h *Hub) applyCatalogLocked(rt *sourceRT, list []Entity) {
 			h.states[e.ID] = e.State
 		}
 	}
+	for eid := range h.states {
+		src, native, err := ParseEntityID(string(eid))
+		if err != nil || src != rt.id {
+			continue
+		}
+		if _, in := next[eid]; !in && rt.natives[native] == 0 {
+			delete(h.states, eid)
+		}
+	}
 	for _, s := range h.subs {
 		for id := range s.set {
 			src, _, _ := ParseEntityID(string(id))
@@ -279,6 +399,9 @@ func (h *Hub) applyCatalogLocked(rt *sourceRT, list []Entity) {
 			}
 			e, inNext := next[id]
 			old, inOld := rt.catalog[id]
+			if _, was := rt.dropped[id]; was && !inOld {
+				inOld = true // known before the rebuild: report it as removed when it is gone
+			}
 			switch {
 			case inNext && (!inOld || !sameMeta(old, e)):
 				e.State = h.states[id]
@@ -288,7 +411,8 @@ func (h *Hub) applyCatalogLocked(rt *sourceRT, list []Entity) {
 			}
 		}
 	}
-	rt.catalog, rt.catalogAt = next, now
+	rt.catalog, rt.catalogAt, rt.dropped = next, now, nil
+	return true
 }
 
 func sameMeta(a, b Entity) bool {
@@ -313,7 +437,8 @@ func (s *hubSink) Catalog(entities []Entity) {
 	s.h.mu.Lock()
 	defer s.h.mu.Unlock()
 	if rt, ok := s.live(); ok {
-		s.h.applyCatalogLocked(rt, entities)
+		rt.catSeq++
+		s.h.applyCatalogLocked(rt, entities, rt.catSeq)
 	}
 }
 
@@ -337,6 +462,13 @@ func (s *hubSink) Update(updates ...StateUpdate) {
 	for _, u := range updates {
 		id := MakeEntityID(s.id, u.Native)
 		if _, _, err := ParseEntityID(string(id)); err != nil {
+			continue
+		}
+		_, inCatalog := rt.catalog[id]
+		if rt.natives[u.Native] == 0 && !inCatalog {
+			continue // bounded cache: only cataloged or subscribed entities keep a state
+		}
+		if old, has := h.states[id]; has && !u.State.UpdatedAt.IsZero() && !old.UpdatedAt.IsZero() && u.State.UpdatedAt.Before(old.UpdatedAt) {
 			continue
 		}
 		st := sanitizeState(u.State, now)
