@@ -2,16 +2,42 @@ package ui
 
 import (
 	"encoding/json"
+	"fmt"
 	"regexp"
 	"strings"
 	"testing"
 )
 
 var desktopSoundEvents = []string{
-	"window.open", "window.close", "window.minimize", "window.restore", "window.maximize",
-	"window.snap", "window.deny", "notify.info", "notify.message", "notify.error",
-	"menu.open", "menu.close", "space.switch", "dialog.open", "dialog.confirm", "dialog.cancel",
-	"file.trash", "file.delete", "file.drop",
+	"session.start", "notify.message", "notify.info", "notify.success", "notify.warning", "notify.error",
+	"dialog.open", "dialog.confirm", "dialog.cancel", "window.open", "window.close", "window.maximize", "window.minimize",
+	"window.restore", "window.snap", "window.deny", "file.drop", "file.trash", "file.delete", "space.switch",
+	"menu.open", "menu.close", "ui.select", "ui.toggle.on", "ui.toggle.off", "ui.tick",
+}
+
+// desktopSoundEventSpec mirrors EVENT_CATEGORY / EVENT_VARIANTS in sound-runtime.js and ROLES in sound-engine.js.
+var desktopSoundEventSpec = map[string]struct {
+	category string
+	variants int
+}{
+	"session.start": {"startup", 1}, "notify.message": {"notifications", 1}, "notify.info": {"notifications", 1},
+	"notify.success": {"notifications", 1}, "notify.warning": {"notifications", 1}, "notify.error": {"notifications", 1},
+	"dialog.open": {"files", 1}, "dialog.confirm": {"files", 1}, "dialog.cancel": {"files", 1},
+	"window.open": {"windows", 3}, "window.close": {"windows", 3}, "window.maximize": {"windows", 3},
+	"window.minimize": {"windows", 3}, "window.restore": {"windows", 3}, "window.snap": {"windows", 3},
+	"window.deny": {"windows", 2}, "file.drop": {"files", 3}, "file.trash": {"files", 2}, "file.delete": {"files", 2},
+	"space.switch": {"navigation", 2}, "menu.open": {"navigation", 3}, "menu.close": {"navigation", 3},
+	"ui.select": {"interface", 3}, "ui.toggle.on": {"interface", 3}, "ui.toggle.off": {"interface", 3}, "ui.tick": {"interface", 3},
+}
+
+var desktopSoundThemeIDs = []string{
+	"crystal", "wood", "analog", "workshop", "water", "amiga", "cyberpunk", "black_gloss", "crazy", "lollipop",
+	"organic", "electronic_dreams", "windows_xp", "green_slime", "voxel_world", "orbit",
+}
+
+var desktopSoundThemeFiles = []string{
+	"crystal", "wood", "analog", "workshop", "water", "amiga", "cyberpunk", "black-gloss", "crazy", "lollipop",
+	"organic", "electronic-dreams", "windows-xp", "green-slime", "voxel-world", "orbit",
 }
 
 var desktopSoundLocaleKeys = []string{
@@ -65,6 +91,11 @@ var desktopSoundLocaleKeys = []string{
 	"desktop.settings_sound_navigation_desc",
 	"desktop.settings_sound_files",
 	"desktop.settings_sound_files_desc",
+	"desktop.settings_sound_interface",
+	"desktop.settings_sound_interface_desc",
+	"desktop.settings_sound_startup",
+	"desktop.settings_sound_startup_desc",
+	"desktop.settings_sound_preview_category",
 }
 
 func TestDesktopSoundRuntimeMarkers(t *testing.T) {
@@ -79,6 +110,10 @@ func TestDesktopSoundRuntimeMarkers(t *testing.T) {
 		"loader('desktop-sounds')",
 		"applySoundSettingsChange",
 		"sound: 'speaker'",
+		"function previewSoundCategory(",
+		"renderEvent",
+		"new Worker(",
+		"DesktopSoundsRenderGate",
 	} {
 		if !strings.Contains(main, marker) {
 			t.Fatalf("main bundle missing sound marker %q", marker)
@@ -97,6 +132,15 @@ func TestDesktopSoundRuntimeMarkers(t *testing.T) {
 	if !strings.Contains(runtime, "actx = new Ctor()") {
 		t.Fatal("sound-runtime missing guarded AudioContext construction")
 	}
+	for _, event := range desktopSoundEvents {
+		spec := desktopSoundEventSpec[event]
+		if marker := fmt.Sprintf("'%s': '%s'", event, spec.category); !strings.Contains(runtime, marker) {
+			t.Errorf("sound-runtime missing category marker %q", marker)
+		}
+		if marker := fmt.Sprintf("'%s': %d", event, spec.variants); !strings.Contains(runtime, marker) {
+			t.Errorf("sound-runtime missing variant marker %q", marker)
+		}
+	}
 
 	loader := readDesktopAssetText(t, "js/desktop/core/module-loader.js")
 	if !strings.Contains(loader, "desktop-sounds") {
@@ -104,22 +148,23 @@ func TestDesktopSoundRuntimeMarkers(t *testing.T) {
 	}
 
 	bundle := readDesktopAssetText(t, "js/desktop/bundles/desktop-sounds.bundle.js")
-	for _, marker := range []string{
-		"window.DesktopSoundSynth",
-		"window.DesktopSoundThemes",
-		"DesktopSoundThemes.crystal",
-		"DesktopSoundThemes.wood",
-		"DesktopSoundThemes.analog",
-		"DesktopSoundThemes.workshop",
-		"DesktopSoundThemes.water",
-		"DesktopSoundThemes.electronic_dreams",
-		"DesktopSoundThemes.windows_xp",
-		"DesktopSoundThemes.green_slime",
-		"DesktopSoundThemes.voxel_world",
-		"DesktopSoundThemes.orbit",
-	} {
+	bundleMarkers := []string{
+		"root.DesktopSoundDSP",
+		"root.DesktopSoundInstruments",
+		"root.DesktopSoundEngine",
+		"/* ui/js/desktop/sound/render-host.js */",
+	}
+	for _, id := range desktopSoundThemeIDs {
+		bundleMarkers = append(bundleMarkers, "id: '"+id+"'")
+	}
+	for _, marker := range bundleMarkers {
 		if !strings.Contains(bundle, marker) {
 			t.Fatalf("desktop-sounds bundle missing marker %q", marker)
+		}
+	}
+	for _, forbidden := range []string{"DesktopSoundSynth", "Math.random("} {
+		if strings.Contains(bundle, forbidden) {
+			t.Fatalf("desktop-sounds bundle must not contain %q", forbidden)
 		}
 	}
 }
@@ -140,9 +185,13 @@ func TestDesktopSoundHookMarkers(t *testing.T) {
 			"desktopSound('window.close')",
 		},
 		"js/desktop/core/sdk-events-bootstrap.js": {
-			"desktopSound('notify.message')",
-			"desktopSound('notify.error')",
-			"desktopSound('notify.info')",
+			"function notificationSoundEvent(",
+			"'notify.message'",
+			"'notify.error'",
+			"'notify.warning'",
+			"'notify.success'",
+			"'notify.info'",
+			"desktopSound('session.start')",
 		},
 		"js/desktop/core/desktop-foundation.js": {
 			"desktopSound('menu.open')",
@@ -187,52 +236,34 @@ func TestDesktopSoundThemeEvents(t *testing.T) {
 	t.Parallel()
 
 	eventRe := regexp.MustCompile(`'([a-z]+(?:\.[a-z]+)+)':`)
-	for _, theme := range []string{"crystal", "wood", "analog", "workshop", "water", "desktop"} {
+	for i, theme := range desktopSoundThemeFiles {
 		source := readDesktopAssetText(t, "js/desktop/sound/theme-"+theme+".js")
+		for _, marker := range []string{"self.DesktopSoundEngine.defineTheme({", "id: '" + desktopSoundThemeIDs[i] + "'"} {
+			if !strings.Contains(source, marker) {
+				t.Errorf("theme %s missing marker %q", theme, marker)
+			}
+		}
 		found := map[string]bool{}
 		for _, match := range eventRe.FindAllStringSubmatch(source, -1) {
 			found[match[1]] = true
 		}
 		for _, event := range desktopSoundEvents {
 			if !found[event] {
-				t.Fatalf("theme %s missing event %q", theme, event)
+				t.Errorf("theme %s missing event %q", theme, event)
 			}
 		}
 	}
-	for _, theme := range []string{"electronic-dreams", "windows-xp", "green-slime", "voxel-world"} {
-		source := readDesktopAssetText(t, "js/desktop/sound/theme-"+theme+".js")
-		if !strings.Contains(source, "composeDesktopEvents") {
-			t.Errorf("theme %s must compose a complete event bank from its authored profile", theme)
-		}
-	}
 	voxel := readDesktopAssetText(t, "js/desktop/sound/theme-voxel-world.js")
-	for _, marker := range []string{"specialFx", "'window.fracture'", "'window.impact'", "'wood'", "'stone'", "'earth'"} {
+	for _, marker := range []string{"fx:", "'window.fracture'", "'window.impact'", "wood:", "stone:", "earth:"} {
 		if !strings.Contains(voxel, marker) {
 			t.Errorf("voxel-world bank missing material sound marker %q", marker)
 		}
 	}
-	slime := readDesktopAssetText(t, "js/desktop/sound/theme-green-slime.js")
-	if !strings.Contains(slime, "composeDesktopEvents") || !strings.Contains(slime, "specialFx") {
-		t.Error("green-slime bank must compose the shell events and add its FX bank")
-	}
-	// Orbit authors all 19 shell events itself (whooshes, HUD blips, airlock puffs) and adds the sonar ping.
 	orbit := readDesktopAssetText(t, "js/desktop/sound/theme-orbit.js")
-	orbitEvents := map[string]bool{}
-	for _, match := range eventRe.FindAllStringSubmatch(orbit, -1) {
-		orbitEvents[match[1]] = true
-	}
-	for _, event := range desktopSoundEvents {
-		if !orbitEvents[event] {
-			t.Errorf("orbit bank missing event %q", event)
-		}
-	}
-	for _, marker := range []string{"specialFx", "'orbit.ping'", "small:", "medium:", "large:", "window.DesktopSoundThemes.orbit"} {
+	for _, marker := range []string{"fx:", "'orbit.ping'", "small:", "medium:", "large:"} {
 		if !strings.Contains(orbit, marker) {
 			t.Errorf("orbit bank missing marker %q", marker)
 		}
-	}
-	if strings.Contains(orbit, "reverb:") {
-		t.Error("orbit layers must not use the shared reverb pool: its convolver is shared by all layers of a render")
 	}
 }
 
@@ -263,13 +294,10 @@ func TestGreenSlimeSoundFxContract(t *testing.T) {
 	t.Parallel()
 
 	bank := readDesktopAssetText(t, "js/desktop/sound/theme-green-slime.js")
-	for _, marker := range []string{"specialFx", "'slime.pop'", "'slime.snap'", "small:", "medium:", "large:"} {
+	for _, marker := range []string{"fx:", "'slime.pop'", "'slime.snap'", "small:", "medium:", "large:"} {
 		if !strings.Contains(bank, marker) {
 			t.Errorf("green-slime bank missing FX marker %q", marker)
 		}
-	}
-	if strings.Contains(bank, "reverb:") {
-		t.Error("green-slime FX layers must not use the shared reverb pool: its convolver is shared by all layers of a render")
 	}
 
 	// The effect only reports; the sound runtime decides whether anything is heard.
@@ -308,6 +336,8 @@ func TestDesktopSoundSettingsUIMarkers(t *testing.T) {
 		"settingToggle('sound.notifications'",
 		"settingToggle('sound.navigation'",
 		"settingToggle('sound.files'",
+		"settingToggle('sound.interface'",
+		"settingToggle('sound.startup'",
 	} {
 		if !strings.Contains(catalog, marker) {
 			t.Fatalf("settings catalog missing marker %q", marker)
@@ -315,6 +345,7 @@ func TestDesktopSoundSettingsUIMarkers(t *testing.T) {
 	}
 	for _, marker := range []string{
 		"data-sound-preview",
+		"data-sound-category-preview",
 		"nextPane.scrollTop = paneScroll",
 		"key !== 'sound.volume'",
 	} {
@@ -325,6 +356,7 @@ func TestDesktopSoundSettingsUIMarkers(t *testing.T) {
 	css := readDesktopAssetText(t, "css/desktop-app-settings.css")
 	for _, marker := range []string{
 		".vd-sound-theme-grid",
+		".vd-sound-category-actions",
 		".vd-sound-theme-card",
 		".vd-setting-range-wrap",
 		".vd-settings-pane-icon .vd-theme-icon",
