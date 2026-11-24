@@ -1,0 +1,64 @@
+{
+  "pinout": "cd4051",
+  "variants": [
+    {
+      "variant": "",
+      "counts": {
+        "io": 9,
+        "signal": 4,
+        "power": 2,
+        "ground": 1
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "CH 4 IN/OUT",
+          "type": "io",
+          "ref": "TI SCHS047O, Table 4-1 (page 3)"
+        },
+        {
+          "number": "3",
+          "name": "COM OUT/IN",
+          "type": "io",
+          "ref": "TI SCHS047O, Table 4-1 (page 3)"
+        },
+        {
+          "number": "6",
+          "name": "INH",
+          "type": "signal",
+          "ref": "TI SCHS047O, Table 4-1 (page 3)"
+        },
+        {
+          "number": "7",
+          "name": "VEE",
+          "type": "power",
+          "ref": "TI SCHS047O, Table 4-1 (page 3)"
+        },
+        {
+          "number": "8",
+          "name": "VSS",
+          "type": "ground",
+          "ref": "TI SCHS047O, Table 4-1 (page 3)"
+        },
+        {
+          "number": "11",
+          "name": "A",
+          "type": "signal",
+          "ref": "TI SCHS047O, Table 4-1 (page 3)"
+        },
+        {
+          "number": "13",
+          "name": "CH 0 IN/OUT",
+          "type": "io",
+          "ref": "TI SCHS047O, Table 4-1 (page 3)"
+        },
+        {
+          "number": "16",
+          "name": "VDD",
+          "type": "power",
+          "ref": "TI SCHS047O, Table 4-1 (page 3)"
+        }
+      ]
+    }
+  ]
+}

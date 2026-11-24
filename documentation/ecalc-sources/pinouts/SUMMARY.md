@@ -1,6 +1,6 @@
 # pinouts — summary
 
-47 items in six groups. No item was left out, and no pin number or name is unverified. Each file names which view its drawing is
+55 items in six groups. No item was left out, and no pin number or name is unverified. Each file names which view its drawing is
 written for and on what that rests.
 
 | Folder | Items | Main sources |
@@ -10,7 +10,7 @@ written for and on what that rests.
 | `pc_power/` | 9 | PCI Express CEM figures, Intel's 4-wire fan specification, PSU and board makers |
 | `boards/` | 6 | Arduino, Espressif, the NodeMCU project and Raspberry Pi documents, including their figures |
 | `debug/` | 8 | ARM, SEGGER, Microchip, FTDI, SparkFun, Adafruit and Seeed documents; several independent sources for OBD-II and hobby servos |
-| `ics/` | 9 | The makers' datasheets for the package drawn |
+| `ics/` | 17 | The makers' datasheets for the package drawn |
 
 ## Weakest points
 

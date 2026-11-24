@@ -1,0 +1,57 @@
+{
+  "pinout": "sn74hc138",
+  "variants": [
+    {
+      "variant": "",
+      "counts": {
+        "signal": 14,
+        "ground": 1,
+        "power": 1
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "A",
+          "type": "signal",
+          "ref": "TI SCLS107G, table Pin Functions, column SOIC/SSOP/PDIP/SO/TSSOP/CDIP/CFP (page 3)"
+        },
+        {
+          "number": "4",
+          "name": "G2A",
+          "type": "signal",
+          "ref": "TI SCLS107G, table Pin Functions, column SOIC/SSOP/PDIP/SO/TSSOP/CDIP/CFP (page 3)"
+        },
+        {
+          "number": "6",
+          "name": "G1",
+          "type": "signal",
+          "ref": "TI SCLS107G, table Pin Functions, column SOIC/SSOP/PDIP/SO/TSSOP/CDIP/CFP (page 3)"
+        },
+        {
+          "number": "7",
+          "name": "Y7",
+          "type": "signal",
+          "ref": "TI SCLS107G, table Pin Functions, column SOIC/SSOP/PDIP/SO/TSSOP/CDIP/CFP (page 3)"
+        },
+        {
+          "number": "8",
+          "name": "GND",
+          "type": "ground",
+          "ref": "TI SCLS107G, table Pin Functions, column SOIC/SSOP/PDIP/SO/TSSOP/CDIP/CFP (page 3)"
+        },
+        {
+          "number": "15",
+          "name": "Y0",
+          "type": "signal",
+          "ref": "TI SCLS107G, table Pin Functions, column SOIC/SSOP/PDIP/SO/TSSOP/CDIP/CFP (page 3)"
+        },
+        {
+          "number": "16",
+          "name": "VCC",
+          "type": "power",
+          "ref": "TI SCLS107G, table Pin Functions, column SOIC/SSOP/PDIP/SO/TSSOP/CDIP/CFP (page 3)"
+        }
+      ]
+    }
+  ]
+}

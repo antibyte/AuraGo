@@ -1,0 +1,240 @@
+# Logic ICs in DIP packages. The sources behind every item are in documentation/ecalc-sources/pinouts/ics/; a changed pin updates
+# that record, this file and the item's vector together.
+
+- id: sn74hc00
+  kind: pinout
+  category: pinouts
+  group: ics
+  name: {cs: "SN74HC00 (DIP-14)", da: "SN74HC00 (DIP-14)", de: "SN74HC00 (DIP-14)", el: "SN74HC00 (DIP-14)", en: "SN74HC00 (DIP-14)", es: "SN74HC00 (DIP-14)", fr: "SN74HC00 (DIP-14)", hi: "SN74HC00 (DIP-14)", it: "SN74HC00 (DIP-14)", ja: "SN74HC00 (DIP-14)", nl: "SN74HC00 (DIP-14)", no: "SN74HC00 (DIP-14)", pl: "SN74HC00 (DIP-14)", pt: "SN74HC00 (DIP-14)", sv: "SN74HC00 (DIP-14)", zh: "SN74HC00 (DIP-14)"}
+  doc: {en: "Quad 2-input NAND gate, drawn as the 14-pin PDIP from above.", de: "Vierfach-NAND-Gatter mit 2 Eingängen, gezeichnet als 14-poliges PDIP von oben."}
+  notes: {en: "Gates 1 and 2 run A, B, Y by rising pin number (pins 1 to 6). Gates 3 and 4 are the other way round: the output has the lowest number, 3Y is pin 8 (3A 9, 3B 10) and 4Y is pin 11 (4A 12, 4B 13).", de: "Bei Gatter 1 und 2 folgen A, B, Y mit steigender Pin-Nummer (Pins 1 bis 6). Bei Gatter 3 und 4 ist es umgekehrt: Der Ausgang hat die kleinste Nummer, 3Y ist Pin 8 (3A 9, 3B 10) und 4Y ist Pin 11 (4A 12, 4B 13)."}
+  tags: ["sn74hc00", "74hc00", "hc00", "7400", "nand", "gate", "gatter", "logic", "logik", "dip14", "dip-14"]
+  source: "Texas Instruments SN54HC00, SN74HC00 datasheet SCLS181H (August 2021), section 5, pin figure and Table 5-1; cross-checked against onsemi MC74HC00A/D Rev. 17 (September 2026), page 1, Figures 1 and 2"
+  shape:
+    type: dip
+    pins: 14
+  pins:
+    - {number: "1", name: "1A", function: {en: "Gate 1, input A", de: "Gatter 1, Eingang A"}, type: signal}
+    - {number: "2", name: "1B", function: {en: "Gate 1, input B", de: "Gatter 1, Eingang B"}, type: signal}
+    - {number: "3", name: "1Y", function: {en: "Gate 1, output: NAND of 1A and 1B", de: "Gatter 1, Ausgang: NAND aus 1A und 1B"}, type: signal}
+    - {number: "4", name: "2A", function: {en: "Gate 2, input A", de: "Gatter 2, Eingang A"}, type: signal}
+    - {number: "5", name: "2B", function: {en: "Gate 2, input B", de: "Gatter 2, Eingang B"}, type: signal}
+    - {number: "6", name: "2Y", function: {en: "Gate 2, output: NAND of 2A and 2B", de: "Gatter 2, Ausgang: NAND aus 2A und 2B"}, type: signal}
+    - {number: "7", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "8", name: "3Y", function: {en: "Gate 3, output: NAND of 3A and 3B", de: "Gatter 3, Ausgang: NAND aus 3A und 3B"}, type: signal}
+    - {number: "9", name: "3A", function: {en: "Gate 3, input A", de: "Gatter 3, Eingang A"}, type: signal}
+    - {number: "10", name: "3B", function: {en: "Gate 3, input B", de: "Gatter 3, Eingang B"}, type: signal}
+    - {number: "11", name: "4Y", function: {en: "Gate 4, output: NAND of 4A and 4B", de: "Gatter 4, Ausgang: NAND aus 4A und 4B"}, type: signal}
+    - {number: "12", name: "4A", function: {en: "Gate 4, input A", de: "Gatter 4, Eingang A"}, type: signal}
+    - {number: "13", name: "4B", function: {en: "Gate 4, input B", de: "Gatter 4, Eingang B"}, type: signal}
+    - {number: "14", name: "VCC", function: {en: "Supply, 2 V to 6 V", de: "Versorgung, 2 V bis 6 V"}, type: power}
+
+- id: sn74hc04
+  kind: pinout
+  category: pinouts
+  group: ics
+  name: {cs: "SN74HC04 (DIP-14)", da: "SN74HC04 (DIP-14)", de: "SN74HC04 (DIP-14)", el: "SN74HC04 (DIP-14)", en: "SN74HC04 (DIP-14)", es: "SN74HC04 (DIP-14)", fr: "SN74HC04 (DIP-14)", hi: "SN74HC04 (DIP-14)", it: "SN74HC04 (DIP-14)", ja: "SN74HC04 (DIP-14)", nl: "SN74HC04 (DIP-14)", no: "SN74HC04 (DIP-14)", pl: "SN74HC04 (DIP-14)", pt: "SN74HC04 (DIP-14)", sv: "SN74HC04 (DIP-14)", zh: "SN74HC04 (DIP-14)"}
+  doc: {en: "Hex inverter, drawn as the 14-pin PDIP from above.", de: "Sechsfach-Inverter, gezeichnet als 14-poliges PDIP von oben."}
+  notes: {en: "On the left side each input sits above its output (1A pin 1, 1Y pin 2); on the right side the output has the lower number: 4Y is pin 8 and 4A pin 9, 6Y is pin 12 and 6A pin 13.", de: "Links liegt jeder Eingang über seinem Ausgang (1A Pin 1, 1Y Pin 2); rechts hat der Ausgang die kleinere Nummer: 4Y ist Pin 8 und 4A Pin 9, 6Y ist Pin 12 und 6A Pin 13."}
+  tags: ["sn74hc04", "74hc04", "hc04", "7404", "inverter", "not", "gate", "gatter", "logic", "logik", "dip14", "dip-14"]
+  source: "Texas Instruments SN54HC04, SN74HC04 datasheet SCLS078H (April 2021), section 5, Figure 5-1 and table Pin Functions; cross-checked against onsemi MC74HC04A/D Rev. 16 (September 2026), page 1, Figures 1 and 2"
+  shape:
+    type: dip
+    pins: 14
+  pins:
+    - {number: "1", name: "1A", function: {en: "Inverter 1, input", de: "Inverter 1, Eingang"}, type: signal}
+    - {number: "2", name: "1Y", function: {en: "Inverter 1, output", de: "Inverter 1, Ausgang"}, type: signal}
+    - {number: "3", name: "2A", function: {en: "Inverter 2, input", de: "Inverter 2, Eingang"}, type: signal}
+    - {number: "4", name: "2Y", function: {en: "Inverter 2, output", de: "Inverter 2, Ausgang"}, type: signal}
+    - {number: "5", name: "3A", function: {en: "Inverter 3, input", de: "Inverter 3, Eingang"}, type: signal}
+    - {number: "6", name: "3Y", function: {en: "Inverter 3, output", de: "Inverter 3, Ausgang"}, type: signal}
+    - {number: "7", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "8", name: "4Y", function: {en: "Inverter 4, output", de: "Inverter 4, Ausgang"}, type: signal}
+    - {number: "9", name: "4A", function: {en: "Inverter 4, input", de: "Inverter 4, Eingang"}, type: signal}
+    - {number: "10", name: "5Y", function: {en: "Inverter 5, output", de: "Inverter 5, Ausgang"}, type: signal}
+    - {number: "11", name: "5A", function: {en: "Inverter 5, input", de: "Inverter 5, Eingang"}, type: signal}
+    - {number: "12", name: "6Y", function: {en: "Inverter 6, output", de: "Inverter 6, Ausgang"}, type: signal}
+    - {number: "13", name: "6A", function: {en: "Inverter 6, input", de: "Inverter 6, Eingang"}, type: signal}
+    - {number: "14", name: "VCC", function: {en: "Supply, 2 V to 6 V", de: "Versorgung, 2 V bis 6 V"}, type: power}
+
+- id: sn74hc14
+  kind: pinout
+  category: pinouts
+  group: ics
+  name: {cs: "SN74HC14 (DIP-14)", da: "SN74HC14 (DIP-14)", de: "SN74HC14 (DIP-14)", el: "SN74HC14 (DIP-14)", en: "SN74HC14 (DIP-14)", es: "SN74HC14 (DIP-14)", fr: "SN74HC14 (DIP-14)", hi: "SN74HC14 (DIP-14)", it: "SN74HC14 (DIP-14)", ja: "SN74HC14 (DIP-14)", nl: "SN74HC14 (DIP-14)", no: "SN74HC14 (DIP-14)", pl: "SN74HC14 (DIP-14)", pt: "SN74HC14 (DIP-14)", sv: "SN74HC14 (DIP-14)", zh: "SN74HC14 (DIP-14)"}
+  doc: {en: "Hex inverter with Schmitt-trigger inputs, drawn as the 14-pin PDIP from above.", de: "Sechsfach-Inverter mit Schmitt-Trigger-Eingängen, gezeichnet als 14-poliges PDIP von oben."}
+  notes: {en: "On the left side each input sits above its output (1A pin 1, 1Y pin 2); on the right side the output has the lower number: 4Y is pin 8 and 4A pin 9. The inputs have hysteresis, so slow or noisy signals give a clean edge (TI section 7.3.2).", de: "Links liegt jeder Eingang über seinem Ausgang (1A Pin 1, 1Y Pin 2); rechts hat der Ausgang die kleinere Nummer: 4Y ist Pin 8 und 4A Pin 9. Die Eingänge haben Hysterese, langsame oder verrauschte Signale ergeben also eine saubere Flanke (TI Abschnitt 7.3.2)."}
+  tags: ["sn74hc14", "74hc14", "hc14", "7414", "schmitt trigger", "schmitt-trigger", "inverter", "hysteresis", "hysterese", "logic", "logik", "dip14", "dip-14"]
+  source: "Texas Instruments SN54HC14, SN74HC14 datasheet SCLS085L (February 2025), section 4, Figure 4-1 and table Pin Functions; cross-checked against onsemi MC74HC14A/D Rev. 17 (September 2026), page 1, pin assignment and logic diagram"
+  shape:
+    type: dip
+    pins: 14
+  pins:
+    - {number: "1", name: "1A", function: {en: "Inverter 1, Schmitt-trigger input", de: "Inverter 1, Schmitt-Trigger-Eingang"}, type: signal}
+    - {number: "2", name: "1Y", function: {en: "Inverter 1, output", de: "Inverter 1, Ausgang"}, type: signal}
+    - {number: "3", name: "2A", function: {en: "Inverter 2, Schmitt-trigger input", de: "Inverter 2, Schmitt-Trigger-Eingang"}, type: signal}
+    - {number: "4", name: "2Y", function: {en: "Inverter 2, output", de: "Inverter 2, Ausgang"}, type: signal}
+    - {number: "5", name: "3A", function: {en: "Inverter 3, Schmitt-trigger input", de: "Inverter 3, Schmitt-Trigger-Eingang"}, type: signal}
+    - {number: "6", name: "3Y", function: {en: "Inverter 3, output", de: "Inverter 3, Ausgang"}, type: signal}
+    - {number: "7", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "8", name: "4Y", function: {en: "Inverter 4, output", de: "Inverter 4, Ausgang"}, type: signal}
+    - {number: "9", name: "4A", function: {en: "Inverter 4, Schmitt-trigger input", de: "Inverter 4, Schmitt-Trigger-Eingang"}, type: signal}
+    - {number: "10", name: "5Y", function: {en: "Inverter 5, output", de: "Inverter 5, Ausgang"}, type: signal}
+    - {number: "11", name: "5A", function: {en: "Inverter 5, Schmitt-trigger input", de: "Inverter 5, Schmitt-Trigger-Eingang"}, type: signal}
+    - {number: "12", name: "6Y", function: {en: "Inverter 6, output", de: "Inverter 6, Ausgang"}, type: signal}
+    - {number: "13", name: "6A", function: {en: "Inverter 6, Schmitt-trigger input", de: "Inverter 6, Schmitt-Trigger-Eingang"}, type: signal}
+    - {number: "14", name: "VCC", function: {en: "Supply, 2 V to 6 V", de: "Versorgung, 2 V bis 6 V"}, type: power}
+
+- id: sn74hc138
+  kind: pinout
+  category: pinouts
+  group: ics
+  name: {cs: "SN74HC138 (DIP-16)", da: "SN74HC138 (DIP-16)", de: "SN74HC138 (DIP-16)", el: "SN74HC138 (DIP-16)", en: "SN74HC138 (DIP-16)", es: "SN74HC138 (DIP-16)", fr: "SN74HC138 (DIP-16)", hi: "SN74HC138 (DIP-16)", it: "SN74HC138 (DIP-16)", ja: "SN74HC138 (DIP-16)", nl: "SN74HC138 (DIP-16)", no: "SN74HC138 (DIP-16)", pl: "SN74HC138 (DIP-16)", pt: "SN74HC138 (DIP-16)", sv: "SN74HC138 (DIP-16)", zh: "SN74HC138 (DIP-16)"}
+  doc: {en: "3-to-8 line decoder and demultiplexer with three enable inputs and eight active-low outputs, drawn as the 16-pin PDIP from above.", de: "3-zu-8-Decoder und Demultiplexer mit drei Freigabeeingängen und acht Ausgängen mit aktiv low, gezeichnet als 16-poliges PDIP von oben."}
+  notes: {en: "An output goes low only when G1 is high and both G2A and G2B are low; otherwise all eight outputs are high. C, B, A form the binary number of the selected output, A is the lowest bit. Y7 sits alone on pin 7, on the other side from Y0 to Y6.", de: "Ein Ausgang geht nur auf low, wenn G1 high ist und G2A und G2B beide low sind; sonst sind alle acht Ausgänge high. C, B, A bilden die Binärzahl des gewählten Ausgangs, A ist das niedrigste Bit. Y7 liegt allein auf Pin 7, auf der anderen Seite als Y0 bis Y6."}
+  tags: ["sn74hc138", "74hc138", "hc138", "74138", "decoder", "dekoder", "demultiplexer", "address decoder", "adressdekoder", "3-to-8", "logic", "logik", "dip16", "dip-16"]
+  source: "Texas Instruments SN54HC138, SN74HC138 datasheet SCLS107G (October 2021), section 5, pin figure and table Pin Functions; cross-checked against onsemi MC74HC138A/D Rev. 14 (March 2024), page 1 pin assignment and page 2"
+  shape:
+    type: dip
+    pins: 16
+  pins:
+    - {number: "1", name: "A", function: {en: "Select input A, least significant bit", de: "Auswahleingang A, niederwertigstes Bit"}, type: signal}
+    - {number: "2", name: "B", function: {en: "Select input B", de: "Auswahleingang B"}, type: signal}
+    - {number: "3", name: "C", function: {en: "Select input C, most significant bit", de: "Auswahleingang C, höchstwertiges Bit"}, type: signal}
+    - {number: "4", name: "G2A", function: {en: "Enable input, active low", de: "Freigabeeingang, aktiv low"}, type: signal}
+    - {number: "5", name: "G2B", function: {en: "Enable input, active low", de: "Freigabeeingang, aktiv low"}, type: signal}
+    - {number: "6", name: "G1", function: {en: "Enable input, active high", de: "Freigabeeingang, aktiv high"}, type: signal}
+    - {number: "7", name: "Y7", function: {en: "Output 7, low when selected", de: "Ausgang 7, low wenn ausgewählt"}, type: signal}
+    - {number: "8", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "9", name: "Y6", function: {en: "Output 6, low when selected", de: "Ausgang 6, low wenn ausgewählt"}, type: signal}
+    - {number: "10", name: "Y5", function: {en: "Output 5, low when selected", de: "Ausgang 5, low wenn ausgewählt"}, type: signal}
+    - {number: "11", name: "Y4", function: {en: "Output 4, low when selected", de: "Ausgang 4, low wenn ausgewählt"}, type: signal}
+    - {number: "12", name: "Y3", function: {en: "Output 3, low when selected", de: "Ausgang 3, low wenn ausgewählt"}, type: signal}
+    - {number: "13", name: "Y2", function: {en: "Output 2, low when selected", de: "Ausgang 2, low wenn ausgewählt"}, type: signal}
+    - {number: "14", name: "Y1", function: {en: "Output 1, low when selected", de: "Ausgang 1, low wenn ausgewählt"}, type: signal}
+    - {number: "15", name: "Y0", function: {en: "Output 0, low when selected", de: "Ausgang 0, low wenn ausgewählt"}, type: signal}
+    - {number: "16", name: "VCC", function: {en: "Supply, 2 V to 6 V", de: "Versorgung, 2 V bis 6 V"}, type: power}
+
+- id: sn74hc165
+  kind: pinout
+  category: pinouts
+  group: ics
+  name: {cs: "SN74HC165 (DIP-16)", da: "SN74HC165 (DIP-16)", de: "SN74HC165 (DIP-16)", el: "SN74HC165 (DIP-16)", en: "SN74HC165 (DIP-16)", es: "SN74HC165 (DIP-16)", fr: "SN74HC165 (DIP-16)", hi: "SN74HC165 (DIP-16)", it: "SN74HC165 (DIP-16)", ja: "SN74HC165 (DIP-16)", nl: "SN74HC165 (DIP-16)", no: "SN74HC165 (DIP-16)", pl: "SN74HC165 (DIP-16)", pt: "SN74HC165 (DIP-16)", sv: "SN74HC165 (DIP-16)", zh: "SN74HC165 (DIP-16)"}
+  doc: {en: "8-bit parallel-load shift register with serial input and complementary serial outputs, drawn as the 16-pin PDIP from above.", de: "8-Bit-Schieberegister mit parallelem Laden, seriellem Eingang und komplementären seriellen Ausgängen, gezeichnet als 16-poliges PDIP von oben."}
+  notes: {en: "The parallel inputs are split, A to D on pins 11 to 14 and E to H on pins 3 to 6. A low SH/LD loads all eight inputs at once, whatever the clock does. With SH/LD high and CLK INH low, each rising edge of CLK shifts one step: H comes out at QH first, and SER moves into the first stage. CLK and CLK INH are interchangeable; change CLK INH to high only while CLK is high.", de: "Die Paralleleingänge sind geteilt: A bis D an den Pins 11 bis 14, E bis H an den Pins 3 bis 6. Ein low an SH/LD lädt alle acht Eingänge auf einmal, unabhängig vom Takt. Bei SH/LD high und CLK INH low schiebt jede steigende Flanke an CLK um eine Stufe: H erscheint zuerst an QH, und SER rückt in die erste Stufe nach. CLK und CLK INH sind vertauschbar; CLK INH nur auf high schalten, während CLK high ist."}
+  tags: ["sn74hc165", "74hc165", "hc165", "165", "shift register", "schieberegister", "parallel in", "parallel-load", "piso", "input expander", "eingangserweiterung", "logic", "logik", "dip16", "dip-16"]
+  source: "Texas Instruments SN54HC165, SN74HC165 datasheet SCLS116H (December 2015), section 5, pin figure and table Pin Functions; cross-checked against onsemi MC74HC165A/D Rev. 13 (April 2025), page 2, Figures 1 and 2"
+  shape:
+    type: dip
+    pins: 16
+  pins:
+    - {number: "1", name: "SH/LD", function: {en: "Shift/load: low loads A to H in parallel, high enables shifting", de: "Schieben/Laden: low lädt A bis H parallel, high gibt das Schieben frei"}, type: signal}
+    - {number: "2", name: "CLK", function: {en: "Clock: a rising edge shifts the data towards QH", de: "Takt: eine steigende Flanke schiebt die Daten in Richtung QH"}, type: data}
+    - {number: "3", name: "E", function: {en: "Parallel input E", de: "Paralleleingang E"}, type: data}
+    - {number: "4", name: "F", function: {en: "Parallel input F", de: "Paralleleingang F"}, type: data}
+    - {number: "5", name: "G", function: {en: "Parallel input G", de: "Paralleleingang G"}, type: data}
+    - {number: "6", name: "H", function: {en: "Parallel input H, the stage next to QH", de: "Paralleleingang H, die Stufe direkt vor QH"}, type: data}
+    - {number: "7", name: "~QH", function: {en: "Complementary serial output", de: "Komplementärer serieller Ausgang"}, type: data}
+    - {number: "8", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "9", name: "QH", function: {en: "Serial output", de: "Serieller Ausgang"}, type: data}
+    - {number: "10", name: "SER", function: {en: "Serial input: its level moves into the first stage on each shift", de: "Serieller Eingang: sein Pegel rückt bei jedem Schieben in die erste Stufe"}, type: data}
+    - {number: "11", name: "A", function: {en: "Parallel input A", de: "Paralleleingang A"}, type: data}
+    - {number: "12", name: "B", function: {en: "Parallel input B", de: "Paralleleingang B"}, type: data}
+    - {number: "13", name: "C", function: {en: "Parallel input C", de: "Paralleleingang C"}, type: data}
+    - {number: "14", name: "D", function: {en: "Parallel input D", de: "Paralleleingang D"}, type: data}
+    - {number: "15", name: "CLK INH", function: {en: "Clock inhibit: high blocks the clock", de: "Taktsperre: high sperrt den Takt"}, type: signal}
+    - {number: "16", name: "VCC", function: {en: "Supply, 2 V to 6 V", de: "Versorgung, 2 V bis 6 V"}, type: power}
+
+- id: sn74hc245
+  kind: pinout
+  category: pinouts
+  group: ics
+  name: {cs: "SN74HC245 (DIP-20)", da: "SN74HC245 (DIP-20)", de: "SN74HC245 (DIP-20)", el: "SN74HC245 (DIP-20)", en: "SN74HC245 (DIP-20)", es: "SN74HC245 (DIP-20)", fr: "SN74HC245 (DIP-20)", hi: "SN74HC245 (DIP-20)", it: "SN74HC245 (DIP-20)", ja: "SN74HC245 (DIP-20)", nl: "SN74HC245 (DIP-20)", no: "SN74HC245 (DIP-20)", pl: "SN74HC245 (DIP-20)", pt: "SN74HC245 (DIP-20)", sv: "SN74HC245 (DIP-20)", zh: "SN74HC245 (DIP-20)"}
+  doc: {en: "Octal bus transceiver with 3-state outputs, one direction input and one output-enable input, drawn as the 20-pin PDIP from above.", de: "Achtfach-Bus-Transceiver mit Tri-State-Ausgängen, einem Richtungseingang und einem Ausgangsfreigabeeingang, gezeichnet als 20-poliges PDIP von oben."}
+  notes: {en: "The B side is shifted by one row against the A side: A1 (pin 2) faces OE (pin 19), A2 (pin 3) faces B1 (pin 18), and B8 (pin 11) faces GND (pin 10). With OE low, DIR high drives the B side from the A side and DIR low drives the A side from the B side; with OE high both sides are high-impedance. TI advises a pull-up resistor from OE to VCC so that the outputs stay off during power-up.", de: "Die B-Seite ist gegenüber der A-Seite um eine Reihe versetzt: A1 (Pin 2) liegt gegenüber von OE (Pin 19), A2 (Pin 3) gegenüber von B1 (Pin 18) und B8 (Pin 11) gegenüber von GND (Pin 10). Bei OE low treibt DIR high die B-Seite von der A-Seite, DIR low die A-Seite von der B-Seite; bei OE high sind beide Seiten hochohmig. TI empfiehlt einen Pull-up-Widerstand von OE nach VCC, damit die Ausgänge beim Einschalten abgeschaltet bleiben."}
+  tags: ["sn74hc245", "74hc245", "hc245", "74245", "bus transceiver", "transceiver", "bus driver", "buffer", "puffer", "level shifter", "pegelwandler", "logic", "logik", "dip20", "dip-20"]
+  source: "Texas Instruments SN54HC245, SN74HC245 datasheet SCLS131F (August 2022), section 5, Figure 5-1 and pin table; cross-checked against onsemi MC74HC245A/D Rev. 18 (July 2024), pages 1 and 2"
+  shape:
+    type: dip
+    pins: 20
+  pins:
+    - {number: "1", name: "DIR", function: {en: "Direction: high sends A to B, low sends B to A", de: "Richtung: high überträgt von A nach B, low von B nach A"}, type: signal}
+    - {number: "2", name: "A1", function: {en: "Bus A, bit 1", de: "Bus A, Bit 1"}, type: data}
+    - {number: "3", name: "A2", function: {en: "Bus A, bit 2", de: "Bus A, Bit 2"}, type: data}
+    - {number: "4", name: "A3", function: {en: "Bus A, bit 3", de: "Bus A, Bit 3"}, type: data}
+    - {number: "5", name: "A4", function: {en: "Bus A, bit 4", de: "Bus A, Bit 4"}, type: data}
+    - {number: "6", name: "A5", function: {en: "Bus A, bit 5", de: "Bus A, Bit 5"}, type: data}
+    - {number: "7", name: "A6", function: {en: "Bus A, bit 6", de: "Bus A, Bit 6"}, type: data}
+    - {number: "8", name: "A7", function: {en: "Bus A, bit 7", de: "Bus A, Bit 7"}, type: data}
+    - {number: "9", name: "A8", function: {en: "Bus A, bit 8", de: "Bus A, Bit 8"}, type: data}
+    - {number: "10", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "11", name: "B8", function: {en: "Bus B, bit 8", de: "Bus B, Bit 8"}, type: data}
+    - {number: "12", name: "B7", function: {en: "Bus B, bit 7", de: "Bus B, Bit 7"}, type: data}
+    - {number: "13", name: "B6", function: {en: "Bus B, bit 6", de: "Bus B, Bit 6"}, type: data}
+    - {number: "14", name: "B5", function: {en: "Bus B, bit 5", de: "Bus B, Bit 5"}, type: data}
+    - {number: "15", name: "B4", function: {en: "Bus B, bit 4", de: "Bus B, Bit 4"}, type: data}
+    - {number: "16", name: "B3", function: {en: "Bus B, bit 3", de: "Bus B, Bit 3"}, type: data}
+    - {number: "17", name: "B2", function: {en: "Bus B, bit 2", de: "Bus B, Bit 2"}, type: data}
+    - {number: "18", name: "B1", function: {en: "Bus B, bit 1", de: "Bus B, Bit 1"}, type: data}
+    - {number: "19", name: "OE", function: {en: "Output enable, active low: high isolates both buses", de: "Ausgangsfreigabe, aktiv low: high trennt beide Busse"}, type: signal}
+    - {number: "20", name: "VCC", function: {en: "Supply, 2 V to 6 V", de: "Versorgung, 2 V bis 6 V"}, type: power}
+
+- id: cd4017
+  kind: pinout
+  category: pinouts
+  group: ics
+  name: {cs: "CD4017B (DIP-16)", da: "CD4017B (DIP-16)", de: "CD4017B (DIP-16)", el: "CD4017B (DIP-16)", en: "CD4017B (DIP-16)", es: "CD4017B (DIP-16)", fr: "CD4017B (DIP-16)", hi: "CD4017B (DIP-16)", it: "CD4017B (DIP-16)", ja: "CD4017B (DIP-16)", nl: "CD4017B (DIP-16)", no: "CD4017B (DIP-16)", pl: "CD4017B (DIP-16)", pt: "CD4017B (DIP-16)", sv: "CD4017B (DIP-16)", zh: "CD4017B (DIP-16)"}
+  doc: {en: "CMOS decade counter with ten decoded outputs and a carry output, drawn as the 16-pin PDIP from above.", de: "CMOS-Dekadenzähler mit zehn dekodierten Ausgängen und einem Übertragsausgang, gezeichnet als 16-poliges PDIP von oben."}
+  notes: {en: "The outputs are not in counting order around the package: Q0 is pin 3, Q1 is pin 2, Q2 is pin 4, Q3 is pin 7, Q4 is pin 10, Q5 is pin 1, Q6 is pin 5, Q7 is pin 6, Q8 is pin 9 and Q9 is pin 11. Only one output is high at a time, for one full clock cycle. To let the counter run, hold CLOCK INHIBIT and RESET low; do not leave these inputs open.", de: "Die Ausgänge liegen nicht in Zählreihenfolge am Gehäuse: Q0 ist Pin 3, Q1 ist Pin 2, Q2 ist Pin 4, Q3 ist Pin 7, Q4 ist Pin 10, Q5 ist Pin 1, Q6 ist Pin 5, Q7 ist Pin 6, Q8 ist Pin 9 und Q9 ist Pin 11. Es ist immer nur ein Ausgang high, jeweils einen vollen Taktzyklus lang. Damit der Zähler läuft, CLOCK INHIBIT und RESET auf low halten; diese Eingänge nicht offen lassen."}
+  tags: ["cd4017", "cd4017b", "4017", "mc14017b", "hef4017", "decade counter", "dekadenzähler", "johnson counter", "johnson-zähler", "counter", "zähler", "led chaser", "lauflicht", "cmos", "logic", "logik", "dip16", "dip-16"]
+  source: "Texas Instruments CD4017B, CD4022B datasheet SCHS027C (February 2004), page 1 terminal diagram and page 2 logic diagram; cross-checked against onsemi MC14017B/D Rev. 10 (August 2025), pin assignment, and Renesas CD4017BMS FN3297 Rev 0.00 (August 1998), page 1 pinouts"
+  shape:
+    type: dip
+    pins: 16
+  pins:
+    - {number: "1", name: "Q5", function: {en: "Decoded output 5: high while the count is 5", de: "Dekodierter Ausgang 5: high, solange der Zählerstand 5 ist"}, type: signal}
+    - {number: "2", name: "Q1", function: {en: "Decoded output 1: high while the count is 1", de: "Dekodierter Ausgang 1: high, solange der Zählerstand 1 ist"}, type: signal}
+    - {number: "3", name: "Q0", function: {en: "Decoded output 0: high while the count is 0", de: "Dekodierter Ausgang 0: high, solange der Zählerstand 0 ist"}, type: signal}
+    - {number: "4", name: "Q2", function: {en: "Decoded output 2: high while the count is 2", de: "Dekodierter Ausgang 2: high, solange der Zählerstand 2 ist"}, type: signal}
+    - {number: "5", name: "Q6", function: {en: "Decoded output 6: high while the count is 6", de: "Dekodierter Ausgang 6: high, solange der Zählerstand 6 ist"}, type: signal}
+    - {number: "6", name: "Q7", function: {en: "Decoded output 7: high while the count is 7", de: "Dekodierter Ausgang 7: high, solange der Zählerstand 7 ist"}, type: signal}
+    - {number: "7", name: "Q3", function: {en: "Decoded output 3: high while the count is 3", de: "Dekodierter Ausgang 3: high, solange der Zählerstand 3 ist"}, type: signal}
+    - {number: "8", name: "VSS", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "9", name: "Q8", function: {en: "Decoded output 8: high while the count is 8", de: "Dekodierter Ausgang 8: high, solange der Zählerstand 8 ist"}, type: signal}
+    - {number: "10", name: "Q4", function: {en: "Decoded output 4: high while the count is 4", de: "Dekodierter Ausgang 4: high, solange der Zählerstand 4 ist"}, type: signal}
+    - {number: "11", name: "Q9", function: {en: "Decoded output 9: high while the count is 9", de: "Dekodierter Ausgang 9: high, solange der Zählerstand 9 ist"}, type: signal}
+    - {number: "12", name: "CARRY OUT", function: {en: "Carry output: one cycle per ten clock pulses, high during counts 0 to 4; clocks the next counter in a chain", de: "Übertragsausgang: ein Zyklus je zehn Taktimpulse, high bei den Zählerständen 0 bis 4; taktet den nächsten Zähler einer Kette"}, type: signal}
+    - {number: "13", name: "CLOCK INHIBIT", function: {en: "Clock inhibit: high stops the counting", de: "Taktsperre: high hält den Zähler an"}, type: signal}
+    - {number: "14", name: "CLOCK", function: {en: "Clock input with Schmitt trigger: counts on the rising edge while CLOCK INHIBIT is low", de: "Takteingang mit Schmitt-Trigger: zählt bei steigender Flanke, solange CLOCK INHIBIT low ist"}, type: signal}
+    - {number: "15", name: "RESET", function: {en: "Reset, active high: sets the counter to zero, output 0 goes high", de: "Reset, aktiv high: setzt den Zähler auf null, Ausgang 0 geht auf high"}, type: signal}
+    - {number: "16", name: "VDD", function: {en: "Supply, 3 V to 18 V", de: "Versorgung, 3 V bis 18 V"}, type: power}
+
+- id: cd4051
+  kind: pinout
+  category: pinouts
+  group: ics
+  name: {cs: "CD4051B (DIP-16)", da: "CD4051B (DIP-16)", de: "CD4051B (DIP-16)", el: "CD4051B (DIP-16)", en: "CD4051B (DIP-16)", es: "CD4051B (DIP-16)", fr: "CD4051B (DIP-16)", hi: "CD4051B (DIP-16)", it: "CD4051B (DIP-16)", ja: "CD4051B (DIP-16)", nl: "CD4051B (DIP-16)", no: "CD4051B (DIP-16)", pl: "CD4051B (DIP-16)", pt: "CD4051B (DIP-16)", sv: "CD4051B (DIP-16)", zh: "CD4051B (DIP-16)"}
+  doc: {en: "CMOS 8-channel analog multiplexer and demultiplexer with three select inputs, an inhibit input and a separate negative supply, drawn as the 16-pin PDIP from above.", de: "CMOS-Analogmultiplexer und -Demultiplexer mit 8 Kanälen, drei Auswahleingängen, einem Sperreingang und einer eigenen negativen Versorgung, gezeichnet als 16-poliges PDIP von oben."}
+  notes: {en: "C, B and A select the channel as a binary number, A is the lowest bit; with INH high no channel is on. The control inputs switch between VSS (0) and VDD (1). The channels are not in order around the package: 0 is pin 13, 1 is pin 14, 2 is pin 15, 3 is pin 12, 4 is pin 1, 5 is pin 5, 6 is pin 2 and 7 is pin 4. The switches conduct both ways: as a demultiplexer COM OUT/IN is the input. TI gives 3 V to 20 V for a single supply and ±3 V to ±10 V for a dual supply, with 20 V as the absolute maximum; onsemi's MC14051B stops at 18 V.", de: "C, B und A wählen den Kanal als Binärzahl, A ist das niedrigste Bit; bei INH high ist kein Kanal eingeschaltet. Die Steuereingänge schalten zwischen VSS (0) und VDD (1). Die Kanäle liegen nicht der Reihe nach am Gehäuse: 0 ist Pin 13, 1 ist Pin 14, 2 ist Pin 15, 3 ist Pin 12, 4 ist Pin 1, 5 ist Pin 5, 6 ist Pin 2 und 7 ist Pin 4. Die Schalter leiten in beide Richtungen: Als Demultiplexer ist COM OUT/IN der Eingang. TI nennt 3 V bis 20 V für einfache und ±3 V bis ±10 V für symmetrische Versorgung, mit 20 V als absolutem Grenzwert; der MC14051B von onsemi endet bei 18 V."}
+  tags: ["cd4051", "cd4051b", "4051", "mc14051b", "hef4051", "74hc4051", "analog multiplexer", "analogmultiplexer", "analog switch", "analogschalter", "mux", "demux", "8-channel", "8-kanal", "cmos", "dip16", "dip-16"]
+  source: "Texas Instruments CD4051B, CD4052B, CD4053B datasheet SCHS047O (May 2026), section 4, Figure 4-1 and Table 4-1; cross-checked against onsemi MC14051B/D Rev. 15 (June 2024), pages 1, 2 and 5"
+  shape:
+    type: dip
+    pins: 16
+  pins:
+    - {number: "1", name: "CH 4 IN/OUT", function: {en: "Channel 4 in/out", de: "Kanal 4, Ein-/Ausgang"}, type: io}
+    - {number: "2", name: "CH 6 IN/OUT", function: {en: "Channel 6 in/out", de: "Kanal 6, Ein-/Ausgang"}, type: io}
+    - {number: "3", name: "COM OUT/IN", function: {en: "Common out/in: connected to the selected channel", de: "Gemeinsamer Aus-/Eingang: mit dem gewählten Kanal verbunden"}, type: io}
+    - {number: "4", name: "CH 7 IN/OUT", function: {en: "Channel 7 in/out", de: "Kanal 7, Ein-/Ausgang"}, type: io}
+    - {number: "5", name: "CH 5 IN/OUT", function: {en: "Channel 5 in/out", de: "Kanal 5, Ein-/Ausgang"}, type: io}
+    - {number: "6", name: "INH", function: {en: "Inhibit: high switches all channels off", de: "Sperre: high schaltet alle Kanäle ab"}, type: signal}
+    - {number: "7", name: "VEE", function: {en: "Negative supply of the analog signal path", de: "Negative Versorgung des analogen Signalwegs"}, type: power, notes: {en: "The analog signal may swing from VEE to VDD. With a single supply connect VEE to VSS; for signals around ground give VEE a negative voltage. VEE must not be above VSS.", de: "Das Analogsignal darf zwischen VEE und VDD liegen. Bei einfacher Versorgung VEE mit VSS verbinden; für Signale um Masse herum VEE an eine negative Spannung legen. VEE darf nicht über VSS liegen."}}
+    - {number: "8", name: "VSS", function: {en: "Ground, the low level of the control inputs", de: "Masse, der Low-Pegel der Steuereingänge"}, type: ground}
+    - {number: "9", name: "C", function: {en: "Channel select C, most significant bit", de: "Kanalauswahl C, höchstwertiges Bit"}, type: signal}
+    - {number: "10", name: "B", function: {en: "Channel select B", de: "Kanalauswahl B"}, type: signal}
+    - {number: "11", name: "A", function: {en: "Channel select A, least significant bit", de: "Kanalauswahl A, niederwertigstes Bit"}, type: signal}
+    - {number: "12", name: "CH 3 IN/OUT", function: {en: "Channel 3 in/out", de: "Kanal 3, Ein-/Ausgang"}, type: io}
+    - {number: "13", name: "CH 0 IN/OUT", function: {en: "Channel 0 in/out", de: "Kanal 0, Ein-/Ausgang"}, type: io}
+    - {number: "14", name: "CH 1 IN/OUT", function: {en: "Channel 1 in/out", de: "Kanal 1, Ein-/Ausgang"}, type: io}
+    - {number: "15", name: "CH 2 IN/OUT", function: {en: "Channel 2 in/out", de: "Kanal 2, Ein-/Ausgang"}, type: io}
+    - {number: "16", name: "VDD", function: {en: "Positive supply", de: "Positive Versorgung"}, type: power}

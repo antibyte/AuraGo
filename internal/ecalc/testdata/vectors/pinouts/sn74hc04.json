@@ -1,0 +1,51 @@
+{
+  "pinout": "sn74hc04",
+  "variants": [
+    {
+      "variant": "",
+      "counts": {
+        "signal": 12,
+        "ground": 1,
+        "power": 1
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "1A",
+          "type": "signal",
+          "ref": "TI SCLS078H, table Pin Functions, column D/DB/N/NS/PW/J/W (page 3)"
+        },
+        {
+          "number": "2",
+          "name": "1Y",
+          "type": "signal",
+          "ref": "TI SCLS078H, table Pin Functions, column D/DB/N/NS/PW/J/W (page 3)"
+        },
+        {
+          "number": "7",
+          "name": "GND",
+          "type": "ground",
+          "ref": "TI SCLS078H, table Pin Functions, column D/DB/N/NS/PW/J/W (page 3)"
+        },
+        {
+          "number": "8",
+          "name": "4Y",
+          "type": "signal",
+          "ref": "TI SCLS078H, table Pin Functions, column D/DB/N/NS/PW/J/W (page 3)"
+        },
+        {
+          "number": "13",
+          "name": "6A",
+          "type": "signal",
+          "ref": "TI SCLS078H, table Pin Functions, column D/DB/N/NS/PW/J/W (page 3)"
+        },
+        {
+          "number": "14",
+          "name": "VCC",
+          "type": "power",
+          "ref": "TI SCLS078H, table Pin Functions, column D/DB/N/NS/PW/J/W (page 3)"
+        }
+      ]
+    }
+  ]
+}

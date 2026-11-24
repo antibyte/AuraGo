@@ -1,0 +1,70 @@
+{
+  "pinout": "sn74hc165",
+  "variants": [
+    {
+      "variant": "",
+      "counts": {
+        "signal": 2,
+        "data": 12,
+        "ground": 1,
+        "power": 1
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "SH/LD",
+          "type": "signal",
+          "ref": "TI SCLS116H, table Pin Functions, column D/DB/N/NS/PW/J/W (page 3)"
+        },
+        {
+          "number": "2",
+          "name": "CLK",
+          "type": "data",
+          "ref": "TI SCLS116H, table Pin Functions, column D/DB/N/NS/PW/J/W (page 3)"
+        },
+        {
+          "number": "7",
+          "name": "~QH",
+          "type": "data",
+          "ref": "TI SCLS116H, table Pin Functions, column D/DB/N/NS/PW/J/W (page 3)"
+        },
+        {
+          "number": "8",
+          "name": "GND",
+          "type": "ground",
+          "ref": "TI SCLS116H, table Pin Functions, column D/DB/N/NS/PW/J/W (page 3)"
+        },
+        {
+          "number": "9",
+          "name": "QH",
+          "type": "data",
+          "ref": "TI SCLS116H, table Pin Functions, column D/DB/N/NS/PW/J/W (page 3)"
+        },
+        {
+          "number": "10",
+          "name": "SER",
+          "type": "data",
+          "ref": "TI SCLS116H, table Pin Functions, column D/DB/N/NS/PW/J/W (page 3)"
+        },
+        {
+          "number": "11",
+          "name": "A",
+          "type": "data",
+          "ref": "TI SCLS116H, table Pin Functions, column D/DB/N/NS/PW/J/W (page 3)"
+        },
+        {
+          "number": "15",
+          "name": "CLK INH",
+          "type": "signal",
+          "ref": "TI SCLS116H, table Pin Functions, column D/DB/N/NS/PW/J/W (page 3)"
+        },
+        {
+          "number": "16",
+          "name": "VCC",
+          "type": "power",
+          "ref": "TI SCLS116H, table Pin Functions, column D/DB/N/NS/PW/J/W (page 3)"
+        }
+      ]
+    }
+  ]
+}

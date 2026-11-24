@@ -1,0 +1,64 @@
+{
+  "pinout": "sn74hc245",
+  "variants": [
+    {
+      "variant": "",
+      "counts": {
+        "signal": 2,
+        "data": 16,
+        "ground": 1,
+        "power": 1
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "DIR",
+          "type": "signal",
+          "ref": "TI SCLS131F, section 5 pin table (page 3)"
+        },
+        {
+          "number": "2",
+          "name": "A1",
+          "type": "data",
+          "ref": "TI SCLS131F, section 5 pin table (page 3)"
+        },
+        {
+          "number": "9",
+          "name": "A8",
+          "type": "data",
+          "ref": "TI SCLS131F, section 5 pin table (page 3)"
+        },
+        {
+          "number": "10",
+          "name": "GND",
+          "type": "ground",
+          "ref": "TI SCLS131F, section 5 pin table (page 3)"
+        },
+        {
+          "number": "11",
+          "name": "B8",
+          "type": "data",
+          "ref": "TI SCLS131F, section 5 pin table (page 3)"
+        },
+        {
+          "number": "18",
+          "name": "B1",
+          "type": "data",
+          "ref": "TI SCLS131F, section 5 pin table (page 3)"
+        },
+        {
+          "number": "19",
+          "name": "OE",
+          "type": "signal",
+          "ref": "TI SCLS131F, section 5 pin table and Figure 5-1 (page 3)"
+        },
+        {
+          "number": "20",
+          "name": "VCC",
+          "type": "power",
+          "ref": "TI SCLS131F, section 5 pin table (page 3)"
+        }
+      ]
+    }
+  ]
+}
