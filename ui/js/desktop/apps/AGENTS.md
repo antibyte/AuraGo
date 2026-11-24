@@ -3835,8 +3835,10 @@ buttons and menu popovers remain excluded from those gestures.
   becomes the HUD colour (`--qc-ph`); the phosphor switch can replace it with fixed
   Green, Amber or Ice. Connected, connecting, error and idle colours are fixed
   (`--qc-ok`, `--qc-warn`, `--qc-err`, `--qc-text-dim`) and never follow the accent.
-- The built-in Terminal screen may stay on a dark terminal surface (`#0d1117` /
-  `#0f172a`); toolbars follow theme.
+- The built-in Terminal screen may stay on a dark terminal surface (the Modern
+  screen's theme-derived background, which falls back to the built-in dark
+  background when the theme has no well colour; retro screens keep their own dark
+  backgrounds); toolbars follow theme.
 - Gallery thumbnails (`.vd-gallery-thumb`), the info-panel preview
   (`.vd-gallery-info-preview`) and the lightbox stage (`.vd-lightbox-stage`)
   may stay dark for media contrast; card chrome, toolbar, info panel and the
@@ -6789,8 +6791,19 @@ registration lives in `internal/desktop/types.go`.
   key-click rules, at most one tone per 150 ms and only on a running
   AudioContext. The gap counts from the tone itself: the first BEL creates
   the context, whose constructor can block the page for 100-200 ms, and BELs
-  parsed behind that stall add no tone. The directory marks `c64` entries `[C]` (never checked) and
-  explains the marker in its help when one is listed.
+  parsed behind that stall add no tone. The directory marks `c64` entries
+  `[C]` (never checked) and explains the marker in its help when one is listed.
+  Category headings are
+  divider rows (`headingLine`): a double rule, the upper-cased category label in
+  bold cyan, then a dim rule that fills the row. The title (`headerLine`) is
+  bold bright white; entry numbers are dim on unselected rows only. Every entry
+  row (`entryLine`) is exactly `width` cells: name and description are padded by
+  display width, and the last-seen column is dropped when the description would
+  get fewer than 12 cells. The selected row takes the `selectionSgr` option (a
+  function; `terminal.js` returns `modernBar`). A non-empty return value is an SGR
+  background with bright white text, used for Modern's theme bar, and the marker
+  keeps that text colour; an empty return value keeps inverse video, as in the
+  retro styles.
   `world` entries edit lines locally while `echo.remote` is false and suppress
   local echo and history while `echo.hidden` is true. Input leaves in UTF-8
   frames of at most 16 KiB (server read limit 64 KiB). The host-key prompt
@@ -6815,7 +6828,30 @@ registration lives in `internal/desktop/types.go`.
   stream passes unchanged so ANSI works. Modem sounds follow the key-click
   rules. Style catalog in `terminal-styles.js`
   (`window.TerminalStyles`: `ids`, `normalize`, `load`, `save`, `profile`,
-  `applyXterm`, `effectControls`, `loadEffects`, `saveEffects`, `resetEffects`).
+  `applyXterm`, `effectControls`, `loadEffects`, `saveEffects`, `resetEffects`,
+  `icon(name)` (a 16×16 inline SVG line icon string, `aria-hidden`),
+  `setButton(button, name, label, title)` (sets an icon and a label span; the
+  label is written with `textContent`, and `aria-label` and `title` carry the
+  name), `toolbarMarkup(o)` (the console header markup, see below),
+  `syncRange(input)` (writes the slider's fill to `--vd-fill`) and
+  `modernTheme(el)` (see below)). `profile()` returns the static profile: for
+  `modern` that is the built-in `MODERN_THEME` palette, and `terminal.js` replaces
+  it with `modernTheme(root)` in `modernLook()`. `modernTheme(el)` reads
+  `--vd-mat-well-color` and `--vd-accent` from the app root through a hidden probe's
+  computed `background-color`, converted to RGB on a 1×1 canvas. A transparent or
+  unparsed result counts as unresolved and the fallbacks apply; a partly transparent
+  colour is blended over black. The background is the well colour with its linear luminance capped
+  at 0.012 and its hue kept: a darker well keeps its colour, a light theme gets a
+  dark tone in its hue, and without a well colour it is the built-in background.
+  With a well colour, `cursorAccent` is the background too. When the accent has a
+  contrast of at least 3:1 against that background, the cursor is the accent and
+  the selection is the background mixed 65 % / 35 % with the accent; otherwise the
+  cursor and selection keep the built-in values. `selectionSgr` is the directory
+  bar's SGR prefix: the accent mixed into the background at the largest accent
+  share from 60 % down to 20 % (5 % steps) that keeps white text at 4.5:1 or
+  better; with no usable accent, or no step passing, it is a fixed quiet blue bar.
+  `barSgr` is a private helper of `modernTheme`, not a member of
+  `window.TerminalStyles`.
   IDs: `modern`, `amber`, `green`, `apple2`, `commodore64`,
   `ibm3278`, `vintage`, `mono-green`, `transparent-green`, `color-monitor`.
   Persist `aurago.desktop.terminal.style` and audio mute
@@ -6840,7 +6876,16 @@ registration lives in `internal/desktop/types.go`.
   and CAN/SUB cancel an escape. Scope is this app only. Reduced motion
   and `dataset.animations === 'false'` disable flicker, burn-in, animated grain, and audio.
   The native Effects dialog applies bounded sliders to the existing renderer,
-  without recreating xterm or its socket. Preferences live per style in
+  without recreating xterm or its socket. The dialog
+  (`.vd-terminal-effects-dialog`) is a flex column while open: a fixed header
+  (title, style name, close button), a footer (saved hint and reset), and between
+  them the body
+  (`.vd-terminal-effects-body`), which scrolls. The header has no sticky
+  positioning. Each slider's fill is the custom property `--vd-fill`, which
+  `TerminalStyles.syncRange` sets on open and on every input; the track gradient
+  reads it. The entrance animation (`vd-terminal-dialog-in`, 140 ms) runs only
+  under `prefers-reduced-motion: no-preference` and when `body` does not have
+  `data-animations="false"`. Preferences live per style in
   `aurago.desktop.terminal.effects.v1`; malformed/blocked storage falls back
   to presets, and reset affects only the selected style. Overall intensity zero
   restores unwarped source output and removes reflection. Brightness, bloom,
@@ -6856,14 +6901,98 @@ registration lives in `internal/desktop/types.go`.
   subtly curved glass and recessed bezel using original rendering code. Keep
   profile curvature gentle so text rows remain nearly straight. Share Tech
   Mono is embedded as `Aura Terminal`; pixel profiles retain Press Start 2P.
+  The mono phosphor mapping (`phosphor()` in the shader of `terminal-crt.js`,
+  active where `u_mono` is 1) takes each
+  sample's luma (0.299, 0.587, 0.114) blended 35 % toward its peak channel,
+  divides it by `u_fgLight`, clamps to 1 and raises it to the power 1.5 (the
+  contrast exponent), then draws it in the profile's phosphor colour.
+  `u_fgLight` comes from `foregroundLight(theme.foreground)`: the style's
+  foreground through the same blend, floored at 0.2 (1 when the colour is not
+  `#rrggbb`), so a sample at the foreground's level maps to full light for
+  foregrounds above the floor. Coloured backgrounds therefore stay below the
+  text. `setProfile` sets `u_mono` to 0 for profiles with `color: true`
+  (`commodore64`, `color-monitor`), which keep their colours.
   Additive bloom and decaying persistence share a half-resolution blurred
   source buffer; never feed warped output back into the source. The native
   xterm layer stays interactive and is visually hidden only after a WebGL frame.
   Housing materials, seams, vents and localized wear live in the app CSS;
   older Apple II/Vintage cases show more wear. Decorative hardware is hidden
   from accessibility and pointer input. Its LED follows the existing localized
-  socket status via `data-terminal-state`; Modern stays frameless. Keep compact
+  socket status via `data-terminal-state`; Modern has no hardware frame. Keep compact
   cases inside the app without changing xterm's measured screen padding.
+  The console header (`.vd-terminal-toolbar`, from `toolbarMarkup`) has a status
+  group and an actions group. The status group holds the status dot
+  (`.vd-terminal-status-dot`, coloured by `data-terminal-state` on the app root),
+  the status text (`[data-terminal-status]`, `role="status"`), the status detail
+  (`[data-terminal-status-detail]`, the dialled entry's name, set only while
+  dialing and connected) and the grid readout (`[data-terminal-grid]`,
+  `cols×rows`, `aria-hidden`). The actions group holds the Retro-Net button
+  (`[data-terminal-retronet-action]`, hidden in the directory and while Retro-Net
+  is off and no call runs; its action is `directory`, or `hangup` while dialing or
+  connected), the baud field (`[data-terminal-baud-label]`, shown only with
+  Retro-Net), a separator that hides with the baud field, the style select
+  (`[data-terminal-style]`), the Effects button (`[data-terminal-effects]`,
+  `aria-haspopup="dialog"`) and the sound toggle (`[data-terminal-audio]`). The
+  sound toggle keeps one label (`desktop.terminal_audio`); its state is in
+  `aria-pressed` and its `title`, and it is hidden for non-retro styles. The
+  Retro-Net and sound buttons update their text through `setButton`, not through
+  `textContent` on the button. `toolbarMarkup(o)` escapes the texts it receives
+  (`esc`); the option lists (`baudOptions`, `styleOptions`) are markup built by
+  `terminal.js`, which escapes the baud labels and style names. `setButton()`
+  writes the label with `textContent` and sets `aria-label` and `title` as
+  attributes. Under `forced-colors: active` the status dot, the separator, and the
+  slider track and thumb use system colours. Icons are inline SVG from `icon()`.
+  The container
+  queries on `.vd-terminal-app` (`container: terminal / inline-size`): at 680 px
+  and below, the buttons become 32 px icon-only squares and their labels are
+  visually hidden; at 520 px and below, the grid readout and the status detail
+  are hidden, the gaps shrink, and the select fields get a maximum width (the
+  baud label a smaller one).
+  Modern (`data-terminal-style="modern"`) takes its colours from the desktop
+  theme. `modernLook()` in `terminal.js` calls `modernTheme(root)`, writes the
+  background to `--vd-term-screen-bg` on the app root (the screen uses it), sets
+  `term.options.theme` when the background, cursor, selection or bar changed, and
+  redraws the directory with the new bar. It runs after every `setGeometry()` call
+  except `c64`. Keep this rule: every geometry change re-applies the Modern look,
+  because `leave()` in `terminal-geometry.js` puts the static profile theme back
+  through `applyXterm`. A pinned grid refits with it. A `MutationObserver` on `document.body` (attributes
+  `data-theme`, `data-scheme`, `data-fruity-mode`, `data-accent`, `style`) re-runs
+  it one animation frame later; `cleanup()` disconnects that observer and cancels
+  the pending frame. The palette rule: the 16 ANSI colours and the foreground are
+  fixed in `MODERN_THEME`, and the background, cursor, cursor accent, selection and
+  directory bar come from `modernTheme(el)`. Normal colours are deep enough to
+  carry bold white text as a bar background, as BBS screens use them, and bright
+  colours are vivid. The `.xterm` padding rule needs
+  `:not([data-terminal-geometry])`, so it applies only in fit mode; pinned `vt`,
+  `bbs` and `c64` grids keep the layout from the geometry module. The xterm viewport
+  background is transparent (`!important`), so the screen's own background shows
+  through and no second colour sits behind the grid. Under
+  `data-terminal-renderer="webgl"`, for every style, `.xterm-scrollable-element`
+  is transparent too (`!important`): xterm paints the theme background on that
+  element over exactly the content box, and the CRT overlay's alpha below 1 in the
+  transparent-green glass (0.82) would show that box as a lighter rectangle. The viewport scrollbar is an
+  8 px `::-webkit-scrollbar` with a transparent track, a translucent light thumb
+  and no arrow buttons. The viewport also sets `scrollbar-width: auto` and
+  `scrollbar-color: auto`: the window content sets `scrollbar-color` on every
+  descendant, and Chromium then ignores the `::-webkit-scrollbar` rules, so it
+  must be reset for them to apply. Engines without `::-webkit-scrollbar` get
+  `scrollbar-width` and `scrollbar-color` through
+  `@supports not selector(::-webkit-scrollbar)`.
+  The housing has no thin wear streaks: wear is the localized scuffs on
+  `.vd-terminal-bezel::after`, whose opacity is `--vd-term-wear` per style, and
+  the seam is a fixed line on `::before`. The power symbol is an inline SVG
+  (`icon('power')`) inside `.vd-terminal-power`. The maker plate
+  (`.vd-terminal-maker`) shows a phosphor-type line from its `::after`, whose
+  content is `var(--vd-term-phosphor)`; each retro style sets that value in the
+  stylesheet, and a style without one shows nothing.
+  The dialing blink is the declaration `animation: vd-terminal-led-dial`, which
+  appears once in `desktop-app-terminal.css`. Its selector list covers the LED and
+  the status dot while `data-terminal-state` is `desktop.terminal_dialing`
+  (`.vd-terminal-led` and `.vd-terminal-status-dot`), under
+  `prefers-reduced-motion: no-preference` and
+  `body:not([data-animations="false"])`; otherwise the LED stays lit. A test counts
+  the declaration (`desktop_terminal_styles_test.go`), so it must stay exactly once,
+  and any selector that blinks belongs in that one list.
   Browser verification is
   `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run 'TestDesktopTerminalRetro(Net(C64)?)?Browser' -count=1 -v`
   (styles/CRT, Retro-Net and the C64 call, each in both motion modes; the
@@ -6888,7 +7017,18 @@ registration lives in `internal/desktop/types.go`.
   `TestDesktopTerminalBehaviourScripts`). Static contracts, the C64 font and
   the Node scripts: `go test ./ui -run TestDesktopTerminal -count=1` (the
   browser tests skip without `AURAGO_RUN_BROWSER_SMOKE=1`).
-  WebGL/canvas failure uses CSS fallback and keeps the WebSocket. Style
+  WebGL/canvas failure uses CSS fallback and keeps the WebSocket. The shell
+  socket (`openShell`) ends in one of two ways. `onerror` acts only while the
+  socket is the current `ws`: before `onopen` it calls `onclose` directly, and after
+  `onopen` it sets `desktop.terminal_unavailable` and nothing else. `onclose`
+  runs once (the `ended` flag guards it) and picks its state from whether
+  `onopen` ran: a socket that never opened ends as `desktop.terminal_unavailable`,
+  one that was open as `desktop.terminal_stopped`. Without Retro-Net it writes
+  that status as a dim line (after a line break when the socket had opened).
+  After an error on an open socket, the close event that follows sets the
+  stopped state (and, without Retro-Net, the dim line). With Retro-Net on and mode `shell`, the end
+  writes the press-key text as a dim line and enters the result state
+  (`enterResult()`) instead. Style
   changes wait for `document.fonts.load` before changing xterm options or
   creating the canvas renderer, then fit once. Ignore stale font completions
   after another style selection or disposal. Exposes
