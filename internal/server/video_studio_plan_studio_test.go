@@ -270,3 +270,31 @@ func TestVideoStudioPlanStudioScenesDuplicateIDAdoptsOnce(t *testing.T) {
 		t.Fatalf("duplicate scene adopted the stored fields: %+v", got[1])
 	}
 }
+
+// The stored keyframe asset stays only for a library keyframe that is still a library keyframe.
+func TestVideoStudioPlanStudioAdoptKeyframeAsset(t *testing.T) {
+	stored := storyplan.Scene{Keyframe: storyplan.Keyframe{Source: storyplan.KeyframeLibrary, AssetID: "img_1"}}
+	for source, want := range map[string]string{storyplan.KeyframeLibrary: "img_1", storyplan.KeyframeNone: "", storyplan.KeyframeGenerated: ""} {
+		scene := storyplan.Scene{Keyframe: storyplan.Keyframe{Source: source, AssetID: "forged"}}
+		videoStudioPlanStudioAdopt(&scene, &stored)
+		if scene.Keyframe.AssetID != want {
+			t.Fatalf("source %q kept asset %q, want %q", source, scene.Keyframe.AssetID, want)
+		}
+	}
+	generated := storyplan.Scene{Keyframe: storyplan.Keyframe{Source: storyplan.KeyframeGenerated, AssetID: "img_gen"}}
+	scene := storyplan.Scene{Keyframe: storyplan.Keyframe{Source: storyplan.KeyframeLibrary}}
+	videoStudioPlanStudioAdopt(&scene, &generated)
+	if scene.Keyframe.AssetID != "" {
+		t.Fatalf("a former generated keyframe asset became a library pick: %q", scene.Keyframe.AssetID)
+	}
+}
+
+// An unrelated patch keeps the server-made keyframe asset of a generated keyframe.
+func TestVideoStudioPlanStudioAdoptKeepsGeneratedKeyframe(t *testing.T) {
+	stored := storyplan.Scene{Keyframe: storyplan.Keyframe{Source: storyplan.KeyframeGenerated, AssetID: "img_gen"}}
+	scene := storyplan.Scene{Keyframe: storyplan.Keyframe{Source: storyplan.KeyframeGenerated}}
+	videoStudioPlanStudioAdopt(&scene, &stored)
+	if scene.Keyframe.AssetID != "img_gen" {
+		t.Fatalf("generated keyframe asset = %q", scene.Keyframe.AssetID)
+	}
+}

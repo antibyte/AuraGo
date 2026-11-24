@@ -375,7 +375,12 @@ func videoStudioPlanStudioAdopt(scene *storyplan.Scene, stored *storyplan.Scene)
 	scene.State = keep.State
 	scene.ClipAssetID, scene.StillAssetID, scene.TimelineClipID = keep.ClipAssetID, keep.StillAssetID, keep.TimelineClipID
 	scene.Cost, scene.Error = keep.Cost, keep.Error
-	scene.Keyframe.AssetID = keep.Keyframe.AssetID
+	// Same rule as the PUT merge: the asset stays only when the stored and the written keyframe are of the same kind,
+	// a library pick (never set by the agent) or a server-made keyframe. A switch between the two clears it.
+	scene.Keyframe.AssetID = ""
+	if (keep.Keyframe.Source == storyplan.KeyframeLibrary) == (strings.TrimSpace(scene.Keyframe.Source) == storyplan.KeyframeLibrary) {
+		scene.Keyframe.AssetID = keep.Keyframe.AssetID
+	}
 	scene.Narration.AssetID, scene.Narration.MeasuredSeconds = keep.Narration.AssetID, keep.Narration.MeasuredSeconds
 }
 
