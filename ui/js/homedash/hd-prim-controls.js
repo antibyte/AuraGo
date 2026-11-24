@@ -116,7 +116,7 @@
         const o = opts || {}, lang = langOf(o);
         const node = root('div', 'hd-stepper', sized(o), { role: 'group', 'aria-label': o.label });
         const button = (dir, name, label) => el('button', { class: 'hd-step', type: 'button', 'data-dir': dir, 'aria-label': label }, iconNode(name));
-        const dec = button(-1, 'minus', o.decLabel), inc = button(1, 'plus', o.incLabel);
+        const dec = button(-1, 'minus', o.decLabel || String.fromCodePoint(0x2212)), inc = button(1, 'plus', o.incLabel || '+');
         const num = E.prim.numeral({ chars: 4, unit: o.unit, decimals: o.decimals, lang, size: o.size });
         const spin = el('span', { class: 'hd-step-value', role: 'spinbutton', tabindex: 0, 'aria-label': o.label }, num.el);
         node.appendChild(dec); node.appendChild(spin); node.appendChild(inc);

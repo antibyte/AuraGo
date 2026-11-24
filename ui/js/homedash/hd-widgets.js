@@ -41,8 +41,12 @@
         if (o.parent) o.parent.appendChild(wrapper);
 
         const resources = bag();
-        const fns = typeof o.api === 'function' ? o.api({ widget, mode, signal: resources.signal }) : null;
-        for (const name of FACTORY_FNS) if (!fns || typeof fns[name] !== 'function') { resources.dispose(); frame.destroy(); wrapper.remove(); throw new Error('hd-widgets: api.' + name + ' missing'); }
+        const abandon = () => { resources.dispose(); frame.destroy(); wrapper.remove(); };
+        let fns;
+        try {
+            fns = typeof o.api === 'function' ? o.api({ widget, mode, signal: resources.signal }) : null;
+            for (const name of FACTORY_FNS) if (!fns || typeof fns[name] !== 'function') throw new Error('hd-widgets: api.' + name + ' missing');
+        } catch (err) { abandon(); throw err; }
 
         const api = Object.freeze(Object.defineProperties({
             body: frame.body, widget, variant, family, t, fmt: F, prim: E.prim, icons: E.icons, signal: resources.signal, lang,
@@ -58,8 +62,11 @@
             const stateText = ['unavailable', 'unknown', 'error', 'pending'].includes(w) ? t(F.STATE_PREFIX + w) : statusText !== null ? statusText : (p ? F.stateText(p, t) : '');
             frame.set({ title: widget.title || (p && p.name) || '', stateText });
         }
-        const instance = def.create(api);
-        if (!instance || typeof instance.update !== 'function') { resources.dispose(); frame.destroy(); wrapper.remove(); throw new Error('hd-widgets: create must return an object with update'); }
+        let instance;
+        try {
+            instance = def.create(api);
+            if (!instance || typeof instance.update !== 'function') throw new Error('hd-widgets: create must return an object with update');
+        } catch (err) { abandon(); throw err; }
         const inst = { update: instance.update.bind(instance), resize: typeof instance.resize === 'function' ? instance.resize.bind(instance) : noop, destroy: typeof instance.destroy === 'function' ? instance.destroy.bind(instance) : noop };
 
         function update() {
@@ -76,12 +83,13 @@
         function applyMode() {
             const inert = mode === 'design' || mode === 'thumb';
             setAttr(frame.body, 'inert', inert ? '' : null);
+            setAttr(frame.el, 'inert', mode === 'thumb' ? '' : null);
             setAttr(wrapper, 'tabindex', mode === 'design' ? '0' : null);
             setAttr(wrapper, 'aria-hidden', mode === 'thumb' ? 'true' : null);
             setAttr(wrapper, 'data-hd-motion', mode === 'thumb' ? 'none' : null);
         }
-        function setMode(m) { mode = m; applyMode(); update(); }
-        function resize(size) { setAttr(wrapper, 'data-hd-size', sizeText(size)); inst.resize(size); }
+        function setMode(m) { if (destroyed) return; mode = m; applyMode(); update(); }
+        function resize(size) { if (destroyed) return; setAttr(wrapper, 'data-hd-size', sizeText(size)); inst.resize(size); }
         function destroy() {
             if (destroyed) return; destroyed = true;
             resources.dispose(); inst.destroy(); frame.destroy(); wrapper.remove();

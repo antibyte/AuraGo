@@ -33,6 +33,10 @@ export const tests = [
   ['stepper disables a button at its limit', () => { const { E } = boot(); const s = E.prim.stepper(OPTS.stepper); const [dec, inc] = s.el.querySelectorAll('button.hd-step');
     s.set({ value: 5 }); assert.equal(dec.getAttribute('aria-disabled'), 'true'); assert.equal(inc.getAttribute('aria-disabled'), null); assert.equal(s.el.querySelector('[role="spinbutton"]').getAttribute('aria-valuenow'), '5');
     s.set({ value: 30 }); assert.equal(inc.getAttribute('aria-disabled'), 'true'); assert.equal(dec.getAttribute('aria-disabled'), null); assert.equal(dec.getAttribute('aria-label'), 'Decrease'); }],
+  ['stepper buttons always have an accessible name', () => { const { E } = boot(); const s = E.prim.stepper({ label: 'T', min: 0, max: 10 });
+    assert.equal(s.el.querySelector('[data-dir="-1"]').getAttribute('aria-label'), String.fromCodePoint(0x2212)); assert.equal(s.el.querySelector('[data-dir="1"]').getAttribute('aria-label'), '+');
+    const g = E.prim.stepper({ label: 'T', min: 0, max: 10, decLabel: 'Less', incLabel: 'More' });
+    assert.equal(g.el.querySelector('[data-dir="-1"]').getAttribute('aria-label'), 'Less'); assert.equal(g.el.querySelector('[data-dir="1"]').getAttribute('aria-label'), 'More'); }],
   ['segmented uses a roving tabindex', () => { const { E } = boot(); const g = E.prim.segmented(OPTS.segmented); g.set({ value: 'cool' }); const o = g.el.querySelectorAll('.hd-seg-opt');
     assert.equal(v(g.el, '--hd-index'), '1'); assert.equal(v(g.el, '--hd-count'), '3'); assert.deepEqual(o.map(x => [x.getAttribute('aria-checked'), x.getAttribute('tabindex')]), [['false', '-1'], ['true', '0'], ['false', '-1']]);
     g.set({ value: 'zzz' }); assert.equal(v(g.el, '--hd-index'), '-1'); assert.equal(o[0].getAttribute('tabindex'), '0'); }],

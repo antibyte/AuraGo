@@ -50,5 +50,30 @@ export const tests = [
     assert.equal(text(), ''); assert.equal(h.el.getAttribute('data-hd-status'), 'ok');
     api.setStatus('Ready'); assert.equal(text(), 'Ready'); api.setStatus(null); assert.equal(text(), '');
     const g = E.widgets.host({ widget: { id: 'm', type: 'zz_null', bindings: { primary: 'x' } }, size: { w: 1, h: 1 }, t: E.core.makeT(WORDS), api: factory({ view: null }) });
-    assert.equal(g.el.querySelector('.hd-state-text').textContent, ''); }]
+    assert.equal(g.el.querySelector('.hd-state-text').textContent, ''); }],
+  ['entity tile with no value shows the empty numeral and no lamp', () => { const { E } = boot();
+    for (const v of [{ value: null, status: 'unavailable', available: false }, { status: 'ok' }]) {
+      const h = E.widgets.host({ widget: { id: 'w', type: 'entity', variant: 'tile', bindings: { primary: 'x' } }, size: { w: 2, h: 1 }, t: E.core.makeT(WORDS), api: () => ({ entity: () => v, can: () => true, command() {}, moreInfo() {}, history() {}, announce() {} }) });
+      const num = h.el.querySelector('.hd-numeral'), lamp = h.el.querySelector('.hd-lamp'), text = num.querySelector('.hd-num-int').textContent;
+      assert.notEqual(text, 'null'); assert.notEqual(text, 'undefined'); assert.equal(num.getAttribute('data-hd-empty'), 'true'); assert.equal(lamp.hasAttribute('hidden'), true);
+    } }],
+  ['host cleans up when create or the api factory throws', () => { const { E, document } = boot(); let signal;
+    E.widgets.register('zz_throw', { bindings: [], variants: ['a'], create() { throw new Error('boom'); } });
+    E.widgets.register('zz_okay', { bindings: [], variants: ['a'], create() { return { update() {} }; } });
+    const parent = document.createElement('div');
+    assert.throws(() => E.widgets.host({ widget: { id: 'a', type: 'zz_throw', bindings: {} }, size: { w: 1, h: 1 }, t: k => k, parent, api: ctx => { signal = ctx.signal; return factory({ view: null })(ctx); } }), /boom/);
+    assert.equal(parent.children.length, 0); assert.equal(signal.aborted, true);
+    assert.throws(() => E.widgets.host({ widget: { id: 'b', type: 'zz_okay', bindings: {} }, size: { w: 1, h: 1 }, t: k => k, parent, api: () => { throw new Error('factory'); } }), /factory/);
+    assert.equal(parent.children.length, 0); }],
+  ['a destroyed host ignores resize, setMode and update', () => { const { E } = boot(); const n = { resize: 0, update: 0 };
+    E.widgets.register('zz_count', { bindings: [], variants: ['a'], create() { return { update() { n.update++; }, resize() { n.resize++; } }; } });
+    const h = E.widgets.host({ widget: { id: 'c', type: 'zz_count', bindings: {} }, size: { w: 1, h: 1 }, t: k => k, api: factory({ view: null }) });
+    h.destroy(); const before = JSON.stringify(n);
+    h.resize({ w: 2, h: 2 }); h.setMode('design'); h.update(); assert.equal(JSON.stringify(n), before); assert.equal(h.el.getAttribute('data-hd-size'), '1x1'); }],
+  ['thumb mode makes the whole frame inert', () => { const { E } = boot();
+    const h = E.widgets.host({ widget: { id: 'm', type: 'entity', variant: 'tile', bindings: { primary: 'x' } }, size: { w: 1, h: 1 }, t: k => k, moreLabel: 'More', api: factory({ view: view({ value: 'on' }) }) });
+    const frame = h.el.querySelector('.hd-frame');
+    h.setMode('thumb'); assert.equal(frame.hasAttribute('inert'), true); assert.equal(h.el.getAttribute('aria-hidden'), 'true'); assert.equal(h.body.hasAttribute('inert'), true);
+    h.setMode('view'); assert.equal(frame.hasAttribute('inert'), false); assert.equal(h.el.hasAttribute('aria-hidden'), false); assert.equal(h.body.hasAttribute('inert'), false);
+    h.setMode('design'); assert.equal(frame.hasAttribute('inert'), false); assert.equal(h.body.hasAttribute('inert'), true); }]
 ];

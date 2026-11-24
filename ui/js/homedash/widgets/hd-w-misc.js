@@ -19,6 +19,7 @@
                     const e = v.entities.primary;
                     if (!e) { num.set({ value: null }); show(true); return; }
                     if (typeof e.value === 'number') { num.set({ value: e.value, unit: e.unit }); show(true); return; }
+                    if (e.value == null) { num.set({ value: null }); show(true); return; }
                     const on = F.isOn(e);
                     if (on !== null) { lamp.set({ on, text: F.stateText(e, api.t), status: e.status, pending: !!e.pending }); show(false); return; }
                     num.set({ text: String(e.value) }); show(true);
