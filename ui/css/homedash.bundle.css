@@ -806,7 +806,7 @@
   --hd-i-gap-dash: 0 20 5 0;
   --hd-i-mount-l: 0 1px 2px color-mix(in srgb, #000000 30%, transparent), 0 6px 16px -6px color-mix(in srgb, #000000 35%, transparent);
   --hd-stroke-hair: 1px; --hd-stroke-1: 1.5px; --hd-stroke-2: 2px; --hd-stroke-arc: 0.08; --hd-stroke-tick: 1.25px;
-  --hd-i-glow-add: 6; --hd-i-gap-add: 2; --hd-th-stroke: 12; --hd-i-needle-glow-u: 3;
+  --hd-i-glow-add: 2; --hd-i-gap-add: 2; --hd-th-stroke: 12; --hd-i-needle-glow-u: 3;
   --hd-font-ui: "Oxanium", "Geist", system-ui, sans-serif; --hd-font-label: var(--hd-font-ui);
   --hd-font-num: "HomeDash Share Tech Mono", "Geist Mono", monospace;
   --hd-num-features: "tnum" 1; --hd-num-weight: 400; --hd-num-weight-small: 400; --hd-num-tracking: 0em; --hd-num-cap: 0.74;
@@ -845,8 +845,8 @@
 /* Shared state language, Instrument column. Unavailable: the body goes dark and a dashed NO DATA box says so (the module writes the word to data-hd-nodata).
    Stale: lit segments fall back to the muted ink. Alert: --hd-i-val switches to the alert colour above and the lit elements pulse six times (motion block). */
 .hd-widget[data-hd-family="instrument"][data-hd-status="unavailable"] .hd-body > * { visibility: hidden; }
-.hd-widget[data-hd-family="instrument"][data-hd-status="unavailable"] .hd-body::after { content: attr(data-hd-nodata); grid-area: 1 / 1; place-self: center; box-sizing: border-box; max-inline-size: 100%; padding: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  border: var(--hd-dash-unavail); color: var(--hd-ink-faint); font: 500 11.5px / 1 var(--hd-font-ui); letter-spacing: var(--hd-label-tracking); }
+.hd-widget[data-hd-family="instrument"][data-hd-status="unavailable"] .hd-body::after { content: attr(data-hd-nodata); position: absolute; inset-block-start: 50%; inset-inline-start: 50%; translate: -50% -50%; box-sizing: border-box; max-inline-size: 100%; padding: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  border: var(--hd-dash-unavail); color: var(--hd-ink-muted); font: 500 11.5px / 1 var(--hd-font-ui); letter-spacing: var(--hd-label-tracking); }
 .hd-widget[data-hd-family="instrument"][data-hd-stale="true"] { --hd-i-val: var(--hd-ink-muted); }
 
 /* Seven-segment readouts: a window of ghost segments (7 % HUD) with the lit ones in the widget's one glow colour; the unit is Share Tech Mono.
@@ -1001,6 +1001,19 @@
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"][data-hd-tone="crit"] .hd-spark-halo,
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"][data-hd-tone="crit"] .hd-spark-last { animation: hd-pulse 1s linear 6; }
 }
+
+/* Round 1. NO DATA: the sensor tile keeps its body in the grid (the spark is positioned against the frame), the other heroes centre the box in the body. */
+.hd-widget[data-hd-family="instrument"][data-hd-status="unavailable"][data-hd-type="sensor"] .hd-body::after { position: static; translate: none; grid-area: 1 / 1; place-self: center; }
+/* The needle has no tail (as Minimal): shape and glow are cut at the hub, in their own box, so the cut turns with the needle (88 up, 24 down of 112 units). */
+.hd-widget[data-hd-family="instrument"] :is(.hd-gauge-needle-shape, .hd-gauge-needle-glow) { clip-path: inset(0 0 21.4286% 0) fill-box; }
+/* H4: the action word is the caption of the target readout, so the TARGET caption goes; four pixels between the stacked lines. */
+.hd-widget[data-hd-family="instrument"] .hd-dial-caption[data-for="main"] { display: none; }
+.hd-widget[data-hd-family="instrument"][data-hd-type="climate"] .hd-dial-readout { gap: 4px; }
+/* H6: the digits are 0.66 em so the unit stays clear of the 2 px zone arc. */
+.hd-widget[data-hd-family="instrument"] .hd-gauge[data-hd-gauge="arc"] .hd-gauge-readout .hd-seg7 { --hd-i-seg-h: 0.66em; }
+/* H8 at 2 x 1: an 11 px readout and the 11 px state size (the smallest the label scale allows) leave the state text its width. */
+@container hd-widget (aspect-ratio >= 1.6) { .hd-widget[data-hd-family="instrument"][data-hd-type="sensor"] .hd-body > .hd-seg7 { --hd-i-seg-h: 11px; }
+  .hd-widget[data-hd-family="instrument"][data-hd-type="sensor"] .hd-state { font-size: 11px; } }
 
 /* ui/css/homedash-widgets.css */
 /* HomeDash widgets: frame grid, shared frame painting from the card tokens, state badges and per-hero layout (container queries and rules qualified by data-hd-type / data-hd-variant).
