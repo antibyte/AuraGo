@@ -210,3 +210,57 @@ func TestVideoStudioPlanStatusReportsAvailability(t *testing.T) {
 		t.Fatalf("status plan = %+v", *status.Plan)
 	}
 }
+
+func TestVideoStudioPlanMergeServerFields(t *testing.T) {
+	stored := storyplan.Plan{
+		Version: 1, ID: "plan_a", Status: storyplan.StatusReview,
+		Profile: storyplan.ProfileRef{Provider: "minimax", Model: "MiniMax-Hailuo-02", Resolution: "768P"},
+		Cost:    storyplan.Cost{Estimate: 1.2, Spent: 0.4},
+		Audio:   storyplan.Audio{Music: storyplan.Music{Prompt: "calm strings", AssetID: "music-1"}},
+		Scenes: []storyplan.Scene{
+			{ID: "s1", Title: "Old", State: storyplan.SceneReady, ClipAssetID: "clip-1", StillAssetID: "still-1", TimelineClipID: "tl-1", Cost: 0.2,
+				Keyframe:  storyplan.Keyframe{Source: storyplan.KeyframeGenerated, AssetID: "kf-1"},
+				Narration: storyplan.Narration{Text: "Old words", AssetID: "nar-1", MeasuredSeconds: 2.5}},
+			{ID: "s2", Title: "Pick", State: storyplan.SceneFailed, Error: "provider_failed",
+				Keyframe: storyplan.Keyframe{Source: storyplan.KeyframeLibrary, AssetID: "lib-1"}},
+		},
+	}
+	forged := func(id, title string, keyframe storyplan.Keyframe) storyplan.Scene {
+		return storyplan.Scene{ID: id, Title: title, Keyframe: keyframe, State: storyplan.SceneReady, ClipAssetID: "forged", StillAssetID: "forged",
+			TimelineClipID: "forged", Cost: 9, Error: "forged", Narration: storyplan.Narration{Text: "New words", AssetID: "forged", MeasuredSeconds: 9}}
+	}
+	incoming := storyplan.Plan{
+		Version: 1, ID: "plan_forged", Status: storyplan.StatusDone, Idea: "A new idea",
+		Profile: storyplan.ProfileRef{Provider: "google"},
+		Cost:    storyplan.Cost{Spent: 99},
+		Audio:   storyplan.Audio{Music: storyplan.Music{Prompt: "loud drums", AssetID: "forged"}},
+		Scenes: []storyplan.Scene{
+			forged("s2", "Pick moved first", storyplan.Keyframe{Source: storyplan.KeyframeGenerated, AssetID: "forged"}),
+			forged("s1", "New title", storyplan.Keyframe{Source: storyplan.KeyframeGenerated, AssetID: "forged"}),
+			forged("s9", "Added", storyplan.Keyframe{Source: storyplan.KeyframeLibrary, AssetID: "lib-2"}),
+			forged("s1", "Second s1", storyplan.Keyframe{Source: storyplan.KeyframeNone, AssetID: "forged"}),
+		},
+	}
+	got := mergeVideoStudioPlanServerFields(stored, incoming)
+	if got.ID != "plan_a" || got.Version != 1 || got.Status != storyplan.StatusReview || got.Profile != stored.Profile || got.Cost != stored.Cost ||
+		got.Idea != "A new idea" || got.Audio.Music.Prompt != "loud drums" || got.Audio.Music.AssetID != "music-1" || len(got.Scenes) != 4 {
+		t.Fatalf("plan fields = %+v", got)
+	}
+	for i, want := range []struct {
+		title, state, clip, still, timeline, err, keyframe, narrationAsset string
+		cost, measured                                                     float64
+	}{
+		{"Pick moved first", storyplan.SceneFailed, "", "", "", "provider_failed", "", "", 0, 0}, // a library pick is no server keyframe
+		{"New title", storyplan.SceneReady, "clip-1", "still-1", "tl-1", "", "kf-1", "nar-1", 0.2, 2.5},
+		{"Added", "", "", "", "", "", "lib-2", "", 0, 0}, // a new scene keeps the user's library pick
+		{"Second s1", "", "", "", "", "", "", "", 0, 0},  // a repeated id counts as a new scene
+	} {
+		scene := got.Scenes[i]
+		if scene.Title != want.title || scene.State != want.state || scene.ClipAssetID != want.clip || scene.StillAssetID != want.still ||
+			scene.TimelineClipID != want.timeline || scene.Error != want.err || scene.Keyframe.AssetID != want.keyframe ||
+			scene.Narration.AssetID != want.narrationAsset || scene.Cost != want.cost || scene.Narration.MeasuredSeconds != want.measured ||
+			scene.Narration.Text != "New words" {
+			t.Errorf("scene %d = %+v, want %+v", i, scene, want)
+		}
+	}
+}

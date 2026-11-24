@@ -210,3 +210,52 @@ func videoStudioPlanEnv(ctx context.Context, s *Server, cfg *config.Config, mana
 	}
 	return videoStudioPlanEnvFor(ctx, cfg, manager, projectID, resolution)
 }
+
+// mergeVideoStudioPlanServerFields returns incoming with every server-owned field taken from stored:
+//   - the plan's id, version, profile, status and cost, and the music asset;
+//   - per scene: the state, the produced clip and still, the timeline clip, the cost, the error and the narration
+//     asset and measurement.
+//
+// Scenes are matched by id. A new scene gets empty server fields, and so does a second scene with an id already used.
+// The keyframe asset is the user's choice only for a library keyframe; otherwise it is the stored scene's
+// server-made keyframe, never a former library pick. The function is pure; storage normalizes afterwards.
+func mergeVideoStudioPlanServerFields(stored, incoming storyplan.Plan) storyplan.Plan {
+	merged := incoming
+	merged.ID = stored.ID
+	merged.Version = stored.Version
+	merged.Profile = stored.Profile
+	merged.Status = stored.Status
+	merged.Cost = stored.Cost
+	merged.Audio.Music.AssetID = stored.Audio.Music.AssetID
+	byID := make(map[string]storyplan.Scene, len(stored.Scenes))
+	for _, scene := range stored.Scenes {
+		id := strings.TrimSpace(scene.ID)
+		if _, seen := byID[id]; id != "" && !seen {
+			byID[id] = scene
+		}
+	}
+	merged.Scenes = make([]storyplan.Scene, len(incoming.Scenes))
+	for i, scene := range incoming.Scenes {
+		id := strings.TrimSpace(scene.ID)
+		previous, found := byID[id]
+		if found {
+			delete(byID, id) // a later scene with the same id counts as new
+		}
+		scene.State = previous.State
+		scene.ClipAssetID = previous.ClipAssetID
+		scene.StillAssetID = previous.StillAssetID
+		scene.TimelineClipID = previous.TimelineClipID
+		scene.Cost = previous.Cost
+		scene.Error = previous.Error
+		scene.Narration.AssetID = previous.Narration.AssetID
+		scene.Narration.MeasuredSeconds = previous.Narration.MeasuredSeconds
+		if strings.TrimSpace(scene.Keyframe.Source) != storyplan.KeyframeLibrary {
+			scene.Keyframe.AssetID = ""
+			if previous.Keyframe.Source != storyplan.KeyframeLibrary {
+				scene.Keyframe.AssetID = previous.Keyframe.AssetID
+			}
+		}
+		merged.Scenes[i] = scene
+	}
+	return merged
+}
