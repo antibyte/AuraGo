@@ -7,7 +7,10 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
+	"sync"
+	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/desktop"
@@ -162,6 +165,42 @@ func writeVideoStudioPlan(ctx context.Context, svc *desktop.Service, manager *vi
 	return desktop.NoteVersion(data), nil
 }
 
+// videoStudioPlanRuntimeTTL is how long the unavailable-transition list of an FFmpeg path is reused. The plan panel
+// polls GET every 2 s, and CheckRuntime starts FFmpeg several times per call.
+const videoStudioPlanRuntimeTTL = 60 * time.Second
+
+// videoStudioPlanRuntimeCheck is the FFmpeg check behind the cache below; tests replace it.
+var videoStudioPlanRuntimeCheck = videostudio.CheckRuntime
+
+var videoStudioPlanRuntimeCache = struct {
+	sync.Mutex
+	byPath map[string]videoStudioPlanRuntimeEntry
+}{byPath: map[string]videoStudioPlanRuntimeEntry{}}
+
+type videoStudioPlanRuntimeEntry struct {
+	unavailable []string
+	expires     time.Time
+}
+
+// videoStudioPlanUnavailableTransitions lists the transition ids this server's FFmpeg lacks, cached per FFmpeg path
+// for videoStudioPlanRuntimeTTL (a failed or not-ready check too). Like the status JSON, a check that is not ready
+// lists nothing as missing. The cache lock is not held while FFmpeg runs, so two cold calls may both check.
+func videoStudioPlanUnavailableTransitions(ctx context.Context, ffmpegPath string) []string {
+	now := time.Now()
+	videoStudioPlanRuntimeCache.Lock()
+	entry, ok := videoStudioPlanRuntimeCache.byPath[ffmpegPath]
+	videoStudioPlanRuntimeCache.Unlock()
+	if ok && now.Before(entry.expires) {
+		return slices.Clone(entry.unavailable)
+	}
+	ffmpeg := videoStudioPlanRuntimeCheck(ctx, ffmpegPath)
+	unavailable := videoStudioUnavailableJSON(videostudio.EffectRegistry().Unavailable(ffmpeg.Missing)).Transitions
+	videoStudioPlanRuntimeCache.Lock()
+	videoStudioPlanRuntimeCache.byPath[ffmpegPath] = videoStudioPlanRuntimeEntry{unavailable: slices.Clone(unavailable), expires: now.Add(videoStudioPlanRuntimeTTL)}
+	videoStudioPlanRuntimeCache.Unlock()
+	return unavailable
+}
+
 // videoStudioPlanEnvFor builds the validator environment for a plan at resolution ("" = the configured default):
 // the generation profile, the availability, the registry transitions and those this server's FFmpeg lacks, and the
 // project's image assets (its media library records of kind image).
@@ -173,10 +212,7 @@ func videoStudioPlanEnvFor(ctx context.Context, cfg *config.Config, manager *vid
 	for _, transition := range registry.Transitions {
 		known = append(known, string(transition.ID))
 	}
-	// Like the status JSON: CheckRuntime lists nothing as missing when FFmpeg is not ready.
-	// ponytail: CheckRuntime starts FFmpeg a few times per call; cache it if plan polling shows up in profiles.
-	ffmpeg := videostudio.CheckRuntime(ctx, cfg.VideoStudio.FFmpegPath)
-	unavailable := videoStudioUnavailableJSON(registry.Unavailable(ffmpeg.Missing)).Transitions
+	unavailable := videoStudioPlanUnavailableTransitions(ctx, cfg.VideoStudio.FFmpegPath)
 	images := map[string]bool{}
 	if manager != nil {
 		for _, record := range manager.mediaForProject(projectID) {

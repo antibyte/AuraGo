@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -13,6 +14,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/desktop"
+	"aurago/internal/videostudio"
 	"aurago/internal/videostudio/storyplan"
 )
 
@@ -262,5 +264,24 @@ func TestVideoStudioPlanMergeServerFields(t *testing.T) {
 			scene.Narration.Text != "New words" {
 			t.Errorf("scene %d = %+v, want %+v", i, scene, want)
 		}
+	}
+}
+
+// Two env builds within the window run the FFmpeg check once.
+func TestVideoStudioPlanEnvCachesRuntimeCheck(t *testing.T) {
+	calls := 0
+	previous := videoStudioPlanRuntimeCheck
+	videoStudioPlanRuntimeCheck = func(_ context.Context, _ string) videostudio.RuntimeStatus {
+		calls++
+		return videostudio.RuntimeStatus{}
+	}
+	t.Cleanup(func() { videoStudioPlanRuntimeCheck = previous })
+	cfg := &config.Config{}
+	cfg.VideoStudio.FFmpegPath = filepath.Join(t.TempDir(), "ffmpeg-cache-probe")
+	for i := 0; i < 2; i++ {
+		videoStudioPlanEnvFor(context.Background(), cfg, nil, "project", "")
+	}
+	if calls != 1 {
+		t.Fatalf("CheckRuntime ran %d times, want 1", calls)
 	}
 }

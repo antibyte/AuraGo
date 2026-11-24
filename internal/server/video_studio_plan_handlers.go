@@ -92,35 +92,46 @@ func handleVideoStudioPlanPut(s *Server, w http.ResponseWriter, r *http.Request,
 		writeVideoStudioError(w, http.StatusBadRequest, "invalid_plan", "Plan document is invalid.")
 		return
 	}
+	saved, savedVersion, ok := videoStudioPlanPutLocked(s, w, r, svc, manager, cfg, id, ifMatch, incoming)
+	if !ok {
+		return
+	}
+	// The reply (validation, FFmpeg check) is built after the project lock is released.
+	writeVideoStudioPlanReply(r.Context(), s, w, cfg, manager, id, saved, savedVersion)
+}
+
+// videoStudioPlanPutLocked stores a user save under the project lock and returns the saved plan and its version. On a
+// refusal it has answered.
+func videoStudioPlanPutLocked(s *Server, w http.ResponseWriter, r *http.Request, svc *desktop.Service, manager *videoStudioManager, cfg *config.Config, id, ifMatch string, incoming storyplan.Plan) (storyplan.Plan, string, bool) {
 	lock := manager.projectLock(id)
 	lock.Lock()
 	defer lock.Unlock()
 	if s.videoStudioPlanAgents().Running(id) {
 		writeVideoStudioError(w, http.StatusConflict, "plan_agent_running", "The planning agent is working on this plan.")
-		return
+		return storyplan.Plan{}, "", false
 	}
 	stored, _, version, err := readVideoStudioPlan(r.Context(), svc, id)
 	if err != nil {
 		writeVideoStudioPlanReadError(w, err)
-		return
+		return storyplan.Plan{}, "", false
 	}
 	if version != ifMatch {
 		writeVideoStudioFileError(w, &desktopFileConflict{Code: "file_conflict", Path: videoStudioPlanPath(id), Version: version, Status: http.StatusPreconditionFailed})
-		return
+		return storyplan.Plan{}, "", false
 	}
 	merged := mergeVideoStudioPlanServerFields(stored, incoming)
 	// No job runs now, so a stored planning status is an interrupted job: the save stores the review GET reports.
 	merged.Status = videoStudioPlanReportedStatus(merged.Status, false)
 	if _, err := writeVideoStudioPlan(r.Context(), svc, manager, cfg, id, merged, ifMatch); err != nil {
 		writeVideoStudioPlanWriteError(w, r, err)
-		return
+		return storyplan.Plan{}, "", false
 	}
 	saved, _, savedVersion, err := readVideoStudioPlan(r.Context(), svc, id)
 	if err != nil {
 		writeVideoStudioPlanReadError(w, err)
-		return
+		return storyplan.Plan{}, "", false
 	}
-	writeVideoStudioPlanReply(r.Context(), s, w, cfg, manager, id, saved, savedVersion)
+	return saved, savedVersion, true
 }
 
 // writeVideoStudioPlanReply answers GET and PUT: the plan with its reported status, its version (also as ETag), the
