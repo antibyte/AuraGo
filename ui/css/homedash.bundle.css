@@ -786,7 +786,78 @@
 }
 
 /* ui/css/homedash-family-instrument.css */
-/* HomeDash family Instrument: token block and painting. Filled in milestone M1 (style lab). */
+/* HomeDash family Instrument: token block (plan T4) and painting. A calm dark technical HUD that glows only where data is: self-luminous, one glow colour per widget
+   (the HUD tint, or the alert colour in alert), segmented arcs, seven-segment readouts with 7 % ghosts, corner brackets. Always dark, also under light palettes. */
+[data-hd-family="instrument"] {
+  --hd-i-panel-hi: #0B0F14; --hd-i-panel-lo: #07090C; --hd-i-mid: #090C10; --hd-i-window: #040608;
+  --hd-i-ink: #D5DEE8; --hd-i-muted: #8B97A6; --hd-i-faint: #4A5361;
+  --hd-i-ok: #4AD29C; --hd-i-warn: #F2B84B; --hd-i-alert: #FF7A72; --hd-i-info: #5AA9FF;
+  --hd-i-hud: var(--hd-hud, color-mix(in srgb, var(--hd-accent) 85%, #FFFFFF));
+  --hd-i-val: var(--hd-i-hud);
+  --hd-i-br: color-mix(in srgb, var(--hd-i-hud) 70%, transparent);
+  --hd-i-corners:
+    linear-gradient(var(--hd-i-br), var(--hd-i-br)) left 0 top 0 / 10px 2px no-repeat, linear-gradient(var(--hd-i-br), var(--hd-i-br)) left 0 top 0 / 2px 10px no-repeat,
+    linear-gradient(var(--hd-i-br), var(--hd-i-br)) right 0 top 0 / 10px 2px no-repeat, linear-gradient(var(--hd-i-br), var(--hd-i-br)) right 0 top 0 / 2px 10px no-repeat,
+    linear-gradient(var(--hd-i-br), var(--hd-i-br)) left 0 bottom 0 / 10px 2px no-repeat, linear-gradient(var(--hd-i-br), var(--hd-i-br)) left 0 bottom 0 / 2px 10px no-repeat,
+    linear-gradient(var(--hd-i-br), var(--hd-i-br)) right 0 bottom 0 / 10px 2px no-repeat, linear-gradient(var(--hd-i-br), var(--hd-i-br)) right 0 bottom 0 / 2px 10px no-repeat;
+  --hd-i-scan: repeating-linear-gradient(0deg, transparent 0, color-mix(in srgb, #000000 22%, transparent) 1px, transparent 2px 3px);
+  --hd-i-glowline: 0 0 10px color-mix(in srgb, var(--hd-i-val) 55%, transparent);
+  --hd-i-ghost: color-mix(in srgb, var(--hd-i-hud) 7%, transparent);
+  --hd-i-gap-dash: 0 20 5 0;
+  --hd-i-mount-l: 0 1px 2px color-mix(in srgb, #000000 30%, transparent), 0 6px 16px -6px color-mix(in srgb, #000000 35%, transparent);
+  --hd-surface-solid: var(--hd-i-mid); --hd-surface: var(--hd-i-mid); --hd-sunken: var(--hd-i-window);
+  --hd-ink: var(--hd-i-ink); --hd-ink-muted: var(--hd-i-muted); --hd-ink-faint: var(--hd-i-faint);
+  --hd-ok: var(--hd-i-ok); --hd-warn: var(--hd-i-warn); --hd-alert: var(--hd-i-alert); --hd-info: var(--hd-i-info);
+  --hd-ok-ink: var(--hd-i-ok); --hd-warn-ink: var(--hd-i-warn); --hd-alert-ink: var(--hd-i-alert); --hd-info-ink: var(--hd-i-info);
+  --hd-hairline: color-mix(in srgb, var(--hd-i-hud) 18%, transparent);
+  --hd-focus: var(--hd-i-hud); --hd-focus-gap: var(--hd-i-mid);
+  --hd-card-bg: linear-gradient(180deg, var(--hd-i-panel-hi), var(--hd-i-panel-lo)); /* plan deviation: the corner brackets (--hd-i-corners) are painted by .hd-frame::after below, not as card layers: the contrast probe takes every card gradient layer as a possible backdrop under text */
+  --hd-card-border: 1px solid color-mix(in srgb, var(--hd-i-hud) 18%, transparent);
+  --hd-dash-unavail: 1px dashed color-mix(in srgb, var(--hd-i-hud) 30%, transparent);
+  --hd-radius-card: calc(4px * var(--hd-radius-scale)); --hd-radius-control: calc(3px * var(--hd-radius-scale));
+  --hd-edge-hi: none; --hd-edge-lo: none; --hd-shadow-contact: none; --hd-shadow-card: none; --hd-shadow-press: none; --hd-ring-alert: none;
+  --hd-glow: var(--hd-i-glowline);
+  --hd-stroke-hair: 1px; --hd-stroke-1: 1.5px; --hd-stroke-2: 2px; --hd-stroke-arc: 0.08; --hd-stroke-tick: 1.25px;
+  --hd-i-glow-add: 6; --hd-i-gap-add: 2;
+  --hd-font-ui: "Oxanium", "Geist", system-ui, sans-serif; --hd-font-label: var(--hd-font-ui);
+  --hd-font-num: "HomeDash Share Tech Mono", "Geist Mono", monospace;
+  --hd-num-features: "tnum" 1; --hd-num-weight: 400; --hd-num-weight-small: 400; --hd-num-tracking: 0em; --hd-num-cap: 0.74;
+  --hd-num-hero-max: 96px; --hd-unit-scale: 0.42;
+  --hd-label-size: 11.5px; --hd-label-weight: 500; --hd-label-tracking: 0.12em;
+  --hd-dur-toggle: 110ms; --hd-ease-toggle: var(--hd-ease-hud); --hd-dur-flash: 90ms; --hd-dur-fill: 110ms; --hd-dur-xfade: 110ms;
+  --hd-dur-remote: 220ms; --hd-ease-remote: var(--hd-ease-hud); --hd-dur-needle-f: 880ms; --hd-dur-chase: 80ms; --hd-dur-zone: 110ms; --hd-dur-dip: 180ms;
+}
+.hd-root[data-hd-scheme="light"] [data-hd-family="instrument"],
+.hd-root[data-hd-scheme="light"][data-hd-family="instrument"] { --hd-shadow-card: var(--hd-i-mount-l); }
+.hd-widget[data-hd-family="instrument"][data-hd-tone="crit"] { --hd-i-val: var(--hd-i-alert); }
+
+/* Shared: text takes the panel ink (the root colour belongs to the page palette, which may be light). */
+.hd-widget[data-hd-family="instrument"] { color: var(--hd-ink); }
+.hd-widget[data-hd-family="instrument"] .hd-head > .hd-icon { color: var(--hd-i-hud); }
+/* Corner brackets (I5): eight 2 px bars (--hd-i-corners) in the frame's padding box, cut out of a solid HUD layer by a mask. A masked layer is not a backdrop under the text for the contrast probe,
+   and it really is not: the bars never reach text. */
+.hd-widget[data-hd-family="instrument"] > .hd-frame::after { content: ""; position: absolute; inset: 0; background: var(--hd-i-hud); -webkit-mask: var(--hd-i-corners); mask: var(--hd-i-corners); pointer-events: none; z-index: 1; }
+
+/* Shared state language, Instrument column. Unavailable: the body goes dark and a dashed NO DATA box says so (the module writes the word to data-hd-nodata).
+   Stale: lit segments fall back to the muted ink. Alert: --hd-i-val switches to the alert colour above and the lit elements pulse six times (motion block). */
+.hd-widget[data-hd-family="instrument"][data-hd-status="unavailable"] .hd-body > * { visibility: hidden; }
+.hd-widget[data-hd-family="instrument"][data-hd-status="unavailable"] .hd-body::after { content: attr(data-hd-nodata); grid-area: 1 / 1; place-self: center; box-sizing: border-box; max-inline-size: 100%; padding: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  border: var(--hd-dash-unavail); color: var(--hd-ink-faint); font: 500 11.5px / 1 var(--hd-font-ui); letter-spacing: var(--hd-label-tracking); }
+.hd-widget[data-hd-family="instrument"][data-hd-stale="true"] { --hd-i-val: var(--hd-ink-muted); }
+
+/* Seven-segment readouts: a window of ghost segments (7 % HUD) with the lit ones in the widget's one glow colour; the unit is Share Tech Mono.
+   The scan lines live inside this window only (I4). The block size comes from the readout's context (dial 0.2 D, temperature 0.92 of the body, ...). */
+.hd-widget[data-hd-family="instrument"] .hd-seg7 { position: relative; display: inline-flex; align-items: flex-end; gap: 0.3em; color: var(--hd-i-val); block-size: var(--hd-i-seg-h, 1em); }
+/* Digit height per context (four digits are 3.2 digit heights wide): the dial 0.2 D (structure), the arc gauge 0.2 D, the needle gauge 0.1375 D, the temperature readout the body height, held to the body width. */
+.hd-widget[data-hd-family="instrument"] .hd-dial-readout > .hd-seg7 { --hd-i-seg-h: calc(min(var(--hd-body-w), var(--hd-body-h)) * 0.2); }
+.hd-widget[data-hd-family="instrument"] .hd-gauge[data-hd-gauge="arc"] .hd-gauge-readout .hd-seg7 { --hd-i-seg-h: 0.8em; }
+.hd-widget[data-hd-family="instrument"] .hd-gauge[data-hd-gauge="needle"] .hd-gauge-readout .hd-seg7 { --hd-i-seg-h: 1.25em; }
+.hd-widget[data-hd-family="instrument"] .hd-tread .hd-seg7 { --hd-i-seg-h: min(calc(var(--hd-body-h) * 0.92), calc((var(--hd-body-w) - 24px) / 3.2)); }
+.hd-widget[data-hd-family="instrument"] .hd-seg7-svg { display: block; flex: none; block-size: 100%; inline-size: auto; overflow: visible; }
+.hd-widget[data-hd-family="instrument"] .hd-seg7-unit { flex: none; font: 400 max(11px, calc(var(--hd-i-seg-h) * 0.42)) / 1 var(--hd-font-num); color: var(--hd-ink-muted); }
+.hd-widget[data-hd-family="instrument"] .hd-seg7-seg, .hd-widget[data-hd-family="instrument"] .hd-seg7-dp { fill: var(--hd-i-ghost); }
+.hd-widget[data-hd-family="instrument"] .hd-seg7-seg[data-lit="true"], .hd-widget[data-hd-family="instrument"] .hd-seg7-dp[data-lit="true"] { fill: var(--hd-i-val); }
+.hd-widget[data-hd-family="instrument"] .hd-seg7::after { content: ""; position: absolute; inset: 0; background: var(--hd-i-scan); opacity: 0.35; pointer-events: none; }
 
 /* ui/css/homedash-widgets.css */
 /* HomeDash widgets: frame grid, shared frame painting from the card tokens, state badges and per-hero layout (container queries and rules qualified by data-hd-type / data-hd-variant).
