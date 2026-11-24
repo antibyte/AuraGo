@@ -383,12 +383,13 @@ func videoStudioPlanStudioAdopt(scene *storyplan.Scene, stored *storyplan.Scene)
 // id.
 func videoStudioPlanStudioScenes(stored, next []storyplan.Scene) []storyplan.Scene {
 	out := make([]storyplan.Scene, len(next))
+	used := make([]bool, len(stored)) // a stored scene is adopted once; a later scene with the same id counts as new
 	for i, scene := range next {
 		var match *storyplan.Scene
 		if id := strings.TrimSpace(scene.ID); id != "" {
 			for j := range stored {
-				if stored[j].ID == id {
-					match = &stored[j]
+				if !used[j] && stored[j].ID == id {
+					match, used[j] = &stored[j], true
 					break
 				}
 			}

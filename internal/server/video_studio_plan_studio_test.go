@@ -258,3 +258,15 @@ func TestVideoStudioPlanStudioReviseFinishIgnoresOtherScenes(t *testing.T) {
 		t.Fatalf("finish with a blocking issue in s3 only = %v", got)
 	}
 }
+
+// Two written scenes with one id: only the first takes the stored scene's server fields.
+func TestVideoStudioPlanStudioScenesDuplicateIDAdoptsOnce(t *testing.T) {
+	stored := []storyplan.Scene{{ID: "s1", State: "ready", ClipAssetID: "clip_1", TimelineClipID: "tl_1"}}
+	got := videoStudioPlanStudioScenes(stored, []storyplan.Scene{{ID: "s1", Title: "a"}, {ID: "s1", Title: "b"}})
+	if got[0].ClipAssetID != "clip_1" || got[0].TimelineClipID != "tl_1" {
+		t.Fatalf("first scene lost its server fields: %+v", got[0])
+	}
+	if got[1].ClipAssetID != "" || got[1].TimelineClipID != "" || got[1].State != "" {
+		t.Fatalf("duplicate scene adopted the stored fields: %+v", got[1])
+	}
+}
