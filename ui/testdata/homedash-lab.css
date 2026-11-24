@@ -11,6 +11,9 @@
 .hd-lab-statecap { font-size: 11px; color: var(--hd-ink-muted); }
 .hd-lab-stage { display: flex; align-items: center; justify-content: center; min-height: 52px; }
 .hd-lab-stage > .hd-widget { width: var(--hd-lab-w); height: var(--hd-lab-h); }
+/* Bare primitives (no widget frame) have no --hd-body-w/h; the shipped geometry reads them, so the gallery stage supplies the 104px gallery body. */
+.hd-lab-stage > :not(.hd-widget) { --hd-body-w: 104px; --hd-body-h: 104px; }
+.hd-lab-stage > .hd-rocker { --hd-body-w: 52px; --hd-body-h: 52px; } /* the rocker is sized by its body: 52px high, 34px wide, as in the M0 gallery */
 .hd-lab-probe { position: absolute; visibility: hidden; pointer-events: none; }
 /* Placeholder look. Rules without the guard only PAINT (colour, border, radius, fill, stroke) and may reach into widgets.
    Rules with :where(:not(.hd-widget *)) size and place primitives in the M0 gallery and entity sheets only; inside a widget the shared M1 geometry decides. */
@@ -51,7 +54,7 @@
 [data-hd-family="placeholder"] .hd-dial-legend:where(:not(.hd-widget *)) { position: absolute; bottom: 0; font-size: 11px; }
 [data-hd-family="placeholder"] .hd-dial-legend[data-end="min"]:where(:not(.hd-widget *)) { left: 8px; } [data-hd-family="placeholder"] .hd-dial-legend[data-end="max"]:where(:not(.hd-widget *)) { right: 8px; }
 [data-hd-family="placeholder"] .hd-num-deg:where(:not(.hd-widget *)) { font-size: 13px; }
-[data-hd-family="placeholder"] :is(.hd-dial-readout, .hd-gauge-readout):where(:not(.hd-widget *)) { position: absolute; inset: 0; display: grid; place-items: center; font-size: 13px; line-height: 15px; }
+[data-hd-family="placeholder"] :is(.hd-dial-readout, .hd-gauge-readout):where(:not(.hd-widget *)) { position: absolute; inset: 0; display: grid; place-items: center; font-size: 13px; line-height: 15px; translate: none; } /* the shipped gauge readout centres itself with translate; the gallery box is the full dial */
 [data-hd-family="placeholder"] :is(.hd-dial-readout, .hd-gauge-readout) .hd-numeral:where(:not(.hd-widget *)) { min-width: 0; font-size: 13px; line-height: 15px; }
 [data-hd-family="placeholder"] .hd-gauge[data-hd-gauge="needle"] .hd-gauge-readout:where(:not(.hd-widget *)) { inset: 73px 0 auto 0; height: 15px; }
 [data-hd-family="placeholder"] :is(.hd-gauge-min, .hd-gauge-max) { color: var(--hd-ink-muted); }

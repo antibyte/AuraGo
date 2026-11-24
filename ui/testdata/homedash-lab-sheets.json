@@ -32,10 +32,10 @@
     }
   },
   "sheets": [
-    {"id": "prim-{family}", "kind": "prim", "palettes": ["dark", "light", "theme"], "themes": "standard", "states": "all", "sizes": ["m"], "dpr": 1, "motion": "full"},
-    {"id": "prim-{family}~reduced", "kind": "prim", "palettes": ["dark"], "states": "all", "sizes": ["m"], "dpr": 1, "motion": "reduced"},
-    {"id": "prim-{family}~gradient", "kind": "prim", "palettes": ["dark", "light"], "states": "core", "sizes": ["m"], "backdrop": "gradient"},
-    {"id": "prim-{family}~custom", "kind": "prim", "palettes": ["custom"], "custom": "custom3", "states": "trio", "sizes": ["m"]},
+    {"id": "prim-{family}", "kind": "prim", "types": ["toggle", "rocker", "pushButton", "slider", "knob", "stepper", "segmented", "numeral", "segReadout", "arcGauge", "needleGauge", "bar", "lamp", "badge", "iconBadge", "sparkline", "frame", "sheet", "colourWheel", "ctStrip", "entity"], "palettes": ["dark", "light", "theme"], "themes": "standard", "states": "all", "sizes": ["m"], "dpr": 1, "motion": "full"},
+    {"id": "prim-{family}~reduced", "kind": "prim", "types": ["toggle", "rocker", "pushButton", "slider", "knob", "stepper", "segmented", "numeral", "segReadout", "arcGauge", "needleGauge", "bar", "lamp", "badge", "iconBadge", "sparkline", "frame", "sheet", "colourWheel", "ctStrip", "entity"], "palettes": ["dark"], "states": "all", "sizes": ["m"], "dpr": 1, "motion": "reduced"},
+    {"id": "prim-{family}~gradient", "kind": "prim", "types": ["toggle", "rocker", "pushButton", "slider", "knob", "stepper", "segmented", "numeral", "segReadout", "arcGauge", "needleGauge", "bar", "lamp", "badge", "iconBadge", "sparkline", "frame", "sheet", "colourWheel", "ctStrip", "entity"], "palettes": ["dark", "light"], "states": "core", "sizes": ["m"], "backdrop": "gradient"},
+    {"id": "prim-{family}~custom", "kind": "prim", "types": ["toggle", "rocker", "pushButton", "slider", "knob", "stepper", "segmented", "numeral", "segReadout", "arcGauge", "needleGauge", "bar", "lamp", "badge", "iconBadge", "sparkline", "frame", "sheet", "colourWheel", "ctStrip", "entity"], "palettes": ["custom"], "custom": "custom3", "states": "trio", "sizes": ["m"]},
     {"id": "type-{type}-{family}", "kind": "type", "palettes": ["dark", "light", "theme"], "themes": "standard", "states": "all"},
     {"id": "themes-{family}", "kind": "themes", "palettes": ["theme"], "themes": "themes16", "types": ["toggle", "slider", "arcGauge", "numeral"], "states": "trio", "sizes": ["m"]},
     {"id": "motion-type-{type}-{family}", "kind": "motion", "palettes": ["dark"], "states": ["off"], "motion": ["full"], "frames": [0, 50, 100, 200, 400, 800], "scenarios": ["on"]},
