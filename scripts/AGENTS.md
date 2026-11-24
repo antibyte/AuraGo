@@ -118,6 +118,7 @@ Use the existing helper for each job. Check release scripts with harmless fixtur
 - Run `node scripts/test-easydrag-approvals.mjs` for approval DTO, bounds, review-safety and blocked-reason checks.
 - `python scripts/test-prepare-phonon.py` covers archive integrity, API routing, bounds and GitHub/Hugging Face credential separation. Run it with relevant `go test ./internal/audit` release/install/build contracts.
 - Chibi Sensei: `test-chibi-sensei-model.mjs` runs the pure readiness, primary-action, table-reducer and mood logic of the desktop app in a vm.
+- HomeDash: `npm run test:homedash` (`test-homedash-ui.mjs`) runs every `homedash-tests/*.test.mjs` in a vm with the strict fake DOM `homedash-tests/dom.mjs`, including the stylesheet and source guard (`css-lint.mjs`, `guard.test.mjs`). It runs on its own, not through `test-ui-regressions.mjs`; contracts: `../ui/js/homedash/AGENTS.md`.
 
 ## Child DOX Index
 
