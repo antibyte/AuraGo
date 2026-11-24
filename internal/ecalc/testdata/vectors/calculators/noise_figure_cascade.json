@@ -1,0 +1,19 @@
+{
+  "calc": "noise_figure_cascade",
+  "sets": [
+    {"values": {"nf1": 1.0, "g1": 12.0, "nf2": 3.0, "g2": 15.0, "nf3": 20.0, "nft": 1.816301562599778, "ftot": 1.5192531877074837, "te": 150.58342443517026}, "ref": "published, TI SLYT839 Table 3 (LNA 1 dB/12 dB, LNA 3 dB/15 dB, ADC 20 dB): F = 1.258925 + 0.995262/15.84893 + 99/(15.84893·31.62278) = 1.258925 + 0.062797 + 0.197531 = 1.519253, NF = 10·log10(1.519253) = 1.8163 dB (published 1.8 dB), T_e = 290·0.519253 = 150.58 K"},
+    {"values": {"nf1": 1.0, "g1": 12.0, "nf2": 3.0, "g2": 15.0, "nf3": 25.0, "nft": 2.901869887374152, "ftot": 1.950684300690789, "te": 275.6984472003288}, "ref": "published, TI SLYT839 Table 1 (same two LNAs, ADC with 25 dB): F = 1.258925 + 0.062797 + 315.2278/501.1872 = 1.950684, NF = 2.9019 dB (published 2.9 dB), T_e = 275.70 K"},
+    {"values": {"nf1": 1.0, "g1": 12.0, "nf2": 3.0, "g2": 15.0, "nf3": 0.0, "nft": 1.2114019067325486, "ftot": 1.3217222185255646, "te": 93.29944337241373}, "ref": "published, TI SLYT839 Table 3 (LNA1 + LNA2 only, NF_3 = 0 dB removes the third stage): F = 1.258925 + 0.062797 = 1.321722, NF = 1.2114 dB (published 1.2 dB), T_e = 93.30 K"},
+    {"values": {"nf1": 4.0, "g1": 20.0, "nf2": 12.0, "g2": 0.0, "nf3": 7.0, "nft": 4.314432929438801, "ftot": 2.7004944741184187, "te": 493.1433974943414}, "ref": "hand, stage noise figures and the first two gains of TI SLAA652 section 12 (the printed result of that example does not add up and is not used): F = 2.511886 + 14.84893/100 + 4.011872/100 = 2.700494, NF = 4.3144 dB"},
+    {"values": {"nf1": 2.0, "g1": -2.0, "nf2": 0.8, "g2": 20.0, "nf3": 8.0, "nft": 2.987683449379865, "ftot": 1.989611786038636, "te": 286.98741795120446}, "ref": "hand, 2 dB cable in front of an LNA (0.8 dB, 20 dB) and a mixer (8 dB): F = 1.584893 + 0.202264/0.6309573 + 5.309573/63.09573 = 1.989612, NF = 2.9877 dB (the cable's 2 dB add to the 0.9877 dB of the rest)"},
+    {"values": {"nf1": 0.8, "g1": 20.0, "nf2": 2.0, "g2": -2.0, "nf3": 8.0, "nft": 1.1135139194414252, "ftot": 1.2922644346174128, "te": 84.75668603904974}, "ref": "hand, the same parts with the LNA at the antenna: F = 1.202264 + 0.584893/100 + 5.309573/63.09573 = 1.292264, NF = 1.1135 dB"}
+  ],
+  "solve": [
+    {"inputs": {"nf1": 1, "g1": 12, "nf2": 3, "g2": 15, "nf3": 20}, "expect": {"nft": 1.816301562599778, "ftot": 1.5192531877074837, "te": 150.58342443517026}, "errors": {}, "warnings": [], "ref": "published, TI SLYT839 Table 3: 1.8 dB; F = 1.519253, T_e = 150.58 K"},
+    {"inputs": {"nft": 1.816301562599778, "g1": 12, "nf2": 3, "g2": 15, "nf3": 20}, "expect": {"nf1": 1}, "errors": {}, "warnings": [], "ref": "reverse of the TI example: F_1 = F − (F_2−1)/g_1 − (F_3−1)/(g_1·g_2) = 1.519253 − 0.062797 − 0.197531 = 1.258925, NF_1 = 1 dB"},
+    {"inputs": {"nft": 1.816301562599778, "nf1": 1, "nf2": 3, "g2": 15, "nf3": 20}, "expect": {"g1": 12}, "errors": {}, "warnings": [], "ref": "reverse of the TI example: g_1 = ((F_2−1) + (F_3−1)/g_2)/(F − F_1) = (0.995262 + 99/31.62278)/0.260328 = 15.84893, G_1 = 12 dB"},
+    {"inputs": {"nft": 0.5, "g1": 12, "nf2": 3, "g2": 15, "nf3": 20}, "expect": {"nf1": -0.6464860514688364}, "errors": {}, "warnings": [0], "ref": "hand: a target of 0.5 dB is below what the later stages alone leave: F_1 = 1.122018 − 0.062797 − 0.197531 = 0.861690 < 1, NF_1 = −0.6465 dB, impossible: warning"},
+    {"inputs": {"nft": 0.5, "nf1": 1, "nf2": 3, "g2": 15, "nf3": 20}, "expect": {}, "errors": {"g1": "nonfinite"}, "warnings": [], "ref": "hand: a target of 0.5 dB below NF_1 = 1 dB can never be reached by any gain (F − F_1 < 0): no solution"},
+    {"inputs": {"nf1": -1, "g1": 12, "nf2": 3, "g2": 15, "nf3": 20}, "expect": {}, "errors": {}, "warnings": [0], "ref": "hand: a negative noise figure is impossible, warning"}
+  ]
+}

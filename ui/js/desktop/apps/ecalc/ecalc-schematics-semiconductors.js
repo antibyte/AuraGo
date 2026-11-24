@@ -145,5 +145,60 @@ window.ECalcSchematics = Object.assign(window.ECalcSchematics || {}, {
    {"var": "rsa", "x": 22.5, "y": 5.6, "side": "bottom"},
    {"var": "ta", "x": 27, "y": 9.3, "side": "bottom"}
   ]
+ },
+ "optocoupler_resistor": {
+  "w": 32, "h": 15,
+  "parts": [
+   {"sym": "source", "x": 5, "y": 6, "rot": 90},
+   {"sym": "resistor", "x": 7, "y": 5},
+   {"sym": "led", "x": 15, "y": 5, "rot": 90},
+   {"sym": "npn", "x": 22, "y": 9},
+   {"sym": "resistor", "x": 25, "y": 2, "rot": 90},
+   {"sym": "ground", "x": 9, "y": 11},
+   {"sym": "ground", "x": 25, "y": 13}
+  ],
+  "wires": [[[5, 6], [5, 5], [7, 5]], [[10, 5], [15, 5]], [[15, 8], [15, 11], [5, 11], [5, 9]], [[25, 1], [25, 2]], [[25, 5], [25, 7]], [[25, 11], [25, 13]]],
+  "dots": [[9, 11]],
+  "terminals": [[25, 1]],
+  "arrows": [
+   {"x": 12.5, "y": 5, "dir": 0}
+  ],
+  "anchors": [
+   {"var": "vin", "x": 4.4, "y": 7.5, "side": "left"},
+   {"var": "r1", "x": 8.5, "y": 4.4, "side": "top"},
+   {"var": "iled", "x": 11.5, "y": 5.6, "side": "bottom"},
+   {"var": "vf", "x": 15.9, "y": 6.5, "side": "right"},
+   {"var": "ctr", "x": 21.4, "y": 9, "side": "left"},
+   {"var": "vcc", "x": 24.4, "y": 1, "side": "left"},
+   {"var": "rl", "x": 25.9, "y": 3.5, "side": "right"},
+   {"var": "ic", "x": 25.9, "y": 6, "side": "right"},
+   {"var": "vcesat", "x": 25.9, "y": 9, "side": "right"}
+  ]
+ },
+ "mosfet_gate_drive": {
+  "w": 28, "h": 14,
+  "parts": [
+   {"sym": "source", "x": 6, "y": 5, "rot": 90},
+   {"sym": "resistor", "x": 9, "y": 5},
+   {"sym": "nmos", "x": 16, "y": 5},
+   {"sym": "ground", "x": 12, "y": 10}
+  ],
+  "wires": [[[6, 5], [9, 5]], [[12, 5], [16, 5]], [[19, 3], [19, 1]], [[6, 8], [6, 10], [19, 10], [19, 7]]],
+  "dots": [[12, 10]],
+  "terminals": [[19, 1]],
+  "texts": [
+   {"x": 20, "y": 1.4, "text": "drain", "anchor": "start"},
+   {"x": 13, "y": 12.6, "text": "R_int = driver + internal gate resistance", "anchor": "middle"}
+  ],
+  "anchors": [
+   {"var": "vdrv", "x": 5.4, "y": 6.5, "side": "left"},
+   {"var": "rg", "x": 10.5, "y": 4.4, "side": "top"},
+   {"var": "rint", "x": 10.5, "y": 5.7, "side": "bottom"},
+   {"var": "qgd", "x": 15.4, "y": 7.2, "side": "left"},
+   {"var": "vpl", "x": 15.4, "y": 8.7, "side": "left"},
+   {"var": "qg", "x": 20, "y": 4.4, "side": "right"},
+   {"var": "f", "x": 20, "y": 6, "side": "right"},
+   {"var": "t", "x": 20, "y": 7.6, "side": "right"}
+  ]
  }
 });

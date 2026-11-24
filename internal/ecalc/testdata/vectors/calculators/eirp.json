@@ -1,0 +1,17 @@
+{
+  "calc": "eirp",
+  "sets": [
+    {"values": {"p": 0.1, "loss": 3.35, "g": 21.0, "eirp": 5.821032177708714, "erp": 3.5481338923357546}, "ref": "published, Cisco RF Power Values (document 23231): 20 dBm, 3.35 dB cable loss, 21 dBi dish: 20 − 3.35 + 21 = 37.65 dBm = 10^((37.65−30)/10) = 5.821032 W; linear: 0.1 W · 10^((21−3.35)/10) = 5.821032 W; ERP = 37.65 − 2.15 = 35.50 dBm = 3.548134 W"},
+    {"values": {"p": 100.0, "loss": 1.5, "g": 7.15, "eirp": 367.2823004980847, "erp": 223.87211385683395}, "ref": "hand, 50 dBm (100 W), 1.5 dB loss, 7.15 dBi (5 dBd): EIRP = 50 − 1.5 + 7.15 = 55.65 dBm = 10^2.565 = 367.2823 W, ERP = 55.65 − 2.15 = 53.5 dBm = 223.8721 W"},
+    {"values": {"p": 0.01, "loss": 0.0, "g": 2.15, "eirp": 0.016405897731995394, "erp": 0.01}, "ref": "hand, a half-wave dipole (2.15 dBi) on 10 dBm without loss: EIRP = 12.15 dBm = 0.0164059 W, ERP = 10 dBm = 10 mW (ERP of a dipole equals the transmitter power)"},
+    {"values": {"p": 1000.0, "loss": 0.0, "g": 2.15, "eirp": 1640.5897731995392, "erp": 1000.0}, "ref": "published, ITU-R BS.561-2: 1 kW into a half-wave dipole is 1 kW e.r.p.: EIRP = 1000 · 10^0.215 = 1640.590 W, ERP = 1000 W"},
+    {"values": {"p": 1.0, "loss": 0.0, "g": 0.0, "eirp": 1.0, "erp": 0.6095368972401691}, "ref": "definition: an isotropic antenna without loss radiates the supplied power: EIRP = 1 W; ERP = 1/10^0.215 = 0.609537 W (ratio 0.61 of ITU-R BS.561-2)"}
+  ],
+  "solve": [
+    {"inputs": {"p": 0.1, "loss": 3.35, "g": 21}, "expect": {"eirp": 5.821032177708714, "erp": 3.5481338923357546}, "errors": {}, "warnings": [], "ref": "published, Cisco: 37.65 dBm = 5.821 W, ERP 35.50 dBm = 3.548 W"},
+    {"inputs": {"eirp": 5.821032177708714, "loss": 3.35, "g": 21}, "expect": {"p": 0.1}, "errors": {}, "warnings": [], "ref": "reverse of the Cisco example: P_TX = EIRP − G + L_c = 37.65 − 21 + 3.35 = 20 dBm = 0.1 W"},
+    {"inputs": {"eirp": 5.821032177708714, "p": 0.1, "loss": 3.35}, "expect": {"g": 21}, "errors": {}, "warnings": [], "ref": "reverse of the Cisco example: G = EIRP − P_TX + L_c = 37.65 − 20 + 3.35 = 21 dBi"},
+    {"inputs": {"eirp": 5.821032177708714, "p": 0.1, "g": 21}, "expect": {"loss": 3.35}, "errors": {}, "warnings": [], "ref": "reverse of the Cisco example: L_c = P_TX + G − EIRP = 20 + 21 − 37.65 = 3.35 dB"},
+    {"inputs": {"p": 0.1, "loss": -1, "g": 21}, "expect": {"eirp": 15.848931924611135}, "errors": {}, "warnings": [0], "ref": "hand: a negative feeder loss (a gain) is not physical for a passive cable: warning; 20 + 1 + 21 = 42 dBm = 15.8489 W"}
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "calc": "coax_stub",
+  "sets": [
+    {"values": {"f": 1000000000.0, "vf": 1.0, "theta": 1.5707963267948966, "l": 0.0749481145, "lam0": 0.299792458, "lam": 0.299792458}, "ref": "published, OSU Ximera Electromagnetics (electrical length): a 7.5 cm line is a quarter wavelength (90°) at 1 GHz; λ = c/f = 299792458/1e9 = 0.299792458 m (PIC Wire: 11.80 in at 1 GHz and 100 % VOP), ℓ = 90/360 · 0.299792458 = 0.0749481 m"},
+    {"values": {"f": 1431403547.7710826, "vf": 1.0, "theta": 3.0, "l": 0.1, "lam0": 0.20943951023931956, "lam": 0.20943951023931956}, "ref": "published, Steer Microwave and RF Design II section 2.2, first example: ℓ = 10 cm with β = 30 rad/m is 3 rad = 171.9° = 0.477 λ; the frequency of that β in air is f = 30·299792458/(2π) = 1.431404e9 Hz, λ = 0.2094395 m, ℓ = 3/(2π) · 0.2094395 = 0.1 m"},
+    {"values": {"f": 100000000.0, "vf": 0.6666666666666666, "theta": 3.141592653589793, "l": 0.9993081933333333, "lam0": 2.99792458, "lam": 1.9986163866666666}, "ref": "published (VF), Ellingson Electromagnetics Vol. 1 section 3.10: RG-59 with ε_r = 2.25 has about 67 % of c, VF = 1/√2.25 = 0.666667; half-wave at 100 MHz: λ = 299792458 · 0.666667/1e8 = 1.998616 m, ℓ = 180/360 · 1.998616 = 0.999308 m"},
+    {"values": {"f": 145000000.0, "vf": 0.66, "theta": 1.5707963267948966, "l": 0.34114314186206895, "lam0": 2.067534193103448, "lam": 1.3645725674482758}, "ref": "hand, quarter-wave section for the 2 m band in 0.66 coax: λ = 299792458 · 0.66/1.45e8 = 1.364573 m, ℓ = 1.364573/4 = 0.341143 m"},
+    {"values": {"f": 435000000.0, "vf": 0.82, "theta": 0.5235987755982989, "l": 0.047093834398467434, "lam0": 0.6891780643678161, "lam": 0.5651260127816092}, "ref": "hand, 30° stub at 435 MHz in a foam cable with VF 0.82: λ = 299792458 · 0.82/4.35e8 = 0.565126 m, ℓ = 30/360 · 0.565126 = 0.0470938 m"}
+  ],
+  "solve": [
+    {"inputs": {"f": 145000000, "vf": 0.66, "theta": 1.5707963267948966}, "expect": {"l": 0.34114314186206895, "lam": 1.3645725674482758, "lam0": 2.067534193103448}, "errors": {}, "warnings": [], "ref": "hand: λ/4 at 145 MHz, VF 0.66: ℓ = 0.341143 m, λ in the cable 1.364573 m, free-space λ 2.067534 m"},
+    {"inputs": {"f": 145000000, "vf": 0.66, "l": 0.34114314186206895}, "expect": {"theta": 1.5707963267948966}, "errors": {}, "warnings": [], "ref": "reverse: θ = 2π · ℓ · f/(c · VF) = 90° = π/2 rad"},
+    {"inputs": {"theta": 1.5707963267948966, "vf": 0.66, "l": 0.5}, "expect": {"f": 98931511.14}, "errors": {}, "warnings": [], "ref": "hand: f = θ/(2π) · c · VF/ℓ = 0.25 · 299792458 · 0.66/0.5 = 98.93151 MHz for a 0.5 m quarter-wave section"},
+    {"inputs": {"f": 145000000, "theta": 1.5707963267948966, "l": 0.34114314186206895}, "expect": {"vf": 0.66}, "errors": {}, "warnings": [], "ref": "reverse: VF = 2π·ℓ·f/(θ·c): a quarter-wave stub trimmed to ℓ = 0.341143 m at 145 MHz gives the true velocity factor 0.66"},
+    {"inputs": {"f": 145000000, "vf": 1.2, "theta": 1.5707963267948966}, "expect": {"l": 0.6202602579310345}, "errors": {}, "warnings": [0], "ref": "hand: VF above 1 is not physical (faster than light in vacuum): warning"},
+    {"inputs": {"f": 145000000, "vf": 0.66, "theta": 6.981317007977318}, "expect": {"l": 1.5161917416091955}, "errors": {}, "warnings": [1], "ref": "hand: 400° is more than one wavelength (ℓ = 400/360 · 1.364573 = 1.516192 m): warning"}
+  ]
+}

@@ -218,3 +218,152 @@
   derived:
     rs: {dim: resistance, label: R_s, name: {en: "Surface resistance per square", de: "Oberflächenwiderstand pro Quadrat"}, expr: "rho/delta"}
   formula: ["delta = sqrt(rho / (pi * f * 4 * pi * 1e-7))", "rs = rho / delta"]
+
+- id: thermal_noise
+  kind: calculator
+  category: rf
+  name: {cs: "Tepelný šum (Johnsonův)", da: "Termisk støj (Johnson)", de: "Thermisches Rauschen (Johnson)", el: "Θερμικός θόρυβος (Johnson)", en: "Thermal (Johnson) noise", es: "Ruido térmico (Johnson)", fr: "Bruit thermique (Johnson)", hi: "तापीय (जॉनसन) शोर", it: "Rumore termico (Johnson)", ja: "熱雑音（ジョンソン雑音）", nl: "Thermische ruis (Johnson)", no: "Termisk støy (Johnson)", pl: "Szum termiczny (Johnsona)", pt: "Ruído térmico (Johnson)", sv: "Termiskt brus (Johnson)", zh: "热噪声（约翰逊噪声）"}
+  doc:
+    en: "A resistor R at the absolute temperature T generates a white noise voltage: v_n = √(4 × k × T × R × B) (RMS, open circuit) in the noise bandwidth B, with the Boltzmann constant k = 1.380 649 × 10⁻²³ J/K (exact in the SI). The same noise seen as a short-circuit current is i_n = v_n / R. The voltage density e_n = √(4kTR) is shown as a voltage: it is the value in V per √Hz, so 1 kΩ at 290 K gives about 4 nV/√Hz. The available noise power is P_n = k × T × B. It is what the resistor delivers into a matched, noiseless load, it does not depend on R, and at 290 K in 1 Hz it is −173.975 dBm (the familiar −174 dBm/Hz). Do not compute it as v_n² / R: that value is 6 dB too high, only v_n² / (4R) equals kTB. Choose the display unit dBm for P_n and dBV for v_n. B is the noise bandwidth, not the −3 dB frequency: for a first-order low-pass it is 1.57 times the corner frequency, for higher orders it approaches the corner frequency. Enter any three of R, T, B and v_n. Values are RMS; real resistors add current-dependent excess noise at low frequencies and an amplifier adds its own noise. Example: 1 kΩ, 290 K and 1 Hz give e_n = 4.002 nV/√Hz."
+    de: "Ein Widerstand R bei der absoluten Temperatur T erzeugt eine weiße Rauschspannung: v_n = √(4 · k · T · R · B) (Effektivwert, Leerlauf) in der Rauschbandbreite B, mit der Boltzmann-Konstante k = 1,380 649 · 10⁻²³ J/K (im SI exakt). Dasselbe Rauschen als Kurzschlussstrom ist i_n = v_n / R. Die Spannungsdichte e_n = √(4kTR) wird als Spannung angezeigt: Es ist der Wert in V pro √Hz, 1 kΩ bei 290 K ergeben also etwa 4 nV/√Hz. Die verfügbare Rauschleistung ist P_n = k · T · B. Das ist die Leistung, die der Widerstand an eine angepasste, rauschfreie Last abgibt; sie hängt nicht von R ab und beträgt bei 290 K in 1 Hz −173,975 dBm (das bekannte −174 dBm/Hz). Sie ist nicht v_n² / R: Dieser Wert wäre 6 dB zu hoch, nur v_n² / (4R) ist gleich kTB. Für P_n die Anzeigeeinheit dBm wählen, für v_n dBV. B ist die Rauschbandbreite, nicht die −3-dB-Frequenz: Bei einem Tiefpass erster Ordnung ist sie das 1,57-Fache der Eckfrequenz, bei höheren Ordnungen nähert sie sich der Eckfrequenz. Drei der Größen R, T, B und v_n eingeben. Alle Werte sind Effektivwerte; reale Widerstände erzeugen bei tiefen Frequenzen zusätzlich stromabhängiges Rauschen, und ein Verstärker bringt sein eigenes Rauschen mit. Beispiel: 1 kΩ, 290 K und 1 Hz ergeben e_n = 4,002 nV/√Hz."
+  tags: [thermal noise, johnson noise, nyquist noise, resistor noise, noise voltage, noise current, noise density, nv/√hz, ktb, noise floor, -174 dbm/hz, dbm, dbv, boltzmann constant, rf, thermisches rauschen, wärmerauschen, widerstandsrauschen, johnson-rauschen, nyquist-rauschen, rauschspannung, rauschstrom, rauschdichte, rauschgrenze, grundrauschen, boltzmann-konstante, hf]
+  source: "Thermal noise v_n = √(4kTRB) of a resistor: Texas Instruments, Noise Analysis in Operational Amplifier Circuits (SLVA043B), Thermal Noise, and Analog Dialogue 24-2, Ask the Applications Engineer—7: Op-amp Noise; available noise power P = kTB: Rohde & Schwarz, dB or not dB? (application note 1MA98), section Noise; Boltzmann constant k = 1.380 649e-23 J/K exact: SI Brochure, 9th edition (BIPM)"
+  vars:
+    r: {dim: resistance, label: R, name: {en: "Resistance", de: "Widerstand"}, default: "1 kΩ"}
+    t: {dim: temperature, label: T, name: {en: "Absolute temperature", de: "Absolute Temperatur"}, default: "290 K"}
+    b: {dim: frequency, label: B, name: {en: "Noise bandwidth", de: "Rauschbandbreite"}, default: "1 Hz"}
+    vn: {dim: voltage, label: v_n, name: {en: "RMS noise voltage (open circuit)", de: "Rauschspannung (Effektivwert, Leerlauf)"}}
+  dof: 3
+  rules:
+    vn: ["sqrt(4*1.380649e-23*t*r*b)"]
+    r: ["vn^2/(4*1.380649e-23*t*b)"]
+    t: ["vn^2/(4*1.380649e-23*r*b)"]
+    b: ["vn^2/(4*1.380649e-23*t*r)"]
+  derived:
+    en: {dim: voltage, label: e_n, name: {en: "Voltage noise density (value in V/√Hz)", de: "Rauschspannungsdichte (Wert in V/√Hz)"}, expr: "sqrt(4*1.380649e-23*t*r)", units: [""]}
+    inoise: {dim: current, label: i_n, name: {en: "RMS noise current (short circuit)", de: "Rauschstrom (Effektivwert, Kurzschluss)"}, expr: "vn/r"}
+    pn: {dim: power, label: P_n, name: {en: "Available noise power kTB", de: "Verfügbare Rauschleistung kTB"}, expr: "1.380649e-23*t*b"}
+  checks:
+    - {when: "t <= 0", warn: {en: "The temperature must be an absolute temperature above 0 K (°C + 273.15).", de: "Die Temperatur muss eine absolute Temperatur über 0 K sein (°C + 273,15)."}}
+  formula: ["vn = sqrt(4 * 1.380649e-23 * t * r * b)", "en = sqrt(4 * 1.380649e-23 * t * r)", "pn = 1.380649e-23 * t * b"]
+
+- id: l_match
+  kind: calculator
+  category: rf
+  name: {cs: "L-článek pro impedanční přizpůsobení", da: "L-netværk til tilpasning", de: "L-Anpassnetzwerk", el: "Δίκτυο προσαρμογής L", en: "L-network matching", es: "Red L de adaptación", fr: "Réseau d'adaptation en L", hi: "L-नेटवर्क मिलान", it: "Rete di adattamento a L", ja: "L型整合回路", nl: "L-netwerk voor aanpassing", no: "L-nettverk for tilpasning", pl: "Układ dopasowujący typu L", pt: "Rede L de casamento", sv: "L-nät för anpassning", zh: "L型匹配网络"}
+  doc:
+    en: "Two reactive parts, one in series and one in parallel, transform a load resistance to a different source resistance at one frequency, for maximum power transfer. With R_hi the larger and R_lo the smaller of the two resistances the Q is fixed by their ratio: Q = √(R_hi / R_lo − 1). The series reactance is X_s = Q × R_lo (on the low-resistance side) and the parallel reactance is X_p = R_hi / Q (across the high resistance), so X_s × X_p = R_hi × R_lo. Low-pass variant (passes DC, attenuates harmonics): L = X_s / (2π f) in series, C = 1 / (2π f X_p) in parallel. High-pass variant (blocks DC): C = 1 / (2π f X_s) in series, L = X_p / (2π f) in parallel. Source and load can be swapped: only R_hi and R_lo matter. Example: 100 Ω to 1 kΩ at 100 MHz gives Q = 3, X_s = 300 Ω, X_p = 333 Ω, so L = 477 nH and C = 4.77 pF (low-pass). Valid for purely resistive source and load, ideal lossless parts and one frequency; reactive parts of the source or load must be compensated first. With lumped parts this works up to roughly 1 to 2 GHz. The calculator gives no bandwidth: the Q of an L-network is fixed by the ratio and is not the loaded Q of a resonator, so the rule bandwidth = f / Q must not be used. For another Q use a three-element network."
+    de: "Zwei Blindelemente, eines in Reihe und eines parallel, transformieren bei einer Frequenz einen Lastwiderstand auf einen anderen Quellwiderstand (Leistungsanpassung). Ist R_hi der größere und R_lo der kleinere der beiden Widerstände, so legt ihr Verhältnis die Güte fest: Q = √(R_hi / R_lo − 1). Der Längsblindwiderstand ist X_s = Q · R_lo (auf der Seite des kleinen Widerstands) und der Querblindwiderstand X_p = R_hi / Q (parallel zum großen Widerstand), also X_s · X_p = R_hi · R_lo. Tiefpassvariante (lässt Gleichstrom durch, dämpft Oberwellen): L = X_s / (2π f) in Reihe, C = 1 / (2π f X_p) parallel. Hochpassvariante (sperrt Gleichstrom): C = 1 / (2π f X_s) in Reihe, L = X_p / (2π f) parallel. Quelle und Last dürfen vertauscht werden: Nur R_hi und R_lo zählen. Beispiel: 100 Ω auf 1 kΩ bei 100 MHz ergeben Q = 3, X_s = 300 Ω, X_p = 333 Ω, also L = 477 nH und C = 4,77 pF (Tiefpass). Gilt für rein ohmsche Quelle und Last, ideale verlustfreie Bauteile und eine Frequenz; Blindanteile von Quelle oder Last müssen zuvor kompensiert werden. Mit konzentrierten Bauteilen funktioniert das bis etwa 1 bis 2 GHz. Der Rechner gibt keine Bandbreite an: Die Güte eines L-Glieds ist durch das Verhältnis festgelegt und nicht die Betriebsgüte eines Resonators, die Regel Bandbreite = f / Q darf also nicht verwendet werden. Für eine andere Güte ein Netzwerk mit drei Elementen verwenden."
+  tags: [l-match, l match, l-network, l network, impedance matching, matching network, antenna tuner, antenna matching, rf matching, q factor, low-pass match, high-pass match, impedance transformation, rf, l-glied, l-netzwerk, anpassnetzwerk, impedanzanpassung, leistungsanpassung, antennenanpassung, antennentuner, hf-anpassung, güte, tiefpass-anpassglied, hochpass-anpassglied, impedanztransformation, hf]
+  source: "Two-reactance (L) matching network, Q = √(R_hi/R_lo − 1), X_s = Q·R_lo, X_p = R_hi/Q with the shunt reactance across the larger resistance: NXP (Motorola/Freescale) application note AN721, Impedance Matching Networks Applied to RF Power Transistors, section Two-Reactance Matching Networks; M. Steer, Microwave and RF Design III: Networks, section The L Matching Network"
+  vars:
+    rs: {dim: resistance, label: R_S, name: {en: "Source resistance", de: "Quellwiderstand"}, default: "100 Ω"}
+    rl: {dim: resistance, label: R_L, name: {en: "Load resistance", de: "Lastwiderstand"}, default: "1 kΩ"}
+    f: {dim: frequency, label: f, name: {en: "Frequency", de: "Frequenz"}, default: "100 MHz"}
+    l: {dim: inductance, label: L, name: {en: "Inductor", de: "Spule"}, input: false}
+    c: {dim: capacitance, label: C, name: {en: "Capacitor", de: "Kondensator"}, input: false}
+  choices:
+    variant:
+      name: {cs: "Varianta", da: "Variant", de: "Variante", el: "Παραλλαγή", en: "Variant", es: "Variante", fr: "Variante", hi: "प्रकार", it: "Variante", ja: "方式", nl: "Variant", no: "Variant", pl: "Wariant", pt: "Variante", sv: "Variant", zh: "类型"}
+      default: lowpass
+      options:
+        lowpass:
+          name: {cs: "Dolní propust (L sériově, C paralelně)", da: "Lavpas (serie-L, shunt-C)", de: "Tiefpass (Längs-L, Quer-C)", el: "Βαθυπερατό (L σε σειρά, C παράλληλα)", en: "Low-pass (series L, shunt C)", es: "Paso bajo (L serie, C paralelo)", fr: "Passe-bas (L série, C parallèle)", hi: "लो-पास (श्रेणी L, समांतर C)", it: "Passa-basso (L serie, C parallelo)", ja: "ローパス（直列L、並列C）", nl: "Laagdoorlaat (serie-L, parallel-C)", no: "Lavpass (serie-L, parallell-C)", pl: "Dolnoprzepustowy (L szeregowo, C równolegle)", pt: "Passa-baixas (L série, C paralelo)", sv: "Lågpass (serie-L, parallell-C)", zh: "低通（串联L，并联C）"}
+          consts: {lp: 1}
+        highpass:
+          name: {cs: "Horní propust (C sériově, L paralelně)", da: "Højpas (serie-C, shunt-L)", de: "Hochpass (Längs-C, Quer-L)", el: "Υψιπερατό (C σε σειρά, L παράλληλα)", en: "High-pass (series C, shunt L)", es: "Paso alto (C serie, L paralelo)", fr: "Passe-haut (C série, L parallèle)", hi: "हाई-पास (श्रेणी C, समांतर L)", it: "Passa-alto (C serie, L parallelo)", ja: "ハイパス（直列C、並列L）", nl: "Hoogdoorlaat (serie-C, parallel-L)", no: "Høypass (serie-C, parallell-L)", pl: "Górnoprzepustowy (C szeregowo, L równolegle)", pt: "Passa-altas (C série, L paralelo)", sv: "Högpass (serie-C, parallell-L)", zh: "高通（串联C，并联L）"}
+          consts: {lp: 0}
+  dof: 3
+  rules:
+    l: ["if(lp, sqrt(max(rs,rl)/min(rs,rl)-1)*min(rs,rl), max(rs,rl)/sqrt(max(rs,rl)/min(rs,rl)-1))/(2*pi*f)"]
+    c: ["if(lp, sqrt(max(rs,rl)/min(rs,rl)-1)/max(rs,rl), 1/(sqrt(max(rs,rl)/min(rs,rl)-1)*min(rs,rl)))/(2*pi*f)"]
+  derived:
+    q: {dim: number, label: Q, name: {en: "Q of the network (fixed by the ratio)", de: "Güte des Netzwerks (durch das Verhältnis festgelegt)"}, expr: "sqrt(max(rs,rl)/min(rs,rl)-1)"}
+    xs: {dim: resistance, label: X_s, name: {en: "Series reactance (magnitude)", de: "Längsblindwiderstand (Betrag)"}, expr: "q*min(rs,rl)"}
+    xp: {dim: resistance, label: X_p, name: {en: "Parallel reactance (magnitude)", de: "Querblindwiderstand (Betrag)"}, expr: "max(rs,rl)/q"}
+  checks:
+    - {when: "rs == rl", warn: {en: "Source and load are equal: no matching network is needed.", de: "Quelle und Last sind gleich: Es wird kein Anpassnetzwerk gebraucht."}}
+  formula: ["q = sqrt(max(rs, rl) / min(rs, rl) - 1)", "xs = q * min(rs, rl)", "xp = max(rs, rl) / q", "l = if(lp, xs, xp) / (2 * pi * f)", "c = if(lp, 1 / xp, 1 / xs) / (2 * pi * f)"]
+  schematic: l_match
+
+- id: eirp
+  kind: calculator
+  category: rf
+  name: {cs: "EIRP a ERP", da: "EIRP og ERP", de: "EIRP und ERP", el: "EIRP και ERP", en: "EIRP and ERP", es: "EIRP y ERP", fr: "EIRP et ERP", hi: "EIRP और ERP", it: "EIRP ed ERP", ja: "EIRPとERP", nl: "EIRP en ERP", no: "EIRP og ERP", pl: "EIRP i ERP", pt: "EIRP e ERP", sv: "EIRP och ERP", zh: "EIRP与ERP"}
+  doc:
+    en: "The equivalent isotropically radiated power (EIRP) is the power supplied to the antenna times the antenna gain relative to an isotropic radiator, in the direction of that gain. In decibels: EIRP [dBm] = P_TX [dBm] − L_c [dB] + G [dBi], with the transmitter output power P_TX, the loss L_c of the cable, connectors and filters between transmitter and antenna, and the antenna gain G in dBi. Any three of P_TX, L_c, G and EIRP give the fourth, for example the highest transmitter power for an EIRP limit: P_TX = EIRP − G + L_c. The effective radiated power (ERP) refers to a half-wave dipole instead: ERP = EIRP − 2.15 dB (a factor of 1.64 in watts), because the ideal half-wave dipole has 2.15 dBi. A gain given in dBd is converted with G [dBi] = G [dBd] + 2.15 dB. Display the powers in dBm or in watts as you prefer. EIRP and ERP are regulatory quantities: check which of the two a limit refers to (for example e.r.p. for short-range devices below 1 GHz, e.i.r.p. for 2.4 GHz and 5 GHz WLAN). The gain must be that of the antenna as installed, and the loss must include everything between the point where P_TX is specified and the antenna; mismatch loss is not included. The calculator does not compute the field strength. Example: 20 dBm, 3.35 dB cable loss and a 21 dBi dish give 37.65 dBm = 5.82 W EIRP."
+    de: "Die äquivalente isotrope Strahlungsleistung (EIRP) ist die der Antenne zugeführte Leistung mal dem Antennengewinn gegenüber dem Kugelstrahler, in Richtung dieses Gewinns. In Dezibel: EIRP [dBm] = P_TX [dBm] − L_c [dB] + G [dBi], mit der Senderausgangsleistung P_TX, der Dämpfung L_c von Kabel, Steckern und Filtern zwischen Sender und Antenne und dem Antennengewinn G in dBi. Drei der Größen P_TX, L_c, G und EIRP ergeben die vierte, zum Beispiel die höchste Sendeleistung für einen EIRP-Grenzwert: P_TX = EIRP − G + L_c. Die effektive Strahlungsleistung (ERP) bezieht sich stattdessen auf den Halbwellendipol: ERP = EIRP − 2,15 dB (Faktor 1,64 in Watt), weil der ideale Halbwellendipol 2,15 dBi hat. Ein in dBd angegebener Gewinn wird mit G [dBi] = G [dBd] + 2,15 dB umgerechnet. Die Leistungen lassen sich wahlweise in dBm oder in Watt anzeigen. EIRP und ERP sind Rechtsgrößen: Prüfen, auf welche der beiden sich ein Grenzwert bezieht (zum Beispiel ERP für Kurzstreckengeräte unter 1 GHz, EIRP für WLAN bei 2,4 GHz und 5 GHz). Der Gewinn muss der Gewinn der Antenne im eingebauten Zustand sein, und die Dämpfung muss alles zwischen dem Punkt, an dem P_TX angegeben ist, und der Antenne enthalten; Fehlanpassungsverluste sind nicht enthalten. Der Rechner berechnet keine Feldstärke. Beispiel: 20 dBm, 3,35 dB Kabeldämpfung und eine Parabolantenne mit 21 dBi ergeben 37,65 dBm = 5,82 W EIRP."
+  tags: [eirp, erp, radiated power, effective radiated power, equivalent isotropically radiated power, antenna gain, dbi, dbd, cable loss, feeder loss, link budget, transmitter power, rf, strahlungsleistung, effektive strahlungsleistung, äquivalente isotrope strahlungsleistung, antennengewinn, kabeldämpfung, leitungsdämpfung, funkfeldbilanz, sendeleistung, hf]
+  source: "e.i.r.p. and e.r.p. as defined in the ITU Radio Regulations (Nos. 1.161 and 1.162, quoted in ITU-R Recommendation BS.561-2) and in 47 CFR § 2.1; half-wave dipole gain 2.15 dBi: ITU-R Recommendation P.341-7, Table 1; EIRP = transmitter power − cable loss + antenna gain (dBm, dB, dBi): Cisco, RF Power Values (document 23231)"
+  vars:
+    p: {dim: power, label: P_TX, name: {en: "Transmitter output power", de: "Senderausgangsleistung"}, default: "100 mW", units: ["", "dBm"]}
+    loss: {dim: gain, label: L_c, name: {en: "Feeder loss (cable, connectors, filters)", de: "Leitungsdämpfung (Kabel, Stecker, Filter)"}, default: "3.35 dB"}
+    g: {dim: gain, label: G, name: {en: "Antenna gain (dBi, relative to an isotropic radiator)", de: "Antennengewinn (dBi, bezogen auf den Kugelstrahler)"}, default: "21 dB"}
+    eirp: {dim: power, label: EIRP, name: {en: "Equivalent isotropically radiated power", de: "Äquivalente isotrope Strahlungsleistung"}, units: ["", "dBm"]}
+  dof: 3
+  rules:
+    eirp: ["p*10^((g-loss)/10)"]
+    p: ["eirp/10^((g-loss)/10)"]
+    g: ["10*log10(eirp/p)+loss"]
+    loss: ["g-10*log10(eirp/p)"]
+  derived:
+    erp: {dim: power, label: ERP, name: {en: "Effective radiated power (half-wave dipole, EIRP − 2.15 dB)", de: "Effektive Strahlungsleistung (Halbwellendipol, EIRP − 2,15 dB)"}, expr: "eirp/10^0.215", units: ["", "dBm"]}
+  checks:
+    - {when: "loss < 0", warn: {en: "A negative feeder loss is not possible for a passive cable; enter the loss as a positive number of dB.", de: "Eine negative Leitungsdämpfung ist bei einem passiven Kabel nicht möglich; die Dämpfung als positive dB-Zahl eingeben."}}
+  formula: ["eirp = p * 10^((g - loss) / 10)", "erp = eirp / 10^0.215"]
+
+- id: coax_stub
+  kind: calculator
+  category: rf
+  name: {cs: "Koaxiální úsek (stub) a elektrická délka", da: "Koaksial stub / elektrisk længde", de: "Koax-Stichleitung / elektrische Länge", el: "Ομοαξονική γραμμή (stub) / ηλεκτρικό μήκος", en: "Coax stub / electrical length", es: "Stub coaxial / longitud eléctrica", fr: "Stub coaxial / longueur électrique", hi: "कोएक्स स्टब / विद्युत लंबाई", it: "Stub coassiale / lunghezza elettrica", ja: "同軸スタブ／電気長", nl: "Coax-stub / elektrische lengte", no: "Koaks-stubb / elektrisk lengde", pl: "Odcinek koncentryczny (stub) / długość elektryczna", pt: "Stub coaxial / comprimento elétrico", sv: "Koax-stub / elektrisk längd", zh: "同轴短截线／电长度"}
+  doc:
+    en: "The physical length ℓ of a coaxial line with a given electrical length θ follows from the frequency f and the velocity factor VF of the cable: ℓ = θ / 360° × λ_g with the wavelength in the cable λ_g = c × VF / f and c = 299 792 458 m/s (exact). 90° is a quarter-wave section, 180° a half-wave section. Any three of f, VF, θ and ℓ give the fourth: from a stub trimmed to resonance you can find the true velocity factor of a cable. The free-space wavelength and the wavelength in the cable are shown. VF = 1 / √ε_r holds only for a line that is completely filled with one solid dielectric (solid polyethylene, ε_r ≈ 2.3, gives 0.66); foam cables are an air and plastic mixture, so use the velocity factor from the cable datasheet. The electrical length is exact at one frequency only: the same piece has θ proportional to f. Datasheet velocity factors are nominal and real cables deviate by a few per cent, so cut stubs and phasing lines slightly long and trim them while measuring; connectors and the open or shorted end add length. A quarter-wave line turns a short into an open and the reverse, a half-wave line repeats the impedance. Example: a quarter-wave section for 145 MHz in 0.66 coax is 0.341 m long."
+    de: "Die mechanische Länge ℓ einer Koaxleitung mit gegebener elektrischer Länge θ folgt aus der Frequenz f und dem Verkürzungsfaktor VF des Kabels: ℓ = θ / 360° · λ_g mit der Wellenlänge im Kabel λ_g = c · VF / f und c = 299 792 458 m/s (exakt). 90° ist ein λ/4-Stück, 180° ein λ/2-Stück. Drei der Größen f, VF, θ und ℓ ergeben die vierte: Aus einer auf Resonanz abgeglichenen Stichleitung lässt sich der wahre Verkürzungsfaktor eines Kabels bestimmen. Die Freiraumwellenlänge und die Wellenlänge im Kabel werden mitgeliefert. VF = 1 / √ε_r gilt nur für eine Leitung, die vollständig mit einem festen Dielektrikum gefüllt ist (Vollpolyethylen, ε_r ≈ 2,3, ergibt 0,66); Schaumkabel sind ein Gemisch aus Luft und Kunststoff, dort den Verkürzungsfaktor aus dem Kabeldatenblatt verwenden. Die elektrische Länge stimmt nur bei einer Frequenz: Dasselbe Kabelstück hat ein θ proportional zu f. Verkürzungsfaktoren im Datenblatt sind Nennwerte und reale Kabel weichen um einige Prozent ab; Stichleitungen und Phasenleitungen daher etwas zu lang zuschneiden und unter Messung kürzen, Stecker und das offene oder kurzgeschlossene Ende verlängern die Leitung. Eine λ/4-Leitung macht aus einem Kurzschluss eine Unterbrechung und umgekehrt, eine λ/2-Leitung wiederholt die Impedanz. Beispiel: Ein λ/4-Stück für 145 MHz in 0,66-Koax ist 0,341 m lang."
+  tags: [coax, coaxial cable, stub, quarter wave, half wave, electrical length, velocity factor, velocity of propagation, vop, phasing line, matching stub, delay line, wavelength in cable, dielectric constant, rf, koax, koaxialkabel, stichleitung, lambda/4, lambda/2, viertelwelle, halbwelle, elektrische länge, verkürzungsfaktor, phasenleitung, anpassleitung, verzögerungsleitung, dielektrizitätszahl, hf]
+  source: "Electrical length θ = β·ℓ with a wavelength of 360° and λ = v_p/f: M. Steer, Microwave and RF Design II: Transmission Lines, section Transmission Line Theory; velocity factor VF = 1/√ε_r of a solid-dielectric coax line (RG-59 with polyethylene, ε_r = 2.25, about 67 % of c): S. W. Ellingson, Electromagnetics Vol. 1, section Coaxial Line; speed of light c = 299 792 458 m/s exact (SI Brochure, BIPM)"
+  vars:
+    f: {dim: frequency, label: f, name: {en: "Frequency", de: "Frequenz"}, default: "145 MHz"}
+    vf: {dim: ratio, label: VF, name: {en: "Velocity factor of the cable", de: "Verkürzungsfaktor des Kabels"}, default: 0.66}
+    theta: {dim: angle, label: θ, name: {en: "Electrical length (90° = λ/4, 180° = λ/2)", de: "Elektrische Länge (90° = λ/4, 180° = λ/2)"}, default: "90°", unit: deg, units: [deg, ""]}
+    l: {dim: length, label: ℓ, name: {en: "Physical length of the cable", de: "Mechanische Länge des Kabels"}, units: ["", "in", "ft"]}
+  dof: 3
+  rules:
+    l: ["theta/(2*pi)*299792458*vf/f"]
+    theta: ["2*pi*l*f/(299792458*vf)"]
+    f: ["theta/(2*pi)*299792458*vf/l"]
+    vf: ["2*pi*l*f/(theta*299792458)"]
+  derived:
+    lam0: {dim: length, label: λ_0, name: {en: "Wavelength in free space", de: "Wellenlänge im freien Raum"}, expr: "299792458/f", units: ["", "in", "ft"]}
+    lam: {dim: length, label: λ_g, name: {en: "Wavelength in the cable", de: "Wellenlänge im Kabel"}, expr: "299792458*vf/f", units: ["", "in", "ft"]}
+  checks:
+    - {when: "(vf > 1) + (vf <= 0) > 0", warn: {en: "The velocity factor must lie between 0 and 1 (enter 66 % as 0.66).", de: "Der Verkürzungsfaktor muss zwischen 0 und 1 liegen (66 % als 0,66 eingeben)."}}
+    - {when: "theta > 2*pi", warn: {en: "More than one wavelength: the line behaves like one shortened by whole wavelengths, but only at this frequency.", de: "Mehr als eine Wellenlänge: Die Leitung verhält sich wie eine um ganze Wellenlängen kürzere, aber nur bei dieser Frequenz."}}
+  formula: ["lam = 299792458 * vf / f", "l = theta / (2 * pi) * lam"]
+
+- id: noise_figure_cascade
+  kind: calculator
+  category: rf
+  name: {cs: "Celkové číslo šumu (Friis)", da: "Samlet støjtal (Friis)", de: "Gesamtrauschzahl (Friis)", el: "Συνολικός δείκτης θορύβου (Friis)", en: "Cascaded noise figure (Friis)", es: "Figura de ruido en cascada (Friis)", fr: "Facteur de bruit en cascade (Friis)", hi: "कैस्केड शोर आंकड़ा (फ्रिस)", it: "Cifra di rumore in cascata (Friis)", ja: "縦続接続の雑音指数（フリスの式）", nl: "Cascade-ruisgetal (Friis)", no: "Samlet støytall (Friis)", pl: "Współczynnik szumów kaskady (Friis)", pt: "Figura de ruído em cascata (Friis)", sv: "Sammanlagt brusfaktor (Friis)", zh: "级联噪声系数（弗里斯公式）"}
+  doc:
+    en: "The overall noise figure of three stages in a row (amplifiers, cables, mixers, filters) follows from the Friis formula with the linear noise factors F_i = 10^(NF_i / 10) and power gains g_i = 10^(G_i / 10): F = F_1 + (F_2 − 1) / g_1 + (F_3 − 1) / (g_1 × g_2), and NF = 10 × log10(F). Enter every noise figure and gain in dB; the conversion to linear values is done inside (adding the dB values of the noise figures is the classic mistake). The chain is fixed at three stages: for two stages enter NF_3 = 0 dB, which removes the third term. The gain of the last stage does not matter. The first stage dominates: a loss in front of the first amplifier adds directly to the noise figure, and a stage with high gain makes the following stages count less. A passive, lossy stage at 290 K (cable, attenuator, filter) has a noise figure equal to its loss and a gain equal to the negative loss, both in dB. From the overall noise figure, the required NF_1 or the required gain G_1 of the first stage can be found; if the later stages alone already exceed the target, the answer is impossible (NF_1 below 0 dB, or no result). The equivalent input noise temperature is T_e = 290 K × (F − 1). Noise figures refer to a source at 290 K. Example: an LNA with 1 dB and 12 dB gain, a second LNA with 3 dB and 15 dB gain and an ADC with a noise figure of 20 dB give 1.8 dB."
+    de: "Die Gesamtrauschzahl von drei hintereinandergeschalteten Stufen (Verstärker, Kabel, Mischer, Filter) folgt aus der Friis-Formel mit den linearen Rauschfaktoren F_i = 10^(NF_i / 10) und Leistungsverstärkungen g_i = 10^(G_i / 10): F = F_1 + (F_2 − 1) / g_1 + (F_3 − 1) / (g_1 · g_2) und NF = 10 · log10(F). Alle Rauschmaße und Verstärkungen in dB eingeben; die Umrechnung in lineare Werte geschieht intern (die dB-Werte der Rauschmaße zu addieren ist der klassische Fehler). Die Kette ist auf drei Stufen festgelegt: Für zwei Stufen NF_3 = 0 dB eingeben, das entfernt den dritten Term. Die Verstärkung der letzten Stufe spielt keine Rolle. Die erste Stufe dominiert: Eine Dämpfung vor dem ersten Verstärker addiert sich direkt zum Rauschmaß, und eine Stufe mit hoher Verstärkung lässt die folgenden Stufen weniger zählen. Eine passive, verlustbehaftete Stufe bei 290 K (Kabel, Dämpfungsglied, Filter) hat ein Rauschmaß in Höhe ihrer Dämpfung und eine Verstärkung in Höhe der negativen Dämpfung, beides in dB. Aus dem Gesamtrauschmaß lassen sich das nötige NF_1 oder die nötige Verstärkung G_1 der ersten Stufe bestimmen; überschreiten die folgenden Stufen allein schon das Ziel, ist die Antwort unmöglich (NF_1 unter 0 dB oder kein Ergebnis). Die äquivalente Eingangsrauschtemperatur ist T_e = 290 K · (F − 1). Rauschmaße beziehen sich auf eine Quelle mit 290 K. Beispiel: ein LNA mit 1 dB und 12 dB Verstärkung, ein zweiter LNA mit 3 dB und 15 dB Verstärkung und ein ADC mit 20 dB Rauschmaß ergeben 1,8 dB."
+  tags: [noise figure, noise factor, friis, cascade, cascaded noise figure, noise temperature, lna, preamplifier, system noise, receiver, rf, rauschmaß, rauschzahl, friis-formel, kaskade, kettenrauschzahl, rauschtemperatur, lna, vorverstärker, systemrauschen, empfänger, hf]
+  source: "Friis formula for cascaded stages F = F1 + (F2−1)/G1 + (F3−1)/(G1·G2) and Te = 290 K·(F−1): Agilent Technologies, Fundamentals of RF and Microwave Noise Figure Measurements (Application Note 57-1); worked three-stage example: Texas Instruments, How the ADC noise figure impacts RF receiver designs (SLYT839, Analog Design Journal 3Q 2023), Table 3"
+  vars:
+    nf1: {dim: gain, label: NF_1, name: {en: "Noise figure of stage 1", de: "Rauschmaß der Stufe 1"}, default: "1 dB"}
+    g1: {dim: gain, label: G_1, name: {en: "Gain of stage 1 (negative = loss)", de: "Verstärkung der Stufe 1 (negativ = Dämpfung)"}, default: "12 dB"}
+    nf2: {dim: gain, label: NF_2, name: {en: "Noise figure of stage 2", de: "Rauschmaß der Stufe 2"}, default: "3 dB"}
+    g2: {dim: gain, label: G_2, name: {en: "Gain of stage 2 (negative = loss)", de: "Verstärkung der Stufe 2 (negativ = Dämpfung)"}, default: "15 dB"}
+    nf3: {dim: gain, label: NF_3, name: {en: "Noise figure of stage 3 (0 dB = no third stage)", de: "Rauschmaß der Stufe 3 (0 dB = keine dritte Stufe)"}, default: "20 dB"}
+    nft: {dim: gain, label: NF, name: {en: "Overall noise figure", de: "Gesamtrauschmaß"}}
+  dof: 5
+  rules:
+    nft: ["10*log10(10^(nf1/10)+(10^(nf2/10)-1)/10^(g1/10)+(10^(nf3/10)-1)/10^((g1+g2)/10))"]
+    nf1: ["10*log10(10^(nft/10)-(10^(nf2/10)-1)/10^(g1/10)-(10^(nf3/10)-1)/10^((g1+g2)/10))"]
+    g1: ["10*log10(((10^(nf2/10)-1)+(10^(nf3/10)-1)/10^(g2/10))/(10^(nft/10)-10^(nf1/10)))"]
+  derived:
+    ftot: {dim: number, label: F, name: {en: "Overall noise factor (linear)", de: "Gesamtrauschfaktor (linear)"}, expr: "10^(nft/10)"}
+    te: {dim: temperature, label: T_e, name: {en: "Equivalent input noise temperature", de: "Äquivalente Eingangsrauschtemperatur"}, expr: "290*(10^(nft/10)-1)"}
+  checks:
+    - {when: "(nf1 < 0) + (nf2 < 0) + (nf3 < 0) > 0", warn: {en: "A noise figure cannot be below 0 dB.", de: "Ein Rauschmaß kann nicht unter 0 dB liegen."}}
+  formula: ["nft = 10 * log10(10^(nf1 / 10) + (10^(nf2 / 10) - 1) / 10^(g1 / 10) + (10^(nf3 / 10) - 1) / 10^((g1 + g2) / 10))", "te = 290 * (10^(nft / 10) - 1)"]

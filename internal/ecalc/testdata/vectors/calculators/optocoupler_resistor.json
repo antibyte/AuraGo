@@ -1,0 +1,17 @@
+{
+  "calc": "optocoupler_resistor",
+  "sets": [
+    {"values": {"vin": 5.0, "vf": 1.2, "iled": 0.01, "r1": 380.0, "ctr": 0.2, "vcc": 5.0, "vcesat": 0.4, "ic": 0.002, "rl": 2300.0, "pr": 0.038}, "ref": "hand, PC817 typical VF 1.2 V (Sharp datasheet), 10 mA, a minimum CTR of 50 % derated to 20 %: R_F = (5 − 1.2)/0.01 = 380 Ω, P = 0.01²·380 = 0.038 W; I_C = 0.01·0.2 = 2 mA, R_L = (5 − 0.4)/0.002 = 2300 Ω"},
+    {"values": {"vin": 5.0, "vf": 1.35, "iled": 0.01, "r1": 365.0, "ctr": 0.301875, "vcc": 5.25, "vcesat": 0.4, "ic": 0.00301875, "rl": 1606.625258799172, "pr": 0.0365}, "ref": "published, Toshiba application note section 2.1.1: V_IN = 5 V, V_F(max) = 1.35 V, I_F = 10 mA gives 365 Ω; section 2.4.4: min I_C = 5 mA · 2.3 · 0.5 · 0.7 · 0.75 = 3.01875 mA, i.e. CTR · derating = 0.301875 at I_F = 10 mA (Toshiba rounds to 3 mA); R_L = (5.25 − 0.4)/0.00301875 = 1606.63 Ω (load current of the Toshiba example not included)"},
+    {"values": {"vin": 5.0, "vf": 1.2, "iled": 0.005, "r1": 760.0, "ctr": 0.75, "vcc": 5.0, "vcesat": 0.4, "ic": 0.00375, "rl": 1226.6666666666667, "pr": 0.019}, "ref": "published, Vishay application note 45 (83706) example 1: I_F = 5 mA, V_CC = 5 V, V_CE = 0.4 V, saturated CTR 0.75: R_L ≥ (5 − 0.4)/(0.005·0.75) = 1226.67 Ω (published ≥ 1.22 kΩ); R_F = (5 − 1.2)/0.005 = 760 Ω"},
+    {"values": {"vin": 5.0, "vf": 1.2, "iled": 0.007, "r1": 542.8571428571429, "ctr": 0.426, "vcc": 5.0, "vcesat": 0.4, "ic": 0.002982, "rl": 1542.5888665325285, "pr": 0.0266}, "ref": "published inputs, Vishay application note 45 example 2: I_F = 7 mA, CTR_sat = 100 % · 0.71 · 0.8 · 0.75 = 0.426, V_CC = 5 V, V_CE = 0.4 V: I_C = 0.007·0.426 = 2.982 mA, R_L = 4.6/0.002982 = 1542.59 Ω; R_F = 3.8/0.007 = 542.857 Ω"},
+    {"values": {"vin": 24.0, "vf": 1.2, "iled": 0.01, "r1": 2280.0, "ctr": 0.2, "vcc": 12.0, "vcesat": 0.2, "ic": 0.002, "rl": 5900.0, "pr": 0.228}, "ref": "hand, 24 V drive, 10 mA: R_F = (24 − 1.2)/0.01 = 2280 Ω, P = 0.01²·2280 = 0.228 W; 12 V pull-up: I_C = 2 mA, R_L = (12 − 0.2)/0.002 = 5900 Ω"},
+    {"values": {"vin": 3.3, "vf": 1.2, "iled": 0.005, "r1": 420.0, "ctr": 0.2, "vcc": 3.3, "vcesat": 0.2, "ic": 0.001, "rl": 3100.0, "pr": 0.0105}, "ref": "hand, 3.3 V drive, 5 mA: R_F = (3.3 − 1.2)/0.005 = 420 Ω; I_C = 1 mA, R_L = (3.3 − 0.2)/0.001 = 3100 Ω"}
+  ],
+  "solve": [
+    {"inputs": {"vin": 5, "vf": 1.35, "iled": 0.01, "ctr": 0.301875, "vcc": 5.25, "vcesat": 0.4}, "expect": {"r1": 365, "ic": 0.00301875, "rl": 1606.625258799172}, "errors": {}, "warnings": [], "ref": "published, Toshiba section 2.1.1: 365 Ω; section 2.4.4: min I_C 3.01875 mA"},
+    {"inputs": {"vin": 5, "vf": 0.9, "r1": 360, "ctr": 0.2, "vcc": 5, "vcesat": 0.4}, "expect": {"iled": 0.01138888888888889, "ic": 0.002277777777777778, "rl": 2019.5121951219512}, "errors": {}, "warnings": [], "ref": "published, Toshiba section 2.1.1: V_IN = 5 V, V_F = 0.9 V, 360 Ω gives I_F = 4.1/360 = 11.389 mA (published 11.4 mA)"},
+    {"inputs": {"vin": 1, "vf": 1.2, "iled": 0.01, "ctr": 0.2, "vcc": 5, "vcesat": 0.4}, "expect": {}, "errors": {"r1": "range"}, "warnings": [0], "ref": "hand: a supply below the LED forward voltage leaves no current: negative resistor, out of range"},
+    {"inputs": {"vin": 5, "vf": 1.2, "iled": 0.01, "ctr": 0.2, "vcc": 5, "vcesat": 5}, "expect": {}, "errors": {"rl": "range"}, "warnings": [1], "ref": "hand: a required low level equal to the supply cannot be pulled down: R_L = 0 is out of range"}
+  ]
+}
