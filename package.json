@@ -5,6 +5,7 @@
   "scripts": {
     "test:desktop-sounds": "node scripts/test-desktop-sound-dsp.mjs && node scripts/test-desktop-sound-instruments.mjs && node scripts/test-desktop-sounds.mjs",
     "render:desktop-sounds": "node scripts/render-desktop-sounds.mjs",
+    "test:homedash": "node scripts/test-homedash-ui.mjs",
     "test:ziro": "node scripts/test-ziro.mjs && node scripts/test-ziro-bridge.mjs && node scripts/test-ziro-server.mjs",
     "test:ziro-browser": "node scripts/test-ziro-browser.mjs",
     "build:aura-drift": "node scripts/build-aura-drift-audio.mjs --check && node scripts/build-aura-drift-vendor.mjs && node scripts/build-aura-drift-woof-lines.mjs",
