@@ -10,7 +10,6 @@ import (
 func TestVirtualDesktopFirstPartyJSFilesStayBelowLineBudget(t *testing.T) {
 	t.Parallel()
 
-	root := filepath.Join("js", "desktop")
 	knownOversizedContinuations := map[string]bool{
 		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "bookshelf.js")):                   true,
 		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "galaxa-deluxe.js")):               true,
@@ -35,34 +34,36 @@ func TestVirtualDesktopFirstPartyJSFilesStayBelowLineBudget(t *testing.T) {
 		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "pixel-lib-gen.js")):    true,
 		filepath.ToSlash(filepath.Join("js", "desktop", "apps", "pixel-selection.js")):  true,
 	}
-	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if entry.IsDir() {
-			if entry.Name() == "vendor" || entry.Name() == "bundles" {
-				return filepath.SkipDir
+	for _, root := range []string{filepath.Join("js", "desktop"), filepath.Join("js", "homedash")} {
+		err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if entry.IsDir() {
+				if entry.Name() == "vendor" || entry.Name() == "bundles" {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if filepath.Ext(path) != ".js" {
+				return nil
+			}
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			lines := strings.Count(string(data), "\n")
+			if len(data) > 0 && data[len(data)-1] != '\n' {
+				lines++
+			}
+			if lines >= 1100 && !knownOversizedContinuations[filepath.ToSlash(path)] {
+				t.Errorf("%s has %d lines, want < 1100", filepath.ToSlash(path), lines)
 			}
 			return nil
-		}
-		if filepath.Ext(path) != ".js" {
-			return nil
-		}
-		data, err := os.ReadFile(path)
+		})
 		if err != nil {
-			return err
+			t.Fatal(err)
 		}
-		lines := strings.Count(string(data), "\n")
-		if len(data) > 0 && data[len(data)-1] != '\n' {
-			lines++
-		}
-		if lines >= 1100 && !knownOversizedContinuations[filepath.ToSlash(path)] {
-			t.Errorf("%s has %d lines, want < 1100", filepath.ToSlash(path), lines)
-		}
-		return nil
-	})
-	if err != nil {
-		t.Fatal(err)
 	}
 }
 
