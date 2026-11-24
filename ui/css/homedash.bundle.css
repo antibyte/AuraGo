@@ -678,7 +678,7 @@
 
 /* Shared: text takes the widget ink (the root colour would not follow a widget-level override); everything is ink on the card. */
 .hd-widget[data-hd-family="minimal"] { color: var(--hd-ink); }
-.hd-widget[data-hd-family="minimal"] .hd-head > .hd-icon { color: var(--hd-ink-muted); } /* no disc, no tint */
+.hd-widget[data-hd-family="minimal"] .hd-head > .hd-icon { display: none; } /* the title already names the thing: no icon, so label, numeral and state share one left edge (M5) */
 .hd-widget[data-hd-family="minimal"] .hd-numeral .hd-num-unit { font-weight: 400; color: var(--hd-ink-muted); }
 .hd-widget[data-hd-family="minimal"] :is(.hd-dial-readout > .hd-numeral, .hd-gauge-readout .hd-numeral, .hd-tread .hd-numeral, .hd-body > .hd-numeral) { font-weight: var(--hd-num-weight); letter-spacing: var(--hd-num-tracking); }
 
@@ -689,7 +689,8 @@
 /* H1 toggle switch (pill): 1.5 px ink outline and an ink thumb, filled ink with a surface thumb when on. */
 .hd-widget[data-hd-family="minimal"] .hd-toggle { --hd-tgl-inset: 6px; --hd-m-ring: var(--hd-ink); }
 .hd-widget[data-hd-family="minimal"] .hd-toggle[aria-checked="true"] { --hd-m-ring: var(--hd-thumb-on); }
-.hd-widget[data-hd-family="minimal"] .hd-toggle-track { box-shadow: inset 0 0 0 var(--hd-stroke-1) var(--hd-track-line); }
+/* The outline is a 1.5 px border on a pseudo-element: Chrome snaps a border to whole device pixels (1 px at DPR 1, 3 px at DPR 2), where a 1.5 px box-shadow smears over two rows. */
+.hd-widget[data-hd-family="minimal"] .hd-toggle-track::after { content: ""; position: absolute; inset: 0; box-sizing: border-box; border: var(--hd-stroke-1) solid var(--hd-track-line); border-radius: var(--hd-radius-control); pointer-events: none; }
 .hd-widget[data-hd-family="minimal"] .hd-toggle-track::before { content: ""; position: absolute; inset: 0; border-radius: var(--hd-radius-control); background: var(--hd-track-fill); opacity: 0; }
 .hd-widget[data-hd-family="minimal"] .hd-toggle[aria-checked="true"] .hd-toggle-track::before { opacity: 1; }
 .hd-widget[data-hd-family="minimal"] .hd-toggle-thumb { background: var(--hd-thumb); }
@@ -699,8 +700,10 @@
 
 /* H2 rocker switch: two stacked rectangles in a 1.5 px outline; the active half is ink with the label inverted. Pending is a hairline ring around the bezel. */
 .hd-widget[data-hd-family="minimal"] .hd-rocker { border-radius: var(--hd-m-rect-r); }
-.hd-widget[data-hd-family="minimal"] .hd-rocker-bezel { padding: 0; border-radius: var(--hd-m-rect-r); box-shadow: inset 0 0 0 var(--hd-stroke-1) var(--hd-ink); }
+/* The button box is 0.654 wide per unit of height, which includes Glass and Tactile's 6 % bezel inset (paddle 1:1.6). Minimal has no inset, so 2.2 % each side restores the 1:1.6 paddle (rubric H2a); the outline is the paddle's own border. */
+.hd-widget[data-hd-family="minimal"] .hd-rocker-bezel { padding: 0 2.2%; border-radius: var(--hd-m-rect-r); }
 .hd-widget[data-hd-family="minimal"] .hd-rocker-paddle { overflow: hidden; border-radius: var(--hd-m-rect-r); }
+.hd-widget[data-hd-family="minimal"] .hd-rocker-paddle::before { content: ""; position: absolute; inset: 0; z-index: 1; box-sizing: border-box; border: var(--hd-stroke-1) solid var(--hd-ink); border-radius: var(--hd-m-rect-r); pointer-events: none; }
 .hd-widget[data-hd-family="minimal"] .hd-rocker-half + .hd-rocker-half { box-shadow: inset 0 var(--hd-stroke-hair) 0 var(--hd-hairline); }
 .hd-widget[data-hd-family="minimal"] .hd-rocker-half::before { content: ""; position: absolute; inset: 0; background: var(--hd-ink); opacity: 0; }
 .hd-widget[data-hd-family="minimal"] .hd-rocker[aria-checked="true"] .hd-rocker-half[data-half="on"]::before,
@@ -708,7 +711,7 @@
 .hd-widget[data-hd-family="minimal"] .hd-rocker-legend { position: relative; font: 500 15px / 1 var(--hd-font-ui); color: var(--hd-ink); }
 .hd-widget[data-hd-family="minimal"] .hd-rocker[aria-checked="true"] .hd-rocker-half[data-half="on"] .hd-rocker-legend,
 .hd-widget[data-hd-family="minimal"] .hd-rocker[aria-checked="false"] .hd-rocker-half[data-half="off"] .hd-rocker-legend { color: var(--hd-surface-solid); }
-.hd-widget[data-hd-family="minimal"] .hd-rocker-bezel::after { content: ""; position: absolute; inset: -4px; border-radius: calc(var(--hd-m-rect-r) + 4px); box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-ink); opacity: 0; pointer-events: none; }
+.hd-widget[data-hd-family="minimal"] .hd-rocker-bezel::after { content: ""; position: absolute; inset: -4px calc(2.2% - 4px); border-radius: calc(var(--hd-m-rect-r) + 4px); box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-ink); opacity: 0; pointer-events: none; }
 .hd-widget[data-hd-family="minimal"][data-hd-pending="true"] .hd-rocker-bezel::after { opacity: 1; }
 
 /* H3 dimmer dial (also the base of the H4 thermostat ring): hairline track, 3 px ink arc with butt caps, a small ink dot; the numeral carries the value. */
@@ -757,10 +760,12 @@
 .hd-widget[data-hd-family="minimal"] .hd-gauge-cap { display: none; }
 
 /* H7 big temperature readout: Geist 300; the trend glyph is muted (one hue per widget). */
+/* The integer box is left aligned and as wide as its digits: the numeral starts on the label and state edge (M5); the structure right-aligns a 4-character box. */
+.hd-widget[data-hd-family="minimal"] .hd-tread .hd-num-int { min-inline-size: 0; text-align: start; }
 .hd-widget[data-hd-family="minimal"] .hd-num-trend { color: var(--hd-ink-muted); }
 
 /* H8 sensor tile with sparkline: a 1.25 px ink line and an end dot; no area, no halo, no grid. */
-.hd-widget[data-hd-family="minimal"] .hd-spark-fill { display: none; }
+.hd-widget[data-hd-family="minimal"] :is(.hd-spark-fill, .hd-spark-area) { display: none; } /* without fade the module appends the area to the plot itself */
 .hd-widget[data-hd-family="minimal"] .hd-spark-line { fill: none; stroke: var(--hd-ink); stroke-width: var(--hd-m-spark-w); stroke-linejoin: round; stroke-linecap: round; }
 .hd-widget[data-hd-family="minimal"] .hd-spark-last { fill: var(--hd-ink); }
 
