@@ -5,7 +5,7 @@ Ergebnisse nebeneinander und rechnet schon während du tippst. Du gibst die Wert
 Rest. Bei Widerständen schlägt es außerdem den nächsten Normwert aus einer E-Reihe vor, und der Rechner **Kombination von
 Normwerten** findet Normwerte, die in Reihe oder parallel einen Zielwiderstand erreichen.
 
-ECalc enthält 79 Rechner in zehn Kategorien, 44 Nachschlagetabellen (siehe [Tabellen](#tabellen)), fünf Bauteilcode-Seiten (siehe
+ECalc enthält 113 Rechner in zwölf Kategorien, 44 Nachschlagetabellen (siehe [Tabellen](#tabellen)), fünf Bauteilcode-Seiten (siehe
 [Bauteilcodes](#bauteilcodes)) und 47 Pinbelegungen von Steckverbindern, Stiftleisten und ICs (siehe [Pinbelegungen](#pinbelegungen)).
 Der Agent kann mit denselben Formeln rechnen, Tabellen, Codes und Pinbelegungen lesen und für dich einen
 Rechner öffnen (siehe [ECalc mit dem Agenten nutzen](#ecalc-mit-dem-agenten-nutzen)). ECalc läuft in deinem Browser. Es braucht keinen Provider und hat keinen
@@ -41,7 +41,7 @@ dann einen Rechner, und gehe mit **Zurück** eine Ebene nach oben.
 ## Einen Rechner finden
 
 - **Kategorieleiste:** Zuerst kommen **Favoriten** und **Zuletzt verwendet**, danach die Kategorien mit Inhalten: Grundlagen, Passive
-  Bauteile, Filter, Halbleiter, Stromversorgung, OpAmps, Timer, HF, Digital, Leitungen & PCB, **Tabellen**, **Bauteilcodes** und **Pinbelegungen**.
+  Bauteile, Filter, Halbleiter, Stromversorgung, OpAmps, Timer, HF, Digital, Leitungen & PCB, Sensoren, Antriebe & Motoren, **Tabellen**, **Bauteilcodes** und **Pinbelegungen**.
   Jede Kategorie zeigt, wie viele Einträge sie enthält. Die Leiste zeigt eine Kategorie nur, wenn sie Inhalte hat.
 - **Suche:** Tippe oben ins Suchfeld, um einen Rechner, eine Tabelle, einen Bauteilcode oder eine Pinbelegung über seinen Namen in deiner Sprache, über
   den englischen Namen oder über ein Stichwort wie „Teiler“ zu finden. Jeder Eintrag hat Schlagwörter, die die Suche ebenfalls durchsucht.
@@ -148,7 +148,7 @@ Browser-Speicher, vergisst dann aber alles, sobald du das Fenster schließt.
 
 ## Die Rechner
 
-ECalc enthält 79 Rechner in zehn Kategorien. Jede Tabelle listet die Rechner einer Kategorie, in der Reihenfolge der
+ECalc enthält 113 Rechner in zwölf Kategorien. Jede Tabelle listet die Rechner einer Kategorie, in der Reihenfolge der
 Kategorieleiste. Die Quelle hinter jeder Formel, also die Norm, das Datenblatt oder das Lehrbuch, zeigt die Seite des Rechners
 unter **Erklärung**; deshalb steht sie nicht in den Tabellen.
 
@@ -184,6 +184,9 @@ unter **Erklärung**; deshalb steht sie nicht in den Tabellen.
 | Luftspule (Wheeler) | Induktivität einer einlagigen Luftspule aus Durchmesser, Länge und Windungszahl, oder eine dieser Größen für eine gewünschte Induktivität. |
 | Ringkerninduktivität (A_L) | Induktivität eines Ringkerns aus seinem A_L-Wert und der Windungszahl, oder eine der drei Größen. |
 | Leitungswiderstand | Gleichstromwiderstand eines Kupfer-, Aluminium- oder Silberleiters, mit Temperaturkorrektur. Löst auch nach Länge, Querschnitt oder Temperatur auf. |
+| Transformator-Übersetzung | Spannungen, Ströme und Windungen eines idealen Transformators, die dabei übersetzte Impedanz und die Scheinleistung. |
+
+**Grenze.** Der Transformator ist ideal. Wicklungswiderstand, Streuinduktivität, Kernverluste und Magnetisierungsstrom bleiben unberücksichtigt, und ein Transformator überträgt keinen Gleichstrom. Ein realer Transformator hat Verluste, und seine Sekundärspannung sinkt unter Last.
 
 ### Filter
 
@@ -197,6 +200,13 @@ unter **Erklärung**; deshalb steht sie nicht in den Tabellen.
 | Doppel-T-Sperrfilter | Sperrfrequenz des passiven Doppel-T-Netzwerks. |
 | Pi-Dämpfungsglied | Widerstände eines angepassten π-Glieds für eine Systemimpedanz und eine Dämpfung in dB. |
 | T-Dämpfungsglied | Widerstände eines angepassten T-Glieds für eine Systemimpedanz und eine Dämpfung in dB. |
+| LC-Tiefpass 2. Ordnung (Butterworth) | Induktivität und Kondensator eines LC-Tiefpasses zweiter Ordnung (Butterworth) für eine Grenzfrequenz, mit den Fällen der Quelle und der Last. |
+| Sallen-Key-Hochpass (Verstärkung 1) | Eigenfrequenz, Güte, Widerstände und Kapazität eines Sallen-Key-Hochpasses zweiter Ordnung mit Verstärkung 1. Je drei unabhängige Werte ergeben die übrigen. |
+| MFB-Bandpass (Mehrfachgegenkopplung) | Mittenfrequenz, Güte, Verstärkung und Bandbreite eines MFB-Bandpasses mit einem Operationsverstärker, dazu seine Bauteile für einen Entwurf. |
+| 2-Wege-Frequenzweiche 2. Ordnung | Spule und Kondensator einer zweiwegigen Frequenzweiche zweiter Ordnung für eine Chassis-Impedanz und eine Trennfrequenz, Butterworth oder Linkwitz-Riley. |
+| L-Pad-Abschwächer | Reihen- und Parallelwiderstand eines L-Pads mit konstanter Impedanz für eine Chassis-Impedanz und eine Dämpfung in dB. |
+
+**Grenzen.** Der LC-Tiefpass hängt von seiner Abschlussbeschaltung ab: Eine falsche Wahl halbiert oder verdoppelt den Kondensator. Der Sallen-Key-Hochpass nennt R_1 den Rückkopplungswiderstand, auch wenn manche Quellen die Widerstände anders herum nummerieren. Die 2-Wege-Frequenzweiche braucht die Impedanz jedes Chassis bei der Trennfrequenz, nicht die Nennimpedanz 4 Ω oder 8 Ω. Das L-Pad gehört an einen Hochtöner, nie an einen Tieftöner, und immer zwischen Weiche und Chassis.
 
 ### Halbleiter
 
@@ -208,6 +218,10 @@ unter **Erklärung**; deshalb steht sie nicht in den Tabellen.
 | Transistor-Arbeitspunkt mit Basisspannungsteiler | Gleichstrom-Arbeitspunkt einer Emitterschaltung mit Vier-Widerstands-Basisspannungsteiler. |
 | MOSFET-Verluste | Durchlass- und Schaltverlust eines hart schaltenden MOSFETs und ihre Summe. |
 | Kühlkörper | Wärmekette von der Sperrschicht bis zur Umgebung. Findet den fehlenden von sechs Werten, zum Beispiel den nötigen Kühlkörper. |
+| Optokoppler-Widerstände (CTR) | LED-Vorwiderstand und kleinster Pull-up-Widerstand eines Optokopplers mit Fototransistor, aus dem geminderten Stromübertragungsverhältnis. |
+| MOSFET-Gate-Ansteuerung | Ansteuerleistung und -strom sowie Schaltzeit oder Gate-Widerstand aus der Gate-Ladung und dem Miller-Plateau. |
+
+**Grenzen.** Bei den Optokoppler-Widerständen das Stromübertragungsverhältnis nach Abschlägen eintragen, nicht den typischen Wert aus dem Datenblatt. Die MOSFET-Gate-Ansteuerung rechnet mit der gesamten Gate-Ladung Q_g, nicht mit der Eingangskapazität C_iss. Ihre Schaltzeit ist eine Abschätzung erster Ordnung; gemessene Flanken können um 16 % bis über 100 % davon abweichen.
 
 ### Stromversorgung
 
@@ -223,6 +237,15 @@ unter **Erklärung**; deshalb steht sie nicht in den Tabellen.
 | Akku-Ladezeit | Ladezeit aus Kapazität, Ladestrom und Ladewirkungsgrad. |
 | Akkupack (Reihe/parallel) | Spannung, Kapazität und Energie eines Packs aus in Reihe und parallel geschalteten Zellen, zum Beispiel 3S2P. |
 | Spannungsfall im Kabel | Spannungsfall eines Kupfer- oder Aluminiumkabels bei Gleich- und Wechselstrom, mit Richtwerten für Netzinstallationen. |
+| Leistungsdreieck (P, Q, S, cos φ) | Wirk-, Blind- und Scheinleistung sowie Leistungsfaktor einer einphasigen Last. Je zwei davon ergeben die übrigen. |
+| Drehstromleistung | Wirk-, Schein- und Blindleistung einer symmetrischen Drehstromlast aus der Außenleiterspannung, dem Außenleiterstrom und cos φ. |
+| Blindleistungskompensation (Kondensator) | Kapazität, die den Leistungsfaktor von einem Wert auf einen höheren hebt, in Stern- oder Dreieckschaltung. |
+| Energieverbrauch und Kosten | Energie, die ein Gerät über die Zeit verbraucht, und ihre Kosten bei einem Preis je kWh. |
+| LED-Streifen-Versorgung (WS2812) | Strom, Leistung und Spannung am fernen Ende eines adressierbaren LED-Streifens, der an einem Ende eingespeist wird. |
+| Überbrückungszeit mit Superkondensator | Überbrückungszeit, Kapazität oder nutzbare Energie eines Superkondensators bei konstantem Strom oder konstanter Leistung. |
+| Invertierender Hoch-Tiefsetzsteller | Tastverhältnis, Spulenrippel und Spitzenströme eines idealen invertierenden Hoch-Tiefsetzstellers. |
+
+**Grenzen.** Der Rechner Drehstromleistung erwartet die Außenleiterspannung: Wer 230 V statt 400 V einsetzt, erhält ein um √3 zu kleines Ergebnis. Das Leistungsdreieck rechnet mit Beträgen und sagt nicht, ob die Last induktiv oder kapazitiv ist. Der Kondensator der Blindleistungskompensation gilt bei Netzfrequenz; nur Kondensatoren für Netzspannung und Netzfrequenz verwenden, und die Auslegung einer Netzinstallation gehört in die Hand einer Elektrofachkraft. Die Überbrückungszeit mit Superkondensator lässt den ESR außer Acht, der die reale Zeit verkürzt; die Kapazität sinkt außerdem mit dem Alter und bei niedriger Temperatur. Die LED-Streifen-Versorgung rechnet mit Einspeisung an einem Ende; den Schienenwiderstand am Streifen daher nachmessen. Beim Energieverbrauch und Kosten ist der Preis eine Zahl in der eigenen Währung je kWh, der Vorgabewert 0,30 ist nur ein Platzhalter.
 
 ### OpAmps
 
@@ -235,6 +258,11 @@ unter **Erklärung**; deshalb steht sie nicht in den Tabellen.
 | Integrierer | Ausgang eines idealen invertierenden Integrierers über die Zeit, mit seiner Zeitkonstante. |
 | Schmitt-Trigger | Schwellen, Hysterese und Mitte eines invertierenden Schmitt-Triggers, dazu die Widerstände für gewünschte Schwellen. |
 | Instrumentenverstärker | Verstärkung und Ausgang eines Instrumentenverstärkers in der Drei-Operationsverstärker-Schaltung. |
+| Differenzierer | Ausgang eines invertierenden Differenzierers für einen Sinuseingang, mit Transit- und Eckfrequenz und dem Serienwiderstand am Eingang gegen Rauschen. |
+| Bandbreite aus dem GBW | Bandbreite einer Stufe aus dem Verstärkungs-Bandbreite-Produkt und der Signalverstärkung, invertierend oder nichtinvertierend. |
+| Slew-Rate und Leistungsbandbreite | Höchste Sinusfrequenz bei gegebener Amplitude, bevor die Anstiegsrate begrenzt. Je zwei der Größen Slew-Rate, Amplitude und Frequenz ergeben die dritte. |
+
+**Grenzen.** Die Bandbreite aus dem GBW rechnet mit der Rauschverstärkung: Eine invertierende Stufe hat die Rauschverstärkung G + 1, eine invertierende Verstärkung von −1 hat also nur die halbe GBW als Bandbreite. Der Differenzierer braucht seinen Serienwiderstand am Eingang, denn ohne ihn ist die Schaltung instabil, und die höchste Signalfrequenz muss mindestens 3,5-mal unter seiner Eckfrequenz f_1 bleiben.
 
 ### Timer
 
@@ -245,6 +273,10 @@ unter **Erklärung**; deshalb steht sie nicht in den Tabellen.
 | Quarz-Lastkondensatoren | Die beiden Lastkondensatoren eines Quarzes in einer Pierce-Schaltung, mit dem nächsten Normwert. |
 | Frequenz, Periodendauer und Tastverhältnis | Rechnet zwischen Frequenz, Periodendauer, Tastverhältnis, Highzeit und Lowzeit eines Rechtecksignals um. |
 | PWM-Mittelwert | Mittel- und Effektivwert eines PWM-Signals aus Tastverhältnis und den beiden Pegeln. |
+| Quarzabweichung (ppm ↔ s/Tag) | Rechnet eine Quarztoleranz in ppm in Sekunden je Tag, je 30 und 365 Tage und in einen Frequenzfehler um. |
+| AVR-Timer-Vergleichswert (CTC) | Vergleichswert OCR und die tatsächliche Frequenz eines AVR-Timers im CTC-Modus; der Vorteiler wird automatisch gewählt. |
+
+**Grenzen.** Der AVR-Timer setzt voraus, dass der Timertakt der I/O-Takt ist und dass sich OCR während des Laufs nicht ändert. Das Ergebnis der Quarzabweichung ist ein Betrag: Das Vorzeichen des Fehlers bleibt nicht erhalten, und Temperatur, Alterung und Lastkapazität sind nicht berücksichtigt.
 
 ### HF
 
@@ -258,6 +290,13 @@ unter **Erklärung**; deshalb steht sie nicht in den Tabellen.
 | HF-Leistung und -Spannung (dBm, dBµV) | Leistung, Spannung und Widerstand einer Sinusschwingung, mit den Pegeln in dBm und dBµV. |
 | Freiraumdämpfung | Dämpfung einer Funkstrecke aus Abstand und Frequenz, oder Abstand bzw. Frequenz für eine vorgegebene Dämpfung. |
 | Skin-Tiefe (Eindringtiefe) | Skin-Tiefe von Kupfer, Silber, Gold oder Aluminium bei einer Frequenz, mit dem Oberflächenwiderstand. |
+| Thermisches Rauschen (Johnson) | Rauschspannung, Rauschstrom, Rauschdichte und verfügbare Rauschleistung eines Widerstands bei Temperatur und Bandbreite. |
+| L-Anpassnetzwerk | L- und C-Werte eines Netzwerks aus zwei Blindelementen, das zwei Widerstände bei einer Frequenz anpasst. |
+| EIRP und ERP | Effektive isotrope und effektive Strahlungsleistung aus Senderleistung, Leitungsdämpfung und Antennengewinn. |
+| Koax-Stichleitung / elektrische Länge | Mechanische Länge einer Koaxleitung für eine elektrische Länge bei einer Frequenz, aus dem Verkürzungsfaktor. |
+| Gesamtrauschzahl (Friis) | Gesamtrauschzahl und äquivalente Rauschtemperatur von drei hintereinandergeschalteten Stufen. |
+
+**Grenzen.** Das L-Anpassnetzwerk gilt für rein ohmsche Quelle und Last bei einer Frequenz. Ist R_S größer als R_L, muss das Netzwerk gespiegelt werden: Das Längselement liegt an R_L, das Querelement parallel zu R_S. Seine Bandbreite ist nicht f / Q. EIRP und ERP sind Rechtsgrößen, daher prüfen, auf welche der beiden sich ein Grenzwert bezieht. Der Verkürzungsfaktor eines Schaumkabels steht im Kabeldatenblatt, und die Länge der Koax-Stichleitung stimmt nur bei einer Frequenz. Das thermische Rauschen rechnet mit B als Rauschbandbreite, nicht mit der −3-dB-Frequenz.
 
 ### Digital
 
@@ -269,6 +308,10 @@ unter **Erklärung**; deshalb steht sie nicht in den Tabellen.
 | Pegelwandler (Spannungsteiler) | Teiler von 5 V auf 3,3 V für eine Übertragungsrichtung, geprüft gegen die High-Schwelle des Empfängers. |
 | UART-Baudratenfehler | Teiler und Baudratenfehler aus Takt und gewünschter Baudrate, bei 16- oder 8-facher Abtastung. |
 | Zahlensysteme (dec, hex, bin, oct) | Eine ganze Zahl, dezimal, hexadezimal, binär und oktal angezeigt. |
+| RC-Entprellung | Verzögerung eines RC-Glieds vor einem Schmitt-Trigger-Eingang, aus Widerstand, Kondensator, Versorgungsspannung und Schwelle. |
+| Übertragungsdauer | Zeit für das Senden einer Datenmenge bei einer Leitungsrate, mit dem Rahmen einer UART-Leitung 8N1 oder 8E1/8N2, und die Nettorate. |
+
+**Grenzen.** Die RC-Entprellung braucht einen Eingang mit Hysterese, also einen Schmitt-Trigger; ein gewöhnlicher Logikeingang liefert bei einer langsamen RC-Flanke kein definiertes Ergebnis. Die Übertragungsdauer ist eine Untergrenze, denn Protokoll-Overhead, Pausen und Wiederholungen machen eine reale Übertragung langsamer. Binäre und dezimale Präfixe unterscheiden sich: 1 MiB sind 4,86 % mehr als 1 MB.
 
 ### Leitungen & PCB
 
@@ -280,6 +323,27 @@ unter **Erklärung**; deshalb steht sie nicht in den Tabellen.
 | AWG-Umrechnung (Drahtdurchmesser und Querschnitt) | Rechnet Drahtdurchmesser und Querschnitt zwischen AWG, mm, mil, Zoll, kcmil und mil² um. |
 | Kabelquerschnitt bestimmen | Bestimmt aus den Kabel-Belastbarkeitstabellen den kleinsten Normquerschnitt für einen Betriebsstrom, mit Umrechnungsfaktor für die Umgebungstemperatur und Häufungsfaktor der gewählten Verlegeart. Die Ergebniszeile ist in der Tabelle hervorgehoben. |
 | Leiterabstand auf der Leiterplatte bestimmen (IPC-2221) | Bestimmt den Mindestabstand der Leiter für eine Spannung aus Tabelle 6-1 von IPC-2221B oder IPC-2221C, einschließlich der Regel je Volt über 500 V. Das Band des Ergebnisses ist in der Tabelle hervorgehoben. |
+
+### Sensoren
+
+| Rechner | Was er macht |
+|---------|--------------|
+| NTC-Thermistor (B-Gleichung) | Widerstand eines NTC-Thermistors bei einer Temperatur aus seinem B-Wert, oder die Temperatur aus einem gemessenen Widerstand. |
+| NTC-Spannungsteiler | Ausgangsspannung eines Teilers mit NTC und festem Widerstand, die Temperatur aus einer gemessenen Spannung und die Leistung im NTC. |
+| Pt100/Pt1000-Widerstandsthermometer (IEC 60751) | Widerstand eines Pt100 oder Pt1000 bei einer Temperatur, oder die Temperatur aus einem gemessenen Widerstand. |
+| 4–20-mA-Stromschleife | Schleifenstrom und Prozent der Spanne für einen Wert in seinem Messbereich, dazu Spannung und Leistung an der Bürde. |
+| Strommessung mit Shunt | Spannung und Leistung eines Shunt-Widerstands bei einem Strom, und die Verstärkung eines Strommessverstärkers für einen gewünschten Ausgang. |
+
+**Grenzen.** Die NTC-Gleichung ist nur bei der Bezugstemperatur und bei der zweiten Temperatur genau, die B festlegt. B ist nicht konstant, und das Modell ist für den Beispielwerkstoff etwa zwischen 0 und 100 °C am besten. Die Temperatur des Pt100/Pt1000 gilt von −200 °C bis +850 °C und nur für Platin nach IEC 60751; unter 0 °C rechnet der Rechner mit der vollen Gleichung einschließlich des Terms vierter Ordnung. Ein Zweileiteranschluss addiert den Leitungswiderstand, bei einem Pt100 etwa 2,6 °C je Ohm. Ein Tabellenwiderstand, auf 0,01 Ω gerundet, liefert die Temperatur nur auf etwa ±0,013 °C genau. Die 4–20-mA-Stromschleife meldet einen Strom außerhalb von 4 bis 20 mA als Unter- oder Überschreitung des Messbereichs oder als Fehler. Ein Shunt im Milliohm-Bereich braucht Vierleiteranschluss (Kelvin), und sein Ausgang muss beim Maximalstrom im Bereich des Verstärkers bleiben.
+
+### Antriebe & Motoren
+
+| Rechner | Was er macht |
+|---------|--------------|
+| Schrittmotor: Schritte pro mm | Schritte je Millimeter Verfahrweg aus den Schritten je Umdrehung, dem Mikroschrittfaktor und dem Weg je Umdrehung eines Riemens oder einer Spindel. |
+| Motor: Drehmoment, Drehzahl, Leistung | Mechanische Leistung aus Drehmoment und Drehzahl, oder das Drehmoment bzw. die Drehzahl aus den beiden anderen. |
+
+**Grenzen.** Der Schrittmotor braucht bei einer Gewindespindel die Steigung (Teilung mal Gangzahl), nicht die Teilung: Bei einer viergängigen T8-Spindel wäre das Ergebnis mit 2 mm statt 8 mm viermal zu hoch. Eine Getriebestufe, Riemendehnung, Spiel und Gewindefehler sind nicht berücksichtigt; eine Getriebestufe rechnet man mit dem Übersetzungsverhältnis dazu. Beim Rechner Motor müssen Drehmoment und Drehzahl an derselben Stelle der Welle gelten; hinter einem Getriebe die Abtriebswerte und den Wirkungsgrad des Getriebes einsetzen. Die Nennleistung auf dem Typenschild ist die Wellenleistung, nicht die elektrische Aufnahme.
 
 ## Tabellen
 

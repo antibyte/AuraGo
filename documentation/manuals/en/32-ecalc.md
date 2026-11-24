@@ -2,7 +2,7 @@
 
 ECalc is a formula collection for electronics in the Virtual Desktop. A calculator page shows the circuit, the formula and the results side by side, and it recalculates while you type. You enter the values you know and ECalc works out the rest. For resistors it also suggests the nearest standard value from an E series, and the standard-value combiner finds standard values that reach a target resistance, in series or in parallel.
 
-ECalc has 79 calculators in ten categories, 44 reference tables (see [Tables](#tables)), five component code pages (see [Component Codes](#component-codes)) and 47 pinouts of connectors, board headers and ICs (see [Pinouts](#pinouts)). The agent can calculate with the same formulas, read the tables, codes and pinouts, and open a calculator for you (see [Using ECalc from the Agent](#using-ecalc-from-the-agent)). ECalc runs in your browser. It needs no provider and has no switch of its own in **Config**.
+ECalc has 113 calculators in twelve categories, 44 reference tables (see [Tables](#tables)), five component code pages (see [Component Codes](#component-codes)) and 47 pinouts of connectors, board headers and ICs (see [Pinouts](#pinouts)). The agent can calculate with the same formulas, read the tables, codes and pinouts, and open a calculator for you (see [Using ECalc from the Agent](#using-ecalc-from-the-agent)). ECalc runs in your browser. It needs no provider and has no switch of its own in **Config**.
 
 ## Table of Contents
 1. [Opening ECalc](#opening-ecalc)
@@ -34,7 +34,7 @@ calculator, and use **Back** to return to the previous level.
 ## Finding a Calculator
 
 - **Category rail:** **Favorites** and **Recent** come first, followed by the categories that hold items: Basics, Passive,
-  Filters, Semiconductors, Power supply, Op-amps, Timers, RF, Digital, Wiring & PCB, **Tables**, **Codes** and **Pinouts**. Each
+  Filters, Semiconductors, Power supply, Op-amps, Timers, RF, Digital, Wiring & PCB, Sensors, Drives & motors, **Tables**, **Codes** and **Pinouts**. Each
   category shows how many items it holds. The rail lists a category only when it has content.
 - **Search:** type in the search box at the top to find a calculator, a table, a component code or a pinout by its name in your language, by
   its English name or by a keyword such as "divider". Each item has keywords, and the search matches them too.
@@ -135,7 +135,7 @@ browser data resets them. ECalc works without browser storage too, it just forge
 
 ## The Calculators
 
-ECalc has 79 calculators in ten categories. Each table lists the calculators of one category, in the order of the category rail.
+ECalc has 113 calculators in twelve categories. Each table lists the calculators of one category, in the order of the category rail.
 The source behind each formula, the standard, datasheet or textbook, is shown on the calculator's page under **Explanation**, so
 the tables leave it out.
 
@@ -171,6 +171,9 @@ the tables leave it out.
 | Air-core coil (Wheeler) | Inductance of a single-layer air-core coil from its diameter, length and turns, or any one of them for a wanted inductance. |
 | Toroid inductance (A_L) | Inductance of a toroid core from its A_L value and the number of turns, or any one of the three. |
 | Wire resistance | DC resistance of a copper, aluminium or silver conductor, with temperature correction. Also solves for the length, cross-section or temperature. |
+| Transformer turns ratio | Voltages, currents and turns of an ideal transformer, the impedance it reflects and the apparent power. |
+
+**Limit.** The transformer is ideal. Winding resistance, leakage inductance, core losses and the magnetising current are ignored, and a transformer passes no direct current. A real transformer has losses, and its secondary voltage falls under load.
 
 ### Filters
 
@@ -184,6 +187,13 @@ the tables leave it out.
 | Twin-T notch filter | Notch frequency of the passive twin-T network. |
 | Pi attenuator | Resistors of a matched π pad for a system impedance and an attenuation in dB. |
 | T attenuator | Resistors of a matched T pad for a system impedance and an attenuation in dB. |
+| LC low-pass, 2nd-order Butterworth | Inductor and capacitor of a second-order Butterworth LC low-pass for a cutoff frequency, with the termination cases of the source and load. |
+| Sallen-Key high-pass (unity gain) | Natural frequency, Q, resistors and capacitance of a unity-gain second-order Sallen-Key high-pass. Any three independent values give the rest. |
+| MFB band-pass (multiple feedback) | Centre frequency, Q, gain and bandwidth of a multiple-feedback band-pass with one op-amp, and its parts for a design. |
+| 2-way speaker crossover, 2nd order | Inductor and capacitor of a second-order two-way crossover for a driver impedance and a crossover frequency, Butterworth or Linkwitz-Riley. |
+| L-pad attenuator | Series and parallel resistors of a constant-impedance L-pad for a driver impedance and an attenuation in dB. |
+
+**Limits.** The LC low-pass depends on its termination: a wrong choice halves or doubles the capacitor. The Sallen-Key high-pass calls R_1 the feedback resistor, although some sources number the resistors the other way round. The 2-way speaker crossover needs the impedance of each driver at the crossover frequency, not its nominal 4 Ω or 8 Ω. The L-pad belongs on a tweeter, never on a woofer, and always between the crossover and the driver.
 
 ### Semiconductors
 
@@ -195,6 +205,10 @@ the tables leave it out.
 | BJT divider bias | DC operating point of a common-emitter stage with a four-resistor voltage-divider bias. |
 | MOSFET losses | Conduction loss and switching loss of a hard-switched MOSFET, and their sum. |
 | Heatsink | Thermal chain from junction to ambient. Finds the one missing value, for example the heatsink you need. |
+| Optocoupler resistors (CTR) | LED series resistor and the smallest pull-up resistor of a phototransistor optocoupler, from the derated current transfer ratio. |
+| MOSFET gate drive | Gate-drive power and current, and the switching time or gate resistor from the gate charge and the Miller plateau. |
+
+**Limits.** For the optocoupler resistors enter the minimum current transfer ratio after derating, not the typical value from the datasheet. The MOSFET gate drive uses the total gate charge Q_g, not the input capacitance C_iss. Its switching time is a first-order estimate, and measured edges can deviate from it by 16 % to more than 100 %.
 
 ### Power supply
 
@@ -210,6 +224,15 @@ the tables leave it out.
 | Battery charge time | Charge time from the capacity, the charge current and the charge efficiency. |
 | Battery pack (series/parallel) | Voltage, capacity and energy of cells in series and in parallel, for example 3S2P. |
 | Cable voltage drop | Voltage drop of a copper or aluminium cable for DC and AC, with guide values for mains installations. |
+| Power triangle (P, Q, S, cos φ) | Real, reactive and apparent power and the power factor of a single-phase load. Any two of them give the others. |
+| Three-phase power | Real, apparent and reactive power of a balanced three-phase load from the line-to-line voltage, the line current and cos φ. |
+| Power-factor correction capacitor | Capacitance that raises the power factor from one value to a higher one, in star or delta connection. |
+| Energy consumption and cost | Energy a device uses over time, and its cost at a price per kWh. |
+| LED strip supply (WS2812) | Current, power and voltage at the far end of an addressable LED strip that is fed from one end. |
+| Supercapacitor hold-up time | Hold-up time, capacitance or usable energy of a supercapacitor for a constant current or a constant power. |
+| Inverting buck-boost converter | Duty cycle, inductor ripple and peak currents of an ideal inverting buck-boost converter. |
+
+**Limits.** The three-phase power calculator takes the line-to-line voltage: entering 230 V instead of 400 V gives a result that is too small by √3. The power triangle works with magnitudes and does not say whether the load is inductive or capacitive. The power-factor correction capacitor is sized at mains frequency; use only capacitors rated for mains voltage and frequency, and leave the design of a mains installation to a qualified electrician. The supercapacitor hold-up time ignores the ESR, which shortens the real time, and the capacitance also falls with age and at low temperature. The LED strip supply assumes feeding from one end, so measure the rail resistance of the strip. In the energy cost calculator the price is a plain number in your own currency per kWh, and the default of 0.30 is only a placeholder.
 
 ### Op-amps
 
@@ -222,6 +245,11 @@ the tables leave it out.
 | Integrator | Output of an ideal inverting integrator over time, with its time constant. |
 | Schmitt trigger | Thresholds, hysteresis and centre of an inverting Schmitt trigger, and the resistors for wanted thresholds. |
 | Instrumentation amplifier | Gain and output of a three-op-amp instrumentation amplifier. |
+| Differentiator | Output of an inverting differentiator for a sine input, with its unity-gain and corner frequencies and the series input resistor against noise. |
+| Closed-loop bandwidth from GBW | Bandwidth of an op-amp stage from its gain-bandwidth product and the signal gain, inverting or non-inverting. |
+| Slew rate and full-power bandwidth | Highest sine frequency for a given amplitude before slew-rate limiting. Any two of slew rate, amplitude and frequency give the third. |
+
+**Limits.** The closed-loop bandwidth uses the noise gain: an inverting stage has the noise gain G + 1, so an inverting gain of −1 has only half the GBW as bandwidth. The differentiator needs its series input resistor, because without it the circuit is unstable, and the highest signal frequency must stay at least 3.5 times below its corner frequency f_1.
 
 ### Timers
 
@@ -232,6 +260,10 @@ the tables leave it out.
 | Crystal load capacitors | The two load capacitors of a crystal in a Pierce oscillator, with the nearest standard value. |
 | Frequency, period and duty cycle | Converts between frequency, period, duty cycle, high time and low time of a rectangular signal. |
 | PWM average voltage | Average and RMS voltage of a PWM signal from the duty cycle and the two levels. |
+| Crystal drift (ppm ↔ s/day) | Converts a crystal tolerance in ppm into seconds per day, per 30 and 365 days, and into a frequency error. |
+| AVR timer compare value (CTC) | Compare value OCR and the real frequency of an AVR timer in CTC mode, with the prescaler chosen automatically. |
+
+**Limits.** The AVR timer assumes that the timer clock is the I/O clock and that OCR does not change while the timer runs. The crystal drift result is a magnitude: the sign of the error is not kept, and temperature, aging and the load capacitance are not included.
 
 ### RF
 
@@ -245,6 +277,13 @@ the tables leave it out.
 | RF power and voltage (dBm, dBµV) | Power, voltage and resistance of a sine wave, with the levels in dBm and dBµV. |
 | Free-space path loss | Loss of a radio link from distance and frequency, or the distance or frequency for a given loss. |
 | Skin depth | Skin depth of copper, silver, gold or aluminium at a frequency, with the surface resistance. |
+| Thermal (Johnson) noise | Noise voltage, noise current, noise density and available noise power of a resistor at a temperature and bandwidth. |
+| L-network matching | L and C values of a two-element L network that matches two resistances at one frequency. |
+| EIRP and ERP | Effective isotropic and effective radiated power from transmitter power, feeder loss and antenna gain. |
+| Coax stub / electrical length | Physical length of a coaxial line for an electrical length at a frequency, from the velocity factor. |
+| Cascaded noise figure (Friis) | Overall noise figure and equivalent noise temperature of three cascaded stages. |
+
+**Limits.** The L-network matches resistive source and load at one frequency. When R_S is larger than R_L, mirror the network: the series element sits next to R_L and the shunt element across R_S. Its bandwidth is not f / Q. EIRP and ERP are regulatory quantities, so check which one a limit refers to. The velocity factor of a foam cable comes from its datasheet, and the coax stub length is exact at one frequency only. Thermal noise takes B as the noise bandwidth, not the −3 dB frequency.
 
 ### Digital
 
@@ -256,6 +295,10 @@ the tables leave it out.
 | Level shifter (resistor divider) | One-way divider from 5 V to 3.3 V, checked against the input-high threshold of the receiver. |
 | UART baud rate error | Divisor and baud rate error from the clock and the wanted baud rate, at 16× or 8× oversampling. |
 | Number systems (dec, hex, bin, oct) | One whole number shown in decimal, hexadecimal, binary and octal. |
+| RC debounce | Delay of an RC network in front of a Schmitt-trigger input, from the resistor, capacitor, supply voltage and threshold. |
+| Data transfer time | Time to send a data size at a line rate, with the framing of a UART 8N1 or 8E1/8N2 line, and the net rate. |
+
+**Limits.** The RC debounce needs an input with hysteresis, a Schmitt trigger: a plain logic input gives no defined result from a slow RC edge. The data transfer time is a lower limit, because protocol overhead, pauses and retransmissions make a real transfer slower. Binary and decimal prefixes differ: 1 MiB is 4.86 % more than 1 MB.
 
 ### Wiring & PCB
 
@@ -267,6 +310,27 @@ the tables leave it out.
 | AWG wire size conversion | Converts wire diameter and cross-section between AWG, mm, mil, inch, kcmil and mil². |
 | Cable cross-section finder | Finds the smallest standard cross-section for a design current from the cable current-rating tables, with the ambient temperature and grouping factors of the installation method. The result row is highlighted in the table. |
 | PCB conductor spacing finder (IPC-2221) | Finds the minimum conductor spacing for a voltage from IPC-2221B or IPC-2221C table 6-1, including the rule per volt above 500 V. The result band is highlighted in the table. |
+
+### Sensors
+
+| Calculator | What it does |
+|------------|--------------|
+| NTC thermistor (B equation) | Resistance of an NTC thermistor at a temperature from its B value, or the temperature from a measured resistance. |
+| NTC voltage divider | Output voltage of a divider with an NTC and a fixed resistor, the temperature from a measured voltage, and the power in the NTC. |
+| Pt100/Pt1000 resistance thermometer (IEC 60751) | Resistance of a Pt100 or Pt1000 at a temperature, or the temperature from a measured resistance. |
+| 4–20 mA current loop | Loop current and percent of span for a value within its range, and the voltage and power across the burden resistor. |
+| Shunt current measurement | Voltage and power of a shunt resistor at a current, and the gain of a current-sense amplifier for a wanted output. |
+
+**Limits.** The NTC equation is exact only at the reference temperature and at the second temperature that defines B. B is not constant, and the model is best between about 0 and 100 °C for the material of the example. The Pt100/Pt1000 temperature covers −200 °C to +850 °C and is for IEC 60751 platinum only; below 0 °C the full equation with its fourth-order term is used. A two-wire connection adds the lead resistance, about 2.6 °C per ohm for a Pt100. A resistance from a table, rounded to 0.01 Ω, gives the temperature only to about ±0.013 °C. The 4–20 mA loop treats a current outside 4 to 20 mA as under range, over range or a fault. A milliohm shunt needs a four-wire (Kelvin) connection, and its output must stay within the range of the amplifier at the maximum current.
+
+### Drives & motors
+
+| Calculator | What it does |
+|------------|--------------|
+| Stepper motor steps per mm | Steps per millimetre of travel from the steps per revolution, the microstepping and the travel per revolution of a belt or leadscrew. |
+| Motor torque, speed and power | Mechanical power from torque and speed, or the torque or the speed from the other two. |
+
+**Limits.** For a leadscrew the stepper calculator wants the lead (pitch times the number of starts), not the pitch: on a four-start T8 screw, 2 mm instead of 8 mm gives a result four times too high. The result excludes a gear stage (multiply it by the gear ratio), belt stretch, backlash and thread errors. For the motor calculator the torque and speed must be those at the same point of the shaft; behind a gearbox use the output values and include the gearbox efficiency. The rated power on a nameplate is shaft power, not electrical input.
 
 ## Tables
 
