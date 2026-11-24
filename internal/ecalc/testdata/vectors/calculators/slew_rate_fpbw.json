@@ -1,0 +1,21 @@
+{
+  "calc": "slew_rate_fpbw",
+  "sets": [
+    {"values": {"sr": 800000, "vp": 3.1830988618379066, "f": 40000, "vpp": 6.366197723675813}, "ref": "published, TI SLYW038D 6.3 Eq. 108 (0.8 V/µs, 40 kHz: V_p = 3.18 V, 6.37 V pk-pk): f = SR/(2π·V_p) = 800000 V/s/(2π·3.1831 V) = 40 kHz; V_pp = 2·V_p = 6.3662 V; with V_pp the form SR/(π·V_pp) gives the same 40 kHz"},
+    {"values": {"sr": 1000000, "vp": 1.5915494309189533, "f": 100000, "vpp": 3.1830988618379066}, "ref": "hand, 1 V/µs at 100 kHz: f = SR/(2π·V_p) = 1e+06 V/s/(2π·1.59155 V) = 100 kHz; V_pp = 2·V_p = 3.1831 V; with V_pp the form SR/(π·V_pp) gives the same 100 kHz"},
+    {"values": {"sr": 500000, "vp": 10, "f": 7957.7471545947665, "vpp": 20}, "ref": "hand, the defaults: 0.5 V/µs and 10 V peak: f = SR/(2π·V_p) = 500000 V/s/(2π·10 V) = 7.95775 kHz; V_pp = 2·V_p = 20 V; with V_pp the form SR/(π·V_pp) gives the same 7.95775 kHz"},
+    {"values": {"sr": 2300000, "vp": 2.5, "f": 146422.54764454372, "vpp": 5}, "ref": "hand, the same 2.5 V peak as 5 V peak-to-peak with 2.3 V/µs: both published forms give 146.42 kHz: f = SR/(2π·V_p) = 2.3e+06 V/s/(2π·2.5 V) = 146.423 kHz; V_pp = 2·V_p = 5 V; with V_pp the form SR/(π·V_pp) gives the same 146.423 kHz"},
+    {"values": {"sr": 1256637.0614359174, "vp": 10, "f": 20000, "vpp": 20}, "ref": "hand, SR needed for 10 V peak at 20 kHz: f = SR/(2π·V_p) = 1.25664e+06 V/s/(2π·10 V) = 20 kHz; V_pp = 2·V_p = 20 V; with V_pp the form SR/(π·V_pp) gives the same 20 kHz"},
+    {"values": {"sr": 6283185.307179586, "vp": 1, "f": 1000000, "vpp": 2}, "ref": "hand, SR needed for 1 V peak at 1 MHz: f = SR/(2π·V_p) = 6.28319e+06 V/s/(2π·1 V) = 1 MHz; V_pp = 2·V_p = 2 V; with V_pp the form SR/(π·V_pp) gives the same 1 MHz"}
+  ],
+  "solve": [
+    {"inputs": {"sr": 800000, "vp": 10}, "expect": {"f": 12732.395447351626, "vpp": 20}, "errors": {}, "warnings": [], "ref": "hand: f = 0.8e6/(2π·10) = 12.732 kHz"},
+    {"inputs": {"sr": 500000, "vp": 10}, "expect": {"f": 7957.7471545947665, "vpp": 20}, "errors": {}, "warnings": [], "ref": "hand, defaults: f = 0.5e6/(2π·10) = 7.9577 kHz"},
+    {"inputs": {"sr": 800000, "f": 40000}, "expect": {"vp": 3.1830988618379066, "vpp": 6.366197723675813}, "errors": {}, "warnings": [], "ref": "published, TI SLYW038D: V_p = 800 000/(2π·40 000) = 3.183 V, 6.366 V pk-pk"},
+    {"inputs": {"sr": 1000000, "f": 100000}, "expect": {"vp": 1.5915494309189533}, "errors": {}, "warnings": [], "ref": "hand: V_p = 1e6/(2π·1e5) = 1.5915 V"},
+    {"inputs": {"vp": 10, "f": 20000}, "expect": {"sr": 1256637.0614359174}, "errors": {}, "warnings": [], "ref": "hand: SR = 2π·20 kHz·10 V = 1.2566e6 V/s = 1.2566 V/µs"},
+    {"inputs": {"vp": 1, "f": 1000000}, "expect": {"sr": 6283185.307179586}, "errors": {}, "warnings": [], "ref": "hand: SR = 2π·1 MHz·1 V = 6.2832e6 V/s"},
+    {"inputs": {"sr": -500000, "vp": 10}, "expect": {}, "errors": {"sr": "range", "f": "range"}, "warnings": [], "ref": "hand: a negative slew rate is out of range"},
+    {"inputs": {"sr": 500000}, "expect": {}, "errors": {"f": "undetermined", "vp": "undetermined"}, "warnings": [], "ref": "one of the two values is missing"}
+  ]
+}

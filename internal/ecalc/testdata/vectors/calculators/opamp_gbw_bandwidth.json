@@ -1,0 +1,21 @@
+{
+  "calc": "opamp_gbw_bandwidth",
+  "sets": [
+    {"choices": {"cfg": "noninv"}, "values": {"gbw": 22000000, "g": 100, "f": 220000, "gn": 100}, "ref": "published, TI SLYW038D 6.2 (GBW = 22 MHz, noise gain 100 gives 220 kHz): noise gain = G (non-inverting) = 100; f = GBW/noise gain = 22 MHz/100 = 220 kHz"},
+    {"choices": {"cfg": "noninv"}, "values": {"gbw": 18000000, "g": 1000, "f": 18000, "gn": 1000}, "ref": "published, TI SBOA356 (OPA2210 18 MHz, gain 1000 gives 18 kHz): noise gain = G (non-inverting) = 1000; f = GBW/noise gain = 18 MHz/1000 = 18 kHz"},
+    {"choices": {"cfg": "noninv"}, "values": {"gbw": 1000000, "g": 10, "f": 100000, "gn": 10}, "ref": "published, Fiore section 5.3 Example 1 (741, GBW 1 MHz, gain 10 gives 100 kHz): noise gain = G (non-inverting) = 10; f = GBW/noise gain = 1 MHz/10 = 100 kHz"},
+    {"choices": {"cfg": "inv"}, "values": {"gbw": 1000000, "g": 5, "f": 166666.66666666666, "gn": 6}, "ref": "published, Fiore section 5.3 (inverting, R_f = 10 kΩ, R_i = 2 kΩ: noise gain 6, 167 kHz): noise gain = G + 1 (inverting) = 6; f = GBW/noise gain = 1 MHz/6 = 166.667 kHz"},
+    {"choices": {"cfg": "inv"}, "values": {"gbw": 10000000, "g": 10, "f": 909090.9090909091, "gn": 11}, "ref": "hand, inverting gain 10 at 10 MHz GBW: noise gain 11: noise gain = G + 1 (inverting) = 11; f = GBW/noise gain = 10 MHz/11 = 909.091 kHz"},
+    {"choices": {"cfg": "inv"}, "values": {"gbw": 1000000, "g": 1, "f": 500000, "gn": 2}, "ref": "hand, inverting gain 1: noise gain 2, bandwidth GBW/2: noise gain = G + 1 (inverting) = 2; f = GBW/noise gain = 1 MHz/2 = 500 kHz"}
+  ],
+  "solve": [
+    {"inputs": {"gbw": 22000000, "g": 100}, "choices": {"cfg": "noninv"}, "expect": {"f": 220000, "gn": 100}, "errors": {}, "warnings": [], "ref": "published, TI SLYW038D: 22 MHz / 100 = 220 kHz"},
+    {"inputs": {"gbw": 1000000, "g": 5}, "choices": {"cfg": "inv"}, "expect": {"f": 166666.66666666666, "gn": 6}, "errors": {}, "warnings": [], "ref": "published, Fiore: inverting gain 5, noise gain 6, 1 MHz / 6 = 166.67 kHz"},
+    {"inputs": {"f": 50000, "g": 40}, "choices": {"cfg": "inv"}, "expect": {"gbw": 2050000, "gn": 41}, "errors": {}, "warnings": [], "ref": "published, Fiore Example 3: 20 kΩ / 500 Ω inverting (gain 40, noise gain 41), 50 kHz needs GBW = 2.05 MHz"},
+    {"inputs": {"f": 50000, "g": 41}, "choices": {"cfg": "noninv"}, "expect": {"gbw": 2050000, "gn": 41}, "errors": {}, "warnings": [], "ref": "published, Fiore Example 3 as non-inverting gain 41: GBW = 50 kHz·41 = 2.05 MHz"},
+    {"inputs": {"gbw": 3000000, "f": 50000}, "choices": {"cfg": "noninv"}, "expect": {"g": 60, "gn": 60}, "errors": {}, "warnings": [], "ref": "hand: non-inverting G = GBW/f = 60"},
+    {"inputs": {"gbw": 3000000, "f": 50000}, "choices": {"cfg": "inv"}, "expect": {"g": 59, "gn": 60}, "errors": {}, "warnings": [], "ref": "hand: inverting G = GBW/f − 1 = 59, the same noise gain 60"},
+    {"inputs": {"gbw": 1000000, "g": 0.5}, "choices": {"cfg": "noninv"}, "expect": {"f": 2000000, "gn": 0.5}, "errors": {}, "warnings": [0], "ref": "hand: a non-inverting stage cannot have a gain below 1"},
+    {"inputs": {"gbw": -1000000, "g": 10}, "choices": {"cfg": "noninv"}, "expect": {}, "errors": {"gbw": "range", "f": "range"}, "warnings": [], "ref": "hand: a negative GBW is out of range"}
+  ]
+}

@@ -156,5 +156,25 @@ window.ECalcSchematics = Object.assign(window.ECalcSchematics || {}, {
    {"var": "g", "x": 14, "y": 3.4, "side": "top"},
    {"var": "vout", "x": 28.8, "y": 11.6, "side": "bottom"}
   ]
+ } ,
+ "opamp_differentiator": {
+  "w": 30, "h": 14,
+  "parts": [
+   {"sym": "resistor", "x": 5, "y": 7},
+   {"sym": "capacitor", "x": 10, "y": 7},
+   {"sym": "resistor", "x": 17, "y": 4},
+   {"sym": "opamp", "x": 17, "y": 8},
+   {"sym": "ground", "x": 15, "y": 9}
+  ],
+  "wires": [[[4, 7], [5, 7]], [[8, 7], [10, 7]], [[13, 7], [17, 7]], [[15, 7], [15, 4], [17, 4]], [[20, 4], [24, 4], [24, 8]], [[22, 8], [27, 8]], [[15, 9], [17, 9]]],
+  "dots": [[15, 7], [24, 8]],
+  "terminals": [[4, 7], [27, 8]],
+  "anchors": [
+   {"var": "f", "x": 3.4, "y": 7, "side": "left"},
+   {"var": "r1", "x": 6.5, "y": 6.3, "side": "top"},
+   {"var": "c", "x": 11.5, "y": 6.3, "side": "top"},
+   {"var": "r", "x": 18.5, "y": 3.4, "side": "top"},
+   {"var": "a", "x": 25.5, "y": 8.6, "side": "bottom"}
+  ]
  }
 });

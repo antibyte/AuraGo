@@ -216,3 +216,93 @@
     - {when: "g <= 1", warn: {en: "The gain must be above 1: without R_G (open) the gain is exactly 1.", de: "Die Verstärkung muss über 1 liegen: Ohne R_G (offen) beträgt sie genau 1."}}
   formula: ["g = 1 + 2 * r / rg", "vout = g * vdiff"]
   schematic: instrumentation_amp
+
+- id: opamp_differentiator
+  kind: calculator
+  category: opamps
+  name: {cs: "Derivační zesilovač (diferenciátor)", da: "Differentiator", de: "Differenzierer", el: "Διαφοριστής", en: "Differentiator", es: "Diferenciador", fr: "Dérivateur", hi: "डिफरेंशिएटर", it: "Derivatore", ja: "微分回路", nl: "Differentiator", no: "Differentiator", pl: "Różniczkator", pt: "Diferenciador", sv: "Differentiator", zh: "微分器"}
+  doc:
+    en: "The inverting op-amp differentiator: an input capacitor C and a feedback resistor R, so that V_out = −R × C × dV_in / dt. For a sine of frequency f the gain magnitude is A = 2π × f × R × C (rising 20 dB per decade, the output is inverted and lags a sine input by 90°) and it is 1 at the unity-gain frequency f_0 = 1 / (2π × R × C). The ideal circuit (without R_in) is fundamentally unstable and amplifies noise, so a real circuit adds a series resistor R_in at the input (the stop resistor): H = −s × R × C / (1 + s × R_in × C). Above the corner f_1 = 1 / (2π × R_in × C) the circuit stops differentiating and acts as an inverting amplifier with gain R / R_in. A_p is the gain with R_in at f: A / √(1 + (f / f_1)²), so at f = f_1 / 10 the amplitude is 99.5 % of the ideal value and at f_1 it is 70.7 %. Keep the highest signal frequency at least 3.5 times below f_1. A feedback capacitor across R (a second corner 1 / (2π × R × C_f)) is not modelled here. Fast input edges give R × C × dV / dt at the output and drive the op-amp into the supply rails, so check the largest slope. Example with the defaults: R = 100 kΩ, C = 10 nF and R_in = 1 kΩ give A = 6.28 at 1 kHz (f_0 = 159 Hz, f_1 = 15.9 kHz)."
+    de: "Der invertierende Differenzierer mit Operationsverstärker: ein Eingangskondensator C und ein Rückkopplungswiderstand R, sodass V_out = −R · C · dV_in / dt. Für einen Sinus der Frequenz f ist der Verstärkungsbetrag A = 2π · f · R · C (steigt um 20 dB pro Dekade, der Ausgang ist invertiert und eilt einem Sinus am Eingang um 90° nach) und gleich 1 bei der Transitfrequenz f_0 = 1 / (2π · R · C). Die ideale Schaltung (ohne R_in) ist grundsätzlich instabil und verstärkt Rauschen, daher fügt eine reale Schaltung einen Serienwiderstand R_in am Eingang hinzu (den Stoppwiderstand): H = −s · R · C / (1 + s · R_in · C). Oberhalb der Eckfrequenz f_1 = 1 / (2π · R_in · C) differenziert die Schaltung nicht mehr, sondern wirkt als invertierender Verstärker mit der Verstärkung R / R_in. A_p ist die Verstärkung mit R_in bei f: A / √(1 + (f / f_1)²), bei f = f_1 / 10 beträgt die Amplitude also 99,5 % des idealen Werts und bei f_1 70,7 %. Die höchste Signalfrequenz mindestens 3,5-mal unter f_1 halten. Ein Rückkopplungskondensator parallel zu R (eine zweite Ecke 1 / (2π · R · C_f)) ist hier nicht berücksichtigt. Steile Eingangsflanken ergeben R · C · dV / dt am Ausgang und treiben den Operationsverstärker an die Versorgungsgrenzen; die größte Flankensteilheit prüfen. Beispiel mit den Standardwerten: R = 100 kΩ, C = 10 nF und R_in = 1 kΩ ergeben A = 6,28 bei 1 kHz (f_0 = 159 Hz, f_1 = 15,9 kHz)."
+  tags: [opamp, op-amp, differentiator, inverting differentiator, practical differentiator, derivative, high-pass, rate of change, corner frequency, unity gain frequency, stop resistor, operationsverstärker, opv, differenzierer, differenzierverstärker, ableitung, hochpass, flankensteilheit, eckfrequenz, grenzfrequenz, durchtrittsfrequenz]
+  source: "Inverting differentiator, V_out = −R·C·dV_in/dt, with a series input resistor: Texas Instruments, Differentiator Circuit, Analog Engineer's Circuit (SBOA276); Texas Instruments (Burr-Brown), Handbook of Operational Amplifier Applications (SBOA092B), differentiator with stop; J. M. Fiore: Operational Amplifiers and Linear Integrated Circuits: Theory and Application, chapter 10 (differentiators)"
+  vars:
+    r: {dim: resistance, label: R, name: {en: "Feedback resistor", de: "Rückkopplungswiderstand"}, default: "100k", eseries: true}
+    r1: {dim: resistance, label: R_in, name: {en: "Series input resistor (stop resistor)", de: "Serienwiderstand am Eingang (Stoppwiderstand)"}, default: "1k", eseries: true}
+    c: {dim: capacitance, label: C, name: {en: "Input capacitor", de: "Eingangskondensator"}, default: "10n", eseries: true}
+    f: {dim: frequency, label: f, name: {en: "Signal frequency", de: "Signalfrequenz"}, default: "1k"}
+    a: {dim: number, label: A, name: {en: "Ideal gain magnitude at f", de: "Idealer Verstärkungsbetrag bei f"}}
+  dof: 4
+  rules:
+    a: ["2*pi*f*r*c"]
+    r: ["a/(2*pi*f*c)"]
+    c: ["a/(2*pi*f*r)"]
+    f: ["a/(2*pi*r*c)"]
+  derived:
+    tau: {dim: time, label: τ, name: {en: "Time constant R × C", de: "Zeitkonstante R · C"}, expr: "r*c", units: [""]}
+    f0: {dim: frequency, label: f_0, name: {en: "Unity-gain frequency 1 / (2π R C)", de: "Transitfrequenz 1 / (2π R C)"}, expr: "1/(2*pi*r*c)"}
+    f1: {dim: frequency, label: f_1, name: {en: "Corner frequency 1 / (2π R_in C)", de: "Eckfrequenz 1 / (2π R_in C)"}, expr: "1/(2*pi*r1*c)"}
+    ap: {dim: number, label: A_p, name: {en: "Gain magnitude with R_in at f", de: "Verstärkungsbetrag mit R_in bei f"}, expr: "a/sqrt(1+(f/f1)^2)"}
+  checks:
+    - {when: "r1 <= 0", warn: {en: "Without a series resistor (or a feedback capacitor, not modelled here) the differentiator is unstable and amplifies high-frequency noise.", de: "Ohne Serienwiderstand (oder Rückkopplungskondensator, hier nicht berücksichtigt) ist der Differenzierer instabil und verstärkt hochfrequentes Rauschen."}}
+    - {when: "r1 >= r", warn: {en: "R_in is not below R: there is no differentiating range left.", de: "R_in liegt nicht unter R: Es bleibt kein differenzierender Bereich."}}
+    - {when: "f*3.5 > f1", warn: {en: "The signal frequency is closer than 3.5 times to the corner frequency f_1: the circuit no longer differentiates accurately (amplitude and phase error).", de: "Die Signalfrequenz liegt näher als das 3,5-Fache an der Eckfrequenz f_1: Die Schaltung differenziert nicht mehr genau (Amplituden- und Phasenfehler)."}}
+  formula: ["a = 2 * pi * f * r * c", "f0 = 1 / (2 * pi * r * c)", "f1 = 1 / (2 * pi * r1 * c)", "ap = a / sqrt(1 + (f / f1)^2)"]
+  schematic: opamp_differentiator
+
+- id: opamp_gbw_bandwidth
+  kind: calculator
+  category: opamps
+  name: {cs: "Šířka pásma ze součinu zesílení a šířky pásma (GBW)", da: "Båndbredde ud fra GBW", de: "Bandbreite aus dem GBW", el: "Εύρος ζώνης από το GBW", en: "Closed-loop bandwidth from GBW", es: "Ancho de banda a partir del GBW", fr: "Bande passante à partir du produit gain-bande (GBW)", hi: "जीबीडब्ल्यू से बैंडविड्थ", it: "Larghezza di banda dal GBW", ja: "GBWから求める帯域幅", nl: "Bandbreedte uit het GBW", no: "Båndbredde fra GBW", pl: "Pasmo przenoszenia z iloczynu wzmocnienia i pasma (GBW)", pt: "Largura de banda a partir do GBW", sv: "Bandbredd från GBW", zh: "由增益带宽积求带宽"}
+  doc:
+    en: "Closed-loop −3 dB bandwidth of a voltage-feedback op-amp stage: BW = GBW / G_n, where G_n is the noise gain 1 + R_f / R_i. For a non-inverting stage the noise gain equals the signal gain G; for an inverting stage with gain −G it is G + 1, not G. This is the usual trap: an inverting stage with gain −1 has only half of GBW as bandwidth. Choose the configuration and enter the magnitude of the signal gain G. Enter any two of GBW, G and the bandwidth f. Example with the defaults: GBW = 1 MHz and a non-inverting gain of 10 give 100 kHz; the same gain inverting (noise gain 11) gives 90.9 kHz. The relation holds for an internally compensated voltage-feedback op-amp with one dominant pole (open-loop gain falling by 20 dB per decade through the crossover) and a resistive feedback network; it does not hold for current-feedback amplifiers. GBW varies from part to part and with temperature, so leave margin. The result is a small-signal bandwidth; large output swings are also limited by the slew rate (see the slew rate calculator), and the smaller of the two limits applies."
+    de: "Geschlossene −3-dB-Bandbreite einer Stufe mit spannungsgegengekoppeltem Operationsverstärker: BW = GBW / G_n, wobei G_n die Rauschverstärkung 1 + R_f / R_i ist. Bei einer nichtinvertierenden Stufe ist die Rauschverstärkung gleich der Signalverstärkung G; bei einer invertierenden Stufe mit der Verstärkung −G ist sie G + 1, nicht G. Das ist die übliche Falle: Eine invertierende Stufe mit der Verstärkung −1 hat nur die halbe GBW als Bandbreite. Die Schaltung wählen und den Betrag der Signalverstärkung G eingeben. Zwei der Größen GBW, G und Bandbreite f eingeben. Beispiel mit den Standardwerten: GBW = 1 MHz und eine nichtinvertierende Verstärkung von 10 ergeben 100 kHz; dieselbe Verstärkung invertierend (Rauschverstärkung 11) ergibt 90,9 kHz. Die Beziehung gilt für einen intern kompensierten Operationsverstärker mit Spannungsgegenkopplung und einem dominanten Pol (die Leerlaufverstärkung fällt mit 20 dB pro Dekade durch den Schnittpunkt) und ein ohmsches Rückkopplungsnetz; für Verstärker mit Stromgegenkopplung gilt sie nicht. Die GBW streut von Bauteil zu Bauteil und mit der Temperatur, daher Reserve lassen. Das Ergebnis ist eine Kleinsignalbandbreite; große Ausgangshübe begrenzt zusätzlich die Anstiegsrate (siehe den Slew-Rate-Rechner), und es gilt die kleinere der beiden Grenzen."
+  tags: [op amp, operational amplifier, gain bandwidth product, gbw, gbp, gbwp, unity gain bandwidth, closed-loop bandwidth, noise gain, inverting, non-inverting, bandwidth, operationsverstärker, opv, verstärkungs-bandbreite-produkt, transitfrequenz, bandbreite, grenzfrequenz, rauschverstärkung, invertierend, nichtinvertierend]
+  source: "Closed-loop bandwidth BW = GBW / noise gain, noise gain = 1 + R_f/R_i: Texas Instruments, Analog Engineer's Pocket Reference (SLYW038D), section Op amp bandwidth; J. M. Fiore: Operational Amplifiers and Linear Integrated Circuits: Theory and Application, section 5.3 (gain-bandwidth product); Texas Instruments, Cascading Precision Op Amp Stages for Optimal AC and DC Performance (SBOA356)"
+  vars:
+    gbw: {dim: frequency, label: GBW, name: {en: "Gain-bandwidth product (unity-gain frequency)", de: "Verstärkungs-Bandbreite-Produkt (Transitfrequenz)"}, default: "1M"}
+    g: {dim: number, label: G, name: {en: "Signal gain (magnitude)", de: "Signalverstärkung (Betrag)"}, default: 10}
+    f: {dim: frequency, label: f, name: {en: "Closed-loop bandwidth (−3 dB)", de: "Bandbreite bei Gegenkopplung (−3 dB)"}}
+  choices:
+    cfg:
+      name: {cs: "Zapojení", da: "Konfiguration", de: "Schaltung", el: "Διάταξη", en: "Configuration", es: "Configuración", fr: "Configuration", hi: "विन्यास", it: "Configurazione", ja: "構成", nl: "Configuratie", no: "Konfigurasjon", pl: "Konfiguracja", pt: "Configuração", sv: "Konfiguration", zh: "电路形式"}
+      default: noninv
+      options:
+        noninv:
+          name: {cs: "Neinvertující", da: "Ikke-inverterende", de: "Nichtinvertierend", el: "Μη αναστρέφουσα", en: "Non-inverting", es: "No inversor", fr: "Non inverseur", hi: "अनइन्वर्टिंग", it: "Non invertente", ja: "非反転", nl: "Niet-inverterend", no: "Ikke-inverterende", pl: "Nieodwracająca", pt: "Não inversora", sv: "Icke-inverterande", zh: "同相"}
+          consts: {inv: 0}
+        inv:
+          name: {cs: "Invertující", da: "Inverterende", de: "Invertierend", el: "Αναστρέφουσα", en: "Inverting", es: "Inversor", fr: "Inverseur", hi: "इन्वर्टिंग", it: "Invertente", ja: "反転", nl: "Inverterend", no: "Inverterende", pl: "Odwracająca", pt: "Inversora", sv: "Inverterande", zh: "反相"}
+          consts: {inv: 1}
+  dof: 2
+  rules:
+    f: ["gbw/(g+inv)"]
+    gbw: ["f*(g+inv)"]
+    g: ["gbw/f-inv"]
+  derived:
+    gn: {dim: number, label: G_n, name: {en: "Noise gain (G for non-inverting, G + 1 for inverting)", de: "Rauschverstärkung (G nichtinvertierend, G + 1 invertierend)"}, expr: "g+inv"}
+  checks:
+    - {when: "g+inv < 1", warn: {en: "A non-inverting amplifier cannot have a gain below 1.", de: "Ein nichtinvertierender Verstärker kann keine Verstärkung unter 1 haben."}}
+  formula: ["gn = g + inv", "f = gbw / gn"]
+
+- id: slew_rate_fpbw
+  kind: calculator
+  category: opamps
+  name: {cs: "Rychlost přeběhu a šířka pásma při plném výkonu", da: "Slew rate og fuldeffektbåndbredde", de: "Slew-Rate und Leistungsbandbreite", el: "Ρυθμός ανύψωσης και εύρος ζώνης πλήρους ισχύος", en: "Slew rate and full-power bandwidth", es: "Slew rate y ancho de banda a plena potencia", fr: "Vitesse de balayage et bande passante en pleine puissance", hi: "स्यू रेट और पूर्ण-शक्ति बैंडविड्थ", it: "Slew rate e banda a piena potenza", ja: "スルーレートと最大出力帯域幅", nl: "Slew rate en vermogensbandbreedte", no: "Slew rate og full-effekt-båndbredde", pl: "Szybkość narastania i pasmo mocy", pt: "Slew rate e largura de banda de potência", sv: "Slew rate och effektbandbredd", zh: "压摆率与全功率带宽"}
+  doc:
+    en: "Full-power bandwidth: the highest sine frequency an amplifier can deliver at a given output amplitude before its slew rate distorts the signal. A sine V_p × sin(2π f t) is steepest at the zero crossing, where dV/dt = 2π × f × V_p; the slew rate limit is reached when this equals SR, so f = SR / (2π × V_p). Enter any two of SR, V_p and f. V_p is the PEAK voltage (the amplitude) at the output. Two published forms differ only in this convention: Texas Instruments uses the peak value with 2π, Microchip the peak-to-peak value with π (f = SR / (π × V_pp)); V_pp is shown so that you can compare. Using the peak-to-peak value with 2π gives a result too small by a factor of 2, and the RMS value one too large by √2. Example with the defaults: 0.5 V/µs and 10 V peak give 7.96 kHz. Distortion begins gradually below this frequency, so for low distortion choose a slew rate several times higher. The small-signal bandwidth (GBW divided by the noise gain) must also be sufficient; the smaller of the two limits applies. Datasheet slew rates are typical values for a large step, and the formula is an upper limit: measured full-power curves use a distortion criterion and lie lower."
+    de: "Leistungsbandbreite: die höchste Sinusfrequenz, die ein Verstärker bei einer gegebenen Ausgangsamplitude liefern kann, bevor seine Anstiegsrate das Signal verzerrt. Ein Sinus V_p · sin(2π f t) ist am Nulldurchgang am steilsten, dort ist dV/dt = 2π · f · V_p; die Grenze der Anstiegsrate ist erreicht, wenn das gleich SR ist, also f = SR / (2π · V_p). Zwei der Größen SR, V_p und f eingeben. V_p ist der SPITZENWERT (die Amplitude) am Ausgang. Zwei veröffentlichte Formen unterscheiden sich nur in dieser Konvention: Texas Instruments verwendet den Spitzenwert mit 2π, Microchip den Spitze-Spitze-Wert mit π (f = SR / (π · V_pp)); V_pp wird zum Vergleich angezeigt. Der Spitze-Spitze-Wert mit 2π ergibt ein um den Faktor 2 zu kleines Ergebnis, der Effektivwert ein um √2 zu großes. Beispiel mit den Standardwerten: 0,5 V/µs und 10 V Spitze ergeben 7,96 kHz. Verzerrungen setzen schon unterhalb dieser Frequenz allmählich ein; für geringen Klirrfaktor eine mehrfach höhere Anstiegsrate wählen. Auch die Kleinsignalbandbreite (GBW geteilt durch die Rauschverstärkung) muss ausreichen; es gilt die kleinere der beiden Grenzen. Die Anstiegsraten im Datenblatt sind typische Werte für einen großen Sprung, und die Formel ist eine Obergrenze: Gemessene Leistungsbandbreiten verwenden ein Verzerrungskriterium und liegen tiefer."
+  tags: [slew rate, full power bandwidth, fpbw, large signal bandwidth, op amp, sine wave, peak voltage, v/us, slew limiting, maximum frequency, slew-rate, anstiegsrate, anstiegsgeschwindigkeit, großsignalbandbreite, leistungsbandbreite, operationsverstärker, sinus, spitzenspannung, maximale frequenz]
+  source: "Full-power bandwidth f = SR/(2π·V_p) with V_p the peak value: Texas Instruments, Analog Engineer's Pocket Reference (SLYW038D), section Full power bandwidth; Texas Instruments (National Semiconductor), Predicting Op Amp Slew Rate Limited Response (Linear Brief 19, SNOA852); equivalent form SR/(π·V_pp): Microchip, Operational Amplifier AC Specifications and Applications (AN723)"
+  vars:
+    sr: {dim: slew_rate, label: SR, name: {en: "Slew rate", de: "Anstiegsrate (Slew-Rate)"}, default: "0.5 V/µs", unit: Vus, units: [Vus, ""]}
+    vp: {dim: voltage, label: V_p, name: {en: "Peak output voltage (amplitude)", de: "Spitzenwert der Ausgangsspannung (Amplitude)"}, default: "10 V"}
+    f: {dim: frequency, label: f, name: {en: "Full-power bandwidth (signal frequency)", de: "Leistungsbandbreite (Signalfrequenz)"}}
+  dof: 2
+  rules:
+    f: ["sr/(2*pi*vp)"]
+    sr: ["2*pi*f*vp"]
+    vp: ["sr/(2*pi*f)"]
+  derived:
+    vpp: {dim: voltage, label: V_pp, name: {en: "Peak-to-peak voltage 2 × V_p", de: "Spitze-Spitze-Spannung 2 · V_p"}, expr: "2*vp"}
+  formula: ["f = sr / (2 * pi * vp)", "vpp = 2 * vp"]

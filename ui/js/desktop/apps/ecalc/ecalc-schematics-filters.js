@@ -168,5 +168,121 @@ window.ECalcSchematics = Object.assign(window.ECalcSchematics || {}, {
    {"var": "rs", "x": 8.5, "y": 3.3, "side": "top"},
    {"var": "rp", "x": 11.4, "y": 6.2, "side": "left"}
   ]
+ },
+ "lc_lowpass": {
+  "w": 28, "h": 12,
+  "parts": [
+   {"sym": "acsource", "x": 4, "y": 4, "rot": 90},
+   {"sym": "resistor", "x": 6, "y": 4},
+   {"sym": "inductor", "x": 11, "y": 4},
+   {"sym": "capacitor", "x": 17, "y": 4, "rot": 90},
+   {"sym": "resistor", "x": 22, "y": 4, "rot": 90},
+   {"sym": "ground", "x": 13, "y": 10}
+  ],
+  "wires": [[[4, 4], [6, 4]], [[9, 4], [11, 4]], [[14, 4], [22, 4]], [[4, 7], [4, 10], [22, 10]], [[17, 7], [17, 10]], [[22, 7], [22, 10]]],
+  "dots": [[17, 4], [17, 10], [13, 10]],
+  "texts": [
+   {"x": 7.5, "y": 3.2, "text": "R", "anchor": "middle"}
+  ],
+  "anchors": [
+   {"var": "l", "x": 12.5, "y": 3.3, "side": "top"},
+   {"var": "c", "x": 16.4, "y": 5.8, "side": "left"},
+   {"var": "r", "x": 22.6, "y": 5.8, "side": "right"}
+  ]
+ },
+ "sallen_key_highpass": {
+  "w": 32, "h": 14,
+  "parts": [
+   {"sym": "acsource", "x": 3, "y": 8, "rot": 90},
+   {"sym": "capacitor", "x": 6, "y": 8},
+   {"sym": "capacitor", "x": 13, "y": 8},
+   {"sym": "resistor", "x": 13, "y": 4},
+   {"sym": "resistor", "x": 18, "y": 8, "rot": 90},
+   {"sym": "opamp", "x": 20, "y": 9, "flip": true},
+   {"sym": "ground", "x": 3, "y": 11},
+   {"sym": "ground", "x": 18, "y": 11}
+  ],
+  "wires": [[[3, 8], [6, 8]], [[9, 8], [13, 8]], [[11, 8], [11, 4], [13, 4]], [[16, 8], [20, 8]], [[16, 4], [28, 4], [28, 9]], [[25, 9], [29, 9]], [[27, 9], [27, 12], [20, 12], [20, 10]]],
+  "dots": [[11, 8], [18, 8], [27, 9], [28, 9]],
+  "terminals": [[29, 9]],
+  "texts": [
+   {"x": 14.5, "y": 7.2, "text": "C", "anchor": "middle"},
+   {"x": 29.8, "y": 9.35, "text": "V_out", "anchor": "start"}
+  ],
+  "anchors": [
+   {"var": "c", "x": 7.5, "y": 7.3, "side": "top"},
+   {"var": "r1", "x": 14.5, "y": 3.3, "side": "top"},
+   {"var": "r2", "x": 17.4, "y": 10, "side": "left"}
+  ]
+ },
+ "mfb_bandpass": {
+  "w": 31, "h": 14,
+  "parts": [
+   {"sym": "resistor", "x": 5, "y": 7},
+   {"sym": "capacitor", "x": 14, "y": 7},
+   {"sym": "capacitor", "x": 13, "y": 1},
+   {"sym": "resistor", "x": 11, "y": 9, "rot": 90},
+   {"sym": "resistor", "x": 20, "y": 4},
+   {"sym": "opamp", "x": 21, "y": 8},
+   {"sym": "ground", "x": 11, "y": 12},
+   {"sym": "ground", "x": 19, "y": 9}
+  ],
+  "wires": [[[3, 7], [5, 7]], [[8, 7], [14, 7]], [[17, 7], [21, 7]], [[11, 7], [11, 1], [13, 1]], [[11, 7], [11, 9]], [[19, 7], [19, 4], [20, 4]], [[16, 1], [28, 1], [28, 4]], [[23, 4], [28, 4], [28, 8]], [[26, 8], [30, 8]], [[19, 9], [21, 9]]],
+  "dots": [[11, 7], [19, 7], [28, 4], [28, 8]],
+  "terminals": [[3, 7], [30, 8]],
+  "texts": [
+   {"x": 14.5, "y": 0.2, "text": "C", "anchor": "middle"}
+  ],
+  "anchors": [
+   {"var": "rin", "x": 6.5, "y": 6.3, "side": "top"},
+   {"var": "c", "x": 15.5, "y": 6.3, "side": "top"},
+   {"var": "rgnd", "x": 10.4, "y": 10.5, "side": "left"},
+   {"var": "rfb", "x": 21.5, "y": 3.3, "side": "top"}
+  ]
+ },
+ "speaker_crossover": {
+  "w": 24, "h": 18,
+  "parts": [
+   {"sym": "acsource", "x": 3, "y": 9, "rot": 90},
+   {"sym": "inductor", "x": 8, "y": 4},
+   {"sym": "capacitor", "x": 14, "y": 4, "rot": 90},
+   {"sym": "resistor", "x": 19, "y": 4, "rot": 90},
+   {"sym": "capacitor", "x": 8, "y": 13},
+   {"sym": "inductor", "x": 14, "y": 13, "rot": 90},
+   {"sym": "resistor", "x": 19, "y": 13, "rot": 90},
+   {"sym": "ground", "x": 16, "y": 7},
+   {"sym": "ground", "x": 16, "y": 16},
+   {"sym": "ground", "x": 3, "y": 12}
+  ],
+  "wires": [[[3, 9], [6, 9]], [[6, 9], [6, 4], [8, 4]], [[6, 9], [6, 13], [8, 13]], [[11, 4], [19, 4]], [[11, 13], [19, 13]], [[14, 7], [19, 7]], [[14, 16], [19, 16]]],
+  "dots": [[6, 9], [14, 4], [16, 7], [14, 13], [16, 16]],
+  "texts": [
+   {"x": 9.5, "y": 12.2, "text": "C", "anchor": "middle"},
+   {"x": 14.8, "y": 14.85, "text": "L", "anchor": "start"},
+   {"x": 19.8, "y": 14.85, "text": "R", "anchor": "start"}
+  ],
+  "anchors": [
+   {"var": "f", "x": 2.4, "y": 10.5, "side": "left"},
+   {"var": "l", "x": 9.5, "y": 3.3, "side": "top"},
+   {"var": "c", "x": 13.4, "y": 5.8, "side": "left"},
+   {"var": "r", "x": 19.6, "y": 5.8, "side": "right"}
+  ]
+ },
+ "l_pad": {
+  "w": 26, "h": 12,
+  "parts": [
+   {"sym": "resistor", "x": 7, "y": 4},
+   {"sym": "resistor", "x": 14, "y": 4, "rot": 90},
+   {"sym": "resistor", "x": 20, "y": 4, "rot": 90},
+   {"sym": "ground", "x": 10, "y": 10}
+  ],
+  "wires": [[[4, 4], [7, 4]], [[10, 4], [20, 4]], [[14, 7], [14, 10]], [[20, 7], [20, 10]], [[4, 10], [20, 10]]],
+  "dots": [[14, 4], [14, 10], [10, 10]],
+  "terminals": [[4, 4], [4, 10]],
+  "anchors": [
+   {"var": "rs", "x": 8.5, "y": 3.3, "side": "top"},
+   {"var": "rp", "x": 13.4, "y": 6.2, "side": "left"},
+   {"var": "z", "x": 20.6, "y": 6.2, "side": "right"}
+  ]
  }
 });

@@ -1,0 +1,19 @@
+{
+  "calc": "opamp_differentiator",
+  "sets": [
+    {"values": {"r": 499000, "r1": 1000, "c": 1.5e-08, "f": 100, "a": 4.702964202423921, "tau": 0.007485, "f0": 21.263185449819016, "f1": 10610.32953945969, "ap": 4.70275534255517}, "ref": "published, TI SBOA276 example (R = 499 kΩ, C = 15 nF, R_in = 1 kΩ): A = 13.4 dB at 100 Hz: A = 2π·f·R·C = 2π·100 Hz·499 kΩ·15 nF = 4.70296; τ = R·C = 7.485 ms; f_0 = 1/(2π·R·C) = 21.2632 Hz; f_1 = 1/(2π·R_in·C) = 10.6103 kHz; A_p = A/√(1+(f/f_1)²) = 4.70276"},
+    {"values": {"r": 5000, "r1": 100, "c": 1e-08, "f": 3000, "a": 0.9424777960769379, "tau": 5e-05, "f0": 3183.0988618379065, "f1": 159154.94309189534, "ap": 0.9423104067873277}, "ref": "published, Fiore section 10.3 Example 10.3.1 (5 kΩ, 10 nF, 3 kHz: A = 0.942478, corner 159.2 kHz for 100 Ω): A = 2π·f·R·C = 2π·3 kHz·5 kΩ·10 nF = 0.942478; τ = R·C = 50 µs; f_0 = 1/(2π·R·C) = 3.1831 kHz; f_1 = 1/(2π·R_in·C) = 159.155 kHz; A_p = A/√(1+(f/f_1)²) = 0.94231"},
+    {"values": {"r": 40000, "r1": 250, "c": 5e-07, "f": 100, "a": 12.566370614359172, "tau": 0.02, "f0": 7.957747154594767, "f1": 1273.2395447351628, "ap": 12.527791160144973}, "ref": "hand, with the R_in = 250 Ω and C = 500 nF of Fiore Example 10.3.4 (corner 1.273 kHz): A = 2π·f·R·C = 2π·100 Hz·40 kΩ·500 nF = 12.5664; τ = R·C = 20 ms; f_0 = 1/(2π·R·C) = 7.95775 Hz; f_1 = 1/(2π·R_in·C) = 1.27324 kHz; A_p = A/√(1+(f/f_1)²) = 12.5278"},
+    {"values": {"r": 100000, "r1": 1000, "c": 1e-08, "f": 1000, "a": 6.283185307179586, "tau": 0.001, "f0": 159.15494309189535, "f1": 15915.494309189533, "ap": 6.270819398473762}, "ref": "hand, the defaults: 100 kΩ, 10 nF, 1 kΩ at 1 kHz: A = 2π·f·R·C = 2π·1 kHz·100 kΩ·10 nF = 6.28319; τ = R·C = 1 ms; f_0 = 1/(2π·R·C) = 159.155 Hz; f_1 = 1/(2π·R_in·C) = 15.9155 kHz; A_p = A/√(1+(f/f_1)²) = 6.27082"}
+  ],
+  "solve": [
+    {"inputs": {"r": 100000, "c": 1e-08, "r1": 1000, "f": 1000}, "expect": {"a": 6.283185307179586, "tau": 0.001, "f0": 159.15494309189535, "f1": 15915.494309189533, "ap": 6.270819398473762}, "errors": {}, "warnings": [], "ref": "hand, defaults: A = 2π·1000·1e5·1e-8 = 2π = 6.2832, f_1 = 15.9155 kHz"},
+    {"inputs": {"r": 499000, "c": 1.5e-08, "r1": 1000, "f": 100}, "expect": {"a": 4.702964202423921, "f0": 21.263185449819016, "f1": 10610.32953945969}, "errors": {}, "warnings": [], "ref": "published, TI SBOA276: 13.4 dB at 100 Hz (A = 4.703), f_0 = 21.263 Hz, f_1 = 10.61 kHz"},
+    {"inputs": {"a": 0.9424777960769379, "c": 1e-08, "f": 3000, "r1": 100}, "expect": {"r": 5000}, "errors": {}, "warnings": [], "ref": "published, Fiore Example 10.3.1: R = A/(2π·f·C) = 5 kΩ"},
+    {"inputs": {"a": 0.9424777960769379, "r": 5000, "f": 3000, "r1": 100}, "expect": {"c": 1e-08}, "errors": {}, "warnings": [], "ref": "published, Fiore Example 10.3.1: C = A/(2π·f·R) = 10 nF"},
+    {"inputs": {"a": 0.9424777960769379, "r": 5000, "c": 1e-08, "r1": 100}, "expect": {"f": 3000}, "errors": {}, "warnings": [], "ref": "published, Fiore Example 10.3.1: f = A/(2π·R·C) = 3 kHz"},
+    {"inputs": {"r": 100000, "c": 1e-08, "r1": 1000, "f": 10000}, "expect": {"a": 62.83185307179586, "f1": 15915.494309189533}, "errors": {}, "warnings": [2], "ref": "hand: 3.5·10 kHz = 35 kHz is above f_1 = 15.9 kHz: too close to the corner"},
+    {"inputs": {"r": 100000, "c": 1e-08, "r1": 200000, "f": 1000}, "expect": {"f1": 79.57747154594767}, "errors": {}, "warnings": [1, 2], "ref": "hand: R_in above R_f gives f_1 = 79.6 Hz, below the signal as well"},
+    {"inputs": {"r": -100000, "c": 1e-08, "r1": 1000, "f": 1000}, "expect": {}, "errors": {"r": "range", "a": "range"}, "warnings": [1], "ref": "hand: a negative resistor is out of range"}
+  ]
+}

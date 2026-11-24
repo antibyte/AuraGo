@@ -1,0 +1,24 @@
+{
+  "calc": "l_pad",
+  "sets": [
+    {"values": {"z": 6, "a": 3.5, "rs": 1.9899364945883125, "rp": 12.091029587076271, "k": 1.4962356560944334}, "ref": "published, ESP Design of Passive Crossovers: 6 Ω, 3.5 dB (ESP prints 1.99 Ω and 11.99 Ω from rounded steps, the exact value is 12.09 Ω): K = 10^(A/20) = 1.49624; R_s = Z·(1−1/K) = 1.98994 Ω; R_p = Z/(K−1) = 12.091 Ω; check: R_s + R_p‖Z = 6 Ω = Z"},
+    {"values": {"z": 8, "a": 6, "rs": 3.9905021309818216, "rp": 8.03808190029796, "k": 1.9952623149688795}, "ref": "published, Electronics Tutorials L-pad Attenuator: 8 Ω, 6 dB, K = 1.9953, about 4 Ω and 8 Ω: K = 10^(A/20) = 1.99526; R_s = Z·(1−1/K) = 3.9905 Ω; R_p = Z/(K−1) = 8.03808 Ω; check: R_s + R_p‖Z = 8 Ω = Z"},
+    {"values": {"z": 8, "a": 32, "rs": 7.799049085479234, "rp": 0.2061286316506556, "k": 39.81071705534973}, "ref": "published, Electronics Tutorials L-pad Attenuator: 8 Ω, 32 dB, about 7.8 Ω and 0.2 Ω: K = 10^(A/20) = 39.8107; R_s = Z·(1−1/K) = 7.79905 Ω; R_p = Z/(K−1) = 0.206129 Ω; check: R_s + R_p‖Z = 8 Ω = Z"},
+    {"values": {"z": 4, "a": 3, "rs": 1.1682168624634484, "rp": 9.696087185610724, "k": 1.4125375446227544}, "ref": "hand, 4 Ω, 3 dB: K = 10^(A/20) = 1.41254; R_s = Z·(1−1/K) = 1.16822 Ω; R_p = Z/(K−1) = 9.69609 Ω; check: R_s + R_p‖Z = 4 Ω = Z"},
+    {"values": {"z": 6, "a": 3.5218251811136247, "rs": 2, "rp": 12, "k": 1.5}, "ref": "published check, ESP: 2 Ω and 12 Ω in a 6 Ω system give 3.52 dB: K = 10^(A/20) = 1.5; R_s = Z·(1−1/K) = 2 Ω; R_p = Z/(K−1) = 12 Ω; check: R_s + R_p‖Z = 6 Ω = Z"},
+    {"values": {"z": 8, "a": 2.793239868580126, "rs": 2.2, "rp": 21.09090909090909, "k": 1.3793103448275863}, "ref": "hand, 8 Ω with R_s = 2.2 Ω: K = 10^(A/20) = 1.37931; R_s = Z·(1−1/K) = 2.2 Ω; R_p = Z/(K−1) = 21.0909 Ω; check: R_s + R_p‖Z = 8 Ω = Z"},
+    {"values": {"z": 8, "a": 3.7127315392382325, "rs": 2.782608695652174, "rp": 15, "k": 1.5333333333333334}, "ref": "hand, 8 Ω with R_p = 15 Ω: K = 10^(A/20) = 1.53333; R_s = Z·(1−1/K) = 2.78261 Ω; R_p = Z/(K−1) = 15 Ω; check: R_s + R_p‖Z = 8 Ω = Z"}
+  ],
+  "solve": [
+    {"inputs": {"z": 8, "a": 6}, "expect": {"rs": 3.9905021309818216, "rp": 8.03808190029796, "k": 1.9952623149688795}, "errors": {}, "warnings": [], "ref": "published, Electronics Tutorials: 8 Ω and 6 dB give R_s = 3.9905 Ω and R_p = 8.0381 Ω (printed as 4 Ω and 8 Ω)"},
+    {"inputs": {"z": 6, "a": 3.5}, "expect": {"rs": 1.9899364945883125, "rp": 12.091029587076271}, "errors": {}, "warnings": [], "ref": "published, ESP 6 Ω, 3.5 dB: R_s = 1.9899 Ω, R_p = 12.091 Ω"},
+    {"inputs": {"z": 6, "rs": 2}, "expect": {"a": 3.5218251811136247, "rp": 12}, "errors": {}, "warnings": [], "ref": "published check, ESP: A = 20·log10(6/4) = 3.5218 dB, R_p = Z·(Z−R_s)/R_s = 12 Ω"},
+    {"inputs": {"z": 6, "rp": 12}, "expect": {"a": 3.5218251811136247, "rs": 2}, "errors": {}, "warnings": [], "ref": "published check, ESP: A = 20·log10(1+6/12) = 3.5218 dB, R_s = Z²/(Z+R_p) = 2 Ω"},
+    {"inputs": {"rs": 2, "rp": 12}, "expect": {"z": 6, "a": 3.5218251811136247}, "errors": {}, "warnings": [], "ref": "published check, ESP: Z = (2+√(4+96))/2 = 6 Ω"},
+    {"inputs": {"a": 32, "rs": 7.799049085479234}, "expect": {"z": 8, "rp": 0.2061286316506556}, "errors": {}, "warnings": [], "ref": "published, Electronics Tutorials: Z = R_s/(1−10^(−A/20)) = 8 Ω"},
+    {"inputs": {"a": 32, "rp": 0.2061286316506556}, "expect": {"z": 8, "rs": 7.799049085479234}, "errors": {}, "warnings": [], "ref": "published, Electronics Tutorials: Z = R_p·(10^(A/20)−1) = 8 Ω"},
+    {"inputs": {"z": 8, "rs": 9}, "expect": {}, "errors": {"a": "nonfinite", "rp": "range"}, "warnings": [1], "ref": "hand: R_s above Z leaves no constant-impedance pad (the logarithm of a negative ratio)"},
+    {"inputs": {"z": 8, "a": -3}, "expect": {}, "errors": {"rs": "range", "rp": "range"}, "warnings": [0], "ref": "hand: a negative attenuation (gain) is out of range"},
+    {"inputs": {"z": -8, "a": 6}, "expect": {}, "errors": {"z": "range", "rs": "range", "rp": "range"}, "warnings": [1], "ref": "hand: a negative impedance is out of range"}
+  ]
+}
