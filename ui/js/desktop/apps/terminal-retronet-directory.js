@@ -78,6 +78,8 @@
         const api = opts.api;
         const announce = typeof opts.announce === 'function' ? opts.announce : function () {};
         const canEdit = opts.canEdit;
+        // Optional SGR prefix for the selected row (background and text colour); empty keeps inverse video.
+        const selectionSgr = typeof opts.selectionSgr === 'function' ? opts.selectionSgr : function () { return ''; };
         const onDial = typeof opts.onDial === 'function' ? opts.onDial : function () {};
         const onEdit = typeof opts.onEdit === 'function' ? opts.onEdit : function () {};
         const onDelete = typeof opts.onDelete === 'function' ? opts.onDelete : function () {};
@@ -174,9 +176,12 @@
             let seen = lastSeen(status);
             if (seen && width - fixed - TerminalText.cells(seen) - 1 < 12) seen = '';
             const descWidth = Math.max(0, width - fixed - (seen ? TerminalText.cells(seen) + 1 : 0));
-            let out = selected ? '\x1b[7m>' : ' ';
-            out += pad2(item.number) + ' ';
-            out += status ? MARKER_COLORS[status.state] + MARKERS[status.state] + '\x1b[39m' : '   ';
+            const bar = selected ? String(selectionSgr() || '') : '';
+            let out = selected ? (bar || '\x1b[7m') + '>' : ' ';
+            // Dim numbers only on unselected rows: inside the inverse bar they would lose contrast.
+            out += (selected ? pad2(item.number) : DIM + pad2(item.number) + '\x1b[22m') + ' ';
+            // On a themed bar the marker keeps the bar's white text (a coloured glyph could vanish on the accent).
+            out += status ? (bar ? MARKERS[status.state] : MARKER_COLORS[status.state] + MARKERS[status.state] + '\x1b[39m') : '   ';
             out += ' \x1b[1m' + TerminalText.fitToCells(entry.name, nameWidth, true) + '\x1b[22m ';
             out += TerminalText.fitToCells(description(entry), descWidth, true);
             if (seen) out += ' ' + DIM + seen + '\x1b[22m';
@@ -184,12 +189,15 @@
         }
 
         function headingLine(category, width) {
-            return ' \x1b[1;4m' + TerminalText.fitToCells(upper(tr('desktop.terminal_retronet_cat_' + category)), width - 1) + RESET;
+            // Divider row: " -- LABEL ------", exactly `width` cells (label cut first when the row is narrow).
+            const label = TerminalText.fitToCells(upper(tr('desktop.terminal_retronet_cat_' + category)), Math.max(1, width - 6));
+            const tail = Math.max(0, width - 4 - TerminalText.cells(label) - 1);
+            return ' ' + RULE + RULE + ' \x1b[1;36m' + label + RESET + ' ' + DIM + RULE.repeat(tail) + RESET;
         }
 
         function headerLine(cols) {
             const title = TerminalText.fitToCells(tr('desktop.terminal_retronet_title'), cols - 2);
-            let out = ' \x1b[1m' + title + RESET;
+            let out = ' \x1b[1;97m' + title + RESET;
             const room = cols - 4 - TerminalText.cells(title);
             if (notice && room > 3) {
                 const text = TerminalText.fitToCells(tr(notice), room);

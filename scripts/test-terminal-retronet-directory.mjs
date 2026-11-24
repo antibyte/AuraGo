@@ -313,7 +313,7 @@ for (const lang of LANGS) {
     same('a catalog C64 board shows [C]', row('The Cabin').slice(4, 7), '[C]');
     same('an own C64 board shows [C]', row('My C64 Box').slice(4, 7), '[C]');
     check('a status for a C64 board is ignored (no last-reachable time)', !row('The Cabin').includes('last reachable'), row('The Cabin'));
-    const heading = (category) => screen.findIndex((text) => text.trim() === t('desktop.terminal_retronet_cat_' + category).toUpperCase());
+    const heading = (category) => screen.findIndex((text) => text.startsWith(' ── ' + t('desktop.terminal_retronet_cat_' + category).toUpperCase() + ' '));
     check('the Commodore 64 category follows Games and precedes the own entries', heading('games') >= 0 && heading('games') < heading('commodore') && heading('commodore') < heading('own'), [heading('games'), heading('commodore'), heading('own')].join(','));
     const markerRow = screen.indexOf(row('The Cabin'));
     const marker = term.buffer.active.getLine(markerRow).getCell(5);
@@ -589,7 +589,7 @@ for (const [label, options] of [['can_edit false', { data: { ...payload, can_edi
 {
     const h = await harness();
     await h.directory.load();
-    const heading = await h.rowOf(/^ CLASSICS/);
+    const heading = await h.rowOf(/^ ── CLASSICS/);
     check('the classics heading is on screen', heading > 0, String(heading));
     h.click(heading);
     same('a click on a heading selects nothing', h.directory.selected().id, Directory.LOCAL_SHELL_ID);
@@ -702,6 +702,36 @@ for (const [label, options] of [['can_edit false', { data: { ...payload, can_edi
         english['desktop.terminal_retronet_announce'].split('{{entry}}').join(entryText).split('{{position}}').join('3').split('{{total}}').join('3'));
     directory.dispose();
     term.dispose();
+}
+
+// The optional selectionSgr replaces inverse video on the selected row only (Modern's theme bar): background and
+// text colour survive the marker's colour reset, and the default (empty) keeps the inverse bar.
+{
+    const bar = '\x1b[48;2;10;20;30m\x1b[97m';
+    const data = { entries: [payload.entries[0]], status: { telehack: { state: 'online' } }, stale: false, can_edit: true };
+    async function selectedRow(selectionSgr) {
+        const term = new sandbox.Terminal({ cols: 80, rows: 20 });
+        const directory = Directory.create({
+            term, t, selectionSgr, canEdit: () => true, announce() {}, onDial() {}, onEdit() {}, onDelete() {},
+            api: async () => JSON.parse(JSON.stringify(data))
+        });
+        await directory.load();
+        directory.handleData('\x1b[F');
+        await new Promise((resolve) => term.write('', resolve));
+        const rows = entryRows(term, 80, 20);
+        const selected = rows.find((row) => row.text.startsWith('>'));
+        const line = term.buffer.active.getLine(selected.y);
+        const out = { selected, other: rows.find((row) => !row.text.startsWith('>')), line };
+        out.cells = Array.from({ length: 80 }, (_, x) => line.getCell(x));
+        directory.dispose();
+        return out;
+    }
+    const themed = await selectedRow(() => bar);
+    check('selectionSgr paints the whole selected row with the given background',
+        themed.cells.slice(0, 70).every((cell) => cell.isBgRGB() && cell.getBgColor() === ((10 << 16) | (20 << 8) | 30)) && themed.cells.slice(0, 70).every((cell) => !cell.isInverse()));
+    check('selectionSgr keeps the bright white text after the marker reset', themed.cells.slice(8, 14).every((cell) => cell.isFgPalette() && cell.getFgColor() === 15));
+    const inverse = await selectedRow(() => '');
+    check('an empty selectionSgr keeps the inverse bar', inverse.cells.slice(0, 70).every((cell) => cell.isInverse()));
 }
 
 if (failures) {

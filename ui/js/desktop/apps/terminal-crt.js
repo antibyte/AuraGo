@@ -28,6 +28,7 @@
         'uniform float u_motion;',
         'uniform float u_scan;',
         'uniform float u_mono;',
+        'uniform float u_fgLight;',
         'uniform float u_intensity;',
         'uniform float u_brightness;',
         'uniform float u_vignette;',
@@ -38,7 +39,10 @@
         'uniform vec2 u_size;',
         'float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }',
         'vec3 phosphor(vec3 c) {',
-        '    float light = max(c.r, max(c.g, c.b));',
+        '    float luma = dot(c, vec3(0.299, 0.587, 0.114));',
+        '    float peak = max(c.r, max(c.g, c.b));',
+        '    float light = min(mix(luma, peak, 0.35) / max(u_fgLight, 0.2), 1.0);',
+        '    light = pow(max(light, 0.0), 1.5);',
         '    return mix(c, u_phosphor * light, u_mono);',
         '}',
         'void main() {',
@@ -92,6 +96,17 @@
             || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     }
 
+    // Same luma/peak blend as phosphor() in the shader, for the style's own foreground (#rrggbb); 1 when unparsable.
+    function foregroundLight(color) {
+        const match = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(String(color || '').trim());
+        if (!match) return 1;
+        const r = parseInt(match[1], 16) / 255;
+        const g = parseInt(match[2], 16) / 255;
+        const b = parseInt(match[3], 16) / 255;
+        const luma = 0.299 * r + 0.587 * g + 0.114 * b;
+        return Math.max(0.2, luma * 0.65 + Math.max(r, g, b) * 0.35);
+    }
+
     function compile(gl, type, src) {
         const shader = gl.createShader(type);
         gl.shaderSource(shader, src);
@@ -116,6 +131,7 @@
             let profile = Object.assign({}, DEFAULT_PROFILE);
             let background = '#000000';
             let monochrome = true;
+            let fgLight = 1;
             let raf = 0;
             let gl = null;
             let program = null;
@@ -325,6 +341,7 @@
                 gl.uniform2f(loc('u_size'), screen.clientWidth, screen.clientHeight);
                 gl.uniform1f(loc('u_time'), motion ? now / 1000 : 0);
                 gl.uniform1f(loc('u_mono'), monochrome ? 1 : 0);
+                gl.uniform1f(loc('u_fgLight'), fgLight);
                 gl.uniform3f(loc('u_phosphor'), profile.phosphor[0], profile.phosphor[1], profile.phosphor[2]);
                 gl.uniform1f(loc('u_curve'), profile.curve);
                 gl.uniform1f(loc('u_bloom'), profile.bloom);
@@ -378,6 +395,7 @@
                 if (next && next.crt) {
                     profile = Object.assign({}, DEFAULT_PROFILE, next.crt);
                     background = next.theme.background;
+                    fgLight = foregroundLight(next.theme.foreground);
                     // Colour profiles (C64, the colour monitor) keep their colours; the others light one phosphor.
                     monochrome = !next.color;
                     if (burnCtx) burnCtx.clearRect(0, 0, burnW, burnH);
