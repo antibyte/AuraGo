@@ -3227,8 +3227,9 @@ buttons and menu popovers remain excluded from those gestures.
   `-projects.js`), `-projects.js` (settings and new-project dialogs),
   `-mediabin.js` (media bin actions: folder dialogs, item and folder menus,
   removal, drops onto folders, library metadata) and
-  `-menus.js` (context menus), and `video-studio.js` last (42 Video Studio scripts after the two shared
-  sticker scripts, so 44 in all; the same order in `module-loader.js`, both browser fixtures and
+  `-menus.js` (context menus), `-plan-board.js` (plan mode storyboard DOM) and `-plan.js` (plan mode state, requests
+  and the Edit | Plan switch), and `video-studio.js` last (44 Video Studio scripts after the two shared
+  sticker scripts, so 46 in all; the same order in `module-loader.js`, both browser fixtures and
   `TestVideoStudioNavigationLoadOrder`; lists only get insertions). The parts share
   `window.VideoStudioParts`: each registers its functions with
   `Object.assign(P, …)` and calls the others through call-time wrappers, so
@@ -3780,6 +3781,39 @@ buttons and menu popovers remain excluded from those gestures.
   queries compact it so New project stays visible in a ~135px stage. `renderUI`
   clears the state once a project loads. `TestDesktopVideoStudioStartMenuBrowser`
   asserts the card is visibly hit-testable at 1280x800 and 1910x760 in both themes.
+- Plan mode (agent-planned clips, slice 1; spec `docs/superpowers/specs/2026-11-23-video-studio-plan-mode-design.md`
+  §6) adds two globals, not `VideoStudioParts` members. `VideoStudioPlan` (`video-studio-plan.js`): `install(s)` (from
+  `appRender`; host listeners with `s.abort.signal`), `sync(s)` (from `renderToolbar`: shows `[data-plan-switch]` only
+  with an open project and `status.plan.enabled`, leaves plan mode otherwise and, in plan mode, loads the plan again on a
+  project change), `setMode(s, on)`, `switchMarkup(s)`, `view(s)`, `load(s, conditional)`, `flush(s)` (the window close guard awaits
+  it), `startAgent(s, body)`, `stopAgent(s)`, `dispose(s)` and the pure `totalSeconds(plan)` (Σ `use_seconds` minus the
+  blend overlaps). `VideoStudioPlanBoard` (`video-studio-plan-board.js`, DOM only, draws from `view(s)`):
+  `shellMarkup(s)`, `render(s, view)` (keeps the focused `[data-plan-key]` field, its caret and the scroll position),
+  `refresh(s, view)` (bottom bar and duration chips only), `renderIssues(s, view)`, `openStart`, `openRevise`.
+  - Mode: `s.planMode` is per window session (default edit, never stored). `.vs-plan-mode` on `.vs-app` hides the
+    monitor bar, stage, transport, source monitor, scopes, timeline, inspector and the edit group (undo, redo,
+    format); the board `[data-plan-board]` fills `.vs-center` and the library stays. `handleKeys` ignores editor
+    shortcuts in plan mode (dialogs and Escape still work). At 600 px or less the switch takes its own toolbar row.
+  - Requests: GET `…/projects/{id}/plan` on entering plan mode (404 = empty state, or the unsupported state when
+    `status.plan.supported` is false; 409 `plan_invalid` = the empty state with a damaged-plan notice, whose create
+    sends `replace: true`). While `plan.status` is `planning` or `agent.state` is `running` the board is
+    read-only and polls every 2 s with `If-None-Match` (304 keeps the board as drawn). POST `…/plan/agent`
+    `{mode:'create', idea, target_seconds, language}` (`language` = the UI language; "Plan again" adds
+    `replace: true` after its dialog) or `{mode:'revise', scene_id, note}`; POST `…/plan/agent/stop`.
+  - Saving: text and number fields write the model on `input` without a redraw; selects write on `change` and redraw
+    when the card changes shape. One PUT with `If-Match` 800 ms after the last edit (one in flight; a newer edit saves
+    after it). A 412/428, `file_conflict`, `plan_not_found`, `plan_invalid` or a 409 `plan_agent_running` shows a notice
+    and reloads the plan; `project_size_limit`, a 403 (read-only) and other failures show their own notice. Issues from
+    every response render next to their field (`scene_id` picks the card, the code picks the slot, a missing slot falls
+    back to the card; plan-level issues go to their section or the header) and as the blocking count in the bottom bar,
+    text `tr(s, 'plan.issue.' + code, message)`. Read-only shows the board with every field disabled and no edit or
+    agent actions (only Try again on a failed load).
+  - Every board control uses `data-plan-*` attributes only (the shell's handlers react to `data-action`, `data-field`,
+    `data-transition` and similar names). The modal close and cancel buttons are the exception: they carry
+    `data-modal-close`, which the shared modal wiring needs. Strings are `videoStudio.plan.*` in all sixteen desktop
+    locales.
+    Checks: `go test ./ui -run '(?i)DesktopVideoStudioPlan' -count=1` (strings) and
+    `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run '(?i)DesktopVideoStudioPlan' -count=1 -timeout 15m` (tour).
 
 ### Mission Control contract
 
