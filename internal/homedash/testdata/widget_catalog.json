@@ -1,0 +1,1818 @@
+{
+  "version": 1,
+  "hash": "ee1d3b09a2c21f7f0096bbac5c51ca48b7952358b2b4264b055d23351f6066d0",
+  "schema_version": 1,
+  "grid": {
+    "columns": {
+      "lg": 12,
+      "md": 8,
+      "sm": 4
+    },
+    "row_unit_min": 48,
+    "row_unit_max": 200,
+    "auto_cell_min": 56,
+    "auto_cell_max": 180,
+    "gap_max": 32,
+    "max_y": 500
+  },
+  "limits": {
+    "pages": 12,
+    "widgets_per_page": 120,
+    "widgets": 400,
+    "document_bytes": 262144,
+    "bindings": 8,
+    "options": 32
+  },
+  "families": [
+    "glass",
+    "tactile",
+    "minimal",
+    "instrument"
+  ],
+  "kinds": [
+    "switch",
+    "light",
+    "sensor",
+    "binary_sensor",
+    "climate",
+    "cover",
+    "fan",
+    "lock",
+    "media_player",
+    "camera",
+    "scene",
+    "script",
+    "button",
+    "number",
+    "select",
+    "humidifier",
+    "vacuum",
+    "presence",
+    "weather",
+    "sun",
+    "update",
+    "service_status",
+    "printer",
+    "generic"
+  ],
+  "capabilities": [
+    {
+      "name": "toggle",
+      "command": true,
+      "args": []
+    },
+    {
+      "name": "turn_on",
+      "command": true,
+      "args": []
+    },
+    {
+      "name": "turn_off",
+      "command": true,
+      "args": []
+    },
+    {
+      "name": "brightness",
+      "command": true,
+      "args": [
+        {
+          "name": "value",
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "entity_range": true
+        }
+      ],
+      "continuous": true
+    },
+    {
+      "name": "color_temp",
+      "command": true,
+      "args": [
+        {
+          "name": "kelvin",
+          "type": "number",
+          "min": 1000,
+          "max": 12000,
+          "entity_range": true
+        }
+      ],
+      "continuous": true
+    },
+    {
+      "name": "color",
+      "command": true,
+      "args": [
+        {
+          "name": "h",
+          "type": "number",
+          "min": 0,
+          "max": 360
+        },
+        {
+          "name": "s",
+          "type": "number",
+          "min": 0,
+          "max": 100
+        }
+      ],
+      "continuous": true
+    },
+    {
+      "name": "effect",
+      "command": true,
+      "args": [
+        {
+          "name": "option",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "hvac_mode",
+      "command": true,
+      "args": [
+        {
+          "name": "option",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "preset_mode",
+      "command": true,
+      "args": [
+        {
+          "name": "option",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "fan_mode",
+      "command": true,
+      "args": [
+        {
+          "name": "option",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "set_temperature",
+      "command": true,
+      "args": [
+        {
+          "name": "value",
+          "type": "number",
+          "entity_range": true
+        }
+      ],
+      "continuous": true
+    },
+    {
+      "name": "set_temperature_range",
+      "command": true,
+      "args": [
+        {
+          "name": "low",
+          "type": "number",
+          "entity_range": true
+        },
+        {
+          "name": "high",
+          "type": "number",
+          "entity_range": true
+        }
+      ]
+    },
+    {
+      "name": "open",
+      "command": true,
+      "args": []
+    },
+    {
+      "name": "close",
+      "command": true,
+      "args": []
+    },
+    {
+      "name": "stop",
+      "command": true,
+      "args": []
+    },
+    {
+      "name": "set_position",
+      "command": true,
+      "args": [
+        {
+          "name": "value",
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "entity_range": true
+        }
+      ],
+      "continuous": true
+    },
+    {
+      "name": "set_tilt",
+      "command": true,
+      "args": [
+        {
+          "name": "value",
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "entity_range": true
+        }
+      ],
+      "continuous": true
+    },
+    {
+      "name": "lock",
+      "command": true,
+      "args": []
+    },
+    {
+      "name": "unlock",
+      "command": true,
+      "args": [],
+      "sensitive": true,
+      "kiosk_denied": true
+    },
+    {
+      "name": "set_percentage",
+      "command": true,
+      "args": [
+        {
+          "name": "value",
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "entity_range": true
+        }
+      ],
+      "continuous": true
+    },
+    {
+      "name": "oscillate",
+      "command": true,
+      "args": [
+        {
+          "name": "on",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "media_play_pause",
+      "command": true,
+      "args": []
+    },
+    {
+      "name": "media_next",
+      "command": true,
+      "args": []
+    },
+    {
+      "name": "media_previous",
+      "command": true,
+      "args": []
+    },
+    {
+      "name": "volume_set",
+      "command": true,
+      "args": [
+        {
+          "name": "value",
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "entity_range": true
+        }
+      ],
+      "continuous": true
+    },
+    {
+      "name": "volume_mute",
+      "command": true,
+      "args": [
+        {
+          "name": "on",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "source_select",
+      "command": true,
+      "args": [
+        {
+          "name": "option",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "press",
+      "command": true,
+      "args": []
+    },
+    {
+      "name": "activate",
+      "command": true,
+      "args": []
+    },
+    {
+      "name": "set_value",
+      "command": true,
+      "args": [
+        {
+          "name": "value",
+          "type": "number",
+          "entity_range": true
+        }
+      ],
+      "continuous": true
+    },
+    {
+      "name": "select_option",
+      "command": true,
+      "args": [
+        {
+          "name": "option",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "set_humidity",
+      "command": true,
+      "args": [
+        {
+          "name": "value",
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "entity_range": true
+        }
+      ],
+      "continuous": true
+    },
+    {
+      "name": "set_mode",
+      "command": true,
+      "args": [
+        {
+          "name": "option",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "vacuum_start",
+      "command": true,
+      "args": []
+    },
+    {
+      "name": "vacuum_pause",
+      "command": true,
+      "args": []
+    },
+    {
+      "name": "vacuum_return",
+      "command": true,
+      "args": []
+    },
+    {
+      "name": "container_start",
+      "command": true,
+      "args": [],
+      "kiosk_denied": true
+    },
+    {
+      "name": "container_stop",
+      "command": true,
+      "args": [],
+      "sensitive": true,
+      "kiosk_denied": true
+    },
+    {
+      "name": "container_restart",
+      "command": true,
+      "args": [],
+      "sensitive": true,
+      "kiosk_denied": true
+    },
+    {
+      "name": "stream",
+      "command": false,
+      "args": []
+    },
+    {
+      "name": "snapshot",
+      "command": false,
+      "args": []
+    },
+    {
+      "name": "history",
+      "command": false,
+      "args": []
+    },
+    {
+      "name": "numeric",
+      "command": false,
+      "args": []
+    }
+  ],
+  "palette_tokens": [
+    "canvas",
+    "canvas-2",
+    "scrim",
+    "surface-solid",
+    "surface-raised",
+    "sunken",
+    "field",
+    "ink",
+    "ink-muted",
+    "ink-faint",
+    "ink-on-accent",
+    "on-ink",
+    "selected-ink",
+    "btn-ink",
+    "accent",
+    "accent-2",
+    "on",
+    "selected",
+    "btn",
+    "ok",
+    "warn",
+    "alert",
+    "info",
+    "pending",
+    "unavailable",
+    "ok-ink",
+    "warn-ink",
+    "alert-ink",
+    "info-ink",
+    "heat",
+    "cool",
+    "ct-2200",
+    "ct-4000",
+    "ct-6500",
+    "light-on",
+    "edge-tint",
+    "shadow-ink",
+    "hairline",
+    "focus"
+  ],
+  "common_options": [
+    {
+      "key": "accent",
+      "type": "color",
+      "default": ""
+    }
+  ],
+  "widgets": [
+    {
+      "type": "switch",
+      "category": "control",
+      "variants": [
+        {
+          "id": "pill",
+          "min_size": {
+            "w": 1,
+            "h": 1
+          },
+          "default_size": {
+            "w": 2,
+            "h": 1
+          }
+        },
+        {
+          "id": "rocker",
+          "min_size": {
+            "w": 1,
+            "h": 2
+          },
+          "default_size": {
+            "w": 2,
+            "h": 2
+          }
+        },
+        {
+          "id": "push",
+          "min_size": {
+            "w": 1,
+            "h": 1
+          },
+          "default_size": {
+            "w": 2,
+            "h": 1
+          }
+        },
+        {
+          "id": "tile",
+          "min_size": {
+            "w": 1,
+            "h": 1
+          },
+          "default_size": {
+            "w": 2,
+            "h": 2
+          }
+        }
+      ],
+      "bindings": [
+        {
+          "name": "primary",
+          "required": true,
+          "kinds": [
+            "switch",
+            "light",
+            "fan",
+            "humidifier"
+          ]
+        }
+      ],
+      "options": [],
+      "max_size": {
+        "w": 4,
+        "h": 4
+      },
+      "commands": {
+        "primary": [
+          "toggle",
+          "turn_on",
+          "turn_off"
+        ]
+      }
+    },
+    {
+      "type": "light",
+      "category": "control",
+      "variants": [
+        {
+          "id": "slider",
+          "min_size": {
+            "w": 2,
+            "h": 1
+          },
+          "default_size": {
+            "w": 4,
+            "h": 1
+          }
+        },
+        {
+          "id": "fader",
+          "min_size": {
+            "w": 1,
+            "h": 2
+          },
+          "default_size": {
+            "w": 1,
+            "h": 3
+          }
+        },
+        {
+          "id": "dial",
+          "min_size": {
+            "w": 2,
+            "h": 2
+          },
+          "default_size": {
+            "w": 2,
+            "h": 2
+          }
+        },
+        {
+          "id": "tile",
+          "min_size": {
+            "w": 1,
+            "h": 1
+          },
+          "default_size": {
+            "w": 2,
+            "h": 2
+          }
+        }
+      ],
+      "bindings": [
+        {
+          "name": "primary",
+          "required": true,
+          "kinds": [
+            "light"
+          ]
+        }
+      ],
+      "options": [],
+      "max_size": {
+        "w": 6,
+        "h": 4
+      },
+      "commands": {
+        "primary": [
+          "toggle",
+          "turn_on",
+          "turn_off",
+          "brightness",
+          "color_temp",
+          "color",
+          "effect"
+        ]
+      }
+    },
+    {
+      "type": "climate",
+      "category": "climate",
+      "variants": [
+        {
+          "id": "dial",
+          "min_size": {
+            "w": 2,
+            "h": 2
+          },
+          "default_size": {
+            "w": 3,
+            "h": 3
+          }
+        },
+        {
+          "id": "stepper",
+          "min_size": {
+            "w": 2,
+            "h": 1
+          },
+          "default_size": {
+            "w": 2,
+            "h": 1
+          }
+        },
+        {
+          "id": "scale",
+          "min_size": {
+            "w": 1,
+            "h": 2
+          },
+          "default_size": {
+            "w": 1,
+            "h": 3
+          }
+        }
+      ],
+      "bindings": [
+        {
+          "name": "primary",
+          "required": true,
+          "kinds": [
+            "climate"
+          ]
+        }
+      ],
+      "options": [],
+      "max_size": {
+        "w": 6,
+        "h": 6
+      },
+      "commands": {
+        "primary": [
+          "set_temperature",
+          "set_temperature_range",
+          "hvac_mode",
+          "preset_mode",
+          "fan_mode"
+        ]
+      }
+    },
+    {
+      "type": "temperature",
+      "category": "climate",
+      "variants": [
+        {
+          "id": "numeral",
+          "min_size": {
+            "w": 1,
+            "h": 1
+          },
+          "default_size": {
+            "w": 2,
+            "h": 1
+          }
+        },
+        {
+          "id": "thermometer",
+          "min_size": {
+            "w": 1,
+            "h": 2
+          },
+          "default_size": {
+            "w": 1,
+            "h": 2
+          },
+          "family_alias": {
+            "minimal": "scale"
+          }
+        },
+        {
+          "id": "comfort",
+          "min_size": {
+            "w": 2,
+            "h": 2
+          },
+          "default_size": {
+            "w": 2,
+            "h": 2
+          }
+        }
+      ],
+      "bindings": [
+        {
+          "name": "primary",
+          "required": true,
+          "kinds": [
+            "sensor"
+          ],
+          "any_capability": [
+            "numeric"
+          ]
+        },
+        {
+          "name": "humidity",
+          "required": false,
+          "kinds": [
+            "sensor"
+          ],
+          "any_capability": [
+            "numeric"
+          ]
+        }
+      ],
+      "options": [
+        {
+          "key": "decimals",
+          "type": "int",
+          "default": 1,
+          "min": 0,
+          "max": 2
+        },
+        {
+          "key": "show_minmax",
+          "type": "bool",
+          "default": true
+        }
+      ],
+      "max_size": {
+        "w": 4,
+        "h": 4
+      },
+      "commands": {}
+    },
+    {
+      "type": "sensor",
+      "category": "sensor",
+      "variants": [
+        {
+          "id": "numeral",
+          "min_size": {
+            "w": 1,
+            "h": 1
+          },
+          "default_size": {
+            "w": 2,
+            "h": 1
+          }
+        },
+        {
+          "id": "sparkline",
+          "min_size": {
+            "w": 2,
+            "h": 1
+          },
+          "default_size": {
+            "w": 2,
+            "h": 2
+          }
+        },
+        {
+          "id": "icon",
+          "min_size": {
+            "w": 1,
+            "h": 1
+          },
+          "default_size": {
+            "w": 1,
+            "h": 1
+          }
+        }
+      ],
+      "bindings": [
+        {
+          "name": "primary",
+          "required": true,
+          "kinds": [
+            "sensor"
+          ]
+        }
+      ],
+      "options": [
+        {
+          "key": "decimals",
+          "type": "int",
+          "default": 1,
+          "min": 0,
+          "max": 3
+        },
+        {
+          "key": "hours",
+          "type": "int",
+          "default": 24,
+          "min": 1,
+          "max": 168
+        }
+      ],
+      "max_size": {
+        "w": 6,
+        "h": 4
+      },
+      "commands": {}
+    },
+    {
+      "type": "gauge",
+      "category": "sensor",
+      "variants": [
+        {
+          "id": "arc",
+          "min_size": {
+            "w": 2,
+            "h": 2
+          },
+          "default_size": {
+            "w": 2,
+            "h": 2
+          },
+          "family_alias": {
+            "tactile": "needle"
+          }
+        },
+        {
+          "id": "needle",
+          "min_size": {
+            "w": 2,
+            "h": 2
+          },
+          "default_size": {
+            "w": 2,
+            "h": 2
+          }
+        },
+        {
+          "id": "bar",
+          "min_size": {
+            "w": 2,
+            "h": 1
+          },
+          "default_size": {
+            "w": 3,
+            "h": 1
+          }
+        },
+        {
+          "id": "tank",
+          "min_size": {
+            "w": 1,
+            "h": 2
+          },
+          "default_size": {
+            "w": 1,
+            "h": 2
+          }
+        }
+      ],
+      "bindings": [
+        {
+          "name": "primary",
+          "required": true,
+          "kinds": [
+            "sensor"
+          ],
+          "any_capability": [
+            "numeric"
+          ]
+        }
+      ],
+      "options": [
+        {
+          "key": "min",
+          "type": "number",
+          "default": 0
+        },
+        {
+          "key": "max",
+          "type": "number",
+          "default": 100
+        },
+        {
+          "key": "warn",
+          "type": "number",
+          "default": null
+        },
+        {
+          "key": "alert",
+          "type": "number",
+          "default": null
+        },
+        {
+          "key": "decimals",
+          "type": "int",
+          "default": 0,
+          "min": 0,
+          "max": 3
+        }
+      ],
+      "max_size": {
+        "w": 6,
+        "h": 6
+      },
+      "commands": {}
+    },
+    {
+      "type": "binary",
+      "category": "sensor",
+      "variants": [
+        {
+          "id": "indicator",
+          "min_size": {
+            "w": 1,
+            "h": 1
+          },
+          "default_size": {
+            "w": 2,
+            "h": 1
+          }
+        },
+        {
+          "id": "lamp",
+          "min_size": {
+            "w": 1,
+            "h": 1
+          },
+          "default_size": {
+            "w": 1,
+            "h": 1
+          }
+        }
+      ],
+      "bindings": [
+        {
+          "name": "primary",
+          "required": true,
+          "kinds": [
+            "binary_sensor",
+            "presence"
+          ]
+        }
+      ],
+      "options": [],
+      "max_size": {
+        "w": 4,
+        "h": 2
+      },
+      "commands": {}
+    },
+    {
+      "type": "cover",
+      "category": "control",
+      "variants": [
+        {
+          "id": "shutter",
+          "min_size": {
+            "w": 1,
+            "h": 2
+          },
+          "default_size": {
+            "w": 2,
+            "h": 2
+          }
+        },
+        {
+          "id": "buttons",
+          "min_size": {
+            "w": 1,
+            "h": 1
+          },
+          "default_size": {
+            "w": 1,
+            "h": 2
+          }
+        }
+      ],
+      "bindings": [
+        {
+          "name": "primary",
+          "required": true,
+          "kinds": [
+            "cover"
+          ]
+        }
+      ],
+      "options": [],
+      "max_size": {
+        "w": 4,
+        "h": 6
+      },
+      "commands": {
+        "primary": [
+          "open",
+          "close",
+          "stop",
+          "set_position",
+          "set_tilt"
+        ]
+      }
+    },
+    {
+      "type": "action",
+      "category": "control",
+      "variants": [
+        {
+          "id": "button",
+          "min_size": {
+            "w": 1,
+            "h": 1
+          },
+          "default_size": {
+            "w": 2,
+            "h": 1
+          }
+        }
+      ],
+      "bindings": [
+        {
+          "name": "primary",
+          "required": true,
+          "kinds": [
+            "scene",
+            "script",
+            "button"
+          ]
+        }
+      ],
+      "options": [],
+      "max_size": {
+        "w": 4,
+        "h": 2
+      },
+      "commands": {
+        "primary": [
+          "activate",
+          "press"
+        ]
+      }
+    },
+    {
+      "type": "select",
+      "category": "control",
+      "variants": [
+        {
+          "id": "segmented",
+          "min_size": {
+            "w": 2,
+            "h": 1
+          },
+          "default_size": {
+            "w": 3,
+            "h": 1
+          }
+        },
+        {
+          "id": "list",
+          "min_size": {
+            "w": 1,
+            "h": 1
+          },
+          "default_size": {
+            "w": 2,
+            "h": 1
+          }
+        }
+      ],
+      "bindings": [
+        {
+          "name": "primary",
+          "required": true,
+          "kinds": [
+            "select"
+          ]
+        }
+      ],
+      "options": [],
+      "max_size": {
+        "w": 6,
+        "h": 2
+      },
+      "commands": {
+        "primary": [
+          "select_option"
+        ]
+      }
+    },
+    {
+      "type": "number",
+      "category": "control",
+      "variants": [
+        {
+          "id": "stepper",
+          "min_size": {
+            "w": 2,
+            "h": 1
+          },
+          "default_size": {
+            "w": 2,
+            "h": 1
+          }
+        },
+        {
+          "id": "slider",
+          "min_size": {
+            "w": 2,
+            "h": 1
+          },
+          "default_size": {
+            "w": 2,
+            "h": 1
+          }
+        }
+      ],
+      "bindings": [
+        {
+          "name": "primary",
+          "required": true,
+          "kinds": [
+            "number"
+          ]
+        }
+      ],
+      "options": [],
+      "max_size": {
+        "w": 4,
+        "h": 2
+      },
+      "commands": {
+        "primary": [
+          "set_value"
+        ]
+      }
+    },
+    {
+      "type": "fan",
+      "category": "control",
+      "variants": [
+        {
+          "id": "speed",
+          "min_size": {
+            "w": 2,
+            "h": 1
+          },
+          "default_size": {
+            "w": 2,
+            "h": 2
+          }
+        }
+      ],
+      "bindings": [
+        {
+          "name": "primary",
+          "required": true,
+          "kinds": [
+            "fan"
+          ]
+        }
+      ],
+      "options": [],
+      "max_size": {
+        "w": 4,
+        "h": 4
+      },
+      "commands": {
+        "primary": [
+          "toggle",
+          "turn_on",
+          "turn_off",
+          "set_percentage",
+          "preset_mode",
+          "oscillate"
+        ]
+      }
+    },
+    {
+      "type": "lock",
+      "category": "control",
+      "variants": [
+        {
+          "id": "slide",
+          "min_size": {
+            "w": 2,
+            "h": 1
+          },
+          "default_size": {
+            "w": 3,
+            "h": 1
+          }
+        }
+      ],
+      "bindings": [
+        {
+          "name": "primary",
+          "required": true,
+          "kinds": [
+            "lock"
+          ]
+        }
+      ],
+      "options": [],
+      "max_size": {
+        "w": 6,
+        "h": 2
+      },
+      "commands": {
+        "primary": [
+          "lock",
+          "unlock"
+        ]
+      }
+    },
+    {
+      "type": "media",
+      "category": "media",
+      "variants": [
+        {
+          "id": "compact",
+          "min_size": {
+            "w": 2,
+            "h": 1
+          },
+          "default_size": {
+            "w": 4,
+            "h": 1
+          }
+        },
+        {
+          "id": "cover",
+          "min_size": {
+            "w": 2,
+            "h": 2
+          },
+          "default_size": {
+            "w": 3,
+            "h": 2
+          }
+        }
+      ],
+      "bindings": [
+        {
+          "name": "primary",
+          "required": true,
+          "kinds": [
+            "media_player"
+          ]
+        }
+      ],
+      "options": [],
+      "max_size": {
+        "w": 8,
+        "h": 4
+      },
+      "commands": {
+        "primary": [
+          "media_play_pause",
+          "media_next",
+          "media_previous",
+          "volume_set",
+          "volume_mute",
+          "source_select",
+          "toggle"
+        ]
+      }
+    },
+    {
+      "type": "chart",
+      "category": "sensor",
+      "variants": [
+        {
+          "id": "line",
+          "min_size": {
+            "w": 3,
+            "h": 2
+          },
+          "default_size": {
+            "w": 4,
+            "h": 2
+          }
+        },
+        {
+          "id": "timeline",
+          "min_size": {
+            "w": 3,
+            "h": 1
+          },
+          "default_size": {
+            "w": 4,
+            "h": 1
+          }
+        }
+      ],
+      "bindings": [
+        {
+          "name": "s1",
+          "required": true,
+          "kinds": [],
+          "any_capability": [
+            "history"
+          ]
+        },
+        {
+          "name": "s2",
+          "required": false,
+          "kinds": [],
+          "any_capability": [
+            "history"
+          ]
+        },
+        {
+          "name": "s3",
+          "required": false,
+          "kinds": [],
+          "any_capability": [
+            "history"
+          ]
+        },
+        {
+          "name": "s4",
+          "required": false,
+          "kinds": [],
+          "any_capability": [
+            "history"
+          ]
+        }
+      ],
+      "options": [
+        {
+          "key": "hours",
+          "type": "int",
+          "default": 24,
+          "min": 1,
+          "max": 168
+        }
+      ],
+      "max_size": {
+        "w": 12,
+        "h": 6
+      },
+      "commands": {}
+    },
+    {
+      "type": "camera",
+      "category": "camera",
+      "variants": [
+        {
+          "id": "frame",
+          "min_size": {
+            "w": 2,
+            "h": 2
+          },
+          "default_size": {
+            "w": 4,
+            "h": 3
+          }
+        }
+      ],
+      "bindings": [
+        {
+          "name": "primary",
+          "required": true,
+          "kinds": [
+            "camera"
+          ]
+        }
+      ],
+      "options": [
+        {
+          "key": "live",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "key": "refresh_seconds",
+          "type": "int",
+          "default": 10,
+          "min": 2,
+          "max": 300
+        }
+      ],
+      "max_size": {
+        "w": 12,
+        "h": 8
+      },
+      "commands": {}
+    },
+    {
+      "type": "status_list",
+      "category": "status",
+      "variants": [
+        {
+          "id": "list",
+          "min_size": {
+            "w": 2,
+            "h": 2
+          },
+          "default_size": {
+            "w": 2,
+            "h": 3
+          }
+        }
+      ],
+      "bindings": [
+        {
+          "name": "e1",
+          "required": true,
+          "kinds": []
+        },
+        {
+          "name": "e2",
+          "required": true,
+          "kinds": []
+        },
+        {
+          "name": "e3",
+          "required": true,
+          "kinds": []
+        },
+        {
+          "name": "e4",
+          "required": false,
+          "kinds": []
+        },
+        {
+          "name": "e5",
+          "required": false,
+          "kinds": []
+        },
+        {
+          "name": "e6",
+          "required": false,
+          "kinds": []
+        },
+        {
+          "name": "e7",
+          "required": false,
+          "kinds": []
+        },
+        {
+          "name": "e8",
+          "required": false,
+          "kinds": []
+        }
+      ],
+      "options": [],
+      "max_size": {
+        "w": 6,
+        "h": 8
+      },
+      "commands": {}
+    },
+    {
+      "type": "battery",
+      "category": "status",
+      "variants": [
+        {
+          "id": "glyph",
+          "min_size": {
+            "w": 1,
+            "h": 1
+          },
+          "default_size": {
+            "w": 1,
+            "h": 1
+          }
+        }
+      ],
+      "bindings": [
+        {
+          "name": "primary",
+          "required": true,
+          "kinds": [
+            "sensor"
+          ],
+          "any_capability": [
+            "numeric"
+          ]
+        }
+      ],
+      "options": [],
+      "max_size": {
+        "w": 2,
+        "h": 2
+      },
+      "commands": {}
+    },
+    {
+      "type": "room",
+      "category": "status",
+      "variants": [
+        {
+          "id": "card",
+          "min_size": {
+            "w": 2,
+            "h": 2
+          },
+          "default_size": {
+            "w": 3,
+            "h": 2
+          }
+        }
+      ],
+      "bindings": [
+        {
+          "name": "temperature",
+          "required": false,
+          "kinds": [
+            "sensor"
+          ],
+          "any_capability": [
+            "numeric"
+          ]
+        },
+        {
+          "name": "humidity",
+          "required": false,
+          "kinds": [
+            "sensor"
+          ],
+          "any_capability": [
+            "numeric"
+          ]
+        },
+        {
+          "name": "toggle1",
+          "required": true,
+          "kinds": [
+            "switch",
+            "light",
+            "fan",
+            "humidifier"
+          ]
+        },
+        {
+          "name": "toggle2",
+          "required": true,
+          "kinds": [
+            "switch",
+            "light",
+            "fan",
+            "humidifier"
+          ]
+        },
+        {
+          "name": "toggle3",
+          "required": false,
+          "kinds": [
+            "switch",
+            "light",
+            "fan",
+            "humidifier"
+          ]
+        },
+        {
+          "name": "toggle4",
+          "required": false,
+          "kinds": [
+            "switch",
+            "light",
+            "fan",
+            "humidifier"
+          ]
+        }
+      ],
+      "options": [],
+      "max_size": {
+        "w": 6,
+        "h": 4
+      },
+      "commands": {
+        "toggle1": [
+          "toggle",
+          "turn_on",
+          "turn_off"
+        ],
+        "toggle2": [
+          "toggle",
+          "turn_on",
+          "turn_off"
+        ],
+        "toggle3": [
+          "toggle",
+          "turn_on",
+          "turn_off"
+        ],
+        "toggle4": [
+          "toggle",
+          "turn_on",
+          "turn_off"
+        ]
+      }
+    },
+    {
+      "type": "clock",
+      "category": "layout",
+      "variants": [
+        {
+          "id": "digital",
+          "min_size": {
+            "w": 1,
+            "h": 1
+          },
+          "default_size": {
+            "w": 2,
+            "h": 1
+          }
+        },
+        {
+          "id": "analog",
+          "min_size": {
+            "w": 2,
+            "h": 2
+          },
+          "default_size": {
+            "w": 2,
+            "h": 2
+          },
+          "family_alias": {
+            "instrument": "digital"
+          }
+        }
+      ],
+      "bindings": [],
+      "options": [
+        {
+          "key": "show_seconds",
+          "type": "bool",
+          "default": false
+        },
+        {
+          "key": "show_date",
+          "type": "bool",
+          "default": true
+        }
+      ],
+      "max_size": {
+        "w": 6,
+        "h": 4
+      },
+      "commands": {}
+    },
+    {
+      "type": "heading",
+      "category": "layout",
+      "variants": [
+        {
+          "id": "title",
+          "min_size": {
+            "w": 1,
+            "h": 1
+          },
+          "default_size": {
+            "w": 4,
+            "h": 1
+          }
+        }
+      ],
+      "bindings": [],
+      "options": [
+        {
+          "key": "align",
+          "type": "enum",
+          "default": "start",
+          "enum": [
+            "start",
+            "center"
+          ]
+        }
+      ],
+      "max_size": {
+        "w": 12,
+        "h": 2
+      },
+      "commands": {}
+    },
+    {
+      "type": "nav",
+      "category": "layout",
+      "variants": [
+        {
+          "id": "button",
+          "min_size": {
+            "w": 1,
+            "h": 1
+          },
+          "default_size": {
+            "w": 1,
+            "h": 1
+          }
+        }
+      ],
+      "bindings": [],
+      "options": [
+        {
+          "key": "page",
+          "type": "page",
+          "default": "",
+          "required": true
+        }
+      ],
+      "max_size": {
+        "w": 4,
+        "h": 2
+      },
+      "commands": {}
+    },
+    {
+      "type": "weather",
+      "category": "climate",
+      "variants": [
+        {
+          "id": "compact",
+          "min_size": {
+            "w": 2,
+            "h": 1
+          },
+          "default_size": {
+            "w": 2,
+            "h": 1
+          }
+        },
+        {
+          "id": "forecast",
+          "min_size": {
+            "w": 3,
+            "h": 2
+          },
+          "default_size": {
+            "w": 4,
+            "h": 2
+          }
+        }
+      ],
+      "bindings": [
+        {
+          "name": "primary",
+          "required": true,
+          "kinds": [
+            "weather"
+          ]
+        }
+      ],
+      "options": [],
+      "max_size": {
+        "w": 8,
+        "h": 4
+      },
+      "commands": {}
+    },
+    {
+      "type": "entity",
+      "category": "status",
+      "variants": [
+        {
+          "id": "tile",
+          "min_size": {
+            "w": 1,
+            "h": 1
+          },
+          "default_size": {
+            "w": 2,
+            "h": 1
+          }
+        }
+      ],
+      "bindings": [
+        {
+          "name": "primary",
+          "required": true,
+          "kinds": []
+        }
+      ],
+      "options": [],
+      "max_size": {
+        "w": 4,
+        "h": 2
+      },
+      "commands": {
+        "primary": [
+          "toggle"
+        ]
+      }
+    }
+  ]
+}
