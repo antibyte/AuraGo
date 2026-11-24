@@ -64,7 +64,7 @@ const (
 	ArgBool   = "bool"
 )
 
-// ArgSpec is one argument. EntityRange: the entity's CapabilitySpec Min/Max/Step apply instead of Min/Max.
+// ArgSpec is one argument. EntityRange: the entity's CapabilitySpec Min/Max/Step narrow the fixed range.
 type ArgSpec struct {
 	Name        string   `json:"name"`
 	Type        string   `json:"type"`
@@ -218,21 +218,26 @@ func ValidateArgs(spec CapabilitySpec, args map[string]any) error {
 				return invalidArgs("%s must be a number", a.Name)
 			}
 			lo, hi, step := a.Min, a.Max, (*float64)(nil)
+			var anchor *float64
 			if a.EntityRange {
-				if spec.Min != nil {
+				// The entity's range narrows the fixed range, never widens it.
+				if spec.Min != nil && (lo == nil || *spec.Min > *lo) {
 					lo = spec.Min
 				}
-				if spec.Max != nil {
+				if spec.Max != nil && (hi == nil || *spec.Max < *hi) {
 					hi = spec.Max
 				}
 				step = spec.Step
+				anchor = spec.Min
 			}
 			if (lo != nil && f < *lo) || (hi != nil && f > *hi) {
 				return invalidArgs("%s is out of range", a.Name)
 			}
 			if step != nil && *step > 0 {
 				base := 0.0
-				if lo != nil {
+				if anchor != nil {
+					base = *anchor
+				} else if lo != nil {
 					base = *lo
 				}
 				q := (f - base) / *step

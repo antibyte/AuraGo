@@ -55,6 +55,11 @@ func TestValidateArgsPerCapability(t *testing.T) {
 		{"brightness text", with(CapBrightness, pct), map[string]any{"value": "40"}, CodeInvalidArgs},
 		{"kelvin", with(CapColorTemp, CapabilitySpec{Min: f64(2200), Max: f64(6500), Step: f64(50)}), map[string]any{"kelvin": 3000.0}, ""},
 		{"kelvin step", with(CapColorTemp, CapabilitySpec{Min: f64(2200), Max: f64(6500), Step: f64(50)}), map[string]any{"kelvin": 3025.0}, CodeInvalidArgs},
+		{"brightness entity wider max", with(CapBrightness, CapabilitySpec{Min: f64(0), Max: f64(255), Step: f64(1)}), map[string]any{"value": 150.0}, CodeInvalidArgs},
+		{"brightness entity wider min", with(CapBrightness, CapabilitySpec{Min: f64(-50), Max: f64(100)}), map[string]any{"value": -10.0}, CodeInvalidArgs},
+		{"brightness entity narrower above", with(CapBrightness, CapabilitySpec{Min: f64(10), Max: f64(90)}), map[string]any{"value": 95.0}, CodeInvalidArgs},
+		{"brightness entity narrower inside", with(CapBrightness, CapabilitySpec{Min: f64(10), Max: f64(90)}), map[string]any{"value": 50.0}, ""},
+		{"kelvin entity narrower", with(CapColorTemp, CapabilitySpec{Min: f64(2200), Max: f64(6500), Step: f64(50)}), map[string]any{"kelvin": 7000.0}, CodeInvalidArgs},
 		{"color", with(CapColor, CapabilitySpec{}), map[string]any{"h": 200.0, "s": 50.0}, ""},
 		{"color hue", with(CapColor, CapabilitySpec{}), map[string]any{"h": 400.0, "s": 50.0}, CodeInvalidArgs},
 		{"color missing", with(CapColor, CapabilitySpec{}), map[string]any{"h": 200.0}, CodeInvalidArgs},
@@ -78,6 +83,42 @@ func TestValidateArgsPerCapability(t *testing.T) {
 		if got != tc.code {
 			t.Errorf("%s: code %q, want %q (%v)", tc.name, got, tc.code, err)
 		}
+	}
+}
+
+func TestBoundAttributesDropsSensitiveKeys(t *testing.T) {
+	out := BoundAttributes(map[string]any{
+		"access_token":   "abc",
+		"entity_picture": "/local/x.png",
+		"stream_url":     "x",
+		"latitude":       1.5,
+		"longitude":      2.5,
+		"gps_accuracy":   10.0,
+		"api_secret":     "s",
+		"password":       "p",
+		"brightness":     128.0,
+		"friendly_name":  "Lamp",
+	})
+	for _, k := range []string{"access_token", "entity_picture", "stream_url", "latitude", "longitude", "gps_accuracy", "api_secret", "password"} {
+		if _, ok := out[k]; ok {
+			t.Errorf("sensitive key %q kept", k)
+		}
+	}
+	for _, k := range []string{"brightness", "friendly_name"} {
+		if _, ok := out[k]; !ok {
+			t.Errorf("harmless key %q dropped", k)
+		}
+	}
+}
+
+func TestAllowedSetNilDeniesEverything(t *testing.T) {
+	var a *AllowedSet
+	id := EntityID("light.kitchen")
+	if a.Has(id) {
+		t.Error("nil AllowedSet.Has must be false")
+	}
+	if a.Allows(id, CapToggle) {
+		t.Error("nil AllowedSet.Allows must be false")
 	}
 }
 

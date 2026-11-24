@@ -82,7 +82,8 @@ func ContainsURL(s string) bool {
 
 // BoundAttributes keeps scalar and list-of-scalar values under keys matching ^[a-z0-9_]{1,64}$,
 // cleans strings (256 runes), cuts lists (64), drops maps and non-finite numbers, and keeps keys
-// in sorted order while the JSON stays within 8 KiB.
+// in sorted order while the JSON stays within 8 KiB. Keys that look like tokens, secrets, passwords,
+// URLs or coordinates (see sensitiveAttrKey) are dropped as defence in depth for every adapter.
 func BoundAttributes(in map[string]any) map[string]any {
 	keys := make([]string, 0, len(in))
 	for k := range in {
@@ -91,7 +92,7 @@ func BoundAttributes(in map[string]any) map[string]any {
 	sort.Strings(keys)
 	out, size := map[string]any{}, 2
 	for _, k := range keys {
-		if !attrKeyRe.MatchString(k) {
+		if !attrKeyRe.MatchString(k) || sensitiveAttrKey(k) {
 			continue
 		}
 		v, ok := boundValue(in[k], true)
@@ -108,6 +109,22 @@ func BoundAttributes(in map[string]any) map[string]any {
 		return nil
 	}
 	return out
+}
+
+var sensitiveAttrFragments = []string{"token", "secret", "password", "passwd", "url", "gps", "latitude", "longitude"}
+
+// sensitiveAttrKey reports attribute keys that must never reach a dashboard.
+func sensitiveAttrKey(k string) bool {
+	l := strings.ToLower(k)
+	if l == "entity_picture" {
+		return true
+	}
+	for _, f := range sensitiveAttrFragments {
+		if strings.Contains(l, f) {
+			return true
+		}
+	}
+	return false
 }
 
 func boundValue(v any, allowList bool) (any, bool) {
