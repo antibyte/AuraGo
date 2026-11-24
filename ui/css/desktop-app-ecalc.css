@@ -309,8 +309,9 @@
 .ec-code-art-host { width: 100%; max-width: 480px; }
 .ec-code-art { display: block; width: 100%; height: auto; color: var(--vd-text); overflow: visible; }
 .ec-code-art[data-art="chip"], .ec-code-art[data-art="disc"] { max-width: 300px; margin: 0 auto; }
-.ec-draw-body { fill: color-mix(in srgb, var(--vd-text) 12%, transparent); stroke: var(--vd-text); stroke-width: 1.6; }
-.ec-draw-lead { stroke: var(--vd-text); stroke-width: 3; stroke-linecap: round; opacity: .7; }
+.ec-draw-body, .ec-draw-lead { stroke: none; }
+.ec-draw-edge { fill: none; stroke: var(--vd-text); stroke-opacity: .55; stroke-width: 1.2; pointer-events: none; }
+.ec-draw-fx { pointer-events: none; }
 .ec-draw-cap { fill: var(--vd-theme-muted); font: 11px/1 var(--ec-mono); }
 .ec-band { cursor: pointer; outline: none; }
 .ec-band-hit { fill: transparent; }
@@ -319,11 +320,9 @@
 .ec-band-ring { fill: none; stroke: transparent; stroke-width: 2.5; }
 .ec-band:hover .ec-band-ring { stroke: color-mix(in srgb, var(--ds-color-border-focus) 55%, transparent); }
 .ec-band:focus-visible .ec-band-ring, .ec-band[aria-expanded="true"] .ec-band-ring { stroke: var(--ds-color-border-focus); }
-.ec-chip-body { fill: var(--vd-text); }
-.ec-chip-end { fill: color-mix(in srgb, var(--vd-text) 40%, transparent); stroke: var(--vd-text); stroke-width: 1.2; }
-.ec-chip-text { fill: var(--vd-theme-panel-bg-strong, var(--vd-theme-panel-bg)); font-family: var(--ec-mono); font-weight: 700; letter-spacing: .04em; }
-.ec-disc-body { fill: color-mix(in srgb, var(--vd-text) 12%, transparent); stroke: var(--vd-text); stroke-width: 1.6; }
-.ec-disc-text { fill: var(--vd-text); font-family: var(--ec-mono); font-weight: 700; letter-spacing: .04em; }
+.ec-chip-body, .ec-chip-end, .ec-disc-body { stroke: none; }
+.ec-chip-text { font-family: var(--ec-mono); font-weight: 700; letter-spacing: .04em; }
+.ec-disc-text { font-family: var(--ec-mono); font-weight: 700; letter-spacing: .04em; }
 .ec-code-art[data-valid="false"] :is(.ec-chip-text, .ec-disc-text) { opacity: .45; }
 .ec-code-hint { margin: 0; color: var(--vd-theme-muted); font-size: 12.5px; text-align: center; }
 
@@ -398,26 +397,31 @@
 .ec-pin-stage { justify-items: stretch; }
 .ec-pin-art-host { display: grid; justify-items: start; min-width: 0; padding: 4px 0; overflow-x: auto; }
 .ec-pin-art { display: block; flex: none; margin-inline: auto; overflow: visible; color: var(--vd-text); }
-.ec-shell { fill: color-mix(in srgb, var(--vd-text) 7%, transparent); stroke: var(--vd-text); stroke-width: 1.6; stroke-linejoin: round; }
-.ec-shell-flange { fill: color-mix(in srgb, var(--vd-text) 4%, transparent); stroke: var(--vd-text); stroke-width: 1.4; stroke-linejoin: round; }
-.ec-shell-tongue { fill: color-mix(in srgb, var(--vd-text) 14%, transparent); stroke: color-mix(in srgb, var(--vd-text) 50%, transparent); stroke-width: 1; stroke-linejoin: round; }
+/* The shells are made of materials: their fill is the attribute of the drawing (a gradient of ecalc-materials.js), never a rule here.
+   What keeps a part legible in every skin is the thin edge line in the text token that follows its silhouette. */
+.ec-shell, .ec-shell-flange, .ec-shell-tongue, .ec-shell-latch, .ec-shell-key, .ec-shell-conn, .ec-shell-tab, .ec-shell-insulator, .ec-shell-lead, .ec-shell-cavity, .ec-shell-detail { stroke: none; }
+.ec-shell-edge { fill: none; stroke: var(--vd-text); stroke-opacity: .55; stroke-width: 1.2; stroke-linejoin: round; pointer-events: none; }
+.ec-shell-fx, .ec-pin-sheen, .ec-wire-sheen { pointer-events: none; }
 .ec-shell-hole { fill: var(--ec-stage-bg); stroke: var(--vd-text); stroke-width: 1.2; }
-.ec-shell-latch, .ec-shell-key, .ec-shell-conn, .ec-shell-tab, .ec-shell-insulator { fill: color-mix(in srgb, var(--vd-text) 22%, transparent); stroke: var(--vd-text); stroke-width: 1.4; stroke-linejoin: round; }
-.ec-shell-lead { fill: none; stroke: var(--vd-text); stroke-width: 3; stroke-linecap: round; opacity: .7; }
 .ec-pin { cursor: pointer; outline: none; }
 .ec-pin-hit { fill: transparent; }
-.ec-pin-body { stroke: var(--vd-text); stroke-width: 1.2; }
+/* The rim of a contact is the ink of the material under it (a stroke attribute); only a contact on the bare stage (or straddling its edge)
+   takes the text token, through the modifier, so that no rule beats the attribute. */
+.ec-pin-body { stroke-width: 1.2; }
+.ec-pin-body.ec-rim-stage { stroke: var(--vd-text); }
 .ec-pin[data-type="nc"] .ec-pin-body { stroke-dasharray: 3 2; }
 .ec-pin-ring { fill: none; stroke: transparent; stroke-width: 2.5; pointer-events: none; }
 .ec-pin[data-hover="true"] .ec-pin-ring { stroke: color-mix(in srgb, var(--ds-color-border-focus) 60%, transparent); }
 .ec-pin[data-selected="true"] .ec-pin-ring { stroke: var(--ds-color-border-focus); stroke-width: 3; }
 .ec-pin[data-dim="true"] { opacity: .2; }
 .ec-pin-num { font-family: var(--ec-mono); font-weight: 700; pointer-events: none; }
-.ec-pin-num-out { fill: var(--vd-text); }
+/* A number outside its contact and the pin-1 mark lie on a material (their fill is the ink of that material, an attribute) or on the
+   bare stage (ec-on-stage: the text token). */
+.ec-on-stage { fill: var(--vd-text); }
 .ec-pin-name { fill: var(--vd-text); font-family: var(--vd-font-ui, system-ui, sans-serif); }
-.ec-pin-mark { fill: var(--vd-text); pointer-events: none; }
+.ec-pin-mark { pointer-events: none; }
 .ec-leader { fill: none; stroke: var(--vd-text); stroke-width: 1; opacity: .45; pointer-events: none; }
-.ec-pin-inner-label { fill: var(--vd-theme-muted); font-family: var(--vd-font-ui, system-ui, sans-serif); font-weight: 600; }
+.ec-pin-inner-label { font-family: var(--vd-font-ui, system-ui, sans-serif); font-weight: 600; }
 .ec-wire-base { stroke: var(--vd-text); stroke-width: .8; }
 .ec-pin-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0; padding: 0; list-style: none; font-size: 12.5px; }
 .ec-pin-legend-item, .ec-pin-chip, .ec-pin-wire { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }

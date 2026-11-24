@@ -73,9 +73,9 @@ func TestECalcPinoutPagesAreWired(t *testing.T) {
 			t.Errorf("%s/%s is missing", ecalcDir, name)
 		}
 	}
-	// The scripts of the app: the 21 of phase 2, the 5 of phase 3 (tables, table page, codes, code draw, code page) and the 2 of phase 4.
-	if got := strings.Count(entry, "/js/desktop/apps/ecalc/"); got != 28 {
-		t.Errorf("the ecalc loader entry lists %d scripts, want 28", got)
+	// The scripts of the app: the 21 of phase 2, the 5 of phase 3 (tables, table page, codes, code draw, code page) the 2 of phase 4 and the materials script.
+	if got := strings.Count(entry, "/js/desktop/apps/ecalc/"); got != 29 {
+		t.Errorf("the ecalc loader entry lists %d scripts, want 29", got)
 	}
 	shell := scripts["ecalc-shell.js"]
 	for _, marker := range []string{"window.ECalcPinoutPage || null", "kind === 'pinout'", "pinTypes: catalog.pin_types || [], wires: catalog.wires || []"} {
@@ -103,7 +103,7 @@ func TestECalcPinoutDrawIsADomFreeStringBuilder(t *testing.T) {
 	draw := ecalcScripts(t)["ecalc-pinout-draw.js"]
 	for _, marker := range []string{
 		"window.ECalcPinoutDraw = { layout, svg, OUTLINES, fitNumber, safeColor, textWidth };", "function layout(shape, pins, options)", "function svg(spec)", "const safeColor =",
-		`class="ec-pin"`, `class="ec-pin-hit"`, `'ec-pin-body'`, `'ec-pin-ring'`, `class="ec-pin-mark"`, `class="ec-pin-shell"`, `class="ec-pin-art"`, `class="ec-leader"`, `class="ec-wire-stub"`,
+		`class="ec-pin"`, `class="ec-pin-hit"`, `'ec-pin-body'`, `'ec-pin-ring'`, `'ec-pin-sheen'`, `class="ec-pin-mark`, "ECalcMaterials.scope(", `class="ec-shell-edge"`, `class="ec-pin-shell"`, `class="ec-pin-art"`, `class="ec-leader"`, `class="ec-wire-stub"`,
 		`' fill="' + hex + '"'`, `data-type="`, `data-pin="`, `role="img"`, "translate(' + view.width + ' 0) scale(-1 1)",
 	} {
 		if !strings.Contains(draw, marker) {
@@ -208,8 +208,8 @@ func TestECalcPinoutStylesheetSection(t *testing.T) {
 	}
 	section := css[start:end]
 	for _, marker := range []string{
-		".ec-shell {", ".ec-shell-flange {", ".ec-shell-tongue {", ".ec-pin-body {", `.ec-pin[data-type="nc"] .ec-pin-body { stroke-dasharray`, `.ec-pin[data-selected="true"] .ec-pin-ring`,
-		`.ec-pin[data-dim="true"]`, ".ec-pin-num-out { fill: var(--vd-text); }", `.ec-pinout-page[data-narrow="false"] .ec-pin-main`, ".ec-pin-art-host {", ".ec-pin-scroll {",
+		".ec-shell-edge {", ".ec-shell-hole {", ".ec-pin-sheen", ".ec-pin-body {", `.ec-pin[data-type="nc"] .ec-pin-body { stroke-dasharray`, `.ec-pin[data-selected="true"] .ec-pin-ring`,
+		`.ec-pin[data-dim="true"]`, ".ec-on-stage { fill: var(--vd-text); }", `.ec-pinout-page[data-narrow="false"] .ec-pin-main`, ".ec-pin-art-host {", ".ec-pin-scroll {",
 		".ec-pin-rowbtn", `.ec-pin-table tbody tr[data-selected="true"]`, "@media (prefers-reduced-motion: no-preference)",
 	} {
 		if !strings.Contains(section, marker) {
@@ -219,6 +219,28 @@ func TestECalcPinoutStylesheetSection(t *testing.T) {
 	// The fill of a contact and the ink of its number are attributes of the drawing, never a rule of the stylesheet.
 	if regexp.MustCompile(`\.ec-pin-body\s*\{[^}]*\bfill\s*:`).MatchString(section) || regexp.MustCompile(`\.ec-pin-num\s*\{[^}]*\bfill\s*:`).MatchString(section) {
 		t.Error("the stylesheet must not set the fill of a contact or of the number inside it: the colour comes from the data")
+	}
+	// The rim of a contact is an attribute too (the ink of the material under it): the token stroke lives on the stage modifier only.
+	if regexp.MustCompile(`\.ec-pin-body\s*\{[^}]*\bstroke\s*:`).MatchString(section) || !strings.Contains(section, ".ec-pin-body.ec-rim-stage { stroke: var(--vd-text); }") {
+		t.Error("only .ec-pin-body.ec-rim-stage may set the stroke colour of a contact body")
+	}
+	// The same goes for everything that is painted from an attribute: a rule would beat the material (the hole is the one shell
+	// part that shows the stage, the edge and the fixed layers are no fills of their own).
+	uncommented := regexp.MustCompile(`(?s)/\*.*?\*/`).ReplaceAllString(section, "")
+	for _, rule := range regexp.MustCompile(`([^{}]+)\{([^}]*)\}`).FindAllStringSubmatch(uncommented, -1) {
+		for _, selector := range strings.Split(rule[1], ",") {
+			selector = strings.TrimSpace(selector)
+			switch selector {
+			case ".ec-shell", ".ec-shell-flange", ".ec-shell-tongue", ".ec-shell-latch", ".ec-shell-key", ".ec-shell-conn", ".ec-shell-tab", ".ec-shell-insulator", ".ec-shell-lead",
+				".ec-shell-cavity", ".ec-shell-detail", ".ec-shell-fx", ".ec-pin-sheen", ".ec-pin-num", ".ec-pin-num-out", ".ec-pin-mark", ".ec-pin-inner-label":
+				if regexp.MustCompile(`\bfill\s*:`).MatchString(rule[2]) {
+					t.Errorf("the rule for %s sets a fill: the material or the ink is an attribute of the drawing", selector)
+				}
+			}
+		}
+	}
+	if !regexp.MustCompile(`\.ec-shell-edge\s*\{[^}]*stroke:\s*var\(--vd-text\)`).MatchString(section) {
+		t.Error("the edge line of the shells takes the text token")
 	}
 }
 

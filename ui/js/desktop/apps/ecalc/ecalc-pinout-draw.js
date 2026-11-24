@@ -1,21 +1,36 @@
 /* ECalc pinout drawings: the connector, the board header or the IC package that a pinout page shows. A DOM-free classic script
    that publishes window.ECalcPinoutDraw and builds inline SVG strings, like ecalc-code-draw.js does. The fill of a contact is
    the `hex` of its pin type and its number is written in the `ink` of that type (both come from the catalog data, as
-   attributes: a power pin stays red in every desktop skin); the shells, the leaders, the names and the outside numbers take
-   currentColor and the classes ec-pin-* and ec-shell-* of css/desktop-app-ecalc.css (tokens only).
+   attributes: a power pin stays red in every desktop skin). The shells are made of materials (sheet steel, plastics, epoxy,
+   circuit board): a part names its material and ecalc-materials.js (window.ECalcMaterials, loaded first) turns the name into a
+   gradient of the drawing's own scope. A material reads the same in every skin; what keeps the part legible on every skin is
+   the thin edge line in the text token (ec-shell-edge) that follows each silhouette. The leaders, the names and the numbers
+   that lie on the bare stage take the text token through the CSS (class ec-on-stage) and the classes ec-pin-* and ec-shell-* of css/desktop-app-ecalc.css (tokens only).
 
    ECalcPinoutDraw.layout(shape, pins, {view}) -> the geometry of the drawing, plain data without markup:
-     {type, view, mirrored, width, height, shellBox: [x0, y0, x1, y1], shell: [{cls, d}], texts: [{x, y, text, cls, anchor}],
-      contacts: [{number, name, type, wire, shape: 'circle' | 'rect' | 'path', x, y, w, h, r, d, kind, mark,
+     {type, view, mirrored, width, height, shellBox: [x0, y0, x1, y1], face,
+      shell: [{cls, d, at?, mat?, across?, fx?, edge?}], texts: [{x, y, text, cls, anchor, on?}],
+      contacts: [{number, name, type, wire, shape: 'circle' | 'rect' | 'path', x, y, w, h, r, d, kind, mark, on,
                   num: {mode: 'in' | 'out', x, y, fs}, label: {x, y, anchor, rotate} | null,
                   leader: {x1, y1, x2, y2} | null, stub: {x, y, w, h} | null}]}   (stub: the rectangle of the wire end)
+     A shell part: mat is the name of its material (none: the class styles it, as the holes show the stage), across 'x' asks for
+     the gradient that runs left to right, fx marks a decorative layer (shadow, bevel), edge asks for the edge line, at is
+     [x, y, degrees] for a part drawn turned about its own origin. face is the material that lies under the contacts ('' when they
+     sit on the bare stage); on is that surface under the mark and the outside number of one contact (and under a text): the
+     print on a material takes the ink of that material, on the bare stage the text token. under is a different question: the
+     material that lies under the WHOLE contact ('' when it is on the stage or straddles an edge, as the pads on the edge of a
+     board do); the rim of the contact takes the ink of that material (stroke attribute, data-on), else the text token (the class
+     ec-rim-stage). The shell of a polygon outline keeps 2 units off every contact and every outside number (their text boxes).
      shape  the `shape` of the catalog JSON (see internal/ecalc/pinouts.go); pins the pins of the shown variant (number, name, type, wire).
      view   'plug' or 'socket'; only the shapes `rows` and `circular` have two views. The view that is not `shape.drawn` is
             the mirror image about the vertical axis: every x of a contact, a number, a name, a leader and a wire stub becomes
             width - x, the names change their side (start <-> end) and no text is ever flipped. Only the shell (paths without
-            text) is mirrored by the transform of its own group. A contact keeps its height.
-   ECalcPinoutDraw.svg(spec) -> SVG markup. spec: {layout, types: {id: {hex, ink}}, wires: {id: {hex, stripe}}, label}. One
-     g.ec-pin per contact (data-pin, data-type, data-num="in" | "out"); the page toggles data-hover, data-selected and data-dim on it.
+            text) is mirrored by the transform of its own group. A contact keeps its height. One exception: the tongue of the `usb_a`
+            connector depends on the view (it is not simply mirrored).
+   ECalcPinoutDraw.svg(spec) -> SVG markup. spec: {layout, types: {id: {hex, ink}}, wires: {id: {hex, stripe}}, label, uid}. uid
+     makes the gradient ids unique (several windows can show the same drawing); the same spec gives the same markup. The first
+     child is the <defs> of the materials. One g.ec-pin per contact (data-pin, data-type, data-num="in" | "out"); the page toggles
+     data-hover, data-selected and data-dim on it. Over the body of a contact (the fill of its type) lies a soft ec-pin-sheen.
    ECalcPinoutDraw.OUTLINES -> the sixteen outlines of `rows` (the list of ecalc.PinoutOutlines).
    ECalcPinoutDraw.fitNumber(text, kind, width, height) -> the font size (11, 10 or 9) at which the number fits inside a contact
      of that kind, or 0 when it does not: the page and the tests use the same rule as the drawing.
@@ -55,6 +70,48 @@
             + 'A' + round(r) + ' ' + round(r) + ' 0 0 1 ' + round(x) + ' ' + round(y + h - r) + 'V' + round(y + r) + 'A' + round(r) + ' ' + round(r) + ' 0 0 1 ' + round(x + r) + ' ' + round(y) + 'Z';
     }
     const circle = (cx, cy, r) => 'M' + round(cx - r) + ' ' + round(cy) + 'a' + round(r) + ' ' + round(r) + ' 0 1 0 ' + round(2 * r) + ' 0a' + round(r) + ' ' + round(r) + ' 0 1 0 ' + round(-2 * r) + ' 0Z';
+
+    // ---- shell parts ------------------------------------------------------------------------------------------------------
+
+    // A silhouette (material and edge line), a plain layer inside it (material, no edge) and the cast shadow of a silhouette: its
+    // own outline, 3 units lower, in the shadow material.
+    const solid = (cls, d, mat, extra) => Object.assign({ cls, d, mat, edge: true }, extra);
+    const layer = (cls, d, mat, extra) => Object.assign({ cls, d, mat }, extra);
+    const cast = part => ({ cls: 'ec-shell-shadow', d: part.d, at: [0, 3, 0], mat: 'shadow', fx: true });
+
+    // The openings of a convex polygon: the polygon moved inward by k on every side (each edge to its parallel, the corners where
+    // the new edges meet), and the clear distance between the polygon and the nearest corner of a contact rectangle [x0, y0, x1, y1].
+    const turn = poly => (poly.reduce((sum, p, i) => sum + p[0] * poly[(i + 1) % poly.length][1] - poly[(i + 1) % poly.length][0] * p[1], 0) > 0 ? 1 : -1);
+    function insetPoly(poly, k) {
+        const n = poly.length, s = turn(poly);
+        const lines = poly.map((p, i) => {
+            const q = poly[(i + 1) % n], dx = q[0] - p[0], dy = q[1] - p[1], len = Math.hypot(dx, dy) || 1;
+            return { x: p[0] - s * k * dy / len, y: p[1] + s * k * dx / len, dx, dy };
+        });
+        return lines.map((b, i) => {
+            const a = lines[(i + n - 1) % n], det = a.dx * b.dy - a.dy * b.dx;
+            if (Math.abs(det) < 1e-9) return [b.x, b.y];
+            const t = ((b.x - a.x) * b.dy - (b.y - a.y) * b.dx) / det;
+            return [a.x + t * a.dx, a.y + t * a.dy];
+        });
+    }
+    function roomIn(poly, cells) {
+        const n = poly.length, s = turn(poly);
+        let room = Infinity;
+        for (const [x0, y0, x1, y1] of cells) for (const [x, y] of [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]) {
+            poly.forEach((p, i) => {
+                const q = poly[(i + 1) % n], dx = q[0] - p[0], dy = q[1] - p[1], len = Math.hypot(dx, dy) || 1;
+                room = Math.min(room, ((x - p[0]) * -s * dy + (y - p[1]) * s * dx) / len);
+            });
+        }
+        return room;
+    }
+    // The opening inside a polygon shell, `want` units from its rim, never closer than 2 units to a contact; '' when it would be
+    // thinner than one unit (the contacts then sit on the shell itself).
+    function opening(poly, cells, want) {
+        const k = Math.min(want, roomIn(poly, cells) - 2);
+        return k >= 1 ? points(insetPoly(poly, k)) : '';
+    }
 
     // The font size at which `text` fits inside a contact, 0 when none of 11, 10 and 9 does.
     function fitNumber(text, kind, width, height) {
@@ -127,101 +184,124 @@
         }
         return Math.max(0, inset);
     }
+    // Every builder returns {parts, face}: the parts bottom to top (cast shadow first) and the material that the contacts lie on.
+    // ctx.cells holds the rectangles of the contacts [x0, y0, x1, y1] in the same coordinates, so that an opening in a metal shell
+    // keeps 2 units away from them (and is left out when it cannot).
+    const STEEL = 'steel';
+    // One silhouette of one material and nothing else.
+    const plain = (mat, d, extra) => {
+        const main = solid('ec-shell', d, mat);
+        return { parts: [cast(main), ...(extra && extra.before || []), main, ...(extra && extra.after || [])], face: mat };
+    };
+    // The cut or slant of a polygon outline is nominal at t = 1 and shrinks (in steps of 5 percent) until the outline keeps clear of every
+    // contact and every outside number (ctx.cells) by 2 units plus the inset of the opening that goes inside it (3 at most).
+    function fitCut(make, ctx, want) {
+        for (let t = 1; t > 0.001; t -= 0.05) {
+            const poly = make(t);
+            if (roomIn(poly, ctx.cells) >= 2 + Math.min(want || 0, 3)) return poly;
+        }
+        return make(0);
+    }
+    // A metal shell with the opening of the receptacle inside it (the face is the opening, or the metal when there is no room).
+    function metal(make, ctx, want, inner) {
+        const poly = fitCut(make, ctx, want), main = solid('ec-shell', points(poly), STEEL), open = opening(poly, ctx.cells, want);
+        return { parts: [cast(main), main, ...(open ? [layer('ec-shell-cavity', open, inner)] : [])], face: open ? inner : STEEL };
+    }
     const SHELLS = {
         rect(b, ctx) {
             const key = ctx.key, cx = b.x + b.w / 2, cy = b.y + b.h / 2, n = 9, depth = 7;
-            if (key === 'top') return [{ cls: 'ec-shell', d: points([[b.x, b.y], [cx - n, b.y], [cx - n, b.y + depth], [cx + n, b.y + depth], [cx + n, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [b.x, b.y + b.h]]) }];
-            if (key === 'bottom') return [{ cls: 'ec-shell', d: points([[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [cx + n, b.y + b.h], [cx + n, b.y + b.h - depth], [cx - n, b.y + b.h - depth], [cx - n, b.y + b.h], [b.x, b.y + b.h]]) }];
-            if (key === 'left') return [{ cls: 'ec-shell', d: points([[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [b.x, b.y + b.h], [b.x, cy + n], [b.x + depth, cy + n], [b.x + depth, cy - n], [b.x, cy - n]]) }];
-            if (key === 'right') return [{ cls: 'ec-shell', d: points([[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, cy - n], [b.x + b.w - depth, cy - n], [b.x + b.w - depth, cy + n], [b.x + b.w, cy + n], [b.x + b.w, b.y + b.h], [b.x, b.y + b.h]]) }];
-            return [{ cls: 'ec-shell', d: roundRect(b.x, b.y, b.w, b.h, 4) }];
+            if (key === 'top') return plain('pbt', points([[b.x, b.y], [cx - n, b.y], [cx - n, b.y + depth], [cx + n, b.y + depth], [cx + n, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [b.x, b.y + b.h]]));
+            if (key === 'bottom') return plain('pbt', points([[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [cx + n, b.y + b.h], [cx + n, b.y + b.h - depth], [cx - n, b.y + b.h - depth], [cx - n, b.y + b.h], [b.x, b.y + b.h]]));
+            if (key === 'left') return plain('pbt', points([[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [b.x, b.y + b.h], [b.x, cy + n], [b.x + depth, cy + n], [b.x + depth, cy - n], [b.x, cy - n]]));
+            if (key === 'right') return plain('pbt', points([[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, cy - n], [b.x + b.w - depth, cy - n], [b.x + b.w - depth, cy + n], [b.x + b.w, cy + n], [b.x + b.w, b.y + b.h], [b.x, b.y + b.h]]));
+            return plain('pbt', roundRect(b.x, b.y, b.w, b.h, 4));
         },
-        // The D shell with its mounting flange: the wide row on top, sides leaning 10 degrees, two screw holes.
+        // The D shell with its mounting flange: the wide row on top, sides leaning 10 degrees, two screw holes (each on a dark
+        // recess, the flange is sheet steel). Inside the steel rim lies the black insulator that carries the contacts.
         dsub(b, ctx) {
             const inset = slantInset(ctx, b.h * 0.18), ears = ctx.ears, cy = b.y + b.h / 2;
-            return [
-                { cls: 'ec-shell-flange', d: roundRect(b.x - ears, b.y - 4, b.w + 2 * ears, b.h + 8, 5) },
-                { cls: 'ec-shell-hole', d: circle(b.x - ears / 2, cy, 4.2) }, { cls: 'ec-shell-hole', d: circle(b.x + b.w + ears / 2, cy, 4.2) },
-                { cls: 'ec-shell', d: points([[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w - inset, b.y + b.h], [b.x + inset, b.y + b.h]]) }
-            ];
+            const poly = fitCut(t => [[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w - inset * t, b.y + b.h], [b.x + inset * t, b.y + b.h]], ctx, 4);
+            const flange = solid('ec-shell-flange', roundRect(b.x - ears, b.y - 4, b.w + 2 * ears, b.h + 8, 5), STEEL), open = opening(poly, ctx.cells, 4);
+            const hole = x => [layer('ec-shell-detail', circle(x, cy, 5.8), 'recess'), { cls: 'ec-shell-hole', d: circle(x, cy, 4.2) }];
+            return {
+                parts: [cast(flange), flange, ...hole(b.x - ears / 2), ...hole(b.x + b.w + ears / 2), solid('ec-shell', points(poly), STEEL), ...(open ? [layer('ec-shell-insulator', open, 'pbt')] : [])],
+                face: open ? 'pbt' : STEEL
+            };
         },
         // A steel shell around the insulating tongue. The two tongues meet at the contacts: the tongue of the receptacle fills the
-        // upper half and the contacts sit under it, the tongue of the plug fills the lower half and the contacts sit on it.
+        // upper half and the contacts sit under it, the tongue of the plug fills the lower half and the contacts sit on it. In the
+        // plug view the contacts lie 4 units over the tongue's edge only, so the face there is the dark opening.
         usb_a(b, ctx) {
             const last = ctx.rowsBox.length ? ctx.rowsBox[ctx.rowsBox.length - 1].b : b.h / 2;
             const tongue = ctx.view === 'plug' ? roundRect(b.x + 5, b.y + last - 4, b.w - 10, b.h - last - 1, 2) : roundRect(b.x + 5, b.y + 5, b.w - 10, last + 4 - 5, 2);
-            return [{ cls: 'ec-shell', d: roundRect(b.x, b.y, b.w, b.h, 3) }, { cls: 'ec-shell-tongue', d: tongue }];
+            const main = solid('ec-shell', roundRect(b.x, b.y, b.w, b.h, 3), STEEL);
+            return { parts: [cast(main), main, layer('ec-shell-cavity', roundRect(b.x + 4, b.y + 4, b.w - 8, b.h - 8, 2), 'cavity'), layer('ec-shell-tongue', tongue, 'nylon')], face: ctx.view === 'plug' ? 'cavity' : 'nylon' };
         },
         // The square B plug: the two upper corners cut.
-        usb_b(b) {
-            return [{ cls: 'ec-shell', d: points([[b.x, b.y + 12], [b.x + 12, b.y], [b.x + b.w - 12, b.y], [b.x + b.w, b.y + 12], [b.x + b.w, b.y + b.h], [b.x, b.y + b.h]]) }];
+        usb_b(b, ctx) {
+            return metal(t => [[b.x, b.y + 12 * t], [b.x + 12 * t, b.y], [b.x + b.w - 12 * t, b.y], [b.x + b.w, b.y + 12 * t], [b.x + b.w, b.y + b.h], [b.x, b.y + b.h]], ctx, 4, 'cavity');
         },
         // Mini B: a trapezoid, wide side up.
         usb_mini_b(b, ctx) {
             const inset = slantInset(ctx, b.h * 0.22);
-            return [{ cls: 'ec-shell', d: points([[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w - inset, b.y + b.h], [b.x + inset, b.y + b.h]]) }, { cls: 'ec-shell-tongue', d: roundRect(b.x + 8, b.y + 5, b.w - 16, b.h - 10, 2) }];
+            const out = plain(STEEL, points(fitCut(t => [[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w - inset * t, b.y + b.h], [b.x + inset * t, b.y + b.h]], ctx)), { after: [layer('ec-shell-tongue', roundRect(b.x + 8, b.y + 5, b.w - 16, b.h - 10, 2), 'pbt')] });
+            return Object.assign(out, { face: 'pbt' });
         },
         // Micro B: flat and wide, both lower corners cut.
-        usb_micro_b(b) {
-            return [{ cls: 'ec-shell', d: points([[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h - 9], [b.x + b.w - 9, b.y + b.h], [b.x + 9, b.y + b.h], [b.x, b.y + b.h - 9]]) }, { cls: 'ec-shell-tongue', d: roundRect(b.x + 8, b.y + 5, b.w - 16, b.h - 10, 2) }];
+        usb_micro_b(b, ctx) {
+            const out = plain(STEEL, points(fitCut(t => [[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h - 9 * t], [b.x + b.w - 9 * t, b.y + b.h], [b.x + 9 * t, b.y + b.h], [b.x, b.y + b.h - 9 * t]], ctx)), { after: [layer('ec-shell-tongue', roundRect(b.x + 8, b.y + 5, b.w - 16, b.h - 10, 2), 'pbt')] });
+            return Object.assign(out, { face: 'pbt' });
         },
         // Type C: the stadium around a centre tongue between the two rows.
         usb_c(b) {
-            return [{ cls: 'ec-shell', d: roundRect(b.x, b.y, b.w, b.h, b.h / 2) }, { cls: 'ec-shell-tongue', d: roundRect(b.x + 14, b.y + b.h / 2 - 3, b.w - 28, 6, 3) }];
+            const main = solid('ec-shell', roundRect(b.x, b.y, b.w, b.h, b.h / 2), STEEL);
+            return { parts: [cast(main), main, layer('ec-shell-cavity', roundRect(b.x + 3, b.y + 3, b.w - 6, b.h - 6, b.h / 2 - 3), 'cavity'), layer('ec-shell-tongue', roundRect(b.x + 14, b.y + b.h / 2 - 3, b.w - 28, 6, 3), 'pbt')], face: 'cavity' };
         },
         // Type A: flat on top, the lower corners cut at an angle.
-        hdmi_a(b) {
+        hdmi_a(b, ctx) {
             const c = b.h * 0.38;
-            return [{ cls: 'ec-shell', d: points([[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h * 0.4], [b.x + b.w - c, b.y + b.h], [b.x + c, b.y + b.h], [b.x, b.y + b.h * 0.4]]) }];
+            return metal(t => [[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h * 0.4], [b.x + b.w - c * t, b.y + b.h], [b.x + c * t, b.y + b.h], [b.x, b.y + b.h * 0.4]], ctx, 3, 'cavity');
         },
         // One cut corner, the lower left.
-        displayport(b) {
+        displayport(b, ctx) {
             const c = 14;
-            return [{ cls: 'ec-shell', d: points([[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [b.x + c, b.y + b.h], [b.x, b.y + b.h - c]]) }];
+            return metal(t => [[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [b.x + c * t, b.y + b.h], [b.x, b.y + b.h - c * t]], ctx, 3, 'cavity');
         },
         // 8P8C: contacts at the top, the latch slot in the bottom edge.
         rj45(b) {
             const cx = b.x + b.w / 2, half = Math.max(10, b.w * 0.17), depth = 10;
-            return [{ cls: 'ec-shell', d: points([[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [cx + half, b.y + b.h], [cx + half, b.y + b.h - depth], [cx - half, b.y + b.h - depth], [cx - half, b.y + b.h], [b.x, b.y + b.h]]) }];
+            return plain('grey', points([[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [cx + half, b.y + b.h], [cx + half, b.y + b.h - depth], [cx - half, b.y + b.h - depth], [cx - half, b.y + b.h], [b.x, b.y + b.h]]));
         },
         // SATA data plug: the L, the step at the right.
         sata_data(b) {
             const kw = b.w * 0.2, step = 14;
-            return [{ cls: 'ec-shell', d: points([[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h - step], [b.x + b.w - kw, b.y + b.h - step], [b.x + b.w - kw, b.y + b.h], [b.x, b.y + b.h]]) }];
+            return plain('pbt', points([[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h - step], [b.x + b.w - kw, b.y + b.h - step], [b.x + b.w - kw, b.y + b.h], [b.x, b.y + b.h]]));
         },
         // SATA power plug: the same L, the step at the left.
         sata_power(b) {
             const kw = b.w * 0.14, step = 14;
-            return [{ cls: 'ec-shell', d: points([[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [b.x + kw, b.y + b.h], [b.x + kw, b.y + b.h - step], [b.x, b.y + b.h - step]]) }];
+            return plain('pbt', points([[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [b.x + kw, b.y + b.h], [b.x + kw, b.y + b.h - step], [b.x, b.y + b.h - step]]));
         },
         // Peripheral power: two cut corners on one long side.
-        molex(b) {
+        molex(b, ctx) {
             const c = 14;
-            return [{ cls: 'ec-shell', d: points([[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h - c], [b.x + b.w - c, b.y + b.h], [b.x + c, b.y + b.h], [b.x, b.y + b.h - c]]) }];
+            return plain('nylon', points(fitCut(t => [[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h - c * t], [b.x + b.w - c * t, b.y + b.h], [b.x + c * t, b.y + b.h], [b.x, b.y + b.h - c * t]], ctx)));
         },
         // Mini-Fit: the latch on top, small cuts at the lower corners.
-        minifit(b) {
+        minifit(b, ctx) {
             const cx = b.x + b.w / 2, c = 7;
-            return [
-                { cls: 'ec-shell-latch', d: roundRect(cx - 14, b.y - 7, 28, 10, 2) },
-                { cls: 'ec-shell', d: points([[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h - c], [b.x + b.w - c, b.y + b.h], [b.x + c, b.y + b.h], [b.x, b.y + b.h - c]]) }
-            ];
+            return plain('pbt', points(fitCut(t => [[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h - c * t], [b.x + b.w - c * t, b.y + b.h], [b.x + c * t, b.y + b.h], [b.x, b.y + b.h - c * t]], ctx)), { before: [solid('ec-shell-latch', roundRect(cx - 14, b.y - 7, 28, 10, 2), 'pbt')] });
         },
         // The trapezoid of the diagnostic socket with the small latch on the wide side.
         obd2(b, ctx) {
             const inset = slantInset(ctx, b.h * 0.26), cx = b.x + b.w / 2;
-            return [
-                { cls: 'ec-shell-latch', d: roundRect(cx - 10, b.y - 6, 20, 9, 2) },
-                { cls: 'ec-shell', d: points([[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w - inset, b.y + b.h], [b.x + inset, b.y + b.h]]) }
-            ];
+            return plain('pbt', points(fitCut(t => [[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w - inset * t, b.y + b.h], [b.x + inset * t, b.y + b.h]], ctx)), { before: [solid('ec-shell-latch', roundRect(cx - 10, b.y - 6, 20, 9, 2), 'pbt')] });
         },
         // A small housing: the locking ramp on top and the slot around the contacts.
         jst(b) {
             const cx = b.x + b.w / 2;
-            return [
-                { cls: 'ec-shell', d: points([[b.x, b.y], [cx - 12, b.y], [cx - 6, b.y - 6], [cx + 6, b.y - 6], [cx + 12, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [b.x, b.y + b.h]]) },
-                { cls: 'ec-shell-tongue', d: roundRect(b.x + 5, b.y + 6, b.w - 10, b.h - 12, 2) }
-            ];
+            const out = plain('nylon', points([[b.x, b.y], [cx - 12, b.y], [cx - 6, b.y - 6], [cx + 6, b.y - 6], [cx + 12, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [b.x, b.y + b.h]]), { after: [layer('ec-shell-tongue', roundRect(b.x + 5, b.y + 6, b.w - 10, b.h - 12, 2), 'cavity')] });
+            return Object.assign(out, { face: 'cavity' });
         }
     };
 
@@ -306,8 +386,11 @@
         });
         const key = shape.key && shape.key !== 'none' ? shape.key : '';
         const build = SHELLS[shape.outline] || SHELLS.rect;
-        const shell = build({ x: ox, y: oy, w: sw, h: sh }, { w: sw, h: sh, rowsBox, ears, key, view });
-        return { width, height, shellBox: [ox - ears, oy, ox + sw + ears, oy + sh], shell, texts: [], contacts, mirrorable: true };
+        // The rectangles the shell keeps clear of: the contacts and the text boxes of the numbers outside them (width of the digits, height of the font).
+        const cells = contacts.map(c => [c.x - c.w / 2, c.y - c.h / 2, c.x + c.w / 2, c.y + c.h / 2]);
+        contacts.forEach(c => { if (c.num.mode === 'out') cells.push([c.num.x - textWidth(c.number, c.num.fs) / 2, c.num.y - c.num.fs, c.num.x + textWidth(c.number, c.num.fs) / 2, c.num.y]); });
+        const built = build({ x: ox, y: oy, w: sw, h: sh }, { w: sw, h: sh, rowsBox, ears, key, view, cells });
+        return { width, height, shellBox: [ox - ears, oy, ox + sw + ears, oy + sh], shell: built.parts, face: built.face, texts: [], contacts, mirrorable: true };
     }
 
     // ---- circular ---------------------------------------------------------------------------------------------------------
@@ -329,13 +412,15 @@
             return inside(c, fitNumber(c.number, 'round', c.w, c.h) || 8);
         });
         markFirst(contacts);
-        const shell = [{ cls: 'ec-shell', d: circle(cx, cy, rim) }, { cls: 'ec-shell-tongue', d: circle(cx, cy, rim - 8) }];
+        // A steel ring around the black insert that carries the contacts.
+        const ring = solid('ec-shell', circle(cx, cy, rim), STEEL);
+        const shell = [cast(ring), ring, layer('ec-shell-tongue', circle(cx, cy, rim - 8), 'pbt')];
         if (shape.key !== null && shape.key !== undefined && shape.key !== '' && Number.isFinite(Number(shape.key))) {
             // the key notch: a small tab across the rim, turned to the angle
             const degrees = Number(shape.key), angle = degrees * Math.PI / 180;
-            shell.push({ cls: 'ec-shell-key', d: 'M-6 -7H6V7H-6Z', at: [round(cx + rim * Math.sin(angle)), round(cy - rim * Math.cos(angle)), round(degrees)] });
+            shell.push(solid('ec-shell-key', 'M-6 -7H6V7H-6Z', STEEL, { at: [round(cx + rim * Math.sin(angle)), round(cy - rim * Math.cos(angle)), round(degrees)] }));
         }
-        return { width, height, shellBox: [cx - rim, cy - rim, cx + rim, cy + rim], shell, texts: [], contacts, mirrorable: true };
+        return { width, height, shellBox: [cx - rim, cy - rim, cx + rim, cy + rim], shell, face: 'pbt', texts: [], contacts, mirrorable: true };
     }
 
     // ---- dip --------------------------------------------------------------------------------------------------------------
@@ -359,8 +444,13 @@
         }
         markFirst(contacts);
         const body = 'M' + bx + ' ' + by + 'H' + (cx - r) + 'A' + r + ' ' + r + ' 0 0 0 ' + (cx + r) + ' ' + by + 'H' + (bx + bodyW) + 'V' + (by + bodyH) + 'H' + bx + 'Z';
-        const shell = [{ cls: 'ec-shell', d: body }, { cls: 'ec-shell-hole', d: circle(bx + 11, by + 15, 3) }];
-        return { width, height, shellBox: [bx - leg.w + 6, by, bx + bodyW + leg.w - 6, by + bodyH], shell, texts: [], contacts, mirrorable: false };
+        // Black epoxy with a faint highlight along the top (two strips, the notch lies between them); the notch itself is cut out of
+        // the outline and filled with the dark recess, and so is the dimple at pin 1.
+        const main = solid('ec-shell', body, 'epoxy'), strip = (x0, x1) => layer('ec-shell-detail', roundRect(x0, by + 2, x1 - x0, 1.5, 0.75), 'glint', { fx: true });
+        const notch = 'M' + (cx - r) + ' ' + by + 'A' + r + ' ' + r + ' 0 0 0 ' + (cx + r) + ' ' + by + 'Z';
+        const shell = [cast(main), main, layer('ec-shell-detail', notch, 'recess'),
+            strip(bx + 4, cx - r - 3), strip(cx + r + 3, bx + bodyW - 4), layer('ec-shell-detail', circle(bx + 11, by + 15, 3), 'recess')];
+        return { width, height, shellBox: [bx - leg.w + 6, by, bx + bodyW + leg.w - 6, by + bodyH], shell, face: '', texts: [], contacts, mirrorable: false };
     }
 
     // ---- staggered names under leads (to, jack) ---------------------------------------------------------------------------
@@ -387,22 +477,25 @@
         const bodyW = Math.max(is220 ? 76 : 64, (n - 1) * gap + (is220 ? 40 : 36));
         const x0 = MARGIN, y0 = MARGIN, cx = x0 + bodyW / 2;
         const shell = [], leadTop = is220 ? y0 + 86 : y0 + bodyW / 2 + 24;
+        // The TO-220 has a steel tab (its hole on a thin dark ring) over the epoxy body; the TO-92 is the half-round epoxy body.
         if (is220) {
-            shell.push({ cls: 'ec-shell-tab', d: roundRect(x0, y0, bodyW, 40, 3) }, { cls: 'ec-shell-hole', d: circle(cx, y0 + 17, 6) }, { cls: 'ec-shell', d: roundRect(x0, y0 + 40, bodyW, 46, 2) });
+            const tab = solid('ec-shell-tab', roundRect(x0, y0, bodyW, 40, 3), STEEL), body = solid('ec-shell', roundRect(x0, y0 + 40, bodyW, 46, 2), 'epoxy');
+            shell.push(cast(tab), cast(body), tab, layer('ec-shell-detail', circle(cx, y0 + 17, 7.6), 'recess'), { cls: 'ec-shell-hole', d: circle(cx, y0 + 17, 6) }, body);
         } else {
-            const r = bodyW / 2;
-            shell.push({ cls: 'ec-shell', d: 'M' + x0 + ' ' + (y0 + r) + 'A' + r + ' ' + r + ' 0 0 1 ' + (x0 + bodyW) + ' ' + (y0 + r) + 'V' + (y0 + r + 24) + 'H' + x0 + 'Z' });
+            const r = bodyW / 2, body = solid('ec-shell', 'M' + x0 + ' ' + (y0 + r) + 'A' + r + ' ' + r + ' 0 0 1 ' + (x0 + bodyW) + ' ' + (y0 + r) + 'V' + (y0 + r + 24) + 'H' + x0 + 'Z', 'epoxy');
+            shell.push(cast(body), body);
         }
         const size = { w: 26, h: 20 }, leadLen = 14;
         const contacts = numbers.map((number, i) => {
             const x = cx + (i - (numbers.length - 1) / 2) * gap, y = leadTop + leadLen + size.h / 2;
-            shell.push({ cls: 'ec-shell-lead', d: 'M' + round(x) + ' ' + round(leadTop - 1) + 'V' + round(y) });
+            // A lead is a filled rectangle (a gradient does not paint a line of no width), tin, from the body to the contact.
+            shell.push(solid('ec-shell-lead', 'M' + round(x - 3) + ' ' + round(leadTop - 1) + 'h6V' + round(y) + 'h-6Z', 'tin', { across: 'x' }));
             return inside(contact(map, number, { shape: 'rect', kind: 'square', x, y, w: size.w, h: size.h, r: 2 }), fitNumber(number, 'square', size.w, size.h) || 9);
         });
         markFirst(contacts);
         const names = staggerNames(contacts, leadTop + leadLen + size.h + 6, 16);
         const width = Math.max(x0 + bodyW, names.reach) + MARGIN, height = names.bottom + MARGIN;
-        return { width, height, shellBox: [x0, y0, x0 + bodyW, leadTop], shell, texts: [], contacts, mirrorable: false };
+        return { width, height, shellBox: [x0, y0, x0 + bodyW, leadTop], shell, face: '', texts: [], contacts, mirrorable: false };
     }
 
     // ---- jack ---------------------------------------------------------------------------------------------------------------
@@ -424,13 +517,17 @@
             if (fs) inside(c, fs); else c.num = { mode: 'out', x: c.x, y: cy - half - 4, fs: OUT_FS };
             contacts.push(c);
             x += w;
-            if (!last) { shell.push({ cls: 'ec-shell-insulator', d: 'M' + x + ' ' + (cy - half) + 'h' + gap + 'v' + half * 2 + 'h' + (-gap) + 'Z' }); x += gap; }
+            if (!last) { shell.push(layer('ec-shell-insulator', 'M' + x + ' ' + (cy - half) + 'h' + gap + 'v' + half * 2 + 'h' + (-gap) + 'Z', 'pbt')); x += gap; }
         });
-        shell.push({ cls: 'ec-shell', d: roundRect(x, cy - 20, handle, 40, 5) });
+        // The segments are the contacts (turned metal, a strong gloss over their colour); the handle is rubber with four grip rings.
+        const grip = solid('ec-shell', roundRect(x, cy - 20, handle, 40, 5), 'rubber');
+        shell.unshift(cast(grip), layer('ec-shell-shadow', roundRect(x0, cy - half + 3, x - x0 + 6, half * 2, half), 'shadow', { fx: true }));
+        shell.push(grip);
+        for (let i = 0; i < 4; i++) shell.push(layer('ec-shell-detail', roundRect(x + 12 + i * 9, cy - 17, 2.5, 34, 1), 'glint', { fx: true }));
         markFirst(contacts);
         const names = staggerNames(contacts, cy + half + 6, 16);
         const width = Math.max(x + handle, names.reach) + MARGIN, height = names.bottom + MARGIN;
-        return { width, height, shellBox: [x0, cy - 20, x + handle, cy + 20], shell, texts: [], contacts, mirrorable: false };
+        return { width, height, shellBox: [x0, cy - 20, x + handle, cy + 20], shell, face: '', texts: [], contacts, mirrorable: false };
     }
 
     // ---- board ------------------------------------------------------------------------------------------------------------
@@ -468,14 +565,17 @@
         const bodyH = Math.max(150, Math.max(lists.left.length, lists.right.length) * pitch + 40, innerH + 60);
         const bx = margin.left, by = margin.top;
         const width = bx + bodyW + margin.right, height = by + bodyH + margin.bottom;
-        const shell = [{ cls: 'ec-shell', d: roundRect(bx, by, bodyW, bodyH, 6) }];
+        // The board is green circuit board; the connector block of sheet steel sits on its edge (drawn over the board) and may stick
+        // out of it.
+        const board = solid('ec-shell', roundRect(bx, by, bodyW, bodyH, 6), 'pcb');
+        const shell = [cast(board), board];
         const ccx = bx + bodyW / 2, ccy = by + bodyH / 2;
+        const inward = 22, out = protrude, obstacles = [];
         if (connector !== 'none') {
-            const inward = 22, out = protrude;
-            if (connector === 'top') shell.unshift({ cls: 'ec-shell-conn', d: roundRect(ccx - 26, by - out, 52, out + inward, 3) });
-            if (connector === 'bottom') shell.unshift({ cls: 'ec-shell-conn', d: roundRect(ccx - 26, by + bodyH - inward, 52, out + inward, 3) });
-            if (connector === 'left') shell.unshift({ cls: 'ec-shell-conn', d: roundRect(bx - out, ccy - 26, out + inward, 52, 3) });
-            if (connector === 'right') shell.unshift({ cls: 'ec-shell-conn', d: roundRect(bx + bodyW - inward, ccy - 26, out + inward, 52, 3) });
+            const box = connector === 'top' ? [ccx - 26, by - out, 52, out + inward] : connector === 'bottom' ? [ccx - 26, by + bodyH - inward, 52, out + inward]
+                : connector === 'left' ? [bx - out, ccy - 26, out + inward, 52] : [bx + bodyW - inward, ccy - 26, out + inward, 52];
+            shell.push(solid('ec-shell-conn', roundRect(box[0], box[1], box[2], box[3], 3), STEEL));
+            obstacles.push([box[0], box[1], box[0] + box[2], box[1] + box[3]]);
         }
         const contacts = [];
         const add = (number, x, y, label, size) => {
@@ -493,7 +593,7 @@
         let y = ccy - innerH / 2 + 4;
         inner.forEach((group, index) => {
             const size = innerSize[index], left = ccx - size.w / 2;
-            texts.push({ x: ccx, y: y + 10, text: String(group.label || ''), cls: 'ec-pin-inner-label', anchor: 'middle' });
+            texts.push({ x: ccx, y: y + 10, text: String(group.label || ''), cls: 'ec-pin-inner-label', anchor: 'middle', on: 'pcb' });
             (group.rows || []).forEach((row, r) => (row.pins || []).forEach((number, c) => {
                 if (!given(number)) return;
                 add(number, left + iw / 2 + (c + (Number(row.offset) || 0)) * ipitch, y + 16 + 9 + r * 22, null, { w: iw, h: 18 });
@@ -501,7 +601,18 @@
             y += size.h + 8;
         });
         markFirst(contacts);
-        return { width, height, shellBox: [bx, by, bx + bodyW, by + bodyH], shell, texts, contacts, mirrorable: false };
+        // The mark of a pad lies on the board when its triangle (anchored 4 units off the pad's upper left corner) is inside it.
+        for (const c of contacts) {
+            const mx = c.x - c.w / 2 - 1, my = c.y - c.h / 2 - 1;
+            c.on = mx > bx && mx < bx + bodyW && my > by && my < by + bodyH ? 'pcb' : '';
+            c.under = c.x - c.w / 2 >= bx && c.x + c.w / 2 <= bx + bodyW && c.y - c.h / 2 >= by && c.y + c.h / 2 <= by + bodyH ? 'pcb' : '';
+            obstacles.push([c.x - c.w / 2, c.y - c.h / 2, c.x + c.w / 2, c.y + c.h / 2]);
+        }
+        // Mounting holes: all four corners or none (a single hole looks like a defect), only when no pad, inner header or connector is within 10 units of any.
+        const corners = [[bx + 10, by + 10], [bx + bodyW - 10, by + 10], [bx + 10, by + bodyH - 10], [bx + bodyW - 10, by + bodyH - 10]];
+        const free = corners.every(([hx, hy]) => !obstacles.some(([x0, y0, x1, y1]) => Math.hypot(Math.max(x0 - hx, 0, hx - x1), Math.max(y0 - hy, 0, hy - y1)) < 14));
+        if (free) for (const [hx, hy] of corners) shell.push({ cls: 'ec-shell-hole', d: circle(hx, hy, 4) });
+        return { width, height, shellBox: [bx, by, bx + bodyW, by + bodyH], shell, face: 'pcb', texts, contacts, mirrorable: false };
     }
 
     // ---- layout and mirror image ------------------------------------------------------------------------------------------
@@ -534,7 +645,8 @@
         result.height = Math.ceil(result.height);
         if (result.mirrorable && view !== shape.drawn && (view === 'plug' || view === 'socket')) mirror(result);
         delete result.mirrorable;
-        for (const c of result.contacts) { c.x = round(c.x); c.y = round(c.y); }
+        result.face = result.face || '';
+        for (const c of result.contacts) { c.x = round(c.x); c.y = round(c.y); if (c.on === undefined) c.on = result.face; if (c.under === undefined) c.under = result.face; }
         return result;
     }
 
@@ -547,7 +659,10 @@
         if (c.shape === 'path') return '<path class="' + cls + '" d="' + c.d + '"' + tail + '/>';
         return '<rect class="' + cls + '" x="' + round(c.x - c.w / 2 - g) + '" y="' + round(c.y - c.h / 2 - g) + '" width="' + round(c.w + 2 * g) + '" height="' + round(c.h + 2 * g) + '" rx="' + round(c.r + g) + '"' + tail + '/>';
     }
-    function pinMarkup(c, types, wires) {
+    // m is the material scope of the drawing. The mark and a number outside its contact lie on the surface c.on (a material: print in
+    // its ink, as an attribute; the bare stage: the text token, by the class ec-on-stage); data-on names that material.
+    function pinMarkup(c, types, wires, m) {
+        const print = window.ECalcMaterials.ink(c.on), onFace = print ? ' fill="' + print + '" data-on="' + escape(c.on) + '"' : '', onClass = print ? '' : ' ec-on-stage';
         const style = types[c.type] || types.nc || {};
         const hex = safeColor(style.hex) || FALLBACK_HEX, ink = safeColor(style.ink) || FALLBACK_INK;
         const out = c.num.mode === 'out';
@@ -557,18 +672,23 @@
             if (base) {
                 const st = c.stub, horizontal = st.w > st.h;
                 markup += '<g class="ec-wire-stub" data-wire="' + escape(c.wire) + '"><rect class="ec-wire-base" x="' + round(st.x) + '" y="' + round(st.y) + '" width="' + round(st.w) + '" height="' + round(st.h) + '" rx="1.5" fill="' + base + '"/>'
+                    + '<rect class="ec-wire-sheen" x="' + round(st.x) + '" y="' + round(st.y) + '" width="' + round(st.w) + '" height="' + round(st.h) + '" rx="1.5"' + m.paint('sheen', horizontal ? '' : 'x') + '/>'
                     + (stripe ? '<rect class="ec-wire-stripe" x="' + round(horizontal ? st.x : st.x + st.w / 2 - 1.2) + '" y="' + round(horizontal ? st.y + st.h / 2 - 1.2 : st.y) + '" width="' + (horizontal ? round(st.w) : 2.4) + '" height="' + (horizontal ? 2.4 : round(st.h)) + '" fill="' + stripe + '"/>' : '') + '</g>';
             }
         }
         if (c.leader) markup += '<path class="ec-leader" d="M' + round(c.leader.x1) + ' ' + round(c.leader.y1) + 'L' + round(c.leader.x2) + ' ' + round(c.leader.y2) + '"/>';
         markup += '<rect class="ec-pin-hit" x="' + round(c.x - c.w / 2 - 3) + '" y="' + round(c.y - c.h / 2 - 3) + '" width="' + (c.w + 6) + '" height="' + (c.h + 6) + '"/>';
-        markup += bodyMarkup(c, 'ec-pin-body', 0, ' fill="' + hex + '"');
+        // The rim lies on the surface under the whole contact: the ink of that material, else (bare stage, or straddling the edge) the text token.
+        const rim = window.ECalcMaterials.ink(c.under);
+        markup += bodyMarkup(c, 'ec-pin-body' + (rim ? '' : ' ec-rim-stage'), 0, ' fill="' + hex + '"' + (rim ? ' stroke="' + rim + '" data-on="' + escape(c.under) + '"' : ''));
+        // The soft sheen over the colour of the contact; the long segments of a jack read as turned metal and get the strong gloss.
+        markup += bodyMarkup(c, 'ec-pin-sheen', 0, m.paint(c.shape === 'path' ? 'gloss' : 'sheen'));
         markup += bodyMarkup(c, 'ec-pin-ring', c.shape === 'path' ? 0 : 3);
         // The mark sits at the upper left corner, or at the lower left one when the number stands above the contact.
         if (c.mark) markup += c.num.mode === 'out' && c.num.y < c.y
-            ? '<path class="ec-pin-mark" d="M' + round(c.x - c.w / 2 - 4) + ' ' + round(c.y + c.h / 2 + 4) + 'h9l-9 -9Z"/>'
-            : '<path class="ec-pin-mark" d="M' + round(c.x - c.w / 2 - 4) + ' ' + round(c.y - c.h / 2 - 4) + 'h9l-9 9Z"/>';
-        markup += '<text class="ec-pin-num' + (out ? ' ec-pin-num-out' : '') + '" x="' + round(c.num.x) + '" y="' + round(c.num.y) + '" text-anchor="middle" font-size="' + c.num.fs + '"' + (out ? '' : ' fill="' + ink + '"') + '>' + escape(c.number) + '</text>';
+            ? '<path class="ec-pin-mark' + onClass + '" d="M' + round(c.x - c.w / 2 - 4) + ' ' + round(c.y + c.h / 2 + 4) + 'h9l-9 -9Z"' + onFace + '/>'
+            : '<path class="ec-pin-mark' + onClass + '" d="M' + round(c.x - c.w / 2 - 4) + ' ' + round(c.y - c.h / 2 - 4) + 'h9l-9 9Z"' + onFace + '/>';
+        markup += '<text class="ec-pin-num' + (out ? ' ec-pin-num-out' + onClass : '') + '" x="' + round(c.num.x) + '" y="' + round(c.num.y) + '" text-anchor="middle" font-size="' + c.num.fs + '"' + (out ? onFace : ' fill="' + ink + '"') + '>' + escape(c.number) + '</text>';
         if (c.label && c.name) {
             const turn = c.label.rotate ? ' transform="rotate(' + c.label.rotate + ' ' + round(c.label.x) + ' ' + round(c.label.y) + ')"' : '';
             markup += '<text class="ec-pin-name" x="' + round(c.label.x) + '" y="' + round(c.label.y) + '" text-anchor="' + c.label.anchor + '" font-size="' + NAME_FS + '"' + turn + '>' + escape(c.name) + '</text>';
@@ -581,14 +701,23 @@
         if (!view || !view.width || !view.height) return '';
         const types = spec.types || {}, wires = spec.wires || {};
         const flip = view.mirrored ? ' transform="translate(' + view.width + ' 0) scale(-1 1)"' : '';
+        // The materials of this drawing: every gradient it asks for is defined once in <defs>, under ids of this uid.
+        const m = window.ECalcMaterials.scope(spec.uid);
+        // A part is its path with the fill of its material; a silhouette is followed by its edge line (the same outline and turn).
         const shell = view.shell.map(part => {
-            if (part.at) return '<path class="' + part.cls + '" d="' + part.d + '" transform="translate(' + part.at[0] + ' ' + part.at[1] + ') rotate(' + part.at[2] + ')"/>';
-            return '<path class="' + part.cls + '" d="' + part.d + '"/>';
+            const turned = part.at ? ' transform="translate(' + part.at[0] + ' ' + part.at[1] + ') rotate(' + part.at[2] + ')"' : '';
+            return '<path class="' + part.cls + (part.fx ? ' ec-shell-fx' : '') + '" d="' + part.d + '"' + (part.mat ? m.paint(part.mat, part.across) : '') + turned + '/>'
+                + (part.edge ? '<path class="ec-shell-edge" d="' + part.d + '"' + turned + '/>' : '');
         }).join('');
+        const texts = view.texts.map(text => {
+            const print = window.ECalcMaterials.ink(text.on);
+            return '<text class="' + text.cls + (print ? '' : ' ec-on-stage') + '" x="' + round(text.x) + '" y="' + round(text.y) + '" text-anchor="' + text.anchor + '" font-size="10"' + (print ? ' fill="' + print + '"' : '') + '>' + escape(text.text) + '</text>';
+        }).join('');
+        const pins = view.contacts.map(c => pinMarkup(c, types, wires, m)).join('');
         return '<svg class="ec-pin-art" data-shape="' + escape(view.type) + '" data-view="' + escape(view.view) + '" viewBox="0 0 ' + view.width + ' ' + view.height + '" width="' + view.width + '" height="' + view.height + '" role="img" aria-label="' + escape(spec.label || '') + '" focusable="false">'
+            + m.defs()
             + '<g class="ec-pin-shell"' + flip + '>' + shell + '</g>'
-            + view.texts.map(text => '<text class="' + text.cls + '" x="' + round(text.x) + '" y="' + round(text.y) + '" text-anchor="' + text.anchor + '" font-size="10">' + escape(text.text) + '</text>').join('')
-            + view.contacts.map(c => pinMarkup(c, types, wires)).join('')
+            + texts + pins
             + '</svg>';
     }
 

@@ -513,7 +513,7 @@ func TestDesktopECalcPinoutRealBrowser(t *testing.T) {
 }
 
 // pinoutContrastJS measures the drawing of the open pinout page against its stage in the current desktop skin: the fill of every
-// contact must be the hex of its pin type (computed style), the outline of the shell, the names and the numbers outside the
+// contact must be the hex of its pin type (computed style), the edge line of the shell, the names and the numbers outside the
 // contacts are measured against what lies behind the stage (translucent layers are laid over the next one outward, an image falls
 // back to the strong panel colour of the skin, like the code pages do).
 const pinoutContrastJS = `()=>{
@@ -531,10 +531,19 @@ const pinoutContrastJS = `()=>{
 	out.size=box.width>20&&box.height>20;
 	out.fills=[...svg.querySelectorAll('g.ec-pin')].map(g=>g.getAttribute('data-type')+'='+getComputedStyle(g.querySelector('.ec-pin-body')).fill).join('|');
 	const stroke=(el)=>{const cs=getComputedStyle(el),c=rgba(cs.stroke);c[3]*=parseFloat(cs.strokeOpacity);return ratio(over(c,bg),bg);};
-	out.shell=stroke(svg.querySelector('.ec-shell'));
-	out.body=Math.min(...[...svg.querySelectorAll('g.ec-pin')].map(g=>ratio(rgba(getComputedStyle(g.querySelector('.ec-pin-body')).stroke),bg)));
-	const names=[...svg.querySelectorAll('.ec-pin-name,.ec-pin-num-out')];
-	out.names=names.length?Math.min(...names.map(n=>ratio(over(rgba(getComputedStyle(n).fill),bg),bg))):99;
+	out.shell=Math.min(...[...svg.querySelectorAll('.ec-shell-edge')].map(stroke));
+	// Print or rim on a material (data-on) is measured against every colour of that material under print (the stops of its gradient).
+	const under=el=>{const name=el.getAttribute('data-on');if(!name)return null;const m=window.ECalcMaterials.MATERIALS[name];
+		return m.kind==='flat'?[m.hex]:(m.face||m.stops.map((s,i)=>i)).map(i=>m.stops[i][1]);};
+	// The rim of a contact: on the stage against the stage, on a material against that material.
+	out.body=Math.min(...[...svg.querySelectorAll('g.ec-pin')].map(g=>{const body=g.querySelector('.ec-pin-body'),rim=rgba(getComputedStyle(body).stroke),face=under(body);
+		return face?Math.min(...face.map(hex=>ratio(rim,rgba(hex)))):ratio(rim,bg);}));
+	// A name lies on the stage. A number outside its contact and the pin-1 mark lie on the stage or on a material of the drawing (data-on):
+	// the print is then measured against every colour of that material under print, the stops of its gradient.
+	const names=[...svg.querySelectorAll('.ec-pin-name,.ec-pin-num-out,.ec-pin-mark')];
+	out.names=names.length?Math.min(...names.map(n=>{const fill=rgba(getComputedStyle(n).fill),face=under(n);
+		return face?Math.min(...face.map(hex=>ratio(fill,rgba(hex)))):ratio(over(fill,bg),bg);})):99;
+	out.onFace=names.filter(n=>n.hasAttribute('data-on')).length;
 	out.inks=[...svg.querySelectorAll('g.ec-pin[data-num="in"]')].map(g=>ratio(rgba(getComputedStyle(g.querySelector('.ec-pin-num')).fill),rgba(getComputedStyle(g.querySelector('.ec-pin-body')).fill))).reduce((m,v)=>Math.min(m,v),99);
 	return JSON.stringify(out);
 }`
@@ -561,6 +570,8 @@ func TestDesktopECalcPinoutSkinsBrowser(t *testing.T) {
 		Body  float64
 		Names float64
 		Inks  float64
+		// OnFace counts the marks and outside numbers that lie on a material (measured against its gradient stops).
+		OnFace int
 	}
 	const outlineMin, textMin, inkMin = 3.0, 4.5, 4.5
 	for _, id := range []string{"fx_pin_usb_c", "fx_pin_atx24", "fx_pin_board38"} {
@@ -575,6 +586,10 @@ func TestDesktopECalcPinoutSkinsBrowser(t *testing.T) {
 			t.Logf("skin %-14s %-14s shell %.2f contact outline %.2f names %.2f ink %.2f (stage rgb %s)", skin, id, m.Shell, m.Body, m.Names, m.Inks, m.Bg)
 			if !m.Size {
 				t.Errorf("skin %s, %s: the drawing has no size", skin, id)
+			}
+			// The mark of the board's pin 1 sits on the stage (its pad lies on the board's edge); the two connectors have theirs on a material.
+			if m.OnFace == 0 && id != "fx_pin_board38" {
+				t.Errorf("skin %s, %s: no mark or number lies on a material", skin, id)
 			}
 			if m.Shell < outlineMin || m.Body < outlineMin || m.Names < textMin || m.Inks < inkMin {
 				t.Errorf("skin %s, %s: the drawing is hard to read (shell %.2f, contact outline %.2f, names %.2f, ink on contact %.2f, stage rgb %s)", skin, id, m.Shell, m.Body, m.Names, m.Inks, m.Bg)

@@ -123,7 +123,7 @@
             const types = {}, wires = {};
             for (const [id, info] of typeInfo) types[id] = { hex: info.hex, ink: info.ink };
             for (const [id, info] of wireInfo) wires[id] = { hex: info.hex, stripe: info.stripe };
-            hostEl.innerHTML = Draw.svg({ layout: view, types, wires, label: t('desktop.ecalc_pin_drawing', { name: item.name, count: pins.length }) });
+            hostEl.innerHTML = Draw.svg({ layout: view, types, wires, uid, label: t('desktop.ecalc_pin_drawing', { name: item.name, count: pins.length }) });
             fitDrawing();
             paintFilter();
             paintMarks();

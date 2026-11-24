@@ -137,7 +137,7 @@
             const names = st.colors.map(id => colorById.get(id).name).join(', ');
             const doc = artEl.ownerDocument, active = doc.activeElement && artEl.contains(doc.activeElement) ? doc.activeElement.closest('.ec-band') : null;
             const focused = active ? Number(active.dataset.index) : -1;
-            if (setMarkup(artEl, Draw.bandsSVG({ kind: cfg.kind, label: item.name + ': ' + names, interactive: true, open: openIndex, bands: bandSpecs() }))) focusBand(focused);
+            if (setMarkup(artEl, Draw.bandsSVG({ kind: cfg.kind, uid: ctx.uid, label: item.name + ': ' + names, interactive: true, open: openIndex, bands: bandSpecs() }))) focusBand(focused);
         }
         function focusBand(index) {
             const band = index >= 0 ? artEl.querySelector('.ec-band[data-index="' + index + '"]') : null;
@@ -477,7 +477,7 @@
         }
         function paintArt() {
             const shown = st.printed || st.code.toUpperCase();
-            setMarkup(artEl, Draw.chipSVG({ shape: 'chip', lines: [shown], label: item.name + ': ' + shown, valid: !ctx.last().error }));
+            setMarkup(artEl, Draw.chipSVG({ shape: 'chip', uid: ctx.uid, lines: [shown], label: item.name + ': ' + shown, valid: !ctx.last().error }));
         }
         function sync() {
             if (codeInput !== codeInput.ownerDocument.activeElement) codeInput.value = st.code;
@@ -605,7 +605,7 @@
         }
         function paintArt() {
             const printed = lines(ctx.last().result ? ctx.last().result.code : st.code);
-            setMarkup(artEl, Draw.chipSVG({ shape: 'disc', lines: printed, label: item.name + ': ' + printed.join(' '), valid: !ctx.last().error }));
+            setMarkup(artEl, Draw.chipSVG({ shape: 'disc', uid: ctx.uid, lines: printed, label: item.name + ': ' + printed.join(' '), valid: !ctx.last().error }));
         }
         function sync() {
             if (codeInput !== codeInput.ownerDocument.activeElement) codeInput.value = st.code;
@@ -741,7 +741,7 @@
         }
         function paintArt() {
             const shown = ctx.last().result ? ctx.last().result.code : st.code.toUpperCase();
-            setMarkup(artEl, Draw.chipSVG({ shape: 'disc', lines: [shown], label: item.name + ': ' + shown, valid: !ctx.last().error }));
+            setMarkup(artEl, Draw.chipSVG({ shape: 'disc', uid: ctx.uid, lines: [shown], label: item.name + ': ' + shown, valid: !ctx.last().error }));
         }
         // A decoded code sets the fields: the characters of the canonical code are the letters and digits of the selects.
         function fromCode() {

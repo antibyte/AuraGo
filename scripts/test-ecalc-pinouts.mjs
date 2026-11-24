@@ -19,6 +19,7 @@ const plain = value => JSON.parse(JSON.stringify(value));
 
 const window = {};
 const sandbox = vm.createContext({ window });
+vm.runInContext(read('ui/js/desktop/apps/ecalc/ecalc-materials.js'), sandbox);
 vm.runInContext(read('ui/js/desktop/apps/ecalc/ecalc-pinout-draw.js'), sandbox);
 const Draw = window.ECalcPinoutDraw;
 assert.ok(Draw && typeof Draw.layout === 'function' && typeof Draw.svg === 'function' && Array.isArray(Draw.OUTLINES), 'the file publishes window.ECalcPinoutDraw');
@@ -94,10 +95,51 @@ for (const item of items) {
             for (const c of view.contacts) {
                 const style = types[c.type] || types.nc, chunk = chunks.get(c.number.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'));
                 assert.ok(chunk, `${label}: data-pin of ${c.number}`);
-                assert.ok(new RegExp(`class="ec-pin-body"[^>]*fill="${style.hex}"`).test(chunk), `${label}: the fill of pin ${c.number} is the hex of ${c.type}`);
+                assert.ok(new RegExp(`class="ec-pin-body[^"]*"[^>]*fill="${style.hex}"`).test(chunk), `${label}: the fill of pin ${c.number} is the hex of ${c.type}`);
+                // The rim: the ink of the material under the whole contact, else the text token (class ec-rim-stage), never both.
+                const body = chunk.match(/<[a-z]+ class="ec-pin-body[^>]*>/)[0], rim = window.ECalcMaterials.ink(c.under);
+                if (rim) assert.ok(body.includes(`stroke="${rim}"`) && !body.includes('ec-rim-stage'), `${label}: the rim of pin ${c.number} is the ink of ${c.under}`);
+                else assert.ok(!body.includes('stroke=') && body.includes('ec-rim-stage'), `${label}: the rim of pin ${c.number} is the text token`);
                 if (c.num.mode === 'in') assert.ok(chunk.includes(`fill="${style.ink}">`), `${label}: the number of pin ${c.number} is written in the ink of ${c.type}`);
-                else assert.ok(!/class="ec-pin-num[^"]*"[^>]*fill=/.test(chunk), `${label}: a number outside its contact has no ink of its own`);
+                else {
+                    // A number outside its contact lies on a material (the ink of that material) or on the bare stage (the token class).
+                    const text = chunk.match(/<text class="ec-pin-num[^>]*>/)[0], ink = window.ECalcMaterials.ink(c.on);
+                    if (ink) assert.ok(text.includes(`fill="${ink}"`) && !text.includes('ec-on-stage'), `${label}: the number of pin ${c.number} outside its contact is printed in the ink of ${c.on}`);
+                    else assert.ok(!text.includes('fill=') && text.includes('ec-on-stage'), `${label}: the number of pin ${c.number} outside its contact is in the text token`);
+                }
             }
+            // The materials: every gradient that is used is defined in this drawing, the markup is whole, and the ids belong to the uid.
+            const ids = new Set([...markup.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]));
+            const used = [...markup.matchAll(/url\(#([^)]+)\)/g)].map(match => match[1]);
+            assert.ok(used.length > 0 && used.every(id => ids.has(id)), `${label}: every url(#id) has its id`);
+            assert.ok(!/undefined|NaN/.test(markup), `${label}: no undefined or NaN in the markup`);
+            assert.ok(markup.indexOf('<defs>') === markup.indexOf('>', markup.indexOf('<svg')) + 1, `${label}: the defs come first`);
+            const other = Draw.svg({ layout: view, types, wires, label: item.name, uid: 'other-window' });
+            const otherIds = new Set([...other.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]));
+            assert.ok([...ids].every(id => !otherIds.has(id)) && ids.size === otherIds.size, `${label}: two uids give disjoint ids`);
+            assert.equal(Draw.svg({ layout: view, types, wires, label: item.name, uid: 'a1' }), Draw.svg({ layout: view, types, wires, label: item.name, uid: 'a1' }), `${label}: the same spec gives the same markup`);
+            // A plain polygon outline (and its opening) holds every contact and every outside number (the text box: the width of the
+            // digits, the height of the font) that lies in its bounding box; the shell group is flipped in a mirrored view, so are the points.
+            {
+                const polygon = d => (/^M[-\d. ]+(?:L[-\d. ]+)*Z$/.test(d) ? d.slice(1, -1).split('L').map(point => point.trim().split(/\s+/).map(Number)) : null);
+                const inside = (poly, [x, y]) => poly.reduce((hit, p, i) => { const q = poly[(i + 1) % poly.length]; return (p[1] > y) !== (q[1] > y) && x < (q[0] - p[0]) * (y - p[1]) / (q[1] - p[1]) + p[0] ? !hit : hit; }, false);
+                const boxes = view.contacts.map(c => [c.x - c.w / 2, c.y - c.h / 2, c.x + c.w / 2, c.y + c.h / 2]);
+                for (const c of view.contacts) if (c.num.mode === 'out') { const half = Draw.textWidth(c.number, c.num.fs) / 2; boxes.push([c.num.x - half, c.num.y - c.num.fs, c.num.x + half, c.num.y]); }
+                const outer = view.shell.find(part => part.cls === 'ec-shell' && polygon(part.d));
+                if (outer) {
+                    const poly = polygon(outer.d), xs = poly.map(p => p[0]), ys = poly.map(p => p[1]);
+                    const bbox = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+                    const holes = view.shell.filter(part => /^ec-shell-(cavity|insulator)$/.test(part.cls) && polygon(part.d));
+                    for (const [x0, y0, x1, y1] of boxes) for (const [px, py] of [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]) {
+                        const x = view.mirrored ? view.width - px : px;
+                        if (x < bbox[0] || x > bbox[2] || py < bbox[1] || py > bbox[3]) continue;
+                        assert.ok(inside(poly, [x, py]), `${label}: the corner ${px},${py} of a contact or a number lies outside the outline`);
+                        for (const hole of holes) assert.ok(inside(polygon(hole.d), [x, py]), `${label}: the corner ${px},${py} of a contact or a number lies outside the opening`);
+                    }
+                }
+            }
+            // Nothing a gradient paints may have no extent (a straight stroke): every part with a material is a closed outline.
+            for (const part of view.shell.filter(entry => entry.mat)) assert.ok(/Z\s*$/.test(part.d), `${label}: the part ${part.cls} with a material is a closed outline`);
             const first = view.contacts.filter(c => c.mark);
             assert.equal(first.length, 1, `${label}: exactly one marked pin`);
             assert.equal(first[0].number, view.contacts.some(c => c.number === '1') ? '1' : view.contacts[0].number, `${label}: the mark is on pin 1, or on the first pin`);

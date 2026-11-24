@@ -67,7 +67,7 @@ func TestECalcCodeDrawIsADomFreeStringBuilder(t *testing.T) {
 	draw := ecalcScripts(t)["ecalc-code-draw.js"]
 	for _, marker := range []string{
 		"window.ECalcCodeDraw = { bandsSVG, chipSVG, safeColor, POSITIONS };", "function bandsSVG(spec)", "function chipSVG(spec)", "const safeColor =",
-		`class="ec-code-art"`, `class="ec-band"`, `class="ec-band-hit"`, `class="ec-band-fill`, `class="ec-band-ring"`, `class="ec-draw-body"`, `class="ec-chip-body"`, `class="ec-chip-text"`,
+		`class="ec-code-art"`, `class="ec-band"`, `class="ec-band-hit"`, `class="ec-band-fill`, `class="ec-band-ring"`, `class="ec-draw-body"`, `class="ec-chip-body"`, `class="ec-chip-text"`, `class="ec-draw-edge"`, "ECalcMaterials.scope(",
 		`aria-haspopup="listbox"`, `aria-expanded=`, "tabindex=\"0\" role=\"button\"", "resistor: { 3:", "inductor: { 4:", "const colour = safeColor(band.color)",
 	} {
 		if !strings.Contains(draw, marker) {
@@ -103,7 +103,7 @@ func TestECalcCodeStylesheetSection(t *testing.T) {
 	section := css[start:end]
 	for _, marker := range []string{
 		".ec-code-menu {", ".ec-code-opt[aria-selected=\"true\"]", ".ec-band:focus-visible .ec-band-ring", `.ec-band[aria-expanded="true"] .ec-band-ring`, ".ec-code-error {",
-		".ec-chip-text { fill: var(--vd-theme-panel-bg-strong", ".ec-chip-body { fill: var(--vd-text)", ".ec-draw-body {", ".ec-code-row dt", "@media (prefers-reduced-motion: no-preference)",
+		".ec-draw-edge {", ".ec-draw-fx {", ".ec-chip-text {", ".ec-draw-body", ".ec-code-row dt", "@media (prefers-reduced-motion: no-preference)",
 	} {
 		if !strings.Contains(section, marker) {
 			t.Errorf("the code pages section is missing %q", marker)
@@ -112,6 +112,16 @@ func TestECalcCodeStylesheetSection(t *testing.T) {
 	// The colour of a band is the fill attribute of the drawing, never a rule of the stylesheet.
 	if regexp.MustCompile(`\.ec-band-fill\s*\{[^}]*\bfill\s*:`).MatchString(section) {
 		t.Error("the stylesheet must not set the fill of a band: the colour comes from the data")
+	}
+	// A CSS rule beats an SVG presentation attribute: the materials and the print are attributes of the drawing, so no rule
+	// that matches those elements (alone or in a selector list) may declare a fill.
+	for _, class := range []string{".ec-draw-body", ".ec-draw-lead", ".ec-chip-body", ".ec-chip-end", ".ec-disc-body", ".ec-chip-text", ".ec-disc-text", ".ec-band-fill"} {
+		rule := regexp.MustCompile(`(?m)^[^{}\n]*` + regexp.QuoteMeta(class) + `\b[^{}\n]*\{([^}]*)\}`)
+		for _, match := range rule.FindAllStringSubmatch(section, -1) {
+			if regexp.MustCompile(`\bfill\s*:`).MatchString(match[1]) {
+				t.Errorf("the rule %q must not declare a fill: the material is an attribute of the drawing", strings.TrimSpace(match[0]))
+			}
+		}
 	}
 }
 
@@ -749,11 +759,14 @@ const contrastJS = `()=>{
 	const behind=el=>{const layers=[];for(let n=el;n;n=n.parentElement){const cs=getComputedStyle(n);if(cs.backgroundImage&&cs.backgroundImage!=='none')return strong;const c=rgba(cs.backgroundColor);if(c[3]>0)layers.push(c);if(c[3]>=1)break;}
 		let base=strong;if(layers.length&&layers[layers.length-1][3]>=1)base=layers.pop();for(let i=layers.length-1;i>=0;i--)base=over(layers[i],base);return base;};
 	const bg=behind(stage),out={bg:bg.map(Math.round).join(',')};
+	const edge=()=>{const cs=getComputedStyle(document.querySelector('.ec-draw-edge')),s=rgba(cs.stroke);s[3]*=parseFloat(cs.strokeOpacity);return ratio(over(s,bg),bg);};
 	const first=document.querySelector('.ec-band-fill');
 	if(first){const cs=getComputedStyle(first),s=rgba(cs.stroke);s[3]*=parseFloat(cs.strokeOpacity);out.bandOutline=ratio(over(s,bg),bg);out.fills=[...document.querySelectorAll('.ec-band-fill')].map(b=>getComputedStyle(b).fill).join('|');
-		const body=document.querySelector('.ec-draw-body');out.bodyOutline=ratio(rgba(getComputedStyle(body).stroke),bg);}
+		out.bodyOutline=edge();}
 	const chip=document.querySelector('.ec-chip-body');
-	if(chip){const body=rgba(getComputedStyle(chip).fill),ink=over(rgba(getComputedStyle(document.querySelector('.ec-chip-text')).fill),body);out.print=ratio(ink,body);out.chip=ratio(body,bg);}
+	if(chip){const ink=rgba(getComputedStyle(document.querySelector('.ec-chip-text')).fill),m=/url\(#([^)]+)\)/.exec(chip.getAttribute('fill')||''),grad=m&&chip.ownerSVGElement.getElementById(m[1]);
+		const stops=grad?[...grad.querySelectorAll('stop')].map(s=>rgba(s.getAttribute('stop-color'))):[];
+		out.print=stops.length?Math.min(...stops.map(s=>ratio(ink,s))):0;out.chip=edge();}
 	return JSON.stringify(out);
 }`
 
@@ -860,7 +873,7 @@ func TestECalcCodePagesAreWired(t *testing.T) {
 	entry := loader[start : start+strings.Index(loader[start:], "\n        },")]
 	// The engine follows the table registry; the drawings and the page follow the table page and come before the shell, which
 	// looks up window.ECalcCodePage when it mounts a page (the pinout scripts of phase 4 follow the code page).
-	order := []string{"ecalc-eseries.js", "ecalc-solve.js", "ecalc-tables.js", "ecalc-codes.js", "ecalc-typeset.js", "ecalc-calc-page.js", "ecalc-table-page.js", "ecalc-code-draw.js", "ecalc-code-page.js", "ecalc-pinout-draw.js", "ecalc-pinout-page.js", "ecalc-shell.js", "/ecalc.js'"}
+	order := []string{"ecalc-eseries.js", "ecalc-solve.js", "ecalc-tables.js", "ecalc-codes.js", "ecalc-typeset.js", "ecalc-calc-page.js", "ecalc-table-page.js", "ecalc-materials.js", "ecalc-code-draw.js", "ecalc-code-page.js", "ecalc-pinout-draw.js", "ecalc-pinout-page.js", "ecalc-shell.js", "/ecalc.js'"}
 	offset := 0
 	for _, script := range order {
 		index := strings.Index(entry[offset:], script)
