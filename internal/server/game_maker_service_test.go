@@ -363,3 +363,28 @@ func TestGameMakerLoopErrorCodes(t *testing.T) {
 		}
 	}
 }
+
+func TestGameMakerReplyLanguage(t *testing.T) {
+	cfg := &config.Config{}
+	if got := gameMakerReplyLanguage(cfg); got != "" {
+		t.Fatalf("empty = %q", got)
+	}
+	cfg.Agent.SystemLanguage = "  \t "
+	if got := gameMakerReplyLanguage(cfg); got != "" {
+		t.Fatalf("whitespace = %q", got)
+	}
+	cfg.Agent.SystemLanguage = "  Deutsch "
+	if got := gameMakerReplyLanguage(cfg); got != "Deutsch" {
+		t.Fatalf("trimmed = %q", got)
+	}
+}
+
+func TestGameMakerPromptMentionsReplyLanguage(t *testing.T) {
+	profile, err := gameMakerPromptProfile("building", "2d")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(profile.SystemPrompt(), "reply_language") {
+		t.Fatal("system prompt does not mention reply_language")
+	}
+}

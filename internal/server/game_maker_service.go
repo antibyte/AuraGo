@@ -273,6 +273,9 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 			"available_topics":         gamemaker.CraftRecipeTopics(),
 		},
 	}
+	if lang := gameMakerReplyLanguage(&cfg); lang != "" {
+		contextData["reply_language"] = lang
+	}
 	requests, err := r.service.PreviousJobRequests(ctx, run.Job.ID)
 	if err != nil {
 		return err
@@ -523,4 +526,12 @@ func (b *gameMakerBroker) text() string {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return b.response.String()
+}
+
+// gameMakerReplyLanguage returns the configured agent language for user-facing text.
+func gameMakerReplyLanguage(cfg *config.Config) string {
+	if cfg == nil {
+		return ""
+	}
+	return strings.TrimSpace(cfg.Agent.SystemLanguage)
 }
