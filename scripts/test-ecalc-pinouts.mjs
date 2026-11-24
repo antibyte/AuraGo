@@ -23,7 +23,7 @@ vm.runInContext(read('ui/js/desktop/apps/ecalc/ecalc-materials.js'), sandbox);
 vm.runInContext(read('ui/js/desktop/apps/ecalc/ecalc-pinout-draw.js'), sandbox);
 const Draw = window.ECalcPinoutDraw;
 assert.ok(Draw && typeof Draw.layout === 'function' && typeof Draw.svg === 'function' && Array.isArray(Draw.OUTLINES), 'the file publishes window.ECalcPinoutDraw');
-assert.equal(Draw.OUTLINES.length, 16, 'sixteen outlines');
+assert.equal(Draw.OUTLINES.length, 20, 'twenty outlines');
 
 const snapshot = JSON.parse(read('internal/ecalc/testdata/catalog.en.json'));
 const fixtures = plain(vm.runInContext('(' + read('scripts/ecalc-pinout-fixtures.js') + ')', sandbox)());

@@ -109,7 +109,7 @@ func TestLoadPinoutItem(t *testing.T) {
 	if !reflect.DeepEqual(PinoutGroups, []string{"data", "audio", "pc_power", "boards", "debug", "ics", "vehicle_mains"}) {
 		t.Errorf("PinoutGroups = %v", PinoutGroups)
 	}
-	if !sort.StringsAreSorted(PinoutOutlines) || len(PinoutOutlines) != 16 || !reflect.DeepEqual(PinTypes, []string{"power", "ground", "signal", "data", "io", "nc"}) {
+	if !sort.StringsAreSorted(PinoutOutlines) || len(PinoutOutlines) != 20 || !reflect.DeepEqual(PinTypes, []string{"power", "ground", "signal", "data", "io", "nc"}) {
 		t.Errorf("PinoutOutlines = %v, PinTypes = %v", PinoutOutlines, PinTypes)
 	}
 }
@@ -222,7 +222,7 @@ func TestLoadRejectsBrokenPinouts(t *testing.T) {
 		{"unknown shape type", mutate(t, basePinout, "type: rows", "type: ring"), "shape: type must be one of rows, dip, to, circular, jack, board"},
 		{"field of another type", mutate(t, basePinout, "    key: top", "    key: top\n    segments: [a, b]"), "shape: field segments is not used by type rows"},
 		{"rows without outline", mutate(t, basePinout, "    outline: rect\n", ""), "shape: type rows needs outline"},
-		{"unknown outline", mutate(t, basePinout, "outline: rect", "outline: oval"), `shape: outline must be one of displayport, dsub,`},
+		{"unknown outline", mutate(t, basePinout, "outline: rect", "outline: oval"), `shape: outline must be one of card, displayport, dsub,`},
 		{"unknown contact", mutate(t, basePinout, "contact: round", "contact: hex"), "shape: contact must be one of round, square, blade"},
 		{"unknown drawn", mutate(t, basePinout, "drawn: plug", "drawn: top"), "shape: drawn must be one of plug, socket"},
 		{"unknown key", mutate(t, basePinout, "key: top", "key: middle"), "shape: key must be one of none, top, bottom, left, right"},

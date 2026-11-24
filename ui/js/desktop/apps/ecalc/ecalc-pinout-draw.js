@@ -34,7 +34,7 @@
    The shape `to` draws four packages: to92 and to220 seen from the front (leads down), sot23 and sot223 seen from above (marking
      side up, `drawn` is 'top'): epoxy body, tin gull-wing leads as filled shapes, the feet as contacts, a pin-1 dot (recess); the
      tab of the sot223 is the last pin and is drawn in tin at the top.
-   ECalcPinoutDraw.OUTLINES -> the sixteen outlines of `rows` (the list of ecalc.PinoutOutlines).
+   ECalcPinoutDraw.OUTLINES -> the twenty outlines of `rows` (the list of ecalc.PinoutOutlines).
    ECalcPinoutDraw.fitNumber(text, kind, width, height) -> the font size (11, 10 or 9) at which the number fits inside a contact
      of that kind, or 0 when it does not: the page and the tests use the same rule as the drawing.
 
@@ -50,7 +50,7 @@
     const safeColor = text => (typeof text === 'string' && HEX.test(text) ? text : '');
     const round = value => Math.round(value * 100) / 100;
 
-    const OUTLINES = ['displayport', 'dsub', 'hdmi_a', 'jst', 'minifit', 'molex', 'obd2', 'rect', 'rj45', 'sata_data', 'sata_power', 'usb_a', 'usb_b', 'usb_c', 'usb_micro_b', 'usb_mini_b'];
+    const OUTLINES = ['card', 'displayport', 'dsub', 'dvi', 'hdmi_a', 'jst', 'minifit', 'molex', 'obd2', 'rect', 'rj11', 'rj45', 'sata_data', 'sata_power', 'scart', 'usb_a', 'usb_b', 'usb_c', 'usb_micro_b', 'usb_mini_b'];
     const MARGIN = 10, NAME_FS = 11, OUT_FS = 10, STUB = 14, OUT_ROOM = 13;
     const FALLBACK_HEX = '#9e9e9e', FALLBACK_INK = '#000000';
 
@@ -151,7 +151,8 @@
     // ---- rows ---------------------------------------------------------------------------------------------------------------
 
     // p: pitch, rp: row pitch, padX / padT / padB: space between the contacts and the shell, bladeH: height of a blade contact,
-    // cap: the largest round or square contact.
+    // cap: the largest round or square contact. tune(number, dims, p) may give one contact a geometry of its own: {w, h, dx (in
+    // pitches), dy (units), kind}, or null: the flat C5 blade of DVI, the two long pads of a microSD card (dims is the base size).
     const ROW_STYLE = {
         rect: { p: 26, rp: 26, padX: 10, padT: 10, padB: 10, bladeH: 18, cap: 21 },
         dsub: { p: 26, rp: 28, padX: 14, padT: 14, padB: 14, bladeH: 18, cap: 21, ears: 22 },
@@ -168,7 +169,14 @@
         molex: { p: 34, rp: 34, padX: 14, padT: 12, padB: 16, bladeH: 20, cap: 26 },
         minifit: { p: 30, rp: 30, padX: 12, padT: 16, padB: 12, bladeH: 20, cap: 24 },
         obd2: { p: 26, rp: 28, padX: 16, padT: 12, padB: 12, bladeH: 16, cap: 21 },
-        jst: { p: 26, rp: 26, padX: 12, padT: 14, padB: 12, bladeH: 16, cap: 21 }
+        jst: { p: 26, rp: 26, padX: 12, padT: 14, padB: 12, bladeH: 16, cap: 21 },
+        rj11: { p: 22, rp: 26, padX: 12, padT: 10, padB: 20, bladeH: 22, cap: 20 },
+        // The receptacle with the analog block to the right (rows: 1..8, gap, C1 C2 / 9..16, gap, C5 / 17..24, gap, C3 C4): C5, the flat
+        // ground blade between the four pins, is as wide as the block and sits half a pitch to the right of its column.
+        dvi: { p: 26, rp: 26, padX: 16, padT: 14, padB: 14, bladeH: 16, cap: 18, tune: (number, dims, p) => (number === 'C5' ? { kind: 'blade', w: p + dims.w, h: 13, dx: 0.5 } : null) },
+        scart: { p: 22, rp: 26, padX: 22, padT: 12, padB: 14, bladeH: 16, cap: 17 },
+        // The contact side of a microSD card: pads 4 and 6 are the long ones (base height), the others end at the same line but are shorter.
+        card: { p: 20, rp: 26, padX: 12, padT: 10, padB: 120, bladeH: 42, cap: 20, tune: number => (number === '4' || number === '6' ? null : { h: 28, dy: 7 }) }
     };
 
     function contactDims(kind, style) {
@@ -305,13 +313,39 @@
             const cx = b.x + b.w / 2;
             const out = plain('nylon', points([[b.x, b.y], [cx - 12, b.y], [cx - 6, b.y - 6], [cx + 6, b.y - 6], [cx + 12, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [b.x, b.y + b.h]]), { after: [layer('ec-shell-tongue', roundRect(b.x + 5, b.y + 6, b.w - 10, b.h - 12, 2), 'cavity')] });
             return Object.assign(out, { face: 'cavity' });
+        },
+        // DVI receptacle: a steel D shell, the wide side up, the lower corners cut, the black insulator inside. The dark slot of the
+        // cross runs between C1..C4 (C5, the flat ground blade, is a contact and lies across it).
+        dvi(b, ctx) {
+            const c = 20, poly = fitCut(t => [[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h - c * t], [b.x + b.w - c * t, b.y + b.h], [b.x + c * t, b.y + b.h], [b.x, b.y + b.h - c * t]], ctx, 4);
+            const main = solid('ec-shell', points(poly), STEEL), open = opening(poly, ctx.cells, 4);
+            const blade = ctx.contacts.find(k => k.number === 'C5'), analog = ctx.contacts.filter(k => /^C[1-4]$/.test(k.number));
+            const top = Math.min(...analog.map(k => k.y - k.h / 2)), bottom = Math.max(...analog.map(k => k.y + k.h / 2));
+            const slot = blade && analog.length ? [layer('ec-shell-detail', roundRect(blade.x - 1.5, top, 3, bottom - top, 1.5), 'recess')] : [];
+            return { parts: [cast(main), main, ...(open ? [layer('ec-shell-insulator', open, 'pbt'), ...slot] : [])], face: open ? 'pbt' : STEEL };
+        },
+        // SCART socket: the plastic housing, wide side up, one cut corner at the lower left, the dark opening around the two rows.
+        scart(b, ctx) {
+            const c = 26, poly = fitCut(t => [[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [b.x + c * t, b.y + b.h], [b.x, b.y + b.h - c * t]], ctx, 3);
+            const main = solid('ec-shell', points(poly), 'pbt'), open = opening(poly, ctx.cells, 3);
+            return { parts: [cast(main), main, ...(open ? [layer('ec-shell-cavity', open, 'cavity')] : [])], face: open ? 'cavity' : 'pbt' };
+        },
+        // microSD card, contact side: the black body with the step in its left edge; every pad lies on its own gold plate.
+        card(b, ctx) {
+            const depth = 7, y0 = b.y + b.h * 0.58, y1 = y0 + 18;
+            const main = solid('ec-shell', points([[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [b.x, b.y + b.h], [b.x, y1], [b.x + depth, y1], [b.x + depth, y0], [b.x, y0]]), 'pbt');
+            const plates = ctx.contacts.map(k => layer('ec-shell-detail', roundRect(k.x - k.w / 2 - 2.5, k.y - k.h / 2 - 2.5, k.w + 5, k.h + 5, 3), 'gold'));
+            return { parts: [cast(main), main, ...plates], face: 'pbt' };
         }
     };
+    // 6P6C: the notch of the latch at the bottom, like the 8P8C.
+    SHELLS.rj11 = SHELLS.rj45;
 
     function layoutRows(shape, map, view) {
         const style = ROW_STYLE[shape.outline] || ROW_STYLE.rect;
         const kind = shape.contact === 'blade' || shape.contact === 'square' ? shape.contact : 'round';
         const dims = contactDims(kind, style), p = style.p, rp = style.rp;
+        const dimsOf = number => { const t = style.tune ? style.tune(String(number), dims, p) : null; return Object.assign({ kind }, dims, t || {}); };
         const rows = (Array.isArray(shape.rows) ? shape.rows : []).map(row => ({ pins: Array.isArray(row.pins) ? row.pins : [], offset: Number(row.offset) || 0 }));
         const count = rows.length;
         const cols = Math.max(1, ...rows.map(row => row.pins.length + row.offset));
@@ -324,10 +358,10 @@
         // A single column (a servo, a Qwiic plug) has its wires leave to the left, where no name stands.
         const column = count > 0 && rows.every(row => row.pins.length === 1);
         // One rule per drawing: when a number does not fit inside its contact, the numbers of the outer rows all go outside.
-        const allFit = rows.every(row => row.pins.every(number => !given(number) || fitNumber(String(number), kind, dims.w, dims.h)));
+        const allFit = rows.every(row => row.pins.every(number => { const d = dimsOf(number); return !given(number) || fitNumber(String(number), d.kind, d.w, d.h); }));
         rows.forEach((row, r) => row.pins.forEach((number, c) => {
             if (!given(number)) return;
-            const fs = allFit ? fitNumber(String(number), kind, dims.w, dims.h) : 0;
+            const fs = allFit ? fitNumber(String(number), dimsOf(number).kind, dimsOf(number).w, dimsOf(number).h) : 0;
             const side = fs ? '' : (r === 0 ? 'top' : r === count - 1 ? 'bottom' : '');
             if (side === 'top') outsideTop = true;
             if (side === 'bottom') outsideBottom = true;
@@ -358,23 +392,24 @@
 
         // 3. the contacts
         const contacts = records.map(rec => {
-            const x = ox + style.padX + dims.w / 2 + (rec.c + rec.off) * p, y = oy + padT + dims.h / 2 + rec.r * rp;
-            const c = contact(map, rec.number, { shape: kind === 'blade' ? 'rect' : kind === 'round' ? 'circle' : 'rect', kind, x, y, w: dims.w, h: dims.h, r: kind === 'blade' ? 2 : 3 });
+            const d = dimsOf(rec.number);
+            const x = ox + style.padX + dims.w / 2 + (rec.c + rec.off + (d.dx || 0)) * p, y = oy + padT + dims.h / 2 + rec.r * rp + (d.dy || 0);
+            const c = contact(map, rec.number, { shape: d.kind === 'round' ? 'circle' : 'rect', kind: d.kind, x, y, w: d.w, h: d.h, r: d.kind === 'blade' ? 2 : 3 });
             if (rec.fs) inside(c, rec.fs);
-            else if (rec.side === 'top') c.num = { mode: 'out', x, y: y - dims.h / 2 - 4, fs: OUT_FS };
-            else if (rec.side === 'bottom') c.num = { mode: 'out', x, y: y + dims.h / 2 + 4 + OUT_FS * 0.8, fs: OUT_FS };
+            else if (rec.side === 'top') c.num = { mode: 'out', x, y: y - d.h / 2 - 4, fs: OUT_FS };
+            else if (rec.side === 'bottom') c.num = { mode: 'out', x, y: y + d.h / 2 + 4 + OUT_FS * 0.8, fs: OUT_FS };
             else inside(c, 8);
-            if (rec.stub === 'left') c.stub = { x: ox - STUB, y: y - 3.5, w: x - dims.w / 2 - (ox - STUB), h: 7 };
-            else if (rec.stub === 'down') c.stub = { x: x - 3.5, y: y + dims.h / 2, w: 7, h: oy + sh + STUB - (y + dims.h / 2) };
-            else if (rec.stub === 'up') c.stub = { x: x - 3.5, y: oy - STUB, w: 7, h: y - dims.h / 2 - (oy - STUB) };
+            if (rec.stub === 'left') c.stub = { x: ox - STUB, y: y - 3.5, w: x - d.w / 2 - (ox - STUB), h: 7 };
+            else if (rec.stub === 'down') c.stub = { x: x - 3.5, y: y + d.h / 2, w: 7, h: oy + sh + STUB - (y + d.h / 2) };
+            else if (rec.stub === 'up') c.stub = { x: x - 3.5, y: oy - STUB, w: 7, h: y - d.h / 2 - (oy - STUB) };
             if (namesMode && c.name) {
                 const row = rows[rec.r], side = sideOf(row, rec.c);
                 if (side === 'left') {
                     c.label = { x: ox - ears - 8, y: y + NAME_FS * 0.36, anchor: 'end', rotate: 0 };
-                    c.leader = { x1: x - dims.w / 2, y1: y, x2: ox - ears - 5, y2: y };
+                    c.leader = { x1: x - d.w / 2, y1: y, x2: ox - ears - 5, y2: y };
                 } else {
                     c.label = { x: ox + sw + ears + 8, y: y + NAME_FS * 0.36, anchor: 'start', rotate: 0 };
-                    c.leader = { x1: x + dims.w / 2, y1: y, x2: ox + sw + ears + 5, y2: y };
+                    c.leader = { x1: x + d.w / 2, y1: y, x2: ox + sw + ears + 5, y2: y };
                 }
             }
             return c;
@@ -392,7 +427,7 @@
         // The rectangles the shell keeps clear of: the contacts and the text boxes of the numbers outside them (width of the digits, height of the font).
         const cells = contacts.map(c => [c.x - c.w / 2, c.y - c.h / 2, c.x + c.w / 2, c.y + c.h / 2]);
         contacts.forEach(c => { if (c.num.mode === 'out') cells.push([c.num.x - textWidth(c.number, c.num.fs) / 2, c.num.y - c.num.fs, c.num.x + textWidth(c.number, c.num.fs) / 2, c.num.y]); });
-        const built = build({ x: ox, y: oy, w: sw, h: sh }, { w: sw, h: sh, rowsBox, ears, key, view, cells });
+        const built = build({ x: ox, y: oy, w: sw, h: sh }, { w: sw, h: sh, rowsBox, ears, key, view, cells, contacts });
         return { width, height, shellBox: [ox - ears, oy, ox + sw + ears, oy + sh], shell: built.parts, face: built.face, texts: [], contacts, mirrorable: true };
     }
 

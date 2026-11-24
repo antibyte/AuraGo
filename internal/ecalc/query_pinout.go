@@ -22,8 +22,8 @@ const (
 
 // pinoutOutlineNames are the English names of the outlines of a "rows" shape (the keys are PinoutOutlines).
 var pinoutOutlineNames = map[string]string{
-	"displayport": "DisplayPort", "dsub": "D-sub", "hdmi_a": "HDMI type A", "jst": "JST", "minifit": "Mini-Fit", "molex": "Molex",
-	"obd2": "OBD-II", "rect": "Rectangular", "rj45": "RJ45", "sata_data": "SATA data", "sata_power": "SATA power",
+	"card": "microSD card", "displayport": "DisplayPort", "dsub": "D-sub", "dvi": "DVI", "hdmi_a": "HDMI type A", "jst": "JST", "minifit": "Mini-Fit", "molex": "Molex",
+	"obd2": "OBD-II", "rect": "Rectangular", "rj11": "RJ11/RJ12 (6P)", "rj45": "RJ45", "sata_data": "SATA data", "sata_power": "SATA power", "scart": "SCART",
 	"usb_a": "USB-A", "usb_b": "USB-B", "usb_c": "USB-C", "usb_micro_b": "USB micro-B", "usb_mini_b": "USB mini-B",
 }
 

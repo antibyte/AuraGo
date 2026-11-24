@@ -2,7 +2,8 @@
 // shape of the catalog JSON (internal/ecalc/pinouts.go, "Catalog JSON" of the contract: every shape field present). The node
 // test scripts/test-ecalc-pinouts.mjs evaluates it in a vm, ui/desktop_ecalc_pinouts_browser_test.go puts the same text into
 // the served catalog. The names are German like the rest of the fixture catalog. The pins are made up (no real connector).
-//   Every outline of `rows` appears once (fx_pin_<outline>), plus the dense ones: usb_c (24 contacts), hdmi_a (19),
+//   Every outline of `rows` appears once (fx_pin_<outline>; dvi with its analog block C1..C5, scart staggered, card with the long
+//   pads 4 and 6, rj11 with 6 positions), plus the dense ones: usb_c (24 contacts), hdmi_a (19),
 //   fx_pin_header40 (2 x 20), fx_pin_board38 (38 pins), fx_pin_dip28; the shapes circular (two), dip (two), to (to92, to220, sot23, sot223),
 //   jack (TRS, TRRS with variants) and board (two, with inner headers); a single row with wires and variants (fx_pin_rj45); a
 //   page with long notes and long names (fx_pin_long); an item with 8-character numbers (fx_pin_wide_numbers).
@@ -49,6 +50,20 @@
     out.push(make('fx_pin_hdmi_a', 'data', 'Fixture: HDMI Typ A (19 Kontakte)', 'hdmi_a', 'blade', [['1', '3', '5', '7', '9', '11', '13', '15', '17', '19'], { pins: ['2', '4', '6', '8', '10', '12', '14', '16', '18'], offset: 0.5 }]));
     out.push(make('fx_pin_displayport', 'data', 'Fixture: DisplayPort', 'displayport', 'blade', [['1', '3', '5', '7', '9', '11', '13', '15', '17', '19'], { pins: ['2', '4', '6', '8', '10', '12', '14', '16', '18', '20'], offset: 0.5 }]));
     out.push(make('fx_pin_rj45', 'data', 'Fixture: RJ45', 'rj45', 'blade', [range(1, 8)], { wires: ['white_orange', 'orange', 'white_green', 'blue', 'white_blue', 'green', 'white_brown', 'brown'] }));
+    // DVI-I (the receptacle): three rows of eight, a gap, the analog block C1 C2 / C5 (the flat blade) / C3 C4 on the right
+    const dvi = make('fx_pin_dvi', 'data', 'Fixture: DVI-I', 'dvi', 'round', [[...range(1, 8), null, 'C1', 'C2'], [...range(9, 16), null, 'C5'], [...range(17, 24), null, 'C3', 'C4']]);
+    dvi.shape.drawn = 'socket';
+    out.push(dvi);
+    // SCART (the socket): the even pins in the upper row, half a pitch to the right, the odd ones below
+    const scart = make('fx_pin_scart', 'audio', 'Fixture: SCART', 'scart', 'round', [{ pins: ['20', '18', '16', '14', '12', '10', '8', '6', '4', '2'], offset: 0.5 }, ['21', '19', '17', '15', '13', '11', '9', '7', '5', '3', '1']]);
+    scart.shape.drawn = 'socket';
+    out.push(scart);
+    // microSD card, contact side: pads 1..8 from the left, 4 and 6 the long ones
+    out.push(make('fx_pin_card', 'data', 'Fixture: microSD-Karte', 'card', 'blade', [range(1, 8)]));
+    // RJ11 / RJ12: six positions
+    const rj11 = make('fx_pin_rj11', 'data', 'Fixture: RJ11 (6 Positionen)', 'rj11', 'blade', [range(1, 6)]);
+    rj11.shape.drawn = 'socket';
+    out.push(rj11);
     out.push(make('fx_pin_sata_data', 'pc_power', 'Fixture: SATA Daten', 'sata_data', 'blade', [range(1, 7)]));
     out.push(make('fx_pin_sata_power', 'pc_power', 'Fixture: SATA Strom', 'sata_power', 'blade', [range(1, 15)]));
     out.push(make('fx_pin_molex', 'pc_power', 'Fixture: Molex 4', 'molex', 'round', [range(1, 4)]));

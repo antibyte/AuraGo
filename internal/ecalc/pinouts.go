@@ -23,8 +23,8 @@ var PinoutGroups = []string{"data", "audio", "pc_power", "boards", "debug", "ics
 
 // PinoutOutlines are the outlines of a "rows" shape (sorted); the page draws every one of them.
 var PinoutOutlines = []string{
-	"displayport", "dsub", "hdmi_a", "jst", "minifit", "molex", "obd2", "rect", "rj45", "sata_data", "sata_power",
-	"usb_a", "usb_b", "usb_c", "usb_micro_b", "usb_mini_b",
+	"card", "displayport", "dsub", "dvi", "hdmi_a", "jst", "minifit", "molex", "obd2", "rect", "rj11", "rj45", "sata_data",
+	"sata_power", "scart", "usb_a", "usb_b", "usb_c", "usb_micro_b", "usb_mini_b",
 }
 
 var (
