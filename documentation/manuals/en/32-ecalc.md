@@ -2,7 +2,7 @@
 
 ECalc is a formula collection for electronics in the Virtual Desktop. A calculator page shows the circuit, the formula and the results side by side, and it recalculates while you type. You enter the values you know and ECalc works out the rest. For resistors it also suggests the nearest standard value from an E series, and the standard-value combiner finds standard values that reach a target resistance, in series or in parallel.
 
-ECalc has 113 calculators in twelve categories, 44 reference tables (see [Tables](#tables)), five component code pages (see [Component Codes](#component-codes)) and 47 pinouts of connectors, board headers and ICs (see [Pinouts](#pinouts)). The agent can calculate with the same formulas, read the tables, codes and pinouts, and open a calculator for you (see [Using ECalc from the Agent](#using-ecalc-from-the-agent)). ECalc runs in your browser. It needs no provider and has no switch of its own in **Config**.
+ECalc has 113 calculators in twelve categories, 44 reference tables (see [Tables](#tables)), six component code pages (see [Component Codes](#component-codes)) and 70 pinouts of connectors, board headers, ICs and other parts with pins (see [Pinouts](#pinouts)). The agent can calculate with the same formulas, read the tables, codes and pinouts, and open a calculator for you (see [Using ECalc from the Agent](#using-ecalc-from-the-agent)). ECalc runs in your browser. It needs no provider and has no switch of its own in **Config**.
 
 ## Table of Contents
 1. [Opening ECalc](#opening-ecalc)
@@ -417,6 +417,7 @@ The **Codes** category decodes component markings and writes them from a value. 
 
 - **Resistor colour code** and **Inductor colour code**: the colour bands. Click a band to choose its colour in the menu, or use the keyboard: Tab moves to a band, Enter, Space or the down arrow opens its menu, the arrow keys move through the colours, Enter picks one and Escape closes the menu. The page shows the value, the tolerance and, for six-band resistors, the temperature coefficient, and it gives the nearest standard value of the chosen series. Inductors have four or five bands.
 - **SMD resistor codes**: the three-digit code (472 is 4.7 kΩ), the four-digit code, the EIA-96 code (01C) and the R notation (4R7 is 4.7 Ω). A value that you enter shows its three-digit, four-digit and EIA-96 marking.
+- **SMD inductor codes**: the three-character value marking of chip inductors. Three digits are microhenry (101 is 100 µH), R is the decimal point in microhenry (4R7 is 4.7 µH, R47 is 0.47 µH) and N is the decimal point in nanohenry (4N7 is 4.7 nH, 47N is 47 nH); N never comes first. A fourth letter is the tolerance. ECalc decodes the tolerance letters C, G, H, J, K and M: C is ±0.2 nH, and the others are percentages (G ±2 %, H ±3 %, J ±5 %, K ±10 %, M ±20 %). The letters B, D, F, N, P, S, W and Y are reported as not cross-checked, because the makers disagree about them or only one maker states them. Any other letter is an invalid code. Many chip inductors carry no printed value at all.
 - **Capacitor codes**: the picofarad code (104 is 100 nF, 4p7 is 4.7 pF), the tolerance letter and the voltage code. A marking can have up to three parts, for example `104K 1H`: 100 nF, ±10 % and 50 V. For `3F`, ECalc shows both manufacturer ratings. TDK uses 3 kV and Murata uses 3.15 kV. Either rating encodes as `3F`.
 - **Ceramic capacitor temperature codes**: class 1 (temperature compensating, for example C0G or NP0) with its temperature coefficient in ppm/K and its tolerance, and class 2 (high permittivity, for example X7R or U2J) with its temperature range and the permitted capacitance change. A class 2 code has no value of its own, so the page shows no number for it.
 
@@ -424,7 +425,7 @@ Resistor colours follow IEC 60062:2016. Where makers still print an older tolera
 
 ## Pinouts
 
-The **Pinouts** category holds 47 pinouts of connectors, board headers, IC packages and other parts with pins. Open a pinout from the category. The list is sorted into the groups **Data and video**, **Audio**, **PC power and fans**, **Boards**, **Debug and interfaces** and **ICs**; the groups are listed at the end of this section.
+The **Pinouts** category holds 70 pinouts of connectors, board headers, IC packages and other parts with pins. Open a pinout from the category. The list is sorted into the groups **Data and video**, **Audio**, **PC power and fans**, **Boards**, **Debug and interfaces** and **ICs**; the groups are listed at the end of this section.
 
 A pinout page shows:
 
@@ -437,7 +438,9 @@ A pinout page shows:
 - **Pin table:** the columns **Pin**, **Name**, **Function**, **Type**, **Wire** and **Notes**. The Wire column appears only when a pin of the variant has a wire colour.
 - **Notes and source:** the notes of the pinout and the source it was taken from, at the foot of the page.
 
-**Two views.** 31 of the 47 pinouts have a **View** choice. Their two views carry the names of the item, for example *Plug (cable end)* and *Receptacle (on the host or hub)*. The drawing shows the contacts as you see them when you look at the mating face, the face that meets the other part. A plug and its socket face each other when they are mated, so seen from their mating faces they are mirror images: left and right swap. ECalc draws the view that the pinout stores as its drawn view as it is, and the other view as the mirror image. Numbers and names stay readable, but the contacts move to the other side of the drawing. Boards and ICs have one fixed view and no choice. The Raspberry Pi 40-pin header is the one board with a View choice.
+**Two views.** 31 of the 70 pinouts have a **View** choice. Their two views carry the names of the item, for example *Plug (cable end)* and *Receptacle (on the host or hub)*. The drawing shows the contacts as you see them when you look at the mating face, the face that meets the other part. A plug and its socket face each other when they are mated, so seen from their mating faces they are mirror images: left and right swap. ECalc draws the view that the pinout stores as its drawn view as it is, and the other view as the mirror image. Numbers and names stay readable, but the contacts move to the other side of the drawing. Boards and ICs have one fixed view and no choice. The Raspberry Pi 40-pin header is the one board with a View choice.
+
+**SOT packages.** The two SOT examples are drawn from above, with the marking side up, as the datasheets show them. On SOT-23, pin 1 is at the lower left, pin 2 at the lower right and pin 3 alone at the top. On SOT-223, pins 1 to 3 run along the bottom from left to right, and the tab is pin 4 at the top. Like the TO-92 page, the SOT pages list examples only. They have one fixed view and no **View** choice.
 
 **Pin colours.** Each contact is filled with the colour of its pin type. The legend names the types the pinout uses:
 
@@ -452,13 +455,13 @@ A pinout page shows:
 
 **Wire colours.** A wire colour is shown only where a standard or guide names one, for example for USB Type-A, RJ45, ATX, FTDI, Qwiic, Grove and the servo cable. Some cables differ from those colours. The ATX notes say to go by position, not by colour.
 
-**Variants.** Four pinouts have variants. RJ45 (8P8C) has T568A and T568B, which differ only in the wire colours of the green and orange pairs. The 3.5 mm headset jack (TRRS) has CTIA (AHJ) and OMTP. DisplayPort has the Source side (output) and the Sink side (monitor input), which number pins 1 to 12 differently. TO-92: examples has seven part examples: BC547, PN2222A, 2N3904, 2N7000, LM35, 78L05 and TL431.
+**Variants.** Six pinouts have variants. RJ45 (8P8C) has T568A and T568B, which differ only in the wire colours of the green and orange pairs. The 3.5 mm headset jack (TRRS) has CTIA (AHJ) and OMTP. DisplayPort has the Source side (output) and the Sink side (monitor input), which number pins 1 to 12 differently. TO-92: examples has twelve part examples: BC337, BC547, BC557, PN2222A, 2N3904, 2N3906, 2N7000, BS170, LM35, 78L05, TL431 and DS18B20. SOT-23: examples has four (BC847, MMBT3904, 2N7002 and BSS84), and SOT-223: examples has two (LM1117 and BCP56). Two of these examples are traps. The BS170 is wired the other way round from the 2N7000: drain on the left, source on the right. The DS18B20 has ground on the left and the supply on the right, the reverse of the LM35.
 
 **Hover, click and filter.** Hovering a contact in the drawing or a row in the table highlights both, and a hovered contact shows its details in the detail panel. A click selects the pin: its details stay in the detail panel and its row is scrolled into view. A second click clears the selection. The drawing reacts to the pointer only; with the keyboard, use the pin number button at the start of each row. The filter box above the table matches the pin number, name, function, type name, wire colour name and notes. Pins that do not match are dimmed in the drawing and their rows are hidden. Press `/` to jump to the filter box, and Escape to clear it.
 
 **Copy pinout** copies the rows that are shown, after the filter, for the chosen variant. The text is tab-separated and starts with a header line, so you can paste it into a spreadsheet. ECalc remembers the variant and the view of each pinout in the browser, with its other settings.
 
-**Check the view before you wire anything.** A connector seen from the other side is mirrored, and a mirrored connector is the classic mistake: left and right swap, and pin 1 sits at the other end of its row. Check which view you are looking at, and that it shows the mating face of the part you are wiring to. Clone boards can differ from the drawing; the NodeMCU entry says so and asks you to compare with the silk screen before wiring. The TO-92 page lists examples only. The pin order depends on the part and the maker, so check the datasheet of your exact part.
+**Check the view before you wire anything.** A connector seen from the other side is mirrored, and a mirrored connector is the classic mistake: left and right swap, and pin 1 sits at the other end of its row. Check which view you are looking at, and that it shows the mating face of the part you are wiring to. Clone boards can differ from the drawing; the NodeMCU entry says so and asks you to compare with the silk screen before wiring. The TO-92 and SOT pages list examples only. The pin order depends on the part and the maker, so check the datasheet of your exact part.
 
 ### Data and video
 
@@ -524,6 +527,29 @@ A pinout page shows:
 - ULN2003A (DIP-16)
 - ATmega328P (DIP-28)
 - TO-92: examples
+- PC817 (DIP-4)
+- IRF540N / IRLZ44N (TO-220)
+- TIP120 (TO-220)
+- BT136 (TO-220)
+- LM1117 (TO-220)
+- SOT-23: examples
+- SOT-223: examples
+- LM393 (DIP-8)
+- LM339 (DIP-14)
+- LM386 (DIP-8)
+- MAX232 (DIP-16)
+- L293D (DIP-16)
+- ATtiny85 (DIP-8)
+- MCP3008 (DIP-16)
+- MCP23017 (DIP-28)
+- SN74HC00 (DIP-14)
+- SN74HC04 (DIP-14)
+- SN74HC14 (DIP-14)
+- SN74HC138 (DIP-16)
+- SN74HC165 (DIP-16)
+- SN74HC245 (DIP-20)
+- CD4017B (DIP-16)
+- CD4051B (DIP-16)
 
 ## Sources and Honesty
 

@@ -33,6 +33,11 @@ written for and on what that rests.
 - **`raspberry_pi_40`:** SPI1 and PWM on GPIO18 to GPIO21 were checked only against the BCM2711.
 - **`l78xx`:** st.com could not be reached; ST's PDFs were read on third-party hosts (rev 34 of 2016 and rev 19 of 2008). The lead order agrees in both.
 - **`bc547`:** onsemi's sheet is marked obsolete, and no other maker was checked.
+- **`lm386`:** the DIP assignment rests on TI's single pin table and the PDIP layout figure (Figure 11-1, which confirms pins 2 to 6) only; TI's pin figure is captioned for the MSOP and SOIC packages alone.
+- **`mcp23017`:** the figure was read from the PDF text layer, not from an image; Table 2-1 and the package drawing agree.
+- **`to92`, DS18B20 variant:** it rests on Dallas's 2000 preliminary datasheet. The current Analog Devices sheet could not be opened, so the order should be checked against it before the variant is relied on.
+- **`sot23`, `sot223`:** the pin numbers of the onsemi parts come from onsemi alone. Diodes Incorporated prints the function letters at the leads but no pin numbers, so it confirms the positions only. The LM1117 in `sot223` rests on TI alone.
+- **`tip120`, `bt136`:** one maker each (onsemi for TIP120, WeEn for BT136), each for its own part; there is no second source.
 - **`to92`:** TI's table and its generic outline disagree on the TL431's pin numbers; the named figure and onsemi agree, so positions are used and the notes give TI's numbers.
 
 ## Judgement calls on types

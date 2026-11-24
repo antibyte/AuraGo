@@ -5,8 +5,8 @@ Ergebnisse nebeneinander und rechnet schon während du tippst. Du gibst die Wert
 Rest. Bei Widerständen schlägt es außerdem den nächsten Normwert aus einer E-Reihe vor, und der Rechner **Kombination von
 Normwerten** findet Normwerte, die in Reihe oder parallel einen Zielwiderstand erreichen.
 
-ECalc enthält 113 Rechner in zwölf Kategorien, 44 Nachschlagetabellen (siehe [Tabellen](#tabellen)), fünf Bauteilcode-Seiten (siehe
-[Bauteilcodes](#bauteilcodes)) und 47 Pinbelegungen von Steckverbindern, Stiftleisten und ICs (siehe [Pinbelegungen](#pinbelegungen)).
+ECalc enthält 113 Rechner in zwölf Kategorien, 44 Nachschlagetabellen (siehe [Tabellen](#tabellen)), sechs Bauteilcode-Seiten (siehe
+[Bauteilcodes](#bauteilcodes)) und 70 Pinbelegungen von Steckverbindern, Stiftleisten und ICs (siehe [Pinbelegungen](#pinbelegungen)).
 Der Agent kann mit denselben Formeln rechnen, Tabellen, Codes und Pinbelegungen lesen und für dich einen
 Rechner öffnen (siehe [ECalc mit dem Agenten nutzen](#ecalc-mit-dem-agenten-nutzen)). ECalc läuft in deinem Browser. Es braucht keinen Provider und hat keinen
 eigenen Schalter unter **Config**.
@@ -430,6 +430,7 @@ Die Kategorie **Bauteilcodes** liest Kennzeichnungen von Bauteilen und schreibt 
 
 - **Widerstands-Farbcode** und **Spulen-Farbcode**: die Farbringe. Klicke auf einen Ring, um seine Farbe im Menü zu wählen, oder bediene die Seite mit der Tastatur: Tab führt zu einem Ring, Eingabe, Leertaste oder Pfeil nach unten öffnet sein Menü, mit den Pfeiltasten wählst du die Farben, Eingabe übernimmt eine Farbe und Escape schließt das Menü. Die Seite zeigt den Wert, die Toleranz und bei Widerständen mit sechs Ringen den Temperaturkoeffizienten sowie den nächsten Normwert der gewählten Reihe. Spulen haben vier oder fünf Ringe.
 - **SMD-Widerstandscodes**: der Dreistellen-Code (472 ist 4,7 kΩ), der Vierstellen-Code, der EIA-96-Code (01C) und die R-Schreibweise (4R7 ist 4,7 Ω). Ein Wert, den du eingibst, zeigt seine Dreistellen-, Vierstellen- und EIA-96-Kennzeichnung.
+- **SMD-Induktivitätscodes**: die dreistellige Wertkennzeichnung von Chip-Induktivitäten. Drei Ziffern sind Mikrohenry (101 ist 100 µH), R ist das Komma in Mikrohenry (4R7 ist 4,7 µH, R47 ist 0,47 µH) und N ist das Komma in Nanohenry (4N7 ist 4,7 nH, 47N ist 47 nH); N steht nie an erster Stelle. Ein vierter Buchstabe ist die Toleranz. ECalc liest die Toleranzbuchstaben C, G, H, J, K und M: C ist ±0,2 nH, die übrigen sind Prozentwerte (G ±2 %, H ±3 %, J ±5 %, K ±10 %, M ±20 %). Die Buchstaben B, D, F, N, P, S, W und Y meldet die Seite als nicht gegengeprüft, weil die Hersteller sich darin widersprechen oder nur ein Hersteller sie angibt. Jeder andere Buchstabe ist ein ungültiger Code. Viele Chip-Induktivitäten tragen gar keinen aufgedruckten Wert.
 - **Kondensatorcodes**: der Pikofarad-Code (104 ist 100 nF, 4p7 ist 4,7 pF), der Toleranzbuchstabe und der Spannungscode. Eine Kennzeichnung kann bis zu drei Teile haben, zum Beispiel `104K 1H`: 100 nF, ±10 % und 50 V. Für `3F` zeigt ECalc beide Herstellerwerte an. TDK verwendet 3 kV, Murata 3,15 kV. Beide Werte lassen sich als `3F` codieren.
 - **Temperaturcodes für Keramikkondensatoren**: Klasse 1 (temperaturkompensierend, zum Beispiel C0G oder NP0) mit Temperaturkoeffizient in ppm/K und Toleranz, Klasse 2 (hohe Permittivität, zum Beispiel X7R oder U2J) mit Temperaturbereich und zulässiger Kapazitätsänderung. Ein Code der Klasse 2 hat keinen eigenen Wert, deshalb zeigt die Seite dafür keine Zahl.
 
@@ -437,7 +438,7 @@ Widerstandsfarben folgen IEC 60062:2016. Wo Hersteller noch eine ältere Toleran
 
 ## Pinbelegungen
 
-Die Kategorie **Pinbelegungen** enthält 47 Pinbelegungen von Steckverbindern, Stiftleisten, IC-Gehäusen und anderen Bauteilen mit Anschlüssen. Öffne eine Pinbelegung aus der Kategorie. Die Liste ist in die Gruppen **Daten und Video**, **Audio**, **PC-Netzteil und Lüfter**, **Boards**, **Debug und Schnittstellen** und **ICs** gegliedert; die Gruppen stehen am Ende dieses Abschnitts.
+Die Kategorie **Pinbelegungen** enthält 70 Pinbelegungen von Steckverbindern, Stiftleisten, IC-Gehäusen und anderen Bauteilen mit Anschlüssen. Öffne eine Pinbelegung aus der Kategorie. Die Liste ist in die Gruppen **Daten und Video**, **Audio**, **PC-Netzteil und Lüfter**, **Boards**, **Debug und Schnittstellen** und **ICs** gegliedert; die Gruppen stehen am Ende dieses Abschnitts.
 
 Eine Pinbelegungsseite zeigt:
 
@@ -450,7 +451,9 @@ Eine Pinbelegungsseite zeigt:
 - **Pin-Tabelle:** die Spalten **Pin**, **Name**, **Funktion**, **Typ**, **Ader** und **Hinweise**. Die Spalte Ader erscheint nur, wenn ein Pin der Variante eine Aderfarbe hat.
 - **Hinweise und Quelle:** unten auf der Seite die Hinweise der Pinbelegung und die Quelle, aus der sie stammt.
 
-**Zwei Ansichten.** 31 der 47 Pinbelegungen haben die Auswahl **Ansicht**. Ihre beiden Ansichten tragen die Namen der Pinbelegung, zum Beispiel *Stecker (Kabelende)* und *Buchse (am Host oder Hub)*. Die Zeichnung zeigt die Kontakte so, wie man sie sieht, wenn man auf die Steckseite schaut, also die Seite, an der das Gegenstück ansteckt. Stecker und Buchse liegen sich beim Stecken gegenüber. Von ihren Steckseiten gesehen sind sie deshalb spiegelbildlich: links und rechts vertauschen sich. ECalc zeichnet die gezeichnete Ansicht der Pinbelegung unverändert und die andere als Spiegelbild. Zahlen und Namen bleiben lesbar, aber die Kontakte wechseln die Seite der Zeichnung. Boards und ICs haben eine feste Ansicht ohne Auswahl; einzige Ausnahme ist die 40-polige Stiftleiste des Raspberry Pi, die eine Auswahl hat.
+**Zwei Ansichten.** 31 der 70 Pinbelegungen haben die Auswahl **Ansicht**. Ihre beiden Ansichten tragen die Namen der Pinbelegung, zum Beispiel *Stecker (Kabelende)* und *Buchse (am Host oder Hub)*. Die Zeichnung zeigt die Kontakte so, wie man sie sieht, wenn man auf die Steckseite schaut, also die Seite, an der das Gegenstück ansteckt. Stecker und Buchse liegen sich beim Stecken gegenüber. Von ihren Steckseiten gesehen sind sie deshalb spiegelbildlich: links und rechts vertauschen sich. ECalc zeichnet die gezeichnete Ansicht der Pinbelegung unverändert und die andere als Spiegelbild. Zahlen und Namen bleiben lesbar, aber die Kontakte wechseln die Seite der Zeichnung. Boards und ICs haben eine feste Ansicht ohne Auswahl; einzige Ausnahme ist die 40-polige Stiftleiste des Raspberry Pi, die eine Auswahl hat.
+
+**SOT-Gehäuse.** Die beiden SOT-Beispiele sind von oben gezeichnet, mit der Beschriftung nach oben, wie die Datenblätter sie zeigen. Bei SOT-23 liegt Pin 1 unten links, Pin 2 unten rechts und Pin 3 allein oben. Bei SOT-223 laufen die Pins 1 bis 3 unten von links nach rechts, und die Fahne ist Pin 4 oben. Wie die TO-92-Seite listen die SOT-Seiten nur Beispiele. Sie haben eine feste Ansicht ohne Auswahl.
 
 **Pin-Farben.** Jeder Kontakt ist in der Farbe seines Pin-Typs gefüllt. Die Legende nennt die Typen der Pinbelegung:
 
@@ -465,13 +468,13 @@ Eine Pinbelegungsseite zeigt:
 
 **Aderfarben.** Eine Aderfarbe steht nur dort, wo ein Standard oder eine Anleitung sie nennt, zum Beispiel bei USB Type-A, RJ45, ATX, FTDI, Qwiic, Grove und dem Servokabel. Manche Kabel weichen von diesen Farben ab. Die Hinweise zur ATX-Belegung sagen, dass man nach der Position geht, nicht nach der Farbe.
 
-**Varianten.** Vier Pinbelegungen haben Varianten. RJ45 (8P8C) hat T568A und T568B, die sich nur in den Aderfarben des grünen und des orangen Paars unterscheiden. Die 3,5-mm-Headset-Klinke (TRRS) hat CTIA (AHJ) und OMTP. DisplayPort hat die Quellseite (Ausgang) und die Senkenseite (Monitoreingang), die die Pins 1 bis 12 anders nummerieren. TO-92: Beispiele hat sieben Bauteilbeispiele: BC547, PN2222A, 2N3904, 2N7000, LM35, 78L05 und TL431.
+**Varianten.** Sechs Pinbelegungen haben Varianten. RJ45 (8P8C) hat T568A und T568B, die sich nur in den Aderfarben des grünen und des orangen Paars unterscheiden. Die 3,5-mm-Headset-Klinke (TRRS) hat CTIA (AHJ) und OMTP. DisplayPort hat die Quellseite (Ausgang) und die Senkenseite (Monitoreingang), die die Pins 1 bis 12 anders nummerieren. TO-92: Beispiele hat zwölf Bauteilbeispiele: BC337, BC547, BC557, PN2222A, 2N3904, 2N3906, 2N7000, BS170, LM35, 78L05, TL431 und DS18B20. SOT-23: Beispiele hat vier (BC847, MMBT3904, 2N7002 und BSS84), SOT-223: Beispiele hat zwei (LM1117 und BCP56). Zwei dieser Beispiele sind Fallen. Der BS170 ist umgekehrt belegt wie der 2N7000: Drain links, Source rechts. Der DS18B20 hat Masse links und die Versorgung rechts, umgekehrt zum LM35.
 
 **Zeigen, anklicken, filtern.** Wenn du auf einen Kontakt in der Zeichnung oder auf eine Zeile der Tabelle zeigst, werden beide hervorgehoben, und ein Kontakt zeigt dabei seine Details im Detailfeld. Ein Klick wählt den Pin: seine Details bleiben im Detailfeld stehen, und seine Zeile wird ins Blickfeld gerollt. Ein zweiter Klick hebt die Auswahl auf. Die Zeichnung reagiert nur auf den Zeiger; mit der Tastatur nutzt du die Pin-Schaltfläche am Anfang jeder Zeile. Das Filterfeld über der Tabelle sucht in Pin-Nummer, Name, Funktion, Typname, Aderfarbe und Hinweisen. Nicht passende Pins werden in der Zeichnung abgeblendet, und ihre Zeilen werden ausgeblendet. `/` springt ins Filterfeld, Escape leert es.
 
 **Pinbelegung kopieren** kopiert die Zeilen, die nach dem Filter zu sehen sind, für die gewählte Variante. Der Text ist tabulatorgetrennt und beginnt mit einer Kopfzeile, sodass du ihn in eine Tabellenkalkulation einfügen kannst. ECalc merkt sich Variante und Ansicht jeder Pinbelegung im Browser, zusammen mit den übrigen Einstellungen.
 
-**Prüfe die Ansicht, bevor du etwas verdrahtest.** Ein Anschluss, von der anderen Seite gesehen, ist spiegelverkehrt. Ein gespiegelter Anschluss ist der typische Fehler: links und rechts vertauschen sich, und Pin 1 liegt am anderen Ende seiner Reihe. Prüfe, welche Ansicht du siehst und ob sie die Steckseite des Teils zeigt, an dem du verdrahtest. Nachbauten können von der Zeichnung abweichen; der Eintrag NodeMCU sagt das und bittet, vor dem Verdrahten mit dem Aufdruck der Platine zu vergleichen. Die TO-92-Seite listet nur Beispiele. Die Pinfolge hängt vom Bauteil und vom Hersteller ab, prüfe also das Datenblatt deines genauen Bauteils.
+**Prüfe die Ansicht, bevor du etwas verdrahtest.** Ein Anschluss, von der anderen Seite gesehen, ist spiegelverkehrt. Ein gespiegelter Anschluss ist der typische Fehler: links und rechts vertauschen sich, und Pin 1 liegt am anderen Ende seiner Reihe. Prüfe, welche Ansicht du siehst und ob sie die Steckseite des Teils zeigt, an dem du verdrahtest. Nachbauten können von der Zeichnung abweichen; der Eintrag NodeMCU sagt das und bittet, vor dem Verdrahten mit dem Aufdruck der Platine zu vergleichen. Die TO-92- und SOT-Seiten listen nur Beispiele. Die Pinfolge hängt vom Bauteil und vom Hersteller ab, prüfe also das Datenblatt deines genauen Bauteils.
 
 ### Daten und Video
 
@@ -537,6 +540,29 @@ Eine Pinbelegungsseite zeigt:
 - ULN2003A (DIP-16)
 - ATmega328P (DIP-28)
 - TO-92: Beispiele
+- PC817 (DIP-4)
+- IRF540N / IRLZ44N (TO-220)
+- TIP120 (TO-220)
+- BT136 (TO-220)
+- LM1117 (TO-220)
+- SOT-23: Beispiele
+- SOT-223: Beispiele
+- LM393 (DIP-8)
+- LM339 (DIP-14)
+- LM386 (DIP-8)
+- MAX232 (DIP-16)
+- L293D (DIP-16)
+- ATtiny85 (DIP-8)
+- MCP3008 (DIP-16)
+- MCP23017 (DIP-28)
+- SN74HC00 (DIP-14)
+- SN74HC04 (DIP-14)
+- SN74HC14 (DIP-14)
+- SN74HC138 (DIP-16)
+- SN74HC165 (DIP-16)
+- SN74HC245 (DIP-20)
+- CD4017B (DIP-16)
+- CD4051B (DIP-16)
 
 ## Quellen und Grenzen
 
