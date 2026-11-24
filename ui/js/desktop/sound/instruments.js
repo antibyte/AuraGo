@@ -318,6 +318,7 @@
         presets: { kind: STRING.kinds },
         pitched: () => true,
         minFreq: () => 130,
+        maxFreq: () => STRING.maxFreq,
         duration: p => p.t60 * 1.1,
         render(p, note, rand) {
             const n = lengthOf(note), f = offsetFreq(note.freq, note, rand);

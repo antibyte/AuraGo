@@ -53,6 +53,7 @@
     });
 
     // ---- validation ----------------------------------------------------------------------------
+    const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
     const isObj = v => !!v && typeof v === 'object' && !Array.isArray(v);
     const BUS = {
         space: { size: [0.2, 2], rt60: [0.05, 3], damping: [1000, 16000], predelay: [0, 0.08], mix: [0, 0.6], lowcut: [80, 1000] },
@@ -80,7 +81,7 @@
             const spec = I.MODELS[modelName].params;
             Object.keys(values).forEach(k => {
                 if (skip.includes(k)) return;
-                const s = spec[k], p = path + '.' + k, v = values[k];
+                const s = has(spec, k) ? spec[k] : null, p = path + '.' + k, v = values[k];
                 if (!s) return fail(p, 'unknown parameter of model ' + modelName);
                 if (Array.isArray(s)) return number(p, v, s);
                 if (s.values) { if (!s.values.includes(v)) fail(p, 'must be one of ' + s.values.join(', ')); return; }
@@ -105,7 +106,7 @@
         if (!Object.keys(voices).length) fail('voices', 'must be a non-empty object');
         Object.keys(voices).forEach(name => {
             const voice = voices[name];
-            if (!isObj(voice) || !I.MODELS[voice.model]) return fail('voices.' + name, 'unknown model ' + JSON.stringify(voice && voice.model));
+            if (!isObj(voice) || !has(I.MODELS, voice.model)) return fail('voices.' + name, 'unknown model ' + JSON.stringify(voice && voice.model));
             params('voices.' + name, voice.model, voice, ['model']);
         });
         const sound = (path, s, soundRole, isFx) => {
@@ -117,13 +118,13 @@
             [[notes, 'notes', true], [layers, 'layers', false]].forEach(([list, field, asNote]) => list.forEach((item, i) => {
                 const p = path + '.' + field + '[' + i + ']';
                 if (!isObj(item)) return fail(p, 'must be an object');
-                const voice = voices[item.v];
-                if (!voice || !I.MODELS[voice.model]) return fail(p, 'unknown voice ' + JSON.stringify(item.v));
+                const voice = has(voices, item.v) ? voices[item.v] : null;
+                if (!voice || !has(I.MODELS, voice.model)) return fail(p, 'unknown voice ' + JSON.stringify(item.v));
                 const model = I.MODELS[voice.model];
                 Object.keys(ITEM_FIELDS).forEach(k => { if (k !== 'v' && k !== 'n' && item[k] != null) number(p + '.' + k, item[k], ITEM_FIELDS[k]); });
-                if (item.t != null && item.t > soundRole.maxSeconds) fail(p + '.t', 'starts after the role maximum of ' + soundRole.maxSeconds + ' s');
+                if (item.t != null && item.t > soundRole.maxSeconds - 0.01) fail(p + '.t', 'starts too close to the role maximum of ' + soundRole.maxSeconds + ' s');
                 const overrides = {};
-                Object.keys(item).forEach(k => { if (!(k in ITEM_FIELDS)) overrides[k] = item[k]; });
+                Object.keys(item).forEach(k => { if (!has(ITEM_FIELDS, k)) overrides[k] = item[k]; });
                 params(p, voice.model, overrides, []);
                 const merged = I.resolveParams(voice.model, Object.assign({}, voice, overrides));
                 const pitched = model.pitched(merged);
@@ -135,6 +136,8 @@
                     const freq = D.midiToHz(def.key + item.n), floor = model.minFreq(merged);
                     if (freq < floor) fail(p + '.n', freq.toFixed(1) + ' Hz is below the ' + floor + ' Hz floor of ' + voice.model);
                     if (freq > 12000) fail(p + '.n', 'above 12 kHz');
+                    const ceiling = model.maxFreq ? model.maxFreq(merged) : null;
+                    if (ceiling != null && freq * Math.pow(2, 54 / 1200) > ceiling) fail(p + '.n', freq.toFixed(1) + ' Hz is above the ' + ceiling + ' Hz limit of ' + voice.model);
                 } else if (item.n != null) fail(p + '.n', 'layers take no n');
             }));
             if (s.space != null) { if (isFx) fail(path + '.space', 'effects use no room reverb'); else busBlock(path + '.space', 'space', s.space); }
@@ -189,7 +192,7 @@
     // A shell `variant` is an index 0..variants-1 (a number or a numeric string); an effect `variant` is a name.
     // The engine keeps no cache and returns fresh arrays, because the host transfers their buffers.
     function render(themeId, eventId, variant) {
-        const theme = registry[themeId];
+        const theme = has(registry, themeId) ? registry[themeId] : null;
         if (!theme) throw new Error('unknown sound theme: ' + themeId);
         const fxR = Object.prototype.hasOwnProperty.call(FX_ROLES, eventId) ? FX_ROLES[eventId] : null;
         const r = fxR || (Object.prototype.hasOwnProperty.call(ROLES, eventId) ? ROLES[eventId] : null);
@@ -211,7 +214,7 @@
             const voice = theme.voices[item.v];
             const params = {};
             Object.keys(voice).forEach(k => { if (k !== 'model') params[k] = voice[k]; });
-            Object.keys(item).forEach(k => { if (!(k in ITEM_FIELDS)) params[k] = item[k]; });
+            Object.keys(item).forEach(k => { if (!has(ITEM_FIELDS, k)) params[k] = item[k]; });
             const model = I.MODELS[voice.model];
             if (vary && model.params.hardness) params.hardness = D.clamp(I.resolveParams(voice.model, params).hardness + (vary() * 2 - 1) * 0.08, 0, 1);
             const dt = vary ? (vary() * 2 - 1) * 0.002 : 0;

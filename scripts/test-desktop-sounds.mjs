@@ -35,8 +35,14 @@ for (const [name, mutate] of [
   ['unknown event', d => { d.events['window.wobble'] = d.events['window.open']; }],
   ['missing event', d => { delete d.events['ui.tick']; }],
   ['value out of range', d => { d.space.rt60 = 99; }],
+  ['string note above its frequency limit', d => { d.key = 96; d.voices.zz = { model: 'string' }; d.events['window.open'].notes = [{ v: 'zz', n: 24, t: 0, g: 1 }]; }],
+  ['item starts at the role maximum', d => { const e = d.events['window.open']; const item = (e.notes && e.notes[0]) || e.layers[0]; item.t = Engine.ROLES['window.open'].maxSeconds; }],
+  ['voice parameter named constructor', d => { d.voices[voice0].constructor = 1; }],
+  ['voice parameter named toString', d => { d.voices[voice0].toString = 1; }],
+  ['voice model named constructor', d => { d.voices[voice0].model = 'constructor'; }],
   ['effect of another theme', d => { const s = d.events['window.snap']; d.id = d.id === 'orbit' ? 'crystal' : d.id; d.fx = { 'orbit.ping': { small: s, medium: s, large: s } }; }]
 ]) { const d = clone(); mutate(d); check(Engine.validateTheme(d).length > 0, 'validation accepted a broken theme: ' + name); }
+for (const id of ['constructor', '__proto__']) assert.throws(() => Engine.render(id, 'ui.tick', 0), e => /^unknown sound theme/.test(e.message), 'render of inherited theme id ' + id);
 
 const fingerprint = (L, R) => { let h = 0x811c9dc5; for (const ch of [L, R]) { const b = new Uint8Array(ch.buffer, ch.byteOffset, ch.byteLength); for (let i = 0; i < b.length; i++) h = Math.imul(h ^ b[i], 0x01000193) >>> 0; } return h.toString(16) + ':' + L.length; };
 const energy = a => { let e = 0; for (let i = 0; i < a.length; i++) e += a[i] * a[i]; return e; };
