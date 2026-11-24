@@ -1,0 +1,132 @@
+# Audio connectors of studio and stage equipment. The sources behind every item are in documentation/ecalc-sources/pinouts/;
+# a changed pin updates that record, this file and the item's vector together.
+
+- id: jack_635
+  kind: pinout
+  category: pinouts
+  group: audio
+  name: {cs: "Jack 6,35 mm (TRS)", da: "6,35 mm jack (TRS)", de: "6,35-mm-Klinke (1/4 Zoll), TRS", el: "Βύσμα 6,35 mm (TRS)", en: "6.35 mm (1/4 in) jack, TRS", es: "Jack 6,35 mm (TRS)", fr: "Jack 6,35 mm (TRS)", hi: "6.35 मिमी जैक (TRS)", it: "Jack 6,35 mm (TRS)", ja: "6.35 mm ジャック (TRS)", nl: "6,35 mm-jack (TRS)", "no": "6,35 mm jack (TRS)", pl: "Jack 6,35 mm (TRS)", pt: "Jack 6,35 mm (TRS)", sv: "6,35 mm-teleplugg (TRS)", zh: "6.35 毫米插头 (TRS)"}
+  doc: {en: "The large 1/4 inch plug of studio and stage equipment, shown from the side with the tip at the left. The same three contacts carry different signals depending on the use: balanced mono, stereo or a mixer insert.", de: "Der große 1/4-Zoll-Stecker der Studio- und Bühnentechnik, von der Seite gezeigt, Spitze links. Dieselben drei Kontakte führen je nach Verwendung andere Signale: symmetrisch mono, Stereo oder ein Insert am Mischpult."}
+  notes: {en: "Which variant applies is printed at the device, not on the jack: a balanced output into a stereo headphone input, or the reverse, gives wrong channels or phase cancellation. A two-contact TS plug has tip = signal (hot, +) and sleeve = ground or shield; in a balanced TRS input it ties the ring to the sleeve and unbalances the input.", de: "Welche Variante gilt, steht am Gerät und nicht an der Buchse: Ein symmetrischer Ausgang an einem Stereo-Kopfhöreranschluss (oder umgekehrt) liefert falsche Kanäle oder löscht sich durch Phasenlage aus. Ein zweipoliger TS-Stecker hat Spitze = Signal (heiß, +) und Hülse = Masse oder Schirm; in einem symmetrischen TRS-Eingang verbindet er den Ring mit der Hülse und macht den Eingang unsymmetrisch."}
+  tags: ["6.35 mm", "6,35 mm", "1/4 inch", "1/4 zoll", "klinke", "jack", "trs", "ts", "phone", "phone plug", "insert", "send", "return", "balanced", "symmetrisch", "stereo", "headphones", "kopfhörer", "tip", "ring", "sleeve", "audio"]
+  source: "Rane Corporation, RaneNote 102 Analog I/O Standards, section 1/4 phone jacks; Mackie 1620 owner's manual, appendix B Connections (page 23) and TRS send/receive insert jacks (page 24); Mackie ProFX12 owner's manual, page 28; Yamaha Hub, How to Use Inserts (Steve La Cerra, 2022)"
+  shape:
+    type: jack
+    segments: ["T", "R", "S"]
+  variants:
+    - id: balanced
+      name: {en: "Balanced mono (line or mic level)", de: "Symmetrisch mono (Line- oder Mikrofonpegel)"}
+      pins:
+        - {number: "T", name: "Hot (+)", function: {en: "Balanced audio, positive line", de: "Symmetrisches Audio, positive Leitung"}, type: signal}
+        - {number: "R", name: "Cold (-)", function: {en: "Balanced audio, negative line", de: "Symmetrisches Audio, negative Leitung"}, type: signal}
+        - {number: "S", name: "Shield", function: {en: "Ground and cable shield", de: "Masse und Kabelschirm"}, type: ground}
+    - id: stereo
+      name: {en: "Unbalanced stereo (headphones, stereo line)", de: "Unsymmetrisch Stereo (Kopfhörer, Stereo-Line)"}
+      pins:
+        - {number: "T", name: "L", function: {en: "Left audio channel", de: "Linker Audiokanal"}, type: signal}
+        - {number: "R", name: "R", function: {en: "Right audio channel", de: "Rechter Audiokanal"}, type: signal}
+        - {number: "S", name: "GND", function: {en: "Common ground", de: "Gemeinsame Masse"}, type: ground}
+    - id: insert
+      name: {en: "Mixer insert (send and return)", de: "Mischpult-Insert (Send und Return)"}
+      pins:
+        - {number: "T", name: "Send", function: {en: "Send from the mixer to the external unit", de: "Ausspielweg vom Mischpult zum externen Gerät"}, type: signal, notes: {en: "Most mixers put the send on the tip and the return on the ring, but some do it the other way round. Check the manual of your mixer.", de: "Die meisten Mischpulte legen den Send auf die Spitze und den Return auf den Ring, einige machen es umgekehrt. Im Handbuch des Mischpults nachsehen."}}
+        - {number: "R", name: "Return", function: {en: "Return from the external unit to the mixer", de: "Rückweg vom externen Gerät zum Mischpult"}, type: signal, notes: {en: "Some mixers swap send and return, so the ring then carries the send. Check the manual of your mixer.", de: "Manche Mischpulte vertauschen Send und Return, dann führt der Ring den Send. Im Handbuch des Mischpults nachsehen."}}
+        - {number: "S", name: "GND", function: {en: "Common ground for both signals", de: "Gemeinsame Masse beider Signale"}, type: ground}
+
+- id: rca
+  kind: pinout
+  category: pinouts
+  group: audio
+  name: {cs: "Konektor RCA (cinch)", da: "RCA-stik (phono)", de: "Cinch-Stecker (RCA)", el: "Σύνδεσμος RCA (cinch)", en: "RCA (cinch) connector", es: "Conector RCA", fr: "Connecteur RCA (cinch)", hi: "RCA कनेक्टर", it: "Connettore RCA (cinch)", ja: "RCA コネクタ (ピンジャック)", nl: "RCA-connector (tulp)", "no": "RCA-kontakt (phono)", pl: "Złącze RCA (cinch)", pt: "Conector RCA", sv: "RCA-kontakt (phono)", zh: "RCA 莲花接口"}
+  doc: {en: "The unbalanced audio and video connector with a centre pin inside an outer ring, seen here from the mating face of the plug. The centre pin carries the signal, the shell is ground and shield.", de: "Der unsymmetrische Audio- und Video-Steckverbinder mit Mittelstift in einem Außenring, hier von der Steckfläche des Steckers gesehen. Der Mittelstift führt das Signal, der Außenring ist Masse und Schirm."}
+  notes: {en: "The shell is a ring, drawn as one contact on the rim of the face at the largest radius the drawing allows. The face is rotationally symmetric, so there is no key and no mirror question. Colours (white left, red right, yellow video) are a cabling convention, not a property of the pins.", de: "Der Außenring ist ein Ring und als ein Kontakt am Rand der Steckfläche gezeichnet, im größten Radius, den die Zeichnung erlaubt. Die Fläche ist drehsymmetrisch, es gibt also weder Kodierung noch eine Spiegelfrage. Farben (weiß links, rot rechts, gelb Video) sind eine Verkabelungskonvention, keine Eigenschaft der Pins."}
+  tags: ["rca", "cinch", "phono", "tulip", "tulpe", "chinch", "unbalanced", "unsymmetrisch", "line", "composite", "centre pin", "mittelstift", "shell", "audio"]
+  source: "Mackie 1620 owner's manual, appendix B Connections (page 23); Garmin Primacy S3 Active Loudspeaker installation instructions, RCA or Unbalanced Input; RS Components, A Complete Guide to RCA Connectors (2026)"
+  views:
+    plug: {en: "Plug (centre pin and outer ring)", de: "Stecker (Mittelstift und Außenring)"}
+    socket: {en: "Jack (centre hole and outer ring)", de: "Buchse (Mittelloch und Außenring)"}
+  shape:
+    type: circular
+    contact: round
+    drawn: plug
+    positions:
+      - {pin: "Pin", angle: 0, radius: 0}
+      - {pin: "Shell", angle: 180, radius: 1}
+  pins:
+    - {number: "Pin", name: "Signal", function: {en: "Centre pin: unbalanced audio signal (hot, +)", de: "Mittelstift: unsymmetrisches Audiosignal (heiß, +)"}, type: signal}
+    - {number: "Shell", name: "GND", function: {en: "Outer shell: ground, cable shield and signal return", de: "Außenring: Masse, Kabelschirm und Signalrückleiter"}, type: ground}
+
+- id: xlr5_dmx
+  kind: pinout
+  category: pinouts
+  group: audio
+  name: {cs: "XLR, 5 pinů (DMX512)", da: "XLR, 5-polet (DMX512)", de: "XLR, 5-polig (DMX512)", el: "XLR, 5 ακίδων (DMX512)", en: "XLR, 5-pin (DMX512)", es: "XLR, 5 pines (DMX512)", fr: "XLR, 5 broches (DMX512)", hi: "XLR, 5-पिन (DMX512)", it: "XLR, 5 poli (DMX512)", ja: "XLR 5 ピン (DMX512)", nl: "XLR, 5-polig (DMX512)", "no": "XLR, 5-polet (DMX512)", pl: "XLR, 5-pinowy (DMX512)", pt: "XLR, 5 pinos (DMX512)", sv: "XLR, 5-polig (DMX512)", zh: "XLR 5 针 (DMX512)"}
+  doc: {en: "The 5-pin XLR connector of DMX512 lighting control. Pin 1 is the common of the data link, pins 2 and 3 carry the primary EIA-485 pair.", de: "Der fünfpolige XLR-Steckverbinder der DMX512-Lichtsteuerung. Pin 1 ist die Bezugsmasse der Datenleitung, die Pins 2 und 3 führen das primäre EIA-485-Paar."}
+  notes: {en: "Female connectors belong on transmitters (controllers) and where loop-through connections are provided, male connectors on receivers (dimmers, fixtures), so outputs are female and inputs male. The drawing shows the male face. The pattern is not symmetric: pins 1 to 4 lie about 50 degrees apart, pin 5 about 58 degrees from pin 4. Pins 4 and 5 are the optional second data link and often not connected; older equipment may use pins 4/5 differently, so check the device manual. The notch in the drawing marks the latch at 12 o'clock; a small polarising rib also sits at the upper right of the male face.", de: "Kupplungen (female) gehören an Sender (Steuerpulte) und dort, wo eine Durchschleifung vorgesehen ist, Stecker (male) an Empfänger (Dimmer, Scheinwerfer): Ausgänge sind also female, Eingänge male. Die Zeichnung zeigt die Steckerseite (male). Das Muster ist nicht symmetrisch: Die Pins 1 bis 4 liegen etwa 50 Grad auseinander, Pin 5 etwa 58 Grad von Pin 4. Die Pins 4 und 5 sind die optionale zweite Datenleitung und oft unbelegt; ältere Geräte können die Pins 4/5 anders nutzen, im Zweifel also das Gerätehandbuch prüfen. Die Kerbe in der Zeichnung markiert die Verriegelung auf 12 Uhr; außerdem sitzt eine kleine Kodierrippe oben rechts auf der Steckerseite."}
+  tags: ["dmx", "dmx512", "xlr", "xlr5", "xlr-5", "5-pin", "5-polig", "lighting", "licht", "stage", "bühne", "eia-485", "rs-485", "e1.11", "data 1", "data 2", "neutrik", "audio"]
+  source: "ESTA/USITT BSR E1.11 working draft, DMX512 Revision 1.1a (1999), table 2.8.2.2 and clauses 1.2.9 and 10.1; Leprecon ULD-360DMX user manual, section 8 DMX 512 Information; Doug Fleenor Design 2322DMX user manual; ETC Gadget setup manual, page 2; Neutrik drawings NC5MAH1 and NC5FAH1"
+  views:
+    plug: {en: "Male connector (pins)", de: "Stecker (Stifte)"}
+    socket: {en: "Female connector (sockets)", de: "Buchse (Kontaktbuchsen)"}
+  shape:
+    type: circular
+    contact: round
+    drawn: plug
+    key: 0
+    positions:
+      - {pin: "1", angle: 280, radius: 0.55}
+      - {pin: "2", angle: 230, radius: 0.55}
+      - {pin: "3", angle: 180, radius: 0.55}
+      - {pin: "4", angle: 130, radius: 0.55}
+      - {pin: "5", angle: 72, radius: 0.55}
+  pins:
+    - {number: "1", name: "Common", function: {en: "Data link common / cable shield", de: "Bezugsmasse der Datenleitung / Kabelschirm"}, type: ground}
+    - {number: "2", name: "Data 1-", function: {en: "Primary data link, negative (EIA-485)", de: "Primäre Datenleitung, negativ (EIA-485)"}, type: data}
+    - {number: "3", name: "Data 1+", function: {en: "Primary data link, positive (EIA-485)", de: "Primäre Datenleitung, positiv (EIA-485)"}, type: data}
+    - {number: "4", name: "Data 2-", function: {en: "Optional second data link (Data 2 -/+); often not connected", de: "Optionale zweite Datenleitung (Data 2 -/+); oft unbelegt"}, type: data, notes: {en: "Older equipment may use pins 4/5 differently; check the device manual.", de: "Ältere Geräte können die Pins 4/5 anders nutzen; das Gerätehandbuch prüfen."}}
+    - {number: "5", name: "Data 2+", function: {en: "Optional second data link (Data 2 -/+); often not connected", de: "Optionale zweite Datenleitung (Data 2 -/+); oft unbelegt"}, type: data, notes: {en: "Older equipment may use pins 4/5 differently; check the device manual.", de: "Ältere Geräte können die Pins 4/5 anders nutzen; das Gerätehandbuch prüfen."}}
+
+- id: eurorack_power
+  kind: pinout
+  category: pinouts
+  group: audio
+  name: {cs: "Napájecí sběrnice Eurorack, 16 pinů (Doepfer A-100)", da: "Eurorack-strømbus, 16-polet (Doepfer A-100)", de: "Eurorack-Stromversorgung, 16-polig (Doepfer A-100)", el: "Τροφοδοσία Eurorack, 16 ακίδων (Doepfer A-100)", en: "Eurorack power bus, 16-pin (Doepfer A-100)", es: "Bus de alimentación Eurorack, 16 pines (Doepfer A-100)", fr: "Bus d'alimentation Eurorack, 16 broches (Doepfer A-100)", hi: "Eurorack पावर बस, 16-पिन (Doepfer A-100)", it: "Bus di alimentazione Eurorack, 16 poli (Doepfer A-100)", ja: "Eurorack 電源バス 16 ピン (Doepfer A-100)", nl: "Eurorack-voedingsbus, 16-polig (Doepfer A-100)", "no": "Eurorack-strømbuss, 16-polet (Doepfer A-100)", pl: "Szyna zasilania Eurorack, 16-pinowa (Doepfer A-100)", pt: "Barramento de alimentação Eurorack, 16 pinos (Doepfer A-100)", sv: "Eurorack-strömbuss, 16-polig (Doepfer A-100)", zh: "Eurorack 电源总线 16 针 (Doepfer A-100)"}
+  doc: {en: "The 2x8 power header of Eurorack modules and bus boards, as Doepfer draws it: eight rows of two contacts, each row one signal, the -12 V row at the bottom.", de: "Der 2x8-polige Stromanschluss von Eurorack-Modulen und Busplatinen, wie Doepfer ihn zeichnet: acht Reihen zu je zwei Kontakten, jede Reihe ein Signal, die -12-V-Reihe unten."}
+  notes: {en: "A ribbon cable plugged in the wrong way round can destroy the module (Doepfer). The coloured (typically red) wire marks -12 V and must point to the bottom row, where the bus board is marked -12V; pin 1 is that wire. Boxed headers have a code gap that can force the cable the wrong way round, so check the red stripe. Both contacts of a row carry the same signal. No source numbers the header in a view, so which column holds the odd pins is not documented; the drawing puts them on the left, which does not change any wiring because both pins of a row are the same signal. The 10-pin variant carries only -12 V, GND and +12 V (pins 1 and 2 = -12V, 3 to 8 = GND, 9 and 10 = +12V): it is the lower five rows of this drawing, a 10-pin plug sits on the -12 V end, and the bus board side is always 16-pin. +5 V, CV and Gate are used by only a few modules.", de: "Ein verdreht gestecktes Flachbandkabel kann das Modul zerstören (Doepfer). Die farbige (meist rote) Ader kennzeichnet -12 V und muss zur unteren Reihe zeigen, an der die Busplatine mit -12V beschriftet ist; Pin 1 ist diese Ader. Gekapselte Wannenstecker haben eine Codierlücke, die das Kabel falsch herum erzwingen kann; deshalb den roten Streifen prüfen. Beide Kontakte einer Reihe führen dasselbe Signal. Keine Quelle nummeriert den Anschluss in einer Ansicht, deshalb ist nicht dokumentiert, welche Spalte die ungeraden Pins trägt; die Zeichnung legt sie nach links, was an keiner Verdrahtung etwas ändert, weil beide Pins einer Reihe dasselbe Signal sind. Die 10-polige Variante führt nur -12 V, GND und +12 V (Pins 1 und 2 = -12V, 3 bis 8 = GND, 9 und 10 = +12V): Sie entspricht den unteren fünf Reihen dieser Zeichnung, ein 10-poliger Stecker sitzt am -12-V-Ende, und die Seite der Busplatine ist immer 16-polig. +5 V, CV und Gate nutzen nur wenige Module."}
+  tags: ["eurorack", "doepfer", "a-100", "a100", "modular", "synthesizer", "power", "strom", "versorgung", "bus", "busboard", "16-pin", "16-polig", "10-pin", "ribbon", "flachbandkabel", "idc", "-12v", "+12v", "+5v", "cv", "gate"]
+  source: "Doepfer Musikelektronik, A-100 Technical Details (a100t_e.htm) with figures a100b_e.gif and a100t_3.gif; Doepfer A-100 FAQ, orientation of bus connection cables and boxed pin headers; Elby Designs, EuroSynth Power Distribution"
+  views:
+    plug: {en: "Pin header on the module or bus board", de: "Stiftleiste auf Modul oder Busplatine"}
+    socket: {en: "Socket of the ribbon cable", de: "Buchse am Flachbandkabel"}
+  shape:
+    type: rows
+    outline: rect
+    contact: square
+    drawn: plug
+    key: none
+    rows:
+      - {pins: ["15", "16"]}
+      - {pins: ["13", "14"]}
+      - {pins: ["11", "12"]}
+      - {pins: ["9", "10"]}
+      - {pins: ["7", "8"]}
+      - {pins: ["5", "6"]}
+      - {pins: ["3", "4"]}
+      - {pins: ["1", "2"]}
+  pins:
+    - {number: "1", name: "-12V", function: {en: "-12 V supply (red stripe of the ribbon cable)", de: "-12-V-Versorgung (rot markierte Ader des Flachbandkabels)"}, type: power}
+    - {number: "2", name: "-12V", function: {en: "-12 V supply", de: "-12-V-Versorgung"}, type: power}
+    - {number: "3", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "4", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "5", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "6", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "7", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "8", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "9", name: "+12V", function: {en: "+12 V supply", de: "+12-V-Versorgung"}, type: power}
+    - {number: "10", name: "+12V", function: {en: "+12 V supply", de: "+12-V-Versorgung"}, type: power}
+    - {number: "11", name: "+5V", function: {en: "+5 V supply (only some modules use it)", de: "+5-V-Versorgung (nur manche Module nutzen sie)"}, type: power}
+    - {number: "12", name: "+5V", function: {en: "+5 V supply", de: "+5-V-Versorgung"}, type: power}
+    - {number: "13", name: "CV", function: {en: "Bus control voltage (internal CV)", de: "Steuerspannung des Busses (interne CV)"}, type: signal}
+    - {number: "14", name: "CV", function: {en: "Bus control voltage (internal CV)", de: "Steuerspannung des Busses (interne CV)"}, type: signal}
+    - {number: "15", name: "Gate", function: {en: "Bus gate signal (internal gate)", de: "Gate-Signal des Busses (internes Gate)"}, type: signal}
+    - {number: "16", name: "Gate", function: {en: "Bus gate signal (internal gate)", de: "Gate-Signal des Busses (internes Gate)"}, type: signal}

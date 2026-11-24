@@ -1,0 +1,7 @@
+{"pinout": "xlr5_dmx", "variants": [
+  {"variant": "", "counts": {"power": 0, "ground": 1, "signal": 0, "data": 4, "io": 0, "nc": 0}, "pins": [
+    {"number": "1", "name": "Common", "type": "ground", "ref": "ESTA/USITT draft table 2.8.2.2; Leprecon ULD-360DMX page 16: signal common (cable shield)"},
+    {"number": "2", "name": "Data 1-", "type": "data", "ref": "ESTA/USITT draft table 2.8.2.2; Leprecon ULD-360DMX page 16; Doug Fleenor Design 2322DMX"},
+    {"number": "3", "name": "Data 1+", "type": "data", "ref": "ESTA/USITT draft table 2.8.2.2; Leprecon ULD-360DMX page 16; Doug Fleenor Design 2322DMX"},
+    {"number": "4", "name": "Data 2-", "type": "data", "ref": "Leprecon ULD-360DMX page 16: spare, optional Data 2-/2+; ESTA/USITT draft table 2.8.2.2 (TYPE 2)"},
+    {"number": "5", "name": "Data 2+", "type": "data", "ref": "Leprecon ULD-360DMX page 16: spare, optional Data 2-/2+; ESTA/USITT draft table 2.8.2.2 (TYPE 2)"}]}]}

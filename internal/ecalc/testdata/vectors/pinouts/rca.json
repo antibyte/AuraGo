@@ -1,0 +1,4 @@
+{"pinout": "rca", "variants": [
+  {"variant": "", "counts": {"power": 0, "ground": 1, "signal": 1, "data": 0, "io": 0, "nc": 0}, "pins": [
+    {"number": "Pin", "name": "Signal", "type": "signal", "ref": "Mackie 1620 appendix B page 23: RCA Unbalanced Wiring, Tip = Hot (+); Garmin Primacy S3: Tip: Positive"},
+    {"number": "Shell", "name": "GND", "type": "ground", "ref": "Mackie 1620 appendix B page 23: Sleeve = Shield; Garmin Primacy S3: Sleeve: Negative"}]}]}

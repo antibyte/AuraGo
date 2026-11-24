@@ -1,0 +1,9 @@
+{"pinout": "eurorack_power", "variants": [
+  {"variant": "", "counts": {"power": 6, "ground": 6, "signal": 4, "data": 0, "io": 0, "nc": 0}, "pins": [
+    {"number": "1", "name": "-12V", "type": "power", "ref": "Doepfer A-100 FAQ: pin 1 = red wire, colored strip = -12V = bottom; Elby Designs Power Distribution: pins 1,2 -12V"},
+    {"number": "3", "name": "GND", "type": "ground", "ref": "Elby Designs Power Distribution: pins 3,4 0V; Doepfer a100b_e.gif: three GND rows"},
+    {"number": "8", "name": "GND", "type": "ground", "ref": "Elby Designs Power Distribution: pins 7,8 0V; Doepfer a100b_e.gif: three GND rows"},
+    {"number": "9", "name": "+12V", "type": "power", "ref": "Elby Designs Power Distribution: pins 9,10 +12V; Doepfer a100b_e.gif row order"},
+    {"number": "11", "name": "+5V", "type": "power", "ref": "Elby Designs Power Distribution: pins 11,12 +5V; Doepfer a100b_e.gif row order"},
+    {"number": "13", "name": "CV", "type": "signal", "ref": "Elby Designs Power Distribution: pins 13,14 CV; Doepfer a100t_3.gif: INT. CV"},
+    {"number": "16", "name": "Gate", "type": "signal", "ref": "Elby Designs Power Distribution: pins 15,16 GATE; Doepfer a100t_3.gif: INT. Gate"}]}]}

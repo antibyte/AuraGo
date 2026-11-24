@@ -1,0 +1,13 @@
+{"pinout": "jack_635", "variants": [
+  {"variant": "balanced", "counts": {"power": 0, "ground": 1, "signal": 2, "data": 0, "io": 0, "nc": 0}, "pins": [
+    {"number": "T", "name": "Hot (+)", "type": "signal", "ref": "Rane Note 102, 1/4 phone jacks: Tip = Positive; Mackie 1620 appendix B page 23: Tip = Hot (+)"},
+    {"number": "R", "name": "Cold (-)", "type": "signal", "ref": "Rane Note 102, 1/4 phone jacks: Ring = Negative; Mackie 1620 appendix B page 23: Ring = Cold (-)"},
+    {"number": "S", "name": "Shield", "type": "ground", "ref": "Rane Note 102, 1/4 phone jacks: Sleeve = Ground; Mackie 1620 appendix B page 23: Sleeve = Shield"}]},
+  {"variant": "stereo", "counts": {"power": 0, "ground": 1, "signal": 2, "data": 0, "io": 0, "nc": 0}, "pins": [
+    {"number": "T", "name": "L", "type": "signal", "ref": "Rane Note 102: Tip = Left Positive; Mackie 1620 appendix B page 23: Tip = Left"},
+    {"number": "R", "name": "R", "type": "signal", "ref": "Rane Note 102: Ring = Right Positive; Mackie 1620 appendix B page 23: Ring = Right"},
+    {"number": "S", "name": "GND", "type": "ground", "ref": "Rane Note 102: Sleeve = Common Ground; Mackie 1620 appendix B page 23: Sleeve = Shield"}]},
+  {"variant": "insert", "counts": {"power": 0, "ground": 1, "signal": 2, "data": 0, "io": 0, "nc": 0}, "pins": [
+    {"number": "T", "name": "Send", "type": "signal", "ref": "Mackie 1620 page 24: TIP = SEND to effect; Yamaha Hub, How to Use Inserts"},
+    {"number": "R", "name": "Return", "type": "signal", "ref": "Mackie 1620 page 24: RING = RETURN from effect; Yamaha Hub, How to Use Inserts"},
+    {"number": "S", "name": "GND", "type": "ground", "ref": "Mackie 1620 page 24: sleeve common ground; Yamaha Hub, How to Use Inserts: sleeves shared"}]}]}
