@@ -41,8 +41,15 @@ func haRequest(cfg HAConfig, method, endpoint string, body string) ([]byte, int,
 }
 
 func haRequestContext(ctx context.Context, cfg HAConfig, method, endpoint string, body string) ([]byte, int, error) {
+	data, code, _, err := haDo(ctx, cfg, method, endpoint, body, maxHTTPResponseSize)
+	return data, code, err
+}
+
+// haDo is the single Home Assistant HTTP path: base URL validation, token registration, the
+// same-origin client and a response size limit.
+func haDo(ctx context.Context, cfg HAConfig, method, endpoint, body string, limit int64) ([]byte, int, http.Header, error) {
 	if err := security.ValidateHTTPBaseURL(cfg.URL); err != nil {
-		return nil, 0, err
+		return nil, 0, nil, err
 	}
 	if cfg.AccessToken != "" {
 		security.RegisterSensitive(cfg.AccessToken)
@@ -56,22 +63,22 @@ func haRequestContext(ctx context.Context, cfg HAConfig, method, endpoint string
 
 	req, err := http.NewRequestWithContext(ctx, method, url, reqBody)
 	if err != nil {
-		return nil, 0, fmt.Errorf("failed to create request: %w", err)
+		return nil, 0, nil, fmt.Errorf("failed to create request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+cfg.AccessToken)
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := haHTTPClient.Do(req)
 	if err != nil {
-		return nil, 0, fmt.Errorf("request failed: %w", err)
+		return nil, 0, nil, fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
-	data, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
+	data, err := readHTTPResponseBody(resp.Body, limit)
 	if err != nil {
-		return nil, resp.StatusCode, fmt.Errorf("failed to read response: %w", err)
+		return nil, resp.StatusCode, nil, fmt.Errorf("failed to read response: %w", err)
 	}
-	return data, resp.StatusCode, nil
+	return data, resp.StatusCode, resp.Header, nil
 }
 
 // HAGetStates retrieves entity states, optionally filtered by domain prefix.
