@@ -1,0 +1,31 @@
+/* HomeDash base: root, frame skeleton, reserved status line, icons, focus ring (also the lab hook data-hd-focus="ring"),
+   utilities and skin guards. Motion rules added later must sit inside @media (prefers-reduced-motion: no-preference)
+   on selectors that contain .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]). */
+.hd-root { color-scheme: dark; font-family: var(--hd-font-ui); font-size: var(--hd-text-m); line-height: 1.35; color: var(--hd-ink); }
+.hd-root[data-hd-scheme="light"] { color-scheme: light; }
+.hd-root [hidden] { display: none !important; }
+.hd-sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.hd-ico { width: 24px; height: 24px; flex: none; fill: none; stroke: currentColor; stroke-width: var(--hd-icon-stroke); stroke-linecap: round; stroke-linejoin: round; }
+.hd-widget { box-sizing: border-box; container-type: size; container-name: hd-widget; contain: layout paint style; }
+.hd-frame { box-sizing: border-box; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; min-width: 0; min-height: 0; }
+.hd-head { display: flex; align-items: center; gap: var(--hd-space-2); min-width: 0; }
+.hd-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--hd-ink); font-size: var(--hd-text-s); font-weight: 500; }
+.hd-sub { color: var(--hd-ink-muted); font-size: var(--hd-text-xs); }
+.hd-body { position: relative; min-width: 0; min-height: 0; }
+.hd-state { min-height: calc(var(--hd-text-s) * 1.35); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--hd-ink-muted); font-size: var(--hd-text-s); }
+.hd-numeral { font-family: var(--hd-font-num); font-feature-settings: var(--hd-num-features); font-variant-numeric: tabular-nums; }
+.hd-root :is(button, [role="slider"], [role="switch"], [role="radio"], [role="spinbutton"]):focus { outline: none; }
+.hd-root :is(button, [role="slider"], [role="switch"], [role="radio"], [role="spinbutton"]):is(:focus-visible, [data-hd-focus="ring"]) { box-shadow: 0 0 0 2px var(--hd-focus-gap), 0 0 0 4px var(--hd-focus); }
+.hd-root [aria-disabled="true"] { cursor: default; }
+.hd-root.hd-root ::selection { background: var(--hd-selected); color: var(--hd-selected-ink); }
+.hd-root.hd-root { scrollbar-color: var(--hd-ink-faint) transparent; }
+/* Backdrops (visual part 5): the root itself or a .hd-backdrop layer below it. */
+:is(.hd-root.hd-backdrop, .hd-root .hd-backdrop) { background: var(--hd-canvas); }
+:is(.hd-root[data-hd-backdrop="theme"].hd-backdrop, .hd-root[data-hd-backdrop="theme"] .hd-backdrop) { background: var(--hd-canvas-fill); }
+:is(.hd-root[data-hd-backdrop="solid"].hd-backdrop, .hd-root[data-hd-backdrop="solid"] .hd-backdrop) { background: var(--hd-canvas); }
+:is(.hd-root[data-hd-backdrop="gradient"].hd-backdrop, .hd-root[data-hd-backdrop="gradient"] .hd-backdrop) { background: radial-gradient(60% 50% at 15% 0%, color-mix(in srgb, var(--hd-accent) 9%, transparent), transparent), linear-gradient(160deg, var(--hd-canvas), var(--hd-canvas-2)); }
+/* Rotated dial and gauge groups (viewBox 0 0 200 200, centre 100,100); CSS transitions sweep them along the arc. */
+:is(.hd-dial-handle, .hd-gauge-needle, .hd-gauge-cap) { transform-box: view-box; transform-origin: 100px 100px; transform: rotate(var(--hd-angle, 0deg)); }
+.hd-dial-current { transform-box: view-box; transform-origin: 100px 100px; transform: rotate(var(--hd-angle-cur, 0deg)); }
+.hd-dial-active[data-buf] { opacity: 0; }
+.hd-dial[data-buf="a"] .hd-dial-active[data-buf="a"], .hd-dial[data-buf="b"] .hd-dial-active[data-buf="b"] { opacity: 1; }

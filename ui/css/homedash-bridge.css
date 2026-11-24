@@ -1,0 +1,35 @@
+/* HomeDash palettes: neutral mapping (dark, light, custom, kiosk), the desktop theme bridge for palette=theme (reads
+   --vd-mat-* and --ds-*, neutral fallback) and scheme-selected status text colours. No light-dark(). */
+.hd-root {
+    --hd-canvas: var(--hd-n-canvas); --hd-canvas-2: var(--hd-n-canvas-2); --hd-canvas-fill: var(--hd-canvas);
+    --hd-surface-solid: var(--hd-n-surface); --hd-surface-raised: var(--hd-n-raised); --hd-sunken: var(--hd-n-sunken); --hd-field: var(--hd-n-sunken);
+    --hd-ink: var(--hd-n-ink); --hd-ink-muted: var(--hd-n-ink-muted); --hd-ink-faint: var(--hd-n-ink-faint); --hd-ink-on-accent: var(--hd-n-ink-on-accent);
+    --hd-accent: var(--hd-n-accent); --hd-accent-2: var(--hd-n-accent-2); --hd-on: var(--hd-n-on); --hd-on-ink: var(--hd-n-on-ink);
+    --hd-selected: var(--hd-n-selected); --hd-selected-ink: var(--hd-n-selected-ink); --hd-btn: var(--hd-n-btn); --hd-btn-ink: var(--hd-n-btn-ink); --hd-hairline: var(--hd-n-hairline);
+    --hd-ok: var(--hd-n-ok); --hd-warn: var(--hd-n-warn); --hd-alert: var(--hd-n-alert); --hd-info: var(--hd-n-info); --hd-heat: var(--hd-n-heat); --hd-cool: var(--hd-n-cool);
+    --hd-ct-2200: var(--hd-n-ct-2200); --hd-ct-4000: var(--hd-n-ct-4000); --hd-ct-6500: var(--hd-n-ct-6500); --hd-light-on: var(--hd-n-ct-2200);
+    --hd-edge-tint: var(--hd-n-edge-tint); --hd-shadow-ink: var(--hd-n-shadow-ink); --hd-scrim: var(--hd-shadow-ink); --hd-focus: var(--hd-accent);
+    --hd-theme-radius: 14px; --hd-theme-border: transparent; --hd-theme-edge: none; --hd-theme-glow: none;
+    --hd-accent-soft: color-mix(in srgb, var(--hd-accent) 16%, transparent); --hd-pending: var(--hd-warn); --hd-unavailable: var(--hd-ink-faint);
+    --hd-focus-gap: var(--hd-surface-solid); --hd-surface: var(--hd-surface-solid);
+    --hd-track: color-mix(in srgb, var(--hd-ink) 14%, transparent); --hd-track-fill: var(--hd-on); --hd-thumb: var(--hd-surface-raised); --hd-thumb-edge: var(--hd-hairline);
+    --hd-ok-ink: var(--hd-ok); --hd-warn-ink: var(--hd-warn); --hd-alert-ink: var(--hd-alert); --hd-info-ink: var(--hd-info);
+}
+.hd-root[data-hd-palette="theme"] {
+    --hd-canvas: var(--vd-mat-canvas-color, var(--hd-n-canvas)); --hd-canvas-fill: var(--vd-mat-canvas, var(--hd-canvas));
+    --hd-surface-solid: var(--vd-mat-card-color, var(--hd-n-surface)); --hd-sunken: var(--vd-mat-well-color, var(--hd-n-sunken)); --hd-field: var(--vd-mat-field-color, var(--hd-n-sunken));
+    --hd-ink: var(--vd-text, var(--hd-n-ink)); --hd-ink-muted: var(--vd-theme-muted, var(--hd-n-ink-muted)); --hd-hairline: var(--vd-mat-divider, var(--hd-n-hairline));
+    --hd-accent: var(--vd-accent, var(--hd-n-accent)); --hd-ink-on-accent: var(--vd-accent-contrast, var(--hd-n-ink-on-accent));
+    --hd-on: var(--vd-mat-primary-color, var(--hd-n-on)); --hd-on-ink: var(--vd-mat-primary-text, var(--hd-n-on-ink));
+    --hd-selected: var(--vd-mat-selected-color, var(--hd-n-selected)); --hd-selected-ink: var(--vd-mat-selected-text, var(--hd-n-selected-ink));
+    --hd-btn: var(--vd-mat-btn-color, var(--hd-n-btn)); --hd-btn-ink: var(--vd-mat-btn-text, var(--hd-n-btn-ink)); --hd-accent-2: var(--vd-mat-accent-2, var(--hd-n-accent-2));
+    --hd-ok: var(--ds-color-success-fg, var(--hd-n-ok)); --hd-warn: var(--ds-color-warning-fg, var(--hd-n-warn));
+    --hd-alert: var(--ds-color-danger-fg, var(--hd-n-alert)); --hd-info: var(--ds-color-info-fg, var(--hd-n-info));
+    --hd-focus: var(--ds-color-border-focus, var(--hd-accent));
+    --hd-theme-radius: var(--vd-mat-card-radius, 14px); --hd-theme-border: var(--vd-mat-card-border, transparent);
+    --hd-theme-edge: var(--vd-mat-card-shadow, none); --hd-theme-glow: var(--vd-mat-glow, none); --hd-font-heading: var(--vd-mat-heading-font, var(--hd-font-ui));
+}
+.hd-root[data-hd-scheme="light"] {
+    --hd-ok-ink: color-mix(in srgb, var(--hd-ok) 34%, var(--hd-ink)); --hd-warn-ink: color-mix(in srgb, var(--hd-warn) 34%, var(--hd-ink));
+    --hd-alert-ink: color-mix(in srgb, var(--hd-alert) 34%, var(--hd-ink)); --hd-info-ink: color-mix(in srgb, var(--hd-info) 34%, var(--hd-ink));
+}

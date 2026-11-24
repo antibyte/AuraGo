@@ -324,6 +324,20 @@ const cssBundles = [
       'ui/css/theme-optics.css',
       'ui/css/chat-standard.css'
     ]
+  },
+  {
+    out: 'ui/css/homedash.bundle.css',
+    parts: [
+      'ui/css/homedash-tokens.css',
+      'ui/css/homedash-bridge.css',
+      'ui/css/homedash-base.css',
+      'ui/css/homedash-primitives.css',
+      'ui/css/homedash-family-glass.css',
+      'ui/css/homedash-family-tactile.css',
+      'ui/css/homedash-family-minimal.css',
+      'ui/css/homedash-family-instrument.css',
+      'ui/css/homedash-widgets.css'
+    ]
   }
 ];
 

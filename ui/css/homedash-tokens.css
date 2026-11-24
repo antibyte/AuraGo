@@ -1,0 +1,34 @@
+/* HomeDash tokens: .hd-root defaults, neutral palettes (--hd-n-*), type, motion, radii, strokes, spacing and the HomeDash
+   font faces. Literal colours live only in the token blocks of this file (guard: scripts/homedash-tests/css-lint.mjs). */
+@font-face { font-family: "HomeDash Barlow Condensed"; src: url('/fonts/BarlowCondensed-SemiBold.ttf') format('truetype'); font-weight: 600; font-style: normal; font-display: swap; }
+@font-face { font-family: "HomeDash Share Tech Mono"; src: url('/fonts/ShareTechMono-Regular.ttf') format('truetype'); font-weight: 400; font-style: normal; font-display: swap; }
+
+.hd-root {
+    --hd-n-canvas: #0E1116; --hd-n-canvas-2: #171C26; --hd-n-surface: #1A1F29; --hd-n-raised: #222834; --hd-n-sunken: #0A0D12;
+    --hd-n-ink: #F1F4F9; --hd-n-ink-muted: #A3ADBD; --hd-n-ink-faint: #5E6878;
+    --hd-n-accent: #7AA7FF; --hd-n-on: #8FBFFF; --hd-n-on-ink: #0B1220; --hd-n-ink-on-accent: #0B1220;
+    --hd-n-selected: #2A3A57; --hd-n-selected-ink: #F1F4F9; --hd-n-btn: #262D3A; --hd-n-btn-ink: #F1F4F9; --hd-n-accent-2: #F2B84B; --hd-n-hairline: #2E3542;
+    --hd-n-ok: #4AD29C; --hd-n-warn: #F2B84B; --hd-n-alert: #FF7A72; --hd-n-info: #5AA9FF; --hd-n-heat: #FF9A57; --hd-n-cool: #5CC8FF;
+    --hd-n-ct-2200: #FFA552; --hd-n-ct-4000: #FFE2B8; --hd-n-ct-6500: #E4EEFF; --hd-n-edge-tint: #FFFFFF; --hd-n-shadow-ink: #000000;
+    --hd-font-ui: "Inter", system-ui, sans-serif; --hd-font-label: var(--hd-font-ui); --hd-font-num: var(--hd-font-ui); --hd-font-heading: var(--hd-font-ui); --hd-num-features: "tnum" 1;
+    --hd-text-xs: 11px; --hd-text-s: 12.5px; --hd-text-m: 14px; --hd-text-l: 17px; --hd-text-xl: 21px; --hd-label-tracking: 0;
+    --hd-dur-press: 90ms; --hd-dur-quick: 140ms; --hd-dur-state: 220ms; --hd-dur-value: 420ms; --hd-dur-needle: 1100ms;
+    --hd-ease-standard: cubic-bezier(.2, 0, 0, 1); --hd-ease-out: cubic-bezier(.16, 1, .3, 1); --hd-ease-spring: cubic-bezier(.34, 1.45, .64, 1); --hd-ease-snap: cubic-bezier(.6, 0, .25, 1.25);
+    --hd-ease-needle: linear(0, .038 4.2%, .135 8.3%, .262 12.5%, .402 16.7%, .664 25%, .862 33.3%, .984 41.7%, 1.042 50%, 1.059 58.3%, 1.052 66.7%, 1.037 75%, 1.021 83.3%, 1);
+    --hd-radius-scale: 1; --hd-radius-card: calc(14px * var(--hd-radius-scale)); --hd-radius-control: calc(8px * var(--hd-radius-scale)); --hd-radius-pill: 9999px;
+    --hd-stroke-hair: 1px; --hd-stroke-1: 1.5px; --hd-stroke-2: 2px; --hd-stroke-arc: 0.075; --hd-stroke-tick: 1.25px; --hd-icon-stroke: 1.75;
+    --hd-unit: 4px; --hd-space-1: var(--hd-unit); --hd-space-2: calc(var(--hd-unit) * 2); --hd-space-3: calc(var(--hd-unit) * 3); --hd-space-4: calc(var(--hd-unit) * 4);
+    --hd-space-5: calc(var(--hd-unit) * 5); --hd-space-6: calc(var(--hd-unit) * 6); --hd-space-7: calc(var(--hd-unit) * 8); --hd-space-8: calc(var(--hd-unit) * 12);
+    --hd-pad-card: 16px; --hd-glow: none; --hd-scrim-alpha: 0.45;
+}
+.hd-root[data-hd-scheme="light"] {
+    --hd-n-canvas: #EEF0F4; --hd-n-canvas-2: #E2E6ED; --hd-n-surface: #FFFFFF; --hd-n-raised: #FFFFFF; --hd-n-sunken: #E7EAF0;
+    --hd-n-ink: #12161D; --hd-n-ink-muted: #4D5666; --hd-n-ink-faint: #9AA2AF;
+    --hd-n-accent: #2F6FE0; --hd-n-on: #2F6FE0; --hd-n-on-ink: #FFFFFF; --hd-n-ink-on-accent: #FFFFFF;
+    --hd-n-selected: #DCE7FB; --hd-n-selected-ink: #12161D; --hd-n-btn: #E7EAF0; --hd-n-btn-ink: #12161D; --hd-n-accent-2: #9A6200; --hd-n-hairline: #D5DAE2;
+    --hd-n-ok: #1A7D52; --hd-n-warn: #9A6200; --hd-n-alert: #C4352B; --hd-n-info: #1F63C7; --hd-n-heat: #D9622B; --hd-n-cool: #1E8FCB; --hd-n-shadow-ink: #1B2333;
+}
+@supports not (transition-timing-function: linear(0, 1)) { .hd-root { --hd-ease-needle: cubic-bezier(.3, 1.3, .5, 1); } }
+.hd-root[data-hd-density="compact"] { --hd-unit: 3.4px; --hd-pad-card: 12px; }
+.hd-root[data-hd-density="spacious"] { --hd-unit: 4.6px; --hd-pad-card: 20px; }
+.hd-root[data-hd-ease="fallback"] { --hd-ease-needle: cubic-bezier(.3, 1.3, .5, 1); }
