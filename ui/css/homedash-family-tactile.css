@@ -29,7 +29,14 @@
   --hd-t-led: radial-gradient(circle at 36% 30%, color-mix(in srgb, var(--hd-led) 35%, #FFFFFF) 0 16%, var(--hd-led) 46%, color-mix(in srgb, var(--hd-led) 55%, #000000) 100%);
   --hd-t-led-off: radial-gradient(circle at 36% 30%, color-mix(in srgb, #FFFFFF 12%, transparent) 0 14%, transparent 30%), color-mix(in srgb, var(--hd-led) 22%, var(--hd-t-led-base));
   --hd-t-led-halo: 0 0 6px 1px color-mix(in srgb, var(--hd-led) 60%, transparent);
-  --hd-t-dot-off: color-mix(in srgb, var(--hd-t-amber) 18%, var(--hd-t-led-base));
+  --hd-t-dot-off-d: color-mix(in srgb, var(--hd-t-amber) 18%, var(--hd-t-led-base)); --hd-t-dot-off-l: color-mix(in srgb, var(--hd-t-amber) 10%, #8B9099); /* light: dark glass that reads clearly weaker than a lit dot on aluminium */
+  --hd-t-dot-off: var(--hd-t-dot-off-d);
+  --hd-t-hl-d: 26%; --hd-t-hl-l: 60%; --hd-t-dn-d: 45%; --hd-t-dn-l: 22%; --hd-t-hl: var(--hd-t-hl-d); --hd-t-dn: var(--hd-t-dn-d); /* raised-half highlight and pressed-half shade, per scheme */
+  --hd-t-persp: 300px; --hd-t-tilt-up: -12deg; --hd-t-tilt-dn: 12deg;
+  --hd-t-half-up: radial-gradient(ellipse 85% 70% at 28% 24%, color-mix(in srgb, #FFFFFF var(--hd-t-hl), transparent), transparent 62%), linear-gradient(180deg, color-mix(in srgb, #FFFFFF 5%, transparent), transparent 55%);
+  --hd-t-half-down: linear-gradient(color-mix(in srgb, #000000 var(--hd-t-dn), transparent), color-mix(in srgb, #000000 var(--hd-t-dn), transparent)), var(--hd-t-bakelite-c);
+  --hd-t-edge-low: inset 0 -2px 0 color-mix(in srgb, #000000 38%, transparent);
+  --hd-t-pilot: radial-gradient(circle at 36% 30%, color-mix(in srgb, var(--hd-t-amber) 35%, #FFFFFF) 0 20%, var(--hd-t-amber) 55%, color-mix(in srgb, var(--hd-t-amber) 55%, #000000) 100%);
   --hd-t-shade: color-mix(in srgb, #000000 12%, transparent);
   --hd-t-needle-shadow: color-mix(in srgb, #000000 30%, transparent);
   --hd-t-grid-ink: color-mix(in srgb, var(--hd-t-amber) 10%, transparent);
@@ -76,6 +83,7 @@
   --hd-t-bakelite-c: var(--hd-t-bakelite-l); --hd-t-spec: var(--hd-t-spec-l);
   --hd-t-legend: var(--hd-t-legend-l); --hd-t-muted: var(--hd-t-muted-l); --hd-t-emboss: var(--hd-t-emboss-l);
   --hd-t-face: var(--hd-t-face-l); --hd-t-faceink: var(--hd-t-faceink-l);
+  --hd-t-dot-off: var(--hd-t-dot-off-l); --hd-t-hl: var(--hd-t-hl-l); --hd-t-dn: var(--hd-t-dn-l);
 }
 .hd-widget[data-hd-family="tactile"][data-hd-pending="true"] { --hd-led: var(--hd-t-led-amber); }
 .hd-widget[data-hd-family="tactile"][data-hd-status="error"], .hd-widget[data-hd-family="tactile"][data-hd-tone="crit"] { --hd-led: var(--hd-t-led-red); }
@@ -93,7 +101,7 @@
 .hd-widget[data-hd-family="tactile"] .hd-toggle-track { translate: -6px -6px; background: var(--hd-t-window); box-shadow: var(--hd-recess); }
 .hd-widget[data-hd-family="tactile"] .hd-toggle-thumb { inset-block-start: -6px; inset-inline-start: 2px; inline-size: 24px; block-size: 26px; border-radius: var(--hd-radius-control);
   background: var(--hd-t-grip), var(--hd-t-steel-lin); box-shadow: var(--hd-lip), var(--hd-shadow-cast); }
-.hd-widget[data-hd-family="tactile"] .hd-toggle-legend { display: block; inset-block-start: 31px; font: 600 11px / 11px var(--hd-font-label); color: var(--hd-t-legend); text-shadow: var(--hd-t-emboss); }
+.hd-widget[data-hd-family="tactile"] .hd-toggle-legend { --hd-t-ls: 11px; display: block; inset-block-start: 31px; font: 600 var(--hd-t-ls) / 11px var(--hd-font-label); color: var(--hd-t-legend); text-shadow: var(--hd-t-emboss); }
 .hd-widget[data-hd-family="tactile"] .hd-toggle-legend[data-glyph="off"] { inset-inline-start: 4px; }
 .hd-widget[data-hd-family="tactile"] .hd-toggle-legend[data-glyph="on"] { inset-inline-start: 44px; }
 .hd-widget[data-hd-family="tactile"] .hd-toggle-led { display: block; inset-inline-end: 2px; inset-block-start: 13px; inline-size: 6px; block-size: 6px; border-radius: var(--hd-radius-pill); background: var(--hd-t-led-off); box-shadow: 0 0 0 var(--hd-stroke-hair) var(--hd-t-window); }
@@ -102,14 +110,20 @@
 
 /* H2 rocker switch: bakelite paddle in a panel bezel; the pressed half is shaded and tilts away. The focus ring hugs the bezel. */
 .hd-widget[data-hd-family="tactile"] .hd-rocker { border-radius: var(--hd-t-bezel-r); }
-.hd-widget[data-hd-family="tactile"] .hd-rocker-bezel { background: var(--hd-t-panel); box-shadow: var(--hd-lip), var(--hd-shadow-cast); border-radius: var(--hd-t-bezel-r); }
-.hd-widget[data-hd-family="tactile"] .hd-rocker-paddle { overflow: hidden; background: var(--hd-t-bakelite); box-shadow: var(--hd-shadow-contact); transform: rotateX(-9deg); }
-.hd-widget[data-hd-family="tactile"] .hd-rocker-half { box-shadow: var(--hd-lip); } /* the raised half catches the key light on its top left edge */
-.hd-widget[data-hd-family="tactile"] .hd-rocker[aria-checked="true"] .hd-rocker-paddle { transform: rotateX(9deg); }
-.hd-widget[data-hd-family="tactile"] .hd-rocker-half::after { content: ""; position: absolute; inset: 0; border-radius: 0; background: var(--hd-t-shade); box-shadow: var(--hd-recess); opacity: 0; } /* the pressed half is shaded and recessed */
-.hd-widget[data-hd-family="tactile"] .hd-rocker[aria-checked="true"] .hd-rocker-half[data-half="on"]::after,
-.hd-widget[data-hd-family="tactile"] .hd-rocker[aria-checked="false"] .hd-rocker-half[data-half="off"]::after { opacity: 1; }
-.hd-widget[data-hd-family="tactile"] .hd-rocker-legend { font: 600 clamp(11px, 14cqmin, 16px) / 1 var(--hd-font-label); color: var(--hd-t-legend); text-shadow: var(--hd-t-emboss); }
+.hd-widget[data-hd-family="tactile"] .hd-rocker-bezel { background: var(--hd-t-panel); box-shadow: var(--hd-lip), var(--hd-shadow-cast); border-radius: var(--hd-t-bezel-r); perspective: var(--hd-t-persp); }
+.hd-widget[data-hd-family="tactile"] .hd-rocker-paddle { overflow: hidden; background: var(--hd-t-bakelite-c); box-shadow: var(--hd-shadow-contact); transform: rotateX(var(--hd-t-tilt-up)); }
+.hd-widget[data-hd-family="tactile"] .hd-rocker[aria-checked="true"] .hd-rocker-paddle { transform: rotateX(var(--hd-t-tilt-dn)); }
+.hd-widget[data-hd-family="tactile"] .hd-rocker-half { background: var(--hd-t-half-up); box-shadow: var(--hd-lip), var(--hd-t-edge-low); } /* the raised half: specular top left, lip, dark lower edge */
+.hd-widget[data-hd-family="tactile"] .hd-rocker-half::before { content: ""; position: absolute; inset: 0; border-radius: 0; background: var(--hd-t-half-down); box-shadow: var(--hd-recess); opacity: 0; } /* the pressed half: flat, darker, recessed, no specular */
+.hd-widget[data-hd-family="tactile"] .hd-rocker[aria-checked="true"] .hd-rocker-half[data-half="on"]::before,
+.hd-widget[data-hd-family="tactile"] .hd-rocker[aria-checked="false"] .hd-rocker-half[data-half="off"]::before { opacity: 1; }
+.hd-widget[data-hd-family="tactile"] .hd-rocker-legend { --hd-t-ls: clamp(11px, 14cqmin, 16px); position: relative; font: 600 var(--hd-t-ls) / 1 var(--hd-font-label); color: var(--hd-t-legend); text-shadow: var(--hd-t-emboss); }
+/* The off legend is the IEC ring: the letter stays for size and screen readers (font-size 0), the ring is drawn in the legend colour with the same emboss. */
+.hd-widget[data-hd-family="tactile"] :is(.hd-toggle-legend[data-glyph="off"], .hd-rocker-half[data-half="off"] .hd-rocker-legend) { font-size: 0; text-shadow: none; }
+.hd-widget[data-hd-family="tactile"] :is(.hd-toggle-legend[data-glyph="off"], .hd-rocker-half[data-half="off"] .hd-rocker-legend)::after { content: ""; position: absolute; inset-block-start: 50%; inset-inline-start: 50%; translate: -50% -50%; box-sizing: border-box;
+  inline-size: calc(var(--hd-t-ls) * 0.72); block-size: calc(var(--hd-t-ls) * 0.72); border: calc(var(--hd-t-ls) * 0.17) solid var(--hd-t-legend); border-radius: var(--hd-radius-pill); box-shadow: var(--hd-t-emboss); }
+.hd-widget[data-hd-family="tactile"] .hd-toggle-legend[data-glyph="off"]::after { inset-inline-start: 3px; }
+.hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] :is(.hd-toggle-legend[data-glyph="off"], .hd-rocker-half[data-half="off"] .hd-rocker-legend)::after { display: none; }
 .hd-widget[data-hd-family="tactile"] .hd-rocker-led { display: block; border-radius: var(--hd-radius-pill); background: var(--hd-t-led-off); box-shadow: 0 0 0 var(--hd-stroke-hair) var(--hd-t-window); } /* the LED sits in a black collar over the paddle corner */
 .hd-widget[data-hd-family="tactile"] .hd-rocker-led::after { content: ""; position: absolute; inset: 0; border-radius: var(--hd-radius-pill); background: var(--hd-t-led); box-shadow: var(--hd-t-led-halo); opacity: 0; }
 .hd-widget[data-hd-family="tactile"]:is([data-hd-on="true"], [data-hd-pending="true"], [data-hd-tone="crit"], [data-hd-status="error"]) .hd-rocker-led::after { opacity: 1; }
@@ -124,6 +138,7 @@
 .hd-widget[data-hd-family="tactile"] .hd-dial-ticks { stroke: var(--hd-t-legend); stroke-width: var(--hd-stroke-tick); vector-effect: non-scaling-stroke; }
 .hd-widget[data-hd-family="tactile"] .hd-dial-dots { fill: var(--hd-t-dot-off); }
 .hd-widget[data-hd-family="tactile"] .hd-dial-dots-lit { fill: var(--hd-t-amber); }
+.hd-widget[data-hd-family="tactile"][data-hd-pending="true"] .hd-dial-dots-lit { opacity: 0.5; } /* half-lit when nothing blinks; the blink animation (motion gate) takes over */
 .hd-widget[data-hd-family="tactile"] .hd-dial-legend { color: var(--hd-t-legend); text-shadow: var(--hd-t-emboss); inset-block-start: 88%; } /* below the ring, clear of the end dots (at the arc ends they collide with them) */
 .hd-widget[data-hd-family="tactile"] .hd-dial-legend[data-end="min"] { inset-inline-start: 32.3%; } .hd-widget[data-hd-family="tactile"] .hd-dial-legend[data-end="max"] { inset-inline-start: 67.7%; }
 .hd-widget[data-hd-family="tactile"] .hd-dial::before { content: ""; position: absolute; inset: 13%; border-radius: var(--hd-radius-pill); box-shadow: var(--hd-shadow-cast); pointer-events: none; } /* the knurl mask would cut its own shadow: the knob casts it from here */
@@ -143,6 +158,11 @@
 @container hd-widget (max-height: 259px) {
   .hd-widget[data-hd-family="tactile"][data-hd-type="climate"] .hd-dial-numeral { font-size: 19.5px; }
   .hd-widget[data-hd-family="tactile"][data-hd-type="climate"] .hd-dial-numeral:nth-of-type(odd) { display: none; } /* D under 140: only the second, fourth and sixth numeral */
+  /* 2x2: the window carries the target only (no sub-readout, no unit), as large as the cap allows (corners inside the cap rim) */
+  .hd-widget[data-hd-family="tactile"][data-hd-type="climate"] .hd-dial-sub { display: none; }
+  .hd-widget[data-hd-family="tactile"][data-hd-type="climate"] .hd-dial-readout { inset: 36.5% 28%; box-sizing: border-box; padding: 0 3px; }
+  .hd-widget[data-hd-family="tactile"][data-hd-type="climate"] .hd-dial-readout > .hd-numeral { font-size: calc(var(--hd-th-d) * 0.18); white-space: nowrap; }
+  .hd-widget[data-hd-family="tactile"][data-hd-type="climate"] .hd-dial-readout .hd-num-unit { display: none; }
 }
 .hd-widget[data-hd-family="tactile"][data-hd-type="climate"] .hd-dial-needle { display: inline; stroke: var(--hd-t-needle); stroke-width: var(--hd-t-needle-w); }
 .hd-widget[data-hd-family="tactile"][data-hd-type="climate"] .hd-dial-cap { inset: 23%; }
@@ -157,21 +177,18 @@
 .hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] .hd-lamp-dot::after { opacity: 0; }
 .hd-widget[data-hd-family="tactile"] .hd-climate-steps .hd-push { color: var(--hd-t-legend); background: var(--hd-t-bakelite); box-shadow: var(--hd-lip), var(--hd-shadow-cast); border-radius: var(--hd-radius-control); }
 .hd-widget[data-hd-family="tactile"] .hd-climate-steps .hd-push:active { translate: -50% calc(-50% + 1px); }
-/* Mode selector: a 4-detent rotary. The icon legends sit on an arc above the knob (at -45, -15, 15 and 45 degrees, radius 26 px around a 32 px knob; the 44 px knob and radius 40 of the plan do not fit the 44 px row),
-   each moved from the centre of its option cell; the cells stay the 44 px hit boxes. Option words are read by screen readers only. */
+/* Mode selector: four interlocked bakelite push keys in a black slot (the 44 px radio buttons themselves). The selected key is pressed in (flat, darker, recessed, no cast shadow)
+   and carries a lit amber pilot dot; the others are raised (specular, lip, cast shadow onto the neighbour). Icons 18 px, Barlow labels; the labels ellipsize, the key keeps its 44 px hit box. */
 .hd-widget[data-hd-family="tactile"] .hd-seg-indicator { display: none; }
-.hd-widget[data-hd-family="tactile"] .hd-seg-label { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-.hd-widget[data-hd-family="tactile"] .hd-seg-opt { color: var(--hd-t-muted); }
-.hd-widget[data-hd-family="tactile"] .hd-seg-opt[aria-checked="true"] { color: var(--hd-t-legend); }
-.hd-widget[data-hd-family="tactile"] .hd-seg-opt .hd-ico { inline-size: 13px; block-size: 13px; stroke-width: var(--hd-stroke-1); }
-.hd-widget[data-hd-family="tactile"] .hd-seg { --hd-seg-w: min(var(--hd-body-w), 260px); }
-.hd-widget[data-hd-family="tactile"] .hd-seg-opt:nth-child(2) .hd-ico { translate: calc(-18.4px + var(--hd-seg-w) * 3 / 8) -12.4px; }
-.hd-widget[data-hd-family="tactile"] .hd-seg-opt:nth-child(3) .hd-ico { translate: calc(-6.7px + var(--hd-seg-w) * 1 / 8) -19.1px; }
-.hd-widget[data-hd-family="tactile"] .hd-seg-opt:nth-child(4) .hd-ico { translate: calc(6.7px - var(--hd-seg-w) * 1 / 8) -19.1px; }
-.hd-widget[data-hd-family="tactile"] .hd-seg-opt:nth-child(5) .hd-ico { translate: calc(18.4px - var(--hd-seg-w) * 3 / 8) -12.4px; }
-.hd-widget[data-hd-family="tactile"] .hd-seg-rotary { display: block; position: absolute; inset-inline-start: 50%; inset-block-end: 0; translate: -50% 0; inline-size: 32px; block-size: 32px; border-radius: var(--hd-radius-pill); background: var(--hd-t-steel); box-shadow: var(--hd-lip), var(--hd-shadow-cast); pointer-events: none; z-index: 2; }
-.hd-widget[data-hd-family="tactile"] .hd-seg-rotary-pointer { position: absolute; inset: 3px 48% 50% 48%; transform-origin: 50% 100%; transform: rotate(calc(var(--hd-index) * 30deg - 45deg)); background: var(--hd-t-pointer); }
-.hd-widget[data-hd-family="tactile"] .hd-seg:not(:has([aria-checked="true"])) .hd-seg-rotary-pointer { opacity: 0; }
+.hd-widget[data-hd-family="tactile"] .hd-seg { column-gap: 2px; background: var(--hd-t-window); box-shadow: var(--hd-window-shadow); border-radius: var(--hd-radius-control); }
+.hd-widget[data-hd-family="tactile"] .hd-seg-opt { gap: 4px; color: var(--hd-t-faceink); background: var(--hd-t-half-up), var(--hd-t-bakelite-c); border-radius: var(--hd-radius-control); box-shadow: var(--hd-lip), var(--hd-t-edge-low), var(--hd-shadow-contact); }
+.hd-widget[data-hd-family="tactile"] .hd-seg-opt[aria-checked="true"] { box-shadow: none; }
+.hd-widget[data-hd-family="tactile"] .hd-seg-opt .hd-ico { position: relative; inline-size: 18px; block-size: 18px; stroke-width: var(--hd-stroke-1); }
+.hd-widget[data-hd-family="tactile"] .hd-seg-label { position: relative; font: 600 var(--hd-label-size) / 1 var(--hd-font-label); letter-spacing: var(--hd-label-tracking); text-shadow: var(--hd-t-emboss); }
+.hd-widget[data-hd-family="tactile"] .hd-seg-opt::before { content: ""; position: absolute; inset: 0; border-radius: var(--hd-radius-control); background: var(--hd-t-half-down); box-shadow: var(--hd-recess); opacity: 0; }
+.hd-widget[data-hd-family="tactile"] .hd-seg-opt[aria-checked="true"]::before { opacity: 1; }
+.hd-widget[data-hd-family="tactile"] .hd-seg-opt::after { content: ""; position: absolute; inset-block-start: 5px; inset-inline-end: 5px; inline-size: 6px; block-size: 6px; border-radius: var(--hd-radius-pill); background: var(--hd-t-pilot); box-shadow: var(--hd-vfd-glow); opacity: 0; }
+.hd-widget[data-hd-family="tactile"] .hd-seg-opt[aria-checked="true"]::after { opacity: 1; }
 
 /* H5 needle instrument (also H6 in Tactile: the module substitutes the needle gauge): steel bezel, face with a vignette, one soft reflection, red needle with its shadow down right. */
 .hd-widget[data-hd-family="tactile"] .hd-gauge-face { display: block; box-shadow: var(--hd-shadow-cast); }
@@ -205,6 +222,7 @@
 
 /* H8 sensor tile: the trace sits in an inset black window with a 4 x 3 grid, amber trace and end dot; the numeral is printed in legend ink. */
 .hd-widget[data-hd-family="tactile"] .hd-spark { background: var(--hd-t-window); box-shadow: var(--hd-window-shadow); border-radius: var(--hd-radius-control); }
+@container hd-widget (aspect-ratio >= 1.6) { .hd-widget[data-hd-family="tactile"][data-hd-type="sensor"][data-hd-variant="sparkline"] .hd-spark { inset-block-end: 4px; block-size: calc(100cqh * 0.38 - 11px); } } /* 2x1: the window is 3 px shorter than the module's box and sits 4 px lower, so it clears the state text (descenders) and the numeral row by at least 4 px */
 .hd-widget[data-hd-family="tactile"] .hd-spark-area { display: none; }
 .hd-widget[data-hd-family="tactile"] .hd-spark-grid { display: inline; fill: none; stroke: var(--hd-t-grid-ink); stroke-width: var(--hd-stroke-hair); vector-effect: non-scaling-stroke; }
 .hd-widget[data-hd-family="tactile"] .hd-spark-line { fill: none; stroke: var(--hd-t-amber); stroke-width: var(--hd-stroke-1); stroke-linejoin: round; stroke-linecap: round; }
@@ -215,13 +233,13 @@
 @media (prefers-reduced-motion: no-preference) {
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"] .hd-toggle-thumb { transition: transform var(--hd-dur-toggle) var(--hd-ease-snap); }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"] .hd-rocker-paddle { transition: transform var(--hd-dur-toggle) var(--hd-ease-snap); }
-  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"] .hd-rocker-half::after { transition: opacity var(--hd-dur-toggle) var(--hd-ease-snap); }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"] .hd-rocker-half::before { transition: opacity var(--hd-dur-toggle) var(--hd-ease-snap); }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"] :is(.hd-toggle-led, .hd-rocker-led)::after { transition: opacity var(--hd-dur-led) linear var(--hd-dur-toggle); }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"][data-hd-pending="true"] :is(.hd-toggle-led, .hd-rocker-led)::after { animation: hd-blink 500ms steps(1) infinite; }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"] .hd-dial-pointer { transition: transform var(--hd-dur-remote) var(--hd-ease-remote); }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"][data-hd-pending="true"] .hd-dial-dots-lit { animation: hd-blink 500ms steps(1) infinite; }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"] .hd-dial-current { transition: transform var(--hd-dur-remote) var(--hd-ease-remote); }
-  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"] .hd-seg-rotary-pointer { transition: transform var(--hd-dur-toggle) var(--hd-ease-snap); }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"] .hd-seg-opt::before, .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"] .hd-seg-opt::after { transition: opacity var(--hd-dur-toggle) var(--hd-ease-snap); }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"] .hd-lamp-dot::after { transition: opacity var(--hd-dur-led) linear; }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"][data-hd-pending="true"] .hd-lamp-dot::after { animation: hd-blink 500ms steps(1) infinite; }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"] :is(.hd-gauge-needle, .hd-gauge-needle-shadow) { transition: transform var(--hd-dur-needle-f) var(--hd-ease-needle); }
