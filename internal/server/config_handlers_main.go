@@ -711,6 +711,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		if err := config.NormalizeHomeDashConfig(&validateCfg.HomeDash); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		if err := validateCYDCreatorSave(previousCYDCreator, validateCfg.CYDCreator); err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return

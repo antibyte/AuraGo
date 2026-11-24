@@ -604,6 +604,16 @@ func load(path string, diagnosticBackup bool) (*Config, error) {
 	// Chibi Sensei is on by default: local dataset studio; never widens other permissions.
 	cfg.ChibiSensei.Enabled = true
 
+	// HomeDash is on by default: nothing connects until a dashboard is open; the kiosk stays off.
+	cfg.HomeDash.Enabled = true
+	cfg.HomeDash.Kiosk.AllowControl = true
+	hs := &cfg.HomeDash.Sources
+	for _, src := range []*HomeDashSourceConfig{&hs.HomeAssistant, &hs.Go2RTC, &hs.FritzBox, &hs.MQTT, &hs.System, &hs.Docker,
+		&hs.Proxmox, &hs.ThreeDPrinters, &hs.UptimeKuma, &hs.AdGuard, &hs.TrueNAS, &hs.Bluetooth} {
+		src.Enabled = true
+	}
+	hs.HomeAssistant.Control, hs.FritzBox.Control, hs.MQTT.Control = true, true, true
+
 	// Space Agent defaults: disabled by default, managed Docker sidecar when enabled.
 	cfg.SpaceAgent.AutoStart = true
 	cfg.SpaceAgent.RepoURL = "https://github.com/agent0ai/space-agent"
@@ -1137,6 +1147,9 @@ func load(path string, diagnosticBackup bool) (*Config, error) {
 		return nil, err
 	}
 	if err := NormalizeChibiSenseiConfig(&cfg.ChibiSensei); err != nil {
+		return nil, err
+	}
+	if err := NormalizeHomeDashConfig(&cfg.HomeDash); err != nil {
 		return nil, err
 	}
 	if err := NormalizeNewspaperConfig(&cfg.Newspaper); err != nil {

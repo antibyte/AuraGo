@@ -2441,6 +2441,69 @@ chibi_sensei:
         max_rows_per_job: 500       # rows one generation job may add (10-5000)
         max_daily_rows: 5000        # generated plus cleaned rows per local day (100-100000)
 
+# HomeDash: dashboards for lights, switches, sensors and cameras from every connected source (desktop app and wall displays).
+homedash:
+    enabled: true                   # nothing connects to a device until a dashboard is open
+    readonly: false                 # blocks every HomeDash command; dashboards stay editable
+    agent:
+        access: write               # off, read or write; the agent edits dashboards and never sends device commands
+    kiosk:
+        enabled: false              # wall-display page and pairing; off by default because it opens a public route
+        max_devices: 10             # paired displays in total (1-100)
+        pairing_ttl_minutes: 15     # lifetime of a pairing link (5-60)
+        device_ttl_days: 0          # 0 = until revoked, else 1-3650
+        allow_control: true         # false makes every display view-only
+    limits:
+        max_dashboards: 50          # (1-500)
+        max_streams: 32             # open desktop streams (4-128)
+        max_kiosk_streams: 16       # open display streams (1-100)
+        max_subscriptions: 300      # entities per stream (50-1000)
+        commands_per_minute: 60     # per session or display (10-600)
+    history:
+        ring_points: 360            # in-memory points per entity (60-2880)
+        ring_entities: 500          # entities with in-memory history (50-5000)
+        sample_seconds: 60          # one point per interval (10-600)
+    sources:                        # each source also needs the integration's own enabled switch
+        home_assistant:
+            enabled: true
+            control: true
+            poll_seconds: 5         # only in the REST fallback (2-60)
+        go2rtc:
+            enabled: true
+            poll_seconds: 30        # (10-300)
+        fritzbox:
+            enabled: true
+            control: true
+            poll_seconds: 15        # (10-300)
+        mqtt:
+            enabled: true
+            control: true
+        system:
+            enabled: true
+            poll_seconds: 5         # (2-60)
+        docker:
+            enabled: true
+            control: false          # start, stop and restart containers from a dashboard
+            poll_seconds: 60        # safety poll next to Engine events (15-600)
+        proxmox:
+            enabled: true
+            poll_seconds: 30        # (10-600)
+        three_d_printers:
+            enabled: true
+            poll_seconds: 30        # (10-600; 10 s while printing)
+        uptime_kuma:
+            enabled: true
+            poll_seconds: 60        # (30-600)
+        adguard:
+            enabled: true
+            control: false          # the filtering switch
+            poll_seconds: 30        # (15-600)
+        truenas:
+            enabled: true
+            poll_seconds: 60        # (30-600)
+        bluetooth:
+            enabled: true
+
 journal:
     auto_entries: true                      # matches loader default; tools.journal controls tool access
     daily_summary: true                     # generated during maintenance
