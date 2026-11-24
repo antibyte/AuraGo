@@ -217,9 +217,9 @@
   group: ics
   name: {cs: "TO-92: příklady", da: "TO-92: eksempler", de: "TO-92: Beispiele", el: "TO-92: παραδείγματα", en: "TO-92: examples", es: "TO-92: ejemplos", fr: "Exemples TO-92", hi: "TO-92: उदाहरण", it: "TO-92: esempi", ja: "TO-92の例", nl: "TO-92: voorbeelden", no: "TO-92: eksempler", pl: "TO-92: przykłady", pt: "TO-92: exemplos", sv: "TO-92: exempel", zh: "TO-92 示例"}
   doc: {en: "The pin order of a TO-92 part depends on the part, not on the package: this page lists examples only, so check the datasheet of your exact part and maker. Each is drawn from the front, flat side towards you and leads pointing down, and the numbers are positions from left to right.", de: "Die Pin-Reihenfolge eines TO-92-Bauteils hängt vom Bauteil ab, nicht vom Gehäuse: Diese Seite zeigt nur Beispiele, prüfe also das Datenblatt deines genauen Bauteils und Herstellers. Alle sind von vorn gezeichnet, flache Seite zu dir und Anschlüsse nach unten, und die Nummern sind Positionen von links nach rechts."}
-  notes: {en: "The PN2222A entry is the plastic TO-92 type from onsemi (formerly Fairchild). It does not apply to the round metal-can 2N2222 (TO-18), whose leads form a triangle, and the similarly named onsemi P2N2222A has collector and emitter swapped: collector left, emitter right. The 78L05 runs the opposite way to the L78xx in TO-220: its input is on the right. TI's table numbers the TL431 leads against the positions used here; see its pin notes.", de: "Der Eintrag PN2222A ist der TO-92-Typ aus Kunststoff von onsemi (früher Fairchild). Er gilt nicht für den runden 2N2222 im Metallgehäuse (TO-18), dessen Anschlüsse ein Dreieck bilden, und beim ähnlich benannten onsemi P2N2222A sind Kollektor und Emitter vertauscht: Kollektor links, Emitter rechts. Der 78L05 läuft umgekehrt zum L78xx im TO-220: Sein Eingang liegt rechts. Die Tabelle von TI nummeriert die Anschlüsse des TL431 gegenläufig zu den Positionen hier; siehe die Pin-Hinweise."}
-  tags: ["to92", "to-92", "transistor", "mosfet", "bc547", "pn2222a", "2n2222", "2n3904", "2n7000", "lm35", "78l05", "ua78l05", "mc78l05", "tl431", "npn", "collector", "kollektor", "base", "basis", "emitter", "gate", "source", "drain", "regulator", "spannungsregler", "temperature sensor", "temperatursensor", "voltage reference", "spannungsreferenz"]
-  source: "onsemi BC546/D Rev. 8 (BC547); onsemi/Fairchild PN2222A Rev. 1.1.0 and onsemi P2N2222A/D Rev. 7; multicomp 2N2222 sheet V1.0 (TO-18); onsemi 2N3903/D Rev. 9 (2N3904); onsemi NDS7002A/D Rev. 11 (2N7000); TI LM35 SNIS159H; TI UA78L SLVS010X and onsemi MC78L00A/D Rev. 21 (78L05); TI TL431 SLVS543S and onsemi TL431/D Rev. 45"
+  notes: {en: "The PN2222A entry is the plastic TO-92 type from onsemi (formerly Fairchild). It does not apply to the round metal-can 2N2222 (TO-18), whose leads form a triangle, and the similarly named onsemi P2N2222A has collector and emitter swapped: collector left, emitter right. The 78L05 runs the opposite way to the L78xx in TO-220: its input is on the right. TI's table numbers the TL431 leads against the positions used here; see its pin notes. The BS170 runs the opposite way to the 2N7000: drain left, source right. The DS18B20 has ground on the left and the supply on the right, the reverse of the LM35. The BC337 and BC557 have the same order as the BC547 (collector left), the 2N3906 the same as the 2N3904 (emitter left).", de: "Der Eintrag PN2222A ist der TO-92-Typ aus Kunststoff von onsemi (früher Fairchild). Er gilt nicht für den runden 2N2222 im Metallgehäuse (TO-18), dessen Anschlüsse ein Dreieck bilden, und beim ähnlich benannten onsemi P2N2222A sind Kollektor und Emitter vertauscht: Kollektor links, Emitter rechts. Der 78L05 läuft umgekehrt zum L78xx im TO-220: Sein Eingang liegt rechts. Die Tabelle von TI nummeriert die Anschlüsse des TL431 gegenläufig zu den Positionen hier; siehe die Pin-Hinweise. Der BS170 ist umgekehrt belegt wie der 2N7000: Drain links, Source rechts. Der DS18B20 hat Masse links und die Versorgung rechts, umgekehrt zum LM35. BC337 und BC557 haben dieselbe Reihenfolge wie der BC547 (Kollektor links), der 2N3906 dieselbe wie der 2N3904 (Emitter links)."}
+  tags: ["to92", "to-92", "transistor", "mosfet", "bc547", "pn2222a", "2n2222", "2n3904", "2n7000", "lm35", "78l05", "ua78l05", "mc78l05", "tl431", "npn", "collector", "kollektor", "base", "basis", "emitter", "gate", "source", "drain", "regulator", "spannungsregler", "temperature sensor", "temperatursensor", "voltage reference", "spannungsreferenz", "bc337", "bc557", "2n3906", "bs170", "ds18b20", "pnp", "1-wire", "onewire", "thermometer"]
+  source: "onsemi BC546/D Rev. 8 (BC547); onsemi/Fairchild PN2222A Rev. 1.1.0 and onsemi P2N2222A/D Rev. 7; multicomp 2N2222 sheet V1.0 (TO-18); onsemi 2N3903/D Rev. 9 (2N3904); onsemi NDS7002A/D Rev. 11 (2N7000); TI LM35 SNIS159H; TI UA78L SLVS010X and onsemi MC78L00A/D Rev. 21 (78L05); TI TL431 SLVS543S and onsemi TL431/D Rev. 45; Diotec BC337 and BC556 to BC559 (version 2026-03-30); onsemi BC556B/D Rev. 3 (BC557); onsemi 2N3906/D Rev. 4; onsemi BS170/D Rev. 7, MMBF170/D Rev. 9 and Vishay 70226 (BS170); Dallas DS18B20 datasheet (footer 050400)"
   shape:
     type: to
     package: to92
@@ -267,3 +267,191 @@
         - {number: "1", name: "REF", function: {en: "Reference input", de: "Referenzeingang"}, type: signal, notes: {en: "Position 1 here; TI's table calls it pin 3, onsemi pin 1.", de: "Hier Position 1; die Tabelle von TI nennt ihn Pin 3, onsemi Pin 1."}}
         - {number: "2", name: "ANODE", function: {en: "Anode, the common pin, normally tied to ground", de: "Anode, der gemeinsame Anschluss, normalerweise an Masse"}, type: ground, notes: {en: "Position 2 here; pin 2 at TI and onsemi.", de: "Hier Position 2; bei TI und onsemi Pin 2."}}
         - {number: "3", name: "CATHODE", function: {en: "Cathode, carries the shunt current", de: "Kathode, führt den Shunt-Strom"}, type: signal, notes: {en: "Position 3 here; TI's table calls it pin 1, onsemi pin 3.", de: "Hier Position 3; die Tabelle von TI nennt sie Pin 1, onsemi Pin 3."}}
+    - id: bc337
+      name: {en: "BC337", de: "BC337"}
+      pins:
+        - {number: "1", name: "C", function: {en: "Collector", de: "Kollektor"}, type: signal}
+        - {number: "2", name: "B", function: {en: "Base", de: "Basis"}, type: signal}
+        - {number: "3", name: "E", function: {en: "Emitter", de: "Emitter"}, type: signal}
+    - id: bc557
+      name: {en: "BC557", de: "BC557"}
+      pins:
+        - {number: "1", name: "C", function: {en: "Collector", de: "Kollektor"}, type: signal}
+        - {number: "2", name: "B", function: {en: "Base", de: "Basis"}, type: signal}
+        - {number: "3", name: "E", function: {en: "Emitter", de: "Emitter"}, type: signal}
+    - id: q2n3906
+      name: {en: "2N3906", de: "2N3906"}
+      pins:
+        - {number: "1", name: "E", function: {en: "Emitter", de: "Emitter"}, type: signal}
+        - {number: "2", name: "B", function: {en: "Base", de: "Basis"}, type: signal}
+        - {number: "3", name: "C", function: {en: "Collector", de: "Kollektor"}, type: signal}
+    - id: bs170
+      name: {en: "BS170", de: "BS170"}
+      pins:
+        - {number: "1", name: "D", function: {en: "Drain", de: "Drain"}, type: signal, notes: {en: "Drain on the left: the BS170 runs the opposite way to the 2N7000 (source on the left).", de: "Drain links: Der BS170 ist umgekehrt belegt wie der 2N7000 (Source links)."}}
+        - {number: "2", name: "G", function: {en: "Gate", de: "Gate"}, type: signal}
+        - {number: "3", name: "S", function: {en: "Source of the N-channel MOSFET", de: "Source des N-Kanal-MOSFET"}, type: signal}
+    - id: ds18b20
+      name: {en: "DS18B20", de: "DS18B20"}
+      pins:
+        - {number: "1", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground, notes: {en: "Ground on the left: the DS18B20 has supply and ground swapped compared with the LM35, whose supply is on the left.", de: "Masse links: Beim DS18B20 sind Versorgung und Masse gegenüber dem LM35 vertauscht, dessen Versorgung links liegt."}}
+        - {number: "2", name: "DQ", function: {en: "1-Wire data input/output, open drain; also supplies the part in parasite-power mode", de: "1-Wire-Datenein-/-ausgang, Open Drain; versorgt den Baustein im Parasite-Power-Betrieb"}, type: data}
+        - {number: "3", name: "VDD", function: {en: "Optional supply; tie to ground in parasite-power mode", de: "Optionale Versorgung; im Parasite-Power-Betrieb an Masse legen"}, type: power, notes: {en: "Supply on the right: the opposite of the LM35. Order from the maker's (Dallas) own datasheet; the current Analog Devices datasheet could not be opened.", de: "Versorgung rechts: umgekehrt zum LM35. Reihenfolge aus dem Datenblatt des Herstellers (Dallas); das aktuelle Datenblatt von Analog Devices ließ sich nicht öffnen."}}
+
+- id: pc817
+  kind: pinout
+  category: pinouts
+  group: ics
+  name: {cs: "PC817 (DIP-4)", da: "PC817 (DIP-4)", de: "PC817 (DIP-4)", el: "PC817 (DIP-4)", en: "PC817 (DIP-4)", es: "PC817 (DIP-4)", fr: "PC817 (DIP-4)", hi: "PC817 (DIP-4)", it: "PC817 (DIP-4)", ja: "PC817 (DIP-4)", nl: "PC817 (DIP-4)", no: "PC817 (DIP-4)", pl: "PC817 (DIP-4)", pt: "PC817 (DIP-4)", sv: "PC817 (DIP-4)", zh: "PC817 (DIP-4)"}
+  doc: {en: "Phototransistor optocoupler of the Sharp PC817 series, drawn as the 4-pin DIP from above.", de: "Fototransistor-Optokoppler der Sharp-Baureihe PC817, gezeichnet als 4-poliges DIP von oben."}
+  notes: {en: "Input side (LED) on pins 1 and 2, output side (phototransistor) on pins 3 and 4; the two sides are isolated from each other. Pin 1 is marked by a dot on the top. The LED needs a series resistor. The SMT gull-wing version of the same series has the same pin numbers.", de: "Eingangsseite (LED) an Pin 1 und 2, Ausgangsseite (Fototransistor) an Pin 3 und 4; beide Seiten sind voneinander isoliert. Pin 1 ist oben mit einem Punkt markiert. Die LED braucht einen Vorwiderstand. Die SMT-Version mit Gull-Wing-Anschlüssen derselben Baureihe hat dieselben Pin-Nummern."}
+  tags: ["pc817", "optocoupler", "optokoppler", "photocoupler", "opto-isolator", "fototransistor", "phototransistor", "isolator", "dip4", "dip-4", "sharp", "anode", "cathode", "kathode", "emitter", "collector", "kollektor"]
+  source: "Sharp PC817XxNSZ1B series datasheet OP18002EN (15 January 2018), page 2, Internal Connection Diagram and Outline 1 (through-hole)"
+  shape:
+    type: dip
+    pins: 4
+  pins:
+    - {number: "1", name: "Anode", function: {en: "Anode of the infrared LED (input +)", de: "Anode der Infrarot-LED (Eingang +)"}, type: signal}
+    - {number: "2", name: "Cathode", function: {en: "Cathode of the infrared LED (input −)", de: "Kathode der Infrarot-LED (Eingang −)"}, type: signal}
+    - {number: "3", name: "Emitter", function: {en: "Emitter of the output phototransistor", de: "Emitter des Ausgangs-Fototransistors"}, type: signal}
+    - {number: "4", name: "Collector", function: {en: "Collector of the output phototransistor", de: "Kollektor des Ausgangs-Fototransistors"}, type: signal}
+
+- id: irf540n
+  kind: pinout
+  category: pinouts
+  group: ics
+  name: {cs: "IRF540N / IRLZ44N (TO-220)", da: "IRF540N / IRLZ44N (TO-220)", de: "IRF540N / IRLZ44N (TO-220)", el: "IRF540N / IRLZ44N (TO-220)", en: "IRF540N / IRLZ44N (TO-220)", es: "IRF540N / IRLZ44N (TO-220)", fr: "IRF540N / IRLZ44N (TO-220)", hi: "IRF540N / IRLZ44N (TO-220)", it: "IRF540N / IRLZ44N (TO-220)", ja: "IRF540N / IRLZ44N (TO-220)", nl: "IRF540N / IRLZ44N (TO-220)", no: "IRF540N / IRLZ44N (TO-220)", pl: "IRF540N / IRLZ44N (TO-220)", pt: "IRF540N / IRLZ44N (TO-220)", sv: "IRF540N / IRLZ44N (TO-220)", zh: "IRF540N / IRLZ44N (TO-220)"}
+  doc: {en: "N-channel power MOSFETs IRF540N (100 V) and IRLZ44N (logic level) of Infineon, formerly International Rectifier, drawn from the front: label side towards you, leads pointing down.", de: "N-Kanal-Leistungs-MOSFETs IRF540N (100 V) und IRLZ44N (Logikpegel) von Infineon, früher International Rectifier, von vorn gezeichnet: Beschriftung zu dir, Anschlüsse nach unten."}
+  notes: {en: "The metal tab is connected to the drain (pin 2): a heat sink on the tab carries the drain voltage, so insulate it from metal at any other potential. The IRLZ44N (logic-level) has the same pinout in its own Infineon datasheet.", de: "Die Metallfahne ist mit dem Drain (Pin 2) verbunden: Ein Kühlkörper an der Fahne führt die Drain-Spannung, also gegen Metall mit anderem Potenzial isolieren. Der IRLZ44N (Logikpegel) hat in seinem eigenen Infineon-Datenblatt dieselbe Belegung."}
+  tags: ["irf540n", "irf540", "irlz44n", "irlz44", "mosfet", "n-channel", "n-kanal", "hexfet", "power mosfet", "logic level", "logikpegel", "gate", "drain", "source", "to220", "to-220", "infineon"]
+  source: "Infineon IRF540NPbF datasheet Rev. 2.1 (24 July 2026), page 1 (symbol, TO-220 picture, legend) and page 8 (TO-220 package outline); Infineon IRLZ44NPbF datasheet Rev. 2.1 (12 August 2026), page 1"
+  shape:
+    type: to
+    package: to220
+    pins: ["1", "2", "3"]
+  pins:
+    - {number: "1", name: "G", function: {en: "Gate", de: "Gate"}, type: signal}
+    - {number: "2", name: "D", function: {en: "Drain, also on the tab", de: "Drain, auch an der Metallfahne"}, type: signal}
+    - {number: "3", name: "S", function: {en: "Source", de: "Source"}, type: signal}
+
+- id: tip120
+  kind: pinout
+  category: pinouts
+  group: ics
+  name: {cs: "TIP120 (TO-220)", da: "TIP120 (TO-220)", de: "TIP120 (TO-220)", el: "TIP120 (TO-220)", en: "TIP120 (TO-220)", es: "TIP120 (TO-220)", fr: "TIP120 (TO-220)", hi: "TIP120 (TO-220)", it: "TIP120 (TO-220)", ja: "TIP120 (TO-220)", nl: "TIP120 (TO-220)", no: "TIP120 (TO-220)", pl: "TIP120 (TO-220)", pt: "TIP120 (TO-220)", sv: "TIP120 (TO-220)", zh: "TIP120 (TO-220)"}
+  doc: {en: "NPN Darlington power transistor, 60 V and 5 A, drawn from the front: label side towards you, leads pointing down.", de: "NPN-Darlington-Leistungstransistor, 60 V und 5 A, von vorn gezeichnet: Beschriftung zu dir, Anschlüsse nach unten."}
+  notes: {en: "The metal tab is connected to the collector (pin 2): a heat sink on the tab carries the collector voltage, so insulate it from metal at any other potential. The sheet also covers the TIP121 and TIP122 (NPN) and the PNP types TIP125 to TIP127 in the same case; only the TIP120 is drawn here.", de: "Die Metallfahne ist mit dem Kollektor (Pin 2) verbunden: Ein Kühlkörper an der Fahne führt die Kollektorspannung, also gegen Metall mit anderem Potenzial isolieren. Das Datenblatt behandelt auch TIP121 und TIP122 (NPN) sowie die PNP-Typen TIP125 bis TIP127 im selben Gehäuse; hier ist nur der TIP120 gezeichnet."}
+  tags: ["tip120", "darlington", "npn", "transistor", "power transistor", "leistungstransistor", "base", "basis", "collector", "kollektor", "emitter", "to220", "to-220", "onsemi"]
+  source: "onsemi TIP120/D Rev. 10 (June 2024), page 1 (picture and legend, TO-220AB CASE 221A STYLE 1) and PDF page 8 (case 221A outline)"
+  shape:
+    type: to
+    package: to220
+    pins: ["1", "2", "3"]
+  pins:
+    - {number: "1", name: "B", function: {en: "Base", de: "Basis"}, type: signal}
+    - {number: "2", name: "C", function: {en: "Collector, also on the tab", de: "Kollektor, auch an der Metallfahne"}, type: signal}
+    - {number: "3", name: "E", function: {en: "Emitter", de: "Emitter"}, type: signal}
+
+- id: bt136
+  kind: pinout
+  category: pinouts
+  group: ics
+  name: {cs: "BT136 (TO-220)", da: "BT136 (TO-220)", de: "BT136 (TO-220)", el: "BT136 (TO-220)", en: "BT136 (TO-220)", es: "BT136 (TO-220)", fr: "BT136 (TO-220)", hi: "BT136 (TO-220)", it: "BT136 (TO-220)", ja: "BT136 (TO-220)", nl: "BT136 (TO-220)", no: "BT136 (TO-220)", pl: "BT136 (TO-220)", pt: "BT136 (TO-220)", sv: "BT136 (TO-220)", zh: "BT136 (TO-220)"}
+  doc: {en: "4-quadrant triac BT136-600, 600 V and 4 A, in SOT78 (TO-220AB), drawn from the front: label side towards you, leads pointing down.", de: "Vierquadranten-Triac BT136-600, 600 V und 4 A, im SOT78 (TO-220AB), von vorn gezeichnet: Beschriftung zu dir, Anschlüsse nach unten."}
+  notes: {en: "The metal tab is connected to T2 (pin 2), which usually carries mains voltage: never touch it in operation and insulate the heat sink. Not for the BT136X, the isolated full-pack version (TO-220F): its tab is not connected, and this page does not cover it.", de: "Die Metallfahne ist mit T2 (Pin 2) verbunden, das meist Netzspannung führt: im Betrieb nie berühren und den Kühlkörper isolieren. Gilt nicht für den BT136X, die isolierte Vollkunststoff-Version (TO-220F): Deren Fahne ist nicht angeschlossen, und diese Seite deckt ihn nicht ab."}
+  tags: ["bt136", "bt136-600", "triac", "thyristor", "ween", "nxp", "mt1", "mt2", "t1", "t2", "gate", "sot78", "to220", "to-220", "to-220ab"]
+  source: "WeEn Semiconductors BT136-600 4Q Triac product data sheet Rev.02 (25 September 2024), section 5 Table 2 Pinning information, simplified outline and symbol (page 2)"
+  shape:
+    type: to
+    package: to220
+    pins: ["1", "2", "3"]
+  pins:
+    - {number: "1", name: "T1", function: {en: "Main terminal 1 (MT1), the reference for the gate", de: "Hauptanschluss 1 (MT1), Bezug für das Gate"}, type: signal}
+    - {number: "2", name: "T2", function: {en: "Main terminal 2 (MT2), also on the tab", de: "Hauptanschluss 2 (MT2), auch an der Metallfahne"}, type: signal}
+    - {number: "3", name: "G", function: {en: "Gate", de: "Gate"}, type: signal}
+
+- id: lm1117
+  kind: pinout
+  category: pinouts
+  group: ics
+  name: {cs: "LM1117 (TO-220)", da: "LM1117 (TO-220)", de: "LM1117 (TO-220)", el: "LM1117 (TO-220)", en: "LM1117 (TO-220)", es: "LM1117 (TO-220)", fr: "LM1117 (TO-220)", hi: "LM1117 (TO-220)", it: "LM1117 (TO-220)", ja: "LM1117 (TO-220)", nl: "LM1117 (TO-220)", no: "LM1117 (TO-220)", pl: "LM1117 (TO-220)", pt: "LM1117 (TO-220)", sv: "LM1117 (TO-220)", zh: "LM1117 (TO-220)"}
+  doc: {en: "800 mA low-dropout linear regulator, adjustable or fixed output, TI package NDE, drawn from the front: label side towards you, leads pointing down.", de: "800-mA-Low-Drop-Spannungsregler, einstellbar oder mit fester Ausgangsspannung, TI-Gehäuse NDE, von vorn gezeichnet: Beschriftung zu dir, Anschlüsse nach unten."}
+  notes: {en: "The metal tab is connected to pin 2 (OUTPUT), as on the LM317: a heat sink on the tab carries the output voltage. The order is the same as the LM317 (adjust, output, input), not the L78xx (input, ground, output). Pin 1 is the adjust input on the adjustable version and ground on the fixed versions.", de: "Die Metallfahne ist mit Pin 2 (OUTPUT) verbunden, wie beim LM317: Ein Kühlkörper an der Fahne führt die Ausgangsspannung. Die Reihenfolge entspricht dem LM317 (Einstellung, Ausgang, Eingang), nicht dem L78xx (Eingang, Masse, Ausgang). Pin 1 ist bei der einstellbaren Version der Einstelleingang und bei den Festspannungsversionen Masse."}
+  tags: ["lm1117", "regulator", "spannungsregler", "regler", "ldo", "low dropout", "adjustable", "einstellbar", "adj", "gnd", "vin", "vout", "to220", "to-220", "nde"]
+  source: "Texas Instruments LM1117 datasheet SNOS412Q (January 2023), section 6, Figure 6-2 (NDE package, TO-220) and Table 6-1 Pin Functions"
+  shape:
+    type: to
+    package: to220
+    pins: ["1", "2", "3"]
+  pins:
+    - {number: "1", name: "ADJ/GND", function: {en: "Adjust input on the adjustable version, ground on the fixed versions", de: "Einstelleingang bei der einstellbaren Version, Masse bei den Festspannungsversionen"}, type: signal}
+    - {number: "2", name: "OUTPUT", function: {en: "Regulated output, also on the tab", de: "Geregelter Ausgang, auch an der Metallfahne"}, type: power}
+    - {number: "3", name: "INPUT", function: {en: "Unregulated input voltage", de: "Ungeregelte Eingangsspannung"}, type: power}
+
+- id: sot23
+  kind: pinout
+  category: pinouts
+  group: ics
+  name: {cs: "SOT-23: příklady", da: "SOT-23: eksempler", de: "SOT-23: Beispiele", el: "SOT-23: παραδείγματα", en: "SOT-23: examples", es: "SOT-23: ejemplos", fr: "Exemples SOT-23", hi: "SOT-23: उदाहरण", it: "SOT-23: esempi", ja: "SOT-23の例", nl: "SOT-23: voorbeelden", no: "SOT-23: eksempler", pl: "SOT-23: przykłady", pt: "SOT-23: exemplos", sv: "SOT-23: exempel", zh: "SOT-23 示例"}
+  doc: {en: "The pin order of a SOT-23 part depends on the part, not on the package: this page lists examples only, so check the datasheet of your exact part and maker. Each is drawn from above with the marking side up: pin 1 lower left, pin 2 lower right, pin 3 alone at the top.", de: "Die Pin-Reihenfolge eines SOT-23-Bauteils hängt vom Bauteil ab, nicht vom Gehäuse: Diese Seite zeigt nur Beispiele, prüfe also das Datenblatt deines genauen Bauteils und Herstellers. Alle sind von oben mit der Beschriftung nach oben gezeichnet: Pin 1 unten links, Pin 2 unten rechts, Pin 3 allein oben."}
+  notes: {en: "The pin order of a SOT-23 part depends on the part, not on the package: transistors, MOSFETs, diodes and regulators in the same case use different orders. The examples here all have pin 3 alone on one side. The 2N7002 in SOT-23 (gate, source, drain) runs differently from the 2N7000 in TO-92 (source, gate, drain), and the MMBT3904 (base, emitter, collector) differently from the 2N3904 in TO-92 (emitter, base, collector).", de: "Die Pin-Reihenfolge eines SOT-23-Bauteils hängt vom Bauteil ab, nicht vom Gehäuse: Transistoren, MOSFETs, Dioden und Regler im selben Gehäuse haben verschiedene Reihenfolgen. Bei allen Beispielen hier steht Pin 3 allein auf einer Seite. Der 2N7002 im SOT-23 (Gate, Source, Drain) ist anders belegt als der 2N7000 im TO-92 (Source, Gate, Drain), der MMBT3904 (Basis, Emitter, Kollektor) anders als der 2N3904 im TO-92 (Emitter, Basis, Kollektor)."}
+  tags: ["sot23", "sot-23", "to-236", "to236", "smd", "transistor", "mosfet", "bc847", "bc846", "bc848", "mmbt3904", "2n7002", "bss84", "npn", "p-channel", "p-kanal", "n-channel", "n-kanal", "base", "basis", "collector", "kollektor", "emitter", "gate", "source", "drain"]
+  source: "onsemi BC846ALT1/D Rev. 21 (BC847), MMBT3904LT1/D Rev. 15 (MMBT3904), NDS7002A/D Rev. 11 (2N7002), BSS84/D Rev. 5 (BSS84), case 318 outline ISSUE AU; Diodes Incorporated DS11108 Rev. 28-2 (BC847), DS30036 Rev. 27-2 (MMBT3904), DS11303 Rev. 40-2 (2N7002), DS30149 Rev. 27-2 (BSS84)"
+  shape:
+    type: to
+    package: sot23
+    pins: ["1", "2", "3"]
+  variants:
+    - id: bc847
+      name: {en: "BC847", de: "BC847"}
+      pins:
+        - {number: "1", name: "B", function: {en: "Base", de: "Basis"}, type: signal}
+        - {number: "2", name: "E", function: {en: "Emitter", de: "Emitter"}, type: signal}
+        - {number: "3", name: "C", function: {en: "Collector", de: "Kollektor"}, type: signal}
+    - id: mmbt3904
+      name: {en: "MMBT3904", de: "MMBT3904"}
+      pins:
+        - {number: "1", name: "B", function: {en: "Base", de: "Basis"}, type: signal}
+        - {number: "2", name: "E", function: {en: "Emitter", de: "Emitter"}, type: signal}
+        - {number: "3", name: "C", function: {en: "Collector", de: "Kollektor"}, type: signal}
+    - id: q2n7002
+      name: {en: "2N7002", de: "2N7002"}
+      pins:
+        - {number: "1", name: "G", function: {en: "Gate", de: "Gate"}, type: signal}
+        - {number: "2", name: "S", function: {en: "Source of the N-channel MOSFET", de: "Source des N-Kanal-MOSFET"}, type: signal}
+        - {number: "3", name: "D", function: {en: "Drain", de: "Drain"}, type: signal}
+    - id: bss84
+      name: {en: "BSS84", de: "BSS84"}
+      pins:
+        - {number: "1", name: "G", function: {en: "Gate", de: "Gate"}, type: signal}
+        - {number: "2", name: "S", function: {en: "Source of the P-channel MOSFET, normally the more positive side", de: "Source des P-Kanal-MOSFET, normalerweise die positivere Seite"}, type: signal}
+        - {number: "3", name: "D", function: {en: "Drain", de: "Drain"}, type: signal}
+
+- id: sot223
+  kind: pinout
+  category: pinouts
+  group: ics
+  name: {cs: "SOT-223: příklady", da: "SOT-223: eksempler", de: "SOT-223: Beispiele", el: "SOT-223: παραδείγματα", en: "SOT-223: examples", es: "SOT-223: ejemplos", fr: "Exemples SOT-223", hi: "SOT-223: उदाहरण", it: "SOT-223: esempi", ja: "SOT-223の例", nl: "SOT-223: voorbeelden", no: "SOT-223: eksempler", pl: "SOT-223: przykłady", pt: "SOT-223: exemplos", sv: "SOT-223: exempel", zh: "SOT-223 示例"}
+  doc: {en: "The pin order of a SOT-223 part depends on the part, not on the package: this page lists examples only, so check the datasheet of your exact part and maker. Each is drawn from above with the marking side up: pins 1 to 3 along the bottom from left to right, the tab at the top as pin 4.", de: "Die Pin-Reihenfolge eines SOT-223-Bauteils hängt vom Bauteil ab, nicht vom Gehäuse: Diese Seite zeigt nur Beispiele, prüfe also das Datenblatt deines genauen Bauteils und Herstellers. Alle sind von oben mit der Beschriftung nach oben gezeichnet: Pin 1 bis 3 unten von links nach rechts, die Fahne oben als Pin 4."}
+  notes: {en: "The tab is connected to the middle pin in both examples: to the output of the LM1117 and to the collector of the BCP56. A copper area or heat sink on the tab therefore carries that potential. This is a property of these parts, not of the package.", de: "Die Fahne ist bei beiden Beispielen mit dem mittleren Pin verbunden: beim LM1117 mit dem Ausgang, beim BCP56 mit dem Kollektor. Eine Kupferfläche oder ein Kühlkörper an der Fahne führt also dieses Potenzial. Das ist eine Eigenschaft dieser Bauteile, nicht des Gehäuses."}
+  tags: ["sot223", "sot-223", "to-261", "smd", "lm1117", "bcp56", "bcp54", "bcp55", "regulator", "spannungsregler", "ldo", "transistor", "npn", "tab", "fahne", "adj", "vin", "vout", "base", "basis", "collector", "kollektor", "emitter"]
+  source: "Texas Instruments LM1117 datasheet SNOS412Q (January 2023), section 6, Figure 6-1 (DCY package, SOT-223) and Table 6-1; onsemi BCP56T1/D Rev. 16 (August 2024), page 1; Diodes Incorporated BCP54/55/56 datasheet DS35367 Rev. 7-2 (January 2021), page 1"
+  shape:
+    type: to
+    package: sot223
+    pins: ["1", "2", "3", "4"]
+  variants:
+    - id: lm1117
+      name: {en: "LM1117", de: "LM1117"}
+      pins:
+        - {number: "1", name: "ADJ/GND", function: {en: "Adjust input on the adjustable version, ground on the fixed versions", de: "Einstelleingang bei der einstellbaren Version, Masse bei den Festspannungsversionen"}, type: signal}
+        - {number: "2", name: "OUTPUT", function: {en: "Regulated output, also on the tab", de: "Geregelter Ausgang, auch an der Fahne"}, type: power}
+        - {number: "3", name: "INPUT", function: {en: "Unregulated input voltage", de: "Ungeregelte Eingangsspannung"}, type: power}
+        - {number: "4", name: "OUTPUT", function: {en: "Tab, connected to the output (pin 2)", de: "Fahne, mit dem Ausgang (Pin 2) verbunden"}, type: power}
+    - id: bcp56
+      name: {en: "BCP56", de: "BCP56"}
+      pins:
+        - {number: "1", name: "B", function: {en: "Base", de: "Basis"}, type: signal}
+        - {number: "2", name: "C", function: {en: "Collector, also on the tab", de: "Kollektor, auch an der Fahne"}, type: signal}
+        - {number: "3", name: "E", function: {en: "Emitter", de: "Emitter"}, type: signal}
+        - {number: "4", name: "C", function: {en: "Tab, connected to the collector (pin 2)", de: "Fahne, mit dem Kollektor (Pin 2) verbunden"}, type: signal}

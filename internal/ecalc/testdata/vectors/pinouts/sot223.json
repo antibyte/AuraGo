@@ -1,0 +1,70 @@
+{
+  "pinout": "sot223",
+  "variants": [
+    {
+      "variant": "lm1117",
+      "counts": {
+        "power": 3,
+        "signal": 1
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "ADJ/GND",
+          "type": "signal",
+          "ref": "TI SNOS412Q Table 6-1, SOT-223 column \"1\" (PDF page 3); Figure 6-1 bottom lead"
+        },
+        {
+          "number": "2",
+          "name": "OUTPUT",
+          "type": "power",
+          "ref": "TI SNOS412Q Table 6-1, VOUT \"2, 4\"; Figure 6-1 middle lead"
+        },
+        {
+          "number": "3",
+          "name": "INPUT",
+          "type": "power",
+          "ref": "TI SNOS412Q Table 6-1, VIN \"3\"; Figure 6-1 top lead"
+        },
+        {
+          "number": "4",
+          "name": "OUTPUT",
+          "type": "power",
+          "ref": "TI SNOS412Q Table 6-1, VOUT \"2, 4\"; Figure 6-1 \"Tab is VOUT\""
+        }
+      ]
+    },
+    {
+      "variant": "bcp56",
+      "counts": {
+        "signal": 4
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "B",
+          "type": "signal",
+          "ref": "onsemi BCP56T1/D Rev. 16 page 1 \"BASE 1\"; Diodes DS35367 page 1 B"
+        },
+        {
+          "number": "2",
+          "name": "C",
+          "type": "signal",
+          "ref": "onsemi BCP56T1/D Rev. 16 page 1 \"COLLECTOR 2,4\"; Diodes DS35367 page 1 middle C"
+        },
+        {
+          "number": "3",
+          "name": "E",
+          "type": "signal",
+          "ref": "onsemi BCP56T1/D Rev. 16 page 1 \"EMITTER 3\"; Diodes DS35367 page 1 E"
+        },
+        {
+          "number": "4",
+          "name": "C",
+          "type": "signal",
+          "ref": "onsemi BCP56T1/D Rev. 16 page 1 \"COLLECTOR 2,4\", \"4\" at the tab; Diodes DS35367 page 1 tab C"
+        }
+      ]
+    }
+  ]
+}

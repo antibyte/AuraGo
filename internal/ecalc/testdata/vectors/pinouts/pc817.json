@@ -1,0 +1,37 @@
+{
+  "pinout": "pc817",
+  "variants": [
+    {
+      "variant": "",
+      "counts": {
+        "signal": 4
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "Anode",
+          "type": "signal",
+          "ref": "Sharp OP18002EN p.2 Internal Connection Diagram \"1 Anode\"; outline pin 1 upper left with anode mark"
+        },
+        {
+          "number": "2",
+          "name": "Cathode",
+          "type": "signal",
+          "ref": "Sharp OP18002EN p.2 \"2 Cathode\"; outline pin 2 lower left"
+        },
+        {
+          "number": "3",
+          "name": "Emitter",
+          "type": "signal",
+          "ref": "Sharp OP18002EN p.2 \"3 Emitter\"; outline pin 3 lower right"
+        },
+        {
+          "number": "4",
+          "name": "Collector",
+          "type": "signal",
+          "ref": "Sharp OP18002EN p.2 \"4 Collector\"; outline pin 4 upper right"
+        }
+      ]
+    }
+  ]
+}

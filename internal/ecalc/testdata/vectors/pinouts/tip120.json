@@ -1,0 +1,31 @@
+{
+  "pinout": "tip120",
+  "variants": [
+    {
+      "variant": "",
+      "counts": {
+        "signal": 3
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "B",
+          "type": "signal",
+          "ref": "onsemi TIP120/D Rev. 10 page 1 \"1. Base\"; case 221A STYLE 1 (PDF page 8)"
+        },
+        {
+          "number": "2",
+          "name": "C",
+          "type": "signal",
+          "ref": "onsemi TIP120/D Rev. 10 page 1 \"2. Collector\", \"4. Collector\" (tab)"
+        },
+        {
+          "number": "3",
+          "name": "E",
+          "type": "signal",
+          "ref": "onsemi TIP120/D Rev. 10 page 1 \"3. Emitter\""
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "pinout": "bt136",
+  "variants": [
+    {
+      "variant": "",
+      "counts": {
+        "signal": 3
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "T1",
+          "type": "signal",
+          "ref": "WeEn BT136-600 Rev.02 Table 2, pin 1 \"T1 main terminal 1\" (page 2)"
+        },
+        {
+          "number": "2",
+          "name": "T2",
+          "type": "signal",
+          "ref": "WeEn BT136-600 Rev.02 Table 2, pin 2 \"T2 main terminal 2\"; mb \"T2 mounting base; main terminal 2\""
+        },
+        {
+          "number": "3",
+          "name": "G",
+          "type": "signal",
+          "ref": "WeEn BT136-600 Rev.02 Table 2, pin 3 \"G gate\""
+        }
+      ]
+    }
+  ]
+}

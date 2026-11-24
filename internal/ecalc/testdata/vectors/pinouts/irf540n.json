@@ -1,0 +1,31 @@
+{
+  "pinout": "irf540n",
+  "variants": [
+    {
+      "variant": "",
+      "counts": {
+        "signal": 3
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "G",
+          "type": "signal",
+          "ref": "Infineon IRF540NPbF Rev. 2.1 page 1 \"Gate Pin 1\"; picture lead 1 left; IRLZ44NPbF Rev. 2.1 page 1 the same"
+        },
+        {
+          "number": "2",
+          "name": "D",
+          "type": "signal",
+          "ref": "Infineon IRF540NPbF Rev. 2.1 page 1 \"Drain Pin 2, Tab\"; picture lead 2 middle, \"tab\"; IRLZ44NPbF Rev. 2.1 page 1 the same"
+        },
+        {
+          "number": "3",
+          "name": "S",
+          "type": "signal",
+          "ref": "Infineon IRF540NPbF Rev. 2.1 page 1 \"Source Pin 3\"; picture lead 3 right; IRLZ44NPbF Rev. 2.1 page 1 the same"
+        }
+      ]
+    }
+  ]
+}

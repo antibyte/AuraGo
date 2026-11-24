@@ -1,0 +1,32 @@
+{
+  "pinout": "lm1117",
+  "variants": [
+    {
+      "variant": "",
+      "counts": {
+        "power": 2,
+        "signal": 1
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "ADJ/GND",
+          "type": "signal",
+          "ref": "TI SNOS412Q Table 6-1, TO-220 column \"1\" (PDF page 3); Figure 6-2 bottom lead"
+        },
+        {
+          "number": "2",
+          "name": "OUTPUT",
+          "type": "power",
+          "ref": "TI SNOS412Q Table 6-1, VOUT TO-220 \"2, TAB\"; Figure 6-2 middle lead, tab \"VOUT\""
+        },
+        {
+          "number": "3",
+          "name": "INPUT",
+          "type": "power",
+          "ref": "TI SNOS412Q Table 6-1, VIN TO-220 \"3\"; Figure 6-2 top lead"
+        }
+      ]
+    }
+  ]
+}
