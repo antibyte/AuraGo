@@ -70,7 +70,7 @@
 /* H5 and H6 gauge boxes */
 .hd-widget[data-hd-type="gauge"] .hd-gauge { position: relative; inline-size: min(var(--hd-body-w), calc(var(--hd-body-h) / 0.84)); aspect-ratio: 200 / 168; }
 .hd-widget[data-hd-type="gauge"][data-hd-family="tactile"] .hd-gauge { inline-size: min(var(--hd-body-w), var(--hd-body-h)); aspect-ratio: 1; }
-.hd-widget[data-hd-family="tactile"] .hd-gauge[data-hd-gauge="needle"] .hd-gauge-readout { inset-block-start: 65%; }
+.hd-widget[data-hd-family="tactile"] .hd-gauge[data-hd-gauge="needle"] .hd-gauge-readout { inset-block-start: 74%; } /* clear of the needle tail at every angle (the tail reaches 62 % of the box) */
 .hd-widget[data-hd-type="gauge"] .hd-gauge[data-hd-gauge="arc"] { inline-size: min(var(--hd-body-w), calc(var(--hd-body-h) / 0.86)); aspect-ratio: 200 / 172; }
 /* H7 temperature frame */
 .hd-widget[data-hd-type="temperature"] > .hd-frame, .hd-widget[data-hd-type="sensor"][data-hd-variant="numeral"] > .hd-frame { --hd-gap-in: 2px; }

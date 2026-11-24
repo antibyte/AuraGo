@@ -30,6 +30,12 @@ export const tests = [
     const grey = [[0, 0, 0, 0.5]]; assert.equal(p.composites([grey, [[255, 255, 255, 1]]]).length, 1);
     const dark = [0, 0, 0, 1]; assert.equal(p.worst(dark, [[255, 255, 255, 1], [128, 128, 128, 1]]).toFixed(2), '5.32'); // the grey composite is the worst case
     assert.ok(p.worst([255, 255, 255, 1], p.composites([layers[0], [[0, 0, 0, 1]]])) < 21); }],
+  ['probe hosts and hidden text: an svg graphic starts at its own svg, visually hidden text is not measured', () => { const ctx = { window: {}, Math, JSON }; vm.createContext(ctx); vm.runInContext(read('ui/testdata/homedash-lab-probes.js'), ctx);
+    const p = ctx.window.hdLabProbes, svg = { id: 'svg' }, parent = { id: 'parent' };
+    assert.equal(p.graphicHost({ ownerSVGElement: svg, parentElement: parent }, true), svg); assert.equal(p.graphicHost({ ownerSVGElement: null, parentElement: parent }, true), parent); assert.equal(p.graphicHost({ ownerSVGElement: null, parentElement: parent }, false), parent);
+    const el = inside => ({ closest: s => (inside && s === '.hd-sr-only' ? {} : null) }), box = (w, h) => ({ width: w, height: h });
+    assert.equal(p.visuallyHidden(el(true), { clip: 'auto' }, box(40, 12)), true); assert.equal(p.visuallyHidden(el(false), { clip: 'rect(0px, 0px, 0px, 0px)' }, box(40, 12)), true);
+    assert.equal(p.visuallyHidden(el(false), { clip: 'auto' }, box(1, 1)), true); assert.equal(p.visuallyHidden(el(false), { clip: 'auto' }, box(40, 12)), false); }],
   ['applyState prefers a fixture scenario and rejects bad input', async () => {
     const view = pending => ({ id: 'lab:x', kind: 'switch', name: 'Lamp', value: 'on', available: true, status: 'ok', readonly: false, capabilities: ['toggle'], pending, stale: false, tone: null });
     const { hdLab, doc } = await bootLab('?types=entity&states=off,on&palette=dark', lab => lab.fixtures.define('entity', '*', { scenarios: { pending: { from: view(false), to: view(true) }, typo: { from: 'on', to: 'pendng' } } }));

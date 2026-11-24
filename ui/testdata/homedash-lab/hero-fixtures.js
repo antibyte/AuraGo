@@ -6,6 +6,22 @@
   if (!lab || !lab.fixtures || typeof lab.fixtures.define !== 'function' || typeof lab.report !== 'function') {
     throw new Error('hero-fixtures.js needs window.hdLab with fixtures.define and report (M0 C4)');
   }
+  // Webfonts load on first use, and the lab renders after `await document.fonts.ready`. Start the loads for the first family of every
+  // family's number, label and VFD stack now (the stacks are read from the real tokens), so the first panel already measures loaded fonts.
+  (function preloadFonts() {
+    if (!document.fonts || typeof document.fonts.load !== 'function' || !document.body) return;
+    const names = new Set();
+    for (const family of ['glass', 'tactile', 'minimal', 'instrument']) {
+      const host = document.createElement('div'); host.className = 'hd-widget'; host.setAttribute('data-hd-family', family); document.body.appendChild(host);
+      const cs = getComputedStyle(host);
+      for (const token of ['--hd-font-ui', '--hd-font-num', '--hd-font-label', '--hd-font-vfd']) {
+        const first = cs.getPropertyValue(token).trim().split(',')[0].trim();
+        if (first && !/^(system-ui|sans-serif|serif|monospace)$/.test(first)) names.add(first.replace(/^["']|["']$/g, ''));
+      }
+      host.remove();
+    }
+    for (const name of names) for (const weight of [400, 500, 600]) document.fonts.load(weight + ' 16px "' + name + '"', 'Ag0.-').catch(() => {});
+  })();
   const NOW = Math.floor(Date.now() / 60000) * 60000, MIN = 60000;
   const iso = (ms) => new Date(ms).toISOString();
   function merge(base, over) { const o = over || {}; return Object.assign({}, base, o, { attributes: Object.assign({}, base.attributes, o.attributes) }); }

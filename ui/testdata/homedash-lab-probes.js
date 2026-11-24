@@ -92,10 +92,12 @@
                 if (v < min) { const msg = 'token ' + fg + ' on ' + bg + ' ' + show(v) + ' < ' + min; if (kind === 'g' && palette === 'theme') r.contrast.warnings.push(msg + ' (theme colours, reported only)'); else r.contrast.failures.push(msg); } }
         } finally { probe.remove(); }
     }
+    // Text that is visually hidden (the .hd-sr-only pattern: clipped away or a 1x1 box) is read by screen readers only and is not measured.
+    function visuallyHidden(el, cs, rect) { if (el.closest('.hd-sr-only')) return true; const c = (cs.clip || '').replace(/\s/g, ''); return c === 'rect(0px,0px,0px,0px)' || (rect.width <= 1.5 && rect.height <= 1.5); }
     function text(root, r) { const owners = new Set(), walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
         for (let n = walker.nextNode(); n; n = walker.nextNode()) if (n.textContent.trim() && n.parentElement) owners.add(n.parentElement);
         for (const el of owners) { const cs = getComputedStyle(el), rect = el.getBoundingClientRect();
-            if (cs.visibility === 'hidden' || !rect.width || !rect.height || el.closest('[hidden]') || exempt(el)) continue;
+            if (cs.visibility === 'hidden' || !rect.width || !rect.height || el.closest('[hidden]') || exempt(el) || visuallyHidden(el, cs, rect)) continue;
             const bgs = backgroundsOf(el); if (!bgs) { r.contrast.unmeasured++; continue; }
             // SVG text is painted with fill, not color.
             const paint = el instanceof SVGElement ? cs.fill : cs.color; if (!paint || paint === 'none') continue;
@@ -103,6 +105,8 @@
             const fg = rgba(paint); fg[3] *= opacityOf(el); const min = el.closest('[aria-hidden="true"]') ? GRAPHIC_MIN : TEXT_MIN, v = worst(fg, bgs); r.contrast.checked++;
             if (v < min) r.contrast.failures.push('text ' + label(el) + ' ' + JSON.stringify(el.textContent.trim().slice(0, 24)) + ' ' + show(v) + ' < ' + min); } }
     const GRAPHICS = '.hd-dial-arc, .hd-gauge-arc, .hd-gauge-needle-shape, .hd-spark-line, .hd-slider-fill, .hd-bar-fill, .hd-seg7-seg[data-lit="true"], .hd-toggle-thumb, .hd-lamp-dot';
+    // Where the background walk of a graphic starts: an svg graphic at its own svg (a background on the svg itself counts), any other element at its parent.
+    function graphicHost(el, svg) { return svg ? (el.ownerSVGElement || el.parentElement) : el.parentElement; }
     function graphics(root, r, extraSelectors) { const sel = [GRAPHICS].concat(extraSelectors || []).join(', ');
         for (const el of root.querySelectorAll(sel)) { const rect = el.getBoundingClientRect(); if (exempt(el) || !rect.width || !rect.height) continue;
             // A switch thumb whose toggle also shows a decor glyph (the on bar or the off ring) is not the only state cue: it is a handle separated by its edge ring and contact shadow
@@ -113,7 +117,7 @@
             if (!paint && svg && cs.fill && cs.fill !== 'none') { if (/^url\(/.test(cs.fill)) { r.contrast.unmeasured++; continue; } const f = rgba(cs.fill); if (f[3] > 0) { paint = f; opacity = Number(cs.fillOpacity); } }
             if (!paint && !svg) { const b = rgba(cs.backgroundColor); if (b[3] > 0) paint = b; }
             if (!paint) continue; paint[3] *= opacityOf(el) * (Number.isFinite(opacity) ? opacity : 1);
-            const host = svg ? (el.ownerSVGElement ? el.ownerSVGElement.parentElement : el.parentElement) : el.parentElement, bgs = host ? backgroundsOf(host) : null; if (!bgs) { r.contrast.unmeasured++; continue; }
+            const host = graphicHost(el, svg), bgs = host ? backgroundsOf(host) : null; if (!bgs) { r.contrast.unmeasured++; continue; }
             const v = worst(paint, bgs); r.contrast.checked++; if (v < GRAPHIC_MIN) { const msg = 'graphic ' + label(el) + ' ' + show(v) + ' < 3'; r.contrast.failures.push(msg); } } }
     const INTERACTIVE = ['button', '[role="slider"]', '[role="switch"]', '[role="radio"]', '[role="spinbutton"]', '[tabindex="0"]'].map(s => '.hd-lab-stage ' + s).join(', ');
     function hit(root, r) { for (const el of root.querySelectorAll(INTERACTIVE)) { const b = el.getBoundingClientRect(); if ((!b.width && !b.height) || getComputedStyle(el).visibility === 'hidden') continue; r.hit.checked++;
@@ -141,5 +145,5 @@
         tokens(o.root, o.palette, r); text(o.root, r); graphics(o.root, r, o.graphics); hit(o.root, r); shift(o.root, (o.entries || []).filter(e => !e.entry), o.states || [], r); backdrop(o.root, r); await fonts(r); await animations(o.motion, r);
         return r;
     }
-    window.hdLabProbes = Object.freeze({ run, ratio, over, rgba, gradientLayers, composites, worst });
+    window.hdLabProbes = Object.freeze({ run, visuallyHidden, graphicHost, ratio, over, rgba, gradientLayers, composites, worst });
 })();

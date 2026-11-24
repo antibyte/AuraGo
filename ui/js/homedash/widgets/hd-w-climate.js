@@ -39,7 +39,7 @@
         const lower = api.prim.pushButton({ label: t('homedash.climate.lower'), icon: 'minus', dir: -1, variant: 'chip' });
         const raise = api.prim.pushButton({ label: t('homedash.climate.raise'), icon: 'plus', dir: 1, variant: 'chip' });
         const modeLabels = { off: t('homedash.climate.mode_off'), heat: t('homedash.climate.mode_heat'), cool: t('homedash.climate.mode_cool'), auto: t('homedash.climate.mode_auto') };
-        const seg = api.prim.segmented({ label: api.widget.title, rotary: tact, options: [{ id: 'off', icon: 'power', label: modeLabels.off }, { id: 'heat', icon: 'flame', label: modeLabels.heat },
+        const seg = api.prim.segmented({ label: api.widget.title, rotary: false, options: [{ id: 'off', icon: 'power', label: modeLabels.off }, { id: 'heat', icon: 'flame', label: modeLabels.heat },
             { id: 'cool', icon: 'snowflake', label: modeLabels.cool }, { id: 'auto', icon: 'mode-auto', label: modeLabels.auto }] });
         const box = el('div', { class: 'hd-climate-dialbox' }, [knob.el, el('div', { class: 'hd-climate-steps' }, [lower.el, raise.el])]);
         // Tactile only: the action lamp sits inside the dialbox after the knob; CSS positions it beside the readout plate.

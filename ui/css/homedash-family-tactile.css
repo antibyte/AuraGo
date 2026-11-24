@@ -189,7 +189,6 @@
 .hd-widget[data-hd-family="tactile"] .hd-gauge-hub { fill: var(--hd-t-faceink); }
 .hd-widget[data-hd-family="tactile"] .hd-gauge-readout { color: var(--hd-t-faceink); font-weight: var(--hd-num-weight); }
 .hd-widget[data-hd-family="tactile"] .hd-gauge-readout .hd-num-unit { color: var(--hd-t-faceink); }
-.hd-widget[data-hd-type="gauge"][data-hd-family="tactile"] .hd-gauge[data-hd-gauge="needle"] .hd-gauge-readout { inset-block-start: 74%; } /* clear of the needle tail at every angle (the tail reaches 62 % of the box) */
 .hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] :is(.hd-gauge-needle, .hd-gauge-needle-shadow) { opacity: 0.4; }
 
 /* H7 big temperature readout: amber VFD digits in a black window across the body (right aligned, so a changing value never shifts the box). The title above is the engraved plate. */
@@ -199,7 +198,6 @@
 .hd-widget[data-hd-family="tactile"] .hd-vfd :is(.hd-num-frac, .hd-num-deg) { translate: 0 -0.11em; } /* Geist Mono: lifts the decimal and the degree sign to the top of the integer (measured 2 px low) */
 .hd-widget[data-hd-family="tactile"] .hd-vfd .hd-num-unit { color: var(--hd-t-vfd); }
 .hd-widget[data-hd-family="tactile"] .hd-vfd .hd-num-trend { color: var(--hd-t-vfd); }
-.hd-widget[data-hd-family="tactile"] .hd-vfd .hd-sr-only { color: var(--hd-t-vfd); } /* the screen reader text lies in the black window too */
 .hd-widget[data-hd-family="tactile"][data-hd-stale="true"] .hd-vfd .hd-numeral { color: color-mix(in srgb, var(--hd-t-vfd) 60%, transparent); text-shadow: none; }
 @container hd-widget (max-width: 139px) and (max-height: 139px) {
   .hd-widget[data-hd-family="tactile"][data-hd-type="temperature"] .hd-vfd .hd-numeral { font-size: calc(min(calc(var(--hd-body-h) / var(--hd-num-cap)), calc((var(--hd-body-w) - 16px) / 3.1), var(--hd-num-hero-max)) * 0.86); }
