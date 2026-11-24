@@ -36,6 +36,33 @@
 .hd-root[data-hd-density="compact"] { --hd-unit: 3.4px; --hd-pad-card: 12px; }
 .hd-root[data-hd-density="spacious"] { --hd-unit: 4.6px; --hd-pad-card: 20px; }
 .hd-root[data-hd-ease="fallback"] { --hd-ease-needle: cubic-bezier(.3, 1.3, .5, 1); }
+/* M1 additions: scheme ladders, masks and defaults of the tokens the shared rules read. */
+.hd-root {
+  --hd-corners-control: 9999px;
+  --hd-fade-down: linear-gradient(180deg, #000000, transparent);
+  --hd-ring-mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000000 calc(100% - 2px));
+  --hd-arc-mask-75: conic-gradient(#000000 0 75%, transparent 75% 100%);
+  --hd-ease-hud: cubic-bezier(.2, .8, .2, 1);
+  --hd-mask-clock: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7v5l3 2'/%3E%3C/svg%3E");
+  --hd-mask-lock: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='5' y='11' width='14' height='10' rx='2'/%3E%3Cpath d='M8 11V8a4 4 0 0 1 8 0v3'/%3E%3C/svg%3E");
+  --hd-mask-alert: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3.5 2.5 20.5h19Z'/%3E%3Cpath d='M12 10v4.5M12 17.5v.01'/%3E%3C/svg%3E");
+  --hd-mask-error: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7.5v5.5M12 16.5v.01'/%3E%3C/svg%3E");
+  --hd-card-bg: var(--hd-surface-solid); --hd-card-border: 1px solid var(--hd-hairline); --hd-dash-unavail: 1px dashed var(--hd-hairline);
+  --hd-shadow-card: none; --hd-ring-alert: inset 0 0 0 2px var(--hd-alert);
+  --hd-label-size: 12.5px; --hd-label-weight: 500; --hd-num-weight: 400; --hd-num-weight-small: 500; --hd-num-tracking: 0em;
+  --hd-num-cap: 0.74; --hd-num-hero-max: 96px; --hd-unit-scale: 0.42; --hd-dial-num-k: 0.26; --hd-thermo-num-k: 0.24;
+}
+.hd-root[data-hd-scheme="dark"] {
+  --hd-sa-1: 14%; --hd-sa-2: 18%; --hd-sa-3: 24%; --hd-sa-4: 34%; --hd-sa-5: 48%;
+  --hd-glass-alpha-s: 72%; --hd-fill-edge-k: 100%;
+  --hd-light-on: #FFB65C;
+}
+.hd-root[data-hd-scheme="light"] {
+  --hd-sa-1: 8%; --hd-sa-2: 11%; --hd-sa-3: 14%; --hd-sa-4: 20%; --hd-sa-5: 29%;
+  --hd-glass-alpha-s: 78%; --hd-fill-edge-k: 72%;
+  --hd-light-on: #C77A12;
+}
+.hd-root[data-hd-corners="square"] { --hd-corners-control: 0px; }
 
 /* ui/css/homedash-bridge.css */
 /* HomeDash palettes: neutral mapping (dark, light, custom, kiosk), the desktop theme bridge for palette=theme (reads
@@ -108,7 +135,72 @@
 .hd-dial[data-buf="a"] .hd-dial-active[data-buf="a"], .hd-dial[data-buf="b"] .hd-dial-active[data-buf="b"] { opacity: 1; }
 
 /* ui/css/homedash-primitives.css */
-/* HomeDash primitives: family-neutral structure of every primitive (sizes, hit areas, layout). Filled in milestone M1. */
+/* HomeDash primitives: family-neutral structure of every primitive (sizes, hit areas, layout). Decor is hidden by default; families show what they paint.
+   Written from the plan blocks "Shared structure" and the Geometry blocks of H1-H8 (unqualified primitive rules). Motion gates and painting live elsewhere. */
+/* Shared structure */
+:where(.hd-dial-svg, .hd-gauge-svg) path { fill: none; }
+.hd-toggle-key, .hd-toggle-legend, .hd-toggle-led, .hd-dial-glow, .hd-dial-lead, .hd-dial-gaps, .hd-dial-dots, .hd-dial-dots-lit, .hd-dial-ticks, .hd-dial-ticks-major,
+.hd-dial-numeral, .hd-dial-needle, .hd-dial-knob-shadow, .hd-dial-knurl, .hd-dial-cap, .hd-dial-legend, .hd-dial-word, .hd-dial-caption, .hd-seg-rotary,
+.hd-gauge-face, .hd-gauge-needle-glow, .hd-gauge-needle-shadow, .hd-gauge-glow, .hd-gauge-lead, .hd-gauge-gaps, .hd-gauge-arc-zone, .hd-spark-grid, .hd-spark-halo { display: none; }
+.hd-gauge-needle-shadow { transform-box: view-box; transform-origin: 100px 100px; transform: translate(2px, 2px) rotate(var(--hd-angle, 0deg)); }
+@keyframes hd-spin { to { transform: rotate(360deg); } }
+@keyframes hd-blink { 0% { opacity: 1; } 50% { opacity: 0.25; } }
+@keyframes hd-flash-a { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+@keyframes hd-flash-b { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+@keyframes hd-dip-a { 0%, 100% { opacity: 1; } 40% { opacity: 0.6; } }
+@keyframes hd-dip-b { 0%, 100% { opacity: 1; } 40% { opacity: 0.6; } }
+@keyframes hd-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+/* H1 toggle */
+.hd-toggle { --hd-tgl-w: 52px; --hd-tgl-h: 32px; --hd-tgl-inset: 3px; --hd-tgl-travel: calc(var(--hd-tgl-w) - var(--hd-tgl-h));
+  position: relative; display: inline-grid; place-items: center; inline-size: 64px; block-size: 44px; padding: 0; border: 0; background: transparent;
+  color: inherit; font: inherit; border-radius: var(--hd-radius-control); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.hd-toggle-track { position: relative; inline-size: var(--hd-tgl-w); block-size: var(--hd-tgl-h); box-sizing: border-box; border-radius: var(--hd-radius-control); }
+.hd-toggle-thumb { position: absolute; z-index: 1; inset-block-start: var(--hd-tgl-inset); inset-inline-start: var(--hd-tgl-inset);
+  inline-size: calc(var(--hd-tgl-h) - 2 * var(--hd-tgl-inset)); block-size: calc(var(--hd-tgl-h) - 2 * var(--hd-tgl-inset)); border-radius: var(--hd-radius-control); }
+.hd-toggle[aria-checked="true"] .hd-toggle-thumb { transform: translateX(var(--hd-tgl-travel)); }
+.hd-toggle-glyph { display: none; position: absolute; pointer-events: none; }
+.hd-toggle-key, .hd-toggle-legend, .hd-toggle-led { position: absolute; pointer-events: none; }
+/* H2 rocker */
+.hd-rocker { display: block; padding: 0; border: 0; background: transparent; cursor: pointer; block-size: min(var(--hd-body-h), calc(var(--hd-body-w) / 0.654)); aspect-ratio: 0.654; border-radius: var(--hd-radius-control); }
+.hd-rocker-bezel { position: relative; display: block; box-sizing: border-box; inline-size: 100%; block-size: 100%; padding: 6%; perspective: 420px; border-radius: inherit; }
+.hd-rocker-paddle { position: relative; display: grid; grid-template-rows: 1fr 1fr; block-size: 100%; transform-style: preserve-3d; border-radius: var(--hd-radius-control); }
+.hd-rocker-half { position: relative; display: grid; place-items: center; }
+.hd-rocker-led { position: absolute; inset-block-start: 4%; inset-inline-end: 4%; inline-size: 6px; block-size: 6px; display: none; }
+/* H3 dial */
+.hd-dial { position: relative; box-sizing: border-box; inline-size: min(var(--hd-body-w), var(--hd-body-h)); aspect-ratio: 1; border-radius: var(--hd-radius-pill); touch-action: none; }
+.hd-dial-svg { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; overflow: visible; }
+.hd-dial-readout { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; }
+.hd-dial-readout > .hd-numeral { font-size: calc(min(var(--hd-body-w), var(--hd-body-h)) * var(--hd-dial-num-k)); line-height: 1; }
+.hd-dial-readout > .hd-seg7 { block-size: calc(min(var(--hd-body-w), var(--hd-body-h)) * 0.2); }
+.hd-dial[data-hd-word="true"] .hd-dial-readout > :is(.hd-numeral, .hd-seg7) { display: none; }
+.hd-dial[data-hd-word="true"] .hd-dial-word { display: block; font-size: calc(min(var(--hd-body-w), var(--hd-body-h)) * var(--hd-dial-num-k) * 0.42); color: var(--hd-ink-muted); }
+.hd-dial-knurl { position: absolute; inset: 13%; border-radius: var(--hd-radius-pill); }
+.hd-dial-cap { position: absolute; inset: 19%; border-radius: var(--hd-radius-pill); }
+.hd-dial-pointer { position: absolute; inset: 3.2% 48.4% 50% 48.4%; transform-origin: 50% 100%; transform: rotate(var(--hd-angle, 0deg)); }
+.hd-dial-legend { position: absolute; inset-block-start: 79.7%; translate: -50% -50%; font: 600 10px / 1 var(--hd-font-label); }
+.hd-dial-legend[data-end="min"] { inset-inline-start: 20.3%; } .hd-dial-legend[data-end="max"] { inset-inline-start: 79.7%; }
+/* H5 and H6 gauge */
+.hd-gauge-svg { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; overflow: visible; }
+.hd-gauge-face { position: absolute; inset: 0; border-radius: var(--hd-radius-pill); }
+.hd-gauge-bezel, .hd-gauge-glass { position: absolute; border-radius: var(--hd-radius-pill); } .hd-gauge-bezel { inset: 0; } .hd-gauge-glass { inset: 4%; }
+.hd-gauge-readout { position: absolute; inset-inline-start: 50%; inset-block-start: 77.4%; translate: -50% -50%; font-size: calc(min(var(--hd-body-w), calc(var(--hd-body-h) / 0.84)) * 0.11); }
+.hd-gauge[data-hd-gauge="needle"] :is(.hd-gauge-min, .hd-gauge-max) { display: none; }
+.hd-gauge-numeral { font-size: 15px; text-anchor: middle; dominant-baseline: middle; }
+.hd-gauge[data-hd-gauge="arc"] .hd-gauge-readout { inset-block-start: 58.1%; font-size: min(28cqmin, calc(min(var(--hd-body-w), calc(var(--hd-body-h) / 0.86)) * 0.3)); }
+.hd-gauge[data-hd-gauge="arc"] :is(.hd-gauge-min, .hd-gauge-max) { position: absolute; inset-block-end: 0; font-size: 11px; color: var(--hd-ink-muted); }
+.hd-gauge[data-hd-gauge="arc"] .hd-gauge-min { inset-inline-start: 19.5%; translate: -50% 0; } .hd-gauge[data-hd-gauge="arc"] .hd-gauge-max { inset-inline-start: 80.5%; translate: -50% 0; }
+.hd-gauge-arc-zone { opacity: 0; } .hd-gauge[data-hd-tone="warn"] .hd-gauge-arc-zone { stroke: var(--hd-warn); opacity: 1; } .hd-gauge[data-hd-tone="crit"] .hd-gauge-arc-zone { stroke: var(--hd-alert); opacity: 1; }
+/* Unit scale (deviation: the plan gives --hd-unit-scale as a bare number, which is invalid as a font-size) */
+.hd-numeral .hd-num-unit { font-size: calc(var(--hd-unit-scale) * 1em); }
+/* H7 temperature readout */
+.hd-tread { display: flex; align-items: flex-end; inline-size: 100%; }
+.hd-tread .hd-numeral { font-size: min(calc(var(--hd-body-h) / var(--hd-num-cap)), calc(var(--hd-body-w) / 2.1), var(--hd-num-hero-max)); line-height: var(--hd-num-cap);
+  font-weight: var(--hd-num-weight); letter-spacing: var(--hd-num-tracking); display: inline-flex; align-items: flex-start; }
+.hd-tread .hd-num-int { min-inline-size: calc(var(--hd-num-chars) * 0.5ch); text-align: end; }
+.hd-tread :is(.hd-num-frac, .hd-num-deg) { line-height: 1; } .hd-tread .hd-num-frac { font-size: 0.5em; } .hd-tread .hd-num-deg { font-size: 0.45em; }
+.hd-tread .hd-num-unit { font-size: calc(var(--hd-unit-scale) * 1em); color: var(--hd-ink-muted); line-height: 1; }
+.hd-tread .hd-num-trend { align-self: flex-end; margin-inline-start: 0.08em; } .hd-tread .hd-num-trend .hd-ico { inline-size: 0.3em; block-size: 0.3em; }
+.hd-tread .hd-seg7 { block-size: calc(var(--hd-body-h) * 0.92); }
 
 /* ui/css/homedash-family-glass.css */
 /* HomeDash family Glass: token block and painting. Filled in milestone M1 (style lab). */
@@ -123,4 +215,67 @@
 /* HomeDash family Instrument: token block and painting. Filled in milestone M1 (style lab). */
 
 /* ui/css/homedash-widgets.css */
-/* HomeDash widgets: per-widget layout with container queries. Filled from milestone M3. */
+/* HomeDash widgets: frame grid, shared frame painting from the card tokens, state badges and per-hero layout (container queries and rules qualified by data-hd-type / data-hd-variant).
+   Written from "Shared frame geometry", the first block of T5 and the Geometry blocks of H1-H8. Family layers live in the family files. */
+/* Shared frame geometry */
+.hd-widget > .hd-frame {
+  position: absolute; inset: 0; box-sizing: border-box; display: grid;
+  --hd-pad-b: 16px; --hd-pad-i: 16px; --hd-head-h: 18px; --hd-state-h: 16px; --hd-gap-in: 6px;
+  padding: var(--hd-pad-b) var(--hd-pad-i); row-gap: var(--hd-gap-in); column-gap: 12px;
+  grid-template: "head" var(--hd-head-h) "body" minmax(0, 1fr) "state" var(--hd-state-h) / minmax(0, 1fr);
+  --hd-body-w: calc(100cqw - 2 * var(--hd-pad-i) - 2px);
+  --hd-body-h: calc(100cqh - 2 * var(--hd-pad-b) - 2px - var(--hd-head-h) - var(--hd-state-h) - 2 * var(--hd-gap-in));
+}
+.hd-widget .hd-head { grid-area: head; }
+.hd-widget .hd-title { font: var(--hd-label-weight) var(--hd-label-size) / var(--hd-head-h) var(--hd-font-label); letter-spacing: var(--hd-label-tracking); color: var(--hd-ink-muted); }
+.hd-widget .hd-body { grid-area: body; display: grid; place-items: center; }
+.hd-widget .hd-state { grid-area: state; font: 400 12.5px / var(--hd-state-h) var(--hd-font-ui); }
+@container hd-widget (max-height: 139px) { .hd-widget > .hd-frame { --hd-pad-b: 10px; } }
+@container hd-widget (max-width: 139px) { .hd-widget > .hd-frame { --hd-pad-i: 10px; } }
+@container hd-widget (max-width: 139px) and (max-height: 139px) {
+  .hd-widget > .hd-frame { --hd-pad-b: 8px; --hd-pad-i: 8px; --hd-head-h: 14px; --hd-state-h: 14px; --hd-gap-in: 3px; }
+  .hd-widget .hd-title, .hd-widget .hd-state { font-size: 11px; }
+}
+/* T5 shared painting from card tokens */
+.hd-widget > .hd-frame { background: var(--hd-card-bg); border: var(--hd-card-border); border-radius: var(--hd-radius-card); box-shadow: var(--hd-shadow-card); overflow: hidden; }
+.hd-widget[data-hd-status="unavailable"] > .hd-frame { border: var(--hd-dash-unavail); }
+.hd-widget[data-hd-tone="crit"] > .hd-frame::before { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: var(--hd-ring-alert); pointer-events: none; z-index: 2; }
+.hd-head::after { content: ""; display: none; flex: none; inline-size: 12px; block-size: 12px; background: var(--hd-ink-muted);
+  -webkit-mask: var(--hd-badge-mask) center / contain no-repeat; mask: var(--hd-badge-mask) center / contain no-repeat; }
+.hd-widget[data-hd-stale="true"] .hd-head::after { display: block; --hd-badge-mask: var(--hd-mask-clock); }
+.hd-widget[data-hd-readonly="true"] .hd-head::after { display: block; --hd-badge-mask: var(--hd-mask-lock); }
+.hd-widget[data-hd-tone="crit"] .hd-head::after { display: block; --hd-badge-mask: var(--hd-mask-alert); background: var(--hd-alert); }
+.hd-widget[data-hd-status="error"] .hd-state { color: var(--hd-alert-ink); }
+.hd-widget[data-hd-status="error"] .hd-state::before { content: ""; display: inline-block; inline-size: 12px; block-size: 12px; margin-inline-end: 4px; vertical-align: -1px;
+  background: var(--hd-alert-ink); -webkit-mask: var(--hd-mask-error) center / contain no-repeat; mask: var(--hd-mask-error) center / contain no-repeat; }
+.hd-widget [data-hd-disabled="true"] { opacity: 0.45; }
+.hd-widget[data-hd-stale="true"] :is(.hd-numeral, .hd-seg7) { color: var(--hd-ink-muted); }
+/* H1 pill row layout */
+@container hd-widget (aspect-ratio >= 1.6) { .hd-widget[data-hd-type="switch"][data-hd-variant="pill"] > .hd-frame { grid-template: "head body" 1fr "state body" 1fr / minmax(0, 1fr) auto; } }
+/* H4 climate */
+.hd-widget[data-hd-type="climate"] .hd-body { grid-template-rows: minmax(0, 1fr) 44px; row-gap: 8px; --hd-th-d: calc(min(var(--hd-body-w), var(--hd-body-h) - 52px) * 0.86); }
+@container hd-widget (max-height: 259px) { .hd-widget[data-hd-type="climate"] .hd-body { grid-template-rows: minmax(0, 1fr); --hd-th-d: calc(min(var(--hd-body-w), var(--hd-body-h)) * 0.86); }
+  .hd-widget[data-hd-type="climate"] :is(.hd-seg, .hd-climate-steps) { display: none; } }
+.hd-climate-dialbox { position: relative; inline-size: var(--hd-th-d); block-size: var(--hd-th-d); }
+.hd-climate-dialbox .hd-dial { inline-size: 100%; }
+.hd-climate-steps .hd-push { position: absolute; inline-size: 44px; block-size: 44px; translate: -50% -50%; inset-block-start: 87%; }
+.hd-climate-steps .hd-push[data-dir="-1"] { inset-inline-start: 33.5%; } .hd-climate-steps .hd-push[data-dir="1"] { inset-inline-start: 66.5%; }
+.hd-climate-steps .hd-push-label { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.hd-widget[data-hd-type="climate"] .hd-dial-readout > .hd-numeral { font-size: calc(var(--hd-th-d) * var(--hd-thermo-num-k)); }
+.hd-widget[data-hd-type="climate"] .hd-dial-marker { translate: 0 -5px; }
+.hd-body[data-hd-action="heating"] { --hd-act: var(--hd-heat); } .hd-body[data-hd-action="cooling"] { --hd-act: var(--hd-cool); }
+.hd-body[data-hd-action="idle"] { --hd-act: color-mix(in srgb, var(--hd-ink) 35%, transparent); } .hd-body[data-hd-action="off"] .hd-dial-active { display: none; }
+/* H5 and H6 gauge boxes */
+.hd-widget[data-hd-type="gauge"] .hd-gauge { position: relative; inline-size: min(var(--hd-body-w), calc(var(--hd-body-h) / 0.84)); aspect-ratio: 200 / 168; }
+.hd-widget[data-hd-type="gauge"][data-hd-family="tactile"] .hd-gauge { inline-size: min(var(--hd-body-w), var(--hd-body-h)); aspect-ratio: 1; }
+.hd-widget[data-hd-family="tactile"] .hd-gauge[data-hd-gauge="needle"] .hd-gauge-readout { inset-block-start: 65%; }
+.hd-widget[data-hd-type="gauge"] .hd-gauge[data-hd-gauge="arc"] { inline-size: min(var(--hd-body-w), calc(var(--hd-body-h) / 0.86)); aspect-ratio: 200 / 172; }
+/* H7 temperature frame */
+.hd-widget[data-hd-type="temperature"] > .hd-frame, .hd-widget[data-hd-type="sensor"][data-hd-variant="numeral"] > .hd-frame { --hd-gap-in: 2px; }
+/* H8 sparkline */
+.hd-widget[data-hd-type="sensor"][data-hd-variant="sparkline"] .hd-body { position: static; place-items: start; }
+.hd-widget[data-hd-type="sensor"][data-hd-variant="sparkline"] > .hd-frame { grid-template: "head" var(--hd-head-h) "body" auto "state" var(--hd-state-h) "." 1fr / minmax(0, 1fr); }
+@container hd-widget (aspect-ratio >= 1.6) { .hd-widget[data-hd-type="sensor"][data-hd-variant="sparkline"] > .hd-frame { grid-template: "head head" var(--hd-head-h) "body state" auto ". ." 1fr / minmax(0, 1fr) auto; } }
+.hd-widget[data-hd-type="sensor"] :is(.hd-spark, .hd-spark-fill) { position: absolute; inset-inline-start: 0; inset-block-end: 0; }
+.hd-widget[data-hd-type="sensor"][data-hd-family="tactile"] :is(.hd-spark, .hd-spark-fill) { inset-inline-start: 8px; inset-block-end: 8px; }
+.hd-widget[data-hd-type="sensor"] .hd-body > .hd-numeral { font-size: 22cqmin; }

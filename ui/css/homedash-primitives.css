@@ -1,1 +1,66 @@
-/* HomeDash primitives: family-neutral structure of every primitive (sizes, hit areas, layout). Filled in milestone M1. */
+/* HomeDash primitives: family-neutral structure of every primitive (sizes, hit areas, layout). Decor is hidden by default; families show what they paint.
+   Written from the plan blocks "Shared structure" and the Geometry blocks of H1-H8 (unqualified primitive rules). Motion gates and painting live elsewhere. */
+/* Shared structure */
+:where(.hd-dial-svg, .hd-gauge-svg) path { fill: none; }
+.hd-toggle-key, .hd-toggle-legend, .hd-toggle-led, .hd-dial-glow, .hd-dial-lead, .hd-dial-gaps, .hd-dial-dots, .hd-dial-dots-lit, .hd-dial-ticks, .hd-dial-ticks-major,
+.hd-dial-numeral, .hd-dial-needle, .hd-dial-knob-shadow, .hd-dial-knurl, .hd-dial-cap, .hd-dial-legend, .hd-dial-word, .hd-dial-caption, .hd-seg-rotary,
+.hd-gauge-face, .hd-gauge-needle-glow, .hd-gauge-needle-shadow, .hd-gauge-glow, .hd-gauge-lead, .hd-gauge-gaps, .hd-gauge-arc-zone, .hd-spark-grid, .hd-spark-halo { display: none; }
+.hd-gauge-needle-shadow { transform-box: view-box; transform-origin: 100px 100px; transform: translate(2px, 2px) rotate(var(--hd-angle, 0deg)); }
+@keyframes hd-spin { to { transform: rotate(360deg); } }
+@keyframes hd-blink { 0% { opacity: 1; } 50% { opacity: 0.25; } }
+@keyframes hd-flash-a { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+@keyframes hd-flash-b { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+@keyframes hd-dip-a { 0%, 100% { opacity: 1; } 40% { opacity: 0.6; } }
+@keyframes hd-dip-b { 0%, 100% { opacity: 1; } 40% { opacity: 0.6; } }
+@keyframes hd-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+/* H1 toggle */
+.hd-toggle { --hd-tgl-w: 52px; --hd-tgl-h: 32px; --hd-tgl-inset: 3px; --hd-tgl-travel: calc(var(--hd-tgl-w) - var(--hd-tgl-h));
+  position: relative; display: inline-grid; place-items: center; inline-size: 64px; block-size: 44px; padding: 0; border: 0; background: transparent;
+  color: inherit; font: inherit; border-radius: var(--hd-radius-control); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.hd-toggle-track { position: relative; inline-size: var(--hd-tgl-w); block-size: var(--hd-tgl-h); box-sizing: border-box; border-radius: var(--hd-radius-control); }
+.hd-toggle-thumb { position: absolute; z-index: 1; inset-block-start: var(--hd-tgl-inset); inset-inline-start: var(--hd-tgl-inset);
+  inline-size: calc(var(--hd-tgl-h) - 2 * var(--hd-tgl-inset)); block-size: calc(var(--hd-tgl-h) - 2 * var(--hd-tgl-inset)); border-radius: var(--hd-radius-control); }
+.hd-toggle[aria-checked="true"] .hd-toggle-thumb { transform: translateX(var(--hd-tgl-travel)); }
+.hd-toggle-glyph { display: none; position: absolute; pointer-events: none; }
+.hd-toggle-key, .hd-toggle-legend, .hd-toggle-led { position: absolute; pointer-events: none; }
+/* H2 rocker */
+.hd-rocker { display: block; padding: 0; border: 0; background: transparent; cursor: pointer; block-size: min(var(--hd-body-h), calc(var(--hd-body-w) / 0.654)); aspect-ratio: 0.654; border-radius: var(--hd-radius-control); }
+.hd-rocker-bezel { position: relative; display: block; box-sizing: border-box; inline-size: 100%; block-size: 100%; padding: 6%; perspective: 420px; border-radius: inherit; }
+.hd-rocker-paddle { position: relative; display: grid; grid-template-rows: 1fr 1fr; block-size: 100%; transform-style: preserve-3d; border-radius: var(--hd-radius-control); }
+.hd-rocker-half { position: relative; display: grid; place-items: center; }
+.hd-rocker-led { position: absolute; inset-block-start: 4%; inset-inline-end: 4%; inline-size: 6px; block-size: 6px; display: none; }
+/* H3 dial */
+.hd-dial { position: relative; box-sizing: border-box; inline-size: min(var(--hd-body-w), var(--hd-body-h)); aspect-ratio: 1; border-radius: var(--hd-radius-pill); touch-action: none; }
+.hd-dial-svg { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; overflow: visible; }
+.hd-dial-readout { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; }
+.hd-dial-readout > .hd-numeral { font-size: calc(min(var(--hd-body-w), var(--hd-body-h)) * var(--hd-dial-num-k)); line-height: 1; }
+.hd-dial-readout > .hd-seg7 { block-size: calc(min(var(--hd-body-w), var(--hd-body-h)) * 0.2); }
+.hd-dial[data-hd-word="true"] .hd-dial-readout > :is(.hd-numeral, .hd-seg7) { display: none; }
+.hd-dial[data-hd-word="true"] .hd-dial-word { display: block; font-size: calc(min(var(--hd-body-w), var(--hd-body-h)) * var(--hd-dial-num-k) * 0.42); color: var(--hd-ink-muted); }
+.hd-dial-knurl { position: absolute; inset: 13%; border-radius: var(--hd-radius-pill); }
+.hd-dial-cap { position: absolute; inset: 19%; border-radius: var(--hd-radius-pill); }
+.hd-dial-pointer { position: absolute; inset: 3.2% 48.4% 50% 48.4%; transform-origin: 50% 100%; transform: rotate(var(--hd-angle, 0deg)); }
+.hd-dial-legend { position: absolute; inset-block-start: 79.7%; translate: -50% -50%; font: 600 10px / 1 var(--hd-font-label); }
+.hd-dial-legend[data-end="min"] { inset-inline-start: 20.3%; } .hd-dial-legend[data-end="max"] { inset-inline-start: 79.7%; }
+/* H5 and H6 gauge */
+.hd-gauge-svg { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; overflow: visible; }
+.hd-gauge-face { position: absolute; inset: 0; border-radius: var(--hd-radius-pill); }
+.hd-gauge-bezel, .hd-gauge-glass { position: absolute; border-radius: var(--hd-radius-pill); } .hd-gauge-bezel { inset: 0; } .hd-gauge-glass { inset: 4%; }
+.hd-gauge-readout { position: absolute; inset-inline-start: 50%; inset-block-start: 77.4%; translate: -50% -50%; font-size: calc(min(var(--hd-body-w), calc(var(--hd-body-h) / 0.84)) * 0.11); }
+.hd-gauge[data-hd-gauge="needle"] :is(.hd-gauge-min, .hd-gauge-max) { display: none; }
+.hd-gauge-numeral { font-size: 15px; text-anchor: middle; dominant-baseline: middle; }
+.hd-gauge[data-hd-gauge="arc"] .hd-gauge-readout { inset-block-start: 58.1%; font-size: min(28cqmin, calc(min(var(--hd-body-w), calc(var(--hd-body-h) / 0.86)) * 0.3)); }
+.hd-gauge[data-hd-gauge="arc"] :is(.hd-gauge-min, .hd-gauge-max) { position: absolute; inset-block-end: 0; font-size: 11px; color: var(--hd-ink-muted); }
+.hd-gauge[data-hd-gauge="arc"] .hd-gauge-min { inset-inline-start: 19.5%; translate: -50% 0; } .hd-gauge[data-hd-gauge="arc"] .hd-gauge-max { inset-inline-start: 80.5%; translate: -50% 0; }
+.hd-gauge-arc-zone { opacity: 0; } .hd-gauge[data-hd-tone="warn"] .hd-gauge-arc-zone { stroke: var(--hd-warn); opacity: 1; } .hd-gauge[data-hd-tone="crit"] .hd-gauge-arc-zone { stroke: var(--hd-alert); opacity: 1; }
+/* Unit scale (deviation: the plan gives --hd-unit-scale as a bare number, which is invalid as a font-size) */
+.hd-numeral .hd-num-unit { font-size: calc(var(--hd-unit-scale) * 1em); }
+/* H7 temperature readout */
+.hd-tread { display: flex; align-items: flex-end; inline-size: 100%; }
+.hd-tread .hd-numeral { font-size: min(calc(var(--hd-body-h) / var(--hd-num-cap)), calc(var(--hd-body-w) / 2.1), var(--hd-num-hero-max)); line-height: var(--hd-num-cap);
+  font-weight: var(--hd-num-weight); letter-spacing: var(--hd-num-tracking); display: inline-flex; align-items: flex-start; }
+.hd-tread .hd-num-int { min-inline-size: calc(var(--hd-num-chars) * 0.5ch); text-align: end; }
+.hd-tread :is(.hd-num-frac, .hd-num-deg) { line-height: 1; } .hd-tread .hd-num-frac { font-size: 0.5em; } .hd-tread .hd-num-deg { font-size: 0.45em; }
+.hd-tread .hd-num-unit { font-size: calc(var(--hd-unit-scale) * 1em); color: var(--hd-ink-muted); line-height: 1; }
+.hd-tread .hd-num-trend { align-self: flex-end; margin-inline-start: 0.08em; } .hd-tread .hd-num-trend .hd-ico { inline-size: 0.3em; block-size: 0.3em; }
+.hd-tread .hd-seg7 { block-size: calc(var(--hd-body-h) * 0.92); }

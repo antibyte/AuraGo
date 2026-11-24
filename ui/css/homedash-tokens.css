@@ -32,3 +32,30 @@
 .hd-root[data-hd-density="compact"] { --hd-unit: 3.4px; --hd-pad-card: 12px; }
 .hd-root[data-hd-density="spacious"] { --hd-unit: 4.6px; --hd-pad-card: 20px; }
 .hd-root[data-hd-ease="fallback"] { --hd-ease-needle: cubic-bezier(.3, 1.3, .5, 1); }
+/* M1 additions: scheme ladders, masks and defaults of the tokens the shared rules read. */
+.hd-root {
+  --hd-corners-control: 9999px;
+  --hd-fade-down: linear-gradient(180deg, #000000, transparent);
+  --hd-ring-mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000000 calc(100% - 2px));
+  --hd-arc-mask-75: conic-gradient(#000000 0 75%, transparent 75% 100%);
+  --hd-ease-hud: cubic-bezier(.2, .8, .2, 1);
+  --hd-mask-clock: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7v5l3 2'/%3E%3C/svg%3E");
+  --hd-mask-lock: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='5' y='11' width='14' height='10' rx='2'/%3E%3Cpath d='M8 11V8a4 4 0 0 1 8 0v3'/%3E%3C/svg%3E");
+  --hd-mask-alert: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3.5 2.5 20.5h19Z'/%3E%3Cpath d='M12 10v4.5M12 17.5v.01'/%3E%3C/svg%3E");
+  --hd-mask-error: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7.5v5.5M12 16.5v.01'/%3E%3C/svg%3E");
+  --hd-card-bg: var(--hd-surface-solid); --hd-card-border: 1px solid var(--hd-hairline); --hd-dash-unavail: 1px dashed var(--hd-hairline);
+  --hd-shadow-card: none; --hd-ring-alert: inset 0 0 0 2px var(--hd-alert);
+  --hd-label-size: 12.5px; --hd-label-weight: 500; --hd-num-weight: 400; --hd-num-weight-small: 500; --hd-num-tracking: 0em;
+  --hd-num-cap: 0.74; --hd-num-hero-max: 96px; --hd-unit-scale: 0.42; --hd-dial-num-k: 0.26; --hd-thermo-num-k: 0.24;
+}
+.hd-root[data-hd-scheme="dark"] {
+  --hd-sa-1: 14%; --hd-sa-2: 18%; --hd-sa-3: 24%; --hd-sa-4: 34%; --hd-sa-5: 48%;
+  --hd-glass-alpha-s: 72%; --hd-fill-edge-k: 100%;
+  --hd-light-on: #FFB65C;
+}
+.hd-root[data-hd-scheme="light"] {
+  --hd-sa-1: 8%; --hd-sa-2: 11%; --hd-sa-3: 14%; --hd-sa-4: 20%; --hd-sa-5: 29%;
+  --hd-glass-alpha-s: 78%; --hd-fill-edge-k: 72%;
+  --hd-light-on: #C77A12;
+}
+.hd-root[data-hd-corners="square"] { --hd-corners-control: 0px; }
