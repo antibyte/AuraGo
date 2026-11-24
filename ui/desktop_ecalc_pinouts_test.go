@@ -74,8 +74,8 @@ func TestECalcPinoutPagesAreWired(t *testing.T) {
 		}
 	}
 	// The scripts of the app: the 21 of phase 2, the 5 of phase 3 (tables, table page, codes, code draw, code page) the 2 of phase 4 and the materials script.
-	if got := strings.Count(entry, "/js/desktop/apps/ecalc/"); got != 29 {
-		t.Errorf("the ecalc loader entry lists %d scripts, want 29", got)
+	if got := strings.Count(entry, "/js/desktop/apps/ecalc/"); got != 31 {
+		t.Errorf("the ecalc loader entry lists %d scripts, want 31", got)
 	}
 	shell := scripts["ecalc-shell.js"]
 	for _, marker := range []string{"window.ECalcPinoutPage || null", "kind === 'pinout'", "pinTypes: catalog.pin_types || [], wires: catalog.wires || []"} {

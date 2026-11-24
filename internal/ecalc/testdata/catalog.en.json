@@ -600,6 +600,15 @@
             "to": "",
             "from": "",
             "radix": 0
+          },
+          {
+            "id": "ppm",
+            "symbol": "ppm",
+            "aliases": [],
+            "factor": 0.000001,
+            "to": "",
+            "from": "",
+            "radix": 0
           }
         ]
       },
@@ -685,6 +694,246 @@
             "radix": 8
           }
         ]
+      },
+      {
+        "id": "apparent_power",
+        "symbol": "VA",
+        "aliases": [],
+        "prefixes": [
+          "m",
+          "",
+          "k",
+          "M"
+        ],
+        "positive": false,
+        "integer": false,
+        "units": []
+      },
+      {
+        "id": "reactive_power",
+        "symbol": "var",
+        "aliases": [],
+        "prefixes": [
+          "m",
+          "",
+          "k",
+          "M"
+        ],
+        "positive": false,
+        "integer": false,
+        "units": []
+      },
+      {
+        "id": "slew_rate",
+        "symbol": "V/s",
+        "aliases": [],
+        "prefixes": [
+          "",
+          "k",
+          "M"
+        ],
+        "positive": true,
+        "integer": false,
+        "units": [
+          {
+            "id": "Vus",
+            "symbol": "V/µs",
+            "aliases": [
+              "V/us"
+            ],
+            "factor": 1000000,
+            "to": "",
+            "from": "",
+            "radix": 0
+          }
+        ]
+      },
+      {
+        "id": "torque",
+        "symbol": "N·m",
+        "aliases": [
+          "Nm"
+        ],
+        "prefixes": [
+          "m",
+          ""
+        ],
+        "positive": true,
+        "integer": false,
+        "units": [
+          {
+            "id": "Ncm",
+            "symbol": "N·cm",
+            "aliases": [],
+            "factor": 0.01,
+            "to": "",
+            "from": "",
+            "radix": 0
+          },
+          {
+            "id": "kgfcm",
+            "symbol": "kgf·cm",
+            "aliases": [],
+            "factor": 0.0980665,
+            "to": "",
+            "from": "",
+            "radix": 0
+          },
+          {
+            "id": "ozfin",
+            "symbol": "ozf·in",
+            "aliases": [],
+            "factor": 0.0070615518142260435,
+            "to": "",
+            "from": "",
+            "radix": 0
+          }
+        ]
+      },
+      {
+        "id": "rotational_speed",
+        "symbol": "1/s",
+        "aliases": [],
+        "prefixes": [
+          ""
+        ],
+        "positive": true,
+        "integer": false,
+        "units": [
+          {
+            "id": "rpm",
+            "symbol": "rpm",
+            "aliases": [
+              "U/min"
+            ],
+            "factor": 0.016666666666666666,
+            "to": "",
+            "from": "",
+            "radix": 0
+          }
+        ]
+      },
+      {
+        "id": "datasize",
+        "symbol": "bit",
+        "aliases": [],
+        "prefixes": [
+          "",
+          "k",
+          "M",
+          "G"
+        ],
+        "positive": true,
+        "integer": false,
+        "units": [
+          {
+            "id": "B",
+            "symbol": "B",
+            "aliases": [],
+            "factor": 8,
+            "to": "",
+            "from": "",
+            "radix": 0
+          },
+          {
+            "id": "kB",
+            "symbol": "kB",
+            "aliases": [],
+            "factor": 8000,
+            "to": "",
+            "from": "",
+            "radix": 0
+          },
+          {
+            "id": "MB",
+            "symbol": "MB",
+            "aliases": [],
+            "factor": 8000000,
+            "to": "",
+            "from": "",
+            "radix": 0
+          },
+          {
+            "id": "GB",
+            "symbol": "GB",
+            "aliases": [],
+            "factor": 8000000000,
+            "to": "",
+            "from": "",
+            "radix": 0
+          },
+          {
+            "id": "KiB",
+            "symbol": "KiB",
+            "aliases": [],
+            "factor": 8192,
+            "to": "",
+            "from": "",
+            "radix": 0
+          },
+          {
+            "id": "MiB",
+            "symbol": "MiB",
+            "aliases": [],
+            "factor": 8388608,
+            "to": "",
+            "from": "",
+            "radix": 0
+          },
+          {
+            "id": "GiB",
+            "symbol": "GiB",
+            "aliases": [],
+            "factor": 8589934592,
+            "to": "",
+            "from": "",
+            "radix": 0
+          }
+        ]
+      },
+      {
+        "id": "datarate",
+        "symbol": "bit/s",
+        "aliases": [
+          "bps"
+        ],
+        "prefixes": [
+          "",
+          "k",
+          "M",
+          "G"
+        ],
+        "positive": true,
+        "integer": false,
+        "units": [
+          {
+            "id": "Bs",
+            "symbol": "B/s",
+            "aliases": [],
+            "factor": 8,
+            "to": "",
+            "from": "",
+            "radix": 0
+          },
+          {
+            "id": "kBs",
+            "symbol": "kB/s",
+            "aliases": [],
+            "factor": 8000,
+            "to": "",
+            "from": "",
+            "radix": 0
+          },
+          {
+            "id": "MBs",
+            "symbol": "MB/s",
+            "aliases": [],
+            "factor": 8000000,
+            "to": "",
+            "from": "",
+            "radix": 0
+          }
+        ]
       }
     ]
   },
@@ -728,6 +977,14 @@
     {
       "id": "wiring",
       "name": "Wiring & PCB"
+    },
+    {
+      "id": "sensors",
+      "name": "Sensors"
+    },
+    {
+      "id": "drives",
+      "name": "Drives & motors"
     },
     {
       "id": "tables",

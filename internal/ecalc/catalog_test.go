@@ -71,7 +71,7 @@ func TestDefaultCatalogLoads(t *testing.T) {
 			t.Errorf("category %s: names %v", c.ID, c.Name)
 		}
 	}
-	want := "basics passive filters semiconductors power opamps timers rf digital wiring tables codes pinouts"
+	want := "basics passive filters semiconductors power opamps timers rf digital wiring sensors drives tables codes pinouts"
 	if strings.Join(ids, " ") != want {
 		t.Errorf("categories = %v, want %s", ids, want)
 	}

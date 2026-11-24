@@ -19,6 +19,10 @@ digital:
   name: {cs: "Digitální technika", da: "Digital", de: "Digital", el: "Ψηφιακά", en: "Digital", es: "Digital", fr: "Numérique", hi: "डिजिटल", it: "Digitale", ja: "デジタル", nl: "Digitaal", no: "Digital", pl: "Cyfrowe", pt: "Digital", sv: "Digital", zh: "数字电路"}
 wiring:
   name: {cs: "Vodiče a DPS", da: "Ledninger og print", de: "Leitungen & PCB", el: "Καλωδίωση & PCB", en: "Wiring & PCB", es: "Cableado y PCB", fr: "Câblage et PCB", hi: "वायरिंग और पीसीबी", it: "Cablaggio e PCB", ja: "配線とプリント基板", nl: "Bedrading en pcb", no: "Ledninger og kretskort", pl: "Okablowanie i PCB", pt: "Cablagem e PCB", sv: "Kablage och kretskort", zh: "布线与PCB"}
+sensors:
+  name: {cs: "Senzory", da: "Sensorer", de: "Sensoren", el: "Αισθητήρες", en: "Sensors", es: "Sensores", fr: "Capteurs", hi: "सेंसर", it: "Sensori", ja: "センサー", nl: "Sensoren", no: "Sensorer", pl: "Czujniki", pt: "Sensores", sv: "Sensorer", zh: "传感器"}
+drives:
+  name: {cs: "Pohony a motory", da: "Drev og motorer", de: "Antriebe & Motoren", el: "Κινητήρια συστήματα και κινητήρες", en: "Drives & motors", es: "Accionamientos y motores", fr: "Entraînements et moteurs", hi: "ड्राइव और मोटर", it: "Azionamenti e motori", ja: "駆動系とモーター", nl: "Aandrijvingen en motoren", no: "Drivverk og motorer", pl: "Napędy i silniki", pt: "Acionamentos e motores", sv: "Drivsystem och motorer", zh: "驱动与电机"}
 tables:
   name: {cs: "Tabulky", da: "Tabeller", de: "Tabellen", el: "Πίνακες", en: "Tables", es: "Tablas", fr: "Tableaux", hi: "तालिकाएँ", it: "Tabelle", ja: "表", nl: "Tabellen", no: "Tabeller", pl: "Tabele", pt: "Tabelas", sv: "Tabeller", zh: "表格"}
 codes:

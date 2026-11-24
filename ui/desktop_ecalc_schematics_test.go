@@ -18,7 +18,7 @@ const (
 
 // ecalcSchematicCategories are the categories that own a schematics file, in the load order of the module loader
 // (basics first, the rest alphabetical). The catalog has more categories (tables, codes, pinouts) without drawings.
-var ecalcSchematicCategories = []string{"basics", "digital", "filters", "opamps", "passive", "power", "rf", "semiconductors", "timers", "wiring"}
+var ecalcSchematicCategories = []string{"basics", "digital", "drives", "filters", "opamps", "passive", "power", "rf", "semiconductors", "sensors", "timers", "wiring"}
 
 func ecalcSchematicsPath(category string) string {
 	return "js/desktop/apps/ecalc/ecalc-schematics-" + category + ".js"
@@ -77,7 +77,7 @@ type ecalcCatalogItem struct {
 	} `json:"vars"`
 }
 
-// loadECalcSchematics reads the ten schematics files. Each is exactly
+// loadECalcSchematics reads the twelve schematics files. Each is exactly
 // `window.ECalcSchematics = Object.assign(window.ECalcSchematics || {}, {JSON});`; the schematics of all files are merged
 // by id and a duplicate id fails. files maps every schematic id to the category of the file that holds it.
 func loadECalcSchematics(t *testing.T) (specs map[string]ecalcSchematic, files map[string]string) {
@@ -196,7 +196,7 @@ func TestECalcSchematicsMatchTheCatalog(t *testing.T) {
 	}
 }
 
-// The split is complete: exactly the ten category files exist (the old single file is gone), every one starts with the
+// The split is complete: exactly the twelve category files exist (the old single file is gone), every one starts with the
 // wrapper and ends with `});`, and the symbol library holds the two symbols that phase 2 adds, with the pin names the
 // schematic authors rely on (switch: a, b; pot: a, b and the wiper w).
 func TestECalcSchematicFilesAndNewSymbols(t *testing.T) {
@@ -223,7 +223,7 @@ func TestECalcSchematicFilesAndNewSymbols(t *testing.T) {
 		}
 	}
 	for name := range found {
-		t.Errorf("%s/%s is not one of the ten category files (the single ecalc-schematics.js is gone)", ecalcDir, name)
+		t.Errorf("%s/%s is not one of the twelve category files (the single ecalc-schematics.js is gone)", ecalcDir, name)
 	}
 	symbols := readDesktopAssetText(t, ecalcSymbolsPath)
 	for _, marker := range []string{"        switch: {", "        pot: {", "pins: () => ({ a: [0, 0], b: [4, 0], w: [2, -2] }),"} {

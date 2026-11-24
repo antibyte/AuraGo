@@ -140,6 +140,7 @@ func TestECalcUsesOnlyItsOwnTranslationKeys(t *testing.T) {
 		ecalc_dim_resistance ecalc_dim_power ecalc_dim_charge ecalc_dim_energy ecalc_dim_number ecalc_dim_gain
 		ecalc_dim_capacitance ecalc_dim_inductance ecalc_dim_frequency ecalc_dim_time ecalc_dim_length ecalc_dim_area ecalc_dim_temperature
 		ecalc_dim_tempdiff ecalc_dim_thermal_resistance ecalc_dim_resistivity ecalc_dim_tempco ecalc_dim_ratio ecalc_dim_angle ecalc_dim_baudrate
+		ecalc_dim_apparent_power ecalc_dim_reactive_power ecalc_dim_slew_rate ecalc_dim_torque ecalc_dim_rotational_speed ecalc_dim_datasize ecalc_dim_datarate
 		ecalc_dim_integer ecalc_unused_field ecalc_combos ecalc_combo_single ecalc_combo_series ecalc_combo_parallel ecalc_combo_value
 		ecalc_combo_deviation ecalc_chart ecalc_guide_values ecalc_mains_note ecalc_page_unavailable ecalc_table_columns_hidden ecalc_table_copy ecalc_table_filter
 		ecalc_table_no_match ecalc_table_no_rows ecalc_table_notes ecalc_table_rows ecalc_table_rows_filtered ecalc_table_sort ecalc_table_unit`) {
@@ -232,7 +233,7 @@ func TestECalcIsWiredIntoTheDesktopCore(t *testing.T) {
 	if !strings.Contains(entry, "appStyles('/css/desktop-app-ecalc.css')") {
 		t.Error("the ecalc loader entry must load css/desktop-app-ecalc.css")
 	}
-	order := []string{"ecalc-expr.js", "ecalc-units.js", "ecalc-eseries.js", "ecalc-solve.js", "ecalc-tables.js", "ecalc-typeset.js", "ecalc-symbols.js", "ecalc-chart.js", "ecalc-schematics-basics.js", "ecalc-schematics-digital.js", "ecalc-schematics-filters.js", "ecalc-schematics-opamps.js", "ecalc-schematics-passive.js", "ecalc-schematics-power.js", "ecalc-schematics-rf.js", "ecalc-schematics-semiconductors.js", "ecalc-schematics-timers.js", "ecalc-schematics-wiring.js", "ecalc-store.js", "ecalc-calc-page.js", "ecalc-table-page.js", "ecalc-shell.js", "/ecalc.js'"}
+	order := []string{"ecalc-expr.js", "ecalc-units.js", "ecalc-eseries.js", "ecalc-solve.js", "ecalc-tables.js", "ecalc-typeset.js", "ecalc-symbols.js", "ecalc-chart.js", "ecalc-schematics-basics.js", "ecalc-schematics-digital.js", "ecalc-schematics-drives.js", "ecalc-schematics-filters.js", "ecalc-schematics-opamps.js", "ecalc-schematics-passive.js", "ecalc-schematics-power.js", "ecalc-schematics-rf.js", "ecalc-schematics-semiconductors.js", "ecalc-schematics-sensors.js", "ecalc-schematics-timers.js", "ecalc-schematics-wiring.js", "ecalc-store.js", "ecalc-calc-page.js", "ecalc-table-page.js", "ecalc-shell.js", "/ecalc.js'"}
 	offset := 0
 	for _, script := range order {
 		index := strings.Index(entry[offset:], script)

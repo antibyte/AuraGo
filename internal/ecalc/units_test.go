@@ -181,10 +181,17 @@ func TestUnitsCatalogDimensions(t *testing.T) {
 		"thermal_resistance|K/W|''|true|degCW",
 		"resistivity|Ω·m|n µ m ''|true|ohmmm2m",
 		"tempco|1/K|''|false|ppmK pctK",
-		"ratio||''|false|pct",
+		"ratio||''|false|pct ppm",
 		"angle|rad|m ''|false|deg",
 		"baudrate|Bd|'' k M|true|",
 		"integer||(none)|false|dec hex bin oct",
+		"apparent_power|VA|m '' k M|false|",
+		"reactive_power|var|m '' k M|false|",
+		"slew_rate|V/s|'' k M|true|Vus",
+		"torque|N·m|m ''|true|Ncm kgfcm ozfin",
+		"rotational_speed|1/s|''|true|rpm",
+		"datasize|bit|'' k M G|true|B kB MB GB KiB MiB GiB",
+		"datarate|bit/s|'' k M G|true|Bs kBs MBs",
 	}
 	var got []string
 	for _, d := range u.Dims {

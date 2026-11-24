@@ -40,10 +40,20 @@ dims:
   thermal_resistance: {symbol: K/W, prefixes: [""], positive: true, units: [{id: degCW, symbol: °C/W, factor: 1}]}
   resistivity: {symbol: Ω·m, prefixes: [n, µ, m, ""], positive: true, units: [{id: ohmmm2m, symbol: Ω·mm²/m, factor: 1e-6}]}
   tempco: {symbol: 1/K, prefixes: [""], units: [{id: ppmK, symbol: ppm/K, factor: 1e-6}, {id: pctK, symbol: "%/K", factor: 0.01}]}
-  ratio: {symbol: "", prefixes: [""], units: [{id: pct, symbol: "%", factor: 0.01}]}
+  ratio: {symbol: "", prefixes: [""], units: [{id: pct, symbol: "%", factor: 0.01}, {id: ppm, symbol: ppm, factor: 1e-6}]}
   angle: {symbol: rad, prefixes: [m, ""], units: [{id: deg, symbol: °, aliases: [deg], factor: 0.017453292519943295}]}
   baudrate: {symbol: Bd, prefixes: ["", k, M], positive: true}
   # integer: whole numbers from 0 to 2^53-1 shown in a number system. A unit with radix (2, 8, 10 or 16) is such a system:
   # input reads the digits of its base (optional 0x/0b/0o prefix, _ and blanks between digits) and output writes them
   # (dec: 255, hex: 0xFF, bin: 0b11111111, oct: 0o377; hex groups by four, bin by eight). Without a unit input is decimal.
   integer: {symbol: "", prefixes: [], integer: true, units: [{id: dec, symbol: dec, radix: 10}, {id: hex, symbol: hex, radix: 16}, {id: bin, symbol: bin, radix: 2}, {id: oct, symbol: oct, radix: 8}]}
+  # Content extension dimensions. A new dimension keeps VA, var, torque, speed and data units out of the dropdowns of the
+  # existing ones. 1 rpm = 1/60 per second, 1 kgf·cm = 0.0980665 N·m (standard gravity 9.80665 m/s²), 1 ozf·in = 0.028349523125 kg
+  # × 9.80665 m/s² × 0.0254 m, 1 KiB = 8192 bit; B is the byte (8 bit), kB is 1000 bytes and KiB is 1024 bytes.
+  apparent_power: {symbol: VA, prefixes: [m, "", k, M]}
+  reactive_power: {symbol: var, prefixes: [m, "", k, M]}
+  slew_rate: {symbol: V/s, prefixes: ["", k, M], positive: true, units: [{id: Vus, symbol: V/µs, aliases: [V/us], factor: 1e6}]}
+  torque: {symbol: N·m, aliases: [Nm], prefixes: [m, ""], positive: true, units: [{id: Ncm, symbol: N·cm, factor: 0.01}, {id: kgfcm, symbol: kgf·cm, factor: 0.0980665}, {id: ozfin, symbol: ozf·in, factor: 0.00706155181422604375}]}
+  rotational_speed: {symbol: 1/s, prefixes: [""], positive: true, units: [{id: rpm, symbol: rpm, aliases: [U/min], factor: 0.016666666666666666}]}
+  datasize: {symbol: bit, prefixes: ["", k, M, G], positive: true, units: [{id: B, symbol: B, factor: 8}, {id: kB, symbol: kB, factor: 8e3}, {id: MB, symbol: MB, factor: 8e6}, {id: GB, symbol: GB, factor: 8e9}, {id: KiB, symbol: KiB, factor: 8192}, {id: MiB, symbol: MiB, factor: 8388608}, {id: GiB, symbol: GiB, factor: 8589934592}]}
+  datarate: {symbol: bit/s, aliases: [bps], prefixes: ["", k, M, G], positive: true, units: [{id: Bs, symbol: B/s, factor: 8}, {id: kBs, symbol: kB/s, factor: 8e3}, {id: MBs, symbol: MB/s, factor: 8e6}]}

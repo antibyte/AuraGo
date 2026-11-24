@@ -30,6 +30,9 @@ var ecalcLocaleKeys = []string{
 	"desktop.ecalc_dim_length", "desktop.ecalc_dim_area", "desktop.ecalc_dim_temperature", "desktop.ecalc_dim_tempdiff",
 	"desktop.ecalc_dim_thermal_resistance", "desktop.ecalc_dim_resistivity", "desktop.ecalc_dim_tempco", "desktop.ecalc_dim_ratio",
 	"desktop.ecalc_dim_angle", "desktop.ecalc_dim_baudrate", "desktop.ecalc_dim_integer",
+	// Content extension: the dimensions of the sensor, drive and data calculators.
+	"desktop.ecalc_dim_apparent_power", "desktop.ecalc_dim_reactive_power", "desktop.ecalc_dim_slew_rate", "desktop.ecalc_dim_torque",
+	"desktop.ecalc_dim_rotational_speed", "desktop.ecalc_dim_datasize", "desktop.ecalc_dim_datarate",
 	"desktop.ecalc_unused_field", "desktop.ecalc_combos", "desktop.ecalc_combo_single", "desktop.ecalc_combo_series",
 	"desktop.ecalc_combo_parallel", "desktop.ecalc_combo_value", "desktop.ecalc_combo_deviation", "desktop.ecalc_chart",
 	// Phase 3: the table page (banners, filter, counts, sorting, unit dropdown), the sections of the Tables list and the
