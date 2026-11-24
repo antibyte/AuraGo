@@ -106,23 +106,17 @@
             return '<option value="' + rate + '">' + esc(label) + '</option>';
         }).join('') : '';
         host.innerHTML = '<div class="vd-terminal-app" data-terminal-state="desktop.loading" data-terminal-mode="shell" data-terminal-style="' + initial + '">' +
-            '<div class="vd-terminal-toolbar">' +
-            '<span class="vd-terminal-status vd-terminal-toolbar-status" data-terminal-status role="status">' + ctx.t('desktop.loading') + '</span>' +
-            '<div class="vd-terminal-toolbar-actions">' +
-            '<button type="button" data-terminal-retronet-action="directory" hidden></button>' +
-            '<label class="vd-terminal-baud-label" data-terminal-baud-label hidden>' +
-            '<span class="vd-sr-only">' + esc(tr('desktop.terminal_retronet_baud')) + '</span>' +
-            '<select data-terminal-baud aria-label="' + esc(tr('desktop.terminal_retronet_baud')) + '">' + baudMarkup + '</select>' +
-            '</label>' +
-            '<label class="vd-terminal-style-label">' +
-            '<span class="vd-sr-only">' + ctx.t('desktop.terminal_style') + '</span>' +
-            '<select data-terminal-style aria-label="' + ctx.t('desktop.terminal_style') + '">' + optionMarkup(ctx) + '</select>' +
-            '</label>' +
-            '<button type="button" data-terminal-effects aria-haspopup="dialog">' + ctx.t('desktop.terminal_effects') + '</button>' +
-            '<button type="button" data-terminal-audio aria-pressed="' + (muted ? 'false' : 'true') + '">' +
-            ctx.t(muted ? 'desktop.terminal_audio_off' : 'desktop.terminal_audio_on') +
-            '</button>' +
-            '</div></div>' +
+            styles.toolbarMarkup({
+                loading: ctx.t('desktop.loading'),
+                baud: tr('desktop.terminal_retronet_baud'),
+                baudOptions: baudMarkup,
+                style: ctx.t('desktop.terminal_style'),
+                styleOptions: optionMarkup(ctx),
+                effects: ctx.t('desktop.terminal_effects'),
+                audio: ctx.t('desktop.terminal_audio'),
+                audioTitle: ctx.t(muted ? 'desktop.terminal_audio_off' : 'desktop.terminal_audio_on'),
+                muted: muted
+            }) +
             '<div class="vd-sr-only" data-terminal-announce aria-live="polite" aria-atomic="true"></div>' +
             '<div class="vd-sr-only" data-terminal-style-note id="' + styleNoteId + '"></div>' +
             '<div class="vd-terminal-stage">' +
@@ -131,22 +125,24 @@
             '<div class="vd-terminal-hardware" aria-hidden="true">' +
             '<span class="vd-terminal-maker">AuraGo</span>' +
             '<span class="vd-terminal-vents"></span>' +
-            '<span class="vd-terminal-power"><span class="vd-terminal-led"></span><span>⏻</span></span>' +
+            '<span class="vd-terminal-power"><span class="vd-terminal-led"></span>' + styles.icon('power') + '</span>' +
             '</div>' +
             '</div></div>' +
             '<dialog class="vd-terminal-effects-dialog" data-terminal-effects-dialog aria-label="' + ctx.t('desktop.terminal_effects') + '">' +
             '<header><div><h2>' + ctx.t('desktop.terminal_effects') + '</h2><p data-terminal-effects-style></p></div>' +
-            '<button type="button" data-terminal-effects-close aria-label="' + ctx.t('desktop.close') + '">×</button></header>' +
-            '<p data-terminal-effects-retro hidden>' + ctx.t('desktop.terminal_effects_retro_hint') + '</p>' +
+            '<button type="button" data-terminal-effects-close aria-label="' + ctx.t('desktop.close') + '">' + styles.icon('close') + '</button></header>' +
+            '<div class="vd-terminal-effects-body"><p data-terminal-effects-retro hidden>' + ctx.t('desktop.terminal_effects_retro_hint') + '</p>' +
             '<p data-terminal-effects-fallback hidden>' + ctx.t('desktop.terminal_effects_fallback_hint') + '</p>' +
             '<p data-terminal-effects-motion hidden>' + ctx.t('desktop.terminal_effects_motion_hint') + '</p>' +
-            '<fieldset class="vd-terminal-effects-grid">' + effectMarkup + '</fieldset>' +
+            '<fieldset class="vd-terminal-effects-grid">' + effectMarkup + '</fieldset></div>' +
             '<footer><p>' + ctx.t('desktop.terminal_effects_saved_hint') + '</p>' +
             '<button type="button" data-terminal-effects-reset>' + ctx.t('desktop.terminal_effects_reset') + '</button></footer></dialog></div>';
 
         const root = host.querySelector('.vd-terminal-app');
         const screen = host.querySelector('[data-terminal-screen]');
         const status = host.querySelector('[data-terminal-status]');
+        const statusDetail = host.querySelector('[data-terminal-status-detail]');
+        const gridReadout = host.querySelector('[data-terminal-grid]');
         const select = host.querySelector('select[data-terminal-style]');
         const styleBox = host.querySelector('.vd-terminal-style-label');
         const audioBtn = host.querySelector('[data-terminal-audio]');
@@ -175,15 +171,44 @@
         let geometry = null;
         let c64Look = null;
         let resultAt = 0;
+        let modernBar = '';
         const inst = { root: host };
 
         if (select) select.value = initial;
         if (baudSelect && retroNetReady) baudSelect.value = String(window.TerminalModem.loadBaud());
         if (audio) audio.setMuted(muted);
 
-        function setStatus(key) {
+        // `detail` (the dialled entry's name) shows next to the status while dialing and connected only.
+        function setStatus(key, detail) {
             root.setAttribute('data-terminal-state', key);
             if (status) status.textContent = ctx.t(key);
+            if (statusDetail) statusDetail.textContent = detail && window.TerminalText ? window.TerminalText.printable(detail) : '';
+        }
+
+        function updateGrid() {
+            if (gridReadout && term) gridReadout.textContent = term.cols + '×' + term.rows;
+        }
+
+        // Modern follows the desktop theme: its own dark background, accent cursor, and the same background behind
+        // the grid (the screen, and the bars around a pinned grid).
+        function modernLook(live, force) {
+            if (!term) return;
+            if (root.getAttribute('data-terminal-style') !== 'modern') {
+                root.style.removeProperty('--vd-term-screen-bg');
+                modernBar = '';
+                if (directory) directory.render();
+                return;
+            }
+            const theme = styles.modernTheme(root);
+            const now = term.options.theme || {};
+            root.style.setProperty('--vd-term-screen-bg', theme.background);
+            if (!force && now.background === theme.background && now.cursor === theme.cursor && now.selectionBackground === theme.selectionBackground && modernBar === theme.selectionSgr) return;
+            term.options.theme = theme;
+            // The directory's selected row follows the theme (an SGR prefix; retro styles keep inverse video).
+            modernBar = theme.selectionSgr;
+            if (directory) directory.render();
+            // A pinned grid paints its own letterbox from the theme background.
+            if (live && geometry && geometry.mode() !== 'fit') geometry.refit();
         }
 
         function currentProfile() {
@@ -214,6 +239,7 @@
             styles.effectControls.forEach(function (effect) {
                 const input = effectsDialog.querySelector('[data-terminal-effect="' + effect.key + '"]');
                 input.value = effectValues[effect.key];
+                styles.syncRange(input);
                 input.setAttribute('aria-valuetext', effectValues[effect.key] + '%');
                 input.disabled = fallback && !!effect.advanced;
                 effectsDialog.querySelector('[data-terminal-effect-output="' + effect.key + '"]').textContent = effectValues[effect.key] + '%';
@@ -240,7 +266,7 @@
             const isMuted = window.TerminalAudio ? window.TerminalAudio.loadMuted() : true;
             audioBtn.hidden = !profile.retro;
             audioBtn.setAttribute('aria-pressed', profile.retro && !isMuted ? 'true' : 'false');
-            audioBtn.textContent = ctx.t(isMuted ? 'desktop.terminal_audio_off' : 'desktop.terminal_audio_on');
+            styles.setButton(audioBtn, isMuted ? 'soundOff' : 'soundOn', ctx.t('desktop.terminal_audio'), ctx.t(isMuted ? 'desktop.terminal_audio_off' : 'desktop.terminal_audio_on'));
         }
 
         function ensureCanvas(enable) {
@@ -285,6 +311,7 @@
             if (!term || revision !== styleRevision) return;
             profile = currentProfile();
             styles.applyXterm(term, profile);
+            modernLook();
             if (c64Look) term.options.theme = Object.assign({}, profile.theme, C64_THEME);
             // A pinned grid gets its font back at once; the fit itself follows below. Not while the C64 look is left:
             // the geometry leaves 'c64' right after, in the same task, and restores the user's font and fit itself.
@@ -342,7 +369,7 @@
             if (!retroBtn) return;
             retroBtn.hidden = mode === 'directory' || (!retroNetOn && !busy);
             retroBtn.setAttribute('data-terminal-retronet-action', busy ? 'hangup' : 'directory');
-            retroBtn.textContent = busy ? tr('desktop.terminal_retronet_hangup') : tr('desktop.terminal_retronet_directory');
+            styles.setButton(retroBtn, busy ? 'hangup' : 'book', busy ? tr('desktop.terminal_retronet_hangup') : tr('desktop.terminal_retronet_directory'));
         }
 
         function setMode(next) {
@@ -359,7 +386,7 @@
         // behind the last line (the result's key prompt).
         function writeDim(text, open) {
             if (!term) return;
-            const lines = window.TerminalText.wrapWords(text, term.cols - 1).map(function (line) { return '\x1b[2m' + line + '\x1b[0m'; });
+            const lines = (window.TerminalText ? window.TerminalText.wrapWords(text, term.cols - 1) : [String(text)]).map(function (line) { return '\x1b[2m' + line + '\x1b[0m'; });
             term.write(lines.join('\r\n') + (open ? '' : '\r\n'));
         }
 
@@ -399,7 +426,9 @@
             const sock = new WebSocket(protocol + '//' + location.host + '/api/code-studio/terminal');
             ws = sock;
             sock.binaryType = 'arraybuffer';
+            let opened = false;
             sock.onopen = function () {
+                opened = true;
                 if (ws === sock) setStatus('desktop.terminal_running');
             };
             sock.onmessage = function (event) {
@@ -407,18 +436,28 @@
                 if (event.data instanceof ArrayBuffer) term.write(new Uint8Array(event.data));
                 else term.write(String(event.data));
             };
+            // A shell that never opened stays "unavailable" (error and close both end it, the first one counts);
+            // one that was open reads "stopped" after its close.
+            let ended = false;
             sock.onerror = function () {
-                if (ws === sock) setStatus('desktop.terminal_unavailable');
+                if (ws !== sock) return;
+                if (opened) setStatus('desktop.terminal_unavailable');
+                else sock.onclose();
             };
             sock.onclose = function () {
-                if (ws !== sock) return;
-                setStatus('desktop.terminal_stopped');
+                if (ws !== sock || ended) return;
+                ended = true;
+                const dead = opened ? 'desktop.terminal_stopped' : 'desktop.terminal_unavailable';
+                setStatus(dead);
                 // With Retro-Net on, the ended shell waits for a key and returns to the directory.
                 if (retroNetOn && term && mode === 'shell') {
                     term.write(PLAIN_SCREEN + '\r\n');
                     writeDim(tr('desktop.terminal_retronet_press_key'));
                     announce(plain(tr('desktop.terminal_retronet_press_key')));
                     enterResult();
+                } else if (term) {
+                    term.write(opened ? '\r\n' : '');
+                    writeDim(ctx.t(dead));
                 }
             };
         }
@@ -467,6 +506,7 @@
                 t: ctx.t,
                 api: ctx.api,
                 announce: announce,
+                selectionSgr: function () { return modernBar; },
                 canEdit: function () { return (getBootstrap() || {}).readonly !== true; },
                 onDial: dial,
                 onEdit: editEntry,
@@ -539,7 +579,7 @@
             setGeometry(pinned);
             const grid = window.TerminalGeometry.MODES[pinned];
             setMode('dialing');
-            setStatus('desktop.terminal_dialing');
+            setStatus('desktop.terminal_dialing', entry.name);
             if (!modem) {
                 modem = window.TerminalModem.create({
                     term: term,
@@ -628,7 +668,7 @@
                 ? [tr('desktop.terminal_retronet_c64_keys'), tr('desktop.terminal_retronet_style_locked')] : [tr('desktop.terminal_retronet_hangup_hint')]);
             announce(window.TerminalText.sentences(spoken));
             setMode('retro');
-            setStatus('desktop.terminal_connected');
+            setStatus('desktop.terminal_connected', run.entry.name);
             if (run.c64) run.hold = window.setTimeout(function () { endHold(run); }, C64_HINT_HOLD_MS);
             else releaseHeld(run);
         }
@@ -808,6 +848,7 @@
 
         // Only the directory follows the grid: Retro-Net sessions run on pinned grids and never resize.
         function onTermResize() {
+            updateGrid();
             if (mode === 'directory' && directory) directory.render();
         }
 
@@ -874,6 +915,8 @@
         function setGeometry(next) {
             if (next !== 'c64') leaveC64Look();
             if (geometry) geometry.set(next);
+            // Leaving a pinned grid puts the static profile theme back: re-apply the resolved Modern look (the C64 look wins).
+            if (next !== 'c64') modernLook(true, true);
             if (next === 'c64') enterC64Look();
         }
 
@@ -881,6 +924,8 @@
             document.removeEventListener('keydown', onKeyDown, true);
             document.removeEventListener('aurago:desktop-policy', onPolicy);
             if (observer) observer.disconnect();
+            themeObserver.disconnect();
+            window.cancelAnimationFrame(themeFrame);
             effectsObserver.disconnect();
             motionQuery.removeEventListener('change', syncEffectsMenu);
             if (effectsDialog.open) effectsDialog.close();
@@ -942,6 +987,12 @@
             });
         }
         document.addEventListener('keydown', onKeyDown, true);
+        // A theme, scheme or accent change while the window is open re-resolves Modern's colours (one frame later).
+        let themeFrame = 0;
+        const themeObserver = new MutationObserver(function () {
+            if (!themeFrame) themeFrame = window.requestAnimationFrame(function () { themeFrame = 0; modernLook(true); });
+        });
+        themeObserver.observe(document.body, { attributes: true, attributeFilter: ['data-theme', 'data-scheme', 'data-fruity-mode', 'data-accent', 'style'] });
         const effectsObserver = new MutationObserver(syncEffectsMenu);
         effectsObserver.observe(root, { attributes: true, attributeFilter: ['data-terminal-fallback'] });
         effectsObserver.observe(document.body, { attributes: true, attributeFilter: ['data-animations'] });
@@ -950,6 +1001,7 @@
         effectsDialog.querySelector('[data-terminal-effects-close]').addEventListener('click', function () { effectsDialog.close(); });
         effectsDialog.addEventListener('input', function (event) {
             const key = event.target.dataset.terminalEffect;
+            if (key) styles.syncRange(event.target);
             if (!key || event.target.disabled || !currentProfile().retro) return;
             effectValues[key] = Number(event.target.value);
             effectValues = styles.saveEffects(root.dataset.terminalStyle, effectValues);
@@ -974,6 +1026,7 @@
             fontSize: 13
         });
         term.open(screen);
+        updateGrid();
         if (window.FitAddon && window.FitAddon.FitAddon) {
             fit = new window.FitAddon.FitAddon();
             term.loadAddon(fit);

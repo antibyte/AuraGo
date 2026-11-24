@@ -50,48 +50,248 @@
     border: 0;
 }
 
+/* Console header: status group on the left, controls on the right. All controls are 32 px high with one radius. */
 .vd-terminal-toolbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
+    gap: 8px 12px;
     flex-wrap: wrap;
+    padding: 8px 12px;
+    font-size: 13px;
+    line-height: 1.2;
     border-bottom: 1px solid var(--vd-mat-divider, var(--vd-theme-border, var(--vd-border)));
     background: var(--vd-mat-bar, var(--vd-theme-chrome-bg));
     box-shadow: var(--vd-mat-bar-edge, none);
 }
 
+.vd-terminal-toolbar [hidden] {
+    display: none !important;
+}
+
 .vd-terminal-toolbar-status {
+    display: flex;
+    align-items: center;
+    flex: 1 1 140px;
+    gap: 8px;
     min-width: 0;
+    color: var(--vd-text, inherit);
+}
+
+.vd-terminal-status-dot {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    color: var(--vd-theme-muted, #8a94a6);
+    background: currentColor;
+}
+
+.vd-terminal-app[data-terminal-state="desktop.loading"] .vd-terminal-status-dot,
+.vd-terminal-app[data-terminal-state="desktop.terminal_dialing"] .vd-terminal-status-dot {
+    color: var(--ds-color-warning-fg, #f2c94c);
+}
+
+.vd-terminal-app[data-terminal-state="desktop.terminal_running"] .vd-terminal-status-dot,
+.vd-terminal-app[data-terminal-state="desktop.terminal_connected"] .vd-terminal-status-dot {
+    color: var(--ds-color-success-fg, #4ade80);
+    box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 22%, transparent), 0 0 8px color-mix(in srgb, currentColor 60%, transparent);
+}
+
+.vd-terminal-app[data-terminal-state="desktop.terminal_directory"] .vd-terminal-status-dot {
+    color: var(--ds-color-info-fg, #60a5fa);
+}
+
+.vd-terminal-app[data-terminal-state="desktop.terminal_unavailable"] .vd-terminal-status-dot {
+    color: var(--ds-color-danger-fg, #f87171);
+}
+
+.vd-terminal-status {
+    flex: none;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.vd-terminal-status-detail {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--vd-theme-muted, inherit);
+}
+
+.vd-terminal-status-detail:empty,
+.vd-terminal-grid:empty {
+    display: none;
+}
+
+.vd-terminal-grid {
+    flex: none;
+    padding-left: 4px;
+    font: 12px/1 var(--vd-mat-mono-font, ui-monospace, Consolas, monospace);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    color: var(--vd-theme-muted, inherit);
 }
 
 .vd-terminal-toolbar-actions {
     display: flex;
     align-items: center;
+    flex: 0 1 auto;
     gap: 8px;
     margin-left: auto;
     min-width: 0;
 }
 
-.vd-terminal-toolbar select[data-terminal-style] {
+.vd-terminal-toolbar-sep {
+    flex: none;
+    align-self: center;
+    width: 1px;
+    height: 18px;
+    background: var(--vd-mat-divider, var(--vd-theme-border, currentColor));
+    opacity: 0.8;
+}
+
+.vd-terminal-baud-label[hidden] + .vd-terminal-toolbar-sep {
+    display: none;
+}
+
+.vd-terminal-icon {
+    flex: none;
+    display: block;
+    width: 16px;
+    height: 16px;
+}
+
+/* A select is a field: the label carries border, material and chevron, the select inside is bare. */
+.vd-terminal-toolbar .vd-terminal-select {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    flex: 0 1 auto;
+    gap: 7px;
+    box-sizing: border-box;
+    min-width: 0;
     max-width: 16rem;
-    min-height: 32px;
-    background: var(--vd-mat-field, var(--vd-theme-control-bg, var(--vd-theme-panel-bg)));
+    height: 32px;
+    padding: 0 28px 0 10px;
     color: var(--vd-text, inherit);
+    background: var(--vd-mat-field, var(--vd-theme-control-bg, var(--vd-theme-panel-bg)));
     border: 1px solid var(--vd-mat-field-border, var(--vd-theme-border));
     border-radius: var(--vd-mat-field-radius, 8px);
     box-shadow: var(--vd-mat-field-shadow, none);
-    padding: 4px 8px;
+}
+
+.vd-terminal-toolbar .vd-terminal-baud-label {
+    max-width: 11rem;
+}
+
+.vd-terminal-toolbar .vd-terminal-select::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    width: 6px;
+    height: 6px;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: translateY(-70%) rotate(45deg);
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.vd-terminal-toolbar .vd-terminal-select:focus-within,
+.vd-terminal-toolbar button:focus-visible {
+    outline: 2px solid var(--vd-accent, #70b9ff);
+    outline-offset: 2px;
+}
+
+.vd-terminal-toolbar .vd-terminal-select select {
+    appearance: none;
+    -webkit-appearance: none;
+    flex: 1 1 auto;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    color: inherit;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    outline: 0;
+    font: inherit;
+    font-size: 13px;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    cursor: pointer;
+}
+
+.vd-terminal-toolbar .vd-terminal-select select:disabled {
+    cursor: not-allowed;
+}
+
+.vd-terminal-toolbar .vd-terminal-select:has(select:disabled) {
+    opacity: 0.6;
+}
+
+.vd-terminal-toolbar .vd-terminal-select select option {
+    background-color: var(--vd-theme-panel-bg-strong, var(--vd-theme-panel-bg, #1f2937));
+    color: var(--vd-text, inherit);
 }
 
 .vd-terminal-toolbar button {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    gap: 7px;
+    box-sizing: border-box;
+    height: 32px;
     min-height: 32px;
+    margin: 0;
+    padding: 0 12px;
     border: 1px solid var(--vd-mat-btn-border, var(--vd-theme-border));
     border-radius: var(--vd-mat-btn-radius, 8px);
     background: var(--vd-mat-btn, var(--vd-theme-control-bg, var(--vd-theme-chrome-bg)));
     box-shadow: var(--vd-mat-btn-shadow, none);
     color: var(--vd-mat-btn-text, inherit);
-    padding: 4px 10px;
+    font: inherit;
+    font-size: 13px;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.vd-terminal-btn-label {
+    min-width: 0;
+}
+
+/* Below ~680 px the buttons shrink to their icon (the title and aria-label keep the name); below ~520 px the grid
+   readout and the entry name go and the fields shrink. */
+@container terminal (max-width: 680px) {
+    .vd-terminal-toolbar button { width: 32px; padding: 0; }
+    .vd-terminal-toolbar .vd-terminal-btn-label {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+    }
+}
+
+@container terminal (max-width: 520px) {
+    .vd-terminal-grid,
+    .vd-terminal-status-detail { display: none; }
+    .vd-terminal-toolbar-actions { gap: 6px; }
+    .vd-terminal-toolbar .vd-terminal-select { max-width: 9.5rem; padding-left: 8px; gap: 6px; }
+    .vd-terminal-toolbar .vd-terminal-baud-label { max-width: 7rem; }
 }
 
 .vd-terminal-toolbar button:where(:hover:not(:disabled)) {
@@ -110,8 +310,8 @@
     max-height: calc(100dvh - 40px);
     margin: auto 16px auto auto;
     box-sizing: border-box;
-    padding: 22px;
-    overflow: auto;
+    padding: 0;
+    overflow: hidden;
     color: var(--vd-text, #e2e8f0);
     background: var(--vd-mat-card, var(--vd-theme-panel-bg, #18212e));
     border: 1px solid var(--vd-mat-card-border, var(--vd-theme-border, #425066));
@@ -120,16 +320,30 @@
     font: 13px/1.5 system-ui, sans-serif;
 }
 
+/* A flex column while open: fixed header and footer, a scrolling body between them (no sticky strip). */
+.vd-terminal-effects-dialog[open] {
+    display: flex;
+    flex-direction: column;
+}
+
 .vd-terminal-effects-dialog::backdrop { background: #0003; }
 .vd-terminal-effects-dialog header {
-    position: sticky;
-    top: 0;
-    z-index: 1;
+    flex: none;
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
     gap: 16px;
-    background: var(--vd-mat-card-color, var(--vd-theme-panel-bg, #18212e));
+    padding: 16px 16px 14px 22px;
+    border-bottom: 1px solid var(--vd-mat-divider, var(--vd-theme-border, #425066));
+}
+
+.vd-terminal-effects-dialog header p { margin: 2px 0 0; font-size: 12px; opacity: 0.7; }
+
+.vd-terminal-effects-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    padding: 16px 22px 18px;
 }
 .vd-terminal-effects-dialog h2 {
     margin: 0;
@@ -140,7 +354,17 @@
     letter-spacing: var(--vd-mat-heading-tracking, normal);
     text-transform: var(--vd-mat-heading-transform, none);
 }
-.vd-terminal-effects-dialog p { margin: 6px 0 12px; opacity: 0.75; }
+.vd-terminal-effects-dialog p { margin: 0 0 12px; }
+/* The hints read as a note: an accent wash that works on light and dark cards. */
+.vd-terminal-effects-body > p {
+    padding: 9px 12px;
+    border: 1px solid color-mix(in srgb, var(--vd-accent, #70b9ff) 32%, transparent);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--vd-accent, #70b9ff) 10%, transparent);
+    color: var(--vd-text, inherit);
+    font-size: 12.5px;
+}
+.vd-terminal-effects-body > p[hidden] { display: none; }
 .vd-terminal-effects-dialog button {
     min-height: 36px;
     padding: 6px 12px;
@@ -152,8 +376,21 @@
     cursor: pointer;
 }
 .vd-terminal-effects-dialog button:hover { background: var(--vd-mat-btn-hover, var(--vd-theme-control-bg, #ffffff0a)); }
-.vd-terminal-effects-dialog [data-terminal-effects-close] { font-size: 22px; line-height: 1; }
-.vd-terminal-effects-dialog :focus-visible { outline: 2px solid var(--vd-theme-accent, #70b9ff); outline-offset: 3px; }
+.vd-terminal-effects-dialog [data-terminal-effects-close] {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 32px;
+    min-height: 32px;
+    height: 32px;
+    padding: 0;
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+}
+.vd-terminal-effects-dialog [data-terminal-effects-close]:hover { background: var(--vd-mat-btn-hover, var(--vd-theme-control-bg, #ffffff0a)); }
+.vd-terminal-effects-dialog :focus-visible { outline: 2px solid var(--vd-accent, #70b9ff); outline-offset: 2px; }
 .vd-terminal-effects-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -176,14 +413,94 @@
     text-transform: var(--vd-mat-label-transform, none);
 }
 .vd-terminal-effect { display: grid; grid-template-columns: 1fr auto; gap: 6px 8px; min-width: 0; }
-.vd-terminal-effect output { opacity: 0.65; font-variant-numeric: tabular-nums; }
-.vd-terminal-effect input { grid-column: 1 / -1; width: 100%; margin: 0; min-height: 22px; accent-color: var(--vd-theme-accent, #70b9ff); }
+.vd-terminal-effect output {
+    color: var(--vd-theme-muted, inherit);
+    font: 11.5px/1.5 var(--vd-mat-mono-font, ui-monospace, Consolas, monospace);
+    font-variant-numeric: tabular-nums;
+}
 .vd-terminal-effects-grid:disabled, .vd-terminal-effect:has(input:disabled) { opacity: 0.45; }
-.vd-terminal-effects-dialog footer { margin-top: 22px; }
-.vd-terminal-effects-dialog footer p { font-size: 12px; }
+
+/* Sliders: a 4 px track, the filled part and a 14 px thumb in the user accent (--vd-fill is set from terminal.js). */
+.vd-terminal-effect input[type="range"] {
+    --vd-fill: 0%;
+    grid-column: 1 / -1;
+    appearance: none;
+    -webkit-appearance: none;
+    width: 100%;
+    height: 20px;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    cursor: pointer;
+    accent-color: var(--vd-accent, #70b9ff);
+}
+.vd-terminal-effect input[type="range"]:disabled { cursor: not-allowed; }
+.vd-terminal-effect input[type="range"]:focus-visible { outline: none; }
+.vd-terminal-effect input[type="range"]::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 2px;
+    background:
+        linear-gradient(var(--vd-accent, #70b9ff), var(--vd-accent, #70b9ff)) 0 0 / var(--vd-fill) 100% no-repeat,
+        color-mix(in srgb, var(--vd-text, #fff) 18%, var(--vd-mat-well-color, transparent));
+}
+.vd-terminal-effect input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    margin-top: -5px;
+    border: 2px solid var(--vd-mat-card-color, var(--vd-theme-panel-bg, #18212e));
+    border-radius: 50%;
+    background: var(--vd-accent, #70b9ff);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+    box-sizing: border-box;
+}
+.vd-terminal-effect input[type="range"]::-moz-range-track {
+    height: 4px;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--vd-text, #fff) 18%, var(--vd-mat-well-color, transparent));
+}
+.vd-terminal-effect input[type="range"]::-moz-range-progress {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--vd-accent, #70b9ff);
+}
+.vd-terminal-effect input[type="range"]::-moz-range-thumb {
+    width: 10px;
+    height: 10px;
+    border: 2px solid var(--vd-mat-card-color, var(--vd-theme-panel-bg, #18212e));
+    border-radius: 50%;
+    background: var(--vd-accent, #70b9ff);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+.vd-terminal-effect input[type="range"]:not(:disabled):hover::-webkit-slider-thumb {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--vd-accent, #70b9ff) 28%, transparent), 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+.vd-terminal-effect input[type="range"]:not(:disabled):hover::-moz-range-thumb {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--vd-accent, #70b9ff) 28%, transparent);
+}
+/* Keyboard focus: a solid 2 px accent ring around the thumb. */
+.vd-terminal-effect input[type="range"]:focus-visible::-webkit-slider-thumb {
+    box-shadow: 0 0 0 2px var(--vd-accent, #70b9ff), 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+.vd-terminal-effect input[type="range"]:focus-visible::-moz-range-thumb {
+    box-shadow: 0 0 0 2px var(--vd-accent, #70b9ff);
+}
+
+.vd-terminal-effects-dialog footer {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 12px 16px 12px 22px;
+    border-top: 1px solid var(--vd-mat-divider, var(--vd-theme-border, #425066));
+}
+.vd-terminal-effects-dialog footer p { margin: 0; font-size: 12px; opacity: 1; color: var(--vd-theme-muted, inherit); }
+.vd-terminal-effects-dialog footer button { flex: none; }
 
 @media (max-width: 520px) {
-    .vd-terminal-effects-dialog { padding: 16px; }
+    .vd-terminal-effects-body { padding: 14px 16px 16px; }
     .vd-terminal-effects-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
 }
 
@@ -255,12 +572,10 @@
     inset: 0;
     opacity: var(--vd-term-wear);
     background:
-        linear-gradient(171deg, transparent 42%, #e9dec5 45% 48%, #181611 51%, transparent 55%) 18px 8px / 68px 5px,
-        linear-gradient(14deg, transparent 40%, #171610 45% 49%, #f7edcf 52%, transparent 58%) 44px 12px / 26px 4px,
-        linear-gradient(98deg, transparent 40%, #f7edcf 44% 47%, #181611 52%, transparent 58%) right 9px top 32% / 6px 46px,
-        linear-gradient(173deg, transparent 40%, #171610 45% 49%, #f7edcf 52%, transparent 58%) right 32px bottom 8px / 78px 6px,
         radial-gradient(ellipse, #30231677, transparent 70%) left -24px bottom -14px / 145px 72px,
-        radial-gradient(ellipse, #f7edcf55, transparent 70%) right -10px top -8px / 100px 46px;
+        radial-gradient(ellipse, #f7edcf55, transparent 70%) right -10px top -8px / 100px 46px,
+        radial-gradient(ellipse, #30231640, transparent 70%) right 18% bottom -30px / 220px 90px,
+        radial-gradient(ellipse, #f7edcf30, transparent 70%) left 12% top -26px / 240px 80px;
     background-repeat: no-repeat;
 }
 
@@ -275,7 +590,7 @@
 }
 
 .vd-terminal-maker {
-    padding: 3px 9px;
+    padding: 2px 9px 3px;
     border: 1px solid #00000045;
     border-radius: 2px;
     background: linear-gradient(#ffffff0c, #00000012);
@@ -283,6 +598,23 @@
     font: 600 11px/1.2 "Geist Mono", monospace;
     letter-spacing: 0.14em;
     text-shadow: 0 1px 0 #ffffff18;
+}
+
+/* The tube's phosphor type as a small engraved second line (per style via --vd-term-phosphor). */
+.vd-terminal-maker::after {
+    content: var(--vd-term-phosphor, none);
+    display: block;
+    margin-top: 1px;
+    font-size: 7.5px;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    opacity: 0.75;
+}
+
+.vd-terminal-power .vd-terminal-icon {
+    width: 16px;
+    height: 16px;
+    filter: drop-shadow(0 1px 0 #ffffff18);
 }
 
 .vd-terminal-vents {
@@ -352,6 +684,13 @@
     opacity: 0;
 }
 
+/* xterm 6 paints the theme background on .xterm-scrollable-element (exactly the content box). The WebGL CRT overlay
+   draws the background itself and, in the translucent glass styles, lets the layers below show through: that
+   opaque box showed as a lighter rectangle with hard edges inside the padding ring. */
+.vd-terminal-app[data-terminal-renderer="webgl"] .xterm .xterm-scrollable-element {
+    background-color: transparent !important;
+}
+
 .vd-terminal-app[data-terminal-renderer="webgl"] .xterm-viewport {
     background: transparent !important;
     scrollbar-width: thin;
@@ -395,9 +734,70 @@
     filter: blur(2px);
 }
 
+/* Modern: the screen has exactly the terminal background (set from the theme in terminal.js), so there is no seam
+   and no band, and the bars around a pinned grid match. */
 .vd-terminal-app[data-terminal-style="modern"] .vd-terminal-screen {
     border-radius: 0;
     box-shadow: none;
+    background: var(--vd-term-screen-bg, #0f172a);
+}
+
+/* Fit mode only: a pinned grid (data-terminal-geometry) sets its own inline padding and font fit, edge to edge. */
+.vd-terminal-app[data-terminal-style="modern"]:not([data-terminal-geometry]) .xterm {
+    padding: 10px 6px 10px 12px;
+}
+
+.vd-terminal-app[data-terminal-style="modern"] .xterm .xterm-viewport {
+    background-color: transparent !important;
+    /* The window content sets scrollbar-color on every descendant, which would make Chromium ignore the
+       ::-webkit-scrollbar rules below: back to auto here. */
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+}
+
+/* Chromium/WebKit: an 8 px bar without arrow buttons (these pseudo-elements are ignored once scrollbar-width or
+   scrollbar-color is set, so the standard pair only goes to engines without them). */
+.vd-terminal-app[data-terminal-style="modern"] .xterm .xterm-viewport::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+    background: transparent;
+}
+
+.vd-terminal-app[data-terminal-style="modern"] .xterm .xterm-viewport::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.vd-terminal-app[data-terminal-style="modern"] .xterm .xterm-viewport::-webkit-scrollbar-thumb {
+    border-radius: 4px;
+    background: color-mix(in srgb, #e2e8f0 28%, transparent);
+}
+
+.vd-terminal-app[data-terminal-style="modern"] .xterm .xterm-viewport::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, #e2e8f0 46%, transparent);
+}
+
+.vd-terminal-app[data-terminal-style="modern"] .xterm .xterm-viewport::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+    .vd-terminal-app[data-terminal-style="modern"] .xterm .xterm-viewport {
+        scrollbar-width: thin;
+        scrollbar-color: color-mix(in srgb, #e2e8f0 28%, transparent) transparent;
+    }
+}
+
+/* A soft depth line under the toolbar. */
+.vd-terminal-app[data-terminal-style="modern"] .vd-terminal-screen::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 12px;
+    z-index: 3;
+    pointer-events: none;
+    box-shadow: inset 0 8px 8px -8px rgba(0, 0, 0, 0.55);
 }
 
 .vd-terminal-crt-overlay {
@@ -417,6 +817,16 @@
     --vd-term-bezel: #24231f;
     --vd-term-glow: rgba(255, 176, 0, 0.18);
 }
+
+.vd-terminal-app[data-terminal-style="amber"] { --vd-term-phosphor: "PHOSPHOR P3"; }
+.vd-terminal-app[data-terminal-style="green"] { --vd-term-phosphor: "PHOSPHOR P1"; }
+.vd-terminal-app[data-terminal-style="apple2"] { --vd-term-phosphor: "PHOSPHOR P31"; }
+.vd-terminal-app[data-terminal-style="commodore64"] { --vd-term-phosphor: "PHOSPHOR P22"; }
+.vd-terminal-app[data-terminal-style="ibm3278"] { --vd-term-phosphor: "PHOSPHOR P39"; }
+.vd-terminal-app[data-terminal-style="vintage"] { --vd-term-phosphor: "PHOSPHOR P3"; }
+.vd-terminal-app[data-terminal-style="mono-green"] { --vd-term-phosphor: "PHOSPHOR P31"; }
+.vd-terminal-app[data-terminal-style="transparent-green"] { --vd-term-phosphor: "PHOSPHOR P31"; }
+.vd-terminal-app[data-terminal-style="color-monitor"] { --vd-term-phosphor: "PHOSPHOR P22"; }
 
 .vd-terminal-app[data-terminal-style="green"],
 .vd-terminal-app[data-terminal-style="mono-green"],
@@ -500,8 +910,7 @@
 
     .vd-terminal-hardware { gap: 12px; }
     .vd-terminal-maker { font-size: 10px; }
-    .vd-terminal-toolbar-actions { flex-wrap: wrap; }
-    .vd-terminal-toolbar select[data-terminal-style] { max-width: 100%; }
+    .vd-terminal-maker::after { content: none; }
 }
 
 .vd-terminal-app[data-terminal-fallback="css"] .vd-terminal-screen::after {
@@ -526,7 +935,8 @@
 }
 
 .vd-terminal-app[data-terminal-style="transparent-green"] .vd-terminal-screen {
-    background: rgba(0, 17, 8, 0.35);
+    /* The glass tint matches the phosphor-green the CRT shader paints inside the grid, so no lighter rectangle shows. */
+    background: rgba(0, 34, 0, 0.35);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -537,26 +947,26 @@
 
 /* Retro-Net: toolbar controls follow the desktop theme; the terminal surface stays dark. */
 .vd-terminal-toolbar select[data-terminal-baud] {
-    max-width: 11rem;
-    min-height: 32px;
-    background: var(--vd-mat-field, var(--vd-theme-control-bg, var(--vd-theme-panel-bg)));
-    color: var(--vd-text, inherit);
-    border: 1px solid var(--vd-mat-field-border, var(--vd-theme-border));
-    border-radius: var(--vd-mat-field-radius, 8px);
-    box-shadow: var(--vd-mat-field-shadow, none);
-    padding: 4px 8px;
+    min-width: 5.5rem;
 }
 
-/* Hang up keeps the theme's text color (readable in light and dark themes) and marks danger with red edges. */
+/* Hang up is a danger outline: the border and icon take the danger ink, the label keeps the theme's text colour
+   (readable in light and dark themes), hover and press wash the button in the danger ink. */
 .vd-terminal-toolbar [data-terminal-retronet-action="hangup"] {
-    border-color: #d9534f;
-    box-shadow: inset 3px 0 0 #d9534f;
+    --vd-term-danger: var(--ds-color-danger-fg, #d9534f);
+    border-color: color-mix(in srgb, var(--vd-term-danger) 65%, transparent);
 }
 
-.vd-terminal-toolbar [data-terminal-retronet-action]:focus-visible,
-.vd-terminal-toolbar select[data-terminal-baud]:focus-visible {
-    outline: 2px solid var(--vd-accent, #70b9ff);
-    outline-offset: 2px;
+.vd-terminal-toolbar [data-terminal-retronet-action="hangup"] .vd-terminal-icon {
+    color: var(--vd-term-danger);
+}
+
+.vd-terminal-toolbar [data-terminal-retronet-action="hangup"]:hover:not(:disabled) {
+    background: linear-gradient(color-mix(in srgb, var(--vd-term-danger) 14%, transparent), color-mix(in srgb, var(--vd-term-danger) 14%, transparent)), var(--vd-mat-btn, var(--vd-theme-control-bg, var(--vd-theme-chrome-bg)));
+}
+
+.vd-terminal-toolbar [data-terminal-retronet-action="hangup"]:active:not(:disabled) {
+    background: linear-gradient(color-mix(in srgb, var(--vd-term-danger) 24%, transparent), color-mix(in srgb, var(--vd-term-danger) 24%, transparent)), var(--vd-mat-btn, var(--vd-theme-control-bg, var(--vd-theme-chrome-bg)));
 }
 
 .vd-terminal-app[data-terminal-mode="directory"] .xterm,
@@ -586,8 +996,34 @@
 
 /* The dialing LED blinks only without reduced motion and with desktop animations on; otherwise it stays lit. */
 @media (prefers-reduced-motion: no-preference) {
-    body:not([data-animations="false"]) .vd-terminal-app[data-terminal-state="desktop.terminal_dialing"] .vd-terminal-led {
+    body:not([data-animations="false"]) .vd-terminal-app[data-terminal-state="desktop.terminal_dialing"] .vd-terminal-led,
+    body:not([data-animations="false"]) .vd-terminal-app[data-terminal-state="desktop.terminal_dialing"] .vd-terminal-status-dot {
         animation: vd-terminal-led-dial 0.7s linear infinite;
+    }
+}
+
+/* Forced colours: the dot, separator and slider parts use system colours (backgrounds would be flattened away). */
+@media (forced-colors: active) {
+    .vd-terminal-status-dot { forced-color-adjust: none; background: Highlight; }
+    .vd-terminal-toolbar-sep { background: none; width: 0; border-left: 1px solid ButtonBorder; }
+    .vd-terminal-effect input[type="range"]::-webkit-slider-runnable-track {
+        forced-color-adjust: none;
+        background: linear-gradient(Highlight, Highlight) 0 0 / var(--vd-fill) 100% no-repeat, ButtonBorder;
+    }
+    .vd-terminal-effect input[type="range"]::-webkit-slider-thumb { forced-color-adjust: none; background: Highlight; border-color: Canvas; }
+    .vd-terminal-effect input[type="range"]::-moz-range-track { background: ButtonBorder; }
+    .vd-terminal-effect input[type="range"]::-moz-range-progress { background: Highlight; }
+    .vd-terminal-effect input[type="range"]::-moz-range-thumb { background: Highlight; border-color: Canvas; }
+}
+
+@keyframes vd-terminal-dialog-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    body:not([data-animations="false"]) .vd-terminal-effects-dialog[open] {
+        animation: vd-terminal-dialog-in 140ms ease-out;
     }
 }
 
@@ -675,6 +1111,23 @@
     text-transform: none;
 }
 
+/* Selects get a chevron (two gradient halves of a small triangle in front of the field material) so they do not read as text fields. */
+.vd-terminal-retronet-fields select {
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 32px;
+    cursor: pointer;
+    background:
+        linear-gradient(45deg, transparent 50%, color-mix(in srgb, currentColor 60%, transparent) 50%) calc(100% - 16px) 50% / 4px 4px no-repeat,
+        linear-gradient(135deg, color-mix(in srgb, currentColor 60%, transparent) 50%, transparent 50%) calc(100% - 12px) 50% / 4px 4px no-repeat,
+        var(--vd-mat-field, var(--vd-theme-control-bg, #ffffff0a));
+}
+
+.vd-terminal-retronet-fields select option {
+    background-color: var(--vd-theme-panel-bg-strong, var(--vd-theme-panel-bg, #1f2937));
+    color: var(--vd-text, inherit);
+}
+
 .vd-terminal-retronet-fields [aria-invalid="true"] { border-color: #d9534f; box-shadow: 0 0 0 1px #d9534f; }
 
 /* Error text keeps the theme's text color on a red-tinted box, readable in light and dark themes. */
@@ -720,7 +1173,8 @@
 }
 
 .vd-terminal-retronet-dialog button:where(:hover:not(:disabled)) { background: var(--vd-mat-btn-hover, var(--vd-theme-control-bg, #ffffff0a)); }
-.vd-terminal-retronet-dialog [data-retronet-close] { min-width: 36px; font-size: 22px; line-height: 1; }
+.vd-terminal-retronet-dialog [data-retronet-close] { min-width: 32px; width: 32px; min-height: 32px; height: 32px; padding: 0; font-size: 20px; line-height: 1; background: transparent; border-color: transparent; box-shadow: none; }
+.vd-terminal-retronet-dialog [data-retronet-close]:hover:not(:disabled) { background: var(--vd-mat-btn-hover, var(--vd-theme-control-bg, #ffffff0a)); }
 /* Accents are light in several themes: the Save button keeps readable text, on the theme's primary material (ink chosen per theme) or, without it, the theme's text color on an accent wash. */
 .vd-terminal-retronet-dialog .vd-terminal-retronet-primary { color: var(--vd-mat-primary-text, inherit); font-weight: 600; background: var(--vd-mat-primary, var(--vd-theme-accent-soft, color-mix(in srgb, var(--vd-accent, #4c8dff) 22%, transparent))); border-color: var(--vd-mat-primary-border, var(--vd-accent, #4c8dff)); box-shadow: var(--vd-mat-primary-shadow, none); }
 .vd-terminal-retronet-dialog .vd-terminal-retronet-primary:hover:not(:disabled) { background: var(--vd-mat-primary-hover, var(--vd-theme-accent-soft, color-mix(in srgb, var(--vd-accent, #4c8dff) 22%, transparent))); }

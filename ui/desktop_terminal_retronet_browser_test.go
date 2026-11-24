@@ -50,6 +50,11 @@ func TestDesktopTerminalRetroNetBrowser(t *testing.T) {
 		c.run(`()=>fixtureStyle('modern')`)
 		c.wait("the modern style keeps the VT rows at line height 1, edge to edge", `async()=>fixtureRoot().dataset.terminalStyle==='modern'&&fixtureTerm().options.lineHeight===1&&
 			(`+terminalVTDomRows+`)()&&await (`+terminalVTFills+`)()`)
+		// After the call the geometry puts the static profile theme back; the resolved Modern look (the screen background
+		// the app root carries) must follow, with no navy grid on a theme-coloured screen.
+		c.run(`async()=>{fixtureRoot().style.setProperty('--vd-mat-well-color','#2a3a52');await fixtureInput('\x1d');await fixtureDismiss('q');}`)
+		c.wait("back in the directory the modern theme background equals the screen background", `()=>{const r=fixtureRoot(),bg=r.style.getPropertyValue('--vd-term-screen-bg').trim();
+			return r.dataset.terminalMode==='directory'&&r.dataset.terminalStyle==='modern'&&!!bg&&bg!=='#0f172a'&&fixtureTerm().options.theme.background===bg;}`)
 		c.check("no browser errors", `()=>fixtureErrors.length===0`)
 	})
 }
