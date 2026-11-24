@@ -6,7 +6,7 @@
   if (!lab || !lab.fixtures || typeof lab.fixtures.define !== 'function' || typeof lab.report !== 'function') {
     throw new Error('hero-fixtures.js needs window.hdLab with fixtures.define and report (M0 C4)');
   }
-  const NOW = Date.UTC(2026, 10, 23, 18, 0, 0), MIN = 60000;
+  const NOW = Math.floor(Date.now() / 60000) * 60000, MIN = 60000;
   const iso = (ms) => new Date(ms).toISOString();
   function merge(base, over) { const o = over || {}; return Object.assign({}, base, o, { attributes: Object.assign({}, base.attributes, o.attributes) }); }
   function entity(id, kind, name, extra) {
