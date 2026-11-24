@@ -1,0 +1,51 @@
+{
+ "pinout": "front_panel",
+ "variants": [
+  {
+   "variant": "",
+   "counts": {
+    "ground": 2,
+    "nc": 1,
+    "signal": 6
+   },
+   "pins": [
+    {
+     "number": "1",
+     "name": "HDD_LED+",
+     "type": "signal",
+     "ref": "Intel 600569 Rev. 1.1, table 2-4 (HD_LED_P, 330 ohm pull-up to +5 V); MSI B450 TOMAHAWK p. 32: HDD LED +"
+    },
+    {
+     "number": "2",
+     "name": "PLED+",
+     "type": "signal",
+     "ref": "MSI B450 TOMAHAWK p. 32: Power LED +; ASRock B450 Steel Legend p. 28: PLED+"
+    },
+    {
+     "number": "5",
+     "name": "GND",
+     "type": "ground",
+     "ref": "Intel 600569 Rev. 1.1, table 2-4: RST_SW_N; ASRock B450 Steel Legend p. 28: GND"
+    },
+    {
+     "number": "6",
+     "name": "PWR_SW",
+     "type": "signal",
+     "ref": "Intel 600569 Rev. 1.1, table 2-4: PWR_SW_P; MSI B450 TOMAHAWK p. 32: Power Switch"
+    },
+    {
+     "number": "8",
+     "name": "GND",
+     "type": "ground",
+     "ref": "Intel 600569 Rev. 1.1, table 2-4: PWR_SW_N; ASRock B450 Steel Legend p. 28: GND"
+    },
+    {
+     "number": "9",
+     "name": "Reserved",
+     "type": "nc",
+     "ref": "Intel 600569 Rev. 1.1, table 2-4: RSVD_DNU; MSI B450 TOMAHAWK p. 32: Reserved"
+    }
+   ]
+  }
+ ]
+}

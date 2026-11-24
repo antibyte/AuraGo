@@ -1,0 +1,52 @@
+{
+ "pinout": "usb3_header",
+ "variants": [
+  {
+   "variant": "",
+   "counts": {
+    "data": 12,
+    "ground": 4,
+    "power": 2,
+    "signal": 1
+   },
+   "pins": [
+    {
+     "number": "1",
+     "name": "Vbus",
+     "type": "power",
+     "ref": "Intel USB 3.0 Internal Connector and Cable Specification Rev. 1.0, table 2-1: pin 1 Vbus"
+    },
+    {
+     "number": "4",
+     "name": "GND",
+     "type": "ground",
+     "ref": "Intel USB 3.0 Internal Connector and Cable Specification Rev. 1.0, table 2-1: pin 4 GND"
+    },
+    {
+     "number": "10",
+     "name": "ID",
+     "type": "signal",
+     "ref": "Intel USB 3.0 Internal Connector and Cable Specification Rev. 1.0, table 2-1: ID, over current protection (MSI B450 TOMAHAWK p. 34: NC)"
+    },
+    {
+     "number": "11",
+     "name": "IntA_P2_D+",
+     "type": "data",
+     "ref": "Intel USB 3.0 Internal Connector and Cable Specification Rev. 1.0, table 2-1; MSI B450 TOMAHAWK p. 34: USB2.0+"
+    },
+    {
+     "number": "13",
+     "name": "GND",
+     "type": "ground",
+     "ref": "Intel USB 3.0 Internal Connector and Cable Specification Rev. 1.0, table 2-1: pin 13 GND"
+    },
+    {
+     "number": "19",
+     "name": "Vbus",
+     "type": "power",
+     "ref": "Intel USB 3.0 Internal Connector and Cable Specification Rev. 1.0, table 2-1: pin 19 Vbus"
+    }
+   ]
+  }
+ ]
+}

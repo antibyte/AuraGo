@@ -1,0 +1,251 @@
+# PC-internal power connectors and motherboard headers. The sources behind every item are in documentation/ecalc-sources/pinouts/pc_power/;
+# a changed pin updates that record, this file and the item's vector together.
+
+- id: atx12v_4
+  kind: pinout
+  category: pinouts
+  group: pc_power
+  name: {cs: "Napájení CPU ATX12V, 4 piny", da: "ATX12V CPU-strøm, 4-polet", de: "ATX12V-CPU-Strom, 4-polig", el: "Τροφοδοσία CPU ATX12V, 4 ακίδων", en: "ATX12V CPU power, 4-pin", es: "Alimentación CPU ATX12V, 4 pines", fr: "Alimentation CPU ATX12V, 4 broches", hi: "ATX12V CPU पावर, 4-पिन", it: "Alimentazione CPU ATX12V, 4 pin", ja: "ATX12V CPU 電源 4 ピン", nl: "ATX12V-CPU-voeding, 4-polig", "no": "ATX12V CPU-strøm, 4-polet", pl: "Zasilanie CPU ATX12V, 4-pinowe", pt: "Alimentação CPU ATX12V, 4 pinos", sv: "ATX12V CPU-ström, 4-polig", zh: "ATX12V CPU 电源 4 针"}
+  doc: {en: "The small extra 12 V supply of the CPU, a Mini-Fit Jr. housing with two rows of two. The latch sits on the row with the +12 V pins 3 and 4; it is drawn on top.", de: "Die kleine zusätzliche 12-V-Versorgung der CPU, ein Mini-Fit-Jr.-Gehäuse mit zwei Zweierreihen. Die Rastnase sitzt an der Reihe mit den +12-V-Pins 3 und 4 und ist oben gezeichnet."}
+  notes: {en: "It is the half-size form of the 8-pin EPS12V plug: on an 8-pin header it goes along pins 1 and 5 and meets pins 1, 2, 5 and 6, so ground meets ground. Two wires carry 12 V (18 AWG).", de: "Er ist die halbe Ausführung des 8-poligen EPS12V-Steckers: Auf einer 8-poligen Stiftleiste sitzt er bündig an den Pins 1 und 5 und trifft die Pins 1, 2, 5 und 6, Masse also auf Masse. Zwei Adern führen 12 V (18 AWG)."}
+  tags: ["atx12v", "atx12v-4", "p4", "4-pin", "4-polig", "cpu", "cpu power", "prozessor", "eps", "4+4", "psu", "netzteil", "mini-fit", "minifit", "39-01-2040", "39-29-9042"]
+  source: "Intel ATX Version 3 Multi Rail Desktop Platform Power Supply Design Guide (336521) Rev. 2.1a, table 5-8 and figure 5-2; ASRock B450 Steel Legend manual, 8-pin ATX12V1 header (a 4-pin supply goes along pins 1 and 5)"
+  views:
+    plug: {en: "Cable plug from the power supply (socket contacts)", de: "Kabelstecker vom Netzteil (Buchsenkontakte)"}
+    socket: {en: "Header on the board (pin contacts)", de: "Stiftleiste auf der Platine (Stiftkontakte)"}
+  shape:
+    type: rows
+    outline: minifit
+    contact: square
+    drawn: plug
+    rows:
+      - {pins: ["3", "4"]}
+      - {pins: ["1", "2"]}
+  pins:
+    - {number: "1", name: "COM", function: {en: "Ground return", de: "Masserückleitung"}, type: ground, wire: black}
+    - {number: "2", name: "COM", function: {en: "Ground return", de: "Masserückleitung"}, type: ground, wire: black}
+    - {number: "3", name: "+12V2", function: {en: "+12 V supply for the CPU", de: "+12-V-Versorgung der CPU"}, type: power, wire: yellow}
+    - {number: "4", name: "+12V2", function: {en: "+12 V supply for the CPU", de: "+12-V-Versorgung der CPU"}, type: power, wire: yellow}
+
+- id: pcie_12vhpwr
+  kind: pinout
+  category: pinouts
+  group: pc_power
+  name: {cs: "Napájení PCIe, 12VHPWR / 12V-2x6, 16 pinů (12+4)", da: "PCIe-strøm, 12VHPWR / 12V-2x6, 16-polet (12+4)", de: "PCIe-Strom, 12VHPWR / 12V-2x6, 16-polig (12+4)", el: "Τροφοδοσία PCIe, 12VHPWR / 12V-2x6, 16 ακίδων (12+4)", en: "PCIe power, 12VHPWR / 12V-2x6, 16-pin (12+4)", es: "Alimentación PCIe, 12VHPWR / 12V-2x6, 16 pines (12+4)", fr: "Alimentation PCIe, 12VHPWR / 12V-2x6, 16 broches (12+4)", hi: "PCIe पावर, 12VHPWR / 12V-2x6, 16-पिन (12+4)", it: "Alimentazione PCIe, 12VHPWR / 12V-2x6, 16 pin (12+4)", ja: "PCIe 電源 12VHPWR / 12V-2x6 16 ピン (12+4)", nl: "PCIe-voeding, 12VHPWR / 12V-2x6, 16-polig (12+4)", "no": "PCIe-strøm, 12VHPWR / 12V-2x6, 16-polet (12+4)", pl: "Zasilanie PCIe, 12VHPWR / 12V-2x6, 16-pinowe (12+4)", pt: "Alimentação PCIe, 12VHPWR / 12V-2x6, 16 pinos (12+4)", sv: "PCIe-ström, 12VHPWR / 12V-2x6, 16-polig (12+4)", zh: "PCIe 电源 12VHPWR / 12V-2x6 16 针 (12+4)"}
+  doc: {en: "Extra 12 V supply of a graphics card, up to 600 W: two rows of six power contacts and below them four sideband contacts S1 to S4. The latch sits on the row with the ground pins 7 to 12 and is drawn on top.", de: "Zusätzliche 12-V-Versorgung einer Grafikkarte, bis 600 W: zwei Reihen mit je sechs Leistungskontakten und darunter vier Sideband-Kontakte S1 bis S4. Die Rastnase sitzt an der Reihe mit den Masse-Pins 7 bis 12 und ist oben gezeichnet."}
+  notes: {en: "One item for the older 12VHPWR (housing marked H+) and the 12V-2x6 (marked H++): the pins and numbers are the same. The 12V-2x6 header has longer power contacts and sideband contacts 1.5 mm shorter. The drawing shows the four sideband contacts at the size of the power contacts, centred under the middle of the power rows. That is an approximation: the real sideband contacts are smaller and at a finer pitch. Each power pin is rated 9.2 A with all twelve contacts in use, so no contact may be left out.", de: "Ein Eintrag für den älteren 12VHPWR (Gehäuse mit H+) und den 12V-2x6 (mit H++): Pins und Nummern sind gleich. Die 12V-2x6-Stiftleiste hat längere Leistungskontakte und um 1,5 mm kürzere Sideband-Kontakte. Die Zeichnung zeigt die vier Sideband-Kontakte in der Größe der Leistungskontakte, mittig unter den Leistungsreihen. Das ist eine Näherung: Die echten Sideband-Kontakte sind kleiner und haben ein feineres Raster. Jeder Leistungs-Pin ist mit 9,2 A belastbar, wenn alle zwölf Kontakte benutzt werden, es darf also kein Kontakt fehlen."}
+  tags: ["12vhpwr", "12v-2x6", "12v2x6", "h++", "h+", "16-pin", "16-polig", "12+4", "pcie 5", "atx 3", "atx3.0", "atx 3.1", "600 w", "gpu", "grafikkarte", "graphics card", "sense0", "sense1", "card_pwr_stable", "card_cbl_pres", "sideband", "psu", "netzteil"]
+  source: "Intel ATX Version 3 Multi Rail Desktop Platform Power Supply Design Guide (336521) Rev. 2.1a, tables 3-5, 3-6 and 5-7, sections 3.3.1 to 3.3.3 and 5.2.2.4.3, figures 5-4 to 5-6; Corsair, Evolving Standards: 12VHPWR and 12V-2x6"
+  views:
+    plug: {en: "Cable plug from the power supply (socket contacts)", de: "Kabelstecker vom Netzteil (Buchsenkontakte)"}
+    socket: {en: "Header on the graphics card (pin contacts)", de: "Stiftleiste auf der Grafikkarte (Stiftkontakte)"}
+  shape:
+    type: rows
+    outline: minifit
+    contact: square
+    drawn: plug
+    rows:
+      - {pins: ["7", "8", "9", "10", "11", "12"]}
+      - {pins: ["1", "2", "3", "4", "5", "6"]}
+      - {pins: ["S1", "S2", "S3", "S4"], offset: 1}
+  pins:
+    - {number: "1", name: "+12V", function: {en: "+12 V supply to the card", de: "+12-V-Versorgung der Karte"}, type: power, wire: yellow}
+    - {number: "2", name: "+12V", function: {en: "+12 V supply to the card", de: "+12-V-Versorgung der Karte"}, type: power, wire: yellow}
+    - {number: "3", name: "+12V", function: {en: "+12 V supply to the card", de: "+12-V-Versorgung der Karte"}, type: power, wire: yellow}
+    - {number: "4", name: "+12V", function: {en: "+12 V supply to the card", de: "+12-V-Versorgung der Karte"}, type: power, wire: yellow}
+    - {number: "5", name: "+12V", function: {en: "+12 V supply to the card", de: "+12-V-Versorgung der Karte"}, type: power, wire: yellow}
+    - {number: "6", name: "+12V", function: {en: "+12 V supply to the card", de: "+12-V-Versorgung der Karte"}, type: power, wire: yellow}
+    - {number: "7", name: "COM", function: {en: "Ground return", de: "Masserückleitung"}, type: ground, wire: black}
+    - {number: "8", name: "COM", function: {en: "Ground return", de: "Masserückleitung"}, type: ground, wire: black}
+    - {number: "9", name: "COM", function: {en: "Ground return", de: "Masserückleitung"}, type: ground, wire: black}
+    - {number: "10", name: "COM", function: {en: "Ground return", de: "Masserückleitung"}, type: ground, wire: black}
+    - {number: "11", name: "COM", function: {en: "Ground return", de: "Masserückleitung"}, type: ground, wire: black}
+    - {number: "12", name: "COM", function: {en: "Ground return", de: "Masserückleitung"}, type: ground, wire: black}
+    - {number: "S1", name: "CARD_PWR_STABLE", function: {en: "Power good from the card, open drain: low = a card rail is out of limits (optional)", de: "Power-Good der Karte, Open Drain: low = eine Kartenspannung außerhalb der Grenzen (optional)"}, type: signal, wire: blue, notes: {en: "Optional. In the supply a 4.7 kΩ pull-up to +3.3 V; open = card rails within limits, driven low for at least 100 ms = fault.", de: "Optional. Im Netzteil ein 4,7-kΩ-Pull-up auf +3,3 V; offen = Kartenspannungen im Sollbereich, mindestens 100 ms auf Low gezogen = Fehler."}}
+    - {number: "S2", name: "CARD_CBL_PRES#", function: {en: "Cable/card present, active low: the card pulls it to ground through 4.7 kΩ", de: "Kabel/Karte vorhanden, low-aktiv: die Karte zieht über 4,7 kΩ nach Masse"}, type: signal, wire: blue, notes: {en: "Required on every card. It does not tell the card its power level.", de: "Auf jeder Karte vorgeschrieben. Er meldet der Karte nicht die Leistungsstufe."}}
+    - {number: "S3", name: "SENSE0", function: {en: "Power level code from the supply, bit 0: grounded or open", de: "Leistungscode des Netzteils, Bit 0: auf Masse oder offen"}, type: signal, wire: blue, notes: {en: "SENSE0, SENSE1 and the permitted power (initial / sustained, 12V-2x6): Ground, Ground 375 W / 600 W; Open, Ground 225 W / 450 W; Ground, Open 150 W / 300 W; the two shorted to each other 100 W / 150 W; Open, Open 0 W. A card must read both pins before it draws power through the plug.", de: "SENSE0, SENSE1 und die erlaubte Leistung (anfangs / dauerhaft, 12V-2x6): Masse, Masse 375 W / 600 W; offen, Masse 225 W / 450 W; Masse, offen 150 W / 300 W; beide miteinander verbunden 100 W / 150 W; offen, offen 0 W. Eine Karte muss beide Pins lesen, bevor sie über den Stecker Leistung zieht."}}
+    - {number: "S4", name: "SENSE1", function: {en: "Power level code from the supply, bit 1: grounded or open", de: "Leistungscode des Netzteils, Bit 1: auf Masse oder offen"}, type: signal, wire: blue, notes: {en: "Read together with SENSE0, see the table at S3. The signals must not change state while the card has main +3.3 V.", de: "Zusammen mit SENSE0 lesen, siehe die Tabelle bei S3. Die Signale dürfen sich nicht ändern, solange die Karte die Haupt-+3,3-V hat."}}
+
+- id: front_panel
+  kind: pinout
+  category: pinouts
+  group: pc_power
+  name: {cs: "Konektor předního panelu, 2x5", da: "Frontpanel-header, 2x5", de: "Frontpanel-Anschluss, 2x5", el: "Κεφαλίδα μπροστινού πάνελ, 2x5", en: "Front panel header, 2x5", es: "Conector del panel frontal, 2x5", fr: "Connecteur de façade, 2x5", hi: "फ्रंट पैनल हेडर, 2x5", it: "Header del pannello frontale, 2x5", ja: "フロントパネルヘッダー 2x5", nl: "Frontpaneelaansluiting, 2x5", "no": "Frontpanel-header, 2x5", pl: "Złącze panelu przedniego, 2x5", pt: "Conector do painel frontal, 2x5", sv: "Frontpanelskontakt, 2x5", zh: "前面板接头 2x5"}
+  doc: {en: "The 2x5 header at 2.54 mm pitch for the power switch, the reset switch and the two LEDs of the case. It is drawn from above as the manuals draw it: pin 1 at the bottom left, the odd pins in the bottom row. Position 10 has no pin.", de: "Die 2x5-Stiftleiste im Raster 2,54 mm für Ein-Taster, Reset-Taster und die beiden LEDs des Gehäuses. Sie ist von oben gezeichnet, wie die Handbücher es tun: Pin 1 unten links, die ungeraden Pins in der unteren Reihe. An Position 10 sitzt kein Pin."}
+  notes: {en: "Both switches are momentary and normally open: shorting the pulled-up pin (6 or 7) to its ground pin (8 or 5) is a press, and the power switch should hold for at least 50 ms. The names are the board makers'; Intel calls the pins HD_LED_P and HD_LED_N, FP PWR/SLP, PWR_SW_P and PWR_SW_N, RST_SW_P and RST_SW_N, RSVD_DNU.", de: "Beide Taster sind Schließer: Eine Brücke vom hochgezogenen Pin (6 oder 7) zum Massepin (8 oder 5) ist ein Tastendruck, und der Ein-Taster sollte mindestens 50 ms halten. Die Namen sind die der Platinenhersteller; Intel nennt die Pins HD_LED_P und HD_LED_N, FP PWR/SLP, PWR_SW_P und PWR_SW_N, RST_SW_P und RST_SW_N, RSVD_DNU."}
+  tags: ["front panel", "frontpanel", "fpanel", "f_panel", "jfp1", "panel1", "system panel", "2x5", "10-pin", "10-polig", "power switch", "power sw", "pwr_sw", "pwrbtn", "reset", "hdd led", "hd_led", "power led", "pled", "case", "gehäuse", "taster", "motherboard", "mainboard"]
+  source: "Intel Front Panel I/O Connectivity Design Guide (600569) Rev. 1.1, section 2.2.2, table 2-4 and figure 2-1; Intel Front Panel I/O Connectivity Design Guide Version 1.2 (A29286-004), table 5 and figure 1; MSI B450 TOMAHAWK user guide, JFP1; ASRock B450 Steel Legend manual, PANEL1"
+  views:
+    plug: {en: "Cable plug from the case (socket contacts)", de: "Kabelstecker vom Gehäuse (Buchsenkontakte)"}
+    socket: {en: "Header on the board, seen from above (pin contacts)", de: "Stiftleiste auf der Platine, von oben gesehen (Stiftkontakte)"}
+  shape:
+    type: rows
+    outline: rect
+    contact: square
+    drawn: socket
+    rows:
+      - {pins: ["2", "4", "6", "8", null]}
+      - {pins: ["1", "3", "5", "7", "9"]}
+  pins:
+    - {number: "1", name: "HDD_LED+", function: {en: "Hard disk activity LED, anode side (pulled up to +5 V through 330 Ω on the board)", de: "Festplatten-Aktivitäts-LED, Anodenseite (auf der Platine über 330 Ω an +5 V)"}, type: signal}
+    - {number: "2", name: "PLED+", function: {en: "Power LED, positive side", de: "Betriebs-LED, Plusseite"}, type: signal, notes: {en: "Pins 2 and 4 drive a single or dual-colour power/sleep LED (green running, yellow sleeping). Intel gives both the same name; the plus and minus sides are the board makers'.", de: "Pins 2 und 4 treiben eine ein- oder zweifarbige Betriebs-/Standby-LED (grün läuft, gelb Ruhezustand). Intel gibt beiden denselben Namen; Plus- und Minusseite stammen von den Platinenherstellern."}}
+    - {number: "3", name: "HDD_LED-", function: {en: "Hard disk activity LED, cathode side (driven low while the drive is active)", de: "Festplatten-Aktivitäts-LED, Kathodenseite (bei Zugriff auf Low gezogen)"}, type: signal}
+    - {number: "4", name: "PLED-", function: {en: "Power LED, negative side", de: "Betriebs-LED, Minusseite"}, type: signal}
+    - {number: "5", name: "GND", function: {en: "Reset switch, ground side", de: "Reset-Taster, Masseseite"}, type: ground}
+    - {number: "6", name: "PWR_SW", function: {en: "Power switch, pulled-up side: shorting it to pin 8 switches the PC on or off", de: "Ein-Taster, hochgezogene Seite: Brücke zu Pin 8 schaltet den PC ein oder aus"}, type: signal}
+    - {number: "7", name: "RESET", function: {en: "Reset switch, pulled-up side: shorting it to pin 5 resets the board", de: "Reset-Taster, hochgezogene Seite: Brücke zu Pin 5 setzt die Platine zurück"}, type: signal}
+    - {number: "8", name: "GND", function: {en: "Power switch, ground side", de: "Ein-Taster, Masseseite"}, type: ground}
+    - {number: "9", name: "Reserved", function: {en: "Reserved, do not use", de: "Reserviert, nicht benutzen"}, type: nc, notes: {en: "Intel: reserved, do not use; MSI: reserved; ASRock draws ground here. On some boards it is +5 V, ground or open, so connect nothing.", de: "Intel: reserviert, nicht benutzen; MSI: reserviert; ASRock zeichnet hier Masse. Auf manchen Platinen liegt hier +5 V, Masse oder nichts, also nichts anschließen."}}
+
+- id: usb2_header
+  kind: pinout
+  category: pinouts
+  group: pc_power
+  name: {cs: "Interní konektor USB 2.0, 2x5", da: "Intern USB 2.0-header, 2x5", de: "Interner USB-2.0-Anschluss, 2x5", el: "Εσωτερική κεφαλίδα USB 2.0, 2x5", en: "Internal USB 2.0 header, 2x5", es: "Conector USB 2.0 interno, 2x5", fr: "Connecteur USB 2.0 interne, 2x5", hi: "आंतरिक USB 2.0 हेडर, 2x5", it: "Header USB 2.0 interno, 2x5", ja: "内部 USB 2.0 ヘッダー 2x5", nl: "Interne USB 2.0-aansluiting, 2x5", "no": "Intern USB 2.0-header, 2x5", pl: "Wewnętrzne złącze USB 2.0, 2x5", pt: "Conector USB 2.0 interno, 2x5", sv: "Intern USB 2.0-kontakt, 2x5", zh: "内部 USB 2.0 接头 2x5"}
+  doc: {en: "The 2x5 header at 2.54 mm pitch for two USB 2.0 ports of the case. It is drawn from above as the manuals draw it: pin 1 at the bottom left, the odd pins in the bottom row. Position 9 has no pin.", de: "Die 2x5-Stiftleiste im Raster 2,54 mm für zwei USB-2.0-Anschlüsse des Gehäuses. Sie ist von oben gezeichnet, wie die Handbücher es tun: Pin 1 unten links, die ungeraden Pins in der unteren Reihe. An Position 9 sitzt kein Pin."}
+  notes: {en: "Each header serves two ports. The power is +5 V, or on some boards +5 V dual, which switches between +5 V and standby with the state of the board. The fuse belongs on the board; the header is not for devices outside the case.", de: "Jede Stiftleiste bedient zwei Ports. Die Versorgung ist +5 V, auf manchen Platinen +5 V Dual, das je nach Zustand der Platine zwischen +5 V und Standby wechselt. Die Sicherung gehört auf die Platine; die Stiftleiste ist nicht für Geräte außerhalb des Gehäuses gedacht."}
+  tags: ["usb", "usb2", "usb 2.0", "usb2.0", "internal", "intern", "header", "2x5", "10-pin", "10-polig", "9-pin", "jusb", "usb_1_2", "front panel usb", "frontpanel", "motherboard", "mainboard", "d+", "d-", "5v"]
+  source: "Intel Front Panel I/O Connectivity Design Guide (600569) Rev. 1.1, section 3.2, figure 3-1 and table 3-1; Intel Front Panel I/O Connectivity Design Guide Version 1.2 (A29286-004), figure 7 and table 8; MSI B450 TOMAHAWK user guide, JUSB1~2; ASRock B450 Steel Legend manual, USB_1_2"
+  views:
+    plug: {en: "Cable plug from the case (socket contacts)", de: "Kabelstecker vom Gehäuse (Buchsenkontakte)"}
+    socket: {en: "Header on the board, seen from above (pin contacts)", de: "Stiftleiste auf der Platine, von oben gesehen (Stiftkontakte)"}
+  shape:
+    type: rows
+    outline: rect
+    contact: square
+    drawn: socket
+    rows:
+      - {pins: ["2", "4", "6", "8", "10"]}
+      - {pins: ["1", "3", "5", "7", null]}
+  pins:
+    - {number: "1", name: "+5V", function: {en: "USB power for ports 0 and 1", de: "USB-Versorgung für Port 0 und 1"}, type: power}
+    - {number: "2", name: "+5V", function: {en: "USB power for ports 0 and 1", de: "USB-Versorgung für Port 0 und 1"}, type: power}
+    - {number: "3", name: "D0-", function: {en: "Port 0, data negative", de: "Port 0, Daten negativ"}, type: data}
+    - {number: "4", name: "D1-", function: {en: "Port 1, data negative", de: "Port 1, Daten negativ"}, type: data}
+    - {number: "5", name: "D0+", function: {en: "Port 0, data positive", de: "Port 0, Daten positiv"}, type: data}
+    - {number: "6", name: "D1+", function: {en: "Port 1, data positive", de: "Port 1, Daten positiv"}, type: data}
+    - {number: "7", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "8", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "10", name: "NC", function: {en: "Not connected on most boards, leave free", de: "Auf den meisten Platinen unbelegt, frei lassen"}, type: nc, notes: {en: "The sources differ. Intel 2018 lists USB_FP_OC0, a front panel over-current signal for ports 0 and 1; Intel 2004 lists a key; MSI says NC and ASRock says dummy. Connect nothing to it.", de: "Die Quellen weichen ab. Intel 2018 nennt USB_FP_OC0, ein Überstromsignal des Frontpanels für Port 0 und 1; Intel 2004 nennt eine Kodierung; MSI sagt NC und ASRock Dummy. Nichts anschließen."}}
+
+- id: usb3_header
+  kind: pinout
+  category: pinouts
+  group: pc_power
+  name: {cs: "Interní konektor USB 3.x, 19 pinů", da: "Intern USB 3.x-header, 19-polet", de: "Interner USB-3.x-Anschluss, 19-polig", el: "Εσωτερική κεφαλίδα USB 3.x, 19 ακίδων", en: "Internal USB 3.x header, 19-pin", es: "Conector USB 3.x interno, 19 pines", fr: "Connecteur USB 3.x interne, 19 broches", hi: "आंतरिक USB 3.x हेडर, 19-पिन", it: "Header USB 3.x interno, 19 pin", ja: "内部 USB 3.x ヘッダー 19 ピン", nl: "Interne USB 3.x-aansluiting, 19-polig", "no": "Intern USB 3.x-header, 19-polet", pl: "Wewnętrzne złącze USB 3.x, 19-pinowe", pt: "Conector USB 3.x interno, 19 pinos", sv: "Intern USB 3.x-kontakt, 19-polig", zh: "内部 USB 3.x 接头 19 针"}
+  doc: {en: "The shrouded 2x10 header at 2.00 mm pitch for two USB 3.x ports of the case, with the pin removed at position 20. It is drawn from above: the key slot of the shroud sits on top, over the row 1 to 10.", de: "Die 2x10-Stiftleiste mit Kragen im Raster 2,00 mm für zwei USB-3.x-Anschlüsse des Gehäuses, mit entferntem Pin an Position 20. Sie ist von oben gezeichnet: Die Kodiernut des Kragens sitzt oben, über der Reihe 1 bis 10."}
+  notes: {en: "RX and TX are seen from the host: SSRX is what the board receives. Each Vbus pin carries at least 1.5 A and each signal pin 0.5 A. Some manuals mark pin 1 at the other end, at the pin the Intel specification calls pin 10; follow the key slot and the Vbus pin next to the removed pin.", de: "RX und TX sind aus Sicht des Hosts: SSRX ist, was die Platine empfängt. Jeder Vbus-Pin trägt mindestens 1,5 A, jeder Signalpin 0,5 A. Manche Handbücher markieren Pin 1 am anderen Ende, an dem Pin, den die Intel-Spezifikation Pin 10 nennt; maßgeblich sind die Kodiernut und der Vbus-Pin neben dem entfernten Pin."}
+  tags: ["usb", "usb3", "usb 3.0", "usb 3.1", "usb 3.2", "usb3.0", "gen1", "internal", "intern", "header", "19-pin", "19-polig", "20-pin", "2x10", "jusb3", "usb3_5_6", "front panel usb", "frontpanel", "superspeed", "ssrx", "sstx", "vbus", "motherboard", "mainboard"]
+  source: "Intel USB 3.0 Internal Connector and Cable Specification Rev. 1.0, table 2-1, figures 2-1 and 3-1, tables 2-3 and 2-4; MSI B450 TOMAHAWK user guide, JUSB3; ASRock B450 Steel Legend manual, USB3_5_6"
+  views:
+    plug: {en: "Cable plug from the case (socket contacts)", de: "Kabelstecker vom Gehäuse (Buchsenkontakte)"}
+    socket: {en: "Header on the board, seen from above (pin contacts)", de: "Stiftleiste auf der Platine, von oben gesehen (Stiftkontakte)"}
+  shape:
+    type: rows
+    outline: rect
+    contact: square
+    drawn: socket
+    key: top
+    rows:
+      - {pins: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]}
+      - {pins: [null, "19", "18", "17", "16", "15", "14", "13", "12", "11"]}
+  pins:
+    - {number: "1", name: "Vbus", function: {en: "USB power (+5 V)", de: "USB-Versorgung (+5 V)"}, type: power}
+    - {number: "2", name: "IntA_P1_SSRX-", function: {en: "Port 1, SuperSpeed receive pair, negative", de: "Port 1, SuperSpeed-Empfangspaar, negativ"}, type: data}
+    - {number: "3", name: "IntA_P1_SSRX+", function: {en: "Port 1, SuperSpeed receive pair, positive", de: "Port 1, SuperSpeed-Empfangspaar, positiv"}, type: data}
+    - {number: "4", name: "GND", function: {en: "Ground (drain wire in the cable)", de: "Masse (Beilaufdraht im Kabel)"}, type: ground}
+    - {number: "5", name: "IntA_P1_SSTX-", function: {en: "Port 1, SuperSpeed transmit pair, negative", de: "Port 1, SuperSpeed-Sendepaar, negativ"}, type: data}
+    - {number: "6", name: "IntA_P1_SSTX+", function: {en: "Port 1, SuperSpeed transmit pair, positive", de: "Port 1, SuperSpeed-Sendepaar, positiv"}, type: data}
+    - {number: "7", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "8", name: "IntA_P1_D-", function: {en: "Port 1, USB 2.0 data negative", de: "Port 1, USB-2.0-Daten negativ"}, type: data}
+    - {number: "9", name: "IntA_P1_D+", function: {en: "Port 1, USB 2.0 data positive", de: "Port 1, USB-2.0-Daten positiv"}, type: data}
+    - {number: "10", name: "ID", function: {en: "Over-current signal; many boards leave it unconnected", de: "Überstromsignal; auf vielen Platinen unbelegt"}, type: signal, notes: {en: "Intel: ID, over current protection. MSI says NC and ASRock says dummy, so on many boards nothing is wired here.", de: "Intel: ID, Überstromschutz. MSI sagt NC und ASRock Dummy, auf vielen Platinen ist hier also nichts verdrahtet."}}
+    - {number: "11", name: "IntA_P2_D+", function: {en: "Port 2, USB 2.0 data positive", de: "Port 2, USB-2.0-Daten positiv"}, type: data}
+    - {number: "12", name: "IntA_P2_D-", function: {en: "Port 2, USB 2.0 data negative", de: "Port 2, USB-2.0-Daten negativ"}, type: data}
+    - {number: "13", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "14", name: "IntA_P2_SSTX+", function: {en: "Port 2, SuperSpeed transmit pair, positive", de: "Port 2, SuperSpeed-Sendepaar, positiv"}, type: data}
+    - {number: "15", name: "IntA_P2_SSTX-", function: {en: "Port 2, SuperSpeed transmit pair, negative", de: "Port 2, SuperSpeed-Sendepaar, negativ"}, type: data}
+    - {number: "16", name: "GND", function: {en: "Ground (drain wire in the cable)", de: "Masse (Beilaufdraht im Kabel)"}, type: ground}
+    - {number: "17", name: "IntA_P2_SSRX+", function: {en: "Port 2, SuperSpeed receive pair, positive", de: "Port 2, SuperSpeed-Empfangspaar, positiv"}, type: data}
+    - {number: "18", name: "IntA_P2_SSRX-", function: {en: "Port 2, SuperSpeed receive pair, negative", de: "Port 2, SuperSpeed-Empfangspaar, negativ"}, type: data}
+    - {number: "19", name: "Vbus", function: {en: "USB power (+5 V)", de: "USB-Versorgung (+5 V)"}, type: power}
+
+- id: hd_audio_header
+  kind: pinout
+  category: pinouts
+  group: pc_power
+  name: {cs: "Konektor HD Audio předního panelu, 2x5", da: "HD Audio-frontpanel-header, 2x5", de: "HD-Audio-Frontpanel-Anschluss, 2x5", el: "Κεφαλίδα HD Audio μπροστινού πάνελ, 2x5", en: "HD Audio front panel header, 2x5", es: "Conector HD Audio del panel frontal, 2x5", fr: "Connecteur HD Audio de façade, 2x5", hi: "HD Audio फ्रंट पैनल हेडर, 2x5", it: "Header HD Audio del pannello frontale, 2x5", ja: "HD Audio フロントパネルヘッダー 2x5", nl: "HD Audio-frontpaneelaansluiting, 2x5", "no": "HD Audio-frontpanel-header, 2x5", pl: "Złącze HD Audio panelu przedniego, 2x5", pt: "Conector HD Audio do painel frontal, 2x5", sv: "HD Audio-frontpanelskontakt, 2x5", zh: "HD Audio 前面板接头 2x5"}
+  doc: {en: "The 2x5 header at 2.54 mm pitch for the headphone and microphone jacks of the case. It is drawn from above as the manuals draw it: pin 1 at the bottom left, the odd pins in the bottom row. Position 8 has no pin.", de: "Die 2x5-Stiftleiste im Raster 2,54 mm für die Kopfhörer- und Mikrofonbuchsen des Gehäuses. Sie ist von oben gezeichnet, wie die Handbücher es tun: Pin 1 unten links, die ungeraden Pins in der unteren Reihe. An Position 8 sitzt kein Pin."}
+  notes: {en: "The two RETURN pins and SENSE_SEND report which front jack holds a plug. An AC'97 front panel uses the same 2x5 header with other signals on some pins (4, 6, 7 and 10), and the Intel documents do not agree on them. Pins 1, 2, 3, 5, 8 and 9 are the same in all. Check what the panel is before plugging it in.", de: "Die beiden RETURN-Pins und SENSE_SEND melden, welche Frontbuchse einen Stecker trägt. Ein AC'97-Frontpanel nutzt dieselbe 2x5-Stiftleiste mit anderen Signalen an einigen Pins (4, 6, 7 und 10), und die Intel-Dokumente sind sich darüber nicht einig. Die Pins 1, 2, 3, 5, 8 und 9 sind in allen gleich. Vor dem Anstecken prüfen, was für ein Panel es ist."}
+  tags: ["hd audio", "hdaudio", "hd_audio", "front panel audio", "frontpanel audio", "ac97", "ac'97", "azalia", "intel hd audio", "header", "2x5", "10-pin", "9-pin", "jaud1", "hd_audio1", "front audio", "kopfhörer", "headphone", "mikrofon", "microphone", "presence", "sense", "motherboard", "mainboard"]
+  source: "Intel Front Panel I/O Connectivity Design Guide Version 1.2 (A29286-004), section 2.3.5, table 7 and figures 3 and 4; Intel Front Panel I/O Connectivity Design Guide (600569) Rev. 1.1, figure 2-2 and table 2-5; Intel Desktop Board DX79SI Technical Product Specification, tables 13 and 14; MSI B450 TOMAHAWK user guide, JAUD1; ASRock B450 Steel Legend manual, HD_AUDIO1"
+  views:
+    plug: {en: "Cable plug from the case (socket contacts)", de: "Kabelstecker vom Gehäuse (Buchsenkontakte)"}
+    socket: {en: "Header on the board, seen from above (pin contacts)", de: "Stiftleiste auf der Platine, von oben gesehen (Stiftkontakte)"}
+  shape:
+    type: rows
+    outline: rect
+    contact: square
+    drawn: socket
+    rows:
+      - {pins: ["2", "4", "6", null, "10"]}
+      - {pins: ["1", "3", "5", "7", "9"]}
+  pins:
+    - {number: "1", name: "PORT_1L", function: {en: "Port 1 left channel (microphone)", de: "Port 1 linker Kanal (Mikrofon)"}, type: signal}
+    - {number: "2", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "3", name: "PORT_1R", function: {en: "Port 1 right channel (microphone)", de: "Port 1 rechter Kanal (Mikrofon)"}, type: signal}
+    - {number: "4", name: "PRESENCE#", function: {en: "Active low: tells the BIOS that an HD Audio front panel is connected", de: "Low-aktiv: meldet dem BIOS ein angeschlossenes HD-Audio-Frontpanel"}, type: signal, notes: {en: "Low (0) when an Intel HD Audio panel is connected. MSI marks this pin NC on its board.", de: "Low (0), wenn ein Intel-HD-Audio-Panel angeschlossen ist. MSI kennzeichnet diesen Pin auf seiner Platine als NC."}}
+    - {number: "5", name: "PORT_2R", function: {en: "Port 2 right channel (headphone)", de: "Port 2 rechter Kanal (Kopfhörer)"}, type: signal}
+    - {number: "6", name: "SENSE1_RETURN", function: {en: "Jack detection return of front jack 1 (microphone)", de: "Rückleitung der Buchsenerkennung, Frontbuchse 1 (Mikrofon)"}, type: signal}
+    - {number: "7", name: "SENSE_SEND", function: {en: "Jack detection sense line from the codec", de: "Erkennungsleitung der Buchsenerkennung vom Codec"}, type: signal, notes: {en: "Comes from the jack detection resistor network of the HD Audio codec.", de: "Kommt vom Widerstandsnetzwerk der Buchsenerkennung des HD-Audio-Codecs."}}
+    - {number: "9", name: "PORT_2L", function: {en: "Port 2 left channel (headphone)", de: "Port 2 linker Kanal (Kopfhörer)"}, type: signal}
+    - {number: "10", name: "SENSE2_RETURN", function: {en: "Jack detection return of front jack 2 (headphone)", de: "Rückleitung der Buchsenerkennung, Frontbuchse 2 (Kopfhörer)"}, type: signal}
+
+- id: rgb_header_12v
+  kind: pinout
+  category: pinouts
+  group: pc_power
+  name: {cs: "Konektor RGB LED, 4 piny, 12 V", da: "RGB LED-header, 4-polet, 12 V", de: "RGB-LED-Anschluss, 4-polig, 12 V", el: "Κεφαλίδα RGB LED, 4 ακίδων, 12 V", en: "RGB LED header, 4-pin, 12 V", es: "Conector LED RGB, 4 pines, 12 V", fr: "Connecteur LED RVB, 4 broches, 12 V", hi: "RGB LED हेडर, 4-पिन, 12 V", it: "Header LED RGB, 4 pin, 12 V", ja: "RGB LED ヘッダー 4 ピン 12 V", nl: "RGB-ledaansluiting, 4-polig, 12 V", "no": "RGB LED-header, 4-polet, 12 V", pl: "Złącze LED RGB, 4-pinowe, 12 V", pt: "Conector LED RGB, 4 pinos, 12 V", sv: "RGB LED-kontakt, 4-polig, 12 V", zh: "RGB LED 接头 4 针 12 V"}
+  doc: {en: "The 4-pin header at 2.54 mm pitch for a 12 V RGB LED strip, drawn from above with pin 1 at the left. There is no standard: the order 12V, G, R, B is the board makers' convention.", de: "Die vierpolige Stiftleiste im Raster 2,54 mm für einen 12-V-RGB-LED-Streifen, von oben gezeichnet, Pin 1 links. Einen Standard gibt es nicht: Die Reihenfolge 12V, G, R, B ist die Konvention der Platinenhersteller."}
+  notes: {en: "For 5050 RGB LED strips (12V/G/R/B) up to 3 A at 12 V and 2 m. Note the order: green comes before red. Match the arrow or mark of the plug to pin 1. Never put a 5 V addressable strip on this header: the 12 V would destroy it.", de: "Für 5050-RGB-LED-Streifen (12V/G/R/B) bis 3 A bei 12 V und 2 m. Auf die Reihenfolge achten: Grün kommt vor Rot. Pfeil oder Markierung des Steckers auf Pin 1 legen. Nie einen adressierbaren 5-V-Streifen an diese Stiftleiste hängen: Die 12 V würden ihn zerstören."}
+  tags: ["rgb", "led", "led strip", "led-streifen", "rgb header", "12v rgb", "12v", "4-pin", "4-polig", "jrgb", "jrgb1", "rgb_led1", "5050", "g r b", "motherboard", "mainboard", "aura", "mystic light"]
+  source: "ASRock B450 Steel Legend manual, RGB_LED1 header and section 3.4; MSI B450 TOMAHAWK user guide, JRGB1~2; MSI MAG B550 TOMAHAWK MAX WIFI user guide, JRGB1~2"
+  views:
+    plug: {en: "Cable plug of the strip (socket contacts)", de: "Kabelstecker des Streifens (Buchsenkontakte)"}
+    socket: {en: "Header on the board, seen from above (pin contacts)", de: "Stiftleiste auf der Platine, von oben gesehen (Stiftkontakte)"}
+  shape:
+    type: rows
+    outline: rect
+    contact: square
+    drawn: socket
+    rows:
+      - {pins: ["1", "2", "3", "4"]}
+  pins:
+    - {number: "1", name: "+12V", function: {en: "+12 V common supply of the strip", de: "Gemeinsame +12-V-Versorgung des Streifens"}, type: power}
+    - {number: "2", name: "G", function: {en: "Green channel", de: "Grün-Kanal"}, type: signal}
+    - {number: "3", name: "R", function: {en: "Red channel", de: "Rot-Kanal"}, type: signal}
+    - {number: "4", name: "B", function: {en: "Blue channel", de: "Blau-Kanal"}, type: signal}
+
+- id: argb_header_5v
+  kind: pinout
+  category: pinouts
+  group: pc_power
+  name: {cs: "Konektor adresovatelného RGB, 3 piny, 5 V", da: "Adresserbar RGB-header, 3-polet, 5 V", de: "Adressierbarer RGB-Anschluss, 3-polig, 5 V", el: "Κεφαλίδα RGB με διεύθυνση, 3 ακίδων, 5 V", en: "Addressable RGB header, 3-pin, 5 V", es: "Conector RGB direccionable, 3 pines, 5 V", fr: "Connecteur RVB adressable, 3 broches, 5 V", hi: "एड्रेसेबल RGB हेडर, 3-पिन, 5 V", it: "Header RGB indirizzabile, 3 pin, 5 V", ja: "アドレサブル RGB ヘッダー 3 ピン 5 V", nl: "Adresseerbare RGB-aansluiting, 3-polig, 5 V", "no": "Adresserbar RGB-header, 3-polet, 5 V", pl: "Złącze adresowalnego RGB, 3-pinowe, 5 V", pt: "Conector RGB endereçável, 3 pinos, 5 V", sv: "Adresserbar RGB-kontakt, 3-polig, 5 V", zh: "可寻址 RGB 接头 3 针 5 V"}
+  doc: {en: "The header at 2.54 mm pitch for an addressable 5 V RGB LED strip (WS2812B type): four positions with pins at 1, 2 and 4, drawn from above with pin 1 at the left. Position 3 has no pin. There is no standard: it is the board makers' convention.", de: "Die Stiftleiste im Raster 2,54 mm für einen adressierbaren 5-V-RGB-LED-Streifen (Typ WS2812B): vier Positionen mit Pins an 1, 2 und 4, von oben gezeichnet, Pin 1 links. An Position 3 sitzt kein Pin. Einen Standard gibt es nicht: Es ist die Konvention der Platinenhersteller."}
+  notes: {en: "For WS2812B strips (5V/Data/GND) up to 3 A at 5 V and 2 m; MSI names up to 75 LEDs, or 200 LEDs at 20 % brightness. The 5 V and the 12 V RGB header look alike: a 5 V strip on the 12 V header is destroyed. The missing pin keeps the 3-wire plug from going on the wrong way round.", de: "Für WS2812B-Streifen (5V/Data/GND) bis 3 A bei 5 V und 2 m; MSI nennt bis zu 75 LEDs, bei 20 % Helligkeit bis zu 200 LEDs. Die 5-V- und die 12-V-RGB-Stiftleiste sehen ähnlich aus: Ein 5-V-Streifen an der 12-V-Stiftleiste wird zerstört. Der fehlende Pin verhindert, dass der dreiadrige Stecker verkehrt herum aufgesteckt wird."}
+  tags: ["argb", "addressable", "adressierbar", "rgb", "led", "led strip", "led-streifen", "ws2812b", "ws2812", "5v", "3-pin", "3-polig", "jrainbow", "jrainbow1", "addr_led1", "rainbow", "d_led", "motherboard", "mainboard", "aura", "mystic light"]
+  source: "ASRock B450 Steel Legend manual, ADDR_LED1 header and section 3.4; MSI MAG B550 TOMAHAWK MAX WIFI user guide, JRAINBOW1~2"
+  views:
+    plug: {en: "Cable plug of the strip (socket contacts)", de: "Kabelstecker des Streifens (Buchsenkontakte)"}
+    socket: {en: "Header on the board, seen from above (pin contacts)", de: "Stiftleiste auf der Platine, von oben gesehen (Stiftkontakte)"}
+  shape:
+    type: rows
+    outline: rect
+    contact: square
+    drawn: socket
+    rows:
+      - {pins: ["1", "2", null, "4"]}
+  pins:
+    - {number: "1", name: "+5V", function: {en: "+5 V supply of the strip", de: "+5-V-Versorgung des Streifens"}, type: power}
+    - {number: "2", name: "Data", function: {en: "Data output to the LED chain (WS2812B type)", de: "Datenausgang zur LED-Kette (Typ WS2812B)"}, type: data}
+    - {number: "4", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}

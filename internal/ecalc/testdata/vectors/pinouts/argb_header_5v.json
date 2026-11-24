@@ -1,0 +1,33 @@
+{
+ "pinout": "argb_header_5v",
+ "variants": [
+  {
+   "variant": "",
+   "counts": {
+    "data": 1,
+    "ground": 1,
+    "power": 1
+   },
+   "pins": [
+    {
+     "number": "1",
+     "name": "+5V",
+     "type": "power",
+     "ref": "MSI MAG B550 TOMAHAWK MAX WIFI p. 28, JRAINBOW1~2: 1 +5V; ASRock B450 Steel Legend p. 32: VOUT"
+    },
+    {
+     "number": "2",
+     "name": "Data",
+     "type": "data",
+     "ref": "MSI MAG B550 TOMAHAWK MAX WIFI p. 28, JRAINBOW1~2: 2 Data; ASRock B450 Steel Legend p. 32: DO_ADDR"
+    },
+    {
+     "number": "4",
+     "name": "GND",
+     "type": "ground",
+     "ref": "MSI MAG B550 TOMAHAWK MAX WIFI p. 28, JRAINBOW1~2: 4 Ground; ASRock B450 Steel Legend p. 32: GND"
+    }
+   ]
+  }
+ ]
+}

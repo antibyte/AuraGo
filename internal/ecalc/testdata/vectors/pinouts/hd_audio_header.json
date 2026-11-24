@@ -1,0 +1,50 @@
+{
+ "pinout": "hd_audio_header",
+ "variants": [
+  {
+   "variant": "",
+   "counts": {
+    "ground": 1,
+    "signal": 8
+   },
+   "pins": [
+    {
+     "number": "1",
+     "name": "PORT_1L",
+     "type": "signal",
+     "ref": "Intel FPIO A29286-004, table 7: PORT 1L (microphone); MSI B450 TOMAHAWK p. 35: MIC L"
+    },
+    {
+     "number": "2",
+     "name": "GND",
+     "type": "ground",
+     "ref": "Intel FPIO A29286-004, table 7: GND; MSI B450 TOMAHAWK p. 35: Ground"
+    },
+    {
+     "number": "4",
+     "name": "PRESENCE#",
+     "type": "signal",
+     "ref": "Intel FPIO A29286-004, table 7: PRESENCE#; Intel DX79SI TPS, table 13 (MSI p. 35: NC)"
+    },
+    {
+     "number": "7",
+     "name": "SENSE_SEND",
+     "type": "signal",
+     "ref": "Intel FPIO A29286-004, table 7: SENSE_SEND; MSI B450 TOMAHAWK p. 35: SENSE_SEND"
+    },
+    {
+     "number": "9",
+     "name": "PORT_2L",
+     "type": "signal",
+     "ref": "Intel FPIO A29286-004, table 7: PORT 2L (headphone); MSI B450 TOMAHAWK p. 35: Head Phone L"
+    },
+    {
+     "number": "10",
+     "name": "SENSE2_RETURN",
+     "type": "signal",
+     "ref": "Intel FPIO A29286-004, table 7: SENSE2_RETURN; MSI B450 TOMAHAWK p. 35: Head Phone Detection"
+    }
+   ]
+  }
+ ]
+}

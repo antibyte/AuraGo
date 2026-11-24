@@ -1,0 +1,51 @@
+{
+ "pinout": "pcie_12vhpwr",
+ "variants": [
+  {
+   "variant": "",
+   "counts": {
+    "ground": 6,
+    "power": 6,
+    "signal": 4
+   },
+   "pins": [
+    {
+     "number": "1",
+     "name": "+12V",
+     "type": "power",
+     "ref": "Intel 336521 Rev. 2.1a, table 5-7: pins 1 to 6 +12V, Yellow (Intel writes +12V3/V4)"
+    },
+    {
+     "number": "7",
+     "name": "COM",
+     "type": "ground",
+     "ref": "Intel 336521 Rev. 2.1a, table 5-7: pins 7 to 12 COM, Black"
+    },
+    {
+     "number": "S1",
+     "name": "CARD_PWR_STABLE",
+     "type": "signal",
+     "ref": "Intel 336521 Rev. 2.1a, table 5-7: S1 CARD_PWR_STABLE, Blue; section 3.3.2"
+    },
+    {
+     "number": "S2",
+     "name": "CARD_CBL_PRES#",
+     "type": "signal",
+     "ref": "Intel 336521 Rev. 2.1a, table 5-7: S2 CARD_CBL_PRES#, Blue; section 3.3.3"
+    },
+    {
+     "number": "S3",
+     "name": "SENSE0",
+     "type": "signal",
+     "ref": "Intel 336521 Rev. 2.1a, table 5-7: S3 SENSE0, Blue; table 3-6"
+    },
+    {
+     "number": "S4",
+     "name": "SENSE1",
+     "type": "signal",
+     "ref": "Intel 336521 Rev. 2.1a, table 5-7: S4 SENSE1, Blue; table 3-6"
+    }
+   ]
+  }
+ ]
+}

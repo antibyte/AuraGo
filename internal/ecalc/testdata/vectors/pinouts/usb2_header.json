@@ -1,0 +1,46 @@
+{
+ "pinout": "usb2_header",
+ "variants": [
+  {
+   "variant": "",
+   "counts": {
+    "data": 4,
+    "ground": 2,
+    "nc": 1,
+    "power": 2
+   },
+   "pins": [
+    {
+     "number": "1",
+     "name": "+5V",
+     "type": "power",
+     "ref": "Intel 600569 Rev. 1.1, table 3-1: VREG_FP_USBPWR0; MSI B450 TOMAHAWK p. 34: VCC"
+    },
+    {
+     "number": "3",
+     "name": "D0-",
+     "type": "data",
+     "ref": "Intel 600569 Rev. 1.1, table 3-1: USB_FP_P0-; MSI B450 TOMAHAWK p. 34: USB0-"
+    },
+    {
+     "number": "5",
+     "name": "D0+",
+     "type": "data",
+     "ref": "Intel 600569 Rev. 1.1, table 3-1: USB_FP_P0+; MSI B450 TOMAHAWK p. 34: USB0+"
+    },
+    {
+     "number": "7",
+     "name": "GND",
+     "type": "ground",
+     "ref": "Intel 600569 Rev. 1.1, table 3-1: ground; MSI B450 TOMAHAWK p. 34: Ground"
+    },
+    {
+     "number": "10",
+     "name": "NC",
+     "type": "nc",
+     "ref": "MSI B450 TOMAHAWK p. 34: NC; ASRock B450 Steel Legend p. 29: DUMMY (Intel 2018: USB_FP_OC0)"
+    }
+   ]
+  }
+ ]
+}
