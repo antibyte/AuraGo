@@ -128,5 +128,22 @@ window.ECalcSchematics = Object.assign(window.ECalcSchematics || {}, {
    {"var": "u", "x": 7.4, "y": 6.5, "side": "left"},
    {"var": "c", "x": 19.9, "y": 6.5, "side": "right"}
   ]
+ },
+ "transformer_ratio": {
+  "w": 24, "h": 11,
+  "parts": [
+   {"sym": "acsource", "x": 4, "y": 5, "rot": 90},
+   {"sym": "transformer", "x": 9, "y": 5},
+   {"sym": "resistor", "x": 18, "y": 5, "rot": 90}
+  ],
+  "wires": [[[4, 5], [9, 5]], [[4, 8], [9, 8]], [[13, 5], [18, 5]], [[13, 8], [18, 8]]],
+  "anchors": [
+   {"var": "vp", "x": 3.4, "y": 6.5, "side": "left"},
+   {"var": "ip", "x": 6.5, "y": 3.7, "side": "top"},
+   {"var": "np", "x": 9.5, "y": 9.4, "side": "bottom"},
+   {"var": "ns", "x": 13.5, "y": 9.4, "side": "bottom"},
+   {"var": "is", "x": 16, "y": 3.7, "side": "top"},
+   {"var": "vs", "x": 18.9, "y": 6.5, "side": "right"}
+  ]
  }
 });

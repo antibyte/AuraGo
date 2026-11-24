@@ -1,0 +1,23 @@
+{
+  "calc": "energy_cost",
+  "sets": [
+    {"values": {"p": 60, "hd": 3600, "days": 1000, "price": 0.12, "e": 216000000, "cost": 7.2}, "ref": "hand: 60 W incandescent bulb for 1000 h at 0.12 per kWh: E = 60 W x 1 h x 1000 = 60 kWh = 60 x 3.6e6 = 2.16e8 J; cost = 60 x 0.12 = 7.20"},
+    {"values": {"p": 15, "hd": 3600, "days": 1000, "price": 0.12, "e": 54000000, "cost": 1.8}, "ref": "hand: 15 W lamp for 1000 h at 0.12 per kWh: E = 15 kWh = 5.4e7 J; cost = 15 x 0.12 = 1.80"},
+    {"values": {"p": 100, "hd": 10800, "days": 365, "price": 0.1, "e": 394200000, "cost": 10.95}, "ref": "hand: 100 W bulb, 3 h a day, 365 days at 0.10 per kWh: E = 100 x 3 x 365 / 1000 = 109.5 kWh = 3.942e8 J; cost = 109.5 x 0.10 = 10.95"},
+    {"values": {"p": 20, "hd": 10800, "days": 365, "price": 0.1, "e": 78840000, "cost": 2.19}, "ref": "hand: 20 W LED, 3 h a day, 365 days at 0.10 per kWh: E = 20 x 3 x 365 / 1000 = 21.9 kWh = 7.884e7 J; cost = 2.19"},
+    {"values": {"p": 200, "hd": 14400, "days": 120, "price": 0.085, "e": 345600000, "cost": 8.16}, "ref": "hand: Virginia Cooperative Extension publication 2901-9014, window fan: (200 W x 4 h/day x 120 days) / 1000 = 96 kWh = 3.456e8 J; cost = 96 x 0.085 = 8.16"},
+    {"values": {"p": 270, "hd": 14400, "days": 365, "price": 0.085, "e": 1419120000, "cost": 33.507}, "ref": "hand: Virginia Cooperative Extension publication 2901-9014, PC and monitor (120 W + 150 W = 270 W, 4 h/day, 365 days): E = 270 x 4 x 365 / 1000 = 394.2 kWh = 1.41912e9 J; cost = 394.2 x 0.085 = 33.507 (the publication prints 33.51)"},
+    {"values": {"p": 100, "hd": 10800, "days": 365, "price": 0.3, "e": 394200000, "cost": 32.85}, "ref": "hand: the defaults, 100 W, 3 h a day, 365 days at 0.30 per kWh: E = 109.5 kWh = 3.942e8 J; cost = 109.5 x 0.30 = 32.85; check in joules 100 W x 10800 s x 365 = 3.942e8 J"},
+    {"values": {"p": 2000, "hd": 5400, "days": 30, "price": 0.35, "e": 324000000, "cost": 31.5}, "ref": "hand: 2 kW heater, 1.5 h a day, 30 days at 0.35 per kWh: E = 2000 x 1.5 x 30 / 1000 = 90 kWh = 3.24e8 J; cost = 90 x 0.35 = 31.50"}
+  ],
+  "solve": [
+    {"inputs": {"p": 100, "hd": 10800, "days": 365, "price": 0.3}, "expect": {"e": 394200000, "cost": 32.85}, "ref": "hand: 100 W x 10800 s x 365 = 3.942e8 J = 109.5 kWh; cost 109.5 x 0.3 = 32.85"},
+    {"inputs": {"e": 216000000, "cost": 7.2, "p": 60, "hd": 3600}, "expect": {"days": 1000, "price": 0.12}, "ref": "hand: 60 kWh costing 7.20: price = 7.20 / 60 = 0.12 per kWh; days = 2.16e8 / (60 x 3600) = 1000"},
+    {"inputs": {"e": 345600000, "p": 200, "days": 120, "price": 0.085}, "expect": {"hd": 14400, "cost": 8.16}, "ref": "hand: 96 kWh, 200 W, 120 days: hours per day = 3.456e8 / (200 x 120) = 14400 s = 4 h; cost 96 x 0.085 = 8.16"},
+    {"inputs": {"e": 1419120000, "hd": 14400, "days": 365, "price": 0.085}, "expect": {"p": 270}, "ref": "hand: 394.2 kWh in 4 h x 365 days: P = 1.41912e9 / (14400 x 365) = 270 W"},
+    {"inputs": {"e": 78840000, "hd": 10800, "days": 365, "cost": 2.19}, "expect": {"p": 20, "price": 0.1}, "ref": "hand: 21.9 kWh in 3 h x 365 days: P = 7.884e7 / (10800 x 365) = 20 W; price = 2.19 / 21.9 = 0.1"},
+    {"inputs": {"cost": 32.85, "price": 0.3, "p": 100, "days": 365}, "expect": {"e": 394200000, "hd": 10800}, "ref": "hand: a cost of 32.85 at 0.30 per kWh is E = 32.85 / 0.3 = 109.5 kWh = 3.942e8 J; hours per day 3.942e8 / (100 x 365) = 10800 s = 3 h"},
+    {"inputs": {"p": 100, "hd": 108000, "days": 365, "price": 0.3}, "expect": {"e": 3942000000}, "warnings": [0], "ref": "hand: 30 h a day is impossible (the check fires): E = 100 x 108000 x 365 = 3.942e9 J"},
+    {"inputs": {"p": -100, "hd": 10800, "days": 365, "price": 0.3}, "expect": {"e": -394200000}, "errors": {"cost": "range"}, "warnings": [1], "ref": "hand: a negative power fires the check: E = -100 x 10800 x 365 = -3.942e8 J and the cost -109.5 x 0.3 is negative, which the number dimension refuses (range)"}
+  ]
+}

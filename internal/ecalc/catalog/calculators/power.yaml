@@ -330,3 +330,237 @@
     - {when: "dup > 0.05", warn: {en: "The voltage drop is above 5 %: check the permissible value in the installation standard, and use a larger cross-section or a shorter run.", de: "Der Spannungsfall liegt über 5 %: Den zulässigen Wert in der Installationsnorm prüfen und einen größeren Querschnitt oder eine kürzere Leitung wählen."}}
     - {when: "cosphi > 1", warn: {en: "cos φ cannot be larger than 1.", de: "cos φ kann nicht größer als 1 sein."}}
   formula: ["du = b * rho_t * l * i * cosphi / a", "dup = du / un"]
+
+- id: power_triangle
+  kind: calculator
+  category: power
+  name: {cs: "Trojúhelník výkonů (P, Q, S, cos φ)", da: "Effekttrekant (P, Q, S, cos φ)", de: "Leistungsdreieck (P, Q, S, cos φ)", el: "Τρίγωνο ισχύος (P, Q, S, cos φ)", en: "Power triangle (P, Q, S, cos φ)", es: "Triángulo de potencias (P, Q, S, cos φ)", fr: "Triangle des puissances (P, Q, S, cos φ)", hi: "शक्ति त्रिभुज (P, Q, S, cos φ)", it: "Triangolo delle potenze (P, Q, S, cos φ)", ja: "電力の三角形（P、Q、S、cos φ）", nl: "Vermogensdriehoek (P, Q, S, cos φ)", no: "Effekttrekant (P, Q, S, cos φ)", pl: "Trójkąt mocy (P, Q, S, cos φ)", pt: "Triângulo de potências (P, Q, S, cos φ)", sv: "Effekttriangel (P, Q, S, cos φ)", zh: "功率三角形（P、Q、S、cos φ）"}
+  doc:
+    en: "The power triangle of a single-phase AC load with sinusoidal voltage and current: the real (active) power P and the reactive power Q are the legs and the apparent power S is the hypotenuse, S² = P² + Q². The power factor is cos φ = P / S, and the phase angle is φ = arctan(Q / P). With RMS voltage U and current I the powers are S = U × I, P = U × I × cos φ and Q = U × I × sin φ. Any two of P, Q, S and cos φ determine the others. The calculator works with magnitudes: it does not say whether the load is inductive (current lags) or capacitive (current leads). The values hold for sinusoidal voltage and current only; with harmonic currents (rectifiers, switch-mode supplies) the true power factor P / S is lower than cos φ. For a balanced three-phase load use the three-phase power calculator. With cos φ = 0 no real power is transferred, so S cannot be found from P. The defaults (230 V × 10 A = 2300 VA at cos φ = 0.8) give P = 1840 W, Q = 1380 var and φ = 36.87°."
+    de: "Das Leistungsdreieck einer einphasigen Wechselstromlast mit sinusförmiger Spannung und sinusförmigem Strom: Wirkleistung P und Blindleistung Q sind die Katheten, die Scheinleistung S die Hypotenuse, S² = P² + Q². Der Leistungsfaktor ist cos φ = P / S, der Phasenwinkel φ = arctan(Q / P). Mit den Effektivwerten U und I gilt S = U · I, P = U · I · cos φ und Q = U · I · sin φ. Je zwei der Größen P, Q, S und cos φ bestimmen die übrigen. Gerechnet wird mit Beträgen: Ob die Last induktiv (Strom eilt nach) oder kapazitiv (Strom eilt vor) ist, geht nicht ein. Die Werte gelten nur für sinusförmige Spannung und sinusförmigen Strom; bei Oberschwingungsströmen (Gleichrichter, Schaltnetzteile) ist der wahre Leistungsfaktor P / S kleiner als cos φ. Für eine symmetrische Drehstromlast den Rechner Drehstromleistung verwenden. Bei cos φ = 0 wird keine Wirkleistung übertragen, S lässt sich dann nicht aus P bestimmen. Die Vorgaben (230 V · 10 A = 2300 VA bei cos φ = 0,8) ergeben P = 1840 W, Q = 1380 var und φ = 36,87°."
+  tags: [power triangle, apparent power, real power, active power, reactive power, power factor, cos phi, phase angle, VA, var, kVA, kvar, single phase, Leistungsdreieck, Scheinleistung, Wirkleistung, Blindleistung, Leistungsfaktor, Phasenwinkel, Verschiebungsfaktor, einphasig]
+  source: "Power triangle S² = P² + Q², cos φ = P / S, P = U × I × cos φ, Q = U × I × sin φ: Schneider Electric, Electrical Installation Guide, chapter L (Power Factor Correction), definition of reactive power; T. R. Kuphaldt: Lessons in Electric Circuits, vol. II (AC), ch. 11 (Power Factor); J. M. Fiore: AC Electrical Circuit Analysis: A Practical Approach, section 7.3 (Power Triangle)"
+  vars:
+    p: {dim: power, label: P, name: {en: "Real (active) power", de: "Wirkleistung"}}
+    q: {dim: reactive_power, label: Q, name: {en: "Reactive power (magnitude)", de: "Blindleistung (Betrag)"}}
+    s: {dim: apparent_power, label: S, name: {en: "Apparent power", de: "Scheinleistung"}, default: "2300 VA"}
+    pf: {dim: ratio, label: cos φ, name: {en: "Power factor", de: "Leistungsfaktor"}, default: 0.8, units: ["", pct]}
+  dof: 2
+  rules:
+    s: ["sqrt(p^2+q^2)", "p/pf", "q/sqrt(1-pf^2)"]
+    p: ["s*pf", "sqrt(s^2-q^2)", "q*pf/sqrt(1-pf^2)"]
+    q: ["p*sqrt(1-pf^2)/pf", "sqrt(s^2-p^2)", "s*sqrt(1-pf^2)"]
+    pf: ["p/s", "sqrt(1-(q/s)^2)"]
+  derived:
+    phi: {dim: angle, label: φ, name: {en: "Phase angle", de: "Phasenwinkel"}, expr: "atan(q/p)", unit: deg, units: [deg, ""]}
+  checks:
+    - {when: "if(pf < 0, 1, pf > 1)", warn: {en: "The power factor must be between 0 and 1.", de: "Der Leistungsfaktor muss zwischen 0 und 1 liegen."}}
+    - {when: "p > s", warn: {en: "Real power cannot exceed apparent power; check the values.", de: "Die Wirkleistung kann nicht größer sein als die Scheinleistung; Werte prüfen."}}
+    - {when: "q > s", warn: {en: "Reactive power cannot exceed apparent power; check the values.", de: "Die Blindleistung kann nicht größer sein als die Scheinleistung; Werte prüfen."}}
+  formula: ["s = sqrt(p^2 + q^2)", "pf = p / s", "q = s * sqrt(1 - pf^2)"]
+
+- id: three_phase_power
+  kind: calculator
+  category: power
+  name: {cs: "Výkon třífázové soustavy", da: "Trefaset effekt", de: "Drehstromleistung", el: "Ισχύς τριφασικού συστήματος", en: "Three-phase power", es: "Potencia trifásica", fr: "Puissance triphasée", hi: "त्रि-फेज़ शक्ति", it: "Potenza trifase", ja: "三相電力", nl: "Driefasevermogen", no: "Trefaseeffekt", pl: "Moc trójfazowa", pt: "Potência trifásica", sv: "Trefaseffekt", zh: "三相功率"}
+  doc:
+    en: "Power of a balanced three-phase load from the line-to-line voltage U, the line current I and the power factor cos φ of each phase: P = √3 × U × I × cos φ, S = √3 × U × I and Q = √3 × U × I × sin φ. The formulas are the same for a star and a delta load; the connection only decides how voltage and current split between the line and one leg: in a star the leg voltage is U / √3 and the leg current equals the line current, in a delta the leg voltage equals U and the leg current is I / √3. The result S = 3 × U_ph × I_ph is the same for both. U is the voltage between two line conductors (400 V in a 230/400 V system), not the voltage to the neutral conductor: entering 230 V gives a result that is too small by √3. The values hold for a balanced load and a symmetrical sinusoidal supply only; for an unbalanced load the three phases must be calculated separately. φ is the angle between voltage and current of each leg. With cos φ = 0 no real power is transferred, so the current cannot be found from P. The defaults (400 V, 10 A, cos φ = 0.8) give P = 5.543 kW, S = 6.928 kVA and Q = 4.157 kvar."
+    de: "Leistung einer symmetrischen Drehstromlast aus der Außenleiterspannung U, dem Außenleiterstrom I und dem Leistungsfaktor cos φ je Strang: P = √3 · U · I · cos φ, S = √3 · U · I und Q = √3 · U · I · sin φ. Die Formeln gelten gleich für Stern- und Dreieckschaltung; die Schaltung bestimmt nur, wie sich Spannung und Strom auf Außenleiter und Strang verteilen: Im Stern ist die Strangspannung U / √3 und der Strangstrom gleich dem Außenleiterstrom, im Dreieck ist die Strangspannung gleich U und der Strangstrom I / √3. Das Ergebnis S = 3 · U_ph · I_ph ist für beide gleich. U ist die Spannung zwischen zwei Außenleitern (400 V im 230/400-V-Netz), nicht die Spannung gegen den Neutralleiter: Wer 230 V einsetzt, erhält ein um √3 zu kleines Ergebnis. Die Werte gelten nur für symmetrische Last und symmetrische sinusförmige Speisung; bei unsymmetrischer Last müssen die drei Stränge getrennt gerechnet werden. φ ist der Winkel zwischen Spannung und Strom jedes Strangs. Bei cos φ = 0 wird keine Wirkleistung übertragen, der Strom lässt sich dann nicht aus P bestimmen. Die Vorgaben (400 V, 10 A, cos φ = 0,8) ergeben P = 5,543 kW, S = 6,928 kVA und Q = 4,157 kvar."
+  tags: [three-phase, 3-phase, three phase power, line voltage, phase voltage, line current, phase current, star, wye, delta, sqrt 3, balanced load, kW, kVA, kvar, motor current, Drehstrom, Drehstromleistung, Außenleiterspannung, Strangspannung, Leiterstrom, Strangstrom, Stern, Dreieck, Wurzel 3, symmetrische Last, Motorstrom]
+  source: "Balanced three-phase load P = √3 × U × I × cos φ, S = √3 × U × I, star U_ph = U / √3, delta I_ph = I / √3: Schneider Electric, Electrical Installation Guide, chapter L (Power Factor Correction), useful formulae; TDK Electronics, Product Profile Power Quality Solutions, PFC basic formulas; J. M. Fiore: AC Electrical Circuit Analysis: A Practical Approach, section 9.3 (Three-Phase Connections); T. R. Kuphaldt: Lessons in Electric Circuits, vol. II (AC), ch. 10 (Polyphase AC Circuits)"
+  vars:
+    v: {dim: voltage, label: U, name: {en: "Line-to-line voltage", de: "Außenleiterspannung (Leiter–Leiter)"}, default: "400 V"}
+    i: {dim: current, label: I, name: {en: "Line current", de: "Außenleiterstrom"}, default: "10 A"}
+    pf: {dim: ratio, label: cos φ, name: {en: "Power factor of each phase", de: "Leistungsfaktor je Strang"}, default: 0.8, units: ["", pct]}
+    p: {dim: power, label: P, name: {en: "Total real power", de: "Gesamte Wirkleistung"}}
+  dof: 3
+  rules:
+    p: ["sqrt(3)*v*i*pf"]
+    i: ["p/(sqrt(3)*v*pf)"]
+    v: ["p/(sqrt(3)*i*pf)"]
+    pf: ["p/(sqrt(3)*v*i)"]
+  derived:
+    s: {dim: apparent_power, label: S, name: {en: "Total apparent power", de: "Gesamte Scheinleistung"}, expr: "sqrt(3)*v*i"}
+    q: {dim: reactive_power, label: Q, name: {en: "Total reactive power", de: "Gesamte Blindleistung"}, expr: "s*sqrt(1-pf^2)"}
+    vph: {dim: voltage, label: U_ph, name: {en: "Star: voltage across one leg", de: "Stern: Spannung an einem Strang"}, expr: "v/sqrt(3)"}
+    iph: {dim: current, label: I_ph, name: {en: "Delta: current in one leg", de: "Dreieck: Strom in einem Strang"}, expr: "i/sqrt(3)"}
+  checks:
+    - {when: "if(pf < 0, 1, pf > 1)", warn: {en: "The power factor must be between 0 and 1.", de: "Der Leistungsfaktor muss zwischen 0 und 1 liegen."}}
+  formula: ["p = sqrt(3) * v * i * pf", "s = sqrt(3) * v * i", "q = s * sqrt(1 - pf^2)"]
+
+- id: pf_correction
+  kind: calculator
+  category: power
+  name: {cs: "Kompenzační kondenzátor (účiník)", da: "Effektfaktorkompensering (kondensator)", de: "Blindleistungskompensation (Kondensator)", el: "Πυκνωτής διόρθωσης συντελεστή ισχύος", en: "Power-factor correction capacitor", es: "Condensador de corrección del factor de potencia", fr: "Condensateur de compensation du facteur de puissance", hi: "पावर फैक्टर सुधार संधारित्र", it: "Condensatore di rifasamento", ja: "力率改善コンデンサ", nl: "Compensatiecondensator (arbeidsfactor)", no: "Kondensator for effektfaktorkompensering", pl: "Kondensator do kompensacji współczynnika mocy", pt: "Capacitor de correção do fator de potência", sv: "Kondensator för effektfaktorkompensering", zh: "功率因数补偿电容"}
+  doc:
+    en: "A capacitor in parallel with an inductive load supplies reactive power and raises the power factor from cos φ₁ to cos φ₂ while the real power P stays the same: Q_C = P × (tan φ₁ − tan φ₂) with tan φ = √(1 − cos²φ) / cos φ. A capacitor C at the voltage U_C across it has the reactive power Q = U_C² × 2π × f × C. A single-phase capacitor gives Q_C = U² × 2π × f × C, so C = Q_C / (2π × f × U²). In a three-phase star bank at the line-to-line voltage U the three capacitors together give the same expression, so each has the same C (a star leg sees only U / √3, but there are three legs). In a delta bank each of the three capacitors sees U and supplies a third of Q_C, so C = Q_C / (3 × 2π × f × U²): a star bank needs three times the capacitance of a delta bank for the same reactive power. In the three-phase case the value is that of each of three equal capacitors, and U is the line-to-line voltage. The calculation assumes sinusoidal voltage, a linear load, an inductive (lagging) load and unchanged P; cos φ₂ = 1 is full compensation, and a larger Q_C over-compensates (the power factor becomes leading, and the calculator then shows the magnitude of cos φ₂). The result is the capacitance at the fundamental frequency: in networks with harmonics plain capacitors can resonate with the supply and detuned banks (with series reactors) are needed. Use only capacitors rated for mains voltage and frequency, with discharge resistors; the design of a mains installation belongs to a qualified electrician. The defaults (10 kW from 0.7 to 0.95 at 400 V, 50 Hz) need Q_C = 6.915 kvar, that is 137.6 µF per capacitor in star or 45.86 µF in delta."
+    de: "Ein Kondensator parallel zu einer induktiven Last liefert Blindleistung und hebt den Leistungsfaktor von cos φ₁ auf cos φ₂, während die Wirkleistung P gleich bleibt: Q_C = P · (tan φ₁ − tan φ₂) mit tan φ = √(1 − cos²φ) / cos φ. Ein Kondensator C mit der Spannung U_C an seinen Klemmen hat die Blindleistung Q = U_C² · 2π · f · C. Ein einphasiger Kondensator liefert Q_C = U² · 2π · f · C, also C = Q_C / (2π · f · U²). In einer Drehstrom-Sternschaltung an der Außenleiterspannung U liefern die drei Kondensatoren zusammen denselben Ausdruck, jeder hat also dasselbe C (ein Sternstrang liegt nur an U / √3, es sind aber drei Stränge). In einer Dreieckschaltung liegt jeder der drei Kondensatoren an U und liefert ein Drittel von Q_C, also C = Q_C / (3 · 2π · f · U²): Eine Sternschaltung braucht für dieselbe Blindleistung die dreifache Kapazität einer Dreieckschaltung. Im Drehstromfall ist der Wert der eines von drei gleichen Kondensatoren, U ist die Außenleiterspannung. Gerechnet wird mit sinusförmiger Spannung, linearer, induktiver Last und unverändertem P; cos φ₂ = 1 ist vollständige Kompensation, ein größeres Q_C überkompensiert (der Leistungsfaktor wird kapazitiv, der Rechner zeigt dann den Betrag von cos φ₂). Das Ergebnis ist die Kapazität bei Grundfrequenz: In Netzen mit Oberschwingungen können unverdrosselte Kondensatoren mit dem Netz in Resonanz geraten, dann sind verdrosselte Anlagen nötig. Nur für Netzspannung und Netzfrequenz ausgelegte Kondensatoren mit Entladewiderständen verwenden; die Auslegung einer Netzinstallation gehört in die Hand einer Elektrofachkraft. Die Vorgaben (10 kW von 0,7 auf 0,95 bei 400 V, 50 Hz) erfordern Q_C = 6,915 kvar, das sind 137,6 µF je Kondensator im Stern oder 45,86 µF im Dreieck."
+  tags: [power factor correction, PFC capacitor, reactive power compensation, kvar, capacitor bank, cos phi, tan phi, delta, star, wye, microfarad, motor capacitor, compensation, Blindleistungskompensation, Blindstromkompensation, Kompensationskondensator, Kondensatorbatterie, Dreieckschaltung, Sternschaltung, Mikrofarad, Leistungsfaktorkorrektur, Kompensation]
+  source: "Q_C = P × (tan φ₁ − tan φ₂): Schneider Electric, Electrical Installation Guide, chapter L (Power Factor Correction), theoretical principles to improve power factor; TDK Electronics, Product Profile Power Quality Solutions, PFC basic formulas (Q = U² × ω × C). The capacitance of a star and of a delta capacitor follows from Q = U_C² × 2π × f × C per capacitor with the star voltage U / √3 and the delta voltage U (see also J. M. Fiore: AC Electrical Circuit Analysis: A Practical Approach, section 9.4, Power Factor Correction)"
+  vars:
+    p: {dim: power, label: P, name: {en: "Real power of the load", de: "Wirkleistung der Last"}, default: "10 kW"}
+    pf1: {dim: ratio, label: cos φ₁, name: {en: "Present power factor (lagging)", de: "Vorhandener Leistungsfaktor (induktiv)"}, default: 0.7, units: ["", pct]}
+    pf2: {dim: ratio, label: cos φ₂, name: {en: "Target power factor", de: "Ziel-Leistungsfaktor"}, default: 0.95, units: ["", pct]}
+    v: {dim: voltage, label: U, name: {en: "Mains voltage (three-phase: line to line)", de: "Netzspannung (Drehstrom: Außenleiter)"}, default: "400 V"}
+    f: {dim: frequency, label: f, name: {en: "Mains frequency", de: "Netzfrequenz"}, default: "50 Hz"}
+    c: {dim: capacitance, label: C, name: {en: "Capacitance (each of the capacitors)", de: "Kapazität (je Kondensator)"}}
+  choices:
+    conn:
+      name: {cs: "Zapojení", da: "Tilslutning", de: "Schaltung", el: "Συνδεσμολογία", en: "Connection", es: "Conexión", fr: "Couplage", hi: "कनेक्शन", it: "Collegamento", ja: "接続", nl: "Schakeling", no: "Tilkobling", pl: "Połączenie", pt: "Ligação", sv: "Koppling", zh: "接法"}
+      default: single_star
+      options:
+        single_star:
+          name: {cs: "Jednofázově nebo hvězda", da: "Enfaset eller stjerne", de: "Einphasig oder Stern", el: "Μονοφασικά ή αστέρας", en: "Single-phase or star", es: "Monofásico o estrella", fr: "Monophasé ou étoile", hi: "एकल-फेज़ या स्टार", it: "Monofase o stella", ja: "単相またはスター", nl: "Eenfase of ster", no: "Enfase eller stjerne", pl: "Jednofazowo lub gwiazda", pt: "Monofásico ou estrela", sv: "Enfas eller stjärna", zh: "单相或星形"}
+          consts: {k: 1}
+        delta:
+          name: {cs: "Trojúhelník", da: "Trekant", de: "Dreieck", el: "Τρίγωνο", en: "Delta", es: "Triángulo", fr: "Triangle", hi: "डेल्टा", it: "Triangolo", ja: "デルタ", nl: "Driehoek", no: "Trekant", pl: "Trójkąt", pt: "Triângulo", sv: "Triangel", zh: "三角形"}
+          consts: {k: 3}
+  dof: 5
+  rules:
+    c: ["p*(sqrt(1-pf1^2)/pf1-sqrt(1-pf2^2)/pf2)/(k*2*pi*f*v^2)"]
+    pf2: ["1/sqrt(1+(sqrt(1-pf1^2)/pf1-k*2*pi*f*v^2*c/p)^2)"]
+    p: ["k*2*pi*f*v^2*c/(sqrt(1-pf1^2)/pf1-sqrt(1-pf2^2)/pf2)"]
+  derived:
+    qc: {dim: reactive_power, label: Q_C, name: {en: "Reactive power of the capacitors (total)", de: "Blindleistung der Kondensatoren (gesamt)"}, expr: "k*2*pi*f*v^2*c"}
+    s1: {dim: apparent_power, label: S₁, name: {en: "Apparent power before", de: "Scheinleistung vorher"}, expr: "p/pf1"}
+    s2: {dim: apparent_power, label: S₂, name: {en: "Apparent power after", de: "Scheinleistung nachher"}, expr: "p/pf2"}
+  checks:
+    - {when: "if(pf1 <= 0, 1, if(pf1 > 1, 1, if(pf2 <= 0, 1, pf2 > 1)))", warn: {en: "The power factors must be greater than 0 and at most 1.", de: "Die Leistungsfaktoren müssen größer als 0 und höchstens 1 sein."}}
+    - {when: "qc > p*sqrt(1-pf1^2)/pf1", warn: {en: "The capacitor over-compensates: the power factor becomes leading (capacitive).", de: "Der Kondensator überkompensiert: Der Leistungsfaktor wird kapazitiv."}}
+    - {when: "if(qc > p*sqrt(1-pf1^2)/pf1, 0, pf2 <= pf1)", warn: {en: "The target power factor must be higher than the present one; no capacitor is needed.", de: "Der Ziel-Leistungsfaktor muss über dem vorhandenen liegen; es wird kein Kondensator benötigt."}}
+  formula: ["qc = p * (sqrt(1 - pf1^2) / pf1 - sqrt(1 - pf2^2) / pf2)", "c = qc / (k * 2 * pi * f * v^2)"]
+  schematic: pf_correction
+
+- id: energy_cost
+  kind: calculator
+  category: power
+  name: {cs: "Spotřeba energie a náklady", da: "Energiforbrug og omkostninger", de: "Energieverbrauch und Kosten", el: "Κατανάλωση ενέργειας και κόστος", en: "Energy consumption and cost", es: "Consumo de energía y coste", fr: "Consommation d'énergie et coût", hi: "ऊर्जा खपत और लागत", it: "Consumo di energia e costo", ja: "消費電力量と電気料金", nl: "Energieverbruik en kosten", no: "Energiforbruk og kostnad", pl: "Zużycie energii i koszt", pt: "Consumo de energia e custo", sv: "Energiförbrukning och kostnad", zh: "耗电量与电费"}
+  doc:
+    en: "The energy a device uses and what it costs: E = P × t with the total time t = hours per day × number of days, and cost = E in kWh × price per kWh (1 kWh = 3.6 MJ). The price is a plain number in your own currency per kWh; no currency is assumed, and the default 0.30 is only a placeholder, not a tariff. Every quantity can be solved for: the power from a measured energy, the hours per day or the number of days from an energy, or the price from a bill. P is the average power while the device is switched on. Devices that cycle on and off (refrigerator, thermostat-controlled heater, compressor) use less than nameplate power × time, and the nameplate usually states the maximum rather than the typical draw. Standby consumption outside the hours of use is not included. The price is the energy rate per kWh: fixed monthly charges, demand charges and time-of-use tariffs are not covered. The defaults (100 W, 3 hours a day, 365 days at 0.30 per kWh) give 109.5 kWh and a cost of 32.85."
+    de: "Die Energie, die ein Gerät verbraucht, und was sie kostet: E = P · t mit der Gesamtzeit t = Stunden pro Tag · Anzahl der Tage, und Kosten = E in kWh · Preis je kWh (1 kWh = 3,6 MJ). Der Preis ist eine einfache Zahl in der eigenen Währung je kWh; es wird keine Währung angenommen, und der Vorgabewert 0,30 ist nur ein Platzhalter, kein Tarif. Jede Größe lässt sich bestimmen: die Leistung aus einer gemessenen Energie, die Stunden pro Tag oder die Zahl der Tage aus einer Energie, der Preis aus einer Rechnung. P ist die mittlere Leistung im eingeschalteten Zustand. Taktende Geräte (Kühlschrank, thermostatgeregelte Heizung, Kompressor) verbrauchen weniger als Nennleistung · Zeit, und das Typenschild nennt meist die Höchstleistung statt der typischen Aufnahme. Der Standby-Verbrauch außerhalb der Betriebsstunden ist nicht enthalten. Der Preis ist der Arbeitspreis je kWh: Grundgebühren, Leistungspreise und zeitabhängige Tarife sind nicht berücksichtigt. Die Vorgaben (100 W, 3 Stunden am Tag, 365 Tage zu 0,30 je kWh) ergeben 109,5 kWh und Kosten von 32,85."
+  tags: [energy cost, electricity cost, kWh, kilowatt-hour, power consumption, running cost, energy use, electricity bill, appliance, standby, watt hours, Stromkosten, Energiekosten, Kilowattstunde, Stromverbrauch, Energieverbrauch, Betriebskosten, Stromrechnung, Verbraucher, Wattstunden, Arbeitspreis]
+  source: "E = P × t and 1 kWh = 3.6 × 10⁶ J: NIST Special Publication 811, Guide for the Use of the International System of Units (SI), appendix B.9; the cost estimate (watts × hours per day × days ÷ 1000 × price per kWh): Virginia Cooperative Extension, publication 2901-9014 (BSE-301NP), Estimating Appliance and Home Electronic Energy Use"
+  vars:
+    p: {dim: power, label: P, name: {en: "Average power while on", de: "Mittlere Leistung im Betrieb"}, default: "100 W"}
+    hd: {dim: time, label: t_d, name: {en: "Hours of use per day", de: "Betriebsstunden pro Tag"}, default: "3 h", unit: h, units: ["", min, h]}
+    days: {dim: number, label: N, name: {en: "Number of days", de: "Anzahl der Tage"}, default: 365}
+    price: {dim: number, label: k, name: {en: "Price per kWh (any currency)", de: "Preis je kWh (beliebige Währung)"}, default: 0.3}
+    e: {dim: energy, label: E, name: {en: "Energy", de: "Energie"}, unit: kWh, units: [Wh, kWh, ""]}
+    cost: {dim: number, label: K, name: {en: "Cost (same currency)", de: "Kosten (gleiche Währung)"}}
+  dof: 4
+  rules:
+    e: ["p*hd*days", "cost*3.6e6/price"]
+    cost: ["e/3.6e6*price"]
+    p: ["e/(hd*days)"]
+    hd: ["e/(p*days)"]
+    days: ["e/(p*hd)"]
+    price: ["cost*3.6e6/e"]
+  checks:
+    - {when: "hd > 86400", warn: {en: "A day has only 24 hours.", de: "Ein Tag hat nur 24 Stunden."}}
+    - {when: "min(p, hd, days, price) < 0", warn: {en: "Power, time, days and price must not be negative.", de: "Leistung, Zeit, Tage und Preis dürfen nicht negativ sein."}}
+  formula: ["e = p * hd * days", "cost = e / 3.6e6 * price"]
+
+- id: led_strip_power
+  kind: calculator
+  category: power
+  name: {cs: "Napájení LED pásku (WS2812)", da: "Strømforsyning til LED-strip (WS2812)", de: "LED-Streifen-Versorgung (WS2812)", el: "Τροφοδοσία ταινίας LED (WS2812)", en: "LED strip supply (WS2812)", es: "Alimentación de tira LED (WS2812)", fr: "Alimentation d'un ruban LED (WS2812)", hi: "LED स्ट्रिप की बिजली आपूर्ति (WS2812)", it: "Alimentazione di strisce LED (WS2812)", ja: "LEDテープの給電（WS2812）", nl: "Voeding van een ledstrip (WS2812)", no: "Strømforsyning til LED-stripe (WS2812)", pl: "Zasilanie taśmy LED (WS2812)", pt: "Alimentação de fita LED (WS2812)", sv: "Matning av LED-list (WS2812)", zh: "LED灯带供电（WS2812）"}
+  doc:
+    en: "Current, power and end-of-strip voltage of an addressable LED strip (WS2812 and similar) fed from one end. The total current is I = N × I_led, the power P = V × I. The strip is a long conductor loaded along its whole length, so the voltage drop to the far end is half of the current times the resistance of both rails: ΔV = I × R_s / 2 (a load spread uniformly along the line, as treated for distribution feeders in W. H. Kersting, Distribution System Modeling and Analysis, in the chapter on uniformly distributed loads). The estimate assumes every pixel draws the same current whatever its local voltage; for N pixels the exact sum is larger by the factor (1 + 1 / N). The check compares the voltage at the far end with the lowest supply voltage the pixels accept. Current per pixel: the default of 36 mA is 3 × 12 mA, the working current per colour of the WS2812B-V5/W datasheet with red, green and blue at full brightness; the WS2812 datasheet gives 18.5 mA per colour (55.5 mA), the 2013 WS2812B datasheet states no current at all, and the common figure of 60 mA per pixel is a rounded worst case from Adafruit's NeoPixel Überguide (about 20 mA is typical for mixed animations). The minimum voltage default of 4.5 V is the lower end of the supply range for which the 2013 WS2812B datasheet specifies its electrical characteristics (4.5 to 5.5 V); take the value from the datasheet of your part. The rail resistance R_s (both rails together, whole strip) is not in the LED datasheets: the default 0.2 Ω is only a placeholder for about a metre, so measure it (short the far end and measure from + to − at the feed). The cable from the supply is not included. If the far end falls too low, feed the strip from both ends or inject power at several points (Adafruit advises a power connection within about a metre of every pixel); this calculator gives no number for that. Size the supply with generous headroom."
+    de: "Strom, Leistung und Endspannung eines adressierbaren LED-Streifens (WS2812 und ähnliche), der an einem Ende eingespeist wird. Der Gesamtstrom ist I = N · I_led, die Leistung P = V · I. Der Streifen ist ein langer, über die ganze Länge belasteter Leiter, der Spannungsabfall bis zum fernen Ende beträgt daher die Hälfte aus Strom mal Widerstand beider Schienen: ΔV = I · R_s / 2 (gleichmäßig über die Leitung verteilte Last, wie sie W. H. Kersting, Distribution System Modeling and Analysis, im Kapitel über gleichmäßig verteilte Lasten für Verteilleitungen behandelt). Die Abschätzung nimmt an, dass jedes Pixel unabhängig von seiner örtlichen Spannung denselben Strom zieht; bei N Pixeln ist die genaue Summe um den Faktor (1 + 1 / N) größer. Die Prüfung vergleicht die Spannung am fernen Ende mit der niedrigsten Versorgungsspannung, die die Pixel zulassen. Strom je Pixel: Der Vorgabewert 36 mA ist 3 · 12 mA, der Betriebsstrom je Farbe aus dem Datenblatt des WS2812B-V5/W bei Rot, Grün und Blau voll; das Datenblatt des WS2812 nennt 18,5 mA je Farbe (55,5 mA), das Datenblatt des WS2812B von 2013 nennt gar keinen Strom, und die verbreiteten 60 mA je Pixel sind ein gerundeter Höchstwert aus Adafruits NeoPixel-Überguide (für gemischte Animationen sind etwa 20 mA typisch). Die Vorgabe 4,5 V für die Mindestspannung ist die Untergrenze des Versorgungsbereichs, für den das Datenblatt des WS2812B von 2013 seine elektrischen Kennwerte angibt (4,5 bis 5,5 V); den Wert aus dem Datenblatt des eigenen Bauteils nehmen. Der Schienenwiderstand R_s (beide Schienen zusammen, ganzer Streifen) steht nicht in den LED-Datenblättern: Die Vorgabe 0,2 Ω ist nur ein Platzhalter für etwa einen Meter, also nachmessen (fernes Ende kurzschließen und am Einspeisepunkt von + nach − messen). Die Zuleitung vom Netzteil ist nicht enthalten. Fällt das ferne Ende zu tief, den Streifen an beiden Enden oder an mehreren Stellen einspeisen (Adafruit empfiehlt einen Stromanschluss höchstens etwa einen Meter von jedem Pixel); dafür liefert der Rechner keine Zahl. Das Netzteil großzügig auslegen."
+  tags: [led strip, ws2812b, ws2812, neopixel, addressable led, pixel, current per pixel, power supply, voltage drop, power injection, 5v led strip, led-streifen, led-stripe, adressierbare led, strom pro pixel, netzteil, einspeisung, spannungsabfall]
+  source: "Datasheets of Worldsemi: WS2812 (18.5 mA per colour), WS2812B-V5/W (12 mA working current per colour), WS2812B (2013, supply range 4.5 to 5.5 V); Adafruit NeoPixel Überguide, Powering NeoPixels (60 mA worst case, 20 mA typical per pixel); voltage drop ΔV = I × R / 2 of a uniformly distributed load: W. H. Kersting, Distribution System Modeling and Analysis, chapter on uniformly distributed loads"
+  vars:
+    n: {dim: number, label: N, name: {en: "Number of pixels", de: "Anzahl der Pixel"}, default: 60}
+    iled: {dim: current, label: I_led, name: {en: "Current per pixel", de: "Strom je Pixel"}, default: "36 mA"}
+    v: {dim: voltage, label: V, name: {en: "Supply voltage", de: "Versorgungsspannung"}, default: "5 V"}
+    rs: {dim: resistance, label: R_s, name: {en: "Resistance of both rails, whole strip", de: "Widerstand beider Schienen, ganzer Streifen"}, default: "0.2"}
+    vmin: {dim: voltage, label: V_min, name: {en: "Lowest supply voltage of the pixels", de: "Niedrigste Versorgungsspannung der Pixel"}, default: "4.5 V"}
+    i: {dim: current, label: I, name: {en: "Total strip current", de: "Gesamtstrom des Streifens"}}
+  dof: 5
+  rules:
+    i: ["n*iled"]
+    n: ["i/iled"]
+    iled: ["i/n"]
+  derived:
+    p: {dim: power, label: P, name: {en: "Total power", de: "Gesamtleistung"}, expr: "v*i"}
+    dv: {dim: voltage, label: ΔV, name: {en: "Voltage drop to the far end (fed from one end)", de: "Spannungsabfall bis zum fernen Ende (Einspeisung an einem Ende)"}, expr: "i*rs/2"}
+    vend: {dim: voltage, label: V_end, name: {en: "Voltage at the far end", de: "Spannung am fernen Ende"}, expr: "v-i*rs/2"}
+  checks:
+    - {when: "vend < vmin", warn: {en: "The voltage at the far end is below the lowest supply voltage of the pixels: feed the strip from both ends or inject power at more points.", de: "Die Spannung am fernen Ende liegt unter der niedrigsten Versorgungsspannung der Pixel: Streifen an beiden Enden oder an mehr Stellen einspeisen."}}
+    - {when: "abs(n-round(n)) > 1e-6", warn: {en: "The number of pixels must be a whole number.", de: "Die Zahl der Pixel muss eine ganze Zahl sein."}}
+  formula: ["i = n * iled", "p = v * i", "dv = i * rs / 2"]
+
+- id: supercap_backup
+  kind: calculator
+  category: power
+  name: {cs: "Doba zálohování superkondenzátorem", da: "Backuptid med superkondensator", de: "Überbrückungszeit mit Superkondensator", el: "Χρόνος υποστήριξης με υπερπυκνωτή", en: "Supercapacitor hold-up time", es: "Tiempo de respaldo con supercondensador", fr: "Temps de maintien avec supercondensateur", hi: "सुपरकैपेसिटर बैकअप समय", it: "Tempo di mantenimento con supercondensatore", ja: "スーパーキャパシタのバックアップ時間", nl: "Overbruggingstijd met supercondensator", no: "Reservetid med superkondensator", pl: "Czas podtrzymania superkondensatorem", pt: "Tempo de retenção com supercapacitor", sv: "Reservtid med superkondensator", zh: "超级电容保持时间"}
+  doc:
+    en: "How long a supercapacitor can supply a load while its voltage falls from the start voltage V₁ to the cut-off voltage V₂ at which the load stops working. With a constant current I the voltage falls linearly and t = C × (V₁ − V₂) / I. With a constant power P (for example a DC/DC converter) the current rises as the voltage falls and t = C × (V₁² − V₂²) / (2 × P). The usable energy is E = ½ × C × (V₁² − V₂²). Choose the load type: the value that the type does not use is dimmed. The equivalent series resistance (ESR) is ignored: it makes the real time shorter, because the voltage step I × R_ESR at the start and the loss in the ESR use up part of the voltage swing (with a high ESR or a large current this is not small, and the supercapacitor may not deliver the constant power at all near V₂). Capacitance also falls and ESR rises with age and at low temperature (end of life is often taken as −30 % capacitance and double ESR), the capacitance depends on voltage and discharge rate, and leakage is ignored, so add margin. For cells in series enter the values of the whole stack (C = C_cell / n) and never exceed the rated cell voltage. The defaults (1 F from 5 V to 3 V) last 200 s at 10 mA or 160 s at 50 mW."
+    de: "Wie lange ein Superkondensator eine Last versorgen kann, während seine Spannung von der Anfangsspannung V₁ auf die Abschaltspannung V₂ sinkt, bei der die Last ausfällt. Bei konstantem Strom I sinkt die Spannung linear und t = C · (V₁ − V₂) / I. Bei konstanter Leistung P (zum Beispiel ein DC/DC-Wandler) steigt der Strom mit sinkender Spannung und t = C · (V₁² − V₂²) / (2 · P). Die nutzbare Energie ist E = ½ · C · (V₁² − V₂²). Den Lasttyp wählen: Der Wert, den der Typ nicht verwendet, wird abgedunkelt. Der Serienersatzwiderstand (ESR) bleibt unberücksichtigt: Er verkürzt die reale Zeit, weil der Spannungssprung I · R_ESR am Anfang und die Verluste im ESR einen Teil des Spannungshubs verbrauchen (bei hohem ESR oder großem Strom ist das nicht wenig, und nahe V₂ kann der Superkondensator die konstante Leistung unter Umständen gar nicht mehr liefern). Außerdem sinkt die Kapazität und steigt der ESR mit Alter und niedriger Temperatur (als Lebensdauerende gelten häufig −30 % Kapazität und doppelter ESR), die Kapazität hängt von Spannung und Entladerate ab, und der Leckstrom ist nicht berücksichtigt; Reserve einplanen. Bei Reihenschaltung die Werte der gesamten Kette eingeben (C = C_Zelle / n) und die Nennspannung der Zelle nie überschreiten. Die Vorgaben (1 F von 5 V auf 3 V) halten 200 s bei 10 mA oder 160 s bei 50 mW."
+  tags: [supercapacitor, supercap, ultracapacitor, EDLC, backup time, hold-up time, ride-through, discharge time, constant current, constant power, energy storage, RTC backup, gold cap, Superkondensator, Supercap, Ultrakondensator, Doppelschichtkondensator, Goldcap, Überbrückungszeit, Pufferzeit, Entladezeit, Konstantstrom, Konstantleistung, Energiespeicher, RTC-Pufferung]
+  source: "Discharge of a capacitor, constant current t = C × (V₁ − V₂) / I, constant power t = C × (V₁² − V₂²) / (2 × P), E = ½ × C × (V₁² − V₂²): Würth Elektronik, support note SN009b, How to Use Supercapacitors? A Brief Guide to the Design-In Process; Abracon, application note Designing with Supercapacitors; Analog Devices, Analog Dialogue RAQ Issue 179, Energy Storage Using Supercapacitors: How Big Is Big Enough?"
+  vars:
+    c: {dim: capacitance, label: C, name: {en: "Capacitance (whole stack)", de: "Kapazität (gesamte Kette)"}, default: "1"}
+    v1: {dim: voltage, label: V₁, name: {en: "Start voltage", de: "Anfangsspannung"}, default: "5 V"}
+    v2: {dim: voltage, label: V₂, name: {en: "Cut-off voltage", de: "Abschaltspannung"}, default: "3 V"}
+    i: {dim: current, label: I, name: {en: "Constant load current", de: "Konstanter Laststrom"}, default: "10 mA"}
+    p: {dim: power, label: P, name: {en: "Constant load power", de: "Konstante Lastleistung"}, default: "50 mW"}
+    t: {dim: time, label: t, name: {en: "Hold-up time", de: "Überbrückungszeit"}, units: ["", min, h]}
+  choices:
+    load:
+      name: {cs: "Zátěž", da: "Belastning", de: "Last", el: "Φορτίο", en: "Load", es: "Carga", fr: "Charge", hi: "लोड", it: "Carico", ja: "負荷", nl: "Belasting", no: "Last", pl: "Obciążenie", pt: "Carga", sv: "Last", zh: "负载"}
+      default: current
+      options:
+        current:
+          name: {cs: "Konstantní proud", da: "Konstant strøm", de: "Konstanter Strom", el: "Σταθερό ρεύμα", en: "Constant current", es: "Corriente constante", fr: "Courant constant", hi: "स्थिर धारा", it: "Corrente costante", ja: "定電流", nl: "Constante stroom", no: "Konstant strøm", pl: "Prąd stały", pt: "Corrente constante", sv: "Konstant ström", zh: "恒流"}
+          consts: {cp: 0}
+          ignore: [p]
+        power:
+          name: {cs: "Konstantní výkon", da: "Konstant effekt", de: "Konstante Leistung", el: "Σταθερή ισχύς", en: "Constant power", es: "Potencia constante", fr: "Puissance constante", hi: "स्थिर शक्ति", it: "Potenza costante", ja: "定電力", nl: "Constant vermogen", no: "Konstant effekt", pl: "Moc stała", pt: "Potência constante", sv: "Konstant effekt", zh: "恒功率"}
+          consts: {cp: 1}
+          ignore: [i]
+  dof: 5
+  rules:
+    t: ["if(cp, c*(v1^2-v2^2)/(2*p), c*(v1-v2)/i)"]
+    c: ["if(cp, 2*p*t/(v1^2-v2^2), i*t/(v1-v2))"]
+  derived:
+    e: {dim: energy, label: E, name: {en: "Usable energy between V₁ and V₂", de: "Nutzbare Energie zwischen V₁ und V₂"}, expr: "c*(v1^2-v2^2)/2"}
+  checks:
+    - {when: "v2 >= v1", warn: {en: "The cut-off voltage must be below the start voltage.", de: "Die Abschaltspannung muss unter der Anfangsspannung liegen."}}
+  formula: ["t = c * (v1 - v2) / i", "t = c * (v1^2 - v2^2) / (2 * p)", "e = c * (v1^2 - v2^2) / 2"]
+  schematic: supercap_backup
+
+- id: inverting_buck_boost
+  kind: calculator
+  category: power
+  name: {cs: "Invertující měnič (buck-boost)", da: "Inverterende buck-boost-konverter", de: "Invertierender Hoch-Tiefsetzsteller", el: "Αναστρέφων μετατροπέας buck-boost", en: "Inverting buck-boost converter", es: "Convertidor buck-boost inversor", fr: "Convertisseur buck-boost inverseur", hi: "इनवर्टिंग बक-बूस्ट कन्वर्टर", it: "Convertitore buck-boost invertente", ja: "反転型昇降圧コンバータ", nl: "Inverterende buck-boost-omzetter", no: "Inverterende buck-boost-omformer", pl: "Przetwornica odwracająca (buck-boost)", pt: "Conversor buck-boost inversor", sv: "Inverterande buck-boost-omvandlare", zh: "反相升降压变换器"}
+  doc:
+    en: "An ideal inverting buck-boost converter makes a negative output voltage from a positive input voltage and works for any ratio of the two magnitudes. In continuous conduction the duty cycle is D = |V_out| / (V_in + |V_out|), the average inductor current is I_L = I_out / (1 − D) = I_out × (1 + |V_out| / V_in), the peak-to-peak ripple current is ΔI_L = V_in × D / (f_sw × L), and the inductor and switch carry the peak I_pk = I_L + ΔI_L / 2 (valley current I_L − ΔI_L / 2). The input draws on average I_in = I_out × |V_out| / V_in. The regulator IC, switch and diode must withstand V_in + |V_out|. Enter |V_out| as a positive number. The inductor current is larger than the load current by 1 / (1 − D), so a buck regulator used as an inverter delivers much less than its rated current; the worst case is the lowest input voltage for the currents and the highest for the ripple. Continuous conduction needs a positive valley current, that is I_out > ΔI_L × (1 − D) / 2; below that a diode rectifier runs discontinuous and these formulas no longer apply (the calculator warns). Losses are not modelled: an efficiency below 100 % and the diode drop raise the duty cycle and the currents. Not covered: the right-half-plane zero, output ripple and capacitor currents. The defaults (+12 V to −5 V, 1 A, 400 kHz, 22 µH) give D = 29.4 %, I_L = 1.417 A, ΔI_L = 0.401 A and I_pk = 1.617 A. V_in or |V_out| can be found from the ripple current when the other is known."
+    de: "Ein idealer invertierender Hoch-Tiefsetzsteller (Buck-Boost) erzeugt aus einer positiven Eingangsspannung eine negative Ausgangsspannung und arbeitet bei jedem Verhältnis der beiden Beträge. Im lückfreien Betrieb ist das Tastverhältnis D = |V_out| / (V_in + |V_out|), der mittlere Drosselstrom I_L = I_out / (1 − D) = I_out · (1 + |V_out| / V_in), der Spitze-Spitze-Rippelstrom ΔI_L = V_in · D / (f_sw · L), und Drossel und Schalter führen den Spitzenstrom I_pk = I_L + ΔI_L / 2 (Talstrom I_L − ΔI_L / 2). Der Eingang nimmt im Mittel I_in = I_out · |V_out| / V_in auf. Regler-IC, Schalter und Diode müssen V_in + |V_out| aushalten. |V_out| als positive Zahl eingeben. Der Drosselstrom ist um 1 / (1 − D) größer als der Laststrom, ein als Inverter betriebener Abwärtsregler liefert daher deutlich weniger als seinen Nennstrom; für die Ströme ist die kleinste Eingangsspannung der ungünstigste Fall, für den Rippel die größte. Lückfreier Betrieb braucht einen positiven Talstrom, also I_out > ΔI_L · (1 − D) / 2; darunter arbeitet ein Diodengleichrichter lückend und diese Formeln gelten nicht mehr (der Rechner warnt). Verluste sind nicht modelliert: Ein Wirkungsgrad unter 100 % und die Diodenspannung erhöhen Tastverhältnis und Ströme. Nicht enthalten: die Nullstelle in der rechten Halbebene, Ausgangsrippel und Kondensatorströme. Die Vorgaben (+12 V auf −5 V, 1 A, 400 kHz, 22 µH) ergeben D = 29,4 %, I_L = 1,417 A, ΔI_L = 0,401 A und I_pk = 1,617 A. V_in oder |V_out| lassen sich aus dem Rippelstrom bestimmen, wenn die andere Größe bekannt ist."
+  tags: [inverting buck-boost, buck-boost, negative voltage, negative rail, inverter, duty cycle, inductor ripple, peak switch current, continuous conduction, CCM, switching regulator, DC/DC, invertierender Wandler, Inverswandler, negative Spannung, negative Versorgung, Tastverhältnis, Tastgrad, Stromwelligkeit, Spitzenstrom, nicht lückender Betrieb, Schaltregler, DC/DC-Wandler]
+  source: "Inverting buck-boost power stage in continuous conduction (D = |V_out| / (V_in + |V_out|), I_L = I_out / (1 − D), ΔI_L = V_in × D / (f_sw × L), discontinuous limit I_out = ΔI_L × (1 − D) / 2): Texas Instruments SLVA059B, Understanding Inverting Buck-Boost Power Stages in Switch Mode Power Supplies; Texas Instruments SNVA856B, Working With Inverting Buck-Boost Converters; Texas Instruments SLYT286, Using a buck converter in an inverting buck-boost topology (Analog Applications Journal 4Q 2007); Analog Devices AN-1083, Designing an Inverting Buck Boost Using the ADP2300 and ADP2301 Switching Regulators"
+  vars:
+    vin: {dim: voltage, label: V_in, name: {en: "Input voltage", de: "Eingangsspannung"}, default: "12 V"}
+    vout: {dim: voltage, label: "|V_out|", name: {en: "Output voltage (magnitude)", de: "Ausgangsspannung (Betrag)"}, default: "5 V"}
+    iout: {dim: current, label: I_out, name: {en: "Output current", de: "Ausgangsstrom"}, default: "1 A"}
+    f: {dim: frequency, label: f_sw, name: {en: "Switching frequency", de: "Schaltfrequenz"}, default: "400 kHz"}
+    l: {dim: inductance, label: L, name: {en: "Inductance", de: "Induktivität"}, default: "22 µH"}
+    dil: {dim: current, label: ΔI_L, name: {en: "Inductor ripple current (peak to peak)", de: "Spulen-Rippelstrom (Spitze-Spitze)"}}
+  dof: 5
+  rules:
+    dil: ["vin*vout/((vin+vout)*f*l)"]
+    l: ["vin*vout/((vin+vout)*f*dil)"]
+    f: ["vin*vout/((vin+vout)*l*dil)"]
+    vin: ["dil*f*l*vout/(vout-dil*f*l)"]
+    vout: ["dil*f*l*vin/(vin-dil*f*l)"]
+  derived:
+    duty: {dim: ratio, label: D, name: {en: "Duty cycle", de: "Tastverhältnis"}, expr: "vout/(vin+vout)", unit: pct}
+    il: {dim: current, label: I_L, name: {en: "Average inductor current", de: "Mittlerer Spulenstrom"}, expr: "iout*(1+vout/vin)"}
+    ipk: {dim: current, label: I_pk, name: {en: "Peak inductor and switch current", de: "Spitzenstrom in Spule und Schalter"}, expr: "il+dil/2"}
+    ival: {dim: current, label: I_valley, name: {en: "Valley inductor current", de: "Talstrom der Spule"}, expr: "il-dil/2"}
+    iin: {dim: current, label: I_in, name: {en: "Average input current", de: "Mittlerer Eingangsstrom"}, expr: "iout*vout/vin"}
+    vmax: {dim: voltage, label: V_max, name: {en: "Voltage stress on switch, diode and IC", de: "Spannungsbelastung von Schalter, Diode und IC"}, expr: "vin+vout"}
+  checks:
+    - {when: "ival <= 0", warn: {en: "The inductor current reaches zero: with a diode rectifier the converter runs in discontinuous mode and these formulas do not apply. Use a larger inductance or a higher load current.", de: "Der Drosselstrom erreicht null: Mit Diodengleichrichtung arbeitet der Wandler im lückenden Betrieb, die Formeln gelten dann nicht. Größere Induktivität oder höheren Laststrom wählen."}}
+  formula: ["duty = vout / (vin + vout)", "dil = vin * vout / ((vin + vout) * f * l)", "il = iout * (1 + vout / vin)", "ipk = il + dil / 2"]
+  schematic: inverting_buck_boost

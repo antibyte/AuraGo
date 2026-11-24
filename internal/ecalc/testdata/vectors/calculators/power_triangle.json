@@ -1,0 +1,25 @@
+{
+  "calc": "power_triangle",
+  "sets": [
+    {"values": {"p": 1840, "q": 1380, "s": 2300, "pf": 0.8, "phi": 0.643501108793284}, "ref": "hand: the defaults, 230 V x 10 A: S = 2300 VA; P = 2300 x 0.8 = 1840 W; Q = 2300 x sqrt(1 - 0.64) = 2300 x 0.6 = 1380 var; phi = arctan(1380 / 1840) = 36.8699 deg; check sqrt(1840^2 + 1380^2) = sqrt(5290000) = 2300"},
+    {"values": {"p": 119.364533620879, "q": 119.998317415208, "s": 169.255688439151, "pf": 0.705232035163129, "phi": 0.788045952352491}, "ref": "hand: Kuphaldt, Lessons in Electric Circuits vol. II ch. 11 (120 V, 60 Hz, 60 ohm in series with 160 mH): X_L = 2 pi 60 0.16 = 60.3186 ohm, Z = sqrt(60^2 + X_L^2) = 85.0784 ohm, I = 120 / Z = 1.410464 A, cos phi = 60 / Z = 0.705232; S = 120 I = 169.256 VA, P = S cos phi = 119.365 W, Q = S sin phi = 119.998 var (the book prints P = 119.365 W, Q = 119.998 var, S = 169.256 VA); phi = 45.1517 deg"},
+    {"values": {"p": 90.2079656393342, "q": 254.73943655275, "s": 270.24, "pf": 0.333806859233771, "phi": 1.230457122656}, "ref": "hand: Fiore, AC Electrical Circuit Analysis section 7.3, example 7.3.1 (120 V, source current 2.252 A at 70.5 deg): S = 120 x 2.252 = 270.24 VA, cos 70.5 deg = 0.333807, P = S cos phi = 90.208 W, Q = S sin phi = 254.739 var (the book prints 90 W and 254.7 var from the unrounded current); phi = 70.5 deg"},
+    {"values": {"p": 5000, "q": 8660.25403784439, "s": 10000, "pf": 0.5, "phi": 1.0471975511966}, "ref": "hand: Schneider Electrical Installation Guide chapter L, 5 kW at cos phi = 0.5: S = 5000 / 0.5 = 10000 VA; Q = 5000 x sqrt(1 - 0.25) / 0.5 = 8660.25 var (the guide prints 10 kVA and 8.7 kvar); phi = 60 deg"},
+    {"values": {"p": 56000, "q": 33228.448653102, "s": 65116.2790697674, "pf": 0.86, "phi": 0.535526654314388}, "ref": "hand: Schneider Electrical Installation Guide chapter L, motor of 56 kW at cos phi = 0.86: S = 56000 / 0.86 = 65116.3 VA; Q = 56000 x tan(arccos 0.86) = 56000 x 0.5933652 = 33228.4 var (the guide prints 65 kVA and 33 kvar); check sqrt(S^2 - P^2) gives the same Q"},
+    {"values": {"p": 100000, "q": 102020.406122041, "s": 142857.142857143, "pf": 0.7, "phi": 0.795398830184143}, "ref": "hand: TDK Power Quality Solutions, PFC basic formulas, example 1 (100 kW at power factor 0.70): S = 100000 / 0.70 = 142857 VA (the catalogue prints 142 kVA); Q = 100000 x sqrt(1 - 0.49) / 0.7 = 102020 var (printed as 100 kvar)"},
+    {"values": {"p": 3000, "q": 4000, "s": 5000, "pf": 0.6, "phi": 0.927295218001612}, "ref": "hand: P = 3000 W and Q = 4000 var form a 3-4-5 triangle: S = sqrt(3000^2 + 4000^2) = 5000 VA; cos phi = 3000 / 5000 = 0.6; phi = arctan(4000 / 3000) = 53.1301 deg"},
+    {"values": {"p": 920, "q": 690, "s": 1150, "pf": 0.8, "phi": 0.643501108793284}, "ref": "hand: S = 1150 VA and P = 920 W: Q = sqrt(1150^2 - 920^2) = sqrt(1322500 - 846400) = sqrt(476100) = 690 var; cos phi = 920 / 1150 = 0.8; phi = 36.8699 deg"},
+    {"values": {"p": 2000, "q": 1500, "s": 2500, "pf": 0.8, "phi": 0.643501108793284}, "ref": "hand: 2000 W at cos phi = 0.8 on 230 V: S = 2000 / 0.8 = 2500 VA (current 2500 / 230 = 10.8696 A); Q = 2000 x 0.6 / 0.8 = 1500 var; phi = 36.8699 deg"}
+  ],
+  "solve": [
+    {"inputs": {"p": 3000, "q": 4000}, "expect": {"s": 5000, "pf": 0.6, "phi": 0.927295218001612}, "ref": "hand: P = 3000 W, Q = 4000 var: S = 5000 VA, cos phi = 0.6, phi = arctan(4/3) = 0.927295 rad"},
+    {"inputs": {"s": 1150, "pf": 0.8}, "expect": {"p": 920, "q": 690}, "ref": "hand: S = 1150 VA at cos phi = 0.8: P = 920 W, Q = 1150 x 0.6 = 690 var"},
+    {"inputs": {"q": 1380, "pf": 0.8}, "expect": {"s": 2300, "p": 1840}, "ref": "hand: Q = 1380 var at cos phi = 0.8: S = 1380 / 0.6 = 2300 VA, P = 2300 x 0.8 = 1840 W"},
+    {"inputs": {"p": 920, "pf": 0.8}, "expect": {"s": 1150, "q": 690}, "ref": "hand: P = 920 W at cos phi = 0.8: S = 920 / 0.8 = 1150 VA, Q = 920 x 0.6 / 0.8 = 690 var"},
+    {"inputs": {"s": 1000, "pf": 1}, "expect": {"p": 1000, "q": 0, "phi": 0}, "ref": "hand: a pure resistive load, cos phi = 1: P = S = 1000 W, Q = 0, phi = 0"},
+    {"inputs": {"p": 1200, "s": 1000}, "expect": {"pf": 1.2}, "errors": {"q": "nonfinite"}, "warnings": [0, 1], "ref": "hand: P = 1200 W above S = 1000 VA is impossible: cos phi = 1.2 (check 1 and 2 fire) and Q = sqrt(1000^2 - 1200^2) has no real value"},
+    {"inputs": {"q": 1500, "s": 1000}, "expect": {}, "errors": {"p": "nonfinite", "pf": "nonfinite"}, "warnings": [2], "ref": "hand: Q = 1500 var above S = 1000 VA is impossible: sqrt(1000^2 - 1500^2) has no real value, so P and cos phi are not finite and only the check Q > S fires"},
+    {"inputs": {"s": 1000, "pf": -0.5}, "expect": {"p": -500, "q": 866.025403784439}, "warnings": [0], "ref": "hand: cos phi = -0.5 is outside 0 .. 1 (check 0 fires): P = -500 W, Q = 1000 x sqrt(1 - 0.25) = 866.025 var"},
+    {"inputs": {"s": 1000, "pf": 1.5}, "expect": {"p": 1500}, "errors": {"q": "nonfinite"}, "warnings": [0, 1], "ref": "hand: cos phi = 1.5 is outside 0 .. 1: P = 1500 W (check 0 and the P > S check fire); Q = 1000 x sqrt(1 - 2.25) is not real"}
+  ]
+}

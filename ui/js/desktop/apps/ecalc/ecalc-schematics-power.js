@@ -137,5 +137,61 @@ window.ECalcSchematics = Object.assign(window.ECalcSchematics || {}, {
    {"var": "i", "x": 28, "y": 3.7, "side": "top"},
    {"var": "c", "x": 19.7, "y": 6.5, "side": "right"}
   ]
+ },
+ "pf_correction": {
+  "w": 27, "h": 12,
+  "parts": [
+   {"sym": "acsource", "x": 6, "y": 6, "rot": 90},
+   {"sym": "inductor", "x": 13, "y": 6, "rot": 90},
+   {"sym": "capacitor", "x": 20, "y": 6, "rot": 90}
+  ],
+  "wires": [[[6, 6], [6, 5], [20, 5], [20, 6]], [[6, 9], [6, 10], [20, 10], [20, 9]], [[13, 5], [13, 6]], [[13, 9], [13, 10]]],
+  "dots": [[13, 5], [13, 10]],
+  "texts": [
+   {"x": 12.4, "y": 7.6, "text": "Load", "anchor": "end"}
+  ],
+  "anchors": [
+   {"var": "v", "x": 5.4, "y": 7.5, "side": "left"},
+   {"var": "f", "x": 9, "y": 3.7, "side": "top"},
+   {"var": "p", "x": 13, "y": 3.7, "side": "top"},
+   {"var": "c", "x": 20, "y": 3.7, "side": "top"}
+  ]
+ },
+ "supercap_backup": {
+  "w": 24, "h": 11,
+  "parts": [
+   {"sym": "polarized", "x": 8, "y": 5, "rot": 90},
+   {"sym": "switch", "x": 11, "y": 4},
+   {"sym": "isource", "x": 18, "y": 5, "rot": 90}
+  ],
+  "wires": [[[8, 5], [8, 4], [11, 4]], [[14, 4], [18, 4], [18, 5]], [[8, 8], [8, 9], [18, 9], [18, 8]]],
+  "anchors": [
+   {"var": "v1", "x": 7.4, "y": 6.5, "side": "left"},
+   {"var": "c", "x": 9, "y": 6.5, "side": "right"},
+   {"var": "t", "x": 12.5, "y": 4.7, "side": "bottom"},
+   {"var": "i", "x": 18.9, "y": 6.5, "side": "right"}
+  ]
+ },
+ "inverting_buck_boost": {
+  "w": 31, "h": 12,
+  "parts": [
+   {"sym": "source", "x": 4, "y": 4, "rot": 90},
+   {"sym": "switch", "x": 9, "y": 4},
+   {"sym": "inductor", "x": 13, "y": 4, "rot": 90},
+   {"sym": "diode", "x": 19, "y": 4, "rot": 180},
+   {"sym": "capacitor", "x": 22, "y": 4, "rot": 90},
+   {"sym": "ground", "x": 17, "y": 10}
+  ],
+  "wires": [[[4, 4], [9, 4]], [[12, 4], [16, 4]], [[19, 4], [29, 4]], [[13, 7], [13, 10]], [[22, 7], [22, 10]], [[4, 7], [4, 10], [29, 10]]],
+  "dots": [[13, 4], [22, 4], [13, 10], [22, 10], [17, 10]],
+  "terminals": [[29, 4], [29, 10]],
+  "anchors": [
+   {"var": "vin", "x": 4, "y": 3.7, "side": "top"},
+   {"var": "f", "x": 10.5, "y": 3.3, "side": "top"},
+   {"var": "l", "x": 13.9, "y": 5.5, "side": "right"},
+   {"var": "dil", "x": 13.9, "y": 8.4, "side": "right"},
+   {"var": "iout", "x": 26.5, "y": 3.7, "side": "top"},
+   {"var": "vout", "x": 22.7, "y": 6.2, "side": "right"}
+  ]
  }
 });

@@ -320,3 +320,36 @@
   checks:
     - {when: "(t < 223.15) + (t > 423.15)", warn: {en: "The temperature is far from 20 °C (below −50 °C or above 150 °C): the linear temperature model loses accuracy there.", de: "Die Temperatur liegt weit von 20 °C entfernt (unter −50 °C oder über 150 °C): Das lineare Temperaturmodell wird dort ungenau."}}
   formula: ["r = rho20 * (1 + tcr * dt) * len / a"]
+
+- id: transformer_ratio
+  kind: calculator
+  category: passive
+  name: {cs: "Převod transformátoru", da: "Transformerens omsætningsforhold", de: "Transformator-Übersetzung", el: "Λόγος σπειρών μετασχηματιστή", en: "Transformer turns ratio", es: "Relación de transformación", fr: "Rapport de transformation", hi: "ट्रांसफ़ॉर्मर का फेरा अनुपात", it: "Rapporto di trasformazione", ja: "変圧器の巻数比", nl: "Transformatorverhouding", no: "Transformatorens omsetningsforhold", pl: "Przekładnia transformatora", pt: "Relação de transformação", sv: "Transformatorns omsättning", zh: "变压器匝数比"}
+  doc:
+    en: "An ideal transformer: the voltages are in the ratio of the turns, U_s / U_p = N_s / N_p, the currents are in the inverse ratio, I_s / I_p = N_p / N_s, and the apparent power is the same on both sides, S = U_p × I_p = U_s × I_s. The turns ratio is defined here as n = N_p / N_s, so n > 1 is a step-down transformer (some datasheets state the inverse). An impedance on the secondary appears at the primary multiplied by n²: Z_p = n² × Z_L, which is how a transformer matches a source to a load (n = √(Z_p / Z_L)). Any four of the six values N_p, N_s, U_p, U_s, I_p, I_s that fix both ratios determine the rest. The model is ideal: winding resistance, leakage inductance, core losses and magnetising current are ignored. A real small transformer gives a higher voltage unloaded and a lower one at full load, draws a magnetising current with no load and has an efficiency below 100 %. It works with alternating voltage only (RMS values); a transformer does not pass direct current. The defaults (1000 : 52 turns on 230 V with 2 A on the secondary) give 11.96 V, 0.104 A and n = 19.23."
+    de: "Ein idealer Transformator: Die Spannungen verhalten sich wie die Windungszahlen, U_s / U_p = N_s / N_p, die Ströme im umgekehrten Verhältnis, I_s / I_p = N_p / N_s, und die Scheinleistung ist auf beiden Seiten gleich, S = U_p · I_p = U_s · I_s. Das Übersetzungsverhältnis ist hier n = N_p / N_s definiert, n > 1 ist also ein Abwärtstransformator (manche Datenblätter geben den Kehrwert an). Eine Impedanz auf der Sekundärseite erscheint auf der Primärseite mit n² multipliziert: Z_p = n² · Z_L; so passt ein Transformator eine Quelle an eine Last an (n = √(Z_p / Z_L)). Je vier der sechs Größen N_p, N_s, U_p, U_s, I_p, I_s, die beide Verhältnisse festlegen, bestimmen den Rest. Das Modell ist ideal: Wicklungswiderstand, Streuinduktivität, Kernverluste und Magnetisierungsstrom bleiben unberücksichtigt. Ein realer Kleintransformator liefert im Leerlauf eine höhere und unter Volllast eine niedrigere Spannung, nimmt im Leerlauf einen Magnetisierungsstrom auf und hat einen Wirkungsgrad unter 100 %. Er arbeitet nur mit Wechselspannung (Effektivwerte); Gleichstrom überträgt ein Transformator nicht. Die Vorgaben (1000 : 52 Windungen an 230 V mit 2 A auf der Sekundärseite) ergeben 11,96 V, 0,104 A und n = 19,23."
+  tags: [transformer, turns ratio, winding ratio, primary, secondary, step-down, step-up, reflected impedance, impedance matching, mains transformer, audio transformer, VA, Transformator, Trafo, Übersetzungsverhältnis, Windungszahl, Primärwicklung, Sekundärwicklung, Netztrafo, Impedanzanpassung, übersetzte Impedanz, Übertrager, Scheinleistung]
+  source: "Ideal transformer U_s / U_p = N_s / N_p, I_s / I_p = N_p / N_s, Z_p = (N_p / N_s)² × Z_L: T. R. Kuphaldt: Lessons in Electric Circuits, vol. II (AC), ch. 9 (Transformers); J. Kirtley: Introduction to Electric Power Systems (MIT), ch. 3, section 3.4 (Transformers)"
+  vars:
+    np: {dim: number, label: N_p, name: {en: "Primary turns", de: "Windungszahl primär"}, default: 1000}
+    ns: {dim: number, label: N_s, name: {en: "Secondary turns", de: "Windungszahl sekundär"}, default: 52}
+    vp: {dim: voltage, label: U_p, name: {en: "Primary voltage (RMS)", de: "Primärspannung (Effektivwert)"}, default: "230 V"}
+    vs: {dim: voltage, label: U_s, name: {en: "Secondary voltage (RMS)", de: "Sekundärspannung (Effektivwert)"}}
+    ip: {dim: current, label: I_p, name: {en: "Primary current (RMS)", de: "Primärstrom (Effektivwert)"}}
+    is: {dim: current, label: I_s, name: {en: "Secondary current (RMS)", de: "Sekundärstrom (Effektivwert)"}, default: "2 A"}
+  dof: 4
+  rules:
+    vs: ["vp*ns/np"]
+    vp: ["vs*np/ns"]
+    ns: ["np*vs/vp", "np*ip/is"]
+    np: ["ns*vp/vs", "ns*is/ip"]
+    is: ["ip*np/ns"]
+    ip: ["is*ns/np"]
+  derived:
+    n: {dim: number, label: n, name: {en: "Turns ratio N_p / N_s", de: "Übersetzungsverhältnis N_p / N_s"}, expr: "np/ns"}
+    zr: {dim: number, label: "n²", name: {en: "Impedance ratio Z_p / Z_L", de: "Impedanzverhältnis Z_p / Z_L"}, expr: "(np/ns)^2"}
+    s: {dim: apparent_power, label: S, name: {en: "Apparent power (both sides)", de: "Scheinleistung (beide Seiten)"}, expr: "vp*ip"}
+  checks:
+    - {when: "min(np, ns) <= 0", warn: {en: "The number of turns must be greater than zero.", de: "Die Windungszahl muss größer als null sein."}}
+  formula: ["vs = vp * ns / np", "is = ip * np / ns", "zr = (np / ns)^2"]
+  schematic: transformer_ratio

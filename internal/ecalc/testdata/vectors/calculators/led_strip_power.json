@@ -1,0 +1,19 @@
+{
+  "calc": "led_strip_power",
+  "sets": [
+    {"values": {"n": 60, "iled": 0.036, "v": 5, "rs": 0.2, "vmin": 4.5, "i": 2.16, "p": 10.8, "dv": 0.216, "vend": 4.784}, "ref": "hand: the defaults, 60 pixels at 3 x 12 mA = 36 mA (WS2812B-V5 working current per colour), 5 V, 0.2 ohm for both rails of the whole strip: I = 60 x 0.036 = 2.16 A; P = 5 x I = 10.8 W; dV = I x R / 2 = 2.16 x 0.2 / 2 = 0.216 V; V_end = 5 - dV = 4.784 V"},
+    {"values": {"n": 60, "iled": 0.02, "v": 5, "rs": 0.2, "vmin": 4.5, "i": 1.2, "p": 6, "dv": 0.12, "vend": 4.88}, "ref": "hand: Adafruit NeoPixel Uberguide, powering NeoPixels: 60 pixels x 20 mA = 1.2 A (the guide prints 1.2 A); P = 5 x 1.2 = 6 W; dV = 1.2 x 0.2 / 2 = 0.12 V; V_end = 4.88 V"},
+    {"values": {"n": 60, "iled": 0.06, "v": 5, "rs": 0.2, "vmin": 4.5, "i": 3.6, "p": 18, "dv": 0.36, "vend": 4.64}, "ref": "hand: Adafruit NeoPixel Uberguide: 60 pixels x 60 mA = 3.6 A (the guide prints 3.6 A); P = 5 x 3.6 = 18 W; dV = 3.6 x 0.2 / 2 = 0.36 V; V_end = 4.64 V"},
+    {"values": {"n": 144, "iled": 0.036, "v": 5, "rs": 0.2, "vmin": 4.5, "i": 5.184, "p": 25.92, "dv": 0.5184, "vend": 4.4816}, "ref": "hand: 144 pixels at 36 mA: I = 144 x 0.036 = 5.184 A; P = 25.92 W; dV = 5.184 x 0.2 / 2 = 0.5184 V; V_end = 4.4816 V"},
+    {"values": {"n": 300, "iled": 0.0555, "v": 5, "rs": 1, "vmin": 4.5, "i": 16.65, "p": 83.25, "dv": 8.325, "vend": -3.325}, "ref": "hand: 300 pixels at 3 x 18.5 mA = 55.5 mA (WS2812 datasheet) on 5 m with 1 ohm for both rails: I = 300 x 0.0555 = 16.65 A; P = 5 x I = 83.25 W; dV = 16.65 x 1 / 2 = 8.325 V, more than the 5 V supply: V_end = -3.325 V, the far end cannot work"},
+    {"values": {"n": 30, "iled": 0.036, "v": 12, "rs": 0.5, "vmin": 9, "i": 1.08, "p": 12.96, "dv": 0.27, "vend": 11.73}, "ref": "hand: 30 pixels at 36 mA on 12 V with 0.5 ohm and a 9 V minimum: I = 1.08 A; P = 12 x I = 12.96 W; dV = 1.08 x 0.5 / 2 = 0.27 V; V_end = 11.73 V"}
+  ],
+  "solve": [
+    {"inputs": {"n": 60, "iled": 0.036, "v": 5, "rs": 0.2, "vmin": 4.5}, "expect": {"i": 2.16, "p": 10.8, "dv": 0.216, "vend": 4.784}, "ref": "hand: the defaults, I = 2.16 A, P = 10.8 W, dV = 0.216 V, V_end = 4.784 V (above 4.5 V, no warning)"},
+    {"inputs": {"i": 3.6, "iled": 0.06, "v": 5, "rs": 0.2, "vmin": 4.5}, "expect": {"n": 60}, "ref": "hand: a 3.6 A supply feeds N = 3.6 / 0.06 = 60 pixels at 60 mA"},
+    {"inputs": {"i": 3.6, "n": 60, "v": 5, "rs": 0.2, "vmin": 4.5}, "expect": {"iled": 0.06}, "ref": "hand: 3.6 A over 60 pixels is 3.6 / 60 = 60 mA each"},
+    {"inputs": {"n": 144, "iled": 0.036, "v": 5, "rs": 0.2, "vmin": 4.5}, "expect": {"vend": 4.4816}, "warnings": [0], "ref": "hand: 144 pixels at 36 mA: dV = 5.184 x 0.2 / 2 = 0.5184 V, V_end = 4.4816 V is below the 4.5 V minimum: the check fires"},
+    {"inputs": {"n": 300, "iled": 0.0555, "v": 5, "rs": 1, "vmin": 4.5}, "expect": {"dv": 8.325, "vend": -3.325}, "warnings": [0], "ref": "hand: 300 pixels at 55.5 mA on 1 ohm: dV = 16.65 x 1 / 2 = 8.325 V, V_end = -3.325 V: the check fires (the far end cannot be fed from one end)"},
+    {"inputs": {"i": 1, "iled": 0.036, "v": 5, "rs": 0.2, "vmin": 4.5}, "expect": {"n": 27.7777777777778}, "warnings": [1], "ref": "hand: 1 A at 36 mA per pixel is 27.78 pixels, not a whole number: the second check fires; dV = 1 x 0.2 / 2 = 0.1 V, V_end = 4.9 V"}
+  ]
+}
