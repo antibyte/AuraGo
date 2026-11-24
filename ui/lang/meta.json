@@ -166,6 +166,10 @@
     "provider_ref": true,
     "empty_label_key": "config.storymaker.agent_provider_main"
   },
+  "help.video_studio.plan.agent_provider": {
+    "provider_ref": true,
+    "empty_label_key": "config.video_studio.plan_agent_provider_main"
+  },
   "help.cyd_creator.model": {
     "provider_ref": true,
     "empty_label_key": "config.cyd_creator.model_main"

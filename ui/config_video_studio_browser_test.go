@@ -28,10 +28,16 @@ func TestConfigVideoStudioBrowser(t *testing.T) {
 	if !page.MustEval(`() => document.querySelector('[data-path="video_studio.max_asset_size_mb"]').value==='4096' && !document.querySelector('[data-path="video_studio.enabled"]').classList.contains('on')`).Bool() {
 		t.Fatal("Video Studio defaults must be visible and disabled")
 	}
+	// Plan mode is on by default and shows the loader's limits and the main LLM.
+	if !page.MustEval(`() => document.querySelector('[data-path="video_studio.plan.enabled"]').classList.contains('on') && document.querySelector('[data-path="video_studio.plan.max_daily_jobs"]').value==='20' && document.querySelector('[data-path="video_studio.plan.job_timeout_seconds"]').value==='900' && document.querySelector('[data-path="video_studio.plan.agent_provider"]').value===''`).Bool() {
+		t.Fatal("the plan mode defaults are not what the server applies")
+	}
 	page.MustEval(`() => {
         toggleBool(document.querySelector('[data-path="video_studio.enabled"]'));
         const input = document.querySelector('[data-path="video_studio.ffmpeg_path"]');
         input.value = 'C:/Media Tools/ffmpeg.exe'; input.dispatchEvent(new Event('change', {bubbles:true}));
+        const jobs = document.querySelector('[data-path="video_studio.plan.max_daily_jobs"]');
+        jobs.value = '5'; jobs.dispatchEvent(new Event('change', {bubbles:true}));
     }`)
 	page.MustEval(`async () => vdCfgTestVideoStudio(document.querySelector('[onclick="vdCfgTestVideoStudio(this)"]'))`)
 	if !page.MustEval(`() => videoStatusCalls===0 && document.getElementById('vd-video-studio-result').textContent===t('config.video_studio.save_first')`).Bool() {
@@ -40,7 +46,7 @@ func TestConfigVideoStudioBrowser(t *testing.T) {
 	if !page.MustEval(`async () => await saveConfig()`).Bool() {
 		t.Fatal("Video Studio settings could not be saved")
 	}
-	if !page.MustEval(`() => videoSavedConfig.video_studio.enabled===true && videoSavedConfig.video_studio.ffmpeg_path==='C:/Media Tools/ffmpeg.exe'`).Bool() {
+	if !page.MustEval(`() => videoSavedConfig.video_studio.enabled===true && videoSavedConfig.video_studio.ffmpeg_path==='C:/Media Tools/ffmpeg.exe' && videoSavedConfig.video_studio.plan.max_daily_jobs===5`).Bool() {
 		t.Fatal("saving the Desktop section omitted Video Studio settings")
 	}
 	page.MustEval(`async () => vdCfgTestVideoStudio(document.querySelector('[onclick="vdCfgTestVideoStudio(this)"]'))`)

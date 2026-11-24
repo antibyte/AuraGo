@@ -177,7 +177,10 @@ function vdCfgTestDesktop() {
 }
 
 function vdCfgVideoStudio() {
-    const data = configData.video_studio || {};
+    const data = configData.video_studio || (configData.video_studio = {});
+    // Plan mode is on unless the YAML switches it off (config.Load default).
+    const plan = data.plan || (data.plan = {});
+    if (typeof plan.enabled !== 'boolean') plan.enabled = true;
     const prefix = 'config.video_studio.';
     let html = '<h3>' + t(prefix + 'title') + '</h3><p class="field-help">' + t(prefix + 'help') + '</p>';
     html += '<div class="field-grid two-cols">';
@@ -199,6 +202,15 @@ function vdCfgVideoStudio() {
     html += vdCfgField(prefix + 'hardware_encoding', prefix + 'hardware_encoding_help', '<select class="field-select" data-path="video_studio.hardware_encoding">' + Object.keys(hwModes).map(value => '<option value="' + value + '"' + ((data.hardware_encoding || 'auto') === value ? ' selected' : '') + '>' + escapeAttr(hwModes[value]) + '</option>').join('') + '</select>');
     html += vdCfgField(prefix + 'hardware_device', '', '<input class="field-input" type="text" placeholder="/dev/dri/renderD128" value="' + escapeAttr(data.hardware_device || '') + '" data-path="video_studio.hardware_device">');
     html += '</div><div class="field-group"><button type="button" id="vd-video-studio-btn" class="btn-save dc-test-btn" data-config-action-draft="false" onclick="vdCfgTestVideoStudio(this)">' + t(prefix + 'check') + '</button>' + cfgActionResult.html('vd-video-studio-result') + '</div>';
+    html += '<h3>' + t(prefix + 'plan_title') + '</h3>';
+    html += '<div class="field-grid two-cols">';
+    html += vdCfgToggleRow(prefix + 'plan_enabled', prefix + 'plan_help', plan.enabled === true, 'video_studio.plan.enabled');
+    html += '</div><div class="field-grid two-cols">';
+    html += vdCfgField(prefix + 'plan_agent_provider', prefix + 'plan_agent_provider_help', '<select class="field-select" data-path="video_studio.plan.agent_provider" data-config-choice="providers" aria-label="' + escapeAttr(t(prefix + 'plan_agent_provider')) + '">' + cfgChoiceOptionsHTML('providers', helpTexts['video_studio.plan.agent_provider'] || {}, plan.agent_provider || '') + '</select>' + cfgChoiceHintHTML('providers'));
+    html += vdCfgField(prefix + 'plan_agent_model', prefix + 'plan_agent_model_help', '<input class="field-input" type="text" spellcheck="false" autocomplete="off" value="' + escapeAttr(plan.agent_model || '') + '" data-path="video_studio.plan.agent_model">');
+    html += vdCfgField(prefix + 'plan_max_daily_jobs', prefix + 'plan_max_daily_jobs_help', '<input class="field-input" type="number" min="1" max="1000" value="' + escapeAttr(String(plan.max_daily_jobs || 20)) + '" data-path="video_studio.plan.max_daily_jobs">');
+    html += vdCfgField(prefix + 'plan_job_timeout', prefix + 'plan_job_timeout_help', '<input class="field-input" type="number" min="120" max="3600" value="' + escapeAttr(String(plan.job_timeout_seconds || 900)) + '" data-path="video_studio.plan.job_timeout_seconds">');
+    html += '</div>';
     return html;
 }
 
