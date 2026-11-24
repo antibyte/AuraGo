@@ -92,6 +92,7 @@
    Readonly: the lock badge (widgets.css) and no lift shadow under the hardware. Alert: red LED plus a 1px red rim (--hd-ring-alert, widgets.css). */
 .hd-widget[data-hd-family="tactile"] .hd-title { color: var(--hd-t-legend); text-shadow: var(--hd-t-emboss); }
 .hd-widget[data-hd-family="tactile"] .hd-state { color: color-mix(in srgb, var(--hd-t-muted) 55%, var(--hd-t-legend)); } /* the plain muted ink measures 4.47:1 on the lightest panel stop */
+.hd-widget[data-hd-family="tactile"][data-hd-stale="true"] :is(.hd-numeral, .hd-seg7) { color: color-mix(in srgb, var(--hd-t-muted) 55%, var(--hd-t-legend)); } /* the plain muted ink falls to 4.47:1 on the brushed card at 2 dppx */
 .hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] { --hd-card-bg: var(--hd-t-hatch), var(--hd-t-panel); }
 .hd-widget[data-hd-family="tactile"][data-hd-readonly="true"] { --hd-shadow-cast: 0 0 0 0 transparent; }
 .hd-widget[data-hd-family="tactile"] :is(.hd-toggle, .hd-rocker, .hd-dial):is(:focus-visible, [data-hd-focus="ring"]) :is(.hd-toggle-thumb, .hd-rocker-paddle, .hd-dial-cap) { translate: 0 -1px; }
