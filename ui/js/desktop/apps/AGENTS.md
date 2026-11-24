@@ -2422,9 +2422,17 @@ Verify actual save/reload behavior with `TestDesktopSessionRestoreBrowser`.
   Worker and in Node. They use no `Math.random()`, no DOM and no Web Audio. The part
   list is `scripts/desktop-sound-bundle-parts.js`, read by `scripts/build-ui-bundles.js`
   and the Node tools.
-- Themes are data only, validated by `DesktopSoundEngine.defineTheme`. Every theme
-  defines all 26 events. Theme effects live in `fx`, and an effect never sets `space`
+- Themes are data only, validated by `DesktopSoundEngine.defineTheme`. Each
+  `theme-<id>.js` makes one `defineTheme` call with plain data; local helpers that only
+  build its note lists are allowed. Every theme defines all 26 events. Theme effects live
+  in `fx` (Voxel World, Green Slime and Orbit only), and an effect never sets `space`
   (effects use no room reverb).
+- Gates in `scripts/test-desktop-sounds.mjs` (run by `npm run test:desktop-sounds`, also
+  in CI): loudness within ±0.5 LU of the target, or a peak-limited sound at most 3 LU
+  under it; true peak at or below −3 dBTP; natural length within the role maximum; energy
+  below 90 Hz at least 30 dB under the total; variants within 1 LU of each other; mirrored
+  pairs and themes rendering different audio. A new theme or sound must pass them, and
+  character is judged by listening, not by the gates.
 - Rendering happens in a Worker (`bundles/desktop-sounds.bundle.js`) with a
   main-thread fallback, used after a Worker error or when the first reply takes over
   4 s. `window.DesktopSoundsRenderGate` is the test seam for delaying renders: while
@@ -2449,7 +2457,8 @@ Verify actual save/reload behavior with `TestDesktopSessionRestoreBrowser`.
   `TestDesktopSoundRuntimeMarkers`, `TestDesktopSoundHookMarkers`,
   `TestDesktopSoundThemeEvents`, `TestDesktopThemeFxSoundRuntimeContract`,
   `TestGreenSlimeSoundFxContract`, `TestDesktopSoundSettingsUIMarkers`,
-  `TestDesktopSoundTranslations`, the settings service test
+  `TestDesktopSoundTranslations`, `TestDesktopSettingsSymbolicIconAssetsStayCompact`
+  (the speaker icon), the settings service test
   (`TestServiceSettingsUseDefaultsAndValidateWrites`), and the opt-in browser tests
   `TestDesktopSoundBrowser` and `TestDesktopThemeSensoryBrowser`
   (`AURAGO_RUN_BROWSER_SMOKE=1`).

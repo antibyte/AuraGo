@@ -77,23 +77,24 @@ skipped and never played later.
 
 | Theme | Cursor artwork | Sound character |
 | --- | --- | --- |
-| Amiga | Pixel steps, white outlines, orange inlays | Square-wave notes and retro arpeggios |
-| Cyberpunk | Angular neon-yellow pointers and cyan circuit details | Deep electronic pulses, metallic signals and static clicks |
-| Black Gloss | Graphite and silver bevels | Polished glass tones and soft, spacious tails |
-| Crazy | Purple ribbons and mint accents | Bouncing bubbles and surprising, colourful sequences |
-| Lollipop | Rounded candy stripes and heart details | Celesta chimes and candy pops |
-| Organic | Leaf silhouette with walnut and brass inlays | Warm wooden notes, soft air and water-like tones |
-| Electronic Dreams | Teal signal traces and warm pointer lights | Copper clicks, mellow synth pulses and an amber signal arpeggio |
-| Windows XP | Classic pointer with blue and gold details | Bright synthesized chimes, soft clicks and classic digital tones |
-| Green Slime | Glossy lime slime pointer | Gel pops, bubbly drops and low squelches |
-| Voxel World | Block-edged pointer in earth and green tones | Wooden taps, stone ticks and blocky percussive notes |
-| Orbit | Sleek cyan-violet arrow with an amber orbit ring | Soft synth whooshes, sonar pings and airlock hiss |
+| Amiga | Pixel steps, white outlines, orange inlays | Crisp 8-bit square and triangle notes in playful arpeggios, dry with a tiny slap echo |
+| Cyberpunk | Angular neon-yellow pointers and cyan circuit details | A driven low pulse in stutter repeats, a small metal ping above it and faint static on closings |
+| Black Gloss | Graphite and silver bevels | Slow dark glass swells played as dyads and triads, with a faint soft bell as halo |
+| Crazy | Purple ribbons and mint accents | Springy boings and a toy xylophone in whole-tone and Lydian leaps, with an occasional bubble pop |
+| Lollipop | Rounded candy stripes and heart details | Quick music-box runs of celesta and kalimba tines, a glockenspiel on the top note and candy pops |
+| Organic | Leaf silhouette with walnut and brass inlays | A plucked nylon string leads, with a breath of air and a water drop in a soft room |
+| Electronic Dreams | Teal signal traces and warm pointer lights | Fast tine-bell arpeggios over a minor seventh chord, on a dark tape echo, with copper clicks and a slow synth bed under the start sound and notices |
+| Windows XP | Classic pointer with blue and gold details | Electric-piano chords over a pad on the start sound, notices and dialogs, with a light chorus on the start sound and most notices |
+| Green Slime | Glossy lime slime pointer | Clusters of viscous bubbles that sag before they rise, gel pops and a soft wet knock |
+| Voxel World | Block-edged pointer in earth and green tones | Wooden block taps, stone ticks and dull earth knocks |
+| Orbit | Sleek cyan-violet arrow with an amber orbit ring | Soft tine and mellow synth tones over a pad, drifting whooshes, airlock hiss and quiet sonar pings |
 
-Crystal (glass chimes, a breath of air and a bright hall) is the set of Standard, Fruity
-and Minimal. Wood (marimba taps and felt clicks), Analog (a detuned synth with chorus and
-a plate), Workshop (relay clicks, a pneumatic hiss and metal rings) and Water (drops,
-bubbles and an underwater wash) belong to no desktop theme. Choose them by name in Settings.
-They have no cursor artwork.
+Crystal (glass chimes, a breath of air and a bright but soft hall) is the set of Standard,
+Fruity and Minimal. Wood (rosewood marimba phrases, woodblock taps and felt clicks), Analog
+(detuned saw plucks with a sub, chorus and a short plate), Workshop (relay clicks, servo
+glides, a pneumatic breath and a metal pipe ping) and Water (clear drops and small drop
+clusters in a wet, damped cave, with a low-passed wash) belong to no desktop theme. Choose
+them by name in Settings. They have no cursor artwork.
 
 `cursorTheme` and `soundTheme` on each registry descriptor own the pairing.
 `core/cursor-runtime.js` applies versioned, local SVG cursor URLs with native
@@ -109,15 +110,25 @@ them in this order:
 
 - **Kernel** (`dsp-kernel.js`, `self.DesktopSoundDSP`): the seeded random generator,
   envelopes, oscillators, resonators, noise, filters, reverb, chorus, echo, saturation,
-  loudness and true-peak meters. It knows no events and no themes.
-- **Instruments** (`instruments.js`, `self.DesktopSoundInstruments`): fifteen models
-  (`glass`, `bar`, `bell`, `string`, `analog`, `chip`, `drop`, `blip`, `pad`, `metal`,
-  `click`, `thud`, `noise`, `squelch` and `debris`), each with a parameter specification.
+  loudness and true-peak meters, and the master stage. It knows no events and no themes.
+- **Instruments** (`instruments.js`, `self.DesktopSoundInstruments`): fifteen models, each
+  with a parameter specification. `glass` is struck or bloomed glass with a beat twin and
+  an optional tap transient. `bar` is mallet-struck marimba, xylophone, glockenspiel,
+  kalimba or woodblock. `bell` is FM bells, celesta and tines. `string` is plucked nylon,
+  harp or muted strings. `analog` is a subtractive synth with unison, drift and a filter
+  envelope. `chip` is an 8-bit pulse or triangle voice with bit depth, arpeggio and
+  vibrato. `drop` is water drops and bubbles. `blip` is a short synth blip with glide and
+  boing. `pad` is a slow detuned pad with shimmer. `metal` is struck plates, pipes and
+  pings. `click` is a short mechanical click by material. `thud` is a short noise thump.
+  `noise` is filtered white, pink or brown noise. `squelch` is a cluster of viscous
+  bubbles, with an optional wet bed. `debris` is scattered grains: a wood knock, stone and
+  earth. `glass`, `bar`, `bell`, `string`, `drop`, `blip`, `pad` and `metal` also take an
+  `air` bed, a faint band-passed breath that follows the note.
 - **Engine** (`sound-engine.js`, `self.DesktopSoundEngine`): the event catalogue
   (`EVENTS`, `ROLES`, `CATEGORIES`, `FX_ROLES`), theme validation, the theme registry
   and the render pipeline.
 - **Theme data** (`theme-<id>.js`, one file per theme, sixteen in all): one
-  `defineTheme` call with data only. File names use dashes where the theme id uses
+  `defineTheme` call with plain data. File names use dashes where the theme id uses
   underscores (`theme-black-gloss.js` for `black_gloss`).
 - **Render host** (`render-host.js`): answers render requests inside a Worker and does
   nothing in a window.
@@ -132,7 +143,8 @@ them. The bundle builder and the Node tools read that list, and
 
 **Events.** Every theme defines all 26 events. `ROLES` in `sound-engine.js` is the single
 source for each event's category, loudness target, maximum length and number of variants.
-The runtime's `EVENT_CATEGORY` and `EVENT_VARIANTS` mirror it.
+The runtime's `EVENT_CATEGORY` and `EVENT_VARIANTS` mirror it, and `PREWARM_ORDER` sets the
+order in which the variants are rendered after unlock.
 
 | Event | Category | Target (LUFS) | Max length | Variants |
 | --- | --- | --- | --- | --- |
@@ -169,16 +181,19 @@ to its target. The true-peak ceiling of −3 dBTP limits the gain, so a very sho
 can land below its target. That is intended: a tick should not carry the energy of a
 chime. The maximum length includes the reverb tail. A longer sound is cut at its maximum
 with a 15 ms fade-out. The gates measure the natural length, so a theme shortens its own
-tails.
+tails. A tail is trimmed where it falls 66 dB below the peak.
 
 **Rendering.** Each note and layer is rendered by its instrument into a stereo mix. The
 bus then applies drive, tone, chorus, echo and room, in that order. The master applies a
-fourth-order low cut at 110 Hz, trims the quiet tail, applies the length cap and sets the
-loudness target. Every random value comes from a generator seeded by theme, event, variant
+fourth-order low cut at 110 Hz, trims the tail, applies the length cap with its fade-out,
+and sets the loudness target and the −3 dBTP ceiling. Every random value comes from a generator seeded by theme, event, variant
 and note, so the same request always gives the same samples, at 48 kHz.
 
-**Theme data.** A theme file makes one `defineTheme` call with data only. This excerpt
-of `theme-crystal.js` shows the shape; the real file defines all 26 events.
+**Theme data.** A theme file makes one `defineTheme` call with plain data. A file may
+define small local helpers that only build that data, such as Cyberpunk's stutter, Black
+Gloss' dyads or Windows XP's chords. Nothing in a theme file uses randomness, the DOM or
+Web Audio, and the engine validates the result. This excerpt of `theme-crystal.js` shows
+the shape; the real file defines all 26 events.
 
 ```js
 (function () {
@@ -238,29 +253,32 @@ and the room change.
 - **Direction.** Opening, arriving and affirming gestures rise. Closing, leaving and
   declining gestures fall. The mirrored pairs (`window.open` and `window.close`,
   `window.restore` and `window.minimize`, `menu.open` and `menu.close`, `dialog.confirm`
-  and `dialog.cancel`, `ui.toggle.on` and `ui.toggle.off`) use the same notes. The gates
-  check that each pair renders differently.
+  and `dialog.cancel`, `ui.toggle.on` and `ui.toggle.off`) share their pitch material and
+  differ in order, timing or decay. The gates check that each pair renders differently.
 - **Size.** `window.maximize` is the open gesture made wider. `window.snap` is one dry
   tick, the shortest window sound.
-- **Notices.** Info is two rising notes. Message is the theme's signature three-note
-  motif. Success rises and resolves on the key. Warning repeats one note and does not
-  resolve. Error is two low falling notes a semitone or a tritone apart, with a soft
-  attack, never a buzzer.
-- **Deny, files and space.** Deny is one muted low knock. Drop is a soft, low, damped
-  landing. Trash is a short falling flick with a little noise. Delete is lower and more
-  final than trash. A space switch is a short swell of the theme's texture.
+- **Notices.** Info is two rising notes. Message is the theme's signature motif, usually
+  three notes. Success rises and resolves on the key. Warning repeats one note and does not
+  resolve. Error is two falling notes, usually a tritone apart, with a soft attack, never a
+  buzzer.
+- **Deny, files and space.** Deny is a short, muted, low gesture, usually with a knock.
+  Drop is a soft, low, damped landing. Trash is a short falling flick with a little noise.
+  Delete is lower and more final than trash. A space switch is a short swell of the
+  theme's texture.
 - **Touch.** Toggle is a two-tone tick, up for on and down for off. Tick is the shortest
   click. Select is a soft press.
-- **Start.** Four or five notes that state the message motif in the theme's fullest room.
+- **Start.** A short gesture of several notes that states the message motif in the theme's
+  fullest room.
 - **Harmony.** All tonal content uses the theme's key and scale.
 - **Spectrum.** Main energy lies between 250 Hz and 5 kHz, nothing sits below 110 Hz, and
-  the highs are restrained. Tonal attacks take 2 to 8 ms. Ticks are shaped transients,
-  never single-sample clicks.
+  the highs are restrained. Tonal attacks are mostly 1 to 8 ms; pads, swells and breathy
+  notes take longer. Ticks are shaped transients, never single-sample clicks.
 
 **Variants.** Frequent events have two or three variants (see the table). The runtime
 plays them round-robin and never the same variant twice in a row. A variant differs only a
-little: partial tuning within ±4 cents, mallet or strike hardness by up to ±0.08, a timing
-offset of up to ±2 ms, a different noise seed and a level within ±0.4 dB. The level change
+little: a small change of tuning, mallet or strike hardness by up to ±0.08 on the models
+that have it, a timing offset of up to ±2 ms, a different noise seed and a level within
+±0.4 dB. The level change
 is applied after mastering, so it cannot break the loudness gate. A peak-limited sound only
 gets a lower level. Notices, dialogs and the start sound have one variant, so their
 signature sound is always identical. Theme effects have their own variant names.
@@ -268,8 +286,8 @@ signature sound is always identical. Theme effects have their own variant names.
 **Playback and rate limits.** A shell sound goes from its category gain to the master gain
 (the volume setting, squared), then through a safety limiter (threshold −2 dB, ratio 12,
 attack 3 ms, release 120 ms) to the output. Mastered sounds peak at or below −3 dBTP and
-pass the limiter untouched; the limiter only catches overlaps. A shell event starts at most
-once every 70 ms, and at most six voices start in any 250 ms. `ui.*` events have their own
+pass the limiter untouched; the limiter only catches overlaps. Each shell event starts at
+most once per 70 ms, and at most six voices start in any 250 ms. `ui.*` events have their own
 gap of 40 ms per event and do not count against the six voices. Notices in one burst are
 thinned, so that at most two play within 120 ms of the first. Previews skip the category
 switches and play to the master gain.
@@ -343,21 +361,27 @@ rendered is dropped. Each sound is rendered on first use and cached per theme, e
 variant, so the full bank is never rendered for it. `inspect().themeFx` counts requests,
 plays, rate-limited and expired calls per family.
 
-- **Sound design.** The effects use the shared instruments and the sound language.
-  `window.fracture` and `window.impact` are built from `debris`, the wood-block `bar`,
-  the stone `click` and `thud`, one set per material. `slime.pop` and `slime.snap` use
-  `drop` and `squelch`. `orbit.ping` is a `blip` sonar with its own short echo. The
-  maximum lengths are 0.7 s (Voxel World), 0.3 s (Green Slime) and 1.0 s (Orbit).
+- **Sound design.** The effects use the shared instruments and the sound language, with
+  one set per material or size. `window.fracture` is built from `debris` grains (wood,
+  stone or earth), with stone clicks in the wood variant and grit noise in the earth
+  variant. `window.impact` is a woodblock tap with wood grains (wood), a stone click with
+  stone and earth grains (stone), and an earth click with grit and earth grains (earth).
+  `slime.pop` is a `drop` bubble with a short noise smack, and `slime.snap` is a short
+  `squelch` strand with the same smack. `orbit.ping` is a `blip` sonar in three sizes,
+  at semitone offsets 12, 7 and 0 from the key, each with its own echo of 0.12, 0.17 and
+  0.20 s. The maximum lengths are 0.7 s (Voxel World), 0.3 s (Green Slime) and 1.0 s
+  (Orbit).
 - **Levels.** Each effect is mastered to the window level (−23 LUFS). At playback the
   runtime scales it by `strength` to the power 0.85, times the gain of its event: 0.52
   for Voxel World, 0.40 for a pop, 0.42 for a snap and 0.38 for an Orbit ping. At full
   strength a pop sits about 8 dB under a window sound. The power curve makes weak calls
   slightly louder than a linear scale would. The master volume and the category of the
   event apply as usual.
-- **Rate limits.** Merge windows, expiry and rates are unchanged: at most one pop per
-  350 ms, one snap per 900 ms and three Green Slime sounds per 2 s; Voxel World keeps four
-  per second and 190 ms apart. Orbit allows one ping per 350 ms and three Orbit sounds per
-  2 s.
+- **Rate limits.** Calls within the merge window are merged, and a merged call expires
+  after 240 ms. Voxel World plays at most four effect sounds per second, at least 190 ms
+  apart. Green Slime pops are at least 350 ms apart, snaps at least 900 ms apart, and at
+  most three Green Slime sounds play in any 2 s. Orbit pings are at least 350 ms apart, and
+  at most three Orbit sounds play in any 2 s.
 - **Room.** Effects use no room reverb. A theme cannot give an effect a `space`, and the
   engine applies no room to an effect. An effect may carry its own short `echo`, which the
   Orbit ping uses.
@@ -372,13 +396,15 @@ plays, rate-limited and expired calls per family.
   start at zero, determinism and the pitch of the tonal models.
   `scripts/test-desktop-sounds.mjs` holds the measured gates. They render every event and
   variant of every theme, and every effect variant, and assert the following. The catalogue
-  has 26 events, each with a known category and 1 to 3 variants, and all 16 themes register. Validation rejects broken
-  definitions. Loudness lies within ±0.5 LU of the target, or below it when the peak ceiling
-  binds. The reported loudness matches a separate measurement. True peak is at or below
-  −3 dBTP. The natural length is within the maximum. The first and last samples are zero,
-  and there is no DC offset. Energy below 90 Hz is at least 30 dB under the total. Rendering
-  is deterministic. Variants differ from each other by at most 1 LU. Mirrored pairs differ,
-  and in a full run no two themes render identical audio for an event. A theme renders
+  has 26 events, each with a known category and 1 to 3 variants, and all 16 themes register.
+  Validation rejects broken definitions. Loudness lies within ±0.5 LU of the target. A
+  peak-limited sound lies at most 0.5 LU above the target and at most 3 LU below it. The
+  reported loudness matches a separate measurement. True peak is at or below −3 dBTP. The
+  natural length is within the maximum. The first and last samples are zero, and there is
+  no DC offset. Energy below 90 Hz is at least 30 dB under the total. Rendering is
+  deterministic. Variants are distinct from each other and differ by at most 1 LU. Mirrored
+  pairs differ within a theme, and in a full run no two themes render identical audio for an
+  event. A theme renders
   within 6000 ms (`DESKTOP_SOUNDS_THEME_BUDGET_MS` overrides it). `--theme <id>[,<id>]`
   runs the gates for the named themes only, without the cross-theme checks.
 - `node scripts/render-desktop-sounds.mjs --theme <id> --out <dir> [--event <id>]
@@ -387,10 +413,23 @@ plays, rate-limited and expired calls per family.
   (`<theme>-contact-sheet.wav`) and `levels.json` with the measured values. `--theme all`
   renders every theme. `--json` prints the level table as JSON.
 
-The gates prove levels, lengths and cleanliness. They do not prove how a theme sounds. A
-theme is judged by listening: render its contact sheet and its key events, check them
-against the sound language and the theme's identity, and change the theme data, never the
-core, until they fit.
+The gates prove levels, lengths and cleanliness. They do not prove how a theme sounds: its
+character is judged by listening, by rendering its contact sheet and key events, checking
+them against the sound language and the theme's identity, and changing the theme data,
+never the core, until they fit. During the rewrite each theme was also checked with an
+audio listening model, for how procedural it reads and for how similar the same event
+sounds in related themes.
+
+**Design limits.** These limits came up while the themes were written.
+
+- Nothing sits below 110 Hz, and the gate requires energy below 90 Hz to be at least 30 dB
+  under the total. A very short note below roughly 200 to 260 Hz therefore fails, so short
+  low sounds are not possible, and low themes sit higher than their names suggest.
+- Maximum lengths include the echo and reverb tails, which are trimmed at −66 dB. Echo
+  feedback above about 0.1 to 0.2 only fits notices, dialogs and the start sound.
+- Themes of one family (chimes, wood, synth, drops) must be kept apart by articulation and
+  texture, not only by instrument, because the shared sound language fixes the direction
+  of every gesture.
 
 ### Architecture
 
