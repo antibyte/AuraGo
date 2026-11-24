@@ -69,6 +69,9 @@ const (
 	CloseDeviceRevoked = "device_revoked"
 	CloseAuthLost      = "auth_lost"
 	CloseClosed        = "closed"
+
+	// CloseApprovalChanged ends kiosk streams whose approved revision moved.
+	CloseApprovalChanged = "approval_changed"
 )
 
 // stateRecorder is the history ring (historyStore in history.go).
@@ -199,20 +202,26 @@ func (h *Hub) sourcesLocked() []SourceStatus {
 	return out
 }
 
-// DashboardChanged tells desktop streams about every change and kiosk streams of that dashboard
-// only when its approved revision moved.
+// DashboardChanged tells desktop streams about every change. Kiosk streams of that dashboard end
+// with CloseApprovalChanged when its approved revision moved (or was not known yet): their allowed
+// set belongs to the old approved revision, so the display must attach again.
 func (h *Hub) DashboardChanged(id string, revision, approved int64) {
 	h.mu.Lock()
-	defer h.mu.Unlock()
 	prev, seen := h.approved[id]
 	h.approved[id] = approved
 	ev := DashboardEvent{ID: id, Revision: revision, ApprovedRevision: approved}
+	var notes []*interestNote
 	for _, s := range h.subs {
-		if s.p.Kind == PrincipalKiosk && (s.p.DashboardID != id || (seen && prev == approved)) {
+		if s.p.Kind == PrincipalKiosk {
+			if s.p.DashboardID == id && !(seen && prev == approved) {
+				notes = append(notes, h.detachLocked(s, CloseApprovalChanged)...)
+			}
 			continue
 		}
 		s.pushDashboard(ev)
 	}
+	h.mu.Unlock()
+	h.deliver(notes)
 }
 
 // RevokeDevice ends the streams of one kiosk device.

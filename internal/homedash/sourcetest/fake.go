@@ -17,7 +17,9 @@ type FakeSource struct {
 	CommandGate    chan struct{} // when set, Command waits until it is closed
 	CommandErr     error
 	PanicOnCommand bool // Command panics after recording the call
-	CommandResult  homedash.CommandResult
+	// OnCommand runs after a call was recorded and before the gate; it may block. Set it before use.
+	OnCommand     func(homedash.Command)
+	CommandResult homedash.CommandResult
 
 	// ExitDelay holds Run back after its context ended; CatalogDelay blocks Catalog without watching its
 	// context; CatalogScript scripts the next Catalog calls in order. Set them before the source is used.
@@ -120,6 +122,9 @@ func (f *FakeSource) Command(ctx context.Context, cmd homedash.Command) (homedas
 	gate := f.CommandGate
 	f.mu.Unlock()
 	defer func() { f.mu.Lock(); f.inCommand--; f.mu.Unlock() }()
+	if f.OnCommand != nil {
+		f.OnCommand(cmd)
+	}
 	if f.PanicOnCommand {
 		panic("sourcetest: scripted command panic with upstream text")
 	}

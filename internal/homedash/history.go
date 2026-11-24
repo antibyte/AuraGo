@@ -50,12 +50,19 @@ func newHistoryStore(points, entities int, bucket time.Duration) *historyStore {
 func (s *historyStore) touch(id EntityID, now time.Time) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if r := s.ringLocked(id, now); r != nil {
+		r.lastUse = now
+	}
+}
+
+// ringLocked returns the ring of id, creating it (and evicting the least recently used ring when the
+// store is full). It returns nil for a degenerate configuration.
+func (s *historyStore) ringLocked(id EntityID, now time.Time) *ring {
 	if s.points <= 0 || s.maxEntities <= 0 {
-		return
+		return nil
 	}
 	if r := s.rings[id]; r != nil {
-		r.lastUse = now
-		return
+		return r
 	}
 	for len(s.rings) >= s.maxEntities {
 		var oldest EntityID
@@ -71,17 +78,20 @@ func (s *historyStore) touch(id EntityID, now time.Time) {
 		}
 		delete(s.rings, oldest)
 	}
-	s.rings[id] = &ring{buf: make([]Sample, s.points), lastUse: now}
+	r := &ring{buf: make([]Sample, s.points), lastUse: now}
+	s.rings[id] = r
+	return r
 }
 
-// observe stores a finite sample for an entity that has a ring; others are ignored.
+// observe stores a finite sample. The hub calls it only for subscribed entities, so a missing ring
+// (evicted while the entity stayed subscribed) is created again, with the same LRU eviction as touch.
 func (s *historyStore) observe(id EntityID, v float64, at time.Time) {
 	if math.IsNaN(v) || math.IsInf(v, 0) {
 		return
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	r := s.rings[id]
+	r := s.ringLocked(id, at)
 	if r == nil || len(r.buf) == 0 {
 		return
 	}

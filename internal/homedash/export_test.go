@@ -15,3 +15,18 @@ func SetQueuedHookForTest(h *Hub, fn func()) {
 	h.cmds.queuedHook = fn
 	h.cmds.mu.Unlock()
 }
+
+// SetSemWaitHookForTest registers a callback that runs when a command starts waiting for one of the
+// per-source in-flight slots.
+func SetSemWaitHookForTest(h *Hub, fn func()) {
+	h.cmds.mu.Lock()
+	h.cmds.semWaitHook = fn
+	h.cmds.mu.Unlock()
+}
+
+// SetDedupeWaitHookForTest registers a callback that runs when a duplicate request id starts waiting.
+func SetDedupeWaitHookForTest(h *Hub, fn func()) {
+	h.cmds.mu.Lock()
+	h.cmds.dedupeWaitHook = fn
+	h.cmds.mu.Unlock()
+}

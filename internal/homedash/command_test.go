@@ -5,6 +5,7 @@ import (
 	"errors"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -68,6 +69,8 @@ func TestCommandPipelineGates(t *testing.T) {
 		{"kiosk without allowed set", nil, cmd("fa:light", homedash.CapToggle, nil, homedash.Principal{Kind: homedash.PrincipalKiosk, Key: "kd"}), homedash.CodeForbiddenEntity, ""},
 		{"kiosk denied unlock", nil, unlockConfirmed, homedash.CodeForbiddenEntity, "kiosk.denied"},
 		{"sensitive unconfirmed", nil, cmd("fa:lock", homedash.CapUnlock, nil, sess), homedash.CodeConfirmationRequired, ""},
+		{"empty session key", nil, cmd("fa:light", homedash.CapToggle, nil, session("")), homedash.CodeForbiddenEntity, "principal"},
+		{"empty kiosk key", nil, cmd("fa:light", homedash.CapToggle, nil, homedash.Principal{Kind: homedash.PrincipalKiosk, Key: "", Allowed: &homedash.AllowedSet{Commands: map[homedash.EntityID]map[homedash.Capability]bool{"fa:light": {homedash.CapToggle: true}}}}), homedash.CodeForbiddenEntity, "principal"},
 		{"agent", nil, cmd("fa:light", homedash.CapToggle, nil, agent), homedash.CodeForbiddenEntity, "agent"},
 		{"unknown principal", nil, cmd("fa:light", homedash.CapToggle, nil, homedash.Principal{Kind: "robot", Key: "r"}), homedash.CodeForbiddenEntity, "principal"},
 		{"ok", nil, cmd("fa:light", homedash.CapToggle, nil, sess), "", ""},
@@ -135,6 +138,13 @@ func TestCommandLatestWinsSlot(t *testing.T) {
 	fa := gateSource()
 	fa.CommandGate = make(chan struct{})
 	h := newTestHub(t, nil, fa)
+	var mu sync.Mutex
+	var outcomes []string
+	homedash.SetAuditForTest(h, func(_ context.Context, _ homedash.Command, outcome string) {
+		mu.Lock()
+		outcomes = append(outcomes, outcome)
+		mu.Unlock()
+	})
 	queued := make(chan struct{}, 4)
 	homedash.SetQueuedHookForTest(h, func() { queued <- struct{}{} })
 	ctx := context.Background()
@@ -172,6 +182,13 @@ func TestCommandLatestWinsSlot(t *testing.T) {
 		t.Fatal("the latest value was reported as superseded")
 	}
 	sourcetest.WaitFor(t, time.Second, func() bool { return len(fa.Commands()) == 2 }, "two commands sent")
+	sourcetest.WaitFor(t, time.Second, func() bool { mu.Lock(); defer mu.Unlock(); return len(outcomes) == 3 }, "three audit entries")
+	mu.Lock()
+	got3 := slices.Sorted(slices.Values(outcomes))
+	mu.Unlock()
+	if !slices.Equal(got3, []string{"ok", "ok", "superseded"}) {
+		t.Fatalf("audit outcomes %v", got3)
+	}
 	got := fa.Commands()
 	if got[0].Args["value"] != 10.0 || got[1].Args["value"] != 30.0 {
 		t.Fatalf("sent %v then %v, want 10 then 30", got[0].Args["value"], got[1].Args["value"])

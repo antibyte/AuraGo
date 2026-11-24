@@ -9,7 +9,7 @@ import (
 func TestHistoryRingDownsamplesAndEvictsLRU(t *testing.T) {
 	base := time.Date(2026, 11, 23, 10, 0, 0, 0, time.UTC)
 	hs := newHistoryStore(4, 2, time.Minute)
-	hs.observe("fa:a", 9, base) // no ring yet: ignored
+	hs.observe("fa:a", 9, base) // creates the ring (observe is only called for subscribed entities)
 	hs.touch("fa:a", base)
 	for i, v := range []float64{1, 2, 3} {
 		hs.observe("fa:a", v, base.Add(time.Duration(i)*20*time.Second))

@@ -605,3 +605,67 @@ func TestHubKioskNilAllowedGetsNothing(t *testing.T) {
 		t.Fatalf("agent attach: %v", err)
 	}
 }
+
+func TestHubApprovalChangeEndsKioskStreams(t *testing.T) {
+	fa := sourcetest.New("fa", sourcetest.Entity("fa:x", homedash.KindSensor))
+	h := newTestHub(t, nil, fa)
+	kioskOn := func(key, dash string) *homedash.Subscriber {
+		t.Helper()
+		s, err := h.Attach(homedash.Principal{Kind: homedash.PrincipalKiosk, Key: key, DeviceID: key, DashboardID: dash})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return s
+	}
+	desk, err := h.Attach(session("desk"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	kx, ky := kioskOn("kd_x", "x"), kioskOn("kd_y", "y")
+
+	h.DashboardChanged("x", 1, 1) // approved revision not known before: counts as moved
+	if got := waitClosed(t, kx); got != homedash.CloseApprovalChanged {
+		t.Fatalf("kiosk of x closed with %q", got)
+	}
+	if b := desk.Drain(); b.Dashboard == nil || b.Dashboard.ID != "x" || b.Closed != "" {
+		t.Fatalf("desktop batch %+v", b)
+	}
+	if b := ky.Drain(); b.Closed != "" || b.Dashboard != nil {
+		t.Fatalf("kiosk of y touched: %+v", b)
+	}
+
+	kx2 := kioskOn("kd_x2", "x")
+	h.DashboardChanged("x", 2, 1) // same approved revision: nobody ends
+	if b := kx2.Drain(); b.Closed != "" || b.Dashboard != nil {
+		t.Fatalf("unchanged approval touched the kiosk: %+v", b)
+	}
+	h.DashboardChanged("x", 3, 2)
+	if got := waitClosed(t, kx2); got != homedash.CloseApprovalChanged {
+		t.Fatalf("second kiosk closed with %q", got)
+	}
+	if b := ky.Drain(); b.Closed != "" {
+		t.Fatalf("kiosk of y closed with %q", b.Closed)
+	}
+}
+
+// A ring evicted while its entity stays subscribed is created again by the next sample.
+func TestHistoryRingRecreatedForSubscribedEntity(t *testing.T) {
+	fa := sourcetest.New("fa", sourcetest.Entity("fa:x", homedash.KindSensor), sourcetest.Entity("fa:y", homedash.KindSensor), sourcetest.Entity("fa:z", homedash.KindSensor))
+	h := newTestHub(t, func(c *homedash.RuntimeConfig) {
+		c.History = homedash.HistoryConfig{RingPoints: 10, RingEntities: 2, SampleSeconds: 60}
+	}, fa)
+	sub, _ := h.Attach(session("s"))
+	for _, set := range [][]string{{"fa:x"}, {"fa:x", "fa:y"}, {"fa:x", "fa:y", "fa:z"}} {
+		sub.Set(ids(set...))
+		time.Sleep(3 * time.Millisecond)
+	}
+	sourcetest.WaitFor(t, time.Second, func() bool { return fa.Running() == 1 }, "running")
+	now := time.Now()
+	if !fa.Push(homedash.StateUpdate{Native: "x", State: homedash.State{Value: 7.0, Available: true, UpdatedAt: now}}) {
+		t.Fatal("push failed")
+	}
+	s, err := h.History(context.Background(), "fa:x", now.Add(-time.Hour), now.Add(time.Minute), 10)
+	if err != nil || len(s.Points) != 1 || s.Points[0].V != 7 {
+		t.Fatalf("history of the evicted entity: %+v %v", s, err)
+	}
+}
