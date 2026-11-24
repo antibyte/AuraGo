@@ -119,8 +119,8 @@
         const arcEl = svgEl('path', { class: 'hd-gauge-arc', pathLength: 1000, d: full }); svg.appendChild(arcEl);
         const zoneEl = o.zoneOverlay ? svgEl('path', { class: 'hd-gauge-arc-zone', pathLength: 1000, d: full }) : null; if (zoneEl) svg.appendChild(zoneEl);
         const leadEl = o.lead && quantize > 0 ? svgEl('path', { class: 'hd-gauge-lead', d: '' }) : null; if (leadEl) svg.appendChild(leadEl);
-        svg.appendChild(svgEl('g', { class: 'hd-gauge-cap' }, svgEl('circle', { class: 'hd-gauge-capdot', cx: 100, cy: 12, r: 7 })));
         if (o.gaps > 0) svg.appendChild(svgEl('path', { class: 'hd-gauge-gaps', pathLength: 1000, d: full }));
+        svg.appendChild(svgEl('g', { class: 'hd-gauge-cap' }, svgEl('circle', { class: 'hd-gauge-capdot', cx: 100, cy: 12, r: 7 })));
         const parts = gaugeParts(o, lang);
         node.appendChild(svg); node.appendChild(parts.readout); node.appendChild(parts.minEl); node.appendChild(parts.maxEl);
         function set(state) {

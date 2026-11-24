@@ -99,11 +99,11 @@
         const glowEl = o.glow ? svgEl('path', { class: 'hd-dial-glow', pathLength: 1000, d: full }) : null; if (glowEl) svg.appendChild(glowEl);
         const arcEl = svgEl('path', { class: 'hd-dial-arc', pathLength: 1000, d: full }); svg.appendChild(arcEl);
         const leadEl = o.lead && quantize > 0 ? svgEl('path', { class: 'hd-dial-lead', d: '' }) : null; if (leadEl) svg.appendChild(leadEl);
+        if (o.gaps > 0) svg.appendChild(svgEl('path', { class: 'hd-dial-gaps', pathLength: 1000, d: full }));
         svg.appendChild(svgEl('g', { class: 'hd-dial-handle' }, [o.handleShadow ? svgEl('circle', { class: 'hd-dial-knob-shadow', cx: 100, cy: 13.5, r: 11 }) : null,
             svgEl('circle', { class: 'hd-dial-knob', cx: 100, cy: 12, r: 11 })]));
         if (segment) svg.appendChild(svgEl('g', { class: 'hd-dial-current' }, [svgEl('path', { class: 'hd-dial-marker', d: 'M100 0L106 9H94Z' }),
             o.needle ? svgEl('path', { class: 'hd-dial-needle', d: 'M100 14V42' }) : null]));
-        if (o.gaps > 0) svg.appendChild(svgEl('path', { class: 'hd-dial-gaps', pathLength: 1000, d: full }));
         node.appendChild(svg);
         if (o.hardware) node.appendChild(el('span', { class: 'hd-dial-knurl', 'aria-hidden': 'true' }));
         node.appendChild(el('span', { class: 'hd-dial-cap', 'aria-hidden': 'true' }, el('span', { class: 'hd-dial-pointer' })));
