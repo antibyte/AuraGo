@@ -1,0 +1,196 @@
+# Module and expansion-bus connectors of the debug group. The sources behind every item are in documentation/ecalc-sources/pinouts/debug/;
+# a changed pin updates that record, this file and the item's vector together.
+
+- id: esp01
+  kind: pinout
+  category: pinouts
+  group: debug
+  name: {cs: "ESP-01 (ESP8266)", da: "ESP-01 (ESP8266)", de: "ESP-01 (ESP8266)", el: "ESP-01 (ESP8266)", en: "ESP-01 (ESP8266)", es: "ESP-01 (ESP8266)", fr: "ESP-01 (ESP8266)", hi: "ESP-01 (ESP8266)", it: "ESP-01 (ESP8266)", ja: "ESP-01 (ESP8266)", nl: "ESP-01 (ESP8266)", no: "ESP-01 (ESP8266)", pl: "ESP-01 (ESP8266)", pt: "ESP-01 (ESP8266)", sv: "ESP-01 (ESP8266)", zh: "ESP-01 (ESP8266)"}
+  doc: {en: "The 2 × 4 pin, 0.1 inch header of the Ai-Thinker ESP-01 and ESP-01S Wi-Fi modules (ESP8266). Pin 1 is GND and pin 8 is VCC.", de: "Der Anschluss mit 2 × 4 Stiften im 2,54-mm-Raster der WLAN-Module ESP-01 und ESP-01S von Ai-Thinker (ESP8266). Pin 1 ist GND und Pin 8 ist VCC."}
+  notes: {en: "The numbering runs along the rows, not counter-clockwise like a DIP package: pin 5 lies below pin 1. The module runs on 3.0 to 3.6 V and must not be fed 5 V. Ai-Thinker's boot table: for flashing (download mode) IO0 must be low at reset while IO2 and EN are high; for normal running IO0 is high. IO2 must be high at boot in both modes. The module can draw about 170 mA when transmitting, more than the 3.3 V pin of many USB-serial adapters supplies. Cheap clones of other makers are not covered.", de: "Die Nummerierung läuft entlang der Reihen, nicht gegen den Uhrzeigersinn wie bei einem DIP-Gehäuse: Pin 5 liegt unter Pin 1. Das Modul läuft mit 3,0 bis 3,6 V und darf keine 5 V bekommen. Ai-Thinkers Starttabelle: Zum Flashen (Download-Modus) muss IO0 beim Reset low sein, IO2 und EN sind high; für den normalen Betrieb ist IO0 high. IO2 muss beim Start in beiden Modi high sein. Beim Senden kann das Modul etwa 170 mA ziehen, mehr als der 3,3-V-Pin vieler USB-Seriell-Adapter liefert. Nachbauten anderer Hersteller sind nicht erfasst."}
+  tags: [esp01, "esp-01", esp01s, "esp-01s", esp8266, "ai-thinker", aithinker, wifi, wlan, at, uart, gpio0, gpio2, ch_pd, reset, flash, "8-pin", "8-polig", modul, module]
+  source: "Shenzhen Ai-Thinker Technology, ESP-01/07/12 Series Modules User's Manual, version 1.3 (figure 2.1, tables 2.2 and 2.3, tables 3.1 and 3.2, figure 4.1)"
+  views:
+    plug: {en: "Pin side of the module, seen from below", de: "Stiftseite des Moduls, von unten gesehen"}
+    socket: {en: "Female header of the host, seen from above (module from its component side, antenna at the top)", de: "Buchsenleiste des Hosts, von oben gesehen (Modul von der Bauteilseite, Antenne oben)"}
+  shape:
+    type: rows
+    outline: rect
+    contact: square
+    drawn: socket
+    rows:
+      - {pins: ["1", "2", "3", "4"]}
+      - {pins: ["5", "6", "7", "8"]}
+  pins:
+    - {number: "1", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "2", name: "IO2", function: {en: "GPIO2; must be high at boot (both boot modes)", de: "GPIO2; muss beim Start high sein (beide Startmodi)"}, type: io}
+    - {number: "3", name: "IO0", function: {en: "GPIO0; low at boot = download (flash) mode, high = run mode", de: "GPIO0; low beim Start = Download-(Flash-)Modus, high = Normalbetrieb"}, type: io}
+    - {number: "4", name: "RXD", function: {en: "UART0 receive (GPIO3), input of the module", de: "UART0 Empfang (GPIO3), Eingang des Moduls"}, type: data}
+    - {number: "5", name: "TXD", function: {en: "UART0 transmit (GPIO1), output of the module", de: "UART0 Senden (GPIO1), Ausgang des Moduls"}, type: data}
+    - {number: "6", name: "EN", function: {en: "Chip enable (CH_PD), active high; pull up to run", de: "Chip-Freigabe (CH_PD), aktiv high; zum Betrieb hochziehen"}, type: signal}
+    - {number: "7", name: "RST", function: {en: "Reset, active low", de: "Reset, aktiv low"}, type: signal}
+    - {number: "8", name: "VCC", function: {en: "Supply 3.0 to 3.6 V (3.3 V typical); not 5 V", de: "Versorgung 3,0 bis 3,6 V (typisch 3,3 V); nicht 5 V"}, type: power}
+
+- id: nrf24l01
+  kind: pinout
+  category: pinouts
+  group: debug
+  name: {cs: "Modul nRF24L01 (2×4)", da: "nRF24L01-modul (2×4)", de: "nRF24L01-Modul (2×4)", el: "Μονάδα nRF24L01 (2×4)", en: "nRF24L01 module (2×4)", es: "Módulo nRF24L01 (2×4)", fr: "Module nRF24L01 (2×4)", hi: "nRF24L01 मॉड्यूल (2×4)", it: "Modulo nRF24L01 (2×4)", ja: "nRF24L01モジュール(2×4)", nl: "nRF24L01-module (2×4)", no: "nRF24L01-modul (2×4)", pl: "Moduł nRF24L01 (2×4)", pt: "Módulo nRF24L01 (2×4)", sv: "nRF24L01-modul (2×4)", zh: "nRF24L01 模块(2×4)"}
+  doc: {en: "The common 2 × 4 pin, 0.1 inch header of nRF24L01 radio modules, as documented for the Ebyte E01 modules. The signal names are those of Nordic's chip.", de: "Der verbreitete Anschluss mit 2 × 4 Stiften im 2,54-mm-Raster von nRF24L01-Funkmodulen, wie er für die Ebyte-E01-Module dokumentiert ist. Die Signalnamen stammen vom Chip von Nordic."}
+  notes: {en: "This is the pin order that Ebyte documents for its E01 modules. Unbranded nRF24L01 modules have no maker document: check the silkscreen of your board. Supply 3.3 V only: Ebyte states 2.0 to 3.6 V for its modules, Nordic 1.9 to 3.6 V for the chip, and above 3.6 V the module is destroyed. Keep 5 V signal lines away or use series resistors, as Ebyte advises. Modules with a power amplifier draw more than 100 mA when sending (Ebyte: 130 mA at 20 dBm, the supply must deliver more than 300 mA).", de: "Das ist die Pinfolge, die Ebyte für seine E01-Module dokumentiert. Für unbeschriftete nRF24L01-Module gibt es kein Herstellerdokument: die Beschriftung der eigenen Platine prüfen. Nur 3,3 V Versorgung: Ebyte nennt für seine Module 2,0 bis 3,6 V, Nordic 1,9 bis 3,6 V für den Chip, und über 3,6 V wird das Modul zerstört. 5-V-Signalleitungen fernhalten oder Vorwiderstände nehmen, wie Ebyte rät. Module mit Leistungsverstärker ziehen beim Senden mehr als 100 mA (Ebyte: 130 mA bei 20 dBm, die Versorgung muss mehr als 300 mA liefern)."}
+  tags: [nrf24l01, "nrf24l01+", nrf24, nordic, ebyte, e01, "e01-ml01dp5", radio, funk, "2.4 ghz", spi, ce, csn, irq, sck, mosi, miso, "8-pin", "8-polig", modul, module]
+  source: "Chengdu Ebyte, E01-ML01DP5 user manual v4.5 (pin definition, electrical parameters, schematic); Nordic Semiconductor, nRF24L01+ Single Chip 2.4GHz Transceiver Product Specification v1.0 (table 1, operating conditions)"
+  views:
+    plug: {en: "Pin side of the module, seen from below", de: "Stiftseite des Moduls, von unten gesehen"}
+    socket: {en: "Female header of the host, seen from above (module from its component side, antenna at the right)", de: "Buchsenleiste des Hosts, von oben gesehen (Modul von der Bauteilseite, Antenne rechts)"}
+  shape:
+    type: rows
+    outline: rect
+    contact: square
+    drawn: socket
+    rows:
+      - {pins: ["1", "2"]}
+      - {pins: ["3", "4"]}
+      - {pins: ["5", "6"]}
+      - {pins: ["7", "8"]}
+  pins:
+    - {number: "1", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "2", name: "VCC", function: {en: "Supply 2.0 to 3.6 V (Ebyte); above 3.6 V the module is destroyed", de: "Versorgung 2,0 bis 3,6 V (Ebyte); über 3,6 V wird das Modul zerstört"}, type: power}
+    - {number: "3", name: "CE", function: {en: "Chip enable, input: activates RX or TX mode", de: "Chip Enable, Eingang: schaltet RX- oder TX-Betrieb ein"}, type: signal}
+    - {number: "4", name: "CSN", function: {en: "SPI chip select, input", de: "SPI-Chipauswahl, Eingang"}, type: signal}
+    - {number: "5", name: "SCK", function: {en: "SPI clock, input", de: "SPI-Takt, Eingang"}, type: data}
+    - {number: "6", name: "MOSI", function: {en: "SPI data into the module", de: "SPI-Daten in das Modul"}, type: data}
+    - {number: "7", name: "MISO", function: {en: "SPI data out of the module (tri-state)", de: "SPI-Daten aus dem Modul (Tri-State)"}, type: data}
+    - {number: "8", name: "IRQ", function: {en: "Interrupt output, active low", de: "Interrupt-Ausgang, aktiv low"}, type: signal}
+
+- id: hc_sr04
+  kind: pinout
+  category: pinouts
+  group: debug
+  name: {cs: "HC-SR04", da: "HC-SR04", de: "HC-SR04", el: "HC-SR04", en: "HC-SR04", es: "HC-SR04", fr: "HC-SR04", hi: "HC-SR04", it: "HC-SR04", ja: "HC-SR04", nl: "HC-SR04", no: "HC-SR04", pl: "HC-SR04", pt: "HC-SR04", sv: "HC-SR04", zh: "HC-SR04"}
+  doc: {en: "The 4-pin header of the HC-SR04 ultrasonic ranging module: VCC, Trig, Echo, GND. The module prints no pin numbers, so the pins are named by their signals.", de: "Der 4-polige Anschluss des Ultraschall-Entfernungsmoduls HC-SR04: VCC, Trig, Echo, GND. Das Modul druckt keine Pinnummern, deshalb sind die Pins nach ihren Signalen benannt."}
+  notes: {en: "Echo is a 5 V signal: a 3.3 V controller needs a voltage divider or a level shifter there (this advice follows from the 5 V level, it is not a statement of the vendors). Connect GND first, before VCC, as both vendor documents ask. Both documents are vendor reproductions, no document of the original maker was found; clone boards with another layout exist (the HC-SR04P and RCWL types were not read), so check the silkscreen.", de: "Echo ist ein 5-V-Signal: Ein 3,3-V-Controller braucht dort einen Spannungsteiler oder Pegelwandler (der Rat folgt aus dem 5-V-Pegel, er ist keine Aussage der Anbieter). Zuerst GND anschließen, dann VCC, wie beide Anbieterdokumente verlangen. Beide Dokumente sind Nachdrucke von Anbietern, ein Dokument des ursprünglichen Herstellers wurde nicht gefunden; Nachbauten mit anderer Belegung existieren (die Typen HC-SR04P und RCWL wurden nicht gelesen), deshalb die Beschriftung der Platine prüfen."}
+  tags: [hc-sr04, hcsr04, ultrasonic, ultraschall, distance, entfernung, abstand, sonar, ranging, trig, echo, trigger, "4-pin", "4-polig", sensor, modul, module, elecfreaks, cytron]
+  source: "ElecFreaks, Ultrasonic Ranging Module HC-SR04 (SparkFun copy, pages 1 to 3); Cytron Technologies, Product User's Manual HC-SR04 Ultrasonic Sensor, V1.0 (pages 5 to 7)"
+  views:
+    plug: {en: "Module seen from the front (transducers facing you, pins down)", de: "Modul von vorn gesehen (Schallwandler zum Betrachter, Pins unten)"}
+    socket: {en: "Module seen from the back (component side, pins down)", de: "Modul von hinten gesehen (Bauteilseite, Pins unten)"}
+  shape:
+    type: rows
+    outline: rect
+    contact: square
+    drawn: plug
+    rows:
+      - {pins: ["VCC", "Trig", "Echo", "GND"]}
+  pins:
+    - {number: "VCC", name: "VCC", function: {en: "5 V supply (4.5 to 5.5 V)", de: "5-V-Versorgung (4,5 bis 5,5 V)"}, type: power}
+    - {number: "Trig", name: "Trig", function: {en: "Trigger input: a high pulse of at least 10 µs starts a measurement", de: "Trigger-Eingang: ein High-Impuls von mindestens 10 µs startet eine Messung"}, type: signal}
+    - {number: "Echo", name: "Echo", function: {en: "Echo output: high for a time proportional to the distance (µs / 58 = cm), 5 V level", de: "Echo-Ausgang: High für eine zur Entfernung proportionale Zeit (µs / 58 = cm), 5-V-Pegel"}, type: signal}
+    - {number: "GND", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+
+- id: dht22
+  kind: pinout
+  category: pinouts
+  group: debug
+  name: {cs: "DHT22 / AM2302", da: "DHT22 / AM2302", de: "DHT22 / AM2302", el: "DHT22 / AM2302", en: "DHT22 / AM2302", es: "DHT22 / AM2302", fr: "DHT22 / AM2302", hi: "DHT22 / AM2302", it: "DHT22 / AM2302", ja: "DHT22 / AM2302", nl: "DHT22 / AM2302", no: "DHT22 / AM2302", pl: "DHT22 / AM2302", pt: "DHT22 / AM2302", sv: "DHT22 / AM2302", zh: "DHT22 / AM2302"}
+  doc: {en: "The 4-pin humidity and temperature sensor of Aosong, also sold as AM2302. Pins 1, 2 and 4 are used (VDD, DATA, GND); pin 3 stays free.", de: "Der 4-polige Feuchte- und Temperatursensor von Aosong, auch als AM2302 verkauft. Die Pins 1, 2 und 4 werden genutzt (VDD, DATA, GND); Pin 3 bleibt frei."}
+  notes: {en: "Drawn from the front, the side with the perforated grille, pins down, pin 1 at the left. Stay within 3.3 to 5.5 V: one edition of Aosong's datasheet gives 3.3 to 6 V, the other 3.3 to 5.5 V. DATA is a single-bus line (not Dallas/Maxim 1-Wire) with a pull-up to VDD; Aosong draws 1 kΩ. Wait at least 1 s after power-up before the first request and 2 s between readings. Only the 4-pin sensor is covered: breakout boards with 3 pins have their own order. The wired AM2302 in the big case uses red for the supply, black for GND and yellow for data.", de: "Gezeichnet von vorn, der Seite mit dem durchlöcherten Gitter, Pins unten, Pin 1 links. Im Bereich 3,3 bis 5,5 V bleiben: Eine Ausgabe von Aosongs Datenblatt nennt 3,3 bis 6 V, die andere 3,3 bis 5,5 V. DATA ist eine Eindrahtleitung (nicht Dallas/Maxim 1-Wire) mit Pull-up nach VDD; Aosong zeichnet 1 kΩ. Nach dem Einschalten mindestens 1 s bis zur ersten Anfrage warten und 2 s zwischen den Messungen. Erfasst ist nur der 4-polige Sensor: Breakout-Platinen mit 3 Pins haben eine eigene Folge. Der AM2302 mit Kabel im großen Gehäuse nutzt Rot für die Versorgung, Schwarz für GND und Gelb für die Daten."}
+  tags: [dht22, am2302, aosong, humidity, feuchte, luftfeuchtigkeit, temperature, temperatur, sensor, "single bus", data, vdd, "4-pin", "4-polig", dht, rht03]
+  source: "Aosong, Digital-output relative humidity & temperature sensor/module DHT22 (also named AM2302), datasheet edition read at SparkFun (pages 2, 4, 5, 9); Aosong, Digital relative humidity & temperature sensor AM2302/DHT22, datasheet edition read at Adafruit (pages 1, 2, 5)"
+  views:
+    plug: {en: "Sensor seen from the front (grille facing you, pins down)", de: "Sensor von vorn gesehen (Gitter zum Betrachter, Pins unten)"}
+    socket: {en: "Sensor seen from the back (pins down)", de: "Sensor von hinten gesehen (Pins unten)"}
+  shape:
+    type: rows
+    outline: rect
+    contact: square
+    drawn: plug
+    rows:
+      - {pins: ["1", "2", "3", "4"]}
+  pins:
+    - {number: "1", name: "VDD", function: {en: "Supply, 3.3 to 6 V DC (edition A) or 3.3 to 5.5 V DC (edition B)", de: "Versorgung, 3,3 bis 6 V DC (Ausgabe A) bzw. 3,3 bis 5,5 V DC (Ausgabe B)"}, type: power}
+    - {number: "2", name: "DATA", function: {en: "Single-bus data line, needs a pull-up to VDD (1 kΩ in Aosong's diagram)", de: "Eindraht-Datenleitung, braucht einen Pull-up nach VDD (1 kΩ im Aosong-Schaltbild)"}, type: data}
+    - {number: "3", name: "NC", function: {en: "Not connected, leave free", de: "Nicht belegt, frei lassen"}, type: nc, notes: {en: "One datasheet edition prints GND for pin 3. Its own connection diagram leaves pin 3 out, and the other edition lists it as NULL and \"NC\", so it is treated as not connected here. Leave it free.", de: "Eine Ausgabe des Datenblatts druckt für Pin 3 GND. Das eigene Schaltbild lässt Pin 3 weg, und die andere Ausgabe führt ihn als NULL und \"NC\"; er gilt hier daher als nicht angeschlossen. Frei lassen."}}
+    - {number: "4", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+
+- id: mikrobus
+  kind: pinout
+  category: pinouts
+  group: debug
+  name: {cs: "mikroBUS", da: "mikroBUS", de: "mikroBUS", el: "mikroBUS", en: "mikroBUS", es: "mikroBUS", fr: "mikroBUS", hi: "mikroBUS", it: "mikroBUS", ja: "mikroBUS", nl: "mikroBUS", no: "mikroBUS", pl: "mikroBUS", pt: "mikroBUS", sv: "mikroBUS", zh: "mikroBUS"}
+  doc: {en: "The mikroBUS socket of MikroElektronika for add-on (click) boards: two 1 × 8 female headers, 0.1 inch pitch, with SPI, I2C, UART, analog, PWM, interrupt and reset lines and 3.3 V and 5 V supplies.", de: "Der mikroBUS-Sockel von MikroElektronika für Zusatzplatinen (Click Boards): zwei Buchsenleisten 1 × 8 im 2,54-mm-Raster mit SPI-, I2C-, UART-, Analog-, PWM-, Interrupt- und Reset-Leitungen sowie 3,3-V- und 5-V-Versorgung."}
+  notes: {en: "The mikroBUS standard 2.00 defines positions and names, not numbers. The numbers 1 to 16 are those of Microchip's board guides: down the left column, then up the right column, so the two GND pins are 8 and 9. The notch lies at the lower right of the socket, and the two square pads (AN, PWM) mark the top. The columns are 900 mil apart; the gap is not drawn. The UART names follow the socket (mainboard) side: the add-on board's silkscreen is crossed, so a pin printed TX on the add-on board sits on the socket's RX pin. The add-on board prints SDI and SDO where the socket says MOSI and MISO. The standard gives no supply current limit.", de: "Der mikroBUS-Standard 2.00 legt Positionen und Namen fest, keine Nummern. Die Nummern 1 bis 16 stammen aus den Platinenhandbüchern von Microchip: links abwärts, dann rechts aufwärts, so dass die beiden GND-Pins 8 und 9 sind. Die Aussparung liegt unten rechts am Sockel, und die beiden quadratischen Pads (AN, PWM) markieren oben. Die Spalten liegen 900 mil auseinander; die Lücke ist nicht gezeichnet. Die UART-Namen gelten aus Sicht des Sockels (der Hauptplatine): Die Beschriftung der Zusatzplatine ist gekreuzt, ein dort mit TX beschrifteter Pin sitzt also am RX-Pin des Sockels. Die Zusatzplatine nennt SDI und SDO, wo der Sockel MOSI und MISO sagt. Der Standard nennt keine Grenze für den Versorgungsstrom."}
+  tags: [mikrobus, mikroe, mikroelektronika, click, "click board", clickboard, spi, i2c, uart, pwm, an, rst, cs, sck, miso, mosi, sda, scl, int, "16-pin", "16-polig", socket, sockel]
+  source: "MikroElektronika, mikroBUS Standard specifications, revision 2.00 (pages 6, 7, 9, 11, 12); Microchip, PIC32CK SG01/GC01 Curiosity Ultra User's Guide, section 2.4 (table 2-3); Microchip, PIC32 WFI32E Curiosity Board User's Guide, section 3.5 (table 3-5)"
+  views:
+    plug: {en: "Add-on board, pin side seen from below", de: "Zusatzplatine, Stiftseite von unten gesehen"}
+    socket: {en: "Socket on the mainboard, seen from above (logo at the top)", de: "Sockel auf der Hauptplatine, von oben gesehen (Logo oben)"}
+  shape:
+    type: rows
+    outline: rect
+    contact: square
+    drawn: socket
+    rows:
+      - {pins: ["1", "16"]}
+      - {pins: ["2", "15"]}
+      - {pins: ["3", "14"]}
+      - {pins: ["4", "13"]}
+      - {pins: ["5", "12"]}
+      - {pins: ["6", "11"]}
+      - {pins: ["7", "10"]}
+      - {pins: ["8", "9"]}
+  pins:
+    - {number: "1", name: "AN", function: {en: "Analog input", de: "Analogeingang"}, type: signal}
+    - {number: "2", name: "RST", function: {en: "Reset", de: "Reset"}, type: signal}
+    - {number: "3", name: "CS", function: {en: "SPI chip select", de: "SPI-Chipauswahl"}, type: signal}
+    - {number: "4", name: "SCK", function: {en: "SPI clock", de: "SPI-Takt"}, type: data}
+    - {number: "5", name: "MISO", function: {en: "SPI data, master in slave out (add-on board marks it SDO)", de: "SPI-Daten, Master-Eingang (auf dem Modul als SDO beschriftet)"}, type: data}
+    - {number: "6", name: "MOSI", function: {en: "SPI data, master out slave in (add-on board marks it SDI)", de: "SPI-Daten, Master-Ausgang (auf dem Modul als SDI beschriftet)"}, type: data}
+    - {number: "7", name: "+3.3V", function: {en: "3.3 V supply", de: "3,3-V-Versorgung"}, type: power}
+    - {number: "8", name: "GND", function: {en: "Reference ground", de: "Bezugsmasse"}, type: ground}
+    - {number: "9", name: "GND", function: {en: "Reference ground", de: "Bezugsmasse"}, type: ground}
+    - {number: "10", name: "+5V", function: {en: "5 V supply", de: "5-V-Versorgung"}, type: power}
+    - {number: "11", name: "SDA", function: {en: "I2C data", de: "I2C-Daten"}, type: data}
+    - {number: "12", name: "SCL", function: {en: "I2C clock", de: "I2C-Takt"}, type: data}
+    - {number: "13", name: "TX", function: {en: "UART transmit of the mainboard (add-on board marks this pin RX)", de: "UART-Senden der Hauptplatine (auf dem Modul als RX beschriftet)"}, type: data}
+    - {number: "14", name: "RX", function: {en: "UART receive of the mainboard (add-on board marks this pin TX)", de: "UART-Empfang der Hauptplatine (auf dem Modul als TX beschriftet)"}, type: data}
+    - {number: "15", name: "INT", function: {en: "Hardware interrupt", de: "Hardware-Interrupt"}, type: signal}
+    - {number: "16", name: "PWM", function: {en: "PWM output", de: "PWM-Ausgang"}, type: signal}
+
+- id: pmod
+  kind: pinout
+  category: pinouts
+  group: debug
+  name: {cs: "Pmod (2×6)", da: "Pmod (2×6)", de: "Pmod (2×6)", el: "Pmod (2×6)", en: "Pmod (2×6)", es: "Pmod (2×6)", fr: "Pmod (2×6)", hi: "Pmod (2×6)", it: "Pmod (2×6)", ja: "Pmod (2×6)", nl: "Pmod (2×6)", no: "Pmod (2×6)", pl: "Pmod (2×6)", pt: "Pmod (2×6)", sv: "Pmod (2×6)", zh: "Pmod (2×6)"}
+  doc: {en: "The generic 12-pin Digilent Pmod connector (2 × 6, 0.1 inch): eight signal pins, two ground pins and two supply pins, two six-pin interfaces stacked.", de: "Der allgemeine 12-polige Pmod-Anschluss von Digilent (2 × 6, 2,54 mm): acht Signalpins, zwei Massepins und zwei Versorgungspins, zwei sechspolige Schnittstellen übereinander."}
+  notes: {en: "This page shows the generic layout, with the eight signals as general I/O. The Pmod type of the module decides what each signal does (SPI, UART, I2C, H-bridge and others); the type tables differ between the editions of the Digilent specification, so read the manual of the module. For SPI (type 2) both the 2011 specification and Wikipedia give pin 1 CS, 2 MOSI, 3 MISO, 4 SCK. VCC is normally 3.3 V; some hosts can switch it to 5 V, and both VCC pins always carry the same voltage. The pin numbering is mirrored between the host connector and the module. Pin 1 is the square pad, in the column farther from the board edge.", de: "Diese Seite zeigt die allgemeine Belegung mit den acht Signalen als allgemeine E/A. Der Pmod-Typ des Moduls bestimmt, was jedes Signal tut (SPI, UART, I2C, H-Brücke und weitere); die Typtabellen unterscheiden sich zwischen den Ausgaben der Digilent-Spezifikation, daher das Handbuch des Moduls lesen. Für SPI (Typ 2) geben die Spezifikation von 2011 und Wikipedia übereinstimmend an: Pin 1 CS, 2 MOSI, 3 MISO, 4 SCK. VCC beträgt normalerweise 3,3 V; manche Hosts können auf 5 V umschalten, und beide VCC-Pins führen immer dieselbe Spannung. Die Pinnummerierung ist zwischen Host-Anschluss und Modul gespiegelt. Pin 1 ist das quadratische Pad in der Spalte, die weiter vom Platinenrand entfernt liegt."}
+  tags: [pmod, digilent, fpga, "12-pin", "12-polig", "2x6", spi, uart, i2c, gpio, "peripheral module", host, modul, module, vcc, gnd]
+  source: "Digilent, Digilent Pmod Interface Specification, Doc 510-002, revision of November 20, 2011 (pages 1 to 4, 6, 7); Wikipedia, Pmod Interface (generic pin table and list of specification editions)"
+  views:
+    plug: {en: "Peripheral module, board edge at the left, seen from above (male angled header)", de: "Peripheriemodul, Platinenrand links, von oben gesehen (abgewinkelte Stiftleiste)"}
+    socket: {en: "Host board, connector at the right board edge, seen from above (female angled socket)", de: "Hostplatine, Anschluss am rechten Platinenrand, von oben gesehen (abgewinkelte Buchsenleiste)"}
+  shape:
+    type: rows
+    outline: rect
+    contact: square
+    drawn: socket
+    rows:
+      - {pins: ["1", "7"]}
+      - {pins: ["2", "8"]}
+      - {pins: ["3", "9"]}
+      - {pins: ["4", "10"]}
+      - {pins: ["5", "11"]}
+      - {pins: ["6", "12"]}
+  pins:
+    - {number: "1", name: "IO1", function: {en: "I/O 1 (on an SPI module: CS)", de: "E/A 1 (bei einem SPI-Modul: CS)"}, type: io}
+    - {number: "2", name: "IO2", function: {en: "I/O 2", de: "E/A 2"}, type: io}
+    - {number: "3", name: "IO3", function: {en: "I/O 3", de: "E/A 3"}, type: io}
+    - {number: "4", name: "IO4", function: {en: "I/O 4", de: "E/A 4"}, type: io}
+    - {number: "5", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "6", name: "VCC", function: {en: "Supply from the host, usually 3.3 V", de: "Versorgung vom Host, meist 3,3 V"}, type: power}
+    - {number: "7", name: "IO5", function: {en: "I/O 5", de: "E/A 5"}, type: io}
+    - {number: "8", name: "IO6", function: {en: "I/O 6", de: "E/A 6"}, type: io}
+    - {number: "9", name: "IO7", function: {en: "I/O 7", de: "E/A 7"}, type: io}
+    - {number: "10", name: "IO8", function: {en: "I/O 8", de: "E/A 8"}, type: io}
+    - {number: "11", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "12", name: "VCC", function: {en: "Supply from the host, same voltage as pin 6", de: "Versorgung vom Host, gleiche Spannung wie Pin 6"}, type: power}

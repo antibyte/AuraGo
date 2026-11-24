@@ -1,0 +1,6 @@
+{"pinout": "mikrobus", "variants": [{"variant": "", "counts": {"power": 2, "ground": 2, "signal": 5, "data": 7}, "pins": [
+  {"number": "1", "name": "AN", "type": "signal", "ref": "mikroBUS standard 2.00 page 6 figure, left header top (square pad); Microchip PIC32CK guide table 2-3, pin 1"},
+  {"number": "7", "name": "+3.3V", "type": "power", "ref": "standard page 6, left header 7th from top, text +3.3V and GND on the left; Microchip table 2-3, pin 7"},
+  {"number": "10", "name": "+5V", "type": "power", "ref": "standard page 6, right header 7th from top; Microchip table 2-3, pin 10; WFI32E table 3-5, pin 10"},
+  {"number": "14", "name": "RX", "type": "data", "ref": "standard page 6, right header 3rd from top; page 11 table, sockets RX and boards TX; Microchip table 2-3, pin 14"},
+  {"number": "16", "name": "PWM", "type": "signal", "ref": "standard page 6, right header top (square pad); Microchip tables, pin 16"}]}]}

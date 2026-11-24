@@ -1,0 +1,5 @@
+{"pinout": "dht22", "variants": [{"variant": "", "counts": {"power": 1, "ground": 1, "data": 1, "nc": 1}, "pins": [
+  {"number": "1", "name": "VDD", "type": "power", "ref": "Aosong DHT22 (SparkFun copy) page 4 table, 1 VDD power supply; AM2302 (Adafruit copy) page 2 table, 1 VDD power supply"},
+  {"number": "2", "name": "DATA", "type": "data", "ref": "DHT22 page 4 table, 2 DATA signal; AM2302 page 2 connection diagram, DATA 2Pin with 1K to VDD"},
+  {"number": "3", "name": "NC", "type": "nc", "ref": "DHT22 (SparkFun copy) page 4 table, 3 NULL, page 5, 3Pin NC; both connection diagrams leave pin 3 out"},
+  {"number": "4", "name": "GND", "type": "ground", "ref": "DHT22 page 4 table, 4 GND; AM2302 page 2 table, 4 GND, diagram 4Pin to GND"}]}]}

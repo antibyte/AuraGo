@@ -1,0 +1,6 @@
+{"pinout": "esp01", "variants": [{"variant": "", "counts": {"power": 1, "ground": 1, "signal": 2, "io": 2, "data": 2}, "pins": [
+  {"number": "1", "name": "GND", "type": "ground", "ref": "Ai-Thinker manual V1.3, figure 2.1 (pin 1 dot, upper left); table 2.2 column 01/01S, 1 = GND"},
+  {"number": "3", "name": "IO0", "type": "io", "ref": "figure 2.1 upper row, third; table 2.2, 3 = IO0 (GPIO0); table 2.3 boot modes"},
+  {"number": "6", "name": "EN", "type": "signal", "ref": "figure 2.1 lower row, second; table 2.2, 6 = EN, chip enabled pin, active high"},
+  {"number": "7", "name": "RST", "type": "signal", "ref": "figure 2.1 lower row, third; table 2.2, 7 = RST, reset pin, active low"},
+  {"number": "8", "name": "VCC", "type": "power", "ref": "figure 2.1 lower row, right; table 2.2, 8 = VCC, 3.0 to 3.6 V; table 3.2"}]}]}

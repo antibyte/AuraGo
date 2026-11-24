@@ -1,0 +1,7 @@
+{"pinout": "pmod", "variants": [{"variant": "", "counts": {"power": 2, "ground": 2, "io": 8}, "pins": [
+  {"number": "1", "name": "IO1", "type": "io", "ref": "Digilent Pmod Interface Specification 510-002 (2011), page 4 fig 2 (square pad, host top left); page 6 type 1 table, 1 IO1 In/Out"},
+  {"number": "5", "name": "GND", "type": "ground", "ref": "specification page 6 type 1 table, 5 GND; Wikipedia Pmod Interface type table"},
+  {"number": "6", "name": "VCC", "type": "power", "ref": "specification page 6 type 1 table, 6 VCC; Wikipedia Pmod Interface type table"},
+  {"number": "7", "name": "IO5", "type": "io", "ref": "specification page 4 fig 2 (1 square pad, 7 beside it); page 7 type 2A, 7 INT In shows 7 is a signal pin"},
+  {"number": "11", "name": "GND", "type": "ground", "ref": "specification page 7 type 2A table, 11 GND"},
+  {"number": "12", "name": "VCC", "type": "power", "ref": "specification page 7 type 2A table, 12 VCC"}]}]}

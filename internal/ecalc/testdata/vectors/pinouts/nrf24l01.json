@@ -1,0 +1,6 @@
+{"pinout": "nrf24l01", "variants": [{"variant": "", "counts": {"power": 1, "ground": 1, "signal": 3, "data": 3}, "pins": [
+  {"number": "1", "name": "GND", "type": "ground", "ref": "Ebyte E01-ML01DP5 manual v4.5, page 2, pin table 1 = GND and drawing (pin 1 top left); page 3 schematic"},
+  {"number": "2", "name": "VCC", "type": "power", "ref": "Ebyte manual page 2, 2 = VCC, supply 2.0 to 3.6 V; page 1 electrical parameters; Nordic nRF24L01+ specification, 1.9 to 3.6 V"},
+  {"number": "4", "name": "CSN", "type": "signal", "ref": "Ebyte manual page 2, 4 = CSN input, chip select; Nordic table 1, CSN = SPI Chip Select"},
+  {"number": "7", "name": "MISO", "type": "data", "ref": "Ebyte manual page 2, 7 = MISO output; Nordic table 1, MISO = SPI Slave Data Output, with tri-state option"},
+  {"number": "8", "name": "IRQ", "type": "signal", "ref": "Ebyte manual page 2, 8 = IRQ output, active low; Nordic table 1, IRQ = maskable interrupt pin, active low"}]}]}

@@ -1,0 +1,5 @@
+{"pinout": "hc_sr04", "variants": [{"variant": "", "counts": {"power": 1, "ground": 1, "signal": 2}, "pins": [
+  {"number": "VCC", "name": "VCC", "type": "power", "ref": "ElecFreaks HC-SR04 document page 2, photo label Vcc (leftmost); Cytron manual page 5, VCC = +5VDC and photo"},
+  {"number": "Trig", "name": "Trig", "type": "signal", "ref": "ElecFreaks page 2, Trig; Cytron page 5, Trig = Trigger input of Sensor"},
+  {"number": "Echo", "name": "Echo", "type": "signal", "ref": "ElecFreaks page 2, Echo; Cytron page 5, Echo = Echo output of Sensor, page 7, Echo high (5V)"},
+  {"number": "GND", "name": "GND", "type": "ground", "ref": "ElecFreaks page 2, GND (rightmost); Cytron page 5, GND = GND"}]}]}
