@@ -1,0 +1,45 @@
+{
+ "pinout": "trailer_13",
+ "variants": [
+  {
+   "variant": "",
+   "counts": {
+    "ground": 3,
+    "nc": 1,
+    "power": 9
+   },
+   "pins": [
+    {
+     "number": "3",
+     "name": "GND 1-8",
+     "type": "ground",
+     "ref": "Jaeger ISO 11446 table: 3 Common return for contacts 1 to 8, 2.5 mm², White; rear view: white 3 at the bottom of the inner group"
+    },
+    {
+     "number": "8",
+     "name": "Reverse",
+     "type": "power",
+     "ref": "Jaeger ISO 11446 table: 8 Reversing light, 1.5 mm², Pink; rear view: pink 8 at the top of the outer ring"
+    },
+    {
+     "number": "9",
+     "name": "Permanent +",
+     "type": "power",
+     "ref": "Jaeger ISO 11446 table: 9 Power supply (steady), 2.5 mm², Orange; rear view: orange 9 upper left of the outer ring"
+    },
+    {
+     "number": "12",
+     "name": "Reserved",
+     "type": "nc",
+     "ref": "Jaeger ISO 11446 table: 12 Reserved for future allocation, n/a, No core; rear view: uncoloured 12 lower left"
+    },
+    {
+     "number": "13",
+     "name": "GND 9",
+     "type": "ground",
+     "ref": "Jaeger ISO 11446 table: 13 Common return for contact 9, 2.5 mm², White/red; rear view: white/red 13 lower right"
+    }
+   ]
+  }
+ ]
+}

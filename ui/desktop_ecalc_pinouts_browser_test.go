@@ -225,7 +225,7 @@ func TestDesktopECalcPinoutsBrowser(t *testing.T) {
 	same("the rail count", eval(`()=>document.querySelector('.ec-rail-btn[data-rail="pinouts"] .ec-count').textContent`), strconv.Itoa(len(ids)))
 	page.MustEval(`()=>document.querySelector('.ec-rail-btn[data-rail="pinouts"]').click()`)
 	same("the sections of the Pinouts list", eval(`()=>JSON.stringify([...document.querySelectorAll('.ec-group-title')].map(h=>h.textContent))`),
-		`["`+strings.Join([]string{words["desktop.ecalc_group_data"], words["desktop.ecalc_group_audio"], words["desktop.ecalc_group_pc_power"], words["desktop.ecalc_group_boards"], words["desktop.ecalc_group_debug"], words["desktop.ecalc_group_ics"]}, `","`)+`"]`)
+		`["`+strings.Join([]string{words["desktop.ecalc_group_data"], words["desktop.ecalc_group_audio"], words["desktop.ecalc_group_pc_power"], words["desktop.ecalc_group_boards"], words["desktop.ecalc_group_debug"], words["desktop.ecalc_group_ics"], words["desktop.ecalc_group_vehicle_mains"]}, `","`)+`"]`)
 
 	// A page for every shape has its parts: the legend lists the types in use, the table the pins, the wire column only with wires.
 	f.open("fx_pin_dsub")

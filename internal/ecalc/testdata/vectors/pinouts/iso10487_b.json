@@ -1,0 +1,37 @@
+{
+ "pinout": "iso10487_b",
+ "variants": [
+  {
+   "variant": "",
+   "counts": {
+    "signal": 8
+   },
+   "pins": [
+    {
+     "number": "1",
+     "name": "RR+",
+     "type": "signal",
+     "ref": "ISO 10487-1:1992 table 1, part B, contact 1: Loudspeaker positive: rear right channel"
+    },
+    {
+     "number": "4",
+     "name": "FR-",
+     "type": "signal",
+     "ref": "ISO 10487-1:1992 table 1, part B, contact 4: Loudspeaker negative: front right channel"
+    },
+    {
+     "number": "5",
+     "name": "FL+",
+     "type": "signal",
+     "ref": "ISO 10487-1:1992 table 1, part B, contact 5: Loudspeaker positive: front left channel"
+    },
+    {
+     "number": "8",
+     "name": "RL-",
+     "type": "signal",
+     "ref": "ISO 10487-1:1992 table 1, part B, contact 8: Loudspeaker negative: rear left channel"
+    }
+   ]
+  }
+ ]
+}

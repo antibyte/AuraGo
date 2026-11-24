@@ -1,0 +1,46 @@
+{
+ "pinout": "iso10487_a",
+ "variants": [
+  {
+   "variant": "",
+   "counts": {
+    "ground": 2,
+    "nc": 1,
+    "power": 4,
+    "signal": 1
+   },
+   "pins": [
+    {
+     "number": "1",
+     "name": "Speed signal",
+     "type": "signal",
+     "ref": "ISO 10487-1:1992 table 1, part A, contact 1: Volume control, vehicle speed-related; figure 1: dot at contact 1"
+    },
+    {
+     "number": "4",
+     "name": "Batt+ switched",
+     "type": "power",
+     "ref": "ISO 10487-1:1992 table 1, part A, contact 4: Battery positive: commutated in vehicle only when A7 contact is not commutated. 0,3A max."
+    },
+    {
+     "number": "5",
+     "name": "Antenna +",
+     "type": "power",
+     "ref": "ISO 10487-1:1992 table 1, part A, contact 5: Battery positive: commutated by radio for antenna supply, max. 0,3A"
+    },
+    {
+     "number": "7",
+     "name": "Batt+ main",
+     "type": "power",
+     "ref": "ISO 10487-1:1992 table 1, part A, contact 7: Battery positive: for main power supply, permanent or commutated in vehicle only when A4 contact is not commutated"
+    },
+    {
+     "number": "8",
+     "name": "Batt-",
+     "type": "ground",
+     "ref": "ISO 10487-1:1992 table 1, part A, contact 8: Battery negative"
+    }
+   ]
+  }
+ ]
+}

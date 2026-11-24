@@ -1,0 +1,44 @@
+{
+ "pinout": "trailer_7",
+ "variants": [
+  {
+   "variant": "",
+   "counts": {
+    "ground": 1,
+    "power": 6
+   },
+   "pins": [
+    {
+     "number": "1",
+     "name": "L",
+     "type": "power",
+     "ref": "Jaeger ISO 1724 table: 1 Left-hand direction indicator light, 1.5 mm², Yellow, L; M&K catalogue: 1 / L 1,5 Fahrtrichtungsanzeiger, links gelb"
+    },
+    {
+     "number": "2",
+     "name": "54g",
+     "type": "power",
+     "ref": "Jaeger ISO 1724 table: 2 rear fog light, Blue, 54g; rear view figure: blue 2 upper left, cover print 2/54g upper right"
+    },
+    {
+     "number": "3",
+     "name": "31",
+     "type": "ground",
+     "ref": "Jaeger ISO 1724 table: 3 Common return 2.5 mm², White, 31; M&K catalogue: 3 / 31 2,5 Masse weiß"
+    },
+    {
+     "number": "6",
+     "name": "54",
+     "type": "power",
+     "ref": "Jaeger ISO 1724 table: 6 Brake lights 1.5 mm², Red, 54; M&K catalogue: 6 / 54 1,5 Bremsleuchten rot"
+    },
+    {
+     "number": "7",
+     "name": "58L",
+     "type": "power",
+     "ref": "Jaeger ISO 1724 table: 7 Left-hand rear, marker, position light and license plate lamp, Black, 58L; M&K catalogue: 7 / 58L schwarz"
+    }
+   ]
+  }
+ ]
+}

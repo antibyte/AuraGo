@@ -1,0 +1,176 @@
+# Vehicle and mains connectors: trailer sockets, the Type 2 charging connector and the ISO 10487 radio connector. The sources behind every
+# item are in documentation/ecalc-sources/pinouts/vehicle_mains/; a changed pin updates that record, this file and the item's vector together.
+
+- id: trailer_7
+  kind: pinout
+  category: pinouts
+  group: vehicle_mains
+  name: {cs: "Zásuvka přívěsu, 7 pinů (ISO 1724, 12N)", da: "Anhængerstik, 7-polet (ISO 1724, 12N)", de: "Anhängersteckdose, 7-polig (ISO 1724, 12N)", el: "Πρίζα ρυμούλκησης, 7 ακίδων (ISO 1724, 12N)", en: "Trailer socket, 7-pin (ISO 1724, 12N)", es: "Toma de remolque, 7 polos (ISO 1724, 12N)", fr: "Prise de remorque, 7 broches (ISO 1724, 12N)", hi: "ट्रेलर सॉकेट, 7-पिन (ISO 1724, 12N)", it: "Presa per rimorchio, 7 poli (ISO 1724, 12N)", ja: "トレーラーソケット 7 ピン (ISO 1724、12N)", nl: "Aanhangerstopcontact, 7-polig (ISO 1724, 12N)", "no": "Tilhengerkontakt, 7-polet (ISO 1724, 12N)", pl: "Gniazdo przyczepy, 7-pinowe (ISO 1724, 12N)", pt: "Tomada de reboque, 7 polos (ISO 1724, 12N)", sv: "Släpvagnskontakt, 7-polig (ISO 1724, 12N)", zh: "挂车插座 7 针 (ISO 1724，12N)"}
+  doc: {en: "The 7-pin 12 V trailer socket of ISO 1724 (type N, 12N): direction indicators, brake, tail and fog lights on one common return, drawn from the socket face.", de: "Die siebenpolige 12-V-Anhängersteckdose nach ISO 1724 (Typ N, 12N): Blinker, Brems-, Schluss- und Nebelschlussleuchte mit einer gemeinsamen Masse, gezeichnet von der Steckdosenseite."}
+  notes: {en: "Work on mains and vehicle electrics only if you are qualified, and check the actual connector before wiring. This is the 12 V socket of ISO 1724 (12N), not the white 12S socket of ISO 3732, which uses the same contact numbers for other functions. Contact 3 is the common return of all lamps. Contacts 5 and 7 are the two sides of the tail lights, so no lamp may be connected to both. The core colours are given for information. The makers' documents do not show a key position, so none is drawn; the radius of the outer ring is a drawing value, not a dimension from the standard.", de: "Arbeiten an Netz- und Fahrzeugelektrik nur durch Qualifizierte, und vor dem Verdrahten den tatsächlichen Steckverbinder prüfen. Dies ist die 12-V-Steckdose nach ISO 1724 (12N), nicht die weiße 12S-Steckdose nach ISO 3732, die dieselben Kontaktnummern für andere Funktionen nutzt. Kontakt 3 ist die gemeinsame Masse aller Leuchten. Die Kontakte 5 und 7 sind die beiden Seiten der Schlussleuchten, daher darf keine Leuchte an beiden liegen. Die Aderfarben gelten zur Information. Die Herstellerunterlagen zeigen keine Lage der Kodierung, deshalb ist keine gezeichnet; der Radius des äußeren Rings ist ein Zeichenwert, kein Maß aus der Norm."}
+  tags: ["trailer", "anhänger", "anhängerkupplung", "towbar", "7-pin", "7-polig", "iso 1724", "iso1724", "12n", "type n", "caravan", "wohnwagen", "blinker", "indicator", "brake", "bremslicht", "nebelschluss", "fog", "din 72552", "din 72577"]
+  source: "Erich Jaeger, ISO 1724: The international standard for 7-pin trailer connectors (scope and application, contact table and the figures of socket, rear view and plug); M&K catalogue pages 14 and 15, 7-polige 12-Volt-Steckvorrichtung ISO 1724 / ISO 3732 (Conrad item 808849), Kontaktbelegung Connector N-type"
+  views:
+    plug: {en: "Trailer plug (pins)", de: "Anhängerstecker (Stifte)"}
+    socket: {en: "Vehicle socket (face, cover open)", de: "Fahrzeugsteckdose (Steckseite, Klappe offen)"}
+  shape:
+    type: circular
+    contact: round
+    drawn: socket
+    positions:
+      - {pin: "1", angle: 0, radius: 0.6}
+      - {pin: "2", angle: 60, radius: 0.6}
+      - {pin: "3", angle: 120, radius: 0.6}
+      - {pin: "4", angle: 180, radius: 0.6}
+      - {pin: "5", angle: 240, radius: 0.6}
+      - {pin: "6", angle: 300, radius: 0.6}
+      - {pin: "7", angle: 0, radius: 0}
+  pins:
+    - {number: "1", name: "L", function: {en: "Left-hand direction indicator", de: "Fahrtrichtungsanzeiger links"}, type: power, wire: yellow}
+    - {number: "2", name: "54g", function: {en: "Rear fog light", de: "Nebelschlussleuchte"}, type: power, wire: blue}
+    - {number: "3", name: "31", function: {en: "Earth (common return), 2.5 mm²", de: "Masse (gemeinsame Rückleitung), 2,5 mm²"}, type: ground, wire: white}
+    - {number: "4", name: "R", function: {en: "Right-hand direction indicator", de: "Fahrtrichtungsanzeiger rechts"}, type: power, wire: green}
+    - {number: "5", name: "58R", function: {en: "Right-hand rear position and marker lights, number-plate light", de: "Rechte Schlussleuchte, Umriss- und Begrenzungsleuchte, Kennzeichenleuchte"}, type: power, wire: brown}
+    - {number: "6", name: "54", function: {en: "Stop (brake) lights", de: "Bremsleuchten"}, type: power, wire: red}
+    - {number: "7", name: "58L", function: {en: "Left-hand rear position and marker lights, number-plate light", de: "Linke Schlussleuchte, Umriss- und Begrenzungsleuchte, Kennzeichenleuchte"}, type: power, wire: black}
+
+- id: trailer_13
+  kind: pinout
+  category: pinouts
+  group: vehicle_mains
+  name: {cs: "Zásuvka přívěsu, 13 pinů (ISO 11446)", da: "Anhængerstik, 13-polet (ISO 11446)", de: "Anhängersteckdose, 13-polig (ISO 11446)", el: "Πρίζα ρυμούλκησης, 13 ακίδων (ISO 11446)", en: "Trailer socket, 13-pin (ISO 11446)", es: "Toma de remolque, 13 polos (ISO 11446)", fr: "Prise de remorque, 13 broches (ISO 11446)", hi: "ट्रेलर सॉकेट, 13-पिन (ISO 11446)", it: "Presa per rimorchio, 13 poli (ISO 11446)", ja: "トレーラーソケット 13 ピン (ISO 11446)", nl: "Aanhangerstopcontact, 13-polig (ISO 11446)", "no": "Tilhengerkontakt, 13-polet (ISO 11446)", pl: "Gniazdo przyczepy, 13-pinowe (ISO 11446)", pt: "Tomada de reboque, 13 polos (ISO 11446)", sv: "Släpvagnskontakt, 13-polig (ISO 11446)", zh: "挂车插座 13 针 (ISO 11446)"}
+  doc: {en: "The 13-pin 12 V trailer socket of ISO 11446 (Jaeger system): contacts 1 to 7 as on the 7-pin socket, plus reversing light, permanent and ignition-switched supply with their own returns, drawn from the socket face.", de: "Die 13-polige 12-V-Anhängersteckdose nach ISO 11446 (Jaeger-System): Kontakte 1 bis 7 wie an der 7-poligen Steckdose, dazu Rückfahrleuchte, Dauer- und Zündungsplus mit eigenen Rückleitungen, gezeichnet von der Steckdosenseite."}
+  notes: {en: "Work on mains and vehicle electrics only if you are qualified, and check the actual connector before wiring. The drawing follows Jaeger's figure and the angles are approximate (within about 7 degrees of the maker's rendering, rounded to a 36 degree pattern); the contact numbers are exact. Contacts 9 (permanent +) and 10 (ignition +) each have their own return, 13 and 11: do not use contact 3 for them. Contact 9 is live with the ignition off; Jaeger states no current rating for 9 and 10. No key is drawn because it rests on a render only. This is the 12 V version; the 24 V version is not covered.", de: "Arbeiten an Netz- und Fahrzeugelektrik nur durch Qualifizierte, und vor dem Verdrahten den tatsächlichen Steckverbinder prüfen. Die Zeichnung folgt der Abbildung von Jaeger, die Winkel sind ungefähr (etwa 7 Grad Abweichung zur Darstellung des Herstellers, gerundet auf ein 36-Grad-Raster); die Kontaktnummern sind exakt. Die Kontakte 9 (Dauerplus) und 10 (Zündungsplus) haben je eine eigene Rückleitung, 13 und 11: Kontakt 3 dafür nicht verwenden. Kontakt 9 führt auch bei ausgeschalteter Zündung Spannung; Jaeger nennt keinen Strom für 9 und 10. Eine Kodierung ist nicht gezeichnet, weil sie nur auf einer Darstellung beruht. Dies ist die 12-V-Version; die 24-V-Version ist nicht erfasst."}
+  tags: ["trailer", "anhänger", "anhängerkupplung", "towbar", "13-pin", "13-polig", "iso 11446", "iso11446", "jaeger", "caravan", "wohnwagen", "dauerplus", "zündungsplus", "rückfahrleuchte", "reversing", "permanent", "ignition"]
+  source: "Erich Jaeger, ISO 11446 scope and application (contact table, nominal voltage and the figures of socket, rear view and plug); Erich Jaeger, ISO 11446 overview; Erich Jaeger and M&K ISO 1724 tables for contacts 1 to 7"
+  views:
+    plug: {en: "Trailer plug (pins)", de: "Anhängerstecker (Stifte)"}
+    socket: {en: "Vehicle socket (face)", de: "Fahrzeugsteckdose (Steckseite)"}
+  shape:
+    type: circular
+    contact: round
+    drawn: socket
+    positions:
+      - {pin: "1", angle: 0, radius: 0.35}
+      - {pin: "2", angle: 90, radius: 0.35}
+      - {pin: "3", angle: 180, radius: 0.35}
+      - {pin: "4", angle: 270, radius: 0.35}
+      - {pin: "8", angle: 0, radius: 0.75}
+      - {pin: "9", angle: 36, radius: 0.75}
+      - {pin: "10", angle: 72, radius: 0.75}
+      - {pin: "11", angle: 108, radius: 0.75}
+      - {pin: "12", angle: 144, radius: 0.75}
+      - {pin: "13", angle: 216, radius: 0.75}
+      - {pin: "5", angle: 252, radius: 0.75}
+      - {pin: "6", angle: 288, radius: 0.75}
+      - {pin: "7", angle: 324, radius: 0.75}
+  pins:
+    - {number: "1", name: "Indicator L", function: {en: "Left-hand direction indicator, 1.5 mm²", de: "Fahrtrichtungsanzeiger links, 1,5 mm²"}, type: power, wire: yellow}
+    - {number: "2", name: "Rear fog", function: {en: "Rear fog light, 1.5 mm²", de: "Nebelschlussleuchte, 1,5 mm²"}, type: power, wire: blue}
+    - {number: "3", name: "GND 1-8", function: {en: "Common return for contacts 1 to 8, 2.5 mm²", de: "Gemeinsame Masse für Kontakte 1 bis 8, 2,5 mm²"}, type: ground, wire: white}
+    - {number: "4", name: "Indicator R", function: {en: "Right-hand direction indicator, 1.5 mm²", de: "Fahrtrichtungsanzeiger rechts, 1,5 mm²"}, type: power, wire: green}
+    - {number: "5", name: "Tail R", function: {en: "Right-hand rear, position, marker and licence-plate lights, 1.5 mm²", de: "Rechte Schluss-, Begrenzungs-, Umriss- und Kennzeichenleuchte, 1,5 mm²"}, type: power, wire: brown}
+    - {number: "6", name: "Brake", function: {en: "Brake lights, 1.5 mm²", de: "Bremsleuchten, 1,5 mm²"}, type: power, wire: red}
+    - {number: "7", name: "Tail L", function: {en: "Left-hand rear, position, marker and licence-plate lights, 1.5 mm²", de: "Linke Schluss-, Begrenzungs-, Umriss- und Kennzeichenleuchte, 1,5 mm²"}, type: power, wire: black}
+    - {number: "8", name: "Reverse", function: {en: "Reversing light, 1.5 mm²", de: "Rückfahrleuchte, 1,5 mm²"}, type: power, wire: pink}
+    - {number: "9", name: "Permanent +", function: {en: "Power supply, steady (permanent), 2.5 mm²; return on 13", de: "Stromversorgung Dauerplus, 2,5 mm²; Rückleitung über 13"}, type: power, wire: orange}
+    - {number: "10", name: "Ignition +", function: {en: "Power supply controlled by the ignition switch, 2.5 mm²; return on 11", de: "Stromversorgung über Zündschalter, 2,5 mm²; Rückleitung über 11"}, type: power, wire: grey}
+    - {number: "11", name: "GND 10", function: {en: "Common return for contact 10, 2.5 mm²", de: "Masse für Kontakt 10, 2,5 mm²"}, type: ground, notes: {en: "Core colour white/black; the wire colours of the app have no striped white/black.", de: "Aderfarbe weiß/schwarz; die Aderfarben der App kennen kein gestreiftes Weiß/Schwarz."}}
+    - {number: "12", name: "Reserved", function: {en: "Reserved for future allocation, no core", de: "Reserviert für künftige Belegung, keine Ader"}, type: nc}
+    - {number: "13", name: "GND 9", function: {en: "Common return for contact 9, 2.5 mm²", de: "Masse für Kontakt 9, 2,5 mm²"}, type: ground, notes: {en: "Core colour white/red; the wire colours of the app have no striped white/red.", de: "Aderfarbe weiß/rot; die Aderfarben der App kennen kein gestreiftes Weiß/Rot."}}
+
+- id: type2
+  kind: pinout
+  category: pinouts
+  group: vehicle_mains
+  name: {cs: "Nabíjecí konektor Typ 2 (IEC 62196-2)", da: "Ladestik type 2 (IEC 62196-2)", de: "Ladestecker Typ 2 (IEC 62196-2)", el: "Συνδέτης φόρτισης Τύπου 2 (IEC 62196-2)", en: "Charging connector Type 2 (IEC 62196-2)", es: "Conector de carga tipo 2 (IEC 62196-2)", fr: "Connecteur de recharge type 2 (IEC 62196-2)", hi: "चार्जिंग कनेक्टर टाइप 2 (IEC 62196-2)", it: "Connettore di ricarica tipo 2 (IEC 62196-2)", ja: "充電コネクター タイプ 2 (IEC 62196-2)", nl: "Laadstekker type 2 (IEC 62196-2)", "no": "Ladekontakt type 2 (IEC 62196-2)", pl: "Złącze ładowania typu 2 (IEC 62196-2)", pt: "Conector de carregamento tipo 2 (IEC 62196-2)", sv: "Laddkontakt typ 2 (IEC 62196-2)", zh: "充电连接器 Type 2 (IEC 62196-2)"}
+  doc: {en: "The Type 2 connector of IEC 62196-2 for AC charging of electric vehicles: five power contacts (PE, N, L1 to L3) and the two signal contacts CP and PP, drawn on the pin face.", de: "Der Typ-2-Steckverbinder nach IEC 62196-2 für das Wechselstromladen von Elektrofahrzeugen: fünf Leistungskontakte (PE, N, L1 bis L3) und die beiden Signalkontakte CP und PP, gezeichnet auf der Stiftseite."}
+  notes: {en: "Work on mains and vehicle electrics only if you are qualified, and check the actual connector before wiring. Never bridge CP or PP to fake a vehicle and never apply power outside a charging station. Single-phase cables and inlets use L1 and N only. Contact sequence when plugging in: PE first, then N, the phases, and CP and PP last; unplugging runs in reverse (TE table 4-11). The Rc values of PP follow TE table 4-7 (from IEC 61851-22 Annex B). The voltages and currents in TE's document (250 V AC, 20 A three-phase, 32 A single-phase, 2 A 30 V for CP and PP) are TE's assembly ratings, not the limits of the Type 2 system. CP signalling (the PWM levels) is not covered. The angles are rounded from a small render (about 5 degrees).", de: "Arbeiten an Netz- und Fahrzeugelektrik nur durch Qualifizierte, und vor dem Verdrahten den tatsächlichen Steckverbinder prüfen. CP oder PP nie überbrücken, um ein Fahrzeug vorzutäuschen, und nie außerhalb einer Ladestation Spannung anlegen. Einphasige Kabel und Fahrzeugdosen nutzen nur L1 und N. Reihenfolge beim Stecken: zuerst PE, dann N, die Außenleiter und zuletzt CP und PP; beim Ziehen umgekehrt (TE Tabelle 4-11). Die Rc-Werte von PP folgen TE Tabelle 4-7 (aus IEC 61851-22 Anhang B). Die Spannungen und Ströme in TEs Dokument (250 V AC, 20 A dreiphasig, 32 A einphasig, 2 A 30 V für CP und PP) sind TEs Bemessungswerte für die eigenen Baugruppen, nicht die Grenzen des Typ-2-Systems. Die CP-Signalisierung (die PWM-Pegel) ist nicht erfasst. Die Winkel sind aus einer kleinen Darstellung gerundet (etwa 5 Grad)."}
+  tags: ["type 2", "typ 2", "type2", "typ2", "mennekes", "iec 62196", "iec 62196-2", "ev", "ladestecker", "ladekabel", "wallbox", "charging", "laden", "elektroauto", "electric vehicle", "control pilot", "proximity", "cp", "pp", "iec 61851"]
+  source: "TE Connectivity, Product Specification 108-94323 Rev A (01 FEB 16), IEC 62196 Electric Vehicle Charge Connector Assembly (Type 2 for Mode 2 and 3), pages 1, 2, 3, 5, 7 and 11 to 13"
+  views:
+    plug: {en: "Pin face: vehicle inlet or station plug (pins)", de: "Stiftseite: Fahrzeugdose oder Ladestation-Stecker (Stifte)"}
+    socket: {en: "Contact-tube face: vehicle connector or wallbox socket-outlet", de: "Buchsenseite: Fahrzeugstecker oder Wallbox-Steckdose"}
+  shape:
+    type: circular
+    contact: round
+    drawn: plug
+    key: 0
+    positions:
+      - {pin: "PE", angle: 0, radius: 0}
+      - {pin: "CP", angle: 30, radius: 0.55}
+      - {pin: "N", angle: 90, radius: 0.55}
+      - {pin: "L3", angle: 150, radius: 0.55}
+      - {pin: "L2", angle: 210, radius: 0.55}
+      - {pin: "L1", angle: 270, radius: 0.55}
+      - {pin: "PP", angle: 330, radius: 0.55}
+  pins:
+    - {number: "PE", name: "PE", function: {en: "Protective earth, centre contact; mates first, breaks last", de: "Schutzleiter, mittlerer Kontakt; schließt zuerst, trennt zuletzt"}, type: ground}
+    - {number: "L1", name: "L1", function: {en: "Phase 1 (single-phase charging uses L1 and N)", de: "Außenleiter 1 (einphasiges Laden über L1 und N)"}, type: power}
+    - {number: "L2", name: "L2", function: {en: "Phase 2 (three-phase only)", de: "Außenleiter 2 (nur dreiphasig)"}, type: power}
+    - {number: "L3", name: "L3", function: {en: "Phase 3 (three-phase only)", de: "Außenleiter 3 (nur dreiphasig)"}, type: power}
+    - {number: "N", name: "N", function: {en: "Neutral", de: "Neutralleiter"}, type: power}
+    - {number: "CP", name: "CP", function: {en: "Control pilot, signal contact (rated 2 A, 30 V in TE's assembly); connects last when plugging in", de: "Control Pilot, Signalkontakt (Bemessung 2 A, 30 V bei TEs Baugruppe); schließt beim Stecken zuletzt"}, type: signal}
+    - {number: "PP", name: "PP", function: {en: "Proximity: resistor Rc to PE in the plug codes the cable's current capacity (13 A 1.5 kΩ, 20 A 680 Ω, 32 A 220 Ω) and shows a plug is present", de: "Proximity: Widerstand Rc nach PE im Stecker codiert die Strombelastbarkeit des Kabels (13 A 1,5 kΩ, 20 A 680 Ω, 32 A 220 Ω) und meldet einen gesteckten Stecker"}, type: signal}
+
+- id: iso10487_a
+  kind: pinout
+  category: pinouts
+  group: vehicle_mains
+  name: {cs: "Konektor autorádia ISO 10487, část A (napájení)", da: "Bilradiostik ISO 10487, del A (strøm)", de: "Autoradio-Stecker ISO 10487, Teil A (Versorgung)", el: "Συνδέτης ραδιοφώνου αυτοκινήτου ISO 10487, μέρος A (τροφοδοσία)", en: "Car radio connector ISO 10487, part A (power)", es: "Conector de autorradio ISO 10487, parte A (alimentación)", fr: "Connecteur autoradio ISO 10487, partie A (alimentation)", hi: "कार रेडियो कनेक्टर ISO 10487, भाग A (पावर)", it: "Connettore autoradio ISO 10487, parte A (alimentazione)", ja: "カーラジオコネクター ISO 10487 パート A (電源)", nl: "Autoradioconnector ISO 10487, deel A (voeding)", "no": "Bilradiokontakt ISO 10487, del A (strøm)", pl: "Złącze radia samochodowego ISO 10487, część A (zasilanie)", pt: "Conector de autorrádio ISO 10487, parte A (alimentação)", sv: "Bilradiokontakt ISO 10487, del A (ström)", zh: "车载收音机连接器 ISO 10487，A 部分 (电源)"}
+  doc: {en: "Part A of the ISO 10487 car radio connector: battery positive, ground, illumination and the antenna supply, as the standard draws it from the rear of the radio.", de: "Teil A des Autoradio-Steckverbinders nach ISO 10487: Batterie plus, Masse, Beleuchtung und Antennenversorgung, gezeichnet wie in der Norm von der Rückseite des Radios."}
+  notes: {en: "Work on mains and vehicle electrics only if you are qualified, and check the actual connector before wiring. The standard makes A7 the main supply (permanent, or switched in the vehicle only when A4 is not switched) and A4 a switched positive of at most 0.3 A, which differs from the common folklore of A4 permanent and A7 ignition: some vehicles and radios use their own split, so measure both contacts in the car before connecting a radio. A5 is an output of the radio for an antenna amplifier (max. 0.3 A), not a supply into the radio. Contacts 9 and 10 do not exist in part A. The standard gives no wire colours.", de: "Arbeiten an Netz- und Fahrzeugelektrik nur durch Qualifizierte, und vor dem Verdrahten den tatsächlichen Steckverbinder prüfen. Die Norm macht A7 zur Hauptversorgung (Dauerplus oder im Fahrzeug nur geschaltet, wenn A4 nicht geschaltet ist) und A4 zu einem geschalteten Plus von höchstens 0,3 A; das weicht von der verbreiteten Faustregel A4 Dauerplus und A7 Zündung ab. Manche Fahrzeuge und Radios haben eine eigene Aufteilung, daher beide Kontakte im Auto nachmessen, bevor ein Radio angeschlossen wird. A5 ist ein Ausgang des Radios für einen Antennenverstärker (max. 0,3 A), keine Versorgung des Radios. Die Kontakte 9 und 10 gibt es in Teil A nicht. Die Norm nennt keine Aderfarben."}
+  tags: ["iso 10487", "iso10487", "iso-stecker", "iso connector", "autoradio", "car radio", "radio", "a4", "a7", "dauerplus", "zündungsplus", "permanent", "ignition", "antenne", "antenna", "beleuchtung", "illumination", "radioanschluss", "radio harness", "autoradiostecker"]
+  source: "ISO 10487-1:1992, Passenger car radio connections, Part 1: Dimensions and general requirements (official preview with the complete normative text: clauses 3 and 4, figure 1, table 1)"
+  views:
+    plug: {en: "Radio's connector, rear view (tabs; the standard calls it the socket)", de: "Radio-Anschluss, Rückansicht (Messer; die Norm nennt ihn Buchse)"}
+    socket: {en: "Harness plug (receptacles), mating face", de: "Kabelbaum-Stecker (Buchsen), Steckseite"}
+  shape:
+    type: rows
+    outline: rect
+    contact: blade
+    drawn: plug
+    key: left
+    rows:
+      - {pins: ["1", "3", "5", "7"]}
+      - {pins: ["2", "4", "6", "8"]}
+  pins:
+    - {number: "1", name: "Speed signal", function: {en: "Volume control, vehicle-speed related (input to the radio)", de: "Lautstärkeregelung abhängig von der Fahrzeuggeschwindigkeit (Eingang des Radios)"}, type: signal}
+    - {number: "2", name: "GND A1", function: {en: "Ground for A1", de: "Masse für A1"}, type: ground}
+    - {number: "3", name: "Reserved", function: {en: "Not allocated (for future application)", de: "Nicht belegt (für künftige Anwendung)"}, type: nc}
+    - {number: "4", name: "Batt+ switched", function: {en: "Battery positive, switched in the vehicle only when A7 is not switched; 0.3 A max", de: "Batterie plus, im Fahrzeug nur geschaltet, wenn A7 nicht geschaltet ist; max. 0,3 A"}, type: power}
+    - {number: "5", name: "Antenna +", function: {en: "Battery positive switched by the radio for the antenna supply; max 0.3 A (output of the radio)", de: "Batterie plus, vom Radio geschaltet für die Antennenversorgung; max. 0,3 A (Ausgang des Radios)"}, type: power}
+    - {number: "6", name: "Illumination", function: {en: "Battery positive for the radio illumination, controlled by the dashboard illumination", de: "Batterie plus für die Radiobeleuchtung, gesteuert von der Armaturenbeleuchtung"}, type: power}
+    - {number: "7", name: "Batt+ main", function: {en: "Battery positive for the main power supply: permanent, or switched in the vehicle only when A4 is not switched", de: "Batterie plus für die Hauptversorgung: Dauerplus oder im Fahrzeug nur geschaltet, wenn A4 nicht geschaltet ist"}, type: power}
+    - {number: "8", name: "Batt-", function: {en: "Battery negative (ground)", de: "Batterie minus (Masse)"}, type: ground}
+
+- id: iso10487_b
+  kind: pinout
+  category: pinouts
+  group: vehicle_mains
+  name: {cs: "Konektor autorádia ISO 10487, část B (reproduktory)", da: "Bilradiostik ISO 10487, del B (højttalere)", de: "Autoradio-Stecker ISO 10487, Teil B (Lautsprecher)", el: "Συνδέτης ραδιοφώνου αυτοκινήτου ISO 10487, μέρος B (ηχεία)", en: "Car radio connector ISO 10487, part B (speakers)", es: "Conector de autorradio ISO 10487, parte B (altavoces)", fr: "Connecteur autoradio ISO 10487, partie B (haut-parleurs)", hi: "कार रेडियो कनेक्टर ISO 10487, भाग B (स्पीकर)", it: "Connettore autoradio ISO 10487, parte B (altoparlanti)", ja: "カーラジオコネクター ISO 10487 パート B (スピーカー)", nl: "Autoradioconnector ISO 10487, deel B (luidsprekers)", "no": "Bilradiokontakt ISO 10487, del B (høyttalere)", pl: "Złącze radia samochodowego ISO 10487, część B (głośniki)", pt: "Conector de autorrádio ISO 10487, parte B (altifalantes)", sv: "Bilradiokontakt ISO 10487, del B (högtalare)", zh: "车载收音机连接器 ISO 10487，B 部分 (扬声器)"}
+  doc: {en: "Part B of the ISO 10487 car radio connector: the four loudspeaker channels, each with its own positive and negative contact, as the standard draws it from the rear of the radio.", de: "Teil B des Autoradio-Steckverbinders nach ISO 10487: die vier Lautsprecherkanäle mit je einem eigenen Plus- und Minuskontakt, gezeichnet wie in der Norm von der Rückseite des Radios."}
+  notes: {en: "Work on mains and vehicle electrics only if you are qualified, and check the actual connector before wiring. Each speaker has its own negative line: never join the negative lines or connect them to ground, because ISO 10487-1 (table 1, footnote 2) does not allow common negative wiring in the vehicle, and a negative line on ground can damage the output stage of a bridged amplifier. Each positive contact sits directly above its negative contact. Contacts 9 and 10 do not exist in part B. The standard gives no wire colours.", de: "Arbeiten an Netz- und Fahrzeugelektrik nur durch Qualifizierte, und vor dem Verdrahten den tatsächlichen Steckverbinder prüfen. Jeder Lautsprecher hat eine eigene Minusleitung: Die Minusleitungen nie verbinden und nie an Masse legen, denn ISO 10487-1 (Tabelle 1, Fußnote 2) erlaubt im Fahrzeug keine gemeinsame Minusleitung, und eine Minusleitung an Masse kann die Endstufe eines Brückenverstärkers beschädigen. Jeder Pluskontakt liegt direkt über seinem Minuskontakt. Die Kontakte 9 und 10 gibt es in Teil B nicht. Die Norm nennt keine Aderfarben."}
+  tags: ["iso 10487", "iso10487", "iso-stecker", "iso connector", "autoradio", "car radio", "lautsprecher", "speaker", "loudspeaker", "front", "rear", "vorn", "hinten", "radioanschluss", "radio harness", "autoradiostecker", "b1", "b8"]
+  source: "ISO 10487-1:1992, Passenger car radio connections, Part 1: Dimensions and general requirements (official preview with the complete normative text: figure 1 and table 1, part B, footnote 2)"
+  views:
+    plug: {en: "Radio's connector, rear view (tabs; the standard calls it the socket)", de: "Radio-Anschluss, Rückansicht (Messer; die Norm nennt ihn Buchse)"}
+    socket: {en: "Harness plug (receptacles), mating face", de: "Kabelbaum-Stecker (Buchsen), Steckseite"}
+  shape:
+    type: rows
+    outline: rect
+    contact: blade
+    drawn: plug
+    key: left
+    rows:
+      - {pins: ["1", "3", "5", "7"]}
+      - {pins: ["2", "4", "6", "8"]}
+  pins:
+    - {number: "1", name: "RR+", function: {en: "Loudspeaker positive, rear right channel", de: "Lautsprecher plus, hinten rechts"}, type: signal}
+    - {number: "2", name: "RR-", function: {en: "Loudspeaker negative, rear right channel", de: "Lautsprecher minus, hinten rechts"}, type: signal}
+    - {number: "3", name: "FR+", function: {en: "Loudspeaker positive, front right channel", de: "Lautsprecher plus, vorn rechts"}, type: signal}
+    - {number: "4", name: "FR-", function: {en: "Loudspeaker negative, front right channel", de: "Lautsprecher minus, vorn rechts"}, type: signal}
+    - {number: "5", name: "FL+", function: {en: "Loudspeaker positive, front left channel", de: "Lautsprecher plus, vorn links"}, type: signal}
+    - {number: "6", name: "FL-", function: {en: "Loudspeaker negative, front left channel", de: "Lautsprecher minus, vorn links"}, type: signal}
+    - {number: "7", name: "RL+", function: {en: "Loudspeaker positive, rear left channel", de: "Lautsprecher plus, hinten links"}, type: signal}
+    - {number: "8", name: "RL-", function: {en: "Loudspeaker negative, rear left channel", de: "Lautsprecher minus, hinten links"}, type: signal}

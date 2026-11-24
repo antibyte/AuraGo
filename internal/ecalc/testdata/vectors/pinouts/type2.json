@@ -1,0 +1,45 @@
+{
+ "pinout": "type2",
+ "variants": [
+  {
+   "variant": "",
+   "counts": {
+    "ground": 1,
+    "power": 4,
+    "signal": 2
+   },
+   "pins": [
+    {
+     "number": "PE",
+     "name": "PE",
+     "type": "ground",
+     "ref": "TE 108-94323 p. 2, both renders: earth contact (PE) in the centre; p. 11 table 4-11 step 1"
+    },
+    {
+     "number": "L1",
+     "name": "L1",
+     "type": "power",
+     "ref": "TE 108-94323 p. 2, station-side plug render: L1 middle left; car-side connector render: L1 middle right"
+    },
+    {
+     "number": "L3",
+     "name": "L3",
+     "type": "power",
+     "ref": "TE 108-94323 p. 2, station-side plug render: bottom right; p. 11 table 4-11 step 3"
+    },
+    {
+     "number": "CP",
+     "name": "CP",
+     "type": "signal",
+     "ref": "TE 108-94323 p. 2, renders: control pilot (CP) top right (plug) / top left (connector); p. 5 table 4-1: Control Pilot 2 A 30 V"
+    },
+    {
+     "number": "PP",
+     "name": "PP",
+     "type": "signal",
+     "ref": "TE 108-94323 p. 2, renders: proximity (PP); p. 7 table 4-7: resistor coding Rc between proximity contact and PE"
+    }
+   ]
+  }
+ ]
+}
