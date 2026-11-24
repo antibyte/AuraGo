@@ -107,7 +107,16 @@ type WSClient struct {
 	o          WSOptions
 	dialer     *websocket.Dialer
 	failures   int // touched only by the Run goroutine
+
+	// Unexported timing knobs; tests shorten them after NewWSClient.
+	registryTimeout time.Duration // a registry batch not complete after this long is abandoned
+	stableAfter     time.Duration // an authenticated session must last this long to reset the backoff
 }
+
+const (
+	defaultRegistryTimeout = 30 * time.Second
+	defaultStableAfter     = time.Minute
+)
 
 // WebsocketURL derives ws(s)://<base>/api/websocket from the validated Home Assistant base URL.
 func WebsocketURL(base string) (string, error) {
@@ -137,7 +146,8 @@ func NewWSClient(baseURL, token string, h WSHandler, o WSOptions) (*WSClient, er
 	// The gorilla dialer never follows redirects: a 3xx fails the handshake, which keeps the
 	// same-origin rule of the REST client. No Origin or Authorization header is sent.
 	return &WSClient{url: u, token: token, h: h, o: o,
-		dialer: &websocket.Dialer{HandshakeTimeout: o.HandshakeTimeout, Proxy: http.ProxyFromEnvironment}}, nil
+		dialer:          &websocket.Dialer{HandshakeTimeout: o.HandshakeTimeout, Proxy: http.ProxyFromEnvironment},
+		registryTimeout: defaultRegistryTimeout, stableAfter: defaultStableAfter}, nil
 }
 
 func (c *WSClient) jitter(d time.Duration) time.Duration {
@@ -166,6 +176,7 @@ func (c *WSClient) Run(ctx context.Context) error {
 	attempt := 0
 	for ctx.Err() == nil {
 		c.h.OnStatus(WSStatus{State: WSConnecting, Failures: c.failures})
+		started := time.Now()
 		authed, err := c.session(ctx)
 		if ctx.Err() != nil {
 			return nil
@@ -175,10 +186,12 @@ func (c *WSClient) Run(ctx context.Context) error {
 			c.h.OnStatus(WSStatus{State: WSAuthFailed, Reason: ReasonAuthFailed, Failures: c.failures})
 			wait, attempt = c.o.AuthRetry, 0
 		} else {
-			if authed {
-				attempt = 0
-			} else {
+			if !authed {
 				c.failures++
+			} else if time.Since(started) >= c.stableAfter {
+				// Only a stable session resets the backoff; one that authenticated and then dropped
+				// early still counts as a failed attempt for the delay (not for the REST fallback).
+				attempt = 0
 			}
 			c.h.OnStatus(WSStatus{State: WSDegraded, Reason: classify(err), Failures: c.failures})
 			wait = c.jitter(c.o.Backoff[min(attempt, len(c.o.Backoff)-1)])
@@ -209,7 +222,7 @@ func (c *WSClient) session(ctx context.Context) (bool, error) {
 	conn.SetReadLimit(c.o.ReadLimit)
 	stop := context.AfterFunc(ctx, func() { conn.Close() })
 	defer stop()
-	s := &wsSession{c: c, conn: conn, pending: map[int64]string{}}
+	s := &wsSession{c: c, conn: conn, pending: map[int64]string{}, pendingBatch: map[int64]int64{}}
 	if err := s.authenticate(); err != nil {
 		return false, err
 	}
@@ -224,14 +237,22 @@ type wsSession struct {
 	c        *WSClient
 	conn     *websocket.Conn
 	wmu      sync.Mutex // single writer
-	mu       sync.Mutex // pending, nextID, reg, regLeft, relist, closed
+	mu       sync.Mutex // pending, pendingBatch, nextID, and every registry batch field below
 	nextID   int64
 	pending  map[int64]string
-	reg      Registries
-	regLeft  int
-	relist   *time.Timer
-	closed   bool
 	lastPong atomic.Int64
+
+	// Registry batch state, all guarded by mu. At most one batch is in flight (batchActive).
+	pendingBatch map[int64]int64 // request id -> batch number, registry requests only
+	batch        int64           // number of the newest batch
+	batchActive  bool
+	reg          Registries
+	regLeft      int
+	regTimer     *time.Timer // abandons the active batch after registryTimeout
+	dirty        bool        // a re-list was requested while a batch was in flight
+	relist       *time.Timer // the single debounce timer, created once
+	relistArmed  bool
+	closed       bool
 }
 
 func (s *wsSession) write(v any) error {
@@ -242,6 +263,11 @@ func (s *wsSession) write(v any) error {
 }
 
 func (s *wsSession) request(kind string, body map[string]any) error {
+	return s.requestBatch(kind, body, 0)
+}
+
+// requestBatch is request that also remembers the registry batch (0 = none) the answer belongs to.
+func (s *wsSession) requestBatch(kind string, body map[string]any, batch int64) error {
 	// The id is allocated and the frame written under one lock so ids reach the wire in order.
 	s.wmu.Lock()
 	defer s.wmu.Unlock()
@@ -249,6 +275,9 @@ func (s *wsSession) request(kind string, body map[string]any) error {
 	s.nextID++
 	id := s.nextID
 	s.pending[id] = kind
+	if batch != 0 {
+		s.pendingBatch[id] = batch
+	}
 	s.mu.Unlock()
 	body["id"] = id
 	_ = s.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
@@ -256,11 +285,17 @@ func (s *wsSession) request(kind string, body map[string]any) error {
 }
 
 func (s *wsSession) take(id int64) string {
+	k, _ := s.takeBatch(id)
+	return k
+}
+
+func (s *wsSession) takeBatch(id int64) (string, int64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	k := s.pending[id]
+	k, b := s.pending[id], s.pendingBatch[id]
 	delete(s.pending, id)
-	return k
+	delete(s.pendingBatch, id)
+	return k, b
 }
 
 func (s *wsSession) authenticate() error {
@@ -288,16 +323,48 @@ func (s *wsSession) authenticate() error {
 	return errProtocol
 }
 
+// listRegistries starts a registry batch unless one is already in flight; in that case it only
+// marks the session dirty so a new batch follows the current one.
 func (s *wsSession) listRegistries() error {
 	s.mu.Lock()
+	if s.closed {
+		s.mu.Unlock()
+		return nil
+	}
+	if s.batchActive {
+		s.dirty = true
+		s.mu.Unlock()
+		return nil
+	}
+	s.batch++
+	batch := s.batch
+	s.batchActive, s.dirty = true, false
 	s.reg, s.regLeft = Registries{}, 3
+	s.regTimer = time.AfterFunc(s.c.registryTimeout, func() { s.abandonBatch(batch) })
 	s.mu.Unlock()
 	for _, k := range []string{kindAreas, kindDevices, kindEntities} {
-		if err := s.request(k, map[string]any{"type": registryCommand[k]}); err != nil {
+		if err := s.requestBatch(k, map[string]any{"type": registryCommand[k]}, batch); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// abandonBatch drops a batch that did not complete in time and schedules one new batch.
+func (s *wsSession) abandonBatch(batch int64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed || !s.batchActive || s.batch != batch {
+		return
+	}
+	s.batchActive, s.dirty = false, false
+	for id, b := range s.pendingBatch {
+		if b == batch {
+			delete(s.pendingBatch, id)
+			delete(s.pending, id)
+		}
+	}
+	s.armRelistLocked()
 }
 
 func (s *wsSession) serve(ctx context.Context) error {
@@ -387,7 +454,8 @@ func (s *wsSession) handle(m wsMsg) error {
 			s.scheduleRelist()
 		}
 	case "result":
-		kind, ok := s.take(m.ID), m.Success != nil && *m.Success
+		kind, batch := s.takeBatch(m.ID)
+		ok := m.Success != nil && *m.Success
 		switch kind {
 		case kindStates:
 			if !ok {
@@ -400,14 +468,19 @@ func (s *wsSession) handle(m wsMsg) error {
 			s.c.h.OnStates(st)
 			s.c.h.OnStatus(WSStatus{State: WSLive})
 		case kindAreas, kindDevices, kindEntities:
-			s.registryResult(kind, ok, m.Result)
+			s.registryResult(batch, kind, ok, m.Result)
 		}
 	}
 	return nil
 }
 
-func (s *wsSession) registryResult(kind string, ok bool, raw json.RawMessage) {
+// registryResult attributes an answer to its batch; answers of abandoned or older batches are ignored.
+func (s *wsSession) registryResult(batch int64, kind string, ok bool, raw json.RawMessage) {
 	s.mu.Lock()
+	if s.closed || !s.batchActive || batch != s.batch || s.regLeft <= 0 {
+		s.mu.Unlock()
+		return
+	}
 	if ok {
 		switch kind {
 		case kindAreas:
@@ -420,38 +493,70 @@ func (s *wsSession) registryResult(kind string, ok bool, raw json.RawMessage) {
 	}
 	s.regLeft--
 	done, reg := s.regLeft == 0, s.reg
+	if done {
+		s.batchActive = false
+		if s.regTimer != nil {
+			s.regTimer.Stop()
+		}
+		if s.dirty {
+			s.dirty = false
+			s.armRelistLocked()
+		}
+	}
 	s.mu.Unlock()
 	if done {
 		s.c.h.OnRegistries(reg)
 	}
 }
 
+// scheduleRelist debounces a re-list request; while a batch is in flight it only marks it dirty.
 func (s *wsSession) scheduleRelist() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.closed {
 		return
 	}
-	if s.relist != nil {
-		s.relist.Reset(s.c.o.RegistryDebounce)
+	if s.batchActive {
+		s.dirty = true
 		return
 	}
-	s.relist = time.AfterFunc(s.c.o.RegistryDebounce, func() {
-		s.mu.Lock()
-		s.relist = nil
-		closed := s.closed
-		s.mu.Unlock()
-		if !closed {
-			_ = s.listRegistries()
-		}
-	})
+	s.armRelistLocked()
+}
+
+// armRelistLocked (mu held) arms the single debounce timer, created once per session.
+func (s *wsSession) armRelistLocked() {
+	if s.closed {
+		return
+	}
+	s.relistArmed = true
+	if s.relist == nil {
+		s.relist = time.AfterFunc(s.c.o.RegistryDebounce, s.relistFire)
+		return
+	}
+	s.relist.Reset(s.c.o.RegistryDebounce)
+}
+
+func (s *wsSession) relistFire() {
+	s.mu.Lock()
+	armed, closed := s.relistArmed, s.closed
+	s.relistArmed = false
+	s.mu.Unlock()
+	if armed && !closed {
+		_ = s.listRegistries()
+	}
 }
 
 func (s *wsSession) stopRelist() {
 	s.mu.Lock()
 	s.closed = true
+	s.relistArmed = false
 	if s.relist != nil {
 		s.relist.Stop()
 	}
+	if s.regTimer != nil {
+		s.regTimer.Stop()
+	}
+	clear(s.pending)
+	clear(s.pendingBatch)
 	s.mu.Unlock()
 }
