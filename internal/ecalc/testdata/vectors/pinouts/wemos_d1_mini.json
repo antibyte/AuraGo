@@ -1,0 +1,58 @@
+{
+ "pinout": "wemos_d1_mini",
+ "variants": [
+  {
+   "variant": "",
+   "counts": {
+    "power": 2,
+    "ground": 1,
+    "signal": 2,
+    "io": 11
+   },
+   "pins": [
+    {
+     "number": "J2.3",
+     "name": "D0",
+     "type": "io",
+     "ref": "V4 schematic J2 pin 3 IO16; V4 figure third on the left: 16; V3.1.0 table: D0 = GPIO16; V3 photo: D0"
+    },
+    {
+     "number": "J2.7",
+     "name": "D8",
+     "type": "io",
+     "ref": "V4 schematic J2 pin 7 IO15 with R11 12 k to GND; V3.1.0 table: D8 = GPIO15, pull-down"
+    },
+    {
+     "number": "J2.8",
+     "name": "3V3",
+     "type": "power",
+     "ref": "V4 schematic J2 pin 8 +3V3; V4 figure bottom left 3.3V; V3 photo 3V3"
+    },
+    {
+     "number": "J3.1",
+     "name": "TX",
+     "type": "io",
+     "ref": "V4 schematic J3 pin 1 TX (U0TXD through R8); V4 figure and V3 photo: TX top right"
+    },
+    {
+     "number": "J3.3",
+     "name": "D1",
+     "type": "io",
+     "ref": "V4 schematic J3 pin 3 IO5 (SCL); V4 figure 5 SCL; V3.1.0 table: D1 = GPIO5, SCL"
+    },
+    {
+     "number": "J3.6",
+     "name": "D4",
+     "type": "io",
+     "ref": "V4 schematic J3 pin 6 IO2, LED1 on IO2; V3.1.0 table: D4 = GPIO2, BUILTIN_LED"
+    },
+    {
+     "number": "J3.8",
+     "name": "5V",
+     "type": "power",
+     "ref": "V4 schematic J3 pin 8 VBUS; V4 figure VBUS; V3 schematic P1 pin 9 +5V after F1; V3 photo 5V"
+    }
+   ]
+  }
+ ]
+}

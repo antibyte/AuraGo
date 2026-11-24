@@ -1,0 +1,59 @@
+{
+ "pinout": "blue_pill",
+ "variants": [
+  {
+   "variant": "",
+   "counts": {
+    "power": 5,
+    "ground": 4,
+    "signal": 1,
+    "data": 2,
+    "io": 32
+   },
+   "pins": [
+    {
+     "number": "H2.20",
+     "name": "PB12",
+     "type": "io",
+     "ref": "stm32-base Header 2 row 20 B12 PB12; Zephyr figure PB12 pin 25 top left; ST LQFP48 pin 25 PB12, FT, SPI2_NSS"
+    },
+    {
+     "number": "H2.8",
+     "name": "PB5",
+     "type": "io",
+     "ref": "stm32-base Header 2 row 8 B5; Zephyr figure PB5 pin 41; ST datasheet table 5: PB5 has no FT in the I/O level column"
+    },
+    {
+     "number": "H2.3",
+     "name": "5V",
+     "type": "power",
+     "ref": "stm32-base Header 2 row 3 5V; Zephyr figure 5V below PB9; VCC-GND schematic P4.3 5V"
+    },
+    {
+     "number": "H1.1",
+     "name": "VBAT",
+     "type": "power",
+     "ref": "stm32-base Header 1 row 1 VB VBAT; Zephyr figure 1 VBAT bottom right; photo square pad at VB"
+    },
+    {
+     "number": "H1.17",
+     "name": "NRST",
+     "type": "signal",
+     "ref": "stm32-base Header 1 row 17 R NRST; Zephyr figure NRST pin 7; ST LQFP48 pin 7 NRST"
+    },
+    {
+     "number": "H1.5",
+     "name": "PA0",
+     "type": "io",
+     "ref": "stm32-base Header 1 row 5 A0 PA0; Zephyr figure PA0 pin 10 ADC0; ST LQFP48 pin 10, no FT"
+    },
+    {
+     "number": "SWD.2",
+     "name": "SWDIO",
+     "type": "data",
+     "ref": "stm32-base SWD row 2 DIO SWDIO PA13; Zephyr figure SWDIO pin 34 PA13; ST LQFP48 pin 34 PA13 JTMS/SWDIO, FT"
+    }
+   ]
+  }
+ ]
+}

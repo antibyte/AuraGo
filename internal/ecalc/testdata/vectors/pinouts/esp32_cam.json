@@ -1,0 +1,59 @@
+{
+ "pinout": "esp32_cam",
+ "variants": [
+  {
+   "variant": "",
+   "counts": {
+    "power": 3,
+    "ground": 3,
+    "signal": 1,
+    "data": 1,
+    "io": 8
+   },
+   "pins": [
+    {
+     "number": "P2.8",
+     "name": "5V",
+     "type": "power",
+     "ref": "Schematic P2 pin 8 to 5V; Random Nerd Tutorials and Last Minute Engineers figures: 5V top left"
+    },
+    {
+     "number": "P2.6",
+     "name": "GPIO12",
+     "type": "io",
+     "ref": "Schematic P2 pin 6 HS2_DATA2 = M1 GPIO12; both figures GPIO12; ESP32 datasheet section 3: MTDI sets the flash voltage"
+    },
+    {
+     "number": "P2.1",
+     "name": "GPIO4",
+     "type": "io",
+     "ref": "Schematic P2 pin 1 HS2_DATA1 = GPIO4, Q1 base via R13; camera_pins.h LED_GPIO_NUM 4; both figures GPIO4"
+    },
+    {
+     "number": "P1.7",
+     "name": "GPIO16",
+     "type": "data",
+     "ref": "Schematic P1 pin 7 U2RXD, M1 GPIO16, U5 CS# on IO16; both figures GPIO16"
+    },
+    {
+     "number": "P1.6",
+     "name": "GPIO0",
+     "type": "signal",
+     "ref": "Schematic P1 pin 6 CSI_MCLK = GPIO0 with R19 10 k to 3V3; camera_pins.h XCLK 0; both figures GPIO0"
+    },
+    {
+     "number": "P1.4",
+     "name": "VCC",
+     "type": "power",
+     "ref": "Schematic P1 pin 4 VCC via R1 and R2 (0 R) to 3V3 or 5V; Random Nerd Tutorials 3.3V/5V; Last Minute Engineers VCC"
+    },
+    {
+     "number": "P1.2",
+     "name": "GPIO1",
+     "type": "io",
+     "ref": "Schematic P1 pin 2 U0TXD; both figures GPIO1 U0TXD"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,58 @@
+{
+ "pinout": "esp32_c3_devkitm1",
+ "variants": [
+  {
+   "variant": "",
+   "counts": {
+    "power": 4,
+    "ground": 10,
+    "signal": 1,
+    "io": 15
+   },
+   "pins": [
+    {
+     "number": "J1.4",
+     "name": "GPIO2",
+     "type": "io",
+     "ref": "Guide J1 row 4 GPIO2 [2], ADC1_CH2, FSPIQ; schematic J1 pin 4 GPIO2; datasheet section 3: strapping pins GPIO2, GPIO8, GPIO9"
+    },
+    {
+     "number": "J1.7",
+     "name": "RST",
+     "type": "signal",
+     "ref": "Guide J1 row 7 RST, CHIP_PU; schematic J1 pin 7 CHIP_PU; figure left, seventh: RST"
+    },
+    {
+     "number": "J1.13",
+     "name": "5V",
+     "type": "power",
+     "ref": "Guide J1 row 13 5V; schematic J1 pin 13 VCC_5V; figure 5V0; photo 5V"
+    },
+    {
+     "number": "J3.2",
+     "name": "GPIO21",
+     "type": "io",
+     "ref": "Guide J3 row 2 TX = GPIO21, U0TXD; schematic J3 pin 2 U0TXD; photo upper row second: TX"
+    },
+    {
+     "number": "J3.6",
+     "name": "GPIO8",
+     "type": "io",
+     "ref": "Guide J3 row 6 GPIO8, RGB LED; schematic J3 pin 6 GPIO8, GPIO8 to R17 to RGB_CTRL"
+    },
+    {
+     "number": "J3.14",
+     "name": "GPIO19",
+     "type": "io",
+     "ref": "Guide J3 row 14 GPIO19, USB_D+; schematic J3 pin 14 GPIO19; figure GPIO19 USB_D+"
+    },
+    {
+     "number": "J3.15",
+     "name": "GND",
+     "type": "ground",
+     "ref": "Guide J3 row 15 GND; schematic J3 pin 15 to GND; figure last on the right: GND"
+    }
+   ]
+  }
+ ]
+}

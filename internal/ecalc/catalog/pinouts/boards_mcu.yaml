@@ -1,0 +1,234 @@
+# Microcontroller development boards (Wemos, Espressif, STM32). The sources behind every item are in documentation/ecalc-sources/pinouts/boards/;
+# a changed pin updates that record, this file and the item's vector together.
+
+- id: wemos_d1_mini
+  kind: pinout
+  category: pinouts
+  group: boards
+  name: {cs: "WEMOS D1 mini", da: "WEMOS D1 mini", de: "WEMOS D1 mini", el: "WEMOS D1 mini", en: "WEMOS D1 mini", es: "WEMOS D1 mini", fr: "WEMOS D1 mini", hi: "WEMOS D1 mini", it: "WEMOS D1 mini", ja: "WEMOS D1 mini", nl: "WEMOS D1 mini", no: "WEMOS D1 mini", pl: "WEMOS D1 mini", pt: "WEMOS D1 mini", sv: "WEMOS D1 mini", zh: "WEMOS D1 mini"}
+  doc: {en: "WEMOS D1 mini (V3 and V4, same positions) from the component side, drawn with the USB socket at the top, so the antenna is at the bottom; WEMOS's own figure shows the board the other way up. Numbers are the headers J2 and J3 of the V4.0.0 schematic, pin 1 of both at the antenna end.", de: "WEMOS D1 mini (V3 und V4, gleiche Positionen) von der Bauteilseite, gezeichnet mit der USB-Buchse oben, die Antenne also unten; WEMOS' eigene Abbildung zeigt die Platine umgekehrt. Die Nummern sind die Stiftleisten J2 und J3 des V4.0.0-Schaltplans, Pin 1 beider am Antennenende."}
+  notes: {en: "All I/O pins run at 3.3 V and are not 5 V tolerant (the chip takes 3.6 V at most, an output 12 mA). D3 (GPIO0) and D4 (GPIO2) have a pull-up and D8 (GPIO15) a pull-down on the board; both schematics (V3.0.0 and V4.0.0) show 12 kΩ, while the V3.1.0 pin table says 10k. These three pins select the boot mode at reset, and TX must not be pulled low during power-up. A0 takes 0 to 3.2 V. D0 (GPIO16) has no interrupt, PWM or I2C and wakes the chip from deep sleep when it is linked to RST. The positions are the same on V3 and V4, the 5V pin is not: on V3 it is the 5 V rail behind a diode and a 0.5 A fuse from USB, on V4 it is USB VBUS directly, with no diode or fuse, so feeding 5 V into it while USB is plugged in drives the USB port. The V4 also has a 4-pin I2C socket, not drawn. Clones exist; compare with the silk screen.", de: "Alle I/O-Pins laufen mit 3,3 V und sind nicht 5-V-tolerant (der Chip verträgt höchstens 3,6 V, ein Ausgang 12 mA). D3 (GPIO0) und D4 (GPIO2) haben einen Pull-up, D8 (GPIO15) einen Pull-down auf der Platine; beide Schaltpläne (V3.0.0 und V4.0.0) zeigen 12 kΩ, die Pin-Tabelle der V3.1.0 nennt 10k. Diese drei Pins wählen beim Reset den Boot-Modus, und TX darf beim Einschalten nicht nach low gezogen werden. A0 nimmt 0 bis 3,2 V. D0 (GPIO16) hat keinen Interrupt, kein PWM und kein I2C und weckt den Chip aus dem Deep Sleep, wenn er mit RST verbunden ist. Die Positionen sind bei V3 und V4 gleich, der 5V-Pin nicht: Bei V3 ist er die 5-V-Schiene hinter einer Diode und einer 0,5-A-Sicherung vom USB, bei V4 liegt er direkt an USB-VBUS, ohne Diode und Sicherung; speist man 5 V ein, während USB steckt, treibt man die USB-Buchse. Die V4 hat außerdem eine 4-polige I2C-Buchse, nicht gezeichnet. Es gibt Klone; mit dem Aufdruck vergleichen."}
+  tags: ["wemos", "lolin", "d1 mini", "d1mini", "esp8266", "esp-12", "wifi", "gpio", "d0", "d1", "d8", "gpio16", "strapping", "boot", "a0", "adc", "vbus", "5v", "i2c", "spi", "stiftleiste", "belegung", "pinout"]
+  source: "WEMOS/LOLIN D1 mini board pages V4.0.0 and V3.1.0 with pinout figure and board photo; WEMOS/LOLIN schematics D1 mini V4.0.0 and V3.0.0; Espressif, ESP8266EX Datasheet v7.1"
+  shape:
+    type: board
+    connector: top
+    left: ["J3.8", "J3.7", "J3.6", "J3.5", "J3.4", "J3.3", "J3.2", "J3.1"]
+    right: ["J2.8", "J2.7", "J2.6", "J2.5", "J2.4", "J2.3", "J2.2", "J2.1"]
+  pins:
+    - {number: "J2.1", name: "RST", function: {en: "Reset, active low; reset button", de: "Reset, low-aktiv; Reset-Taster"}, type: signal}
+    - {number: "J2.2", name: "A0", function: {en: "Analog input 0–3.2 V (220 k/100 k divider to the ADC TOUT)", de: "Analogeingang 0–3,2 V (Teiler 220 k/100 k zum ADC TOUT)"}, type: signal}
+    - {number: "J2.3", name: "D0", function: {en: "GPIO16; no interrupt, PWM, I2C or one-wire; deep-sleep wake (jumper to RST)", de: "GPIO16; kein Interrupt, PWM, I2C oder One-Wire; Deep-Sleep-Wecken (Brücke zu RST)"}, type: io}
+    - {number: "J2.4", name: "D5", function: {en: "GPIO14; SPI SCK", de: "GPIO14; SPI SCK"}, type: io}
+    - {number: "J2.5", name: "D6", function: {en: "GPIO12; SPI MISO", de: "GPIO12; SPI MISO"}, type: io}
+    - {number: "J2.6", name: "D7", function: {en: "GPIO13; SPI MOSI", de: "GPIO13; SPI MOSI"}, type: io}
+    - {number: "J2.7", name: "D8", function: {en: "GPIO15; SPI SS; 12 kΩ pull-down on the board; boot-mode pin", de: "GPIO15; SPI SS; 12-kΩ-Pull-down auf der Platine; Boot-Modus-Pin"}, type: io}
+    - {number: "J2.8", name: "3V3", function: {en: "3.3 V output of the on-board regulator", de: "3,3-V-Ausgang des Reglers auf der Platine"}, type: power}
+    - {number: "J3.1", name: "TX", function: {en: "UART0 TX (GPIO1); to the USB-serial chip", de: "UART0 TX (GPIO1); zum USB-Seriell-Chip"}, type: io}
+    - {number: "J3.2", name: "RX", function: {en: "UART0 RX (GPIO3); from the USB-serial chip", de: "UART0 RX (GPIO3); vom USB-Seriell-Chip"}, type: io}
+    - {number: "J3.3", name: "D1", function: {en: "GPIO5; I2C SCL", de: "GPIO5; I2C SCL"}, type: io}
+    - {number: "J3.4", name: "D2", function: {en: "GPIO4; I2C SDA", de: "GPIO4; I2C SDA"}, type: io}
+    - {number: "J3.5", name: "D3", function: {en: "GPIO0; 12 kΩ pull-up on the board; boot-mode pin", de: "GPIO0; 12-kΩ-Pull-up auf der Platine; Boot-Modus-Pin"}, type: io}
+    - {number: "J3.6", name: "D4", function: {en: "GPIO2; 12 kΩ pull-up; on-board LED (active low); boot-mode pin", de: "GPIO2; 12-kΩ-Pull-up; LED auf der Platine (low-aktiv); Boot-Modus-Pin"}, type: io}
+    - {number: "J3.7", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "J3.8", name: "5V", function: {en: "USB 5 V (V4.0.0: VBUS, direct; V3: through diode and 0.5 A fuse)", de: "USB-5 V (V4.0.0: VBUS, direkt; V3: über Diode und 0,5-A-Sicherung)"}, type: power, notes: {en: "V4: this pin is USB VBUS directly, with no diode or fuse (V3: 5 V behind a diode and a 0.5 A fuse). Feeding 5 V into it while USB is plugged in drives the USB port.", de: "V4: Dieser Pin liegt direkt an USB-VBUS, ohne Diode und Sicherung (V3: 5 V hinter Diode und 0,5-A-Sicherung). Speist man 5 V ein, während USB steckt, treibt man die USB-Buchse."}}
+
+- id: esp32_c3_devkitm1
+  kind: pinout
+  category: pinouts
+  group: boards
+  name: {cs: "ESP32-C3-DevKitM-1", da: "ESP32-C3-DevKitM-1", de: "ESP32-C3-DevKitM-1", el: "ESP32-C3-DevKitM-1", en: "ESP32-C3-DevKitM-1", es: "ESP32-C3-DevKitM-1", fr: "ESP32-C3-DevKitM-1", hi: "ESP32-C3-DevKitM-1", it: "ESP32-C3-DevKitM-1", ja: "ESP32-C3-DevKitM-1", nl: "ESP32-C3-DevKitM-1", no: "ESP32-C3-DevKitM-1", pl: "ESP32-C3-DevKitM-1", pt: "ESP32-C3-DevKitM-1", sv: "ESP32-C3-DevKitM-1", zh: "ESP32-C3-DevKitM-1"}
+  doc: {en: "ESP32-C3-DevKitM-1 V1 from the component side, drawn with the Micro-USB socket at the top, so the module and antenna are at the bottom; Espressif's own figure shows the board the other way up. Numbers are the headers J1 and J3 of Espressif's user guide.", de: "ESP32-C3-DevKitM-1 V1 von der Bauteilseite, gezeichnet mit der Micro-USB-Buchse oben, Modul und Antenne also unten; Espressifs eigene Abbildung zeigt die Platine umgekehrt. Die Nummern sind die Stiftleisten J1 und J3 aus Espressifs Handbuch."}
+  notes: {en: "All GPIOs are 3.3 V only (inputs take VDD plus 0.3 V at most). GPIO2, GPIO8 and GPIO9 are strapping pins, read at reset, so a circuit on them can change how the board starts; GPIO9 low with GPIO8 high enters download mode, which is what the BOOT button does. GPIO8 also drives the RGB LED. GPIO18 and GPIO19 are the chip's own USB pins; the Micro-USB socket of this board goes to the USB-UART bridge on GPIO20 and GPIO21, not to them. The SPI flash is inside the module and not on the headers. Power the board from one source only (Micro-USB, the 5V pins or the 3V3 pins); the 5V pins sit behind a Schottky diode from USB.", de: "Alle GPIOs sind nur 3,3 V (Eingänge vertragen höchstens VDD plus 0,3 V). GPIO2, GPIO8 und GPIO9 sind Strapping-Pins, die beim Reset gelesen werden; eine Schaltung daran kann das Startverhalten ändern. GPIO9 low bei GPIO8 high startet den Download-Modus, das tut der BOOT-Taster. GPIO8 steuert außerdem die RGB-LED. GPIO18 und GPIO19 sind die eigenen USB-Pins des Chips; die Micro-USB-Buchse dieser Platine führt zur USB-UART-Brücke an GPIO20 und GPIO21, nicht zu ihnen. Der SPI-Flash steckt im Modul und liegt nicht an den Leisten. Nur aus einer Quelle versorgen (Micro-USB, die 5V-Pins oder die 3V3-Pins); die 5V-Pins liegen hinter einer Schottky-Diode vom USB."}
+  tags: ["esp32-c3", "esp32c3", "c3", "devkitm", "devkitm-1", "espressif", "risc-v", "wifi", "ble", "gpio", "strapping", "boot", "rgb led", "usb", "jtag", "adc", "i2c", "spi", "uart", "stiftleiste", "belegung", "pinout"]
+  source: "Espressif, ESP32-C3-DevKitM-1 User Guide with pin layout figure and annotated photo; Espressif, schematic ESP32-C3-DevKitM-1 V1.0; Espressif, ESP32-C3 Series Datasheet v2.5"
+  shape:
+    type: board
+    connector: top
+    left: ["J3.15", "J3.14", "J3.13", "J3.12", "J3.11", "J3.10", "J3.9", "J3.8", "J3.7", "J3.6", "J3.5", "J3.4", "J3.3", "J3.2", "J3.1"]
+    right: ["J1.15", "J1.14", "J1.13", "J1.12", "J1.11", "J1.10", "J1.9", "J1.8", "J1.7", "J1.6", "J1.5", "J1.4", "J1.3", "J1.2", "J1.1"]
+  pins:
+    - {number: "J1.1", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "J1.2", name: "3V3", function: {en: "3.3 V supply (LDO output, or input)", de: "3,3-V-Versorgung (LDO-Ausgang oder Eingang)"}, type: power}
+    - {number: "J1.3", name: "3V3", function: {en: "3.3 V supply (LDO output, or input)", de: "3,3-V-Versorgung (LDO-Ausgang oder Eingang)"}, type: power}
+    - {number: "J1.4", name: "GPIO2", function: {en: "ADC1_CH2; FSPIQ; strapping pin (silk 2)", de: "ADC1_CH2; FSPIQ; Strapping-Pin (Aufdruck 2)"}, type: io, notes: {en: "Strapping pin, read at reset. The datasheet says it does not decide between SPI and download boot, but recommends pulling it up.", de: "Strapping-Pin, wird beim Reset gelesen. Laut Datenblatt entscheidet er nicht zwischen SPI- und Download-Boot, ein Pull-up wird aber empfohlen."}}
+    - {number: "J1.5", name: "GPIO3", function: {en: "ADC1_CH3 (silk 3)", de: "ADC1_CH3 (Aufdruck 3)"}, type: io}
+    - {number: "J1.6", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "J1.7", name: "RST", function: {en: "CHIP_PU (chip enable); low resets; RST button", de: "CHIP_PU (Chip-Freigabe); low setzt zurück; RST-Taster"}, type: signal}
+    - {number: "J1.8", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "J1.9", name: "GPIO0", function: {en: "ADC1_CH0; XTAL_32K_P (silk 0)", de: "ADC1_CH0; XTAL_32K_P (Aufdruck 0)"}, type: io}
+    - {number: "J1.10", name: "GPIO1", function: {en: "ADC1_CH1; XTAL_32K_N (silk 1)", de: "ADC1_CH1; XTAL_32K_N (Aufdruck 1)"}, type: io}
+    - {number: "J1.11", name: "GPIO10", function: {en: "FSPICS0 (silk 10)", de: "FSPICS0 (Aufdruck 10)"}, type: io}
+    - {number: "J1.12", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "J1.13", name: "5V", function: {en: "5 V supply (USB 5 V behind a Schottky diode, or input)", de: "5-V-Versorgung (USB-5 V hinter Schottky-Diode, oder Eingang)"}, type: power}
+    - {number: "J1.14", name: "5V", function: {en: "5 V supply (USB 5 V behind a Schottky diode, or input)", de: "5-V-Versorgung (USB-5 V hinter Schottky-Diode, oder Eingang)"}, type: power}
+    - {number: "J1.15", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "J3.1", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "J3.2", name: "GPIO21", function: {en: "U0TXD, to the USB-UART bridge (silk TX)", de: "U0TXD, zur USB-UART-Brücke (Aufdruck TX)"}, type: io}
+    - {number: "J3.3", name: "GPIO20", function: {en: "U0RXD, from the USB-UART bridge (silk RX)", de: "U0RXD, von der USB-UART-Brücke (Aufdruck RX)"}, type: io}
+    - {number: "J3.4", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "J3.5", name: "GPIO9", function: {en: "Strapping pin; BOOT button to GND (silk 9)", de: "Strapping-Pin; BOOT-Taster gegen GND (Aufdruck 9)"}, type: io, notes: {en: "Strapping pin, read at reset: low (with GPIO8 high) enters download mode. The BOOT button pulls it to GND.", de: "Strapping-Pin, wird beim Reset gelesen: low (bei GPIO8 high) startet den Download-Modus. Der BOOT-Taster zieht ihn gegen GND."}}
+    - {number: "J3.6", name: "GPIO8", function: {en: "Strapping pin; RGB LED data, 10 kΩ pull-up (silk 8)", de: "Strapping-Pin; RGB-LED-Daten, 10-kΩ-Pull-up (Aufdruck 8)"}, type: io, notes: {en: "Strapping pin, read at reset: must be high for download mode. It also carries the RGB LED data, with a 10 kΩ pull-up.", de: "Strapping-Pin, wird beim Reset gelesen: muss für den Download-Modus high sein. Er führt außerdem die Daten der RGB-LED, mit 10-kΩ-Pull-up."}}
+    - {number: "J3.7", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "J3.8", name: "GPIO7", function: {en: "FSPID; JTAG MTDO (silk 7)", de: "FSPID; JTAG MTDO (Aufdruck 7)"}, type: io}
+    - {number: "J3.9", name: "GPIO6", function: {en: "FSPICLK; JTAG MTCK (silk 6)", de: "FSPICLK; JTAG MTCK (Aufdruck 6)"}, type: io}
+    - {number: "J3.10", name: "GPIO5", function: {en: "ADC2_CH0; FSPIWP; JTAG MTDI (silk 5)", de: "ADC2_CH0; FSPIWP; JTAG MTDI (Aufdruck 5)"}, type: io}
+    - {number: "J3.11", name: "GPIO4", function: {en: "ADC1_CH4; FSPIHD; JTAG MTMS (silk 4)", de: "ADC1_CH4; FSPIHD; JTAG MTMS (Aufdruck 4)"}, type: io}
+    - {number: "J3.12", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "J3.13", name: "GPIO18", function: {en: "USB_D- of the chip's USB Serial/JTAG (silk 18)", de: "USB_D- des USB-Serial/JTAG im Chip (Aufdruck 18)"}, type: io}
+    - {number: "J3.14", name: "GPIO19", function: {en: "USB_D+ of the chip's USB Serial/JTAG (silk 19)", de: "USB_D+ des USB-Serial/JTAG im Chip (Aufdruck 19)"}, type: io}
+    - {number: "J3.15", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+
+- id: esp32_s3_devkitc1
+  kind: pinout
+  category: pinouts
+  group: boards
+  name: {cs: "ESP32-S3-DevKitC-1", da: "ESP32-S3-DevKitC-1", de: "ESP32-S3-DevKitC-1", el: "ESP32-S3-DevKitC-1", en: "ESP32-S3-DevKitC-1", es: "ESP32-S3-DevKitC-1", fr: "ESP32-S3-DevKitC-1", hi: "ESP32-S3-DevKitC-1", it: "ESP32-S3-DevKitC-1", ja: "ESP32-S3-DevKitC-1", nl: "ESP32-S3-DevKitC-1", no: "ESP32-S3-DevKitC-1", pl: "ESP32-S3-DevKitC-1", pt: "ESP32-S3-DevKitC-1", sv: "ESP32-S3-DevKitC-1", zh: "ESP32-S3-DevKitC-1"}
+  doc: {en: "ESP32-S3-DevKitC-1 v1.1 from the component side, drawn with the two Micro-USB sockets at the top (UART socket at the right, USB socket at the left), so the module and antenna are at the bottom; Espressif's own figure shows the board the other way up. Numbers are the headers J1 and J3 of Espressif's user guide.", de: "ESP32-S3-DevKitC-1 v1.1 von der Bauteilseite, gezeichnet mit den zwei Micro-USB-Buchsen oben (UART-Buchse rechts, USB-Buchse links), Modul und Antenne also unten; Espressifs eigene Abbildung zeigt die Platine umgekehrt. Die Nummern sind die Stiftleisten J1 und J3 aus Espressifs Handbuch."}
+  notes: {en: "All GPIOs are 3.3 V logic (inputs take VDD plus 0.3 V at most). GPIO0, GPIO3, GPIO45 and GPIO46 are strapping pins, read at reset, so a circuit on them can change how the board starts: GPIO0 and GPIO46 set the boot mode (the BOOT button is on GPIO0), GPIO45 the flash voltage VDD_SPI, GPIO3 the JTAG source. GPIO35, GPIO36 and GPIO37 are used by the Octal flash or PSRAM on the variants sold now and are not available there. GPIO19 and GPIO20 also go to the second Micro-USB socket (the chip's USB). The RGB LED is on GPIO38 on v1.1. Power the board from one source only (a USB socket, the 5V pin or the 3V3 pins); each USB socket reaches the 5V rail through its own diode.", de: "Alle GPIOs sind 3,3-V-Logik (Eingänge vertragen höchstens VDD plus 0,3 V). GPIO0, GPIO3, GPIO45 und GPIO46 sind Strapping-Pins, die beim Reset gelesen werden; eine Schaltung daran kann das Startverhalten ändern: GPIO0 und GPIO46 legen den Boot-Modus fest (der BOOT-Taster liegt an GPIO0), GPIO45 die Flash-Spannung VDD_SPI, GPIO3 die JTAG-Quelle. GPIO35, GPIO36 und GPIO37 gehören bei den heute verkauften Varianten dem Octal-Flash oder -PSRAM und sind dort nicht verfügbar. GPIO19 und GPIO20 gehen auch an die zweite Micro-USB-Buchse (das USB des Chips). Die RGB-LED liegt bei v1.1 an GPIO38. Nur aus einer Quelle versorgen (eine USB-Buchse, der Pin 5V oder die 3V3-Pins); jede USB-Buchse erreicht die 5V-Schiene über eine eigene Diode."}
+  tags: ["esp32-s3", "esp32s3", "s3", "devkitc-1", "devkitc", "espressif", "wifi", "ble", "gpio", "strapping", "boot", "octal", "psram", "rgb led", "usb", "jtag", "touch", "adc", "i2c", "spi", "uart", "stiftleiste", "belegung", "pinout"]
+  source: "Espressif, ESP32-S3-DevKitC-1 v1.1 User Guide with pin layout figure and annotated photo; Espressif, schematic ESP32-S3-DevKitC-1 V1.1; Espressif, ESP32-S3 Series Datasheet v2.2"
+  shape:
+    type: board
+    connector: top
+    left: ["J3.22", "J3.21", "J3.20", "J3.19", "J3.18", "J3.17", "J3.16", "J3.15", "J3.14", "J3.13", "J3.12", "J3.11", "J3.10", "J3.9", "J3.8", "J3.7", "J3.6", "J3.5", "J3.4", "J3.3", "J3.2", "J3.1"]
+    right: ["J1.22", "J1.21", "J1.20", "J1.19", "J1.18", "J1.17", "J1.16", "J1.15", "J1.14", "J1.13", "J1.12", "J1.11", "J1.10", "J1.9", "J1.8", "J1.7", "J1.6", "J1.5", "J1.4", "J1.3", "J1.2", "J1.1"]
+  pins:
+    - {number: "J1.1", name: "3V3", function: {en: "3.3 V supply (LDO output, or input)", de: "3,3-V-Versorgung (LDO-Ausgang oder Eingang)"}, type: power}
+    - {number: "J1.2", name: "3V3", function: {en: "3.3 V supply (LDO output, or input)", de: "3,3-V-Versorgung (LDO-Ausgang oder Eingang)"}, type: power}
+    - {number: "J1.3", name: "RST", function: {en: "EN (CHIP_PU); low resets; RESET button", de: "EN (CHIP_PU); low setzt zurück; RESET-Taster"}, type: signal}
+    - {number: "J1.4", name: "GPIO4", function: {en: "TOUCH4; ADC1_CH3 (RTC_GPIO4)", de: "TOUCH4; ADC1_CH3 (RTC_GPIO4)"}, type: io}
+    - {number: "J1.5", name: "GPIO5", function: {en: "TOUCH5; ADC1_CH4 (RTC_GPIO5)", de: "TOUCH5; ADC1_CH4 (RTC_GPIO5)"}, type: io}
+    - {number: "J1.6", name: "GPIO6", function: {en: "TOUCH6; ADC1_CH5 (RTC_GPIO6)", de: "TOUCH6; ADC1_CH5 (RTC_GPIO6)"}, type: io}
+    - {number: "J1.7", name: "GPIO7", function: {en: "TOUCH7; ADC1_CH6 (RTC_GPIO7)", de: "TOUCH7; ADC1_CH6 (RTC_GPIO7)"}, type: io}
+    - {number: "J1.8", name: "GPIO15", function: {en: "U0RTS; ADC2_CH4; XTAL_32K_P", de: "U0RTS; ADC2_CH4; XTAL_32K_P"}, type: io}
+    - {number: "J1.9", name: "GPIO16", function: {en: "U0CTS; ADC2_CH5; XTAL_32K_N", de: "U0CTS; ADC2_CH5; XTAL_32K_N"}, type: io}
+    - {number: "J1.10", name: "GPIO17", function: {en: "U1TXD; ADC2_CH6", de: "U1TXD; ADC2_CH6"}, type: io}
+    - {number: "J1.11", name: "GPIO18", function: {en: "U1RXD; ADC2_CH7; CLK_OUT3", de: "U1RXD; ADC2_CH7; CLK_OUT3"}, type: io}
+    - {number: "J1.12", name: "GPIO8", function: {en: "TOUCH8; ADC1_CH7; SUBSPICS1", de: "TOUCH8; ADC1_CH7; SUBSPICS1"}, type: io}
+    - {number: "J1.13", name: "GPIO3", function: {en: "TOUCH3; ADC1_CH2; strapping pin (JTAG source)", de: "TOUCH3; ADC1_CH2; Strapping-Pin (JTAG-Quelle)"}, type: io, notes: {en: "Strapping pin, read at reset: selects the JTAG signal source.", de: "Strapping-Pin, wird beim Reset gelesen: wählt die JTAG-Signalquelle."}}
+    - {number: "J1.14", name: "GPIO46", function: {en: "Strapping pin (boot mode, ROM log)", de: "Strapping-Pin (Boot-Modus, ROM-Log)"}, type: io, notes: {en: "Strapping pin, read at reset: together with GPIO0 it sets the boot mode and the ROM log output.", de: "Strapping-Pin, wird beim Reset gelesen: legt zusammen mit GPIO0 den Boot-Modus und die ROM-Log-Ausgabe fest."}}
+    - {number: "J1.15", name: "GPIO9", function: {en: "TOUCH9; ADC1_CH8; FSPIHD", de: "TOUCH9; ADC1_CH8; FSPIHD"}, type: io}
+    - {number: "J1.16", name: "GPIO10", function: {en: "TOUCH10; ADC1_CH9; FSPICS0", de: "TOUCH10; ADC1_CH9; FSPICS0"}, type: io}
+    - {number: "J1.17", name: "GPIO11", function: {en: "TOUCH11; ADC2_CH0; FSPID", de: "TOUCH11; ADC2_CH0; FSPID"}, type: io}
+    - {number: "J1.18", name: "GPIO12", function: {en: "TOUCH12; ADC2_CH1; FSPICLK", de: "TOUCH12; ADC2_CH1; FSPICLK"}, type: io}
+    - {number: "J1.19", name: "GPIO13", function: {en: "TOUCH13; ADC2_CH2; FSPIQ", de: "TOUCH13; ADC2_CH2; FSPIQ"}, type: io}
+    - {number: "J1.20", name: "GPIO14", function: {en: "TOUCH14; ADC2_CH3; FSPIWP", de: "TOUCH14; ADC2_CH3; FSPIWP"}, type: io}
+    - {number: "J1.21", name: "5V", function: {en: "5 V supply (USB 5 V behind Schottky diodes, or input)", de: "5-V-Versorgung (USB-5 V hinter Schottky-Dioden, oder Eingang)"}, type: power}
+    - {number: "J1.22", name: "GND", function: {en: "Ground (silk G)", de: "Masse (Aufdruck G)"}, type: ground}
+    - {number: "J3.1", name: "GND", function: {en: "Ground (silk G)", de: "Masse (Aufdruck G)"}, type: ground}
+    - {number: "J3.2", name: "GPIO43", function: {en: "U0TXD, to the USB-UART bridge (silk TX)", de: "U0TXD, zur USB-UART-Brücke (Aufdruck TX)"}, type: io}
+    - {number: "J3.3", name: "GPIO44", function: {en: "U0RXD, from the USB-UART bridge (silk RX)", de: "U0RXD, von der USB-UART-Brücke (Aufdruck RX)"}, type: io}
+    - {number: "J3.4", name: "GPIO1", function: {en: "TOUCH1; ADC1_CH0", de: "TOUCH1; ADC1_CH0"}, type: io}
+    - {number: "J3.5", name: "GPIO2", function: {en: "TOUCH2; ADC1_CH1", de: "TOUCH2; ADC1_CH1"}, type: io}
+    - {number: "J3.6", name: "GPIO42", function: {en: "JTAG MTMS", de: "JTAG MTMS"}, type: io}
+    - {number: "J3.7", name: "GPIO41", function: {en: "JTAG MTDI; CLK_OUT1", de: "JTAG MTDI; CLK_OUT1"}, type: io}
+    - {number: "J3.8", name: "GPIO40", function: {en: "JTAG MTDO; CLK_OUT2", de: "JTAG MTDO; CLK_OUT2"}, type: io}
+    - {number: "J3.9", name: "GPIO39", function: {en: "JTAG MTCK; CLK_OUT3", de: "JTAG MTCK; CLK_OUT3"}, type: io}
+    - {number: "J3.10", name: "GPIO38", function: {en: "RGB LED data (v1.1); FSPIWP", de: "RGB-LED-Daten (v1.1); FSPIWP"}, type: io}
+    - {number: "J3.11", name: "GPIO37", function: {en: "SPIDQS; used by the Octal flash or PSRAM on the variants sold now", de: "SPIDQS; bei den heute verkauften Varianten vom Octal-Flash oder -PSRAM belegt"}, type: data, notes: {en: "Not available on boards with Octal flash or PSRAM, which is the case for the variants sold now.", de: "Bei Platinen mit Octal-Flash oder -PSRAM nicht verfügbar, das ist bei den heute verkauften Varianten der Fall."}}
+    - {number: "J3.12", name: "GPIO36", function: {en: "SPIIO7; used by the Octal flash or PSRAM on the variants sold now", de: "SPIIO7; bei den heute verkauften Varianten vom Octal-Flash oder -PSRAM belegt"}, type: data, notes: {en: "Not available on boards with Octal flash or PSRAM, which is the case for the variants sold now.", de: "Bei Platinen mit Octal-Flash oder -PSRAM nicht verfügbar, das ist bei den heute verkauften Varianten der Fall."}}
+    - {number: "J3.13", name: "GPIO35", function: {en: "SPIIO6; used by the Octal flash or PSRAM on the variants sold now", de: "SPIIO6; bei den heute verkauften Varianten vom Octal-Flash oder -PSRAM belegt"}, type: data, notes: {en: "Not available on boards with Octal flash or PSRAM, which is the case for the variants sold now.", de: "Bei Platinen mit Octal-Flash oder -PSRAM nicht verfügbar, das ist bei den heute verkauften Varianten der Fall."}}
+    - {number: "J3.14", name: "GPIO0", function: {en: "Strapping pin (boot mode); BOOT button", de: "Strapping-Pin (Boot-Modus); BOOT-Taster"}, type: io, notes: {en: "Strapping pin, read at reset: low enters download mode. The BOOT button pulls it to GND.", de: "Strapping-Pin, wird beim Reset gelesen: low startet den Download-Modus. Der BOOT-Taster zieht ihn gegen GND."}}
+    - {number: "J3.15", name: "GPIO45", function: {en: "Strapping pin (VDD_SPI voltage)", de: "Strapping-Pin (VDD_SPI-Spannung)"}, type: io, notes: {en: "Strapping pin, read at reset: sets the flash voltage VDD_SPI.", de: "Strapping-Pin, wird beim Reset gelesen: legt die Flash-Spannung VDD_SPI fest."}}
+    - {number: "J3.16", name: "GPIO48", function: {en: "SPICLK_N", de: "SPICLK_N"}, type: io}
+    - {number: "J3.17", name: "GPIO47", function: {en: "SPICLK_P", de: "SPICLK_P"}, type: io}
+    - {number: "J3.18", name: "GPIO21", function: {en: "GPIO (RTC_GPIO21)", de: "GPIO (RTC_GPIO21)"}, type: io}
+    - {number: "J3.19", name: "GPIO20", function: {en: "USB_D+ of the chip, wired to the USB socket; U1CTS; ADC2_CH9", de: "USB_D+ des Chips, an der USB-Buchse; U1CTS; ADC2_CH9"}, type: io}
+    - {number: "J3.20", name: "GPIO19", function: {en: "USB_D- of the chip, wired to the USB socket; U1RTS; ADC2_CH8", de: "USB_D- des Chips, an der USB-Buchse; U1RTS; ADC2_CH8"}, type: io}
+    - {number: "J3.21", name: "GND", function: {en: "Ground (silk G)", de: "Masse (Aufdruck G)"}, type: ground}
+    - {number: "J3.22", name: "GND", function: {en: "Ground (silk G)", de: "Masse (Aufdruck G)"}, type: ground}
+
+- id: esp32_cam
+  kind: pinout
+  category: pinouts
+  group: boards
+  name: {cs: "ESP32-CAM", da: "ESP32-CAM", de: "ESP32-CAM", el: "ESP32-CAM", en: "ESP32-CAM", es: "ESP32-CAM", fr: "ESP32-CAM", hi: "ESP32-CAM", it: "ESP32-CAM", ja: "ESP32-CAM", nl: "ESP32-CAM", no: "ESP32-CAM", pl: "ESP32-CAM", pt: "ESP32-CAM", sv: "ESP32-CAM", zh: "ESP32-CAM"}
+  doc: {en: "ESP32-CAM (Ai-Thinker ESP-32S module with OV2640 camera) from the side with the camera, the microSD socket and the pin labels, drawn with the microSD socket at the top and the camera connector at the bottom. The board has no USB socket. Numbers P1 and P2 follow a copy of the board schematic (Rev 1.6).", de: "ESP32-CAM (Ai-Thinker-Modul ESP-32S mit OV2640-Kamera) von der Seite mit Kamera, microSD-Buchse und Pin-Beschriftung, gezeichnet mit der microSD-Buchse oben und dem Kameraanschluss unten. Die Platine hat keine USB-Buchse. Die Nummern P1 und P2 folgen einer Kopie des Platinen-Schaltplans (Rev 1.6)."}
+  notes: {en: "No maker document: Ai-Thinker's own pages and files could not be opened, so the layout comes from two independent sources (pinout figures of two tutorial sites, confirmed by a copy of the board schematic) and the signal functions from Espressif (ESP32 datasheet, arduino-esp32 camera pin map AI_THINKER). Clones may differ; check the silk screen. All GPIOs are 3.3 V logic. Feed the board through 5V; the 3V3 pin is the regulator output, and VCC is an output too (3.3 V, or 5 V when the 0 Ω link is moved). The camera uses GPIO0 (XCLK), 5, 18, 19, 21, 22, 23, 25, 26, 27, 32, 34, 35, 36 and 39. The microSD card uses GPIO2, 4, 12, 13, 14 and 15, which are on the headers; GPIO4 also drives the white flash LED, and the red LED is on GPIO33. GPIO16 is the chip select of the PSRAM, GPIO17 its clock. GPIO0, GPIO2, GPIO12 and GPIO15 are strapping pins. Programming needs a USB-serial adapter on U0R and U0T with GPIO0 pulled to GND at reset.", de: "Kein Herstellerdokument: Ai-Thinkers eigene Seiten und Dateien ließen sich nicht öffnen, daher stammt das Layout aus zwei unabhängigen Quellen (Pinout-Abbildungen zweier Tutorial-Seiten, bestätigt durch eine Kopie des Platinen-Schaltplans) und die Signalfunktionen von Espressif (ESP32-Datenblatt, Kamera-Pinbelegung AI_THINKER im arduino-esp32). Klone können abweichen; mit dem Aufdruck vergleichen. Alle GPIOs sind 3,3-V-Logik. Die Platine über 5V speisen; der Pin 3V3 ist der Reglerausgang, und auch VCC ist ein Ausgang (3,3 V, oder 5 V, wenn die 0-Ω-Brücke umgesetzt wird). Die Kamera belegt GPIO0 (XCLK), 5, 18, 19, 21, 22, 23, 25, 26, 27, 32, 34, 35, 36 und 39. Die microSD-Karte belegt GPIO2, 4, 12, 13, 14 und 15, die an den Leisten liegen; GPIO4 steuert auch die weiße Blitz-LED, die rote LED hängt an GPIO33. GPIO16 ist die Chipauswahl des PSRAM, GPIO17 sein Takt. GPIO0, GPIO2, GPIO12 und GPIO15 sind Strapping-Pins. Zum Programmieren braucht man einen USB-Seriell-Adapter an U0R und U0T mit GPIO0 gegen GND beim Reset."}
+  tags: ["esp32-cam", "esp32cam", "cam", "ai-thinker", "ai thinker", "esp-32s", "ov2640", "camera", "kamera", "microsd", "sd card", "psram", "flash led", "wifi", "gpio", "gpio16", "gpio0", "strapping", "u0r", "u0t", "stiftleiste", "belegung", "pinout"]
+  source: "Espressif, ESP32 Series Datasheet v5.3; Espressif, arduino-esp32 camera_pins.h (CAMERA_MODEL_AI_THINKER); schematic ESP32_CAM Rev 1.6 (copy hosted by Seeed Studio); Random Nerd Tutorials, ESP32-CAM AI-Thinker Pinout Guide; Last Minute Engineers, ESP32-CAM Pinout Reference; no Ai-Thinker document could be opened"
+  shape:
+    type: board
+    connector: none
+    left: ["P2.8", "P2.7", "P2.6", "P2.5", "P2.4", "P2.3", "P2.2", "P2.1"]
+    right: ["P1.8", "P1.7", "P1.6", "P1.5", "P1.4", "P1.3", "P1.2", "P1.1"]
+  pins:
+    - {number: "P2.8", name: "5V", function: {en: "5 V supply input to the 3.3 V regulator (AMS1117)", de: "5-V-Versorgungseingang zum 3,3-V-Regler (AMS1117)"}, type: power}
+    - {number: "P2.7", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "P2.6", name: "GPIO12", function: {en: "microSD DATA2 (HS2_DATA2); strapping pin MTDI (flash voltage) — keep low at boot", de: "microSD DATA2 (HS2_DATA2); Strapping-Pin MTDI (Flash-Spannung) — beim Start low halten"}, type: io}
+    - {number: "P2.5", name: "GPIO13", function: {en: "microSD DATA3 (HS2_DATA3)", de: "microSD DATA3 (HS2_DATA3)"}, type: io}
+    - {number: "P2.4", name: "GPIO15", function: {en: "microSD CMD (HS2_CMD); strapping pin MTDO", de: "microSD CMD (HS2_CMD); Strapping-Pin MTDO"}, type: io}
+    - {number: "P2.3", name: "GPIO14", function: {en: "microSD CLK (HS2_CLK)", de: "microSD CLK (HS2_CLK)"}, type: io}
+    - {number: "P2.2", name: "GPIO2", function: {en: "microSD DATA0 (HS2_DATA0); strapping pin (boot mode)", de: "microSD DATA0 (HS2_DATA0); Strapping-Pin (Boot-Modus)"}, type: io}
+    - {number: "P2.1", name: "GPIO4", function: {en: "microSD DATA1 (HS2_DATA1); drives the white flash LED", de: "microSD DATA1 (HS2_DATA1); steuert die weiße Blitz-LED"}, type: io}
+    - {number: "P1.8", name: "3V3", function: {en: "3.3 V rail (regulator output)", de: "3,3-V-Schiene (Reglerausgang)"}, type: power}
+    - {number: "P1.7", name: "GPIO16", function: {en: "PSRAM chip select; U2RXD — not free while PSRAM is used", de: "PSRAM-Chipauswahl; U2RXD — nicht frei, solange PSRAM genutzt wird"}, type: data, notes: {en: "GPIO16 is the chip select of the PSRAM, so it is not free while the PSRAM is used.", de: "GPIO16 ist die Chipauswahl des PSRAM und daher nicht frei, solange der PSRAM genutzt wird."}}
+    - {number: "P1.6", name: "GPIO0", function: {en: "Camera XCLK; boot-mode strapping pin, 10 kΩ pull-up — low at reset = flash mode", de: "Kamera-XCLK; Boot-Strapping-Pin, 10-kΩ-Pull-up — low beim Reset = Flash-Modus"}, type: signal}
+    - {number: "P1.5", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "P1.4", name: "VCC", function: {en: "Supply output, 3.3 V (default) or 5 V, set by a 0 Ω link", de: "Versorgungsausgang, 3,3 V (Standard) oder 5 V, per 0-Ω-Brücke"}, type: power}
+    - {number: "P1.3", name: "GPIO3", function: {en: "UART0 RX (U0RXD), for programming (silk U0R)", de: "UART0 RX (U0RXD), zum Programmieren (Aufdruck U0R)"}, type: io}
+    - {number: "P1.2", name: "GPIO1", function: {en: "UART0 TX (U0TXD), for programming (silk U0T)", de: "UART0 TX (U0TXD), zum Programmieren (Aufdruck U0T)"}, type: io}
+    - {number: "P1.1", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+
+- id: blue_pill
+  kind: pinout
+  category: pinouts
+  group: boards
+  name: {cs: "Blue Pill (STM32F103C8)", da: "Blue Pill (STM32F103C8)", de: "Blue Pill (STM32F103C8)", el: "Blue Pill (STM32F103C8)", en: "Blue Pill (STM32F103C8)", es: "Blue Pill (STM32F103C8)", fr: "Blue Pill (STM32F103C8)", hi: "Blue Pill (STM32F103C8)", it: "Blue Pill (STM32F103C8)", ja: "Blue Pill (STM32F103C8)", nl: "Blue Pill (STM32F103C8)", no: "Blue Pill (STM32F103C8)", pl: "Blue Pill (STM32F103C8)", pt: "Blue Pill (STM32F103C8)", sv: "Blue Pill (STM32F103C8)", zh: "Blue Pill (STM32F103C8)"}
+  doc: {en: "STM32F103C8 Blue Pill from the component side (MCU, crystal, reset button), drawn with the Micro-USB socket at the top. The 4-pin SWD header, which sits at the bottom edge of the real board, is shown as a block in the middle of the drawing. The board carries no header names; H1 (right column) and H2 (left column) and the SWD header follow stm32-base.org, and pin 1 of each is at the SWD end.", de: "STM32F103C8 Blue Pill von der Bauteilseite (MCU, Quarz, Reset-Taster), gezeichnet mit der Micro-USB-Buchse oben. Die 4-polige SWD-Leiste, die auf der echten Platine am unteren Rand sitzt, ist als Block in der Mitte der Zeichnung dargestellt. Die Platine trägt keine Leistennamen; H1 (rechte Reihe), H2 (linke Reihe) und die SWD-Leiste folgen stm32-base.org, Pin 1 jeweils am SWD-Ende."}
+  notes: {en: "There is no official maker of the Blue Pill: it is a clone board, and the layout comes from two independent sources (stm32-base.org and the Zephyr Project's figure), the pin functions from ST's STM32F103x8/xB datasheet. Clones differ: regulator (RT9193-33 or TX6211B), USB D+ pull-up (4.7 kΩ or 10 kΩ instead of 1.5 kΩ) and sometimes the chip itself; compare with the silk screen. The chip runs at 2.0 to 3.6 V. Pins marked 5 V tolerant take 5 V; all others, among them PA0 to PA7, PB0, PB1, PB5 and PC13 to PC15, must never see 5 V. PB5 is the one pin of its neighbours that is not 5 V tolerant. PC13 to PC15 sink or source 3 mA at 2 MHz only. PB3, PB4 and PA15 start as JTAG pins. The 5V pin is tied to USB VBUS without protection: do not feed it while USB is plugged in. BOOT0 and BOOT1 are jumpers, not header pins.", de: "Es gibt keinen offiziellen Hersteller des Blue Pill: Es ist eine Klon-Platine, das Layout stammt aus zwei unabhängigen Quellen (stm32-base.org und die Abbildung des Zephyr Project), die Pinfunktionen aus ST's Datenblatt STM32F103x8/xB. Klone unterscheiden sich: Regler (RT9193-33 oder TX6211B), USB-D+-Pull-up (4,7 kΩ oder 10 kΩ statt 1,5 kΩ) und manchmal der Chip selbst; mit dem Aufdruck vergleichen. Der Chip läuft mit 2,0 bis 3,6 V. Als 5-V-tolerant markierte Pins vertragen 5 V; alle anderen, darunter PA0 bis PA7, PB0, PB1, PB5 und PC13 bis PC15, dürfen nie 5 V sehen. PB5 ist der einzige Pin unter seinen Nachbarn, der nicht 5-V-tolerant ist. PC13 bis PC15 liefern oder senken nur 3 mA bei 2 MHz. PB3, PB4 und PA15 starten als JTAG-Pins. Der Pin 5V liegt ohne Schutz an USB-VBUS: nicht einspeisen, solange USB steckt. BOOT0 und BOOT1 sind Brücken, keine Leistenpins."}
+  tags: ["blue pill", "bluepill", "stm32", "stm32f103", "stm32f103c8", "stm32f103c8t6", "cortex-m3", "swd", "jtag", "st-link", "clone", "gpio", "pc13", "pb5", "5v tolerant", "5v-tolerant", "usb", "adc", "uart", "spi", "i2c", "stiftleiste", "belegung", "pinout"]
+  source: "STMicroelectronics, STM32F103x8 STM32F103xB datasheet, DocID13587 Rev 16; stm32-base.org, STM32F103C8T6 Blue Pill board page; Zephyr Project, STM32 Minimum Development Board pinout figure; VCC-GND Studio, STM32F103C8T6 core board schematic"
+  shape:
+    type: board
+    connector: top
+    left: ["H2.20", "H2.19", "H2.18", "H2.17", "H2.16", "H2.15", "H2.14", "H2.13", "H2.12", "H2.11", "H2.10", "H2.9", "H2.8", "H2.7", "H2.6", "H2.5", "H2.4", "H2.3", "H2.2", "H2.1"]
+    right: ["H1.20", "H1.19", "H1.18", "H1.17", "H1.16", "H1.15", "H1.14", "H1.13", "H1.12", "H1.11", "H1.10", "H1.9", "H1.8", "H1.7", "H1.6", "H1.5", "H1.4", "H1.3", "H1.2", "H1.1"]
+    inner:
+      - {label: "SWD", rows: [{pins: ["SWD.1", "SWD.2", "SWD.3", "SWD.4"]}]}
+  pins:
+    - {number: "H1.1", name: "VBAT", function: {en: "Backup supply for RTC/backup registers (VB)", de: "Pufferversorgung für RTC/Backup-Register (VB)"}, type: power}
+    - {number: "H1.2", name: "PC13", function: {en: "GPIO; on-board LED, lights when low; 3 mA max, 2 MHz max; 3.3 V only", de: "GPIO; LED auf der Platine, leuchtet bei Low; max. 3 mA, max. 2 MHz; nur 3,3 V"}, type: io}
+    - {number: "H1.3", name: "PC14", function: {en: "GPIO; OSC32_IN (32.768 kHz crystal on board); 3 mA max; 3.3 V only", de: "GPIO; OSC32_IN (32,768-kHz-Quarz auf der Platine); max. 3 mA; nur 3,3 V"}, type: io}
+    - {number: "H1.4", name: "PC15", function: {en: "GPIO; OSC32_OUT (32.768 kHz crystal on board); 3 mA max; 3.3 V only", de: "GPIO; OSC32_OUT (32,768-kHz-Quarz auf der Platine); max. 3 mA; nur 3,3 V"}, type: io}
+    - {number: "H1.5", name: "PA0", function: {en: "ADC12_IN0; WKUP; USART2_CTS; TIM2_CH1_ETR; 3.3 V only", de: "ADC12_IN0; WKUP; USART2_CTS; TIM2_CH1_ETR; nur 3,3 V"}, type: io}
+    - {number: "H1.6", name: "PA1", function: {en: "ADC12_IN1; USART2_RTS; TIM2_CH2; 3.3 V only", de: "ADC12_IN1; USART2_RTS; TIM2_CH2; nur 3,3 V"}, type: io}
+    - {number: "H1.7", name: "PA2", function: {en: "ADC12_IN2; USART2_TX; TIM2_CH3; 3.3 V only", de: "ADC12_IN2; USART2_TX; TIM2_CH3; nur 3,3 V"}, type: io}
+    - {number: "H1.8", name: "PA3", function: {en: "ADC12_IN3; USART2_RX; TIM2_CH4; 3.3 V only", de: "ADC12_IN3; USART2_RX; TIM2_CH4; nur 3,3 V"}, type: io}
+    - {number: "H1.9", name: "PA4", function: {en: "ADC12_IN4; SPI1_NSS; USART2_CK; 3.3 V only", de: "ADC12_IN4; SPI1_NSS; USART2_CK; nur 3,3 V"}, type: io}
+    - {number: "H1.10", name: "PA5", function: {en: "ADC12_IN5; SPI1_SCK; 3.3 V only", de: "ADC12_IN5; SPI1_SCK; nur 3,3 V"}, type: io}
+    - {number: "H1.11", name: "PA6", function: {en: "ADC12_IN6; SPI1_MISO; TIM3_CH1; 3.3 V only", de: "ADC12_IN6; SPI1_MISO; TIM3_CH1; nur 3,3 V"}, type: io}
+    - {number: "H1.12", name: "PA7", function: {en: "ADC12_IN7; SPI1_MOSI; TIM3_CH2; 3.3 V only", de: "ADC12_IN7; SPI1_MOSI; TIM3_CH2; nur 3,3 V"}, type: io}
+    - {number: "H1.13", name: "PB0", function: {en: "ADC12_IN8; TIM3_CH3; 3.3 V only", de: "ADC12_IN8; TIM3_CH3; nur 3,3 V"}, type: io}
+    - {number: "H1.14", name: "PB1", function: {en: "ADC12_IN9; TIM3_CH4; 3.3 V only", de: "ADC12_IN9; TIM3_CH4; nur 3,3 V"}, type: io}
+    - {number: "H1.15", name: "PB10", function: {en: "I2C2_SCL; USART3_TX; 5 V tolerant", de: "I2C2_SCL; USART3_TX; 5-V-tolerant"}, type: io}
+    - {number: "H1.16", name: "PB11", function: {en: "I2C2_SDA; USART3_RX; 5 V tolerant", de: "I2C2_SDA; USART3_RX; 5-V-tolerant"}, type: io}
+    - {number: "H1.17", name: "NRST", function: {en: "Reset, active low; reset button (silk R)", de: "Reset, low-aktiv; Reset-Taster (Aufdruck R)"}, type: signal}
+    - {number: "H1.18", name: "3V3", function: {en: "3.3 V rail (regulator output)", de: "3,3-V-Schiene (Reglerausgang)"}, type: power}
+    - {number: "H1.19", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "H1.20", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "H2.1", name: "3V3", function: {en: "3.3 V rail (regulator output)", de: "3,3-V-Schiene (Reglerausgang)"}, type: power}
+    - {number: "H2.2", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "H2.3", name: "5V", function: {en: "5 V rail, tied to USB VBUS, no protection", de: "5-V-Schiene, direkt an USB-VBUS, ohne Schutz"}, type: power, notes: {en: "Tied to USB VBUS with no protection: do not feed it while USB is plugged in.", de: "Direkt an USB-VBUS, ohne Schutz: nicht einspeisen, solange USB steckt."}}
+    - {number: "H2.4", name: "PB9", function: {en: "TIM4_CH4; remap I2C1_SDA, CANTX; 5 V tolerant", de: "TIM4_CH4; Remap I2C1_SDA, CANTX; 5-V-tolerant"}, type: io}
+    - {number: "H2.5", name: "PB8", function: {en: "TIM4_CH3; remap I2C1_SCL, CANRX; 5 V tolerant", de: "TIM4_CH3; Remap I2C1_SCL, CANRX; 5-V-tolerant"}, type: io}
+    - {number: "H2.6", name: "PB7", function: {en: "I2C1_SDA; TIM4_CH2; remap USART1_RX; 5 V tolerant", de: "I2C1_SDA; TIM4_CH2; Remap USART1_RX; 5-V-tolerant"}, type: io}
+    - {number: "H2.7", name: "PB6", function: {en: "I2C1_SCL; TIM4_CH1; remap USART1_TX; 5 V tolerant", de: "I2C1_SCL; TIM4_CH1; Remap USART1_TX; 5-V-tolerant"}, type: io}
+    - {number: "H2.8", name: "PB5", function: {en: "I2C1_SMBA; remap TIM3_CH2, SPI1_MOSI; 3.3 V only (not FT)", de: "I2C1_SMBA; Remap TIM3_CH2, SPI1_MOSI; nur 3,3 V (nicht FT)"}, type: io, notes: {en: "Not 5 V tolerant, unlike its neighbours PB4 and PB6 (ST datasheet, table 5): never apply 5 V.", de: "Nicht 5-V-tolerant, anders als seine Nachbarn PB4 und PB6 (ST-Datenblatt, Tabelle 5): nie 5 V anlegen."}}
+    - {number: "H2.9", name: "PB4", function: {en: "JTAG NJTRST after reset; remap TIM3_CH1, SPI1_MISO; 5 V tolerant", de: "Nach Reset JTAG NJTRST; Remap TIM3_CH1, SPI1_MISO; 5-V-tolerant"}, type: io}
+    - {number: "H2.10", name: "PB3", function: {en: "JTAG JTDO/TRACESWO after reset; remap TIM2_CH2, SPI1_SCK; 5 V tolerant", de: "Nach Reset JTAG JTDO/TRACESWO; Remap TIM2_CH2, SPI1_SCK; 5-V-tolerant"}, type: io}
+    - {number: "H2.11", name: "PA15", function: {en: "JTAG JTDI after reset; remap TIM2_CH1_ETR, SPI1_NSS; 5 V tolerant", de: "Nach Reset JTAG JTDI; Remap TIM2_CH1_ETR, SPI1_NSS; 5-V-tolerant"}, type: io}
+    - {number: "H2.12", name: "PA12", function: {en: "USB D+ (wired to the USB socket, pull-up on board); CANTX; USART1_RTS; 5 V tolerant", de: "USB D+ (an der USB-Buchse, Pull-up auf der Platine); CANTX; USART1_RTS; 5-V-tolerant"}, type: io, notes: {en: "Many clones carry a wrong USB D+ pull-up (4.7 kΩ or 10 kΩ instead of 1.5 kΩ).", de: "Viele Klone tragen einen falschen USB-D+-Pull-up (4,7 kΩ oder 10 kΩ statt 1,5 kΩ)."}}
+    - {number: "H2.13", name: "PA11", function: {en: "USB D- (wired to the USB socket); CANRX; USART1_CTS; 5 V tolerant", de: "USB D- (an der USB-Buchse); CANRX; USART1_CTS; 5-V-tolerant"}, type: io}
+    - {number: "H2.14", name: "PA10", function: {en: "USART1_RX; TIM1_CH3; 5 V tolerant", de: "USART1_RX; TIM1_CH3; 5-V-tolerant"}, type: io}
+    - {number: "H2.15", name: "PA9", function: {en: "USART1_TX; TIM1_CH2; 5 V tolerant", de: "USART1_TX; TIM1_CH2; 5-V-tolerant"}, type: io}
+    - {number: "H2.16", name: "PA8", function: {en: "TIM1_CH1; MCO; USART1_CK; 5 V tolerant", de: "TIM1_CH1; MCO; USART1_CK; 5-V-tolerant"}, type: io}
+    - {number: "H2.17", name: "PB15", function: {en: "SPI2_MOSI; TIM1_CH3N; 5 V tolerant", de: "SPI2_MOSI; TIM1_CH3N; 5-V-tolerant"}, type: io}
+    - {number: "H2.18", name: "PB14", function: {en: "SPI2_MISO; USART3_RTS; TIM1_CH2N; 5 V tolerant", de: "SPI2_MISO; USART3_RTS; TIM1_CH2N; 5-V-tolerant"}, type: io}
+    - {number: "H2.19", name: "PB13", function: {en: "SPI2_SCK; USART3_CTS; TIM1_CH1N; 5 V tolerant", de: "SPI2_SCK; USART3_CTS; TIM1_CH1N; 5-V-tolerant"}, type: io}
+    - {number: "H2.20", name: "PB12", function: {en: "SPI2_NSS; I2C2_SMBA; USART3_CK; TIM1_BKIN; 5 V tolerant", de: "SPI2_NSS; I2C2_SMBA; USART3_CK; TIM1_BKIN; 5-V-tolerant"}, type: io}
+    - {number: "SWD.1", name: "3V3", function: {en: "3.3 V rail", de: "3,3-V-Schiene"}, type: power}
+    - {number: "SWD.2", name: "SWDIO", function: {en: "SWD data, PA13 (JTMS); 5 V tolerant (silk DIO)", de: "SWD-Daten, PA13 (JTMS); 5-V-tolerant (Aufdruck DIO)"}, type: data}
+    - {number: "SWD.3", name: "SWCLK", function: {en: "SWD clock, PA14 (JTCK); 5 V tolerant (silk CLK)", de: "SWD-Takt, PA14 (JTCK); 5-V-tolerant (Aufdruck CLK)"}, type: data}
+    - {number: "SWD.4", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}

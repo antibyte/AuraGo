@@ -1,0 +1,59 @@
+{
+ "pinout": "esp32_s3_devkitc1",
+ "variants": [
+  {
+   "variant": "",
+   "counts": {
+    "power": 3,
+    "ground": 4,
+    "signal": 1,
+    "data": 3,
+    "io": 33
+   },
+   "pins": [
+    {
+     "number": "J1.3",
+     "name": "RST",
+     "type": "signal",
+     "ref": "Guide J1 row 3 RST, EN; schematic J1 pin 3 CHIP_PU; figure RST; photo RST"
+    },
+    {
+     "number": "J1.14",
+     "name": "GPIO46",
+     "type": "io",
+     "ref": "Guide J1 row 14 GPIO46; schematic J1 pin 14 GPIO46; figure GPIO46 LOG (STRAP); datasheet section 3: strapping pins GPIO0, GPIO3, GPIO45, GPIO46"
+    },
+    {
+     "number": "J1.21",
+     "name": "5V",
+     "type": "power",
+     "ref": "Guide J1 row 21 5V; schematic J1 pin 21 VCC_5V; figure 5V0; photo 5V"
+    },
+    {
+     "number": "J3.2",
+     "name": "GPIO43",
+     "type": "io",
+     "ref": "Guide J3 row 2 TX, U0TXD = GPIO43; schematic J3 pin 2 U0TXD; photo TX"
+    },
+    {
+     "number": "J3.10",
+     "name": "GPIO38",
+     "type": "io",
+     "ref": "Guide J3 row 10 GPIO38, RGB LED; schematic J3 pin 10 GPIO38, RGB LED fed from GPIO38"
+    },
+    {
+     "number": "J3.14",
+     "name": "GPIO0",
+     "type": "io",
+     "ref": "Guide J3 row 14 GPIO0, BOOT; schematic J3 pin 14 GPIO0, SW1 to GPIO0; figure GPIO0 BOOT"
+    },
+    {
+     "number": "J3.20",
+     "name": "GPIO19",
+     "type": "io",
+     "ref": "Guide J3 row 20 GPIO19, USB_D-; schematic J3 pin 20 GPIO19 and J4 D- = GPIO19; figure USB_D- GPIO19"
+    }
+   ]
+  }
+ ]
+}
