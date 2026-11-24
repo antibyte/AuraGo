@@ -247,6 +247,7 @@
   --hd-dur-toggle: 280ms; --hd-ease-toggle: var(--hd-ease-spring); --hd-dur-fill: 180ms; --hd-dur-xfade: 180ms;
   --hd-dur-remote: 320ms; --hd-ease-remote: var(--hd-ease-out); --hd-dur-zone: 220ms; --hd-dur-needle-f: 1100ms; --hd-dur-dip: 180ms;
   --hd-th-stroke: 12; --hd-th-ring-u: 2.5;
+  --hd-g-zone-u: 8; --hd-g-spark-w: 1.75px;
 }
 
 /* T5 Glass layers: theme edge on the frame, theme glow on a focused control, gradient-backdrop blur on the frame. */
@@ -294,7 +295,7 @@
 @container style(--hd-value: 0.0000) { .hd-widget[data-hd-family="glass"][data-hd-type][data-hd-variant] :is(.hd-dial-arc, .hd-dial-glow, .hd-gauge-arc, .hd-gauge-glow, .hd-gauge-arc-zone) { stroke-linecap: butt; } }
 .hd-widget[data-hd-family="glass"] .hd-dial-knob { fill: var(--hd-thumb); stroke: var(--hd-thumb-edge); stroke-width: var(--hd-g-edge-u); }
 .hd-widget[data-hd-family="glass"] .hd-dial-knob-shadow { display: inline; fill: var(--hd-shadow-ink); opacity: var(--hd-g-shadow-a); }
-.hd-widget[data-hd-family="glass"] .hd-dial-readout > .hd-numeral { font-weight: var(--hd-num-weight); letter-spacing: var(--hd-num-tracking); color: var(--hd-ink); }
+.hd-widget[data-hd-family="glass"] .hd-dial-readout > .hd-numeral { font-weight: var(--hd-num-weight); letter-spacing: var(--hd-num-tracking); }
 .hd-widget[data-hd-family="glass"] .hd-dial::after { content: ""; position: absolute; inline-size: 15%; block-size: 15%; inset-inline-start: calc(50% + 44% * sin(var(--hd-angle, 0deg))); inset-block-start: calc(50% - 44% * cos(var(--hd-angle, 0deg)));
   translate: -50% -50%; border-radius: var(--hd-radius-pill); background: var(--hd-pending-ring); -webkit-mask: var(--hd-ring-mask); mask: var(--hd-ring-mask); opacity: 0; pointer-events: none; }
 .hd-widget[data-hd-family="glass"][data-hd-pending="true"] .hd-dial::after { opacity: 1; }
@@ -322,6 +323,39 @@
 .hd-widget[data-hd-family="glass"] .hd-seg-opt .hd-ico { inline-size: 16px; block-size: 16px; }
 .hd-widget[data-hd-family="glass"] .hd-seg-label { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* Gauge readouts (H5, H6) and the sensor numeral (H8): light figures, units as above. */
+.hd-widget[data-hd-family="glass"] .hd-gauge-readout .hd-numeral, .hd-widget[data-hd-family="glass"][data-hd-type="sensor"] .hd-body > .hd-numeral { font-weight: var(--hd-num-weight); letter-spacing: var(--hd-num-tracking); }
+
+/* H5 needle gauge */
+.hd-widget[data-hd-family="glass"] .hd-gauge-ticks[data-major="true"] { stroke: var(--hd-ink-muted); stroke-width: var(--hd-stroke-2); vector-effect: non-scaling-stroke; }
+.hd-widget[data-hd-family="glass"] .hd-gauge-ticks[data-minor="true"] { stroke: var(--hd-ink-faint); stroke-width: var(--hd-stroke-tick); vector-effect: non-scaling-stroke; }
+.hd-widget[data-hd-family="glass"] .hd-gauge[data-hd-gauge="needle"] .hd-gauge-zone { stroke-width: var(--hd-g-zone-u); opacity: 0.7; }
+.hd-widget[data-hd-family="glass"] .hd-gauge-zone[data-tone="warn"] { stroke: var(--hd-warn); }
+.hd-widget[data-hd-family="glass"] .hd-gauge-zone[data-tone="crit"] { stroke: var(--hd-alert); }
+.hd-widget[data-hd-family="glass"] .hd-gauge-numeral { fill: var(--hd-ink-muted); font-weight: 500; }
+.hd-widget[data-hd-family="glass"] .hd-gauge-needle-shape { fill: var(--hd-ink); transform-box: view-box; transform-origin: 100px 100px; transform: scaleX(.65); }
+.hd-widget[data-hd-family="glass"] .hd-gauge-hub { fill: var(--hd-thumb); stroke: var(--hd-thumb-edge); stroke-width: var(--hd-g-edge-u); }
+
+/* H6 arc gauge */
+.hd-widget[data-hd-family="glass"] .hd-gauge-track { stroke: var(--hd-track); stroke-width: calc(var(--hd-stroke-arc) * 200); stroke-linecap: round; }
+.hd-widget[data-hd-family="glass"] .hd-gauge-arc { stroke: var(--hd-accent); stroke-width: calc(var(--hd-stroke-arc) * 200); stroke-linecap: round; }
+.hd-widget[data-hd-family="glass"] .hd-gauge-arc-zone { display: inline; stroke-width: calc(var(--hd-stroke-arc) * 200); stroke-linecap: round; }
+.hd-widget[data-hd-family="glass"] .hd-gauge-glow { display: inline; stroke: var(--hd-accent); stroke-width: calc(var(--hd-stroke-arc) * 200 + 6); stroke-linecap: round; opacity: var(--hd-arc-underglow); }
+.hd-widget[data-hd-family="glass"] .hd-gauge[data-hd-gauge="arc"] .hd-gauge-zone { stroke-width: var(--hd-stroke-2); vector-effect: non-scaling-stroke; opacity: 0.7; }
+.hd-widget[data-hd-family="glass"] .hd-gauge-capdot { fill: var(--hd-thumb); stroke: var(--hd-thumb-edge); stroke-width: var(--hd-g-edge-u); r: var(--hd-g-capdot-r); }
+
+/* H7 big temperature readout */
+.hd-widget[data-hd-family="glass"] .hd-num-trend { color: var(--hd-ink-muted); }
+.hd-widget[data-hd-family="glass"] .hd-num-trend[data-trend="up"] { color: color-mix(in srgb, var(--hd-heat) 70%, transparent); }
+.hd-widget[data-hd-family="glass"] .hd-num-trend[data-trend="down"] { color: color-mix(in srgb, var(--hd-cool) 70%, transparent); }
+
+/* H8 sensor tile with sparkline */
+.hd-widget[data-hd-family="glass"] .hd-spark-fill { -webkit-mask: var(--hd-fade-down); mask: var(--hd-fade-down); }
+.hd-widget[data-hd-family="glass"] .hd-spark-area { fill: var(--hd-accent); fill-opacity: .22; }
+.hd-widget[data-hd-family="glass"] .hd-spark-line { fill: none; stroke: var(--hd-accent); stroke-width: var(--hd-g-spark-w); stroke-linejoin: round; stroke-linecap: round; }
+.hd-widget[data-hd-family="glass"] .hd-spark-last { fill: var(--hd-accent); }
+.hd-widget[data-hd-family="glass"] .hd-spark-halo { display: inline; fill: var(--hd-accent); opacity: .2; }
+
 /* Motion: every transition and animation sits behind the motion gate. */
 @media (prefers-reduced-motion: no-preference) {
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="glass"] .hd-toggle-thumb { transition: transform var(--hd-dur-toggle) var(--hd-ease-toggle); }
@@ -334,6 +368,12 @@
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="glass"] :is(.hd-dial-handle, .hd-dial-current) { transition: transform var(--hd-dur-remote) var(--hd-ease-remote); }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="glass"] .hd-dial-active { transition: opacity var(--hd-dur-xfade) var(--hd-ease-standard); }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="glass"] .hd-seg-indicator { transition: transform var(--hd-dur-fill) var(--hd-ease-standard); }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="glass"] :is(.hd-gauge-needle, .hd-gauge-needle-shadow) { transition: transform var(--hd-dur-needle-f) var(--hd-ease-needle); }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="glass"] :is(.hd-gauge-arc, .hd-gauge-glow) { transition: stroke-dasharray var(--hd-dur-remote) var(--hd-ease-remote); }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="glass"] .hd-gauge-arc-zone { transition: stroke-dasharray var(--hd-dur-remote) var(--hd-ease-remote), opacity var(--hd-dur-zone) var(--hd-ease-standard); }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="glass"] .hd-gauge-cap { transition: transform var(--hd-dur-remote) var(--hd-ease-remote); }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="glass"] :is(.hd-tread, .hd-body > .hd-numeral)[data-hd-tick="a"] { animation: hd-dip-a var(--hd-dur-dip) var(--hd-ease-standard); }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="glass"] :is(.hd-tread, .hd-body > .hd-numeral)[data-hd-tick="b"] { animation: hd-dip-b var(--hd-dur-dip) var(--hd-ease-standard); }
 }
 
 /* Shared state language, Glass column. Unavailable: dashed border (widgets.css), dimmed body, hollow thumb. Readonly: lock badge (widgets.css), flat thumb and handle. */
