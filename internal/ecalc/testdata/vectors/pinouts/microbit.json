@@ -1,0 +1,10 @@
+{"pinout": "microbit", "variants": [{"variant": "", "counts": {"power": 3, "ground": 3, "signal": 3, "data": 2, "io": 14}, "pins": [
+  {"number": "1", "name": "P3", "type": "io", "ref": "Schematic V2.2.1 J1 pin 1 (P3, net COLR3); tech site table first row COLR3 P0.31/AIN7 P3; V2 figure strip beside ring 0 labelled LED Col 3"},
+  {"number": "2", "name": "0", "type": "io", "ref": "Schematic J1 pin 2 ring (P0, net RING0); tech site table RING0 P0.02/AIN0 P0"},
+  {"number": "7", "name": "P5", "type": "signal", "ref": "Schematic J1 pin 7 (BTN_A); tech site table BTN_A P0.14 P5"},
+  {"number": "18", "name": "P12", "type": "signal", "ref": "Schematic J1 pin 18 (GPIO4, reserved for accessibility); tech site table GPIO4 P0.12 P12 ACCESSIBILITY"},
+  {"number": "28", "name": "3V", "type": "power", "ref": "Schematic J1 pin 28 ring to VREG, note edge connector 3V may be input or output; tech site table 3V +V_TGT"},
+  {"number": "33", "name": "P19", "type": "data", "ref": "Schematic J1 pin 33 (I2C_EXT_SCL); tech site table I2C EXT SCL P0.26 P19"},
+  {"number": "34", "name": "P20", "type": "data", "ref": "Schematic J1 pin 34 (I2C_EXT_SDA); tech site table I2C EXT SDA P1.00 P20"},
+  {"number": "36", "name": "GND", "type": "ground", "ref": "Schematic J1 pin 36 ring (GND); tech site table GND ring, figure ring labelled GND"},
+  {"number": "40", "name": "GND", "type": "ground", "ref": "Schematic J1 pin 40 (GND, guard strip after the GND ring); tech site table last row GND"}]}]}

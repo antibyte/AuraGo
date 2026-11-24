@@ -1,0 +1,10 @@
+{"pinout": "arduino_micro", "variants": [{"variant": "", "counts": {"power": 4, "ground": 3, "signal": 4, "data": 3, "io": 24, "nc": 2}, "pins": [
+  {"number": "J6.17", "name": "D13", "type": "io", "ref": "Schematic J6 pin 17 (IO13*); full pinout page 1 top left PC7 D13"},
+  {"number": "J6.3", "name": "VIN", "type": "power", "ref": "Schematic J6 pin 3 (VIN); full pinout page 1 VIN third from the bottom of the left column"},
+  {"number": "J6.2", "name": "D14", "type": "io", "ref": "Schematic J6 pin 2 (MISO); full pinout page 1 CIPO PB3 CIPO/D14"},
+  {"number": "J5.1", "name": "D16", "type": "io", "ref": "Schematic J5 pin 1 (MOSI); full pinout page 1 D16/COPI PB2, the square pad at the bottom right"},
+  {"number": "J5.2", "name": "D17", "type": "io", "ref": "Schematic J5 pin 2 (RXLED/SS); full pinout page 1 D17/SS PB0 and RX LED PB0"},
+  {"number": "J5.8", "name": "D3", "type": "io", "ref": "Schematic J5 pin 8 (D3/SCL); full pinout page 2 D3 SCL PD0 OC0B INT0"},
+  {"number": "J5.4", "name": "D0", "type": "io", "ref": "Schematic J5 pin 4 (D0/RX), above J5.3 (D1/TX); full pinout page 1 D0/RX above D1/TX"},
+  {"number": "J6.8", "name": "NC", "type": "nc", "ref": "Schematic J6 pin 8 has no net; full pinout page 1 NC"},
+  {"number": "ICSP.1", "name": "CIPO", "type": "data", "ref": "Schematic ICSP (J4) pin 1 (MISO); full pinout page 3 circles 1 2 / 3 4 / 5 6, 1 CIPO PB3"}]}]}

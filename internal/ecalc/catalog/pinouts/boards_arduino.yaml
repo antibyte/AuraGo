@@ -1,0 +1,321 @@
+# Arduino development boards (Mega, Pro Mini, Leonardo, Micro) and the BBC micro:bit. The sources behind every item are in
+# documentation/ecalc-sources/pinouts/boards/; a changed pin updates that record, this file and the item's vector together.
+
+- id: arduino_mega
+  kind: pinout
+  category: pinouts
+  group: boards
+  name: {cs: "Arduino Mega 2560 Rev3", da: "Arduino Mega 2560 Rev3", de: "Arduino Mega 2560 Rev3", el: "Arduino Mega 2560 Rev3", en: "Arduino Mega 2560 Rev3", es: "Arduino Mega 2560 Rev3", fr: "Arduino Mega 2560 Rev3", hi: "Arduino Mega 2560 Rev3", it: "Arduino Mega 2560 Rev3", ja: "Arduino Mega 2560 Rev3", nl: "Arduino Mega 2560 Rev3", no: "Arduino Mega 2560 Rev3", pl: "Arduino Mega 2560 Rev3", pt: "Arduino Mega 2560 Rev3", sv: "Arduino Mega 2560 Rev3", zh: "Arduino Mega 2560 Rev3"}
+  doc: {en: "Arduino Mega 2560 Rev3 from above with the USB-B socket at the top and the DC jack beside it. The board carries no pin numbers, so each pin is named after its header in the Arduino schematic plus its position there. JP6, ADCH, XIO (the 2×18 double row) and ICSP are the schematic's names; POWER, ADCL, PWML and COMM stand for the four 8-pin headers the schematic leaves unnamed and are ours. The double row is drawn as one block in the middle of the board; on the board it lies along the bottom edge, with the +5V pins (XIO.1, XIO.2) at the right end and the even pins XIO.2 to XIO.36 in the lower row at the board edge.", de: "Arduino Mega 2560 Rev3 von oben, die USB-B-Buchse oben, daneben die Hohlbuchse. Die Platine trägt keine Pinnummern, daher heißt jeder Pin nach seiner Stiftleiste im Arduino-Schaltplan plus Position. JP6, ADCH, XIO (die Doppelreihe 2×18) und ICSP sind die Namen aus dem Schaltplan; POWER, ADCL, PWML und COMM stehen für die vier 8-poligen Leisten, die der Schaltplan nicht benennt, und stammen von uns. Die Doppelreihe wird als ein Block in der Mitte der Platine gezeichnet; auf der Platine liegt sie am unteren Rand, die +5V-Pins (XIO.1, XIO.2) am rechten Ende und die geraden Pins XIO.2 bis XIO.36 in der unteren Reihe am Platinenrand."}
+  notes: {en: "Logic level 5 V; each I/O pin carries 20 mA at most, the 3V3 pin 50 mA. VIN: Arduino's pinout says 6–20 V, the datasheet recommends 7–12 V; stay within 7–12 V. PWM is on D2 to D13 and D44 to D46 (15 pins) per the datasheet and the analogWrite reference; the pinout figure also marks D0 and D1 with a tilde, which the other documents do not support. I2C is on D20 (SDA) and D21 (SCL), also on the SDA and SCL pins beside AREF, not on A4 and A5 as on the Uno. SPI is on D50 to D53 and the ICSP block, not on D11 to D13. D0 and D1 also reach the USB bridge. The pinout also prints external-memory names (A8 to A15 on D37 to D30); those are address lines, not the analog inputs A8 to A15. ICSP1 of the ATmega16U2 near the USB socket and the 2×2 JP5 pads are not listed; the RESET-EN solder jumper disables auto-reset.", de: "Logikpegel 5 V; jeder I/O-Pin trägt höchstens 20 mA, der 3V3-Pin 50 mA. VIN: Arduinos Pinout nennt 6–20 V, das Datenblatt empfiehlt 7–12 V; bleiben Sie bei 7–12 V. PWM gibt es an D2 bis D13 und D44 bis D46 (15 Pins) laut Datenblatt und analogWrite-Referenz; die Pinout-Grafik markiert auch D0 und D1 mit einer Tilde, was die anderen Dokumente nicht stützen. I2C liegt an D20 (SDA) und D21 (SCL), ebenso an den Pins SDA und SCL neben AREF, nicht an A4 und A5 wie beim Uno. SPI liegt an D50 bis D53 und am ICSP-Block, nicht an D11 bis D13. D0 und D1 führen auch zur USB-Brücke. Das Pinout druckt außerdem Namen für externen Speicher (A8 bis A15 an D37 bis D30); das sind Adressleitungen, nicht die Analogeingänge A8 bis A15. ICSP1 des ATmega16U2 nahe der USB-Buchse und die 2×2-Pads JP5 sind nicht aufgeführt; die Lötbrücke RESET-EN schaltet den Auto-Reset ab."}
+  tags: ["arduino", "mega", "mega 2560", "mega2560", "mega 2560 rev3", "atmega2560", "shield", "header", "stiftleiste", "belegung", "pinout", "icsp", "isp", "spi", "i2c", "uart", "serial1", "serial2", "serial3", "pwm", "sda", "scl", "mosi", "miso", "cipo", "copi", "sck", "ioref", "aref", "vin", "d13", "a0", "a15", "xio", "gpio"]
+  source: "Arduino MEGA 2560 REV3 full pinout, SKU A000067 (last update 16/12/2020); Arduino schematic MEGA2560_Rev3e (A000067-schematics.pdf, 23/01/19); Arduino Mega 2560 Rev3 datasheet, SKU A000067 (modified 19/11/2026); Arduino analogWrite() reference; Arduino Mega 2560 product page"
+  shape:
+    type: board
+    connector: top
+    left: [null, null, null, null, "POWER.1", "POWER.2", "POWER.3", "POWER.4", "POWER.5", "POWER.6", "POWER.7", "POWER.8", null, "ADCL.1", "ADCL.2", "ADCL.3", "ADCL.4", "ADCL.5", "ADCL.6", "ADCL.7", "ADCL.8", null, "ADCH.1", "ADCH.2", "ADCH.3", "ADCH.4", "ADCH.5", "ADCH.6", "ADCH.7", "ADCH.8"]
+    right: ["JP6.1", "JP6.2", "JP6.3", "JP6.4", "JP6.5", "JP6.6", "JP6.7", "JP6.8", "JP6.9", "JP6.10", null, "PWML.8", "PWML.7", "PWML.6", "PWML.5", "PWML.4", "PWML.3", "PWML.2", "PWML.1", null, "COMM.8", "COMM.7", "COMM.6", "COMM.5", "COMM.4", "COMM.3", "COMM.2", "COMM.1"]
+    inner:
+      - {"label": "XIO", "rows": [{"pins": ["XIO.35", "XIO.33", "XIO.31", "XIO.29", "XIO.27", "XIO.25", "XIO.23", "XIO.21", "XIO.19", "XIO.17", "XIO.15", "XIO.13", "XIO.11", "XIO.9", "XIO.7", "XIO.5", "XIO.3", "XIO.1"]}, {"pins": ["XIO.36", "XIO.34", "XIO.32", "XIO.30", "XIO.28", "XIO.26", "XIO.24", "XIO.22", "XIO.20", "XIO.18", "XIO.16", "XIO.14", "XIO.12", "XIO.10", "XIO.8", "XIO.6", "XIO.4", "XIO.2"]}]}
+      - {"label": "ICSP", "rows": [{"pins": ["ICSP.5", "ICSP.3", "ICSP.1"]}, {"pins": ["ICSP.6", "ICSP.4", "ICSP.2"]}]}
+  pins:
+    - {number: "POWER.1", name: "NC", function: {en: "Not connected", de: "Nicht belegt"}, type: nc}
+    - {number: "POWER.2", name: "IOREF", function: {en: "Tells shields the logic voltage; tied to 5 V", de: "Zeigt Shields die Logikspannung; liegt an 5 V"}, type: power}
+    - {number: "POWER.3", name: "RESET", function: {en: "Reset; pull low to restart the ATmega2560", de: "Reset; low startet den ATmega2560 neu"}, type: signal}
+    - {number: "POWER.4", name: "3V3", function: {en: "3.3 V output, 50 mA at most", de: "3,3-V-Ausgang, höchstens 50 mA"}, type: power}
+    - {number: "POWER.5", name: "5V", function: {en: "5 V rail", de: "5-V-Schiene"}, type: power}
+    - {number: "POWER.6", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "POWER.7", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "POWER.8", name: "VIN", function: {en: "Supply input, feeds the 5 V regulator (pinout: 6–20 V; datasheet: 7–12 V recommended)", de: "Versorgungseingang, speist den 5-V-Regler (Pinout: 6–20 V; Datenblatt: 7–12 V empfohlen)"}, type: power}
+    - {number: "ADCL.1", name: "A0", function: {en: "Analog input ADC0; digital D54 (PF0)", de: "Analogeingang ADC0; digital D54 (PF0)"}, type: io}
+    - {number: "ADCL.2", name: "A1", function: {en: "Analog input ADC1; digital D55 (PF1)", de: "Analogeingang ADC1; digital D55 (PF1)"}, type: io}
+    - {number: "ADCL.3", name: "A2", function: {en: "Analog input ADC2; digital D56 (PF2)", de: "Analogeingang ADC2; digital D56 (PF2)"}, type: io}
+    - {number: "ADCL.4", name: "A3", function: {en: "Analog input ADC3; digital D57 (PF3)", de: "Analogeingang ADC3; digital D57 (PF3)"}, type: io}
+    - {number: "ADCL.5", name: "A4", function: {en: "Analog input ADC4; digital D58; JTAG TCK (PF4)", de: "Analogeingang ADC4; digital D58; JTAG TCK (PF4)"}, type: io}
+    - {number: "ADCL.6", name: "A5", function: {en: "Analog input ADC5; digital D59; JTAG TMS (PF5)", de: "Analogeingang ADC5; digital D59; JTAG TMS (PF5)"}, type: io}
+    - {number: "ADCL.7", name: "A6", function: {en: "Analog input ADC6; digital D60; JTAG TDO (PF6)", de: "Analogeingang ADC6; digital D60; JTAG TDO (PF6)"}, type: io}
+    - {number: "ADCL.8", name: "A7", function: {en: "Analog input ADC7; digital D61; JTAG TDI (PF7)", de: "Analogeingang ADC7; digital D61; JTAG TDI (PF7)"}, type: io}
+    - {number: "ADCH.1", name: "A8", function: {en: "Analog input ADC8; digital D62; PCINT16 (PK0)", de: "Analogeingang ADC8; digital D62; PCINT16 (PK0)"}, type: io}
+    - {number: "ADCH.2", name: "A9", function: {en: "Analog input ADC9; digital D63; PCINT17 (PK1)", de: "Analogeingang ADC9; digital D63; PCINT17 (PK1)"}, type: io}
+    - {number: "ADCH.3", name: "A10", function: {en: "Analog input ADC10; digital D64; PCINT18 (PK2)", de: "Analogeingang ADC10; digital D64; PCINT18 (PK2)"}, type: io}
+    - {number: "ADCH.4", name: "A11", function: {en: "Analog input ADC11; digital D65; PCINT19 (PK3)", de: "Analogeingang ADC11; digital D65; PCINT19 (PK3)"}, type: io}
+    - {number: "ADCH.5", name: "A12", function: {en: "Analog input ADC12; digital D66; PCINT20 (PK4)", de: "Analogeingang ADC12; digital D66; PCINT20 (PK4)"}, type: io}
+    - {number: "ADCH.6", name: "A13", function: {en: "Analog input ADC13; digital D67; PCINT21 (PK5)", de: "Analogeingang ADC13; digital D67; PCINT21 (PK5)"}, type: io}
+    - {number: "ADCH.7", name: "A14", function: {en: "Analog input ADC14; digital D68; PCINT22 (PK6)", de: "Analogeingang ADC14; digital D68; PCINT22 (PK6)"}, type: io}
+    - {number: "ADCH.8", name: "A15", function: {en: "Analog input ADC15; digital D69; PCINT23 (PK7)", de: "Analogeingang ADC15; digital D69; PCINT23 (PK7)"}, type: io}
+    - {number: "JP6.1", name: "SCL", function: {en: "I2C SCL; same line as D21", de: "I2C SCL; dieselbe Leitung wie D21"}, type: io}
+    - {number: "JP6.2", name: "SDA", function: {en: "I2C SDA; same line as D20", de: "I2C SDA; dieselbe Leitung wie D20"}, type: io}
+    - {number: "JP6.3", name: "AREF", function: {en: "Reference voltage of the ADC", de: "Referenzspannung des ADC"}, type: signal}
+    - {number: "JP6.4", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "JP6.5", name: "D13", function: {en: "PWM (OC0A/OC1C); on-board LED (PB7)", de: "PWM (OC0A/OC1C); LED auf der Platine (PB7)"}, type: io}
+    - {number: "JP6.6", name: "D12", function: {en: "PWM (OC1B) (PB6)", de: "PWM (OC1B) (PB6)"}, type: io}
+    - {number: "JP6.7", name: "D11", function: {en: "PWM (OC1A) (PB5)", de: "PWM (OC1A) (PB5)"}, type: io}
+    - {number: "JP6.8", name: "D10", function: {en: "PWM (OC2A) (PB4)", de: "PWM (OC2A) (PB4)"}, type: io}
+    - {number: "JP6.9", name: "D9", function: {en: "PWM (OC2B) (PH6)", de: "PWM (OC2B) (PH6)"}, type: io}
+    - {number: "JP6.10", name: "D8", function: {en: "PWM (OC4C) (PH5)", de: "PWM (OC4C) (PH5)"}, type: io}
+    - {number: "PWML.8", name: "D7", function: {en: "PWM (OC4B) (PH4)", de: "PWM (OC4B) (PH4)"}, type: io}
+    - {number: "PWML.7", name: "D6", function: {en: "PWM (OC4A) (PH3)", de: "PWM (OC4A) (PH3)"}, type: io}
+    - {number: "PWML.6", name: "D5", function: {en: "PWM (OC3A); AIN1 (PE3)", de: "PWM (OC3A); AIN1 (PE3)"}, type: io}
+    - {number: "PWML.5", name: "D4", function: {en: "PWM (OC0B) (PG5)", de: "PWM (OC0B) (PG5)"}, type: io}
+    - {number: "PWML.4", name: "D3", function: {en: "PWM (OC3C); interrupt INT5 (PE5)", de: "PWM (OC3C); Interrupt INT5 (PE5)"}, type: io}
+    - {number: "PWML.3", name: "D2", function: {en: "PWM (OC3B); interrupt INT4 (PE4)", de: "PWM (OC3B); Interrupt INT4 (PE4)"}, type: io}
+    - {number: "PWML.2", name: "D1", function: {en: "UART0 TX (PE1); linked to the USB bridge", de: "UART0 TX (PE1); mit der USB-Brücke verbunden"}, type: io, notes: {en: "Arduino's pinout figure and the schematic mark D1 as PWM; the datasheet, the product page and the analogWrite reference list PWM only on D2 to D13 and D44 to D46, so D1 is treated as no PWM here.", de: "Arduinos Pinout-Grafik und der Schaltplan markieren D1 als PWM; Datenblatt, Produktseite und analogWrite-Referenz nennen PWM nur an D2 bis D13 und D44 bis D46, daher gilt D1 hier als kein PWM."}}
+    - {number: "PWML.1", name: "D0", function: {en: "UART0 RX (PE0); linked to the USB bridge", de: "UART0 RX (PE0); mit der USB-Brücke verbunden"}, type: io, notes: {en: "Arduino's pinout figure and the schematic mark D0 as PWM; the datasheet, the product page and the analogWrite reference list PWM only on D2 to D13 and D44 to D46, so D0 is treated as no PWM here.", de: "Arduinos Pinout-Grafik und der Schaltplan markieren D0 als PWM; Datenblatt, Produktseite und analogWrite-Referenz nennen PWM nur an D2 bis D13 und D44 bis D46, daher gilt D0 hier als kein PWM."}}
+    - {number: "COMM.8", name: "D14", function: {en: "UART3 TX (PJ1)", de: "UART3 TX (PJ1)"}, type: io}
+    - {number: "COMM.7", name: "D15", function: {en: "UART3 RX (PJ0)", de: "UART3 RX (PJ0)"}, type: io}
+    - {number: "COMM.6", name: "D16", function: {en: "UART2 TX (PH1)", de: "UART2 TX (PH1)"}, type: io}
+    - {number: "COMM.5", name: "D17", function: {en: "UART2 RX (PH0)", de: "UART2 RX (PH0)"}, type: io}
+    - {number: "COMM.4", name: "D18", function: {en: "UART1 TX; interrupt INT3 (PD3)", de: "UART1 TX; Interrupt INT3 (PD3)"}, type: io}
+    - {number: "COMM.3", name: "D19", function: {en: "UART1 RX; interrupt INT2 (PD2)", de: "UART1 RX; Interrupt INT2 (PD2)"}, type: io}
+    - {number: "COMM.2", name: "D20", function: {en: "I2C SDA; interrupt INT1 (PD1)", de: "I2C SDA; Interrupt INT1 (PD1)"}, type: io}
+    - {number: "COMM.1", name: "D21", function: {en: "I2C SCL; interrupt INT0 (PD0)", de: "I2C SCL; Interrupt INT0 (PD0)"}, type: io}
+    - {number: "XIO.1", name: "5V", function: {en: "5 V rail", de: "5-V-Schiene"}, type: power}
+    - {number: "XIO.2", name: "5V", function: {en: "5 V rail", de: "5-V-Schiene"}, type: power}
+    - {number: "XIO.3", name: "D22", function: {en: "Digital pin (PA0)", de: "Digitaler Pin (PA0)"}, type: io}
+    - {number: "XIO.4", name: "D23", function: {en: "Digital pin (PA1)", de: "Digitaler Pin (PA1)"}, type: io}
+    - {number: "XIO.5", name: "D24", function: {en: "Digital pin (PA2)", de: "Digitaler Pin (PA2)"}, type: io}
+    - {number: "XIO.6", name: "D25", function: {en: "Digital pin (PA3)", de: "Digitaler Pin (PA3)"}, type: io}
+    - {number: "XIO.7", name: "D26", function: {en: "Digital pin (PA4)", de: "Digitaler Pin (PA4)"}, type: io}
+    - {number: "XIO.8", name: "D27", function: {en: "Digital pin (PA5)", de: "Digitaler Pin (PA5)"}, type: io}
+    - {number: "XIO.9", name: "D28", function: {en: "Digital pin (PA6)", de: "Digitaler Pin (PA6)"}, type: io}
+    - {number: "XIO.10", name: "D29", function: {en: "Digital pin (PA7)", de: "Digitaler Pin (PA7)"}, type: io}
+    - {number: "XIO.11", name: "D30", function: {en: "Digital pin (PC7)", de: "Digitaler Pin (PC7)"}, type: io}
+    - {number: "XIO.12", name: "D31", function: {en: "Digital pin (PC6)", de: "Digitaler Pin (PC6)"}, type: io}
+    - {number: "XIO.13", name: "D32", function: {en: "Digital pin (PC5)", de: "Digitaler Pin (PC5)"}, type: io}
+    - {number: "XIO.14", name: "D33", function: {en: "Digital pin (PC4)", de: "Digitaler Pin (PC4)"}, type: io}
+    - {number: "XIO.15", name: "D34", function: {en: "Digital pin (PC3)", de: "Digitaler Pin (PC3)"}, type: io}
+    - {number: "XIO.16", name: "D35", function: {en: "Digital pin (PC2)", de: "Digitaler Pin (PC2)"}, type: io}
+    - {number: "XIO.17", name: "D36", function: {en: "Digital pin (PC1)", de: "Digitaler Pin (PC1)"}, type: io}
+    - {number: "XIO.18", name: "D37", function: {en: "Digital pin (PC0)", de: "Digitaler Pin (PC0)"}, type: io}
+    - {number: "XIO.19", name: "D38", function: {en: "Digital pin (PD7)", de: "Digitaler Pin (PD7)"}, type: io}
+    - {number: "XIO.20", name: "D39", function: {en: "Digital pin (PG2)", de: "Digitaler Pin (PG2)"}, type: io}
+    - {number: "XIO.21", name: "D40", function: {en: "Digital pin (PG1)", de: "Digitaler Pin (PG1)"}, type: io}
+    - {number: "XIO.22", name: "D41", function: {en: "Digital pin (PG0)", de: "Digitaler Pin (PG0)"}, type: io}
+    - {number: "XIO.23", name: "D42", function: {en: "Digital pin (PL7)", de: "Digitaler Pin (PL7)"}, type: io}
+    - {number: "XIO.24", name: "D43", function: {en: "Digital pin (PL6)", de: "Digitaler Pin (PL6)"}, type: io}
+    - {number: "XIO.25", name: "D44", function: {en: "PWM (PL5)", de: "PWM (PL5)"}, type: io}
+    - {number: "XIO.26", name: "D45", function: {en: "PWM (PL4)", de: "PWM (PL4)"}, type: io}
+    - {number: "XIO.27", name: "D46", function: {en: "PWM (PL3)", de: "PWM (PL3)"}, type: io}
+    - {number: "XIO.28", name: "D47", function: {en: "Digital pin (PL2)", de: "Digitaler Pin (PL2)"}, type: io}
+    - {number: "XIO.29", name: "D48", function: {en: "Digital pin (PL1)", de: "Digitaler Pin (PL1)"}, type: io}
+    - {number: "XIO.30", name: "D49", function: {en: "Digital pin (PL0)", de: "Digitaler Pin (PL0)"}, type: io}
+    - {number: "XIO.31", name: "D50", function: {en: "SPI CIPO, formerly MISO (PB3)", de: "SPI CIPO, früher MISO (PB3)"}, type: io}
+    - {number: "XIO.32", name: "D51", function: {en: "SPI COPI, formerly MOSI (PB2)", de: "SPI COPI, früher MOSI (PB2)"}, type: io}
+    - {number: "XIO.33", name: "D52", function: {en: "SPI SCK (PB1)", de: "SPI SCK (PB1)"}, type: io}
+    - {number: "XIO.34", name: "D53", function: {en: "SPI SS (PB0)", de: "SPI SS (PB0)"}, type: io}
+    - {number: "XIO.35", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "XIO.36", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "ICSP.1", name: "CIPO", function: {en: "SPI CIPO, formerly MISO (D50, PB3)", de: "SPI CIPO, früher MISO (D50, PB3)"}, type: data}
+    - {number: "ICSP.2", name: "5V", function: {en: "5 V rail", de: "5-V-Schiene"}, type: power}
+    - {number: "ICSP.3", name: "SCK", function: {en: "SPI clock (D52, PB1)", de: "SPI-Takt (D52, PB1)"}, type: data}
+    - {number: "ICSP.4", name: "COPI", function: {en: "SPI COPI, formerly MOSI (D51, PB2)", de: "SPI COPI, früher MOSI (D51, PB2)"}, type: data}
+    - {number: "ICSP.5", name: "RESET", function: {en: "Reset of the ATmega2560", de: "Reset des ATmega2560"}, type: signal}
+    - {number: "ICSP.6", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+
+- id: arduino_leonardo
+  kind: pinout
+  category: pinouts
+  group: boards
+  name: {cs: "Arduino Leonardo", da: "Arduino Leonardo", de: "Arduino Leonardo", el: "Arduino Leonardo", en: "Arduino Leonardo", es: "Arduino Leonardo", fr: "Arduino Leonardo", hi: "Arduino Leonardo", it: "Arduino Leonardo", ja: "Arduino Leonardo", nl: "Arduino Leonardo", no: "Arduino Leonardo", pl: "Arduino Leonardo", pt: "Arduino Leonardo", sv: "Arduino Leonardo", zh: "Arduino Leonardo"}
+  doc: {en: "Arduino Leonardo from above in the Uno form factor, with the Micro-USB socket at the top and the DC jack beside it. The board carries no pin numbers, so each pin is named after its header in the Arduino schematic (J3, J4, JP1, J2, ICSP) plus its position there. These names differ from the Uno's although the positions are the same.", de: "Arduino Leonardo von oben im Uno-Format, die Micro-USB-Buchse oben, daneben die Hohlbuchse. Die Platine trägt keine Pinnummern, daher heißt jeder Pin nach seiner Stiftleiste im Arduino-Schaltplan (J3, J4, JP1, J2, ICSP) plus Position. Diese Namen weichen von denen des Uno ab, die Positionen sind gleich."}
+  notes: {en: "Logic level 5 V. Current per I/O pin: Arduino's pinout says 20 mA at most, the tech specs say 10 mA; stay at 10 mA. The 3V3 pin gives 50 mA at most. VIN: the pinout says 6–20 V, the tech specs 7–12 V nominal; stay within 7–12 V. I2C is on D2 (SDA) and D3 (SCL) and on the two pins beside AREF, not on A4 and A5. SPI is only on the ICSP block, not on D11 to D13. The USB serial port is native (Serial); D0 and D1 are a separate hardware UART (Serial1), not linked to USB, so a circuit on them does not disturb uploads. A6 to A11 are extra analog inputs on D4, D6, D8, D9, D10 and D12. PWM is on D3, D5, D6, D9, D10, D11 and D13. There is no ATmega16U2 and no second ICSP header on this board.", de: "Logikpegel 5 V. Strom je I/O-Pin: Arduinos Pinout nennt höchstens 20 mA, die Tech Specs 10 mA; bleiben Sie bei 10 mA. Der 3V3-Pin liefert höchstens 50 mA. VIN: das Pinout nennt 6–20 V, die Tech Specs 7–12 V nominal; bleiben Sie bei 7–12 V. I2C liegt an D2 (SDA) und D3 (SCL) und an den zwei Pins neben AREF, nicht an A4 und A5. SPI liegt nur am ICSP-Block, nicht an D11 bis D13. Die serielle USB-Schnittstelle ist nativ (Serial); D0 und D1 sind ein eigener Hardware-UART (Serial1) ohne Verbindung zu USB, eine Schaltung daran stört das Hochladen nicht. A6 bis A11 sind zusätzliche Analogeingänge an D4, D6, D8, D9, D10 und D12. PWM gibt es an D3, D5, D6, D9, D10, D11 und D13. Die Platine hat keinen ATmega16U2 und keine zweite ICSP-Leiste."}
+  tags: ["arduino", "leonardo", "atmega32u4", "32u4", "shield", "header", "stiftleiste", "belegung", "pinout", "icsp", "isp", "spi", "i2c", "uart", "serial1", "pwm", "sda", "scl", "mosi", "miso", "cipo", "copi", "sck", "ioref", "aref", "vin", "d13", "a0", "gpio", "hid"]
+  source: "Arduino LEONARDO full pinout, SKU A000057 (last update 25/11/2025); Arduino schematic Leonardo_Rev3d (A000057-schematics.pdf, 28/01/19); Arduino Leonardo tech specs and features (docs-content); Arduino Getting Started with the Arduino Leonardo, Leonardo ETH and Micro; ArduinoCore-avr variants/leonardo/pins_arduino.h; Arduino analogWrite() reference"
+  shape:
+    type: board
+    connector: top
+    left: [null, null, null, null, "J3.1", "J3.2", "J3.3", "J3.4", "J3.5", "J3.6", "J3.7", "J3.8", null, "J4.1", "J4.2", "J4.3", "J4.4", "J4.5", "J4.6"]
+    right: ["JP1.10", "JP1.9", "JP1.8", "JP1.7", "JP1.6", "JP1.5", "JP1.4", "JP1.3", "JP1.2", "JP1.1", null, "J2.8", "J2.7", "J2.6", "J2.5", "J2.4", "J2.3", "J2.2", "J2.1"]
+    inner:
+      - {"label": "ICSP", "rows": [{"pins": ["ICSP.5", "ICSP.3", "ICSP.1"]}, {"pins": ["ICSP.6", "ICSP.4", "ICSP.2"]}]}
+  pins:
+    - {number: "J3.1", name: "NC", function: {en: "Not connected (schematic: RFU, reserved)", de: "Nicht belegt (Schaltplan: RFU, reserviert)"}, type: nc}
+    - {number: "J3.2", name: "IOREF", function: {en: "Tells shields the logic voltage; tied to 5 V", de: "Zeigt Shields die Logikspannung; liegt an 5 V"}, type: power}
+    - {number: "J3.3", name: "RESET", function: {en: "Reset; pull low to restart the ATmega32U4", de: "Reset; low startet den ATmega32U4 neu"}, type: signal}
+    - {number: "J3.4", name: "3V3", function: {en: "3.3 V output, 50 mA at most", de: "3,3-V-Ausgang, höchstens 50 mA"}, type: power}
+    - {number: "J3.5", name: "5V", function: {en: "5 V rail", de: "5-V-Schiene"}, type: power}
+    - {number: "J3.6", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "J3.7", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "J3.8", name: "VIN", function: {en: "Supply input, feeds the 5 V regulator (pinout: 6–20 V; tech specs: 7–12 V nominal)", de: "Versorgungseingang, speist den 5-V-Regler (Pinout: 6–20 V; Tech Specs: 7–12 V nominal)"}, type: power}
+    - {number: "J4.1", name: "A0", function: {en: "Analog input ADC7; digital D18; JTAG TDI (PF7)", de: "Analogeingang ADC7; digital D18; JTAG TDI (PF7)"}, type: io}
+    - {number: "J4.2", name: "A1", function: {en: "Analog input ADC6; digital D19; JTAG TDO (PF6)", de: "Analogeingang ADC6; digital D19; JTAG TDO (PF6)"}, type: io}
+    - {number: "J4.3", name: "A2", function: {en: "Analog input ADC5; digital D20; JTAG TMS (PF5)", de: "Analogeingang ADC5; digital D20; JTAG TMS (PF5)"}, type: io}
+    - {number: "J4.4", name: "A3", function: {en: "Analog input ADC4; digital D21; JTAG TCK (PF4)", de: "Analogeingang ADC4; digital D21; JTAG TCK (PF4)"}, type: io}
+    - {number: "J4.5", name: "A4", function: {en: "Analog input ADC1; digital D22 (PF1); not I2C", de: "Analogeingang ADC1; digital D22 (PF1); kein I2C"}, type: io}
+    - {number: "J4.6", name: "A5", function: {en: "Analog input ADC0; digital D23 (PF0); not I2C", de: "Analogeingang ADC0; digital D23 (PF0); kein I2C"}, type: io}
+    - {number: "JP1.10", name: "SCL", function: {en: "I2C SCL; same line as D3", de: "I2C SCL; dieselbe Leitung wie D3"}, type: io}
+    - {number: "JP1.9", name: "SDA", function: {en: "I2C SDA; same line as D2", de: "I2C SDA; dieselbe Leitung wie D2"}, type: io}
+    - {number: "JP1.8", name: "AREF", function: {en: "Reference voltage of the ADC", de: "Referenzspannung des ADC"}, type: signal}
+    - {number: "JP1.7", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "JP1.6", name: "D13", function: {en: "PWM; on-board LED (PC7)", de: "PWM; LED auf der Platine (PC7)"}, type: io}
+    - {number: "JP1.5", name: "D12", function: {en: "Digital pin; analog input A11 (ADC9) (PD6)", de: "Digitaler Pin; Analogeingang A11 (ADC9) (PD6)"}, type: io}
+    - {number: "JP1.4", name: "D11", function: {en: "PWM (PB7); not SPI", de: "PWM (PB7); kein SPI"}, type: io}
+    - {number: "JP1.3", name: "D10", function: {en: "PWM; analog input A10 (ADC13) (PB6)", de: "PWM; Analogeingang A10 (ADC13) (PB6)"}, type: io}
+    - {number: "JP1.2", name: "D9", function: {en: "PWM; analog input A9 (ADC12) (PB5)", de: "PWM; Analogeingang A9 (ADC12) (PB5)"}, type: io}
+    - {number: "JP1.1", name: "D8", function: {en: "Digital pin; analog input A8 (ADC11) (PB4)", de: "Digitaler Pin; Analogeingang A8 (ADC11) (PB4)"}, type: io}
+    - {number: "J2.8", name: "D7", function: {en: "Digital pin; interrupt INT6 (PE6)", de: "Digitaler Pin; Interrupt INT6 (PE6)"}, type: io}
+    - {number: "J2.7", name: "D6", function: {en: "PWM; analog input A7 (ADC10) (PD7)", de: "PWM; Analogeingang A7 (ADC10) (PD7)"}, type: io}
+    - {number: "J2.6", name: "D5", function: {en: "PWM (PC6)", de: "PWM (PC6)"}, type: io}
+    - {number: "J2.5", name: "D4", function: {en: "Digital pin; analog input A6 (ADC8) (PD4)", de: "Digitaler Pin; Analogeingang A6 (ADC8) (PD4)"}, type: io}
+    - {number: "J2.4", name: "D3", function: {en: "PWM; I2C SCL; interrupt INT0 (PD0)", de: "PWM; I2C SCL; Interrupt INT0 (PD0)"}, type: io}
+    - {number: "J2.3", name: "D2", function: {en: "I2C SDA; interrupt INT1 (PD1)", de: "I2C SDA; Interrupt INT1 (PD1)"}, type: io}
+    - {number: "J2.2", name: "D1", function: {en: "UART TX of Serial1; interrupt INT3 (PD3)", de: "UART TX von Serial1; Interrupt INT3 (PD3)"}, type: io}
+    - {number: "J2.1", name: "D0", function: {en: "UART RX of Serial1; interrupt INT2 (PD2)", de: "UART RX von Serial1; Interrupt INT2 (PD2)"}, type: io}
+    - {number: "ICSP.1", name: "CIPO", function: {en: "SPI CIPO, formerly MISO (PB3); SPI only here", de: "SPI CIPO, früher MISO (PB3); SPI nur hier"}, type: data}
+    - {number: "ICSP.2", name: "5V", function: {en: "5 V rail", de: "5-V-Schiene"}, type: power}
+    - {number: "ICSP.3", name: "SCK", function: {en: "SPI clock (PB1)", de: "SPI-Takt (PB1)"}, type: data}
+    - {number: "ICSP.4", name: "COPI", function: {en: "SPI COPI, formerly MOSI (PB2)", de: "SPI COPI, früher MOSI (PB2)"}, type: data}
+    - {number: "ICSP.5", name: "RESET", function: {en: "Reset of the ATmega32U4", de: "Reset des ATmega32U4"}, type: signal}
+    - {number: "ICSP.6", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+
+- id: arduino_micro
+  kind: pinout
+  category: pinouts
+  group: boards
+  name: {cs: "Arduino Micro", da: "Arduino Micro", de: "Arduino Micro", el: "Arduino Micro", en: "Arduino Micro", es: "Arduino Micro", fr: "Arduino Micro", hi: "Arduino Micro", it: "Arduino Micro", ja: "Arduino Micro", nl: "Arduino Micro", no: "Arduino Micro", pl: "Arduino Micro", pt: "Arduino Micro", sv: "Arduino Micro", zh: "Arduino Micro"}
+  doc: {en: "Arduino Micro from above with the Micro-USB socket at the top, the reset button and the 2×3 ICSP block towards the bottom and 17 pins down each long edge. The board carries no pin numbers, so each pin is named after its header in the Arduino schematic (J5 right, J6 left) plus its position there, pin 1 at the end away from USB. The ICSP block is called ICSP here; the schematic calls it J4.", de: "Arduino Micro von oben, die Micro-USB-Buchse oben, Reset-Taster und der ICSP-Block 2×3 zum unteren Ende hin, 17 Pins an jeder Längskante. Die Platine trägt keine Pinnummern, daher heißt jeder Pin nach seiner Stiftleiste im Arduino-Schaltplan (J5 rechts, J6 links) plus Position, Pin 1 am von USB abgewandten Ende. Der ICSP-Block heißt hier ICSP; im Schaltplan heißt er J4."}
+  notes: {en: "Logic level 5 V. Current per I/O pin: the Micro pinout's legend says 40 mA at most, the Leonardo pinout 20 mA and the tech specs 10 mA; stay at 10 mA. VIN: the pinout says 6–9 V, the tech specs 7–12 V nominal; stay within 7–9 V, where both agree. The USB serial port is native (Serial); D0 and D1 are the separate hardware UART Serial1. I2C is on D2 (SDA) and D3 (SCL); SPI is on D14 to D17 and the ICSP block. PWM is on D3, D5, D6, D9, D10, D11 and D13. A6 to A11 are extra analog inputs on D4, D6, D8, D9, D10 and D12. D17 (SS) shares its pin with the RX LED.", de: "Logikpegel 5 V. Strom je I/O-Pin: die Legende des Micro-Pinouts nennt höchstens 40 mA, das Leonardo-Pinout 20 mA und die Tech Specs 10 mA; bleiben Sie bei 10 mA. VIN: das Pinout nennt 6–9 V, die Tech Specs 7–12 V nominal; bleiben Sie bei 7–9 V, wo beide übereinstimmen. Die serielle USB-Schnittstelle ist nativ (Serial); D0 und D1 sind der eigene Hardware-UART Serial1. I2C liegt an D2 (SDA) und D3 (SCL); SPI an D14 bis D17 und am ICSP-Block. PWM gibt es an D3, D5, D6, D9, D10, D11 und D13. A6 bis A11 sind zusätzliche Analogeingänge an D4, D6, D8, D9, D10 und D12. D17 (SS) teilt sich den Pin mit der RX-LED."}
+  tags: ["arduino", "micro", "atmega32u4", "32u4", "header", "stiftleiste", "belegung", "pinout", "icsp", "isp", "spi", "i2c", "uart", "serial1", "pwm", "sda", "scl", "mosi", "miso", "cipo", "copi", "sck", "aref", "vin", "d13", "a0", "gpio", "hid", "breadboard", "steckbrett"]
+  source: "Arduino MICRO full pinout, SKU A000053 (last update 10/11/2020); Arduino MICRO schematic (A000053-schematics.pdf); Arduino Micro tech specs and features (docs-content); Arduino Getting Started with the Arduino Leonardo, Leonardo ETH and Micro; ArduinoCore-avr variants/leonardo/pins_arduino.h; Arduino analogWrite() reference"
+  shape:
+    type: board
+    connector: top
+    left: ["J6.17", "J6.16", "J6.15", "J6.14", "J6.13", "J6.12", "J6.11", "J6.10", "J6.9", "J6.8", "J6.7", "J6.6", "J6.5", "J6.4", "J6.3", "J6.2", "J6.1"]
+    right: ["J5.17", "J5.16", "J5.15", "J5.14", "J5.13", "J5.12", "J5.11", "J5.10", "J5.9", "J5.8", "J5.7", "J5.6", "J5.5", "J5.4", "J5.3", "J5.2", "J5.1"]
+    inner:
+      - {"label": "ICSP", "rows": [{"pins": ["ICSP.1", "ICSP.2"]}, {"pins": ["ICSP.3", "ICSP.4"]}, {"pins": ["ICSP.5", "ICSP.6"]}]}
+  pins:
+    - {number: "J6.17", name: "D13", function: {en: "PWM; on-board LED (PC7)", de: "PWM; LED auf der Platine (PC7)"}, type: io}
+    - {number: "J6.16", name: "3V3", function: {en: "3.3 V output, 50 mA at most", de: "3,3-V-Ausgang, höchstens 50 mA"}, type: power}
+    - {number: "J6.15", name: "AREF", function: {en: "Reference voltage of the ADC", de: "Referenzspannung des ADC"}, type: signal}
+    - {number: "J6.14", name: "A0", function: {en: "Analog input ADC7; digital D18; JTAG TDI (PF7)", de: "Analogeingang ADC7; digital D18; JTAG TDI (PF7)"}, type: io}
+    - {number: "J6.13", name: "A1", function: {en: "Analog input ADC6; digital D19; JTAG TDO (PF6)", de: "Analogeingang ADC6; digital D19; JTAG TDO (PF6)"}, type: io}
+    - {number: "J6.12", name: "A2", function: {en: "Analog input ADC5; digital D20; JTAG TMS (PF5)", de: "Analogeingang ADC5; digital D20; JTAG TMS (PF5)"}, type: io}
+    - {number: "J6.11", name: "A3", function: {en: "Analog input ADC4; digital D21; JTAG TCK (PF4)", de: "Analogeingang ADC4; digital D21; JTAG TCK (PF4)"}, type: io}
+    - {number: "J6.10", name: "A4", function: {en: "Analog input ADC1; digital D22 (PF1)", de: "Analogeingang ADC1; digital D22 (PF1)"}, type: io}
+    - {number: "J6.9", name: "A5", function: {en: "Analog input ADC0; digital D23 (PF0)", de: "Analogeingang ADC0; digital D23 (PF0)"}, type: io}
+    - {number: "J6.8", name: "NC", function: {en: "Not connected", de: "Nicht belegt"}, type: nc}
+    - {number: "J6.7", name: "NC", function: {en: "Not connected", de: "Nicht belegt"}, type: nc}
+    - {number: "J6.6", name: "5V", function: {en: "5 V rail", de: "5-V-Schiene"}, type: power}
+    - {number: "J6.5", name: "RESET", function: {en: "Reset; pull low to restart the ATmega32U4", de: "Reset; low startet den ATmega32U4 neu"}, type: signal}
+    - {number: "J6.4", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "J6.3", name: "VIN", function: {en: "Supply input, 6–9 V per Arduino's pinout, feeds the 5 V regulator", de: "Versorgungseingang, 6–9 V laut Arduino-Pinout, speist den 5-V-Regler"}, type: power}
+    - {number: "J6.2", name: "D14", function: {en: "SPI CIPO, formerly MISO (PB3); same line as ICSP.1", de: "SPI CIPO, früher MISO (PB3); dieselbe Leitung wie ICSP.1"}, type: io}
+    - {number: "J6.1", name: "D15", function: {en: "SPI SCK (PB1); same line as ICSP.3", de: "SPI SCK (PB1); dieselbe Leitung wie ICSP.3"}, type: io}
+    - {number: "J5.17", name: "D12", function: {en: "Digital pin; analog input A11 (ADC9) (PD6)", de: "Digitaler Pin; Analogeingang A11 (ADC9) (PD6)"}, type: io, notes: {en: "The schematic marks D12 with an asterisk (PWM); the pinout and Arduino's analogWrite reference list PWM only on D3, D5, D6, D9, D10, D11 and D13, so D12 is treated as no PWM here.", de: "Der Schaltplan markiert D12 mit einem Stern (PWM); das Pinout und Arduinos analogWrite-Referenz nennen PWM nur an D3, D5, D6, D9, D10, D11 und D13, daher gilt D12 hier als kein PWM."}}
+    - {number: "J5.16", name: "D11", function: {en: "PWM (PB7)", de: "PWM (PB7)"}, type: io}
+    - {number: "J5.15", name: "D10", function: {en: "PWM; analog input A10 (ADC13) (PB6)", de: "PWM; Analogeingang A10 (ADC13) (PB6)"}, type: io}
+    - {number: "J5.14", name: "D9", function: {en: "PWM; analog input A9 (ADC12) (PB5)", de: "PWM; Analogeingang A9 (ADC12) (PB5)"}, type: io}
+    - {number: "J5.13", name: "D8", function: {en: "Digital pin; analog input A8 (ADC11) (PB4)", de: "Digitaler Pin; Analogeingang A8 (ADC11) (PB4)"}, type: io}
+    - {number: "J5.12", name: "D7", function: {en: "Digital pin; interrupt INT6 (PE6)", de: "Digitaler Pin; Interrupt INT6 (PE6)"}, type: io}
+    - {number: "J5.11", name: "D6", function: {en: "PWM; analog input A7 (ADC10) (PD7)", de: "PWM; Analogeingang A7 (ADC10) (PD7)"}, type: io}
+    - {number: "J5.10", name: "D5", function: {en: "PWM (PC6)", de: "PWM (PC6)"}, type: io}
+    - {number: "J5.9", name: "D4", function: {en: "Digital pin; analog input A6 (ADC8) (PD4)", de: "Digitaler Pin; Analogeingang A6 (ADC8) (PD4)"}, type: io, notes: {en: "The schematic marks D4 with an asterisk (PWM); the pinout and Arduino's analogWrite reference list PWM only on D3, D5, D6, D9, D10, D11 and D13, so D4 is treated as no PWM here.", de: "Der Schaltplan markiert D4 mit einem Stern (PWM); das Pinout und Arduinos analogWrite-Referenz nennen PWM nur an D3, D5, D6, D9, D10, D11 und D13, daher gilt D4 hier als kein PWM."}}
+    - {number: "J5.8", name: "D3", function: {en: "PWM; I2C SCL; interrupt INT0 (PD0)", de: "PWM; I2C SCL; Interrupt INT0 (PD0)"}, type: io}
+    - {number: "J5.7", name: "D2", function: {en: "I2C SDA; interrupt INT1 (PD1)", de: "I2C SDA; Interrupt INT1 (PD1)"}, type: io}
+    - {number: "J5.6", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "J5.5", name: "RESET", function: {en: "Reset; same line as J6.5", de: "Reset; dieselbe Leitung wie J6.5"}, type: signal}
+    - {number: "J5.4", name: "D0", function: {en: "UART RX of Serial1; interrupt INT2 (PD2)", de: "UART RX von Serial1; Interrupt INT2 (PD2)"}, type: io}
+    - {number: "J5.3", name: "D1", function: {en: "UART TX of Serial1; interrupt INT3 (PD3)", de: "UART TX von Serial1; Interrupt INT3 (PD3)"}, type: io}
+    - {number: "J5.2", name: "D17", function: {en: "SPI SS (PB0); also drives the RX LED", de: "SPI SS (PB0); steuert auch die RX-LED"}, type: io}
+    - {number: "J5.1", name: "D16", function: {en: "SPI COPI, formerly MOSI (PB2); same line as ICSP.4", de: "SPI COPI, früher MOSI (PB2); dieselbe Leitung wie ICSP.4"}, type: io}
+    - {number: "ICSP.1", name: "CIPO", function: {en: "SPI CIPO, formerly MISO (D14, PB3)", de: "SPI CIPO, früher MISO (D14, PB3)"}, type: data}
+    - {number: "ICSP.2", name: "5V", function: {en: "5 V rail", de: "5-V-Schiene"}, type: power}
+    - {number: "ICSP.3", name: "SCK", function: {en: "SPI clock (D15, PB1)", de: "SPI-Takt (D15, PB1)"}, type: data}
+    - {number: "ICSP.4", name: "COPI", function: {en: "SPI COPI, formerly MOSI (D16, PB2)", de: "SPI COPI, früher MOSI (D16, PB2)"}, type: data}
+    - {number: "ICSP.5", name: "RESET", function: {en: "Reset of the ATmega32U4", de: "Reset des ATmega32U4"}, type: signal}
+    - {number: "ICSP.6", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+
+- id: arduino_pro_mini
+  kind: pinout
+  category: pinouts
+  group: boards
+  name: {cs: "Arduino Pro Mini", da: "Arduino Pro Mini", de: "Arduino Pro Mini", el: "Arduino Pro Mini", en: "Arduino Pro Mini", es: "Arduino Pro Mini", fr: "Arduino Pro Mini", hi: "Arduino Pro Mini", it: "Arduino Pro Mini", ja: "Arduino Pro Mini", nl: "Arduino Pro Mini", no: "Arduino Pro Mini", pl: "Arduino Pro Mini", pt: "Arduino Pro Mini", sv: "Arduino Pro Mini", zh: "Arduino Pro Mini"}
+  doc: {en: "Arduino Pro Mini in the layout of the maker SparkFun (PCB v14), seen from the component side with the 6-pin FTDI header at the top edge. The board carries no pin numbers, so each pin is named after its header in the SparkFun schematic: JP1 (FTDI), JP7 (left edge), JP6 (right edge) and the two inner pads JP2 (A4, A5) and JP3 (A6, A7) plus its position there. The drawing places the FTDI header (BLK end at the left, GRN end at the right) and the inner pads, which sit inside the board off the 0.1 inch grid of the edge rows, as small groups in the middle of the board, not at their real places. Clone boards sold as Pro Mini are not covered.", de: "Arduino Pro Mini im Layout des Herstellers SparkFun (Platine v14), von der Bauteilseite gesehen, die 6-polige FTDI-Leiste am oberen Rand. Die Platine trägt keine Pinnummern, daher heißt jeder Pin nach seiner Stiftleiste im SparkFun-Schaltplan: JP1 (FTDI), JP7 (linke Kante), JP6 (rechte Kante) und die beiden inneren Pads JP2 (A4, A5) und JP3 (A6, A7) plus Position. Die inneren Pads liegen innerhalb der Platine, abseits des 0,1-Zoll-Rasters der Randreihen; die Zeichnung setzt die FTDI-Leiste (BLK-Ende links, GRN-Ende rechts) und die inneren Pads als kleine Gruppen in die Mitte der Platine, nicht an ihre wirklichen Orte. Klone, die als Pro Mini verkauft werden, sind nicht abgedeckt."}
+  notes: {en: "One PCB for two models, 5 V / 16 MHz and 3.3 V / 8 MHz: the logic level of every I/O pin is the VCC of the model, so do not drive the pins of the 3.3 V model with 5 V. RAW feeds the on-board regulator (150 mA): Arduino's tech specs give 5–12 V for the 5 V model and 3.35–12 V for the 3.3 V model, SparkFun up to 16 V; stay within 12 V and feed unregulated power to RAW, not to VCC. Current per I/O pin: 40 mA at most (Arduino and SparkFun), 20 mA recommended by SparkFun; use 20 mA. The FTDI header takes a 3.3 V or 5 V FTDI cable or breakout; JP1.6 (marked BLK) is the ground end and JP1.1 (marked GRN) is DTR. TXO and RXI are the board's own TX and RX, which the adapter crosses. The board has no USB. A6 and A7 are analog inputs only.", de: "Eine Platine für zwei Modelle, 5 V / 16 MHz und 3,3 V / 8 MHz: der Logikpegel jedes I/O-Pins ist die VCC des Modells, die Pins des 3,3-V-Modells daher nicht mit 5 V treiben. RAW speist den Regler auf der Platine (150 mA): Arduinos Tech Specs nennen 5–12 V für das 5-V-Modell und 3,35–12 V für das 3,3-V-Modell, SparkFun bis 16 V; bleiben Sie unter 12 V und speisen Sie ungeregelte Spannung an RAW, nicht an VCC. Strom je I/O-Pin: höchstens 40 mA (Arduino und SparkFun), 20 mA empfohlen von SparkFun; rechnen Sie mit 20 mA. Die FTDI-Leiste nimmt ein FTDI-Kabel oder -Breakout mit 3,3 V oder 5 V auf; JP1.6 (BLK) ist das Masse-Ende, JP1.1 (GRN) ist DTR. TXO und RXI sind das eigene TX und RX der Platine, die der Adapter kreuzt. Die Platine hat kein USB. A6 und A7 sind nur Analogeingänge."}
+  tags: ["arduino", "pro mini", "promini", "sparkfun", "atmega328p", "ftdi", "ftdi basic", "header", "stiftleiste", "belegung", "pinout", "spi", "i2c", "uart", "pwm", "raw", "vcc", "rst", "dtr", "a4", "a5", "a6", "a7", "d13", "gpio", "3.3v", "5v"]
+  source: "Arduino Pro Mini retired product page (Arduino docs-content); SparkFun schematic Arduino-Pro-Mini REV 14 (4/9/2014, hosted by Arduino); SparkFun Eagle board file Arduino-Pro-Mini.brd (Arduino_Pro_Mini_328 repository); SparkFun graphical datasheets Arduino Pro Mini DEV-11113 (16 MHz / 5 V) and DEV-11114 (8 MHz / 3.3 V)"
+  shape:
+    type: board
+    connector: none
+    left: ["JP7.12", "JP7.11", "JP7.10", "JP7.9", "JP7.8", "JP7.7", "JP7.6", "JP7.5", "JP7.4", "JP7.3", "JP7.2", "JP7.1"]
+    right: ["JP6.1", "JP6.2", "JP6.3", "JP6.4", "JP6.5", "JP6.6", "JP6.7", "JP6.8", "JP6.9", "JP6.10", "JP6.11", "JP6.12"]
+    inner:
+      - {"label": "FTDI", "rows": [{"pins": ["JP1.6", "JP1.5", "JP1.4", "JP1.3", "JP1.2", "JP1.1"]}]}
+      - {"label": "A4/A5", "rows": [{"pins": ["JP2.2"]}, {"pins": ["JP2.1"]}]}
+      - {"label": "A6/A7", "rows": [{"pins": ["JP3.2"]}, {"pins": ["JP3.1"]}]}
+  pins:
+    - {number: "JP1.6", name: "GND", function: {en: "Ground (FTDI pin marked BLK)", de: "Masse (FTDI-Pin mit BLK markiert)"}, type: ground}
+    - {number: "JP1.5", name: "GND", function: {en: "Ground (CTS of the adapter)", de: "Masse (CTS des Adapters)"}, type: ground}
+    - {number: "JP1.4", name: "VCC", function: {en: "Board supply from the adapter: 5 V or 3.3 V by model", de: "Versorgung vom Adapter: 5 V oder 3,3 V je nach Modell"}, type: power}
+    - {number: "JP1.3", name: "RXI", function: {en: "Serial input from the adapter; same line as D0", de: "Serieller Eingang vom Adapter; dieselbe Leitung wie D0"}, type: data}
+    - {number: "JP1.2", name: "TXO", function: {en: "Serial output to the adapter; same line as D1", de: "Serieller Ausgang zum Adapter; dieselbe Leitung wie D1"}, type: data}
+    - {number: "JP1.1", name: "DTR", function: {en: "Auto-reset: to RESET through 0.1 µF (pin marked GRN)", de: "Auto-Reset: über 0,1 µF an RESET (Pin mit GRN markiert)"}, type: signal}
+    - {number: "JP7.12", name: "D1", function: {en: "UART TX (PD1); silk TXO", de: "UART TX (PD1); Aufdruck TXO"}, type: io}
+    - {number: "JP7.11", name: "D0", function: {en: "UART RX (PD0); silk RXI", de: "UART RX (PD0); Aufdruck RXI"}, type: io}
+    - {number: "JP7.10", name: "RST", function: {en: "Reset; pull low to restart the ATmega328P", de: "Reset; low startet den ATmega328P neu"}, type: signal}
+    - {number: "JP7.9", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "JP7.8", name: "D2", function: {en: "Digital pin; interrupt INT0 (PD2)", de: "Digitaler Pin; Interrupt INT0 (PD2)"}, type: io}
+    - {number: "JP7.7", name: "D3", function: {en: "PWM (OC2B); interrupt INT1 (PD3)", de: "PWM (OC2B); Interrupt INT1 (PD3)"}, type: io}
+    - {number: "JP7.6", name: "D4", function: {en: "Digital pin (PD4)", de: "Digitaler Pin (PD4)"}, type: io}
+    - {number: "JP7.5", name: "D5", function: {en: "PWM (OC0B) (PD5)", de: "PWM (OC0B) (PD5)"}, type: io}
+    - {number: "JP7.4", name: "D6", function: {en: "PWM (OC0A) (PD6)", de: "PWM (OC0A) (PD6)"}, type: io}
+    - {number: "JP7.3", name: "D7", function: {en: "Digital pin (PD7)", de: "Digitaler Pin (PD7)"}, type: io}
+    - {number: "JP7.2", name: "D8", function: {en: "Digital pin (PB0)", de: "Digitaler Pin (PB0)"}, type: io}
+    - {number: "JP7.1", name: "D9", function: {en: "PWM (OC1A) (PB1)", de: "PWM (OC1A) (PB1)"}, type: io}
+    - {number: "JP6.1", name: "RAW", function: {en: "Unregulated supply input to the regulator (see notes)", de: "Ungeregelter Versorgungseingang zum Regler (siehe Hinweise)"}, type: power}
+    - {number: "JP6.2", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "JP6.3", name: "RST", function: {en: "Reset; same line as the other RST pin", de: "Reset; dieselbe Leitung wie der andere RST-Pin"}, type: signal}
+    - {number: "JP6.4", name: "VCC", function: {en: "Regulated 5 V or 3.3 V by model; output, or input for a regulated supply", de: "Geregelte 5 V oder 3,3 V je nach Modell; Ausgang oder Eingang für geregelte Versorgung"}, type: power}
+    - {number: "JP6.5", name: "A3", function: {en: "Analog input ADC3; digital D17 (PC3)", de: "Analogeingang ADC3; digital D17 (PC3)"}, type: io}
+    - {number: "JP6.6", name: "A2", function: {en: "Analog input ADC2; digital D16 (PC2)", de: "Analogeingang ADC2; digital D16 (PC2)"}, type: io}
+    - {number: "JP6.7", name: "A1", function: {en: "Analog input ADC1; digital D15 (PC1)", de: "Analogeingang ADC1; digital D15 (PC1)"}, type: io}
+    - {number: "JP6.8", name: "A0", function: {en: "Analog input ADC0; digital D14 (PC0)", de: "Analogeingang ADC0; digital D14 (PC0)"}, type: io}
+    - {number: "JP6.9", name: "D13", function: {en: "SPI SCK; on-board LED (PB5)", de: "SPI SCK; LED auf der Platine (PB5)"}, type: io}
+    - {number: "JP6.10", name: "D12", function: {en: "SPI CIPO, formerly MISO (PB4)", de: "SPI CIPO, früher MISO (PB4)"}, type: io}
+    - {number: "JP6.11", name: "D11", function: {en: "PWM (OC2A); SPI COPI, formerly MOSI (PB3)", de: "PWM (OC2A); SPI COPI, früher MOSI (PB3)"}, type: io}
+    - {number: "JP6.12", name: "D10", function: {en: "PWM (OC1B); SPI SS (PB2)", de: "PWM (OC1B); SPI SS (PB2)"}, type: io}
+    - {number: "JP2.1", name: "A4", function: {en: "Analog input ADC4; digital D18; I2C SDA (PC4); inner pad", de: "Analogeingang ADC4; digital D18; I2C SDA (PC4); innenliegendes Pad"}, type: io}
+    - {number: "JP2.2", name: "A5", function: {en: "Analog input ADC5; digital D19; I2C SCL (PC5); inner pad", de: "Analogeingang ADC5; digital D19; I2C SCL (PC5); innenliegendes Pad"}, type: io}
+    - {number: "JP3.1", name: "A6", function: {en: "Analog input ADC6 only, no digital use; inner pad", de: "Nur Analogeingang ADC6, nicht digital nutzbar; innenliegendes Pad"}, type: signal}
+    - {number: "JP3.2", name: "A7", function: {en: "Analog input ADC7 only, no digital use; inner pad", de: "Nur Analogeingang ADC7, nicht digital nutzbar; innenliegendes Pad"}, type: signal}
+
+- id: microbit
+  kind: pinout
+  category: pinouts
+  group: boards
+  name: {cs: "BBC micro:bit V2", da: "BBC micro:bit V2", de: "BBC micro:bit V2", el: "BBC micro:bit V2", en: "BBC micro:bit V2", es: "BBC micro:bit V2", fr: "BBC micro:bit V2", hi: "BBC micro:bit V2", it: "BBC micro:bit V2", ja: "BBC micro:bit V2", nl: "BBC micro:bit V2", no: "BBC micro:bit V2", pl: "BBC micro:bit V2", pt: "BBC micro:bit V2", sv: "BBC micro:bit V2", zh: "BBC micro:bit V2"}
+  doc: {en: "Edge connector of the BBC micro:bit V2 in the front view: the side with the LED matrix and the buttons A and B, upright, the connector along the bottom edge and read from left to right. The board prints no pin numbers, so each contact is numbered like the pins of J1 in the V2.2.1 schematic (1 to 40 along the edge): the five large rings are 2 (ring 0), 10 (ring 1), 19 (ring 2), 28 (3V) and 36 (GND), the others are the small strips between them. Every ring is drawn as one position, although it is four strip widths wide. Only the front contacts are listed: the rings on the back are the same nets and the small strips on the back are not connected. The USB socket, marked at the top as an orientation aid, is on the back of the board.", de: "Randstecker des BBC micro:bit V2 in der Vorderansicht: die Seite mit LED-Matrix und den Tastern A und B, aufrecht, der Stecker am unteren Rand und von links nach rechts gelesen. Die Platine druckt keine Pinnummern, daher sind die Kontakte wie die Pins von J1 im V2.2.1-Schaltplan nummeriert (1 bis 40 entlang der Kante): die fünf großen Ringe sind 2 (Ring 0), 10 (Ring 1), 19 (Ring 2), 28 (3V) und 36 (GND), die übrigen sind die kleinen Streifen dazwischen. Jeder Ring ist als eine Position gezeichnet, obwohl er vier Streifenbreiten breit ist. Es sind nur die Kontakte der Vorderseite aufgeführt: die Ringe auf der Rückseite sind dieselben Netze, die kleinen Streifen auf der Rückseite sind nicht verbunden. Die USB-Buchse, oben als Orientierungshilfe markiert, sitzt auf der Rückseite der Platine."}
+  notes: {en: "All signal contacts are 3.3 V logic and not 5 V tolerant: the pin voltage must stay between −0.3 V and VDD + 0.3 V, and the board supply is 1.7 to 3.6 V. Drive is 1 to 4 mA standard and 6 to 15 mA high. The edge connector may supply 190 mA (300 mA regulator minus the on-board budget); the edge-connector page says 270 mA and marks it as to be confirmed, so use 190 mA. Only three pins can do PWM at the same time. P3, P4, P6, P7 and P10 belong to the LED display: switch the display off in software before using them otherwise. P5 and P11 are the buttons A and B, P12 is reserved for the accessibility mode. P19 and P20 are the external I2C bus with 4.7 kΩ pull-ups; on V2 the motion sensor is on a separate internal I2C bus. Do not connect speakers, motors or piezos directly. To power the board through the 3V ring use a regulated supply and a protection diode.", de: "Alle Signalkontakte arbeiten mit 3,3-V-Logik und sind nicht 5-V-tolerant: die Pinspannung muss zwischen −0,3 V und VDD + 0,3 V bleiben, die Versorgung der Platine beträgt 1,7 bis 3,6 V. Die Treiberstärke ist 1 bis 4 mA normal und 6 bis 15 mA hoch. Der Randstecker darf 190 mA liefern (300-mA-Regler minus Bedarf auf der Platine); die Seite zum Randstecker nennt 270 mA und markiert sie als zu bestätigen, rechnen Sie daher mit 190 mA. Nur drei Pins können gleichzeitig PWM. P3, P4, P6, P7 und P10 gehören zur LED-Anzeige: schalten Sie die Anzeige in der Software ab, bevor Sie sie anders nutzen. P5 und P11 sind die Taster A und B, P12 ist für den Barrierefreiheitsmodus reserviert. P19 und P20 sind der externe I2C-Bus mit 4,7-kΩ-Pull-ups; auf V2 hängt der Bewegungssensor an einem eigenen internen I2C-Bus. Lautsprecher, Motoren oder Piezos nicht direkt anschließen. Zur Speisung über den 3V-Ring eine geregelte Versorgung und eine Schutzdiode verwenden."}
+  tags: ["micro:bit", "microbit", "bbc micro:bit", "micro bit", "v2", "nrf52833", "edge connector", "randstecker", "belegung", "pinout", "pin 0", "ring", "p0", "p1", "p2", "p19", "p20", "i2c", "spi", "gpio", "3v", "gnd", "touch", "pwm", "bildung"]
+  source: "micro:bit Educational Foundation, Edge connector and pinout (tech.microbit.org/hardware/edgeconnector, with its V2 figure); micro:bit V2.2.1 schematic (MicroBit_V2.2.1_nRF52820, 2021-11-29); micro:bit Schematic page (tech.microbit.org/hardware/schematic); micro:bit Power supply page (tech.microbit.org/hardware/powersupply)"
+  shape:
+    type: board
+    connector: top
+    bottom: ["1", "2", "6", "7", "8", "9", "10", "14", "15", "16", "17", "18", "19", "23", "24", "25", "26", "27", "28", "32", "33", "34", "35", "36", "40"]
+  pins:
+    - {number: "1", name: "P3", function: {en: "GPIO/analog AIN7 (P0.31); shared with LED column 3", de: "GPIO/Analog AIN7 (P0.31); mit LED-Spalte 3 geteilt"}, type: io}
+    - {number: "2", name: "0", function: {en: "Ring P0: GPIO, analog AIN0, touch, PWM (P0.02); 10 MΩ pull-up", de: "Ring P0: GPIO, Analog AIN0, Touch, PWM (P0.02); 10-MΩ-Pull-up"}, type: io}
+    - {number: "6", name: "P4", function: {en: "GPIO/analog AIN4 (P0.28); shared with LED column 1", de: "GPIO/Analog AIN4 (P0.28); mit LED-Spalte 1 geteilt"}, type: io}
+    - {number: "7", name: "P5", function: {en: "Button A (P0.14); 10 kΩ pull-up on the board", de: "Taster A (P0.14); 10-kΩ-Pull-up auf der Platine"}, type: signal}
+    - {number: "8", name: "P6", function: {en: "GPIO (P1.05); shared with LED column 4", de: "GPIO (P1.05); mit LED-Spalte 4 geteilt"}, type: io}
+    - {number: "9", name: "P7", function: {en: "GPIO (P0.11); shared with LED column 2", de: "GPIO (P0.11); mit LED-Spalte 2 geteilt"}, type: io}
+    - {number: "10", name: "1", function: {en: "Ring P1: GPIO, analog AIN1, touch, PWM (P0.03); 10 MΩ pull-up", de: "Ring P1: GPIO, Analog AIN1, Touch, PWM (P0.03); 10-MΩ-Pull-up"}, type: io}
+    - {number: "14", name: "P8", function: {en: "GPIO (P0.10); NFC2, off by default", de: "GPIO (P0.10); NFC2, standardmäßig aus"}, type: io}
+    - {number: "15", name: "P9", function: {en: "GPIO (P0.09); NFC1, off by default", de: "GPIO (P0.09); NFC1, standardmäßig aus"}, type: io}
+    - {number: "16", name: "P10", function: {en: "GPIO/analog AIN6 (P0.30); shared with LED column 5", de: "GPIO/Analog AIN6 (P0.30); mit LED-Spalte 5 geteilt"}, type: io}
+    - {number: "17", name: "P11", function: {en: "Button B (P0.23); 10 kΩ pull-up on the board", de: "Taster B (P0.23); 10-kΩ-Pull-up auf der Platine"}, type: signal}
+    - {number: "18", name: "P12", function: {en: "Reserved for accessibility (P0.12); do not use", de: "Für Barrierefreiheit reserviert (P0.12); nicht verwenden"}, type: signal}
+    - {number: "19", name: "2", function: {en: "Ring P2: GPIO, analog AIN2, touch, PWM (P0.04); 10 MΩ pull-up", de: "Ring P2: GPIO, Analog AIN2, Touch, PWM (P0.04); 10-MΩ-Pull-up"}, type: io}
+    - {number: "23", name: "P13", function: {en: "GPIO; SPI SCK (P0.17)", de: "GPIO; SPI SCK (P0.17)"}, type: io}
+    - {number: "24", name: "P14", function: {en: "GPIO; SPI MISO (P0.01)", de: "GPIO; SPI MISO (P0.01)"}, type: io}
+    - {number: "25", name: "P15", function: {en: "GPIO; SPI MOSI (P0.13)", de: "GPIO; SPI MOSI (P0.13)"}, type: io}
+    - {number: "26", name: "P16", function: {en: "GPIO (P1.02)", de: "GPIO (P1.02)"}, type: io}
+    - {number: "27", name: "3V", function: {en: "3 V supply strip beside the 3V ring", de: "3-V-Versorgungsstreifen neben dem 3V-Ring"}, type: power}
+    - {number: "28", name: "3V", function: {en: "Ring 3V: 3 V supply, output or input", de: "Ring 3V: 3-V-Versorgung, Ausgang oder Eingang"}, type: power}
+    - {number: "32", name: "3V", function: {en: "3 V supply strip beside the 3V ring", de: "3-V-Versorgungsstreifen neben dem 3V-Ring"}, type: power}
+    - {number: "33", name: "P19", function: {en: "External I2C SCL (P0.26); 4.7 kΩ pull-up", de: "Externes I2C SCL (P0.26); 4,7-kΩ-Pull-up"}, type: data, notes: {en: "On V2 the motion sensor is on a separate internal I2C bus; this is the external bus of the edge connector. Older V1 documents describe the motion sensor on it.", de: "Auf V2 hängt der Bewegungssensor an einem eigenen internen I2C-Bus; dies ist der externe Bus des Randsteckers. Ältere V1-Dokumente beschreiben den Bewegungssensor an diesem Bus."}}
+    - {number: "34", name: "P20", function: {en: "External I2C SDA (P1.00); 4.7 kΩ pull-up", de: "Externes I2C SDA (P1.00); 4,7-kΩ-Pull-up"}, type: data, notes: {en: "On V2 the motion sensor is on a separate internal I2C bus; this is the external bus of the edge connector. Older V1 documents describe the motion sensor on it.", de: "Auf V2 hängt der Bewegungssensor an einem eigenen internen I2C-Bus; dies ist der externe Bus des Randsteckers. Ältere V1-Dokumente beschreiben den Bewegungssensor an diesem Bus."}}
+    - {number: "35", name: "GND", function: {en: "Ground strip beside the GND ring", de: "Massestreifen neben dem GND-Ring"}, type: ground}
+    - {number: "36", name: "GND", function: {en: "Ring GND: ground", de: "Ring GND: Masse"}, type: ground}
+    - {number: "40", name: "GND", function: {en: "Ground strip beside the GND ring", de: "Massestreifen neben dem GND-Ring"}, type: ground}

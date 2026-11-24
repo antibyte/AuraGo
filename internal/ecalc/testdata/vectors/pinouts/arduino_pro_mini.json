@@ -1,0 +1,11 @@
+{"pinout": "arduino_pro_mini", "variants": [{"variant": "", "counts": {"power": 3, "ground": 4, "signal": 5, "data": 2, "io": 20}, "pins": [
+  {"number": "JP7.12", "name": "D1", "type": "io", "ref": "SparkFun schematic JP7 pin 12 (TXO); Eagle board file JP7 pad 12 net TXO at the top of the left column; SparkFun datasheet first left row TX0 D1 PD1"},
+  {"number": "JP7.9", "name": "GND", "type": "ground", "ref": "SparkFun schematic JP7 pin 9 (GND); board file net GND; SparkFun datasheet fourth left row GND"},
+  {"number": "JP6.1", "name": "RAW", "type": "power", "ref": "SparkFun schematic JP6 pin 1 (RAW); board file pad 1 at the top of the right column, silk RAW; SparkFun datasheet first right row RAW"},
+  {"number": "JP6.9", "name": "D13", "type": "io", "ref": "SparkFun schematic JP6 pin 9 (SCK); board file pad 9, silk 13; SparkFun datasheet 13 D13 PB5 SCK LED"},
+  {"number": "JP6.12", "name": "D10", "type": "io", "ref": "SparkFun schematic JP6 pin 12 (D10); board file pad 12 at the bottom of the right column, silk 10; SparkFun datasheet D10 PB2 SS OC1B"},
+  {"number": "JP1.1", "name": "DTR", "type": "signal", "ref": "Board file JP1 pad 1 net DTR at the GRN end; SparkFun datasheet FTDI row GND GND VCC RXI TXO DTR with GRN at the right"},
+  {"number": "JP1.6", "name": "GND", "type": "ground", "ref": "Board file JP1 pad 6 net GND at the BLK end; SparkFun datasheet FTDI row, BLK at the left"},
+  {"number": "JP2.1", "name": "A4", "type": "io", "ref": "SparkFun schematic JP2 pin 1 (A4); board file pad with bottom silk A4; SparkFun datasheet A4/D18 PC4 ADC4 SDA"},
+  {"number": "JP2.2", "name": "A5", "type": "io", "ref": "SparkFun schematic JP2 pin 2 (A5); board file pad with bottom silk A5; SparkFun datasheet A5/D19 PC5 ADC5 SCL"},
+  {"number": "JP3.2", "name": "A7", "type": "signal", "ref": "SparkFun schematic JP3 pin 2 (A7); board file bottom silk A7; Arduino tech specs 8 analog inputs, A6 and A7 analog only"}]}]}
