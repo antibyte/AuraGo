@@ -49,7 +49,7 @@ function gate(label, out, r) {
   for (let i = 0; i < n; i++) if (!Number.isFinite(L[i]) || !Number.isFinite(R[i])) { failures.push(`${label}: NaN or Infinity`); return; }
   if (out.limited) {
     check(out.lufs <= r.lufs + 0.5, `${label}: ${out.lufs.toFixed(2)} LUFS above target ${r.lufs} while peak-limited`);
-    if (out.lufs < r.lufs - 10) warnings.push(`${label}: peak-limited ${(r.lufs - out.lufs).toFixed(1)} LU under target (transient too sharp?)`);
+    check(out.lufs >= r.lufs - 3, `${label}: peak-limited ${(r.lufs - out.lufs).toFixed(1)} LU under target (transient too sharp: add a tonal body or soften the attack)`);
   } else check(Math.abs(out.lufs - r.lufs) <= 0.5, `${label}: ${out.lufs.toFixed(2)} LUFS, target ${r.lufs} ±0.5`);
   const measured = DSP.loudness({ L, R, n });
   check(Math.abs(measured - out.lufs) <= 0.05, `${label}: reports ${out.lufs.toFixed(2)} LUFS, measures ${measured.toFixed(2)}`);

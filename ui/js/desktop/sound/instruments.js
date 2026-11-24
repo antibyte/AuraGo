@@ -147,7 +147,7 @@
         maxFreq: 4000,
         loopT60: 12, endDb: 0.67, lossShare: 0.85,        // loop loss t60 = t60 x loopT60, envelope decay = t60 x envT60: 1/4 + 3/4 = 1, so -60 dB lands at t60
         bodyHz: 280, bodyQ: 1.4, bodyGain: 0.5,
-        pickMs: 0.002, pickBase: 1500, pickRange: 4500, pickQ: 1.5, pickGain: 0.25, pickBright: 0.4, pickAttack: 0.0002,
+        pickMs: 0.002, pickBase: 1500, pickRange: 4500, pickQ: 1.5, pickGain: 0.25, pickBright: 0.4, pickAttack: 0.0002, pickFadeStart: 0.001, pickFadeEnd: 0.008,
         trim: 0.394,
         presetTrim: { nylon: 0.945, harp: 0.793, muted: 1.139 }
     };
@@ -211,11 +211,11 @@
 
     // ---- debris --------------------------------------------------------------------------------
     const DEBRIS = {
-        wood: { lo: 600, range: 1200, t60: 0.03, burstMs: 0.003, burstQ: 2, burstGain: 0.5, level: 1 },
+        wood: { lo: 600, range: 1200, t60: 0.012, burstMs: 0.004, burstAttack: 0.0003, burstQ: 2.5, ringGain: 0.35, level: 1 }, // a knock: band-passed noise burst plus a short ring
         stone: { lo: 1500, range: 3500, burstMs: 0.002, q: 3, ringT60: 0.01, ringGain: 0.5, level: 1 },
         earth: { lo: 200, range: 500, ms: 0.006, highpass: 150, level: 4 },
         attack: 0.0003, trim: 0.876,
-        presetTrim: { wood: 0.369, stone: 1.003, earth: 3.097 }
+        presetTrim: { wood: 4.42, stone: 1.003, earth: 3.097 }
     };
 
     // ---- parameter spec helpers ----------------------------------------------------------------
@@ -281,7 +281,7 @@
     MODELS.bell = {
         params: {
             kind: wave(['bell', 'celesta', 'tine'], 'celesta'),
-            t60: num(0.1, 3, 1.4), index: num(0, 4, 1), attack: num(0.001, 0.03, 0.002), spread: num(0, 1, 0), air: num(0, 0.2, 0.04)
+            t60: num(0.04, 3, 1.4), index: num(0, 4, 1), attack: num(0.001, 0.03, 0.002), spread: num(0, 1, 0), air: num(0, 0.2, 0.04)
         },
         presets: { kind: BELL.kinds },
         pitched: () => true,
@@ -312,7 +312,8 @@
     MODELS.string = {
         params: {
             kind: wave(['nylon', 'harp', 'muted'], 'nylon'),
-            t60: num(0.05, 3, 0.8), brightness: num(0.02, 0.98, 0.35), pick: num(0.05, 0.5, 0.22), body: num(0, 1, 0.2), air: num(0, 0.2, 0.04)
+            t60: num(0.05, 3, 0.8), brightness: num(0.02, 0.98, 0.35), pick: num(0.05, 0.5, 0.22), body: num(0, 1, 0.2), attack: num(0.0005, 0.02, 0.001),
+            air: num(0, 0.2, 0.04)
         },
         presets: { kind: STRING.kinds },
         pitched: () => true,
@@ -339,10 +340,11 @@
                 const body = bandpass(out.slice(), STRING.bodyHz, STRING.bodyQ);
                 addInto(out, body, 0, p.body * STRING.bodyGain);
             }
-            applyEnv(out, { attack: 0.001, decay: 60 / rate, sustain: 0 });
+            applyEnv(out, { attack: p.attack, decay: 60 / rate, sustain: 0 });
             const c = burst(rand, 'white', STRING.pickMs, STRING.pickAttack, STRING.pickMs);
             bandpass(c, STRING.pickBase + STRING.pickRange * p.brightness, STRING.pickQ);
-            addInto(out, c, 0, STRING.pickGain * (STRING.pickBright + p.brightness));
+            const pickScale = clamp((STRING.pickFadeEnd - p.attack) / (STRING.pickFadeEnd - STRING.pickFadeStart), 0, 1); // a slower attack softens the click
+            addInto(out, c, 0, STRING.pickGain * (STRING.pickBright + p.brightness) * pickScale);
             return addAir(finishMono(out, note, STRING.trim * pt(STRING.presetTrim, p.kind)), note, p.air, p.t60, rand);
         }
     };
@@ -548,7 +550,7 @@
         params: {
             kind: wave(['plate', 'pipe', 'ping'], 'plate'),
             t60: num(0.05, 4, 0.8), damp: num(0, 2, 0.4), beat: num(0, 6, 1.2), hardness: num(0, 1, 0.5),
-            attack: num(0.0005, 0.02, 0.001), width: num(0, 1, 0.6),
+            attack: num(0.0005, 0.02, 0.001), width: num(0, 1, 0.6), strike: num(0, 1, 1),
             spread: num(0, 12, 3), air: num(0, 0.2, 0.04)
         },
         presets: { kind: METAL.kinds },
@@ -564,9 +566,11 @@
             const st = zeros(n);
             addPan(st, a, b ? METAL.mainGain : 1, note.pan + METAL.mainPan * w);
             if (b) addPan(st, b, METAL.twinGain, note.pan + METAL.twinPan * w);
-            const s = burst(rand, 'white', METAL.strikeMs, METAL.strikeAttack, METAL.strikeMs);
-            highpass(s, METAL.strikeHz);
-            addPan(st, s, METAL.strikeLevel * (METAL.strikeFloor + (1 - METAL.strikeFloor) * p.hardness), note.pan);
+            if (p.strike > 0) {
+                const s = burst(rand, 'white', METAL.strikeMs, METAL.strikeAttack, METAL.strikeMs);
+                highpass(s, METAL.strikeHz);
+                addPan(st, s, p.strike * METAL.strikeLevel * (METAL.strikeFloor + (1 - METAL.strikeFloor) * p.hardness), note.pan);
+            }
             return addAir(finishStereo(st, note, METAL.trim * pt(METAL.presetTrim, p.kind), false), note, p.air, p.t60, rand);
         }
     };
@@ -716,9 +720,13 @@
                 let buf;
                 if (p.grain === 'wood') {
                     const W = DEBRIS.wood, f = (W.lo + W.range * r4) * p.tone * sizeF;
-                    buf = modal({ freq: f, dur: 0.12, t60: W.t60, damp: 0, attack: DEBRIS.attack, partials: [{ r: 1, g: 1 }] }, rand).a;
-                    const b = bandpass(burst(rand, 'white', W.burstMs, DEBRIS.attack, W.burstMs), f, W.burstQ);
-                    addInto(buf, b, 0, W.burstGain);
+                    buf = bandpass(burst(rand, 'white', W.burstMs, W.burstAttack, W.burstMs), f, W.burstQ);
+                    let bp = 0;
+                    for (let i = 0; i < buf.length; i++) bp = Math.max(bp, Math.abs(buf[i]));
+                    const r = modal({ freq: f, dur: 0.05, t60: W.t60, damp: 0, attack: DEBRIS.attack, partials: [{ r: 1, g: 1 }] }, rand).a;
+                    const full = new Float32Array(Math.max(buf.length, r.length));
+                    full.set(buf); addInto(full, r, 0, W.ringGain * bp);
+                    buf = full;
                     for (let i = 0; i < buf.length; i++) buf[i] *= W.level;
                 } else if (p.grain === 'earth') {
                     const E = DEBRIS.earth, f = (E.lo + E.range * r4) * p.tone * sizeF;

@@ -141,6 +141,27 @@ for (const kind of ['nylon', 'harp', 'muted']) for (const freq of [220, 440]) {
   assert.equal(m.params.t60[0], 0.04);
   const o = I.render('glass', { t60: 0.04 }, { freq: 880, dur: m.duration(p), gain: 1, pan: 0, at: 0, detune: 0 }, D.makeRng(1));
   assert.equal(o.L.length, Math.ceil(m.duration(p) * SR)); assert.ok(peakOf(o.L) > 1e-3 && o.L.every(Number.isFinite)); }
+// bell accepts a very short t60 and keeps a correct duration
+{ const p = I.resolveParams('bell', { t60: 0.04 }), m = I.MODELS.bell;
+  assert.equal(m.params.t60[0], 0.04);
+  const o = I.render('bell', { t60: 0.04 }, { freq: 880, dur: m.duration(p), gain: 1, pan: 0, at: 0, detune: 0 }, D.makeRng(1));
+  assert.equal(o.L.length, Math.ceil(m.duration(p) * SR)); assert.ok(peakOf(o.L) > 1e-3 && o.L.every(Number.isFinite)); }
+// string attack: a slower attack differs, is quieter in the first millisecond and softens the pick click
+{ const sn = { freq: 440, dur: 0.6, gain: 1, pan: 0, at: 0, detune: 0 }, ms = Math.round(0.001 * SR);
+  const s0 = I.render('string', {}, sn, D.makeRng(3)), s1 = I.render('string', { attack: 0.008 }, sn, D.makeRng(3));
+  assert.notEqual(fp(s0), fp(s1), 'string attack changes the render');
+  assert.ok(peakOf(s1.L.subarray(0, ms)) < peakOf(s0.L.subarray(0, ms)), 'string attack 8 ms is quieter in the first millisecond'); }
+// metal strike: 0 removes the strike noise
+{ const sn = { freq: 440, dur: 0.6, gain: 1, pan: 0, at: 0, detune: 0 };
+  assert.notEqual(fp(I.render('metal', { strike: 0 }, sn, D.makeRng(3))), fp(I.render('metal', { strike: 1 }, sn, D.makeRng(3))), 'metal strike changes the onset');
+  assert.equal(fp(I.render('metal', { strike: 1 }, sn, D.makeRng(3))), fp(I.render('metal', {}, sn, D.makeRng(3))), 'metal strike 1 is the default'); }
+// regression guard: default renders (440 Hz, 0.6 s, seed 11) of bell, string and metal stay bit-identical
+{ const sn = { freq: 440, dur: 0.6, gain: 1, pan: 0, at: 0, detune: 0 };
+  const want = { bell: 4216514872, string_nylon: 2374711693, string_harp: 3110353571, string_muted: 745069539, metal_plate: 1296389526, metal_pipe: 3011263750, metal_ping: 1150979305 };
+  const got = { bell: fp(I.render('bell', {}, sn, D.makeRng(11))) };
+  for (const k of ['nylon', 'harp', 'muted']) got['string_' + k] = fp(I.render('string', { kind: k }, sn, D.makeRng(11)));
+  for (const k of ['plate', 'pipe', 'ping']) got['metal_' + k] = fp(I.render('metal', { kind: k }, sn, D.makeRng(11)));
+  assert.deepEqual(got, want, 'default bell, string and metal renders are bit-identical'); }
 // squelch: viscous bubble cluster
 { const m = I.MODELS.squelch, p = I.resolveParams('squelch', {});
   assert.deepEqual(Object.keys(m.params), ['count', 'gap', 'spread', 't60', 'dip', 'rise', 'drive', 'wet', 'wetCut', 'attack', 'width']);
