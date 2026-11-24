@@ -96,7 +96,7 @@
 .hd-widget[data-hd-family="instrument"] .hd-rocker-half::after { content: ""; position: absolute; inset: auto 8px 4px; block-size: 2px; background: var(--hd-i-val); box-shadow: var(--hd-glow); opacity: 0; }
 .hd-widget[data-hd-family="instrument"] .hd-rocker[aria-checked="true"] .hd-rocker-half[data-half="on"]::after,
 .hd-widget[data-hd-family="instrument"] .hd-rocker[aria-checked="false"] .hd-rocker-half[data-half="off"]::after { opacity: 1; }
-.hd-widget[data-hd-family="instrument"] .hd-rocker-legend { font: 400 15px / 1 var(--hd-font-num); color: color-mix(in srgb, var(--hd-i-hud) 55%, transparent); } /* plan 30 %: 1.71:1, under the 3:1 the probe asks of a legend; 55 % measures above it */
+.hd-widget[data-hd-family="instrument"] .hd-rocker-legend { font: 400 15px / 1 var(--hd-font-num); color: color-mix(in srgb, var(--hd-i-hud) 70%, transparent); } /* plan 30 %: 1.71:1; 55 % still 2.76:1 on Crazy and 2.83:1 on Lollipop; 70 % clears the 3:1 the probe asks of a legend */
 .hd-widget[data-hd-family="instrument"] .hd-rocker[aria-checked="true"] .hd-rocker-half[data-half="on"] .hd-rocker-legend,
 .hd-widget[data-hd-family="instrument"] .hd-rocker[aria-checked="false"] .hd-rocker-half[data-half="off"] .hd-rocker-legend { color: var(--hd-i-val); }
 
