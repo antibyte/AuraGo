@@ -34,7 +34,7 @@ func quickConnectDevices(ctx context.Context, devices []inventory.DeviceRecord) 
 	}
 	for index, device := range devices {
 		result[index].DeviceRecord = device
-		if device.Protocol != inventory.ProtocolSSH && device.Protocol != inventory.ProtocolVNC {
+		if device.Protocol != inventory.ProtocolSSH && device.Protocol != inventory.ProtocolVNC && device.Protocol != inventory.ProtocolRDP {
 			continue
 		}
 		if strings.TrimSpace(device.Username) != "" || device.CredentialID != "" || device.VaultSecretID != "" {
@@ -61,6 +61,9 @@ func quickConnectProtocolAvailable(ctx context.Context, device inventory.DeviceR
 		if device.Protocol == inventory.ProtocolVNC {
 			port = 5900
 		}
+		if device.Protocol == inventory.ProtocolRDP {
+			port = 3389
+		}
 	}
 	if host == "" || port > 65535 || ctx.Err() != nil {
 		return false
@@ -77,6 +80,9 @@ func quickConnectProtocolAvailable(ctx context.Context, device inventory.DeviceR
 	deadline, _ := ctx.Deadline()
 	if err := conn.SetReadDeadline(deadline); err != nil {
 		return false
+	}
+	if device.Protocol == inventory.ProtocolRDP {
+		return quickConnectRDPProbe(conn)
 	}
 	if device.Protocol == inventory.ProtocolVNC {
 		var banner [12]byte
@@ -103,4 +109,21 @@ func quickConnectProtocolAvailable(ctx context.Context, device inventory.DeviceR
 			return len(line) <= 255 && (strings.HasPrefix(line, "SSH-2.0-") || strings.HasPrefix(line, "SSH-1.99-"))
 		}
 	}
+}
+
+// rdpProbeRequest is an X.224 Connection Request carrying RDP_NEG_REQ
+// (TLS|CredSSP). It authenticates nothing.
+var rdpProbeRequest = []byte{0x03, 0x00, 0x00, 0x13, 0x0e, 0xe0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x08, 0x00, 0x03, 0x00, 0x00, 0x00}
+
+// quickConnectRDPProbe sends the minimal X.224 request and accepts a TPKT reply
+// whose X.224 code is Connection Confirm (0xD0).
+func quickConnectRDPProbe(conn net.Conn) bool {
+	if _, err := conn.Write(rdpProbeRequest); err != nil {
+		return false
+	}
+	var reply [6]byte
+	if _, err := io.ReadFull(conn, reply[:]); err != nil {
+		return false
+	}
+	return reply[0] == 0x03 && reply[1] == 0x00 && reply[5] == 0xD0
 }

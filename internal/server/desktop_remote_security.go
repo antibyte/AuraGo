@@ -28,7 +28,7 @@ func withDesktopRemoteGuard(s *Server, action, expectedProtocol string, next htt
 		switch action {
 		case "desktop_sftp_list", "desktop_sftp_stat", "desktop_sftp_download":
 			operation = desktopRead
-		case "desktop_ssh_connect", "desktop_vnc_connect":
+		case "desktop_ssh_connect", "desktop_vnc_connect", "desktop_rdp_connect", "desktop_rdp_ticket":
 			operation = desktopExecute
 		}
 		if !checkDesktopOperation(s, w, r, operation) {
@@ -89,6 +89,43 @@ func withDesktopRemoteGuard(s *Server, action, expectedProtocol string, next htt
 
 		auditDesktopRemoteAttempt(s, r, action, deviceID, "attempt", "")
 		next(w, r)
+	}
+}
+
+// desktopRemoteStrongCaller reports whether the request is authenticated
+// strongly enough to receive stored remote-access secrets or to reset a pinned
+// certificate: a valid cookie session with authentication enabled, or a bearer
+// token carrying the global desktop:admin scope. Auth-disabled setups and
+// device/tag-scoped or desktop:write tokens do not qualify.
+func desktopRemoteStrongCaller(s *Server, r *http.Request) bool {
+	if s == nil || r == nil {
+		return false
+	}
+	if rawToken, isBearer := desktopRemoteBearerToken(r); isBearer {
+		return rawToken != "" && desktopRemoteTokenHasExactScope(s, rawToken, desktopScopeAdmin)
+	}
+	if s.Cfg == nil {
+		return false
+	}
+	s.CfgMu.RLock()
+	authEnabled := s.Cfg.Auth.Enabled
+	sessionSecret := s.Cfg.Auth.SessionSecret
+	s.CfgMu.RUnlock()
+	return authEnabled && IsAuthenticated(r, sessionSecret)
+}
+
+// desktopRDPAudit adapts the desktop audit log to desktop.RDPAuditFunc.
+func desktopRDPAudit(s *Server) desktop.RDPAuditFunc {
+	return func(r *http.Request, action, deviceID string, details map[string]any) {
+		if s == nil || s.DesktopService == nil || r == nil {
+			return
+		}
+		if details == nil {
+			details = map[string]any{}
+		}
+		details["method"] = r.Method
+		details["path"] = r.URL.Path
+		_ = s.DesktopService.AuditWithRequest(r.Context(), action, strings.TrimSpace(deviceID), details, desktop.SourceUser, desktopAuditRequestInfo(s, r))
 	}
 }
 

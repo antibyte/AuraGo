@@ -28,6 +28,14 @@
       "version": "13.2.0",
       "license": "Apache-2.0"
     },
+    "@devolutions/iron-remote-desktop": {
+      "version": "0.12.0",
+      "license": "MIT OR Apache-2.0"
+    },
+    "@devolutions/iron-remote-desktop-rdp": {
+      "version": "0.8.0",
+      "license": "MIT OR Apache-2.0"
+    },
     "@highlightjs/cdn-assets": {
       "version": "11.12.0",
       "license": "BSD-3-Clause"
@@ -1461,6 +1469,22 @@
       "bytes": 11365,
       "sha256": "1c25f29242785d63e9adb0be7fdc137551dfbbc0756b622fcd26d9cd7de3a4f3"
     },
+    "ui/js/vendor/ironrdp/iron-remote-desktop.js": {
+      "bytes": 131637,
+      "sha256": "91f16ca71460331c5714005cfeea713b151d4b5e7d6c641b0816e5e98b3f647a"
+    },
+    "ui/js/vendor/ironrdp/ironrdp_web_bg.wasm": {
+      "bytes": 4305864,
+      "sha256": "dd5677b0460719861f93c0929abf4338117e8239ac1117b8792319f60705bf30"
+    },
+    "ui/js/vendor/ironrdp/iron-remote-desktop-rdp.js": {
+      "bytes": 101198,
+      "sha256": "7a012280786defa2ca45a43fb5dfc124229eb4ae896a667a0012557707674299"
+    },
+    "ui/js/vendor/ironrdp/LICENSE.txt": {
+      "bytes": 1418,
+      "sha256": "a267deb54fb89289bab1a53139aee09b112eeb74005f72d97e0637564c884262"
+    },
     "ui/js/vendor/pdf.min.js": {
       "bytes": 307,
       "sha256": "8d86e07b976e6fb6e5ef0a8f0f3ccd70a51fe3654948b1079b8c09b9a6dc8485"
@@ -1486,8 +1510,8 @@
       "sha256": "bd9a843a7f83a857b52d0c1221770e27d9e890c6649b690b3b2e587dbdacb531"
     },
     "ui/js/vendor/LICENSES.md": {
-      "bytes": 239288,
-      "sha256": "066be57192d88d297616ddeb920905084ba569d3a1e77045bcfe05d8ef58acca"
+      "bytes": 239425,
+      "sha256": "79032561f380c24c516366a4af6a941edf2d1fdbc0875d41e6c8ede28e8180f4"
     }
   }
 }

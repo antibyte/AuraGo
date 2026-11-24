@@ -31,6 +31,7 @@ type DeviceRecord struct {
 const (
 	ProtocolSSH  = "ssh"
 	ProtocolVNC  = "vnc"
+	ProtocolRDP  = "rdp"
 	ProtocolNone = "none"
 )
 
@@ -302,6 +303,8 @@ func DeleteDevice(db *sql.DB, id string) error {
 	if rows == 0 {
 		return fmt.Errorf("device not found: %s", id)
 	}
+	// A deleted device must not leave a pinned RDP certificate behind.
+	_ = DeleteRDPCertPin(db, id)
 	return nil
 }
 

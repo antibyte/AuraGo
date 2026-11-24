@@ -102,7 +102,7 @@ func handleCreateDevice(s *Server) http.HandlerFunc {
 		}
 		req.Protocol = normalizeDeviceProtocolForAPI(req.Protocol)
 		if !isAllowedDeviceProtocol(req.Protocol) {
-			jsonError(w, "protocol must be ssh, vnc, or none", http.StatusBadRequest)
+			jsonError(w, "protocol must be ssh, vnc, rdp, or none", http.StatusBadRequest)
 			return
 		}
 		if req.Tags == nil {
@@ -163,7 +163,7 @@ func handleUpdateDevice(s *Server) http.HandlerFunc {
 		}
 		req.Protocol = normalizeDeviceProtocolForAPI(req.Protocol)
 		if !isAllowedDeviceProtocol(req.Protocol) {
-			jsonError(w, "protocol must be ssh, vnc, or none", http.StatusBadRequest)
+			jsonError(w, "protocol must be ssh, vnc, rdp, or none", http.StatusBadRequest)
 			return
 		}
 		if req.Tags == nil {
@@ -278,7 +278,7 @@ func normalizeDeviceProtocolForAPI(protocol string) string {
 
 func isAllowedDeviceProtocol(protocol string) bool {
 	switch protocol {
-	case inventory.ProtocolSSH, inventory.ProtocolVNC, inventory.ProtocolNone:
+	case inventory.ProtocolSSH, inventory.ProtocolVNC, inventory.ProtocolRDP, inventory.ProtocolNone:
 		return true
 	default:
 		return false

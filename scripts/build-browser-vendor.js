@@ -82,6 +82,49 @@ await bundle('@novnc/novnc', "import RFB from '@novnc/novnc'; window.RFB=RFB;", 
 await bundle('esptool-js', "export * from 'esptool-js';", vendor + 'esptool-js/esptool-js.min.mjs', [], 'esm');
 await copy('esptool-js', 'LICENSE', vendor + 'esptool-js/LICENSE.txt');
 
+// Quick Connect RDP: IronRDP web client. The backend inlines its wasm as a data: URL, which the CSP connect-src
+// forbids, so the wasm is emitted as a file and the declaration points at it.
+await copy('@devolutions/iron-remote-desktop', 'iron-remote-desktop.js', vendor + 'ironrdp/iron-remote-desktop.js');
+{
+    const source = (await readFile('node_modules/@devolutions/iron-remote-desktop-rdp/iron-remote-desktop-rdp.js', 'utf8'));
+    const pattern = /const (\w+) = "data:application\/wasm;base64,([A-Za-z0-9+\/=]+)";/g;
+    const found = [...source.matchAll(pattern)];
+    if (found.length !== 1) throw Error(`IronRDP wasm data URL declaration found ${found.length} times, expected 1`);
+    const wasm = Buffer.from(found[0][2], 'base64');
+    if (wasm.length < 8 || !wasm.subarray(0, 4).equals(Buffer.from([0, 0x61, 0x73, 0x6d]))) throw Error('IronRDP wasm payload is not a wasm module');
+    packages.add('@devolutions/iron-remote-desktop-rdp');
+    outputs.set(vendor + 'ironrdp/ironrdp_web_bg.wasm', wasm);
+    const patched = source.replace(found[0][0], `const ${found[0][1]} = new URL("./ironrdp_web_bg.wasm", import.meta.url);`);
+    if (patched.includes('data:application/wasm')) throw Error('IronRDP patched module still embeds a wasm data URL');
+    outputs.set(vendor + 'ironrdp/iron-remote-desktop-rdp.js', Buffer.from(patched));
+}
+{
+    const lockData = JSON.parse(await readFile('package-lock.json', 'utf8'));
+    const ver = name => lockData.packages['node_modules/' + name].version;
+    outputs.set(vendor + 'ironrdp/LICENSE.txt', Buffer.from(
+        `IronRDP browser client (Devolutions)\n` +
+        `@devolutions/iron-remote-desktop ${ver('@devolutions/iron-remote-desktop')} and @devolutions/iron-remote-desktop-rdp ${ver('@devolutions/iron-remote-desktop-rdp')}\n` +
+        `Source: https://github.com/Devolutions/IronRDP\n` +
+        `Dual-licensed under MIT OR Apache-2.0; used here under the MIT license.\n` +
+        `The wasm module is extracted from the npm package; the JavaScript is patched only to load it from a file.\n\n` +
+        `MIT License\n\nCopyright (c) Devolutions Inc.\n\n` +
+        `Permission is hereby granted, free of charge, to any person obtaining a copy\n` +
+        `of this software and associated documentation files (the "Software"), to deal\n` +
+        `in the Software without restriction, including without limitation the rights\n` +
+        `to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n` +
+        `copies of the Software, and to permit persons to whom the Software is\n` +
+        `furnished to do so, subject to the following conditions:\n\n` +
+        `The above copyright notice and this permission notice shall be included in all\n` +
+        `copies or substantial portions of the Software.\n\n` +
+        `THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n` +
+        `IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n` +
+        `FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n` +
+        `AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n` +
+        `LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n` +
+        `OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n` +
+        `SOFTWARE.\n`));
+}
+
 // Await module initialization before Desktop loads the app that consumes it.
 outputs.set(vendor + 'pdf.min.js', Buffer.from(`const source = new URL(import.meta.url);
 const url = new URL('pdf.module.js', source); url.search = source.search;

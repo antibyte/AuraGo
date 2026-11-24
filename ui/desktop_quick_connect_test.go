@@ -307,3 +307,87 @@ func TestDesktopQuickConnectConsoleBehaviourBrowser(t *testing.T) {
 		t.Errorf("browser errors: %s", result.Get("errors").JSON("", ""))
 	}
 }
+
+func TestDesktopQuickConnectRDPContract(t *testing.T) {
+	t.Parallel()
+
+	mainText := readDesktopAssetText(t, "js/desktop/main.js")
+	body := jsFunctionBodyInWindowMenuTest(t, mainText, "function renderQuickConnect(id, context)")
+	for _, marker := range []string{
+		`data-qc-filter="rdp"`,
+		`<option value="rdp"`,
+		"function connectRDP(",
+		"connectRDP(deviceId)",
+		"device.protocol === 'rdp'",
+		"/api/desktop/rdp/ticket?device_id=",
+		"QuickConnectRDP.promptPassword(",
+		"QuickConnectRDP.connect(",
+		"defaultPortFor(",
+		"desktop.qc_protocol_rdp",
+		"QuickConnectRDP.addTrustAction(",
+		"desktop.qc_rdp_error_cert_changed",
+	} {
+		if !strings.Contains(body, marker) {
+			t.Fatalf("quick connect missing RDP marker %q", marker)
+		}
+	}
+	// The helper is bundled into the shell and loads the vendored IronRDP modules from same-origin paths.
+	for _, marker := range []string{
+		"window.QuickConnectRDP = (() => {",
+		"'/js/vendor/ironrdp/iron-remote-desktop.js'",
+		"'/js/vendor/ironrdp/iron-remote-desktop-rdp.js'",
+		"'/api/desktop/rdp?device_id='",
+		"displayControl(true)",
+		"withAuthToken(ticket)",
+		"'desktop.qc_rdp_error_remote_closed'",
+		"CERT_CHANGED_CODE = 16384",
+		"/api/desktop/rdp/pin/reset?device_id=",
+		"desktop.qc_rdp_trust_new_cert",
+	} {
+		if !strings.Contains(mainText, marker) {
+			t.Fatalf("desktop bundle missing RDP helper marker %q", marker)
+		}
+	}
+	source, err := os.ReadFile(filepath.Join("js", "desktop", "apps", "quickconnect-rdp.js"))
+	if err != nil {
+		t.Fatalf("read quickconnect-rdp.js: %v", err)
+	}
+	for _, forbidden := range []string{"console.", "localStorage", "sessionStorage", "innerHTML = password", "https://"} {
+		if strings.Contains(string(source), forbidden) {
+			t.Fatalf("quickconnect-rdp.js must not contain %q", forbidden)
+		}
+	}
+	builder, err := os.ReadFile(filepath.Join("..", "scripts", "build-ui-bundles.js"))
+	if err != nil {
+		t.Fatalf("read build-ui-bundles.js: %v", err)
+	}
+	if !strings.Contains(string(builder), "'ui/js/desktop/apps/quickconnect-rdp.js'") {
+		t.Fatal("quickconnect-rdp.js is not registered in scripts/build-ui-bundles.js")
+	}
+	for _, key := range []string{"desktop.qc_rdp_error_cert_changed", "desktop.qc_rdp_error_remote_closed", "desktop.qc_rdp_trust_new_cert"} {
+		english := ""
+		for _, lang := range []string{"en", "cs", "da", "de", "el", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
+			data, err := os.ReadFile(filepath.Join("lang", "desktop", lang+".json"))
+			if err != nil {
+				t.Fatalf("read %s.json: %v", lang, err)
+			}
+			var table map[string]string
+			if err := json.Unmarshal(data, &table); err != nil {
+				t.Fatalf("parse %s.json: %v", lang, err)
+			}
+			value := strings.TrimSpace(table[key])
+			if value == "" {
+				t.Fatalf("%s.json is missing %s", lang, key)
+			}
+			if lang == "en" {
+				english = value
+			} else if value == english {
+				t.Fatalf("%s.json leaves %s untranslated", lang, key)
+			}
+		}
+	}
+	css := readAllDesktopAppCSS(t)
+	if !strings.Contains(css, ".vd-quick-connect .vd-qc-rdp-container") {
+		t.Fatal("quick connect css missing RDP container rule")
+	}
+}

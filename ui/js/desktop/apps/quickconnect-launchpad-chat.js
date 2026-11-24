@@ -33,6 +33,7 @@
                     <button class="vd-qc-filter active" type="button" data-qc-filter="all" aria-pressed="true"><span>${esc(t('desktop.qc_filter_all'))}</span></button>
                     <button class="vd-qc-filter" type="button" data-qc-filter="ssh" aria-pressed="false"><span>${esc(t('desktop.qc_protocol_ssh'))}</span></button>
                     <button class="vd-qc-filter" type="button" data-qc-filter="vnc" aria-pressed="false"><span>${esc(t('desktop.qc_protocol_vnc'))}</span></button>
+                    <button class="vd-qc-filter" type="button" data-qc-filter="rdp" aria-pressed="false"><span>${esc(t('desktop.qc_protocol_rdp'))}</span></button>
                     <button class="vd-qc-filter" type="button" data-qc-filter="serial" aria-pressed="false"><span>${esc(t('desktop.qc_serial_filter'))}</span></button>
                 </div>
                 <div class="vd-qc-target" data-qc-target hidden></div>
@@ -170,9 +171,13 @@
             return cred && cred.username || '';
         }
 
+        function defaultPortFor(protocol) {
+            return protocol === 'vnc' ? 5900 : protocol === 'rdp' ? 3389 : 22;
+        }
+
         function deviceTarget(device, withPort) {
             const user = deviceUsername(device);
-            const port = device.port || (device.protocol === 'vnc' ? 5900 : 22);
+            const port = device.port || defaultPortFor(device.protocol);
             return `${user ? user + '@' : ''}${device.ip_address || ''}${withPort ? ':' + port : ''}`;
         }
 
@@ -369,8 +374,8 @@
             }
             deviceList.innerHTML = filtered.map(d => {
                 const user = deviceUsername(d);
-                const endpoint = `${d.ip_address || ''}${d.port && d.port !== 22 && d.port !== 5900 ? ':' + d.port : ''}`;
-                const protoLabel = !canConnectDevice(d) ? t('desktop.qc_no_connection') : (d.protocol === 'vnc' ? 'VNC' : 'SSH');
+                const endpoint = `${d.ip_address || ''}${d.port && d.port !== defaultPortFor(d.protocol) ? ':' + d.port : ''}`;
+                const protoLabel = !canConnectDevice(d) ? t('desktop.qc_no_connection') : (d.protocol === 'vnc' ? 'VNC' : d.protocol === 'rdp' ? 'RDP' : 'SSH');
                 const mine = !!sessionDeviceId && d.id === sessionDeviceId && sessionState !== 'idle';
                 const noCredential = esc(t('desktop.qc_badge_no_credential'));
                 const badge = d.is_template ? '<span class="vd-qc-badge vd-qc-badge-info">' + esc(t('desktop.qc_badge_setup')) + '</span>'
@@ -401,7 +406,7 @@
         }
 
         function canConnectDevice(device) {
-            return device && device.quick_connect === true && (device.protocol === 'ssh' || device.protocol === 'vnc');
+            return device && device.quick_connect === true && (device.protocol === 'ssh' || device.protocol === 'vnc' || device.protocol === 'rdp');
         }
 
         function protocolMatchesFilter(device) {
@@ -420,7 +425,7 @@
         function showDeviceContextMenu(x, y, device) {
             closeContextMenu();
             const items = [
-                { label: device.is_template ? t('desktop.qc_add_server') : t('desktop.qc_connect'), icon: device.is_template ? 'server' : (device.protocol === 'vnc' ? 'monitor' : 'terminal'), fallback: 'T', action: () => device.is_template ? showServerModal(device) : connectToDevice(device.id) },
+                { label: device.is_template ? t('desktop.qc_add_server') : t('desktop.qc_connect'), icon: device.is_template ? 'server' : (device.protocol === 'vnc' || device.protocol === 'rdp' ? 'monitor' : 'terminal'), fallback: 'T', action: () => device.is_template ? showServerModal(device) : connectToDevice(device.id) },
                 { label: t('desktop.qc_edit'), icon: 'edit', fallback: 'E', action: () => showServerModal(device) }
             ];
             if (!device.is_template) {
@@ -510,10 +515,11 @@
                                 <select class="vd-qc-input" name="protocol">
                                     <option value="ssh" ${(existingDevice ? existingDevice.protocol : 'ssh') === 'ssh' ? 'selected' : ''}>${esc(t('desktop.qc_protocol_ssh'))}</option>
                                     <option value="vnc" ${(existingDevice ? existingDevice.protocol : '') === 'vnc' ? 'selected' : ''}>${esc(t('desktop.qc_protocol_vnc'))}</option>
+                                    <option value="rdp" ${(existingDevice ? existingDevice.protocol : '') === 'rdp' ? 'selected' : ''}>${esc(t('desktop.qc_protocol_rdp'))}</option>
                                 </select>
                             </label>
                             <label class="vd-qc-label vd-qc-flex-1">${esc(t('desktop.qc_port'))}
-                                <input class="vd-qc-input" type="number" name="port" value="${existingDevice ? (existingDevice.port || 22) : 22}" min="1" max="65535">
+                                <input class="vd-qc-input" type="number" name="port" value="${existingDevice ? (existingDevice.port || defaultPortFor(existingDevice.protocol)) : 22}" min="1" max="65535">
                             </label>
                         </div>
                         <label class="vd-qc-label">${esc(t('desktop.qc_description'))}
@@ -523,7 +529,7 @@
                     <div class="vd-qc-form-section">
                         <div class="vd-qc-form-title">${esc(t('desktop.qc_section_credential'))}</div>
                         <label class="vd-qc-label vd-qc-username-row">${esc(t('desktop.qc_username'))}
-                            <input class="vd-qc-input" type="text" name="username" value="${esc(existingCred ? existingCred.username : '')}" required inputmode="email" enterkeyhint="next" autocapitalize="off">
+                            <input class="vd-qc-input" type="text" name="username" value="${esc(existingCred ? existingCred.username : '')}" inputmode="email" enterkeyhint="next" autocapitalize="off">
                         </label>
                         <label class="vd-qc-label">${esc(t('desktop.qc_password'))}
                             <div class="vd-qc-input-group">
@@ -577,13 +583,10 @@
             const portInput = overlay.querySelector('input[name="port"]');
             function updateModalForProtocol() {
                 const proto = protocolSelect.value;
-                if (proto === 'vnc') {
-                    usernameRow.style.display = 'none';
-                    if (!existingDevice || !existingDevice.port) portInput.value = 5900;
-                } else {
-                    usernameRow.style.display = '';
-                    if (!existingDevice || !existingDevice.port) portInput.value = 22;
-                }
+                usernameRow.style.display = proto === 'vnc' ? 'none' : '';
+                const current = String(portInput.value || '').trim();
+                const isOtherDefault = ['22', '5900', '3389'].includes(current) && current !== String(defaultPortFor(proto));
+                if (!current || isOtherDefault) portInput.value = defaultPortFor(proto);
             }
             protocolSelect.addEventListener('change', updateModalForProtocol);
             updateModalForProtocol();
@@ -622,7 +625,7 @@
             overlay.querySelector('[data-action="save"]').addEventListener('click', async () => {
                 const name = overlay.querySelector('input[name="name"]').value.trim();
                 const hostVal = overlay.querySelector('input[name="host"]').value.trim();
-                const port = parseInt(overlay.querySelector('input[name="port"]').value) || 22;
+                const port = parseInt(overlay.querySelector('input[name="port"]').value) || defaultPortFor(overlay.querySelector('select[name="protocol"]').value);
                 const description = overlay.querySelector('input[name="description"]').value.trim();
                 const protocol = overlay.querySelector('select[name="protocol"]').value;
                 const username = overlay.querySelector('input[name="username"]').value.trim();
@@ -638,8 +641,8 @@
                     return;
                 }
 
-                const credType = protocol === 'vnc' ? 'login' : 'ssh';
-                const effectiveUsername = protocol === 'vnc' ? '' : username;
+                const credType = protocol === 'vnc' || protocol === 'rdp' ? 'login' : 'ssh';
+                const effectiveUsername = protocol === 'vnc' ? '' : username; // RDP keeps the username (may be DOMAIN\user)
 
                 const saveButton = overlay.querySelector('[data-action="save"]');
                 if (saveButton.disabled) return;
@@ -695,6 +698,8 @@
             if (!canConnectDevice(device)) { showNotify(t('desktop.qc_no_connection')); return; }
             if (device.protocol === 'vnc') {
                 connectVNC(deviceId);
+            } else if (device.protocol === 'rdp') {
+                connectRDP(deviceId);
             } else {
                 connectSSH(deviceId);
             }
@@ -989,6 +994,95 @@
             });
 
             activeWS = { close: () => { try { rfb.disconnect(); } catch(_) {} } };
+        }
+
+        // RDP: logic lives in quickconnect-rdp.js; this owns the session bar and placeholders.
+        async function connectRDP(deviceId) {
+            const generation = await beginRemoteSession();
+            if (generation === null) return;
+            const isCurrent = () => !disposed && generation === connectionGeneration;
+            disconnectActiveResizeObserver();
+            connectedDeviceId = deviceId;
+            connectedProtocol = 'rdp';
+            activeTab = 'terminal';
+            qcTabs.hidden = true;
+            qcTabs.querySelector('[data-tab="files"]').hidden = true;
+            qcTabs.querySelectorAll('.vd-qc-tab').forEach(btn => markTab(btn, btn.dataset.tab === 'terminal'));
+            closeSFTPPanel(tabContent);
+            const device = cachedDevices && cachedDevices.find(d => d.id === deviceId) || {};
+            setSessionStatus({ state: 'connecting', protocol: 'RDP', deviceId, target: deviceTarget(device, true), name: device.name || '' });
+            const sessionEl = document.createElement('div');
+            sessionEl.className = 'vd-qc-vnc-session vd-qc-rdp-session';
+            sessionEl.innerHTML = `${QuickConnectRDP.toolbarMarkup(t)}<div class="vd-qc-vnc-container vd-qc-rdp-container"></div>`;
+            tabContent.replaceChildren(sessionEl);
+            const box = sessionEl.querySelector('.vd-qc-rdp-container');
+            let session = null;
+            let cancelled = false;
+            activeWS = { close: () => { cancelled = true; if (session) session.shutdown(); } };
+            QuickConnectRDP.wireToolbar(sessionEl, () => session, () => connectRDP(deviceId));
+            const setStatus = (state, detail) => {
+                QuickConnectRDP.setStatus(sessionEl, state, t);
+                const label = sessionEl.querySelector('[data-rdp-status]');
+                if (label && detail) label.textContent = detail;
+                setSessionStatus({ state, protocol: 'RDP', deviceId });
+            };
+            const showEnd = (state, key, text) => {
+                activeWS = null;
+                session = null;
+                setStatus(state);
+                box.innerHTML = disconnectPlaceholderHTML(key, deviceId, true, text);
+                box.querySelector('[data-action="reconnect"]')?.addEventListener('click', () => connectRDP(deviceId));
+            };
+            const dead = () => cancelled || !isCurrent();
+            box.innerHTML = `<div class="vd-qc-placeholder vd-qc-connecting"><div class="vd-qc-spinner fm-spinner"></div><span class="vd-qc-placeholder-text">${esc(t('desktop.qc_rdp_connecting'))}</span></div>`;
+            const requestTicket = () => api('/api/desktop/rdp/ticket?device_id=' + encodeURIComponent(deviceId), { method: 'POST' });
+            try {
+                await QuickConnectRDP.preload();
+            } catch (_) {
+                if (!dead()) showEnd('error', 'desktop.qc_rdp_error_unavailable');
+                return;
+            }
+            let creds;
+            try {
+                creds = await requestTicket();
+                if (dead()) return;
+                if (!creds.has_password) {
+                    // The ticket lives 60 s; ask for the password first, then fetch a fresh one.
+                    const typed = await QuickConnectRDP.promptPassword({
+                        root: quickRoot, t, deviceName: device.name || '',
+                        track: cancel => { pendingConfirmations.add(cancel); return () => pendingConfirmations.delete(cancel); }
+                    });
+                    if (dead()) return;
+                    if (typed === null) { showEnd('disconnected', 'desktop.qc_rdp_cancelled'); return; }
+                    creds = await requestTicket();
+                    if (dead()) return;
+                    creds.password = typed;
+                }
+            } catch (err) {
+                if (!dead()) showEnd('error', 'desktop.qc_rdp_error_ticket_failed', t('desktop.qc_rdp_error_ticket_failed') + ': ' + (err && err.message || ''));
+                return;
+            }
+            session = QuickConnectRDP.connect(box, {
+                deviceId, host: device.ip_address || '', port: device.port || 3389,
+                ticket: creds.ticket, username: creds.username || '', domain: creds.domain || '', password: creds.password || '',
+                onStatus: state => {
+                    if (dead()) return;
+                    if (state === 'connected') box.querySelector('.vd-qc-connecting')?.remove();
+                    if (state === 'connecting' || state === 'connected') setStatus(state);
+                },
+                onError: (key, detail) => {
+                    if (dead()) return;
+                    showEnd('error', key, detail ? t(key) + ': ' + detail : '');
+                    if (key === 'desktop.qc_rdp_error_cert_changed') {
+                        QuickConnectRDP.addTrustAction({
+                            box, t, deviceId, confirm: showConfirmModal, notify: showNotify,
+                            post: url => api(url, { method: 'POST' }), onTrusted: () => connectRDP(deviceId)
+                        });
+                    }
+                },
+                onClose: reason => { if (!dead()) showEnd('disconnected', 'desktop.qc_rdp_disconnected', reason ? t('desktop.qc_rdp_disconnected') + ': ' + reason : ''); }
+            });
+            creds = null;
         }
 
         function closeSFTPPanel(container) {

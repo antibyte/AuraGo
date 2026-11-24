@@ -175,3 +175,65 @@ func TestHandleListDevicesQuickConnectRequiresAdminBeforeProbing(t *testing.T) {
 	default:
 	}
 }
+
+func TestQuickConnectRDPProbe(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		reply []byte
+		want  bool
+	}{
+		{"connection confirm", []byte{0x03, 0x00, 0x00, 0x13, 0x0e, 0xd0, 0x00, 0x00, 0x12, 0x34, 0x00, 0x02, 0x00, 0x08, 0x00, 0x02, 0x00, 0x00, 0x00}, true},
+		{"not TPKT", []byte("HTTP/1.1 400 Bad Request\r\n\r\n"), false},
+		{"wrong X.224 code", []byte{0x03, 0x00, 0x00, 0x0b, 0x06, 0xe0, 0x00, 0x00, 0x00, 0x00, 0x00}, false},
+		{"silent server", nil, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			listener, err := net.Listen("tcp", "127.0.0.1:0")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer listener.Close()
+			gotRequest := make(chan []byte, 1)
+			go func() {
+				conn, err := listener.Accept()
+				if err != nil {
+					return
+				}
+				defer conn.Close()
+				_ = conn.SetDeadline(time.Now().Add(3 * time.Second))
+				request := make([]byte, len(rdpProbeRequest))
+				_, _ = io.ReadFull(conn, request)
+				gotRequest <- request
+				if tc.reply != nil {
+					_, _ = conn.Write(tc.reply)
+				} else {
+					_, _ = io.Copy(io.Discard, conn)
+				}
+			}()
+			device := inventory.DeviceRecord{ID: "rdp", Name: "rdp", Protocol: "rdp", IPAddress: "127.0.0.1", Port: listener.Addr().(*net.TCPAddr).Port}
+			got := quickConnectDevices(context.Background(), []inventory.DeviceRecord{device})
+			if len(got) != 1 || got[0].QuickConnect != tc.want {
+				t.Fatalf("QuickConnect = %+v, want %v", got, tc.want)
+			}
+			select {
+			case request := <-gotRequest:
+				if string(request) != string(rdpProbeRequest) {
+					t.Fatalf("probe sent % x", request)
+				}
+			case <-time.After(2 * time.Second):
+				t.Fatal("probe never reached the server")
+			}
+		})
+	}
+}
+
+func TestIsAllowedDeviceProtocolAcceptsRDP(t *testing.T) {
+	for protocol, want := range map[string]bool{"ssh": true, "vnc": true, "rdp": true, "none": true, "telnet": false, "": false} {
+		if got := isAllowedDeviceProtocol(protocol); got != want {
+			t.Errorf("isAllowedDeviceProtocol(%q) = %v, want %v", protocol, got, want)
+		}
+	}
+	if got := quickConnectDevices(context.Background(), []inventory.DeviceRecord{{Protocol: "rdp", Username: "u"}}); !got[0].QuickConnect {
+		t.Error("an RDP device with a stored username counts as quick-connectable")
+	}
+}

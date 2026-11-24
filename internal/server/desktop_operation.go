@@ -55,7 +55,7 @@ func desktopRequestOperation(r *http.Request) desktopOperation {
 	if r.Method == http.MethodPost && strings.HasPrefix(path, "/api/desktop/store/apps/") && strings.HasSuffix(path, "/stop") {
 		return desktopStop
 	}
-	if r.Method == http.MethodGet && (strings.HasSuffix(path, "/terminal") || strings.HasSuffix(path, "/vnc") || strings.HasSuffix(path, "/console") || path == "/api/desktop/ssh" || path == "/api/desktop/retronet/connect") {
+	if r.Method == http.MethodGet && (strings.HasSuffix(path, "/terminal") || strings.HasSuffix(path, "/vnc") || strings.HasSuffix(path, "/console") || path == "/api/desktop/ssh" || path == "/api/desktop/rdp" || path == "/api/desktop/retronet/connect") {
 		return desktopExecute
 	}
 	if r.Method == http.MethodDelete && strings.HasPrefix(path, "/api/virtual-computers/tasks/") {
@@ -64,7 +64,7 @@ func desktopRequestOperation(r *http.Request) desktopOperation {
 	switch r.URL.Path {
 	case "/api/desktop/looper/stop", "/api/desktop/looper/pause":
 		return desktopStop
-	case "/api/desktop/ssh", "/api/desktop/vnc":
+	case "/api/desktop/ssh", "/api/desktop/vnc", "/api/desktop/rdp", "/api/desktop/rdp/ticket":
 		return desktopExecute
 	case "/api/desktop/embed-token", "/api/desktop/chess/commentary", "/api/desktop/noisemaker/lyrics/check":
 		return desktopRead

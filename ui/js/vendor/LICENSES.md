@@ -903,6 +903,12 @@ SOFTWARE.
    limitations under the License.
 
 
+## @devolutions/iron-remote-desktop 0.12.0 — MIT OR Apache-2.0
+
+
+## @devolutions/iron-remote-desktop-rdp 0.8.0 — MIT OR Apache-2.0
+
+
 ## @highlightjs/cdn-assets 11.12.0 — BSD-3-Clause
 
 BSD 3-Clause License

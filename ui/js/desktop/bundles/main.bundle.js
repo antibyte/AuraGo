@@ -23205,6 +23205,340 @@ function updateTaskbarSystemButtonsForMobile() {
     })();
 
 ;
+/* ui/js/desktop/apps/quickconnect-rdp.js */
+    // Quick Connect RDP client glue, bundled inside the Desktop shell IIFE
+    // (scripts/build-ui-bundles.js). Drives the vendored IronRDP web client
+    // (<iron-remote-desktop> + the RDP backend, /js/vendor/ironrdp/) against the
+    // RDCleanPath gateway GET /api/desktop/rdp. The server issues a one-time ticket
+    // (POST /api/desktop/rdp/ticket) that doubles as the gateway auth token.
+    // renderQuickConnect in quickconnect-launchpad-chat.js owns the session bar and
+    // placeholders; this file owns the library, the config and the error mapping.
+    // Credentials live only in local variables: never logged, never put in the DOM.
+    window.QuickConnectRDP = (() => {
+        const CORE_URL = '/js/vendor/ironrdp/iron-remote-desktop.js';
+        const BACKEND_URL = '/js/vendor/ironrdp/iron-remote-desktop-rdp.js';
+        const READY_TIMEOUT_MS = 15000;
+        const MIN_WIDTH = 640;
+        const MIN_HEIGHT = 480;
+        const MAX_SIDE = 8192;
+        // IronErrorKind values of @devolutions/iron-remote-desktop.
+        const KIND_KEYS = {
+            0: 'desktop.qc_rdp_error_general',
+            1: 'desktop.qc_rdp_error_wrong_password',
+            2: 'desktop.qc_rdp_error_logon_failure',
+            3: 'desktop.qc_rdp_error_access_denied',
+            4: 'desktop.qc_rdp_error_gateway',
+            5: 'desktop.qc_rdp_error_proxy',
+            6: 'desktop.qc_rdp_error_negotiation'
+        };
+        // Gateway code for "server certificate differs from the pinned one".
+        const CERT_CHANGED_CODE = 16384;
+        const CERT_CHANGED_KEY = 'desktop.qc_rdp_error_cert_changed';
+        const SCALES = { fit: 'fit', full: 'full', real: 'real', native: 'real' };
+        let libraryPromise = null;
+
+        // Imports both modules once and initialises the wasm backend once. A failed
+        // load is not cached so a later Reconnect can retry.
+        function preload() {
+            if (!libraryPromise) {
+                libraryPromise = (async () => {
+                    await import(CORE_URL);
+                    const backend = await import(BACKEND_URL);
+                    await backend.init('WARN');
+                    return backend;
+                })();
+                libraryPromise.catch(() => { libraryPromise = null; });
+            }
+            return libraryPromise;
+        }
+
+        // Windows rejects bad NLA credentials by hanging up: the client then reports
+        // a General error whose text mentions the WebSocket closing.
+        function mentionsSocketClose(error) {
+            let text = '';
+            try { text += ' ' + String(error.message || ''); } catch (_) {}
+            try { if (typeof error.backtrace === 'function') text += ' ' + String(error.backtrace() || ''); } catch (_) {}
+            try { text += ' ' + String(error); } catch (_) {}
+            return /web\s?socket[\s\S]{0,60}clos|clos[\s\S]{0,60}web\s?socket/i.test(text);
+        }
+
+        // `connected` tells whether the session ever reached the connected state.
+        function rdpErrorKey(error, connected) {
+            if (!error || typeof error.kind !== 'function') return 'desktop.qc_rdp_error_general';
+            let kind = 0;
+            try { kind = error.kind(); } catch (_) { return 'desktop.qc_rdp_error_general'; }
+            if (kind === 0 && !connected && mentionsSocketClose(error)) return 'desktop.qc_rdp_error_remote_closed';
+            if (kind !== 4) return KIND_KEYS[kind] || KIND_KEYS[0];
+            let details = null;
+            try { details = typeof error.rdcleanpathDetails === 'function' ? error.rdcleanpathDetails() : null; } catch (_) { details = null; }
+            const status = details && details.httpStatusCode;
+            const code = details && details.errorCode;
+            if (code === CERT_CHANGED_CODE || status === 409) return CERT_CHANGED_KEY;
+            if (status === 401 || status === 403 || code === 100) return 'desktop.qc_rdp_error_ticket';
+            if (code === 103) return 'desktop.qc_rdp_error_unreachable';
+            if (code === 104) return 'desktop.qc_rdp_error_dns';
+            if (code === 105) return 'desktop.qc_rdp_error_tls';
+            return KIND_KEYS[4];
+        }
+
+        function desktopSize(container) {
+            const clamp = (value, min) => {
+                const rounded = Math.min(MAX_SIDE, Math.max(min, Math.round(value || 0)));
+                return rounded - (rounded % 2);
+            };
+            return { width: clamp(container.clientWidth, MIN_WIDTH), height: clamp(container.clientHeight, MIN_HEIGHT) };
+        }
+
+        function waitForReady(element) {
+            return new Promise((resolve, reject) => {
+                const timer = setTimeout(() => reject(new Error('ready timeout')), READY_TIMEOUT_MS);
+                element.addEventListener('ready', event => {
+                    clearTimeout(timer);
+                    const ui = event && event.detail && event.detail.irgUserInteraction;
+                    if (ui) resolve(ui); else reject(new Error('missing user interaction'));
+                }, { once: true });
+            });
+        }
+
+        // Starts a session inside `container`. Returns the handle at once; the
+        // outcome is reported through callbacks. Exactly one of onError / onClose
+        // fires, once, unless shutdown() ran first (then neither does).
+        function connect(container, opts) {
+            const options = opts || {};
+            const callbacks = {
+                status: typeof options.onStatus === 'function' ? options.onStatus : () => {},
+                error: typeof options.onError === 'function' ? options.onError : () => {},
+                close: typeof options.onClose === 'function' ? options.onClose : () => {}
+            };
+            let element = null;
+            let ui = null;
+            let ended = false;
+            let observer = null;
+            let resizeTimer = 0;
+            let lastSize = null;
+            let connected = false;
+
+            const teardown = () => {
+                clearTimeout(resizeTimer);
+                if (observer) { observer.disconnect(); observer = null; }
+                const current = ui;
+                ui = null;
+                if (current) { try { current.shutdown(); } catch (_) {} }
+                if (element) { element.remove(); element = null; }
+            };
+            const finish = (fire) => {
+                if (ended) return;
+                ended = true;
+                teardown();
+                fire();
+            };
+            const fail = (key, detail) => finish(() => { callbacks.status('error'); callbacks.error(key, detail || ''); });
+
+            const handle = {
+                scale(mode) {
+                    const value = SCALES[mode];
+                    if (value && element) element.scale = value;
+                },
+                ctrlAltDel() { if (ui) { try { ui.ctrlAltDel(); } catch (_) {} } },
+                meta() { if (ui) { try { ui.metaKey(); } catch (_) {} } },
+                shutdown() {
+                    ended = true;
+                    teardown();
+                }
+            };
+
+            (async () => {
+                let password = options.password || '';
+                options.password = '';
+                const ticket = options.ticket || '';
+                options.ticket = '';
+                callbacks.status('connecting');
+                let backend;
+                try {
+                    backend = await preload();
+                } catch (_) {
+                    password = '';
+                    fail('desktop.qc_rdp_error_unavailable');
+                    return;
+                }
+                if (ended) { password = ''; return; }
+                try {
+                    element = document.createElement('iron-remote-desktop');
+                    element.style.cssText = 'display:block;width:100%;height:100%';
+                    element.module = backend.Backend;
+                    element.scale = 'fit';
+                    element.flexcenter = 'true';
+                    const ready = waitForReady(element);
+                    container.appendChild(element);
+                    ui = await ready;
+                    if (ended) { password = ''; teardown(); return; }
+                    const size = desktopSize(container);
+                    lastSize = size;
+                    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+                    const proxy = proto + '//' + location.host + '/api/desktop/rdp?device_id=' + encodeURIComponent(options.deviceId || '');
+                    let builder = ui.configBuilder()
+                        .withUsername(options.username || '')
+                        .withPassword(password)
+                        .withDestination((options.host || '') + ':' + (options.port || 3389))
+                        .withProxyAddress(proxy)
+                        .withAuthToken(ticket)
+                        .withDesktopSize(size)
+                        .withExtension(backend.displayControl(true));
+                    if (options.domain) builder = builder.withServerDomain(options.domain);
+                    const config = builder.build();
+                    password = '';
+                    ui.setVisibility(true);
+                    const info = await ui.connect(config);
+                    if (ended) { teardown(); return; }
+                    connected = true;
+                    callbacks.status('connected');
+                    if (typeof ResizeObserver === 'function') {
+                        observer = new ResizeObserver(() => {
+                            clearTimeout(resizeTimer);
+                            resizeTimer = setTimeout(() => {
+                                if (ended || !ui) return;
+                                const next = desktopSize(container);
+                                if (lastSize && Math.abs(next.width - lastSize.width) < 4 && Math.abs(next.height - lastSize.height) < 4) return;
+                                lastSize = next;
+                                try { ui.resize(next.width, next.height); } catch (_) {}
+                            }, 400);
+                        });
+                        observer.observe(container);
+                    }
+                    let reason = '';
+                    try {
+                        const termination = await info.run();
+                        reason = termination && typeof termination.reason === 'function' ? String(termination.reason() || '') : '';
+                    } catch (error) {
+                        if (!ended) fail(rdpErrorKey(error, connected));
+                        return;
+                    }
+                    finish(() => { callbacks.status('disconnected'); callbacks.close(reason); });
+                } catch (error) {
+                    password = '';
+                    if (!ended) fail(rdpErrorKey(error, connected));
+                }
+            })();
+            return handle;
+        }
+
+        function toolbarMarkup(t) {
+            return `<div class="vd-qc-vnc-toolbar" data-rdp-toolbar>
+                <span class="vd-qc-vnc-status" data-rdp-status data-state="connecting">${esc(t('desktop.qc_rdp_status_connecting'))}</span>
+                <div class="vd-qc-vnc-tools" role="group" aria-label="${esc(t('desktop.qc_rdp_toolbar_label'))}">
+                    <button class="vd-qc-btn vd-qc-btn-sm active" type="button" data-rdp-scale="fit" title="${esc(t('desktop.qc_vnc_scale_fit'))}">${iconMarkup('maximize', 'F', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.qc_vnc_scale_fit'))}</span></button>
+                    <button class="vd-qc-btn vd-qc-btn-sm" type="button" data-rdp-scale="real" title="${esc(t('desktop.qc_vnc_scale_native'))}">${iconMarkup('monitor', 'N', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.qc_vnc_scale_native'))}</span></button>
+                    <button class="vd-qc-btn vd-qc-btn-sm" type="button" data-rdp-action="ctrl-alt-del" title="${esc(t('desktop.qc_vnc_ctrl_alt_del'))}">${iconMarkup('keyboard', 'K', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.qc_vnc_ctrl_alt_del'))}</span></button>
+                    <button class="vd-qc-btn vd-qc-btn-sm" type="button" data-rdp-action="meta" title="${esc(t('desktop.qc_rdp_win_key'))}">${iconMarkup('layout-grid', 'W', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.qc_rdp_win_key'))}</span></button>
+                    <button class="vd-qc-btn vd-qc-btn-sm" type="button" data-rdp-action="reconnect" title="${esc(t('desktop.qc_reconnect'))}">${iconMarkup('refresh', 'R', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.qc_reconnect'))}</span></button>
+                </div>
+            </div>`;
+        }
+
+        // getSession returns the live handle (or null while connecting).
+        function wireToolbar(root, getSession, onReconnect) {
+            root.querySelectorAll('[data-rdp-scale]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const session = getSession();
+                    if (!session) return;
+                    root.querySelectorAll('[data-rdp-scale]').forEach(item => item.classList.toggle('active', item === btn));
+                    session.scale(btn.dataset.rdpScale);
+                });
+            });
+            const bind = (action, run) => {
+                const btn = root.querySelector('[data-rdp-action="' + action + '"]');
+                if (btn) btn.addEventListener('click', run);
+            };
+            bind('ctrl-alt-del', () => { const session = getSession(); if (session) session.ctrlAltDel(); });
+            bind('meta', () => { const session = getSession(); if (session) session.meta(); });
+            bind('reconnect', onReconnect);
+        }
+
+        function setStatus(root, state, t) {
+            const status = root && root.querySelector ? root.querySelector('[data-rdp-status]') : null;
+            if (!status) return;
+            const known = ['connecting', 'connected', 'disconnected', 'error'].includes(state) ? state : 'error';
+            status.dataset.state = known;
+            status.textContent = t('desktop.qc_rdp_status_' + known);
+        }
+
+        // Masked password prompt for devices without a stored password. Resolves with
+        // the typed password, or null on Esc/Cancel. `track(cancel)` registers a
+        // canceller (window close, device switch) and returns an unregister function.
+        function promptPassword(opts) {
+            const { root, t, deviceName, track } = opts;
+            return new Promise(resolve => {
+                const overlay = document.createElement('div');
+                overlay.className = 'vd-qc-modal-overlay';
+                overlay.innerHTML = `<div class="vd-qc-confirm">
+                    <div class="vd-qc-confirm-title">${esc(t('desktop.qc_rdp_password_title'))}</div>
+                    <div class="vd-qc-confirm-msg">${esc(deviceName || '')}</div>
+                    <label class="vd-qc-label">${esc(t('desktop.qc_rdp_password_label'))}
+                        <input class="vd-qc-input" type="password" name="rdp-password" autocomplete="off" spellcheck="false">
+                    </label>
+                    <div class="vd-qc-confirm-actions">
+                        <button class="vd-qc-btn vd-qc-btn-secondary" type="button" data-action="cancel">${iconMarkup('x', 'X', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.cancel'))}</span></button>
+                        <button class="vd-qc-btn vd-qc-btn-primary" type="button" data-action="ok">${iconMarkup('monitor', 'C', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.qc_rdp_password_connect'))}</span></button>
+                    </div>
+                </div>`;
+                root.appendChild(overlay);
+                const input = overlay.querySelector('input[name="rdp-password"]');
+                const cancel = () => finish(null);
+                const untrack = typeof track === 'function' ? track(cancel) : () => {};
+                const release = QuickConnectConsole.openDialog(overlay, { onCancel: cancel, initialFocus: input });
+                let done = false;
+                function finish(value) {
+                    if (done) return;
+                    done = true;
+                    untrack();
+                    release();
+                    overlay.remove();
+                    resolve(value);
+                }
+                overlay.querySelector('[data-action="cancel"]').addEventListener('click', cancel);
+                overlay.querySelector('[data-action="ok"]').addEventListener('click', () => finish(input.value));
+                input.addEventListener('keydown', event => {
+                    if (event.key === 'Enter' && !event.repeat && !event.isComposing) {
+                        event.preventDefault();
+                        finish(input.value);
+                    }
+                });
+            });
+        }
+
+        // Adds the "Trust new certificate" action to an error placeholder shown for
+        // a changed server certificate. The reset only happens after the user
+        // confirms in the app's own confirm dialog; then the session reconnects.
+        // opts: { box, t, deviceId, confirm(title, message, options), post(url), notify(text), onTrusted() }
+        function addTrustAction(opts) {
+            const { box, t, deviceId, confirm, post, notify, onTrusted } = opts;
+            const actions = box && box.querySelector ? box.querySelector('.vd-qc-reconnect-actions') : null;
+            if (!actions) return;
+            const button = document.createElement('button');
+            button.className = 'vd-qc-btn vd-qc-btn-secondary vd-qc-reconnect-btn';
+            button.type = 'button';
+            button.dataset.action = 'trust-new-cert';
+            button.innerHTML = `${iconMarkup('save', 'T', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.qc_rdp_trust_new_cert'))}</span>`;
+            button.addEventListener('click', async () => {
+                const ok = await confirm(t('desktop.qc_rdp_trust_new_cert'), t(CERT_CHANGED_KEY), {
+                    okLabel: t('desktop.qc_rdp_trust_new_cert'), okIcon: 'save', okClass: 'vd-qc-btn-primary'
+                });
+                if (!ok) return;
+                try {
+                    await post('/api/desktop/rdp/pin/reset?device_id=' + encodeURIComponent(deviceId));
+                } catch (err) {
+                    notify(t('desktop.qc_rdp_error_ticket_failed') + ': ' + (err && err.message || ''));
+                    return;
+                }
+                onTrusted();
+            });
+            actions.insertBefore(button, actions.firstChild);
+        }
+
+        return { preload, connect, rdpErrorKey, toolbarMarkup, wireToolbar, setStatus, promptPassword, addTrustAction };
+    })();
+
+;
 /* ui/js/desktop/core/menus-and-routing.js */
     function isEditableTarget(target) { return !!(target && target.closest && target.closest('input, textarea, select, [contenteditable="true"], [contenteditable=""], .ql-editor, .xterm-helper-textarea')); }
     function isNativeContextMenuTarget(target) { return isEditableTarget(target); }
@@ -26989,6 +27323,7 @@ if (appId === 'pixel') {
                     <button class="vd-qc-filter active" type="button" data-qc-filter="all" aria-pressed="true"><span>${esc(t('desktop.qc_filter_all'))}</span></button>
                     <button class="vd-qc-filter" type="button" data-qc-filter="ssh" aria-pressed="false"><span>${esc(t('desktop.qc_protocol_ssh'))}</span></button>
                     <button class="vd-qc-filter" type="button" data-qc-filter="vnc" aria-pressed="false"><span>${esc(t('desktop.qc_protocol_vnc'))}</span></button>
+                    <button class="vd-qc-filter" type="button" data-qc-filter="rdp" aria-pressed="false"><span>${esc(t('desktop.qc_protocol_rdp'))}</span></button>
                     <button class="vd-qc-filter" type="button" data-qc-filter="serial" aria-pressed="false"><span>${esc(t('desktop.qc_serial_filter'))}</span></button>
                 </div>
                 <div class="vd-qc-target" data-qc-target hidden></div>
@@ -27126,9 +27461,13 @@ if (appId === 'pixel') {
             return cred && cred.username || '';
         }
 
+        function defaultPortFor(protocol) {
+            return protocol === 'vnc' ? 5900 : protocol === 'rdp' ? 3389 : 22;
+        }
+
         function deviceTarget(device, withPort) {
             const user = deviceUsername(device);
-            const port = device.port || (device.protocol === 'vnc' ? 5900 : 22);
+            const port = device.port || defaultPortFor(device.protocol);
             return `${user ? user + '@' : ''}${device.ip_address || ''}${withPort ? ':' + port : ''}`;
         }
 
@@ -27325,8 +27664,8 @@ if (appId === 'pixel') {
             }
             deviceList.innerHTML = filtered.map(d => {
                 const user = deviceUsername(d);
-                const endpoint = `${d.ip_address || ''}${d.port && d.port !== 22 && d.port !== 5900 ? ':' + d.port : ''}`;
-                const protoLabel = !canConnectDevice(d) ? t('desktop.qc_no_connection') : (d.protocol === 'vnc' ? 'VNC' : 'SSH');
+                const endpoint = `${d.ip_address || ''}${d.port && d.port !== defaultPortFor(d.protocol) ? ':' + d.port : ''}`;
+                const protoLabel = !canConnectDevice(d) ? t('desktop.qc_no_connection') : (d.protocol === 'vnc' ? 'VNC' : d.protocol === 'rdp' ? 'RDP' : 'SSH');
                 const mine = !!sessionDeviceId && d.id === sessionDeviceId && sessionState !== 'idle';
                 const noCredential = esc(t('desktop.qc_badge_no_credential'));
                 const badge = d.is_template ? '<span class="vd-qc-badge vd-qc-badge-info">' + esc(t('desktop.qc_badge_setup')) + '</span>'
@@ -27357,7 +27696,7 @@ if (appId === 'pixel') {
         }
 
         function canConnectDevice(device) {
-            return device && device.quick_connect === true && (device.protocol === 'ssh' || device.protocol === 'vnc');
+            return device && device.quick_connect === true && (device.protocol === 'ssh' || device.protocol === 'vnc' || device.protocol === 'rdp');
         }
 
         function protocolMatchesFilter(device) {
@@ -27376,7 +27715,7 @@ if (appId === 'pixel') {
         function showDeviceContextMenu(x, y, device) {
             closeContextMenu();
             const items = [
-                { label: device.is_template ? t('desktop.qc_add_server') : t('desktop.qc_connect'), icon: device.is_template ? 'server' : (device.protocol === 'vnc' ? 'monitor' : 'terminal'), fallback: 'T', action: () => device.is_template ? showServerModal(device) : connectToDevice(device.id) },
+                { label: device.is_template ? t('desktop.qc_add_server') : t('desktop.qc_connect'), icon: device.is_template ? 'server' : (device.protocol === 'vnc' || device.protocol === 'rdp' ? 'monitor' : 'terminal'), fallback: 'T', action: () => device.is_template ? showServerModal(device) : connectToDevice(device.id) },
                 { label: t('desktop.qc_edit'), icon: 'edit', fallback: 'E', action: () => showServerModal(device) }
             ];
             if (!device.is_template) {
@@ -27466,10 +27805,11 @@ if (appId === 'pixel') {
                                 <select class="vd-qc-input" name="protocol">
                                     <option value="ssh" ${(existingDevice ? existingDevice.protocol : 'ssh') === 'ssh' ? 'selected' : ''}>${esc(t('desktop.qc_protocol_ssh'))}</option>
                                     <option value="vnc" ${(existingDevice ? existingDevice.protocol : '') === 'vnc' ? 'selected' : ''}>${esc(t('desktop.qc_protocol_vnc'))}</option>
+                                    <option value="rdp" ${(existingDevice ? existingDevice.protocol : '') === 'rdp' ? 'selected' : ''}>${esc(t('desktop.qc_protocol_rdp'))}</option>
                                 </select>
                             </label>
                             <label class="vd-qc-label vd-qc-flex-1">${esc(t('desktop.qc_port'))}
-                                <input class="vd-qc-input" type="number" name="port" value="${existingDevice ? (existingDevice.port || 22) : 22}" min="1" max="65535">
+                                <input class="vd-qc-input" type="number" name="port" value="${existingDevice ? (existingDevice.port || defaultPortFor(existingDevice.protocol)) : 22}" min="1" max="65535">
                             </label>
                         </div>
                         <label class="vd-qc-label">${esc(t('desktop.qc_description'))}
@@ -27479,7 +27819,7 @@ if (appId === 'pixel') {
                     <div class="vd-qc-form-section">
                         <div class="vd-qc-form-title">${esc(t('desktop.qc_section_credential'))}</div>
                         <label class="vd-qc-label vd-qc-username-row">${esc(t('desktop.qc_username'))}
-                            <input class="vd-qc-input" type="text" name="username" value="${esc(existingCred ? existingCred.username : '')}" required inputmode="email" enterkeyhint="next" autocapitalize="off">
+                            <input class="vd-qc-input" type="text" name="username" value="${esc(existingCred ? existingCred.username : '')}" inputmode="email" enterkeyhint="next" autocapitalize="off">
                         </label>
                         <label class="vd-qc-label">${esc(t('desktop.qc_password'))}
                             <div class="vd-qc-input-group">
@@ -27533,13 +27873,10 @@ if (appId === 'pixel') {
             const portInput = overlay.querySelector('input[name="port"]');
             function updateModalForProtocol() {
                 const proto = protocolSelect.value;
-                if (proto === 'vnc') {
-                    usernameRow.style.display = 'none';
-                    if (!existingDevice || !existingDevice.port) portInput.value = 5900;
-                } else {
-                    usernameRow.style.display = '';
-                    if (!existingDevice || !existingDevice.port) portInput.value = 22;
-                }
+                usernameRow.style.display = proto === 'vnc' ? 'none' : '';
+                const current = String(portInput.value || '').trim();
+                const isOtherDefault = ['22', '5900', '3389'].includes(current) && current !== String(defaultPortFor(proto));
+                if (!current || isOtherDefault) portInput.value = defaultPortFor(proto);
             }
             protocolSelect.addEventListener('change', updateModalForProtocol);
             updateModalForProtocol();
@@ -27578,7 +27915,7 @@ if (appId === 'pixel') {
             overlay.querySelector('[data-action="save"]').addEventListener('click', async () => {
                 const name = overlay.querySelector('input[name="name"]').value.trim();
                 const hostVal = overlay.querySelector('input[name="host"]').value.trim();
-                const port = parseInt(overlay.querySelector('input[name="port"]').value) || 22;
+                const port = parseInt(overlay.querySelector('input[name="port"]').value) || defaultPortFor(overlay.querySelector('select[name="protocol"]').value);
                 const description = overlay.querySelector('input[name="description"]').value.trim();
                 const protocol = overlay.querySelector('select[name="protocol"]').value;
                 const username = overlay.querySelector('input[name="username"]').value.trim();
@@ -27594,8 +27931,8 @@ if (appId === 'pixel') {
                     return;
                 }
 
-                const credType = protocol === 'vnc' ? 'login' : 'ssh';
-                const effectiveUsername = protocol === 'vnc' ? '' : username;
+                const credType = protocol === 'vnc' || protocol === 'rdp' ? 'login' : 'ssh';
+                const effectiveUsername = protocol === 'vnc' ? '' : username; // RDP keeps the username (may be DOMAIN\user)
 
                 const saveButton = overlay.querySelector('[data-action="save"]');
                 if (saveButton.disabled) return;
@@ -27651,6 +27988,8 @@ if (appId === 'pixel') {
             if (!canConnectDevice(device)) { showNotify(t('desktop.qc_no_connection')); return; }
             if (device.protocol === 'vnc') {
                 connectVNC(deviceId);
+            } else if (device.protocol === 'rdp') {
+                connectRDP(deviceId);
             } else {
                 connectSSH(deviceId);
             }
@@ -27945,6 +28284,95 @@ if (appId === 'pixel') {
             });
 
             activeWS = { close: () => { try { rfb.disconnect(); } catch(_) {} } };
+        }
+
+        // RDP: logic lives in quickconnect-rdp.js; this owns the session bar and placeholders.
+        async function connectRDP(deviceId) {
+            const generation = await beginRemoteSession();
+            if (generation === null) return;
+            const isCurrent = () => !disposed && generation === connectionGeneration;
+            disconnectActiveResizeObserver();
+            connectedDeviceId = deviceId;
+            connectedProtocol = 'rdp';
+            activeTab = 'terminal';
+            qcTabs.hidden = true;
+            qcTabs.querySelector('[data-tab="files"]').hidden = true;
+            qcTabs.querySelectorAll('.vd-qc-tab').forEach(btn => markTab(btn, btn.dataset.tab === 'terminal'));
+            closeSFTPPanel(tabContent);
+            const device = cachedDevices && cachedDevices.find(d => d.id === deviceId) || {};
+            setSessionStatus({ state: 'connecting', protocol: 'RDP', deviceId, target: deviceTarget(device, true), name: device.name || '' });
+            const sessionEl = document.createElement('div');
+            sessionEl.className = 'vd-qc-vnc-session vd-qc-rdp-session';
+            sessionEl.innerHTML = `${QuickConnectRDP.toolbarMarkup(t)}<div class="vd-qc-vnc-container vd-qc-rdp-container"></div>`;
+            tabContent.replaceChildren(sessionEl);
+            const box = sessionEl.querySelector('.vd-qc-rdp-container');
+            let session = null;
+            let cancelled = false;
+            activeWS = { close: () => { cancelled = true; if (session) session.shutdown(); } };
+            QuickConnectRDP.wireToolbar(sessionEl, () => session, () => connectRDP(deviceId));
+            const setStatus = (state, detail) => {
+                QuickConnectRDP.setStatus(sessionEl, state, t);
+                const label = sessionEl.querySelector('[data-rdp-status]');
+                if (label && detail) label.textContent = detail;
+                setSessionStatus({ state, protocol: 'RDP', deviceId });
+            };
+            const showEnd = (state, key, text) => {
+                activeWS = null;
+                session = null;
+                setStatus(state);
+                box.innerHTML = disconnectPlaceholderHTML(key, deviceId, true, text);
+                box.querySelector('[data-action="reconnect"]')?.addEventListener('click', () => connectRDP(deviceId));
+            };
+            const dead = () => cancelled || !isCurrent();
+            box.innerHTML = `<div class="vd-qc-placeholder vd-qc-connecting"><div class="vd-qc-spinner fm-spinner"></div><span class="vd-qc-placeholder-text">${esc(t('desktop.qc_rdp_connecting'))}</span></div>`;
+            const requestTicket = () => api('/api/desktop/rdp/ticket?device_id=' + encodeURIComponent(deviceId), { method: 'POST' });
+            try {
+                await QuickConnectRDP.preload();
+            } catch (_) {
+                if (!dead()) showEnd('error', 'desktop.qc_rdp_error_unavailable');
+                return;
+            }
+            let creds;
+            try {
+                creds = await requestTicket();
+                if (dead()) return;
+                if (!creds.has_password) {
+                    // The ticket lives 60 s; ask for the password first, then fetch a fresh one.
+                    const typed = await QuickConnectRDP.promptPassword({
+                        root: quickRoot, t, deviceName: device.name || '',
+                        track: cancel => { pendingConfirmations.add(cancel); return () => pendingConfirmations.delete(cancel); }
+                    });
+                    if (dead()) return;
+                    if (typed === null) { showEnd('disconnected', 'desktop.qc_rdp_cancelled'); return; }
+                    creds = await requestTicket();
+                    if (dead()) return;
+                    creds.password = typed;
+                }
+            } catch (err) {
+                if (!dead()) showEnd('error', 'desktop.qc_rdp_error_ticket_failed', t('desktop.qc_rdp_error_ticket_failed') + ': ' + (err && err.message || ''));
+                return;
+            }
+            session = QuickConnectRDP.connect(box, {
+                deviceId, host: device.ip_address || '', port: device.port || 3389,
+                ticket: creds.ticket, username: creds.username || '', domain: creds.domain || '', password: creds.password || '',
+                onStatus: state => {
+                    if (dead()) return;
+                    if (state === 'connected') box.querySelector('.vd-qc-connecting')?.remove();
+                    if (state === 'connecting' || state === 'connected') setStatus(state);
+                },
+                onError: (key, detail) => {
+                    if (dead()) return;
+                    showEnd('error', key, detail ? t(key) + ': ' + detail : '');
+                    if (key === 'desktop.qc_rdp_error_cert_changed') {
+                        QuickConnectRDP.addTrustAction({
+                            box, t, deviceId, confirm: showConfirmModal, notify: showNotify,
+                            post: url => api(url, { method: 'POST' }), onTrusted: () => connectRDP(deviceId)
+                        });
+                    }
+                },
+                onClose: reason => { if (!dead()) showEnd('disconnected', 'desktop.qc_rdp_disconnected', reason ? t('desktop.qc_rdp_disconnected') + ': ' + reason : ''); }
+            });
+            creds = null;
         }
 
         function closeSFTPPanel(container) {

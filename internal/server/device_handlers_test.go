@@ -72,7 +72,7 @@ func TestHandleCreateDeviceRejectsInvalidProtocolWithFlatJSONError(t *testing.T)
 	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
 		t.Fatalf("decode error response: %v", err)
 	}
-	if resp["error"] != "protocol must be ssh, vnc, or none" {
+	if resp["error"] != "protocol must be ssh, vnc, rdp, or none" {
 		t.Fatalf("error = %q, want flat protocol error", resp["error"])
 	}
 }
