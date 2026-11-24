@@ -957,6 +957,7 @@
         presets: { kind: STRING.kinds },
         pitched: () => true,
         minFreq: () => 130,
+        maxFreq: () => STRING.maxFreq,
         duration: p => p.t60 * 1.1,
         render(p, note, rand) {
             const n = lengthOf(note), f = offsetFreq(note.freq, note, rand);
@@ -1470,6 +1471,7 @@
     });
 
     // ---- validation ----------------------------------------------------------------------------
+    const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
     const isObj = v => !!v && typeof v === 'object' && !Array.isArray(v);
     const BUS = {
         space: { size: [0.2, 2], rt60: [0.05, 3], damping: [1000, 16000], predelay: [0, 0.08], mix: [0, 0.6], lowcut: [80, 1000] },
@@ -1497,7 +1499,7 @@
             const spec = I.MODELS[modelName].params;
             Object.keys(values).forEach(k => {
                 if (skip.includes(k)) return;
-                const s = spec[k], p = path + '.' + k, v = values[k];
+                const s = has(spec, k) ? spec[k] : null, p = path + '.' + k, v = values[k];
                 if (!s) return fail(p, 'unknown parameter of model ' + modelName);
                 if (Array.isArray(s)) return number(p, v, s);
                 if (s.values) { if (!s.values.includes(v)) fail(p, 'must be one of ' + s.values.join(', ')); return; }
@@ -1522,7 +1524,7 @@
         if (!Object.keys(voices).length) fail('voices', 'must be a non-empty object');
         Object.keys(voices).forEach(name => {
             const voice = voices[name];
-            if (!isObj(voice) || !I.MODELS[voice.model]) return fail('voices.' + name, 'unknown model ' + JSON.stringify(voice && voice.model));
+            if (!isObj(voice) || !has(I.MODELS, voice.model)) return fail('voices.' + name, 'unknown model ' + JSON.stringify(voice && voice.model));
             params('voices.' + name, voice.model, voice, ['model']);
         });
         const sound = (path, s, soundRole, isFx) => {
@@ -1534,13 +1536,13 @@
             [[notes, 'notes', true], [layers, 'layers', false]].forEach(([list, field, asNote]) => list.forEach((item, i) => {
                 const p = path + '.' + field + '[' + i + ']';
                 if (!isObj(item)) return fail(p, 'must be an object');
-                const voice = voices[item.v];
-                if (!voice || !I.MODELS[voice.model]) return fail(p, 'unknown voice ' + JSON.stringify(item.v));
+                const voice = has(voices, item.v) ? voices[item.v] : null;
+                if (!voice || !has(I.MODELS, voice.model)) return fail(p, 'unknown voice ' + JSON.stringify(item.v));
                 const model = I.MODELS[voice.model];
                 Object.keys(ITEM_FIELDS).forEach(k => { if (k !== 'v' && k !== 'n' && item[k] != null) number(p + '.' + k, item[k], ITEM_FIELDS[k]); });
-                if (item.t != null && item.t > soundRole.maxSeconds) fail(p + '.t', 'starts after the role maximum of ' + soundRole.maxSeconds + ' s');
+                if (item.t != null && item.t > soundRole.maxSeconds - 0.01) fail(p + '.t', 'starts too close to the role maximum of ' + soundRole.maxSeconds + ' s');
                 const overrides = {};
-                Object.keys(item).forEach(k => { if (!(k in ITEM_FIELDS)) overrides[k] = item[k]; });
+                Object.keys(item).forEach(k => { if (!has(ITEM_FIELDS, k)) overrides[k] = item[k]; });
                 params(p, voice.model, overrides, []);
                 const merged = I.resolveParams(voice.model, Object.assign({}, voice, overrides));
                 const pitched = model.pitched(merged);
@@ -1552,6 +1554,8 @@
                     const freq = D.midiToHz(def.key + item.n), floor = model.minFreq(merged);
                     if (freq < floor) fail(p + '.n', freq.toFixed(1) + ' Hz is below the ' + floor + ' Hz floor of ' + voice.model);
                     if (freq > 12000) fail(p + '.n', 'above 12 kHz');
+                    const ceiling = model.maxFreq ? model.maxFreq(merged) : null;
+                    if (ceiling != null && freq * Math.pow(2, 54 / 1200) > ceiling) fail(p + '.n', freq.toFixed(1) + ' Hz is above the ' + ceiling + ' Hz limit of ' + voice.model);
                 } else if (item.n != null) fail(p + '.n', 'layers take no n');
             }));
             if (s.space != null) { if (isFx) fail(path + '.space', 'effects use no room reverb'); else busBlock(path + '.space', 'space', s.space); }
@@ -1606,7 +1610,7 @@
     // A shell `variant` is an index 0..variants-1 (a number or a numeric string); an effect `variant` is a name.
     // The engine keeps no cache and returns fresh arrays, because the host transfers their buffers.
     function render(themeId, eventId, variant) {
-        const theme = registry[themeId];
+        const theme = has(registry, themeId) ? registry[themeId] : null;
         if (!theme) throw new Error('unknown sound theme: ' + themeId);
         const fxR = Object.prototype.hasOwnProperty.call(FX_ROLES, eventId) ? FX_ROLES[eventId] : null;
         const r = fxR || (Object.prototype.hasOwnProperty.call(ROLES, eventId) ? ROLES[eventId] : null);
@@ -1628,7 +1632,7 @@
             const voice = theme.voices[item.v];
             const params = {};
             Object.keys(voice).forEach(k => { if (k !== 'model') params[k] = voice[k]; });
-            Object.keys(item).forEach(k => { if (!(k in ITEM_FIELDS)) params[k] = item[k]; });
+            Object.keys(item).forEach(k => { if (!has(ITEM_FIELDS, k)) params[k] = item[k]; });
             const model = I.MODELS[voice.model];
             if (vary && model.params.hardness) params.hardness = D.clamp(I.resolveParams(voice.model, params).hardness + (vary() * 2 - 1) * 0.08, 0, 1);
             const dt = vary ? (vary() * 2 - 1) * 0.002 : 0;
@@ -1679,8 +1683,7 @@
         voices: {
             chime: { model: 'glass', t60: 0.9, beat: 0.55, attack: 0.004 },
             tick: { model: 'click', material: 'glass', tone: 5200, ring: 0.03 },
-            air: { model: 'noise', color: 'pink', band: [2500, 7500], attack: 0.06, decay: 0.2 },
-            knock: { model: 'noise', color: 'pink', band: [120, 900], attack: 0.001, decay: 0.03 }
+            air: { model: 'noise', color: 'pink', band: [2500, 7500], attack: 0.06, decay: 0.2 }
         },
         events: {
             'session.start': {
@@ -2300,7 +2303,6 @@
             drop: { model: 'drop', t60: 0.07, rise: 0.6, pitchSpread: 2, splash: 0.2, width: 0.5 },
             low: { model: 'drop', t60: 0.1, rise: 0.3, pitchSpread: 1, thick: 0.25, splash: 0.15, width: 0.3 },
             wash: { model: 'noise', color: 'pink', band: [180, 1500], attack: 0.1, decay: 0.3, width: 0.9 },
-            knock: { model: 'noise', color: 'pink', band: [120, 700], attack: 0.001, decay: 0.03 },
             trickle: { model: 'noise', color: 'pink', band: [600, 3500], attack: 0.01, decay: 0.08 }
         },
         events: {
@@ -3793,7 +3795,6 @@
             squelch: { model: 'squelch', count: 4, gap: 0.035, spread: 4, t60: 0.09, dip: 4, rise: 0.7, drive: 2.2, wet: 0.05, wetCut: 1200 },
             knock: { model: 'click', material: 'felt', tone: 900, ring: 0.02, noise: 0.9, length: 0.008 },
             gel: { model: 'noise', color: 'pink', band: [300, 1200], attack: 0.02, decay: 0.14, width: 0.8 },
-            thwip: { model: 'noise', color: 'pink', band: [700, 3500], attack: 0.003, decay: 0.05, q: 1.2, width: 0.7 },
             smack: { model: 'noise', color: 'pink', band: [300, 1400], attack: 0.002, decay: 0.03, width: 0.6 }
         },
         events: {
@@ -4170,43 +4171,47 @@
             soft: { model: 'bell', kind: 'tine', t60: 0.7, index: 0.5, attack: 0.008, spread: 0.3 },
             cel: { model: 'bell', kind: 'celesta', t60: 0.6, index: 0.5, attack: 0.008, spread: 0.3 },
             mellow: { model: 'analog', wave: 'saw', unison: 3, detune: 12, drift: 4, sub: 0, cutoff: 0.7, env: 2.5, envDecay: 0.25, q: 1, drive: 1, attack: 0.015, decay: 0.4, width: 0.7 },
+            swell: { model: 'analog', wave: 'tri', unison: 3, detune: 9, drift: 4, sub: 0, cutoff: 0.8, env: 1.5, envDecay: 0.3, q: 0.8, drive: 0.4, attack: 0.045, decay: 0.3, release: 0.12, width: 0.8 },
+            sonar: { model: 'blip', harm: 0.35, attack: 0.008, decay: 0.4, air: 0.1, glide: 3, glideTime: 0.045 },
+            breath: { model: 'noise', color: 'pink', band: [250, 2600], sweep: 1, q: 0.5, attack: 0.16, decay: 0.12, width: 1 },
             knock: { model: 'bar', kind: 'woodblock', t60: 0.12, hardness: 0.1, mallet: 0.2, attack: 0.002 },
             hiss: { model: 'noise', color: 'pink', band: [2500, 8000], q: 0.5, attack: 0.02, decay: 0.12, width: 1 },
             dock: { model: 'click', material: 'plastic', tone: 2800, ring: 0.02, noise: 0.75, q: 1.5 }
         },
         events: {
             'session.start': {
-                notes: [{ v: 'pad', n: -5, t: 0, g: 0.9, pan: 0, attack: 0.4, release: 1.0 }, { v: 'pad', n: 0, t: 0.05, g: 0.8, pan: 0, attack: 0.45, release: 1.0 },
-                    { v: 'soft', n: 4, t: 0.3, g: 0.8, pan: -0.25 }, { v: 'mellow', n: 4, t: 0.3, g: 0.45, pan: -0.25 },
-                    { v: 'cel', n: 6, t: 0.58, g: 0.85, pan: 0.1 }, { v: 'soft', n: 11, t: 0.86, g: 0.9, pan: -0.1 }, { v: 'mellow', n: 11, t: 0.86, g: 0.45, pan: -0.1 },
-                    { v: 'cel', n: 14, t: 1.14, g: 0.9, pan: 0.2 }, { v: 'soft', n: 16, t: 1.42, g: 0.9, pan: 0 }, { v: 'mellow', n: 16, t: 1.42, g: 0.5, pan: 0 },
-                    { v: 'ping', n: 0, t: 1.0, g: 0.3, pan: 0.3, decay: 0.3 }],
-                layers: [{ v: 'whoosh', t: 0, g: 0.35, attack: 0.3, decay: 0.5 }],
-                echo: { time: 0.34, feedback: 0.14, tone: 3000, mix: 0.2, spread: 0.6 },
-                space: { size: 1.6, rt60: 0.9, damping: 4500, predelay: 0.03, mix: 0.36 }
+                notes: [{ v: 'pad', n: -5, t: 0, g: 0.4, pan: 0, attack: 0.4, release: 1.0 }, { v: 'pad', n: 0, t: 0.05, g: 0.35, pan: 0, attack: 0.45, release: 1.0 },
+                    { v: 'swell', n: 4, t: 0.25, g: 0.9, pan: -0.25, unison: 5, detune: 14 }, { v: 'swell', n: 7, t: 0.47, g: 0.9, pan: 0.2, unison: 5, detune: 14 },
+                    { v: 'swell', n: 11, t: 0.69, g: 0.95, pan: -0.1, unison: 5, detune: 14 }, { v: 'swell', n: 16, t: 0.91, g: 1, pan: 0.1, unison: 5, detune: 14, decay: 0.5 }, { v: 'cel', n: 16, t: 0.93, g: 0.4, pan: 0.1, t60: 0.6 },
+                    { v: 'sonar', n: 23, t: 1.2, g: 0.8, pan: 0.15, decay: 0.4 }],
+                layers: [{ v: 'breath', t: 0, g: 0.9, attack: 0.3, decay: 0.3 }, { v: 'breath', t: 0.8, g: 0.5, attack: 0.25, decay: 0.4, band: [600, 4500], sweep: -1 }],
+                chorus: { rate: 0.4, depth: 0.003, delay: 0.015, mix: 0.35 },
+                echo: { time: 0.3, feedback: 0.2, tone: 3000, mix: 0.36, spread: 0.7 },
+                space: { size: 1.8, rt60: 0.6, damping: 4500, predelay: 0.03, mix: 0.45 }
             },
             'notify.message': {
-                notes: [{ v: 'pad', n: 4, t: 0, g: 0.5, attack: 0.08, hold: 0.05, release: 0.6 },
-                    { v: 'soft', n: 4, t: 0, g: 0.85, pan: -0.2 }, { v: 'mellow', n: 4, t: 0, g: 0.4, pan: -0.2, decay: 0.3 },
-                    { v: 'cel', n: 6, t: 0.15, g: 0.9, pan: 0.15 }, { v: 'soft', n: 11, t: 0.3, g: 1, pan: 0, t60: 0.8 }, { v: 'mellow', n: 11, t: 0.3, g: 0.45, pan: 0, decay: 0.4 },
-                    { v: 'ping', n: 12, t: 0.3, g: 0.2, pan: 0.2, decay: 0.2 }],
-                echo: { time: 0.22, feedback: 0.14, tone: 3000, mix: 0.2, spread: 0.5 },
-                space: { size: 1.4, rt60: 0.34, damping: 4500, predelay: 0.02, mix: 0.32 }
+                notes: [{ v: 'pad', n: 4, t: 0, g: 0.6, attack: 0.15, hold: 0.05, release: 0.5 },
+                    { v: 'swell', n: 4, t: 0.06, g: 0.9, pan: -0.2 }, { v: 'swell', n: 6, t: 0.24, g: 0.9, pan: 0.15 },
+                    { v: 'swell', n: 11, t: 0.42, g: 1, pan: 0, decay: 0.35 },
+                    { v: 'sonar', n: 18, t: 0.56, g: 0.8, pan: 0.2, decay: 0.22 }],
+                layers: [{ v: 'breath', t: 0, g: 0.5 }],
+                echo: { time: 0.15, feedback: 0.16, tone: 3000, mix: 0.26, spread: 0.6 },
+                space: { size: 1.4, rt60: 0.22, damping: 4500, predelay: 0.02, mix: 0.32 }
             },
             'notify.info': {
-                notes: [{ v: 'pad', n: 0, t: 0, g: 0.5, attack: 0.08, hold: 0, release: 0.4 },
-                    { v: 'soft', n: 0, t: 0, g: 0.85, pan: -0.15 }, { v: 'mellow', n: 0, t: 0, g: 0.4, pan: -0.15, decay: 0.25 },
-                    { v: 'cel', n: 7, t: 0.14, g: 1, pan: 0.15, t60: 0.7 }, { v: 'mellow', n: 7, t: 0.14, g: 0.4, pan: 0.15, decay: 0.35 }],
-                echo: { time: 0.24, feedback: 0.14, tone: 3000, mix: 0.18, spread: 0.5 },
-                space: { size: 1.3, rt60: 0.26, damping: 4500, predelay: 0.018, mix: 0.3 }
+                notes: [{ v: 'pad', n: 0, t: 0, g: 0.6, attack: 0.12, hold: 0, release: 0.4 },
+                    { v: 'swell', n: 0, t: 0.08, g: 0.9, pan: -0.15 }, { v: 'swell', n: 7, t: 0.27, g: 1, pan: 0.15, decay: 0.3 }],
+                layers: [{ v: 'breath', t: 0, g: 0.35, attack: 0.1 }],
+                echo: { time: 0.2, feedback: 0.1, tone: 3000, mix: 0.16, spread: 0.5 },
+                space: { size: 1.3, rt60: 0.2, damping: 4500, predelay: 0.018, mix: 0.3 }
             },
             'notify.success': {
-                notes: [{ v: 'pad', n: 0, t: 0, g: 0.5, attack: 0.08, hold: 0, release: 0.35 },
-                    { v: 'soft', n: 0, t: 0, g: 0.8, pan: -0.2 }, { v: 'cel', n: 7, t: 0.12, g: 0.9, pan: 0.1 },
-                    { v: 'soft', n: 12, t: 0.24, g: 1, pan: 0, t60: 0.4 }, { v: 'mellow', n: 12, t: 0.24, g: 0.45, pan: 0, decay: 0.4 },
-                    { v: 'ping', n: 19, t: 0.3, g: 0.15, pan: 0.2, decay: 0.2 }],
-                echo: { time: 0.26, feedback: 0.08, tone: 3000, mix: 0.18, spread: 0.5 },
-                space: { size: 1.3, rt60: 0.14, damping: 4500, predelay: 0.018, mix: 0.3 }
+                notes: [{ v: 'pad', n: 0, t: 0, g: 0.6, attack: 0.12, hold: 0, release: 0.35 },
+                    { v: 'swell', n: 0, t: 0.08, g: 0.85, pan: -0.2 }, { v: 'swell', n: 7, t: 0.28, g: 0.9, pan: 0.1 },
+                    { v: 'swell', n: 12, t: 0.46, g: 1, pan: 0, decay: 0.3 }],
+                layers: [{ v: 'breath', t: 0, g: 0.3, attack: 0.1 }],
+                echo: { time: 0.2, feedback: 0.08, tone: 3000, mix: 0.14, spread: 0.5 },
+                space: { size: 1.3, rt60: 0.1, damping: 4500, predelay: 0.018, mix: 0.3 }
             },
             'notify.warning': {
                 notes: [{ v: 'pad', n: -3, t: 0, g: 0.5, attack: 0.06, hold: 0, release: 0.4 },
