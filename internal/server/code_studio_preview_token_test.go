@@ -66,3 +66,15 @@ func TestCodeStudioPreviewKeyWithoutSessionSecret(t *testing.T) {
 		t.Fatal("the session-secret key must be derived and differ from the process key")
 	}
 }
+
+func TestCodeStudioPreviewTokenSSHWorkspaceExpiresInOneHour(t *testing.T) {
+	key, _ := codeStudioPreviewKey("secret-a")
+	now := time.Unix(1_800_000_000, 0)
+	token, expires, err := issueCodeStudioPreviewToken(key, "ws1abc", now)
+	if err != nil || !expires.Equal(now.Add(time.Hour)) {
+		t.Fatalf("ssh issue = %v, %v; want expiry in 1 h", expires, err)
+	}
+	if _, ok := parseCodeStudioPreviewToken(key, token, now.Add(61*time.Minute)); ok {
+		t.Fatal("ssh preview token outlived one hour")
+	}
+}

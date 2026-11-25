@@ -25,6 +25,7 @@ import (
 const (
 	codeStudioPreviewPrefix      = "/code-studio-preview/"
 	codeStudioPreviewTokenTTL    = 12 * time.Hour
+	codeStudioPreviewSSHTokenTTL = time.Hour // SSH workspaces: access can be revoked remotely, keep links short-lived
 	codeStudioPreviewKeyLabel    = "aurago/code-studio-preview/v1"
 	codeStudioPreviewTokenMaxLen = 512
 )
@@ -83,7 +84,11 @@ func issueCodeStudioPreviewToken(key []byte, workspace string, now time.Time) (s
 	if !codeStudioPreviewWorkspacePattern.MatchString(workspace) {
 		return "", time.Time{}, errors.New("invalid workspace id")
 	}
-	expires := now.Add(codeStudioPreviewTokenTTL).Truncate(time.Second)
+	ttl := codeStudioPreviewTokenTTL
+	if workspace != codeStudioLocalWorkspaceID {
+		ttl = codeStudioPreviewSSHTokenTTL
+	}
+	expires := now.Add(ttl).Truncate(time.Second)
 	payload, err := json.Marshal(codeStudioPreviewClaims{Version: 1, Workspace: workspace, Expires: expires.Unix()})
 	if err != nil {
 		return "", time.Time{}, err
