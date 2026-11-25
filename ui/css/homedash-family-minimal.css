@@ -1,24 +1,29 @@
 /* HomeDash family Minimal: token block (plan T3) and painting. Type and hairlines: flat fills only, no shadow, no gradient, no icon discs.
    The accent appears in the focus ring and in value arcs only; every other mark is ink on the card. */
 [data-hd-family="minimal"] {
-  --hd-surface: var(--hd-surface-solid); --hd-card-bg: var(--hd-surface-solid);
-  --hd-card-border: 1px solid var(--hd-hairline); --hd-dash-unavail: 1px dashed var(--hd-hairline);
-  --hd-radius-card: var(--hd-theme-radius); --hd-radius-control: var(--hd-corners-control);
-  --hd-edge-hi: none; --hd-edge-lo: none; --hd-shadow-contact: none; --hd-shadow-card: none; --hd-shadow-press: none; --hd-ring-alert: none;
-  --hd-track: transparent; --hd-track-line: var(--hd-ink); --hd-track-fill: var(--hd-ink);
-  --hd-thumb: var(--hd-ink); --hd-thumb-on: var(--hd-surface-solid);
   --hd-stroke-hair: 1px; --hd-stroke-1: 1.5px; --hd-stroke-2: 2px; --hd-stroke-arc: 0.04; --hd-stroke-tick: 1px;
   --hd-m-arc-w: 3px; --hd-m-spark-w: 1.25px; --hd-m-dot-r: 4;
   --hd-m-arc-u: 4; /* value arcs of the dials in user units (3 px at D 150): the fallback where typed calc is missing */
-  --hd-value-colour: var(--hd-accent); /* plan deviation: the colour token is --hd-value-colour, --hd-value stays the 0-1 fraction the knob and gauge primitives write */
-  --hd-font-ui: "Geist", "Inter", system-ui, sans-serif; --hd-font-label: var(--hd-font-ui); --hd-font-num: var(--hd-font-ui);
   --hd-num-features: "tnum" 1; --hd-num-weight: 300; --hd-num-weight-small: 500; --hd-num-tracking: -0.035em;
   --hd-num-cap: 0.71; --hd-num-hero-max: 128px; --hd-unit-scale: 0.42; --hd-dial-num-k: 0.28; --hd-thermo-num-k: 0.26;
   --hd-label-size: 12.5px; --hd-label-weight: 500; --hd-label-tracking: 0.01em;
   --hd-dur-toggle: 160ms; --hd-ease-toggle: var(--hd-ease-standard); --hd-dur-fill: 160ms; --hd-dur-xfade: 160ms;
   --hd-dur-remote: 160ms; --hd-ease-remote: var(--hd-ease-standard); --hd-dur-needle-f: 420ms; --hd-dur-zone: 160ms;
   --hd-th-stroke: 12;
+}
+/* Scope: the lab and the dashboard also write data-hd-family on .hd-root, where a bare block would change the page's own surface, hairline and font. The block above holds literal values
+   only (Minimal has no colour token of its own); every override of a palette, surface or font token sits on the widget. */
+.hd-widget[data-hd-family="minimal"] {
+  --hd-surface: var(--hd-surface-solid); --hd-card-bg: var(--hd-surface-solid);
+  --hd-card-border: 1px solid var(--hd-hairline); --hd-dash-unavail: 1px dashed var(--hd-hairline);
+  --hd-radius-card: var(--hd-theme-radius); --hd-radius-control: var(--hd-corners-control);
+  --hd-edge-hi: none; --hd-edge-lo: none; --hd-shadow-contact: none; --hd-shadow-card: none; --hd-shadow-press: none; --hd-ring-alert: none;
+  --hd-track: transparent; --hd-track-line: var(--hd-ink); --hd-track-fill: var(--hd-ink);
+  --hd-thumb: var(--hd-ink); --hd-thumb-on: var(--hd-surface-solid);
+  --hd-value-colour: var(--hd-accent); /* plan deviation: the colour token is --hd-value-colour, --hd-value stays the 0-1 fraction the knob and gauge primitives write */
+  --hd-font-ui: "Geist", "Inter", system-ui, sans-serif; --hd-font-label: var(--hd-font-ui); --hd-font-num: var(--hd-font-ui);
   --hd-m-rect-r: min(var(--hd-corners-control), 8px); /* rocker and bezel corners: a rectangle, square in square-corner themes */
+  font-family: var(--hd-font-ui);
 }
 
 /* Shared: text takes the widget ink (the root colour would not follow a widget-level override); everything is ink on the card. */

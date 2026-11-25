@@ -194,7 +194,7 @@
 .hd-gauge-bezel, .hd-gauge-glass { position: absolute; border-radius: var(--hd-radius-pill); } .hd-gauge-bezel { inset: 0; } .hd-gauge-glass { inset: 4%; }
 .hd-gauge-readout { position: absolute; inset-inline-start: 50%; inset-block-start: 77.4%; translate: -50% -50%; font-size: calc(min(var(--hd-body-w), calc(var(--hd-body-h) / 0.84)) * 0.11); }
 .hd-gauge[data-hd-gauge="needle"] :is(.hd-gauge-min, .hd-gauge-max) { display: none; }
-.hd-gauge[data-hd-gauge="needle"] .hd-gauge-readout { inset-block-start: 81%; } /* the needle tail reaches 74 % of the box (y 124 of 168) and the 11 % readout is 18 px high, so its top (81 % - 5.5 %) clears the tail by 2px; Tactile keeps 65 % */
+.hd-gauge[data-hd-gauge="needle"] .hd-gauge-readout { inset-block-start: 81%; } /* the needle tail reaches 74 % of the box (y 124 of 168) and the 11 % readout is 18 px high, so its top (81 % - 5.5 %) clears the tail by 2px; Tactile keeps its own 74 % (widgets.css) */
 .hd-gauge-numeral { font-size: 15px; text-anchor: middle; dominant-baseline: middle; }
 .hd-gauge[data-hd-gauge="arc"] .hd-gauge-readout { inset-block-start: 58.1%; font-size: min(28cqmin, calc(min(var(--hd-body-w), calc(var(--hd-body-h) / 0.86)) * 0.25)); }
 /* H6 legends sit in the bottom gap beside the arc end caps. The caps are centred at (37.8, 162.2) and (162.2, 162.2) of the 200 x 172 box, so 162.2 / 172 = 94.3 % down.
@@ -221,14 +221,32 @@
 /* ui/css/homedash-family-glass.css */
 /* HomeDash family Glass: token block (plan T1) and painting. Layered translucent glass lit from above; it takes the theme's colours. */
 [data-hd-family="glass"] {
-  --hd-surface: color-mix(in srgb, var(--hd-surface-solid) var(--hd-glass-alpha-s), transparent);
   --hd-g-sheen: linear-gradient(180deg, color-mix(in srgb, var(--hd-edge-tint) 5%, transparent), transparent 46%);
+  --hd-g-bezel-r: 14px; --hd-g-paddle-r: 10px;
+  --hd-g-thumb: color-mix(in srgb, #FFFFFF 96%, var(--hd-surface-solid));
+  --hd-g-fill-hi: inset 0 1px 0 color-mix(in srgb, var(--hd-edge-tint) 30%, transparent),
+                  inset 0 0 0 1px color-mix(in srgb, var(--hd-on) var(--hd-fill-edge-k), #000000);
+  --hd-g-surface-edge: var(--hd-thumb-ring), var(--hd-shadow-contact); /* every white control surface on a light card: edge ring plus contact shadow, as the thumb */
+  --hd-g-wash: color-mix(in srgb, var(--hd-ink) 7%, transparent); /* pressed rocker half: a darker wash */
+  --hd-g-edge-u: 0.5; --hd-g-capdot-r: 10; --hd-g-shadow-a: 0.22; --hd-arc-underglow: 0.16; /* the under-glow is not painted in Glass (G-R1-12); the token stays until the freeze decision */
+  --hd-g-zone-u: 8; --hd-g-spark-w: 1.75px;
+  --hd-glass-blur: 18px;
+  --hd-stroke-hair: 1px; --hd-stroke-1: 1.5px; --hd-stroke-2: 2px; --hd-stroke-arc: 0.075; --hd-stroke-tick: 1.25px;
+  --hd-num-features: "tnum" 1, "cv11" 1; --hd-num-weight: 300; --hd-num-weight-small: 500; --hd-num-tracking: -0.02em;
+  --hd-num-cap: 0.74; --hd-num-hero-max: 112px; --hd-unit-scale: 0.42;
+  --hd-label-size: 12.5px; --hd-label-weight: 500; --hd-label-tracking: 0em;
+  --hd-dur-toggle: 280ms; --hd-ease-toggle: var(--hd-ease-spring); --hd-dur-fill: 180ms; --hd-dur-xfade: 180ms;
+  --hd-dur-remote: 320ms; --hd-ease-remote: var(--hd-ease-out); --hd-dur-zone: 220ms; --hd-dur-needle-f: 1100ms; --hd-dur-dip: 180ms;
+  --hd-th-stroke: 12; --hd-th-ring-u: 2.5;
+}
+/* Scope: the lab and the dashboard also write data-hd-family on .hd-root, where a bare block would change the page's own ink, surface and font. The block above holds the Glass tokens
+   (--hd-g-*) and literal values only; every override of a palette, surface or font token sits on the widget. */
+.hd-widget[data-hd-family="glass"] {
+  --hd-surface: color-mix(in srgb, var(--hd-surface-solid) var(--hd-glass-alpha-s), transparent);
   --hd-card-bg: var(--hd-g-sheen), var(--hd-surface);
   --hd-card-border: 1px solid color-mix(in srgb, var(--hd-edge-tint) 14%, var(--hd-theme-border));
   --hd-dash-unavail: 1px dashed var(--hd-hairline);
   --hd-radius-card: var(--hd-theme-radius); --hd-radius-control: var(--hd-corners-control);
-  --hd-g-bezel-r: 14px; --hd-g-paddle-r: 10px;
-  --hd-glass-blur: 18px;
   --hd-edge-hi: inset 0 1px 0 color-mix(in srgb, var(--hd-edge-tint) 20%, transparent);
   --hd-edge-lo: inset 0 -1px 0 color-mix(in srgb, var(--hd-shadow-ink) var(--hd-sa-1), transparent);
   --hd-shadow-contact: 0 1px 2px color-mix(in srgb, var(--hd-shadow-ink) var(--hd-sa-1), transparent);
@@ -238,30 +256,18 @@
   --hd-ring-alert: inset 0 0 0 2px var(--hd-alert);
   --hd-track: color-mix(in srgb, var(--hd-ink) 14%, transparent);
   --hd-track-inset: inset 0 1px 2px color-mix(in srgb, var(--hd-shadow-ink) var(--hd-sa-3), transparent);
-  --hd-track-fill: var(--hd-on);
-  --hd-track-fill-hi: inset 0 1px 0 color-mix(in srgb, var(--hd-edge-tint) 30%, transparent),
-                      inset 0 0 0 1px color-mix(in srgb, var(--hd-on) var(--hd-fill-edge-k), #000000);
-  --hd-thumb: color-mix(in srgb, #FFFFFF 96%, var(--hd-surface-solid));
+  --hd-track-fill: var(--hd-on); --hd-track-fill-hi: var(--hd-g-fill-hi);
+  --hd-thumb: var(--hd-g-thumb);
   --hd-thumb-edge: color-mix(in srgb, var(--hd-shadow-ink) 22%, transparent);
   --hd-thumb-ring: 0 0 0 0.5px var(--hd-thumb-edge);
   --hd-thumb-shadow: var(--hd-thumb-ring),
                      0 1px 1px color-mix(in srgb, var(--hd-shadow-ink) var(--hd-sa-2), transparent),
                      0 3px 8px color-mix(in srgb, var(--hd-shadow-ink) var(--hd-sa-3), transparent);
-  --hd-g-surface-edge: var(--hd-thumb-ring), var(--hd-shadow-contact); /* every white control surface on a light card: edge ring plus contact shadow, as the thumb */
-  --hd-g-wash: color-mix(in srgb, var(--hd-ink) 7%, transparent); /* pressed rocker half: a darker wash */
   --hd-pending-ring: conic-gradient(var(--hd-ink) 0 25%, transparent 25% 100%); /* ink on the track under it (card, off track or dial track) */
   --hd-pending-ring-on: conic-gradient(var(--hd-on-ink) 0 25%, transparent 25% 100%); /* on-ink on the accent fill under it */
-  --hd-stroke-hair: 1px; --hd-stroke-1: 1.5px; --hd-stroke-2: 2px; --hd-stroke-arc: 0.075; --hd-stroke-tick: 1.25px;
-  --hd-g-edge-u: 0.5; --hd-g-capdot-r: 10; --hd-g-shadow-a: 0.22; --hd-arc-underglow: 0.16; /* the under-glow is not painted in Glass (G-R1-12); the token stays until the freeze decision */
   --hd-value-colour: var(--hd-accent); /* plan deviation: the colour token is --hd-value-colour, --hd-value stays the 0-1 fraction the knob and gauge primitives write */
   --hd-font-ui: "Inter", "Geist", system-ui, sans-serif; --hd-font-label: var(--hd-font-ui); --hd-font-num: "Inter", "Geist", system-ui, sans-serif;
-  --hd-num-features: "tnum" 1, "cv11" 1; --hd-num-weight: 300; --hd-num-weight-small: 500; --hd-num-tracking: -0.02em;
-  --hd-num-cap: 0.74; --hd-num-hero-max: 112px; --hd-unit-scale: 0.42;
-  --hd-label-size: 12.5px; --hd-label-weight: 500; --hd-label-tracking: 0em;
-  --hd-dur-toggle: 280ms; --hd-ease-toggle: var(--hd-ease-spring); --hd-dur-fill: 180ms; --hd-dur-xfade: 180ms;
-  --hd-dur-remote: 320ms; --hd-ease-remote: var(--hd-ease-out); --hd-dur-zone: 220ms; --hd-dur-needle-f: 1100ms; --hd-dur-dip: 180ms;
-  --hd-th-stroke: 12; --hd-th-ring-u: 2.5;
-  --hd-g-zone-u: 8; --hd-g-spark-w: 1.75px;
+  color: var(--hd-ink); font-family: var(--hd-font-ui);
 }
 
 /* Square-corner themes (Amiga, Cyberpunk, Voxel World): bezel and paddle follow the control corners; the control radii below use --hd-corners-control. */
@@ -312,7 +318,7 @@
 /* H3 dimmer dial (also the base of the H4 thermostat ring) */
 .hd-widget[data-hd-family="glass"] .hd-dial-track { stroke: var(--hd-track); stroke-width: calc(var(--hd-stroke-arc) * 200); stroke-linecap: round; }
 .hd-widget[data-hd-family="glass"][data-hd-type="light"] .hd-dial-arc { stroke: var(--hd-light-on); stroke-width: calc(var(--hd-stroke-arc) * 200); stroke-linecap: round; }
-/* A zero value is the dash "0 1000": its round caps would draw a dot at the path start and another at the path end. Butt caps draw nothing. */
+/* A zero value is the dash "0 1000": its round caps would draw a dot at the path start and another at the path end. Butt caps draw nothing. The style query reads the fraction through the nearest style container: --hd-value is an inherited custom property, so the arc path (inside .hd-dial or .hd-gauge) sees the 0.0000 the primitive wrote (checked in the lab with a probe colour: only the value 0 cells matched). */
 @container style(--hd-value: 0.0000) { .hd-widget[data-hd-family="glass"][data-hd-type][data-hd-variant] :is(.hd-dial-arc, .hd-gauge-arc, .hd-gauge-arc-zone) { stroke-linecap: butt; } }
 .hd-widget[data-hd-family="glass"] .hd-dial-knob { fill: var(--hd-thumb); stroke: var(--hd-thumb-edge); stroke-width: var(--hd-g-edge-u); }
 .hd-widget[data-hd-family="glass"] .hd-dial-knob-shadow { display: inline; fill: var(--hd-shadow-ink); opacity: var(--hd-g-shadow-a); }
@@ -443,35 +449,49 @@
   --hd-t-hatch: repeating-linear-gradient(135deg, color-mix(in srgb, var(--hd-ink) 6%, transparent) 0 2px, transparent 2px 6px);
   --hd-t-vignette: radial-gradient(circle, transparent 82%, color-mix(in srgb, #000000 6%, transparent) 100%);
   --hd-t-reflection: radial-gradient(ellipse 60% 30% at 34% 24%, color-mix(in srgb, #FFFFFF 8%, transparent), transparent 70%);
-  --hd-surface-solid: var(--hd-t-panel-mid); --hd-surface: var(--hd-t-panel-mid);
-  --hd-ink: var(--hd-t-legend); --hd-ink-muted: var(--hd-t-muted);
-  --hd-ink-faint: color-mix(in srgb, var(--hd-t-legend) 45%, var(--hd-t-panel-mid));
-  --hd-sunken: var(--hd-t-window); --hd-focus-gap: var(--hd-t-panel-mid);
-  --hd-hairline: color-mix(in srgb, #000000 30%, var(--hd-t-panel-mid));
-  --hd-card-bg: var(--hd-t-panel);
-  --hd-card-border: 1px solid color-mix(in srgb, #000000 35%, var(--hd-t-panel-lo));
-  --hd-dash-unavail: 1px dashed color-mix(in srgb, #000000 35%, var(--hd-t-panel-lo));
-  --hd-radius-card: calc(12px * var(--hd-radius-scale)); --hd-radius-control: calc(6px * var(--hd-radius-scale));
-  --hd-t-bezel-r: calc(8px * var(--hd-radius-scale));
-  --hd-shadow-card: inset 1px 1px 0 color-mix(in srgb, #FFFFFF 10%, transparent), inset -1px -1px 0 color-mix(in srgb, #000000 30%, transparent),
-                    2px 3px 8px color-mix(in srgb, #000000 var(--hd-sa-4), transparent);
-  --hd-shadow-contact: 1px 2px 3px color-mix(in srgb, #000000 var(--hd-sa-4), transparent);
+  --hd-t-hairline: color-mix(in srgb, #000000 30%, var(--hd-t-panel-mid));
+  --hd-t-card-border: 1px solid color-mix(in srgb, #000000 35%, var(--hd-t-panel-lo));
+  --hd-t-dash-unavail: 1px dashed color-mix(in srgb, #000000 35%, var(--hd-t-panel-lo));
+  --hd-t-shadow-card: inset 1px 1px 0 color-mix(in srgb, #FFFFFF 10%, transparent), inset -1px -1px 0 color-mix(in srgb, #000000 30%, transparent),
+                      2px 3px 8px color-mix(in srgb, #000000 var(--hd-sa-4), transparent);
+  --hd-t-shadow-contact: 1px 2px 3px color-mix(in srgb, #000000 var(--hd-sa-4), transparent);
   --hd-shadow-cast: 2px 4px 10px color-mix(in srgb, #000000 var(--hd-sa-5), transparent);
   --hd-recess: inset 1px 2px 4px color-mix(in srgb, #000000 60%, transparent), inset -1px -1px 0 color-mix(in srgb, #FFFFFF 8%, transparent);
   --hd-window-shadow: inset 0 2px 6px color-mix(in srgb, #000000 70%, transparent);
   --hd-lip: inset 1px 1px 0 color-mix(in srgb, #FFFFFF 22%, transparent), inset -1px -1px 0 color-mix(in srgb, #000000 30%, transparent);
-  --hd-ring-alert: inset 0 0 0 1px var(--hd-t-led-red);
   --hd-vfd-glow: 0 0 6px color-mix(in srgb, var(--hd-t-amber) 50%, transparent);
   --hd-stroke-hair: 1px; --hd-stroke-1: 1.5px; --hd-stroke-2: 2px; --hd-stroke-arc: 0.06; --hd-stroke-tick: 1.25px;
   --hd-t-needle-w: 2.5; --hd-th-stroke: 12;
-  --hd-font-ui: "Inter", system-ui, sans-serif;
-  --hd-font-label: "HomeDash Barlow Condensed", "Inter", sans-serif; --hd-font-num: "HomeDash Barlow Condensed", "Inter", sans-serif;
   --hd-font-vfd: "Geist Mono", "JetBrains Mono", monospace;
   --hd-num-features: "tnum" 1; --hd-num-weight: 600; --hd-num-weight-small: 600; --hd-num-tracking: 0em; --hd-num-cap: 0.74;
   --hd-num-hero-max: 72px; --hd-unit-scale: 0.42;
   --hd-label-size: 12px; --hd-label-weight: 600; --hd-label-tracking: 0.06em;
   --hd-dur-toggle: 120ms; --hd-ease-toggle: var(--hd-ease-snap); --hd-dur-led: 60ms; --hd-dur-fill: 60ms; --hd-dur-xfade: 60ms;
   --hd-dur-remote: 220ms; --hd-ease-remote: var(--hd-ease-out); --hd-dur-needle-f: 1100ms; --hd-dur-zone: 60ms;
+}
+/* Scope: the lab and the dashboard also write data-hd-family on .hd-root, where a bare block would turn the page's own ink, surface, hairline and font into the panel's. The block above holds
+   the Tactile tokens (--hd-t-*), literal values and the hardware shadows; every override of a palette, surface or font token sits on the widget, with the bridge derivatives that read them. */
+.hd-widget[data-hd-family="tactile"] {
+  --hd-surface-solid: var(--hd-t-panel-mid); --hd-surface: var(--hd-t-panel-mid);
+  --hd-ink: var(--hd-t-legend); --hd-ink-muted: var(--hd-t-muted);
+  --hd-ink-faint: color-mix(in srgb, var(--hd-t-legend) 45%, var(--hd-t-panel-mid));
+  --hd-sunken: var(--hd-t-window); --hd-focus-gap: var(--hd-t-panel-mid);
+  --hd-hairline: var(--hd-t-hairline);
+  --hd-card-bg: var(--hd-t-panel); --hd-card-border: var(--hd-t-card-border); --hd-dash-unavail: var(--hd-t-dash-unavail);
+  --hd-radius-card: calc(12px * var(--hd-radius-scale)); --hd-radius-control: calc(6px * var(--hd-radius-scale));
+  --hd-t-bezel-r: calc(8px * var(--hd-radius-scale));
+  --hd-shadow-card: var(--hd-t-shadow-card); --hd-shadow-contact: var(--hd-t-shadow-contact);
+  --hd-ring-alert: inset 0 0 0 1px var(--hd-t-led-red);
+  --hd-font-ui: "Inter", system-ui, sans-serif;
+  --hd-font-label: "HomeDash Barlow Condensed", "Inter", sans-serif; --hd-font-num: "HomeDash Barlow Condensed", "Inter", sans-serif;
+  /* bridge derivatives that read the tokens above (they are computed on .hd-root, from the page palette) */
+  --hd-unavailable: var(--hd-ink-faint); --hd-thumb-edge: var(--hd-hairline); --hd-track: color-mix(in srgb, var(--hd-ink) 14%, transparent);
+  --hd-ok-ink: var(--hd-ok); --hd-warn-ink: var(--hd-warn); --hd-alert-ink: var(--hd-alert); --hd-info-ink: var(--hd-info);
+  color: var(--hd-ink); font-family: var(--hd-font-ui);
+}
+.hd-root[data-hd-scheme="light"] .hd-widget[data-hd-family="tactile"] {
+  --hd-ok-ink: color-mix(in srgb, var(--hd-ok) 34%, var(--hd-ink)); --hd-warn-ink: color-mix(in srgb, var(--hd-warn) 34%, var(--hd-ink));
+  --hd-alert-ink: color-mix(in srgb, var(--hd-alert) 34%, var(--hd-ink)); --hd-info-ink: color-mix(in srgb, var(--hd-info) 34%, var(--hd-ink));
 }
 /* Brushed grain: a 4 px period is a visible stripe at DPR 1 and 1.5 (measured), so the grain only exists at 2 device px per CSS px and above (rubric T1). */
 @media (min-resolution: 2dppx) {
@@ -623,7 +643,7 @@
 
 /* H8 sensor tile: the trace sits in an inset black window with a 4 x 3 grid, amber trace and end dot; the numeral is printed in legend ink. */
 .hd-widget[data-hd-family="tactile"] .hd-spark { background: var(--hd-t-window); box-shadow: var(--hd-window-shadow); border-radius: var(--hd-radius-control); }
-@container hd-widget (aspect-ratio >= 1.6) { .hd-widget[data-hd-family="tactile"][data-hd-type="sensor"][data-hd-variant="sparkline"] .hd-spark { inset-block-end: 4px; block-size: calc(100cqh * 0.38 - 11px); } } /* 2x1: the window is 3 px shorter than the module's box and sits 4 px lower, so it clears the state text (descenders) and the numeral row by at least 4 px */
+@container hd-widget (aspect-ratio >= 1.6) { .hd-widget[data-hd-family="tactile"][data-hd-type="sensor"][data-hd-variant="sparkline"] .hd-spark { inset-block-end: 4px; } } /* 2x1: the window sits 4 px lower; the module draws it 3 px shorter (hd-w-sensor.js), so it clears the state text (descenders) and the numeral row by at least 4 px */
 .hd-widget[data-hd-family="tactile"] .hd-spark-area { display: none; }
 .hd-widget[data-hd-family="tactile"] .hd-spark-grid { display: inline; fill: none; stroke: var(--hd-t-grid-ink); stroke-width: var(--hd-stroke-hair); vector-effect: non-scaling-stroke; }
 .hd-widget[data-hd-family="tactile"] .hd-spark-line { fill: none; stroke: var(--hd-t-amber); stroke-width: var(--hd-stroke-1); stroke-linejoin: round; stroke-linecap: round; }
@@ -656,24 +676,29 @@
 /* HomeDash family Minimal: token block (plan T3) and painting. Type and hairlines: flat fills only, no shadow, no gradient, no icon discs.
    The accent appears in the focus ring and in value arcs only; every other mark is ink on the card. */
 [data-hd-family="minimal"] {
-  --hd-surface: var(--hd-surface-solid); --hd-card-bg: var(--hd-surface-solid);
-  --hd-card-border: 1px solid var(--hd-hairline); --hd-dash-unavail: 1px dashed var(--hd-hairline);
-  --hd-radius-card: var(--hd-theme-radius); --hd-radius-control: var(--hd-corners-control);
-  --hd-edge-hi: none; --hd-edge-lo: none; --hd-shadow-contact: none; --hd-shadow-card: none; --hd-shadow-press: none; --hd-ring-alert: none;
-  --hd-track: transparent; --hd-track-line: var(--hd-ink); --hd-track-fill: var(--hd-ink);
-  --hd-thumb: var(--hd-ink); --hd-thumb-on: var(--hd-surface-solid);
   --hd-stroke-hair: 1px; --hd-stroke-1: 1.5px; --hd-stroke-2: 2px; --hd-stroke-arc: 0.04; --hd-stroke-tick: 1px;
   --hd-m-arc-w: 3px; --hd-m-spark-w: 1.25px; --hd-m-dot-r: 4;
   --hd-m-arc-u: 4; /* value arcs of the dials in user units (3 px at D 150): the fallback where typed calc is missing */
-  --hd-value-colour: var(--hd-accent); /* plan deviation: the colour token is --hd-value-colour, --hd-value stays the 0-1 fraction the knob and gauge primitives write */
-  --hd-font-ui: "Geist", "Inter", system-ui, sans-serif; --hd-font-label: var(--hd-font-ui); --hd-font-num: var(--hd-font-ui);
   --hd-num-features: "tnum" 1; --hd-num-weight: 300; --hd-num-weight-small: 500; --hd-num-tracking: -0.035em;
   --hd-num-cap: 0.71; --hd-num-hero-max: 128px; --hd-unit-scale: 0.42; --hd-dial-num-k: 0.28; --hd-thermo-num-k: 0.26;
   --hd-label-size: 12.5px; --hd-label-weight: 500; --hd-label-tracking: 0.01em;
   --hd-dur-toggle: 160ms; --hd-ease-toggle: var(--hd-ease-standard); --hd-dur-fill: 160ms; --hd-dur-xfade: 160ms;
   --hd-dur-remote: 160ms; --hd-ease-remote: var(--hd-ease-standard); --hd-dur-needle-f: 420ms; --hd-dur-zone: 160ms;
   --hd-th-stroke: 12;
+}
+/* Scope: the lab and the dashboard also write data-hd-family on .hd-root, where a bare block would change the page's own surface, hairline and font. The block above holds literal values
+   only (Minimal has no colour token of its own); every override of a palette, surface or font token sits on the widget. */
+.hd-widget[data-hd-family="minimal"] {
+  --hd-surface: var(--hd-surface-solid); --hd-card-bg: var(--hd-surface-solid);
+  --hd-card-border: 1px solid var(--hd-hairline); --hd-dash-unavail: 1px dashed var(--hd-hairline);
+  --hd-radius-card: var(--hd-theme-radius); --hd-radius-control: var(--hd-corners-control);
+  --hd-edge-hi: none; --hd-edge-lo: none; --hd-shadow-contact: none; --hd-shadow-card: none; --hd-shadow-press: none; --hd-ring-alert: none;
+  --hd-track: transparent; --hd-track-line: var(--hd-ink); --hd-track-fill: var(--hd-ink);
+  --hd-thumb: var(--hd-ink); --hd-thumb-on: var(--hd-surface-solid);
+  --hd-value-colour: var(--hd-accent); /* plan deviation: the colour token is --hd-value-colour, --hd-value stays the 0-1 fraction the knob and gauge primitives write */
+  --hd-font-ui: "Geist", "Inter", system-ui, sans-serif; --hd-font-label: var(--hd-font-ui); --hd-font-num: var(--hd-font-ui);
   --hd-m-rect-r: min(var(--hd-corners-control), 8px); /* rocker and bezel corners: a rectangle, square in square-corner themes */
+  font-family: var(--hd-font-ui);
 }
 
 /* Shared: text takes the widget ink (the root colour would not follow a widget-level override); everything is ink on the card. */
@@ -807,8 +832,6 @@
   --hd-i-mount-l: 0 1px 2px color-mix(in srgb, #000000 30%, transparent), 0 6px 16px -6px color-mix(in srgb, #000000 35%, transparent);
   --hd-stroke-hair: 1px; --hd-stroke-1: 1.5px; --hd-stroke-2: 2px; --hd-stroke-arc: 0.08; --hd-stroke-tick: 1.25px;
   --hd-i-glow-add: 2; --hd-i-gap-add: 2; --hd-th-stroke: 12; --hd-i-needle-glow-u: 3;
-  --hd-font-ui: "Oxanium", "Geist", system-ui, sans-serif; --hd-font-label: var(--hd-font-ui);
-  --hd-font-num: "HomeDash Share Tech Mono", "Geist Mono", monospace;
   --hd-num-features: "tnum" 1; --hd-num-weight: 400; --hd-num-weight-small: 400; --hd-num-tracking: 0em; --hd-num-cap: 0.74;
   --hd-num-hero-max: 96px; --hd-unit-scale: 0.42;
   --hd-label-size: 11.5px; --hd-label-weight: 500; --hd-label-tracking: 0.12em;
@@ -831,6 +854,9 @@
   --hd-radius-card: calc(4px * var(--hd-radius-scale)); --hd-radius-control: calc(3px * var(--hd-radius-scale));
   --hd-edge-hi: none; --hd-edge-lo: none; --hd-shadow-contact: none; --hd-shadow-card: none; --hd-shadow-press: none; --hd-ring-alert: none;
   --hd-glow: var(--hd-i-glowline);
+  --hd-font-ui: "Oxanium", "Geist", system-ui, sans-serif; --hd-font-label: var(--hd-font-ui);
+  --hd-font-num: "HomeDash Share Tech Mono", "Geist Mono", monospace;
+  font-family: var(--hd-font-ui);
 }
 .hd-root[data-hd-scheme="light"] .hd-widget[data-hd-family="instrument"] { --hd-shadow-card: var(--hd-i-mount-l); }
 .hd-widget[data-hd-family="instrument"][data-hd-tone="crit"] { --hd-i-val: var(--hd-i-alert); }
@@ -848,6 +874,12 @@
 .hd-widget[data-hd-family="instrument"][data-hd-status="unavailable"] .hd-body::after { content: attr(data-hd-nodata); position: absolute; inset-block-start: 50%; inset-inline-start: 50%; translate: -50% -50%; box-sizing: border-box; max-inline-size: 100%; padding: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   border: var(--hd-dash-unavail); color: var(--hd-ink-muted); font: 500 11.5px / 1 var(--hd-font-ui); letter-spacing: var(--hd-label-tracking); }
 .hd-widget[data-hd-family="instrument"][data-hd-stale="true"] { --hd-i-val: var(--hd-ink-muted); }
+/* Pending, static form (outside the motion gate, so motion none and reduced still show it): the one lit element of the control sits at half light. The motion block replaces it by the blink. */
+.hd-widget[data-hd-family="instrument"][data-hd-pending="true"] .hd-rocker[aria-checked="true"] .hd-rocker-half[data-half="on"]::after,
+.hd-widget[data-hd-family="instrument"][data-hd-pending="true"] .hd-rocker[aria-checked="false"] .hd-rocker-half[data-half="off"]::after { opacity: 0.5; }
+.hd-widget[data-hd-family="instrument"][data-hd-pending="true"] :is(.hd-dial-lead, .hd-gauge-lead) { opacity: 0.5; }
+/* The climate readout is text and keeps full strength (a dimmed readout drops below 4.5:1): its static pending form is a dashed hairline box in the HUD tint, which the blink replaces. */
+.hd-widget[data-hd-family="instrument"][data-hd-type="climate"][data-hd-pending="true"] .hd-dial-readout > .hd-seg7 { outline: var(--hd-stroke-hair) dashed var(--hd-i-hud); outline-offset: 3px; }
 
 /* Seven-segment readouts: a window of ghost segments (7 % HUD) with the lit ones in the widget's one glow colour; the unit is Share Tech Mono.
    The scan lines live inside this window only (I4). The block size comes from the readout's context (dial 0.2 D, temperature 0.92 of the body, ...). */
@@ -935,6 +967,7 @@
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"][data-hd-pending="true"] .hd-rocker-half::after,
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"][data-hd-pending="true"] .hd-dial-lead,
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"][data-hd-type="climate"][data-hd-pending="true"] .hd-dial-readout > .hd-seg7 { animation: hd-blink calc(4 * var(--hd-dur-chase)) steps(1) infinite; }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"][data-hd-type="climate"][data-hd-pending="true"] .hd-dial-readout > .hd-seg7 { outline: none; }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"][data-hd-tone="crit"] .hd-toggle[aria-checked="true"] .hd-toggle-track::after,
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"][data-hd-tone="crit"] .hd-toggle[aria-checked="true"] .hd-toggle-key,
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"][data-hd-tone="crit"] .hd-rocker[aria-checked="true"] .hd-rocker-half[data-half="on"]::after,

@@ -1,13 +1,31 @@
 /* HomeDash family Glass: token block (plan T1) and painting. Layered translucent glass lit from above; it takes the theme's colours. */
 [data-hd-family="glass"] {
-  --hd-surface: color-mix(in srgb, var(--hd-surface-solid) var(--hd-glass-alpha-s), transparent);
   --hd-g-sheen: linear-gradient(180deg, color-mix(in srgb, var(--hd-edge-tint) 5%, transparent), transparent 46%);
+  --hd-g-bezel-r: 14px; --hd-g-paddle-r: 10px;
+  --hd-g-thumb: color-mix(in srgb, #FFFFFF 96%, var(--hd-surface-solid));
+  --hd-g-fill-hi: inset 0 1px 0 color-mix(in srgb, var(--hd-edge-tint) 30%, transparent),
+                  inset 0 0 0 1px color-mix(in srgb, var(--hd-on) var(--hd-fill-edge-k), #000000);
+  --hd-g-surface-edge: var(--hd-thumb-ring), var(--hd-shadow-contact); /* every white control surface on a light card: edge ring plus contact shadow, as the thumb */
+  --hd-g-wash: color-mix(in srgb, var(--hd-ink) 7%, transparent); /* pressed rocker half: a darker wash */
+  --hd-g-edge-u: 0.5; --hd-g-capdot-r: 10; --hd-g-shadow-a: 0.22; --hd-arc-underglow: 0.16; /* the under-glow is not painted in Glass (G-R1-12); the token stays until the freeze decision */
+  --hd-g-zone-u: 8; --hd-g-spark-w: 1.75px;
+  --hd-glass-blur: 18px;
+  --hd-stroke-hair: 1px; --hd-stroke-1: 1.5px; --hd-stroke-2: 2px; --hd-stroke-arc: 0.075; --hd-stroke-tick: 1.25px;
+  --hd-num-features: "tnum" 1, "cv11" 1; --hd-num-weight: 300; --hd-num-weight-small: 500; --hd-num-tracking: -0.02em;
+  --hd-num-cap: 0.74; --hd-num-hero-max: 112px; --hd-unit-scale: 0.42;
+  --hd-label-size: 12.5px; --hd-label-weight: 500; --hd-label-tracking: 0em;
+  --hd-dur-toggle: 280ms; --hd-ease-toggle: var(--hd-ease-spring); --hd-dur-fill: 180ms; --hd-dur-xfade: 180ms;
+  --hd-dur-remote: 320ms; --hd-ease-remote: var(--hd-ease-out); --hd-dur-zone: 220ms; --hd-dur-needle-f: 1100ms; --hd-dur-dip: 180ms;
+  --hd-th-stroke: 12; --hd-th-ring-u: 2.5;
+}
+/* Scope: the lab and the dashboard also write data-hd-family on .hd-root, where a bare block would change the page's own ink, surface and font. The block above holds the Glass tokens
+   (--hd-g-*) and literal values only; every override of a palette, surface or font token sits on the widget. */
+.hd-widget[data-hd-family="glass"] {
+  --hd-surface: color-mix(in srgb, var(--hd-surface-solid) var(--hd-glass-alpha-s), transparent);
   --hd-card-bg: var(--hd-g-sheen), var(--hd-surface);
   --hd-card-border: 1px solid color-mix(in srgb, var(--hd-edge-tint) 14%, var(--hd-theme-border));
   --hd-dash-unavail: 1px dashed var(--hd-hairline);
   --hd-radius-card: var(--hd-theme-radius); --hd-radius-control: var(--hd-corners-control);
-  --hd-g-bezel-r: 14px; --hd-g-paddle-r: 10px;
-  --hd-glass-blur: 18px;
   --hd-edge-hi: inset 0 1px 0 color-mix(in srgb, var(--hd-edge-tint) 20%, transparent);
   --hd-edge-lo: inset 0 -1px 0 color-mix(in srgb, var(--hd-shadow-ink) var(--hd-sa-1), transparent);
   --hd-shadow-contact: 0 1px 2px color-mix(in srgb, var(--hd-shadow-ink) var(--hd-sa-1), transparent);
@@ -17,30 +35,18 @@
   --hd-ring-alert: inset 0 0 0 2px var(--hd-alert);
   --hd-track: color-mix(in srgb, var(--hd-ink) 14%, transparent);
   --hd-track-inset: inset 0 1px 2px color-mix(in srgb, var(--hd-shadow-ink) var(--hd-sa-3), transparent);
-  --hd-track-fill: var(--hd-on);
-  --hd-track-fill-hi: inset 0 1px 0 color-mix(in srgb, var(--hd-edge-tint) 30%, transparent),
-                      inset 0 0 0 1px color-mix(in srgb, var(--hd-on) var(--hd-fill-edge-k), #000000);
-  --hd-thumb: color-mix(in srgb, #FFFFFF 96%, var(--hd-surface-solid));
+  --hd-track-fill: var(--hd-on); --hd-track-fill-hi: var(--hd-g-fill-hi);
+  --hd-thumb: var(--hd-g-thumb);
   --hd-thumb-edge: color-mix(in srgb, var(--hd-shadow-ink) 22%, transparent);
   --hd-thumb-ring: 0 0 0 0.5px var(--hd-thumb-edge);
   --hd-thumb-shadow: var(--hd-thumb-ring),
                      0 1px 1px color-mix(in srgb, var(--hd-shadow-ink) var(--hd-sa-2), transparent),
                      0 3px 8px color-mix(in srgb, var(--hd-shadow-ink) var(--hd-sa-3), transparent);
-  --hd-g-surface-edge: var(--hd-thumb-ring), var(--hd-shadow-contact); /* every white control surface on a light card: edge ring plus contact shadow, as the thumb */
-  --hd-g-wash: color-mix(in srgb, var(--hd-ink) 7%, transparent); /* pressed rocker half: a darker wash */
   --hd-pending-ring: conic-gradient(var(--hd-ink) 0 25%, transparent 25% 100%); /* ink on the track under it (card, off track or dial track) */
   --hd-pending-ring-on: conic-gradient(var(--hd-on-ink) 0 25%, transparent 25% 100%); /* on-ink on the accent fill under it */
-  --hd-stroke-hair: 1px; --hd-stroke-1: 1.5px; --hd-stroke-2: 2px; --hd-stroke-arc: 0.075; --hd-stroke-tick: 1.25px;
-  --hd-g-edge-u: 0.5; --hd-g-capdot-r: 10; --hd-g-shadow-a: 0.22; --hd-arc-underglow: 0.16; /* the under-glow is not painted in Glass (G-R1-12); the token stays until the freeze decision */
   --hd-value-colour: var(--hd-accent); /* plan deviation: the colour token is --hd-value-colour, --hd-value stays the 0-1 fraction the knob and gauge primitives write */
   --hd-font-ui: "Inter", "Geist", system-ui, sans-serif; --hd-font-label: var(--hd-font-ui); --hd-font-num: "Inter", "Geist", system-ui, sans-serif;
-  --hd-num-features: "tnum" 1, "cv11" 1; --hd-num-weight: 300; --hd-num-weight-small: 500; --hd-num-tracking: -0.02em;
-  --hd-num-cap: 0.74; --hd-num-hero-max: 112px; --hd-unit-scale: 0.42;
-  --hd-label-size: 12.5px; --hd-label-weight: 500; --hd-label-tracking: 0em;
-  --hd-dur-toggle: 280ms; --hd-ease-toggle: var(--hd-ease-spring); --hd-dur-fill: 180ms; --hd-dur-xfade: 180ms;
-  --hd-dur-remote: 320ms; --hd-ease-remote: var(--hd-ease-out); --hd-dur-zone: 220ms; --hd-dur-needle-f: 1100ms; --hd-dur-dip: 180ms;
-  --hd-th-stroke: 12; --hd-th-ring-u: 2.5;
-  --hd-g-zone-u: 8; --hd-g-spark-w: 1.75px;
+  color: var(--hd-ink); font-family: var(--hd-font-ui);
 }
 
 /* Square-corner themes (Amiga, Cyberpunk, Voxel World): bezel and paddle follow the control corners; the control radii below use --hd-corners-control. */
@@ -91,7 +97,7 @@
 /* H3 dimmer dial (also the base of the H4 thermostat ring) */
 .hd-widget[data-hd-family="glass"] .hd-dial-track { stroke: var(--hd-track); stroke-width: calc(var(--hd-stroke-arc) * 200); stroke-linecap: round; }
 .hd-widget[data-hd-family="glass"][data-hd-type="light"] .hd-dial-arc { stroke: var(--hd-light-on); stroke-width: calc(var(--hd-stroke-arc) * 200); stroke-linecap: round; }
-/* A zero value is the dash "0 1000": its round caps would draw a dot at the path start and another at the path end. Butt caps draw nothing. */
+/* A zero value is the dash "0 1000": its round caps would draw a dot at the path start and another at the path end. Butt caps draw nothing. The style query reads the fraction through the nearest style container: --hd-value is an inherited custom property, so the arc path (inside .hd-dial or .hd-gauge) sees the 0.0000 the primitive wrote (checked in the lab with a probe colour: only the value 0 cells matched). */
 @container style(--hd-value: 0.0000) { .hd-widget[data-hd-family="glass"][data-hd-type][data-hd-variant] :is(.hd-dial-arc, .hd-gauge-arc, .hd-gauge-arc-zone) { stroke-linecap: butt; } }
 .hd-widget[data-hd-family="glass"] .hd-dial-knob { fill: var(--hd-thumb); stroke: var(--hd-thumb-edge); stroke-width: var(--hd-g-edge-u); }
 .hd-widget[data-hd-family="glass"] .hd-dial-knob-shadow { display: inline; fill: var(--hd-shadow-ink); opacity: var(--hd-g-shadow-a); }

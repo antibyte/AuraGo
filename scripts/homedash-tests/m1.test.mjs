@@ -23,6 +23,26 @@ export const tests = [
     accent = 'oklch(0.62 0.19 255)'; canvasColour = [51, 112, 233, 255]; E.widgets.applyLook(rootEl); assert.equal(hud(), expected([51, 112, 233]));
     accent = 'color(srgb 0.9 0.2 0.1)'; canvasColour = [230, 51, 26, 255]; E.widgets.applyLook(rootEl); assert.equal(hud(), expected([230, 51, 26]));
     accent = 'not-a-colour'; canvasColour = [0, 0, 0, 0]; E.widgets.applyLook(rootEl); assert.equal(hud(), ''); }],
+  ['climate keeps its last range while the entity is dead and rebuilds only on a live range change', () => {
+    const { E, document } = loadEngine(ENGINE_ORDER, { dom: true });
+    const view = p => Object.assign({ id: 'c:1', kind: 'climate', name: 'Living room', value: 'heat', attributes: {}, available: true, status: 'ok', readonly: false, capabilities: [], pending: false, stale: false, error: null, tone: null }, p);
+    const state = { view: view({ attributes: { min_temp: 10, max_temp: 25, temperature: 20, current_temperature: 19 } }) };
+    const api = () => ({ entity: () => state.view, can: () => true, command: () => Promise.resolve({}), moreInfo() {}, history: () => Promise.resolve({ points: [], source: 'ring' }), announce() {} });
+    const h = E.widgets.host({ widget: { id: 'w', type: 'climate', variant: 'dial', bindings: { primary: 'c:1' } }, size: { w: 2, h: 2 }, t: k => k, api });
+    document.body.appendChild(h.el); const dial = () => h.el.querySelector('.hd-dial'), first = dial();
+    state.view = view({ available: false, status: 'unavailable' }); h.update(); assert.equal(dial(), first, 'a dead entity must not rebuild the knob');
+    state.view = view({ value: 'unknown', status: 'unknown', attributes: { min_temp: 7, max_temp: 35 } }); h.update(); assert.equal(dial(), first, 'unknown must not rebuild either');
+    state.view = view({ attributes: { min_temp: 10, max_temp: 25, temperature: 20 } }); h.update(); assert.equal(dial(), first, 'the same live range keeps the knob');
+    state.view = view({ attributes: { min_temp: 5, max_temp: 30, temperature: 20 } }); h.update(); assert.notEqual(dial(), first, 'a live range change rebuilds it'); }],
+  ['the Tactile sensor module draws the exact inset window (2x1 is 3 px shorter, 4 px above the bottom)', () => {
+    const { E, document } = loadEngine(ENGINE_ORDER, { dom: true });
+    const view = { id: 's:1', kind: 'sensor', name: 'Power', value: 42, unit: 'W', attributes: {}, available: true, status: 'ok', readonly: false, capabilities: [], pending: false, stale: false, error: null, tone: null };
+    const api = () => ({ entity: () => view, can: () => true, command: () => Promise.resolve({}), moreInfo() {}, history: () => Promise.resolve({ points: [[1, 3], [2, 5], [3, 4]], source: 'ring' }), announce() {} });
+    const make = family => E.widgets.host({ widget: { id: 'w', type: 'sensor', variant: 'sparkline', family, bindings: { primary: 's:1' } }, size: { w: 2, h: 1 }, t: k => k, api });
+    const viewBox = (h, px) => { document.body.appendChild(h.el); h.resize({ w: 2, h: 1, px }); return h.el.querySelector('.hd-spark').getAttribute('viewBox'); };
+    assert.equal(viewBox(make('tactile'), { width: 300, height: 120 }), '0 0 282 35');   // 300 - 2 - 16 wide, round(120 * 0.38) - 11 high (aspect 2.5 >= 1.6)
+    assert.equal(viewBox(make('tactile'), { width: 300, height: 300 }), '0 0 282 106');  // 2x2: round(300 * 0.38) - 8
+    assert.equal(viewBox(make('glass'), { width: 300, height: 120 }), '0 0 298 46'); }],
   ['M1 additions follow the Task 1 table and leave C2 defaults unchanged', () => {
     const { E } = loadEngine(PRIMS, { dom: true });
     const plain = E.prim.knob({ label: 'k' }); assert.equal(plain.el.querySelector('.hd-dial-glow'), null); assert.equal(plain.el.querySelector('.hd-dial-dots'), null);

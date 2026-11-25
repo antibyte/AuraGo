@@ -43,35 +43,49 @@
   --hd-t-hatch: repeating-linear-gradient(135deg, color-mix(in srgb, var(--hd-ink) 6%, transparent) 0 2px, transparent 2px 6px);
   --hd-t-vignette: radial-gradient(circle, transparent 82%, color-mix(in srgb, #000000 6%, transparent) 100%);
   --hd-t-reflection: radial-gradient(ellipse 60% 30% at 34% 24%, color-mix(in srgb, #FFFFFF 8%, transparent), transparent 70%);
-  --hd-surface-solid: var(--hd-t-panel-mid); --hd-surface: var(--hd-t-panel-mid);
-  --hd-ink: var(--hd-t-legend); --hd-ink-muted: var(--hd-t-muted);
-  --hd-ink-faint: color-mix(in srgb, var(--hd-t-legend) 45%, var(--hd-t-panel-mid));
-  --hd-sunken: var(--hd-t-window); --hd-focus-gap: var(--hd-t-panel-mid);
-  --hd-hairline: color-mix(in srgb, #000000 30%, var(--hd-t-panel-mid));
-  --hd-card-bg: var(--hd-t-panel);
-  --hd-card-border: 1px solid color-mix(in srgb, #000000 35%, var(--hd-t-panel-lo));
-  --hd-dash-unavail: 1px dashed color-mix(in srgb, #000000 35%, var(--hd-t-panel-lo));
-  --hd-radius-card: calc(12px * var(--hd-radius-scale)); --hd-radius-control: calc(6px * var(--hd-radius-scale));
-  --hd-t-bezel-r: calc(8px * var(--hd-radius-scale));
-  --hd-shadow-card: inset 1px 1px 0 color-mix(in srgb, #FFFFFF 10%, transparent), inset -1px -1px 0 color-mix(in srgb, #000000 30%, transparent),
-                    2px 3px 8px color-mix(in srgb, #000000 var(--hd-sa-4), transparent);
-  --hd-shadow-contact: 1px 2px 3px color-mix(in srgb, #000000 var(--hd-sa-4), transparent);
+  --hd-t-hairline: color-mix(in srgb, #000000 30%, var(--hd-t-panel-mid));
+  --hd-t-card-border: 1px solid color-mix(in srgb, #000000 35%, var(--hd-t-panel-lo));
+  --hd-t-dash-unavail: 1px dashed color-mix(in srgb, #000000 35%, var(--hd-t-panel-lo));
+  --hd-t-shadow-card: inset 1px 1px 0 color-mix(in srgb, #FFFFFF 10%, transparent), inset -1px -1px 0 color-mix(in srgb, #000000 30%, transparent),
+                      2px 3px 8px color-mix(in srgb, #000000 var(--hd-sa-4), transparent);
+  --hd-t-shadow-contact: 1px 2px 3px color-mix(in srgb, #000000 var(--hd-sa-4), transparent);
   --hd-shadow-cast: 2px 4px 10px color-mix(in srgb, #000000 var(--hd-sa-5), transparent);
   --hd-recess: inset 1px 2px 4px color-mix(in srgb, #000000 60%, transparent), inset -1px -1px 0 color-mix(in srgb, #FFFFFF 8%, transparent);
   --hd-window-shadow: inset 0 2px 6px color-mix(in srgb, #000000 70%, transparent);
   --hd-lip: inset 1px 1px 0 color-mix(in srgb, #FFFFFF 22%, transparent), inset -1px -1px 0 color-mix(in srgb, #000000 30%, transparent);
-  --hd-ring-alert: inset 0 0 0 1px var(--hd-t-led-red);
   --hd-vfd-glow: 0 0 6px color-mix(in srgb, var(--hd-t-amber) 50%, transparent);
   --hd-stroke-hair: 1px; --hd-stroke-1: 1.5px; --hd-stroke-2: 2px; --hd-stroke-arc: 0.06; --hd-stroke-tick: 1.25px;
   --hd-t-needle-w: 2.5; --hd-th-stroke: 12;
-  --hd-font-ui: "Inter", system-ui, sans-serif;
-  --hd-font-label: "HomeDash Barlow Condensed", "Inter", sans-serif; --hd-font-num: "HomeDash Barlow Condensed", "Inter", sans-serif;
   --hd-font-vfd: "Geist Mono", "JetBrains Mono", monospace;
   --hd-num-features: "tnum" 1; --hd-num-weight: 600; --hd-num-weight-small: 600; --hd-num-tracking: 0em; --hd-num-cap: 0.74;
   --hd-num-hero-max: 72px; --hd-unit-scale: 0.42;
   --hd-label-size: 12px; --hd-label-weight: 600; --hd-label-tracking: 0.06em;
   --hd-dur-toggle: 120ms; --hd-ease-toggle: var(--hd-ease-snap); --hd-dur-led: 60ms; --hd-dur-fill: 60ms; --hd-dur-xfade: 60ms;
   --hd-dur-remote: 220ms; --hd-ease-remote: var(--hd-ease-out); --hd-dur-needle-f: 1100ms; --hd-dur-zone: 60ms;
+}
+/* Scope: the lab and the dashboard also write data-hd-family on .hd-root, where a bare block would turn the page's own ink, surface, hairline and font into the panel's. The block above holds
+   the Tactile tokens (--hd-t-*), literal values and the hardware shadows; every override of a palette, surface or font token sits on the widget, with the bridge derivatives that read them. */
+.hd-widget[data-hd-family="tactile"] {
+  --hd-surface-solid: var(--hd-t-panel-mid); --hd-surface: var(--hd-t-panel-mid);
+  --hd-ink: var(--hd-t-legend); --hd-ink-muted: var(--hd-t-muted);
+  --hd-ink-faint: color-mix(in srgb, var(--hd-t-legend) 45%, var(--hd-t-panel-mid));
+  --hd-sunken: var(--hd-t-window); --hd-focus-gap: var(--hd-t-panel-mid);
+  --hd-hairline: var(--hd-t-hairline);
+  --hd-card-bg: var(--hd-t-panel); --hd-card-border: var(--hd-t-card-border); --hd-dash-unavail: var(--hd-t-dash-unavail);
+  --hd-radius-card: calc(12px * var(--hd-radius-scale)); --hd-radius-control: calc(6px * var(--hd-radius-scale));
+  --hd-t-bezel-r: calc(8px * var(--hd-radius-scale));
+  --hd-shadow-card: var(--hd-t-shadow-card); --hd-shadow-contact: var(--hd-t-shadow-contact);
+  --hd-ring-alert: inset 0 0 0 1px var(--hd-t-led-red);
+  --hd-font-ui: "Inter", system-ui, sans-serif;
+  --hd-font-label: "HomeDash Barlow Condensed", "Inter", sans-serif; --hd-font-num: "HomeDash Barlow Condensed", "Inter", sans-serif;
+  /* bridge derivatives that read the tokens above (they are computed on .hd-root, from the page palette) */
+  --hd-unavailable: var(--hd-ink-faint); --hd-thumb-edge: var(--hd-hairline); --hd-track: color-mix(in srgb, var(--hd-ink) 14%, transparent);
+  --hd-ok-ink: var(--hd-ok); --hd-warn-ink: var(--hd-warn); --hd-alert-ink: var(--hd-alert); --hd-info-ink: var(--hd-info);
+  color: var(--hd-ink); font-family: var(--hd-font-ui);
+}
+.hd-root[data-hd-scheme="light"] .hd-widget[data-hd-family="tactile"] {
+  --hd-ok-ink: color-mix(in srgb, var(--hd-ok) 34%, var(--hd-ink)); --hd-warn-ink: color-mix(in srgb, var(--hd-warn) 34%, var(--hd-ink));
+  --hd-alert-ink: color-mix(in srgb, var(--hd-alert) 34%, var(--hd-ink)); --hd-info-ink: color-mix(in srgb, var(--hd-info) 34%, var(--hd-ink));
 }
 /* Brushed grain: a 4 px period is a visible stripe at DPR 1 and 1.5 (measured), so the grain only exists at 2 device px per CSS px and above (rubric T1). */
 @media (min-resolution: 2dppx) {
@@ -223,7 +237,7 @@
 
 /* H8 sensor tile: the trace sits in an inset black window with a 4 x 3 grid, amber trace and end dot; the numeral is printed in legend ink. */
 .hd-widget[data-hd-family="tactile"] .hd-spark { background: var(--hd-t-window); box-shadow: var(--hd-window-shadow); border-radius: var(--hd-radius-control); }
-@container hd-widget (aspect-ratio >= 1.6) { .hd-widget[data-hd-family="tactile"][data-hd-type="sensor"][data-hd-variant="sparkline"] .hd-spark { inset-block-end: 4px; block-size: calc(100cqh * 0.38 - 11px); } } /* 2x1: the window is 3 px shorter than the module's box and sits 4 px lower, so it clears the state text (descenders) and the numeral row by at least 4 px */
+@container hd-widget (aspect-ratio >= 1.6) { .hd-widget[data-hd-family="tactile"][data-hd-type="sensor"][data-hd-variant="sparkline"] .hd-spark { inset-block-end: 4px; } } /* 2x1: the window sits 4 px lower; the module draws it 3 px shorter (hd-w-sensor.js), so it clears the state text (descenders) and the numeral row by at least 4 px */
 .hd-widget[data-hd-family="tactile"] .hd-spark-area { display: none; }
 .hd-widget[data-hd-family="tactile"] .hd-spark-grid { display: inline; fill: none; stroke: var(--hd-t-grid-ink); stroke-width: var(--hd-stroke-hair); vector-effect: non-scaling-stroke; }
 .hd-widget[data-hd-family="tactile"] .hd-spark-line { fill: none; stroke: var(--hd-t-amber); stroke-width: var(--hd-stroke-1); stroke-linejoin: round; stroke-linecap: round; }

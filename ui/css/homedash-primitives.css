@@ -57,7 +57,7 @@
 .hd-gauge-bezel, .hd-gauge-glass { position: absolute; border-radius: var(--hd-radius-pill); } .hd-gauge-bezel { inset: 0; } .hd-gauge-glass { inset: 4%; }
 .hd-gauge-readout { position: absolute; inset-inline-start: 50%; inset-block-start: 77.4%; translate: -50% -50%; font-size: calc(min(var(--hd-body-w), calc(var(--hd-body-h) / 0.84)) * 0.11); }
 .hd-gauge[data-hd-gauge="needle"] :is(.hd-gauge-min, .hd-gauge-max) { display: none; }
-.hd-gauge[data-hd-gauge="needle"] .hd-gauge-readout { inset-block-start: 81%; } /* the needle tail reaches 74 % of the box (y 124 of 168) and the 11 % readout is 18 px high, so its top (81 % - 5.5 %) clears the tail by 2px; Tactile keeps 65 % */
+.hd-gauge[data-hd-gauge="needle"] .hd-gauge-readout { inset-block-start: 81%; } /* the needle tail reaches 74 % of the box (y 124 of 168) and the 11 % readout is 18 px high, so its top (81 % - 5.5 %) clears the tail by 2px; Tactile keeps its own 74 % (widgets.css) */
 .hd-gauge-numeral { font-size: 15px; text-anchor: middle; dominant-baseline: middle; }
 .hd-gauge[data-hd-gauge="arc"] .hd-gauge-readout { inset-block-start: 58.1%; font-size: min(28cqmin, calc(min(var(--hd-body-w), calc(var(--hd-body-h) / 0.86)) * 0.25)); }
 /* H6 legends sit in the bottom gap beside the arc end caps. The caps are centred at (37.8, 162.2) and (162.2, 162.2) of the 200 x 172 box, so 162.2 / 172 = 94.3 % down.

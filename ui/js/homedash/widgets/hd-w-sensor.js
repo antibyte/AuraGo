@@ -149,7 +149,10 @@
             resize(size) {
                 const px = size && size.px; if (!px || !Number.isFinite(px.width) || !Number.isFinite(px.height)) return;
                 const w = px.width - 2, h = Math.round(px.height * 0.38);
-                dims = { w: Math.max(1, tact ? w - 16 : w), h: Math.max(1, tact ? h - 8 : h) };
+                // Tactile draws into an inset window: 8 px in from the sides, and at 2x1 (aspect >= 1.6, as the family's container query) 4 px above the bottom with 3 px less height
+                // so it clears the state text. The module owns these numbers and draws for the exact window; the CSS only positions the svg (inset), it never resizes it.
+                const wide = px.width / px.height >= 1.6;
+                dims = { w: Math.max(1, tact ? w - 16 : w), h: Math.max(1, tact ? h - (wide ? 11 : 8) : h) };
                 if (lastView) spark.set(sparkState());
             },
             destroy() { prim.destroy(); spark.destroy(); if (sr) sr.remove(); }

@@ -57,10 +57,11 @@
                 const target = dead ? NaN : num(a.temperature), current = dead ? NaN : num(a.current_temperature);
                 const action = dead ? null : mode === 'off' ? 'off' : ACTIONS.includes(a.hvac_action) ? a.hvac_action : 'idle';
                 const actionWord = dead ? '' : action === 'off' ? t('homedash.climate.mode_off') : t('homedash.climate.' + (action === 'heating' ? 'heating_to' : action === 'cooling' ? 'cooling_to' : 'idle'));
-                const next = rangeOf(e), common = { status: e ? e.status : 'unavailable', pending: !!(e && e.pending), readonly: !!(e && e.readonly) };
+                const next = dead ? range : rangeOf(e), common = { status: e ? e.status : 'unavailable', pending: !!(e && e.pending), readonly: !!(e && e.readonly) };
                 const disabledTemp = !e || (!e.readonly && !api.can('primary', 'set_temperature')); // read-only: full strength, the lock badge and aria-disabled tell
                 if (next.min !== range.min || next.max !== range.max) {
-                    // The entity reports another range than the knob was built with: rebuild it in place, first child of the dialbox.
+                    // A live entity reports another range than the knob was built with: rebuild it in place, first child of the dialbox. A documented exception to module rule 3 (ticks,
+                    // numerals and dots are drawn from the build range). A dead entity never gets here: it keeps the last range, so the knob does not fall back to the platform defaults.
                     knob.destroy(); range = next; knob = makeKnob(range.min, range.max); box.insertBefore(knob.el, box.firstChild);
                 }
                 setAttr(api.body, 'data-hd-action', action);
