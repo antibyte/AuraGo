@@ -46,8 +46,8 @@
   --hd-pending-ring-on: conic-gradient(var(--hd-on-ink) 0 25%, transparent 25% 100%); /* on-ink on the accent fill under it */
   --hd-value-colour: var(--hd-accent); /* plan deviation: the colour token is --hd-value-colour, --hd-value stays the 0-1 fraction the knob and gauge primitives write */
   --hd-font-ui: "Inter", "Geist", system-ui, sans-serif; --hd-font-label: var(--hd-font-ui); --hd-font-num: "Inter", "Geist", system-ui, sans-serif;
-  color: var(--hd-ink); font-family: var(--hd-font-ui);
 }
+.hd-widget[data-hd-family="glass"] { color: var(--hd-ink); font-family: var(--hd-font-ui); }
 
 /* Square-corner themes (Amiga, Cyberpunk, Voxel World): bezel and paddle follow the control corners; the control radii below use --hd-corners-control. */
 .hd-root[data-hd-corners="square"] [data-hd-family="glass"], .hd-root[data-hd-corners="square"][data-hd-family="glass"] { --hd-g-bezel-r: 0px; --hd-g-paddle-r: 0px; }

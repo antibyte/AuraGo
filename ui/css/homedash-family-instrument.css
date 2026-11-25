@@ -44,8 +44,8 @@
   --hd-glow: var(--hd-i-glowline);
   --hd-font-ui: "Oxanium", "Geist", system-ui, sans-serif; --hd-font-label: var(--hd-font-ui);
   --hd-font-num: "HomeDash Share Tech Mono", "Geist Mono", monospace;
-  font-family: var(--hd-font-ui);
 }
+.hd-widget[data-hd-family="instrument"] { font-family: var(--hd-font-ui); }
 .hd-root[data-hd-scheme="light"] .hd-widget[data-hd-family="instrument"] { --hd-shadow-card: var(--hd-i-mount-l); }
 .hd-widget[data-hd-family="instrument"][data-hd-tone="crit"] { --hd-i-val: var(--hd-i-alert); }
 

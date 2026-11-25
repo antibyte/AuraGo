@@ -267,8 +267,8 @@
   --hd-pending-ring-on: conic-gradient(var(--hd-on-ink) 0 25%, transparent 25% 100%); /* on-ink on the accent fill under it */
   --hd-value-colour: var(--hd-accent); /* plan deviation: the colour token is --hd-value-colour, --hd-value stays the 0-1 fraction the knob and gauge primitives write */
   --hd-font-ui: "Inter", "Geist", system-ui, sans-serif; --hd-font-label: var(--hd-font-ui); --hd-font-num: "Inter", "Geist", system-ui, sans-serif;
-  color: var(--hd-ink); font-family: var(--hd-font-ui);
 }
+.hd-widget[data-hd-family="glass"] { color: var(--hd-ink); font-family: var(--hd-font-ui); }
 
 /* Square-corner themes (Amiga, Cyberpunk, Voxel World): bezel and paddle follow the control corners; the control radii below use --hd-corners-control. */
 .hd-root[data-hd-corners="square"] [data-hd-family="glass"], .hd-root[data-hd-corners="square"][data-hd-family="glass"] { --hd-g-bezel-r: 0px; --hd-g-paddle-r: 0px; }
@@ -489,8 +489,8 @@
   /* bridge derivatives that read the tokens above (they are computed on .hd-root, from the page palette) */
   --hd-unavailable: var(--hd-ink-faint); --hd-thumb-edge: var(--hd-hairline); --hd-track: color-mix(in srgb, var(--hd-ink) 14%, transparent);
   --hd-ok-ink: var(--hd-ok); --hd-warn-ink: var(--hd-warn); --hd-alert-ink: var(--hd-alert); --hd-info-ink: var(--hd-info);
-  color: var(--hd-ink); font-family: var(--hd-font-ui);
 }
+.hd-widget[data-hd-family="tactile"] { color: var(--hd-ink); font-family: var(--hd-font-ui); }
 .hd-root[data-hd-scheme="light"] .hd-widget[data-hd-family="tactile"] {
   --hd-ok-ink: color-mix(in srgb, var(--hd-ok) 34%, var(--hd-ink)); --hd-warn-ink: color-mix(in srgb, var(--hd-warn) 34%, var(--hd-ink));
   --hd-alert-ink: color-mix(in srgb, var(--hd-alert) 34%, var(--hd-ink)); --hd-info-ink: color-mix(in srgb, var(--hd-info) 34%, var(--hd-ink));
@@ -702,8 +702,8 @@
   --hd-value-colour: var(--hd-accent); /* plan deviation: the colour token is --hd-value-colour, --hd-value stays the 0-1 fraction the knob and gauge primitives write */
   --hd-font-ui: "Geist", "Inter", system-ui, sans-serif; --hd-font-label: var(--hd-font-ui); --hd-font-num: var(--hd-font-ui);
   --hd-m-rect-r: min(var(--hd-corners-control), 8px); /* rocker and bezel corners: a rectangle, square in square-corner themes */
-  font-family: var(--hd-font-ui);
 }
+.hd-widget[data-hd-family="minimal"] { font-family: var(--hd-font-ui); }
 
 /* Shared: text takes the widget ink (the root colour would not follow a widget-level override); everything is ink on the card. */
 .hd-widget[data-hd-family="minimal"] { color: var(--hd-ink); }
@@ -863,8 +863,8 @@
   --hd-glow: var(--hd-i-glowline);
   --hd-font-ui: "Oxanium", "Geist", system-ui, sans-serif; --hd-font-label: var(--hd-font-ui);
   --hd-font-num: "HomeDash Share Tech Mono", "Geist Mono", monospace;
-  font-family: var(--hd-font-ui);
 }
+.hd-widget[data-hd-family="instrument"] { font-family: var(--hd-font-ui); }
 .hd-root[data-hd-scheme="light"] .hd-widget[data-hd-family="instrument"] { --hd-shadow-card: var(--hd-i-mount-l); }
 .hd-widget[data-hd-family="instrument"][data-hd-tone="crit"] { --hd-i-val: var(--hd-i-alert); }
 

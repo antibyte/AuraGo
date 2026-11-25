@@ -23,8 +23,8 @@
   --hd-value-colour: var(--hd-accent); /* plan deviation: the colour token is --hd-value-colour, --hd-value stays the 0-1 fraction the knob and gauge primitives write */
   --hd-font-ui: "Geist", "Inter", system-ui, sans-serif; --hd-font-label: var(--hd-font-ui); --hd-font-num: var(--hd-font-ui);
   --hd-m-rect-r: min(var(--hd-corners-control), 8px); /* rocker and bezel corners: a rectangle, square in square-corner themes */
-  font-family: var(--hd-font-ui);
 }
+.hd-widget[data-hd-family="minimal"] { font-family: var(--hd-font-ui); }
 
 /* Shared: text takes the widget ink (the root colour would not follow a widget-level override); everything is ink on the card. */
 .hd-widget[data-hd-family="minimal"] { color: var(--hd-ink); }

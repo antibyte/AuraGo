@@ -81,8 +81,8 @@
   /* bridge derivatives that read the tokens above (they are computed on .hd-root, from the page palette) */
   --hd-unavailable: var(--hd-ink-faint); --hd-thumb-edge: var(--hd-hairline); --hd-track: color-mix(in srgb, var(--hd-ink) 14%, transparent);
   --hd-ok-ink: var(--hd-ok); --hd-warn-ink: var(--hd-warn); --hd-alert-ink: var(--hd-alert); --hd-info-ink: var(--hd-info);
-  color: var(--hd-ink); font-family: var(--hd-font-ui);
 }
+.hd-widget[data-hd-family="tactile"] { color: var(--hd-ink); font-family: var(--hd-font-ui); }
 .hd-root[data-hd-scheme="light"] .hd-widget[data-hd-family="tactile"] {
   --hd-ok-ink: color-mix(in srgb, var(--hd-ok) 34%, var(--hd-ink)); --hd-warn-ink: color-mix(in srgb, var(--hd-warn) 34%, var(--hd-ink));
   --hd-alert-ink: color-mix(in srgb, var(--hd-alert) 34%, var(--hd-ink)); --hd-info-ink: color-mix(in srgb, var(--hd-info) 34%, var(--hd-ink));
