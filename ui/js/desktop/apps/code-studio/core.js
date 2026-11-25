@@ -855,6 +855,7 @@
                         </div>
                     </div>
                 </main>
+                <aside class="code-studio-htmlpreview" data-html-preview hidden></aside>
                 <aside class="code-studio-chat" data-agent-panel></aside>
                 <aside class="code-studio-git" data-git-panel hidden></aside>
             </div>
@@ -889,6 +890,7 @@
         renderFindWidget();
         renderAgentPanel();
         renderGitPanel();
+        renderPreviewPane(); // Plan B: HTML preview pane
         renderStatus();
         renderWindowMenus();
         renderActivityBar();
@@ -956,6 +958,7 @@
                     { id: 'panel-terminal', labelKey: 'desktop.menu_terminal', icon: 'terminal', checked: state.panelVisible && state.activePanel === 'terminal', action: bind(() => togglePanel('terminal')) },
                     { id: 'agent-panel', labelKey: 'desktop.menu_agent_panel', icon: 'chat', shortcut: 'Ctrl+Shift+A', checked: state.agentVisible, action: bind(toggleAgentPanel) },
                     { id: 'git-panel', label: tr('codeStudio.gitPanel', 'Git'), icon: 'network', checked: state.gitVisible, action: bind(toggleGitPanel) },
+                    { id: 'html-preview', label: tr('codeStudio.previewToggle', 'Toggle HTML Preview'), icon: 'columns', shortcut: 'Ctrl+Shift+V', checked: !!(state.htmlPreview && state.htmlPreview.open), action: bind(togglePreviewPane) }, // Plan B
                     { type: 'separator' },
                     { id: 'split-right', label: tr('codeStudio.splitRight', 'Split Right'), icon: 'columns', checked: state.splitMode === 'right', disabled: !hasActiveTab && !state.splitMode, action: bind(() => splitEditor('right')) },
                     { id: 'split-down', label: tr('codeStudio.splitDown', 'Split Down'), icon: 'layout', checked: state.splitMode === 'down', disabled: !hasActiveTab && !state.splitMode, action: bind(() => splitEditor('down')) },
@@ -1085,6 +1088,7 @@
         updateToolbarTitle();
         updatePolicyControls();
         updateSuggestionStatus();
+        previewAfterTabs(); // Plan B: dirty hint and eye state
     }
 
     function updateToolbarTitle() {
@@ -1192,6 +1196,11 @@
     }
 
     function renderBreadcrumbs() {
+        renderBreadcrumbsBase();
+        previewAfterBreadcrumbs(); // Plan B: eye button, follow mode and dirty hint
+    }
+
+    function renderBreadcrumbsBase() {
         const bar = shellPart('[data-breadcrumbs]');
         if (!bar) return;
         const tab = activeTab();

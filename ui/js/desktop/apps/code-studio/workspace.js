@@ -786,6 +786,7 @@
         instance.openTabs = [];
         instance.activeTabIndex = -1;
         resetSplitState();
+        resetPreview(); // Plan B: a preview token names one workspace; close the pane and drop the token
         instance.files = [];
         instance.treeCache = {};
         instance.expandedDirs.clear();
