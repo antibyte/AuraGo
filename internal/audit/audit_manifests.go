@@ -36,6 +36,7 @@ func ToolPermissionMatrix() []ToolPermission {
 		{Name: "api_request", ConfigGate: "agent.allow_network_requests", Capabilities: []Capability{CapabilityNetwork}},
 		{Name: "call_webhook", ConfigGate: "webhooks.enabled", Capabilities: []Capability{CapabilityNetwork}},
 		{Name: "chromecast", ConfigGate: "chromecast.enabled", ReadOnlyGate: "chromecast.read_only", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityNetwork}},
+		{Name: "code_studio_workspace", ConfigGate: "virtual_desktop.allow_agent_control + tools.virtual_desktop.enabled + saved Code Studio SSH workspace", ReadOnlyGate: "virtual_desktop.readonly", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityExecute, CapabilityNetwork}},
 		{Name: "cyd_display", ConfigGate: "cyd.enabled", Capabilities: []Capability{CapabilityRead, CapabilityChange, CapabilityNetwork}},
 		{Name: "send_notification", ConfigGate: "notifications.* or cyd.enabled", Capabilities: []Capability{CapabilityNetwork}},
 		{Name: "composio_call", ConfigGate: "composio.enabled + composio_api_key", ReadOnlyGate: "composio.read_only", Capabilities: []Capability{CapabilityRead, CapabilityWrite, CapabilityChange, CapabilityDelete, CapabilityNetwork}},

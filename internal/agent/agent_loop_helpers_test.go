@@ -1486,7 +1486,7 @@ func TestChannelAdaptiveAlwaysIncludeKeepsVirtualDesktopForDesktopChat(t *testin
 		[]string{"filesystem"},
 		ToolFeatureFlags{VirtualDesktopEnabled: true, OfficeDocumentEnabled: true, OfficeWorkbookEnabled: true},
 	)
-	for _, want := range []string{"virtual_desktop_files", "virtual_desktop_app_install", "virtual_desktop_apps", "virtual_desktop_widgets", "office_document", "office_workbook", "question_user"} {
+	for _, want := range []string{"virtual_desktop_files", "virtual_desktop_app_install", "virtual_desktop_apps", "virtual_desktop_widgets", "code_studio_workspace", "office_document", "office_workbook", "question_user"} {
 		if !containsName(got, want) {
 			t.Fatalf("expected desktop chat always-include to contain %q, got %v", want, got)
 		}
@@ -1499,7 +1499,7 @@ func TestChannelAdaptiveAlwaysIncludeDoesNotAdvertiseDisabledDesktopTools(t *tes
 		nil,
 		ToolFeatureFlags{},
 	)
-	for _, notWant := range []string{"virtual_desktop_files", "virtual_desktop_app_install", "virtual_desktop_apps", "virtual_desktop_widgets", "office_document", "office_workbook"} {
+	for _, notWant := range []string{"virtual_desktop_files", "virtual_desktop_app_install", "virtual_desktop_apps", "virtual_desktop_widgets", "code_studio_workspace", "office_document", "office_workbook"} {
 		if containsName(got, notWant) {
 			t.Fatalf("did not expect disabled desktop tool %q in always-include set, got %v", notWant, got)
 		}
@@ -1520,7 +1520,7 @@ func TestChannelAdaptiveAlwaysIncludeRoutesHomepageStudioToHomepageTools(t *test
 			t.Fatalf("expected Homepage Studio always-include to contain %q, got %v", want, got)
 		}
 	}
-	for _, notWant := range []string{"virtual_desktop_files", "virtual_desktop_app_install", "virtual_desktop_apps", "virtual_desktop_widgets", "office_document", "office_workbook"} {
+	for _, notWant := range []string{"virtual_desktop_files", "virtual_desktop_app_install", "virtual_desktop_apps", "virtual_desktop_widgets", "code_studio_workspace", "office_document", "office_workbook"} {
 		if containsName(got, notWant) {
 			t.Fatalf("did not expect desktop tool %q in Homepage Studio always-include set, got %v", notWant, got)
 		}

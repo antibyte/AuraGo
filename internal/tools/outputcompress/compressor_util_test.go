@@ -204,6 +204,7 @@ func TestIsAPITool(t *testing.T) {
 		"list_processes", "read_process_logs", "manage_daemon", "manage_plan",
 		"homepage_project", "homepage_file", "homepage_quality", "homepage_deploy", "homepage_git",
 		"virtual_desktop_files", "virtual_desktop_app_install", "virtual_desktop_apps", "virtual_desktop_widgets",
+		"code_studio_workspace",
 		"remote_control_devices", "remote_control_files", "remote_control_desktop",
 		"agentmail_inboxes", "agentmail_messages", "agentmail_threads", "agentmail_drafts",
 		"invasion_nests", "invasion_tasks", "invasion_artifacts"}

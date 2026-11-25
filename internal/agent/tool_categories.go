@@ -291,6 +291,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"virtual_desktop_app_install", "Atomically install generated browser desktop apps"},
 		{"virtual_desktop_apps", "Open, inspect, and diagnose browser desktop apps"},
 		{"virtual_desktop_widgets", "Manage browser desktop widgets and notifications"},
+		{"code_studio_workspace", "Read, search, write and patch files and run commands in a Code Studio SSH workspace"},
 		{"virtual_computers", "Launch and operate short-lived private virtual computers through AuraGo"},
 		{"virtual_computer_ui", "Control native applications and dialogs in visible Agent Workspaces using accessibility and private image fallback"},
 		{"virtual_workspace", "Create and control stateful agent workspaces inside Firecracker virtual machines"},

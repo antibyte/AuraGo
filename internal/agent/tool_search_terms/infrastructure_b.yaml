@@ -77,6 +77,9 @@ virtual_desktop_files:
 virtual_desktop_widgets:
   en: ["desktop widget", "create widget", "pin widget", "widget notification", "diagnose widget", "widget on virtual desktop", "virtual desktop notification", "standalone HTML widget"]
   de: ["Widget erstellen", "Widget anheften", "Widget Benachrichtigung", "Widget prüfen", "Widget auf virtuellem Desktop", "Benachrichtigung auf Desktop", "eigenes HTML Widget"]
+code_studio_workspace:
+  en: ["remote Code Studio workspace", "SSH workspace file", "edit file on SSH host", "run command in SSH workspace", "patch remote project file", "search remote project", "Code Studio over SSH"]
+  de: ["Code Studio Remote-Workspace", "Datei im SSH-Workspace", "Datei auf SSH-Host bearbeiten", "Befehl im SSH-Workspace ausführen", "Remote-Projektdatei ändern", "Remote-Projekt durchsuchen", "Code Studio über SSH"]
 virtual_workspace:
   en: ["virtual workspace", "agent workspace", "Firecracker VM", "open sandbox VM", "run command in workspace", "start background job", "workspace checkpoint", "close workspace", "isolated Linux environment"]
   de: ["virtueller Workspace", "Sandbox VM öffnen", "Befehl im Workspace ausführen", "Hintergrundjob starten", "Workspace sichern", "Workspace schließen", "isolierte Linux Umgebung"]

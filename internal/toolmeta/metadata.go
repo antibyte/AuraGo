@@ -61,6 +61,7 @@ var registry = map[string]Metadata{
 	"virtual_desktop_app_install": {Name: "virtual_desktop_app_install", Family: "desktop", CompressionClass: CompressionClassAPI},
 	"virtual_desktop_apps":        {Name: "virtual_desktop_apps", Family: "desktop", CompressionClass: CompressionClassAPI},
 	"virtual_desktop_widgets":     {Name: "virtual_desktop_widgets", Family: "desktop", CompressionClass: CompressionClassAPI},
+	"code_studio_workspace":       {Name: "code_studio_workspace", Family: "desktop", CompressionClass: CompressionClassAPI},
 
 	"remote_control":         {Name: "remote_control", Family: "remote", CompressionClass: CompressionClassAPI},
 	"remote_control_devices": {Name: "remote_control_devices", Family: "remote", CompressionClass: CompressionClassAPI},

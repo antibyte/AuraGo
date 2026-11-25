@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -179,6 +180,8 @@ func TestGenericEffectsOfRealTools(t *testing.T) {
 		{"virtual_desktop_files", "infrastructure", "patch_file", []Effect{wr}},
 		{"virtual_desktop_files", "infrastructure", "export_file", []Effect{wr}},
 		{"virtual_desktop_files", "infrastructure", "delete_file", []Effect{del}},
+		{"code_studio_workspace", "infrastructure", "patch_file", []Effect{wr}},
+		{"code_studio_workspace", "infrastructure", "read_file", nil},
 		{"office_document", "infrastructure", "write", []Effect{wr}},
 		{"office_document", "infrastructure", "read", nil},
 		{"office_workbook", "infrastructure", "set_cell", []Effect{wr}},
@@ -200,6 +203,9 @@ func TestGenericEffectsOfRealTools(t *testing.T) {
 		if got := genericEffects(tc.tool, tc.category, tc.op); !reflect.DeepEqual(got, tc.want) {
 			t.Errorf("genericEffects(%s, %s, %s) = %v, want %v", tc.tool, tc.category, tc.op, got, tc.want)
 		}
+	}
+	if got := genericEffects("code_studio_workspace", "infrastructure", "run_command"); !slices.Contains(got, EffectRunsCode) {
+		t.Errorf("code_studio_workspace run_command effects = %v, want runs-code", got)
 	}
 }
 

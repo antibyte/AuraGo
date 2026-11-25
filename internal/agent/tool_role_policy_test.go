@@ -86,6 +86,8 @@ func TestRoleToolRestrictionHoldsA2APeersToReadsOnDesktopHomepageAndCode(t *test
 		{Action: "virtual_desktop"}, // An unreadable operation fails closed.
 		{Action: "findit", Operation: "search"},
 		{Action: "virtual_desktop_files", Operation: "write_file"}, {Action: "virtual_desktop_widgets", Operation: "upsert_widget"},
+		{Action: "code_studio_workspace", Operation: "write_file"}, {Action: "code_studio_workspace", Operation: "patch_file"},
+		{Action: "code_studio_workspace", Operation: "run_command"}, {Action: "code_studio_workspace"},
 		{Action: "virtual_desktop_apps", Operation: "install_app"}, {Action: "virtual_desktop_app_install"},
 		{Action: "homepage", Operation: "write_file"}, {Action: "homepage", Operation: "edit_file"},
 		{Action: "homepage", Operation: "exec"}, {Action: "homepage", Operation: "deploy_netlify"},
@@ -120,6 +122,7 @@ func TestRoleToolRestrictionHoldsA2APeersToReadsOnDesktopHomepageAndCode(t *test
 		{Action: "virtual_desktop", Operation: "status"}, {Action: "virtual_desktop", Operation: "list_files"},
 		{Action: "virtual_desktop", Operation: "read_file"}, {Action: "virtual_desktop", Operation: "search_file"},
 		{Action: "virtual_desktop_files", Operation: "read_file_excerpt"}, {Action: "virtual_desktop_apps", Operation: "list_apps"},
+		{Action: "code_studio_workspace", Operation: "read_file"}, {Action: "code_studio_workspace", Operation: "search"},
 		{Action: "virtual_desktop", Operation: "get_widget"}, {Action: "virtual_desktop", Operation: "diagnose_app"},
 		{Action: "homepage", Operation: "list_files"}, {Action: "homepage", Operation: "read_file"},
 		{Action: "homepage", Operation: "status"}, {Action: "homepage", Operation: "git_log"},

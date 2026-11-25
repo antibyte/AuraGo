@@ -66,7 +66,8 @@ var (
 	// fileTools work on files outside the files category, like every tool whose name
 	// says "file" or "document" (genericFileish): an operation with a write word writes
 	// files. In the files category every operation that is no read and no pure delete does.
-	fileTools = map[string]bool{"office_workbook": true, "video_download": true, "s3_storage": true,
+	// code_studio_workspace writes files in an SSH workspace; its run_command is caught by codeOperationWords.
+	fileTools = map[string]bool{"office_workbook": true, "video_download": true, "s3_storage": true, "code_studio_workspace": true,
 		"browser_automation": true, "invasion_artifacts": true}
 	// fileWritingTools write a file with every call that is not a read: a transfer, a
 	// capture, a conversion, a rendering, a generated medium or certificate.
