@@ -1,0 +1,319 @@
+{
+  "schema_version": 1,
+  "id": "d_m3x7q2k5a4bc",
+  "slug": "home-assistant",
+  "name": "Zuhause",
+  "revision": 1,
+  "approved_revision": 1,
+  "updated_at": "2026-11-25T10:00:00.123456789Z",
+  "saved_by": "user",
+  "look": {
+    "family": "glass",
+    "palette": {
+      "mode": "theme"
+    },
+    "backdrop": {
+      "kind": "theme"
+    },
+    "density": "comfortable",
+    "radius_scale": 1
+  },
+  "grid": {
+    "row_unit": "auto",
+    "gap": null,
+    "fit": "scroll"
+  },
+  "pages": [
+    {
+      "id": "kitchen",
+      "name": "Kitchen",
+      "compact": true,
+      "widgets": [
+        {
+          "id": "w1",
+          "type": "light",
+          "variant": "slider",
+          "bindings": {
+            "primary": "ha:light.kitchen"
+          },
+          "options": {},
+          "actions": {
+            "tap": {
+              "do": "default"
+            },
+            "hold": {
+              "do": "more_info"
+            }
+          },
+          "confirm": false
+        },
+        {
+          "id": "w2",
+          "type": "switch",
+          "variant": "tile",
+          "bindings": {
+            "primary": "ha:switch.coffee"
+          },
+          "options": {},
+          "actions": {
+            "tap": {
+              "do": "default"
+            },
+            "hold": {
+              "do": "more_info"
+            }
+          },
+          "confirm": false
+        },
+        {
+          "id": "w3",
+          "type": "select",
+          "variant": "segmented",
+          "bindings": {
+            "primary": "ha:select.heater_mode"
+          },
+          "options": {},
+          "actions": {
+            "tap": {
+              "do": "default"
+            },
+            "hold": {
+              "do": "more_info"
+            }
+          },
+          "confirm": false
+        }
+      ],
+      "layouts": {
+        "lg": [
+          {
+            "id": "w1",
+            "x": 0,
+            "y": 0,
+            "w": 4,
+            "h": 1
+          },
+          {
+            "id": "w2",
+            "x": 4,
+            "y": 0,
+            "w": 2,
+            "h": 2
+          },
+          {
+            "id": "w3",
+            "x": 6,
+            "y": 0,
+            "w": 3,
+            "h": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "living_room",
+      "name": "Living room",
+      "compact": true,
+      "widgets": [
+        {
+          "id": "w4",
+          "type": "light",
+          "variant": "tile",
+          "bindings": {
+            "primary": "ha:light.sofa"
+          },
+          "options": {},
+          "actions": {
+            "tap": {
+              "do": "default"
+            },
+            "hold": {
+              "do": "more_info"
+            }
+          },
+          "confirm": false
+        },
+        {
+          "id": "w5",
+          "type": "action",
+          "variant": "button",
+          "bindings": {
+            "primary": "ha:scene.movie"
+          },
+          "options": {},
+          "actions": {
+            "tap": {
+              "do": "default"
+            },
+            "hold": {
+              "do": "more_info"
+            }
+          },
+          "confirm": false
+        },
+        {
+          "id": "w6",
+          "type": "number",
+          "variant": "slider",
+          "bindings": {
+            "primary": "ha:input_number.volume"
+          },
+          "options": {},
+          "actions": {
+            "tap": {
+              "do": "default"
+            },
+            "hold": {
+              "do": "more_info"
+            }
+          },
+          "confirm": false
+        }
+      ],
+      "layouts": {
+        "lg": [
+          {
+            "id": "w4",
+            "x": 0,
+            "y": 0,
+            "w": 2,
+            "h": 2
+          },
+          {
+            "id": "w5",
+            "x": 2,
+            "y": 0,
+            "w": 2,
+            "h": 1
+          },
+          {
+            "id": "w6",
+            "x": 4,
+            "y": 0,
+            "w": 2,
+            "h": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "unassigned",
+      "name": "Ohne Raum",
+      "compact": true,
+      "widgets": [
+        {
+          "id": "w7",
+          "type": "switch",
+          "variant": "tile",
+          "bindings": {
+            "primary": "ha:input_boolean.vacation_mode"
+          },
+          "options": {},
+          "actions": {
+            "tap": {
+              "do": "default"
+            },
+            "hold": {
+              "do": "more_info"
+            }
+          },
+          "confirm": false
+        },
+        {
+          "id": "w8",
+          "type": "action",
+          "variant": "button",
+          "bindings": {
+            "primary": "ha:button.doorbell_test"
+          },
+          "options": {},
+          "actions": {
+            "tap": {
+              "do": "default"
+            },
+            "hold": {
+              "do": "more_info"
+            }
+          },
+          "confirm": false
+        },
+        {
+          "id": "w9",
+          "type": "select",
+          "variant": "list",
+          "bindings": {
+            "primary": "ha:input_select.radio"
+          },
+          "options": {},
+          "actions": {
+            "tap": {
+              "do": "default"
+            },
+            "hold": {
+              "do": "more_info"
+            }
+          },
+          "confirm": false
+        },
+        {
+          "id": "w10",
+          "type": "number",
+          "variant": "stepper",
+          "bindings": {
+            "primary": "ha:number.boiler_target"
+          },
+          "options": {},
+          "actions": {
+            "tap": {
+              "do": "default"
+            },
+            "hold": {
+              "do": "more_info"
+            }
+          },
+          "confirm": false
+        }
+      ],
+      "layouts": {
+        "lg": [
+          {
+            "id": "w7",
+            "x": 0,
+            "y": 0,
+            "w": 2,
+            "h": 2
+          },
+          {
+            "id": "w8",
+            "x": 2,
+            "y": 0,
+            "w": 2,
+            "h": 1
+          },
+          {
+            "id": "w9",
+            "x": 4,
+            "y": 0,
+            "w": 2,
+            "h": 1
+          },
+          {
+            "id": "w10",
+            "x": 6,
+            "y": 0,
+            "w": 2,
+            "h": 1
+          }
+        ]
+      }
+    }
+  ],
+  "kiosk": {
+    "start_page": "kitchen",
+    "idle_dim_seconds": 120,
+    "idle_dim_level": 0.3,
+    "page_rotation_seconds": 0,
+    "screen_saver": "clock",
+    "show_clock": true
+  }
+}

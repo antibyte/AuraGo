@@ -50,6 +50,15 @@ type homeDashFixture struct {
 	templated  bool
 	requests   []string
 	bodies     map[string]string
+	m3         *homeDashM3 // nil until enableM3 (desktop_homedash_fixture_m3_test.go)
+}
+
+// homeDashCreateBody is the body of POST dashboards: a template (with the optional name and, for home_assistant, unassigned_title) or a document.
+type homeDashCreateBody struct {
+	Template        string         `json:"template"`
+	Name            string         `json:"name"`
+	UnassignedTitle string         `json:"unassigned_title"`
+	Document        map[string]any `json:"document"`
 }
 
 type homeDashStream struct {
@@ -93,6 +102,7 @@ var homeDashRoutes = map[string]map[string]bool{
 	"stream/subscriptions": {http.MethodPut: false},
 	"dashboards":           {http.MethodGet: false, http.MethodPost: true},
 	"dashboard":            {http.MethodGet: false, http.MethodDelete: true},
+	"commands":             {http.MethodPost: true},
 }
 
 func newHomeDashFixture(t *testing.T) *homeDashFixture {
@@ -218,6 +228,11 @@ func (f *homeDashFixture) uniqueSlugLocked(base string) string {
 }
 
 func (f *homeDashFixture) entityLocked(id string) map[string]any {
+	if f.m3 != nil {
+		if e := f.m3.ha[id]; e != nil {
+			return homeDashClone(e)
+		}
+	}
 	for _, e := range f.entities {
 		if e["id"] == id {
 			out := map[string]any{}
@@ -272,14 +287,38 @@ func (f *homeDashFixture) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		homeDashReadonly(w)
 		return
 	}
+	switch path {
+	case "bootstrap", "widget-catalog", "dashboards", "dashboard", "stream/subscriptions":
+		f.mu.Lock()
+		var latency time.Duration
+		if f.m3 != nil {
+			latency = f.m3.latency
+		}
+		f.mu.Unlock()
+		if latency > 0 {
+			select {
+			case <-time.After(latency):
+			case <-f.quit:
+			}
+		}
+	}
 	switch r.Method + " " + path {
 	case "GET bootstrap":
 		f.mu.Lock()
 		ro := f.readonly
+		templates, sources := []string{"system"}, []any{homeDashSource("idle")}
+		if f.m3 != nil {
+			if f.m3.listed {
+				templates = append(templates, "home_assistant")
+			}
+			if s := f.m3.sources["ha"]; s != nil {
+				sources = append(sources, homeDashClone(s))
+			}
+		}
 		f.mu.Unlock()
 		homeDashJSON(w, 200, map[string]any{"status": "ok", "api_version": 1, "stream_protocol": 1, "schema_version": 1, "catalog_hash": f.hash, "readonly": false, "desktop_readonly": ro, "kiosk_enabled": false,
 			"limits":    map[string]any{"dashboards": 50, "subscriptions": 300, "pages": 12, "widgets_per_page": 120, "widgets": 400, "document_bytes": 262144, "history_points": 500, "history_range_seconds": 604800},
-			"templates": []string{"system"}, "sources": []any{homeDashSource("idle")}})
+			"templates": templates, "sources": sources})
 	case "GET widget-catalog":
 		w.Header().Set("ETag", `"`+f.hash+`"`)
 		if strings.Contains(r.Header.Get("If-None-Match"), f.hash) {
@@ -294,8 +333,22 @@ func (f *homeDashFixture) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		for _, e := range f.entities {
 			list = append(list, f.entityLocked(e["id"].(string)))
 		}
+		sources := []any{homeDashSource("polling")}
+		if f.m3 != nil {
+			ids := []string{}
+			for id := range f.m3.ha {
+				ids = append(ids, id)
+			}
+			sort.Strings(ids)
+			for _, id := range ids {
+				list = append(list, f.entityLocked(id))
+			}
+			if s := f.m3.sources["ha"]; s != nil {
+				sources = append(sources, homeDashClone(s))
+			}
+		}
 		f.mu.Unlock()
-		homeDashJSON(w, 200, map[string]any{"status": "ok", "entities": list, "total": len(list), "limit": 100, "offset": 0, "sources": []any{homeDashSource("polling")}})
+		homeDashJSON(w, 200, map[string]any{"status": "ok", "entities": list, "total": len(list), "limit": 100, "offset": 0, "sources": sources})
 	case "GET entity":
 		id := r.URL.Query().Get("id")
 		if !homeDashEntityPattern.MatchString(id) {
@@ -304,6 +357,9 @@ func (f *homeDashFixture) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		f.mu.Lock()
 		_, known := f.values[id]
+		if f.m3 != nil && f.m3.ha[id] != nil {
+			known = true
+		}
 		e := f.entityLocked(id)
 		f.mu.Unlock()
 		if !known {
@@ -325,6 +381,8 @@ func (f *homeDashFixture) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		f.get(w, r)
 	case "DELETE dashboard":
 		f.remove(w, r)
+	case "POST commands":
+		f.command(w, raw)
 	}
 }
 
@@ -455,6 +513,7 @@ func (f *homeDashFixture) subscribe(w http.ResponseWriter, raw []byte) {
 		return
 	}
 	accepted, rejected, added, next := []string{}, []map[string]any{}, []any{}, map[string]bool{}
+	haLate := []string{} // ha ids whose snapshot waits m3.snapDelay
 	for _, id := range body.Entities {
 		if next[id] {
 			continue
@@ -463,19 +522,41 @@ func (f *homeDashFixture) subscribe(w http.ResponseWriter, raw []byte) {
 			rejected = append(rejected, map[string]any{"id": id, "reason": "invalid_id"})
 			continue
 		}
-		if !strings.HasPrefix(id, "system:") {
+		isHA := f.m3 != nil && strings.HasPrefix(id, "ha:")
+		if !strings.HasPrefix(id, "system:") && !isHA {
 			rejected = append(rejected, map[string]any{"id": id, "reason": "unknown_source"})
+			continue
+		}
+		if isHA && f.m3.ha[id] == nil {
+			rejected = append(rejected, map[string]any{"id": id, "reason": "unknown_entity"})
 			continue
 		}
 		next[id] = true
 		accepted = append(accepted, id)
-		if !s.subs[id] {
-			added = append(added, f.entityLocked(id))
+		if s.subs[id] {
+			continue
 		}
+		if isHA && f.m3.snapDelay > 0 {
+			haLate = append(haLate, id)
+			continue
+		}
+		added = append(added, f.entityLocked(id))
 	}
 	s.subs = next
 	if len(added) > 0 {
-		f.send(s, homeDashFrame("snapshot", map[string]any{"entities": added, "sources": []any{homeDashSource("polling")}}))
+		sources := []any{homeDashSource("polling")}
+		if f.m3 != nil && f.m3.sources["ha"] != nil {
+			for _, e := range added {
+				if m, _ := e.(map[string]any); m != nil && m["source"] == "ha" {
+					sources = append(sources, homeDashClone(f.m3.sources["ha"]))
+					break
+				}
+			}
+		}
+		f.send(s, homeDashFrame("snapshot", map[string]any{"entities": added, "sources": sources}))
+	}
+	if len(haLate) > 0 {
+		f.snapshotLater(s, haLate, f.m3.snapDelay)
 	}
 	f.mu.Unlock()
 	homeDashJSON(w, 200, map[string]any{"status": "ok", "accepted": accepted, "rejected": rejected})
@@ -501,13 +582,17 @@ func (f *homeDashFixture) list(w http.ResponseWriter) {
 func (f *homeDashFixture) create(w http.ResponseWriter, raw []byte) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	var body struct {
-		Template string         `json:"template"`
-		Name     string         `json:"name"`
-		Document map[string]any `json:"document"`
-	}
+	var body homeDashCreateBody
 	if json.Unmarshal(raw, &body) != nil || (body.Template == "") == (body.Document == nil) {
 		homeDashError(w, 400, "bad_request", "send a template or a document")
+		return
+	}
+	if body.UnassignedTitle != "" && body.Template != "home_assistant" {
+		homeDashError(w, 400, "bad_request", "unassigned_title belongs to the home_assistant template")
+		return
+	}
+	if body.Template == "home_assistant" && f.m3 != nil {
+		f.createHA(w, body)
 		return
 	}
 	var doc map[string]any

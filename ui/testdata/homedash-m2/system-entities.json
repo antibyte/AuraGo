@@ -127,7 +127,7 @@
     "kind": "sensor",
     "name": "Uptime",
     "unit": "s",
-    "icon_hint": "clock",
+    "icon_hint": "timer",
     "device_class": "duration",
     "capabilities": [
       {
