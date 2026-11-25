@@ -303,13 +303,19 @@ func TestDesktopHomeDashControlsBrowser(t *testing.T) {
 	at := func(f float64) float64 { return track.X + f*track.W }
 	page.Mouse.MustMoveTo(at(0.20), track.Y)
 	page.Mouse.MustDown(proto.InputMouseButtonLeft)
+	var firstMove, lastMove time.Time
 	for i := 1; i <= 26; i++ {
 		time.Sleep(100 * time.Millisecond)
 		page.Mouse.MustMoveTo(at(0.20+0.60*float64(i)/26), track.Y)
+		if i == 1 {
+			firstMove = time.Now()
+		}
+		lastMove = time.Now()
 		if i == 13 {
 			shot("middrag-glass-standard-dark")
 		}
 	}
+	dragSpan := lastMove.Sub(firstMove)
 	if attrOf(w("w1")+` .hd-slider`, "data-hd-dragging") != "true" {
 		t.Fatal("the slider is not dragging before the release")
 	}
@@ -318,8 +324,9 @@ func TestDesktopHomeDashControlsBrowser(t *testing.T) {
 	waitConfirmed("w1", was)
 	cmds = cmdsOf(base, "ha:light.kitchen", "brightness")
 	inter, final := cmds[:len(cmds)-1], cmds[len(cmds)-1]
-	if len(inter) < 1 || len(inter) > 3 {
-		t.Fatalf("%d intermediate brightness commands during the drag, want 1 to 3: %+v", len(inter), cmds)
+	// A slow machine stretches the drag, which legitimately allows more sends: at most one per throttle window plus the leading edge.
+	if maxInter := int(dragSpan/(1250*time.Millisecond)) + 1; len(inter) < 1 || len(inter) > maxInter {
+		t.Fatalf("%d intermediate brightness commands during a %v drag, want 1 to %d: %+v", len(inter), dragSpan, maxInter, cmds)
 	}
 	for i := 1; i < len(inter); i++ {
 		if gap := inter[i].At.Sub(inter[i-1].At); gap < 1200*time.Millisecond {
