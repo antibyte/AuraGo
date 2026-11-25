@@ -17,7 +17,9 @@
             autoSave: value.autoSave === 'afterDelay' ? 'afterDelay' : 'off',
             trimTrailingWhitespace: value.trimTrailingWhitespace === true,
             insertFinalNewline: value.insertFinalNewline === true,
-            formatOnSave: value.formatOnSave === true
+            formatOnSave: value.formatOnSave === true,
+            // IDE package 2b: code intelligence through the language servers; on unless switched off.
+            codeIntelligence: value.codeIntelligence !== false
         };
     }
 
@@ -63,6 +65,7 @@
                     try { view.dispatch({ effects: view.csSettings.reconfigure(editorSettingsExtensions(cm)) }); } catch (_) {}
                 }));
             }
+            lspApplyAvailability(); // IDE package 2b: the "Code intelligence (LSP)" switch
             if (studioRoot()) renderStatus();
         }));
     }
@@ -111,6 +114,7 @@
                 ${checkbox('trimTrailingWhitespace', tr('codeStudio.settingsTrimWhitespace', 'Trim trailing whitespace on save'))}
                 ${checkbox('insertFinalNewline', tr('codeStudio.settingsFinalNewline', 'Insert final newline on save'))}
                 ${checkbox('formatOnSave', tr('codeStudio.settingsFormatOnSave', 'Format on save'))}
+                ${checkbox('codeIntelligence', tr('codeStudio.settingsCodeIntelligence', 'Code intelligence (LSP)'))}
             </div>
             <div class="cs-modal-actions">
                 <button type="submit" class="cs-button primary" data-settings-close>${buttonIcon('check-square', 'Y')}<span>${esc(tr('desktop.close', 'Close'))}</span></button>

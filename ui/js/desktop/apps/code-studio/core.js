@@ -613,6 +613,7 @@
             if (view.csPolicy) view.dispatch({ effects: view.csPolicy.reconfigure(editorPolicyExtensions(state.cmModule)) });
             if (view.textarea) view.textarea.readOnly = readOnly;
         }));
+        lspApplyAvailability(); // IDE package 2b: a read-only desktop turns LSP off; the bridge would refuse it anyway
         if (readOnly) {
             state.terminalSessions.forEach(session => session.dispose && session.dispose());
             state.terminalSessions = [];
@@ -1201,6 +1202,8 @@
         if (lineInfo) rightItems.push(`<span class="cs-status-item">${esc(lineInfo)}</span>`);
         if (isSourceTab(tab)) rightItems.push(editorIndentStatusMarkup()); // IDE package 1A
         if (lang) rightItems.push(`<span class="cs-status-item" title="${esc(tr('codeStudio.language', 'Language'))}">${esc(lang)}</span>`);
+        const lspItem = lspStatusMarkup(tab); // IDE package 2b: the active file's language server
+        if (lspItem) rightItems.push(lspItem);
         rightItems.push(`<span class="cs-status-item" data-clickable title="${esc(tr('codeStudio.zoomReset', 'Reset Zoom'))}" data-status-zoom>${esc(clampEditorFontSize(state.editorFontSize))}px</span>`);
         rightItems.push(`<span class="cs-status-item cs-status-engine">${esc(state.editorType === 'codemirror' ? 'CodeMirror' : tr('codeStudio.editorFallback', 'Basic'))}</span>`);
         statusEl.innerHTML = leftItems.join('') + '<span class="cs-status-spacer"></span>' + rightItems.join('');
@@ -1215,6 +1218,8 @@
             const rect = branch.getBoundingClientRect();
             showGitBranchMenu(rect.left, rect.top - 4);
         }));
+        const lspStatus = statusEl.querySelector('[data-status-lsp]');
+        if (lspStatus) lspStatus.addEventListener('click', bind(() => lspRestart(lspStatus.dataset.statusLsp))); // IDE package 2b
     }
 
     function flashStatus(message, duration) {

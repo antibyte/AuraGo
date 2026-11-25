@@ -4003,3 +4003,92 @@ button.cs-git-branch:hover,
         opacity: 1;
     }
 }
+
+/* === IDE package 2b: LSP client core === */
+.code-studio-statusbar .cs-status-lsp {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 26em;
+}
+
+.cs-lsp-dot {
+    flex: 0 0 auto;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--cs-muted);
+}
+
+.cs-lsp-dot[data-lsp-state="ready"] {
+    background: var(--cs-success);
+}
+
+.cs-lsp-dot[data-lsp-state="starting"],
+.cs-lsp-dot[data-lsp-state="disconnected"] {
+    background: var(--cs-warning);
+    animation: cs-pulse 1.2s ease-in-out infinite;
+}
+
+.cs-lsp-dot[data-lsp-state="not-installed"],
+.cs-lsp-dot[data-lsp-state="too-many"],
+.cs-lsp-dot[data-lsp-state="error"] {
+    background: var(--cs-danger);
+}
+
+.cs-status-lsp-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Narrow windows keep the dot; the state stays in the tooltip. */
+@media (max-width: 900px) {
+    .cs-status-lsp-label {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cs-lsp-dot[data-lsp-state] {
+        animation: none;
+    }
+}
+
+/* Hover, completion details and signature help from the language servers. */
+.code-studio .cm-tooltip .cm-lsp-documentation {
+    max-width: min(560px, 70vw);
+    max-height: 320px;
+    overflow: auto;
+    padding: 6px 10px;
+    font-family: var(--cs-ui-font);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.code-studio .cm-lsp-documentation p,
+.code-studio .cm-lsp-documentation pre {
+    margin: 4px 0;
+}
+
+.code-studio .cm-lsp-documentation pre,
+.code-studio .cm-lsp-documentation code {
+    font-family: var(--cs-mono-font);
+    font-size: 12px;
+}
+
+.code-studio .cm-lsp-documentation pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.code-studio .cm-lsp-documentation a {
+    color: var(--cs-accent);
+}
+
+.code-studio .cm-lsp-signature-tooltip {
+    font-size: 12px;
+}
+
+.code-studio .cm-lsp-signature-tooltip .cm-lsp-active-parameter {
+    color: var(--cs-accent);
+}
