@@ -89,3 +89,11 @@
 .hd-widget[data-hd-type="sensor"] :is(.hd-spark, .hd-spark-fill) { position: absolute; inset-inline-start: 0; inset-block-end: 0; }
 .hd-widget[data-hd-type="sensor"][data-hd-family="tactile"] :is(.hd-spark, .hd-spark-fill) { inset-inline-start: 8px; inset-block-end: 8px; }
 .hd-widget[data-hd-type="sensor"] .hd-body > .hd-numeral { font-size: 22cqmin; }
+/* M2 entity tile (SCR-M2-1): icon badge on top, the numeral (or the lamp) below, start-aligned, numeral sized from the cell like the sensor numeral. */
+.hd-widget[data-hd-type="entity"] .hd-body { place-items: stretch; }
+.hd-widget[data-hd-type="entity"] .hd-tile { display: grid; grid-template-rows: auto minmax(0, 1fr); justify-items: start; align-items: end; gap: var(--hd-space-1); min-inline-size: 0; min-block-size: 0; }
+.hd-widget[data-hd-type="entity"] .hd-tile > .hd-iconbadge { display: inline-grid; place-items: center; inline-size: 28px; block-size: 28px; color: var(--hd-ink-muted); }
+.hd-widget[data-hd-type="entity"] .hd-tile > .hd-iconbadge .hd-ico { inline-size: 20px; block-size: 20px; }
+.hd-widget[data-hd-type="entity"] .hd-tile > .hd-numeral { max-inline-size: 100%; overflow: hidden; font-size: min(20cqmin, var(--hd-num-hero-max)); font-weight: var(--hd-num-weight); letter-spacing: var(--hd-num-tracking); line-height: 1.05; white-space: nowrap; text-overflow: ellipsis; color: var(--hd-ink); }
+.hd-widget[data-hd-type="entity"] .hd-tile > .hd-lamp { align-self: center; }
+@container hd-widget (max-width: 139px) and (max-height: 139px) { .hd-widget[data-hd-type="entity"] .hd-tile > .hd-iconbadge { display: none; } }

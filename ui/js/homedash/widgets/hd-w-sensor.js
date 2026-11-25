@@ -123,7 +123,18 @@
         if (spark.fill) api.body.appendChild(spark.fill);
         api.body.appendChild(spark.el);
         setAttr(api.body, 'data-hd-nodata', api.t('homedash.state.no_data'));
-        let lastView = null, hist = [], dims = null, lastShown;
+        let lastView = null, hist = [], dims = null, lastShown, loaded = false;
+        // SCR-M2-2: after the history arrived, a fresh numeric value newer than the last point extends the line; the window keeps the span of
+        // the loaded series (at most 720 points). Stale, unavailable and older values never append.
+        function tail(e) {
+            if (!loaded || !e || hostWord(e) || e.stale) return;
+            const v = numberOf(e.value), t = Date.parse(e.attributes && e.attributes.updated_at), last = hist[hist.length - 1];
+            if (v === null || !Number.isFinite(t) || (last && t <= last[0])) return;
+            const span = hist.length > 1 ? last[0] - hist[0][0] : 0;
+            hist.push([t, v]);
+            if (span > 0) while (hist.length > 2 && hist[0][0] < t - span) hist.shift();
+            if (hist.length > 720) hist.splice(0, hist.length - 720);
+        }
         // Host duty: resize(size) must carry px: {width, height} (the lab passes it; M2 hosts must too). A resize without px is ignored, and create gets
         // no size, so the spark keeps its default box until the first resize with px.
         function sparkState() {
@@ -143,9 +154,9 @@
             spark.set(sparkState());
             api.setStatus(statusText(api, e, null));
         }
-        history(api, s => { hist = Array.isArray(s.points) ? s.points.filter(Array.isArray) : []; if (lastView) render(); });
+        history(api, s => { hist = Array.isArray(s.points) ? s.points.filter(Array.isArray) : []; loaded = true; if (lastView) render(); });
         return {
-            update(view) { lastView = view; render(); },
+            update(view) { lastView = view; tail(view.entities.primary); render(); },
             resize(size) {
                 const px = size && size.px; if (!px || !Number.isFinite(px.width) || !Number.isFinite(px.height)) return;
                 const w = px.width - 2, h = Math.round(px.height * 0.38);
