@@ -1045,21 +1045,31 @@
             let creds;
             try {
                 creds = await requestTicket();
+                const issuedAt = Date.now();
                 if (dead()) return;
                 if (!creds.has_password) {
-                    // The ticket lives 60 s; ask for the password first, then fetch a fresh one.
+                    // The ticket lives 60 s: reuse it when the prompt is quick, else fetch a fresh one.
                     const typed = await QuickConnectRDP.promptPassword({
                         root: quickRoot, t, deviceName: device.name || '',
                         track: cancel => { pendingConfirmations.add(cancel); return () => pendingConfirmations.delete(cancel); }
                     });
                     if (dead()) return;
                     if (typed === null) { showEnd('disconnected', 'desktop.qc_rdp_cancelled'); return; }
-                    creds = await requestTicket();
-                    if (dead()) return;
+                    if (Date.now() - issuedAt > 45000) {
+                        creds = await requestTicket();
+                        if (dead()) return;
+                    }
                     creds.password = typed;
                 }
             } catch (err) {
-                if (!dead()) showEnd('error', 'desktop.qc_rdp_error_ticket_failed', t('desktop.qc_rdp_error_ticket_failed') + ': ' + (err && err.message || ''));
+                if (dead()) return;
+                const body = err && err.body || {};
+                if (err && err.status === 429) {
+                    const seconds = Number(err.retryAfter || body.retry_after) || 60;
+                    showEnd('error', 'desktop.qc_rdp_error_rate_limited', t('desktop.qc_rdp_error_rate_limited').replace('{seconds}', String(seconds)));
+                } else {
+                    showEnd('error', 'desktop.qc_rdp_error_ticket_failed', t('desktop.qc_rdp_error_ticket_failed') + ': ' + (err && err.message || ''));
+                }
                 return;
             }
             session = QuickConnectRDP.connect(box, {

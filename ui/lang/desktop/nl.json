@@ -3387,6 +3387,7 @@
   "desktop.qc_rdp_error_tls": "De TLS-handshake met de RDP-host is mislukt.",
   "desktop.qc_rdp_error_cert_changed": "Het certificaat van de externe computer is gewijzigd sinds de laatste verbinding. Dit kan duiden op een herinstallatie of een vernieuwd certificaat – of op iemand die de verbinding onderschept.",
   "desktop.qc_rdp_error_remote_closed": "De externe computer heeft de verbinding tijdens het aanmelden beëindigd. Controleer de gebruikersnaam, het domein en het wachtwoord.",
+  "desktop.qc_rdp_error_rate_limited": "Te veel verbindingspogingen. Probeer het over {seconds} s opnieuw.",
   "desktop.qc_rdp_trust_new_cert": "Nieuw certificaat vertrouwen",
   "desktop.qc_rdp_error_unavailable": "De RDP-client kon niet worden geladen.",
   "desktop.qc_rdp_error_unreachable": "De RDP-host is niet bereikbaar.",

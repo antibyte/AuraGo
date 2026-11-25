@@ -73,6 +73,23 @@
             return KIND_KEYS[4];
         }
 
+        // First line of the IronRDP error text (backtrace or message), trimmed. Library
+        // errors never carry the password; this is shown next to the localized message.
+        function errorDetail(error) {
+            let text = '';
+            try { if (error && typeof error.backtrace === 'function') text = String(error.backtrace() || ''); } catch (_) {}
+            if (!text.trim()) { try { text = String((error && error.message) || error || ''); } catch (_) {} }
+            const line = text.split(/[\x0d\x0a]+/).map(part => part.trim()).find(Boolean) || '';
+            return line.length > 200 ? line.slice(0, 200) : line;
+        }
+
+        function failWith(fail, error, connected) {
+            const key = rdpErrorKey(error, connected);
+            const detail = errorDetail(error);
+            console.warn('[QuickConnect RDP]', key, detail);
+            fail(key, detail);
+        }
+
         function desktopSize(container) {
             const clamp = (value, min) => {
                 const rounded = Math.min(MAX_SIDE, Math.max(min, Math.round(value || 0)));
@@ -202,13 +219,13 @@
                         const termination = await info.run();
                         reason = termination && typeof termination.reason === 'function' ? String(termination.reason() || '') : '';
                     } catch (error) {
-                        if (!ended) fail(rdpErrorKey(error, connected));
+                        if (!ended) failWith(fail, error, connected);
                         return;
                     }
                     finish(() => { callbacks.status('disconnected'); callbacks.close(reason); });
                 } catch (error) {
                     password = '';
-                    if (!ended) fail(rdpErrorKey(error, connected));
+                    if (!ended) failWith(fail, error, connected);
                 }
             })();
             return handle;

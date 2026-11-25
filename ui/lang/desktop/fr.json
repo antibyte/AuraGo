@@ -3387,6 +3387,7 @@
   "desktop.qc_rdp_error_tls": "La négociation TLS avec l'hôte RDP a échoué.",
   "desktop.qc_rdp_error_cert_changed": "Le certificat de l'ordinateur distant a changé depuis la dernière connexion. Cela peut signifier une réinstallation ou un renouvellement du certificat – ou que quelqu'un intercepte la connexion.",
   "desktop.qc_rdp_error_remote_closed": "L'ordinateur distant a mis fin à la connexion pendant l'ouverture de session. Vérifiez le nom d'utilisateur, le domaine et le mot de passe.",
+  "desktop.qc_rdp_error_rate_limited": "Trop de tentatives de connexion. Réessayez dans {seconds} s.",
   "desktop.qc_rdp_trust_new_cert": "Faire confiance au nouveau certificat",
   "desktop.qc_rdp_error_unavailable": "Le client RDP n'a pas pu être chargé.",
   "desktop.qc_rdp_error_unreachable": "L'hôte RDP est injoignable.",

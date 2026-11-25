@@ -3387,6 +3387,7 @@
   "desktop.qc_rdp_error_tls": "Falló el handshake TLS con el host RDP.",
   "desktop.qc_rdp_error_cert_changed": "El certificado del equipo remoto ha cambiado desde la última conexión. Puede deberse a una reinstalación o a una renovación del certificado, o a que alguien esté interceptando la conexión.",
   "desktop.qc_rdp_error_remote_closed": "El equipo remoto finalizó la conexión durante el inicio de sesión. Compruebe el nombre de usuario, el dominio y la contraseña.",
+  "desktop.qc_rdp_error_rate_limited": "Demasiados intentos de conexión. Inténtalo de nuevo en {seconds} s.",
   "desktop.qc_rdp_trust_new_cert": "Confiar en el nuevo certificado",
   "desktop.qc_rdp_error_unavailable": "No se pudo cargar el cliente RDP.",
   "desktop.qc_rdp_error_unreachable": "El host RDP no es accesible.",

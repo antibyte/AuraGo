@@ -3387,6 +3387,7 @@
   "desktop.qc_rdp_error_tls": "TLS-håndtrykket med RDP-værten mislykkedes.",
   "desktop.qc_rdp_error_cert_changed": "Den eksterne computers certifikat er ændret siden sidste forbindelse. Det kan betyde en ominstallation eller en fornyelse af certifikatet – eller at nogen opfanger forbindelsen.",
   "desktop.qc_rdp_error_remote_closed": "Den eksterne computer afsluttede forbindelsen under login. Kontrollér brugernavn, domæne og adgangskode.",
+  "desktop.qc_rdp_error_rate_limited": "For mange forbindelsesforsøg. Prøv igen om {seconds} s.",
   "desktop.qc_rdp_trust_new_cert": "Stol på det nye certifikat",
   "desktop.qc_rdp_error_unavailable": "RDP-klienten kunne ikke indlæses.",
   "desktop.qc_rdp_error_unreachable": "RDP-værten kan ikke nås.",

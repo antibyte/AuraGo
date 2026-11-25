@@ -23285,6 +23285,23 @@ function updateTaskbarSystemButtonsForMobile() {
             return KIND_KEYS[4];
         }
 
+        // First line of the IronRDP error text (backtrace or message), trimmed. Library
+        // errors never carry the password; this is shown next to the localized message.
+        function errorDetail(error) {
+            let text = '';
+            try { if (error && typeof error.backtrace === 'function') text = String(error.backtrace() || ''); } catch (_) {}
+            if (!text.trim()) { try { text = String((error && error.message) || error || ''); } catch (_) {} }
+            const line = text.split(/[\x0d\x0a]+/).map(part => part.trim()).find(Boolean) || '';
+            return line.length > 200 ? line.slice(0, 200) : line;
+        }
+
+        function failWith(fail, error, connected) {
+            const key = rdpErrorKey(error, connected);
+            const detail = errorDetail(error);
+            console.warn('[QuickConnect RDP]', key, detail);
+            fail(key, detail);
+        }
+
         function desktopSize(container) {
             const clamp = (value, min) => {
                 const rounded = Math.min(MAX_SIDE, Math.max(min, Math.round(value || 0)));
@@ -23414,13 +23431,13 @@ function updateTaskbarSystemButtonsForMobile() {
                         const termination = await info.run();
                         reason = termination && typeof termination.reason === 'function' ? String(termination.reason() || '') : '';
                     } catch (error) {
-                        if (!ended) fail(rdpErrorKey(error, connected));
+                        if (!ended) failWith(fail, error, connected);
                         return;
                     }
                     finish(() => { callbacks.status('disconnected'); callbacks.close(reason); });
                 } catch (error) {
                     password = '';
-                    if (!ended) fail(rdpErrorKey(error, connected));
+                    if (!ended) failWith(fail, error, connected);
                 }
             })();
             return handle;
@@ -28345,21 +28362,31 @@ if (appId === 'pixel') {
             let creds;
             try {
                 creds = await requestTicket();
+                const issuedAt = Date.now();
                 if (dead()) return;
                 if (!creds.has_password) {
-                    // The ticket lives 60 s; ask for the password first, then fetch a fresh one.
+                    // The ticket lives 60 s: reuse it when the prompt is quick, else fetch a fresh one.
                     const typed = await QuickConnectRDP.promptPassword({
                         root: quickRoot, t, deviceName: device.name || '',
                         track: cancel => { pendingConfirmations.add(cancel); return () => pendingConfirmations.delete(cancel); }
                     });
                     if (dead()) return;
                     if (typed === null) { showEnd('disconnected', 'desktop.qc_rdp_cancelled'); return; }
-                    creds = await requestTicket();
-                    if (dead()) return;
+                    if (Date.now() - issuedAt > 45000) {
+                        creds = await requestTicket();
+                        if (dead()) return;
+                    }
                     creds.password = typed;
                 }
             } catch (err) {
-                if (!dead()) showEnd('error', 'desktop.qc_rdp_error_ticket_failed', t('desktop.qc_rdp_error_ticket_failed') + ': ' + (err && err.message || ''));
+                if (dead()) return;
+                const body = err && err.body || {};
+                if (err && err.status === 429) {
+                    const seconds = Number(err.retryAfter || body.retry_after) || 60;
+                    showEnd('error', 'desktop.qc_rdp_error_rate_limited', t('desktop.qc_rdp_error_rate_limited').replace('{seconds}', String(seconds)));
+                } else {
+                    showEnd('error', 'desktop.qc_rdp_error_ticket_failed', t('desktop.qc_rdp_error_ticket_failed') + ': ' + (err && err.message || ''));
+                }
                 return;
             }
             session = QuickConnectRDP.connect(box, {

@@ -3387,6 +3387,7 @@
   "desktop.qc_rdp_error_tls": "Der TLS-Handshake mit dem RDP-Host ist fehlgeschlagen.",
   "desktop.qc_rdp_error_cert_changed": "Das Zertifikat des entfernten Computers hat sich seit der letzten Verbindung geändert. Das kann eine Neuinstallation oder eine Zertifikatserneuerung bedeuten – oder jemand fängt die Verbindung ab.",
   "desktop.qc_rdp_error_remote_closed": "Der entfernte Computer hat die Verbindung während der Anmeldung beendet. Benutzername, Domäne und Passwort prüfen.",
+  "desktop.qc_rdp_error_rate_limited": "Zu viele Verbindungsversuche. Erneut versuchen in {seconds} s.",
   "desktop.qc_rdp_trust_new_cert": "Neuem Zertifikat vertrauen",
   "desktop.qc_rdp_error_unavailable": "Der RDP-Client konnte nicht geladen werden.",
   "desktop.qc_rdp_error_unreachable": "Der RDP-Host ist nicht erreichbar.",

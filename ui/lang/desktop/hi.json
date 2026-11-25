@@ -3387,6 +3387,7 @@
   "desktop.qc_rdp_error_tls": "RDP होस्ट के साथ TLS हैंडशेक विफल रहा।",
   "desktop.qc_rdp_error_cert_changed": "पिछले कनेक्शन के बाद से रिमोट कंप्यूटर का प्रमाणपत्र बदल गया है। इसका मतलब पुनः इंस्टॉलेशन या प्रमाणपत्र का नवीनीकरण हो सकता है – या कोई कनेक्शन को बीच में रोक रहा है।",
   "desktop.qc_rdp_error_remote_closed": "साइन-इन के दौरान रिमोट कंप्यूटर ने कनेक्शन समाप्त कर दिया। उपयोगकर्ता नाम, डोमेन और पासवर्ड जांचें।",
+  "desktop.qc_rdp_error_rate_limited": "कनेक्शन के बहुत अधिक प्रयास हुए। {seconds} सेकंड में फिर कोशिश करें।",
   "desktop.qc_rdp_trust_new_cert": "नए प्रमाणपत्र पर भरोसा करें",
   "desktop.qc_rdp_error_unavailable": "RDP क्लाइंट लोड नहीं हो सका।",
   "desktop.qc_rdp_error_unreachable": "RDP होस्ट तक पहुंचा नहीं जा सकता।",

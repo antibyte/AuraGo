@@ -3388,6 +3388,7 @@
   "desktop.qc_rdp_error_tls": "The TLS handshake with the RDP host failed.",
   "desktop.qc_rdp_error_cert_changed": "The remote computer's certificate has changed since the last connection. This can mean a reinstall or a certificate renewal — or someone intercepting the connection.",
   "desktop.qc_rdp_error_remote_closed": "The remote computer ended the connection during sign-in. Check the user name, domain and password.",
+  "desktop.qc_rdp_error_rate_limited": "Too many connection attempts. Try again in {seconds} s.",
   "desktop.qc_rdp_trust_new_cert": "Trust new certificate",
   "desktop.qc_rdp_error_unavailable": "The RDP client could not be loaded.",
   "desktop.qc_rdp_error_unreachable": "The RDP host is unreachable.",

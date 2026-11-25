@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"crypto/tls"
 	"database/sql"
+	"encoding/asn1"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
@@ -16,6 +17,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -125,6 +127,28 @@ func (s *RDPTicketStore) Issue(deviceID string) (string, error) {
 	return ticket, nil
 }
 
+// RetryAfter returns how long until the device may be issued a ticket again
+// after ErrRDPTicketRateLimited: the time until the oldest issue in the window
+// expires, at least one second.
+func (s *RDPTicketStore) RetryAfter(deviceID string) time.Duration {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	now := s.now()
+	var oldest time.Time
+	for _, at := range s.issued[deviceID] {
+		if now.Sub(at) < rdpTicketRateWindow && (oldest.IsZero() || at.Before(oldest)) {
+			oldest = at
+		}
+	}
+	wait := time.Second
+	if !oldest.IsZero() {
+		if d := oldest.Add(rdpTicketRateWindow).Sub(now); d > wait {
+			wait = d
+		}
+	}
+	return wait
+}
+
 // Consume validates and removes a ticket. A ticket is single use: it is removed
 // even when the device does not match.
 func (s *RDPTicketStore) Consume(ticket, deviceID string) bool {
@@ -211,7 +235,7 @@ func HandleRDPTicket(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Lo
 		ticket, err := store.Issue(deviceID)
 		if err != nil {
 			logger.Warn("RDP ticket refused", "device_id", deviceID, "reason", err.Error())
-			http.Error(w, err.Error(), http.StatusTooManyRequests)
+			writeRDPTicketRefusal(w, store, deviceID, err)
 			return
 		}
 		domain, user := splitRDPUsername(username)
@@ -230,6 +254,147 @@ func HandleRDPTicket(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Lo
 			HasPassword: secretReleased,
 		})
 	}
+}
+
+// writeRDPTicketRefusal answers a refused ticket issue with HTTP 429, a
+// Retry-After header and a JSON body the UI can localise by code.
+func writeRDPTicketRefusal(w http.ResponseWriter, store *RDPTicketStore, deviceID string, err error) {
+	code := "rdp_ticket_capacity"
+	retry := 5
+	if errors.Is(err, ErrRDPTicketRateLimited) {
+		code = "rdp_ticket_rate_limited"
+		retry = int((store.RetryAfter(deviceID) + time.Second - 1) / time.Second)
+		if retry < 1 {
+			retry = 1
+		}
+	}
+	w.Header().Set("Retry-After", strconv.Itoa(retry))
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusTooManyRequests)
+	_ = json.NewEncoder(w).Encode(map[string]any{"error": err.Error(), "code": code, "retry_after": retry})
+}
+
+// rdpTSRequestInfo is the non-secret shape of a CredSSP TSRequest: which fields
+// are present and how long they are, never their content.
+type rdpTSRequestInfo struct {
+	Version        int64
+	NegoTokensLen  int
+	HasNegoTokens  bool
+	AuthInfoLen    int
+	HasAuthInfo    bool
+	PubKeyAuthLen  int
+	HasPubKeyAuth  bool
+	ErrorCode      uint32
+	HasErrorCode   bool
+	ClientNonceLen int
+	HasClientNonce bool
+}
+
+// parseRDPTSRequest parses a CredSSP TSRequest (all fields EXPLICIT context
+// tags 0..5). It returns false when data is not one.
+func parseRDPTSRequest(data []byte) (rdpTSRequestInfo, bool) {
+	var info rdpTSRequestInfo
+	var seq asn1.RawValue
+	if len(data) == 0 || data[0] != 0x30 {
+		return info, false
+	}
+	if _, err := asn1.Unmarshal(data, &seq); err != nil || seq.Class != asn1.ClassUniversal || seq.Tag != asn1.TagSequence {
+		return info, false
+	}
+	rest := seq.Bytes
+	hasVersion := false
+	for len(rest) > 0 {
+		var field asn1.RawValue
+		var err error
+		rest, err = asn1.Unmarshal(rest, &field)
+		if err != nil || field.Class != asn1.ClassContextSpecific {
+			return rdpTSRequestInfo{}, false
+		}
+		octets := func() (int, bool) {
+			var b []byte
+			if _, err := asn1.Unmarshal(field.Bytes, &b); err != nil {
+				return 0, false
+			}
+			return len(b), true
+		}
+		switch field.Tag {
+		case 0:
+			if _, err := asn1.Unmarshal(field.Bytes, &info.Version); err != nil {
+				return rdpTSRequestInfo{}, false
+			}
+			hasVersion = true
+		case 1:
+			info.HasNegoTokens, info.NegoTokensLen = true, len(field.Bytes)
+		case 2:
+			n, ok := octets()
+			if !ok {
+				return rdpTSRequestInfo{}, false
+			}
+			info.HasAuthInfo, info.AuthInfoLen = true, n
+		case 3:
+			n, ok := octets()
+			if !ok {
+				return rdpTSRequestInfo{}, false
+			}
+			info.HasPubKeyAuth, info.PubKeyAuthLen = true, n
+		case 4:
+			var code int64
+			if _, err := asn1.Unmarshal(field.Bytes, &code); err != nil {
+				return rdpTSRequestInfo{}, false
+			}
+			info.HasErrorCode, info.ErrorCode = true, uint32(code)
+		case 5:
+			n, ok := octets()
+			if !ok {
+				return rdpTSRequestInfo{}, false
+			}
+			info.HasClientNonce, info.ClientNonceLen = true, n
+		}
+	}
+	return info, hasVersion
+}
+
+const rdpCredSSPDiagLimit = 4
+
+// rdpCredSSPDiag logs the first few CredSSP TSRequests of a relay (shape only,
+// never bytes). Not safe for concurrent use; one instance per direction.
+type rdpCredSSPDiag struct {
+	logger    *slog.Logger
+	deviceID  string
+	direction string
+	remaining int
+}
+
+func (d *rdpCredSSPDiag) observe(chunk []byte) {
+	if d == nil || d.remaining <= 0 {
+		return
+	}
+	d.remaining--
+	info, ok := parseRDPTSRequest(chunk)
+	if !ok {
+		return
+	}
+	attrs := []any{
+		"device_id", d.deviceID, "direction", d.direction, "version", info.Version,
+		"nego_tokens", info.HasNegoTokens, "nego_tokens_len", info.NegoTokensLen,
+		"auth_info", info.HasAuthInfo, "pub_key_auth", info.HasPubKeyAuth, "pub_key_auth_len", info.PubKeyAuthLen,
+		"client_nonce", info.HasClientNonce, "total_len", len(chunk),
+	}
+	if info.HasErrorCode {
+		attrs = append(attrs, "error_code", fmt.Sprintf("0x%08x", info.ErrorCode))
+	}
+	d.logger.Info("RDP CredSSP TSRequest", attrs...)
+}
+
+// rdpDiagWriter observes each chunk written through it (server to browser).
+type rdpDiagWriter struct {
+	w    io.Writer
+	diag *rdpCredSSPDiag
+}
+
+func (d *rdpDiagWriter) Write(p []byte) (int, error) {
+	d.diag.observe(p)
+	return d.w.Write(p)
 }
 
 // HandleRDPPinReset forgets the pinned server certificate of an RDP device so
@@ -552,13 +717,25 @@ func HandleRDPProxy(inventoryDB *sql.DB, logger *slog.Logger, store *RDPTicketSt
 		started := time.Now()
 		toBrowser := &countingWriter{w: writer}
 		var fromBrowser atomic.Int64
+		var closedMu sync.Mutex
+		closedBy := ""
+		markClosed := func(side string) {
+			closedMu.Lock()
+			if closedBy == "" {
+				closedBy = side
+			}
+			closedMu.Unlock()
+		}
+		serverDiag := &rdpDiagWriter{w: toBrowser, diag: &rdpCredSSPDiag{logger: logger, deviceID: deviceID, direction: "server_to_browser", remaining: rdpCredSSPDiagLimit}}
+		browserDiag := &rdpCredSSPDiag{logger: logger, deviceID: deviceID, direction: "browser_to_server", remaining: rdpCredSSPDiagLimit}
 		_ = tcp.SetDeadline(time.Time{})
 		conn.SetReadLimit(remoteProxyReadLimit)
 		var wg sync.WaitGroup
 		wg.Add(2)
 		go func() {
 			defer wg.Done()
-			_, _ = io.Copy(toBrowser, tlsConn)
+			_, _ = io.Copy(serverDiag, tlsConn)
+			markClosed("server")
 			// The RDP server closed its side: tell the browser properly.
 			_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "remote closed"), time.Now().Add(time.Second))
 			cancel()
@@ -570,14 +747,17 @@ func HandleRDPProxy(inventoryDB *sql.DB, logger *slog.Logger, store *RDPTicketSt
 				_ = conn.SetReadDeadline(time.Now().Add(proxyOptions.IdleTimeout))
 				mt, msg, readErr := conn.ReadMessage()
 				if readErr != nil {
+					markClosed("browser")
 					return
 				}
 				if mt != websocket.BinaryMessage {
 					continue
 				}
+				browserDiag.observe(msg)
 				n, werr := tlsConn.Write(msg)
 				fromBrowser.Add(int64(n))
 				if werr != nil {
+					markClosed("server")
 					return
 				}
 			}
@@ -589,12 +769,17 @@ func HandleRDPProxy(inventoryDB *sql.DB, logger *slog.Logger, store *RDPTicketSt
 		}()
 		select {
 		case <-ctx.Done():
+			markClosed("timeout")
 			_ = tlsConn.Close()
 			_ = conn.Close()
 			<-done
 		case <-done:
 		}
 		logger.Info("RDP session ended", "device_id", deviceID, "duration", time.Since(started).Round(time.Millisecond).String(),
-			"bytes_to_browser", toBrowser.n.Load(), "bytes_from_browser", fromBrowser.Load())
+			"bytes_to_browser", toBrowser.n.Load(), "bytes_from_browser", fromBrowser.Load(), "closed_by", func() string {
+				closedMu.Lock()
+				defer closedMu.Unlock()
+				return closedBy
+			}())
 	}
 }

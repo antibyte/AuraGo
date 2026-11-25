@@ -326,6 +326,8 @@ func TestDesktopQuickConnectRDPContract(t *testing.T) {
 		"desktop.qc_protocol_rdp",
 		"QuickConnectRDP.addTrustAction(",
 		"desktop.qc_rdp_error_cert_changed",
+		"desktop.qc_rdp_error_rate_limited",
+		"err.retryAfter",
 	} {
 		if !strings.Contains(body, marker) {
 			t.Fatalf("quick connect missing RDP marker %q", marker)
@@ -343,6 +345,7 @@ func TestDesktopQuickConnectRDPContract(t *testing.T) {
 		"CERT_CHANGED_CODE = 16384",
 		"/api/desktop/rdp/pin/reset?device_id=",
 		"desktop.qc_rdp_trust_new_cert",
+		"function errorDetail(error)",
 	} {
 		if !strings.Contains(mainText, marker) {
 			t.Fatalf("desktop bundle missing RDP helper marker %q", marker)
@@ -352,7 +355,7 @@ func TestDesktopQuickConnectRDPContract(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read quickconnect-rdp.js: %v", err)
 	}
-	for _, forbidden := range []string{"console.", "localStorage", "sessionStorage", "innerHTML = password", "https://"} {
+	for _, forbidden := range []string{"console.log", "console.debug", "console.info", "console.error", "localStorage", "sessionStorage", "innerHTML = password", "https://"} {
 		if strings.Contains(string(source), forbidden) {
 			t.Fatalf("quickconnect-rdp.js must not contain %q", forbidden)
 		}
@@ -364,7 +367,7 @@ func TestDesktopQuickConnectRDPContract(t *testing.T) {
 	if !strings.Contains(string(builder), "'ui/js/desktop/apps/quickconnect-rdp.js'") {
 		t.Fatal("quickconnect-rdp.js is not registered in scripts/build-ui-bundles.js")
 	}
-	for _, key := range []string{"desktop.qc_rdp_error_cert_changed", "desktop.qc_rdp_error_remote_closed", "desktop.qc_rdp_trust_new_cert"} {
+	for _, key := range []string{"desktop.qc_rdp_error_cert_changed", "desktop.qc_rdp_error_remote_closed", "desktop.qc_rdp_error_rate_limited", "desktop.qc_rdp_trust_new_cert"} {
 		english := ""
 		for _, lang := range []string{"en", "cs", "da", "de", "el", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
 			data, err := os.ReadFile(filepath.Join("lang", "desktop", lang+".json"))

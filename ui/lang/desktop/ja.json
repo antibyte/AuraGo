@@ -3387,6 +3387,7 @@
   "desktop.qc_rdp_error_tls": "RDPホストとのTLSハンドシェイクに失敗しました。",
   "desktop.qc_rdp_error_cert_changed": "前回の接続以降、リモートコンピューターの証明書が変更されています。再インストールや証明書の更新が原因の場合もありますが、第三者が接続を傍受している可能性もあります。",
   "desktop.qc_rdp_error_remote_closed": "サインイン中にリモートコンピューターが接続を終了しました。ユーザー名、ドメイン、パスワードを確認してください。",
+  "desktop.qc_rdp_error_rate_limited": "接続の試行回数が多すぎます。{seconds} 秒後にもう一度お試しください。",
   "desktop.qc_rdp_trust_new_cert": "新しい証明書を信頼する",
   "desktop.qc_rdp_error_unavailable": "RDPクライアントを読み込めませんでした。",
   "desktop.qc_rdp_error_unreachable": "RDPホストに到達できません。",

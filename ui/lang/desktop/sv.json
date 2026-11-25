@@ -3387,6 +3387,7 @@
   "desktop.qc_rdp_error_tls": "TLS-handskakningen med RDP-värden misslyckades.",
   "desktop.qc_rdp_error_cert_changed": "Den fjärranslutna datorns certifikat har ändrats sedan den senaste anslutningen. Det kan betyda en ominstallation eller en förnyelse av certifikatet – eller att någon avlyssnar anslutningen.",
   "desktop.qc_rdp_error_remote_closed": "Den fjärranslutna datorn avslutade anslutningen under inloggningen. Kontrollera användarnamn, domän och lösenord.",
+  "desktop.qc_rdp_error_rate_limited": "För många anslutningsförsök. Försök igen om {seconds} s.",
   "desktop.qc_rdp_trust_new_cert": "Lita på det nya certifikatet",
   "desktop.qc_rdp_error_unavailable": "RDP-klienten kunde inte läsas in.",
   "desktop.qc_rdp_error_unreachable": "RDP-värden kan inte nås.",

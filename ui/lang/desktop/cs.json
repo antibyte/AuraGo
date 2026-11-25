@@ -3387,6 +3387,7 @@
   "desktop.qc_rdp_error_tls": "Handshake TLS s hostitelem RDP selhal.",
   "desktop.qc_rdp_error_cert_changed": "Certifikát vzdáleného počítače se od posledního připojení změnil. Může to znamenat přeinstalaci nebo obnovu certifikátu – nebo že někdo připojení zachytává.",
   "desktop.qc_rdp_error_remote_closed": "Vzdálený počítač ukončil připojení během přihlašování. Zkontrolujte uživatelské jméno, doménu a heslo.",
+  "desktop.qc_rdp_error_rate_limited": "Příliš mnoho pokusů o připojení. Zkuste to znovu za {seconds} s.",
   "desktop.qc_rdp_trust_new_cert": "Důvěřovat novému certifikátu",
   "desktop.qc_rdp_error_unavailable": "Klienta RDP se nepodařilo načíst.",
   "desktop.qc_rdp_error_unreachable": "Hostitel RDP není dostupný.",

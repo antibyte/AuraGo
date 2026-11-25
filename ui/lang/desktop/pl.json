@@ -3387,6 +3387,7 @@
   "desktop.qc_rdp_error_tls": "Uzgadnianie TLS z hostem RDP nie powiodło się.",
   "desktop.qc_rdp_error_cert_changed": "Certyfikat komputera zdalnego zmienił się od ostatniego połączenia. Może to oznaczać ponowną instalację lub odnowienie certyfikatu – albo że ktoś przechwytuje połączenie.",
   "desktop.qc_rdp_error_remote_closed": "Komputer zdalny zakończył połączenie podczas logowania. Sprawdź nazwę użytkownika, domenę i hasło.",
+  "desktop.qc_rdp_error_rate_limited": "Zbyt wiele prób połączenia. Spróbuj ponownie za {seconds} s.",
   "desktop.qc_rdp_trust_new_cert": "Zaufaj nowemu certyfikatowi",
   "desktop.qc_rdp_error_unavailable": "Nie udało się załadować klienta RDP.",
   "desktop.qc_rdp_error_unreachable": "Host RDP jest nieosiągalny.",

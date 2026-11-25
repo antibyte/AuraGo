@@ -11,6 +11,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"io"
+	"log/slog"
 	"math/big"
 	"net"
 	"net/http"
@@ -465,5 +466,102 @@ func TestHandleRDPProxyTLSFailure(t *testing.T) {
 	_ = ws.WriteMessage(websocket.BinaryMessage, req)
 	if got := readRDPPDU(t, ws); got.Error.ErrorCode != 105 {
 		t.Fatalf("expected 105, got %+v", got.Error)
+	}
+}
+
+func TestParseRDPTSRequestLogonFailure(t *testing.T) {
+	pubKeyAuth := bytes.Repeat([]byte{0xAB}, 48)
+	var body []byte
+	body = append(body, 0xa0, 0x03, 0x02, 0x01, 0x06)
+	body = append(body, 0xa3, 0x32, 0x04, 0x30)
+	body = append(body, pubKeyAuth...)
+	body = append(body, 0xa4, 0x06, 0x02, 0x04, 0xc0, 0x00, 0x00, 0x6d)
+	data := append([]byte{0x30, byte(len(body))}, body...)
+	if len(data) != 67 {
+		t.Fatalf("vector must be 67 bytes, got %d", len(data))
+	}
+	info, ok := parseRDPTSRequest(data)
+	if !ok {
+		t.Fatal("expected a TSRequest")
+	}
+	if info.Version != 6 || !info.HasPubKeyAuth || info.PubKeyAuthLen != 48 || !info.HasErrorCode || info.ErrorCode != 0xc000006d {
+		t.Fatalf("unexpected info %+v", info)
+	}
+	if info.HasNegoTokens || info.HasAuthInfo || info.HasClientNonce {
+		t.Fatalf("unexpected optional fields %+v", info)
+	}
+}
+
+func TestParseRDPTSRequestRejectsGarbage(t *testing.T) {
+	for _, data := range [][]byte{nil, {0x16, 0x03, 0x03}, {0x30, 0x05, 0x01}, {0x30, 0x00}, {0x30, 0x03, 0x02, 0x01, 0x06}} {
+		if _, ok := parseRDPTSRequest(data); ok {
+			t.Errorf("%x must not parse", data)
+		}
+	}
+}
+
+func TestRDPCredSSPDiagLogsShapeOnly(t *testing.T) {
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&buf, nil))
+	diag := &rdpCredSSPDiag{logger: logger, deviceID: "d", direction: "server_to_browser", remaining: 4}
+	secret := bytes.Repeat([]byte{0x5A}, 8)
+	body := append([]byte{0xa0, 0x03, 0x02, 0x01, 0x06, 0xa2, 0x0a, 0x04, 0x08}, secret...)
+	diag.observe(append([]byte{0x30, byte(len(body))}, body...))
+	out := buf.String()
+	if !strings.Contains(out, "direction=server_to_browser") || !strings.Contains(out, "version=6") || !strings.Contains(out, "auth_info=true") {
+		t.Fatalf("unexpected log %q", out)
+	}
+	if strings.Contains(out, "5a5a") || strings.Contains(out, "ZZZZ") {
+		t.Fatalf("log must not contain field bytes: %q", out)
+	}
+}
+
+func TestRDPTicketRateLimitResponse(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	if err := inventory.AddDevice(db, inventory.DeviceRecord{ID: "rdp1", Name: "rdp1", Type: "server", Protocol: "rdp", IPAddress: "127.0.0.1", Tags: []string{}}); err != nil {
+		t.Fatal(err)
+	}
+	store := NewRDPTicketStore()
+	now := time.Now()
+	store.now = func() time.Time { return now }
+	handler := HandleRDPTicket(db, nil, testLogger, store, nil, nil)
+	for i := 0; i < rdpTicketRateLimit; i++ {
+		rec := httptest.NewRecorder()
+		handler(rec, httptest.NewRequest(http.MethodPost, "/x?device_id=rdp1", nil))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("issue %d: %d", i, rec.Code)
+		}
+		now = now.Add(time.Second)
+	}
+	rec := httptest.NewRecorder()
+	handler(rec, httptest.NewRequest(http.MethodPost, "/x?device_id=rdp1", nil))
+	if rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected 429, got %d", rec.Code)
+	}
+	if got := rec.Header().Get("Retry-After"); got != "50" {
+		t.Fatalf("Retry-After = %q, want 50", got)
+	}
+	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
+		t.Fatalf("Content-Type = %q", ct)
+	}
+	var resp struct {
+		Error      string `json:"error"`
+		Code       string `json:"code"`
+		RetryAfter int    `json:"retry_after"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp.Code != "rdp_ticket_rate_limited" || resp.RetryAfter != 50 || resp.Error == "" {
+		t.Fatalf("unexpected body %+v", resp)
+	}
+
+	store.max = 0
+	now = now.Add(2 * time.Minute)
+	rec = httptest.NewRecorder()
+	handler(rec, httptest.NewRequest(http.MethodPost, "/x?device_id=rdp1", nil))
+	if rec.Code != http.StatusTooManyRequests || !strings.Contains(rec.Body.String(), `"rdp_ticket_capacity"`) || rec.Header().Get("Retry-After") == "" {
+		t.Fatalf("capacity response wrong: %d %s %v", rec.Code, rec.Body.String(), rec.Header())
 	}
 }
