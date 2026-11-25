@@ -90,10 +90,9 @@
 .hd-widget[data-hd-type="sensor"][data-hd-family="tactile"] :is(.hd-spark, .hd-spark-fill) { inset-inline-start: 8px; inset-block-end: 8px; }
 .hd-widget[data-hd-type="sensor"] .hd-body > .hd-numeral { font-size: 22cqmin; }
 /* M2 entity tile (SCR-M2-1, SCR-M2-3 layout): the numeral (or the lamp) starts at the top like the sensor numeral and uses its size rule;
-   the icon badge anchors the bottom-left (markup order stays icon, numeral, lamp; the grid rows reorder it). The numeral colour is inherited,
+   the icon badge anchors the bottom-left on the card padding (bottom inset equals left inset in every family; markup order stays icon, numeral, lamp; the grid rows reorder it). The numeral colour is inherited,
    so the stale muted ink rule applies in every family. */
-.hd-widget[data-hd-type="entity"] .hd-body { place-items: stretch; grid-row: 2 / 4; margin-block-end: calc(-1 * var(--hd-pad-b)); } /* the tile has no state line: its body runs through the empty state row down to the card edge, where the sparkline chart ends too */
-.hd-widget[data-hd-type="entity"][data-hd-family="tactile"] .hd-body { margin-block-end: calc(4px - var(--hd-pad-b)); } /* tactile charts sit 4 px above the card edge in the wide cards beside the tile */
+.hd-widget[data-hd-type="entity"] .hd-body { place-items: stretch; grid-row: 2 / 4; } /* the tile has no state line: its body spans the empty state row but stops at the card padding, so the badge keeps the same inset at the bottom as at the left (the full-bleed sparkline charts are not the reference) */
 .hd-widget[data-hd-type="entity"] .hd-tile { display: grid; grid-template-rows: auto minmax(0, 1fr); justify-items: start; align-items: start; gap: var(--hd-space-1); min-inline-size: 0; min-block-size: 0; }
 .hd-widget[data-hd-type="entity"] .hd-tile > .hd-iconbadge { grid-row: 2; align-self: end; display: inline-grid; place-items: center; inline-size: 28px; block-size: 28px; color: var(--hd-ink-muted); }
 .hd-widget[data-hd-type="entity"] .hd-tile > .hd-iconbadge .hd-ico { inline-size: 20px; block-size: 20px; }

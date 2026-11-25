@@ -104,17 +104,22 @@ func TestDesktopHomeDashBrowser(t *testing.T) {
 		}
 	}
 	theme("standard", "dark")
-	// G3b: the uptime tile's glyph ends where the neighbouring sparkline chart ends.
+	// G3d: the uptime tile's glyph keeps the card's content inset (bottom equals left); the numeral top matches the sensor numeral.
 	checkGlyph := func(label string) {
 		t.Helper()
-		g := page.MustEval(`()=>{const b=document.querySelector('[data-hd-wid="uptime"] .hd-iconbadge'),s=document.querySelector('[data-hd-wid="net-tx"] svg.hd-spark');if(!b||!s)return '';return JSON.stringify({glyph:b.getBoundingClientRect().bottom,spark:s.getBoundingClientRect().bottom});}`).Str()
-		var r struct{ Glyph, Spark float64 }
+		g := page.MustEval(`()=>{const c=document.querySelector('[data-hd-wid="uptime"]'),b=document.querySelector('[data-hd-wid="uptime"] .hd-iconbadge'),n=document.querySelector('[data-hd-wid="uptime"] .hd-num-int'),m=document.querySelector('[data-hd-wid="net-tx"] .hd-num-int');if(!c||!b)return '';const cr=c.getBoundingClientRect(),br=b.getBoundingClientRect();return JSON.stringify({bottom:cr.bottom-br.bottom,left:br.left-cr.left,numTop:n?n.getBoundingClientRect().top:-1,sensorTop:m?m.getBoundingClientRect().top:-1});}`).Str()
+		var r struct{ Bottom, Left, NumTop, SensorTop float64 }
 		if err := json.Unmarshal([]byte(g), &r); err != nil {
 			t.Fatalf("tile glyph measurement (%s) = %q, %v", label, g, err)
 		}
-		t.Logf("%s: uptime glyph bottom %.1f, net-tx chart bottom %.1f", label, r.Glyph, r.Spark)
-		if math.Abs(r.Glyph-r.Spark) > 2 {
-			t.Errorf("%s: uptime glyph bottom %.1f is not within 2 px of the net-tx chart bottom %.1f", label, r.Glyph, r.Spark)
+		t.Logf("%s: uptime glyph bottom inset %.1f, left inset %.1f, numeral top %.1f, net-tx numeral top %.1f", label, r.Bottom, r.Left, r.NumTop, r.SensorTop)
+		if math.Abs(r.Bottom-r.Left) > 2 {
+			t.Errorf("%s: uptime glyph bottom inset %.1f differs from its left inset %.1f by more than 2 px", label, r.Bottom, r.Left)
+		}
+		if r.NumTop < 0 || r.SensorTop < 0 {
+			t.Logf("%s: numeral alignment skipped (the sensor shows no .hd-num-int in this family)", label)
+		} else if math.Abs(r.NumTop-r.SensorTop) > 2 {
+			t.Errorf("%s: uptime numeral top %.1f is not within 2 px of the net-tx numeral top %.1f", label, r.NumTop, r.SensorTop)
 		}
 	}
 
