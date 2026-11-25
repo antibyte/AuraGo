@@ -297,3 +297,209 @@
         workspaceRenderBanner();
         workspaceUpdateWindowTitle();
     }
+
+    // --- Workspace menu ------------------------------------------------------------------------
+
+    async function workspaceLoadList(instance = state) {
+        const target = instance;
+        try {
+            const payload = await apiClient.workspaces();
+            if (!isLiveInstance(target)) return [];
+            target.workspaces = WS_MODEL.normalizeWorkspaceList(payload);
+            if (workspaceIsRemote(target)) {
+                const fresh = target.workspaces.find(ws => ws.id === target.workspaceId);
+                if (fresh) target.workspace = Object.assign({}, target.workspace, fresh, { capabilities: fresh.capabilities || (target.workspace && target.workspace.capabilities) || null });
+            }
+        } catch (_) {
+            if (isLiveInstance(target) && !(target.workspaces || []).length) target.workspaces = [WS_MODEL.localWorkspace()];
+        }
+        return target.workspaces;
+    }
+
+    function closeWorkspaceMenu(instance = state, restoreFocus = false) {
+        const menu = instance && instance.workspaceMenu;
+        if (menu && typeof menu.__codeStudioCleanup === 'function') menu.__codeStudioCleanup(restoreFocus);
+    }
+
+    async function openWorkspaceMenu(anchor) {
+        const instance = state;
+        if (!isLiveInstance(instance) || !anchor) return;
+        const kind = anchor.hasAttribute('data-status-remote') ? 'chip' : 'switcher';
+        if (instance.workspaceMenu) {
+            const same = instance.workspaceMenu.__anchorKind === kind;
+            closeWorkspaceMenu(instance, same);
+            if (same) return;
+        }
+        document.querySelectorAll('.cs-context-menu').forEach(other => {
+            if (typeof other.__codeStudioCleanup === 'function') other.__codeStudioCleanup();
+            else other.remove();
+        });
+        const menu = document.createElement('div');
+        menu.className = 'cs-context-menu cs-ws-menu';
+        menu.setAttribute('role', 'menu');
+        menu.setAttribute('aria-label', tr('codeStudio.workspaceMenu', 'Workspaces'));
+        menu.__anchorKind = kind;
+        document.body.appendChild(menu);
+        instance.workspaceMenu = menu;
+        anchor.setAttribute('aria-expanded', 'true');
+        let closed = false;
+        let unregister = () => {};
+        // The status bar and the sidebar re-render; the anchor is looked up again when the old element is gone.
+        const currentAnchor = () => (anchor.isConnected ? anchor : (isLiveInstance(instance) ? runWithInstance(instance, () => shellPart(kind === 'chip' ? '[data-status-remote]' : '[data-ws-switcher]')) : null));
+        const onPointer = event => {
+            const owner = currentAnchor();
+            if (!menu.contains(event.target) && !(owner && owner.contains(event.target))) cleanup(false);
+        };
+        const onResize = () => cleanup(false);
+        const cleanup = restoreFocus => {
+            if (closed) return;
+            closed = true;
+            unregister();
+            document.removeEventListener('mousedown', onPointer, true);
+            window.removeEventListener('resize', onResize);
+            menu.remove();
+            if (instance.workspaceMenu === menu) instance.workspaceMenu = null;
+            const owner = currentAnchor();
+            if (owner) owner.setAttribute('aria-expanded', 'false');
+            if (restoreFocus && owner) owner.focus();
+        };
+        menu.__codeStudioCleanup = cleanup;
+        unregister = registerDisposer(() => cleanup(false));
+        menu.addEventListener('keydown', bindInstance(instance, event => workspaceMenuKeydown(event, menu, cleanup)));
+        setTimeout(() => {
+            if (closed) return;
+            document.addEventListener('mousedown', onPointer, true);
+            window.addEventListener('resize', onResize);
+        }, 0);
+        renderWorkspaceMenu(menu, cleanup, true);
+        positionWorkspaceMenu(menu, anchor);
+        await workspaceLoadList(instance);
+        if (closed || !isLiveInstance(instance)) return;
+        runWithInstance(instance, () => {
+            renderWorkspaceMenu(menu, cleanup, menu.contains(document.activeElement));
+            const owner = currentAnchor();
+            if (owner) positionWorkspaceMenu(menu, owner);
+        });
+    }
+
+    function positionWorkspaceMenu(menu, anchor) {
+        const rect = anchor.getBoundingClientRect();
+        menu.style.minWidth = Math.round(Math.max(280, Math.min(rect.width, 440))) + 'px';
+        const box = menu.getBoundingClientRect();
+        const below = rect.bottom + 4;
+        const top = below + box.height <= window.innerHeight - 8 ? below : Math.max(8, rect.top - box.height - 4);
+        menu.style.left = Math.round(Math.max(8, Math.min(rect.left, window.innerWidth - box.width - 8))) + 'px';
+        menu.style.top = Math.round(top) + 'px';
+    }
+
+    function workspaceMenuItemMarkup(ws, currentId) {
+        const checked = ws.id === currentId;
+        const remote = ws.kind === 'ssh';
+        const label = workspaceDisplayLabel(ws);
+        const sub = remote ? workspaceHostLabel(ws) + ':' + WS_MODEL.displayRoot(ws) : tr('codeStudio.workspaceLocalSub', 'Container · /workspace');
+        const dot = remote ? workspaceDotState(ws) : '';
+        const aria = [label, sub, remote ? workspaceStatusText(dot) : ''].filter(Boolean).join(', ');
+        const remove = remote
+            ? `<button type="button" class="cs-ws-menu-remove" data-ws-remove="${esc(ws.id)}" tabindex="-1" aria-label="${esc(tr('codeStudio.workspaceRemove', 'Remove') + ': ' + label)}" title="${esc(tr('codeStudio.workspaceRemove', 'Remove'))}">${wsGlyph('x', 12)}</button>`
+            : '';
+        return `<div class="cs-ws-menu-row${checked ? ' is-current' : ''}" role="none">
+            <button type="button" class="cs-ws-menu-item" role="menuitemradio" aria-checked="${checked}" tabindex="-1" data-ws-id="${esc(ws.id)}" aria-label="${esc(aria)}" title="${esc(remote ? workspaceHostLabel(ws) + ':' + ws.root : sub)}">
+                <span class="cs-ws-menu-icon">${wsGlyph(remote ? 'server' : 'laptop', 15)}</span>
+                <span class="cs-ws-menu-text"><span class="cs-ws-menu-label">${esc(label)}</span><span class="cs-ws-menu-sub">${esc(sub)}</span></span>
+                ${remote ? `<span class="cs-ws-dot" data-ws-dot="${esc(dot)}" aria-hidden="true"></span>` : ''}
+                <span class="cs-ws-menu-check" aria-hidden="true">${checked ? wsGlyph('check', 13) : ''}</span>
+            </button>${remove}
+        </div>`;
+    }
+
+    function workspaceMenuActionMarkup(action, glyph, label) {
+        return `<button type="button" class="cs-ws-menu-item" role="menuitem" tabindex="-1" data-ws-action="${esc(action)}"><span class="cs-ws-menu-icon">${wsGlyph(glyph, 15)}</span><span class="cs-ws-menu-text"><span class="cs-ws-menu-label">${esc(label)}</span></span></button>`;
+    }
+
+    function renderWorkspaceMenu(menu, cleanup, focus) {
+        const instance = state;
+        const active = menu.contains(document.activeElement) ? document.activeElement : null;
+        const focusedKey = active ? (active.dataset.wsId || active.dataset.wsAction || '') : '';
+        const remotes = (instance.workspaces || []).filter(ws => ws.kind === 'ssh');
+        const separator = '<div class="cs-context-separator" role="separator"></div>';
+        const rows = [`<div class="cs-ws-menu-heading" role="presentation">${esc(tr('codeStudio.workspaceMenu', 'Workspaces'))}</div>`,
+            workspaceMenuItemMarkup(WS_MODEL.localWorkspace(), instance.workspaceId)];
+        if (remotes.length) {
+            rows.push(separator, `<div class="cs-ws-menu-heading" role="presentation">${esc(tr('codeStudio.workspaceRecent', 'Recent SSH folders'))}</div>`);
+            remotes.forEach(ws => rows.push(workspaceMenuItemMarkup(ws, instance.workspaceId)));
+        }
+        rows.push(separator, workspaceMenuActionMarkup('connect', 'plus', tr('codeStudio.workspaceConnect', 'Connect to SSH Folder…')));
+        if (workspaceIsRemote()) {
+            rows.push(workspaceMenuActionMarkup('reconnect', 'plug', tr('codeStudio.workspaceReconnect', 'Reconnect')));
+            rows.push(workspaceMenuActionMarkup('disconnect', 'unplug', tr('codeStudio.workspaceDisconnect', 'Disconnect')));
+        }
+        menu.innerHTML = rows.join('');
+        menu.querySelectorAll('[data-ws-id]').forEach(button => button.addEventListener('click', bindInstance(instance, () => { cleanup(true); switchWorkspace(button.dataset.wsId); })));
+        menu.querySelectorAll('[data-ws-remove]').forEach(button => button.addEventListener('click', bindInstance(instance, event => { event.stopPropagation(); cleanup(true); workspaceRemove(button.dataset.wsRemove); })));
+        menu.querySelectorAll('[data-ws-action]').forEach(button => button.addEventListener('click', bindInstance(instance, () => { cleanup(true); workspaceMenuAction(button.dataset.wsAction); })));
+        if (!focus) return;
+        const items = Array.from(menu.querySelectorAll('[data-ws-id], [data-ws-action]'));
+        const target = (focusedKey && items.find(item => (item.dataset.wsId || item.dataset.wsAction) === focusedKey)) || menu.querySelector('[aria-checked="true"]') || items[0];
+        if (target) target.focus();
+    }
+
+    function workspaceMenuKeydown(event, menu, cleanup) {
+        const items = Array.from(menu.querySelectorAll('.cs-ws-menu-item:not([disabled])'));
+        const active = document.activeElement;
+        const current = active && active.classList.contains('cs-ws-menu-remove') ? active.parentElement.querySelector('.cs-ws-menu-item') : active;
+        const index = items.indexOf(current);
+        const remove = current && current.parentElement ? current.parentElement.querySelector('.cs-ws-menu-remove') : null;
+        switch (event.key) {
+            case 'ArrowDown':
+            case 'ArrowUp': {
+                event.preventDefault();
+                const delta = event.key === 'ArrowDown' ? 1 : -1;
+                const next = items[index < 0 ? 0 : (index + delta + items.length) % items.length];
+                if (next) next.focus();
+                break;
+            }
+            case 'Home': event.preventDefault(); if (items[0]) items[0].focus(); break;
+            case 'End': event.preventDefault(); if (items.length) items[items.length - 1].focus(); break;
+            case 'ArrowRight': if (remove) { event.preventDefault(); remove.focus(); } break;
+            case 'ArrowLeft': if (active !== current && current) { event.preventDefault(); current.focus(); } break;
+            case 'Delete':
+            case 'Backspace': if (remove) { event.preventDefault(); remove.click(); } break;
+            case 'Escape': event.preventDefault(); event.stopPropagation(); cleanup(true); break;
+            case 'Tab': event.preventDefault(); cleanup(true); break;
+            default: break;
+        }
+    }
+
+    function workspaceMenuAction(action) {
+        if (action === 'connect') openConnectDialog();
+        else if (action === 'reconnect') workspaceReconnect();
+        else if (action === 'disconnect') switchWorkspace(WS_MODEL.LOCAL_ID);
+    }
+
+    async function workspaceRemove(id) {
+        const target = state;
+        const ws = (target.workspaces || []).find(item => item.id === id);
+        if (!ws) return;
+        const confirmed = await confirmValue(tr('codeStudio.workspaceRemoveConfirm', 'Remove {{workspace}} from the list? The files on the host stay untouched.', { workspace: workspaceDisplayLabel(ws) }), { confirmLabel: tr('codeStudio.workspaceRemove', 'Remove'), confirmIcon: 'trash' });
+        if (!confirmed || !isLiveInstance(target)) return;
+        if (target.workspaceId === id && !await runWithInstance(target, () => switchWorkspace(WS_MODEL.LOCAL_ID))) return;
+        try {
+            await apiClient.deleteWorkspace(id);
+        } catch (err) {
+            if (!isLiveInstance(target)) return;
+            if (err.status !== 404) {
+                runWithInstance(target, () => workspaceToast(workspaceErrorText('other', { error: err.message })));
+                return;
+            }
+        }
+        if (!isLiveInstance(target)) return;
+        WS_MODEL.forgetSession(localStorage, id);
+        target.workspaces = (target.workspaces || []).filter(item => item.id !== id);
+        runWithInstance(target, workspaceRenderChrome);
+    }
+
+    function openWorkspaceSwitcher() {
+        const switcher = shellPart('[data-ws-switcher]');
+        const anchor = switcher && state.sidebarVisible && switcher.getClientRects().length ? switcher : shellPart('[data-status-remote]');
+        if (anchor) openWorkspaceMenu(anchor);
+    }
