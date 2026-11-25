@@ -7625,7 +7625,9 @@
             }
             conn = {
                 instance, language, state: 'off', client: null, socket: null, synced: false, attached: false,
-                retries: 0, retryTimer: 0, idleTimer: 0, lastRetryAt: 0, waiters: [], pending: new Map(), transport: null
+                retries: 0, retryTimer: 0, idleTimer: 0, lastRetryAt: 0, waiters: [], pending: new Map(), transport: null,
+                // The client got connect() in this session. LSPClient.connected stays true after disconnect(), so it is tracked here.
+                linked: false
             };
             conn.transport = lspCreateTransport(conn);
             instance.lsp.connections[language] = conn;
@@ -7640,6 +7642,7 @@
         lspClearTimers(conn);
         conn.retries = 0;
         conn.attached = false;
+        conn.linked = false;
         try {
             conn.client = lspCreateClient(conn);
         } catch (err) {
@@ -7658,7 +7661,7 @@
     function lspCreateClient(conn) {
         const cm = conn.instance.cmModule;
         const WorkspaceClass = lspWorkspaceClass(cm);
-        return new cm.LSPClient({
+        const client = new cm.LSPClient({
             rootUri: LSP_PROTOCOL.ROOT_URI,
             timeout: LSP_CLIENT_TIMEOUT_MS,
             sanitizeHTML: lspSanitizeHTML,
@@ -7683,6 +7686,14 @@
             // object merges the capabilities above into the client's initialize request.
             extensions: [cm.serverDiagnostics(), { clientCapabilities: LSP_CLIENT_CAPABILITIES }]
         });
+        // Library requests (hover, completion, signature help, definition) go through client.request and would wait on
+        // initializing forever after an idle close; touching the connection first reconnects it.
+        const libraryRequest = client.request.bind(client);
+        client.request = (method, params) => {
+            lspTouchConnection(conn);
+            return libraryRequest(method, params);
+        };
+        return client;
     }
 
     function lspOpenSocket(conn) {
@@ -7704,6 +7715,7 @@
             // The findings of the previous server are stale; the new one publishes its own.
             lspClearLanguageProblems(conn);
             client.connect(conn.transport);
+            conn.linked = true;
             client.initializing.then(bindInstance(instance, () => {
                 if (conn.socket === socket && conn.client === client) lspBecameReady(conn);
             }), bindInstance(instance, () => {
@@ -7817,7 +7829,7 @@
     function lspIdleClose(conn) {
         conn.idleTimer = 0;
         const client = conn.client;
-        if (!isLiveInstance(conn.instance) || !client || !client.connected) return;
+        if (!isLiveInstance(conn.instance) || !client || !conn.linked) return;
         if (!['starting', 'ready', 'disconnected'].includes(conn.state)) return;
         const linked = conn.state !== 'disconnected';
         if (conn.retryTimer) clearTimeout(conn.retryTimer);
@@ -8321,7 +8333,9 @@
         if (conn.state === 'too-many') {
             return [cm.EditorView.domEventHandlers({ focus: () => { lspRetryTooMany(instance, language); return false; } })];
         }
-        if (!conn.client || !conn.client.connected) return [];
+        // An idle-closed session reconnects when an editor opens.
+        lspTouchConnection(conn);
+        if (!conn.client || !conn.linked) return [];
         const extras = [];
         lspActionExtensionFactories.forEach(factory => {
             try {
@@ -8470,14 +8484,29 @@
 
     // --- Contract API for plan 2c ---------------------------------------------------------------
 
-    function lspEnsureClient(language) {
+    // timeoutMs (internal, for lspRequest) bounds the wait of a starting or disconnected session: Error('timeout').
+    function lspEnsureClient(language, timeoutMs) {
         const instance = state;
         if (!LSP_LANGUAGES.includes(language) || !lspAvailable(instance, instance && instance.cmModule)) return Promise.resolve(null);
         const conn = lspConnection(instance, language, true);
         lspTouchConnection(conn);
         if (conn.state === 'ready' && conn.client) return Promise.resolve(conn.client);
         if (conn.state !== 'starting' && conn.state !== 'disconnected') return Promise.resolve(null);
-        return new Promise(resolve => conn.waiters.push(resolve));
+        return new Promise((resolve, reject) => {
+            let timer = 0;
+            const waiter = client => {
+                clearTimeout(timer);
+                resolve(client);
+            };
+            conn.waiters.push(waiter);
+            if (timeoutMs > 0) {
+                timer = setTimeout(() => {
+                    const index = conn.waiters.indexOf(waiter);
+                    if (index >= 0) conn.waiters.splice(index, 1);
+                    reject(new Error('timeout'));
+                }, timeoutMs);
+            }
+        });
     }
 
     function lspClientState(language) {
@@ -8490,7 +8519,10 @@
     // Own id space and own timer: the default 3 s budget holds even though the LSPClient itself waits up to 15 s.
     async function lspRequest(language, method, params, timeoutMs = LSP_REQUEST_TIMEOUT_MS) {
         const instance = state;
-        const client = await lspEnsureClient(language);
+        const budget = Math.max(1, Number(timeoutMs) || LSP_REQUEST_TIMEOUT_MS);
+        const startedAt = Date.now();
+        const client = await lspEnsureClient(language, budget);
+        timeoutMs = Math.max(1, budget - (Date.now() - startedAt));
         const conn = lspConnectionOf(instance, language);
         if (!client || !conn || conn.client !== client || !isLiveInstance(instance)) throw new Error('unavailable');
         lspTouchConnection(conn);
@@ -8501,7 +8533,7 @@
                 if (!conn.pending.delete(id)) return;
                 lspSendRaw(conn, { jsonrpc: '2.0', method: '$/cancelRequest', params: { id } });
                 reject(new Error('timeout'));
-            }, Math.max(1, Number(timeoutMs) || LSP_REQUEST_TIMEOUT_MS));
+            }, timeoutMs);
             conn.pending.set(id, { resolve, reject, timer });
             // The didChange that sync() queued goes out first: both wait on the same resolved promise.
             client.initializing.then(() => {
@@ -8563,7 +8595,11 @@
         lspTouchConnection(lspConnectionOf(state, language));
     }
 
-    // Server-to-client requests the page answers itself; plan 2c adds workspace/applyEdit.
+    // Server-to-client requests the page answers itself. Plan 2c replaces the workspace/applyEdit default through
+    // lspOnServerRequest (the registry is a Map, so the later registration wins).
+    lspOnServerRequest('workspace/applyEdit', () => ({ applied: false, failureReason: 'Not supported yet' }));
+    ['workspace/diagnostic/refresh', 'workspace/semanticTokens/refresh', 'workspace/codeLens/refresh',
+        'workspace/inlayHint/refresh', 'workspace/inlineValue/refresh'].forEach(method => lspOnServerRequest(method, () => null));
     lspOnServerRequest('workspace/configuration', (_language, params) => (params && Array.isArray(params.items) ? params.items.map(() => null) : []));
     lspOnServerRequest('window/workDoneProgress/create', () => null);
     lspOnServerRequest('client/registerCapability', () => null);
