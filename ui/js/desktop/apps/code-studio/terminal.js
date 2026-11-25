@@ -7,7 +7,7 @@
         if (!terminal) return;
         const sessionTabs = (state.terminalSessions || []).map((session, index) => `
             <button type="button" class="cs-terminal-tab${index === (state.activeTerminalSession || 0) ? ' active' : ''}" data-terminal-tab="${index}">
-                <span>${esc(session.name || shellName(index))}</span>
+                <span>${esc(workspaceTerminalLabel(session.name || shellName(index)))}</span>
                 <span class="cs-terminal-tab-close" data-terminal-close="${index}" title="${esc(tr('desktop.close', 'Close'))}">×</span>
             </button>`).join('');
         if (!terminal.querySelector('[data-terminal-screen]')) {
@@ -16,7 +16,7 @@
         }
         terminal.querySelector('.cs-terminal-head').innerHTML = `
                 <div class="cs-terminal-tabs">
-                    ${sessionTabs || `<button type="button" class="cs-terminal-tab active" data-terminal-tab="0"><span>${esc(tr('codeStudio.terminal', 'Terminal'))}</span></button>`}
+                    ${sessionTabs || `<button type="button" class="cs-terminal-tab active" data-terminal-tab="0"><span>${esc(workspaceTerminalLabel(tr('codeStudio.terminal', 'Terminal')))}</span></button>`}
                     <button type="button" class="cs-terminal-add" data-terminal-add title="${esc(tr('codeStudio.newTerminal', 'New Terminal'))}">+</button>
                 </div>
                 <span class="cs-terminal-state" data-terminal-state data-state="stopped">${esc(tr('codeStudio.stopped', 'Stopped'))}</span>
@@ -198,9 +198,8 @@
             session.term = term;
             const fitTarget = session.fitAddon;
             if (fitTarget) fitTarget.fit();
-            term.writeln(tr('codeStudio.title', 'Code Studio') + ' - ' + shellName(index));
-            const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const ws = new WebSocket(protocol + '//' + location.host + '/api/code-studio/terminal');
+            term.writeln(tr('codeStudio.title', 'Code Studio') + ' - ' + shellName(index) + workspaceTerminalBanner());
+            const ws = new WebSocket(workspaceSocketURL('/api/code-studio/terminal', instance)); // Plan C: ws=<id>
             ws.binaryType = 'arraybuffer';
             session.ws = ws;
             syncTerminalAliases();
@@ -237,6 +236,7 @@
                 if (session.dataSubscription) session.dataSubscription.dispose();
                 session.dataSubscription = null;
                 terminalSessionStatus(session, 'codeStudio.stopped');
+                workspaceTerminalClosed(); // Plan C: a closed remote shell may mean a broken SSH connection
             });
             renderTerminal();
             mountActiveTerminalSession(session);

@@ -79,6 +79,10 @@
             } else if (!mod && event.shiftKey && event.altKey && (key === 'f' || event.code === 'KeyF') && !inTerminal) {
                 event.preventDefault();
                 formatActiveDocument();
+            } else if (mod && event.shiftKey && !event.altKey && (key === 'v' || event.code === 'KeyV') && !inTerminal && (!editing || isCodeEditorTarget(event.target))) {
+                // Plan B: Ctrl+Shift+V toggles the HTML preview. Inputs and the terminal keep paste-as-plain-text.
+                event.preventDefault();
+                togglePreviewPane();
             } else if (mod && event.shiftKey && key === 'a') {
                 event.preventDefault();
                 if (!state.agentVisible) toggleAgentPanel();
@@ -180,6 +184,7 @@
                 { label: tr('codeStudio.outline', 'Outline'), keys: 'Ctrl+Shift+O' },
                 { label: tr('codeStudio.agentChat', 'Agent Chat'), keys: 'Ctrl+Shift+A' },
                 { label: tr('codeStudio.zenMode', 'Zen Mode'), keys: 'Ctrl+K' },
+                { label: tr('codeStudio.previewToggle', 'Toggle HTML Preview'), keys: 'Ctrl+Shift+V' },
                 { label: tr('codeStudio.shortcutsHelp', 'Show keyboard shortcuts'), keys: '?' }
             ]},
             { title: tr('codeStudio.shortcutsExplorer', 'Explorer'), items: [
@@ -230,6 +235,12 @@
 
     function studioCommandTable() {
         return {
+            // Plan C: workspaces
+            openConnectDialog: () => openConnectDialog(),
+            openWorkspaceSwitcher,
+            reconnectWorkspace: () => workspaceReconnect(),
+            disconnectWorkspace: () => switchWorkspace('local'),
+            switchWorkspace,
             // IDE package 1A
             openToSide,
             toggleSplitEditor,
@@ -274,7 +285,14 @@
             // IDE package 2C: language server actions for the command palette
             lspFindReferencesCommand,
             lspRenameSymbolCommand,
-            lspQuickFixCommand
+            lspQuickFixCommand,
+            // Plan B: HTML preview
+            togglePreviewPane,
+            openPreview,
+            closePreviewPane,
+            resetPreview,
+            previewOpenToSideCommand,
+            previewOpenInBrowserTabCommand
         };
     }
 

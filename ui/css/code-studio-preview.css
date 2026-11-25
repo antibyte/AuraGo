@@ -1,0 +1,380 @@
+/* Code Studio HTML preview (Plan B). The pane lives inside .code-studio, so every --cs-* token and app material
+   applies; the file is separate from code-studio.css to keep it apart from parallel Code Studio work.
+   The pane's class is code-studio-htmlpreview: code-studio-preview already names the textarea fallback highlighter
+   of the editor. */
+.code-studio-htmlpreview {
+    position: relative;
+    z-index: 1;
+    display: none;
+    flex: 0 0 var(--cs-preview-width, 480px);
+    flex-direction: column;
+    width: var(--cs-preview-width, 480px);
+    min-width: 280px;
+    min-height: 0;
+    border-left: 1px solid var(--cs-line);
+    background: var(--vd-mat-side, var(--cs-panel));
+}
+
+.code-studio[data-preview="visible"] .code-studio-htmlpreview { display: flex; }
+.code-studio-htmlpreview[hidden],
+.code-studio[data-zen="true"] .code-studio-htmlpreview { display: none !important; }
+
+.cs-hp-resize {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -3px;
+    z-index: 6;
+    width: 6px;
+    cursor: col-resize;
+    background: transparent;
+    transition: background var(--cs-transition-fast);
+}
+
+.cs-hp-resize:hover,
+.cs-hp-resize.dragging,
+.cs-hp-resize:focus-visible {
+    outline: none;
+    background: var(--cs-accent-glow);
+}
+
+.code-studio-htmlpreview.resizing { user-select: none; }
+.code-studio-htmlpreview.resizing .cs-hp-frame { pointer-events: none; }
+
+.cs-hp-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 38px;
+    padding: 4px 6px 4px 8px;
+    border-bottom: 1px solid var(--cs-line);
+    background: var(--vd-mat-bar, var(--vd-theme-chrome-bg));
+    box-shadow: var(--vd-mat-bar-edge, none);
+}
+
+.cs-hp-button {
+    position: relative;
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-width: 28px;
+    height: 28px;
+    padding: 0 6px;
+    border: 1px solid transparent;
+    border-radius: var(--vd-mat-btn-radius, var(--cs-radius-sm));
+    color: var(--cs-muted);
+    background: transparent;
+    font: inherit;
+    cursor: pointer;
+    transition: color var(--cs-transition-fast), background var(--cs-transition-fast), border-color var(--cs-transition-fast);
+}
+
+.cs-hp-button:hover:not(:disabled) { color: var(--cs-text); background: var(--cs-hover); }
+.cs-hp-button[aria-pressed="true"],
+.cs-hp-button[aria-expanded="true"] { color: var(--cs-accent); border-color: var(--cs-accent-border); background: var(--cs-accent-soft); }
+.cs-hp-button:disabled { opacity: 0.45; cursor: default; }
+.cs-hp-glyph { display: block; flex: 0 0 auto; }
+
+.cs-hp-address {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: 6px;
+    min-width: 80px;
+    height: 28px;
+    margin: 0;
+    padding: 0 8px;
+    border: 1px solid var(--vd-mat-field-border, var(--cs-border));
+    border-radius: var(--vd-mat-field-radius, var(--cs-radius-sm));
+    color: var(--cs-muted);
+    background: var(--vd-mat-field, var(--cs-panel-soft));
+    box-shadow: var(--vd-mat-field-shadow, none);
+}
+
+.cs-hp-address:focus-within { border-color: var(--cs-accent-border); box-shadow: 0 0 0 2px var(--cs-accent-soft); }
+.cs-hp-address:has(.cs-hp-address-input[aria-invalid="true"]) { border-color: var(--cs-danger); }
+
+.cs-hp-address-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    outline: none;
+    color: var(--cs-text);
+    background: transparent;
+    font: 12px/1 var(--cs-mono-font);
+}
+
+.cs-hp-address-input[aria-invalid="true"] { color: var(--cs-danger); }
+
+.cs-hp-segmented {
+    display: inline-flex;
+    flex: 0 0 auto;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--cs-line);
+    border-radius: var(--cs-radius-sm);
+    background: var(--vd-mat-well, var(--cs-panel-soft));
+}
+
+.cs-hp-segment {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 22px;
+    padding: 0;
+    border: 0;
+    border-radius: calc(var(--cs-radius-sm) - 2px);
+    color: var(--cs-muted);
+    background: transparent;
+    cursor: pointer;
+}
+
+.cs-hp-segment:hover { color: var(--cs-text); }
+.cs-hp-segment.active { color: var(--cs-accent-contrast); background: var(--cs-accent); }
+
+.cs-hp-badge {
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 8px;
+    color: #fff;
+    background: var(--cs-danger);
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 16px;
+    text-align: center;
+}
+
+.cs-hp-badge[hidden] { display: none; }
+.cs-hp-console-button.has-errors { color: var(--cs-danger); }
+
+.code-studio-htmlpreview :focus-visible { outline: 2px solid var(--cs-accent); outline-offset: 1px; }
+
+.cs-hp-hint {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 10px;
+    border-bottom: 1px solid var(--cs-line);
+    color: var(--cs-text);
+    background: color-mix(in srgb, var(--cs-warning) 14%, transparent);
+    font-size: 12px;
+}
+
+.cs-hp-hint[hidden] { display: none; }
+.cs-hp-hint-dot { flex: 0 0 auto; width: 7px; height: 7px; border-radius: 50%; background: var(--cs-warning); }
+
+.cs-hp-console {
+    position: absolute;
+    top: 42px;
+    right: 8px;
+    z-index: 8;
+    display: flex;
+    flex-direction: column;
+    width: min(420px, calc(100% - 16px));
+    max-height: min(320px, 60%);
+    overflow: hidden;
+    border: 1px solid var(--cs-border);
+    border-radius: var(--cs-radius-md);
+    background: var(--cs-panel-elevated);
+    box-shadow: var(--cs-shadow-lg);
+}
+
+.cs-hp-console[hidden] { display: none; }
+
+.cs-hp-console-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--cs-line);
+    color: var(--vd-mat-label-color, var(--cs-muted));
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: var(--vd-mat-label-tracking, 0.4px);
+    text-transform: var(--vd-mat-label-transform, uppercase);
+}
+
+.cs-hp-text-button {
+    padding: 2px 4px;
+    border: 0;
+    border-radius: var(--cs-radius-sm);
+    color: var(--cs-accent);
+    background: transparent;
+    font: inherit;
+    font-size: 12px;
+    letter-spacing: 0;
+    text-transform: none;
+    cursor: pointer;
+}
+
+.cs-hp-text-button:hover { background: var(--cs-hover); }
+.cs-hp-console-list { margin: 0; padding: 4px 0; overflow: auto; list-style: none; }
+
+.cs-hp-console-entry {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 8px;
+    padding: 6px 10px;
+    border-left: 3px solid var(--cs-danger);
+}
+
+.cs-hp-console-entry + .cs-hp-console-entry { border-top: 1px solid var(--cs-line); }
+.cs-hp-console-entry[data-kind="resource"] { border-left-color: var(--cs-warning); }
+.cs-hp-console-entry time { color: var(--cs-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.cs-hp-console-entry pre { margin: 0; color: var(--cs-text); font: 12px/1.45 var(--cs-mono-font); white-space: pre-wrap; word-break: break-word; }
+.cs-hp-console-empty { padding: 14px 12px; color: var(--cs-muted); font-size: 12px; text-align: center; }
+
+.cs-hp-stage {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--vd-mat-well, var(--cs-panel-soft));
+}
+
+.cs-hp-device { position: absolute; inset: 0; }
+.cs-hp-device[hidden] { display: none; }
+
+/* Pages expect the browser's white canvas, whatever the studio theme. */
+.cs-hp-frame { display: block; width: 100%; height: 100%; border: 0; background: #fff; color-scheme: light; }
+
+.cs-hp-stage:not([data-viewport="responsive"]) .cs-hp-device {
+    inset: auto;
+    top: 50%;
+    left: 50%;
+    box-sizing: content-box;
+    width: var(--cs-hp-device-w, 375px);
+    height: var(--cs-hp-device-h, 812px);
+    overflow: hidden;
+    border: 10px solid var(--cs-panel-elevated);
+    border-radius: 26px;
+    background: var(--cs-panel-elevated);
+    box-shadow: var(--cs-shadow-lg), 0 0 0 1px var(--cs-line);
+    transform: translate(-50%, -50%) scale(var(--cs-hp-scale, 1));
+    transform-origin: center;
+    transition: transform var(--cs-transition-normal);
+}
+
+.cs-hp-stage[data-viewport="tablet"] .cs-hp-device { border-radius: 20px; }
+.cs-hp-stage:not([data-viewport="responsive"]) .cs-hp-frame { border-radius: 16px; }
+
+.cs-hp-device-label {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    padding: 2px 8px;
+    border: 1px solid var(--cs-line);
+    border-radius: 999px;
+    color: var(--cs-muted);
+    background: var(--cs-panel);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+
+.cs-hp-device-label[hidden] { display: none; }
+
+.cs-hp-loading {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 24px;
+    background: var(--cs-panel);
+}
+
+.cs-hp-loading[hidden] { display: none; }
+
+.cs-hp-shimmer {
+    display: block;
+    height: 14px;
+    border-radius: 7px;
+    background: linear-gradient(90deg, var(--cs-panel-soft) 0%, var(--cs-hover) 50%, var(--cs-panel-soft) 100%);
+    background-size: 200% 100%;
+    animation: cs-hp-shimmer 1.2s ease-in-out infinite;
+}
+
+.cs-hp-shimmer:first-child { width: 60%; height: 28px; }
+.cs-hp-shimmer.short { width: 40%; }
+
+@keyframes cs-hp-shimmer {
+    from { background-position: 200% 0; }
+    to { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cs-hp-shimmer { animation: none; }
+    .cs-hp-stage .cs-hp-device,
+    .cs-hp-resize,
+    .cs-hp-button { transition: none; }
+}
+
+.cs-hp-card {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 24px;
+    color: var(--cs-muted);
+    background: var(--vd-mat-well, var(--cs-panel-soft));
+    text-align: center;
+}
+
+.cs-hp-card[hidden] { display: none; }
+.cs-hp-card strong { color: var(--vd-mat-heading-color, var(--cs-text)); font-family: var(--vd-mat-heading-font, inherit); font-size: 14px; font-weight: 600; }
+.cs-hp-card p { max-width: 320px; margin: 0; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+
+.cs-hp-card-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    color: var(--cs-accent);
+    background: var(--cs-accent-soft);
+}
+
+.cs-hp-error .cs-hp-card-icon { color: var(--cs-danger); background: var(--cs-danger-soft); }
+.cs-hp-card-actions { display: flex; gap: 8px; margin-top: 4px; }
+.cs-hp-card-actions .cs-button { padding: 0 12px; }
+
+.cs-hp-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.cs-hp-eye {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 22px;
+    margin-left: auto;
+    border: 1px solid transparent;
+    border-radius: var(--cs-radius-sm);
+    color: var(--cs-muted);
+    background: transparent;
+    cursor: pointer;
+}
+
+.cs-hp-eye:hover { color: var(--cs-text); background: var(--cs-hover); }
+.cs-hp-eye[aria-pressed="true"] { color: var(--cs-accent); border-color: var(--cs-accent-border); background: var(--cs-accent-soft); }
+.cs-hp-eye:focus-visible { outline: 2px solid var(--cs-accent); outline-offset: 1px; }
+
+/* Narrow windows: the preview takes the editor's place instead of squeezing both. */
+@container code-studio (max-width: 720px) {
+    .code-studio[data-preview="visible"] .code-studio-main { display: none; }
+    .code-studio[data-preview="visible"] .code-studio-htmlpreview { flex: 1 1 auto; width: auto; }
+    .cs-hp-resize { display: none; }
+}

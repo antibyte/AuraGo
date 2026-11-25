@@ -175,10 +175,10 @@
 
     function lspOpenSocket(conn) {
         const instance = conn.instance;
-        const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
         let socket;
         try {
-            socket = new WebSocket(protocol + '//' + location.host + '/api/code-studio/lsp?lang=' + encodeURIComponent(conn.language));
+            // Plan C: the bridge serves the active workspace; a switch shuts the sessions down and later opens new sockets.
+            socket = new WebSocket(workspaceSocketURL('/api/code-studio/lsp?lang=' + encodeURIComponent(conn.language), instance));
         } catch (_) {
             conn.socket = null;
             lspSocketClosed(conn, 1006);
@@ -916,7 +916,9 @@
             case 'starting': return tr('codeStudio.lspStarting', 'Starting...');
             case 'ready': return tr('codeStudio.lspReady', 'Ready');
             case 'disconnected': return tr('codeStudio.lspDisconnected', 'Disconnected');
-            case 'not-installed': return tr('codeStudio.lspNotInstalled', 'Language server not installed — rebuild the Code Studio image');
+            case 'not-installed': return workspaceIsRemote()
+                ? tr('codeStudio.workspaceLspNotInstalled', 'not installed on {{host}}', { host: workspaceHostLabel() }) // Plan C
+                : tr('codeStudio.lspNotInstalled', 'Language server not installed — rebuild the Code Studio image');
             case 'too-many': return tr('codeStudio.lspTooMany', 'Too many language servers');
             case 'error': return tr('codeStudio.lspError', 'Error — click to restart');
             default: return tr('codeStudio.lspIdle', 'Idle');

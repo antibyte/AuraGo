@@ -103,6 +103,21 @@
             statusTimer: null,
             terminalObserver: null,
             terminalFitScheduled: false,
+            // Plan C: the active workspace ('local' or a saved SSH workspace) and its connection state.
+            workspaceId: 'local',
+            workspace: null,
+            workspaces: [],
+            workspaceStatus: 'local',
+            workspaceError: null,
+            workspaceWasLost: false,
+            workspaceSwitching: false,
+            workspaceSwitchTarget: '',
+            workspaceRetryAttempt: 0,
+            workspaceRetryAt: 0,
+            workspaceRetryTimer: 0,
+            workspaceRetryTick: 0,
+            workspaceMenu: null,
+            workspaceDialog: null,
             iconMarkup: context && typeof context.iconMarkup === 'function' ? context.iconMarkup : null,
             disposers: []
         };
@@ -364,19 +379,31 @@
             headers: { 'Content-Type': 'application/json' }
         }, options || {});
         if (requestOptions.body instanceof FormData) delete requestOptions.headers;
-        const response = await fetch(path, requestOptions);
+        // Plan C: scoped requests name their workspace. The id is read when the request starts, so a request on its
+        // way stays with the workspace it was started for (switching waits for pending saves).
+        const instance = state || currentInstance();
+        const workspaceId = instance && WS_MODEL.isScopedPath(path) ? instance.workspaceId : 'local';
+        let response;
+        try {
+            response = await fetch(path, WS_MODEL.withWorkspaceHeaders(requestOptions, workspaceId, path));
+        } catch (err) {
+            workspaceNoteRequestError(instance, workspaceId, err);
+            throw err;
+        }
         if (!response.ok) {
-            let message = response.statusText;
-            try {
-                const body = await response.json();
-                message = body.error || body.message || message;
-            } catch (_) {
-                message = await response.text() || message;
-            }
-            const error = new Error(message);
+            const text = await response.text().catch(() => '');
+            let body = null;
+            try { body = text ? JSON.parse(text) : null; } catch (_) { body = null; }
+            const error = new Error((body && (body.error || body.message)) || text || response.statusText);
             error.status = response.status;
+            if (body && typeof body === 'object') {
+                error.code = body.code || '';
+                error.body = body;
+            }
+            workspaceNoteRequestError(instance, workspaceId, error);
             throw error;
         }
+        if (response.status === 204) return {};
         return response.json();
     }
 
@@ -444,6 +471,27 @@
         gitInit: () => api('/api/code-studio/git/init', { method: 'POST' }),
         gitShow: hash => api('/api/code-studio/git/show?hash=' + encodeURIComponent(hash)),
         gitBlame: path => api('/api/code-studio/git/blame?path=' + encodeURIComponent(path)),
+        // Plan C: workspaces and the SSH folder picker (unscoped, see workspace-model.js).
+        workspaces: () => api('/api/code-studio/workspaces'),
+        createWorkspace: body => api('/api/code-studio/workspaces', { method: 'POST', body: JSON.stringify(body) }),
+        deleteWorkspace: id => api('/api/code-studio/workspaces/' + encodeURIComponent(id), { method: 'DELETE' }),
+        connectWorkspace: (id, trust) => api('/api/code-studio/workspaces/' + encodeURIComponent(id) + '/connect', {
+            method: 'POST',
+            body: JSON.stringify(trust ? { trust_host_key: trust } : {})
+        }),
+        // Contract: POST /remote/trust stores the fingerprint; the caller then repeats the original call.
+        trustRemoteHost: (deviceId, fingerprint) => api('/api/code-studio/remote/trust', {
+            method: 'POST',
+            body: JSON.stringify({ device_id: deviceId, fingerprint })
+        }),
+        remoteDevices: () => api('/api/code-studio/remote/devices'),
+        createRemoteDevice: body => api('/api/code-studio/remote/devices', { method: 'POST', body: JSON.stringify(body) }),
+        // The browse endpoint has no trust parameter: an unknown host key is trusted through POST /remote/trust first.
+        remoteBrowse: (deviceId, path) => {
+            const query = new URLSearchParams({ device_id: deviceId });
+            if (path) query.set('path', path);
+            return api('/api/code-studio/remote/browse?' + query);
+        },
     };
 
     function loadState() {
@@ -482,9 +530,17 @@
     function saveState() {
         const openPaths = normalizePersistedPaths(state.openTabs.filter(tab => !isVirtualTab(tab)));
         const recentPaths = normalizePersistedPaths(state.recentFiles);
+        const activeIndex = openPaths.length ? Math.min(Math.max(Number.isInteger(state.activeTabIndex) ? state.activeTabIndex : 0, 0), openPaths.length - 1) : -1;
+        const split = splitStatePayload(); // IDE package 1A
+        // Plan C: the tabs belong to the active workspace; the legacy key keeps only the local workspace's tabs.
+        workspaceSaveSession({ openTabs: openPaths, activeTabIndex: activeIndex, recentFiles: recentPaths, split });
+        let legacy = null;
+        if (workspaceIsRemote()) {
+            try { legacy = JSON.parse(localStorage.getItem(STATE_KEY) || 'null') || {}; } catch (_) { legacy = {}; }
+        }
         const payload = {
-            openTabs: openPaths.map(path => ({ path })),
-            activeTabIndex: openPaths.length ? Math.min(Math.max(Number.isInteger(state.activeTabIndex) ? state.activeTabIndex : 0, 0), openPaths.length - 1) : -1,
+            openTabs: legacy ? (Array.isArray(legacy.openTabs) ? legacy.openTabs : []) : openPaths.map(path => ({ path })),
+            activeTabIndex: legacy ? (Number.isInteger(legacy.activeTabIndex) ? legacy.activeTabIndex : -1) : activeIndex,
             sidebarVisible: state.sidebarVisible,
             sidebarWidth: clampDimension(state.sidebarWidth, MIN_SIDEBAR_WIDTH, MAX_SIDEBAR_WIDTH, 280),
             editorFontSize: state.editorFontSize,
@@ -493,8 +549,8 @@
             activePanel: state.activePanel,
             sidebarView: state.sidebarView,
             terminalHeight: clampDimension(state.terminalHeight, MIN_TERMINAL_HEIGHT, MAX_TERMINAL_HEIGHT, 220),
-            recentFiles: recentPaths,
-            split: splitStatePayload() // IDE package 1A
+            recentFiles: legacy ? (Array.isArray(legacy.recentFiles) ? legacy.recentFiles : []) : recentPaths,
+            split: legacy ? (legacy.split || null) : split
         };
         localStorage.setItem(STATE_KEY, JSON.stringify(payload));
     }
@@ -530,6 +586,9 @@
             if (context && typeof context.setWindowBeforeClose === 'function') {
                 context.setWindowBeforeClose(windowId, () => confirmWindowClose(instance));
             }
+            // Plan C: pick the workspace (local or this browser's last SSH workspace) and connect it.
+            await runAsyncStep(instance, workspaceBoot);
+            if (!isLiveInstance(instance)) return;
             await runAsyncStep(instance, () => refreshFiles(instance.currentPath));
             if (!isLiveInstance(instance)) return;
             await runAsyncStep(instance, restoreTabs);
@@ -739,6 +798,7 @@
         return `<div class="code-studio" data-code-studio>
             <div class="code-studio-toolbar" data-toolbar></div>
             <div class="code-studio-search" data-search hidden></div>
+            <div class="cs-ws-banner" data-ws-banner hidden></div>
             <div class="code-studio-body">
                 <nav class="code-studio-activity-bar" data-activity-bar>
                     <button type="button" class="cs-activity-btn active" data-activity="explorer" title="${esc(tr('codeStudio.explorer', 'Explorer'))}">
@@ -800,6 +860,7 @@
                         </div>
                     </div>
                 </main>
+                <aside class="code-studio-htmlpreview" data-html-preview hidden></aside>
                 <aside class="code-studio-chat" data-agent-panel></aside>
                 <aside class="code-studio-git" data-git-panel hidden></aside>
             </div>
@@ -834,6 +895,7 @@
         renderFindWidget();
         renderAgentPanel();
         renderGitPanel();
+        renderPreviewPane(); // Plan B: HTML preview pane
         renderStatus();
         renderWindowMenus();
         renderActivityBar();
@@ -858,6 +920,8 @@
                     { id: 'new-file', label: tr('codeStudio.newFile', 'New File'), icon: 'file-plus', shortcut: 'Ctrl+N', action: bind(createNewFile) },
                     { id: 'new-folder', label: tr('codeStudio.newFolder', 'New Folder'), icon: 'folder-plus', action: bind(createNewFolder) },
                     { id: 'open-file-dialog', labelKey: 'desktop.file_dialog_open', icon: 'folder-open', shortcut: 'Ctrl+O', action: bind(openFileFromDialog) },
+                    { id: 'workspace-connect', label: tr('codeStudio.workspaceConnect', 'Connect to SSH Folder…'), icon: 'server', action: bind(() => openConnectDialog()) },
+                    ...(workspaceIsRemote() ? [{ id: 'workspace-disconnect', label: tr('codeStudio.workspaceDisconnect', 'Disconnect'), icon: 'x', action: bind(() => switchWorkspace('local')) }] : []),
                     { type: 'separator' },
                     { id: 'save', label: tr('codeStudio.save', 'Save'), icon: 'save', shortcut: 'Ctrl+S', disabled: !hasActiveTab, action: bind(saveCurrentFile) },
                     { id: 'save-all', label: tr('codeStudio.saveAll', 'Save All'), icon: 'save', disabled: !hasModified, action: bind(saveAllFiles) },
@@ -899,6 +963,7 @@
                     { id: 'panel-terminal', labelKey: 'desktop.menu_terminal', icon: 'terminal', checked: state.panelVisible && state.activePanel === 'terminal', action: bind(() => togglePanel('terminal')) },
                     { id: 'agent-panel', labelKey: 'desktop.menu_agent_panel', icon: 'chat', shortcut: 'Ctrl+Shift+A', checked: state.agentVisible, action: bind(toggleAgentPanel) },
                     { id: 'git-panel', label: tr('codeStudio.gitPanel', 'Git'), icon: 'network', checked: state.gitVisible, action: bind(toggleGitPanel) },
+                    { id: 'html-preview', label: tr('codeStudio.previewToggle', 'Toggle HTML Preview'), icon: 'columns', shortcut: 'Ctrl+Shift+V', checked: !!(state.htmlPreview && state.htmlPreview.open), action: bind(togglePreviewPane) }, // Plan B
                     { type: 'separator' },
                     { id: 'split-right', label: tr('codeStudio.splitRight', 'Split Right'), icon: 'columns', checked: state.splitMode === 'right', disabled: !hasActiveTab && !state.splitMode, action: bind(() => splitEditor('right')) },
                     { id: 'split-down', label: tr('codeStudio.splitDown', 'Split Down'), icon: 'layout', checked: state.splitMode === 'down', disabled: !hasActiveTab && !state.splitMode, action: bind(() => splitEditor('down')) },
@@ -1028,6 +1093,7 @@
         updateToolbarTitle();
         updatePolicyControls();
         updateSuggestionStatus();
+        previewAfterTabs(); // Plan B: dirty hint and eye state
     }
 
     function updateToolbarTitle() {
@@ -1135,6 +1201,11 @@
     }
 
     function renderBreadcrumbs() {
+        renderBreadcrumbsBase();
+        previewAfterBreadcrumbs(); // Plan B: eye button, follow mode and dirty hint
+    }
+
+    function renderBreadcrumbsBase() {
         const bar = shellPart('[data-breadcrumbs]');
         if (!bar) return;
         const tab = activeTab();
@@ -1188,12 +1259,15 @@
         const lineInfo = tab ? cursorPositionText(tab) : '';
         const modifiedCount = state.openTabs.filter(item => item.modified).length;
         const leftItems = [];
-        leftItems.push(`<span class="cs-status-item cs-status-container" title="${esc(containerStatusLabel())}"><span class="cs-status-dot" data-status="${esc(state.containerStatus || 'unknown')}"></span>${esc(containerStatusLabel())}</span>`);
+        const remote = workspaceIsRemote();
+        const chipFocused = !!document.activeElement && statusEl.contains(document.activeElement) && document.activeElement.matches('[data-status-remote]');
+        leftItems.push(workspaceStatusChipMarkup()); // Plan C: the workspace chip sits at the far left
+        if (!remote) leftItems.push(`<span class="cs-status-item cs-status-container" title="${esc(containerStatusLabel())}"><span class="cs-status-dot" data-status="${esc(state.containerStatus || 'unknown')}"></span>${esc(containerStatusLabel())}</span>`);
         if (state.gitIsRepo === true) leftItems.push(`<span class="cs-status-item cs-status-branch" data-clickable data-status-branch title="${esc(tr('codeStudio.gitBranchMenu', 'Switch, create or delete branches'))}">${gitBranchIconMarkup(12)}<span>${esc(state.gitBranch || tr('codeStudio.gitDetached', 'Detached HEAD'))}</span></span>`);
         const info = state.containerInfo || {};
         if (info.read_only) leftItems.push(`<span class="cs-status-item">${esc(tr('codeStudio.readOnly', 'Read-only'))}</span>`);
-        if (info.network === 'none') leftItems.push(`<span class="cs-status-item" data-network="none">${esc(tr('codeStudio.networkOff', 'Network off'))}</span>`);
-        const idleLabel = containerIdleLabel(info);
+        if (!remote && info.network === 'none') leftItems.push(`<span class="cs-status-item" data-network="none">${esc(tr('codeStudio.networkOff', 'Network off'))}</span>`);
+        const idleLabel = remote ? '' : containerIdleLabel(info);
         if (idleLabel) leftItems.push(`<span class="cs-status-item">${esc(idleLabel)}</span>`);
         if (message) leftItems.push(`<span class="cs-status-item cs-status-message">${esc(message)}</span>`);
         else if (tab) leftItems.push(`<span class="cs-status-item" title="${esc(tab.path)}">${tab.modified ? '<span class="cs-status-modified">\u25cf</span> ' : ''}${esc(baseName(tab.path))}</span>`);
@@ -1212,6 +1286,7 @@
         rightItems.push(`<span class="cs-status-item" data-clickable title="${esc(tr('codeStudio.zoomReset', 'Reset Zoom'))}" data-status-zoom>${esc(clampEditorFontSize(state.editorFontSize))}px</span>`);
         rightItems.push(`<span class="cs-status-item cs-status-engine">${esc(state.editorType === 'codemirror' ? 'CodeMirror' : tr('codeStudio.editorFallback', 'Basic'))}</span>`);
         statusEl.innerHTML = leftItems.join('') + '<span class="cs-status-spacer"></span>' + rightItems.join('');
+        wireWorkspaceChip(statusEl, chipFocused); // Plan C
         const zoom = statusEl.querySelector('[data-status-zoom]');
         if (zoom) zoom.addEventListener('click', bind(resetEditorZoom));
         const indent = statusEl.querySelector('[data-status-indent]');
@@ -1399,7 +1474,7 @@
         const target = state;
         if (!target) return;
         const savedPaths = target.openTabs.map(tab => tab.path);
-        if (!savedPaths.length && !(target.context && target.context.path)) {
+        if (!savedPaths.length && !(target.context && target.context.path) && !workspaceIsRemote(target)) {
             for (const name of ['hello.go', 'hello.py', 'hello.c', 'hello.js', 'hello.ts']) {
                 const path = WORKSPACE_ROOT + '/' + name;
                 if (target.files.some(file => file.path === path && file.type !== 'directory')) savedPaths.push(path);
@@ -1619,7 +1694,8 @@
             try {
                 await apiClient.writeFile(path, content);
             } catch (err) {
-                if (isLiveInstance(target)) runWithInstance(target, () => showOperationError(err));
+                // Plan C: the tab stays dirty; in an SSH workspace a toast says why.
+                if (isLiveInstance(target)) runWithInstance(target, () => { showOperationError(err); workspaceSaveFailed(tab, err); });
                 return false;
             }
             if (!canWrite(target) || !target.openTabs.includes(tab) || tab.path !== path) return false;
@@ -1802,13 +1878,13 @@
             ctx.exportDesktopFile({
                 path: file.path,
                 name: file.name || baseName(file.path),
-                url: '/api/code-studio/download?path=' + encodeURIComponent(file.path)
+                url: workspaceURL('/api/code-studio/download?path=' + encodeURIComponent(file.path))
             }).catch(err => {
                 if (isLiveInstance(target)) runWithInstance(target, () => showOperationError(err));
             });
             return;
         }
-        window.location.href = '/api/code-studio/download?path=' + encodeURIComponent(file.path);
+        window.location.href = workspaceURL('/api/code-studio/download?path=' + encodeURIComponent(file.path));
     }
 
     async function uploadFile() {
@@ -1820,7 +1896,7 @@
             const result = await ctx.importFilesFromHost({
                 path: directory,
                 multiple: true,
-                uploadURL: '/api/code-studio/upload'
+                uploadURL: workspaceURL('/api/code-studio/upload')
             });
             if (result && !result.canceled && isLiveInstance(target)) {
                 runWithInstance(target, scheduleGitRefresh);
@@ -2007,7 +2083,8 @@
 
     function showOperationError(err) {
         const message = err && err.message ? err.message : String(err || '');
-        renderStatus(tr('codeStudio.containerError', 'Container error: {error}', { error: message }));
+        // Plan C: in an SSH workspace the error is not a container error.
+        renderStatus(workspaceIsRemote() ? workspaceErrorText('other', { error: message }) : tr('codeStudio.containerError', 'Container error: {error}', { error: message }));
         writeTerminalLine(message);
     }
 
@@ -2324,12 +2401,15 @@
             ? (document.activeElement.closest('[data-file-path]') || {}).dataset
             : null;
         const focusedPath = focused ? focused.filePath : '';
+        const switcherFocused = !!document.activeElement && sidebar.contains(document.activeElement) && document.activeElement.matches('[data-ws-switcher]');
+        const refocusSwitcher = () => { if (switcherFocused) { const button = sidebar.querySelector('[data-ws-switcher]'); if (button) button.focus(); } };
         if (errorMessage) {
             sidebar.innerHTML = `${sidebarHeadMarkup()}
                 <div class="code-studio-error compact">${esc(errorMessage)}</div>
                 <div class="cs-sidebar-resize" data-sidebar-resize></div>`;
             wireSidebarHead(sidebar);
             wireSidebarResize();
+            refocusSwitcher();
             return;
         }
         const rows = state.files.length
@@ -2341,6 +2421,7 @@
         wireSidebarTreeEvents(sidebar);
         wireSidebarDragDrop(sidebar);
         wireSidebarResize();
+        refocusSwitcher();
         if (focusedPath) {
             const row = sidebar.querySelector(`.cs-tree-item[data-file-path="${cssEscape(focusedPath)}"]`);
             if (row) row.focus();
@@ -2355,7 +2436,9 @@
     function sidebarHeadMarkup() {
         const segments = codeStudioDesktopPath(state.currentPath).split('/').filter(Boolean);
         let buildPath = WORKSPACE_ROOT;
-        const crumbs = [`<button type="button" class="cs-sidebar-crumb${segments.length ? '' : ' current'}" data-sidebar-nav="${esc(WORKSPACE_ROOT)}" title="${esc(WORKSPACE_ROOT)}">${iconMarkup('home', 'W', 'cs-sidebar-crumb-icon', 13)}<span>${esc(tr('codeStudio.workspaceRoot', 'Workspace'))}</span></button>`];
+        // Plan C: in an SSH workspace the root crumb shows the remote folder name; the switcher sits on top.
+        const rootTitle = workspaceIsRemote() ? workspaceHostLabel() + ':' + activeWorkspace().root : WORKSPACE_ROOT;
+        const crumbs = [`<button type="button" class="cs-sidebar-crumb${segments.length ? '' : ' current'}" data-sidebar-nav="${esc(WORKSPACE_ROOT)}" title="${esc(rootTitle)}">${iconMarkup('home', 'W', 'cs-sidebar-crumb-icon', 13)}<span>${esc(workspaceRootCrumbLabel())}</span></button>`];
         segments.forEach((segment, index) => {
             buildPath += '/' + segment;
             crumbs.push('<span class="cs-sidebar-crumb-sep">\u203a</span>');
@@ -2363,7 +2446,7 @@
                 ? `<span class="cs-sidebar-crumb current" title="${esc(buildPath)}">${esc(segment)}</span>`
                 : `<button type="button" class="cs-sidebar-crumb" data-sidebar-nav="${esc(buildPath)}" title="${esc(buildPath)}">${esc(segment)}</button>`);
         });
-        return `<div class="cs-sidebar-head">
+        return `<div class="cs-sidebar-head">${workspaceSwitcherMarkup()}
             <div class="cs-sidebar-title">
                 <strong>${esc(tr('codeStudio.explorer', 'Explorer'))}</strong>
                 <span class="cs-sidebar-tools">
@@ -2379,6 +2462,7 @@
 
     function wireSidebarHead(sidebar) {
         updatePolicyControls();
+        wireWorkspaceSwitcher(sidebar); // Plan C
         sidebar.querySelectorAll('[data-sidebar-nav]').forEach(btn => {
             btn.addEventListener('click', bind(() => refreshFiles(btn.dataset.sidebarNav)));
         });
@@ -2611,6 +2695,10 @@
         const items = [];
         if (file && !isDir) items.push({ id: 'open', label: tr('desktop.file_dialog_open', 'Open'), icon: 'file', action: bind(() => openFile(file.path)) });
         if (file && !isDir) items.push({ id: 'open-to-side', label: tr('codeStudio.openToSide', 'Open to the Side'), icon: 'columns', action: bind(() => openToSide(file.path)) }); // IDE package 1A
+        if (file && !isDir && isPreviewablePath(file.path)) { // Plan B
+            items.push({ id: 'preview-open', label: tr('codeStudio.previewOpenMenu', 'Open Preview'), icon: 'columns', action: bind(() => openPreview(file.path)) });
+            items.push({ id: 'preview-browser-tab', label: tr('codeStudio.previewOpenTabMenu', 'Open in Browser Tab'), icon: 'layout', action: bind(() => openPreviewInBrowserTab(file.path)) });
+        }
         if (file && isDir) items.push({ id: 'open-folder', label: tr('desktop.file_dialog_open', 'Open'), icon: 'folder-open', action: bind(() => refreshFiles(file.path)) });
         items.push({ id: 'new-file', label: tr('codeStudio.newFile', 'New File'), icon: 'file-plus', action: bind(() => {
             state.selectedDir = dirPath;
@@ -3130,7 +3218,7 @@
         if (!terminal) return;
         const sessionTabs = (state.terminalSessions || []).map((session, index) => `
             <button type="button" class="cs-terminal-tab${index === (state.activeTerminalSession || 0) ? ' active' : ''}" data-terminal-tab="${index}">
-                <span>${esc(session.name || shellName(index))}</span>
+                <span>${esc(workspaceTerminalLabel(session.name || shellName(index)))}</span>
                 <span class="cs-terminal-tab-close" data-terminal-close="${index}" title="${esc(tr('desktop.close', 'Close'))}">×</span>
             </button>`).join('');
         if (!terminal.querySelector('[data-terminal-screen]')) {
@@ -3139,7 +3227,7 @@
         }
         terminal.querySelector('.cs-terminal-head').innerHTML = `
                 <div class="cs-terminal-tabs">
-                    ${sessionTabs || `<button type="button" class="cs-terminal-tab active" data-terminal-tab="0"><span>${esc(tr('codeStudio.terminal', 'Terminal'))}</span></button>`}
+                    ${sessionTabs || `<button type="button" class="cs-terminal-tab active" data-terminal-tab="0"><span>${esc(workspaceTerminalLabel(tr('codeStudio.terminal', 'Terminal')))}</span></button>`}
                     <button type="button" class="cs-terminal-add" data-terminal-add title="${esc(tr('codeStudio.newTerminal', 'New Terminal'))}">+</button>
                 </div>
                 <span class="cs-terminal-state" data-terminal-state data-state="stopped">${esc(tr('codeStudio.stopped', 'Stopped'))}</span>
@@ -3321,9 +3409,8 @@
             session.term = term;
             const fitTarget = session.fitAddon;
             if (fitTarget) fitTarget.fit();
-            term.writeln(tr('codeStudio.title', 'Code Studio') + ' - ' + shellName(index));
-            const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const ws = new WebSocket(protocol + '//' + location.host + '/api/code-studio/terminal');
+            term.writeln(tr('codeStudio.title', 'Code Studio') + ' - ' + shellName(index) + workspaceTerminalBanner());
+            const ws = new WebSocket(workspaceSocketURL('/api/code-studio/terminal', instance)); // Plan C: ws=<id>
             ws.binaryType = 'arraybuffer';
             session.ws = ws;
             syncTerminalAliases();
@@ -3360,6 +3447,7 @@
                 if (session.dataSubscription) session.dataSubscription.dispose();
                 session.dataSubscription = null;
                 terminalSessionStatus(session, 'codeStudio.stopped');
+                workspaceTerminalClosed(); // Plan C: a closed remote shell may mean a broken SSH connection
             });
             renderTerminal();
             mountActiveTerminalSession(session);
@@ -5943,6 +6031,19 @@
             <button type="button" class="cs-icon-button" data-git-refresh title="${esc(tr('codeStudio.refresh', 'Refresh'))}">${iconMarkup('refresh', 'R', 'cs-icon-button-icon', 14)}</button>
             <button type="button" class="cs-icon-button" data-git-close title="${esc(tr('codeStudio.closeTab', 'Close'))}">${iconMarkup('x', 'X', 'cs-icon-button-icon', 14)}</button>
         </div>`;
+        if (workspaceIsRemote() && !workspaceHas('git')) {
+            // Plan C: the host reported no git; there is nothing to initialise either.
+            panel.innerHTML = `${head}
+                <div class="cs-git-init cs-ws-git-missing" data-ws-git-missing>
+                    <p><strong>${esc(tr('codeStudio.workspaceGitMissing', 'Git is not installed on {{host}}', { host: workspaceHostLabel() }))}</strong></p>
+                    <button type="button" class="cs-button" data-ws-git-reconnect>${esc(tr('codeStudio.workspaceReconnect', 'Reconnect'))}</button>
+                </div>`;
+            wireGitPanel(panel);
+            const reconnect = panel.querySelector('[data-ws-git-reconnect]');
+            if (reconnect) reconnect.addEventListener('click', bind(() => workspaceReconnect()));
+            updatePolicyControls();
+            return;
+        }
         if (state.gitIsRepo === false) {
             panel.innerHTML = `${head}
                 <div class="cs-git-init">
@@ -6045,6 +6146,19 @@
     async function refreshGitStatus() {
         const target = state;
         if (!isLiveInstance(target)) return;
+        if (!workspaceHas('git', target)) {
+            // Plan C: no git calls against a host without git.
+            runWithInstance(target, () => {
+                state.gitIsRepo = null;
+                state.gitBranch = '';
+                state.gitChanges = [];
+                state.gitLog = [];
+                renderGitPanel();
+                renderActivityBar();
+                renderStatus();
+            });
+            return;
+        }
         const request = target.gitRequest = Symbol();
         try {
             const result = await apiClient.gitStatus();
@@ -7344,6 +7458,1919 @@
     }
 
 ;
+/* ui/js/desktop/apps/code-studio/workspace-model.js */
+/* Code Studio workspaces (plan C): pure helpers without DOM access - request header and link/socket query injection,
+   labels, per-workspace tab sessions and the active workspace in localStorage, error classification, reconnect backoff,
+   remote paths, folder listings, host search and new-host validation. Runs in the code-studio bundle
+   (window.CodeStudioWorkspaceModel) and under node (workspace-model.test.cjs). */
+(function (root, factory) {
+    'use strict';
+    const api = factory();
+    if (typeof module === 'object' && module && module.exports) module.exports = api;
+    if (root) root.CodeStudioWorkspaceModel = api;
+})(typeof window !== 'undefined' ? window : null, () => {
+    'use strict';
+
+    const LOCAL_ID = 'local';
+    const HEADER = 'X-Code-Studio-Workspace';
+    const SESSIONS_KEY = 'aurago.codeStudio.workspaceSessions.v1';
+    const ACTIVE_KEY = 'aurago.codeStudio.workspace.v1';
+    const MAX_SESSIONS = 24;
+    const MAX_SESSION_PATHS = 20;
+    const BACKOFF_MS = [2000, 5000, 10000, 20000, 30000, 60000];
+    const ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
+    // Workspace management and the container status are global; everything else under /api/code-studio/ is scoped.
+    const UNSCOPED_PREFIXES = ['/api/code-studio/workspaces', '/api/code-studio/remote/', '/api/code-studio/status'];
+    // Plan A's codes for a broken SSH connection (502/503/504 and fetch network errors count too).
+    const CONNECTION_CODES = ['ssh_unavailable', 'ssh_unreachable', 'ssh_disconnected', 'ssh_connection_lost', 'sftp_unavailable', 'unreachable', 'connection_lost'];
+    const PRIVATE_KEY = /-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----/;
+    const HOST_PATTERN = /^[A-Za-z0-9._:[\]-]+$/;
+
+    function normalizeId(id) {
+        const value = String(id == null ? '' : id).trim();
+        return ID_PATTERN.test(value) ? value : LOCAL_ID;
+    }
+    function isRemote(id) { return normalizeId(id) !== LOCAL_ID; }
+    function isScopedPath(path) {
+        const value = String(path || '');
+        return value.startsWith('/api/code-studio/') && !UNSCOPED_PREFIXES.some(prefix => value.startsWith(prefix));
+    }
+    // options.headers is a plain object (api() in core.js); FormData uploads come without headers.
+    function withWorkspaceHeaders(options, id, path) {
+        const result = Object.assign({}, options || {});
+        if (!isRemote(id) || !isScopedPath(path)) return result;
+        result.headers = Object.assign({}, result.headers || {}, { [HEADER]: normalizeId(id) });
+        return result;
+    }
+    function withWorkspaceQuery(url, id) {
+        const value = String(url || '');
+        if (!isRemote(id)) return value;
+        const hashAt = value.indexOf('#');
+        const base = hashAt >= 0 ? value.slice(0, hashAt) : value;
+        const hash = hashAt >= 0 ? value.slice(hashAt) : '';
+        if (/[?&]ws=/.test(base)) return value;
+        return base + (base.includes('?') ? '&' : '?') + 'ws=' + encodeURIComponent(normalizeId(id)) + hash;
+    }
+    function socketURL(loc, path, id) {
+        return (loc && loc.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + String(loc && loc.host || '') + withWorkspaceQuery(path, id);
+    }
+    function timeValue(value) {
+        if (typeof value === 'number') return Number.isFinite(value) && value > 0 ? value : 0;
+        const parsed = Date.parse(String(value || ''));
+        return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    function localWorkspace() {
+        return { id: LOCAL_ID, kind: 'local', deviceId: '', deviceName: '', host: '', port: 0, user: '', root: '/workspace', label: '', lastUsedAt: 0, connected: true, capabilities: null };
+    }
+    function normalizeWorkspace(raw) {
+        const item = raw && raw.workspace && typeof raw.workspace === 'object' ? raw.workspace : (raw || {});
+        const id = normalizeId(item.id);
+        if (id === LOCAL_ID) return localWorkspace();
+        return {
+            id, kind: 'ssh',
+            deviceId: String(item.device_id || ''),
+            deviceName: String(item.device_name || item.device || ''),
+            host: String(item.host || ''),
+            port: Number(item.port) || 22,
+            user: String(item.user || item.username || ''),
+            root: normalizeRemotePath(item.root || '/'),
+            label: String(item.label || '').trim(),
+            lastUsedAt: timeValue(item.last_used_at),
+            connected: item.connected === true,
+            capabilities: item.capabilities && typeof item.capabilities === 'object' ? item.capabilities : null
+        };
+    }
+    // current is a normalized workspace, payload a raw API answer ({workspace} or {capabilities}).
+    function mergeWorkspace(current, payload) {
+        const base = current && current.id ? current : localWorkspace();
+        const raw = payload && payload.workspace && typeof payload.workspace === 'object' ? payload.workspace : payload;
+        if (raw && raw.id != null && base.id !== LOCAL_ID && normalizeId(raw.id) === base.id) {
+            const fresh = normalizeWorkspace(raw);
+            return Object.assign({}, base, fresh, { capabilities: fresh.capabilities || base.capabilities, connected: true });
+        }
+        const caps = raw && raw.capabilities && typeof raw.capabilities === 'object' ? raw.capabilities : base.capabilities;
+        return Object.assign({}, base, { capabilities: caps, connected: true });
+    }
+    function normalizeWorkspaceList(payload) {
+        const list = Array.isArray(payload) ? payload : (payload && Array.isArray(payload.workspaces) ? payload.workspaces : []);
+        const seen = new Set();
+        const remote = [];
+        list.forEach(raw => {
+            const ws = normalizeWorkspace(raw);
+            if (ws.id === LOCAL_ID || seen.has(ws.id)) return;
+            seen.add(ws.id);
+            remote.push(ws);
+        });
+        remote.sort((a, b) => (b.lastUsedAt - a.lastUsedAt) || a.id.localeCompare(b.id));
+        return [localWorkspace()].concat(remote);
+    }
+
+    function homeOf(user) { return user === 'root' ? '/root' : (user ? '/home/' + user : ''); }
+    function tildePath(path, home) {
+        const value = String(path || '');
+        if (!home || home === '/') return value;
+        if (value === home) return '~';
+        return value.startsWith(home + '/') ? '~' + value.slice(home.length) : value;
+    }
+    function displayRoot(ws) { return ws && ws.kind === 'ssh' ? tildePath(ws.root, homeOf(ws.user)) : '/workspace'; }
+    function userAtHost(ws) {
+        if (!ws || ws.kind === 'local') return '';
+        return (ws.user ? ws.user + '@' : '') + (ws.host || '') + (ws.port && ws.port !== 22 ? ':' + ws.port : '');
+    }
+    function workspaceLabel(ws) {
+        if (!ws || ws.kind !== 'ssh') return '';
+        return ws.label || ((ws.deviceName || ws.host || ws.id) + ' · ' + displayRoot(ws));
+    }
+
+    function normalizeRemotePath(path, base) {
+        let value = String(path == null ? '' : path).replace(/\\/g, '/').replace(/\0/g, '').trim();
+        if (value === '~' || value.startsWith('~/')) {
+            const rest = value.slice(2).split('/').filter(part => part && part !== '.').join('/');
+            return rest ? '~/' + rest : '~';
+        }
+        if (!value.startsWith('/')) value = (base && String(base).startsWith('/') ? String(base) : '') + '/' + value;
+        const parts = [];
+        value.split('/').forEach(part => {
+            if (!part || part === '.') return;
+            if (part === '..') parts.pop();
+            else parts.push(part);
+        });
+        return '/' + parts.join('/');
+    }
+    function expandHome(path, home) {
+        const value = String(path || '').trim();
+        if (!home || !(value === '~' || value.startsWith('~/'))) return value;
+        return value === '~' ? home : home.replace(/\/+$/, '') + value.slice(1);
+    }
+    function remoteParent(path) {
+        const value = normalizeRemotePath(path);
+        if (value === '/' || value.startsWith('~')) return '/';
+        const index = value.lastIndexOf('/');
+        return index <= 0 ? '/' : value.slice(0, index);
+    }
+    function remoteBreadcrumbs(path) {
+        const crumbs = [{ name: '/', path: '/' }];
+        let current = '';
+        normalizeRemotePath(path).split('/').filter(Boolean).forEach(part => { current += '/' + part; crumbs.push({ name: part, path: current }); });
+        return crumbs;
+    }
+    function normalizeBrowse(payload) {
+        const data = payload || {};
+        const path = normalizeRemotePath(data.path || '/');
+        const raw = Array.isArray(data.entries) ? data.entries : (Array.isArray(data.files) ? data.files : []);
+        const entries = [];
+        raw.forEach(item => {
+            const name = String(item && item.name || '');
+            if (!name || name === '.' || name === '..' || name.includes('/')) return;
+            const dir = item.type === 'directory' || item.type === 'dir' || item.is_dir === true;
+            entries.push({ name, path: item.path ? normalizeRemotePath(item.path) : normalizeRemotePath(name, path), dir, git: dir && item.is_git === true, hidden: name.startsWith('.') });
+        });
+        const rank = entry => (entry.dir ? (entry.hidden ? 1 : 0) : 2);
+        entries.sort((a, b) => (rank(a) - rank(b)) || a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+        return { path, entries };
+    }
+
+    function readJSON(storage, key) {
+        try {
+            const raw = storage && storage.getItem(key);
+            return raw ? JSON.parse(raw) : null;
+        } catch (_) {
+            return null;
+        }
+    }
+    function sessionPaths(list) {
+        const seen = new Set();
+        const result = [];
+        (Array.isArray(list) ? list : []).forEach(item => {
+            const path = typeof item === 'string' ? item : (item && typeof item.path === 'string' ? item.path : '');
+            if (!/^\/workspace\/./.test(path) || path.includes('\0') || path.split('/').some(part => part === '..' || part === '.') || seen.has(path)) return;
+            seen.add(path);
+            if (result.length < MAX_SESSION_PATHS) result.push(path);
+        });
+        return result;
+    }
+    function sanitizeSession(raw) {
+        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+        const openTabs = sessionPaths(raw.openTabs);
+        const index = Number(raw.activeTabIndex);
+        return {
+            openTabs,
+            activeTabIndex: openTabs.length ? Math.min(Math.max(Number.isInteger(index) ? index : 0, 0), openTabs.length - 1) : -1,
+            recentFiles: sessionPaths(raw.recentFiles),
+            split: raw.split && typeof raw.split === 'object' && !Array.isArray(raw.split) ? raw.split : null,
+            updatedAt: timeValue(raw.updatedAt)
+        };
+    }
+    function readSessions(storage) {
+        const data = readJSON(storage, SESSIONS_KEY);
+        const sessions = {};
+        if (!data || typeof data !== 'object' || Array.isArray(data)) return sessions;
+        Object.keys(data).forEach(id => {
+            if (normalizeId(id) !== id) return;
+            const session = sanitizeSession(data[id]);
+            if (session) sessions[id] = session;
+        });
+        return sessions;
+    }
+    function writeSessions(storage, sessions) {
+        const keep = {};
+        if (sessions[LOCAL_ID]) keep[LOCAL_ID] = sessions[LOCAL_ID];
+        Object.keys(sessions).filter(id => id !== LOCAL_ID)
+            .sort((a, b) => sessions[b].updatedAt - sessions[a].updatedAt)
+            .slice(0, MAX_SESSIONS - (sessions[LOCAL_ID] ? 1 : 0))
+            .forEach(id => { keep[id] = sessions[id]; });
+        try {
+            storage.setItem(SESSIONS_KEY, JSON.stringify(keep));
+            return true;
+        } catch (_) {
+            return false;
+        }
+    }
+    function writeSession(storage, id, session, now) {
+        const sessions = readSessions(storage);
+        const clean = sanitizeSession(Object.assign({}, session || {}, { updatedAt: Number(now) || Date.now() }));
+        if (!clean) return false;
+        sessions[normalizeId(id)] = clean;
+        return writeSessions(storage, sessions);
+    }
+    function forgetSession(storage, id) {
+        const sessions = readSessions(storage);
+        if (!sessions[id]) return false;
+        delete sessions[id];
+        return writeSessions(storage, sessions);
+    }
+    function readActive(storage) {
+        const data = readJSON(storage, ACTIVE_KEY);
+        return normalizeId(data && typeof data === 'object' ? data.id : data);
+    }
+    function writeActive(storage, id) {
+        try {
+            storage.setItem(ACTIVE_KEY, JSON.stringify({ id: normalizeId(id) }));
+            return true;
+        } catch (_) {
+            return false;
+        }
+    }
+
+    function classifyError(err) {
+        const status = Number(err && err.status) || 0;
+        const code = String((err && (err.code || (err.body && err.body.code))) || '');
+        if (code === 'unknown_host_key' || code === 'host_key_mismatch' || code === 'workspace_not_found') return code;
+        if (code === 'auth_failed' || code === 'ssh_auth_failed') return 'auth';
+        if (code === 'not_directory' || code === 'not_a_directory') return 'not_directory';
+        if (code === 'device_not_found' || code === 'remote_scope_required' || code === 'passphrase_required' || code === 'invalid_private_key') return code;
+        if (CONNECTION_CODES.includes(code) || status === 502 || status === 503 || status === 504) return 'unreachable';
+        if (!status && err && err.name === 'TypeError') return 'unreachable';
+        if (code === 'not_found' || status === 404) return 'not_found';
+        return 'other';
+    }
+    function backoffDelay(attempt) {
+        const index = Math.max(0, Math.floor(Number(attempt) || 0));
+        return BACKOFF_MS[Math.min(index, BACKOFF_MS.length - 1)];
+    }
+
+    // Error values are keys of the form messages: required, host, port, key.
+    function validateHostForm(values) {
+        const v = values || {};
+        const errors = {};
+        const name = String(v.name || '').trim().slice(0, 80);
+        const host = String(v.host || '').trim();
+        const username = String(v.username || '').trim();
+        const portText = String(v.port == null || v.port === '' ? '22' : v.port).trim();
+        const auth = v.auth === 'key' ? 'key' : 'password';
+        const secret = String(v.secret || '');
+        if (!name) errors.name = 'required';
+        if (!host) errors.host = 'required';
+        else if (!HOST_PATTERN.test(host)) errors.host = 'host';
+        if (!/^\d{1,5}$/.test(portText) || Number(portText) < 1 || Number(portText) > 65535) errors.port = 'port';
+        if (!username) errors.username = 'required';
+        if (!secret) errors.secret = 'required';
+        else if (auth === 'key' && (!PRIVATE_KEY.test(secret) || secret.length > 65536)) errors.secret = 'key';
+        const valid = !Object.keys(errors).length;
+        return {
+            valid,
+            errors,
+            value: valid ? { name, host: host.replace(/^\[|\]$/g, ''), port: Number(portText), username, auth, secret: auth === 'key' ? secret.trim() + '\n' : secret, passphrase: auth === 'key' ? String(v.passphrase || '') : '' } : null
+        };
+    }
+
+    function normalizeDevice(raw) {
+        const d = raw && raw.device && typeof raw.device === 'object' ? raw.device : (raw || {});
+        const host = String(d.host || d.ip_address || '');
+        return { id: String(d.id == null ? '' : d.id), name: String(d.name || host), host, port: Number(d.port) || 22, user: String(d.username || d.user || ''), lastUsedAt: timeValue(d.last_used_at) };
+    }
+    function normalizeDeviceList(payload) {
+        const list = Array.isArray(payload) ? payload : (payload && Array.isArray(payload.devices) ? payload.devices : []);
+        return list.map(normalizeDevice).filter(device => device.id);
+    }
+    function deviceAddress(device) {
+        return device ? (device.user ? device.user + '@' : '') + device.host + ':' + (device.port || 22) : '';
+    }
+    function deviceLastUsed(device, workspaces) {
+        let latest = device && device.lastUsedAt || 0;
+        (workspaces || []).forEach(ws => { if (device && ws.deviceId === device.id && ws.lastUsedAt > latest) latest = ws.lastUsedAt; });
+        return latest;
+    }
+    function sortDevices(devices, workspaces) {
+        return (devices || []).slice().sort((a, b) => (deviceLastUsed(b, workspaces) - deviceLastUsed(a, workspaces)) || a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+    }
+    function filterDevices(devices, query) {
+        const q = String(query || '').trim().toLowerCase();
+        if (!q) return (devices || []).slice();
+        return (devices || []).filter(device => [device.name, device.host, device.user, deviceAddress(device)].some(value => String(value || '').toLowerCase().includes(q)));
+    }
+    function recentRoots(workspaces, deviceId) {
+        const roots = [];
+        (workspaces || []).filter(ws => ws.kind === 'ssh' && ws.deviceId === deviceId)
+            .sort((a, b) => b.lastUsedAt - a.lastUsedAt)
+            .forEach(ws => { if (!roots.includes(ws.root)) roots.push(ws.root); });
+        return roots.slice(0, 5);
+    }
+    // {value, unit} for Intl.RelativeTimeFormat; null when never used.
+    function relativeTime(ts, now) {
+        const time = timeValue(ts);
+        if (!time) return null;
+        const seconds = (time - (Number(now) || Date.now())) / 1000;
+        for (const [unit, size] of [['year', 31536000], ['month', 2592000], ['week', 604800], ['day', 86400], ['hour', 3600], ['minute', 60]]) {
+            if (Math.abs(seconds) >= size) return { value: Math.round(seconds / size), unit };
+        }
+        return { value: 0, unit: 'minute' };
+    }
+
+    return {
+        LOCAL_ID, HEADER, SESSIONS_KEY, ACTIVE_KEY, MAX_SESSIONS,
+        normalizeId, isRemote, isScopedPath, withWorkspaceHeaders, withWorkspaceQuery, socketURL,
+        localWorkspace, normalizeWorkspace, mergeWorkspace, normalizeWorkspaceList,
+        displayRoot, tildePath, userAtHost, workspaceLabel,
+        normalizeRemotePath, expandHome, remoteParent, remoteBreadcrumbs, normalizeBrowse,
+        readSessions, writeSession, forgetSession, readActive, writeActive,
+        classifyError, backoffDelay, validateHostForm,
+        normalizeDevice, normalizeDeviceList, deviceAddress, deviceLastUsed, sortDevices, filterDevices, recentRoots, relativeTime
+    };
+});
+
+;
+/* ui/js/desktop/apps/code-studio/workspace.js */
+    // Plan C (SSH workspaces): switcher, remote chip, connect dialog, per-workspace sessions, switching, disconnect
+    // banner and capability gating. Pure helpers: workspace-model.js (window.CodeStudioWorkspaceModel). This fragment
+    // shares the Code Studio IIFE and only declares functions and constants; nothing runs before render().
+    // Contract for plans B/D: state.workspaceId, activeWorkspace(), workspaceIsRemote(), workspaceHostLabel(),
+    // workspaceHas(name), workspaceURL(url), workspaceSocketURL(path, instance).
+
+    const WS_MODEL = window.CodeStudioWorkspaceModel;
+    const WS_KEY_FILE_LIMIT = 64 * 1024;
+    const WS_GLYPHS = {
+        laptop: '<rect x="3" y="3.5" width="10" height="7" rx="1.2"/><path d="M1.5 12.5h13"/>',
+        server: '<rect x="2.5" y="2.5" width="11" height="4.5" rx="1.2"/><rect x="2.5" y="9" width="11" height="4.5" rx="1.2"/><path d="M5 4.75h.01M5 11.25h.01"/>',
+        chevron: '<path d="M4.5 6.5 8 10l3.5-3.5"/>',
+        up: '<path d="M8 13V3.5M4 7.5 8 3.5l4 4"/>',
+        home: '<path d="M2.5 7.5 8 3l5.5 4.5V13a.5.5 0 0 1-.5.5H9.5V10h-3v3.5H3a.5.5 0 0 1-.5-.5z"/>',
+        plus: '<path d="M8 3v10M3 8h10"/>',
+        plug: '<path d="M6 2.5v3M10 2.5v3M4.5 5.5h7v2a3.5 3.5 0 0 1-7 0zM8 11v2.5"/>',
+        unplug: '<path d="M2.5 2.5l11 11M10 2.5v3M8 11v2.5M4.5 5.5v2a3.5 3.5 0 0 0 3.5 3.5"/>',
+        folder: '<path d="M2 4.5A1.5 1.5 0 0 1 3.5 3h2.6l1.4 1.5h5A1.5 1.5 0 0 1 14 6v5.5a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 11.5z"/>',
+        file: '<path d="M4 2.5h5l3 3v8H4z"/><path d="M9 2.5v3h3"/>',
+        key: '<circle cx="5.5" cy="10.5" r="3"/><path d="M7.6 8.4 13.5 2.5M11 5l1.5 1.5"/>',
+        warning: '<path d="M8 2.5 14 13H2z"/><path d="M8 6.5v3M8 11.25h.01"/>',
+        x: '<path d="M4 4l8 8M12 4l-8 8"/>',
+        check: '<path d="M3 8.5 6.5 12 13 4.5"/>',
+        refresh: '<path d="M13 8a5 5 0 1 1-1.5-3.5M13 2.5v3h-3"/>'
+    };
+
+    function wsGlyph(name, size) {
+        const px = Number(size || 14);
+        return `<svg class="cs-ws-glyph" viewBox="0 0 16 16" width="${px}" height="${px}" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${WS_GLYPHS[name] || ''}</svg>`;
+    }
+
+    function workspaceIsRemote(instance = state) { return !!instance && WS_MODEL.isRemote(instance.workspaceId); }
+    function activeWorkspace(instance = state) { return (instance && instance.workspace) || WS_MODEL.localWorkspace(); }
+    function workspaceHostLabel(ws = activeWorkspace()) { return WS_MODEL.userAtHost(ws); }
+    function workspaceDisplayLabel(ws = activeWorkspace()) {
+        return ws && ws.kind === 'ssh' ? WS_MODEL.workspaceLabel(ws) : tr('codeStudio.workspaceLocal', 'Local workspace');
+    }
+    function workspaceURL(url, instance = state || currentInstance()) {
+        return WS_MODEL.withWorkspaceQuery(url, instance ? instance.workspaceId : WS_MODEL.LOCAL_ID);
+    }
+    function workspaceSocketURL(path, instance = state || currentInstance()) {
+        return WS_MODEL.socketURL(location, path, instance ? instance.workspaceId : WS_MODEL.LOCAL_ID);
+    }
+    // Capabilities gate a feature only when the host reported them; unknown means available.
+    function workspaceHas(name, instance = state) {
+        if (!workspaceIsRemote(instance)) return true;
+        const caps = activeWorkspace(instance).capabilities;
+        return !caps || caps[name] !== false;
+    }
+    function workspaceChipState(instance = state) {
+        if (!instance) return 'local';
+        if (instance.workspaceSwitchTarget) return 'connecting';
+        return workspaceIsRemote(instance) ? (instance.workspaceStatus || 'connected') : 'local';
+    }
+    function workspaceStatusText(status) {
+        switch (status) {
+            case 'connected': return tr('codeStudio.workspaceStatusConnected', 'Connected');
+            case 'connecting': return tr('codeStudio.workspaceStatusConnecting', 'Connecting…');
+            case 'lost': return tr('codeStudio.workspaceStatusLost', 'Connection lost');
+            case 'hostkey': return tr('codeStudio.workspaceTrustTitle', 'Unknown host key');
+            case 'error': return tr('codeStudio.workspaceStatusError', 'Connection failed');
+            case 'disconnected': return tr('codeStudio.workspaceStatusDisconnected', 'Not connected');
+            default: return tr('codeStudio.workspaceLocal', 'Local workspace');
+        }
+    }
+    function workspaceDotState(ws) {
+        if (state && ws.id === state.workspaceId) return workspaceChipState();
+        return ws.connected ? 'connected' : 'disconnected';
+    }
+    function workspaceErrorText(kind, details) {
+        const vars = Object.assign({ host: workspaceHostLabel(), path: '', error: '' }, details || {});
+        switch (kind) {
+            case 'host_key_mismatch': return tr('codeStudio.workspaceErrorHostKeyMismatch', 'The host key of {{host}} has changed. Code Studio does not connect until known_hosts is fixed.', vars);
+            case 'auth': return tr('codeStudio.workspaceErrorAuth', 'Sign-in to {{host}} failed. Check the user name and the password or key.', vars);
+            case 'unreachable': return tr('codeStudio.workspaceErrorUnreachable', '{{host}} cannot be reached.', vars);
+            case 'not_directory': return tr('codeStudio.workspaceErrorNotDirectory', '{{path}} is not a folder.', vars);
+            case 'not_found': return tr('codeStudio.workspaceErrorNotFound', '{{path}} does not exist.', vars);
+            case 'workspace_not_found': return tr('codeStudio.workspaceMissing', 'This SSH workspace no longer exists. Code Studio switched to the local workspace.', vars);
+            default: return tr('codeStudio.workspaceErrorOther', 'Something went wrong: {{error}}', vars);
+        }
+    }
+    function workspaceFormErrorText(code) {
+        if (code === 'host') return tr('codeStudio.workspaceFormBadHost', 'Enter a host name or IP address, without user or scheme');
+        if (code === 'port') return tr('codeStudio.workspaceFormBadPort', 'Port 1–65535');
+        if (code === 'key') return tr('codeStudio.workspaceFormBadKey', 'Paste a private key that starts with -----BEGIN');
+        return tr('codeStudio.workspaceFormRequired', 'Required');
+    }
+    function workspaceLastUsedText(ts) {
+        const rel = WS_MODEL.relativeTime(ts, Date.now());
+        if (!rel) return tr('codeStudio.workspaceNeverUsed', 'Never used');
+        try {
+            return new Intl.RelativeTimeFormat(document.documentElement.lang || undefined, { numeric: 'auto' }).format(rel.value, rel.unit);
+        } catch (_) {
+            return new Date(ts).toLocaleDateString();
+        }
+    }
+
+    // Called by api() in core.js for a failed scoped request of the given workspace.
+    function workspaceNoteRequestError(instance, workspaceId, err) {
+        if (!isLiveInstance(instance) || !WS_MODEL.isRemote(workspaceId) || instance.workspaceId !== workspaceId) return;
+        const kind = WS_MODEL.classifyError(err);
+        if (kind === 'unreachable') runWithInstance(instance, () => workspaceMarkLost(err));
+        else if (kind === 'workspace_not_found') runWithInstance(instance, workspaceForgetMissing);
+    }
+
+    function workspaceApplySession(id) {
+        const session = WS_MODEL.readSessions(localStorage)[id];
+        if (!session) {
+            // A new SSH workspace starts empty; local without a stored session keeps the tabs loadState read.
+            if (WS_MODEL.isRemote(id)) {
+                state.openTabs = [];
+                state.activeTabIndex = -1;
+                state.recentFiles = [];
+                restoreSplitPreference(null);
+            }
+            return;
+        }
+        const paths = normalizePersistedPaths(session.openTabs);
+        state.openTabs = paths.map(path => ({ path, content: '', modified: false, language: languageForPath(path), view: null }));
+        state.activeTabIndex = paths.length ? Math.min(Math.max(session.activeTabIndex, 0), paths.length - 1) : -1;
+        state.recentFiles = normalizePersistedPaths(session.recentFiles);
+        restoreSplitPreference(session.split);
+    }
+
+    function workspaceSaveSession(session) {
+        WS_MODEL.writeSession(localStorage, state.workspaceId, session, Date.now());
+    }
+
+    // The desktop window subtitle shows user@host:~/path (the Files app uses the same slot for its folder).
+    function workspaceUpdateWindowTitle() {
+        const win = state && state.root && typeof state.root.closest === 'function' ? state.root.closest('.vd-window') : null;
+        const subtitle = win && win.querySelector('.vd-window-subtitle');
+        if (!subtitle) return;
+        const ws = activeWorkspace();
+        subtitle.textContent = workspaceIsRemote() ? workspaceHostLabel(ws) + ':' + WS_MODEL.displayRoot(ws) : '';
+        subtitle.title = workspaceIsRemote() ? workspaceHostLabel(ws) + ':' + ws.root : '';
+    }
+    function workspaceTerminalLabel(name) { return workspaceIsRemote() ? workspaceHostLabel() + ' · ' + name : name; }
+    function workspaceTerminalBanner() {
+        return workspaceIsRemote() ? ' (' + workspaceHostLabel() + ':' + WS_MODEL.displayRoot(activeWorkspace()) + ')' : '';
+    }
+    function workspaceToast(message) {
+        const notify = state && state.context && state.context.notify;
+        if (typeof notify === 'function') notify({ title: tr('codeStudio.title', 'Code Studio'), message });
+        flashStatus(message, 6000);
+    }
+    // A failed save keeps the tab dirty (saveTab never clears modified on error); remote workspaces also get a toast.
+    function workspaceSaveFailed(tab, err) {
+        if (!workspaceIsRemote() || !tab) return;
+        const kind = WS_MODEL.classifyError(err);
+        const error = kind === 'unreachable' ? workspaceErrorText('unreachable') : (err && err.message || String(err || ''));
+        workspaceToast(tr('codeStudio.workspaceSaveFailedToast', '{{file}} was not saved. {{error}} Your changes stay in the tab.', { file: baseName(tab.path), error }));
+    }
+
+    // --- Chrome: status chip, Explorer switcher, banner -----------------------------------------------
+
+    function workspaceMenuOpenFor(kind) {
+        return !!(state && state.workspaceMenu && state.workspaceMenu.__anchorKind === kind);
+    }
+
+    function workspaceStatusChipMarkup() {
+        const remote = workspaceIsRemote();
+        const status = workspaceChipState();
+        const ws = activeWorkspace();
+        const text = remote ? tr('codeStudio.workspaceChipRemote', 'SSH: {{name}}', { name: ws.deviceName || ws.host }) : tr('codeStudio.workspaceChipLocal', 'Local');
+        const title = remote ? workspaceDisplayLabel(ws) + ' — ' + workspaceHostLabel(ws) + '\n' + workspaceStatusText(status) : tr('codeStudio.workspaceLocalSub', 'Container · /workspace');
+        const icon = status === 'connecting'
+            ? '<span class="cs-ws-spinner" aria-hidden="true"></span>'
+            : wsGlyph(['lost', 'error', 'hostkey'].includes(status) ? 'warning' : (remote ? 'server' : 'laptop'), 12);
+        return `<span class="cs-status-item cs-status-remote" data-clickable data-status-remote data-remote-state="${esc(status)}" role="button" tabindex="0" aria-haspopup="menu" aria-expanded="${workspaceMenuOpenFor('chip')}" aria-label="${esc(text + ', ' + workspaceStatusText(status))}" title="${esc(title)}">${icon}<span class="cs-status-remote-label">${esc(text)}</span></span>`;
+    }
+
+    function wireWorkspaceChip(statusEl, refocus) {
+        const chip = statusEl.querySelector('[data-status-remote]');
+        if (!chip) return;
+        chip.addEventListener('click', bind(() => openWorkspaceMenu(chip)));
+        chip.addEventListener('keydown', bind(event => {
+            if (!['Enter', ' ', 'ArrowUp'].includes(event.key)) return;
+            event.preventDefault();
+            openWorkspaceMenu(chip);
+        }));
+        if (refocus) chip.focus();
+    }
+
+    function workspaceSwitcherMarkup() {
+        const ws = activeWorkspace();
+        const remote = workspaceIsRemote();
+        const status = workspaceChipState();
+        const sub = remote ? workspaceHostLabel(ws) : tr('codeStudio.workspaceLocalSub', 'Container · /workspace');
+        return `<button type="button" class="cs-ws-switcher" data-ws-switcher data-remote-state="${esc(status)}" aria-haspopup="menu" aria-expanded="${workspaceMenuOpenFor('switcher')}" title="${esc(tr('codeStudio.workspaceMenu', 'Workspaces'))}">
+            <span class="cs-ws-switcher-icon">${status === 'connecting' ? '<span class="cs-ws-spinner" aria-hidden="true"></span>' : wsGlyph(remote ? 'server' : 'laptop', 16)}</span>
+            <span class="cs-ws-switcher-text"><span class="cs-ws-switcher-label">${esc(workspaceDisplayLabel(ws))}</span><span class="cs-ws-switcher-sub">${esc(sub)}</span></span>
+            ${remote ? `<span class="cs-ws-dot" data-ws-dot="${esc(workspaceDotState(ws))}" aria-hidden="true"></span>` : ''}
+            <span class="cs-ws-switcher-chevron">${wsGlyph('chevron', 14)}</span>
+        </button>`;
+    }
+
+    function wireWorkspaceSwitcher(root) {
+        const button = root && root.querySelector('[data-ws-switcher]');
+        if (!button || button._wsWired) return;
+        button._wsWired = true;
+        button.addEventListener('click', bind(() => openWorkspaceMenu(button)));
+        button.addEventListener('keydown', bind(event => {
+            if (event.key !== 'ArrowDown') return;
+            event.preventDefault();
+            openWorkspaceMenu(button);
+        }));
+    }
+
+    function workspaceRenderSwitcher() {
+        const current = shellPart('[data-ws-switcher]');
+        if (!current) return;
+        const hadFocus = document.activeElement === current;
+        const holder = document.createElement('div');
+        holder.innerHTML = workspaceSwitcherMarkup();
+        const next = holder.firstElementChild;
+        current.replaceWith(next);
+        wireWorkspaceSwitcher(next.parentElement);
+        if (hadFocus) next.focus();
+    }
+
+    function workspaceRootCrumbLabel() {
+        if (!workspaceIsRemote()) return tr('codeStudio.workspaceRoot', 'Workspace');
+        const root = activeWorkspace().root;
+        return root === '/' ? '/' : root.split('/').filter(Boolean).pop();
+    }
+
+    function workspaceRenderBanner() {
+        const banner = shellPart('[data-ws-banner]');
+        if (!banner) return;
+        const status = state.workspaceStatus;
+        const show = workspaceIsRemote() && !state.workspaceSwitching
+            && (['lost', 'hostkey', 'error'].includes(status) || (status === 'connecting' && state.workspaceWasLost));
+        if (!show) {
+            if (!banner.hidden) {
+                banner.hidden = true;
+                banner.innerHTML = '';
+                banner.dataset.signature = '';
+                delete banner.dataset.wsBannerState;
+            }
+            return;
+        }
+        const host = workspaceHostLabel();
+        const error = state.workspaceError || {};
+        let text;
+        let actions;
+        if (status === 'connecting') {
+            text = tr('codeStudio.workspaceStatusConnecting', 'Connecting…') + ' ' + host;
+            actions = [];
+        } else if (status === 'lost') {
+            text = tr('codeStudio.workspaceLost', 'Connection to {{host}} lost', { host });
+            actions = ['reconnect', 'local'];
+        } else if (status === 'hostkey') {
+            text = tr('codeStudio.workspaceTrustTitle', 'Unknown host key') + ': ' + host;
+            actions = ['review', 'local'];
+        } else {
+            text = workspaceErrorText(error.kind, { host, path: activeWorkspace().root, error: error.message || '' });
+            actions = error.kind === 'host_key_mismatch' ? ['local'] : ['reconnect', 'local'];
+        }
+        const seconds = status === 'lost' && state.workspaceRetryAt ? Math.max(0, Math.ceil((state.workspaceRetryAt - Date.now()) / 1000)) : -1;
+        const detail = seconds >= 0 ? tr('codeStudio.workspaceRetryIn', 'Retrying in {{seconds}} s', { seconds }) : '';
+        const signature = [status, text, actions.join(',')].join('|');
+        banner.hidden = false;
+        banner.dataset.wsBannerState = status;
+        if (banner.dataset.signature === signature) {
+            // The countdown tick changes only the detail, so focus and screen readers stay calm.
+            const countdown = banner.querySelector('[data-ws-banner-detail]');
+            if (countdown) countdown.textContent = detail;
+            return;
+        }
+        banner.dataset.signature = signature;
+        banner.setAttribute('role', status === 'error' ? 'alert' : 'status');
+        const labels = {
+            reconnect: tr('codeStudio.workspaceReconnect', 'Reconnect'),
+            local: tr('codeStudio.workspaceUseLocal', 'Use local workspace'),
+            review: tr('codeStudio.workspaceReviewHostKey', 'Review host key…')
+        };
+        banner.innerHTML = `<span class="cs-ws-banner-icon">${status === 'connecting' ? '<span class="cs-ws-spinner" aria-hidden="true"></span>' : wsGlyph('warning', 16)}</span>
+            <span class="cs-ws-banner-text"><strong>${esc(text)}</strong><span class="cs-ws-banner-detail" data-ws-banner-detail aria-hidden="true">${esc(detail)}</span></span>
+            <span class="cs-ws-banner-actions">${actions.map(action => `<button type="button" class="cs-button${action === 'local' ? '' : ' primary'}" data-ws-banner-action="${action}">${esc(labels[action])}</button>`).join('')}</span>`;
+        banner.querySelectorAll('[data-ws-banner-action]').forEach(button => button.addEventListener('click', bind(() => workspaceBannerAction(button.dataset.wsBannerAction))));
+    }
+
+    function workspaceBannerAction(action) {
+        if (action === 'reconnect') workspaceReconnect();
+        else if (action === 'local') switchWorkspace(WS_MODEL.LOCAL_ID);
+        else if (action === 'review') {
+            const ws = activeWorkspace();
+            openConnectDialog({ deviceId: ws.deviceId, path: ws.root });
+        }
+    }
+
+    function workspaceRenderChrome() {
+        if (!state || !studioRoot()) return;
+        workspaceRenderSwitcher();
+        renderStatus();
+        workspaceRenderBanner();
+        workspaceUpdateWindowTitle();
+    }
+
+    // --- Workspace menu ------------------------------------------------------------------------
+
+    async function workspaceLoadList(instance = state) {
+        const target = instance;
+        try {
+            const payload = await apiClient.workspaces();
+            if (!isLiveInstance(target)) return [];
+            target.workspaces = WS_MODEL.normalizeWorkspaceList(payload);
+            if (workspaceIsRemote(target)) {
+                const fresh = target.workspaces.find(ws => ws.id === target.workspaceId);
+                if (fresh) target.workspace = Object.assign({}, target.workspace, fresh, { capabilities: fresh.capabilities || (target.workspace && target.workspace.capabilities) || null });
+            }
+        } catch (_) {
+            if (isLiveInstance(target) && !(target.workspaces || []).length) target.workspaces = [WS_MODEL.localWorkspace()];
+        }
+        return target.workspaces;
+    }
+
+    function closeWorkspaceMenu(instance = state, restoreFocus = false) {
+        const menu = instance && instance.workspaceMenu;
+        if (menu && typeof menu.__codeStudioCleanup === 'function') menu.__codeStudioCleanup(restoreFocus);
+    }
+
+    async function openWorkspaceMenu(anchor) {
+        const instance = state;
+        if (!isLiveInstance(instance) || !anchor) return;
+        const kind = anchor.hasAttribute('data-status-remote') ? 'chip' : 'switcher';
+        if (instance.workspaceMenu) {
+            const same = instance.workspaceMenu.__anchorKind === kind;
+            closeWorkspaceMenu(instance, same);
+            if (same) return;
+        }
+        document.querySelectorAll('.cs-context-menu').forEach(other => {
+            if (typeof other.__codeStudioCleanup === 'function') other.__codeStudioCleanup();
+            else other.remove();
+        });
+        const menu = document.createElement('div');
+        menu.className = 'cs-context-menu cs-ws-menu';
+        menu.setAttribute('role', 'menu');
+        menu.setAttribute('aria-label', tr('codeStudio.workspaceMenu', 'Workspaces'));
+        menu.__anchorKind = kind;
+        document.body.appendChild(menu);
+        instance.workspaceMenu = menu;
+        anchor.setAttribute('aria-expanded', 'true');
+        let closed = false;
+        let unregister = () => {};
+        // The status bar and the sidebar re-render; the anchor is looked up again when the old element is gone.
+        const currentAnchor = () => (anchor.isConnected ? anchor : (isLiveInstance(instance) ? runWithInstance(instance, () => shellPart(kind === 'chip' ? '[data-status-remote]' : '[data-ws-switcher]')) : null));
+        const onPointer = event => {
+            const owner = currentAnchor();
+            if (!menu.contains(event.target) && !(owner && owner.contains(event.target))) cleanup(false);
+        };
+        const onResize = () => cleanup(false);
+        const cleanup = restoreFocus => {
+            if (closed) return;
+            closed = true;
+            unregister();
+            document.removeEventListener('mousedown', onPointer, true);
+            window.removeEventListener('resize', onResize);
+            menu.remove();
+            if (instance.workspaceMenu === menu) instance.workspaceMenu = null;
+            const owner = currentAnchor();
+            if (owner) owner.setAttribute('aria-expanded', 'false');
+            if (restoreFocus && owner) owner.focus();
+        };
+        menu.__codeStudioCleanup = cleanup;
+        unregister = registerDisposer(() => cleanup(false));
+        menu.addEventListener('keydown', bindInstance(instance, event => workspaceMenuKeydown(event, menu, cleanup)));
+        setTimeout(() => {
+            if (closed) return;
+            document.addEventListener('mousedown', onPointer, true);
+            window.addEventListener('resize', onResize);
+        }, 0);
+        renderWorkspaceMenu(menu, cleanup, true);
+        positionWorkspaceMenu(menu, anchor);
+        await workspaceLoadList(instance);
+        if (closed || !isLiveInstance(instance)) return;
+        runWithInstance(instance, () => {
+            renderWorkspaceMenu(menu, cleanup, menu.contains(document.activeElement));
+            const owner = currentAnchor();
+            if (owner) positionWorkspaceMenu(menu, owner);
+        });
+    }
+
+    function positionWorkspaceMenu(menu, anchor) {
+        const rect = anchor.getBoundingClientRect();
+        menu.style.minWidth = Math.round(Math.max(280, Math.min(rect.width, 440))) + 'px';
+        const box = menu.getBoundingClientRect();
+        const below = rect.bottom + 4;
+        const top = below + box.height <= window.innerHeight - 8 ? below : Math.max(8, rect.top - box.height - 4);
+        menu.style.left = Math.round(Math.max(8, Math.min(rect.left, window.innerWidth - box.width - 8))) + 'px';
+        menu.style.top = Math.round(top) + 'px';
+    }
+
+    function workspaceMenuItemMarkup(ws, currentId) {
+        const checked = ws.id === currentId;
+        const remote = ws.kind === 'ssh';
+        const label = workspaceDisplayLabel(ws);
+        const sub = remote ? workspaceHostLabel(ws) + ':' + WS_MODEL.displayRoot(ws) : tr('codeStudio.workspaceLocalSub', 'Container · /workspace');
+        const dot = remote ? workspaceDotState(ws) : '';
+        const aria = [label, sub, remote ? workspaceStatusText(dot) : ''].filter(Boolean).join(', ');
+        const remove = remote
+            ? `<button type="button" class="cs-ws-menu-remove" data-ws-remove="${esc(ws.id)}" tabindex="-1" aria-label="${esc(tr('codeStudio.workspaceRemove', 'Remove') + ': ' + label)}" title="${esc(tr('codeStudio.workspaceRemove', 'Remove'))}">${wsGlyph('x', 12)}</button>`
+            : '';
+        return `<div class="cs-ws-menu-row${checked ? ' is-current' : ''}" role="none">
+            <button type="button" class="cs-ws-menu-item" role="menuitemradio" aria-checked="${checked}" tabindex="-1" data-ws-id="${esc(ws.id)}" aria-label="${esc(aria)}" title="${esc(remote ? workspaceHostLabel(ws) + ':' + ws.root : sub)}">
+                <span class="cs-ws-menu-icon">${wsGlyph(remote ? 'server' : 'laptop', 15)}</span>
+                <span class="cs-ws-menu-text"><span class="cs-ws-menu-label">${esc(label)}</span><span class="cs-ws-menu-sub">${esc(sub)}</span></span>
+                ${remote ? `<span class="cs-ws-dot" data-ws-dot="${esc(dot)}" aria-hidden="true"></span>` : ''}
+                <span class="cs-ws-menu-check" aria-hidden="true">${checked ? wsGlyph('check', 13) : ''}</span>
+            </button>${remove}
+        </div>`;
+    }
+
+    function workspaceMenuActionMarkup(action, glyph, label) {
+        return `<button type="button" class="cs-ws-menu-item" role="menuitem" tabindex="-1" data-ws-action="${esc(action)}"><span class="cs-ws-menu-icon">${wsGlyph(glyph, 15)}</span><span class="cs-ws-menu-text"><span class="cs-ws-menu-label">${esc(label)}</span></span></button>`;
+    }
+
+    function renderWorkspaceMenu(menu, cleanup, focus) {
+        const instance = state;
+        const active = menu.contains(document.activeElement) ? document.activeElement : null;
+        const focusedKey = active ? (active.dataset.wsId || active.dataset.wsAction || '') : '';
+        const remotes = (instance.workspaces || []).filter(ws => ws.kind === 'ssh');
+        const separator = '<div class="cs-context-separator" role="separator"></div>';
+        const rows = [`<div class="cs-ws-menu-heading" role="presentation">${esc(tr('codeStudio.workspaceMenu', 'Workspaces'))}</div>`,
+            workspaceMenuItemMarkup(WS_MODEL.localWorkspace(), instance.workspaceId)];
+        if (remotes.length) {
+            rows.push(separator, `<div class="cs-ws-menu-heading" role="presentation">${esc(tr('codeStudio.workspaceRecent', 'Recent SSH folders'))}</div>`);
+            remotes.forEach(ws => rows.push(workspaceMenuItemMarkup(ws, instance.workspaceId)));
+        }
+        rows.push(separator, workspaceMenuActionMarkup('connect', 'plus', tr('codeStudio.workspaceConnect', 'Connect to SSH Folder…')));
+        if (workspaceIsRemote()) {
+            rows.push(workspaceMenuActionMarkup('reconnect', 'plug', tr('codeStudio.workspaceReconnect', 'Reconnect')));
+            rows.push(workspaceMenuActionMarkup('disconnect', 'unplug', tr('codeStudio.workspaceDisconnect', 'Disconnect')));
+        }
+        menu.innerHTML = rows.join('');
+        menu.querySelectorAll('[data-ws-id]').forEach(button => button.addEventListener('click', bindInstance(instance, () => { cleanup(true); switchWorkspace(button.dataset.wsId); })));
+        menu.querySelectorAll('[data-ws-remove]').forEach(button => button.addEventListener('click', bindInstance(instance, event => { event.stopPropagation(); cleanup(true); workspaceRemove(button.dataset.wsRemove); })));
+        menu.querySelectorAll('[data-ws-action]').forEach(button => button.addEventListener('click', bindInstance(instance, () => { cleanup(true); workspaceMenuAction(button.dataset.wsAction); })));
+        if (!focus) return;
+        const items = Array.from(menu.querySelectorAll('[data-ws-id], [data-ws-action]'));
+        const target = (focusedKey && items.find(item => (item.dataset.wsId || item.dataset.wsAction) === focusedKey)) || menu.querySelector('[aria-checked="true"]') || items[0];
+        if (target) target.focus();
+    }
+
+    function workspaceMenuKeydown(event, menu, cleanup) {
+        const items = Array.from(menu.querySelectorAll('.cs-ws-menu-item:not([disabled])'));
+        const active = document.activeElement;
+        const current = active && active.classList.contains('cs-ws-menu-remove') ? active.parentElement.querySelector('.cs-ws-menu-item') : active;
+        const index = items.indexOf(current);
+        const remove = current && current.parentElement ? current.parentElement.querySelector('.cs-ws-menu-remove') : null;
+        switch (event.key) {
+            case 'ArrowDown':
+            case 'ArrowUp': {
+                event.preventDefault();
+                const delta = event.key === 'ArrowDown' ? 1 : -1;
+                const next = items[index < 0 ? 0 : (index + delta + items.length) % items.length];
+                if (next) next.focus();
+                break;
+            }
+            case 'Home': event.preventDefault(); if (items[0]) items[0].focus(); break;
+            case 'End': event.preventDefault(); if (items.length) items[items.length - 1].focus(); break;
+            case 'ArrowRight': if (remove) { event.preventDefault(); remove.focus(); } break;
+            case 'ArrowLeft': if (active !== current && current) { event.preventDefault(); current.focus(); } break;
+            case 'Delete':
+            case 'Backspace': if (remove) { event.preventDefault(); remove.click(); } break;
+            case 'Escape': event.preventDefault(); event.stopPropagation(); cleanup(true); break;
+            case 'Tab': event.preventDefault(); cleanup(true); break;
+            default: break;
+        }
+    }
+
+    function workspaceMenuAction(action) {
+        if (action === 'connect') openConnectDialog();
+        else if (action === 'reconnect') workspaceReconnect();
+        else if (action === 'disconnect') switchWorkspace(WS_MODEL.LOCAL_ID);
+    }
+
+    async function workspaceRemove(id) {
+        const target = state;
+        const ws = (target.workspaces || []).find(item => item.id === id);
+        if (!ws) return;
+        const confirmed = await confirmValue(tr('codeStudio.workspaceRemoveConfirm', 'Remove {{workspace}} from the list? The files on the host stay untouched.', { workspace: workspaceDisplayLabel(ws) }), { confirmLabel: tr('codeStudio.workspaceRemove', 'Remove'), confirmIcon: 'trash' });
+        if (!confirmed || !isLiveInstance(target)) return;
+        if (target.workspaceId === id && !await runWithInstance(target, () => switchWorkspace(WS_MODEL.LOCAL_ID))) return;
+        try {
+            await apiClient.deleteWorkspace(id);
+        } catch (err) {
+            if (!isLiveInstance(target)) return;
+            if (err.status !== 404) {
+                runWithInstance(target, () => workspaceToast(workspaceErrorText('other', { error: err.message })));
+                return;
+            }
+        }
+        if (!isLiveInstance(target)) return;
+        WS_MODEL.forgetSession(localStorage, id);
+        target.workspaces = (target.workspaces || []).filter(item => item.id !== id);
+        runWithInstance(target, workspaceRenderChrome);
+    }
+
+    function openWorkspaceSwitcher() {
+        const switcher = shellPart('[data-ws-switcher]');
+        const anchor = switcher && state.sidebarVisible && switcher.getClientRects().length ? switcher : shellPart('[data-status-remote]');
+        if (anchor) openWorkspaceMenu(anchor);
+    }
+
+    // --- Boot, connect, reconnect --------------------------------------------------------------
+
+    async function workspaceBoot(instance) {
+        const target = instance || state;
+        if (!isLiveInstance(target)) return;
+        addDisposer(target, () => workspaceClearRetry(target));
+        const wanted = WS_MODEL.readActive(localStorage);
+        await workspaceLoadList(target);
+        if (!isLiveInstance(target)) return;
+        const saved = wanted !== WS_MODEL.LOCAL_ID ? (target.workspaces || []).find(ws => ws.id === wanted) : null;
+        runWithInstance(target, () => {
+            if (saved) {
+                target.workspaceId = saved.id;
+                target.workspace = saved;
+                target.workspaceStatus = 'connecting';
+            } else if (wanted !== WS_MODEL.LOCAL_ID) {
+                WS_MODEL.writeActive(localStorage, WS_MODEL.LOCAL_ID);
+            }
+            workspaceApplySession(target.workspaceId);
+            renderTabs();
+            workspaceRenderChrome();
+        });
+        if (saved) await workspaceConnectActive(target);
+    }
+
+    async function workspaceConnectActive(target, options = {}) {
+        const id = target.workspaceId;
+        if (!WS_MODEL.isRemote(id)) return true;
+        runWithInstance(target, () => { target.workspaceStatus = 'connecting'; workspaceRenderChrome(); });
+        try {
+            const payload = await apiClient.connectWorkspace(id, options.trust || '');
+            if (!isLiveInstance(target) || target.workspaceId !== id) return false;
+            runWithInstance(target, () => {
+                target.workspace = WS_MODEL.mergeWorkspace(target.workspace, payload);
+                target.workspaceStatus = 'connected';
+                target.workspaceError = null;
+                workspaceRenderChrome();
+                renderGitPanel();
+            });
+            return true;
+        } catch (err) {
+            if (isLiveInstance(target) && target.workspaceId === id) runWithInstance(target, () => workspaceConnectFailed(err));
+            return false;
+        }
+    }
+
+    function workspaceConnectFailed(err) {
+        const instance = state;
+        const kind = WS_MODEL.classifyError(err);
+        if (kind === 'workspace_not_found') {
+            workspaceForgetMissing();
+            return;
+        }
+        instance.workspaceError = { kind, message: err && err.message ? err.message : String(err || '') };
+        instance.workspaceWasLost = true;
+        if (kind === 'unknown_host_key') {
+            instance.workspaceStatus = 'hostkey';
+            workspaceClearRetry(instance);
+        } else if (kind !== 'unreachable') {
+            // Contract fix: host_key_mismatch, auth_failed, device_not_found, remote_scope_required, invalid_root ...
+            // will not heal by retrying; only a broken connection backs off and redials.
+            instance.workspaceStatus = 'error';
+            workspaceClearRetry(instance);
+        } else {
+            instance.workspaceStatus = 'lost';
+            workspaceScheduleRetry();
+        }
+        workspaceRenderChrome();
+    }
+
+    function workspaceMarkLost(err) {
+        const instance = state;
+        if (instance.workspaceSwitching || ['lost', 'connecting', 'hostkey', 'error'].includes(instance.workspaceStatus)) return;
+        workspaceConnectFailed(err);
+    }
+
+    function workspaceClearRetry(instance = state, keepAttempt = false) {
+        if (!instance) return;
+        if (instance.workspaceRetryTimer) clearTimeout(instance.workspaceRetryTimer);
+        if (instance.workspaceRetryTick) clearInterval(instance.workspaceRetryTick);
+        instance.workspaceRetryTimer = 0;
+        instance.workspaceRetryTick = 0;
+        instance.workspaceRetryAt = 0;
+        if (!keepAttempt) instance.workspaceRetryAttempt = 0;
+    }
+
+    function workspaceScheduleRetry() {
+        const instance = state;
+        workspaceClearRetry(instance, true);
+        const attempt = instance.workspaceRetryAttempt || 0;
+        const delay = WS_MODEL.backoffDelay(attempt);
+        instance.workspaceRetryAt = Date.now() + delay;
+        instance.workspaceRetryTick = setInterval(bindInstance(instance, workspaceRenderBanner), 1000);
+        instance.workspaceRetryTimer = setTimeout(bindInstance(instance, () => {
+            workspaceClearRetry(instance, true);
+            instance.workspaceRetryAttempt = attempt + 1;
+            workspaceReconnect({ auto: true });
+        }), delay);
+    }
+
+    async function workspaceReconnect(options = {}) {
+        const target = state;
+        if (!workspaceIsRemote(target) || target.workspaceStatus === 'connecting' || target.workspaceSwitching) return false;
+        if (!options.auto) {
+            workspaceClearRetry(target);
+            target.workspaceWasLost = true; // a manual reconnect refreshes everything
+        }
+        const ok = await workspaceConnectActive(target, options);
+        if (ok && isLiveInstance(target)) runWithInstance(target, workspaceAfterReconnect);
+        return ok;
+    }
+
+    function workspaceAfterReconnect() {
+        const instance = state;
+        const wasLost = instance.workspaceWasLost;
+        instance.workspaceWasLost = false;
+        workspaceClearRetry(instance);
+        workspaceRenderChrome();
+        if (!wasLost) return;
+        flashStatus(tr('codeStudio.workspaceReconnected', 'Reconnected to {{host}}', { host: workspaceHostLabel() }));
+        refreshFiles(instance.currentPath);
+        scheduleGitRefresh();
+        const open = typeof WebSocket !== 'undefined' ? WebSocket.OPEN : 1;
+        if (canWrite() && (instance.terminalSessions || []).every(session => !session.ws || session.ws.readyState !== open)) {
+            closeTerminalSessionSockets(instance);
+            renderTerminal();
+            connectTerminal();
+        }
+        if (instance.lsp) {
+            Object.keys(instance.lsp.connections).forEach(language => {
+                const conn = instance.lsp.connections[language];
+                if (conn.state === 'error' || conn.state === 'disconnected') lspRestart(language);
+            });
+        }
+        instance.openTabs.forEach(tab => reloadCleanTabFromDisk(instance, tab));
+    }
+
+    // A remote shell that closes may mean the SSH connection broke: one connect call tells (and redials).
+    function workspaceTerminalClosed() {
+        const instance = state;
+        if (!workspaceIsRemote(instance) || instance.workspaceStatus !== 'connected' || instance.workspaceSwitching) return;
+        const id = instance.workspaceId;
+        apiClient.connectWorkspace(id).then(payload => {
+            if (isLiveInstance(instance) && instance.workspaceId === id) instance.workspace = WS_MODEL.mergeWorkspace(instance.workspace, payload);
+        }, err => {
+            if (isLiveInstance(instance) && instance.workspaceId === id) runWithInstance(instance, () => workspaceConnectFailed(err));
+        });
+    }
+
+    function workspaceForgetMissing() {
+        const instance = state;
+        if (instance.workspaceForgetting) return;
+        instance.workspaceForgetting = true;
+        const id = instance.workspaceId;
+        instance.workspaces = (instance.workspaces || []).filter(ws => ws.id !== id);
+        workspaceToast(tr('codeStudio.workspaceMissing', 'This SSH workspace no longer exists. Code Studio switched to the local workspace.'));
+        switchWorkspace(WS_MODEL.LOCAL_ID).then(ok => {
+            if (ok) WS_MODEL.forgetSession(localStorage, id);
+        }).finally(() => { instance.workspaceForgetting = false; });
+    }
+
+    // --- Switching -----------------------------------------------------------------------------
+
+    function chooseWorkspaceSwitch(count, label) {
+        return new Promise(resolve => {
+            const instance = state;
+            const overlay = document.createElement('div');
+            overlay.className = 'cs-modal-backdrop';
+            overlay.innerHTML = `<div class="cs-modal cs-ws-dirty" role="alertdialog" aria-modal="true" aria-labelledby="cs-ws-dirty-title" aria-describedby="cs-ws-dirty-text">
+                <h2 class="cs-ws-dialog-title" id="cs-ws-dirty-title">${esc(tr('codeStudio.workspaceDirtyTitle', 'Unsaved changes'))}</h2>
+                <p id="cs-ws-dirty-text">${esc(tr('codeStudio.workspaceDirtyPrompt', '{{count}} files have unsaved changes. Save them before switching to {{workspace}}?', { count, workspace: label }))}</p>
+                <div class="cs-modal-actions">
+                    <button type="button" class="cs-button" data-choice="cancel">${esc(tr('desktop.cancel', 'Cancel'))}</button>
+                    <button type="button" class="cs-button danger" data-choice="discard">${esc(tr('codeStudio.discard', 'Discard'))}</button>
+                    <button type="button" class="cs-button primary" data-choice="save"${canWrite(instance) ? '' : ' disabled'}>${esc(tr('codeStudio.saveAll', 'Save All'))}</button>
+                </div>
+            </div>`;
+            document.body.appendChild(overlay);
+            const release = trapDialogFocus(overlay);
+            let settled = false;
+            let unregister = () => {};
+            const done = choice => {
+                if (settled) return;
+                settled = true;
+                unregister();
+                overlay.remove();
+                release();
+                resolve(choice);
+            };
+            runWithInstance(instance, () => { unregister = registerDisposer(() => done('cancel')); });
+            overlay.querySelectorAll('[data-choice]').forEach(button => button.addEventListener('click', () => done(button.dataset.choice)));
+            overlay.addEventListener('click', event => { if (event.target === overlay) done('cancel'); });
+            overlay.addEventListener('keydown', event => {
+                if (event.key !== 'Escape') return;
+                event.preventDefault();
+                event.stopPropagation();
+                done('cancel');
+            });
+            (overlay.querySelector('[data-choice="save"]:not([disabled])') || overlay.querySelector('[data-choice="cancel"]')).focus();
+        });
+    }
+
+    // Dirty tabs ask Save all / Discard / Cancel; pending saves finish before the workspace id changes.
+    async function workspaceSettleTabs(target, next) {
+        const dirty = target.openTabs.filter(tab => tab.modified && !isVirtualTab(tab));
+        if (dirty.length) {
+            const choice = await runWithInstance(target, () => chooseWorkspaceSwitch(dirty.length, workspaceDisplayLabel(next)));
+            if (choice === 'cancel' || !isLiveInstance(target)) return false;
+            if (choice === 'save' && !await runWithInstance(target, () => saveAllFiles())) {
+                if (isLiveInstance(target)) runWithInstance(target, () => workspaceToast(tr('codeStudio.workspaceSwitchFailed', 'Could not open {{workspace}}: {{error}}', { workspace: workspaceDisplayLabel(next), error: tr('codeStudio.unsavedChanges', 'Unsaved changes') })));
+                return false;
+            }
+        }
+        await Promise.all(target.openTabs.map(tab => tab.pendingSave).filter(Boolean));
+        return isLiveInstance(target) && !target.openTabs.some(tab => tab.pathMutation);
+    }
+
+    async function switchWorkspace(id, options = {}) {
+        const target = state;
+        if (!isLiveInstance(target) || target.workspaceSwitching) return false;
+        const nextId = WS_MODEL.normalizeId(id);
+        if (nextId === target.workspaceId) {
+            // Same workspace (a host-key review ended in the dialog): take the fresh data and refresh.
+            if (options.workspace && WS_MODEL.isRemote(nextId)) {
+                target.workspace = Object.assign({}, target.workspace, options.workspace, { connected: true });
+                target.workspaceStatus = 'connected';
+                target.workspaceError = null;
+                target.workspaceWasLost = true;
+                runWithInstance(target, workspaceAfterReconnect);
+            }
+            return true;
+        }
+        let next = nextId === WS_MODEL.LOCAL_ID ? WS_MODEL.localWorkspace() : (options.workspace || (target.workspaces || []).find(ws => ws.id === nextId));
+        if (!next) return false;
+        target.workspaceSwitching = true;
+        try {
+            if (!await workspaceSettleTabs(target, next)) return false;
+            if (next.kind === 'ssh' && !options.connected) {
+                runWithInstance(target, () => { target.workspaceSwitchTarget = next.id; workspaceRenderChrome(); });
+                try {
+                    next = WS_MODEL.mergeWorkspace(next, await apiClient.connectWorkspace(next.id, options.trust || ''));
+                } catch (err) {
+                    if (!isLiveInstance(target)) return false;
+                    const kind = WS_MODEL.classifyError(err);
+                    const failed = next;
+                    runWithInstance(target, () => {
+                        if (kind === 'unknown_host_key') openConnectDialog({ deviceId: failed.deviceId, path: failed.root });
+                        else workspaceToast(tr('codeStudio.workspaceSwitchFailed', 'Could not open {{workspace}}: {{error}}', { workspace: workspaceDisplayLabel(failed), error: workspaceErrorText(kind, { host: workspaceHostLabel(failed), path: failed.root, error: err.message || String(err) }) }));
+                    });
+                    return false;
+                } finally {
+                    if (isLiveInstance(target)) runWithInstance(target, () => { target.workspaceSwitchTarget = ''; workspaceRenderChrome(); });
+                }
+            }
+            if (!isLiveInstance(target)) return false;
+            runWithInstance(target, () => workspaceActivate(next));
+            await runAsyncStep(target, () => refreshFiles(WORKSPACE_ROOT));
+            if (!isLiveInstance(target)) return false;
+            await runAsyncStep(target, restoreTabs);
+            if (!isLiveInstance(target)) return false;
+            runWithInstance(target, () => { connectTerminal(); scheduleGitRefresh(); });
+            return true;
+        } finally {
+            if (isLiveInstance(target)) target.workspaceSwitching = false;
+        }
+    }
+
+    // Tears the old workspace down (explorer, search, git, problems, terminals, LSP, tabs) and applies the new session.
+    function workspaceActivate(next) {
+        const instance = state;
+        saveState(); // the leaving workspace's session
+        closeWorkspaceMenu(instance);
+        // Requests of the old workspace that are still in flight must not land in the new one.
+        instance.treeRequest = instance.openRequest = instance.pathRequest = instance.gitRequest = Symbol('workspace');
+        if (instance.agentAbortController) instance.agentAbortController.abort();
+        closeTerminalSessionSockets(instance);
+        lspShutdownInstance(instance);
+        if (instance.findOpen) closeFindWidget();
+        instance.openTabs.forEach(tab => destroyTabView(tab, true));
+        instance.openTabs = [];
+        instance.activeTabIndex = -1;
+        resetSplitState();
+        resetPreview(); // Plan B: a preview token names one workspace; close the pane and drop the token
+        instance.files = [];
+        instance.treeCache = {};
+        instance.expandedDirs.clear();
+        instance.currentPath = instance.selectedDir = WORKSPACE_ROOT;
+        instance.searchResults = [];
+        instance.searchPerformed = false;
+        instance.searchTruncated = false;
+        instance.gitIsRepo = null;
+        instance.gitBranch = '';
+        instance.gitChanges = [];
+        instance.gitLog = [];
+        instance.gitHistory = [];
+        instance.gitCommitMessage = '';
+        instance.outputLines = [];
+        instance.workspaceId = next.id;
+        instance.workspace = next.kind === 'ssh' ? next : null;
+        instance.workspaceStatus = next.kind === 'ssh' ? 'connected' : 'local';
+        instance.workspaceError = null;
+        instance.workspaceWasLost = false;
+        workspaceClearRetry(instance);
+        WS_MODEL.writeActive(localStorage, next.id);
+        workspaceApplySession(next.id);
+        setProblems([]);
+        renderTabs();
+        renderBreadcrumbs();
+        renderEditor();
+        renderSearchPanel();
+        renderGitPanel();
+        renderTerminal();
+        renderBottomPanel();
+        renderActivityBar();
+        renderWindowMenus();
+        workspaceRenderChrome();
+        saveState();
+    }
+
+    // --- Connect dialog: shell, hosts, new host -------------------------------------------------
+
+    const WSD_FOCUS_ATTRS = ['data-wsd-home', 'data-wsd-up', 'data-wsd-refresh', 'data-wsd-path', 'data-wsd-trust', 'data-wsd-trust-cancel', 'data-wsd-retry', 'data-wsd-other-host'];
+
+    function wsdSkeleton(count) {
+        return Array.from({ length: count }, () => '<div class="cs-wsd-skeleton" aria-hidden="true"></div>').join('');
+    }
+
+    function openConnectDialog(options = {}) {
+        const instance = state;
+        if (!isLiveInstance(instance)) return Promise.resolve(false);
+        if (instance.workspaceDialog) {
+            instance.workspaceDialog.focusFirst();
+            return instance.workspaceDialog.promise;
+        }
+        closeWorkspaceMenu(instance);
+        const dialog = {
+            instance, devices: [], devicesLoading: true, devicesError: '', query: '', deviceId: '', form: null,
+            home: {}, trusted: {}, browse: null, opening: false, openError: '',
+            initial: { deviceId: String(options.deviceId || ''), path: String(options.path || '') }
+        };
+        const overlay = document.createElement('div');
+        overlay.className = 'cs-modal-backdrop cs-wsd-backdrop';
+        overlay.innerHTML = `<div class="cs-modal cs-wsd" role="dialog" aria-modal="true" aria-labelledby="cs-wsd-title">
+            <header class="cs-wsd-head">
+                <h2 class="cs-ws-dialog-title" id="cs-wsd-title">${esc(tr('codeStudio.workspaceDialogTitle', 'Connect to SSH Folder'))}</h2>
+                <button type="button" class="cs-icon-button" data-wsd-close aria-label="${esc(tr('desktop.close', 'Close'))}" title="${esc(tr('desktop.close', 'Close'))}">${wsGlyph('x', 14)}</button>
+            </header>
+            <div class="cs-wsd-body">
+                <section class="cs-wsd-hosts" aria-labelledby="cs-wsd-hosts-title">
+                    <div class="cs-wsd-pane-title" id="cs-wsd-hosts-title">${esc(tr('codeStudio.workspaceHosts', 'Hosts'))}</div>
+                    <div class="cs-wsd-hosts-main" data-wsd-hosts-main>
+                        <input type="search" class="cs-wsd-search" data-wsd-search placeholder="${esc(tr('codeStudio.workspaceSearchHosts', 'Search hosts'))}" aria-label="${esc(tr('codeStudio.workspaceSearchHosts', 'Search hosts'))}" aria-controls="cs-wsd-hostlist" autocomplete="off" spellcheck="false">
+                        <div class="cs-wsd-hostlist" id="cs-wsd-hostlist" role="listbox" aria-labelledby="cs-wsd-hosts-title" data-wsd-hostlist></div>
+                        <button type="button" class="cs-button cs-wsd-new-host" data-wsd-new-host>${wsGlyph('plus', 14)}<span>${esc(tr('codeStudio.workspaceNewHost', 'New SSH Host'))}</span></button>
+                    </div>
+                    <div class="cs-wsd-form-slot" data-wsd-form-slot hidden></div>
+                </section>
+                <section class="cs-wsd-browser" aria-label="${esc(tr('codeStudio.workspacePathLabel', 'Folder path'))}" data-wsd-browser></section>
+            </div>
+            <footer class="cs-wsd-footer" data-wsd-footer></footer>
+        </div>`;
+        document.body.appendChild(overlay);
+        const release = trapDialogFocus(overlay);
+        let settled = false;
+        let unregister = () => {};
+        let resolvePromise = () => {};
+        dialog.promise = new Promise(resolve => { resolvePromise = resolve; });
+        dialog.overlay = overlay;
+        dialog.close = result => {
+            if (settled) return;
+            settled = true;
+            unregister();
+            dialog.form = null; // drops any typed secret
+            overlay.remove();
+            release();
+            if (instance.workspaceDialog === dialog) instance.workspaceDialog = null;
+            resolvePromise(result);
+        };
+        dialog.isOpen = () => !settled && isLiveInstance(instance);
+        dialog.focusFirst = () => {
+            const search = overlay.querySelector('[data-wsd-search]');
+            if (search && !search.closest('[hidden]')) search.focus();
+        };
+        instance.workspaceDialog = dialog;
+        unregister = registerDisposer(() => dialog.close(false));
+        wireConnectDialog(dialog);
+        renderDialogHosts(dialog);
+        renderDialogBrowser(dialog);
+        renderDialogFooter(dialog);
+        dialog.focusFirst();
+        dialogLoadDevices(dialog);
+        return dialog.promise;
+    }
+
+    function wireConnectDialog(dialog) {
+        const overlay = dialog.overlay;
+        const on = (type, handler) => overlay.addEventListener(type, bindInstance(dialog.instance, handler));
+        on('mousedown', event => { dialog.backdropDown = event.target === overlay; });
+        on('click', event => {
+            if (event.target === overlay) {
+                if (dialog.backdropDown) dialog.close(false);
+                return;
+            }
+            const el = event.target.closest('[data-wsd-close],[data-wsd-cancel],[data-wsd-new-host],[data-wsd-host],[data-wsd-entry],[data-wsd-crumb],[data-wsd-home],[data-wsd-up],[data-wsd-refresh],[data-wsd-goto],[data-wsd-trust],[data-wsd-trust-cancel],[data-wsd-retry],[data-wsd-other-host],[data-wsd-open],[data-wsd-form-cancel],[data-wsd-key-file],[data-wsd-copy]');
+            if (!el || el.disabled || el.getAttribute('aria-disabled') === 'true') return;
+            const d = el.dataset;
+            if ('wsdClose' in d || 'wsdCancel' in d) dialog.close(false);
+            else if ('wsdNewHost' in d) dialogOpenForm(dialog);
+            else if ('wsdHost' in d) dialogSelectDevice(dialog, d.wsdHost, {});
+            else if ('wsdEntry' in d) dialogSelectEntry(dialog, d.wsdEntry, {});
+            else if ('wsdCrumb' in d) dialogBrowse(dialog, d.wsdCrumb, {});
+            else if ('wsdHome' in d) dialogBrowse(dialog, '', {});
+            else if ('wsdUp' in d) dialogBrowse(dialog, WS_MODEL.remoteParent(dialog.browse.path), {});
+            else if ('wsdRefresh' in d) dialogBrowse(dialog, dialog.browse.path, {});
+            else if ('wsdGoto' in d) dialogBrowse(dialog, d.wsdGoto, {});
+            else if ('wsdTrust' in d) dialogTrust(dialog);
+            else if ('wsdTrustCancel' in d || 'wsdOtherHost' in d) dialogClearDevice(dialog);
+            else if ('wsdRetry' in d) dialogRetry(dialog);
+            else if ('wsdOpen' in d) dialogOpen(dialog, {});
+            else if ('wsdFormCancel' in d) dialogCloseForm(dialog);
+            else if ('wsdKeyFile' in d) { const input = overlay.querySelector('[data-wsd-key-input]'); if (input) input.click(); }
+            else if ('wsdCopy' in d) copyTextToClipboard(d.wsdCopy);
+        });
+        on('dblclick', event => {
+            const entry = event.target.closest('[data-wsd-entry][data-dir="true"]');
+            if (entry) dialogBrowse(dialog, entry.dataset.wsdEntry, { focus: 'list' });
+        });
+        on('input', event => {
+            if (event.target.matches('[data-wsd-search]')) {
+                dialog.query = event.target.value;
+                renderDialogHosts(dialog);
+            } else if (event.target.closest('[data-wsd-form]')) {
+                dialogFormInput(dialog, event.target);
+            }
+        });
+        on('change', event => {
+            if (event.target.matches('[data-wsd-auth]')) dialogFormAuth(dialog);
+            else if (event.target.matches('[data-wsd-key-input]')) dialogLoadKeyFile(dialog, event.target);
+        });
+        on('submit', event => {
+            event.preventDefault();
+            if (event.target.matches('[data-wsd-pathform]')) dialogSubmitPath(dialog, event.target);
+            else if (event.target.matches('[data-wsd-form]')) dialogSubmitForm(dialog, event.target);
+        });
+        on('keydown', event => dialogKeydown(dialog, event));
+    }
+
+    function dialogKeydown(dialog, event) {
+        const target = event.target;
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            event.stopPropagation();
+            if (dialog.form) dialogCloseForm(dialog);
+            else dialog.close(false);
+            return;
+        }
+        if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && !dialog.form) {
+            event.preventDefault();
+            dialogOpen(dialog, {});
+            return;
+        }
+        if (target.closest('[data-wsd-hostlist]')) { dialogHostKeydown(dialog, event); return; }
+        if (target.closest('[data-wsd-folders]')) { dialogFolderKeydown(dialog, event); return; }
+        if (target.matches('[data-wsd-search]')) {
+            const first = dialog.overlay.querySelector('[data-wsd-host]');
+            if (event.key === 'ArrowDown' && first) { event.preventDefault(); first.focus(); }
+            else if (event.key === 'Enter' && !event.isComposing) {
+                event.preventDefault();
+                if (first) dialogSelectDevice(dialog, first.dataset.wsdHost, { focus: 'list' });
+            }
+            return;
+        }
+        if (event.key !== 'Enter' || event.isComposing) return;
+        if (target.closest('form, textarea, button, a, input, [role="option"]')) return;
+        event.preventDefault();
+        dialogOpen(dialog, {}); // Enter anywhere else opens the folder
+    }
+
+    function dialogHostKeydown(dialog, event) {
+        const options = Array.from(dialog.overlay.querySelectorAll('[data-wsd-host]'));
+        const index = options.indexOf(document.activeElement);
+        let next = null;
+        if (event.key === 'ArrowDown') next = options[Math.min(options.length - 1, index + 1)];
+        else if (event.key === 'ArrowUp') {
+            if (index <= 0) {
+                event.preventDefault();
+                dialog.overlay.querySelector('[data-wsd-search]').focus();
+                return;
+            }
+            next = options[index - 1];
+        } else if (event.key === 'Home') next = options[0];
+        else if (event.key === 'End') next = options[options.length - 1];
+        else if (['Enter', ' ', 'ArrowRight'].includes(event.key)) {
+            if (index >= 0) {
+                event.preventDefault();
+                dialogSelectDevice(dialog, options[index].dataset.wsdHost, { focus: 'list' });
+            }
+            return;
+        } else return;
+        event.preventDefault();
+        if (next) {
+            options.forEach(option => { option.tabIndex = -1; });
+            next.tabIndex = 0;
+            next.focus();
+        }
+    }
+
+    function dialogDevice(dialog) {
+        return dialog.devices.find(device => device.id === dialog.deviceId) || null;
+    }
+
+    async function dialogLoadDevices(dialog) {
+        dialog.devicesLoading = true;
+        dialog.devicesError = '';
+        renderDialogHosts(dialog);
+        try {
+            const [payload] = await Promise.all([apiClient.remoteDevices(), workspaceLoadList(dialog.instance)]);
+            if (!dialog.isOpen()) return;
+            dialog.devices = WS_MODEL.sortDevices(WS_MODEL.normalizeDeviceList(payload), dialog.instance.workspaces || []);
+        } catch (err) {
+            if (!dialog.isOpen()) return;
+            dialog.devicesError = workspaceErrorText('other', { error: err.message || String(err) });
+        }
+        dialog.devicesLoading = false;
+        runWithInstance(dialog.instance, () => {
+            renderDialogHosts(dialog);
+            const initial = dialog.initial.deviceId;
+            if (initial && dialog.devices.some(device => device.id === initial)) dialogSelectDevice(dialog, initial, { path: dialog.initial.path });
+        });
+    }
+
+    function renderDialogHosts(dialog) {
+        const overlay = dialog.overlay;
+        const list = overlay.querySelector('[data-wsd-hostlist]');
+        overlay.querySelector('[data-wsd-hosts-main]').hidden = !!dialog.form;
+        overlay.querySelector('[data-wsd-form-slot]').hidden = !dialog.form;
+        const newHost = overlay.querySelector('[data-wsd-new-host]');
+        newHost.disabled = !!dialog.instance.readOnly;
+        newHost.title = dialog.instance.readOnly ? tr('codeStudio.workspaceFormReadOnly', 'The desktop is read-only: new hosts cannot be added.') : '';
+        if (dialog.devicesLoading) {
+            list.setAttribute('aria-busy', 'true');
+            list.innerHTML = wsdSkeleton(3);
+            return;
+        }
+        list.removeAttribute('aria-busy');
+        if (dialog.devicesError) {
+            list.innerHTML = `<div class="cs-wsd-empty" role="alert"><span>${esc(dialog.devicesError)}</span><button type="button" class="cs-button" data-wsd-retry>${esc(tr('desktop.retry', 'Retry'))}</button></div>`;
+            return;
+        }
+        if (!dialog.devices.length) {
+            list.innerHTML = `<div class="cs-wsd-empty">${esc(tr('codeStudio.workspaceNoHosts', 'No SSH hosts in the inventory yet.'))}</div>`;
+            return;
+        }
+        const devices = WS_MODEL.filterDevices(dialog.devices, dialog.query);
+        if (!devices.length) {
+            list.innerHTML = `<div class="cs-wsd-empty" data-wsd-no-match>${esc(tr('codeStudio.workspaceNoHostMatch', 'No host matches “{{query}}”', { query: dialog.query.trim() }))}</div>`;
+            return;
+        }
+        const hadFocus = list.contains(document.activeElement) ? document.activeElement.dataset.wsdHost : '';
+        const focusId = devices.some(device => device.id === dialog.deviceId) ? dialog.deviceId : devices[0].id;
+        list.innerHTML = devices.map(device => {
+            const selected = device.id === dialog.deviceId;
+            return `<div class="cs-wsd-host${selected ? ' is-selected' : ''}" role="option" data-wsd-host="${esc(device.id)}" aria-selected="${selected}" tabindex="${device.id === focusId ? 0 : -1}">
+                <span class="cs-wsd-host-icon">${wsGlyph('server', 16)}</span>
+                <span class="cs-wsd-host-text"><span class="cs-wsd-host-name">${esc(device.name)}</span><span class="cs-wsd-host-addr">${esc(WS_MODEL.deviceAddress(device))}</span></span>
+                <span class="cs-wsd-host-used">${esc(workspaceLastUsedText(WS_MODEL.deviceLastUsed(device, dialog.instance.workspaces || [])))}</span>
+            </div>`;
+        }).join('');
+        if (hadFocus) {
+            const again = Array.from(list.querySelectorAll('[data-wsd-host]')).find(option => option.dataset.wsdHost === hadFocus);
+            if (again) again.focus();
+        }
+    }
+
+    function dialogSelectDevice(dialog, id, options) {
+        if (!dialog.devices.some(device => device.id === id)) return;
+        const changed = dialog.deviceId !== id;
+        dialog.deviceId = id;
+        dialog.openError = '';
+        renderDialogHosts(dialog);
+        if (!changed && dialog.browse && !dialog.browse.error && !dialog.browse.hostKey) {
+            if (options.focus === 'list') dialogFocusFolders(dialog);
+            return;
+        }
+        dialog.browse = null;
+        dialogBrowse(dialog, options.path || '', { focus: options.focus });
+    }
+
+    function dialogClearDevice(dialog) {
+        dialog.deviceId = '';
+        dialog.browse = null;
+        dialog.openError = '';
+        renderDialogHosts(dialog);
+        renderDialogBrowser(dialog);
+        renderDialogFooter(dialog);
+        const option = dialog.overlay.querySelector('[data-wsd-host][tabindex="0"]');
+        if (option) option.focus();
+        else dialog.focusFirst();
+    }
+
+    function dialogRetry(dialog) {
+        if (dialog.devicesError) {
+            dialogLoadDevices(dialog);
+            return;
+        }
+        const retry = dialog.browse && dialog.browse.error && dialog.browse.error.retry;
+        if (retry) retry('');
+    }
+
+    function dialogOpenForm(dialog) {
+        if (dialog.instance.readOnly) return;
+        dialog.form = { values: { name: '', host: '', port: '22', username: '', auth: 'password', secret: '', passphrase: '' }, errors: {}, busy: false, error: '' };
+        renderDialogHosts(dialog);
+        renderDialogForm(dialog);
+        const name = dialog.overlay.querySelector('[data-wsd-form] [name="name"]');
+        if (name) name.focus();
+    }
+
+    function dialogCloseForm(dialog) {
+        dialog.form = null;
+        dialog.overlay.querySelector('[data-wsd-form-slot]').innerHTML = '';
+        renderDialogHosts(dialog);
+        dialog.overlay.querySelector('[data-wsd-new-host]').focus();
+    }
+
+    function readDialogForm(formEl) {
+        const data = new FormData(formEl);
+        const get = name => String(data.get(name) || '');
+        return { name: get('name'), host: get('host'), port: get('port'), username: get('username'), auth: get('auth') || 'password', secret: get('secret'), passphrase: get('passphrase') };
+    }
+
+    function renderDialogForm(dialog) {
+        const slot = dialog.overlay.querySelector('[data-wsd-form-slot]');
+        const form = dialog.form;
+        if (!slot || !form) return;
+        const v = form.values;
+        const e = form.errors;
+        const attrs = name => `id="cs-wsd-f-${name}" name="${name}" aria-invalid="${e[name] ? 'true' : 'false'}"${e[name] ? ` aria-describedby="cs-wsd-e-${name}"` : ''}`;
+        const msg = name => (e[name] ? `<span class="cs-wsd-field-error" id="cs-wsd-e-${name}">${esc(workspaceFormErrorText(e[name]))}</span>` : '');
+        const key = v.auth === 'key';
+        slot.innerHTML = `<form class="cs-wsd-form" data-wsd-form novalidate aria-labelledby="cs-wsd-form-title">
+            <div class="cs-wsd-pane-title" id="cs-wsd-form-title">${esc(tr('codeStudio.workspaceNewHost', 'New SSH Host'))}</div>
+            <div class="cs-wsd-field"><label for="cs-wsd-f-name">${esc(tr('codeStudio.workspaceFormName', 'Name'))}</label><input ${attrs('name')} value="${esc(v.name)}" autocomplete="off" maxlength="80" placeholder="build-box">${msg('name')}</div>
+            <div class="cs-wsd-row">
+                <div class="cs-wsd-field"><label for="cs-wsd-f-host">${esc(tr('codeStudio.workspaceFormHost', 'Host'))}</label><input ${attrs('host')} value="${esc(v.host)}" autocomplete="off" spellcheck="false" placeholder="192.168.1.20">${msg('host')}</div>
+                <div class="cs-wsd-field"><label for="cs-wsd-f-port">${esc(tr('codeStudio.workspaceFormPort', 'Port'))}</label><input ${attrs('port')} value="${esc(v.port)}" inputmode="numeric" autocomplete="off">${msg('port')}</div>
+            </div>
+            <div class="cs-wsd-field"><label for="cs-wsd-f-username">${esc(tr('codeStudio.workspaceFormUser', 'User'))}</label><input ${attrs('username')} value="${esc(v.username)}" autocomplete="off" spellcheck="false" placeholder="pi">${msg('username')}</div>
+            <fieldset class="cs-wsd-auth"><legend>${esc(tr('codeStudio.workspaceFormAuth', 'Sign in with'))}</legend>
+                <label><input type="radio" name="auth" value="password" data-wsd-auth${key ? '' : ' checked'}><span>${esc(tr('codeStudio.workspaceFormPassword', 'Password'))}</span></label>
+                <label><input type="radio" name="auth" value="key" data-wsd-auth${key ? ' checked' : ''}><span>${esc(tr('codeStudio.workspaceFormKey', 'Private key'))}</span></label>
+            </fieldset>
+            ${key ? `<div class="cs-wsd-field"><label for="cs-wsd-f-secret">${esc(tr('codeStudio.workspaceFormKey', 'Private key'))}</label><textarea ${attrs('secret')} rows="4" spellcheck="false" autocomplete="off" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----">${esc(v.secret)}</textarea>${msg('secret')}
+                    <button type="button" class="cs-button cs-wsd-keyfile" data-wsd-key-file>${esc(tr('codeStudio.workspaceFormKeyFile', 'Load Key File…'))}</button><input type="file" data-wsd-key-input hidden tabindex="-1"></div>
+                <div class="cs-wsd-field"><label for="cs-wsd-f-passphrase">${esc(tr('codeStudio.workspaceFormPassphrase', 'Passphrase (optional)'))}</label><input type="password" ${attrs('passphrase')} value="${esc(v.passphrase)}" autocomplete="off"></div>`
+            : `<div class="cs-wsd-field"><label for="cs-wsd-f-secret">${esc(tr('codeStudio.workspaceFormPassword', 'Password'))}</label><input type="password" ${attrs('secret')} value="${esc(v.secret)}" autocomplete="new-password">${msg('secret')}</div>`}
+            <p class="cs-wsd-field-hint">${esc(tr('codeStudio.workspaceFormVaultHint', 'The secret is stored in the AuraGo vault and never kept in the browser.'))}</p>
+            ${form.error ? `<div class="cs-wsd-open-error" role="alert">${wsGlyph('warning', 14)}<span>${esc(form.error)}</span></div>` : ''}
+            <div class="cs-wsd-actions">
+                <button type="button" class="cs-button" data-wsd-form-cancel>${esc(tr('desktop.cancel', 'Cancel'))}</button>
+                <button type="submit" class="cs-button primary"${form.busy ? ' disabled aria-busy="true"' : ''}>${esc(tr('codeStudio.workspaceFormAdd', 'Add Host'))}</button>
+            </div>
+        </form>`;
+    }
+
+    function dialogFormInput(dialog, input) {
+        if (!dialog.form || !input.name) return;
+        dialog.form.values[input.name] = input.value;
+        if (!dialog.form.errors[input.name]) return;
+        delete dialog.form.errors[input.name];
+        const field = input.closest('.cs-wsd-field');
+        const error = field && field.querySelector('.cs-wsd-field-error');
+        if (error) error.remove();
+        input.setAttribute('aria-invalid', 'false');
+        input.removeAttribute('aria-describedby');
+    }
+
+    function dialogFormAuth(dialog) {
+        const formEl = dialog.overlay.querySelector('[data-wsd-form]');
+        if (!dialog.form || !formEl) return;
+        dialog.form.values = Object.assign(readDialogForm(formEl), { secret: '', passphrase: '' });
+        delete dialog.form.errors.secret;
+        renderDialogForm(dialog);
+        const secret = dialog.overlay.querySelector('[data-wsd-form] [name="secret"]');
+        if (secret) secret.focus();
+    }
+
+    function dialogLoadKeyFile(dialog, input) {
+        const file = input.files && input.files[0];
+        const formEl = dialog.overlay.querySelector('[data-wsd-form]');
+        if (!file || !dialog.form || !formEl) return;
+        if (file.size > WS_KEY_FILE_LIMIT) {
+            dialog.form.values = readDialogForm(formEl);
+            dialog.form.errors.secret = 'key';
+            renderDialogForm(dialog);
+            return;
+        }
+        file.text().then(bindInstance(dialog.instance, text => {
+            const current = dialog.overlay.querySelector('[data-wsd-form]');
+            if (!dialog.isOpen() || !dialog.form || !current) return;
+            dialog.form.values = Object.assign(readDialogForm(current), { secret: text });
+            delete dialog.form.errors.secret;
+            renderDialogForm(dialog);
+            const passphrase = dialog.overlay.querySelector('[data-wsd-form] [name="passphrase"]');
+            if (passphrase) passphrase.focus();
+        }));
+    }
+
+    async function dialogSubmitForm(dialog, formEl) {
+        const form = dialog.form;
+        if (!form || form.busy) return;
+        form.values = readDialogForm(formEl);
+        const check = WS_MODEL.validateHostForm(form.values);
+        form.errors = check.errors;
+        form.error = '';
+        if (!check.valid) {
+            renderDialogForm(dialog);
+            const first = dialog.overlay.querySelector('[data-wsd-form] [aria-invalid="true"]');
+            if (first) first.focus();
+            return;
+        }
+        form.busy = true;
+        renderDialogForm(dialog);
+        try {
+            const created = await apiClient.createRemoteDevice(check.value);
+            if (!dialog.isOpen()) return;
+            const device = WS_MODEL.normalizeDevice(created);
+            if (!device.id) throw new Error('no device id');
+            dialog.devices = [device].concat(dialog.devices.filter(item => item.id !== device.id));
+            dialog.form = null; // drops the secret from memory
+            runWithInstance(dialog.instance, () => {
+                dialog.overlay.querySelector('[data-wsd-form-slot]').innerHTML = '';
+                dialog.query = '';
+                dialog.overlay.querySelector('[data-wsd-search]').value = '';
+                dialogSelectDevice(dialog, device.id, { focus: 'list' });
+            });
+        } catch (err) {
+            if (!dialog.isOpen() || dialog.form !== form) return;
+            form.busy = false;
+            form.error = tr('codeStudio.workspaceFormSaveFailed', 'Could not add the host: {{error}}', { error: err.message || String(err) });
+            runWithInstance(dialog.instance, () => renderDialogForm(dialog));
+        }
+    }
+
+    // --- Connect dialog: folder browser, host key, open ------------------------------------------
+
+    async function dialogBrowse(dialog, rawPath, options = {}) {
+        const deviceId = dialog.deviceId;
+        if (!deviceId) return;
+        const previous = dialog.browse && dialog.browse.deviceId === deviceId ? dialog.browse : null;
+        const home = dialog.home[deviceId] || '';
+        const path = rawPath ? WS_MODEL.normalizeRemotePath(WS_MODEL.expandHome(rawPath, home), previous && previous.path ? previous.path : (home || '/')) : '';
+        // '~' before the first listing is the home folder, which the server lists when no path is sent.
+        const requestPath = path.startsWith('~') ? '' : path;
+        const token = Symbol('browse');
+        dialog.browse = { deviceId, path: previous ? previous.path : '', entries: previous ? previous.entries : [], loading: true, error: null, hostKey: null, selected: '', token };
+        dialog.openError = '';
+        renderDialogBrowser(dialog);
+        renderDialogFooter(dialog);
+        const trust = options.trust || dialog.trusted[deviceId] || '';
+        try {
+            const listing = WS_MODEL.normalizeBrowse(await apiClient.remoteBrowse(deviceId, requestPath, trust));
+            if (!dialog.isOpen() || dialog.browse.token !== token) return;
+            if (!requestPath && !dialog.home[deviceId]) dialog.home[deviceId] = listing.path;
+            if (options.trust) dialog.trusted[deviceId] = options.trust;
+            Object.assign(dialog.browse, { path: listing.path, entries: listing.entries, loading: false });
+        } catch (err) {
+            if (!dialog.isOpen() || dialog.browse.token !== token) return;
+            dialogBrowseFailed(dialog, err, path, fp => dialogBrowse(dialog, rawPath, Object.assign({}, options, { trust: fp || options.trust, focus: 'list' })));
+        }
+        runWithInstance(dialog.instance, () => {
+            renderDialogBrowser(dialog);
+            renderDialogFooter(dialog);
+            const trustButton = dialog.overlay.querySelector('[data-wsd-trust]');
+            if (dialog.browse.hostKey && trustButton) trustButton.focus();
+            else if (options.focus === 'list') dialogFocusFolders(dialog);
+        });
+    }
+
+    function dialogBrowseFailed(dialog, err, path, retry) {
+        const kind = WS_MODEL.classifyError(err);
+        const device = dialogDevice(dialog);
+        const browse = dialog.browse;
+        browse.loading = false;
+        browse.entries = [];
+        if (path) browse.path = path;
+        if (kind === 'unknown_host_key') {
+            const body = err.body || {};
+            browse.hostKey = { host: String(body.host || (device && device.host) || ''), keyType: String(body.key_type || ''), fingerprint: String(body.fingerprint || ''), retry };
+            return;
+        }
+        browse.error = {
+            kind,
+            text: workspaceErrorText(kind, { host: device ? WS_MODEL.deviceAddress(device) : '', path: path || browse.path, error: err.message || String(err) }),
+            retry: kind === 'host_key_mismatch' ? null : retry
+        };
+    }
+
+    // Contract: POST /remote/trust stores the key (and pools the connection); the original call is then repeated.
+    async function dialogTrust(dialog) {
+        const key = dialog.browse && dialog.browse.hostKey;
+        if (!key || !key.fingerprint || dialog.trusting) return;
+        const deviceId = dialog.deviceId;
+        const browse = dialog.browse;
+        dialog.trusting = true;
+        const button = dialog.overlay.querySelector('[data-wsd-trust]');
+        if (button) { button.disabled = true; button.setAttribute('aria-busy', 'true'); }
+        try {
+            await apiClient.trustRemoteHost(deviceId, key.fingerprint);
+        } catch (err) {
+            dialog.trusting = false;
+            if (!dialog.isOpen() || dialog.browse !== browse) return;
+            const kind = WS_MODEL.classifyError(err);
+            const device = dialogDevice(dialog);
+            browse.hostKey = null;
+            browse.error = {
+                kind,
+                text: workspaceErrorText(kind, { host: device ? WS_MODEL.deviceAddress(device) : '', path: browse.path, error: err.message || String(err) }),
+                retry: kind === 'host_key_mismatch' ? null : (fp => dialogBrowse(dialog, browse.path, { focus: 'list' }))
+            };
+            runWithInstance(dialog.instance, () => { renderDialogBrowser(dialog); renderDialogFooter(dialog); });
+            return;
+        }
+        dialog.trusting = false;
+        if (!dialog.isOpen() || dialog.browse !== browse) return;
+        dialog.trusted[deviceId] = key.fingerprint;
+        key.retry(key.fingerprint);
+    }
+
+    function renderDialogBrowser(dialog) {
+        const pane = dialog.overlay.querySelector('[data-wsd-browser]');
+        if (!pane) return;
+        const active = pane.contains(document.activeElement) ? document.activeElement : null;
+        const focusAttr = active ? WSD_FOCUS_ATTRS.find(attr => active.hasAttribute(attr)) : '';
+        const focusList = !!active && !!active.closest('[data-wsd-folders]');
+        const device = dialogDevice(dialog);
+        const browse = dialog.browse;
+        if (!device || !browse) {
+            pane.innerHTML = `<div class="cs-wsd-placeholder">${wsGlyph('folder', 28)}<p>${esc(tr('codeStudio.workspacePickHost', 'Choose a host to see its folders.'))}</p></div>`;
+        } else if (browse.hostKey) {
+            const key = browse.hostKey;
+            pane.innerHTML = `<div class="cs-wsd-card cs-wsd-trust" role="group" aria-labelledby="cs-wsd-trust-title">
+                <span class="cs-wsd-card-icon">${wsGlyph('key', 20)}</span>
+                <h3 class="cs-wsd-card-title" id="cs-wsd-trust-title">${esc(tr('codeStudio.workspaceTrustTitle', 'Unknown host key'))}</h3>
+                <p>${esc(tr('codeStudio.workspaceTrustText', 'Code Studio has not connected to {{host}} before. Compare the fingerprint with the one the server shows before you trust it.', { host: key.host }))}</p>
+                <dl class="cs-wsd-facts">
+                    <dt>${esc(tr('codeStudio.workspaceFormHost', 'Host'))}</dt><dd><code>${esc(key.host)}</code></dd>
+                    <dt>${esc(tr('codeStudio.workspaceTrustKeyType', 'Key type'))}</dt><dd><code>${esc(key.keyType)}</code></dd>
+                    <dt>${esc(tr('codeStudio.workspaceTrustFingerprint', 'Fingerprint'))}</dt><dd><code>${esc(key.fingerprint)}</code><button type="button" class="cs-icon-button" data-wsd-copy="${esc(key.fingerprint)}" aria-label="${esc(tr('desktop.copy', 'Copy'))}" title="${esc(tr('desktop.copy', 'Copy'))}">${iconMarkup('copy', 'C', 'cs-icon-button-icon', 13)}</button></dd>
+                </dl>
+                <div class="cs-wsd-card-actions">
+                    <button type="button" class="cs-button" data-wsd-trust-cancel>${esc(tr('desktop.cancel', 'Cancel'))}</button>
+                    <button type="button" class="cs-button primary" data-wsd-trust>${esc(tr('codeStudio.workspaceTrustContinue', 'Trust and Continue'))}</button>
+                </div>
+            </div>`;
+        } else if (browse.error && browse.error.kind === 'host_key_mismatch') {
+            pane.innerHTML = `<div class="cs-wsd-card cs-wsd-danger" role="alert">
+                <span class="cs-wsd-card-icon">${wsGlyph('warning', 20)}</span>
+                <h3 class="cs-wsd-card-title">${esc(tr('codeStudio.workspaceMismatchTitle', 'Host key changed'))}</h3>
+                <p>${esc(browse.error.text)}</p>
+                <div class="cs-wsd-card-actions"><button type="button" class="cs-button" data-wsd-other-host>${esc(tr('codeStudio.workspaceChooseOtherHost', 'Choose Another Host'))}</button></div>
+            </div>`;
+        } else {
+            pane.innerHTML = dialogListingMarkup(dialog, device, browse);
+        }
+        if (active && !pane.contains(document.activeElement)) {
+            const target = (focusAttr && pane.querySelector('[' + focusAttr + ']:not([disabled])'))
+                || (focusList && pane.querySelector('[data-wsd-folders] [tabindex="0"]'))
+                || pane.querySelector('[data-wsd-trust], [data-wsd-folders] [tabindex="0"], [data-wsd-path], [data-wsd-other-host]');
+            if (target) target.focus();
+        }
+    }
+
+    function dialogListingMarkup(dialog, device, browse) {
+        const home = dialog.home[device.id] || '';
+        const crumbs = browse.path ? WS_MODEL.remoteBreadcrumbs(browse.path) : [];
+        const crumbHtml = crumbs.map((crumb, index) => (index === crumbs.length - 1
+            ? `<li><span class="cs-wsd-crumb is-current" aria-current="location">${esc(crumb.name)}</span></li>`
+            : `<li><button type="button" class="cs-wsd-crumb" data-wsd-crumb="${esc(crumb.path)}">${esc(crumb.name)}</button></li>`)).join('');
+        const recent = WS_MODEL.recentRoots(dialog.instance.workspaces || [], device.id).filter(root => root !== browse.path);
+        const dirs = browse.entries.filter(entry => entry.dir);
+        const files = browse.entries.filter(entry => !entry.dir);
+        const focusPath = dirs.some(entry => entry.path === browse.selected) ? browse.selected : (dirs[0] && dirs[0].path);
+        let rows;
+        if (browse.error) {
+            rows = `<div class="cs-wsd-card cs-wsd-error" role="alert">${wsGlyph('warning', 18)}<p>${esc(browse.error.text)}</p>${browse.error.retry ? `<button type="button" class="cs-button" data-wsd-retry>${esc(tr('desktop.retry', 'Retry'))}</button>` : ''}</div>`;
+        } else if (browse.loading && !browse.entries.length) {
+            rows = wsdSkeleton(6);
+        } else {
+            rows = dirs.map(entry => `<div class="cs-wsd-entry is-dir${entry.hidden ? ' is-hidden' : ''}${entry.path === browse.selected ? ' is-selected' : ''}" role="option" data-wsd-entry="${esc(entry.path)}" data-dir="true" data-name="${esc(entry.name)}" aria-selected="${entry.path === browse.selected}" tabindex="${entry.path === focusPath ? 0 : -1}" title="${esc(entry.path)}">${wsGlyph('folder', 15)}<span class="cs-wsd-entry-name">${esc(entry.name)}</span>${entry.git ? '<span class="cs-wsd-git" title="Git">git</span>' : ''}</div>`).join('')
+                + files.map(entry => `<div class="cs-wsd-entry is-file" role="option" data-wsd-entry="${esc(entry.path)}" data-dir="false" aria-disabled="true" aria-selected="false" tabindex="-1">${wsGlyph('file', 15)}<span class="cs-wsd-entry-name">${esc(entry.name)}</span></div>`).join('')
+                + (dirs.length ? '' : `<div class="cs-wsd-note">${esc(tr('codeStudio.workspaceNoSubfolders', 'This folder has no subfolders.'))}</div>`);
+        }
+        const pathLabel = tr('codeStudio.workspacePathLabel', 'Folder path');
+        return `<div class="cs-wsd-toolbar">
+                <button type="button" class="cs-icon-button" data-wsd-home aria-label="${esc(tr('codeStudio.workspaceHome', 'Home folder'))}" title="${esc(tr('codeStudio.workspaceHome', 'Home folder'))}">${wsGlyph('home', 15)}</button>
+                <button type="button" class="cs-icon-button" data-wsd-up aria-label="${esc(tr('codeStudio.workspaceUp', 'Parent folder'))}" title="${esc(tr('codeStudio.workspaceUp', 'Parent folder'))}"${!browse.path || browse.path === '/' ? ' disabled' : ''}>${wsGlyph('up', 15)}</button>
+                <nav class="cs-wsd-crumbs" aria-label="${esc(pathLabel)}"><ol>${crumbHtml}</ol></nav>
+                <button type="button" class="cs-icon-button" data-wsd-refresh aria-label="${esc(tr('codeStudio.refresh', 'Refresh'))}" title="${esc(tr('codeStudio.refresh', 'Refresh'))}">${wsGlyph('refresh', 15)}</button>
+            </div>
+            <form class="cs-wsd-pathform" data-wsd-pathform>
+                <label class="cs-ws-sr" for="cs-wsd-path">${esc(pathLabel)}</label>
+                <input id="cs-wsd-path" class="cs-wsd-path" data-wsd-path value="${esc(browse.path)}" autocomplete="off" spellcheck="false" placeholder="/home/user/project">
+            </form>
+            ${recent.length ? `<div class="cs-wsd-recent"><span>${esc(tr('codeStudio.workspaceRecent', 'Recent SSH folders'))}</span>${recent.map(root => `<button type="button" class="cs-wsd-chip" data-wsd-goto="${esc(root)}" title="${esc(root)}">${esc(WS_MODEL.tildePath(root, home))}</button>`).join('')}</div>` : ''}
+            <div class="cs-wsd-folders${browse.loading ? ' is-loading' : ''}" role="listbox" aria-label="${esc(browse.path || pathLabel)}" aria-busy="${browse.loading}" data-wsd-folders>${rows}</div>`;
+    }
+
+    function dialogFolderKeydown(dialog, event) {
+        const browse = dialog.browse;
+        if (!browse) return;
+        const rows = Array.from(dialog.overlay.querySelectorAll('[data-wsd-entry][data-dir="true"]'));
+        const index = rows.indexOf(document.activeElement);
+        const focusRow = row => {
+            if (!row) return;
+            rows.forEach(item => { item.tabIndex = -1; });
+            row.tabIndex = 0;
+            row.focus();
+            dialogSelectEntry(dialog, row.dataset.wsdEntry, { keepFocus: true });
+        };
+        switch (event.key) {
+            case 'ArrowDown': event.preventDefault(); focusRow(rows[Math.min(rows.length - 1, index + 1)]); break;
+            case 'ArrowUp': event.preventDefault(); focusRow(rows[Math.max(0, index - 1)]); break;
+            case 'Home': event.preventDefault(); focusRow(rows[0]); break;
+            case 'End': event.preventDefault(); focusRow(rows[rows.length - 1]); break;
+            case 'ArrowRight':
+                if (index >= 0) { event.preventDefault(); dialogBrowse(dialog, rows[index].dataset.wsdEntry, { focus: 'list' }); }
+                break;
+            case 'ArrowLeft':
+            case 'Backspace':
+                event.preventDefault();
+                if (browse.path && browse.path !== '/') dialogBrowse(dialog, WS_MODEL.remoteParent(browse.path), { focus: 'list' });
+                break;
+            case 'Enter': event.preventDefault(); dialogOpen(dialog, {}); break;
+            default:
+                if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+                    const key = event.key.toLowerCase();
+                    const hit = rows.slice(index + 1).concat(rows.slice(0, index + 1)).find(row => (row.dataset.name || '').toLowerCase().startsWith(key));
+                    if (hit) { event.preventDefault(); focusRow(hit); }
+                }
+        }
+    }
+
+    // A click toggles the selection; the target is the selected folder or, without one, the listed folder.
+    function dialogSelectEntry(dialog, path, options) {
+        const browse = dialog.browse;
+        const entry = browse && browse.entries.find(item => item.path === path);
+        if (!entry || !entry.dir) return;
+        browse.selected = options.keepFocus || browse.selected !== path ? path : '';
+        dialog.overlay.querySelectorAll('[data-wsd-entry][data-dir="true"]').forEach(row => {
+            const selected = row.dataset.wsdEntry === browse.selected;
+            row.classList.toggle('is-selected', selected);
+            row.setAttribute('aria-selected', selected ? 'true' : 'false');
+            if (!options.keepFocus) row.tabIndex = row.dataset.wsdEntry === path ? 0 : -1;
+        });
+        dialog.openError = '';
+        renderDialogFooter(dialog);
+    }
+
+    function dialogFocusFolders(dialog) {
+        const target = dialog.overlay.querySelector('[data-wsd-folders] [tabindex="0"]') || dialog.overlay.querySelector('[data-wsd-path]');
+        if (target) target.focus();
+    }
+
+    function dialogSubmitPath(dialog, formEl) {
+        const value = formEl.querySelector('[data-wsd-path]').value.trim();
+        if (value) dialogBrowse(dialog, value, { focus: 'list' });
+    }
+
+    function dialogTargetPath(dialog) {
+        return dialog.browse ? (dialog.browse.selected || dialog.browse.path) : '';
+    }
+
+    function renderDialogFooter(dialog) {
+        const footer = dialog.overlay.querySelector('[data-wsd-footer]');
+        if (!footer) return;
+        const device = dialogDevice(dialog);
+        const browse = dialog.browse;
+        const target = dialogTargetPath(dialog);
+        const ready = !!device && !!browse && !browse.loading && !browse.hostKey && !browse.error && !!target && !dialog.opening;
+        const preview = device && target ? WS_MODEL.userAtHost(device) + ':' + target : '';
+        const focused = footer.contains(document.activeElement) ? (document.activeElement.hasAttribute('data-wsd-open') ? '[data-wsd-open]' : '[data-wsd-cancel]') : '';
+        footer.innerHTML = `<code class="cs-wsd-target" data-wsd-target title="${esc(preview)}">${esc(preview || '—')}</code>
+            <div class="cs-wsd-hint" aria-hidden="true">${esc(tr('codeStudio.workspaceKeyHint', 'Enter opens · → enters a folder · ← goes up'))}</div>
+            ${dialog.openError ? `<div class="cs-wsd-open-error" role="alert">${wsGlyph('warning', 14)}<span>${esc(dialog.openError)}</span></div>` : ''}
+            <div class="cs-wsd-actions">
+                <button type="button" class="cs-button" data-wsd-cancel>${esc(tr('desktop.cancel', 'Cancel'))}</button>
+                <button type="button" class="cs-button primary" data-wsd-open${ready ? '' : ' disabled'} aria-busy="${dialog.opening}">${dialog.opening ? '<span class="cs-ws-spinner" aria-hidden="true"></span>' : ''}<span>${esc(dialog.opening ? tr('codeStudio.workspaceStatusConnecting', 'Connecting…') : tr('codeStudio.workspaceOpenFolder', 'Open Folder'))}</span></button>
+            </div>`;
+        if (focused) {
+            const el = footer.querySelector(focused);
+            (el && !el.disabled ? el : footer.querySelector('[data-wsd-cancel]')).focus();
+        }
+    }
+
+    async function dialogOpen(dialog, options) {
+        const device = dialogDevice(dialog);
+        const browse = dialog.browse;
+        const root = dialogTargetPath(dialog);
+        if (!device || !browse || !root || dialog.opening || browse.loading || browse.hostKey || browse.error) return;
+        const instance = dialog.instance;
+        dialog.opening = true;
+        dialog.openError = '';
+        renderDialogFooter(dialog);
+        const trust = options.trust || dialog.trusted[device.id] || '';
+        let workspace;
+        try {
+            const body = { device_id: device.id, root };
+            if (trust) body.trust_host_key = trust;
+            workspace = WS_MODEL.normalizeWorkspace(await apiClient.createWorkspace(body));
+            if (!WS_MODEL.isRemote(workspace.id)) throw new Error('no workspace id');
+        } catch (err) {
+            if (!dialog.isOpen()) return;
+            dialog.opening = false;
+            const kind = WS_MODEL.classifyError(err);
+            runWithInstance(instance, () => {
+                if (kind === 'unknown_host_key') {
+                    const b = err.body || {};
+                    browse.hostKey = {
+                        host: String(b.host || device.host), keyType: String(b.key_type || ''), fingerprint: String(b.fingerprint || ''),
+                        retry: fp => {
+                            browse.hostKey = null;
+                            dialog.trusted[device.id] = fp;
+                            renderDialogBrowser(dialog);
+                            dialogOpen(dialog, { trust: fp });
+                        }
+                    };
+                    renderDialogBrowser(dialog);
+                    const trustButton = dialog.overlay.querySelector('[data-wsd-trust]');
+                    if (trustButton) trustButton.focus();
+                } else if (kind === 'host_key_mismatch') {
+                    browse.error = { kind, text: workspaceErrorText(kind, { host: device.host }), retry: null };
+                    renderDialogBrowser(dialog);
+                } else {
+                    dialog.openError = workspaceErrorText(kind, { host: WS_MODEL.deviceAddress(device), path: root, error: err.message || String(err) });
+                }
+                renderDialogFooter(dialog);
+            });
+            return;
+        }
+        if (!dialog.isOpen()) return;
+        const list = (instance.workspaces || [WS_MODEL.localWorkspace()]).filter(ws => ws.id !== workspace.id);
+        list.splice(1, 0, workspace);
+        instance.workspaces = list;
+        // The dialog stays open while the switch asks about dirty tabs; Cancel there keeps the dialog.
+        const switched = await runWithInstance(instance, () => switchWorkspace(workspace.id, { workspace, connected: true }));
+        if (!dialog.isOpen()) return;
+        dialog.opening = false;
+        if (switched) dialog.close(true);
+        else runWithInstance(instance, () => renderDialogFooter(dialog));
+    }
+
+;
 /* ui/js/desktop/apps/code-studio/lsp-protocol.js */
 /* Code Studio LSP protocol helpers (IDE package 2b): language mapping, workspace URIs, LSP diagnostics to Code
    Studio problems and LSP positions. Pure functions without DOM access. The same file runs inside the code-studio
@@ -7702,10 +9729,10 @@
 
     function lspOpenSocket(conn) {
         const instance = conn.instance;
-        const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
         let socket;
         try {
-            socket = new WebSocket(protocol + '//' + location.host + '/api/code-studio/lsp?lang=' + encodeURIComponent(conn.language));
+            // Plan C: the bridge serves the active workspace; a switch shuts the sessions down and later opens new sockets.
+            socket = new WebSocket(workspaceSocketURL('/api/code-studio/lsp?lang=' + encodeURIComponent(conn.language), instance));
         } catch (_) {
             conn.socket = null;
             lspSocketClosed(conn, 1006);
@@ -8443,7 +10470,9 @@
             case 'starting': return tr('codeStudio.lspStarting', 'Starting...');
             case 'ready': return tr('codeStudio.lspReady', 'Ready');
             case 'disconnected': return tr('codeStudio.lspDisconnected', 'Disconnected');
-            case 'not-installed': return tr('codeStudio.lspNotInstalled', 'Language server not installed — rebuild the Code Studio image');
+            case 'not-installed': return workspaceIsRemote()
+                ? tr('codeStudio.workspaceLspNotInstalled', 'not installed on {{host}}', { host: workspaceHostLabel() }) // Plan C
+                : tr('codeStudio.lspNotInstalled', 'Language server not installed — rebuild the Code Studio image');
             case 'too-many': return tr('codeStudio.lspTooMany', 'Too many language servers');
             case 'error': return tr('codeStudio.lspError', 'Error — click to restart');
             default: return tr('codeStudio.lspIdle', 'Idle');
@@ -10118,6 +12147,929 @@
     }
 
 ;
+/* ui/js/desktop/apps/code-studio/preview-model.js */
+/* Code Studio HTML preview helpers (Plan B): previewable files, workspace-relative addresses, preview URLs, the
+   pane width, device scaling and the message shape of the sandboxed preview. Pure functions without DOM access.
+   The same file runs inside the code-studio bundle (window.CodeStudioPreviewModel) and under node
+   (preview-model.test.cjs). */
+(function (root, factory) {
+    'use strict';
+    var api = factory();
+    if (typeof module === 'object' && module && module.exports) module.exports = api;
+    if (root) root.CodeStudioPreviewModel = api;
+})(typeof window !== 'undefined' ? window : null, function () {
+    'use strict';
+
+    var WORKSPACE_ROOT = '/workspace';
+    var PREVIEWABLE = { html: true, htm: true, svg: true };
+    var VIEWPORTS = { tablet: { width: 768, height: 1024 }, mobile: { width: 375, height: 812 } };
+    var MIN_WIDTH = 280;
+    var MIN_EDITOR_WIDTH = 320;
+    var DEFAULT_WIDTH = 480;
+    var NO_CONTAINER_MAX = 1600;
+    var MESSAGE_KINDS = { console: true, error: true, rejection: true, resource: true, location: true, reloaded: true, expired: true };
+    var ERROR_KINDS = { console: true, error: true, rejection: true, resource: true };
+    var MAX_TEXT = 4000;
+    var MAX_ENTRIES = 200;
+    var REFRESH_MARGIN_MS = 10 * 60 * 1000;
+
+    function own(map, key) {
+        return Object.prototype.hasOwnProperty.call(map, key);
+    }
+
+    function extensionOf(path) {
+        var name = String(path == null ? '' : path).split('?')[0].split('#')[0].split('/').pop();
+        var dot = name.lastIndexOf('.');
+        return dot > 0 ? name.slice(dot + 1).toLowerCase() : '';
+    }
+
+    function isPreviewablePath(path) {
+        return own(PREVIEWABLE, extensionOf(path));
+    }
+
+    function relativePath(vpath) {
+        var value = String(vpath == null ? '' : vpath);
+        if (value === WORKSPACE_ROOT) return '';
+        if (value.indexOf(WORKSPACE_ROOT + '/') === 0) return value.slice(WORKSPACE_ROOT.length + 1);
+        return null;
+    }
+
+    function safeDecode(segment) {
+        try { return decodeURIComponent(segment); } catch (_) { return null; }
+    }
+
+    // An address typed into the preview toolbar or reported by live.js: a workspace-relative path with an optional
+    // ?query and #hash. Returns { path, directory, suffix } or null when it is empty, names another origin or scheme,
+    // or contains a ".." segment (also percent-encoded).
+    function parseAddress(input) {
+        var raw = String(input == null ? '' : input).trim();
+        if (!raw || raw.indexOf('\\') >= 0 || raw.indexOf('//') === 0 || /^[a-z][a-z0-9+.-]*:/i.test(raw)) return null;
+        var cut = raw.search(/[?#]/);
+        var pathPart = cut >= 0 ? raw.slice(0, cut) : raw;
+        var suffix = cut >= 0 ? raw.slice(cut) : '';
+        if (pathPart === WORKSPACE_ROOT || pathPart.indexOf(WORKSPACE_ROOT + '/') === 0) pathPart = pathPart.slice(WORKSPACE_ROOT.length);
+        var directory = pathPart === '' || pathPart.charAt(pathPart.length - 1) === '/';
+        var parts = [];
+        var segments = pathPart.split('/');
+        for (var i = 0; i < segments.length; i++) {
+            var segment = safeDecode(segments[i]);
+            if (segment === null || segment.indexOf('/') >= 0 || segment.indexOf('\\') >= 0 || segment.indexOf('\0') >= 0) return null;
+            if (segment === '' || segment === '.') continue;
+            if (segment === '..') return null;
+            parts.push(segment);
+        }
+        return { path: WORKSPACE_ROOT + (parts.length ? '/' + parts.join('/') : ''), directory: directory || parts.length === 0, suffix: suffix };
+    }
+
+    function addressText(vpath, directory, suffix) {
+        var rel = relativePath(vpath) || '';
+        return rel + (directory && rel ? '/' : '') + String(suffix || '');
+    }
+
+    function encodePath(rel) {
+        return rel ? rel.split('/').map(encodeURIComponent).join('/') : '';
+    }
+
+    function buildUrl(base, vpath, directory, suffix) {
+        var rel = relativePath(vpath) || '';
+        return String(base || '') + encodePath(rel) + (directory && rel ? '/' : '') + String(suffix || '');
+    }
+
+    // The pane may grow until the editor keeps MIN_EDITOR_WIDTH of the space both share (available).
+    function clampWidth(width, available) {
+        var numeric = Number(width);
+        if (!Number.isFinite(numeric)) numeric = DEFAULT_WIDTH;
+        var max = available > 0 ? Math.max(MIN_WIDTH, available - MIN_EDITOR_WIDTH) : NO_CONTAINER_MAX;
+        return Math.round(Math.min(max, Math.max(MIN_WIDTH, numeric)));
+    }
+
+    function deviceScale(viewport, stageWidth, stageHeight, inset) {
+        var size = own(VIEWPORTS, viewport) ? VIEWPORTS[viewport] : null;
+        if (!size) return 1;
+        var pad = inset == null ? 24 : inset;
+        var scale = Math.min(1, (stageWidth - 2 * pad) / size.width, (stageHeight - 2 * pad) / size.height);
+        if (!Number.isFinite(scale)) return 1;
+        return Math.max(0.25, Math.round(scale * 100) / 100);
+    }
+
+    function normalizeMessage(data) {
+        if (!data || typeof data !== 'object' || data.auragoPreview !== 1) return null;
+        if (typeof data.kind !== 'string' || !own(MESSAGE_KINDS, data.kind)) return null;
+        if (data.text !== undefined && typeof data.text !== 'string') return null;
+        return { kind: data.kind, text: (data.text || '').slice(0, MAX_TEXT) };
+    }
+
+    function isErrorKind(kind) {
+        return own(ERROR_KINDS, String(kind));
+    }
+
+    function pushEntry(list, entry, max) {
+        var next = Array.isArray(list) ? list.slice() : [];
+        next.push(entry);
+        var limit = max || MAX_ENTRIES;
+        return next.length > limit ? next.slice(next.length - limit) : next;
+    }
+
+    function tokenNeedsRefresh(expiresAt, now) {
+        var expires = Date.parse(String(expiresAt || ''));
+        return !Number.isFinite(expires) || expires - now < REFRESH_MARGIN_MS;
+    }
+
+    return {
+        WORKSPACE_ROOT: WORKSPACE_ROOT,
+        VIEWPORTS: VIEWPORTS,
+        isPreviewablePath: isPreviewablePath,
+        relativePath: relativePath,
+        parseAddress: parseAddress,
+        addressText: addressText,
+        buildUrl: buildUrl,
+        clampWidth: clampWidth,
+        deviceScale: deviceScale,
+        normalizeMessage: normalizeMessage,
+        isErrorKind: isErrorKind,
+        pushEntry: pushEntry,
+        tokenNeedsRefresh: tokenNeedsRefresh
+    };
+});
+
+;
+/* ui/js/desktop/apps/code-studio/preview.js */
+    // === Plan B: HTML preview pane ===
+    // The pane sits right of the editor group and shows the saved file through /code-studio-preview/<token>/. The page
+    // runs sandboxed without allow-same-origin (the server sends the same flags as a CSP sandbox), so it has an opaque
+    // origin and can never read AuraGo cookies, storage or API responses. It reaches Code Studio only via postMessage;
+    // a message counts only when its source is this pane's iframe, its origin is opaque and its shape matches.
+
+    const PREVIEW_PREFS_KEY = 'aurago.codeStudio.preview.v1';
+    const PREVIEW_SANDBOX = 'allow-scripts allow-forms allow-modals allow-popups allow-downloads';
+    const PREVIEW_VIEWPORTS = ['responsive', 'tablet', 'mobile'];
+    const PREVIEW_RESIZE_STEP = 16;
+    const PREVIEW_DEFAULT_WIDTH = 480;
+    const PREVIEW_DEVICE_INSET = 34; // stage padding 24 px + device bezel 10 px
+    const PREVIEW_GLYPHS = {
+        eye: '<path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/><circle cx="8" cy="8" r="2"/>',
+        reload: '<path d="M13.25 8A5.25 5.25 0 1 1 11.7 4.3"/><path d="M13.25 2.25v3.5h-3.5"/>',
+        globe: '<circle cx="8" cy="8" r="6"/><path d="M2 8h12M8 2c1.8 1.7 2.7 3.7 2.7 6S9.8 12.3 8 14C6.2 12.3 5.3 10.3 5.3 8S6.2 3.7 8 2z"/>',
+        responsive: '<rect x="1.5" y="2.75" width="13" height="8.5" rx="1.25"/><path d="M5.5 13.75h5M8 11.25v2.5"/>',
+        tablet: '<rect x="3" y="1.5" width="10" height="13" rx="1.5"/><path d="M7.25 12.25h1.5"/>',
+        mobile: '<rect x="4.5" y="1.5" width="7" height="13" rx="1.5"/><path d="M7.25 12.25h1.5"/>',
+        alert: '<circle cx="8" cy="8" r="6"/><path d="M8 4.75v3.75M8 11.1v.15"/>',
+        pin: '<path d="M9.75 1.75l4.5 4.5-1.9.6-2.6 2.6.3 3-1.3 1.3-6.5-6.5 1.3-1.3 3 .3 2.6-2.6z"/><path d="M5.2 10.8 1.75 14.25"/>',
+        external: '<path d="M9.25 2.25h4.5v4.5M13.75 2.25 7.5 8.5"/><path d="M12 9.5v3.25a1 1 0 0 1-1 1H3.25a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1H6.5"/>',
+        close: '<path d="M4 4l8 8M12 4l-8 8"/>'
+    };
+
+    function previewModel() {
+        return window.CodeStudioPreviewModel || null;
+    }
+
+    function previewGlyph(name, size) {
+        const pixels = Number(size) || 14;
+        return `<svg class="cs-hp-glyph" viewBox="0 0 16 16" width="${pixels}" height="${pixels}" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${PREVIEW_GLYPHS[name] || ''}</svg>`;
+    }
+
+    function loadPreviewPrefs() {
+        try {
+            const saved = JSON.parse(localStorage.getItem(PREVIEW_PREFS_KEY) || '{}') || {};
+            const width = Number(saved.width);
+            return {
+                viewport: PREVIEW_VIEWPORTS.includes(saved.viewport) ? saved.viewport : 'responsive',
+                width: Number.isFinite(width) && width > 0 ? width : PREVIEW_DEFAULT_WIDTH
+            };
+        } catch (_) {
+            return { viewport: 'responsive', width: PREVIEW_DEFAULT_WIDTH };
+        }
+    }
+
+    function savePreviewPrefs() {
+        const preview = previewState();
+        try {
+            localStorage.setItem(PREVIEW_PREFS_KEY, JSON.stringify({ viewport: preview.viewport, width: Math.round(preview.width) }));
+        } catch (_) {}
+    }
+
+    function previewState() {
+        if (!state.htmlPreview) {
+            const prefs = loadPreviewPrefs();
+            state.htmlPreview = {
+                open: false, pinned: false, followedPath: '',
+                path: '', directory: false, suffix: '',
+                base: '', expiresAt: '', tokenRequest: null,
+                status: 'empty', errorTitle: '', errorDetail: '',
+                viewport: prefs.viewport, width: prefs.width,
+                console: [], consoleOpen: false,
+                navigation: 0, pane: null, observer: null, messageWired: false
+            };
+        }
+        return state.htmlPreview;
+    }
+
+    function previewPane() {
+        const root = studioRoot();
+        return root ? root.querySelector('[data-html-preview]') : null;
+    }
+
+    function isPreviewablePath(path) {
+        const model = previewModel();
+        return !!model && model.isPreviewablePath(path);
+    }
+
+    function isCodeEditorTarget(element) {
+        return !!(element && typeof element.closest === 'function' && element.closest('.cm-editor'));
+    }
+
+    // Called by renderShell and whenever the pane opens or closes. Returns true when it (re)built the pane markup.
+    function renderPreviewPane(options) {
+        const root = studioRoot();
+        const pane = previewPane();
+        if (!root || !pane) return false;
+        const preview = previewState();
+        root.dataset.preview = preview.open ? 'visible' : 'hidden';
+        pane.hidden = !preview.open;
+        applyPreviewWidth();
+        if (!preview.open) return false;
+        let built = false;
+        if (preview.pane !== pane) {
+            buildPreviewPane(pane);
+            built = true;
+        }
+        updatePreviewChrome();
+        if (built) {
+            if (preview.path && !(options && options.navigate === false)) navigatePreview();
+            else if (!preview.path) setPreviewStatus('empty');
+        }
+        return built;
+    }
+
+    function buildPreviewPane(pane) {
+        const preview = previewState();
+        const consoleId = 'cs-hp-console-' + String(state.windowId).replace(/[^A-Za-z0-9_-]/g, '');
+        const t = (key, fallback) => esc(tr(key, fallback));
+        const viewportLabels = {
+            responsive: tr('codeStudio.previewResponsive', 'Responsive'),
+            tablet: tr('codeStudio.previewTablet', 'Tablet (768 px)'),
+            mobile: tr('codeStudio.previewMobile', 'Mobile (375 px)')
+        };
+        pane.setAttribute('aria-label', tr('codeStudio.previewTitle', 'Preview'));
+        pane.innerHTML = `
+            <div class="cs-hp-resize" data-hp-resize role="separator" aria-orientation="vertical" tabindex="0" aria-label="${t('codeStudio.previewResize', 'Resize preview')}" title="${t('codeStudio.previewResize', 'Resize preview')}"></div>
+            <div class="cs-hp-toolbar" role="toolbar" aria-label="${t('codeStudio.previewTitle', 'Preview')}">
+                <button type="button" class="cs-hp-button" data-hp-action="reload" aria-label="${t('codeStudio.previewReload', 'Reload preview')}" title="${t('codeStudio.previewReload', 'Reload preview')}">${previewGlyph('reload')}</button>
+                <form class="cs-hp-address" data-hp-address-form>
+                    <span class="cs-hp-address-icon" aria-hidden="true">${previewGlyph('globe', 13)}</span>
+                    <input type="text" class="cs-hp-address-input" data-hp-address spellcheck="false" autocomplete="off" placeholder="index.html" aria-label="${t('codeStudio.previewAddress', 'Preview address (path inside the workspace)')}">
+                </form>
+                <div class="cs-hp-segmented" role="radiogroup" data-hp-viewports aria-label="${t('codeStudio.previewViewport', 'Viewport')}">
+                    ${PREVIEW_VIEWPORTS.map(id => `<button type="button" role="radio" class="cs-hp-segment" data-hp-viewport="${id}" aria-checked="false" tabindex="-1" aria-label="${esc(viewportLabels[id])}" title="${esc(viewportLabels[id])}">${previewGlyph(id)}</button>`).join('')}
+                </div>
+                <button type="button" class="cs-hp-button cs-hp-console-button" data-hp-action="console" aria-expanded="false" aria-controls="${consoleId}" title="${t('codeStudio.previewConsole', 'Console')}">${previewGlyph('alert')}<span class="cs-hp-badge" data-hp-console-count hidden>0</span></button>
+                <button type="button" class="cs-hp-button" data-hp-action="pin" aria-pressed="false" aria-label="${t('codeStudio.previewPin', 'Keep showing this file')}">${previewGlyph('pin')}</button>
+                <button type="button" class="cs-hp-button" data-hp-action="external" aria-label="${t('codeStudio.previewOpenExternal', 'Open in new browser tab')}" title="${t('codeStudio.previewOpenExternal', 'Open in new browser tab')}">${previewGlyph('external')}</button>
+                <button type="button" class="cs-hp-button" data-hp-action="close" aria-label="${t('codeStudio.previewClose', 'Close preview')}" title="${t('codeStudio.previewClose', 'Close preview')}">${previewGlyph('close')}</button>
+            </div>
+            <div class="cs-hp-hint" data-hp-dirty role="status" hidden><span class="cs-hp-hint-dot" aria-hidden="true"></span><span>${t('codeStudio.previewDirty', 'Showing saved version. Save to update the preview.')}</span></div>
+            <section class="cs-hp-console" id="${consoleId}" data-hp-console hidden aria-label="${t('codeStudio.previewConsole', 'Console')}">
+                <header class="cs-hp-console-head"><span>${t('codeStudio.previewConsole', 'Console')}</span><button type="button" class="cs-hp-text-button" data-hp-action="clear-console">${t('codeStudio.previewConsoleClear', 'Clear console')}</button></header>
+                <ol class="cs-hp-console-list" data-hp-console-list></ol>
+            </section>
+            <div class="cs-hp-stage" data-hp-stage data-viewport="${esc(preview.viewport)}" aria-busy="false">
+                <div class="cs-hp-device" data-hp-device>
+                    <iframe class="cs-hp-frame" data-hp-frame sandbox="${PREVIEW_SANDBOX}" referrerpolicy="no-referrer" title="${t('codeStudio.previewTitle', 'Preview')}"></iframe>
+                </div>
+                <div class="cs-hp-device-label" data-hp-device-label hidden></div>
+                <div class="cs-hp-loading" data-hp-loading hidden>
+                    <span class="cs-hp-shimmer"></span><span class="cs-hp-shimmer short"></span><span class="cs-hp-shimmer"></span><span class="cs-hp-shimmer short"></span>
+                    <span class="cs-hp-sr">${t('codeStudio.previewLoading', 'Loading preview...')}</span>
+                </div>
+                <div class="cs-hp-card" data-hp-empty hidden>
+                    <span class="cs-hp-card-icon" aria-hidden="true">${previewGlyph('eye', 26)}</span>
+                    <strong>${t('codeStudio.previewEmptyTitle', 'Open an HTML file to preview it')}</strong>
+                    <p>${t('codeStudio.previewEmptyHint', 'HTML, HTM and SVG files open here and reload when you save.')}</p>
+                    <div class="cs-hp-card-actions"><button type="button" class="cs-button primary" data-hp-action="preview-active">${t('codeStudio.previewEmptyAction', 'Preview active file')}</button></div>
+                </div>
+                <div class="cs-hp-card cs-hp-error" data-hp-error role="alert" hidden>
+                    <span class="cs-hp-card-icon" aria-hidden="true">${previewGlyph('alert', 24)}</span>
+                    <strong data-hp-error-title></strong>
+                    <p data-hp-error-detail></p>
+                    <div class="cs-hp-card-actions">
+                        <button type="button" class="cs-button primary" data-hp-action="retry">${t('codeStudio.previewRetry', 'Try again')}</button>
+                        <button type="button" class="cs-button" data-hp-action="close">${t('codeStudio.previewClose', 'Close preview')}</button>
+                    </div>
+                </div>
+            </div>`;
+        preview.pane = pane;
+        wirePreviewPane(pane);
+    }
+
+    function wirePreviewPane(pane) {
+        const preview = previewState();
+        pane.addEventListener('click', bind(event => {
+            const control = event.target.closest('[data-hp-action],[data-hp-viewport]');
+            if (!control || !pane.contains(control) || control.disabled) return;
+            if (control.dataset.hpViewport) setPreviewViewport(control.dataset.hpViewport);
+            else runPreviewAction(control.dataset.hpAction);
+        }));
+        const viewports = pane.querySelector('[data-hp-viewports]');
+        viewports.addEventListener('keydown', bind(event => {
+            const index = PREVIEW_VIEWPORTS.indexOf(previewState().viewport);
+            let next = -1;
+            if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = (index + 1) % PREVIEW_VIEWPORTS.length;
+            else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = (index + PREVIEW_VIEWPORTS.length - 1) % PREVIEW_VIEWPORTS.length;
+            else if (event.key === 'Home') next = 0;
+            else if (event.key === 'End') next = PREVIEW_VIEWPORTS.length - 1;
+            if (next < 0) return;
+            event.preventDefault();
+            setPreviewViewport(PREVIEW_VIEWPORTS[next]);
+            const button = viewports.querySelector(`[data-hp-viewport="${PREVIEW_VIEWPORTS[next]}"]`);
+            if (button) button.focus();
+        }));
+        const input = pane.querySelector('[data-hp-address]');
+        pane.querySelector('[data-hp-address-form]').addEventListener('submit', bind(event => {
+            event.preventDefault();
+            navigatePreviewAddress(input.value);
+        }));
+        input.addEventListener('input', () => input.removeAttribute('aria-invalid'));
+        input.addEventListener('keydown', bind(event => {
+            if (event.key !== 'Escape') return;
+            event.preventDefault();
+            event.stopPropagation();
+            input.value = previewAddressText();
+            input.removeAttribute('aria-invalid');
+            input.blur();
+        }));
+        pane.querySelector('[data-hp-console]').addEventListener('keydown', bind(event => {
+            if (event.key !== 'Escape') return;
+            event.preventDefault();
+            event.stopPropagation();
+            togglePreviewConsole(false, true);
+        }));
+        const frame = pane.querySelector('[data-hp-frame]');
+        frame.addEventListener('load', bind(() => onPreviewFrameLoad(frame)));
+        wirePreviewResize(pane);
+        if (preview.observer) preview.observer.disconnect();
+        if (typeof ResizeObserver === 'function') {
+            const observer = new ResizeObserver(bind(() => applyPreviewViewport()));
+            observer.observe(pane.querySelector('[data-hp-stage]'));
+            preview.observer = observer;
+            registerDisposer(() => observer.disconnect());
+        }
+        if (!preview.messageWired) {
+            preview.messageWired = true;
+            const onMessage = bind(event => handlePreviewMessage(event));
+            window.addEventListener('message', onMessage);
+            registerDisposer(() => window.removeEventListener('message', onMessage));
+        }
+    }
+
+    function openPreview(path, options) {
+        const preview = previewState();
+        const next = normalizeCodeStudioPath(path);
+        if (next === WORKSPACE_ROOT) return;
+        const same = preview.open && preview.path === next && !preview.directory && !preview.suffix && preview.status === 'ready';
+        preview.open = true;
+        preview.path = next;
+        preview.directory = false;
+        preview.suffix = '';
+        preview.followedPath = next;
+        if (options && options.pin === true) preview.pinned = true;
+        const built = renderPreviewPane({ navigate: false });
+        if (built || !same) navigatePreview();
+        syncPreviewEyeButton();
+        renderWindowMenus();
+    }
+
+    function openPreviewForActive() {
+        const tab = activeTab();
+        if (isSourceTab(tab) && isPreviewablePath(tab.path)) {
+            openPreview(tab.path);
+            return;
+        }
+        const preview = previewState();
+        const wasOpen = preview.open;
+        preview.open = true;
+        const built = renderPreviewPane({ navigate: false });
+        if (preview.path && (built || !wasOpen)) navigatePreview();
+        else if (!preview.path) setPreviewStatus('empty');
+        renderWindowMenus();
+    }
+
+    function togglePreviewPane() {
+        if (previewState().open) closePreviewPane();
+        else openPreviewForActive();
+    }
+
+    function closePreviewPane() {
+        const preview = previewState();
+        if (!preview.open) return;
+        const pane = preview.pane;
+        const hadFocus = !!(pane && pane.contains(document.activeElement));
+        preview.open = false;
+        preview.consoleOpen = false;
+        preview.navigation += 1;
+        const frame = pane && pane.querySelector('[data-hp-frame]');
+        if (frame) frame.src = 'about:blank';
+        renderPreviewPane();
+        syncPreviewEyeButton();
+        renderWindowMenus();
+        measureVisibleEditors();
+        scheduleTerminalFit();
+        if (hadFocus) {
+            const view = focusedEditorView(activeTab());
+            if (view && typeof view.focus === 'function') view.focus();
+        }
+    }
+
+    // The workspace switch (workspaceActivate) calls this: a token names exactly one workspace, so the pane closes,
+    // the token is dropped and a token request still on its way is ignored when it lands.
+    function resetPreview() {
+        const preview = previewState();
+        closePreviewPane();
+        preview.navigation += 1;
+        Object.assign(preview, { path: '', directory: false, suffix: '', base: '', expiresAt: '', tokenRequest: null, console: [], followedPath: '', pinned: false, status: 'empty', errorTitle: '', errorDetail: '' });
+    }
+
+    function ensurePreviewToken(target, force, path) {
+        const preview = target.htmlPreview;
+        const model = previewModel();
+        if (!force && preview.base && !model.tokenNeedsRefresh(preview.expiresAt, Date.now())) return Promise.resolve(preview.base);
+        if (!force && preview.tokenRequest) return preview.tokenRequest;
+        // api() sends the workspace header of this instance, so the token belongs to the workspace shown right now.
+        const request = api('/api/code-studio/preview', {
+            method: 'POST',
+            body: JSON.stringify({ path: path || preview.path || WORKSPACE_ROOT })
+        }).then(result => {
+            const base = String(result && result.base || '');
+            if (!base.startsWith('/code-studio-preview/') || !base.endsWith('/')) throw new Error('invalid preview response');
+            // A reset (workspace switch) cleared tokenRequest meanwhile: the token is for the old workspace.
+            if (preview.tokenRequest !== request) return base;
+            preview.base = base;
+            preview.expiresAt = String(result.expires_at || '');
+            return base;
+        }).finally(() => {
+            if (preview.tokenRequest === request) preview.tokenRequest = null;
+        });
+        preview.tokenRequest = request;
+        return request;
+    }
+
+    // HEAD first (the sandboxed page cannot tell the parent its status), then the iframe. A 401 means the token
+    // expired or the session secret rotated: one retry with a fresh token.
+    async function navigatePreview() {
+        const target = state;
+        const preview = previewState();
+        const model = previewModel();
+        if (!model || !preview.open || !preview.path) {
+            setPreviewStatus('empty');
+            return;
+        }
+        const navigation = ++preview.navigation;
+        setPreviewStatus('loading');
+        updatePreviewChrome();
+        let status = 0;
+        let failure = '';
+        let url = '';
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+            failure = '';
+            try {
+                const base = await ensurePreviewToken(target, attempt > 0, preview.path);
+                if (!isLiveInstance(target) || preview.navigation !== navigation) return;
+                url = model.buildUrl(base, preview.path, preview.directory, preview.suffix);
+                const response = await fetch(url, { method: 'HEAD', credentials: 'omit', cache: 'no-store' });
+                status = response.status;
+            } catch (err) {
+                status = 0;
+                failure = err && err.message ? err.message : String(err);
+            }
+            if (!isLiveInstance(target) || preview.navigation !== navigation) return;
+            if (status !== 401) break;
+            preview.base = '';
+        }
+        runWithInstance(target, () => {
+            const frame = preview.pane && preview.pane.querySelector('[data-hp-frame]');
+            if (!frame || !preview.open) return;
+            if (status >= 200 && status < 300) {
+                frame.title = tr('codeStudio.previewFrameTitle', 'Preview of {{path}}', { path: previewAddressText() || '/' });
+                frame.src = url; // assigning the same URL navigates again, so this also reloads
+                return;
+            }
+            showPreviewError(status, failure);
+        });
+    }
+
+    function onPreviewFrameLoad(frame) {
+        const preview = previewState();
+        if (preview.status !== 'loading') return;
+        const src = frame.getAttribute('src') || '';
+        if (!src.startsWith('/code-studio-preview/')) return;
+        setPreviewStatus('ready');
+    }
+
+    function showPreviewError(status, failure) {
+        const preview = previewState();
+        const path = previewAddressText() || '/';
+        if (status === 404) {
+            preview.errorTitle = tr('codeStudio.previewNotFoundTitle', 'File not found');
+            preview.errorDetail = tr('codeStudio.previewNotFound', '{{path}} does not exist in this workspace.', { path });
+        } else if (status === 413) {
+            preview.errorTitle = tr('codeStudio.previewTooLargeTitle', 'File too large');
+            preview.errorDetail = tr('codeStudio.previewTooLarge', '{{path}} is larger than 25 MB and cannot be previewed.', { path });
+        } else {
+            preview.errorTitle = tr('codeStudio.previewFailedTitle', 'Preview unavailable');
+            preview.errorDetail = tr('codeStudio.previewFailed', 'The preview could not be loaded: {{error}}', { error: failure || ('HTTP ' + status) });
+        }
+        const frame = preview.pane && preview.pane.querySelector('[data-hp-frame]');
+        if (frame) frame.src = 'about:blank';
+        setPreviewStatus('error');
+    }
+
+    function setPreviewStatus(status) {
+        const preview = previewState();
+        preview.status = status;
+        const pane = preview.pane;
+        if (!pane || !pane.isConnected) return;
+        pane.querySelector('[data-hp-loading]').hidden = status !== 'loading';
+        pane.querySelector('[data-hp-empty]').hidden = status !== 'empty';
+        const error = pane.querySelector('[data-hp-error]');
+        error.hidden = status !== 'error';
+        if (status === 'error') {
+            error.querySelector('[data-hp-error-title]').textContent = preview.errorTitle;
+            error.querySelector('[data-hp-error-detail]').textContent = preview.errorDetail;
+        }
+        pane.querySelector('[data-hp-device]').hidden = status === 'empty' || status === 'error';
+        pane.querySelector('[data-hp-stage]').setAttribute('aria-busy', String(status === 'loading'));
+        const emptyAction = pane.querySelector('[data-hp-action="preview-active"]');
+        if (emptyAction) {
+            const tab = activeTab();
+            emptyAction.disabled = !(isSourceTab(tab) && isPreviewablePath(tab.path));
+        }
+        applyPreviewViewport();
+    }
+
+    function previewAddressText() {
+        const preview = previewState();
+        const model = previewModel();
+        return model ? model.addressText(preview.path, preview.directory, preview.suffix) : '';
+    }
+
+    function navigatePreviewAddress(text) {
+        const preview = previewState();
+        const model = previewModel();
+        const input = preview.pane && preview.pane.querySelector('[data-hp-address]');
+        const parsed = model && model.parseAddress(text);
+        if (!parsed) {
+            if (input) input.setAttribute('aria-invalid', 'true');
+            flashStatus(tr('codeStudio.previewAddressInvalid', 'Enter a path inside the workspace.'));
+            return;
+        }
+        if (input) input.removeAttribute('aria-invalid');
+        preview.path = parsed.path;
+        preview.directory = parsed.directory;
+        preview.suffix = parsed.suffix;
+        navigatePreview();
+    }
+
+    // live.js reports every page load (also link clicks inside the preview): the address follows, the console clears.
+    function applyPreviewLocation(text) {
+        const preview = previewState();
+        const parsed = previewModel().parseAddress(text || '/');
+        if (parsed) {
+            preview.path = parsed.path;
+            preview.directory = parsed.directory;
+            preview.suffix = parsed.suffix;
+        }
+        preview.console = [];
+        updatePreviewChrome();
+    }
+
+    function updatePreviewChrome() {
+        const preview = previewState();
+        const pane = preview.pane;
+        if (!pane || !pane.isConnected) return;
+        const hasPath = !!preview.path;
+        const input = pane.querySelector('[data-hp-address]');
+        if (input && document.activeElement !== input) input.value = previewAddressText();
+        const pin = pane.querySelector('[data-hp-action="pin"]');
+        if (pin) {
+            pin.setAttribute('aria-pressed', String(preview.pinned));
+            pin.title = preview.pinned ? tr('codeStudio.previewUnpin', 'Follow the active file') : tr('codeStudio.previewPin', 'Keep showing this file');
+            pin.disabled = !hasPath;
+        }
+        ['reload', 'external'].forEach(action => {
+            const button = pane.querySelector(`[data-hp-action="${action}"]`);
+            if (button) button.disabled = !hasPath;
+        });
+        pane.querySelectorAll('[data-hp-viewport]').forEach(button => {
+            const active = button.dataset.hpViewport === preview.viewport;
+            button.setAttribute('aria-checked', String(active));
+            button.tabIndex = active ? 0 : -1;
+            button.classList.toggle('active', active);
+        });
+        renderPreviewConsole();
+        syncPreviewDirtyHint();
+        applyPreviewViewport();
+        syncPreviewEyeButton();
+    }
+
+    function runPreviewAction(action) {
+        const preview = previewState();
+        switch (action) {
+            case 'reload':
+            case 'retry':
+                navigatePreview();
+                break;
+            case 'console':
+                togglePreviewConsole();
+                break;
+            case 'clear-console':
+                preview.console = [];
+                renderPreviewConsole();
+                break;
+            case 'pin':
+                preview.pinned = !preview.pinned;
+                if (!preview.pinned) {
+                    preview.followedPath = '';
+                    previewFollowActiveTab();
+                }
+                updatePreviewChrome();
+                break;
+            case 'external':
+                openPreviewInBrowserTab();
+                break;
+            case 'close':
+                closePreviewPane();
+                break;
+            case 'preview-active': {
+                const tab = activeTab();
+                if (isSourceTab(tab) && isPreviewablePath(tab.path)) openPreview(tab.path);
+                break;
+            }
+            default:
+                break;
+        }
+    }
+
+    function handlePreviewMessage(event) {
+        const preview = state.htmlPreview;
+        const frame = preview && preview.pane && preview.pane.querySelector('[data-hp-frame]');
+        // Only our own sandboxed frame counts: same WindowProxy, opaque origin, exact shape.
+        if (!frame || !frame.contentWindow || event.source !== frame.contentWindow || event.origin !== 'null') return;
+        const message = previewModel().normalizeMessage(event.data);
+        if (!message) return;
+        if (message.kind === 'location') {
+            applyPreviewLocation(message.text);
+            return;
+        }
+        if (message.kind === 'expired') {
+            preview.base = '';
+            navigatePreview();
+            return;
+        }
+        if (message.kind === 'reloaded') return;
+        preview.console = previewModel().pushEntry(preview.console, { kind: message.kind, text: message.text, at: Date.now() });
+        renderPreviewConsole();
+    }
+
+    function renderPreviewConsole() {
+        const preview = previewState();
+        const pane = preview.pane;
+        const model = previewModel();
+        if (!pane || !model) return;
+        const count = preview.console.filter(entry => model.isErrorKind(entry.kind)).length;
+        const badge = pane.querySelector('[data-hp-console-count]');
+        const button = pane.querySelector('[data-hp-action="console"]');
+        const box = pane.querySelector('[data-hp-console]');
+        const list = pane.querySelector('[data-hp-console-list]');
+        badge.hidden = count === 0;
+        badge.textContent = count > 99 ? '99+' : String(count);
+        button.classList.toggle('has-errors', count > 0);
+        button.setAttribute('aria-label', tr('codeStudio.previewConsoleCount', 'Console: {{count}} errors', { count }));
+        button.setAttribute('aria-expanded', String(preview.consoleOpen));
+        box.hidden = !preview.consoleOpen;
+        if (!preview.consoleOpen) return;
+        list.innerHTML = preview.console.length
+            ? preview.console.map(entry => `<li class="cs-hp-console-entry" data-kind="${esc(entry.kind)}"><time>${esc(new Date(entry.at).toLocaleTimeString())}</time><pre>${esc(entry.text)}</pre></li>`).join('')
+            : `<li class="cs-hp-console-empty">${esc(tr('codeStudio.previewConsoleEmpty', 'No errors reported by this page.'))}</li>`;
+    }
+
+    function togglePreviewConsole(force, returnFocus) {
+        const preview = previewState();
+        preview.consoleOpen = typeof force === 'boolean' ? force : !preview.consoleOpen;
+        renderPreviewConsole();
+        const pane = preview.pane;
+        if (!pane) return;
+        if (preview.consoleOpen) {
+            const clear = pane.querySelector('[data-hp-action="clear-console"]');
+            if (clear) clear.focus();
+        } else if (returnFocus) {
+            const button = pane.querySelector('[data-hp-action="console"]');
+            if (button) button.focus();
+        }
+    }
+
+    function setPreviewViewport(viewport) {
+        const preview = previewState();
+        if (!PREVIEW_VIEWPORTS.includes(viewport) || preview.viewport === viewport) return;
+        preview.viewport = viewport;
+        savePreviewPrefs();
+        updatePreviewChrome();
+    }
+
+    function applyPreviewViewport() {
+        const preview = state && state.htmlPreview;
+        const pane = preview && preview.pane;
+        const model = previewModel();
+        if (!pane || !pane.isConnected || !model) return;
+        const stage = pane.querySelector('[data-hp-stage]');
+        const device = pane.querySelector('[data-hp-device]');
+        const label = pane.querySelector('[data-hp-device-label]');
+        stage.dataset.viewport = preview.viewport;
+        const size = model.VIEWPORTS[preview.viewport];
+        if (!size || preview.status === 'empty' || preview.status === 'error') {
+            label.hidden = true;
+            if (!size) ['--cs-hp-device-w', '--cs-hp-device-h', '--cs-hp-scale'].forEach(name => device.style.removeProperty(name));
+            return;
+        }
+        const rect = stage.getBoundingClientRect();
+        const scale = model.deviceScale(preview.viewport, rect.width, rect.height, PREVIEW_DEVICE_INSET);
+        device.style.setProperty('--cs-hp-device-w', size.width + 'px');
+        device.style.setProperty('--cs-hp-device-h', size.height + 'px');
+        device.style.setProperty('--cs-hp-scale', String(scale));
+        label.hidden = false;
+        label.textContent = tr('codeStudio.previewDeviceLabel', '{{width}} × {{height}} at {{scale}}%', { width: size.width, height: size.height, scale: Math.round(scale * 100) });
+    }
+
+    function applyPreviewWidth() {
+        const root = studioRoot();
+        const model = previewModel();
+        if (!root || !model) return;
+        const preview = previewState();
+        const main = root.querySelector('.code-studio-main');
+        const pane = previewPane();
+        const available = (main ? main.getBoundingClientRect().width : 0) + (pane && !pane.hidden ? pane.getBoundingClientRect().width : 0);
+        preview.width = model.clampWidth(preview.width, preview.open ? available : 0);
+        root.style.setProperty('--cs-preview-width', preview.width + 'px');
+        const handle = pane && pane.querySelector('[data-hp-resize]');
+        if (handle) {
+            handle.setAttribute('aria-valuemin', '280');
+            handle.setAttribute('aria-valuemax', String(model.clampWidth(Number.MAX_SAFE_INTEGER, available)));
+            handle.setAttribute('aria-valuenow', String(preview.width));
+        }
+    }
+
+    function finishPreviewResize() {
+        applyPreviewWidth();
+        savePreviewPrefs();
+        measureVisibleEditors();
+        scheduleTerminalFit();
+    }
+
+    // The handle sits on the pane's left edge: dragging or ArrowLeft widens the pane, ArrowRight narrows it.
+    function wirePreviewResize(pane) {
+        const handle = pane.querySelector('[data-hp-resize]');
+        let startX = 0;
+        let startWidth = 0;
+        const onMove = bind(event => {
+            previewState().width = startWidth + (startX - event.clientX);
+            applyPreviewWidth();
+        });
+        const onUp = bind(event => {
+            handle.classList.remove('dragging');
+            pane.classList.remove('resizing');
+            try { handle.releasePointerCapture(event.pointerId); } catch (_) {}
+            handle.removeEventListener('pointermove', onMove);
+            handle.removeEventListener('pointerup', onUp);
+            handle.removeEventListener('pointercancel', onUp);
+            finishPreviewResize();
+        });
+        handle.addEventListener('pointerdown', bind(event => {
+            if (event.button !== 0) return;
+            event.preventDefault();
+            startX = event.clientX;
+            startWidth = previewState().width;
+            handle.classList.add('dragging');
+            pane.classList.add('resizing'); // the iframe would swallow pointer events mid-drag
+            handle.setPointerCapture(event.pointerId);
+            handle.addEventListener('pointermove', onMove);
+            handle.addEventListener('pointerup', onUp);
+            handle.addEventListener('pointercancel', onUp);
+        }));
+        handle.addEventListener('keydown', bind(event => {
+            const preview = previewState();
+            let next = null;
+            if (event.key === 'ArrowLeft') next = preview.width + PREVIEW_RESIZE_STEP;
+            else if (event.key === 'ArrowRight') next = preview.width - PREVIEW_RESIZE_STEP;
+            else if (event.key === 'Home') next = Number.MAX_SAFE_INTEGER;
+            else if (event.key === 'End') next = 0;
+            if (next === null) return;
+            event.preventDefault();
+            preview.width = next;
+            finishPreviewResize();
+        }));
+        handle.addEventListener('dblclick', bind(() => {
+            previewState().width = PREVIEW_DEFAULT_WIDTH;
+            finishPreviewResize();
+        }));
+    }
+
+    function openPreviewInBrowserTab(path) {
+        const target = state;
+        const preview = previewState();
+        const model = previewModel();
+        if (!model) return;
+        const vpath = path ? normalizeCodeStudioPath(path) : preview.path;
+        if (!vpath || vpath === WORKSPACE_ROOT && !preview.directory) return;
+        const current = vpath === preview.path;
+        const urlFor = base => model.buildUrl(base, vpath, current && preview.directory, current ? preview.suffix : '');
+        if (preview.base && !model.tokenNeedsRefresh(preview.expiresAt, Date.now())) {
+            window.open(urlFor(preview.base), '_blank', 'noopener');
+            return;
+        }
+        // No usable token yet: open the tab inside the click (popup blockers), cut its opener, then send it on.
+        const win = window.open('about:blank', '_blank');
+        if (win) {
+            try { win.opener = null; } catch (_) {}
+        }
+        ensurePreviewToken(target, false, vpath).then(base => {
+            if (win && !win.closed) win.location.replace(urlFor(base));
+        }).catch(err => {
+            if (win && !win.closed) win.close();
+            if (isLiveInstance(target)) runWithInstance(target, () => showOperationError(err));
+        });
+    }
+
+    function previewFollowActiveTab() {
+        const preview = state && state.htmlPreview;
+        if (!preview || !preview.open || preview.pinned) return;
+        const tab = activeTab();
+        if (!isSourceTab(tab) || !isPreviewablePath(tab.path) || tab.path === preview.followedPath) return;
+        openPreview(tab.path);
+    }
+
+    // Hook at the end of renderBreadcrumbs: the eye button in the editor title area, follow mode, dirty hint.
+    function previewAfterBreadcrumbs() {
+        const root = studioRoot();
+        const bar = root && root.querySelector('[data-breadcrumbs]');
+        if (!bar) return;
+        bar.querySelectorAll('[data-hp-eye]').forEach(element => element.remove());
+        const tab = activeTab();
+        if (isSourceTab(tab) && isPreviewablePath(tab.path)) {
+            const label = tr('codeStudio.previewEye', 'Open preview to the side') + ' (Ctrl+Shift+V)';
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'cs-hp-eye';
+            button.dataset.hpEye = '';
+            button.setAttribute('aria-label', label);
+            button.title = label;
+            button.innerHTML = previewGlyph('eye', 15);
+            button.addEventListener('click', bind(() => {
+                const current = activeTab();
+                if (!isSourceTab(current)) return;
+                const preview = previewState();
+                if (preview.open && preview.path === current.path) closePreviewPane();
+                else openPreview(current.path);
+            }));
+            bar.appendChild(button);
+        }
+        syncPreviewEyeButton();
+        previewFollowActiveTab();
+        syncPreviewDirtyHint();
+    }
+
+    // Hook at the end of renderTabs: a tab turned dirty or clean.
+    function previewAfterTabs() {
+        syncPreviewDirtyHint();
+        syncPreviewEyeButton();
+    }
+
+    function syncPreviewDirtyHint() {
+        const preview = state && state.htmlPreview;
+        const hint = preview && preview.pane && preview.pane.querySelector('[data-hp-dirty]');
+        if (!hint) return;
+        const tab = state.openTabs.find(item => !isVirtualTab(item) && item.path === preview.path);
+        hint.hidden = !(preview.open && tab && tab.modified);
+    }
+
+    function syncPreviewEyeButton() {
+        const root = studioRoot();
+        const eye = root && root.querySelector('[data-hp-eye]');
+        if (!eye) return;
+        const preview = state.htmlPreview;
+        const tab = activeTab();
+        eye.setAttribute('aria-pressed', String(!!(preview && preview.open && tab && preview.path === tab.path)));
+    }
+
+    function previewOpenToSideCommand() {
+        const tab = activeTab();
+        if (isSourceTab(tab) && isPreviewablePath(tab.path)) openPreview(tab.path);
+        else openPreviewForActive();
+    }
+
+    function previewOpenInBrowserTabCommand() {
+        const tab = activeTab();
+        if (isSourceTab(tab) && isPreviewablePath(tab.path)) openPreviewInBrowserTab(tab.path);
+    }
+
+;
 /* ui/js/desktop/apps/code-studio/shortcuts.js */
     function isEditableTarget(element) {
         if (!element || element === document.body) return false;
@@ -10200,6 +13152,10 @@
             } else if (!mod && event.shiftKey && event.altKey && (key === 'f' || event.code === 'KeyF') && !inTerminal) {
                 event.preventDefault();
                 formatActiveDocument();
+            } else if (mod && event.shiftKey && !event.altKey && (key === 'v' || event.code === 'KeyV') && !inTerminal && (!editing || isCodeEditorTarget(event.target))) {
+                // Plan B: Ctrl+Shift+V toggles the HTML preview. Inputs and the terminal keep paste-as-plain-text.
+                event.preventDefault();
+                togglePreviewPane();
             } else if (mod && event.shiftKey && key === 'a') {
                 event.preventDefault();
                 if (!state.agentVisible) toggleAgentPanel();
@@ -10301,6 +13257,7 @@
                 { label: tr('codeStudio.outline', 'Outline'), keys: 'Ctrl+Shift+O' },
                 { label: tr('codeStudio.agentChat', 'Agent Chat'), keys: 'Ctrl+Shift+A' },
                 { label: tr('codeStudio.zenMode', 'Zen Mode'), keys: 'Ctrl+K' },
+                { label: tr('codeStudio.previewToggle', 'Toggle HTML Preview'), keys: 'Ctrl+Shift+V' },
                 { label: tr('codeStudio.shortcutsHelp', 'Show keyboard shortcuts'), keys: '?' }
             ]},
             { title: tr('codeStudio.shortcutsExplorer', 'Explorer'), items: [
@@ -10351,6 +13308,12 @@
 
     function studioCommandTable() {
         return {
+            // Plan C: workspaces
+            openConnectDialog: () => openConnectDialog(),
+            openWorkspaceSwitcher,
+            reconnectWorkspace: () => workspaceReconnect(),
+            disconnectWorkspace: () => switchWorkspace('local'),
+            switchWorkspace,
             // IDE package 1A
             openToSide,
             toggleSplitEditor,
@@ -10395,7 +13358,14 @@
             // IDE package 2C: language server actions for the command palette
             lspFindReferencesCommand,
             lspRenameSymbolCommand,
-            lspQuickFixCommand
+            lspQuickFixCommand,
+            // Plan B: HTML preview
+            togglePreviewPane,
+            openPreview,
+            closePreviewPane,
+            resetPreview,
+            previewOpenToSideCommand,
+            previewOpenInBrowserTabCommand
         };
     }
 
@@ -10583,10 +13553,17 @@
         const hasTab = !!(state.openTabs && state.openTabs.length);
         const sourceTab = hasTab && !getApp().isVirtualTab(state.openTabs[state.activeTabIndex]);
         const modified = !!(state.openTabs || []).some(tab => tab.modified);
+        const activeFile = hasTab ? state.openTabs[state.activeTabIndex] : null;
+        const previewable = sourceTab && !!window.CodeStudioPreviewModel && window.CodeStudioPreviewModel.isPreviewablePath(activeFile && activeFile.path);
+        const remote = !!state.workspaceId && state.workspaceId !== 'local';
         return [
             { id: 'new-file', label: tr('codeStudio.newFile', 'New File'), shortcut: 'Ctrl+N', icon: 'file-plus', run: 'createNewFile' },
             { id: 'new-folder', label: tr('codeStudio.newFolder', 'New Folder'), icon: 'folder-plus', run: 'createNewFolder' },
             { id: 'open-file', label: tr('desktop.file_dialog_open', 'Open'), shortcut: 'Ctrl+O', icon: 'folder-open', run: 'openFileFromDialog' },
+            { id: 'workspace-connect', label: tr('codeStudio.workspaceMenu', 'Workspaces') + ': ' + tr('codeStudio.workspaceConnect', 'Connect to SSH Folder…'), icon: 'server', run: 'openConnectDialog' },
+            { id: 'workspace-switch', label: tr('codeStudio.workspaceMenu', 'Workspaces') + '…', icon: 'folder-open', run: 'openWorkspaceSwitcher' },
+            { id: 'workspace-reconnect', label: tr('codeStudio.workspaceMenu', 'Workspaces') + ': ' + tr('codeStudio.workspaceReconnect', 'Reconnect'), icon: 'refresh', run: 'reconnectWorkspace', disabled: !remote },
+            { id: 'workspace-disconnect', label: tr('codeStudio.workspaceMenu', 'Workspaces') + ': ' + tr('codeStudio.workspaceDisconnect', 'Disconnect'), icon: 'x', run: 'disconnectWorkspace', disabled: !remote },
             { id: 'save', label: tr('codeStudio.save', 'Save'), shortcut: 'Ctrl+S', icon: 'save', run: 'saveCurrentFile', disabled: !hasTab },
             { id: 'save-all', label: tr('codeStudio.saveAll', 'Save All'), icon: 'save', run: 'saveAllFiles', disabled: !modified },
             { id: 'close-tab', label: tr('codeStudio.closeTab', 'Close tab'), icon: 'x', run: 'closeTab', args: [state.activeTabIndex], disabled: !hasTab },
@@ -10614,6 +13591,9 @@
             { id: 'lsp-quick-fix', label: tr('codeStudio.lspQuickFix', 'Quick Fix...'), shortcut: 'Ctrl+.', icon: 'info', run: 'lspQuickFixCommand', disabled: !sourceTab || state.readOnly },
             { id: 'open-settings', label: tr('codeStudio.openSettings', 'Preferences: Open Settings'), icon: 'settings', run: 'openEditorSettings' },
             { id: 'toggle-split', label: tr('codeStudio.toggleSplit', 'Toggle Split Editor'), shortcut: 'Ctrl+\\', icon: 'columns', run: 'toggleSplitEditor', disabled: !sourceTab },
+            // Plan B: HTML preview
+            { id: 'preview-side', label: tr('codeStudio.previewOpenSide', 'Preview: Open to the Side'), shortcut: 'Ctrl+Shift+V', icon: 'columns', run: 'previewOpenToSideCommand', disabled: !previewable },
+            { id: 'preview-browser-tab', label: tr('codeStudio.previewOpenTab', 'Preview: Open in Browser Tab'), icon: 'layout', run: 'previewOpenInBrowserTabCommand', disabled: !previewable },
             { id: 'fold', label: tr('codeStudio.foldRegion', 'Fold'), shortcut: 'Ctrl+Shift+[', icon: 'list', run: 'runEditorCommand', args: ['foldCode'], disabled: !sourceTab },
             { id: 'unfold', label: tr('codeStudio.unfoldRegion', 'Unfold'), shortcut: 'Ctrl+Shift+]', icon: 'list', run: 'runEditorCommand', args: ['unfoldCode'], disabled: !sourceTab },
             { id: 'select-next-occurrence', label: tr('codeStudio.selectNextOccurrence', 'Add Selection to Next Match'), shortcut: 'Ctrl+D', icon: 'search', run: 'runEditorCommand', args: ['selectNextOccurrence'], disabled: !sourceTab },

@@ -9,12 +9,15 @@
             ? (document.activeElement.closest('[data-file-path]') || {}).dataset
             : null;
         const focusedPath = focused ? focused.filePath : '';
+        const switcherFocused = !!document.activeElement && sidebar.contains(document.activeElement) && document.activeElement.matches('[data-ws-switcher]');
+        const refocusSwitcher = () => { if (switcherFocused) { const button = sidebar.querySelector('[data-ws-switcher]'); if (button) button.focus(); } };
         if (errorMessage) {
             sidebar.innerHTML = `${sidebarHeadMarkup()}
                 <div class="code-studio-error compact">${esc(errorMessage)}</div>
                 <div class="cs-sidebar-resize" data-sidebar-resize></div>`;
             wireSidebarHead(sidebar);
             wireSidebarResize();
+            refocusSwitcher();
             return;
         }
         const rows = state.files.length
@@ -26,6 +29,7 @@
         wireSidebarTreeEvents(sidebar);
         wireSidebarDragDrop(sidebar);
         wireSidebarResize();
+        refocusSwitcher();
         if (focusedPath) {
             const row = sidebar.querySelector(`.cs-tree-item[data-file-path="${cssEscape(focusedPath)}"]`);
             if (row) row.focus();
@@ -40,7 +44,9 @@
     function sidebarHeadMarkup() {
         const segments = codeStudioDesktopPath(state.currentPath).split('/').filter(Boolean);
         let buildPath = WORKSPACE_ROOT;
-        const crumbs = [`<button type="button" class="cs-sidebar-crumb${segments.length ? '' : ' current'}" data-sidebar-nav="${esc(WORKSPACE_ROOT)}" title="${esc(WORKSPACE_ROOT)}">${iconMarkup('home', 'W', 'cs-sidebar-crumb-icon', 13)}<span>${esc(tr('codeStudio.workspaceRoot', 'Workspace'))}</span></button>`];
+        // Plan C: in an SSH workspace the root crumb shows the remote folder name; the switcher sits on top.
+        const rootTitle = workspaceIsRemote() ? workspaceHostLabel() + ':' + activeWorkspace().root : WORKSPACE_ROOT;
+        const crumbs = [`<button type="button" class="cs-sidebar-crumb${segments.length ? '' : ' current'}" data-sidebar-nav="${esc(WORKSPACE_ROOT)}" title="${esc(rootTitle)}">${iconMarkup('home', 'W', 'cs-sidebar-crumb-icon', 13)}<span>${esc(workspaceRootCrumbLabel())}</span></button>`];
         segments.forEach((segment, index) => {
             buildPath += '/' + segment;
             crumbs.push('<span class="cs-sidebar-crumb-sep">\u203a</span>');
@@ -48,7 +54,7 @@
                 ? `<span class="cs-sidebar-crumb current" title="${esc(buildPath)}">${esc(segment)}</span>`
                 : `<button type="button" class="cs-sidebar-crumb" data-sidebar-nav="${esc(buildPath)}" title="${esc(buildPath)}">${esc(segment)}</button>`);
         });
-        return `<div class="cs-sidebar-head">
+        return `<div class="cs-sidebar-head">${workspaceSwitcherMarkup()}
             <div class="cs-sidebar-title">
                 <strong>${esc(tr('codeStudio.explorer', 'Explorer'))}</strong>
                 <span class="cs-sidebar-tools">
@@ -64,6 +70,7 @@
 
     function wireSidebarHead(sidebar) {
         updatePolicyControls();
+        wireWorkspaceSwitcher(sidebar); // Plan C
         sidebar.querySelectorAll('[data-sidebar-nav]').forEach(btn => {
             btn.addEventListener('click', bind(() => refreshFiles(btn.dataset.sidebarNav)));
         });
@@ -296,6 +303,10 @@
         const items = [];
         if (file && !isDir) items.push({ id: 'open', label: tr('desktop.file_dialog_open', 'Open'), icon: 'file', action: bind(() => openFile(file.path)) });
         if (file && !isDir) items.push({ id: 'open-to-side', label: tr('codeStudio.openToSide', 'Open to the Side'), icon: 'columns', action: bind(() => openToSide(file.path)) }); // IDE package 1A
+        if (file && !isDir && isPreviewablePath(file.path)) { // Plan B
+            items.push({ id: 'preview-open', label: tr('codeStudio.previewOpenMenu', 'Open Preview'), icon: 'columns', action: bind(() => openPreview(file.path)) });
+            items.push({ id: 'preview-browser-tab', label: tr('codeStudio.previewOpenTabMenu', 'Open in Browser Tab'), icon: 'layout', action: bind(() => openPreviewInBrowserTab(file.path)) });
+        }
         if (file && isDir) items.push({ id: 'open-folder', label: tr('desktop.file_dialog_open', 'Open'), icon: 'folder-open', action: bind(() => refreshFiles(file.path)) });
         items.push({ id: 'new-file', label: tr('codeStudio.newFile', 'New File'), icon: 'file-plus', action: bind(() => {
             state.selectedDir = dirPath;

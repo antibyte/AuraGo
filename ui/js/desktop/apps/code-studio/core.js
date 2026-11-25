@@ -98,6 +98,21 @@
             statusTimer: null,
             terminalObserver: null,
             terminalFitScheduled: false,
+            // Plan C: the active workspace ('local' or a saved SSH workspace) and its connection state.
+            workspaceId: 'local',
+            workspace: null,
+            workspaces: [],
+            workspaceStatus: 'local',
+            workspaceError: null,
+            workspaceWasLost: false,
+            workspaceSwitching: false,
+            workspaceSwitchTarget: '',
+            workspaceRetryAttempt: 0,
+            workspaceRetryAt: 0,
+            workspaceRetryTimer: 0,
+            workspaceRetryTick: 0,
+            workspaceMenu: null,
+            workspaceDialog: null,
             iconMarkup: context && typeof context.iconMarkup === 'function' ? context.iconMarkup : null,
             disposers: []
         };
@@ -359,19 +374,31 @@
             headers: { 'Content-Type': 'application/json' }
         }, options || {});
         if (requestOptions.body instanceof FormData) delete requestOptions.headers;
-        const response = await fetch(path, requestOptions);
+        // Plan C: scoped requests name their workspace. The id is read when the request starts, so a request on its
+        // way stays with the workspace it was started for (switching waits for pending saves).
+        const instance = state || currentInstance();
+        const workspaceId = instance && WS_MODEL.isScopedPath(path) ? instance.workspaceId : 'local';
+        let response;
+        try {
+            response = await fetch(path, WS_MODEL.withWorkspaceHeaders(requestOptions, workspaceId, path));
+        } catch (err) {
+            workspaceNoteRequestError(instance, workspaceId, err);
+            throw err;
+        }
         if (!response.ok) {
-            let message = response.statusText;
-            try {
-                const body = await response.json();
-                message = body.error || body.message || message;
-            } catch (_) {
-                message = await response.text() || message;
-            }
-            const error = new Error(message);
+            const text = await response.text().catch(() => '');
+            let body = null;
+            try { body = text ? JSON.parse(text) : null; } catch (_) { body = null; }
+            const error = new Error((body && (body.error || body.message)) || text || response.statusText);
             error.status = response.status;
+            if (body && typeof body === 'object') {
+                error.code = body.code || '';
+                error.body = body;
+            }
+            workspaceNoteRequestError(instance, workspaceId, error);
             throw error;
         }
+        if (response.status === 204) return {};
         return response.json();
     }
 
@@ -439,6 +466,27 @@
         gitInit: () => api('/api/code-studio/git/init', { method: 'POST' }),
         gitShow: hash => api('/api/code-studio/git/show?hash=' + encodeURIComponent(hash)),
         gitBlame: path => api('/api/code-studio/git/blame?path=' + encodeURIComponent(path)),
+        // Plan C: workspaces and the SSH folder picker (unscoped, see workspace-model.js).
+        workspaces: () => api('/api/code-studio/workspaces'),
+        createWorkspace: body => api('/api/code-studio/workspaces', { method: 'POST', body: JSON.stringify(body) }),
+        deleteWorkspace: id => api('/api/code-studio/workspaces/' + encodeURIComponent(id), { method: 'DELETE' }),
+        connectWorkspace: (id, trust) => api('/api/code-studio/workspaces/' + encodeURIComponent(id) + '/connect', {
+            method: 'POST',
+            body: JSON.stringify(trust ? { trust_host_key: trust } : {})
+        }),
+        // Contract: POST /remote/trust stores the fingerprint; the caller then repeats the original call.
+        trustRemoteHost: (deviceId, fingerprint) => api('/api/code-studio/remote/trust', {
+            method: 'POST',
+            body: JSON.stringify({ device_id: deviceId, fingerprint })
+        }),
+        remoteDevices: () => api('/api/code-studio/remote/devices'),
+        createRemoteDevice: body => api('/api/code-studio/remote/devices', { method: 'POST', body: JSON.stringify(body) }),
+        // The browse endpoint has no trust parameter: an unknown host key is trusted through POST /remote/trust first.
+        remoteBrowse: (deviceId, path) => {
+            const query = new URLSearchParams({ device_id: deviceId });
+            if (path) query.set('path', path);
+            return api('/api/code-studio/remote/browse?' + query);
+        },
     };
 
     function loadState() {
@@ -477,9 +525,17 @@
     function saveState() {
         const openPaths = normalizePersistedPaths(state.openTabs.filter(tab => !isVirtualTab(tab)));
         const recentPaths = normalizePersistedPaths(state.recentFiles);
+        const activeIndex = openPaths.length ? Math.min(Math.max(Number.isInteger(state.activeTabIndex) ? state.activeTabIndex : 0, 0), openPaths.length - 1) : -1;
+        const split = splitStatePayload(); // IDE package 1A
+        // Plan C: the tabs belong to the active workspace; the legacy key keeps only the local workspace's tabs.
+        workspaceSaveSession({ openTabs: openPaths, activeTabIndex: activeIndex, recentFiles: recentPaths, split });
+        let legacy = null;
+        if (workspaceIsRemote()) {
+            try { legacy = JSON.parse(localStorage.getItem(STATE_KEY) || 'null') || {}; } catch (_) { legacy = {}; }
+        }
         const payload = {
-            openTabs: openPaths.map(path => ({ path })),
-            activeTabIndex: openPaths.length ? Math.min(Math.max(Number.isInteger(state.activeTabIndex) ? state.activeTabIndex : 0, 0), openPaths.length - 1) : -1,
+            openTabs: legacy ? (Array.isArray(legacy.openTabs) ? legacy.openTabs : []) : openPaths.map(path => ({ path })),
+            activeTabIndex: legacy ? (Number.isInteger(legacy.activeTabIndex) ? legacy.activeTabIndex : -1) : activeIndex,
             sidebarVisible: state.sidebarVisible,
             sidebarWidth: clampDimension(state.sidebarWidth, MIN_SIDEBAR_WIDTH, MAX_SIDEBAR_WIDTH, 280),
             editorFontSize: state.editorFontSize,
@@ -488,8 +544,8 @@
             activePanel: state.activePanel,
             sidebarView: state.sidebarView,
             terminalHeight: clampDimension(state.terminalHeight, MIN_TERMINAL_HEIGHT, MAX_TERMINAL_HEIGHT, 220),
-            recentFiles: recentPaths,
-            split: splitStatePayload() // IDE package 1A
+            recentFiles: legacy ? (Array.isArray(legacy.recentFiles) ? legacy.recentFiles : []) : recentPaths,
+            split: legacy ? (legacy.split || null) : split
         };
         localStorage.setItem(STATE_KEY, JSON.stringify(payload));
     }
@@ -525,6 +581,9 @@
             if (context && typeof context.setWindowBeforeClose === 'function') {
                 context.setWindowBeforeClose(windowId, () => confirmWindowClose(instance));
             }
+            // Plan C: pick the workspace (local or this browser's last SSH workspace) and connect it.
+            await runAsyncStep(instance, workspaceBoot);
+            if (!isLiveInstance(instance)) return;
             await runAsyncStep(instance, () => refreshFiles(instance.currentPath));
             if (!isLiveInstance(instance)) return;
             await runAsyncStep(instance, restoreTabs);
@@ -734,6 +793,7 @@
         return `<div class="code-studio" data-code-studio>
             <div class="code-studio-toolbar" data-toolbar></div>
             <div class="code-studio-search" data-search hidden></div>
+            <div class="cs-ws-banner" data-ws-banner hidden></div>
             <div class="code-studio-body">
                 <nav class="code-studio-activity-bar" data-activity-bar>
                     <button type="button" class="cs-activity-btn active" data-activity="explorer" title="${esc(tr('codeStudio.explorer', 'Explorer'))}">
@@ -795,6 +855,7 @@
                         </div>
                     </div>
                 </main>
+                <aside class="code-studio-htmlpreview" data-html-preview hidden></aside>
                 <aside class="code-studio-chat" data-agent-panel></aside>
                 <aside class="code-studio-git" data-git-panel hidden></aside>
             </div>
@@ -829,6 +890,7 @@
         renderFindWidget();
         renderAgentPanel();
         renderGitPanel();
+        renderPreviewPane(); // Plan B: HTML preview pane
         renderStatus();
         renderWindowMenus();
         renderActivityBar();
@@ -853,6 +915,8 @@
                     { id: 'new-file', label: tr('codeStudio.newFile', 'New File'), icon: 'file-plus', shortcut: 'Ctrl+N', action: bind(createNewFile) },
                     { id: 'new-folder', label: tr('codeStudio.newFolder', 'New Folder'), icon: 'folder-plus', action: bind(createNewFolder) },
                     { id: 'open-file-dialog', labelKey: 'desktop.file_dialog_open', icon: 'folder-open', shortcut: 'Ctrl+O', action: bind(openFileFromDialog) },
+                    { id: 'workspace-connect', label: tr('codeStudio.workspaceConnect', 'Connect to SSH Folder…'), icon: 'server', action: bind(() => openConnectDialog()) },
+                    ...(workspaceIsRemote() ? [{ id: 'workspace-disconnect', label: tr('codeStudio.workspaceDisconnect', 'Disconnect'), icon: 'x', action: bind(() => switchWorkspace('local')) }] : []),
                     { type: 'separator' },
                     { id: 'save', label: tr('codeStudio.save', 'Save'), icon: 'save', shortcut: 'Ctrl+S', disabled: !hasActiveTab, action: bind(saveCurrentFile) },
                     { id: 'save-all', label: tr('codeStudio.saveAll', 'Save All'), icon: 'save', disabled: !hasModified, action: bind(saveAllFiles) },
@@ -894,6 +958,7 @@
                     { id: 'panel-terminal', labelKey: 'desktop.menu_terminal', icon: 'terminal', checked: state.panelVisible && state.activePanel === 'terminal', action: bind(() => togglePanel('terminal')) },
                     { id: 'agent-panel', labelKey: 'desktop.menu_agent_panel', icon: 'chat', shortcut: 'Ctrl+Shift+A', checked: state.agentVisible, action: bind(toggleAgentPanel) },
                     { id: 'git-panel', label: tr('codeStudio.gitPanel', 'Git'), icon: 'network', checked: state.gitVisible, action: bind(toggleGitPanel) },
+                    { id: 'html-preview', label: tr('codeStudio.previewToggle', 'Toggle HTML Preview'), icon: 'columns', shortcut: 'Ctrl+Shift+V', checked: !!(state.htmlPreview && state.htmlPreview.open), action: bind(togglePreviewPane) }, // Plan B
                     { type: 'separator' },
                     { id: 'split-right', label: tr('codeStudio.splitRight', 'Split Right'), icon: 'columns', checked: state.splitMode === 'right', disabled: !hasActiveTab && !state.splitMode, action: bind(() => splitEditor('right')) },
                     { id: 'split-down', label: tr('codeStudio.splitDown', 'Split Down'), icon: 'layout', checked: state.splitMode === 'down', disabled: !hasActiveTab && !state.splitMode, action: bind(() => splitEditor('down')) },
@@ -1023,6 +1088,7 @@
         updateToolbarTitle();
         updatePolicyControls();
         updateSuggestionStatus();
+        previewAfterTabs(); // Plan B: dirty hint and eye state
     }
 
     function updateToolbarTitle() {
@@ -1130,6 +1196,11 @@
     }
 
     function renderBreadcrumbs() {
+        renderBreadcrumbsBase();
+        previewAfterBreadcrumbs(); // Plan B: eye button, follow mode and dirty hint
+    }
+
+    function renderBreadcrumbsBase() {
         const bar = shellPart('[data-breadcrumbs]');
         if (!bar) return;
         const tab = activeTab();
@@ -1183,12 +1254,15 @@
         const lineInfo = tab ? cursorPositionText(tab) : '';
         const modifiedCount = state.openTabs.filter(item => item.modified).length;
         const leftItems = [];
-        leftItems.push(`<span class="cs-status-item cs-status-container" title="${esc(containerStatusLabel())}"><span class="cs-status-dot" data-status="${esc(state.containerStatus || 'unknown')}"></span>${esc(containerStatusLabel())}</span>`);
+        const remote = workspaceIsRemote();
+        const chipFocused = !!document.activeElement && statusEl.contains(document.activeElement) && document.activeElement.matches('[data-status-remote]');
+        leftItems.push(workspaceStatusChipMarkup()); // Plan C: the workspace chip sits at the far left
+        if (!remote) leftItems.push(`<span class="cs-status-item cs-status-container" title="${esc(containerStatusLabel())}"><span class="cs-status-dot" data-status="${esc(state.containerStatus || 'unknown')}"></span>${esc(containerStatusLabel())}</span>`);
         if (state.gitIsRepo === true) leftItems.push(`<span class="cs-status-item cs-status-branch" data-clickable data-status-branch title="${esc(tr('codeStudio.gitBranchMenu', 'Switch, create or delete branches'))}">${gitBranchIconMarkup(12)}<span>${esc(state.gitBranch || tr('codeStudio.gitDetached', 'Detached HEAD'))}</span></span>`);
         const info = state.containerInfo || {};
         if (info.read_only) leftItems.push(`<span class="cs-status-item">${esc(tr('codeStudio.readOnly', 'Read-only'))}</span>`);
-        if (info.network === 'none') leftItems.push(`<span class="cs-status-item" data-network="none">${esc(tr('codeStudio.networkOff', 'Network off'))}</span>`);
-        const idleLabel = containerIdleLabel(info);
+        if (!remote && info.network === 'none') leftItems.push(`<span class="cs-status-item" data-network="none">${esc(tr('codeStudio.networkOff', 'Network off'))}</span>`);
+        const idleLabel = remote ? '' : containerIdleLabel(info);
         if (idleLabel) leftItems.push(`<span class="cs-status-item">${esc(idleLabel)}</span>`);
         if (message) leftItems.push(`<span class="cs-status-item cs-status-message">${esc(message)}</span>`);
         else if (tab) leftItems.push(`<span class="cs-status-item" title="${esc(tab.path)}">${tab.modified ? '<span class="cs-status-modified">\u25cf</span> ' : ''}${esc(baseName(tab.path))}</span>`);
@@ -1207,6 +1281,7 @@
         rightItems.push(`<span class="cs-status-item" data-clickable title="${esc(tr('codeStudio.zoomReset', 'Reset Zoom'))}" data-status-zoom>${esc(clampEditorFontSize(state.editorFontSize))}px</span>`);
         rightItems.push(`<span class="cs-status-item cs-status-engine">${esc(state.editorType === 'codemirror' ? 'CodeMirror' : tr('codeStudio.editorFallback', 'Basic'))}</span>`);
         statusEl.innerHTML = leftItems.join('') + '<span class="cs-status-spacer"></span>' + rightItems.join('');
+        wireWorkspaceChip(statusEl, chipFocused); // Plan C
         const zoom = statusEl.querySelector('[data-status-zoom]');
         if (zoom) zoom.addEventListener('click', bind(resetEditorZoom));
         const indent = statusEl.querySelector('[data-status-indent]');
@@ -1394,7 +1469,7 @@
         const target = state;
         if (!target) return;
         const savedPaths = target.openTabs.map(tab => tab.path);
-        if (!savedPaths.length && !(target.context && target.context.path)) {
+        if (!savedPaths.length && !(target.context && target.context.path) && !workspaceIsRemote(target)) {
             for (const name of ['hello.go', 'hello.py', 'hello.c', 'hello.js', 'hello.ts']) {
                 const path = WORKSPACE_ROOT + '/' + name;
                 if (target.files.some(file => file.path === path && file.type !== 'directory')) savedPaths.push(path);
@@ -1614,7 +1689,8 @@
             try {
                 await apiClient.writeFile(path, content);
             } catch (err) {
-                if (isLiveInstance(target)) runWithInstance(target, () => showOperationError(err));
+                // Plan C: the tab stays dirty; in an SSH workspace a toast says why.
+                if (isLiveInstance(target)) runWithInstance(target, () => { showOperationError(err); workspaceSaveFailed(tab, err); });
                 return false;
             }
             if (!canWrite(target) || !target.openTabs.includes(tab) || tab.path !== path) return false;
@@ -1797,13 +1873,13 @@
             ctx.exportDesktopFile({
                 path: file.path,
                 name: file.name || baseName(file.path),
-                url: '/api/code-studio/download?path=' + encodeURIComponent(file.path)
+                url: workspaceURL('/api/code-studio/download?path=' + encodeURIComponent(file.path))
             }).catch(err => {
                 if (isLiveInstance(target)) runWithInstance(target, () => showOperationError(err));
             });
             return;
         }
-        window.location.href = '/api/code-studio/download?path=' + encodeURIComponent(file.path);
+        window.location.href = workspaceURL('/api/code-studio/download?path=' + encodeURIComponent(file.path));
     }
 
     async function uploadFile() {
@@ -1815,7 +1891,7 @@
             const result = await ctx.importFilesFromHost({
                 path: directory,
                 multiple: true,
-                uploadURL: '/api/code-studio/upload'
+                uploadURL: workspaceURL('/api/code-studio/upload')
             });
             if (result && !result.canceled && isLiveInstance(target)) {
                 runWithInstance(target, scheduleGitRefresh);
@@ -2002,7 +2078,8 @@
 
     function showOperationError(err) {
         const message = err && err.message ? err.message : String(err || '');
-        renderStatus(tr('codeStudio.containerError', 'Container error: {error}', { error: message }));
+        // Plan C: in an SSH workspace the error is not a container error.
+        renderStatus(workspaceIsRemote() ? workspaceErrorText('other', { error: message }) : tr('codeStudio.containerError', 'Container error: {error}', { error: message }));
         writeTerminalLine(message);
     }
 
