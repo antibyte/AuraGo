@@ -25,6 +25,9 @@ import (
 type codeStudioFixtureBackend struct {
 	// searchTruncated makes the fake search answer like the server at its 200-result cap.
 	searchTruncated bool
+	// lspHandler serves /api/code-studio/lsp after the upgrade (IDE package 2b). Nil closes with 4404 like an image
+	// without language servers. Set it under mu.
+	lspHandler func(conn *websocket.Conn, lang string)
 
 	mu          sync.Mutex
 	files       map[string]string
@@ -222,6 +225,28 @@ func (b *codeStudioFixtureBackend) register(mux *http.ServeMux) {
 			b.inputs = append(b.inputs, string(payload))
 			b.mu.Unlock()
 			_ = conn.WriteMessage(websocket.TextMessage, payload)
+		}
+	})
+	// IDE package 2b: the language server bridge, one JSON-RPC message per text frame.
+	mux.HandleFunc("/api/code-studio/lsp", func(w http.ResponseWriter, r *http.Request) {
+		b.mu.Lock()
+		handler := b.lspHandler
+		b.mu.Unlock()
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		if handler != nil {
+			handler(conn, r.URL.Query().Get("lang"))
+			return
+		}
+		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(4404, "language server not installed"), time.Now().Add(time.Second))
+		_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+		for {
+			if _, _, err := conn.ReadMessage(); err != nil {
+				return
+			}
 		}
 	})
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, map[string]interface{}{}) })
