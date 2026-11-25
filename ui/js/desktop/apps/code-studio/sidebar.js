@@ -303,6 +303,10 @@
         const items = [];
         if (file && !isDir) items.push({ id: 'open', label: tr('desktop.file_dialog_open', 'Open'), icon: 'file', action: bind(() => openFile(file.path)) });
         if (file && !isDir) items.push({ id: 'open-to-side', label: tr('codeStudio.openToSide', 'Open to the Side'), icon: 'columns', action: bind(() => openToSide(file.path)) }); // IDE package 1A
+        if (file && !isDir && isPreviewablePath(file.path)) { // Plan B
+            items.push({ id: 'preview-open', label: tr('codeStudio.previewOpenMenu', 'Open Preview'), icon: 'columns', action: bind(() => openPreview(file.path)) });
+            items.push({ id: 'preview-browser-tab', label: tr('codeStudio.previewOpenTabMenu', 'Open in Browser Tab'), icon: 'layout', action: bind(() => openPreviewInBrowserTab(file.path)) });
+        }
         if (file && isDir) items.push({ id: 'open-folder', label: tr('desktop.file_dialog_open', 'Open'), icon: 'folder-open', action: bind(() => refreshFiles(file.path)) });
         items.push({ id: 'new-file', label: tr('codeStudio.newFile', 'New File'), icon: 'file-plus', action: bind(() => {
             state.selectedDir = dirPath;

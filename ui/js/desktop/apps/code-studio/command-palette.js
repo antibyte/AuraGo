@@ -84,6 +84,8 @@
         const hasTab = !!(state.openTabs && state.openTabs.length);
         const sourceTab = hasTab && !getApp().isVirtualTab(state.openTabs[state.activeTabIndex]);
         const modified = !!(state.openTabs || []).some(tab => tab.modified);
+        const activeFile = hasTab ? state.openTabs[state.activeTabIndex] : null;
+        const previewable = sourceTab && !!window.CodeStudioPreviewModel && window.CodeStudioPreviewModel.isPreviewablePath(activeFile && activeFile.path);
         const remote = !!state.workspaceId && state.workspaceId !== 'local';
         return [
             { id: 'new-file', label: tr('codeStudio.newFile', 'New File'), shortcut: 'Ctrl+N', icon: 'file-plus', run: 'createNewFile' },
@@ -120,6 +122,9 @@
             { id: 'lsp-quick-fix', label: tr('codeStudio.lspQuickFix', 'Quick Fix...'), shortcut: 'Ctrl+.', icon: 'info', run: 'lspQuickFixCommand', disabled: !sourceTab || state.readOnly },
             { id: 'open-settings', label: tr('codeStudio.openSettings', 'Preferences: Open Settings'), icon: 'settings', run: 'openEditorSettings' },
             { id: 'toggle-split', label: tr('codeStudio.toggleSplit', 'Toggle Split Editor'), shortcut: 'Ctrl+\\', icon: 'columns', run: 'toggleSplitEditor', disabled: !sourceTab },
+            // Plan B: HTML preview
+            { id: 'preview-side', label: tr('codeStudio.previewOpenSide', 'Preview: Open to the Side'), shortcut: 'Ctrl+Shift+V', icon: 'columns', run: 'previewOpenToSideCommand', disabled: !previewable },
+            { id: 'preview-browser-tab', label: tr('codeStudio.previewOpenTab', 'Preview: Open in Browser Tab'), icon: 'layout', run: 'previewOpenInBrowserTabCommand', disabled: !previewable },
             { id: 'fold', label: tr('codeStudio.foldRegion', 'Fold'), shortcut: 'Ctrl+Shift+[', icon: 'list', run: 'runEditorCommand', args: ['foldCode'], disabled: !sourceTab },
             { id: 'unfold', label: tr('codeStudio.unfoldRegion', 'Unfold'), shortcut: 'Ctrl+Shift+]', icon: 'list', run: 'runEditorCommand', args: ['unfoldCode'], disabled: !sourceTab },
             { id: 'select-next-occurrence', label: tr('codeStudio.selectNextOccurrence', 'Add Selection to Next Match'), shortcut: 'Ctrl+D', icon: 'search', run: 'runEditorCommand', args: ['selectNextOccurrence'], disabled: !sourceTab },
