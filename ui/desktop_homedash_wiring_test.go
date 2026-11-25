@@ -19,7 +19,7 @@ func TestHomeDashWiring(t *testing.T) {
 	for _, match := range regexp.MustCompile(`'/js/([a-z/-]+\.js)'`).FindAllStringSubmatch(entry[1], -1) {
 		scripts = append(scripts, match[1])
 	}
-	engine := []string{"hd-core", "hd-format", "hd-colour", "hd-grid", "hd-layout", "hd-doc", "hd-history", "hd-icons", "hd-geometry", "hd-prim-displays", "hd-prim-controls", "hd-widgets",
+	engine := []string{"hd-core", "hd-format", "hd-colour", "hd-grid", "hd-layout", "hd-doc", "hd-history", "hd-icons", "hd-geometry", "hd-input", "hd-prim-displays", "hd-prim-controls", "hd-widgets",
 		"widgets/hd-w-misc", "widgets/hd-w-climate", "widgets/hd-w-light", "widgets/hd-w-sensor", "widgets/hd-w-switch",
 		"hd-tone", "hd-api", "hd-stream", "hd-store", "hd-catalog", "hd-render", "hd-sheet", "hd-view", "hd-app"}
 	var want []string

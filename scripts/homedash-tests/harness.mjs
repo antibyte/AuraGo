@@ -3,7 +3,7 @@ import { createDocument, allElements } from './dom.mjs';
 export { allElements };
 export const root = path.resolve(import.meta.dirname, '..', '..');
 export const ENGINE_DIR = 'ui/js/homedash';
-export const ENGINE_ORDER = ['hd-core.js', 'hd-format.js', 'hd-colour.js', 'hd-grid.js', 'hd-layout.js', 'hd-doc.js', 'hd-history.js', 'hd-icons.js', 'hd-geometry.js', 'hd-prim-displays.js', 'hd-prim-controls.js', 'hd-widgets.js', 'widgets/hd-w-misc.js', 'widgets/hd-w-climate.js', 'widgets/hd-w-light.js', 'widgets/hd-w-sensor.js', 'widgets/hd-w-switch.js'];
+export const ENGINE_ORDER = ['hd-core.js', 'hd-format.js', 'hd-colour.js', 'hd-grid.js', 'hd-layout.js', 'hd-doc.js', 'hd-history.js', 'hd-icons.js', 'hd-geometry.js', 'hd-input.js', 'hd-prim-displays.js', 'hd-prim-controls.js', 'hd-widgets.js', 'widgets/hd-w-misc.js', 'widgets/hd-w-climate.js', 'widgets/hd-w-light.js', 'widgets/hd-w-sensor.js', 'widgets/hd-w-switch.js'];
 export const read = rel => fs.readFileSync(path.join(root, rel), 'utf8');
 export const plain = v => (v === undefined ? undefined : JSON.parse(JSON.stringify(v)));
 export const eq = (a, e, m) => assert.deepStrictEqual(plain(a), plain(e), m);
