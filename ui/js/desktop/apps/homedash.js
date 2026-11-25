@@ -11,8 +11,8 @@
     // intersects the viewport (docker-manager-store.js attach()). Returns {visible(), subscribe(fn) -> unsubscribe}.
     function visibilitySignal(root, win, signal) {
         const listeners = new Set();
-        let inView = typeof IntersectionObserver !== 'function', shown = false;
-        const compute = () => !document.hidden && inView && (!win || (!win.hidden && !win.classList.contains('vd-space-hidden') && win.style.display !== 'none' && win.getClientRects().length > 0));
+        let inView = null, shown = false; // null: no report yet, counts as visible (first values)
+        const compute = () => !document.hidden && inView !== false && (!win || (!win.hidden && !win.classList.contains('vd-space-hidden') && win.style.display !== 'none' && win.getClientRects().length > 0));
         const check = () => { const next = compute(); if (next === shown) return; shown = next; for (const fn of [...listeners]) { try { fn(shown); } catch (err) { console.error(err); } } };
         document.addEventListener('visibilitychange', check, { signal });
         const mo = typeof MutationObserver === 'function' && win ? new MutationObserver(check) : null;
@@ -27,7 +27,7 @@
         dispose(id);
         const E = window.HomeDashEngine, Home = window.HomeDashHome, el = E.el, setAttr = E.core.setAttr, icon = name => E.icons.icon(name);
         const t = (key, vars) => ctx.t(key, vars), lifetime = new AbortController(), signal = lifetime.signal, lang = document.documentElement.lang || 'en';
-        const BANNER_ICONS = { auth_lost: 'lock', offline: 'signal-off', source_unavailable: 'alert', source_degraded: 'clock', schema_too_new: 'info', readonly: 'lock' };
+        const BANNER_ICONS = { auth_lost: 'lock', offline: 'signal-off', source_unavailable: 'alert', source_degraded: 'clock', schema_too_new: 'info', readonly: 'lock', source_catalog_failed: 'alert', template_omitted: 'info' };
         let inst = null, lastBanners = '', lastState = '', lastMenus = '', lookFrame = 0;
         const title = el('h1', { class: 'hdx-title', text: t('desktop.app_homedash') });
         const back = el('button', { type: 'button', class: 'hdx-back', 'data-action': 'home', hidden: 'true' }, [icon('arrow-left'), el('span', { text: t('homedash.view.back') })]);
@@ -35,7 +35,7 @@
         const conn = el('span', { class: 'hdx-conn', 'data-conn': 'connecting', hidden: 'true' }, [el('span', { class: 'hdx-conn-dot', 'aria-hidden': 'true' }), connText]);
         const banners = el('div', { class: 'hdx-banners' });
         const viewHost = el('div', { class: 'hdx-view', hidden: 'true' }), statePanel = el('div', { class: 'hdx-state', hidden: 'true' });
-        const home = Home.create({ t, lang, onOpen: dashboardId => inst.open(dashboardId), onStarter: () => inst.createStarter(), onEmpty: () => inst.createEmpty(), onDelete: summary => askDelete(summary) });
+        const home = Home.create({ t, lang, onOpen: dashboardId => inst.open(dashboardId), onStarter: () => inst.createStarter(), onEmpty: () => inst.createEmpty(), onHa: () => inst.createHomeAssistant(), sourceName: src => sourceName(src), onDelete: summary => askDelete(summary) });
         setAttr(home.el, 'hidden', true);
         const root = el('div', { class: 'hdx-app', 'data-hdx-view': 'loading' }, [el('header', { class: 'hdx-bar' }, [back, el('div', { class: 'hdx-heading' }, title), conn]), banners,
             el('main', { class: 'hdx-main' }, [home.el, viewHost, statePanel])]);
@@ -43,13 +43,15 @@
         const sheet = E.sheet.create(root), win = host.closest('.vd-window'), subtitleEl = win ? win.querySelector('.vd-window-subtitle') : null;
         const subtitle = text => { if (subtitleEl) subtitleEl.textContent = text; };
         const motion = () => (document.body.dataset.animations === 'false' || (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) ? 'reduced' : 'full');
-        const sourceName = src => (src === 'system' ? t('homedash.source.system') : String(src));
+        const sourceName = src => (src === 'system' ? t('homedash.source.system') : src === 'ha' ? t('homedash.source.ha') : String(src));
         function bannerText(b) {
             switch (b.kind) {
                 case 'auth_lost': return t('homedash.banner.auth_lost');
                 case 'offline': return t('homedash.banner.offline');
                 case 'source_unavailable': return t('homedash.banner.source_unavailable', { source: sourceName(b.source) });
                 case 'source_degraded': return t('homedash.banner.source_degraded', { source: sourceName(b.source) });
+                case 'source_catalog_failed': return t('homedash.banner.source_catalog_failed', { source: sourceName(b.source) });
+                case 'template_omitted': return t('homedash.banner.template_omitted', { count: b.count });
                 case 'schema_too_new': return t('homedash.banner.schema_too_new');
                 default: return t('homedash.banner.readonly');
             }
@@ -71,13 +73,14 @@
                 el('button', { type: 'button', class: 'hdx-btn', 'data-action': 'retry', text: t('homedash.home.retry') }));
         }
         function menus(s) {
-            const sig = s.mode + '|' + !!s.desktopReadonly + '|' + !!s.busy; if (sig === lastMenus) return; lastMenus = sig;
+            const ha = Array.isArray(s.templates) && s.templates.includes('home_assistant'), sig = s.mode + '|' + !!s.desktopReadonly + '|' + !!s.busy + '|' + ha; if (sig === lastMenus) return; lastMenus = sig;
             const blocked = !!s.desktopReadonly || !!s.busy || s.mode === 'disabled' || s.mode === 'error';
             ctx.setWindowMenus?.(id, [{ id: 'homedash', label: t('desktop.app_homedash'), items: [
                 { label: t('homedash.menu.all'), disabled: s.mode === 'disabled', action: () => inst.home() },
                 { type: 'separator' },
                 { label: t('homedash.menu.new_starter'), icon: 'plus', disabled: blocked, action: () => inst.createStarter() },
                 { label: t('homedash.menu.new_empty'), disabled: blocked, action: () => inst.createEmpty() },
+                ...(ha ? [{ label: t('homedash.menu.new_ha'), icon: 'home', disabled: blocked, action: () => inst.createHomeAssistant() }] : []),
                 { type: 'separator' },
                 { label: t('homedash.menu.reload'), icon: 'refresh', action: () => { const st = inst.state(); if (st.mode === 'dashboard' && st.dashboard) inst.open(st.dashboard.id, st.pageId); else inst.retry(); } }] }]);
         }

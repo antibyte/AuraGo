@@ -2,8 +2,8 @@ import assert from 'node:assert/strict'; import { ENGINE_ORDER, loadFiles } from
 const FILES = ENGINE_ORDER.map(f => 'ui/js/homedash/' + f).concat(['ui/js/desktop/apps/homedash-home.js']);
 function setup() {
   const { window, document } = loadFiles(FILES, { dom: true }), calls = [];
-  const home = window.HomeDashHome.create({ t: (k, v) => (v && v.name ? k + ':' + v.name : k), lang: 'en', onOpen: id => calls.push('open:' + id), onStarter: () => calls.push('starter'),
-    onEmpty: () => calls.push('empty'), onDelete: s => calls.push('delete:' + s.id) });
+  const home = window.HomeDashHome.create({ t: (k, v) => (v && v.name ? k + ':' + v.name : v && v.source ? k + ':' + v.source : k), lang: 'en', onOpen: id => calls.push('open:' + id), onStarter: () => calls.push('starter'),
+    onEmpty: () => calls.push('empty'), onHa: () => calls.push('ha'), sourceName: x => 'src:' + x, onDelete: s => calls.push('delete:' + s.id) });
   document.body.appendChild(home.el);
   return { home, calls, click: node => home.el.dispatchEvent({ type: 'click', target: node }) };
 }
@@ -31,5 +31,18 @@ export const tests = [
   ['home: notices are translated status lines', () => {
     const { home } = setup(); home.render({ dashboards: [], notice: 'limit' }); const n = home.el.querySelector('.hdx-notice');
     assert.equal(n.textContent, 'homedash.home.notice_limit'); assert.equal(n.getAttribute('role'), 'status'); assert.equal(n.getAttribute('data-tone'), 'warn');
-    home.render({ dashboards: [], notice: null }); assert.ok(n.hasAttribute('hidden')); }]
+    home.render({ dashboards: [], notice: null }); assert.ok(n.hasAttribute('hidden')); }],
+  ['home: the Home Assistant choice and header button follow the templates and the read-only state', () => {
+    const { home, calls, click } = setup(), ha = () => Array.from(home.el.querySelectorAll('[data-action="create-ha"]'));
+    home.render({ dashboards: [], templates: ['system'] }); assert.equal(ha().length, 2); assert.ok(ha().every(b => b.hasAttribute('hidden')));
+    home.render({ dashboards: [], templates: ['system', 'home_assistant'] }); assert.ok(ha().every(b => !b.hasAttribute('hidden')));
+    assert.ok(home.el.querySelector('.hdx-choices [data-action="create-ha"]')); assert.ok(home.el.querySelector('.hdx-home-actions [data-action="create-ha"]'));
+    assert.equal(home.el.querySelectorAll('.hdx-choices .hdx-choice').length, 3); click(ha()[0]); assert.deepEqual(calls, ['ha']);
+    home.render({ dashboards: [], templates: ['home_assistant'], desktopReadonly: true }); assert.ok(ha().every(b => b.hasAttribute('hidden')));
+    home.render({ dashboards: [] }); assert.ok(ha().every(b => b.hasAttribute('hidden'))); }],
+  ['home: template_empty and source_unavailable notices name the source', () => {
+    const { home } = setup(), n = home.el.querySelector('.hdx-notice');
+    home.render({ dashboards: [], notice: 'template_empty' }); assert.equal(n.textContent, 'homedash.home.notice_template_empty'); assert.equal(n.getAttribute('data-tone'), 'warn');
+    home.render({ dashboards: [], notice: 'source_unavailable', noticeSource: 'ha' }); assert.equal(n.getAttribute('data-tone'), 'warn');
+    assert.equal(n.textContent, 'homedash.home.notice_source_unavailable:src:ha'); }]
 ];

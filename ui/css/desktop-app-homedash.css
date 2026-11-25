@@ -78,7 +78,7 @@
 .hdx-art-dot { fill: var(--ds-color-success-fg); }
 .hdx-empty-title { margin: 0; color: var(--vd-mat-heading-color, var(--vd-text)); font: var(--vd-mat-heading-weight, 650) 24px/1.25 var(--vd-mat-heading-font, var(--vd-font-ui, system-ui, sans-serif)); letter-spacing: var(--vd-mat-heading-tracking, normal); }
 .hdx-empty-text { max-inline-size: 54ch; margin: 0; color: var(--hdx-muted); font-size: 14.5px; }
-.hdx-choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); align-items: stretch; gap: 14px; inline-size: 100%; margin-block-start: 16px; }
+.hdx-choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); grid-auto-rows: 1fr; align-items: stretch; gap: 14px; inline-size: 100%; margin-block-start: 16px; }
 .hdx-choice { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: center; gap: 14px; min-block-size: 88px; padding: 16px 18px; border: 1px solid var(--vd-mat-card-border, var(--hdx-line)); border-radius: var(--hdx-radius); background: var(--vd-mat-card, var(--hdx-card)); box-shadow: var(--vd-mat-card-shadow, none); text-align: start; cursor: pointer; }
 .hdx-choice:hover:not(:disabled) { border-color: color-mix(in srgb, var(--vd-accent) 55%, var(--hdx-line)); }
 .hdx-choice.is-primary { border-color: color-mix(in srgb, var(--vd-mat-primary-color, var(--vd-accent)) 70%, var(--hdx-line)); background: color-mix(in srgb, var(--vd-mat-primary-color, var(--vd-accent)) 9%, var(--hdx-card)); }

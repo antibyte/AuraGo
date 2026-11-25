@@ -69,6 +69,7 @@
 - Focus: `.hdx-app` sets `--accent` and `--accent-dim` to transparent, so the page-wide focus halo is gone and the theme focus outline (`--ds-focus-ring-width`, `--ds-color-border-focus`) is the only ring on the bar, banners, home and state buttons.
 - Theme and scheme: the scheme comes from `document.body.dataset.scheme`. A MutationObserver on the body (`data-theme`, `data-scheme`, `data-fruity-mode`, `data-accent`, `data-animations`, `style`, `class`) calls `refreshLook` once per animation frame.
 - Materials: chrome paints from `--vd-mat-*` tokens (buttons, bar, cards, canvas, headings) with `--vd-theme-*` and `--ds-*` fallbacks. `TestDesktopAppMaterialsAdoptedByApps` checks the adoption.
+- HomeDash M3 host: the visibility signal treats an IntersectionObserver that has not reported yet as visible (`inView = null`); Home offers a third choice `create-ha` and a header button only when `state.templates` includes `home_assistant` and the desktop is not read-only (`onHa` -> `createHomeAssistant`); notices `template_empty` and `source_unavailable` (source named through the host's `sourceName`); banners `source_catalog_failed` and `template_omitted`; the window menu gains `homedash.menu.new_ha` under the same condition.
 - Tests: `npm run test:homedash` (the `host`, `home` and `app` suites), `TestHomeDashWiring` and `TestDesktopHomeDashBrowser` (`ui/desktop_homedash_browser_test.go`, run commands in `ui/js/homedash/AGENTS.md`), and `go test ./internal/desktop -count=1`.
 
 ## ECalc

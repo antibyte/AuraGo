@@ -1,15 +1,15 @@
 /* HomeDash desktop home view (F2): the dashboard list and the first-run empty state, painted from the desktop theme (desktop-app-homedash.css).
-   window.HomeDashHome.create({t, lang, onOpen(id), onStarter(), onEmpty(), onDelete(summary)}) returns {el, render(state), destroy()}.
+   window.HomeDashHome.create({t, lang, onOpen(id), onStarter(), onEmpty(), onHa(), sourceName(src), onDelete(summary)}) returns {el, render(state), destroy()}.
    render(state) reads state.dashboards (null while loading), desktopReadonly, busy and notice (Task 12 state). Names and dates come from the
    server and reach the page only through textContent; the same list renders no new nodes and keeps the focus. */
 (function () {
     'use strict';
     const DOT = ' ' + String.fromCodePoint(0xb7) + ' ';
-    const NOTICE_TONES = { limit: 'warn', create_failed: 'warn', list_failed: 'warn', open_failed: 'warn', delete_failed: 'warn', delete_conflict: 'warn', readonly: 'info', dashboard_deleted: 'info', dashboard_missing: 'info' };
+    const NOTICE_TONES = { limit: 'warn', create_failed: 'warn', list_failed: 'warn', open_failed: 'warn', delete_failed: 'warn', delete_conflict: 'warn', template_empty: 'warn', source_unavailable: 'warn', readonly: 'info', dashboard_deleted: 'info', dashboard_missing: 'info' };
     function create(options) {
         const o = options || {}, E = window.HomeDashEngine, F = E.format, el = E.el, svg = E.svg, setAttr = E.core.setAttr, t = o.t, lang = o.lang || 'en', life = E.core.bag();
         let current = [], lastSig = '', pending = '';
-        function noticeText(code) {
+        function noticeText(code, source) {
             switch (code) {
                 case 'dashboard_deleted': return t('homedash.home.notice_deleted');
                 case 'dashboard_missing': return t('homedash.home.notice_missing');
@@ -20,6 +20,8 @@
                 case 'readonly': return t('homedash.home.notice_readonly');
                 case 'delete_conflict': return t('homedash.home.notice_delete_conflict');
                 case 'delete_failed': return t('homedash.home.notice_delete_failed');
+                case 'template_empty': return t('homedash.home.notice_template_empty');
+                case 'source_unavailable': return t('homedash.home.notice_source_unavailable', { source: typeof o.sourceName === 'function' ? o.sourceName(source || 'ha') : String(source || 'ha') });
                 default: return '';
             }
         }
@@ -37,7 +39,8 @@
         const choice = (action, icon, label, hint, primary) => el('button', { type: 'button', class: 'hdx-choice' + (primary ? ' is-primary' : ''), 'data-action': action }, [
             el('span', { class: 'hdx-choice-icon', 'aria-hidden': 'true' }, E.icons.icon(icon)), el('span', { class: 'hdx-choice-text' }, [el('strong', { text: label }), el('small', { text: hint })])]);
         const head = el('div', { class: 'hdx-home-head', hidden: 'true' }, [el('h2', { class: 'hdx-home-title', text: t('homedash.home.title') }), el('div', { class: 'hdx-home-actions' },
-            [button('create-starter', 'gauge', t('homedash.home.create_starter'), true), button('create-empty', 'plus', t('homedash.home.create_empty'), false)])]);
+            [button('create-starter', 'gauge', t('homedash.home.create_starter'), true), button('create-empty', 'plus', t('homedash.home.create_empty'), false),
+                button('create-ha', 'home', t('homedash.home.create_ha'), false)])]);
         const notice = el('p', { class: 'hdx-note hdx-notice', role: 'status', 'data-tone': 'info', hidden: 'true' });
         const roNote = el('p', { class: 'hdx-note hdx-readonly-note', 'data-tone': 'info', hidden: 'true' }, [E.icons.icon('lock'), el('span', { text: t('homedash.home.readonly_note') })]);
         const skeleton = el('div', { class: 'hdx-skeleton', 'aria-hidden': 'true' }, [el('div', { class: 'hdx-skel-card' }), el('div', { class: 'hdx-skel-card' }), el('div', { class: 'hdx-skel-card' })]);
@@ -45,7 +48,8 @@
         const empty = el('div', { class: 'hdx-empty', hidden: 'true' }, [art(), el('h2', { class: 'hdx-empty-title', text: t('homedash.home.empty_title') }),
             el('p', { class: 'hdx-empty-text', text: t('homedash.home.empty_text') }), el('div', { class: 'hdx-choices' }, [
                 choice('create-starter', 'gauge', t('homedash.home.create_starter'), t('homedash.home.create_starter_hint'), true),
-                choice('create-empty', 'dashboard', t('homedash.home.create_empty'), t('homedash.home.create_empty_hint'), false)])]);
+                choice('create-empty', 'dashboard', t('homedash.home.create_empty'), t('homedash.home.create_empty_hint'), false),
+                choice('create-ha', 'home', t('homedash.home.create_ha'), t('homedash.home.create_ha_hint'), false)])]);
         const root = el('section', { class: 'hdx-home', 'data-hdx-mode': 'loading', 'aria-label': t('homedash.home.title') }, el('div', { class: 'hdx-home-inner' }, [head, notice, roNote, skeleton, list, empty]));
         function item(d, ro) {
             const name = typeof d.name === 'string' && d.name ? d.name : d.id, when = Date.parse(d.updated_at);
@@ -68,11 +72,12 @@
             if (!busy) pending = '';
             setAttr(root, 'data-hdx-mode', mode);
             setAttr(head, 'hidden', mode !== 'list'); setAttr(list, 'hidden', mode !== 'list'); setAttr(empty, 'hidden', mode !== 'empty'); setAttr(skeleton, 'hidden', mode !== 'loading');
-            for (const b of root.querySelectorAll('[data-action="create-starter"], [data-action="create-empty"]')) {
-                setAttr(b, 'hidden', ro); setAttr(b, 'disabled', busy); setAttr(b, 'aria-busy', busy && b.getAttribute('data-action') === pending ? 'true' : null);
+            const ha = Array.isArray(st.templates) && st.templates.includes('home_assistant');
+            for (const b of root.querySelectorAll('[data-action="create-starter"], [data-action="create-empty"], [data-action="create-ha"]')) {
+                setAttr(b, 'hidden', ro || (b.getAttribute('data-action') === 'create-ha' && !ha)); setAttr(b, 'disabled', busy); setAttr(b, 'aria-busy', busy && b.getAttribute('data-action') === pending ? 'true' : null);
             }
             setAttr(roNote, 'hidden', !ro);
-            const text = noticeText(st.notice); notice.textContent = text; setAttr(notice, 'hidden', !text); setAttr(notice, 'data-tone', NOTICE_TONES[st.notice] || 'info');
+            const text = noticeText(st.notice, st.noticeSource); notice.textContent = text; setAttr(notice, 'hidden', !text); setAttr(notice, 'data-tone', NOTICE_TONES[st.notice] || 'info');
             if (dashboards) {
                 current = dashboards;
                 const sig = JSON.stringify([ro, dashboards.map(d => [d.id, d.name, d.revision, d.updated_at, d.saved_by])]);
@@ -85,6 +90,7 @@
             const action = b.getAttribute('data-action'), id = b.getAttribute('data-id');
             if (action === 'create-starter') { pending = action; o.onStarter(); }
             else if (action === 'create-empty') { pending = action; o.onEmpty(); }
+            else if (action === 'create-ha') { pending = action; o.onHa(); }
             else if (action === 'open' && id) o.onOpen(id);
             else if (action === 'delete' && id) { const s = current.find(d => d.id === id); if (s) o.onDelete(s); }
         });
