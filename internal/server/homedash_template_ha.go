@@ -18,6 +18,8 @@ const (
 	homeDashHAUnassignedTitle     = "Unassigned"
 	homeDashHAWidgetsPerPage      = 24
 	homeDashHASlugBase            = "home-assistant"
+	homeDashHAPageIDMax           = 28 // contract section 5
+	homeDashHAUnassignedID        = "unassigned"
 )
 
 // homeDashHADomainOrder is the widget order inside a page (decision D4).
@@ -88,7 +90,7 @@ func homeDashHAPageID(key string, used map[string]bool) string {
 		default:
 			b.WriteByte('-')
 		}
-		if b.Len() >= 28 {
+		if b.Len() >= homeDashHAPageIDMax {
 			break
 		}
 	}
@@ -98,7 +100,12 @@ func homeDashHAPageID(key string, used map[string]bool) string {
 	}
 	base := id
 	for n := 2; used[id]; n++ {
-		id = base + "-" + strconv.Itoa(n)
+		suffix := "-" + strconv.Itoa(n)
+		keep := base
+		if len(keep) > homeDashHAPageIDMax-len(suffix) {
+			keep = keep[:homeDashHAPageIDMax-len(suffix)]
+		}
+		id = keep + suffix
 	}
 	used[id] = true
 	return id
@@ -153,7 +160,7 @@ func homeDashTemplateHA(entities []homedash.Entity, name, unassigned string, max
 	if _, ok := groups[""]; ok {
 		keys = append(keys, "")
 	}
-	used := map[string]bool{}
+	used := map[string]bool{homeDashHAUnassignedID: true} // reserved: only the last page may have it
 	var pages []homedash.Page
 	placed, omitted := 0, 0
 	for i, key := range keys {
@@ -172,12 +179,12 @@ func homeDashTemplateHA(entities []homedash.Entity, name, unassigned string, max
 			omitted += len(items)
 			continue
 		}
-		title, pageKey := unassigned, "unassigned"
+		title, pageID := unassigned, homeDashHAUnassignedID
 		if key != "" {
-			title, pageKey = homeDashHAPageTitle(titles[key], i), key
+			title, pageID = homeDashHAPageTitle(titles[key], i), homeDashHAPageID(key, used)
 		}
 		compact := true
-		page := homedash.Page{ID: homeDashHAPageID(pageKey, used), Name: title, Compact: &compact}
+		page := homedash.Page{ID: pageID, Name: title, Compact: &compact}
 		for j, it := range items {
 			if j >= homeDashHAWidgetsPerPage || placed >= maxWidgets {
 				omitted++

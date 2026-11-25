@@ -132,14 +132,16 @@ func (h *hdRequest) stream() {
 		homeDashWriteError(h.w, http.StatusInternalServerError, homeDashCodeInternal, "streaming is not supported", nil)
 		return
 	}
+	// Count the stream before Attach: a shutdown that closes the hub right after Attach must see it and
+	// wait for the revoked frame. Every path leaves through the one deferred decrement.
+	h.svc.streams.Add(1)
+	defer h.svc.streams.Add(-1)
 	sub, err := h.svc.hub.Attach(homeDashPrincipal(h.cfg, h.r))
 	if err != nil {
 		h.fail(err)
 		return
 	}
 	defer sub.Close()
-	h.svc.streams.Add(1)
-	defer h.svc.streams.Add(-1)
 
 	header := h.w.Header()
 	header.Set("Content-Type", "text/event-stream")

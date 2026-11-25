@@ -97,3 +97,20 @@ func TestEndHomeDashStreamsIsSafeWithoutServiceAndTwice(t *testing.T) {
 	env.s.endHomeDashStreams(time.Second)
 	env.s.endHomeDashStreams(time.Second)
 }
+
+// TestHomeDashStreamCountsBeforeAttach pins the code order that makes the shutdown contract hold: a
+// stream attached just before Hub.Close must already be counted, or endHomeDashStreams returns at once
+// and the drain ends the stream without its revoked frame. A deterministic race needs a hook inside
+// Hub.Attach, which the hub does not offer; the order is asserted on the handler source instead.
+func TestHomeDashStreamCountsBeforeAttach(t *testing.T) {
+	src, err := os.ReadFile("homedash_stream.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := string(src)
+	fn := body[strings.Index(body, "func (h *hdRequest) stream()"):]
+	add, attach := strings.Index(fn, "h.svc.streams.Add(1)"), strings.Index(fn, "h.svc.hub.Attach(")
+	if add < 0 || attach < 0 || add > attach || strings.Count(fn, "streams.Add(-1)") != 1 {
+		t.Fatal("stream must raise the counter before Hub.Attach and release it once, by defer")
+	}
+}

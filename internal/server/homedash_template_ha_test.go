@@ -277,3 +277,47 @@ func TestHomeDashBootstrapRefreshEndsWithTheService(t *testing.T) {
 	env.s.closeHomeDash()
 	sourcetest.WaitFor(t, 5*time.Second, func() bool { return !env.svc.haProbe.Load() }, "the background refresh to end after the service closed")
 }
+
+func TestHomeDashHAPageIDsRespectTheContractLimit(t *testing.T) {
+	tog := allowedCap(homedash.CapToggle)
+	long := strings.Repeat("x", 40)
+	prefix := strings.Repeat("y", 28)
+	list := []homedash.Entity{
+		haEntity("light.a", "A", long, homedash.KindLight, tog),
+		haEntity("light.b", "B", prefix+"1", homedash.KindLight, tog),
+		haEntity("light.c", "C", prefix+"2", homedash.KindLight, tog),
+		haEntity("light.d", "D", prefix+"3", homedash.KindLight, tog),
+		haEntity("light.e", "E", "---", homedash.KindLight, tog),
+		haEntity("light.f", "F", "\u00e4\u00f6", homedash.KindLight, tog),
+		haEntity("light.g", "G", "unassigned", homedash.KindLight, tog),
+		haEntity("light.h", "", "", homedash.KindLight, tog),
+	}
+	doc, _, ok := homeDashTemplateHA(list, "Home", "Other", 12, 400)
+	if !ok {
+		t.Fatal("no template")
+	}
+	seen := map[string]bool{}
+	var ids []string
+	for _, p := range doc.Pages {
+		ids = append(ids, p.ID)
+		if len(p.ID) > 28 || seen[p.ID] {
+			t.Fatalf("page id %q too long or duplicated in %v", p.ID, ids)
+		}
+		seen[p.ID] = true
+	}
+	want := []string{long[:28], prefix, prefix[:26] + "-2", prefix[:26] + "-3", "area", "area-2", "unassigned-2", "unassigned"}
+	if !slices.Equal(ids, want) {
+		t.Fatalf("ids = %v, want %v", ids, want)
+	}
+}
+
+func TestHomeDashHAUnassignedPageKeepsItsIDAgainstAnArea(t *testing.T) {
+	tog := allowedCap(homedash.CapToggle)
+	doc, _, _ := homeDashTemplateHA([]homedash.Entity{
+		haEntity("light.a", "Zone", "unassigned", homedash.KindLight, tog),
+		haEntity("light.b", "", "", homedash.KindLight, tog),
+	}, "Home", "Other", 12, 400)
+	if len(doc.Pages) != 2 || doc.Pages[0].ID != "unassigned-2" || doc.Pages[1].ID != "unassigned" || doc.Pages[1].Name != "Other" {
+		t.Fatalf("pages = %+v", doc.Pages)
+	}
+}
