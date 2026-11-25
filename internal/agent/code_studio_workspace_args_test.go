@@ -77,3 +77,33 @@ func TestCodeStudioWorkspaceRunCommandIsHighRisk(t *testing.T) {
 		t.Errorf("write_file must be mutating: %+v", a)
 	}
 }
+
+func TestCodeStudioWorkspaceRefusalGatesSourceAndWorkspace(t *testing.T) {
+	call := func(id string) ToolCall {
+		return ToolCall{Action: "code_studio_workspace", Operation: "run_command", Params: map[string]interface{}{"workspace_id": id}}
+	}
+	bound := &DispatchContext{MessageSource: "virtual_desktop_chat", CodeStudioWorkspaceID: "ws_1"}
+	if got := codeStudioWorkspaceRefusal(call("ws_1"), bound); got != "" {
+		t.Fatalf("bound desktop chat refused: %q", got)
+	}
+	if got := codeStudioWorkspaceRefusal(call("ws_2"), bound); !strings.Contains(got, "policy_denied") {
+		t.Fatalf("a different workspace_id must be refused: %q", got)
+	}
+	if got := codeStudioWorkspaceRefusal(ToolCall{Action: "code_studio_workspace", Operation: "read_file"}, bound); !strings.Contains(got, "policy_denied") {
+		t.Fatalf("a missing workspace_id must be refused: %q", got)
+	}
+	for name, dc := range map[string]*DispatchContext{
+		"telegram":    {MessageSource: "telegram", CodeStudioWorkspaceID: "ws_1"},
+		"whatsapp":    {MessageSource: "whatsapp", CodeStudioWorkspaceID: "ws_1"},
+		"mission":     {MessageSource: "mission", MissionID: "m1", CodeStudioWorkspaceID: "ws_1"},
+		"flow":        {MessageSource: MessageSourceFlow, CodeStudioWorkspaceID: "ws_1"},
+		"a2a":         {MessageSource: "a2a", IsCoAgent: true, CodeStudioWorkspaceID: "ws_1"},
+		"co-agent":    {MessageSource: "virtual_desktop_chat", IsCoAgent: true, CodeStudioWorkspaceID: "ws_1"},
+		"unbound":     {MessageSource: "virtual_desktop_chat"},
+		"nil context": nil,
+	} {
+		if got := codeStudioWorkspaceRefusal(call("ws_1"), dc); !strings.Contains(got, "policy_denied") {
+			t.Errorf("%s must be refused: %q", name, got)
+		}
+	}
+}

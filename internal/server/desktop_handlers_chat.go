@@ -864,6 +864,9 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 		Stream:   stream,
 	}
 	turn.runCfg = buildDesktopRunConfigForSession(s, &cfg, llmClient, sessionID, messageSource)
+	if ws := chatContext.codeStudioWorkspace; ws != nil && !ws.Missing && messageSource == desktopChatMessageSource {
+		turn.runCfg.CodeStudioWorkspaceID = ws.ID
+	}
 	if (cfg.Learnings.Enabled || cfg.CodeGraph.Enabled) && (chatContext.Source == "code-studio" || chatContext.OriginApp == "code-studio") && chatContext.codeStudioWorkspace == nil {
 		project, scope, fingerprint, err := s.resolveKnowledgeProject(ctx, "code-studio", chatContext.CurrentFile)
 		if err != nil {

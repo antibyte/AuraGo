@@ -53,3 +53,25 @@ func isolateCodeStudioWorkspaceOutput(output string) string {
 	}
 	return security.IsolateExternalData(output)
 }
+
+// codeStudioWorkspaceRefusal admits code_studio_workspace only for the desktop
+// chat of a Code Studio window whose SSH workspace the server resolved, and only
+// for that workspace. Missions, flows, channels, A2A and co-agents never reach a
+// remote host through it.
+func codeStudioWorkspaceRefusal(tc ToolCall, dc *DispatchContext) string {
+	refuse := func(message string) string {
+		return `Tool Output: {"status":"policy_denied","message":"` + message + `"}`
+	}
+	if dc == nil || dc.IsCoAgent || dc.MissionID != "" || isA2ARun(dc) ||
+		strings.ToLower(strings.TrimSpace(dc.MessageSource)) != "virtual_desktop_chat" {
+		return refuse("code_studio_workspace is only available in the desktop chat of a Code Studio SSH workspace.")
+	}
+	allowed := strings.TrimSpace(dc.CodeStudioWorkspaceID)
+	if allowed == "" {
+		return refuse("This chat is not bound to a Code Studio SSH workspace.")
+	}
+	if requested := strings.TrimSpace(toolArgString(codeStudioWorkspaceToolArgs(tc), "workspace_id")); requested != allowed {
+		return refuse("workspace_id must be the Code Studio workspace of this chat.")
+	}
+	return ""
+}

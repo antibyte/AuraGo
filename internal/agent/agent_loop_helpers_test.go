@@ -1482,7 +1482,7 @@ func TestChannelAdaptiveAlwaysIncludeKeepsSendAudioForAgodeskChat(t *testing.T) 
 
 func TestChannelAdaptiveAlwaysIncludeKeepsVirtualDesktopForDesktopChat(t *testing.T) {
 	got := channelAdaptiveAlwaysInclude(
-		RunConfig{MessageSource: "virtual_desktop_chat"},
+		RunConfig{MessageSource: "virtual_desktop_chat", CodeStudioWorkspaceID: "ws_1"},
 		[]string{"filesystem"},
 		ToolFeatureFlags{VirtualDesktopEnabled: true, OfficeDocumentEnabled: true, OfficeWorkbookEnabled: true},
 	)
@@ -1996,5 +1996,17 @@ func TestIsProtectedSystemPathCaseInsensitiveAndDataDir(t *testing.T) {
 	}
 	if !isProtectedSystemPath("vault-link", workdir, cfg) {
 		t.Fatal("symlink into vault.bin should be protected")
+	}
+}
+
+func TestChannelAdaptiveAlwaysIncludeOffersCodeStudioWorkspaceOnlyWithABoundWorkspace(t *testing.T) {
+	flags := ToolFeatureFlags{VirtualDesktopEnabled: true}
+	if got := channelAdaptiveAlwaysInclude(RunConfig{MessageSource: "virtual_desktop_chat"}, nil, flags); containsName(got, "code_studio_workspace") {
+		t.Fatalf("an unbound desktop chat must not always include code_studio_workspace: %v", got)
+	}
+	for _, source := range []string{"telegram", "whatsapp", "mission", "a2a"} {
+		if got := channelAdaptiveAlwaysInclude(RunConfig{MessageSource: source, CodeStudioWorkspaceID: "ws_1"}, nil, flags); containsName(got, "code_studio_workspace") {
+			t.Fatalf("%s must not always include code_studio_workspace: %v", source, got)
+		}
 	}
 }

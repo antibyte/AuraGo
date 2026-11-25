@@ -99,6 +99,9 @@ type DispatchContext struct {
 	WorkspaceSearch      *services.WorkspaceSearchService
 	ExecutionTimeMs      int64
 	MessageSource        string
+
+	CodeStudioWorkspaceID string // see RunConfig.CodeStudioWorkspaceID
+
 	VoiceOutputActive    bool
 	Broker               FeedbackBroker
 	UserContext          string
