@@ -191,7 +191,7 @@
                 if (isObj(rec.patch.attributes)) out.attributes = Object.freeze(Object.assign({}, view.attributes, rec.patch.attributes));
             }
             out.pending = !!(rec && rec.pending);
-            if (lock && view.available !== false) { out.readonly = true; out.readonlyReason = lock; }
+            if (lock && view.available !== false) { out.readonly = true; if (view.readonlyReason !== 'virtual_desktop.readonly') out.readonlyReason = lock; }   // D5: the desktop reason outranks a lock
             if (c && !rec && out.status === 'ok') { out.status = 'error'; out.error = c.entry; }
             if (fl && !rec && !c) out.confirmed = true;
             if (a && a.id === id) out.armed = Object.freeze({ command: a.command, seconds: Math.max(1, Math.ceil((a.until - now()) / 1000)) });

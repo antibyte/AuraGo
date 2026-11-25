@@ -108,6 +108,7 @@
         listen('source', d => setSources([d]));
         listen('subscribed', d => { for (const r of Array.isArray(d.rejected) ? d.rejected : []) { if (!isObj(r)) continue; const e = entry(String(r.id)); if (e) { e.status = 'unknown'; e.reason = String(r.reason || 'rejected'); bump(e); } } });
         listen('dashboard_changed', d => bus.emit('dashboards', d));
+        listen('subscribed', prune); listen('hello', prune);
         listen('connection', onConnection);
 
         const hasCommand = caps => Array.isArray(caps) && caps.some(c => isObj(c) && typeof c.name === 'string' && !READ_CAPS.includes(c.name));
@@ -132,7 +133,12 @@
             e.cache = { key, view: v };
             return v;
         }
-        function prune() { for (const id of [...entries.keys()]) if (!watched(id)) entries.delete(id); }
+        // An id nobody watches keeps its data until the stream confirms the server dropped it: the unsubscribe PUT is coalesced, a page shown again
+        // inside that window needs no new PUT and gets no new snapshot, so the entry must still be there.
+        function prune() {
+            const held = new Set(typeof stream.acked === 'function' ? stream.acked() : []);
+            for (const id of [...entries.keys()]) if (!watched(id) && !held.has(id)) entries.delete(id);
+        }
         function armLinger() {
             clearT(lingerTimer); lingerTimer = 0;
             let next = Infinity; for (const rec of owners.values()) for (const at of rec.linger.values()) next = Math.min(next, at);

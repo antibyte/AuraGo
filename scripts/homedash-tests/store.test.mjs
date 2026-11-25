@@ -1,4 +1,4 @@
-import assert from 'node:assert/strict'; import { loadEngine, eq } from './harness.mjs'; import { fakeClock } from './live-fakes.mjs';
+import assert from 'node:assert/strict'; import { loadEngine, eq } from './harness.mjs'; import { fakeClock, fakeSources, fakeStreamApi, HELLO } from './live-fakes.mjs';
 const CPU = { id: 'system:cpu', source: 'system', kind: 'sensor', name: 'CPU', unit: '%', icon_hint: 'cpu', capabilities: [{ name: 'numeric', allowed: true }, { name: 'history', allowed: true }],
   readonly: true, state: { value: 12.3, available: true, updated_at: '2026-11-25T10:00:00Z' } };
 const UPTIME = Object.assign({}, CPU, { id: 'system:uptime', name: 'Uptime', unit: 's', device_class: 'duration', state: { value: 7215, available: true, updated_at: '2026-11-25T10:00:00Z' } });
@@ -86,6 +86,23 @@ export const tests = [
     w.set(['system:uptime']); eq(h.sets[h.sets.length - 1], ['system:uptime', 'system:cpu', 'system:disk']);
     await clock.advance(29999); assert.equal(h.sets.length, 2); await clock.advance(1); eq(h.sets[h.sets.length - 1], ['system:uptime']);
     w.setActive(false); assert.equal(h.active, false); w.release(); assert.equal(h.detached, true); }],
+  ['store: a page shown again inside the 250 ms unsubscribe window keeps its data; later it is resubscribed (linger expiry race)', async () => {
+    const { E } = loadEngine(['hd-core.js', 'hd-api.js', 'hd-stream.js', 'hd-store.js']), clock = fakeClock(), es = fakeSources(), sapi = fakeStreamApi(es), frames = [];
+    const stream = E.stream.create({ api: sapi, setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout, now: clock.now, random: () => 0.5 });
+    const api = { base: '/b', history: () => Promise.resolve({ origin: 'source', points: [] }), widgetCatalog: () => Promise.resolve({ status: 'ok', catalog: { hash: 'h' } }) };
+    const store = E.store.create({ api, stream, raf: fn => { frames.push(fn); return frames.length; }, caf: () => {}, setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout, now: clock.now });
+    const beat = async ms => { for (let left = ms; left > 0; left -= 10000) { await clock.advance(Math.min(10000, left)); es.last().emit('hb', {}); } };   // heartbeats keep the watchdog quiet
+    const w = store.watch('win', { ids: ['system:cpu'] }); es.last().emit('hello', HELLO); await clock.flush(); eq(sapi.puts[0].ids, ['system:cpu']);
+    es.last().emit('snapshot', { entities: [CPU], sources: [] });
+    w.set(['system:uptime']); await clock.advance(250); eq(sapi.puts[1].ids, ['system:uptime', 'system:cpu']); es.last().emit('snapshot', { entities: [UPTIME], sources: [] });
+    await beat(29750); assert.equal(sapi.puts.length, 2);                 // linger over: the stream coalesces the unsubscribe PUT for 250 ms
+    assert.equal(store.view('system:cpu').value, 12.3);                           // the server still sends this id, so the data stays
+    w.set(['system:cpu']); await clock.advance(250); assert.equal(sapi.puts.length, 2);   // back inside the window: no PUT, no snapshot, data intact
+    assert.equal(store.view('system:cpu').value, 12.3); assert.equal(store.view('system:uptime').value, 7215);
+    w.set(['system:uptime']); await beat(30250); eq(sapi.puts[sapi.puts.length - 1].ids, ['system:uptime']);   // unsubscribe PUT acknowledged: the data goes now
+    assert.equal(store.view('system:cpu'), null);
+    w.set(['system:cpu']); await clock.advance(250); eq(sapi.puts[sapi.puts.length - 1].ids, ['system:cpu', 'system:uptime']);   // a long-gone page resubscribes with a normal PUT
+    es.last().emit('snapshot', { entities: [CPU], sources: [] }); assert.equal(store.view('system:cpu').value, 12.3); store.dispose(); stream.dispose(); }],
   ['store: dispose detaches every stream handle and shared() replaces a disposed instance', () => {
     const { E, store, handles, api, bus } = setup(); store.watch('a', { ids: ['system:cpu'] }); store.watch('b', { ids: ['system:uptime'] });
     assert.equal(handles.length, 2); store.dispose(); store.dispose(); assert.ok(handles.every(h => h.detached === true));

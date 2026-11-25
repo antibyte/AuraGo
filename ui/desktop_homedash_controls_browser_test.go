@@ -107,24 +107,28 @@ func TestDesktopHomeDashControlsBrowser(t *testing.T) {
 		t.Helper()
 		until(10*time.Second, "widget "+wid+" to show its state", `(x)=>{const e=document.querySelector('[data-hd-wid="'+x+'"]');if(!e)return false;e.scrollIntoView({block:'nearest'});const s=e.querySelector('.hd-state-text');return !!s&&s.textContent!=='';}`, wid)
 	}
-	// Engine bug (reported, not worked around in the engine): the store drops a released page's ids 30 s after it was left (LINGER_MS) and the stream
-	// sends that unsubscribe 250 ms later; a page opened inside that 250 ms window loses its entities for good (the server still holds the ids, so no
-	// snapshot follows, but the store entries were pruned). The test timeline is fixed, so openPage waits out the 29 to 32 s window after leaving a page.
+	// pageLeft remembers when a page was left; reopenInLingerWindow uses it to come back 30.15 s later, inside the 250 ms window in which the
+	// store has pruned the page's ids (LINGER_MS) but the stream has not sent the unsubscribe PUT yet.
 	pageLeft := map[string]time.Time{}
 	openPage := func(id string) {
 		t.Helper()
 		if cur := page.MustEval(`()=>{const b=document.querySelector('.hd-tab[aria-selected="true"]');return b?b.dataset.page:'';}`).Str(); cur != "" && cur != id {
 			pageLeft[cur] = time.Now()
 		}
-		if at, ok := pageLeft[id]; ok {
-			if since := time.Since(at); since > 29*time.Second && since < 32*time.Second {
-				t.Logf("waiting %v before reopening page %s (linger expiry window)", (32*time.Second).Round(time.Second)-since.Round(time.Second), id)
-				time.Sleep(32*time.Second - since)
-			}
-		}
 		page.MustEval(`(id)=>{const b=document.querySelector('.hd-tab[data-page="'+id+'"]');if(b)b.click();}`, id)
 		until(10*time.Second, "page "+id, `(id)=>{const b=document.querySelector('.hd-tab[data-page="'+id+'"]');const ws=[...document.querySelectorAll('.hdx-view .hd-page > .hd-widget')];
 			if(!b||b.getAttribute('aria-selected')!=='true'||!ws.length)return false;let ok=true;for(const e of ws){const s=e.querySelector('.hd-state-text');if(!s||s.textContent===''){ok=false;e.scrollIntoView({block:'nearest'});}}return ok;}`, id)
+	}
+	reopenInLingerWindow := func(id string) {
+		t.Helper()
+		at, ok := pageLeft[id]
+		if !ok {
+			t.Fatalf("page %s was not left before", id)
+		}
+		if wait := 30150*time.Millisecond - time.Since(at); wait > 0 {
+			time.Sleep(wait)
+		}
+		openPage(id)
 	}
 	theme := func(name, mode string) {
 		page.MustEval(`(theme,mode)=>{const a=auditTest;a.state.bootstrap.settings['appearance.theme']=theme;a.state.bootstrap.settings['appearance.fruity_mode']=mode;document.documentElement.dataset.theme=mode;a.applyDesktopSettings();}`, name, mode)
@@ -380,6 +384,10 @@ func TestDesktopHomeDashControlsBrowser(t *testing.T) {
 		t.Fatalf("slider End sent %+v, want set_value 100", cmds[0])
 	}
 	waitConfirmed("w6", was)
+	// Linger expiry race: leave the page, come back 30.15 s later (the store pruned its ids 150 ms ago, the unsubscribe PUT is still coalesced)
+	// and expect every widget to show its state again.
+	openPage("unassigned")
+	reopenInLingerWindow("living_room")
 
 	// 7. Armed confirm: widget confirm, expiry after 4 s, and a 409 that arms. ---------------------------------------------------------------
 	step("7 armed confirm")

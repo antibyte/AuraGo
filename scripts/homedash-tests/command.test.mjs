@@ -78,6 +78,11 @@ export const tests = [
   ['command: a desktop_readonly 403 locks with the desktop reason and tells the bus', async () => { const { clock, calls, cmd, fail, d } = setup(), seen = [];
     cmd.on('readonly', e => seen.push(e)); cmd.send({ entity: SW.id, command: 'turn_on', args: {} }); calls[0].no(fail(403, { code: 'desktop_readonly' })); await clock.advance(0);
     assert.equal(d(SW.id).readonlyReason, 'virtual_desktop.readonly'); assert.equal(seen.length, 1); assert.equal(seen[0].desktop, true); assert.equal(seen[0].reason, 'virtual_desktop.readonly'); }],
+  ['command: a lock reason never outranks the desktop read-only reason (D5)', async () => { const { clock, calls, cmd, fail, views, d } = setup();
+    cmd.send({ entity: SW.id, command: 'turn_on', args: {} }); calls[0].no(fail(403, { status: 'error', code: 'read_only', blocked_by: 'home_assistant.allowed_services' })); await clock.advance(0);
+    assert.equal(d(SW.id).readonlyReason, 'home_assistant.allowed_services');
+    views.set(SW.id, Object.assign({}, SW, { readonly: true, readonlyReason: 'virtual_desktop.readonly' }));
+    assert.equal(d(SW.id).readonly, true); assert.equal(d(SW.id).readonlyReason, 'virtual_desktop.readonly'); }],
   ['command: keys move the overlay at once and send one command 400 ms after the last key', async () => { const { clock, calls, cmd, d } = setup();
     for (const v of [41, 42, 43]) { cmd.send({ entity: LIGHT.id, command: 'brightness', args: { value: v }, phase: 'key' }); await clock.advance(100); }
     assert.equal(d(LIGHT.id).attributes.brightness_pct, 43); assert.equal(calls.length, 0); await clock.advance(300); assert.equal(calls.length, 1); eq(calls[0].body.args, { value: 43 }); }],

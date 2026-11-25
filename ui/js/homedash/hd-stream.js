@@ -1,7 +1,7 @@
 // HomeDash stream client (F1; contract "Stream protocol"). One SSE connection per JS realm (shared(), keyed by the API base path), used by
 // every HomeDash window. Owners attach with the entity ids they show and an active flag (the host's visibility signal). The union of the
 // active owners' ids, cut to hello.limits.entities, goes out with PUT stream/subscriptions 250 ms after the last change (the first ids after an empty subscription go out at once) and right after
-// every hello (a new stream starts empty). Silence for max(45 s, 3 x heartbeat_ms) or an EventSource error closes the source (never the browser's
+// every hello (a new stream starts empty). acked() lists the ids the server last acknowledged; the store keeps the data of an id until the server no longer has it. Silence for max(45 s, 3 x heartbeat_ms) or an EventSource error closes the source (never the browser's
 // own retry: the stream id changes) and reconnects after 1, 2, 4, 8, 16, 30 s with +-20 % jitter. A connection that fails before hello waits
 // at least 5 s (429 too_many_streams cannot be told apart from other refusals) and asks diagnose(). The backoff resets after a stream lived
 // 60 s. revoked shutdown reconnects; disabled and auth_lost stop until resume(). No active owner for 10 s closes the stream. Timers, clock,
@@ -24,7 +24,7 @@
         const now = o.now || (() => Date.now()), random = o.random || Math.random, bus = E.core.emitter(), owners = new Map();
         let source = null, streamId = '', phase = 'idle', reason = '', phaseAt = now(), generation = 0, failures = 0, helloSeen = false, helloAt = 0;
         let watchMs = WATCH_MIN_MS, limit = DEFAULT_LIMIT, retryTimer = 0, putTimer = 0, watchTimer = 0, idleTimer = 0, nextRetryAt = 0;
-        let wantIds = [], wantSig = '', sentSig = '', ackedCount = 0, sending = false, dirty = false, putRetries = 0, stopped = false, disposed = false;
+        let wantIds = [], wantSig = '', sentSig = '', ackedCount = 0, ackedIds = [], sending = false, dirty = false, putRetries = 0, stopped = false, disposed = false;
 
         const status = () => Object.freeze({ phase, reason, streamId, attempt: failures, nextRetryAt, since: phaseAt });
         function setPhase(next, why) { const r = why || ''; if (phase === next && reason === r) return; phase = next; reason = r; phaseAt = now(); bus.emit('connection', status()); }
@@ -53,7 +53,7 @@
             try {
                 const answer = await api.putSubscriptions(streamId, list);
                 if (mine !== generation) return;
-                sentSig = sig; ackedCount = list.length; putRetries = 0;
+                sentSig = sig; ackedCount = list.length; ackedIds = list; putRetries = 0;
                 bus.emit('subscribed', { accepted: Array.isArray(answer && answer.accepted) ? answer.accepted : [], rejected: Array.isArray(answer && answer.rejected) ? answer.rejected : [] });
             } catch (err) {
                 if (mine !== generation) return;
@@ -71,7 +71,7 @@
             generation += 1;
             if (source) { const old = source; source = null; try { old.close(); } catch (err) { /* already closed */ } }
             clearT(putTimer); clearT(watchTimer); clearT(retryTimer); putTimer = watchTimer = retryTimer = 0;
-            streamId = ''; sentSig = ''; ackedCount = 0; sending = false; dirty = false; helloSeen = false; nextRetryAt = 0;
+            streamId = ''; sentSig = ''; ackedCount = 0; ackedIds = []; sending = false; dirty = false; helloSeen = false; nextRetryAt = 0;
         }
         function connect() {
             if (source || stopped || disposed) return;
@@ -79,7 +79,7 @@
             generation += 1; const mine = generation;
             let next;
             try { next = api.openStream(); } catch (err) { failure('open'); return; }
-            source = next; streamId = ''; sentSig = ''; ackedCount = 0; helloSeen = false;
+            source = next; streamId = ''; sentSig = ''; ackedCount = 0; ackedIds = []; helloSeen = false;
             const live = () => source === next && mine === generation;
             const on = (type, fn) => next.addEventListener(type, event => { if (!live()) return; armWatchdog(); const data = parse(event && event.data); if (data) fn(data); });
             on('hello', hello);
@@ -95,7 +95,7 @@
             if (!id) { failure('protocol'); return; }
             const hb = Number(data.heartbeat_ms), lim = Number(data.limits && data.limits.entities);
             streamId = id; watchMs = Math.max(WATCH_MIN_MS, WATCH_FACTOR * (hb > 0 ? hb : 0)); limit = Number.isInteger(lim) && lim > 0 ? lim : DEFAULT_LIMIT;
-            helloSeen = true; helloAt = now(); sentSig = ''; ackedCount = 0; sending = false; dirty = false; putRetries = 0;
+            helloSeen = true; helloAt = now(); sentSig = ''; ackedCount = 0; ackedIds = []; sending = false; dirty = false; putRetries = 0;
             armWatchdog();
             wantIds = union(); wantSig = signature(wantIds);
             setPhase('live');
@@ -131,7 +131,7 @@
                 detach() { if (owners.delete(key)) refreshWant(); }
             });
         }
-        return Object.freeze({ attach, status, resume, retryNow, dispose, on: bus.on, off: bus.off, wanted: () => wantIds.slice(), limit: () => limit });
+        return Object.freeze({ attach, status, resume, retryNow, dispose, on: bus.on, off: bus.off, wanted: () => wantIds.slice(), acked: () => ackedIds.slice(), limit: () => limit });
     }
     const instances = new Map();
     function shared(options) {
