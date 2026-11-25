@@ -17,3 +17,13 @@ export function loadEngine(files, { dom = false } = {}) {
   return { E: window.HomeDashEngine, window, document: context.document };
 }
 export function noStyleAttr(el) { for (const n of allElements(el)) assert.equal(n.getAttribute('style'), null, `style attribute on ${n.localName}`); }
+export const APP_ORDER = ENGINE_ORDER.concat(['hd-tone.js', 'hd-api.js', 'hd-stream.js', 'hd-store.js', 'hd-catalog.js', 'hd-render.js', 'hd-sheet.js', 'hd-view.js', 'hd-app.js']);
+// Like loadEngine, but for any repository-relative files (desktop host scripts after the engine).
+export function loadFiles(relPaths, { dom = false } = {}) {
+  const window = {};
+  const context = { window, console, setTimeout, clearTimeout, AbortController, Intl, Map, Set, JSON, Math, Date, URL };
+  if (dom) { context.document = createDocument(); window.document = context.document; }
+  vm.createContext(context);
+  for (const f of relPaths) vm.runInContext(read(f), context, { filename: f });
+  return { E: window.HomeDashEngine, window, document: context.document };
+}
