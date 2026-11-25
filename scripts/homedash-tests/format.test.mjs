@@ -12,7 +12,9 @@ export const tests = [
     assert.equal(f.valueText(4000, { decimals: 0, grouping: false, unit: 'K' }), '4000' + NBSP + 'K'); assert.equal(f.percent(0.5, { lang: 'en' }), '50%');
     const now = 1_800_000_000_000; assert.equal(f.relTime(now - 120000, now, 'en'), '2 minutes ago'); assert.equal(f.relTime(now, now, 'en'), 'now');
     const u = (unit, n) => new Intl.NumberFormat('en', { style: 'unit', unit, unitDisplay: 'narrow' }).format(n);
-    assert.equal(f.duration(3725, 'en'), u('hour', 1) + ' ' + u('minute', 2)); assert.equal(f.duration(0, 'en'), u('second', 0)); }],
+    assert.equal(f.duration(3725, 'en'), u('hour', 1) + ' ' + u('minute', 2)); assert.equal(f.duration(0, 'en'), u('second', 0));
+    assert.equal(f.duration(7215, 'en'), u('hour', 2)); assert.equal(f.duration(90061, 'en'), u('day', 1) + ' ' + u('hour', 1));
+    assert.equal(f.duration(59, 'en'), u('second', 59)); assert.equal(f.duration(3600, 'en'), u('hour', 1)); assert.equal(f.duration(86400 + 120, 'en'), u('day', 1)); }],
   ['isOn, stateWord, stateText', () => { const f = F();
     assert.equal(f.isOn({ value: 'on' }), true); assert.equal(f.isOn({ value: 'closed' }), false); assert.equal(f.isOn({ value: 21 }), null);
     const w = v => f.stateWord(v);

@@ -18,6 +18,8 @@
         if (e.stale) { const old = E.widgets.heroStatus.staleText(api, e); if (old) return old; }
         return hero || null;
     }
+    // SCR-M2-3: a widget's options.decimals (integer 0-3) sets the readout precision of gauges and sensors; anything else keeps the default (0).
+    const decimalsOf = (api, dflt) => { const d = api.widget.options && api.widget.options.decimals; return Number.isInteger(d) && d >= 0 && d <= 3 ? d : dflt; };
     const flip = node => setAttr(node, 'data-hd-tick', node.getAttribute('data-hd-tick') === 'a' ? 'b' : 'a');
     const valid = pts => (Array.isArray(pts) ? pts.filter(p => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1])) : []);
     function extent(points) {
@@ -47,10 +49,10 @@
         const substitute = kind === 'arc' && tact;
         const min = substitute ? 0 : Number.isFinite(o.min) ? o.min : 0, max = substitute ? 100 : Number.isFinite(o.max) ? o.max : 100;
         const zones = substitute ? [{ from: 80, to: 92, tone: 'warn' }, { from: 92, to: 100, tone: 'crit' }] : zonesOf(api), unit = substitute ? '%' : o.unit;
-        const readout = inst ? 'seg7' : 'numeral', label = api.widget.title, lang = api.lang;
+        const readout = inst ? 'seg7' : 'numeral', label = api.widget.title, lang = api.lang, dec = decimalsOf(api, 0);
         const prim = kind === 'needle' || substitute
-            ? api.prim.needleGauge({ label, min, max, unit, decimals: 0, zones, majors: 10, minors: 50, numerals: 6, crop: tact ? 200 : 168, face: tact, needleFx: tact || inst, readout, lang })
-            : api.prim.arcGauge({ label, min, max, unit, decimals: 0, zones, quantize: inst ? 40 : 0, crop: 172, glow: glass || inst, gaps: inst ? 40 : 0, lead: inst, zoneOverlay: true, readout, lang });
+            ? api.prim.needleGauge({ label, min, max, unit, decimals: dec, zones, majors: 10, minors: 50, numerals: 6, crop: tact ? 200 : 168, face: tact, needleFx: tact || inst, readout, lang })
+            : api.prim.arcGauge({ label, min, max, unit, decimals: dec, zones, quantize: inst ? 40 : 0, crop: 172, glow: glass || inst, gaps: inst ? 40 : 0, lead: inst, zoneOverlay: true, readout, lang });
         api.body.appendChild(prim.el);
         setAttr(api.body, 'data-hd-nodata', api.t('homedash.state.no_data'));
         const zoneTone = v => { if (v === null) return null; const z = zones.find(x => v >= x.from && v <= x.to); return z ? z.tone : null; };
@@ -86,7 +88,7 @@
 
     // ---- H7 temperature/numeral and sensor/numeral ----
     function tread(api, isTemperature) {
-        const cfg = isTemperature ? { chars: 4, decimals: 1, degree: true, trend: true } : { chars: 5, decimals: 0, degree: false, trend: false };
+        const cfg = isTemperature ? { chars: 4, decimals: 1, degree: true, trend: true } : { chars: 5, decimals: decimalsOf(api, 0), degree: false, trend: false };
         const { prim, inst } = readoutOf(api, cfg);
         // The visible numeral is aria-hidden and the sr-only span speaks value, unit and trend; the seven-segment readout is role=img with its own label.
         const sr = inst ? null : el('span', { class: 'hd-sr-only' });
@@ -113,7 +115,7 @@
     // ---- H8 sensor/sparkline ----
     function sparkline(api) {
         const inst = api.family === 'instrument', tact = api.family === 'tactile', glass = api.family === 'glass';
-        const cfg = { chars: 5, decimals: 0, degree: false, trend: false }, { prim } = readoutOf(api, cfg);
+        const cfg = { chars: 5, decimals: decimalsOf(api, 0), degree: false, trend: false }, { prim } = readoutOf(api, cfg);
         const spark = api.prim.sparkline({ label: api.widget.title, area: true, fade: glass, grid: tact || inst ? [4, 3] : null, halo: true });
         // Same rule as H7: aria-hidden numeral plus an sr-only reading, none for the seven-segment readout.
         const sr = inst ? null : el('span', { class: 'hd-sr-only' });
@@ -140,8 +142,8 @@
         function sparkState() {
             const e = lastView && lastView.entities.primary, pts = hostWord(e) ? [] : hist.map(p => p[1]), ext = extent(hist), s = { points: pts };
             if (dims) { s.w = dims.w; s.h = dims.h; }
-            const now = e ? numberOf(e.value) : null, unit = e && e.unit ? e.unit : '';
-            if (ext && pts.length) s.summary = api.t('homedash.sensor.summary', { min: F.valueText(ext.min, { lang: api.lang, unit }), max: F.valueText(ext.max, { lang: api.lang, unit }), now: F.valueText(now, { lang: api.lang, unit }) });
+            const now = e ? numberOf(e.value) : null, unit = e && e.unit ? e.unit : '', sd = decimalsOf(api, undefined);
+            if (ext && pts.length) s.summary = api.t('homedash.sensor.summary', { min: F.valueText(ext.min, { decimals: sd, lang: api.lang, unit }), max: F.valueText(ext.max, { decimals: sd, lang: api.lang, unit }), now: F.valueText(now, { decimals: sd, lang: api.lang, unit }) });
             return s;
         }
         function render() {

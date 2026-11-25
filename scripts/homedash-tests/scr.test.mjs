@@ -15,6 +15,12 @@ export const tests = [
     ref.current = view(12.5, { unit: '%', device_class: '', icon_hint: 'nope' }); inst.update();
     assert.equal(parent.querySelector('.hd-num-int').textContent + parent.querySelector('.hd-num-frac').textContent, '12.5');
     assert.equal(parent.querySelector('.hd-num-unit').textContent, '%'); assert.ok(parent.querySelector('.hd-iconbadge [data-hd-icon="entity"]')); }],
+  ['SCR-M2-3: sensor readouts honour options.decimals (integer 0-3), default 0', () => {
+    const mk = options => { const ref = { current: view(3.4, { id: 'system:net_rx', unit: 'Mbit/s', device_class: 'data_rate' }) };
+      return hostWidget({ id: 'net', type: 'sensor', variant: 'sparkline', bindings: { primary: 'system:net_rx' }, options }, ref).parent; };
+    const text = p => p.querySelector('.hd-num-int').textContent + p.querySelector('.hd-num-frac').textContent;
+    assert.equal(text(mk({ decimals: 1 })), '3.4'); assert.equal(mk({ decimals: 1 }).querySelector('.hd-num-int').textContent, '3'); assert.equal(mk({ decimals: 1 }).querySelector('.hd-num-frac').textContent, '.4');
+    assert.equal(text(mk(undefined)), '3'); assert.equal(text(mk({ decimals: 7 })), '3'); assert.equal(text(mk({ decimals: 1.5 })), '3'); }],
   ['SCR-M2-2: the sparkline extends with fresh live values after its history arrived', async () => {
     const T = Date.parse('2026-11-25T10:00:00Z'), hist = { points: [[T - 120000, 10], [T - 60000, 12], [T, 11]], source: 'source' };
     const ref = { current: view(11, { id: 'system:net_rx', unit: 'Mbit/s', device_class: 'data_rate' }) };

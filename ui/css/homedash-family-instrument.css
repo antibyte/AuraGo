@@ -206,6 +206,9 @@
 .hd-widget[data-hd-family="instrument"] .hd-spark-line { fill: none; stroke: var(--hd-i-val); stroke-width: var(--hd-stroke-1); stroke-linejoin: round; stroke-linecap: round; }
 .hd-widget[data-hd-family="instrument"] .hd-spark-halo { display: inline; fill: color-mix(in srgb, var(--hd-i-val) 35%, transparent); }
 .hd-widget[data-hd-family="instrument"] .hd-spark-last { fill: var(--hd-i-val); }
+/* Entity tile: numeral and glyph glow in the HUD readout colour; --hd-i-val already falls back to the muted ink when stale. */
+.hd-widget[data-hd-family="instrument"][data-hd-type="entity"] .hd-tile > .hd-numeral { font-family: var(--hd-font-num); color: var(--hd-i-val); }
+.hd-widget[data-hd-family="instrument"][data-hd-type="entity"] .hd-tile > .hd-iconbadge { color: var(--hd-i-val); }
 
 @media (prefers-reduced-motion: no-preference) {
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"] :is(.hd-gauge-needle, .hd-gauge-needle-shadow) { transition: transform var(--hd-dur-needle-f) var(--hd-ease-needle); }

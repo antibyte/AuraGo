@@ -33,13 +33,16 @@
     }
     function duration(seconds, lang) {
         if (!isNum(seconds) || seconds < 0) return DASH;
-        let rest = Math.floor(seconds); const parts = [];
-        for (const [unit, size] of [['day', 86400], ['hour', 3600], ['minute', 60], ['second', 1]]) {
-            const n = Math.floor(rest / size); rest -= n * size;
-            if (n > 0 || (unit === 'second' && !parts.length)) parts.push(new Intl.NumberFormat(lang || 'en', { style: 'unit', unit, unitDisplay: 'narrow' }).format(n));
-            if (parts.length === 2) break;
+        // Largest non-zero unit plus only the next smaller unit (omitted when zero), so 7215 s reads "2h", never "2h 15s".
+        const units = [['day', 86400], ['hour', 3600], ['minute', 60], ['second', 1]], fmt = (unit, n) => new Intl.NumberFormat(lang || 'en', { style: 'unit', unit, unitDisplay: 'narrow' }).format(n);
+        let rest = Math.floor(seconds);
+        for (let i = 0; i < units.length; i++) {
+            const n = Math.floor(rest / units[i][1]); if (n === 0) continue;
+            rest -= n * units[i][1];
+            const next = units[i + 1], m = next ? Math.floor(rest / next[1]) : 0;
+            return m > 0 ? fmt(units[i][0], n) + ' ' + fmt(next[0], m) : fmt(units[i][0], n);
         }
-        return parts.join(' ');
+        return fmt('second', 0);
     }
     function isOn(view) {
         if (!view) return null; const v = view.value;
