@@ -232,6 +232,34 @@
         sendAgentMessage(prompts[action] || prompts.explain, action);
     }
 
+    // Plan C keeps the active workspace id in state.workspaceId ('local' or a saved SSH workspace id).
+    function agentWorkspaceId() {
+        const id = state && state.workspaceId;
+        return typeof id === 'string' && id ? id : 'local';
+    }
+
+    // code_studio_file_changed {workspace_id, path} follows code_studio_workspace writes (path '' after run_command).
+    // Clean tabs of that workspace re-read the file (dirty tabs keep the user's text), the ready language servers
+    // hear about it, and the open folder in the Explorer refreshes when the file sits in it.
+    function watchAgentFileChanges() {
+        const instance = state;
+        const sse = window.AuraSSE;
+        if (!sse || typeof sse.on !== 'function') return;
+        const onEvent = bindInstance(instance, rawEvent => {
+            const event = rawEvent && rawEvent.type === 'virtual_desktop_event' && rawEvent.payload ? rawEvent.payload : rawEvent;
+            if (!event || event.type !== 'code_studio_file_changed') return;
+            const payload = event.payload || {};
+            if (String(payload.workspace_id || '') !== agentWorkspaceId()) return;
+            const changed = typeof payload.path === 'string' && payload.path ? normalizeCodeStudioPath(payload.path) : '';
+            const tabs = state.openTabs.filter(tab => !isVirtualTab(tab) && (!changed || tab.path === changed));
+            tabs.forEach(tab => { reloadCleanTabFromDisk(instance, tab); });
+            lspNotifyFilesChanged(changed ? [{ path: changed, type: 2 }] : tabs.map(tab => ({ path: tab.path, type: 2 })));
+            if (!changed || parentPath(changed) === state.currentPath) refreshFiles(state.currentPath);
+        });
+        sse.on('virtual_desktop_event', onEvent);
+        registerDisposer(() => { if (typeof sse.off === 'function') sse.off('virtual_desktop_event', onEvent); });
+    }
+
     function codeStudioAgentContext() {
         const tab = activeTab();
         const cursor = codeStudioCursor();
@@ -239,6 +267,7 @@
         const content = tab ? editorValue(tab) : '';
         return {
             source: 'code-studio',
+            workspace_id: agentWorkspaceId(),
             current_file: tab && !isVirtualTab(tab) ? tab.path : '',
             current_language: tab ? tab.language : '',
             current_content: selection.text ? '' : content,

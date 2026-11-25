@@ -564,6 +564,7 @@
         });
         latestWindowId = windowId;
         runWithInstance(instance, watchStudioPolicy);
+        runWithInstance(instance, watchAgentFileChanges);
         runWithInstance(instance, () => {
             loadState();
             container.innerHTML = shellMarkup();
