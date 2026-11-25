@@ -132,7 +132,7 @@ func (h *hdRequest) stream() {
 		homeDashWriteError(h.w, http.StatusInternalServerError, homeDashCodeInternal, "streaming is not supported", nil)
 		return
 	}
-	sub, err := h.svc.hub.Attach(homeDashPrincipal(h.r))
+	sub, err := h.svc.hub.Attach(homeDashPrincipal(h.cfg, h.r))
 	if err != nil {
 		h.fail(err)
 		return
@@ -210,7 +210,7 @@ func (h *hdRequest) subscriptions() {
 	if !h.decode(&req, homeDashSubscriptionBody) {
 		return
 	}
-	sub, ok := h.svc.hub.Subscriber(req.StreamID, homeDashPrincipal(h.r))
+	sub, ok := h.svc.hub.Subscriber(req.StreamID, homeDashPrincipal(h.cfg, h.r))
 	if !ok {
 		homeDashWriteError(h.w, http.StatusNotFound, homedash.CodeStreamNotFound, "there is no open stream with this id", nil)
 		return

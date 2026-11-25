@@ -49,7 +49,7 @@ func (h *hdRequest) command() {
 	ctx := context.WithValue(h.r.Context(), homeDashAuditKey{}, desktopAuditRequestInfo(h.s, h.r))
 	res, err := h.svc.hub.Command(ctx, homedash.Command{
 		Entity: homedash.EntityID(req.Entity), Name: homedash.Capability(req.Command), Args: req.Args,
-		Principal: homeDashPrincipal(h.r), RequestID: req.RequestID, Confirmed: req.Confirmed,
+		Principal: homeDashPrincipal(h.cfg, h.r), RequestID: req.RequestID, Confirmed: req.Confirmed,
 		DashboardID: req.DashboardID, WidgetID: req.WidgetID,
 	})
 	if err != nil {

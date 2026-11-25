@@ -287,13 +287,14 @@ func (h *hdRequest) intParam(name string, def, lo, hi int) (int, bool) {
 }
 
 // homeDashPrincipal identifies the caller for rate limits, dedupe and stream ownership: a token
-// digest, the session nonce digest (stable across session renewal), or the local desktop when login
-// is off. The GET stream and its PUT subscriptions resolve to the same key in one browser.
-func homeDashPrincipal(r *http.Request) homedash.Principal {
+// digest, the session nonce digest (stable across session renewal; only when login is enabled, so
+// an unvalidated cookie never mints a principal), or the local desktop when login is off. The GET
+// stream and its PUT subscriptions resolve to the same key in one browser.
+func homeDashPrincipal(cfg *config.Config, r *http.Request) homedash.Principal {
 	key := "local-desktop"
 	if token, bearer := bearerCredential(r.Header.Get("Authorization")); bearer && token != "" {
 		key = "t:" + homeDashDigest(token)
-	} else if c, err := r.Cookie(sessionCookieName); err == nil && c.Value != "" {
+	} else if c, err := r.Cookie(sessionCookieName); err == nil && c.Value != "" && cfg != nil && cfg.Auth.Enabled {
 		key = "s:" + homeDashDigest(sessionNonce(c.Value))
 	}
 	return homedash.Principal{Kind: homedash.PrincipalSession, Key: key}

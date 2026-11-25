@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"aurago/internal/config"
@@ -115,4 +116,25 @@ func httptestRequestWithHeader(t *testing.T, env *homeDashTestEnv, path, key, va
 	w := httptest.NewRecorder()
 	handleHomeDash(env.s).ServeHTTP(w, r)
 	return w
+}
+
+func TestHomeDashPrincipalIgnoresUnvalidatedCookieWhenLoginIsOff(t *testing.T) {
+	req := func(cookie string) *http.Request {
+		r := httptest.NewRequest(http.MethodGet, "/api/homedash/bootstrap", nil)
+		r.AddCookie(&http.Cookie{Name: sessionCookieName, Value: cookie})
+		return r
+	}
+	off := &config.Config{}
+	a, b := homeDashPrincipal(off, req("random-one")), homeDashPrincipal(off, req("random-two"))
+	if a.Key != "local-desktop" || b.Key != "local-desktop" {
+		t.Errorf("auth off: keys %q %q, want local-desktop", a.Key, b.Key)
+	}
+	on := &config.Config{}
+	on.Auth.Enabled = true
+	if k := homeDashPrincipal(on, req("random-one")).Key; !strings.HasPrefix(k, "s:") {
+		t.Errorf("auth on: key %q, want s: prefix", k)
+	}
+	if k := homeDashPrincipal(nil, req("random-one")).Key; k != "local-desktop" {
+		t.Errorf("nil config: key %q", k)
+	}
 }

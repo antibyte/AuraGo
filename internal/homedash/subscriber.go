@@ -133,10 +133,12 @@ func (s *Subscriber) Set(ids []EntityID) ([]EntityID, []Rejection, error) {
 	var accepted []EntityID
 	var rejected []Rejection
 	want := map[EntityID]struct{}{}
+	seen := map[EntityID]struct{}{}
 	for _, id := range ids {
-		if _, dup := want[id]; dup {
+		if _, dup := seen[id]; dup {
 			continue
 		}
+		seen[id] = struct{}{}
 		src, _, err := ParseEntityID(string(id))
 		rt := h.rts[src]
 		reason := ""
@@ -176,6 +178,8 @@ func (s *Subscriber) Set(ids []EntityID) ([]EntityID, []Rejection, error) {
 		s.forget(id)
 	}
 	now := h.opts.Now()
+	var addedViews []Entity
+	var addedSources []SourceStatus
 	for _, id := range accepted {
 		if _, had := s.set[id]; had {
 			continue
@@ -194,12 +198,13 @@ func (s *Subscriber) Set(ids []EntityID) ([]EntityID, []Rejection, error) {
 		if st, ok := h.states[id]; ok {
 			e.State = st
 		}
-		s.pushSnapshot(h.viewLocked(e))
-		s.pushSource(rt.status)
+		addedViews = append(addedViews, h.viewLocked(e))
+		addedSources = append(addedSources, rt.status)
 		if h.rec != nil {
 			h.rec.touch(id, now)
 		}
 	}
+	s.pushSnapshotBatch(addedViews, addedSources)
 	var notes []*interestNote
 	for _, rt := range touched {
 		notes = append(notes, h.reconcileLocked(rt))
@@ -279,6 +284,28 @@ func (s *Subscriber) pushSnapshot(e Entity) {
 		delete(s.ents, e.ID)
 		delete(s.states, e.ID)
 		delete(s.removed, e.ID)
+	}
+	s.mu.Unlock()
+	s.signal()
+}
+
+// pushSnapshotBatch publishes the views and source statuses of one Set in a single critical
+// section, so a concurrent Drain never splits them across batches.
+func (s *Subscriber) pushSnapshotBatch(entities []Entity, sources []SourceStatus) {
+	if len(entities) == 0 && len(sources) == 0 {
+		return
+	}
+	s.mu.Lock()
+	if s.closed == "" {
+		for _, e := range entities {
+			s.snap[e.ID] = e
+			delete(s.ents, e.ID)
+			delete(s.states, e.ID)
+			delete(s.removed, e.ID)
+		}
+		for _, st := range sources {
+			s.sources[st.Source] = st
+		}
 	}
 	s.mu.Unlock()
 	s.signal()
