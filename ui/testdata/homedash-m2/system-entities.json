@@ -1,0 +1,149 @@
+[
+  {
+    "id": "system:cpu",
+    "source": "system",
+    "kind": "sensor",
+    "name": "CPU",
+    "unit": "%",
+    "icon_hint": "cpu",
+    "capabilities": [
+      {
+        "name": "numeric",
+        "allowed": true
+      },
+      {
+        "name": "history",
+        "allowed": true
+      }
+    ],
+    "readonly": true,
+    "state": {
+      "value": 23.5,
+      "available": true,
+      "updated_at": "2026-11-25T10:00:00Z"
+    }
+  },
+  {
+    "id": "system:memory",
+    "source": "system",
+    "kind": "sensor",
+    "name": "Memory",
+    "unit": "%",
+    "icon_hint": "memory",
+    "capabilities": [
+      {
+        "name": "numeric",
+        "allowed": true
+      },
+      {
+        "name": "history",
+        "allowed": true
+      }
+    ],
+    "readonly": true,
+    "state": {
+      "value": 50,
+      "available": true,
+      "updated_at": "2026-11-25T10:00:00Z"
+    }
+  },
+  {
+    "id": "system:disk",
+    "source": "system",
+    "kind": "sensor",
+    "name": "Disk",
+    "unit": "%",
+    "icon_hint": "disk",
+    "capabilities": [
+      {
+        "name": "numeric",
+        "allowed": true
+      },
+      {
+        "name": "history",
+        "allowed": true
+      }
+    ],
+    "readonly": true,
+    "state": {
+      "value": 61,
+      "available": true,
+      "updated_at": "2026-11-25T10:00:00Z"
+    }
+  },
+  {
+    "id": "system:net_rx",
+    "source": "system",
+    "kind": "sensor",
+    "name": "Network receive",
+    "unit": "Mbit/s",
+    "icon_hint": "download",
+    "device_class": "data_rate",
+    "capabilities": [
+      {
+        "name": "numeric",
+        "allowed": true
+      },
+      {
+        "name": "history",
+        "allowed": true
+      }
+    ],
+    "readonly": true,
+    "state": {
+      "value": 12.4,
+      "available": true,
+      "updated_at": "2026-11-25T10:00:00Z"
+    }
+  },
+  {
+    "id": "system:net_tx",
+    "source": "system",
+    "kind": "sensor",
+    "name": "Network send",
+    "unit": "Mbit/s",
+    "icon_hint": "upload",
+    "device_class": "data_rate",
+    "capabilities": [
+      {
+        "name": "numeric",
+        "allowed": true
+      },
+      {
+        "name": "history",
+        "allowed": true
+      }
+    ],
+    "readonly": true,
+    "state": {
+      "value": 3.2,
+      "available": true,
+      "updated_at": "2026-11-25T10:00:00Z"
+    }
+  },
+  {
+    "id": "system:uptime",
+    "source": "system",
+    "kind": "sensor",
+    "name": "Uptime",
+    "unit": "s",
+    "icon_hint": "clock",
+    "device_class": "duration",
+    "capabilities": [
+      {
+        "name": "numeric",
+        "allowed": true
+      },
+      {
+        "name": "history",
+        "allowed": true
+      }
+    ],
+    "readonly": true,
+    "state": {
+      "value": 7215,
+      "available": true,
+      "updated_at": "2026-11-25T10:00:00Z"
+    }
+  }
+]

@@ -1,0 +1,221 @@
+{
+  "schema_version": 1,
+  "id": "d_m3x7q2k5a4bc",
+  "slug": "system",
+  "name": "System",
+  "revision": 1,
+  "approved_revision": 1,
+  "updated_at": "2026-11-25T10:00:00.123456789Z",
+  "saved_by": "user",
+  "look": {
+    "family": "glass",
+    "palette": {
+      "mode": "theme"
+    },
+    "backdrop": {
+      "kind": "theme"
+    },
+    "density": "comfortable",
+    "radius_scale": 1
+  },
+  "grid": {
+    "row_unit": "auto",
+    "gap": null,
+    "fit": "scroll"
+  },
+  "pages": [
+    {
+      "id": "main",
+      "name": "Main",
+      "compact": true,
+      "widgets": [
+        {
+          "id": "cpu",
+          "type": "gauge",
+          "variant": "arc",
+          "bindings": {
+            "primary": "system:cpu"
+          },
+          "options": {
+            "alert": 95,
+            "decimals": 0,
+            "max": 100,
+            "min": 0,
+            "warn": 80
+          },
+          "actions": {
+            "tap": {
+              "do": "default"
+            },
+            "hold": {
+              "do": "more_info"
+            }
+          },
+          "confirm": false
+        },
+        {
+          "id": "memory",
+          "type": "gauge",
+          "variant": "needle",
+          "bindings": {
+            "primary": "system:memory"
+          },
+          "options": {
+            "alert": 95,
+            "decimals": 0,
+            "max": 100,
+            "min": 0,
+            "warn": 85
+          },
+          "actions": {
+            "tap": {
+              "do": "default"
+            },
+            "hold": {
+              "do": "more_info"
+            }
+          },
+          "confirm": false
+        },
+        {
+          "id": "disk",
+          "type": "gauge",
+          "variant": "arc",
+          "bindings": {
+            "primary": "system:disk"
+          },
+          "options": {
+            "alert": 95,
+            "decimals": 0,
+            "max": 100,
+            "min": 0,
+            "warn": 85
+          },
+          "actions": {
+            "tap": {
+              "do": "default"
+            },
+            "hold": {
+              "do": "more_info"
+            }
+          },
+          "confirm": false
+        },
+        {
+          "id": "net-rx",
+          "type": "sensor",
+          "variant": "sparkline",
+          "bindings": {
+            "primary": "system:net_rx"
+          },
+          "options": {
+            "decimals": 1,
+            "hours": 1
+          },
+          "actions": {
+            "tap": {
+              "do": "default"
+            },
+            "hold": {
+              "do": "more_info"
+            }
+          },
+          "confirm": false
+        },
+        {
+          "id": "net-tx",
+          "type": "sensor",
+          "variant": "sparkline",
+          "bindings": {
+            "primary": "system:net_tx"
+          },
+          "options": {
+            "decimals": 1,
+            "hours": 1
+          },
+          "actions": {
+            "tap": {
+              "do": "default"
+            },
+            "hold": {
+              "do": "more_info"
+            }
+          },
+          "confirm": false
+        },
+        {
+          "id": "uptime",
+          "type": "entity",
+          "variant": "tile",
+          "bindings": {
+            "primary": "system:uptime"
+          },
+          "options": {},
+          "actions": {
+            "tap": {
+              "do": "default"
+            },
+            "hold": {
+              "do": "more_info"
+            }
+          },
+          "confirm": false
+        }
+      ],
+      "layouts": {
+        "lg": [
+          {
+            "id": "cpu",
+            "x": 0,
+            "y": 0,
+            "w": 4,
+            "h": 4
+          },
+          {
+            "id": "memory",
+            "x": 4,
+            "y": 0,
+            "w": 4,
+            "h": 4
+          },
+          {
+            "id": "disk",
+            "x": 8,
+            "y": 0,
+            "w": 4,
+            "h": 4
+          },
+          {
+            "id": "net-rx",
+            "x": 0,
+            "y": 4,
+            "w": 5,
+            "h": 2
+          },
+          {
+            "id": "net-tx",
+            "x": 5,
+            "y": 4,
+            "w": 5,
+            "h": 2
+          },
+          {
+            "id": "uptime",
+            "x": 10,
+            "y": 4,
+            "w": 2,
+            "h": 2
+          }
+        ]
+      }
+    }
+  ],
+  "kiosk": {
+    "start_page": "main",
+    "idle_dim_seconds": 120,
+    "idle_dim_level": 0.3,
+    "page_rotation_seconds": 0,
+    "screen_saver": "clock",
+    "show_clock": true
+  }
+}
