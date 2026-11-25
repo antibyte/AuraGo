@@ -712,7 +712,7 @@
       "--hd-i-seg-h": "max(12px, calc(var(--hd-th-d) * 0.08))"
     },
     ".hd-widget[data-hd-family=\"instrument\"][data-hd-type=\"sensor\"] .hd-body > .hd-seg7": {
-      "--hd-i-seg-h": "15px"
+      "--hd-i-seg-h": "calc(22cqmin * 0.72)"
     },
     ".hd-root[data-hd-corners=\"square\"] .hd-widget[data-hd-family=\"instrument\"]": {
       "--hd-radius-card": "0px",

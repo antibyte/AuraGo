@@ -1525,10 +1525,158 @@
 /* H6: the digits are 0.66 em so the unit stays clear of the 2 px zone arc. */
 .hd-widget[data-hd-family="instrument"] .hd-gauge[data-hd-gauge="arc"] .hd-gauge-readout .hd-seg7 { --hd-i-seg-h: 0.66em; }
 /* H8 at 2 x 1: the readout is 15 px high, the cap height of the other families numeral, and the 11 px state text (the smallest the label scale allows) may end in an ellipsis; the 12 px column gap stays. */
-@container hd-widget (aspect-ratio >= 1.6) { .hd-widget[data-hd-family="instrument"][data-hd-type="sensor"] .hd-body > .hd-seg7 { --hd-i-seg-h: 15px; }
+@container hd-widget (aspect-ratio >= 1.6) { .hd-widget[data-hd-family="instrument"][data-hd-type="sensor"] .hd-body > .hd-seg7 { --hd-i-seg-h: calc(22cqmin * 0.72); }
   .hd-widget[data-hd-family="instrument"][data-hd-type="sensor"] .hd-state { font-size: 11px; } }
 /* Square-corner themes (Amiga, Cyberpunk, Voxel World): the card and the rectangular controls lose their radii. */
 .hd-root[data-hd-corners="square"] .hd-widget[data-hd-family="instrument"] { --hd-radius-card: 0px; --hd-radius-control: 0px; }
+
+/* ===== M3 (Task 21): paint of the W1 controls, the light sheet and the P1 states. Structure (sizes, positions, hit areas) lives in primitives.css, widgets.css and page.css; this part only paints.
+   Language: a lit key is a hairline box with the key wash and edge, a light bar on top (HUD tint plus glow) and its legend in --hd-i-val; an unlit key is a muted legend on a 30 % hairline. Sliders are a 20 segment
+   ladder (the fill is cut by 20 gaps in the panel colour) with a lead bar for the thumb; readouts are Share Tech Mono in --hd-i-val. One glow colour per widget: --hd-i-val (HUD, alert on error and crit).
+   Rules that are probed as text backdrops (gradients, filling pseudo-elements) stay under 20 % of --hd-i-val; the bright bars and brackets are masked or sit outside the text. ===== */
+/* Error: the control wears the alert colour as a whole (one glow colour); the head keeps the HUD. */
+.hd-widget[data-hd-family="instrument"][data-hd-status="error"] :is(.hd-lrow, .hd-lcol, .hd-nrow) > .hd-numeral, .hd-widget[data-hd-family="instrument"][data-hd-status="error"] .hd-step-value .hd-numeral, .hd-widget[data-hd-family="instrument"][data-hd-status="error"] .hd-ltile[data-hd-on="true"] > .hd-numeral, .hd-widget[data-hd-family="instrument"][data-hd-status="error"] .hd-pick, .hd-widget[data-hd-family="instrument"][data-hd-status="error"] .hd-stepper .hd-step, .hd-widget[data-hd-family="instrument"][data-hd-status="error"] .hd-ltile[data-hd-on="true"] > .hd-iconbadge, .hd-widget[data-hd-family="instrument"][data-hd-status="error"] .hd-push[data-hd-variant]:is([aria-checked="true"], [data-hd-on="true"]) { color: var(--hd-alert); }
+.hd-widget[data-hd-family="instrument"][data-hd-status="error"] :is(.hd-slider-fill) { background: var(--hd-alert); }
+.hd-widget[data-hd-family="instrument"][data-hd-status="error"] :is(.hd-slider-thumb, .hd-ct-thumb)::before, .hd-widget[data-hd-family="instrument"][data-hd-status="error"] .hd-push[data-hd-variant="chip"]::after, .hd-widget[data-hd-family="instrument"][data-hd-status="error"] .hd-push[data-hd-variant="tile"]::before, .hd-widget[data-hd-family="instrument"][data-hd-status="error"] .hd-ltile .hd-ltile-wash::after { background: var(--hd-alert); box-shadow: 0 0 0 1px var(--hd-i-mid), 0 0 10px color-mix(in srgb, var(--hd-alert) 55%, transparent); }
+.hd-widget[data-hd-family="instrument"][data-hd-status="error"] .hd-ltile .hd-ltile-wash { background: linear-gradient(0deg, color-mix(in srgb, var(--hd-alert) 20%, transparent), color-mix(in srgb, var(--hd-alert) 6%, transparent)); }
+.hd-widget[data-hd-family="instrument"] .hd-arm { border-radius: 0; background: var(--hd-i-val); box-shadow: var(--hd-glow); }
+
+/* Push chip (switch push, action button, light power chip): a key with a light bar on top. */
+.hd-widget[data-hd-family="instrument"]:is([data-hd-type="switch"], [data-hd-type="action"], [data-hd-type="light"]) .hd-push[data-hd-variant="chip"] { color: var(--hd-ink-muted); background: transparent; border: var(--hd-stroke-hair) solid color-mix(in srgb, var(--hd-i-hud) 30%, transparent); border-radius: var(--hd-radius-control); font-family: var(--hd-font-num); font-size: 13px; letter-spacing: 0.06em; }
+.hd-widget[data-hd-family="instrument"][data-hd-type="action"] .hd-push[data-hd-variant="chip"] { color: var(--hd-ink); border-color: var(--hd-i-key-edge); }
+.hd-widget[data-hd-family="instrument"][data-hd-type="action"] .hd-push[data-hd-variant="chip"] .hd-ico { color: var(--hd-i-val); }
+.hd-widget[data-hd-family="instrument"]:is([data-hd-type="switch"], [data-hd-type="light"]) .hd-push[data-hd-variant="chip"]:is([aria-checked="true"], [data-hd-on="true"]) { color: var(--hd-i-val); background: linear-gradient(var(--hd-i-key-wash), var(--hd-i-key-wash)), linear-gradient(var(--hd-i-key-wash), var(--hd-i-key-wash)); border-color: var(--hd-i-key-edge); }
+.hd-widget[data-hd-family="instrument"]:is([data-hd-type="switch"], [data-hd-type="action"], [data-hd-type="light"]) .hd-push[data-hd-variant="chip"]:active:not([aria-disabled="true"]) { color: var(--hd-i-val); background: linear-gradient(var(--hd-i-key-wash), var(--hd-i-key-wash)); border-color: var(--hd-i-key-edge); }
+.hd-widget[data-hd-family="instrument"]:is([data-hd-type="switch"], [data-hd-type="action"], [data-hd-type="light"]) .hd-push[data-hd-variant="chip"]::before,
+.hd-widget[data-hd-family="instrument"]:is([data-hd-type="switch"], [data-hd-type="action"], [data-hd-type="light"]) .hd-push[data-hd-variant="chip"]::after { content: ""; position: absolute; inset: 2px 6px auto; block-size: 3px; pointer-events: none; }
+.hd-widget[data-hd-family="instrument"] :is(.hd-lrow, .hd-lcol) > .hd-push[data-hd-variant="chip"]::before, .hd-widget[data-hd-family="instrument"] :is(.hd-lrow, .hd-lcol) > .hd-push[data-hd-variant="chip"]::after { inset: 2px 8px auto; }
+.hd-widget[data-hd-family="instrument"]:is([data-hd-type="switch"], [data-hd-type="action"], [data-hd-type="light"]) .hd-push[data-hd-variant="chip"]::before { background: color-mix(in srgb, var(--hd-i-hud) 12%, transparent); }
+.hd-widget[data-hd-family="instrument"]:is([data-hd-type="switch"], [data-hd-type="action"], [data-hd-type="light"]) .hd-push[data-hd-variant="chip"]::after { background: var(--hd-i-val); box-shadow: var(--hd-glow); opacity: 0; }
+.hd-widget[data-hd-family="instrument"]:is([data-hd-type="switch"], [data-hd-type="light"]) .hd-push[data-hd-variant="chip"]:is([aria-checked="true"], [data-hd-on="true"])::after, .hd-widget[data-hd-family="instrument"]:is([data-hd-type="switch"], [data-hd-type="action"], [data-hd-type="light"]) .hd-push[data-hd-variant="chip"]:active:not([aria-disabled="true"])::after { opacity: 1; }
+.hd-widget[data-hd-family="instrument"]:is([data-hd-type="switch"], [data-hd-type="light"]) .hd-push[data-hd-variant="chip"]:is([aria-checked="true"], [data-hd-on="true"]) .hd-ico { filter: drop-shadow(0 0 3px color-mix(in srgb, var(--hd-i-val) 60%, transparent)); }
+
+/* Switch tile: the whole body is the key. On: the wash, the edge, a bar on top, lit corner brackets (masked, so they are no text backdrop) and the glyph with a glow. */
+.hd-widget[data-hd-family="instrument"][data-hd-type="switch"] .hd-push[data-hd-variant="tile"] { color: var(--hd-ink-muted); background: transparent; border: var(--hd-stroke-hair) solid color-mix(in srgb, var(--hd-i-hud) 22%, transparent); border-radius: var(--hd-radius-control); }
+.hd-widget[data-hd-family="instrument"][data-hd-type="switch"] .hd-push[data-hd-variant="tile"][aria-checked="true"] { color: var(--hd-i-val); background: linear-gradient(var(--hd-i-key-wash), var(--hd-i-key-wash)), linear-gradient(var(--hd-i-key-wash), var(--hd-i-key-wash)); border-color: var(--hd-i-key-edge); }
+.hd-widget[data-hd-family="instrument"][data-hd-type="switch"] .hd-push[data-hd-variant="tile"][aria-checked="true"] .hd-ico { filter: drop-shadow(0 0 4px color-mix(in srgb, var(--hd-i-val) 70%, transparent)); }
+.hd-widget[data-hd-family="instrument"][data-hd-type="switch"] .hd-push[data-hd-variant="tile"]::before { content: ""; position: absolute; inset: 2px 10px auto; block-size: 3px; background: var(--hd-i-val); box-shadow: var(--hd-glow); opacity: 0; pointer-events: none; }
+.hd-widget[data-hd-family="instrument"][data-hd-type="switch"] .hd-push[data-hd-variant="tile"]::after { content: ""; position: absolute; inset: 3px; background: var(--hd-i-val); -webkit-mask: var(--hd-i-corners); mask: var(--hd-i-corners); opacity: 0; pointer-events: none; }
+.hd-widget[data-hd-family="instrument"][data-hd-type="switch"] .hd-push[data-hd-variant="tile"][aria-checked="true"]::before, .hd-widget[data-hd-family="instrument"][data-hd-type="switch"] .hd-push[data-hd-variant="tile"][aria-checked="true"]::after { opacity: 1; }
+.hd-widget[data-hd-family="instrument"][data-hd-type="switch"] .hd-push[data-hd-variant="tile"]:active:not([aria-disabled="true"]) { color: var(--hd-i-val); background: linear-gradient(var(--hd-i-key-wash), var(--hd-i-key-wash)); }
+
+/* Light tile: a hairline tile; the wash is a lit level bar (a bright 3 px line along the bottom with its glow, cut off at the level) over a faint glow of the HUD tint, so the lit part reads as light and
+   never as a brown plate; the numeral reads straight on it. The wash keeps full opacity (the structure formula would dim the bar). */
+.hd-widget[data-hd-family="instrument"] .hd-ltile { color: var(--hd-ink); border: var(--hd-stroke-hair) solid color-mix(in srgb, var(--hd-i-hud) 22%, transparent); border-radius: var(--hd-radius-control); }
+.hd-widget[data-hd-family="instrument"] .hd-ltile[data-hd-on="true"] { border-color: var(--hd-i-key-edge); }
+.hd-widget[data-hd-family="instrument"] .hd-ltile .hd-ltile-wash { opacity: 1; background: linear-gradient(0deg, color-mix(in srgb, var(--hd-i-val) 20%, transparent), color-mix(in srgb, var(--hd-i-val) 6%, transparent)); }
+.hd-widget[data-hd-family="instrument"] .hd-ltile[data-hd-on="true"][data-hd-empty="true"] .hd-ltile-wash { opacity: 0.6; }
+.hd-widget[data-hd-family="instrument"] .hd-ltile .hd-ltile-wash::after { content: ""; position: absolute; inset-inline: 0; inset-block-end: 0; block-size: 3px; background: var(--hd-i-val); box-shadow: var(--hd-glow); }
+.hd-widget[data-hd-family="instrument"] .hd-ltile > .hd-iconbadge { border-radius: var(--hd-radius-control); color: var(--hd-ink-muted); box-shadow: inset 0 0 0 var(--hd-stroke-hair) color-mix(in srgb, var(--hd-i-hud) 30%, transparent); }
+.hd-widget[data-hd-family="instrument"] .hd-ltile[data-hd-on="true"] > .hd-iconbadge { color: var(--hd-i-val); background: var(--hd-i-key-wash); box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-i-key-edge); }
+.hd-widget[data-hd-family="instrument"] .hd-ltile > .hd-numeral { font-family: var(--hd-font-num); font-weight: 400; letter-spacing: 0; color: var(--hd-i-val); }
+.hd-widget[data-hd-family="instrument"] .hd-ltile:not([data-hd-on="true"]) > .hd-numeral { color: var(--hd-ink-muted); }
+.hd-widget[data-hd-family="instrument"] .hd-ltile .hd-num-unit { color: var(--hd-ink); }
+.hd-widget[data-hd-family="instrument"] .hd-ltile::after { content: ""; position: absolute; inset: 3px; background: var(--hd-i-val); -webkit-mask: var(--hd-i-corners); mask: var(--hd-i-corners); opacity: 0; pointer-events: none; z-index: 1; }
+.hd-widget[data-hd-family="instrument"] .hd-ltile[data-hd-on="true"]::after { opacity: 1; }
+
+/* Slider (h and v), the fader cap, the colour temperature strip and the wheel. The track is a dim ladder, the fill is the lit ladder (same colour as the readout), the gaps are 20 cuts in the panel
+   colour over both; the thumb is a lead bar in the glow colour (the fader cap is a bracketed key with a lit grip). */
+.hd-widget[data-hd-family="instrument"] .hd-slider-track { background: color-mix(in srgb, var(--hd-i-hud) 14%, transparent); border-radius: 0; }
+.hd-widget[data-hd-family="instrument"] .hd-slider-fill { background: var(--hd-i-val); border-radius: 0; }
+.hd-widget[data-hd-family="instrument"] .hd-slider-track::after { content: ""; position: absolute; inset: 0; z-index: 1; background: linear-gradient(90deg, transparent calc(100% - 2px), var(--hd-i-mid) 0) 0 0 / 5% 100% repeat-x; pointer-events: none; }
+.hd-widget[data-hd-family="instrument"] .hd-slider[data-hd-variant="v"] .hd-slider-track::after { background: linear-gradient(180deg, transparent calc(100% - 2px), var(--hd-i-mid) 0) 0 0 / 100% 5% repeat-y; }
+.hd-widget[data-hd-family="instrument"] .hd-slider-thumb, .hd-widget[data-hd-family="instrument"] .hd-ct-thumb { z-index: 2; border-radius: 0; }
+.hd-widget[data-hd-family="instrument"] :is(.hd-slider-thumb, .hd-ct-thumb)::before { content: ""; position: absolute; inset-block: 0; inset-inline: 0; margin-inline: auto; inline-size: 3px; background: var(--hd-i-val); box-shadow: 0 0 0 1px var(--hd-i-mid), var(--hd-glow); }
+.hd-widget[data-hd-family="instrument"] .hd-ct-thumb::before { inset-block: -3px; }
+.hd-widget[data-hd-family="instrument"] :is(.hd-slider, .hd-ct)[data-hd-dragging] :is(.hd-slider-thumb, .hd-ct-thumb)::before { inline-size: 5px; box-shadow: 0 0 0 1px var(--hd-i-mid), 0 0 14px var(--hd-i-val); }
+.hd-widget[data-hd-family="instrument"] .hd-slider[data-hd-variant="v"] .hd-slider-thumb { background: linear-gradient(var(--hd-i-key-wash), var(--hd-i-key-wash)), var(--hd-i-mid); border: var(--hd-stroke-hair) solid var(--hd-i-key-edge); border-radius: var(--hd-radius-control); }
+.hd-widget[data-hd-family="instrument"] .hd-slider[data-hd-variant="v"] .hd-slider-thumb::before { inset: 0; margin: auto; inline-size: 16px; block-size: 2px; box-shadow: var(--hd-glow); }
+.hd-widget[data-hd-family="instrument"] .hd-slider[data-hd-variant="v"][data-hd-dragging] .hd-slider-thumb::before { inline-size: 22px; block-size: 3px; box-shadow: 0 0 14px var(--hd-i-val); }
+.hd-widget[data-hd-family="instrument"] .hd-ct-track { border-radius: var(--hd-radius-control); box-shadow: 0 0 0 var(--hd-stroke-hair) var(--hd-i-key-edge); }
+.hd-widget[data-hd-family="instrument"] .hd-wheel-canvas { box-shadow: 0 0 0 var(--hd-stroke-hair) var(--hd-i-key-edge), 0 0 0 4px var(--hd-i-mid), 0 0 0 5px color-mix(in srgb, var(--hd-i-hud) 25%, transparent); }
+.hd-widget[data-hd-family="instrument"] .hd-wheel-thumb { background: var(--hd-wheel-colour, var(--hd-thumb)); border: var(--hd-stroke-2) solid var(--hd-i-val); box-shadow: 0 0 0 var(--hd-stroke-2) var(--hd-i-mid), var(--hd-glow); }
+.hd-widget[data-hd-family="instrument"] .hd-wheel[data-hd-dragging] .hd-wheel-thumb { scale: 1.12; }
+.hd-widget[data-hd-family="instrument"] :is(.hd-slider-thumb, .hd-ct-thumb, .hd-wheel-thumb)::after { display: none; }
+.hd-widget[data-hd-family="instrument"][data-hd-confirmed="true"] :is(.hd-slider-thumb, .hd-ct-thumb)::before { background: var(--hd-i-ok); }
+
+/* Readouts of the rows and the stepper: Share Tech Mono in the glow colour; the unit is the muted ink (the base rule). */
+.hd-widget[data-hd-family="instrument"] :is(.hd-lrow, .hd-lcol, .hd-nrow) > .hd-numeral, .hd-widget[data-hd-family="instrument"] .hd-step-value .hd-numeral { font-family: var(--hd-font-num); font-weight: 400; letter-spacing: 0; color: var(--hd-i-val); }
+
+/* Picker (select list trigger): a hairline field with the value lit in mono; the chevron is muted and lights when the list is open. */
+.hd-widget[data-hd-family="instrument"] .hd-pick { position: relative; color: var(--hd-i-val); background: transparent; border: var(--hd-stroke-hair) solid color-mix(in srgb, var(--hd-i-hud) 30%, transparent); border-radius: var(--hd-radius-control); font-family: var(--hd-font-num); font-size: 12px; letter-spacing: 0; }
+.hd-widget[data-hd-family="instrument"] .hd-pick > .hd-ico { color: var(--hd-ink-muted); }
+.hd-widget[data-hd-family="instrument"] .hd-pick[aria-expanded="true"] { background: var(--hd-i-key-wash); border-color: var(--hd-i-key-edge); }
+.hd-widget[data-hd-family="instrument"] .hd-pick[aria-expanded="true"] > .hd-ico { color: var(--hd-i-val); }
+.hd-widget[data-hd-family="instrument"] .hd-pick::before { content: ""; position: absolute; inset-block: 6px; inset-inline-start: 0; inline-size: 2px; background: var(--hd-i-val); box-shadow: var(--hd-glow); opacity: 0; pointer-events: none; }
+.hd-widget[data-hd-family="instrument"] .hd-pick[aria-expanded="true"]::before { opacity: 1; }
+
+/* Stepper: two bracket keys around the readout; an end key at its limit fades (read-only keeps full strength). */
+.hd-widget[data-hd-family="instrument"] .hd-stepper .hd-step { position: relative; color: var(--hd-i-val); background: transparent; border: var(--hd-stroke-hair) solid color-mix(in srgb, var(--hd-i-hud) 30%, transparent); border-radius: var(--hd-radius-control); }
+.hd-widget[data-hd-family="instrument"] .hd-stepper .hd-step:active:not([aria-disabled="true"]) { background: linear-gradient(var(--hd-i-key-wash), var(--hd-i-key-wash)); border-color: var(--hd-i-key-edge); }
+.hd-widget[data-hd-family="instrument"] .hd-stepper .hd-step[aria-disabled="true"] { opacity: 0.45; }
+.hd-widget[data-hd-family="instrument"][data-hd-readonly="true"] .hd-stepper .hd-step[aria-disabled="true"] { opacity: 1; }
+.hd-widget[data-hd-family="instrument"] .hd-step-value { position: relative; }
+.hd-widget[data-hd-family="instrument"] .hd-step-value::after { content: ""; position: absolute; inset: 4px 2px; border: var(--hd-stroke-hair) dashed var(--hd-i-val); opacity: 0; pointer-events: none; }
+
+/* Segmented select: the lit tab is the 2 px bar of the M1 paint; its pending state blinks it (below). */
+
+/* More button: a ghost glyph in the muted ink; pressed it lights as a key. */
+.hd-widget[data-hd-family="instrument"] > .hd-frame > .hd-more { border-radius: var(--hd-radius-control); color: var(--hd-ink-muted); }
+.hd-widget[data-hd-family="instrument"] > .hd-frame > .hd-more:active { color: var(--hd-i-val); background: var(--hd-i-key-wash); }
+@media (hover: hover) { .hd-widget[data-hd-family="instrument"] > .hd-frame > .hd-more:hover { color: var(--hd-i-val); } .hd-widget[data-hd-family="instrument"] .hd-sheet-close:hover { color: var(--hd-i-val); border-color: var(--hd-i-key-edge); } }
+
+/* Listbox panel and options: the HUD panel with its corner brackets; the active row has the wash and a lit bar on its start edge, the selected row is lit with its check. */
+.hd-pop-layer > .hd-sheet.hd-widget[data-hd-family="instrument"][data-kind="listbox"] { border-color: var(--hd-i-key-edge); box-shadow: var(--hd-i-mount-l); }
+.hd-pop-layer > .hd-sheet.hd-widget[data-hd-family="instrument"][data-kind="listbox"]::after { content: ""; position: absolute; inset: 0; background: var(--hd-i-hud); -webkit-mask: var(--hd-i-corners); mask: var(--hd-i-corners); pointer-events: none; z-index: 1; }
+.hd-widget[data-hd-family="instrument"] .hd-option { position: relative; border-radius: var(--hd-radius-control); font-family: var(--hd-font-ui); }
+.hd-widget[data-hd-family="instrument"] .hd-option:is(:hover, [data-hd-active="true"]) { background: var(--hd-i-key-wash); }
+.hd-widget[data-hd-family="instrument"] .hd-option:is(:hover, [data-hd-active="true"])::before { content: ""; position: absolute; inset-block: 8px; inset-inline-start: 0; inline-size: 2px; background: var(--hd-i-val); box-shadow: var(--hd-glow); }
+.hd-widget[data-hd-family="instrument"] .hd-option[aria-selected="true"] { color: var(--hd-i-val); }
+.hd-widget[data-hd-family="instrument"] .hd-option > .hd-ico { color: var(--hd-i-val); }
+
+/* Light sheet: the dialog frame is the HUD panel (card tokens, corner brackets above) lifted by the mount shadow; the close key is a hairline box that lights when pressed; labels are muted caps-height type. */
+.hd-widget[data-hd-family="instrument"][data-kind="moreinfo"] > .hd-frame { border-color: var(--hd-i-key-edge); box-shadow: var(--hd-i-mount-l); }
+.hd-widget[data-hd-family="instrument"][data-kind="moreinfo"] .hd-title { color: var(--hd-ink); }
+.hd-widget[data-hd-family="instrument"][data-kind="moreinfo"] .hd-body { box-shadow: inset 0 var(--hd-stroke-hair) 0 var(--hd-hairline); }
+.hd-widget[data-hd-family="instrument"] .hd-sheet-close { color: var(--hd-ink-muted); border: var(--hd-stroke-hair) solid color-mix(in srgb, var(--hd-i-hud) 30%, transparent); border-radius: var(--hd-radius-control); }
+.hd-widget[data-hd-family="instrument"] .hd-sheet-close:active { color: var(--hd-i-val); background: var(--hd-i-key-wash); border-color: var(--hd-i-key-edge); }
+.hd-widget[data-hd-family="instrument"] .hd-mi-label { font-family: var(--hd-font-label); }
+
+/* State table, Instrument column. Armed: a HUD ring around the control plus the bar (above). Error: an alert ring; the glow colour is the alert colour (above); the shake and the state line are structure.
+   Pending (static form, also under reduced and none): the lit element at half light and a dashed hairline on the key; the motion block replaces the half light by the blink.
+   Unavailable: the body goes dark with the NO DATA box (above). Stale: lit segments fall back to the muted ink (above). Read-only: the lock badge only. Focus: the M0 ring in the HUD colour (base). */
+.hd-widget[data-hd-family="instrument"]:not([data-hd-type="climate"])[data-hd-armed="true"] :is(.hd-push, .hd-pick, .hd-ltile, .hd-seg, .hd-stepper, .hd-slider) { outline: var(--hd-stroke-2) solid var(--hd-i-val); outline-offset: 2px; }
+.hd-widget[data-hd-family="instrument"]:not([data-hd-type="climate"])[data-hd-status="error"] :is(.hd-push, .hd-pick, .hd-ltile, .hd-seg, .hd-stepper) { outline: var(--hd-stroke-1) solid var(--hd-alert); outline-offset: 1px; }
+.hd-widget[data-hd-family="instrument"][data-hd-pending="true"] :is(.hd-push[data-hd-variant="chip"], .hd-pick, .hd-ltile) { border-style: dashed; }
+.hd-widget[data-hd-family="instrument"][data-hd-pending="true"] .hd-push[data-hd-variant="chip"]::after { opacity: 0.5; }
+.hd-widget[data-hd-family="instrument"][data-hd-pending="true"] .hd-push[data-hd-variant="tile"]::before { opacity: 0.5; }
+.hd-widget[data-hd-family="instrument"][data-hd-pending="true"] :is(.hd-push .hd-ico, .hd-pick > .hd-ico, .hd-ltile > .hd-iconbadge) { opacity: 0.5; }
+.hd-widget[data-hd-family="instrument"][data-hd-pending="true"] :is(.hd-slider-thumb, .hd-ct-thumb)::before { opacity: 0.5; }
+.hd-widget[data-hd-family="instrument"][data-hd-pending="true"] .hd-ltile .hd-ltile-wash { opacity: 0.5; }
+.hd-widget[data-hd-family="instrument"][data-hd-pending="true"] .hd-wheel-thumb { opacity: 0.6; }
+.hd-widget[data-hd-family="instrument"][data-hd-pending="true"] .hd-step-value::after { opacity: 1; }
+.hd-widget[data-hd-family="instrument"][data-hd-pending="true"] .hd-seg-indicator::after { opacity: 0.5; }
+.hd-widget[data-hd-family="instrument"][data-hd-status="unavailable"] .hd-stepper .hd-step-value::after { opacity: 0; }
+
+/* Motion (gate selector only; transform and opacity only). Keys light in 110 ms; pending blinks the lit element (4 steps of 80 ms); an error flashes the lit elements (alert colour, 6 cycles) and a
+   confirmed write flashes them once for 90 ms. */
+@media (prefers-reduced-motion: no-preference) {
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"] .hd-push[data-hd-variant]::before,
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"] .hd-push[data-hd-variant]::after,
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"] .hd-ltile::after,
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"] .hd-pick::before { transition: opacity var(--hd-dur-toggle) var(--hd-ease-toggle); }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"][data-hd-pending="true"] .hd-push[data-hd-variant="chip"]::after,
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"][data-hd-pending="true"] .hd-push[data-hd-variant="tile"]::before,
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"][data-hd-pending="true"] :is(.hd-push .hd-ico, .hd-pick > .hd-ico, .hd-ltile > .hd-iconbadge, .hd-ltile .hd-ltile-wash, .hd-wheel-thumb),
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"][data-hd-pending="true"] :is(.hd-slider-thumb, .hd-ct-thumb)::before,
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"][data-hd-pending="true"] .hd-step-value::after,
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"][data-hd-pending="true"] .hd-seg-indicator::after { animation: hd-blink calc(4 * var(--hd-dur-chase)) steps(1) infinite; }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"][data-hd-status="error"] .hd-push[data-hd-variant="chip"]::after,
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"][data-hd-status="error"] :is(.hd-push .hd-ico, .hd-pick > .hd-ico, .hd-ltile > .hd-iconbadge, .hd-ltile .hd-ltile-wash),
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"][data-hd-status="error"] :is(.hd-slider-thumb, .hd-ct-thumb)::before { animation: hd-pulse 240ms linear 6; }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"][data-hd-confirmed="true"] :is(.hd-push .hd-ico, .hd-pick > .hd-ico, .hd-ltile > .hd-iconbadge, .hd-wheel-thumb),
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"][data-hd-confirmed="true"] :is(.hd-slider-thumb, .hd-ct-thumb)::before { animation: hd-flash-a var(--hd-dur-flash) linear; }
+}
 
 /* ui/css/homedash-widgets.css */
 /* HomeDash widgets: frame grid, shared frame painting from the card tokens, state badges and per-hero layout (container queries and rules qualified by data-hd-type / data-hd-variant).
