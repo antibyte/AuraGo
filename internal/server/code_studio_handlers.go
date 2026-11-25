@@ -69,6 +69,8 @@ type codeStudioSearchResult struct {
 type codeStudioHandlers struct {
 	server *Server
 	docker codeStudioDockerAPI
+	// remote holds the SSH pool; nil = per-server default (remoteState).
+	remote *codeStudioRemote
 }
 
 func newCodeStudioHandlers(s *Server) codeStudioHandlers {
