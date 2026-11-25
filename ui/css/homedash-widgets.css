@@ -147,6 +147,8 @@
 .hd-widget[data-hd-type="switch"] .hd-push[data-hd-variant="tile"] .hd-ico { inline-size: 28px; block-size: 28px; }
 @container hd-widget (min-height: 200px) { .hd-widget[data-hd-type="switch"] .hd-push[data-hd-variant="tile"] .hd-ico { inline-size: 40px; block-size: 40px; } }
 .hd-widget[data-hd-type="switch"] .hd-push[data-hd-variant="tile"] .hd-push-label { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* G-1: at 1x1 the word chip is narrower than icon and word, so it shows the icon only, centred; the word stays in the DOM as visually hidden text and the state line carries the state or verb. */
+@container hd-widget (max-width: 139px) and (max-height: 139px) { .hd-widget:is([data-hd-type="switch"], [data-hd-type="action"]) .hd-push[data-hd-variant="chip"] .hd-push-label { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } }
 /* Light slider row (power chip 44x44, slider, numeral 4.5ch hidden below 300px) and fader column (numeral from 260px tall, vertical slider 64px or more, power chip). */
 .hd-lrow { display: flex; align-items: center; gap: 8px; inline-size: 100%; min-inline-size: 0; }
 .hd-widget .hd-lrow > .hd-push[data-hd-variant], .hd-widget .hd-lcol > .hd-push[data-hd-variant] { flex: none; inline-size: 44px; block-size: 44px; padding: 0; }

@@ -468,6 +468,146 @@
 .hd-widget[data-hd-family="glass"][data-hd-status="unavailable"] .hd-dial-knob-shadow { display: none; }
 .hd-widget[data-hd-family="glass"][data-hd-readonly="true"] :is(.hd-toggle-thumb, .hd-seg-indicator::before) { box-shadow: var(--hd-thumb-ring); } /* the edge ring stays, the lift shadows go */
 .hd-widget[data-hd-family="glass"][data-hd-readonly="true"] .hd-dial-knob-shadow { display: none; }
+/* ===== M3 (Task 18): paint of the W1 controls, the light sheet and the P1 states. Structure (sizes, positions, hit areas) lives in primitives.css, widgets.css and page.css; this part only paints. ===== */
+@keyframes hd-g-halo { 0% { opacity: 0; transform: scale(1); } 40% { opacity: 1; transform: scale(1.06); } 100% { opacity: 0; transform: scale(1); } }
+@keyframes hd-g-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+
+/* Push chip (switch push, action button, light power chip): a glass slab like the rocker paddle; on = the accent fill with the on-ink (the chip colour is zero-specificity in widgets.css). */
+.hd-widget[data-hd-family="glass"]:is([data-hd-type="switch"], [data-hd-type="action"], [data-hd-type="light"]) .hd-push[data-hd-variant="chip"] { background: var(--hd-g-sheen), color-mix(in srgb, var(--hd-edge-tint) 10%, var(--hd-surface)); color: var(--hd-ink); border-radius: var(--hd-corners-control); box-shadow: var(--hd-edge-hi), var(--hd-g-surface-edge); }
+.hd-widget[data-hd-family="glass"]:is([data-hd-type="switch"], [data-hd-type="action"], [data-hd-type="light"]) .hd-push[data-hd-variant="chip"]:is([aria-checked="true"], [data-hd-on="true"]) { background: var(--hd-on); color: var(--hd-on-ink); box-shadow: var(--hd-g-fill-hi); }
+.hd-widget[data-hd-family="glass"]:is([data-hd-type="switch"], [data-hd-type="action"], [data-hd-type="light"]) .hd-push[data-hd-variant="chip"]:active:not([aria-disabled="true"]) { box-shadow: var(--hd-shadow-press), var(--hd-thumb-ring); }
+.hd-widget[data-hd-family="glass"]:is([data-hd-type="switch"], [data-hd-type="action"], [data-hd-type="light"]) .hd-push[data-hd-variant="chip"]:is([aria-checked="true"], [data-hd-on="true"]):active:not([aria-disabled="true"]) { box-shadow: var(--hd-shadow-press), var(--hd-g-fill-hi); }
+.hd-widget[data-hd-family="glass"]:is([data-hd-type="switch"], [data-hd-type="action"], [data-hd-type="light"]) .hd-push[data-hd-variant="chip"]:is(:focus-visible, [data-hd-focus="ring"]) { box-shadow: 0 0 0 2px var(--hd-focus-gap), 0 0 0 4px var(--hd-focus), var(--hd-edge-hi), var(--hd-g-surface-edge); }
+.hd-widget[data-hd-family="glass"]:is([data-hd-type="switch"], [data-hd-type="action"], [data-hd-type="light"]) .hd-push[data-hd-variant="chip"]:is([aria-checked="true"], [data-hd-on="true"]):is(:focus-visible, [data-hd-focus="ring"]) { box-shadow: 0 0 0 2px var(--hd-focus-gap), 0 0 0 4px var(--hd-focus), var(--hd-g-fill-hi); }
+.hd-widget[data-hd-family="glass"]:is([data-hd-type="switch"], [data-hd-type="action"], [data-hd-type="light"]) .hd-push[data-hd-variant="chip"]::after { content: ""; position: absolute; inset-block-start: 50%; inset-inline-end: 8px; inline-size: 14px; block-size: 14px; margin-block-start: -7px; border-radius: var(--hd-radius-pill); background: var(--hd-pending-ring); -webkit-mask: var(--hd-ring-mask); mask: var(--hd-ring-mask); opacity: 0; pointer-events: none; }
+.hd-widget[data-hd-family="glass"]:is([data-hd-type="switch"], [data-hd-type="action"], [data-hd-type="light"]) .hd-push[data-hd-variant="chip"]:is([aria-checked="true"], [data-hd-on="true"])::after { background: var(--hd-pending-ring-on); }
+.hd-widget[data-hd-family="glass"] :is(.hd-lrow, .hd-lcol) > .hd-push[data-hd-variant="chip"]:is([aria-checked="true"], [data-hd-on="true"]) { background: var(--hd-light-on); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--hd-edge-tint) 30%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--hd-light-on) var(--hd-fill-edge-k), var(--hd-shadow-ink)); }
+.hd-widget[data-hd-family="glass"] :is(.hd-lrow, .hd-lcol) > .hd-push[data-hd-variant="chip"]:is([aria-checked="true"], [data-hd-on="true"]):is(:focus-visible, [data-hd-focus="ring"]) { box-shadow: 0 0 0 2px var(--hd-focus-gap), 0 0 0 4px var(--hd-focus), inset 0 1px 0 color-mix(in srgb, var(--hd-edge-tint) 30%, transparent); }
+.hd-widget[data-hd-family="glass"] :is(.hd-lrow, .hd-lcol) > .hd-push[data-hd-variant="chip"]::after { inset: 0; margin: auto; inline-size: 30px; block-size: 30px; }
+.hd-widget[data-hd-family="glass"][data-hd-pending="true"]:is([data-hd-type="switch"], [data-hd-type="action"], [data-hd-type="light"]) .hd-push[data-hd-variant="chip"]::after { opacity: 1; }
+@container hd-widget (max-width: 139px) and (max-height: 139px) { .hd-widget[data-hd-family="glass"]:is([data-hd-type="switch"], [data-hd-type="action"], [data-hd-type="light"]) .hd-push[data-hd-variant="chip"]::after { inset: 0; margin: auto; inline-size: 30px; block-size: 30px; } } /* G-1: the 1x1 chip shows the icon only, so the ring sits on it */
+
+/* Switch tile: the whole body is the key; the glyph sits on a disc (a shadow spread, so the tile geometry stays), filled with the accent when on. */
+.hd-widget[data-hd-family="glass"][data-hd-type="switch"] .hd-push[data-hd-variant="tile"] { background: var(--hd-g-sheen), color-mix(in srgb, var(--hd-edge-tint) 10%, var(--hd-surface)); color: var(--hd-ink); border-radius: var(--hd-g-bezel-r); box-shadow: var(--hd-edge-hi), var(--hd-g-surface-edge); }
+.hd-widget[data-hd-family="glass"][data-hd-type="switch"] .hd-push[data-hd-variant="tile"][aria-checked="true"] { background: var(--hd-g-sheen), color-mix(in srgb, var(--hd-on) 22%, color-mix(in srgb, var(--hd-edge-tint) 10%, var(--hd-surface))); }
+.hd-widget[data-hd-family="glass"][data-hd-type="switch"] .hd-push[data-hd-variant="tile"] .hd-ico { border-radius: var(--hd-radius-pill); background: var(--hd-track); box-shadow: 0 0 0 8px var(--hd-track); }
+.hd-widget[data-hd-family="glass"][data-hd-type="switch"] .hd-push[data-hd-variant="tile"][aria-checked="true"] .hd-ico { background: var(--hd-on); color: var(--hd-on-ink); box-shadow: 0 0 0 8px var(--hd-on); }
+@container hd-widget (min-height: 200px) { .hd-widget[data-hd-family="glass"][data-hd-type="switch"] .hd-push[data-hd-variant="tile"] .hd-ico { box-shadow: 0 0 0 10px var(--hd-track); } .hd-widget[data-hd-family="glass"][data-hd-type="switch"] .hd-push[data-hd-variant="tile"][aria-checked="true"] .hd-ico { box-shadow: 0 0 0 10px var(--hd-on); } }
+.hd-widget[data-hd-family="glass"][data-hd-type="switch"] .hd-push[data-hd-variant="tile"]:active:not([aria-disabled="true"]) { box-shadow: var(--hd-shadow-press), var(--hd-thumb-ring); }
+.hd-widget[data-hd-family="glass"][data-hd-type="switch"] .hd-push[data-hd-variant="tile"]:is(:focus-visible, [data-hd-focus="ring"]) { box-shadow: 0 0 0 2px var(--hd-focus-gap), 0 0 0 4px var(--hd-focus), var(--hd-edge-hi), var(--hd-g-surface-edge); }
+.hd-widget[data-hd-family="glass"][data-hd-type="switch"] .hd-push[data-hd-variant="tile"]:is(:focus-visible, [data-hd-focus="ring"])::before { border-radius: var(--hd-g-bezel-r); }
+.hd-widget[data-hd-family="glass"][data-hd-type="switch"] .hd-push[data-hd-variant="tile"]::after { content: ""; position: absolute; inset: 0; margin: auto; inline-size: 48px; block-size: 48px; border-radius: var(--hd-radius-pill); background: var(--hd-pending-ring); -webkit-mask: var(--hd-ring-mask); mask: var(--hd-ring-mask); opacity: 0; pointer-events: none; }
+@container hd-widget (min-height: 200px) { .hd-widget[data-hd-family="glass"][data-hd-type="switch"] .hd-push[data-hd-variant="tile"]::after { inline-size: 68px; block-size: 68px; } }
+.hd-widget[data-hd-family="glass"][data-hd-pending="true"] .hd-push[data-hd-variant="tile"]::after { opacity: 1; }
+
+/* Light tile: a glass slab; the wash is the light colour (18-40 % by level, set by structure), the disc is filled with it when on. */
+.hd-widget[data-hd-family="glass"] .hd-ltile { background: var(--hd-g-sheen), color-mix(in srgb, var(--hd-edge-tint) 10%, var(--hd-surface)); color: var(--hd-ink); border-radius: var(--hd-g-bezel-r); box-shadow: var(--hd-edge-hi), var(--hd-g-surface-edge); }
+.hd-widget[data-hd-family="glass"] .hd-ltile .hd-ltile-wash { background: var(--hd-light-on); }
+.hd-root[data-hd-scheme="dark"] .hd-widget[data-hd-family="glass"] .hd-ltile .hd-ltile-wash { background: radial-gradient(circle at 16px 16px, color-mix(in srgb, var(--hd-light-on) 55%, var(--hd-edge-tint)), transparent 55%), linear-gradient(90deg, color-mix(in srgb, var(--hd-light-on) 22%, transparent), color-mix(in srgb, var(--hd-light-on) 70%, transparent) 55%, color-mix(in srgb, var(--hd-light-on) 55%, var(--hd-edge-tint))); } /* G-2: warm light, dim under the numeral and brightest at the fill edge and around the badge, not a flat brown */
+.hd-root[data-hd-scheme="dark"] .hd-widget[data-hd-family="glass"] .hd-ltile:not([data-hd-empty="true"]) .hd-ltile-wash { opacity: calc(0.55 + 0.3 * var(--hd-value, 0)); }
+.hd-widget[data-hd-family="glass"] .hd-ltile > .hd-iconbadge { border-radius: var(--hd-radius-pill); background: var(--hd-accent-soft); color: var(--hd-accent); }
+.hd-widget[data-hd-family="glass"] .hd-ltile[data-hd-on="true"] > .hd-iconbadge { background: var(--hd-light-on); color: var(--hd-on-ink); }
+.hd-widget[data-hd-family="glass"] .hd-ltile .hd-num-unit { color: color-mix(in srgb, var(--hd-ink-muted) 35%, var(--hd-ink)); } /* the muted unit measured 3.5-4.4:1 on the wash */
+.hd-widget[data-hd-family="glass"] .hd-ltile[data-hd-stale="true"] .hd-numeral, .hd-widget[data-hd-family="glass"][data-hd-stale="true"] .hd-ltile .hd-numeral { color: color-mix(in srgb, var(--hd-ink-muted) 35%, var(--hd-ink)); } /* stale stays readable on the wash; the clock badge tells the state */
+.hd-widget[data-hd-family="glass"] .hd-ltile > .hd-numeral { font-weight: var(--hd-num-weight); letter-spacing: var(--hd-num-tracking); }
+@container hd-widget (max-width: 139px) and (max-height: 139px) { .hd-widget[data-hd-family="glass"] .hd-ltile > .hd-numeral { font-weight: var(--hd-num-weight-small); }
+  .hd-widget[data-hd-family="glass"] .hd-ltile::after { content: ""; position: absolute; inset-block-start: 6px; inset-inline-end: 6px; inline-size: 14px; block-size: 14px; border-radius: var(--hd-radius-pill); background: var(--hd-pending-ring); -webkit-mask: var(--hd-ring-mask); mask: var(--hd-ring-mask); opacity: 0; pointer-events: none; }
+  .hd-widget[data-hd-family="glass"][data-hd-pending="true"] .hd-ltile::after { opacity: 1; } }
+.hd-widget[data-hd-family="glass"] .hd-ltile > .hd-iconbadge::after { content: ""; position: absolute; inset: -3px; border-radius: var(--hd-radius-pill); background: var(--hd-pending-ring); -webkit-mask: var(--hd-ring-mask); mask: var(--hd-ring-mask); opacity: 0; pointer-events: none; }
+.hd-widget[data-hd-family="glass"][data-hd-pending="true"] .hd-ltile > .hd-iconbadge::after { opacity: 1; }
+.hd-widget[data-hd-family="glass"] .hd-ltile:is(:focus-visible, [data-hd-focus="ring"]) { outline: none; box-shadow: 0 0 0 2px var(--hd-focus-gap), 0 0 0 4px var(--hd-focus), var(--hd-edge-hi), var(--hd-g-surface-edge); }
+
+/* Slider (h and v), the fader cap, the colour temperature strip and the wheel. The thumb is the near-white Glass thumb; the fill ends under its centre (structure). */
+.hd-widget[data-hd-family="glass"] .hd-slider-track { background: var(--hd-track); box-shadow: var(--hd-track-inset); }
+.hd-widget[data-hd-family="glass"] .hd-slider-fill { background: var(--hd-value-colour); }
+.hd-widget[data-hd-family="glass"][data-hd-type="light"] .hd-slider-fill { background: var(--hd-light-on); }
+.hd-root[data-hd-scheme="light"] .hd-widget[data-hd-family="glass"] .hd-slider-track { background: var(--hd-g-wash); } /* a pale slot on a light card, so the deepened fill keeps 3:1 against it */
+.hd-root[data-hd-scheme="light"] .hd-widget[data-hd-family="glass"] .hd-slider-fill { background: color-mix(in srgb, var(--hd-value-colour) 80%, var(--hd-ink)); }
+.hd-root[data-hd-scheme="light"] .hd-widget[data-hd-family="glass"][data-hd-type="light"] .hd-slider-fill { background: color-mix(in srgb, var(--hd-light-on) 90%, var(--hd-ink)); }
+.hd-root[data-hd-scheme="dark"] .hd-widget[data-hd-family="glass"] .hd-slider-fill { background: color-mix(in srgb, var(--hd-value-colour) 75%, var(--hd-ink)); } /* a deep accent (violet) stays 3:1 against the dark track */
+.hd-root[data-hd-scheme="dark"] .hd-widget[data-hd-family="glass"][data-hd-type="light"] .hd-slider-fill { background: var(--hd-light-on); }
+.hd-widget[data-hd-family="glass"] :is(.hd-slider-thumb, .hd-ct-thumb) { background: var(--hd-thumb); box-shadow: var(--hd-thumb-shadow); }
+.hd-widget[data-hd-family="glass"] .hd-slider[data-hd-variant="v"] .hd-slider-thumb { background: linear-gradient(var(--hd-ink-faint), var(--hd-ink-faint)) 50% calc(50% - 3px) / 14px 2px no-repeat, linear-gradient(var(--hd-ink-faint), var(--hd-ink-faint)) 50% calc(50% + 3px) / 14px 2px no-repeat, var(--hd-thumb); }
+.hd-widget[data-hd-family="glass"] .hd-ct-track { box-shadow: var(--hd-track-inset), inset 0 0 0 var(--hd-stroke-hair) color-mix(in srgb, var(--hd-edge-tint) 18%, transparent), 0 0 0 var(--hd-stroke-hair) color-mix(in srgb, var(--hd-shadow-ink) var(--hd-sa-2), transparent); }
+.hd-widget[data-hd-family="glass"] .hd-wheel-canvas { outline: var(--hd-stroke-hair) solid color-mix(in srgb, var(--hd-edge-tint) 30%, transparent); outline-offset: calc(var(--hd-stroke-hair) * -1); box-shadow: 0 0 0 var(--hd-stroke-hair) color-mix(in srgb, var(--hd-shadow-ink) var(--hd-sa-2), transparent), 0 6px 16px -4px color-mix(in srgb, var(--hd-shadow-ink) var(--hd-sa-3), transparent); }
+.hd-widget[data-hd-family="glass"] .hd-wheel-thumb { background: var(--hd-wheel-colour, var(--hd-thumb)); border: var(--hd-stroke-2) solid var(--hd-thumb); box-shadow: var(--hd-thumb-shadow); }
+.hd-widget[data-hd-family="glass"] :is(.hd-slider, .hd-ct, .hd-wheel)[data-hd-dragging] :is(.hd-slider-thumb, .hd-ct-thumb, .hd-wheel-thumb) { scale: 1.12; box-shadow: var(--hd-thumb-ring), 0 2px 3px color-mix(in srgb, var(--hd-shadow-ink) var(--hd-sa-3), transparent), 0 8px 16px color-mix(in srgb, var(--hd-shadow-ink) var(--hd-sa-4), transparent); }
+.hd-widget[data-hd-family="glass"] :is(.hd-slider-thumb, .hd-ct-thumb, .hd-wheel-thumb)::after { content: ""; position: absolute; inset: -3px; border-radius: var(--hd-radius-pill); background: var(--hd-pending-ring); -webkit-mask: var(--hd-ring-mask); mask: var(--hd-ring-mask); opacity: 0; pointer-events: none; }
+.hd-widget[data-hd-family="glass"] .hd-slider[data-hd-variant="v"] .hd-slider-thumb::after { inset: 0; margin: auto; inline-size: 18px; block-size: 18px; }
+.hd-widget[data-hd-family="glass"][data-hd-pending="true"] :is(.hd-slider-thumb, .hd-ct-thumb, .hd-wheel-thumb)::after { opacity: 1; }
+.hd-widget[data-hd-family="glass"] :is(.hd-slider-thumb, .hd-ct-thumb, .hd-wheel-thumb)::before { content: ""; position: absolute; inset: -2px; border-radius: var(--hd-radius-pill); box-shadow: 0 0 0 var(--hd-stroke-1) var(--hd-ok-ink); opacity: 0; pointer-events: none; }
+.hd-widget[data-hd-family="glass"][data-hd-confirmed="true"] :is(.hd-slider-thumb, .hd-ct-thumb, .hd-wheel-thumb)::before { opacity: 1; }
+.hd-widget[data-hd-family="glass"] :is(.hd-slider, .hd-pick, .hd-step, .hd-more, .hd-sheet-close):is(:focus-visible, [data-hd-focus="ring"])::before { content: ""; position: absolute; inset: 0; border-radius: var(--hd-radius-control); box-shadow: var(--hd-theme-glow); pointer-events: none; }
+.hd-widget[data-hd-family="glass"] :is(.hd-pick, .hd-step, .hd-step-value) { position: relative; }
+
+/* Picker (select list trigger): the same slab as the chip; the chevron is muted; an open list presses it in. */
+.hd-widget[data-hd-family="glass"] .hd-pick { background: var(--hd-g-sheen), color-mix(in srgb, var(--hd-edge-tint) 10%, var(--hd-surface)); color: var(--hd-ink); font-weight: 500; box-shadow: var(--hd-edge-hi), var(--hd-g-surface-edge); }
+.hd-widget[data-hd-family="glass"] .hd-pick > .hd-ico { color: var(--hd-ink-muted); }
+.hd-widget[data-hd-family="glass"] .hd-pick[aria-expanded="true"] { background: var(--hd-g-wash), color-mix(in srgb, var(--hd-edge-tint) 10%, var(--hd-surface)); box-shadow: var(--hd-shadow-press), var(--hd-thumb-ring); }
+.hd-widget[data-hd-family="glass"] .hd-pick:is(:focus-visible, [data-hd-focus="ring"]) { box-shadow: 0 0 0 2px var(--hd-focus-gap), 0 0 0 4px var(--hd-focus), var(--hd-edge-hi), var(--hd-g-surface-edge); }
+.hd-widget[data-hd-family="glass"] .hd-pick::after { content: ""; position: absolute; inset-block-start: 50%; inset-inline-end: 12px; inline-size: 16px; block-size: 16px; margin-block-start: -8px; border-radius: var(--hd-radius-pill); background: var(--hd-pending-ring); -webkit-mask: var(--hd-ring-mask); mask: var(--hd-ring-mask); opacity: 0; pointer-events: none; }
+.hd-widget[data-hd-family="glass"][data-hd-pending="true"] .hd-pick::after { opacity: 1; }
+.hd-widget[data-hd-family="glass"][data-hd-pending="true"] .hd-pick > .hd-ico { opacity: 0; }
+
+/* Stepper: two round glass keys around a light readout; an end key at its limit fades. */
+.hd-widget[data-hd-family="glass"] .hd-step { color: var(--hd-ink); background: var(--hd-g-sheen), color-mix(in srgb, var(--hd-edge-tint) 10%, var(--hd-surface)); border-radius: var(--hd-corners-control); box-shadow: var(--hd-edge-hi), var(--hd-g-surface-edge); }
+.hd-widget[data-hd-family="glass"] .hd-step:active:not([aria-disabled="true"]) { box-shadow: var(--hd-shadow-press), var(--hd-thumb-ring); }
+.hd-widget[data-hd-family="glass"] .hd-step:is(:focus-visible, [data-hd-focus="ring"]) { box-shadow: 0 0 0 2px var(--hd-focus-gap), 0 0 0 4px var(--hd-focus), var(--hd-edge-hi), var(--hd-g-surface-edge); }
+.hd-widget[data-hd-family="glass"] .hd-step[aria-disabled="true"] { opacity: 0.45; }
+.hd-widget[data-hd-family="glass"][data-hd-readonly="true"] .hd-step[aria-disabled="true"] { opacity: 1; }
+.hd-widget[data-hd-family="glass"] .hd-stepper { border-radius: var(--hd-corners-control); }
+.hd-widget[data-hd-family="glass"] .hd-step-value { border-radius: var(--hd-corners-control); }
+.hd-widget[data-hd-family="glass"] .hd-step-value .hd-numeral { font-weight: var(--hd-num-weight-small); letter-spacing: var(--hd-num-tracking); }
+.hd-widget[data-hd-family="glass"] .hd-step-value::after { content: ""; position: absolute; inset-block-start: 4px; inset-inline-end: 2px; inline-size: 12px; block-size: 12px; border-radius: var(--hd-radius-pill); background: var(--hd-pending-ring); -webkit-mask: var(--hd-ring-mask); mask: var(--hd-ring-mask); opacity: 0; pointer-events: none; }
+.hd-widget[data-hd-family="glass"][data-hd-pending="true"] .hd-step-value::after { opacity: 1; }
+
+/* Readouts of the rows: small figures at weight 500 (the light weight is for large numerals); the unit is muted by the rule above. */
+.hd-widget[data-hd-family="glass"] :is(.hd-lrow, .hd-lcol, .hd-nrow) > .hd-numeral { font-weight: var(--hd-num-weight-small); letter-spacing: var(--hd-num-tracking); }
+
+/* Segmented select: the indicator wears the busy ring in its corner. */
+.hd-widget[data-hd-family="glass"] .hd-seg-indicator::after { content: ""; position: absolute; inset-block-start: 6px; inset-inline-end: 5px; inline-size: 12px; block-size: 12px; border-radius: var(--hd-radius-pill); background: var(--hd-pending-ring); -webkit-mask: var(--hd-ring-mask); mask: var(--hd-ring-mask); opacity: 0; pointer-events: none; }
+.hd-widget[data-hd-family="glass"][data-hd-pending="true"] .hd-seg-indicator::after { opacity: 1; }
+
+/* More button: ghost until pressed. */
+.hd-widget[data-hd-family="glass"] > .hd-frame > .hd-more { border-radius: var(--hd-radius-pill); color: var(--hd-ink-muted); }
+.hd-widget[data-hd-family="glass"] > .hd-frame > .hd-more:active { background: var(--hd-g-wash); color: var(--hd-ink); }
+@media (hover: hover) { .hd-widget[data-hd-family="glass"] > .hd-frame > .hd-more:hover { background: var(--hd-g-wash); color: var(--hd-ink); } .hd-widget[data-hd-family="glass"] .hd-sheet-close:hover { background: var(--hd-track); } }
+
+/* Listbox panel and options: an opaque glass slab (it floats over other widgets); under the gradient backdrop it turns translucent and blurs. */
+.hd-pop-layer > .hd-sheet.hd-widget[data-hd-family="glass"][data-kind="listbox"] { background: var(--hd-g-sheen), var(--hd-surface-solid); box-shadow: var(--hd-shadow-card); }
+.hd-root[data-hd-backdrop="gradient"] .hd-pop-layer > .hd-sheet.hd-widget[data-hd-family="glass"][data-kind="listbox"] { background: var(--hd-card-bg); -webkit-backdrop-filter: blur(var(--hd-glass-blur)) saturate(1.35); backdrop-filter: blur(var(--hd-glass-blur)) saturate(1.35); }
+.hd-widget[data-hd-family="glass"] .hd-option:is(:hover, [data-hd-active="true"]) { background: var(--hd-g-wash); }
+.hd-widget[data-hd-family="glass"] .hd-option[aria-selected="true"] { background: var(--hd-accent-soft); font-weight: 500; }
+.hd-widget[data-hd-family="glass"] .hd-option > .hd-ico { color: var(--hd-accent); }
+
+/* Light sheet: the dialog frame is the card (opaque; translucent and blurred under the gradient backdrop), a wash disc closes it, the name is full ink. */
+.hd-widget[data-hd-family="glass"][data-kind="moreinfo"] > .hd-frame { background: var(--hd-g-sheen), var(--hd-surface-solid); }
+.hd-root[data-hd-backdrop="gradient"] .hd-widget[data-hd-family="glass"][data-kind="moreinfo"] > .hd-frame { background: var(--hd-card-bg); }
+.hd-widget[data-hd-family="glass"][data-kind="moreinfo"] .hd-title { color: var(--hd-ink); }
+.hd-widget[data-hd-family="glass"] .hd-sheet-close { border-radius: var(--hd-radius-pill); color: var(--hd-ink); background: var(--hd-g-wash); }
+.hd-widget[data-hd-family="glass"] .hd-sheet-close:active { background: var(--hd-track); }
+.hd-widget[data-hd-family="glass"] .hd-mi-label { font-weight: var(--hd-label-weight); }
+
+/* State table (Glass column). Error: an alert ring on the control (the shake and the state line are structure). Armed: an accent ring; the bar is the accent (structure). */
+.hd-widget[data-hd-family="glass"][data-hd-status="error"] :is(.hd-push, .hd-pick, .hd-ltile, .hd-seg, .hd-stepper) { outline: var(--hd-stroke-1) solid var(--hd-alert); outline-offset: 1px; }
+.hd-widget[data-hd-family="glass"][data-hd-armed="true"] :is(.hd-push, .hd-pick, .hd-ltile, .hd-seg, .hd-stepper) { outline: var(--hd-stroke-2) solid var(--hd-accent); outline-offset: 2px; }
+.hd-widget[data-hd-family="glass"][data-hd-status="error"] :is(.hd-slider-thumb, .hd-ct-thumb) { box-shadow: var(--hd-thumb-shadow), 0 0 0 var(--hd-stroke-1) var(--hd-alert); }
+/* Unavailable: hollow controls, no fill, dashed card (widgets.css). */
+.hd-widget[data-hd-family="glass"][data-hd-status="unavailable"][data-hd-status] :is(.hd-push, .hd-pick, .hd-step, .hd-ltile) { background: transparent; box-shadow: inset 0 0 0 var(--hd-stroke-1) var(--hd-ink-faint); }
+.hd-widget[data-hd-family="glass"][data-hd-status="unavailable"] .hd-ltile-wash { display: none; }
+.hd-widget[data-hd-family="glass"][data-hd-status="unavailable"] .hd-slider-fill { display: none; }
+.hd-widget[data-hd-family="glass"][data-hd-status="unavailable"] :is(.hd-slider-thumb, .hd-ct-thumb, .hd-wheel-thumb) { background: transparent; border-color: transparent; box-shadow: inset 0 0 0 var(--hd-stroke-1) var(--hd-ink-faint); }
+.hd-widget[data-hd-family="glass"][data-hd-status="unavailable"] .hd-push[data-hd-variant="tile"] .hd-ico { background: transparent; box-shadow: none; }
+/* Read-only: full strength, no lift shadows (the lock badge is structure). */
+.hd-widget[data-hd-family="glass"][data-hd-readonly="true"] :is(.hd-push, .hd-pick, .hd-step, .hd-ltile):not([aria-checked="true"], [data-hd-on="true"]) { box-shadow: var(--hd-edge-hi), var(--hd-thumb-ring); }
+.hd-widget[data-hd-family="glass"][data-hd-readonly="true"] :is(.hd-slider-thumb, .hd-ct-thumb, .hd-wheel-thumb) { box-shadow: var(--hd-thumb-ring); }
+
+/* Motion (gate selector only; transform and opacity only). The busy ring sweeps; a confirmed thumb or glyph pulses 1 > 1.06 > 1 once. */
+@media (prefers-reduced-motion: no-preference) {
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="glass"][data-hd-pending="true"] :is(.hd-push, .hd-pick, .hd-step-value, .hd-ltile, .hd-ltile > .hd-iconbadge, .hd-slider-thumb, .hd-ct-thumb, .hd-wheel-thumb, .hd-seg-indicator)::after { animation: hd-spin 1s linear infinite; }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="glass"][data-hd-confirmed="true"] :is(.hd-slider-thumb, .hd-ct-thumb, .hd-wheel-thumb)::before { animation: hd-g-halo var(--hd-dur-dip) var(--hd-ease-standard); }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="glass"][data-hd-confirmed="true"] .hd-push .hd-ico { animation: hd-g-pulse var(--hd-dur-dip) var(--hd-ease-standard); }
+}
 
 /* ui/css/homedash-family-tactile.css */
 /* HomeDash family Tactile: token block (plan T2) and painting. Quiet hardware from one well-made appliance: one key light from the top left,
@@ -1276,6 +1416,8 @@
 .hd-widget[data-hd-type="switch"] .hd-push[data-hd-variant="tile"] .hd-ico { inline-size: 28px; block-size: 28px; }
 @container hd-widget (min-height: 200px) { .hd-widget[data-hd-type="switch"] .hd-push[data-hd-variant="tile"] .hd-ico { inline-size: 40px; block-size: 40px; } }
 .hd-widget[data-hd-type="switch"] .hd-push[data-hd-variant="tile"] .hd-push-label { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* G-1: at 1x1 the word chip is narrower than icon and word, so it shows the icon only, centred; the word stays in the DOM as visually hidden text and the state line carries the state or verb. */
+@container hd-widget (max-width: 139px) and (max-height: 139px) { .hd-widget:is([data-hd-type="switch"], [data-hd-type="action"]) .hd-push[data-hd-variant="chip"] .hd-push-label { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } }
 /* Light slider row (power chip 44x44, slider, numeral 4.5ch hidden below 300px) and fader column (numeral from 260px tall, vertical slider 64px or more, power chip). */
 .hd-lrow { display: flex; align-items: center; gap: 8px; inline-size: 100%; min-inline-size: 0; }
 .hd-widget .hd-lrow > .hd-push[data-hd-variant], .hd-widget .hd-lcol > .hd-push[data-hd-variant] { flex: none; inline-size: 44px; block-size: 44px; padding: 0; }
