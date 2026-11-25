@@ -75,7 +75,7 @@ func (s *Store) CreateDashboard(ctx context.Context, doc Dashboard, by string) (
 	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM hd_dashboards`).Scan(&n); err != nil {
 		return Dashboard{}, err
 	}
-	if n >= s.maxDashboards {
+	if int64(n) >= s.maxDashboards.Load() {
 		return Dashboard{}, newError(CodeLimitExceeded, "too many dashboards")
 	}
 	now := s.now()

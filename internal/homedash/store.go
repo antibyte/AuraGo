@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"time"
 
 	"aurago/internal/dbutil"
@@ -44,9 +45,10 @@ CREATE TABLE IF NOT EXISTS hd_mqtt_entities (
 // Store is homedash.db: one connection, WAL, foreign keys on (dbutil.Open). It does not validate
 // documents; callers run Normalize, Autopack and Validate first. hd_mqtt_entities CRUD comes with B12.
 type Store struct {
-	db            *sql.DB
-	now           func() time.Time
-	maxDashboards int
+	db  *sql.DB
+	now func() time.Time
+	// maxDashboards is set by SetMaxDashboards from config hot reload while requests save.
+	maxDashboards atomic.Int64
 }
 
 // OpenStore opens (and on first use creates) the HomeDash database at path.
@@ -67,7 +69,9 @@ func OpenStore(path string) (*Store, error) {
 		db.Close()
 		return nil, errors.New("unsupported HomeDash database schema")
 	}
-	return &Store{db: db, now: func() time.Time { return time.Now().UTC() }, maxDashboards: 50}, nil
+	st := &Store{db: db, now: func() time.Time { return time.Now().UTC() }}
+	st.maxDashboards.Store(50)
+	return st, nil
 }
 
 func (s *Store) Close() error { return s.db.Close() }
@@ -75,7 +79,7 @@ func (s *Store) Close() error { return s.db.Close() }
 // SetMaxDashboards sets the dashboard cap; non-positive values are ignored.
 func (s *Store) SetMaxDashboards(n int) {
 	if n > 0 {
-		s.maxDashboards = n
+		s.maxDashboards.Store(int64(n))
 	}
 }
 
