@@ -1,6 +1,7 @@
 package desktop
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
@@ -98,6 +99,9 @@ func DialSSH(ctx context.Context, access SSHAccess, opts SSHDialOptions) (*ssh.C
 	var auth []ssh.AuthMethod
 	if signer, err := ssh.ParsePrivateKey(access.Secret); err == nil {
 		auth = append(auth, ssh.PublicKeys(signer))
+	} else if bytes.Contains(access.Secret, []byte("-----BEGIN")) {
+		// Never send key material as a password: passphrase-protected or unsupported keys fail here.
+		return nil, errors.New("the stored SSH private key could not be used (passphrase-protected or unsupported key format)")
 	} else {
 		auth = append(auth, ssh.Password(string(access.Secret)))
 	}
