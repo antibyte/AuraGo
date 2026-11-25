@@ -1105,6 +1105,9 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			return "Tool Output: " + exec.Output
 
 		case "code_studio_workspace":
+			if codeStudioWorkspaceOperationMismatch(tc) {
+				return `Tool Output: {"status":"error","message":"code_studio_workspace: the operation parameter differs from the requested operation."}`
+			}
 			args := codeStudioWorkspaceToolArgs(tc)
 			logger.Info("LLM requested Code Studio workspace operation",
 				"operation", toolArgString(args, "operation"),

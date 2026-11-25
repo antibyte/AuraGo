@@ -88,6 +88,8 @@ func TestRoleToolRestrictionHoldsA2APeersToReadsOnDesktopHomepageAndCode(t *test
 		{Action: "virtual_desktop_files", Operation: "write_file"}, {Action: "virtual_desktop_widgets", Operation: "upsert_widget"},
 		{Action: "code_studio_workspace", Operation: "write_file"}, {Action: "code_studio_workspace", Operation: "patch_file"},
 		{Action: "code_studio_workspace", Operation: "run_command"}, {Action: "code_studio_workspace"},
+		{Action: "code_studio_workspace", Operation: "read_file"}, {Action: "code_studio_workspace", Operation: "search"},
+		{Action: "code_studio_workspace", Operation: "list_files"},
 		{Action: "virtual_desktop_apps", Operation: "install_app"}, {Action: "virtual_desktop_app_install"},
 		{Action: "homepage", Operation: "write_file"}, {Action: "homepage", Operation: "edit_file"},
 		{Action: "homepage", Operation: "exec"}, {Action: "homepage", Operation: "deploy_netlify"},
@@ -122,7 +124,6 @@ func TestRoleToolRestrictionHoldsA2APeersToReadsOnDesktopHomepageAndCode(t *test
 		{Action: "virtual_desktop", Operation: "status"}, {Action: "virtual_desktop", Operation: "list_files"},
 		{Action: "virtual_desktop", Operation: "read_file"}, {Action: "virtual_desktop", Operation: "search_file"},
 		{Action: "virtual_desktop_files", Operation: "read_file_excerpt"}, {Action: "virtual_desktop_apps", Operation: "list_apps"},
-		{Action: "code_studio_workspace", Operation: "read_file"}, {Action: "code_studio_workspace", Operation: "search"},
 		{Action: "virtual_desktop", Operation: "get_widget"}, {Action: "virtual_desktop", Operation: "diagnose_app"},
 		{Action: "homepage", Operation: "list_files"}, {Action: "homepage", Operation: "read_file"},
 		{Action: "homepage", Operation: "status"}, {Action: "homepage", Operation: "git_log"},
@@ -136,5 +137,19 @@ func TestRoleToolRestrictionHoldsA2APeersToReadsOnDesktopHomepageAndCode(t *test
 		if got := roleToolRestriction(call, a2a); got != "" {
 			t.Errorf("a2a run denied the read %s %q: %q", call.Action, call.Operation, got)
 		}
+	}
+}
+
+func TestRoleToolRestrictionDeniesCodeStudioWorkspaceToCoAgents(t *testing.T) {
+	local := &DispatchContext{SessionID: "coagent-1", IsCoAgent: true, MessageSource: "co_agent", CoAgentSpecialist: "coder"}
+	for _, op := range []string{"list_files", "read_file", "run_command", "write_file"} {
+		got := roleToolRestriction(ToolCall{Action: "code_studio_workspace", Operation: op}, local)
+		if !strings.Contains(got, "policy_denied") {
+			t.Errorf("co-agent may call code_studio_workspace %q: %q", op, got)
+		}
+	}
+	main := &DispatchContext{SessionID: "default"}
+	if got := roleToolRestriction(ToolCall{Action: "code_studio_workspace", Operation: "run_command"}, main); got != "" {
+		t.Errorf("main agent denied: %q", got)
 	}
 }

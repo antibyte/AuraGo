@@ -35,3 +35,17 @@ func TestCodeStudioWorkspaceSchemaRequiresWorkspaceID(t *testing.T) {
 	}
 	t.Fatal("code_studio_workspace schema missing with the virtual desktop enabled")
 }
+
+func TestCodeStudioWorkspaceToolArgsOperationFollowsThePolicyOperation(t *testing.T) {
+	tc := ToolCall{Action: "code_studio_workspace", Operation: "list_files", Params: map[string]interface{}{"operation": "run_command", "command": "id"}}
+	if got := codeStudioWorkspaceToolArgs(tc)["operation"]; got != "list_files" {
+		t.Fatalf("operation = %v, want the judged list_files", got)
+	}
+	if !codeStudioWorkspaceOperationMismatch(tc) {
+		t.Fatal("a Params operation that differs from the judged one must be flagged")
+	}
+	same := ToolCall{Action: "code_studio_workspace", Params: map[string]interface{}{"operation": " Read_File "}}
+	if codeStudioWorkspaceOperationMismatch(same) || codeStudioWorkspaceToolArgs(same)["operation"] != "read_file" {
+		t.Fatalf("params-only operation must stay usable: %#v", codeStudioWorkspaceToolArgs(same))
+	}
+}

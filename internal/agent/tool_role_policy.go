@@ -75,6 +75,8 @@ func roleToolRestriction(tc ToolCall, dc *DispatchContext) string {
 			return `Tool Output: {"status": "policy_denied", "message": "Co-Agents cannot spawn sub-agents."}`
 		case "virtual_workspace", "virtual_browser", "virtual_computer_ui":
 			return `Tool Output: {"status": "policy_denied", "message": "Agent Workspaces are controlled only by the AuraGo main agent."}`
+		case "code_studio_workspace":
+			return `Tool Output: {"status": "policy_denied", "message": "Code Studio SSH workspaces are reserved for the owner's own Code Studio chat."}`
 		case "follow_up":
 			return `Tool Output: {"status": "policy_denied", "message": "Co-Agents cannot schedule follow-ups."}`
 		case "wait_for_event":
@@ -247,9 +249,9 @@ func a2aDesktopWrite(tc ToolCall) bool {
 	case "virtual_desktop_app_install":
 		return true // The dispatcher forces the operation to install_app.
 	case "code_studio_workspace":
-		// Listing, reading and searching an SSH workspace only read; writes and
-		// run_command change the remote host. Empty or unknown fails closed.
-		return !oneOf(tc.Operation, "list_files", "read_file", "read_file_excerpt", "search")
+		// Remote repository contents and a shell on an SSH host are owner-only:
+		// every operation is refused, reads included.
+		return true
 	case "virtual_desktop", "virtual_desktop_files", "virtual_desktop_apps", "virtual_desktop_widgets":
 		return !oneOf(tc.Operation, a2aDesktopReadOperations...)
 	}
