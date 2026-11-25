@@ -31,7 +31,14 @@ Agent filesystem, external service and Docker tool safety boundaries.
   `HARequestJSON`/`HAGetBytes` (`homeassistant_raw.go`) are thin read-only wrappers over
   `haDo`, the single Home Assistant HTTP path: GET only, endpoints under `/api/` with
   strict validation, binary reads capped at 8 MiB; they report non-2xx answers as
-  `HAHTTPError` without the body. Writes go through `HACallServiceContext`.
+  `HAHTTPError` without the body. `HACallServiceContext` is the agent tool and HA Switchboard write path.
+- `HACallServiceStates` (`homeassistant_service_states.go`) is HomeDash's typed write path. It applies the same
+  read-only, service and target policy and target refusal as `HACallServiceContext`, for exactly one concrete entity.
+  Service data may not select targets. Domain and service are not lowercased (stricter). It returns the changed states
+  (bare list or `changed_states` wrapper) with RAW attributes; callers must filter them. Failures are
+  `*HAServiceError` (kinds `invalid`, `policy`, `unreachable`, `auth`, `rejected`, `upstream`, `bad_answer`); `Error()`
+  never carries the body. `LogDetail` is a bounded, scrubbed excerpt for logs only; never show it to a client.
+  `HACallServiceContext` stays unchanged for the agent tool and the HA Switchboard.
 
 - Ansible local and sidecar inventory/execution share `../../ansible_api/AGENTS.md`. Read-only denies check/dry-run as well as playbook writes. Managed containers reconcile read-only/default-inventory policy; older sidecars cannot execute or expose raw inventory.
 - Ansible policy 4 validates read-only module arguments in both modes, including decoded JSON. It rejects extra-variable connection/engine overrides and inventory templates in both modes. Exported inventories and resolved host lists are checked before execution. Local probes share the caller's timeout and require live and run-scoped Docker write permission to receive Docker client variables or a socket grant. Verify `TestAnsibleSharedLiteralPolicy`, `TestAnsibleManagedPolicyChecksImageBeforeReplacingContainer` and opt-in `TestAnsibleLocalRealTargetPolicy`.
