@@ -1,0 +1,66 @@
+import assert from 'node:assert/strict'; import { loadEngine, eq } from './harness.mjs'; import { fakeClock } from './live-fakes.mjs';
+const cap = (name, x) => Object.assign({ name, allowed: true }, x);
+const LIGHT = { id: 'ha:light.kitchen', kind: 'light', value: true, available: true, status: 'ok', attributes: { brightness_pct: 40 }, capabilities: [cap('toggle'), cap('turn_on'), cap('turn_off'), cap('brightness', { min: 0, max: 100, step: 1 }), cap('color_temp', { min: 2202, max: 6535, step: 50 }), cap('color')] };
+const SW = { id: 'ha:switch.coffee', kind: 'switch', value: false, available: true, status: 'ok', attributes: {}, capabilities: [cap('toggle'), cap('turn_on'), cap('turn_off')] };
+const SCRIPT = { id: 'ha:script.goodnight', kind: 'script', value: false, available: true, status: 'ok', attributes: {}, capabilities: [cap('activate', { sensitive: true })] };
+const NUM = { id: 'ha:number.boiler_target', kind: 'number', value: 55, available: true, status: 'ok', attributes: {}, capabilities: [cap('set_value', { min: 30, max: 70, step: 1 })] };
+function setup() {
+  const { E } = loadEngine(['hd-core.js', 'hd-format.js', 'hd-api.js', 'hd-command.js']), clock = fakeClock(), stream = E.core.emitter(), views = new Map([LIGHT, SW, SCRIPT, NUM].map(v => [v.id, v])), calls = []; let n = 0;
+  const api = { base: '/b', command(body) { let ok, no; const p = new Promise((a, b) => { ok = a; no = b; }); calls.push({ body, at: clock.now(), ok, no }); return p; } };
+  const cmd = E.command.create({ api, stream, store: { view: id => views.get(id) || null }, setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout, now: clock.now, requestId: () => 'r' + (++n) });
+  const fail = (status, body) => Object.assign(new Error('HTTP ' + status), { status, body });
+  const frame = (id, st) => stream.emit('state', { changes: { [id]: Object.assign({ available: true, updated_at: 'x' }, st) } });
+  return { E, clock, views, calls, cmd, fail, frame, d: (id, k) => cmd.decorate(id, views.get(id), k) };
+}
+const exp = (value, attributes) => ({ status: 'ok', accepted: true, superseded: false, expected: Object.assign({ value, available: true, updated_at: 'x' }, attributes ? { attributes } : {}) });
+export const tests = [
+  ['command: predict mirrors the contract expected table; matches uses the tolerances', () => { const { E } = setup(), P = E.command.predict, M = E.command.matches;
+    eq(P(SW, 'turn_on', {}), { value: true }); eq(P(LIGHT, 'brightness', { value: 0 }), { value: false }); eq(P(LIGHT, 'brightness', { value: 60 }), { value: true, attributes: { brightness_pct: 60 } });
+    eq(P(LIGHT, 'color', { h: 10, s: 50 }), { value: true, attributes: { hs_color: [10, 50], color_mode: 'hs' } }); assert.equal(P(SCRIPT, 'activate', {}), null); eq(P(NUM, 'set_value', { value: 56 }), { value: 56 });
+    const st = a => ({ value: true, available: true, attributes: a });
+    assert.ok(M(st({ brightness_pct: 61 }), { value: true, attributes: { brightness_pct: 60 } }, 1)); assert.ok(!M(st({ brightness_pct: 62 }), { value: true, attributes: { brightness_pct: 60 } }, 1));
+    assert.ok(M(st({ color_temp_kelvin: 3060 }), { value: true, attributes: { color_temp_kelvin: 3000 } })); assert.ok(!M(st({ color_temp_kelvin: 3070 }), { value: true, attributes: { color_temp_kelvin: 3000 } }));
+    assert.ok(M(st({ hs_color: [358, 52] }), { value: true, attributes: { hs_color: [2, 49] } })); assert.ok(!M(st({ hs_color: [8, 50] }), { value: true, attributes: { hs_color: [2, 50] } }));
+    assert.ok(M({ value: 55.4, available: true }, { value: 55 }, 1)); assert.ok(!M({ value: 55.6, available: true }, { value: 55 }, 1)); assert.ok(!M({ value: true, available: false }, { value: true })); }],
+  ['command: the overlay applies at once, pending appears after 250 ms (not before), a matching frame confirms and flashes 600 ms', async () => { const { clock, calls, cmd, frame, d, views } = setup();
+    cmd.send({ entity: SW.id, command: 'turn_on', args: {}, widgetKey: 'w1' }); assert.equal(d(SW.id).value, true); assert.equal(d(SW.id).pending, false);
+    await clock.advance(249); assert.equal(d(SW.id).pending, false); await clock.advance(2); assert.equal(d(SW.id).pending, true);
+    calls[0].ok(exp(true)); await clock.advance(0); frame(SW.id, { value: true }); assert.equal(d(SW.id).pending, false); assert.equal(d(SW.id).confirmed, true);
+    await clock.advance(600); assert.equal(d(SW.id), views.get(SW.id)); }],
+  // after the 600 ms flash decorate() returns the store view itself (same reference), so the strict equal holds
+  ['command: a frame before the 202 confirms when expected arrives; the server state already equal at the 202 confirms; duplicates are harmless', async () => { const { clock, calls, cmd, frame, d, views } = setup();
+    cmd.send({ entity: SW.id, command: 'turn_on', args: {} }); frame(SW.id, { value: true }); calls[0].ok(exp(true)); await clock.advance(0); frame(SW.id, { value: true }); assert.equal(d(SW.id).pending, false); assert.equal(d(SW.id).confirmed, true);
+    cmd.send({ entity: LIGHT.id, command: 'turn_on', args: {} }); calls[1].ok(exp(true)); await clock.advance(0); assert.equal(d(LIGHT.id).confirmed, true); assert.equal(views.size, 4); }],
+  ['command: superseded ends silently; momentary commands confirm on the 202', async () => { const { clock, calls, cmd, d, views } = setup();
+    cmd.send({ entity: NUM.id, command: 'set_value', args: { value: 60 }, phase: 'commit' }); calls[0].ok({ status: 'ok', accepted: true, superseded: true }); await clock.advance(0); assert.equal(d(NUM.id), views.get(NUM.id));
+    cmd.send({ entity: SCRIPT.id, command: 'activate', args: {}, confirmed: true, widgetKey: 'w' }); }],
+  ['command: an error rolls back at once with a 6 s cue; 403 read_only marks the entity read-only with its reason and no cue', async () => { const { clock, calls, cmd, fail, d } = setup();
+    cmd.send({ entity: SW.id, command: 'turn_on', args: {} }); calls[0].no(fail(503, { status: 'error', code: 'source_unavailable', source: 'ha' })); await clock.advance(0);
+    assert.equal(d(SW.id).value, false); assert.equal(d(SW.id).status, 'error'); eq(d(SW.id).error, { code: 'source_unavailable', source: 'ha', blockedBy: '' }); await clock.advance(6000); assert.equal(d(SW.id).status, 'ok');
+    cmd.send({ entity: SW.id, command: 'turn_on', args: {} }); calls[1].no(fail(403, { status: 'error', code: 'read_only', blocked_by: 'home_assistant.allowed_services' })); await clock.advance(0);
+    assert.equal(d(SW.id).status, 'ok'); assert.equal(d(SW.id).readonly, true); assert.equal(d(SW.id).readonlyReason, 'home_assistant.allowed_services'); }],
+  ['command: 8 s without confirmation rolls back with the timeout cue unless a frame with the expected value arrived (late adoption)', async () => { const { clock, calls, cmd, frame, d } = setup();
+    cmd.send({ entity: LIGHT.id, command: 'color_temp', args: { kelvin: 6502 }, phase: 'commit' }); calls[0].ok(exp(true, { color_temp_kelvin: 6502 })); await clock.advance(0);
+    frame(LIGHT.id, { value: true, attributes: { color_temp_kelvin: 6300 } }); await clock.advance(8000); assert.equal(d(LIGHT.id).status, 'ok'); assert.ok(!d(LIGHT.id).pending);
+    cmd.send({ entity: SW.id, command: 'turn_on', args: {} }); calls[1].ok(exp(true)); await clock.advance(8000); assert.equal(d(SW.id).value, false); eq(d(SW.id).error.code, 'timeout'); }],
+  ['command: continuous input sends at most every 1250 ms with a leading edge, the final always on commit, and drops a 429 on an intermediate', async () => { const { clock, calls, cmd, fail, d } = setup();
+    for (let i = 0; i < 180; i++) { cmd.send({ entity: LIGHT.id, command: 'brightness', args: { value: 10 + Math.floor(i / 3) }, phase: 'input' }); await clock.advance(1000 / 60); }
+    assert.equal(calls.length, 3); for (let i = 1; i < calls.length; i++) assert.ok(calls[i].at - calls[i - 1].at >= 1250);
+    calls[1].no(fail(429, { code: 'rate_limited', retry_after_ms: 900 })); await clock.advance(0); assert.equal(d(LIGHT.id).attributes.brightness_pct, 69);
+    cmd.send({ entity: LIGHT.id, command: 'brightness', args: { value: 70 }, phase: 'commit' }); assert.equal(calls.length, 4); eq(calls[3].body.args, { value: 70 }); assert.equal(d(LIGHT.id).attributes.brightness_pct, 70); }],
+  ['command: a 429 on the final retries once with a new request_id after retry_after_ms while it is the latest', async () => { const { clock, calls, cmd, fail } = setup();
+    cmd.send({ entity: NUM.id, command: 'set_value', args: { value: 60 }, phase: 'commit' }); calls[0].no(fail(429, { code: 'rate_limited', retry_after_ms: 700 })); await clock.advance(699); assert.equal(calls.length, 1);
+    await clock.advance(1); assert.equal(calls.length, 2); assert.notEqual(calls[1].body.request_id, calls[0].body.request_id); calls[1].no(fail(429, { code: 'rate_limited', retry_after_ms: 700 })); await clock.advance(2000); assert.equal(calls.length, 2); }],
+  ['command: keys move the overlay at once and send one command 400 ms after the last key', async () => { const { clock, calls, cmd, d } = setup();
+    for (const v of [41, 42, 43]) { cmd.send({ entity: LIGHT.id, command: 'brightness', args: { value: v }, phase: 'key' }); await clock.advance(100); }
+    assert.equal(d(LIGHT.id).attributes.brightness_pct, 43); assert.equal(calls.length, 0); await clock.advance(300); assert.equal(calls.length, 1); eq(calls[0].body.args, { value: 43 }); }],
+  ['command: confirm-required arms 4 s with a countdown; the second activation sends confirmed:true; 409 arms', async () => { const { clock, calls, cmd, fail, d } = setup();
+    const go = () => cmd.send({ entity: SCRIPT.id, command: 'activate', args: {}, widgetKey: 'w9' });
+    assert.equal((await go()).status, 'armed'); assert.equal(calls.length, 0); assert.equal(d(SCRIPT.id, 'w9').armed.seconds, 4); await clock.advance(1000); assert.equal(d(SCRIPT.id, 'w9').armed.seconds, 3);
+    go(); assert.equal(calls[0].body.confirmed, true); await clock.advance(5000); assert.equal(d(SCRIPT.id, 'w9').armed, undefined);
+    cmd.send({ entity: SW.id, command: 'turn_on', args: {}, widgetKey: 'w2' }); calls[1].no(fail(409, { code: 'confirmation_required' })); await clock.advance(0); assert.equal(d(SW.id, 'w2').armed.command, 'turn_on');
+    cmd.send({ entity: SW.id, command: 'turn_on', args: {}, widgetKey: 'w2' }); assert.equal(calls[2].body.confirmed, true); }],
+  ['command: every action has its own request_id; the body carries dashboard and widget ids', async () => { const { calls, cmd } = setup();
+    cmd.send({ entity: SW.id, command: 'turn_on', args: {}, dashboardId: 'd_m3x7q2k5a4bc', widgetId: 'w2' }); cmd.send({ entity: SW.id, command: 'turn_off', args: {} });
+    eq(calls[0].body, { entity: SW.id, command: 'turn_on', args: {}, request_id: 'r1', confirmed: false, dashboard_id: 'd_m3x7q2k5a4bc', widget_id: 'w2' }); assert.equal(calls[1].body.request_id, 'r2'); }]
+];
