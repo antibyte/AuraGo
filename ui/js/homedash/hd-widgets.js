@@ -9,6 +9,15 @@
     const FACTORY_FNS = ['entity', 'can', 'command', 'moreInfo', 'history', 'announce'];
     const STATUSES = ['ok', 'unavailable', 'unknown', 'error'];
     const noop = () => {};
+    // Head icon rule (contract M3 section 6): widget.icon, then the entity's icon_hint, then the kind icon; each only when the icon set knows it.
+    const KIND_ICONS = Object.freeze({ light: 'bulb', switch: 'power', scene: 'scene', script: 'script', button: 'button', select: 'list', number: 'number', sensor: 'gauge', climate: 'thermometer', lock: 'lock' });
+    function iconFor(widget, e) {
+        const own = widget && typeof widget.icon === 'string' && E.icons.has(widget.icon) ? widget.icon : null;
+        if (own) return own;
+        if (!e) return null;
+        if (typeof e.icon_hint === 'string' && E.icons.has(e.icon_hint)) return e.icon_hint;
+        return KIND_ICONS[e.kind] || 'entity';
+    }
     // Shared by the hero modules: staleText(api, e) is "Updated N min ago" in whole minutes, or null when updated_at does not parse.
     const heroStatus = Object.freeze({
         staleText(api, e) {
@@ -68,8 +77,8 @@
         function writeTone(p) { setAttr(wrapper, 'data-hd-tone', toneOverride ?? (p && p.tone)); }
         function writeState(p) {
             const w = p ? F.stateWord(p) : '';
-            const stateText = ['unavailable', 'unknown', 'error', 'pending'].includes(w) ? t(F.STATE_PREFIX + w) : statusText !== null ? statusText : (p ? F.stateText(p, t) : '');
-            frame.set({ title: widget.title || (p && p.name) || '', stateText });
+            const stateText = w === 'error' && p.error && p.error.text ? String(p.error.text) : ['unavailable', 'unknown', 'error', 'pending'].includes(w) ? t(F.STATE_PREFIX + w) : statusText !== null ? statusText : (p ? F.stateText(p, t) : '');
+            frame.set({ title: widget.title || (p && p.name) || (typeof o.titleFallback === 'function' ? o.titleFallback() : ''), stateText, icon: iconFor(widget, p) });
         }
         let instance;
         try {
@@ -86,6 +95,7 @@
             setAttr(wrapper, 'data-hd-status', !p ? 'ok' : p.available === false ? 'unavailable' : STATUSES.includes(p.status) ? p.status : 'ok');
             const on = F.isOn(p); setAttr(wrapper, 'data-hd-on', on === null ? null : String(on));
             setAttr(wrapper, 'data-hd-pending', !!(p && p.pending)); setAttr(wrapper, 'data-hd-stale', !!(p && p.stale)); setAttr(wrapper, 'data-hd-readonly', !!(p && p.readonly));
+            setAttr(wrapper, 'data-hd-armed', !!(p && p.armed)); setAttr(wrapper, 'data-hd-confirmed', !!(p && p.confirmed));
             writeTone(p); writeState(p);
             inst.update({ mode, entities });
         }
@@ -103,6 +113,7 @@
             if (destroyed) return; destroyed = true;
             resources.dispose(); inst.destroy(); frame.destroy(); wrapper.remove();
         }
+        if (o.moreLabel) resources.on(frame.el.querySelector('.hd-more'), 'click', () => { if (mode === 'view') fns.moreInfo(def.bindings[0]); });
         applyMode(); update();
         return { el: wrapper, body: frame.body, family, update, resize, setMode, destroy };
     }
@@ -175,5 +186,5 @@
         } finally { if (probe) probe.remove(); }
     }
 
-    E.widgets = Object.freeze({ register, get, types, host, applyLook, heroStatus });
+    E.widgets = Object.freeze({ register, get, types, host, applyLook, heroStatus, iconFor });
 })();

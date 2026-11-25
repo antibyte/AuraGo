@@ -258,7 +258,7 @@
         if (typeof o.foot === 'string' && o.foot) { foot.textContent = o.foot; foot.removeAttribute('hidden'); }
         else if (o.foot && o.foot.nodeType) { foot.appendChild(o.foot); foot.removeAttribute('hidden'); }
         node.appendChild(head); node.appendChild(body); node.appendChild(foot); node.appendChild(el('div', { class: 'hd-state' }, stateText));
-        if (o.more) node.appendChild(el('button', { class: 'hd-more', type: 'button', 'aria-label': o.more }));
+        if (o.more) node.appendChild(el('button', { class: 'hd-more', type: 'button', 'aria-label': o.more }, E.icons.icon('more')));
         const slot = iconSlot(iconHost, null, o.icon || null);
         function set(state) {
             const s = state || {}; applyState(node, s);
