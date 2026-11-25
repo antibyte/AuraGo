@@ -243,3 +243,61 @@ func TestFakeCloseAndDropAreRaceFreeAndIdempotent(t *testing.T) {
 		}
 	}
 }
+
+func TestFakeFailStatesAndFailRegistriesAnswerHAShapedErrors(t *testing.T) {
+	s := New(t, func() Options { o := DemoOptions(); o.FailStates, o.FailRegistries = true, true; return o }())
+	c := dialAuthed(t, s)
+	for i, typ := range []string{"get_states", "config/area_registry/list", "config/device_registry/list", "config/entity_registry/list"} {
+		_ = c.WriteJSON(map[string]any{"id": i + 1, "type": typ})
+		var r struct {
+			ID      int64 `json:"id"`
+			Success bool  `json:"success"`
+			Error   struct {
+				Code    string `json:"code"`
+				Message string `json:"message"`
+			} `json:"error"`
+		}
+		if err := c.ReadJSON(&r); err != nil || r.Success || r.ID != int64(i+1) || r.Error.Code != "unknown_error" || r.Error.Message == "" {
+			t.Fatalf("%s = %+v %v", typ, r, err)
+		}
+	}
+	if resp := get(t, s, "/api/states", s.Token); resp.StatusCode != http.StatusOK {
+		t.Fatalf("REST states = %d, FailStates must not touch REST", resp.StatusCode)
+	}
+}
+
+func TestFakeFailRegistriesLeavesStatesWorking(t *testing.T) {
+	o := DemoOptions()
+	o.FailRegistries = true
+	s := New(t, o)
+	c := dialAuthed(t, s)
+	_ = c.WriteJSON(map[string]any{"id": 1, "type": "get_states"})
+	var r struct {
+		Success bool             `json:"success"`
+		Result  []map[string]any `json:"result"`
+	}
+	if err := c.ReadJSON(&r); err != nil || !r.Success || len(r.Result) != 15 {
+		t.Fatalf("get_states = %+v %v", r, err)
+	}
+}
+
+func TestFakeChangedStatesWrapped(t *testing.T) {
+	o := DemoOptions()
+	o.ChangedStatesWrapped = true
+	s := New(t, o)
+	raw, _ := json.Marshal(map[string]any{"entity_id": "switch.coffee"})
+	req, _ := http.NewRequest(http.MethodPost, s.URL+"/api/services/switch/toggle", bytes.NewReader(raw))
+	req.Header.Set("Authorization", "Bearer "+s.Token)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	var out struct {
+		Changed  []State `json:"changed_states"`
+		Response any     `json:"service_response"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil || len(out.Changed) != 1 || out.Changed[0].EntityID != "switch.coffee" || out.Changed[0].State != "on" || out.Response != nil {
+		t.Fatalf("wrapped answer = %+v %v", out, err)
+	}
+}

@@ -353,9 +353,10 @@ func (h *Hub) fetchOne(ctx context.Context, j catalogJob) {
 }
 
 // catalogFailedLocked marks a source whose catalog could not be fetched; a running source that
-// already has a catalog keeps its own status.
+// already has a catalog, or that reported its own terminal unavailable reason (auth_failed,
+// invalid_url), keeps its own status.
 func (h *Hub) catalogFailedLocked(rt *sourceRT) {
-	if rt.running && rt.catalog != nil {
+	if rt.running && (rt.catalog != nil || rt.status.State == StatusUnavailable) {
 		return
 	}
 	if rt.status.State == StatusUnavailable && rt.status.Reason == ReasonCatalogFailed {

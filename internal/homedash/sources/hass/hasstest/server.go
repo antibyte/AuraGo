@@ -68,6 +68,16 @@ type Options struct {
 	CameraContentType string // default "image/jpeg"
 	NoEvents          bool   // service calls push no state_changed event
 	NoChangedStates   bool   // service calls answer [] instead of the changed states
+	// FailStates makes the websocket get_states command answer success:false with a Home Assistant
+	// shaped error object {"code":"unknown_error","message":"..."}. REST /api/states is unaffected.
+	FailStates bool
+	// FailRegistries makes the three websocket registry list commands (areas, devices, entities)
+	// answer success:false with the same error shape.
+	FailRegistries bool
+	// ChangedStatesWrapped makes service calls answer the newer Home Assistant shape
+	// {"changed_states":[...],"service_response":null} instead of the bare state list. With
+	// NoChangedStates the wrapped list is empty.
+	ChangedStatesWrapped bool
 }
 
 // Server is a running fake Home Assistant. URL and Token are set by New and never change.
@@ -78,6 +88,9 @@ type Server struct {
 	// Immutable after New (copied from the options there), so handlers read them without s.mu.
 	noEvents        bool
 	noChangedStates bool
+	failStates      bool
+	failRegistries  bool
+	wrapChanged     bool
 	history         map[string][]HistoryPoint
 	cameras         map[string][]byte
 	cameraType      string
@@ -120,6 +133,12 @@ func (c *wsConn) send(v any) {
 	_ = c.c.WriteJSON(v)
 }
 
+// sendFailure answers a command with a Home Assistant shaped failure.
+func (c *wsConn) sendFailure(id int64) {
+	c.send(map[string]any{"id": id, "type": "result", "success": false,
+		"error": map[string]any{"code": "unknown_error", "message": "Scripted failure."}})
+}
+
 func (c *wsConn) sub(event string) (int64, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -138,7 +157,7 @@ func New(t testing.TB, o Options) *Server {
 	if o.CameraContentType == "" {
 		o.CameraContentType = "image/jpeg"
 	}
-	s := &Server{Token: o.Token, noEvents: o.NoEvents, noChangedStates: o.NoChangedStates, cameraType: o.CameraContentType,
+	s := &Server{Token: o.Token, noEvents: o.NoEvents, noChangedStates: o.NoChangedStates, failStates: o.FailStates, failRegistries: o.FailRegistries, wrapChanged: o.ChangedStatesWrapped, cameraType: o.CameraContentType,
 		history: map[string][]HistoryPoint{}, cameras: map[string][]byte{},
 		states: map[string]State{}, conns: map[*wsConn]struct{}{},
 		areas: slices.Clone(o.Areas), devices: slices.Clone(o.Devices), entities: slices.Clone(o.Entities)}
@@ -405,6 +424,10 @@ func (s *Server) serveService(w http.ResponseWriter, r *http.Request) {
 			out = append(out, c.new)
 		}
 	}
+	if s.wrapChanged {
+		writeJSON(w, http.StatusOK, map[string]any{"changed_states": out, "service_response": nil})
+		return
+	}
 	writeJSON(w, http.StatusOK, out)
 }
 
@@ -617,12 +640,28 @@ func (s *Server) serveWebsocket(w http.ResponseWriter, r *http.Request) {
 			conn.subs[m.EventType] = m.ID
 			conn.mu.Unlock()
 		case "get_states":
+			if s.failStates {
+				conn.sendFailure(m.ID)
+				continue
+			}
 			result = s.stateList()
 		case "config/area_registry/list":
+			if s.failRegistries {
+				conn.sendFailure(m.ID)
+				continue
+			}
 			result = s.registry("areas")
 		case "config/device_registry/list":
+			if s.failRegistries {
+				conn.sendFailure(m.ID)
+				continue
+			}
 			result = s.registry("devices")
 		case "config/entity_registry/list":
+			if s.failRegistries {
+				conn.sendFailure(m.ID)
+				continue
+			}
 			result = s.registry("entities")
 		default:
 			conn.send(map[string]any{"id": m.ID, "type": "result", "success": false, "error": map[string]any{"code": "unknown_command", "message": "Unknown command."}})
