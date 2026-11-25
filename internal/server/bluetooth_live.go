@@ -36,6 +36,10 @@ func (c desktopCapabilities) HasCapability(name string) bool {
 	case "docker":
 		cfg := c.s.ConfigSnapshot()
 		return cfg != nil && cfg.Docker.Enabled
+	case "homedash":
+		// The desktop app catalog shows HomeDash (manifest Requires ["homedash"]) only with both switches on.
+		cfg := c.s.ConfigSnapshot()
+		return cfg != nil && cfg.HomeDash.Enabled && cfg.VirtualDesktop.Enabled
 	default:
 		return false
 	}

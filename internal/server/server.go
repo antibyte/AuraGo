@@ -428,8 +428,9 @@ type Server struct {
 	// latestSystemMetrics is the latest sample of the 10 s system-metrics
 	// collector; GET /api/dashboard/summary reads it (dashboard_metrics_snapshot.go).
 	latestSystemMetrics atomic.Pointer[systemMetricsSnapshot]
-	hostBootUnix        atomic.Int64        // host boot time (Unix seconds) the metrics collector derived; 0 = unknown
-	homeDashMetrics     homeDashMetricsRing // A1: collector samples for the HomeDash system history (homedash_metrics_ring.go)
+	hostBootUnix        atomic.Int64                    // host boot time (Unix seconds) the metrics collector derived; 0 = unknown
+	homeDash            atomic.Pointer[homeDashService] // HomeDash runtime (homedash_service.go); nil before initHomeDash, after closeHomeDash or when the store failed
+	homeDashMetrics     homeDashMetricsRing             // A1: collector samples for the HomeDash system history (homedash_metrics_ring.go)
 
 	// pushRemoteAllowedPaths sends a changed remote_control.allowed_paths to
 	// connected agents (nil means (*remote.RemoteHub).PushDefaultAllowedPaths);
@@ -699,6 +700,9 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 	}
 	if s.CYDCreator != nil {
 		s.CYDCreator.UpdateLimits(cydCreatorLimits(cfg.CYDCreator))
+	}
+	if svc := s.homeDash.Load(); svc != nil {
+		svc.reconfigure(cfg)
 	}
 	if svc := s.desktopPolicyService.Load(); svc != nil {
 		svc.SetReadOnly(cfg.VirtualDesktop.ReadOnly)
@@ -1232,6 +1236,8 @@ func Start(opts StartOptions) error {
 	s.initPersonalRadio()
 	s.initRTLSDR()
 	s.initBluetoothLive(serverCtx)
+	s.initHomeDash(serverCtx)
+	defer s.closeHomeDash()
 	// Remote security scanners must not delay the core HTTP readiness check.
 	go s.syncAgentSkills(serverCtx, cfg, installedSkills)
 
