@@ -20,3 +20,17 @@ func TestHomeDashDesktopRouteContract(t *testing.T) {
 	}
 	t.Fatal("/api/desktop/homedash/ must have an explicit route contract")
 }
+
+func TestHomeDashHANetworkClientIsClassified(t *testing.T) {
+	t.Parallel()
+	for _, e := range NetworkClientInventory() {
+		if e.Path != "internal/homedash/sources/hass/" {
+			continue
+		}
+		if !e.AllowsLocalNet || !e.Credentialed || e.RequiresSSRF || e.Classification != "configured-home-assistant-websocket-same-origin" {
+			t.Fatalf("entry = %+v", e)
+		}
+		return
+	}
+	t.Fatal("internal/homedash/sources/hass/ must be in NetworkClientInventory")
+}

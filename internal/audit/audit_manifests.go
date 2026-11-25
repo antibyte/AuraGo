@@ -261,6 +261,7 @@ func NetworkClientInventory() []NetworkClientUse {
 		{Path: "internal/fritzbox/", Classification: "local-home-lab", AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/huggingface/", Classification: "configured-huggingface-api", Credentialed: true},
 		{Path: "internal/httporigin/", Classification: "same-origin-redirect-policy-client-constructor"},
+		{Path: "internal/homedash/sources/hass/", Classification: "configured-home-assistant-websocket-same-origin", AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/invasion/", Classification: "managed-remote-nest", AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/jellyfin/", Classification: "configured-media-server", AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/launchpad/", Classification: "user-requested-icon-fetch", RequiresSSRF: true},

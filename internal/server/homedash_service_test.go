@@ -72,7 +72,7 @@ func TestHomeDashInitAndCloseOpenTheStore(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(cfg.Directories.DataDir, config.HomeDashDBFilename)); err != nil {
 		t.Fatalf("homedash.db: %v", err)
 	}
-	if got := svc.hub.Sources(); len(got) != 1 || got[0].Source != "system" {
+	if got := svc.hub.Sources(); len(got) != 2 || got[0].Source != "system" || got[1].Source != "ha" || got[1].State != homedash.StatusDisabled {
 		t.Fatalf("sources = %+v", got)
 	}
 	s.closeHomeDash()
