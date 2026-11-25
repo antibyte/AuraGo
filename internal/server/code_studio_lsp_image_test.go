@@ -105,7 +105,7 @@ func TestCodeStudioLSPRealImage(t *testing.T) {
 			return
 		}
 		defer conn.Close()
-		h.serveCodeStudioLSP(r.Context(), conn, name, lsp)
+		h.serveCodeStudioLSP(r.Context(), conn, h.containerLSPHost(name), lsp)
 	}))
 	defer srv.Close()
 

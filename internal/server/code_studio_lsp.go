@@ -15,6 +15,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/desktop"
 	"aurago/internal/tools"
@@ -393,6 +394,75 @@ func (a codeStudioDockerAdapter) EndLSP(ctx context.Context, containerID, nonce 
 	return nil
 }
 
+// codeStudioLSPHost is where one language server runs: the Code Studio
+// container (codeStudioContainerLSPHost) or an SSH workspace
+// (codeStudioRemoteLSPHost, code_studio_lsp_remote.go).
+type codeStudioLSPHost interface {
+	// Installed reports whether binary is on the host's PATH.
+	Installed(ctx context.Context, binary string) (bool, error)
+	// Start starts cmd tagged with nonce. The returned reader is the server's
+	// raw base-protocol output; stderr bytes go to stderr.
+	Start(ctx context.Context, cmd []string, nonce string, stderr io.Writer) (codeStudioLSPStream, io.Reader, error)
+	// End ends every process that carries the session tag.
+	End(ctx context.Context, nonce string) error
+	// NotInstalled is the 4404 close reason for a missing binary.
+	NotInstalled(binary string) string
+	// Rewriter maps URIs between page and server; nil passes frames unchanged.
+	Rewriter() *codeStudioLSPURIRewriter
+}
+
+// codeStudioContainerLSPHost runs servers as Docker execs in the container.
+type codeStudioContainerLSPHost struct {
+	h           codeStudioHandlers
+	runner      codeStudioLSPRunner
+	containerID string
+}
+
+// containerLSPHost returns nil when the Docker adapter cannot stream execs.
+func (h codeStudioHandlers) containerLSPHost(containerID string) codeStudioLSPHost {
+	runner, ok := h.docker.(codeStudioLSPRunner)
+	if !ok {
+		return nil
+	}
+	return codeStudioContainerLSPHost{h: h, runner: runner, containerID: containerID}
+}
+
+func (c codeStudioContainerLSPHost) Installed(ctx context.Context, binary string) (bool, error) {
+	return c.h.codeStudioLSPInstalled(ctx, c.containerID, binary)
+}
+
+func (c codeStudioContainerLSPHost) Start(ctx context.Context, cmd []string, nonce string, stderr io.Writer) (codeStudioLSPStream, io.Reader, error) {
+	stream, err := c.runner.StartLSP(ctx, c.containerID, cmd, nonce)
+	if err != nil {
+		return nil, nil, err
+	}
+	return stream, &codeStudioLSPDemux{src: stream, stderr: stderr}, nil
+}
+
+func (c codeStudioContainerLSPHost) End(ctx context.Context, nonce string) error {
+	return c.runner.EndLSP(ctx, c.containerID, nonce)
+}
+
+func (c codeStudioContainerLSPHost) NotInstalled(binary string) string {
+	return binary + " is not installed"
+}
+
+func (c codeStudioContainerLSPHost) Rewriter() *codeStudioLSPURIRewriter { return nil }
+
+// codeStudioLSPCloseReason fits a close reason into a control frame (125
+// bytes with the 2-byte code), cut at a rune boundary.
+func codeStudioLSPCloseReason(reason string) string {
+	const max = 123
+	if len(reason) <= max {
+		return reason
+	}
+	cut := reason[:max]
+	for len(cut) > 0 && !utf8.ValidString(cut) {
+		cut = cut[:len(cut)-1]
+	}
+	return cut
+}
+
 // handleLSP is GET /api/code-studio/lsp?lang=go|typescript|python|cpp, a
 // WebSocket to one language server in the Code Studio container. The gate
 // chain is handleTerminal's, in the same order. Step 1 names the execute
@@ -451,12 +521,12 @@ func (h codeStudioHandlers) handleLSP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer conn.Close()
-	h.serveCodeStudioLSP(r.Context(), conn, local.containerID, lsp)
+	h.serveCodeStudioLSP(r.Context(), conn, h.containerLSPHost(local.containerID), lsp)
 }
 
 // serveCodeStudioLSP runs one language-server session on an upgraded socket:
 // session slot, install check, start, the two pipes, then the cleanup.
-func (h codeStudioHandlers) serveCodeStudioLSP(ctx context.Context, conn *websocket.Conn, containerID string, lsp codeStudioLSPServer) {
+func (h codeStudioHandlers) serveCodeStudioLSP(ctx context.Context, conn *websocket.Conn, host codeStudioLSPHost, lsp codeStudioLSPServer) {
 	logger := h.codeStudioLogger()
 	release, ok := codeStudioLSPSessions.acquire()
 	if !ok {
@@ -464,19 +534,18 @@ func (h codeStudioHandlers) serveCodeStudioLSP(ctx context.Context, conn *websoc
 		return
 	}
 	defer release()
-	runner, ok := h.docker.(codeStudioLSPRunner)
-	if !ok {
+	if host == nil {
 		closeCodeStudioLSP(conn, codeStudioLSPCloseStartFailed, "language server runner is unavailable")
 		return
 	}
-	installed, err := h.codeStudioLSPInstalled(ctx, containerID, lsp.Binary)
+	installed, err := host.Installed(ctx, lsp.Binary)
 	if err != nil {
 		logger.Warn("code studio language server check failed", "lang", lsp.Lang, "error", err)
 		closeCodeStudioLSP(conn, codeStudioLSPCloseStartFailed, "language server check failed")
 		return
 	}
 	if !installed {
-		closeCodeStudioLSP(conn, codeStudioLSPCloseNotInstalled, lsp.Binary+" is not installed")
+		closeCodeStudioLSP(conn, codeStudioLSPCloseNotInstalled, codeStudioLSPCloseReason(host.NotInstalled(lsp.Binary)))
 		return
 	}
 	nonce, err := newContainerTerminalNonce()
@@ -484,17 +553,17 @@ func (h codeStudioHandlers) serveCodeStudioLSP(ctx context.Context, conn *websoc
 		closeCodeStudioLSP(conn, codeStudioLSPCloseStartFailed, "language server start failed")
 		return
 	}
-	stream, err := runner.StartLSP(ctx, containerID, lsp.Command, nonce)
+	tail := &codeStudioLSPTail{}
+	stream, stdout, err := host.Start(ctx, lsp.Command, nonce, tail)
 	if err != nil {
 		logger.Warn("code studio language server start failed", "lang", lsp.Lang, "error", err)
 		closeCodeStudioLSP(conn, codeStudioLSPCloseStartFailed, "language server start failed")
 		// A start request that failed late may still have started the process.
-		h.endCodeStudioLSP(runner, containerID, nonce, lsp.Lang)
+		h.endCodeStudioLSP(host, nonce, lsp.Lang)
 		return
 	}
-	tail := &codeStudioLSPTail{}
 	serverDone := make(chan struct{})
-	h.pipeCodeStudioLSP(ctx, conn, stream, tail, serverDone)
+	h.pipeCodeStudioLSP(ctx, conn, stream, stdout, host.Rewriter(), serverDone)
 	// The page is gone: close stdin, give the server time to exit, then end
 	// whatever still carries the session tag.
 	_ = stream.CloseWrite()
@@ -504,15 +573,16 @@ func (h codeStudioHandlers) serveCodeStudioLSP(ctx context.Context, conn *websoc
 	}
 	_ = stream.Close()
 	<-serverDone
-	h.endCodeStudioLSP(runner, containerID, nonce, lsp.Lang)
+	h.endCodeStudioLSP(host, nonce, lsp.Lang)
 	logger.Debug("code studio language server ended", "lang", lsp.Lang, "stderr_tail", tail.String())
 }
 
 // pipeCodeStudioLSP copies server messages to the page and page frames to the
-// server until the page leaves, the server exits or ctx ends. The server side
+// server until the page leaves, the server exits or ctx ends. stdout is the
+// server's raw output; rewriter (nil in the container) maps URIs. The server side
 // closes serverDone when it stops; the function returns when the page side
 // stops, with the socket closed.
-func (h codeStudioHandlers) pipeCodeStudioLSP(ctx context.Context, conn *websocket.Conn, stream codeStudioLSPStream, tail *codeStudioLSPTail, serverDone chan<- struct{}) {
+func (h codeStudioHandlers) pipeCodeStudioLSP(ctx context.Context, conn *websocket.Conn, stream codeStudioLSPStream, stdout io.Reader, rewriter *codeStudioLSPURIRewriter, serverDone chan<- struct{}) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	// A canceled session (failed ping, request end) must not wait for a blocked
@@ -541,7 +611,7 @@ func (h codeStudioHandlers) pipeCodeStudioLSP(ctx context.Context, conn *websock
 	var pageDone atomic.Bool
 	go func() {
 		defer close(serverDone)
-		reader := bufio.NewReaderSize(&codeStudioLSPDemux{src: stream, stderr: tail}, codeStudioLSPReadBuffer)
+		reader := bufio.NewReaderSize(stdout, codeStudioLSPReadBuffer)
 		for {
 			body, err := readCodeStudioLSPMessage(reader)
 			if err != nil {
@@ -554,6 +624,7 @@ func (h codeStudioHandlers) pipeCodeStudioLSP(ctx context.Context, conn *websock
 				}
 				return
 			}
+			body = rewriter.toPage(body)
 			_ = conn.SetWriteDeadline(time.Now().Add(codeStudioLSPPageWriteWait))
 			if err := conn.WriteMessage(websocket.TextMessage, body); err != nil {
 				_ = conn.Close()
@@ -576,6 +647,7 @@ func (h codeStudioHandlers) pipeCodeStudioLSP(ctx context.Context, conn *websock
 			closeCodeStudioLSP(conn, websocket.CloseInvalidFramePayloadData, "invalid JSON")
 			break
 		}
+		payload = rewriter.toServer(payload)
 		if deadliner, ok := stream.(containerTerminalWriteDeadliner); ok {
 			_ = deadliner.SetWriteDeadline(time.Now().Add(containerTerminalWriteTimeout))
 		}
@@ -603,10 +675,10 @@ func (h codeStudioHandlers) codeStudioLSPInstalled(ctx context.Context, containe
 
 // endCodeStudioLSP ends the tagged processes. It uses its own context: the
 // request context may already be canceled when the session ends.
-func (h codeStudioHandlers) endCodeStudioLSP(runner codeStudioLSPRunner, containerID, nonce, lang string) {
+func (h codeStudioHandlers) endCodeStudioLSP(host codeStudioLSPHost, nonce, lang string) {
 	ctx, cancel := context.WithTimeout(context.Background(), containerTerminalEndTimeout)
 	defer cancel()
-	if err := runner.EndLSP(ctx, containerID, nonce); err != nil {
+	if err := host.End(ctx, nonce); err != nil {
 		h.codeStudioLogger().Warn("code studio language server cleanup failed", "lang", lang, "error", err)
 	}
 }

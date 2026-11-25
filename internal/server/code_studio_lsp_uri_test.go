@@ -1,6 +1,10 @@
 package server
 
-import "testing"
+import (
+	"strings"
+	"testing"
+	"unicode/utf8"
+)
 
 func TestCodeStudioLSPURIRewriterMapsBothWays(t *testing.T) {
 	rw := newCodeStudioLSPURIRewriter("/home/dev/my proj", "/srv/dev/my proj/")
@@ -42,5 +46,16 @@ func TestCodeStudioLSPURIRewriterMapsBothWays(t *testing.T) {
 	var none *codeStudioLSPURIRewriter // the container session has no rewriter
 	if got := string(none.toServer([]byte(`{"a":"file:///workspace"}`))); got != `{"a":"file:///workspace"}` {
 		t.Fatalf("nil rewriter changed a frame: %s", got)
+	}
+}
+
+func TestCodeStudioLSPCloseReasonFitsControlFrame(t *testing.T) {
+	if got := codeStudioLSPCloseReason("gopls is not installed"); got != "gopls is not installed" {
+		t.Fatalf("short reason changed: %q", got)
+	}
+	long := strings.Repeat("ä", 100) // 200 bytes
+	got := codeStudioLSPCloseReason(long)
+	if len(got) > 123 || !utf8.ValidString(got) {
+		t.Fatalf("reason = %d bytes, valid %v", len(got), utf8.ValidString(got))
 	}
 }
