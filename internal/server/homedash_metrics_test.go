@@ -1,6 +1,7 @@
 package server
 
 import (
+	"math"
 	"os"
 	"strings"
 	"testing"
@@ -125,5 +126,18 @@ func TestMetricsRingRatesAcrossSamples(t *testing.T) {
 	var none *Server
 	if got := none.homeDashSystemHistory(at, at.Add(time.Hour)); got == nil || len(got) != 0 {
 		t.Fatalf("nil server = %#v", got)
+	}
+}
+
+func TestMetricsRingStoresNaNForUnreadableMetrics(t *testing.T) {
+	r := &homeDashMetricsRing{}
+	at := time.Date(2026, 11, 25, 10, 0, 0, 0, time.UTC)
+	r.record(systemMetricsSnapshot{SampledAt: at, CPUPercent: 0, MemoryPercent: 41, DiskPercent: 63, MemoryAvailable: true, DiskAvailable: true})
+	pts := r.between(at, at)
+	if len(pts) != 1 {
+		t.Fatalf("len = %d", len(pts))
+	}
+	if !math.IsNaN(pts[0].CPU) || pts[0].Memory != 41 || pts[0].Disk != 63 {
+		t.Fatalf("point = %+v, want NaN cpu with memory 41 and disk 63", pts[0])
 	}
 }

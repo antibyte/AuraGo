@@ -2,7 +2,9 @@ package homedash_test
 
 import (
 	"context"
+	"errors"
 	"testing"
+	"time"
 
 	"aurago/internal/homedash"
 	"aurago/internal/homedash/sourcetest"
@@ -55,5 +57,39 @@ func TestLookupEntitiesReturnsCatalogedEntitiesWithGates(t *testing.T) {
 	}
 	if a.Runs() != 0 {
 		t.Fatal("LookupEntities started the source")
+	}
+}
+
+// catalogFailHub returns a hub with one source whose first Catalog call fails after a delay.
+func catalogFailHub(t *testing.T) *homedash.Hub {
+	t.Helper()
+	fa := sourcetest.New("fa", sourcetest.Entity("fa:x", homedash.KindSensor))
+	fa.CatalogScript = []sourcetest.CatalogStep{{Delay: 150 * time.Millisecond, Err: errors.New("boom")}}
+	h := homedash.NewHub(context.Background(), homedash.Options{IdleStop: time.Second, CatalogTTL: time.Minute, CatalogTimeout: 2 * time.Second})
+	t.Cleanup(h.Close)
+	h.Register(fa.ID(), func(homedash.RuntimeConfig) (homedash.Source, bool) { return fa, true })
+	h.Reconfigure(homedash.RuntimeConfig{Enabled: true, Sources: map[homedash.SourceID]homedash.SourceSettings{"fa": {Enabled: true}}})
+	sourcetest.WaitFor(t, time.Second, func() bool { return h.Sources()[0].State != homedash.StatusDisabled }, "configured")
+	return h
+}
+
+func TestPrefetchCatalogsCallerCancelDoesNotMarkSourceFailed(t *testing.T) {
+	h := catalogFailHub(t)
+	before := h.Sources()[0]
+	ctx, cancel := context.WithCancel(context.Background())
+	time.AfterFunc(30*time.Millisecond, cancel)
+	h.PrefetchCatalogs(ctx, []homedash.EntityID{"fa:x"})
+	got := h.Sources()[0]
+	if got.State != before.State || got.Reason != before.Reason {
+		t.Fatalf("caller cancel changed the status: before %+v, after %+v", before, got)
+	}
+}
+
+func TestPrefetchCatalogsRealFailureStillMarksSourceFailed(t *testing.T) {
+	h := catalogFailHub(t)
+	h.PrefetchCatalogs(context.Background(), []homedash.EntityID{"fa:x"})
+	got := h.Sources()[0]
+	if got.State != homedash.StatusUnavailable || got.Reason != homedash.ReasonCatalogFailed {
+		t.Fatalf("status after a real failure = %+v", got)
 	}
 }

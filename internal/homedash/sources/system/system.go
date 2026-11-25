@@ -41,7 +41,8 @@ type Snapshot struct {
 type SnapshotFunc func() (Snapshot, bool)
 
 // HistoryPoint is one collector tick kept by the server's history ring. NetRx and NetTx (Mbit/s)
-// are nil until the server has seen two samples.
+// are nil until the server has seen two samples. CPU, Memory and Disk are NaN when the collector
+// could not read them.
 type HistoryPoint struct {
 	T                 time.Time
 	CPU, Memory, Disk float64
@@ -263,11 +264,11 @@ func (s *Source) History(_ context.Context, native string, from, to time.Time, p
 	places := 1
 	switch native {
 	case NativeCPU:
-		pick = func(p HistoryPoint) (float64, bool) { return p.CPU, true }
+		pick = func(p HistoryPoint) (float64, bool) { return p.CPU, !math.IsNaN(p.CPU) }
 	case NativeMemory:
-		pick = func(p HistoryPoint) (float64, bool) { return p.Memory, true }
+		pick = func(p HistoryPoint) (float64, bool) { return p.Memory, !math.IsNaN(p.Memory) }
 	case NativeDisk:
-		pick = func(p HistoryPoint) (float64, bool) { return p.Disk, true }
+		pick = func(p HistoryPoint) (float64, bool) { return p.Disk, !math.IsNaN(p.Disk) }
 	case NativeNetRX:
 		places = 3
 		pick = func(p HistoryPoint) (float64, bool) {

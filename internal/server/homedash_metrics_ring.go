@@ -85,7 +85,19 @@ func roundMbit(v float64) float64 { return math.Round(v*1000) / 1000 }
 func (r *homeDashMetricsRing) record(snap systemMetricsSnapshot) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	p := system.HistoryPoint{T: snap.SampledAt, CPU: snap.CPUPercent, Memory: snap.MemoryPercent, Disk: snap.DiskPercent}
+	// A metric the collector could not read is NaN so history never plots it as 0 %.
+	pct := func(v float64, ok bool) float64 {
+		if !ok {
+			return math.NaN()
+		}
+		return v
+	}
+	p := system.HistoryPoint{
+		T:      snap.SampledAt,
+		CPU:    pct(snap.CPUPercent, snap.CPUAvailable),
+		Memory: pct(snap.MemoryPercent, snap.MemoryAvailable),
+		Disk:   pct(snap.DiskPercent, snap.DiskAvailable),
+	}
 	if snap.NetworkAvailable {
 		if r.hasPrev && snap.NetBytesRecv >= r.prev.NetBytesRecv && snap.NetBytesSent >= r.prev.NetBytesSent {
 			if dt := snap.SampledAt.Sub(r.prev.SampledAt).Seconds(); dt > 0 {

@@ -3,6 +3,7 @@ package system
 import (
 	"context"
 	"errors"
+	"math"
 	"testing"
 	"time"
 
@@ -229,5 +230,29 @@ func TestSystemHistoryBucketsRatesSkipNilAndRound(t *testing.T) {
 	got, _ = src.History(context.Background(), NativeNetTX, t0, t0.Add(30*time.Second), 3)
 	if len(got) != 2 || got[0].V != 2 || got[1].V != 4 {
 		t.Fatalf("net_tx = %+v", got)
+	}
+}
+
+func TestSystemHistorySkipsNaNMetrics(t *testing.T) {
+	t0 := time.Date(2026, 11, 25, 10, 0, 0, 0, time.UTC)
+	nan := math.NaN()
+	entries := []HistoryPoint{
+		{T: t0.Add(5 * time.Second), CPU: nan, Memory: 30, Disk: nan},
+		{T: t0.Add(15 * time.Second), CPU: 20, Memory: 50, Disk: nan},
+		{T: t0.Add(45 * time.Second), CPU: nan, Memory: nan, Disk: nan},
+	}
+	src := New(nil, func(f, e time.Time) []HistoryPoint { return entries }, 5, nil)
+	to := t0.Add(60 * time.Second)
+	got, _ := src.History(context.Background(), NativeCPU, t0, to, 2)
+	if len(got) != 1 || got[0].V != 20 || !got[0].T.Equal(t0.Add(15*time.Second)) {
+		t.Fatalf("cpu = %+v, want the NaN entries skipped", got)
+	}
+	got, _ = src.History(context.Background(), NativeMemory, t0, to, 1)
+	if len(got) != 1 || got[0].V != 40 {
+		t.Fatalf("memory = %+v, want the average of the readable entries", got)
+	}
+	got, _ = src.History(context.Background(), NativeDisk, t0, to, 2)
+	if got == nil || len(got) != 0 {
+		t.Fatalf("disk = %#v, want empty (every entry NaN)", got)
 	}
 }

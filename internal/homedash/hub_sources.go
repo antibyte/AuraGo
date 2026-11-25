@@ -331,6 +331,11 @@ func (h *Hub) fetchOne(ctx context.Context, j catalogJob) {
 		return
 	}
 	if err != nil {
+		if ctx.Err() != nil {
+			// The caller gave up (for example an HTTP client disconnected); the source is not at fault.
+			h.log.Debug("homedash: catalog fetch abandoned by caller", "source", j.id, "error", err)
+			return
+		}
 		h.log.Warn("homedash: catalog failed", "source", j.id, "error", err)
 		h.catalogFailedLocked(rt)
 		return
