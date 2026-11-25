@@ -222,7 +222,7 @@ func (h codeStudioHandlers) handleReadFile(w http.ResponseWriter, r *http.Reques
 		jsonError(w, "file exceeds configured maximum size", http.StatusRequestEntityTooLarge)
 		return
 	}
-	content, err := h.readCodeStudioFileBytes(r.Context(), containerID, probed.Path)
+	content, err := h.readCodeStudioFileBytes(r.Context(), containerID, probed.Path, h.maxFileSizeBytes())
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusBadGateway)
 		return
@@ -497,7 +497,7 @@ func (h codeStudioHandlers) handleDownload(w http.ResponseWriter, r *http.Reques
 		jsonError(w, "file exceeds configured maximum size", http.StatusRequestEntityTooLarge)
 		return
 	}
-	content, err := h.readCodeStudioFileBytes(r.Context(), containerID, probed.Path)
+	content, err := h.readCodeStudioFileBytes(r.Context(), containerID, probed.Path, h.maxFileSizeBytes())
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusBadGateway)
 		return
@@ -1325,8 +1325,8 @@ func (h codeStudioHandlers) probeCodeStudioFile(ctx context.Context, containerID
 	return codeStudioFileProbe{Path: physical, Size: size, Modified: modified}, nil
 }
 
-func (h codeStudioHandlers) readCodeStudioFileBytes(ctx context.Context, containerID, physical string) ([]byte, error) {
-	result, err := h.docker.Exec(ctx, containerID, codeStudioPathCommand("read", physical, strconv.FormatInt(h.maxFileSizeBytes(), 10)), 30*time.Second)
+func (h codeStudioHandlers) readCodeStudioFileBytes(ctx context.Context, containerID, physical string, max int64) ([]byte, error) {
+	result, err := h.docker.Exec(ctx, containerID, codeStudioPathCommand("read", physical, strconv.FormatInt(max, 10)), 30*time.Second)
 	if err != nil {
 		return nil, fmt.Errorf("read code studio file: %w", err)
 	}

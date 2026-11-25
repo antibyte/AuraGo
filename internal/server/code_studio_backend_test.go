@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -61,5 +62,54 @@ func TestCodeStudioWorkspaceChangeHook(t *testing.T) {
 	codeStudioHandlers{}.notifyWorkspaceChange("local", "/workspace/b")
 	if len(got) != 1 || got[0] != "local:/workspace/a" {
 		t.Fatal(got)
+	}
+}
+
+func TestCodeStudioExecArgvMatchesLegacyNormalize(t *testing.T) {
+	for _, c := range []struct {
+		cmd  string
+		args []string
+		cwd  string
+	}{
+		{"go test", nil, ""}, {"go test", nil, "/workspace/pkg"}, {"", []string{"gofmt"}, "/workspace/x"},
+	} {
+		legacy, _ := normalizeCodeStudioExecCommand(c.cmd, c.args, c.cwd)
+		argv, vcwd, err := codeStudioExecArgv(c.cmd, c.args, c.cwd)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := codeStudioLocalExecCommand(argv, vcwd)
+		if !reflect.DeepEqual(got, legacy) {
+			t.Fatalf("got %q want %q", got, legacy)
+		}
+	}
+}
+
+func TestCodeStudioBackendForSelectsLocalOrRejects(t *testing.T) {
+	t.Skip("Task 3")
+	s := testCodeStudioServerWithFakeCodeContainer(t, 1)
+	h := codeStudioHandlers{server: s, docker: &recordingCodeStudioDockerAPI{}}
+	for _, ws := range []string{"", "local"} {
+		r := httptest.NewRequest(http.MethodGet, "/api/code-studio/files", nil)
+		if ws != "" {
+			r.Header.Set(codeStudioWorkspaceHeader, ws)
+		}
+		b, err := h.backendFor(r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, ok := b.(*codeStudioLocalBackend); !ok || b.Info().ID != "local" {
+			t.Fatalf("%T", b)
+		}
+	}
+	rec := httptest.NewRecorder()
+	h.handleFiles(rec, httptest.NewRequest(http.MethodGet, "/api/code-studio/files?ws=ssh_missing", nil))
+	if rec.Code != http.StatusNotFound || !strings.Contains(rec.Body.String(), `"workspace_not_found"`) {
+		t.Fatal(rec.Code, rec.Body.String())
+	}
+	rec = httptest.NewRecorder()
+	h.handleFiles(rec, httptest.NewRequest(http.MethodGet, "/api/code-studio/files?ws=..%2Fx", nil))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatal(rec.Code)
 	}
 }
