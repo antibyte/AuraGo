@@ -33,7 +33,7 @@ const (
 	codeStudioRemoteLSPProbeScript = codeStudioRemoteLSPPath + "\npwd -P || exit 3\ncommand -v \"$1\" >/dev/null || exit 44"
 	// codeStudioRemoteLSPStartScript tags the session ($1) and replaces the
 	// shell with the server command ($2...).
-	codeStudioRemoteLSPStartScript = codeStudioRemoteLSPPath + "\nexport " + codeStudioLSPSessionEnv + "=\"$1\"\nshift\nexec \"$@\""
+	codeStudioRemoteLSPStartScript = codeStudioRemoteLSPPath + "\nexport GOTOOLCHAIN=local\nexport " + codeStudioLSPSessionEnv + "=\"$1\"\nshift\nexec \"$@\""
 	// codeStudioRemoteLSPEndScript is codeStudioLSPEndScript on hosts with
 	// /proc. Elsewhere (macOS) stdin EOF and the session kill end the server.
 	codeStudioRemoteLSPEndScript = "[ -d /proc ] || exit 0\n" + codeStudioLSPEndScript
