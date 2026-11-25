@@ -230,6 +230,12 @@
 
     function studioCommandTable() {
         return {
+            // Plan C: workspaces
+            openConnectDialog: () => openConnectDialog(),
+            openWorkspaceSwitcher,
+            reconnectWorkspace: () => workspaceReconnect(),
+            disconnectWorkspace: () => switchWorkspace('local'),
+            switchWorkspace,
             // IDE package 1A
             openToSide,
             toggleSplitEditor,

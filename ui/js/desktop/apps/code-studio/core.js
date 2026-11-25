@@ -913,6 +913,8 @@
                     { id: 'new-file', label: tr('codeStudio.newFile', 'New File'), icon: 'file-plus', shortcut: 'Ctrl+N', action: bind(createNewFile) },
                     { id: 'new-folder', label: tr('codeStudio.newFolder', 'New Folder'), icon: 'folder-plus', action: bind(createNewFolder) },
                     { id: 'open-file-dialog', labelKey: 'desktop.file_dialog_open', icon: 'folder-open', shortcut: 'Ctrl+O', action: bind(openFileFromDialog) },
+                    { id: 'workspace-connect', label: tr('codeStudio.workspaceConnect', 'Connect to SSH Folder…'), icon: 'server', action: bind(() => openConnectDialog()) },
+                    ...(workspaceIsRemote() ? [{ id: 'workspace-disconnect', label: tr('codeStudio.workspaceDisconnect', 'Disconnect'), icon: 'x', action: bind(() => switchWorkspace('local')) }] : []),
                     { type: 'separator' },
                     { id: 'save', label: tr('codeStudio.save', 'Save'), icon: 'save', shortcut: 'Ctrl+S', disabled: !hasActiveTab, action: bind(saveCurrentFile) },
                     { id: 'save-all', label: tr('codeStudio.saveAll', 'Save All'), icon: 'save', disabled: !hasModified, action: bind(saveAllFiles) },

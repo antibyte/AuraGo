@@ -84,10 +84,15 @@
         const hasTab = !!(state.openTabs && state.openTabs.length);
         const sourceTab = hasTab && !getApp().isVirtualTab(state.openTabs[state.activeTabIndex]);
         const modified = !!(state.openTabs || []).some(tab => tab.modified);
+        const remote = !!state.workspaceId && state.workspaceId !== 'local';
         return [
             { id: 'new-file', label: tr('codeStudio.newFile', 'New File'), shortcut: 'Ctrl+N', icon: 'file-plus', run: 'createNewFile' },
             { id: 'new-folder', label: tr('codeStudio.newFolder', 'New Folder'), icon: 'folder-plus', run: 'createNewFolder' },
             { id: 'open-file', label: tr('desktop.file_dialog_open', 'Open'), shortcut: 'Ctrl+O', icon: 'folder-open', run: 'openFileFromDialog' },
+            { id: 'workspace-connect', label: tr('codeStudio.workspaceMenu', 'Workspaces') + ': ' + tr('codeStudio.workspaceConnect', 'Connect to SSH Folder…'), icon: 'server', run: 'openConnectDialog' },
+            { id: 'workspace-switch', label: tr('codeStudio.workspaceMenu', 'Workspaces') + '…', icon: 'folder-open', run: 'openWorkspaceSwitcher' },
+            { id: 'workspace-reconnect', label: tr('codeStudio.workspaceMenu', 'Workspaces') + ': ' + tr('codeStudio.workspaceReconnect', 'Reconnect'), icon: 'refresh', run: 'reconnectWorkspace', disabled: !remote },
+            { id: 'workspace-disconnect', label: tr('codeStudio.workspaceMenu', 'Workspaces') + ': ' + tr('codeStudio.workspaceDisconnect', 'Disconnect'), icon: 'x', run: 'disconnectWorkspace', disabled: !remote },
             { id: 'save', label: tr('codeStudio.save', 'Save'), shortcut: 'Ctrl+S', icon: 'save', run: 'saveCurrentFile', disabled: !hasTab },
             { id: 'save-all', label: tr('codeStudio.saveAll', 'Save All'), icon: 'save', run: 'saveAllFiles', disabled: !modified },
             { id: 'close-tab', label: tr('codeStudio.closeTab', 'Close tab'), icon: 'x', run: 'closeTab', args: [state.activeTabIndex], disabled: !hasTab },
