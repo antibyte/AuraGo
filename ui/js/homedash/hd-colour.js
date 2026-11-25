@@ -78,8 +78,28 @@
             L = Math.min(0.97, Math.round((L + 0.02) * 1e6) / 1e6);
         }
     }
+    // Contrast-safe graphic colour: `hex` is returned unchanged (lowercase #rrggbb) when it already reaches `min` against every background in
+    // `against` (one hex or an array). Otherwise OKLCH lightness moves in 0.01 steps toward whichever extreme (black or white) gives the better
+    // worst-case contrast, hue and chroma kept (chroma shrinks only where the step leaves the sRGB gamut, inside oklchToRgb). If no lightness
+    // reaches `min`, the best extreme is returned. Unparseable input comes back unchanged. Pure.
+    function ensureContrast(hex, against, min) {
+        const rgb = hexToRgb(hex), bgs = (Array.isArray(against) ? against : [against]).map(hexToRgb).filter(Boolean);
+        if (!rgb || !bgs.length) return rgb ? rgbToHex(rgb).toLowerCase() : String(hex);
+        const worst = h => Math.min(...bgs.map(b => contrast(h, b))), lch = rgbToOklch(rgb), start = rgbToHex(rgb).toLowerCase();
+        if (worst(start) >= min) return start;
+        const toward = dir => oklchToHex([dir, lch[1], lch[2]]).toLowerCase(), dark = toward(0), light = toward(1);
+        const dir = worst(dark) >= worst(light) ? -1 : 1, extreme = dir < 0 ? dark : light;
+        let L = lch[0];
+        for (let i = 0; i < 100; i++) {
+            L = clamp(Math.round((L + dir * 0.01) * 1e6) / 1e6, 0, 1);
+            const out = oklchToHex([L, lch[1], lch[2]]).toLowerCase();
+            if (worst(out) >= min) return out;
+            if (L <= 0 || L >= 1) break;
+        }
+        return extreme;
+    }
     const applyPalette = (el, tokens) => E.core.setVars(el, Object.fromEntries(PALETTE_TOKENS.map(n => ['--hd-' + n, tokens[n]])));
     const clearPalette = el => E.core.setVars(el, Object.fromEntries(PALETTE_TOKENS.map(n => ['--hd-' + n, null])));
     function hsvToRgb(h, s, v) { const f = n => { const k = (n + h / 60) % 6; return (v - v * s * Math.max(0, Math.min(k, 4 - k, 1))) * 255; }; return [f(5), f(3), f(1)]; }
-    E.colour = Object.freeze({ PALETTE_TOKENS, NEUTRAL, hexToRgb, rgbToHex, rgbToOklch, oklchToRgb, oklchToHex, luminance, contrast, solvePalette, applyPalette, clearPalette, hsvToRgb, hudFor });
+    E.colour = Object.freeze({ PALETTE_TOKENS, NEUTRAL, hexToRgb, rgbToHex, rgbToOklch, oklchToRgb, oklchToHex, luminance, contrast, solvePalette, applyPalette, clearPalette, hsvToRgb, hudFor, ensureContrast });
 })();

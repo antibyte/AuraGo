@@ -237,3 +237,5 @@
 /* H8 at 2 x 1: the readout is 15 px high, the cap height of the other families numeral, and the 11 px state text (the smallest the label scale allows) may end in an ellipsis; the 12 px column gap stays. */
 @container hd-widget (aspect-ratio >= 1.6) { .hd-widget[data-hd-family="instrument"][data-hd-type="sensor"] .hd-body > .hd-seg7 { --hd-i-seg-h: 15px; }
   .hd-widget[data-hd-family="instrument"][data-hd-type="sensor"] .hd-state { font-size: 11px; } }
+/* Square-corner themes (Amiga, Cyberpunk, Voxel World): the card and the rectangular controls lose their radii. */
+.hd-root[data-hd-corners="square"] .hd-widget[data-hd-family="instrument"] { --hd-radius-card: 0px; --hd-radius-control: 0px; }

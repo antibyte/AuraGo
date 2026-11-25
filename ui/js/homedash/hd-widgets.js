@@ -125,19 +125,51 @@
         } catch (err) { return null; }
     }
 
-    // Resolves the host's look into two derived values on `root`: --hd-hud (E.colour.hudFor of the resolved accent; removed when the accent does
-    // not resolve) and data-hd-corners="square" when the theme's card radius is 0. Called by the hosts after a palette or theme change, never at load.
+    // Resolves the host's look into derived values on `root`: --hd-hud (E.colour.hudFor of the resolved accent; removed when the accent does
+    // not resolve), data-hd-corners="square" when the theme's card radius is 0, and contrast-safe graphic colours. A theme can give an
+    // accent, an "on" light colour or a focus colour that is under 3:1 on its own card (Fruity, Amiga and Voxel World in the light scheme).
+    // Each of --hd-accent, --hd-light-on and --hd-focus that is under 3:1 on the card (focus also on --hd-canvas) is replaced by an
+    // inline value from E.colour.ensureContrast (3.05:1, same hue); a corrected accent also gets black or white --hd-ink-on-accent when the
+    // theme's own ink falls under 4.5:1 on it. A colour that passes keeps no inline value, and values written by an
+    // earlier call are removed first, so a theme switch back is clean. Derived tokens (--hd-focus, --hd-accent-soft, --hd-track-fill ...)
+    // follow because they resolve on the same root. Called by the hosts after a palette or theme change, never at load.
+    const LOOK_FIXED = new WeakMap(), LOOK_MIN = 3, LOOK_TARGET = 3.05;
     function applyLook(root) {
         if (!root || root.nodeType !== 1 || !E.colour || typeof E.colour.hudFor !== 'function') return;
         const doc = root.ownerDocument, view = (doc && doc.defaultView) || (typeof window !== 'undefined' ? window : null);
         if (!view || typeof view.getComputedStyle !== 'function') return;
         let probe = null;
         try {
-            probe = el('span', { 'aria-hidden': 'true' }); probe.style.setProperty('display', 'none'); probe.style.setProperty('color', 'var(--hd-accent)');
+            for (const name of LOOK_FIXED.get(root) || []) root.style.removeProperty(name);
+            LOOK_FIXED.delete(root);
+            probe = el('span', { 'aria-hidden': 'true' }); probe.style.setProperty('display', 'none');
             root.appendChild(probe);
-            const rgb = resolveColour(doc, view.getComputedStyle(probe).color);
+            const resolve = token => { probe.style.setProperty('color', 'var(' + token + ')'); return resolveColour(doc, view.getComputedStyle(probe).color); };
+            const rgb = resolve('--hd-accent');
             if (rgb) root.style.setProperty('--hd-hud', E.colour.hudFor(E.colour.rgbToHex(rgb)));
             else if (typeof root.style.removeProperty === 'function') root.style.removeProperty('--hd-hud');
+            const C = E.colour, surface = resolve('--hd-surface-solid'), canvas = resolve('--hd-canvas'), fixed = [];
+            if (typeof C.ensureContrast === 'function' && surface) {
+                // The card is --hd-surface-solid, or (Glass) that colour at --hd-glass-alpha-s over the canvas: a graphic must reach 3:1 on both.
+                const alpha = Math.min(1, Math.max(0, (parseFloat(view.getComputedStyle(root).getPropertyValue('--hd-glass-alpha-s')) || 100) / 100));
+                const card = [C.rgbToHex(surface)];
+                if (canvas && alpha < 1) card.push(C.rgbToHex(surface.map((v, i) => alpha * v + (1 - alpha) * canvas[i])));
+                const fix = (token, backgrounds) => {
+                    const c = resolve(token); if (!c) return false;
+                    const hex = C.rgbToHex(c);
+                    if (Math.min(...backgrounds.map(b => C.contrast(hex, b))) >= LOOK_MIN) return false;
+                    root.style.setProperty(token, C.ensureContrast(hex, backgrounds, LOOK_TARGET)); fixed.push(token); return true;
+                };
+                const accentFixed = fix('--hd-accent', card); fix('--hd-light-on', card);
+                fix('--hd-focus', canvas ? card.concat(C.rgbToHex(canvas)) : card);
+                if (accentFixed) { // the ink on an accent fill keeps 4.5:1: black or white, whichever reads better
+                    const accent = resolve('--hd-accent'), ink = resolve('--hd-ink-on-accent');
+                    if (accent && (!ink || C.contrast(C.rgbToHex(ink), C.rgbToHex(accent)) < 4.5)) {
+                        root.style.setProperty('--hd-ink-on-accent', C.contrast('#ffffff', C.rgbToHex(accent)) >= C.contrast('#000000', C.rgbToHex(accent)) ? '#ffffff' : '#000000'); fixed.push('--hd-ink-on-accent');
+                    }
+                }
+                if (fixed.length) LOOK_FIXED.set(root, fixed);
+            }
             const radius = String(view.getComputedStyle(root).getPropertyValue('--vd-mat-card-radius') || ''), nums = radius.match(/-?\d*\.?\d+/g);
             setAttr(root, 'data-hd-corners', nums && nums.every(n => Number(n) === 0) ? 'square' : null);
         } finally { if (probe) probe.remove(); }

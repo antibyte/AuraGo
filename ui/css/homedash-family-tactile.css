@@ -265,3 +265,5 @@
 .hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] :is(.hd-toggle-led, .hd-rocker-led)::after { opacity: 0; }
 .hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] :is(.hd-toggle-legend, .hd-rocker-legend, .hd-dial-legend) { font-size: 0; }
 .hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] :is(.hd-toggle-legend, .hd-rocker-legend, .hd-dial-legend)::before { content: "—"; font-size: 11px; }
+/* Square-corner themes (Amiga, Cyberpunk, Voxel World): cards, bezels and rectangular controls lose their radii; dials, knobs, LEDs and thumbs stay round (--hd-radius-pill). */
+.hd-root[data-hd-corners="square"] .hd-widget[data-hd-family="tactile"] { --hd-radius-card: 0px; --hd-radius-control: 0px; --hd-t-bezel-r: 0px; }

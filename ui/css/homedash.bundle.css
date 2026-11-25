@@ -673,6 +673,8 @@
 .hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] :is(.hd-toggle-led, .hd-rocker-led)::after { opacity: 0; }
 .hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] :is(.hd-toggle-legend, .hd-rocker-legend, .hd-dial-legend) { font-size: 0; }
 .hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] :is(.hd-toggle-legend, .hd-rocker-legend, .hd-dial-legend)::before { content: "—"; font-size: 11px; }
+/* Square-corner themes (Amiga, Cyberpunk, Voxel World): cards, bezels and rectangular controls lose their radii; dials, knobs, LEDs and thumbs stay round (--hd-radius-pill). */
+.hd-root[data-hd-corners="square"] .hd-widget[data-hd-family="tactile"] { --hd-radius-card: 0px; --hd-radius-control: 0px; --hd-t-bezel-r: 0px; }
 
 /* ui/css/homedash-family-minimal.css */
 /* HomeDash family Minimal: token block (plan T3) and painting. Type and hairlines: flat fills only, no shadow, no gradient, no icon discs.
@@ -1054,6 +1056,8 @@
 /* H8 at 2 x 1: the readout is 15 px high, the cap height of the other families numeral, and the 11 px state text (the smallest the label scale allows) may end in an ellipsis; the 12 px column gap stays. */
 @container hd-widget (aspect-ratio >= 1.6) { .hd-widget[data-hd-family="instrument"][data-hd-type="sensor"] .hd-body > .hd-seg7 { --hd-i-seg-h: 15px; }
   .hd-widget[data-hd-family="instrument"][data-hd-type="sensor"] .hd-state { font-size: 11px; } }
+/* Square-corner themes (Amiga, Cyberpunk, Voxel World): the card and the rectangular controls lose their radii. */
+.hd-root[data-hd-corners="square"] .hd-widget[data-hd-family="instrument"] { --hd-radius-card: 0px; --hd-radius-control: 0px; }
 
 /* ui/css/homedash-widgets.css */
 /* HomeDash widgets: frame grid, shared frame painting from the card tokens, state badges and per-hero layout (container queries and rules qualified by data-hd-type / data-hd-variant).

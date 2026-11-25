@@ -17,12 +17,34 @@ export const tests = [
     let accent = 'rgb(29, 95, 175)', canvasColour = [0, 0, 0, 0];
     const g = { clearRect() {}, fillRect() {}, set fillStyle(v) { if (v !== 'rgba(0, 0, 0, 0)' && v !== accent) throw new Error('unexpected fill ' + v); }, getImageData: () => ({ data: canvasColour }) };
     document.createElement = tag => (tag === 'canvas' ? { width: 0, height: 0, getContext: () => g } : orig(tag));
-    document.defaultView = { getComputedStyle: node => (node === rootEl ? { getPropertyValue: () => '8px' } : { color: accent }) };
+    const others = { '--hd-surface-solid': 'rgb(0, 0, 0)', '--hd-canvas': 'rgb(0, 0, 0)', '--hd-light-on': 'rgb(255, 255, 255)', '--hd-focus': 'rgb(255, 255, 255)' };
+    document.defaultView = { getComputedStyle: node => (node === rootEl ? { getPropertyValue: n => (n === '--vd-mat-card-radius' ? '8px' : '') } : { color: node.style.getPropertyValue('color') === 'var(--hd-accent)' ? accent : others[/var\((.*)\)/.exec(node.style.getPropertyValue('color'))[1]] }) };
     const hud = () => rootEl.style.getPropertyValue('--hd-hud'), expected = rgb => E.colour.hudFor(E.colour.rgbToHex(rgb));
     E.widgets.applyLook(rootEl); assert.equal(hud(), expected([29, 95, 175]));
     accent = 'oklch(0.62 0.19 255)'; canvasColour = [51, 112, 233, 255]; E.widgets.applyLook(rootEl); assert.equal(hud(), expected([51, 112, 233]));
     accent = 'color(srgb 0.9 0.2 0.1)'; canvasColour = [230, 51, 26, 255]; E.widgets.applyLook(rootEl); assert.equal(hud(), expected([230, 51, 26]));
     accent = 'not-a-colour'; canvasColour = [0, 0, 0, 0]; E.widgets.applyLook(rootEl); assert.equal(hud(), ''); }],
+  ['applyLook writes contrast-safe accent, light-on and focus inline and removes them when they pass again', () => {
+    const { E, document } = loadEngine(ENGINE_ORDER.slice(0, ENGINE_ORDER.indexOf('hd-widgets.js') + 1), { dom: true });
+    const rootEl = document.createElement('div'), C = E.colour;
+    let theme = { '--hd-accent': 'rgb(120, 170, 230)', '--hd-light-on': 'rgb(200, 140, 40)', '--hd-focus': 'rgb(120, 170, 230)', '--hd-surface-solid': 'rgb(255, 255, 255)', '--hd-canvas': 'rgb(240, 240, 240)', '--hd-ink-on-accent': 'rgb(255, 255, 255)' };
+    const inline = n => rootEl.style.getPropertyValue(n);
+    document.defaultView = { getComputedStyle: node => {
+        if (node === rootEl) return { getPropertyValue: n => (n === '--vd-mat-card-radius' ? '8px' : '') };
+        const name = /var\((.*)\)/.exec(node.style.getPropertyValue('color'))[1], over = inline(name);
+        if (over) { const rgb = C.hexToRgb(over); return { color: 'rgb(' + rgb.join(', ') + ')' }; }
+        if (name === '--hd-focus' && inline('--hd-accent')) { const rgb = C.hexToRgb(inline('--hd-accent')); return { color: 'rgb(' + rgb.join(', ') + ')' }; }
+        return { color: theme[name] };
+    } };
+    E.widgets.applyLook(rootEl);
+    for (const token of ['--hd-accent', '--hd-light-on']) { const v = inline(token); assert.match(v, /^#[0-9a-f]{6}$/, token); assert.ok(C.contrast(v, '#ffffff') >= 3, token + ' ' + v); }
+    assert.ok(C.contrast(inline('--hd-ink-on-accent'), inline('--hd-accent')) >= 4.5, 'the ink on the corrected accent keeps 4.5:1');
+    assert.ok(C.contrast(inline('--hd-focus'), '#ffffff') >= 3 && C.contrast(inline('--hd-focus'), '#f0f0f0') >= 3, 'focus passes on the card and the canvas');
+    theme = Object.assign({}, theme, { '--hd-accent': 'rgb(20, 60, 140)', '--hd-light-on': 'rgb(20, 60, 140)', '--hd-focus': 'rgb(20, 60, 140)' });
+    E.widgets.applyLook(rootEl);
+    for (const token of ['--hd-accent', '--hd-light-on', '--hd-focus', '--hd-ink-on-accent']) assert.equal(inline(token), '', token + ' must not keep an inline value once the theme passes');
+    rootEl.style.setProperty('--hd-accent', '#123456'); E.widgets.applyLook(rootEl);
+    assert.equal(inline('--hd-accent'), '#123456', 'a value the host wrote itself is never removed by applyLook'); }],
   ['climate keeps its last range while the entity is dead and rebuilds only on a live range change', () => {
     const { E, document } = loadEngine(ENGINE_ORDER, { dom: true });
     const view = p => Object.assign({ id: 'c:1', kind: 'climate', name: 'Living room', value: 'heat', attributes: {}, available: true, status: 'ok', readonly: false, capabilities: [], pending: false, stale: false, error: null, tone: null }, p);
