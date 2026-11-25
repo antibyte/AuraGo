@@ -229,6 +229,9 @@ const jsBundles = [
       // lspActionExtensionFactories at load time, so it must come after lsp.js and before shortcuts.js.
       'ui/js/desktop/apps/code-studio/lsp-protocol.js',
       'ui/js/desktop/apps/code-studio/lsp.js',
+      // IDE package 2C: pure WorkspaceEdit helpers, then references, rename, quick fixes and the edit applier.
+      'ui/js/desktop/apps/code-studio/lsp-edits.js',
+      'ui/js/desktop/apps/code-studio/lsp-actions.js',
       'ui/js/desktop/apps/code-studio/shortcuts.js',
       'ui/js/desktop/apps/code-studio/command-palette.js'
     ]

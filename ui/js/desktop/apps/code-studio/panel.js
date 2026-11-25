@@ -1,7 +1,8 @@
     // Bottom panel with Visual Studio style tabs (PROBLEMS / OUTPUT / TERMINAL).
     // The terminal lives inside the panel as one of its views, so the panel keeps a single
     // vertical slot and the user never loses the terminal while switching to diagnostics.
-    const PANEL_VIEWS = ['problems', 'output', 'terminal'];
+    // IDE package 2C: 'references' is the References tab of lsp-actions.js; it joins the panel on first use.
+    const PANEL_VIEWS = ['problems', 'output', 'references', 'terminal'];
 
     function activePanelView() {
         return PANEL_VIEWS.includes(state.activePanel) ? state.activePanel : 'terminal';
@@ -10,6 +11,7 @@
     function renderBottomPanel() {
         const panel = shellPart('[data-panel]');
         if (!panel) return;
+        ensureReferencesPanelParts(panel); // IDE package 2C
         panel.hidden = !state.panelVisible;
         const root = studioRoot();
         if (root) {
@@ -50,6 +52,7 @@
         }
         renderProblemsPanel();
         renderOutputPanel();
+        renderReferencesPanel(); // IDE package 2C
         if (active === 'terminal') renderTerminal();
     }
 
@@ -100,6 +103,7 @@
                 } else if (action === 'clear') {
                     if (activePanelView() === 'problems') clearProblems();
                     else if (activePanelView() === 'output') clearOutput();
+                    else if (activePanelView() === 'references') clearReferences(); // IDE package 2C
                 } else if (action === 'diagnostics') {
                     runDiagnostics();
                 }

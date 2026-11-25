@@ -166,7 +166,11 @@
                 { label: tr('codeStudio.foldRegion', 'Fold'), keys: 'Ctrl+Shift+[' },
                 { label: tr('codeStudio.unfoldRegion', 'Unfold'), keys: 'Ctrl+Shift+]' },
                 { label: tr('codeStudio.toggleSplit', 'Toggle Split Editor'), keys: 'Ctrl+\\' },
-                { label: tr('codeStudio.openToSide', 'Open to the Side'), keys: 'Ctrl+P, Ctrl+Enter' }
+                { label: tr('codeStudio.openToSide', 'Open to the Side'), keys: 'Ctrl+P, Ctrl+Enter' },
+                // IDE package 2C: language server actions in the editor
+                { label: tr('codeStudio.lspFindReferences', 'Find All References'), keys: 'Shift+F12' },
+                { label: tr('codeStudio.lspRenameSymbol', 'Rename Symbol'), keys: 'F2' },
+                { label: tr('codeStudio.lspQuickFix', 'Quick Fix...'), keys: 'Ctrl+.' }
             ]},
             { title: tr('codeStudio.shortcutsView', 'View'), items: [
                 { label: tr('codeStudio.sidebar', 'Sidebar'), keys: 'Ctrl+B' },
@@ -180,7 +184,7 @@
             ]},
             { title: tr('codeStudio.shortcutsExplorer', 'Explorer'), items: [
                 { label: tr('codeStudio.treeNavigate', 'Navigate with arrow keys'), keys: '↑ ↓ ← →' },
-                { label: tr('codeStudio.rename', 'Rename'), keys: 'F2' },
+                { label: tr('codeStudio.renameFile', 'Rename File'), keys: 'F2' },
                 { label: tr('desktop.delete', 'Delete'), keys: 'Del' }
             ]}
         ];
@@ -266,7 +270,11 @@
             openFile,
             splitEditor,
             showShortcutOverlay,
-            collapseAllDirectories
+            collapseAllDirectories,
+            // IDE package 2C: language server actions for the command palette
+            lspFindReferencesCommand,
+            lspRenameSymbolCommand,
+            lspQuickFixCommand
         };
     }
 

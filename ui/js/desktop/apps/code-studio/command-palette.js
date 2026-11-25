@@ -109,6 +109,10 @@
             { id: 'go-to-line', label: tr('codeStudio.goToLine', 'Go to Line...'), shortcut: 'Ctrl+G', icon: 'search', run: 'openGoToLine', disabled: !sourceTab },
             { id: 'go-to-symbol', label: tr('codeStudio.goToSymbol', 'Go to Symbol...'), shortcut: '@', icon: 'list', run: 'openGoToSymbol', disabled: !sourceTab },
             { id: 'format-document', label: tr('codeStudio.formatDocument', 'Format Document'), shortcut: 'Shift+Alt+F', icon: 'edit', run: 'formatActiveDocument', disabled: !sourceTab || state.readOnly },
+            // IDE package 2C: language server actions on the focused editor (without a ready server they show a notice)
+            { id: 'lsp-references', label: tr('codeStudio.lspFindReferences', 'Find All References'), shortcut: 'Shift+F12', icon: 'search', run: 'lspFindReferencesCommand', disabled: !sourceTab },
+            { id: 'lsp-rename', label: tr('codeStudio.lspRenameSymbol', 'Rename Symbol'), shortcut: 'F2', icon: 'edit', run: 'lspRenameSymbolCommand', disabled: !sourceTab || state.readOnly },
+            { id: 'lsp-quick-fix', label: tr('codeStudio.lspQuickFix', 'Quick Fix...'), shortcut: 'Ctrl+.', icon: 'info', run: 'lspQuickFixCommand', disabled: !sourceTab || state.readOnly },
             { id: 'open-settings', label: tr('codeStudio.openSettings', 'Preferences: Open Settings'), icon: 'settings', run: 'openEditorSettings' },
             { id: 'toggle-split', label: tr('codeStudio.toggleSplit', 'Toggle Split Editor'), shortcut: 'Ctrl+\\', icon: 'columns', run: 'toggleSplitEditor', disabled: !sourceTab },
             { id: 'fold', label: tr('codeStudio.foldRegion', 'Fold'), shortcut: 'Ctrl+Shift+[', icon: 'list', run: 'runEditorCommand', args: ['foldCode'], disabled: !sourceTab },
