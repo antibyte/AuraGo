@@ -635,6 +635,7 @@
             infra: 'InfraApp',
             'ruview': 'RuViewApp',
             'docker-manager': 'DockerManagerApp',
+            homedash: 'HomeDashApp',
             files: 'FileManager',
             writer: 'WriterApp',
             sheets: 'SheetsApp',

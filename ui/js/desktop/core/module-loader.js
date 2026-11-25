@@ -30,6 +30,10 @@
             styles: appStyles('/css/desktop-app-ecalc.css'),
             scripts: ['/js/desktop/apps/ecalc/ecalc-expr.js', '/js/desktop/apps/ecalc/ecalc-units.js', '/js/desktop/apps/ecalc/ecalc-eseries.js', '/js/desktop/apps/ecalc/ecalc-solve.js', '/js/desktop/apps/ecalc/ecalc-tables.js', '/js/desktop/apps/ecalc/ecalc-codes.js', '/js/desktop/apps/ecalc/ecalc-typeset.js', '/js/desktop/apps/ecalc/ecalc-symbols.js', '/js/desktop/apps/ecalc/ecalc-chart.js', '/js/desktop/apps/ecalc/ecalc-schematics-basics.js', '/js/desktop/apps/ecalc/ecalc-schematics-digital.js', '/js/desktop/apps/ecalc/ecalc-schematics-drives.js', '/js/desktop/apps/ecalc/ecalc-schematics-filters.js', '/js/desktop/apps/ecalc/ecalc-schematics-opamps.js', '/js/desktop/apps/ecalc/ecalc-schematics-passive.js', '/js/desktop/apps/ecalc/ecalc-schematics-power.js', '/js/desktop/apps/ecalc/ecalc-schematics-rf.js', '/js/desktop/apps/ecalc/ecalc-schematics-semiconductors.js', '/js/desktop/apps/ecalc/ecalc-schematics-sensors.js', '/js/desktop/apps/ecalc/ecalc-schematics-timers.js', '/js/desktop/apps/ecalc/ecalc-schematics-wiring.js', '/js/desktop/apps/ecalc/ecalc-store.js', '/js/desktop/apps/ecalc/ecalc-calc-page.js', '/js/desktop/apps/ecalc/ecalc-table-page.js', '/js/desktop/apps/ecalc/ecalc-materials.js', '/js/desktop/apps/ecalc/ecalc-code-draw.js', '/js/desktop/apps/ecalc/ecalc-code-page.js', '/js/desktop/apps/ecalc/ecalc-pinout-draw.js', '/js/desktop/apps/ecalc/ecalc-pinout-page.js', '/js/desktop/apps/ecalc/ecalc-shell.js', '/js/desktop/apps/ecalc/ecalc.js']
         },
+        homedash: {
+            styles: appStyles('/css/homedash.bundle.css', '/css/desktop-app-homedash.css'),
+            scripts: ['/js/homedash/hd-core.js', '/js/homedash/hd-format.js', '/js/homedash/hd-colour.js', '/js/homedash/hd-grid.js', '/js/homedash/hd-layout.js', '/js/homedash/hd-doc.js', '/js/homedash/hd-history.js', '/js/homedash/hd-icons.js', '/js/homedash/hd-geometry.js', '/js/homedash/hd-prim-displays.js', '/js/homedash/hd-prim-controls.js', '/js/homedash/hd-widgets.js', '/js/homedash/widgets/hd-w-misc.js', '/js/homedash/widgets/hd-w-climate.js', '/js/homedash/widgets/hd-w-light.js', '/js/homedash/widgets/hd-w-sensor.js', '/js/homedash/widgets/hd-w-switch.js', '/js/homedash/hd-tone.js', '/js/homedash/hd-api.js', '/js/homedash/hd-stream.js', '/js/homedash/hd-store.js', '/js/homedash/hd-catalog.js', '/js/homedash/hd-render.js', '/js/homedash/hd-sheet.js', '/js/homedash/hd-view.js', '/js/homedash/hd-app.js', '/js/desktop/apps/homedash-home.js', '/js/desktop/apps/homedash.js']
+        },
         storymaker: {
             styles: appStyles('/css/desktop-app-storymaker.css'),
             scripts: ['/js/desktop/apps/storymaker-core.js', '/js/desktop/apps/storymaker-model.js', '/js/desktop/apps/storymaker-api.js', '/js/desktop/apps/storymaker-assets.js', '/js/desktop/apps/storymaker-player.js', '/js/desktop/apps/storymaker-projects.js', '/js/desktop/apps/storymaker-strip.js', '/js/desktop/apps/storymaker-inspector.js', '/js/desktop/apps/storymaker-code.js', '/js/desktop/apps/storymaker-export.js', '/js/desktop/apps/storymaker-audio.js', '/js/desktop/apps/storymaker-voice.js', '/js/desktop/apps/storymaker-music.js', '/js/desktop/apps/storymaker-agent.js', '/js/desktop/apps/storymaker-dialog.js', '/js/desktop/apps/storymaker-handoff.js', '/js/desktop/apps/storymaker.js']
@@ -864,6 +868,7 @@
         infra: [],
         'ruview': ['ruview'],
         'docker-manager': ['docker_manager'],
+        homedash: ['homedash'],
         'agent-chat': ['chat'],
         'cheater': ['cheater'],
         'cyd-creator': ['cyd_creator'],

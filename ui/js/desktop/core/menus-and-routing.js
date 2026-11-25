@@ -1699,6 +1699,12 @@
                 esc, t, api, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary, readonly: desktopReadonly()
             }));
         }
+        if (appId === 'homedash' && window.HomeDashApp) {
+            return window.HomeDashApp.render(contentEl(id), id, Object.assign({}, context || {}, {
+                esc, t, api, setWindowMenus, clearWindowMenus, readonly: desktopReadonly(),
+                updateWindowContext: (windowId, patch) => { updateWindowContext(windowId, patch); scheduleSessionPersist(); }
+            }));
+        }
         if (appId === 'ha-switchboard' && window.HASwitchboardApp) {
             return window.HASwitchboardApp.render(contentEl(id), id, { esc, t, api, saveSetting, settingValue, state });
         }

@@ -1345,6 +1345,7 @@
             calendar: { width: 950, height: 650 },
             infra: { width: 1280, height: 820 },
             'docker-manager': { width: 1180, height: 760 },
+            homedash: { width: 1180, height: 780 },
             'quick-connect': { width: 960, height: 680 },
             'virtual-computers': { width: 980, height: 680 },
             'code-studio': { width: 1280, height: 850 },
@@ -1394,6 +1395,7 @@
         if (appId === 'kaggle') return { width: 360, height: 420 };
         if (appId === 'infra') return { width: 360, height: 480 };
         if (appId === 'docker-manager') return { width: 440, height: 400 };
+        if (appId === 'homedash') return { width: 420, height: 360 };
         if (appId === 'ha-switchboard') return { width: 360, height: 540 };
         if (appId === 'findit') return { width: 360, height: 480 };
         if (appId === 'ecalc') return { width: 640, height: 480 };
@@ -1495,6 +1497,7 @@
             const requestedPath = normalizeDesktopPath(context.path);
             return win.context && normalizeDesktopPath(win.context.path) === requestedPath;
         }
+        if (appId === 'homedash') return !(context && context.dashboard_id) || !!(win.context && win.context.dashboard_id === context.dashboard_id);
         return !['editor', 'writer', 'sheets', 'synth-studio', 'layerling', 'chibi-sensei'].includes(appId);
     }
 
