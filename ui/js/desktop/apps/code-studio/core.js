@@ -790,6 +790,7 @@
         return `<div class="code-studio" data-code-studio>
             <div class="code-studio-toolbar" data-toolbar></div>
             <div class="code-studio-search" data-search hidden></div>
+            <div class="cs-ws-banner" data-ws-banner hidden></div>
             <div class="code-studio-body">
                 <nav class="code-studio-activity-bar" data-activity-bar>
                     <button type="button" class="cs-activity-btn active" data-activity="explorer" title="${esc(tr('codeStudio.explorer', 'Explorer'))}">
@@ -1239,12 +1240,15 @@
         const lineInfo = tab ? cursorPositionText(tab) : '';
         const modifiedCount = state.openTabs.filter(item => item.modified).length;
         const leftItems = [];
-        leftItems.push(`<span class="cs-status-item cs-status-container" title="${esc(containerStatusLabel())}"><span class="cs-status-dot" data-status="${esc(state.containerStatus || 'unknown')}"></span>${esc(containerStatusLabel())}</span>`);
+        const remote = workspaceIsRemote();
+        const chipFocused = !!document.activeElement && statusEl.contains(document.activeElement) && document.activeElement.matches('[data-status-remote]');
+        leftItems.push(workspaceStatusChipMarkup()); // Plan C: the workspace chip sits at the far left
+        if (!remote) leftItems.push(`<span class="cs-status-item cs-status-container" title="${esc(containerStatusLabel())}"><span class="cs-status-dot" data-status="${esc(state.containerStatus || 'unknown')}"></span>${esc(containerStatusLabel())}</span>`);
         if (state.gitIsRepo === true) leftItems.push(`<span class="cs-status-item cs-status-branch" data-clickable data-status-branch title="${esc(tr('codeStudio.gitBranchMenu', 'Switch, create or delete branches'))}">${gitBranchIconMarkup(12)}<span>${esc(state.gitBranch || tr('codeStudio.gitDetached', 'Detached HEAD'))}</span></span>`);
         const info = state.containerInfo || {};
         if (info.read_only) leftItems.push(`<span class="cs-status-item">${esc(tr('codeStudio.readOnly', 'Read-only'))}</span>`);
-        if (info.network === 'none') leftItems.push(`<span class="cs-status-item" data-network="none">${esc(tr('codeStudio.networkOff', 'Network off'))}</span>`);
-        const idleLabel = containerIdleLabel(info);
+        if (!remote && info.network === 'none') leftItems.push(`<span class="cs-status-item" data-network="none">${esc(tr('codeStudio.networkOff', 'Network off'))}</span>`);
+        const idleLabel = remote ? '' : containerIdleLabel(info);
         if (idleLabel) leftItems.push(`<span class="cs-status-item">${esc(idleLabel)}</span>`);
         if (message) leftItems.push(`<span class="cs-status-item cs-status-message">${esc(message)}</span>`);
         else if (tab) leftItems.push(`<span class="cs-status-item" title="${esc(tab.path)}">${tab.modified ? '<span class="cs-status-modified">\u25cf</span> ' : ''}${esc(baseName(tab.path))}</span>`);
@@ -1263,6 +1267,7 @@
         rightItems.push(`<span class="cs-status-item" data-clickable title="${esc(tr('codeStudio.zoomReset', 'Reset Zoom'))}" data-status-zoom>${esc(clampEditorFontSize(state.editorFontSize))}px</span>`);
         rightItems.push(`<span class="cs-status-item cs-status-engine">${esc(state.editorType === 'codemirror' ? 'CodeMirror' : tr('codeStudio.editorFallback', 'Basic'))}</span>`);
         statusEl.innerHTML = leftItems.join('') + '<span class="cs-status-spacer"></span>' + rightItems.join('');
+        wireWorkspaceChip(statusEl, chipFocused); // Plan C
         const zoom = statusEl.querySelector('[data-status-zoom]');
         if (zoom) zoom.addEventListener('click', bind(resetEditorZoom));
         const indent = statusEl.querySelector('[data-status-indent]');

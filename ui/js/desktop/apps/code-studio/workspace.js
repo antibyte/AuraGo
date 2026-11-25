@@ -151,3 +151,149 @@
         const error = kind === 'unreachable' ? workspaceErrorText('unreachable') : (err && err.message || String(err || ''));
         workspaceToast(tr('codeStudio.workspaceSaveFailedToast', '{{file}} was not saved. {{error}} Your changes stay in the tab.', { file: baseName(tab.path), error }));
     }
+
+    // --- Chrome: status chip, Explorer switcher, banner -----------------------------------------------
+
+    function workspaceMenuOpenFor(kind) {
+        return !!(state && state.workspaceMenu && state.workspaceMenu.__anchorKind === kind);
+    }
+
+    function workspaceStatusChipMarkup() {
+        const remote = workspaceIsRemote();
+        const status = workspaceChipState();
+        const ws = activeWorkspace();
+        const text = remote ? tr('codeStudio.workspaceChipRemote', 'SSH: {{name}}', { name: ws.deviceName || ws.host }) : tr('codeStudio.workspaceChipLocal', 'Local');
+        const title = remote ? workspaceDisplayLabel(ws) + ' — ' + workspaceHostLabel(ws) + '\n' + workspaceStatusText(status) : tr('codeStudio.workspaceLocalSub', 'Container · /workspace');
+        const icon = status === 'connecting'
+            ? '<span class="cs-ws-spinner" aria-hidden="true"></span>'
+            : wsGlyph(['lost', 'error', 'hostkey'].includes(status) ? 'warning' : (remote ? 'server' : 'laptop'), 12);
+        return `<span class="cs-status-item cs-status-remote" data-clickable data-status-remote data-remote-state="${esc(status)}" role="button" tabindex="0" aria-haspopup="menu" aria-expanded="${workspaceMenuOpenFor('chip')}" aria-label="${esc(text + ', ' + workspaceStatusText(status))}" title="${esc(title)}">${icon}<span class="cs-status-remote-label">${esc(text)}</span></span>`;
+    }
+
+    function wireWorkspaceChip(statusEl, refocus) {
+        const chip = statusEl.querySelector('[data-status-remote]');
+        if (!chip) return;
+        chip.addEventListener('click', bind(() => openWorkspaceMenu(chip)));
+        chip.addEventListener('keydown', bind(event => {
+            if (!['Enter', ' ', 'ArrowUp'].includes(event.key)) return;
+            event.preventDefault();
+            openWorkspaceMenu(chip);
+        }));
+        if (refocus) chip.focus();
+    }
+
+    function workspaceSwitcherMarkup() {
+        const ws = activeWorkspace();
+        const remote = workspaceIsRemote();
+        const status = workspaceChipState();
+        const sub = remote ? workspaceHostLabel(ws) : tr('codeStudio.workspaceLocalSub', 'Container · /workspace');
+        return `<button type="button" class="cs-ws-switcher" data-ws-switcher data-remote-state="${esc(status)}" aria-haspopup="menu" aria-expanded="${workspaceMenuOpenFor('switcher')}" title="${esc(tr('codeStudio.workspaceMenu', 'Workspaces'))}">
+            <span class="cs-ws-switcher-icon">${status === 'connecting' ? '<span class="cs-ws-spinner" aria-hidden="true"></span>' : wsGlyph(remote ? 'server' : 'laptop', 16)}</span>
+            <span class="cs-ws-switcher-text"><span class="cs-ws-switcher-label">${esc(workspaceDisplayLabel(ws))}</span><span class="cs-ws-switcher-sub">${esc(sub)}</span></span>
+            ${remote ? `<span class="cs-ws-dot" data-ws-dot="${esc(workspaceDotState(ws))}" aria-hidden="true"></span>` : ''}
+            <span class="cs-ws-switcher-chevron">${wsGlyph('chevron', 14)}</span>
+        </button>`;
+    }
+
+    function wireWorkspaceSwitcher(root) {
+        const button = root && root.querySelector('[data-ws-switcher]');
+        if (!button || button._wsWired) return;
+        button._wsWired = true;
+        button.addEventListener('click', bind(() => openWorkspaceMenu(button)));
+        button.addEventListener('keydown', bind(event => {
+            if (event.key !== 'ArrowDown') return;
+            event.preventDefault();
+            openWorkspaceMenu(button);
+        }));
+    }
+
+    function workspaceRenderSwitcher() {
+        const current = shellPart('[data-ws-switcher]');
+        if (!current) return;
+        const hadFocus = document.activeElement === current;
+        const holder = document.createElement('div');
+        holder.innerHTML = workspaceSwitcherMarkup();
+        const next = holder.firstElementChild;
+        current.replaceWith(next);
+        wireWorkspaceSwitcher(next.parentElement);
+        if (hadFocus) next.focus();
+    }
+
+    function workspaceRootCrumbLabel() {
+        if (!workspaceIsRemote()) return tr('codeStudio.workspaceRoot', 'Workspace');
+        const root = activeWorkspace().root;
+        return root === '/' ? '/' : root.split('/').filter(Boolean).pop();
+    }
+
+    function workspaceRenderBanner() {
+        const banner = shellPart('[data-ws-banner]');
+        if (!banner) return;
+        const status = state.workspaceStatus;
+        const show = workspaceIsRemote() && !state.workspaceSwitching
+            && (['lost', 'hostkey', 'error'].includes(status) || (status === 'connecting' && state.workspaceWasLost));
+        if (!show) {
+            if (!banner.hidden) {
+                banner.hidden = true;
+                banner.innerHTML = '';
+                banner.dataset.signature = '';
+                delete banner.dataset.wsBannerState;
+            }
+            return;
+        }
+        const host = workspaceHostLabel();
+        const error = state.workspaceError || {};
+        let text;
+        let actions;
+        if (status === 'connecting') {
+            text = tr('codeStudio.workspaceStatusConnecting', 'Connecting…') + ' ' + host;
+            actions = [];
+        } else if (status === 'lost') {
+            text = tr('codeStudio.workspaceLost', 'Connection to {{host}} lost', { host });
+            actions = ['reconnect', 'local'];
+        } else if (status === 'hostkey') {
+            text = tr('codeStudio.workspaceTrustTitle', 'Unknown host key') + ': ' + host;
+            actions = ['review', 'local'];
+        } else {
+            text = workspaceErrorText(error.kind, { host, path: activeWorkspace().root, error: error.message || '' });
+            actions = error.kind === 'host_key_mismatch' ? ['local'] : ['reconnect', 'local'];
+        }
+        const seconds = status === 'lost' && state.workspaceRetryAt ? Math.max(0, Math.ceil((state.workspaceRetryAt - Date.now()) / 1000)) : -1;
+        const detail = seconds >= 0 ? tr('codeStudio.workspaceRetryIn', 'Retrying in {{seconds}} s', { seconds }) : '';
+        const signature = [status, text, actions.join(',')].join('|');
+        banner.hidden = false;
+        banner.dataset.wsBannerState = status;
+        if (banner.dataset.signature === signature) {
+            // The countdown tick changes only the detail, so focus and screen readers stay calm.
+            const countdown = banner.querySelector('[data-ws-banner-detail]');
+            if (countdown) countdown.textContent = detail;
+            return;
+        }
+        banner.dataset.signature = signature;
+        banner.setAttribute('role', status === 'error' ? 'alert' : 'status');
+        const labels = {
+            reconnect: tr('codeStudio.workspaceReconnect', 'Reconnect'),
+            local: tr('codeStudio.workspaceUseLocal', 'Use local workspace'),
+            review: tr('codeStudio.workspaceReviewHostKey', 'Review host key…')
+        };
+        banner.innerHTML = `<span class="cs-ws-banner-icon">${status === 'connecting' ? '<span class="cs-ws-spinner" aria-hidden="true"></span>' : wsGlyph('warning', 16)}</span>
+            <span class="cs-ws-banner-text"><strong>${esc(text)}</strong><span class="cs-ws-banner-detail" data-ws-banner-detail aria-hidden="true">${esc(detail)}</span></span>
+            <span class="cs-ws-banner-actions">${actions.map(action => `<button type="button" class="cs-button${action === 'local' ? '' : ' primary'}" data-ws-banner-action="${action}">${esc(labels[action])}</button>`).join('')}</span>`;
+        banner.querySelectorAll('[data-ws-banner-action]').forEach(button => button.addEventListener('click', bind(() => workspaceBannerAction(button.dataset.wsBannerAction))));
+    }
+
+    function workspaceBannerAction(action) {
+        if (action === 'reconnect') workspaceReconnect();
+        else if (action === 'local') switchWorkspace(WS_MODEL.LOCAL_ID);
+        else if (action === 'review') {
+            const ws = activeWorkspace();
+            openConnectDialog({ deviceId: ws.deviceId, path: ws.root });
+        }
+    }
+
+    function workspaceRenderChrome() {
+        if (!state || !studioRoot()) return;
+        workspaceRenderSwitcher();
+        renderStatus();
+        workspaceRenderBanner();
+        workspaceUpdateWindowTitle();
+    }
