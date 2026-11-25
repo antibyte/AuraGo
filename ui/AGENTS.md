@@ -1593,7 +1593,9 @@ New app-scoped prefixes must contain no `ad` substring; verify
 
 - `js/storymaker/AGENTS.md` and `../assets/storymaker/AGENTS.md` — Shared PixiJS/GSAP/Three.js player, catalog v2 pet derivatives/ImageGen environments and props, bounded model/texture transport and deterministic production. Delivered payloads live in `img/storymaker/` and `js/vendor/storymaker/`.
 
-- `js/homedash/AGENTS.md` — HomeDash engine (pure core, primitives, widget host), its stylesheet bundle and the test-only control lab.
+- `js/homedash/AGENTS.md` — HomeDash engine (pure core, primitives, widget host, hero widgets), its stylesheet bundle and the test-only control lab.
+
+- `../documentation/homedash-visual-system.md` — HomeDash style families, frozen token table, lab sheets and review rules (style-lab pointer for `js/homedash`).
 
 - `fonts/qr/AGENTS.md` — Fixed local QR caption/fallback fonts, source revisions,
   integrity manifests and OFL notices; runtime schema/rendering belongs to
