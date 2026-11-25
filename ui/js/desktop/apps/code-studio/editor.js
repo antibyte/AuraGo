@@ -145,6 +145,10 @@
         const policy = new cm.Compartment();
         // Blame gutter of git-history.js, switched per view without rebuilding the editor.
         const blame = new cm.Compartment();
+        // IDE package 2b: the LSP extensions of lsp.js (view.csLsp). The settings switch, the read-only policy and the
+        // session state swap them on the open editor.
+        const lspCompartment = new cm.Compartment();
+        const lspInitial = lspEditorExtensions(cm, tab);
         const extensions = [
             blame.of(gitBlameExtensions(cm, tab)),
             cm.lineNumbers && cm.lineNumbers(),
@@ -170,6 +174,7 @@
             cm.bracketMatching && cm.bracketMatching(),
             cm.indentOnInput && cm.indentOnInput(),
             languageExtension(cm, tab.language),
+            lspCompartment.of(lspInitial),
             cm.keymap && cm.keymap.of([
                 cm.indentWithTab,
                 ...(cm.closeBracketsKeymap || []),
@@ -258,6 +263,8 @@
         view.csScheme = scheme;
         view.csPolicy = policy;
         view.csBlame = blame;
+        view.csLsp = lspCompartment;
+        view.csLspActive = lspInitial.length > 0;
         view.csLight = light;
         watchEditorScheme();
         return view;

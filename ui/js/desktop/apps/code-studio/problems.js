@@ -357,6 +357,8 @@
         if (!code) return [];
         const language = tab.language || languageForPath(tab.path);
         if (language === 'json') return checkJson(code);
+        // IDE package 2b: a ready language server reports syntax errors itself; the bracket check would duplicate them.
+        if (lspServesPath(tab.path)) return [];
         if (BRACKET_LANGUAGES.includes(language)) return checkBrackets(code);
         return [];
     }
