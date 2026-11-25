@@ -11,6 +11,7 @@
         server: '<rect x="2.5" y="2.5" width="11" height="4.5" rx="1.2"/><rect x="2.5" y="9" width="11" height="4.5" rx="1.2"/><path d="M5 4.75h.01M5 11.25h.01"/>',
         chevron: '<path d="M4.5 6.5 8 10l3.5-3.5"/>',
         up: '<path d="M8 13V3.5M4 7.5 8 3.5l4 4"/>',
+        back: '<path d="M13 8H3.5M7.5 4 3.5 8l4 4"/>',
         home: '<path d="M2.5 7.5 8 3l5.5 4.5V13a.5.5 0 0 1-.5.5H9.5V10h-3v3.5H3a.5.5 0 0 1-.5-.5z"/>',
         plus: '<path d="M8 3v10M3 8h10"/>',
         plug: '<path d="M6 2.5v3M10 2.5v3M4.5 5.5h7v2a3.5 3.5 0 0 1-7 0zM8 11v2.5"/>',
@@ -132,6 +133,8 @@
         const subtitle = win && win.querySelector('.vd-window-subtitle');
         if (!subtitle) return;
         const ws = activeWorkspace();
+        if (workspaceIsRemote()) subtitle.setAttribute('data-cs-subtitle', 'ssh');
+        else subtitle.removeAttribute('data-cs-subtitle');
         subtitle.textContent = workspaceIsRemote() ? workspaceHostLabel(ws) + ':' + WS_MODEL.displayRoot(ws) : '';
         subtitle.title = workspaceIsRemote() ? workspaceHostLabel(ws) + ':' + ws.root : '';
     }
@@ -382,14 +385,35 @@
         });
     }
 
+    // The switcher menu hangs below the Explorer switcher with its left edge and width; the status chip menu opens above the chip.
+    // Both stay inside the Code Studio window (falling back to the viewport).
     function positionWorkspaceMenu(menu, anchor) {
         const rect = anchor.getBoundingClientRect();
-        menu.style.minWidth = Math.round(Math.max(280, Math.min(rect.width, 440))) + 'px';
+        const fromSwitcher = menu.__anchorKind !== 'chip';
+        const win = anchor.closest ? anchor.closest('.vd-window') : null;
+        const wr = win ? win.getBoundingClientRect() : { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight };
+        const bounds = {
+            left: Math.max(0, wr.left) + 8, top: Math.max(0, wr.top) + 8,
+            right: Math.min(window.innerWidth, wr.right) - 8, bottom: Math.min(window.innerHeight, wr.bottom) - 8
+        };
+        if (fromSwitcher) {
+            const width = Math.round(Math.min(Math.max(rect.width, 240), bounds.right - bounds.left));
+            menu.style.minWidth = width + 'px';
+            menu.style.width = width + 'px';
+            menu.style.maxWidth = width + 'px';
+        } else {
+            menu.style.minWidth = Math.round(Math.max(280, Math.min(rect.width, 440))) + 'px';
+        }
+        menu.style.maxHeight = Math.max(160, Math.min(520, bounds.bottom - bounds.top)) + 'px';
         const box = menu.getBoundingClientRect();
         const below = rect.bottom + 4;
-        const top = below + box.height <= window.innerHeight - 8 ? below : Math.max(8, rect.top - box.height - 4);
-        menu.style.left = Math.round(Math.max(8, Math.min(rect.left, window.innerWidth - box.width - 8))) + 'px';
-        menu.style.top = Math.round(top) + 'px';
+        const above = rect.top - box.height - 4;
+        const fitsBelow = below + box.height <= bounds.bottom;
+        let top;
+        if (fromSwitcher) top = fitsBelow ? below : (above >= bounds.top ? above : bounds.bottom - box.height);
+        else top = above >= bounds.top ? above : (fitsBelow ? below : bounds.bottom - box.height);
+        menu.style.left = Math.round(Math.max(bounds.left, Math.min(rect.left, bounds.right - box.width))) + 'px';
+        menu.style.top = Math.round(Math.max(bounds.top, top)) + 'px';
     }
 
     function workspaceMenuItemMarkup(ws, currentId) {
@@ -853,7 +877,7 @@
             </header>
             <div class="cs-wsd-body">
                 <section class="cs-wsd-hosts" aria-labelledby="cs-wsd-hosts-title">
-                    <div class="cs-wsd-pane-title" id="cs-wsd-hosts-title">${esc(tr('codeStudio.workspaceHosts', 'Hosts'))}</div>
+                    <div class="cs-wsd-pane-title" id="cs-wsd-hosts-title" data-wsd-hosts-title>${esc(tr('codeStudio.workspaceHosts', 'Hosts'))}</div>
                     <div class="cs-wsd-hosts-main" data-wsd-hosts-main>
                         <input type="search" class="cs-wsd-search" data-wsd-search placeholder="${esc(tr('codeStudio.workspaceSearchHosts', 'Search hosts'))}" aria-label="${esc(tr('codeStudio.workspaceSearchHosts', 'Search hosts'))}" aria-controls="cs-wsd-hostlist" autocomplete="off" spellcheck="false">
                         <div class="cs-wsd-hostlist" id="cs-wsd-hostlist" role="listbox" aria-labelledby="cs-wsd-hosts-title" data-wsd-hostlist></div>
@@ -1039,6 +1063,7 @@
         const overlay = dialog.overlay;
         const list = overlay.querySelector('[data-wsd-hostlist]');
         overlay.querySelector('[data-wsd-hosts-main]').hidden = !!dialog.form;
+        overlay.querySelector('[data-wsd-hosts-title]').hidden = !!dialog.form;
         overlay.querySelector('[data-wsd-form-slot]').hidden = !dialog.form;
         const newHost = overlay.querySelector('[data-wsd-new-host]');
         newHost.disabled = !!dialog.instance.readOnly;
@@ -1118,6 +1143,7 @@
         dialog.form = { values: { name: '', host: '', port: '22', username: '', auth: 'password', secret: '', passphrase: '' }, errors: {}, busy: false, error: '' };
         renderDialogHosts(dialog);
         renderDialogForm(dialog);
+        renderDialogFooter(dialog);
         const name = dialog.overlay.querySelector('[data-wsd-form] [name="name"]');
         if (name) name.focus();
     }
@@ -1126,6 +1152,7 @@
         dialog.form = null;
         dialog.overlay.querySelector('[data-wsd-form-slot]').innerHTML = '';
         renderDialogHosts(dialog);
+        renderDialogFooter(dialog);
         dialog.overlay.querySelector('[data-wsd-new-host]').focus();
     }
 
@@ -1145,7 +1172,11 @@
         const msg = name => (e[name] ? `<span class="cs-wsd-field-error" id="cs-wsd-e-${name}">${esc(workspaceFormErrorText(e[name]))}</span>` : '');
         const key = v.auth === 'key';
         slot.innerHTML = `<form class="cs-wsd-form" data-wsd-form novalidate aria-labelledby="cs-wsd-form-title">
-            <div class="cs-wsd-pane-title" id="cs-wsd-form-title">${esc(tr('codeStudio.workspaceNewHost', 'New SSH Host'))}</div>
+            <div class="cs-wsd-form-head">
+                <button type="button" class="cs-icon-button" data-wsd-form-cancel aria-label="${esc(tr('codeStudio.workspaceBackToHosts', 'Back to hosts'))}" title="${esc(tr('codeStudio.workspaceBackToHosts', 'Back to hosts'))}">${wsGlyph('back', 14)}</button>
+                <h3 class="cs-wsd-form-title" id="cs-wsd-form-title">${esc(tr('codeStudio.workspaceNewHost', 'New SSH Host'))}</h3>
+            </div>
+            <div class="cs-wsd-form-fields">
             <div class="cs-wsd-field"><label for="cs-wsd-f-name">${esc(tr('codeStudio.workspaceFormName', 'Name'))}</label><input ${attrs('name')} value="${esc(v.name)}" autocomplete="off" maxlength="80" placeholder="build-box">${msg('name')}</div>
             <div class="cs-wsd-row">
                 <div class="cs-wsd-field"><label for="cs-wsd-f-host">${esc(tr('codeStudio.workspaceFormHost', 'Host'))}</label><input ${attrs('host')} value="${esc(v.host)}" autocomplete="off" spellcheck="false" placeholder="192.168.1.20">${msg('host')}</div>
@@ -1162,7 +1193,8 @@
             : `<div class="cs-wsd-field"><label for="cs-wsd-f-secret">${esc(tr('codeStudio.workspaceFormPassword', 'Password'))}</label><input type="password" ${attrs('secret')} value="${esc(v.secret)}" autocomplete="new-password">${msg('secret')}</div>`}
             <p class="cs-wsd-field-hint">${esc(tr('codeStudio.workspaceFormVaultHint', 'The secret is stored in the AuraGo vault and never kept in the browser.'))}</p>
             ${form.error ? `<div class="cs-wsd-open-error" role="alert">${wsGlyph('warning', 14)}<span>${esc(form.error)}</span></div>` : ''}
-            <div class="cs-wsd-actions">
+            </div>
+            <div class="cs-wsd-actions cs-wsd-form-actions">
                 <button type="button" class="cs-button" data-wsd-form-cancel>${esc(tr('desktop.cancel', 'Cancel'))}</button>
                 <button type="submit" class="cs-button primary"${form.busy ? ' disabled aria-busy="true"' : ''}>${esc(tr('codeStudio.workspaceFormAdd', 'Add Host'))}</button>
             </div>
@@ -1483,15 +1515,16 @@
         const device = dialogDevice(dialog);
         const browse = dialog.browse;
         const target = dialogTargetPath(dialog);
-        const ready = !!device && !!browse && !browse.loading && !browse.hostKey && !browse.error && !!target && !dialog.opening;
+        const ready = !!device && !!browse && !browse.loading && !browse.hostKey && !browse.error && !!target && !dialog.opening && !dialog.form;
+        const listVisible = !!device && !!browse && !browse.hostKey && !browse.error && !dialog.form;
         const preview = device && target ? WS_MODEL.userAtHost(device) + ':' + target : '';
         const focused = footer.contains(document.activeElement) ? (document.activeElement.hasAttribute('data-wsd-open') ? '[data-wsd-open]' : '[data-wsd-cancel]') : '';
-        footer.innerHTML = `<code class="cs-wsd-target" data-wsd-target title="${esc(preview)}">${esc(preview || '—')}</code>
-            <div class="cs-wsd-hint" aria-hidden="true">${esc(tr('codeStudio.workspaceKeyHint', 'Enter opens · → enters a folder · ← goes up'))}</div>
+        footer.innerHTML = `${preview ? `<code class="cs-wsd-target" data-wsd-target title="${esc(preview)}">${esc(preview)}</code>` : `<span class="cs-wsd-target is-empty" data-wsd-target>${esc(tr('codeStudio.workspaceNoFolder', 'No folder selected'))}</span>`}
+            ${listVisible ? `<div class="cs-wsd-hint" aria-hidden="true">${esc(tr('codeStudio.workspaceKeyHint', 'Enter opens · → enters a folder · ← goes up'))}</div>` : ''}
             ${dialog.openError ? `<div class="cs-wsd-open-error" role="alert">${wsGlyph('warning', 14)}<span>${esc(dialog.openError)}</span></div>` : ''}
             <div class="cs-wsd-actions">
                 <button type="button" class="cs-button" data-wsd-cancel>${esc(tr('desktop.cancel', 'Cancel'))}</button>
-                <button type="button" class="cs-button primary" data-wsd-open${ready ? '' : ' disabled'} aria-busy="${dialog.opening}">${dialog.opening ? '<span class="cs-ws-spinner" aria-hidden="true"></span>' : ''}<span>${esc(dialog.opening ? tr('codeStudio.workspaceStatusConnecting', 'Connecting…') : tr('codeStudio.workspaceOpenFolder', 'Open Folder'))}</span></button>
+                <button type="button" class="cs-button primary" data-wsd-open${ready ? '' : ' disabled aria-disabled="true"'} aria-busy="${dialog.opening}">${dialog.opening ? '<span class="cs-ws-spinner" aria-hidden="true"></span>' : ''}<span>${esc(dialog.opening ? tr('codeStudio.workspaceOpening', 'Opening…') : tr('codeStudio.workspaceOpenFolder', 'Open Folder'))}</span></button>
             </div>`;
         if (focused) {
             const el = footer.querySelector(focused);
@@ -1503,7 +1536,7 @@
         const device = dialogDevice(dialog);
         const browse = dialog.browse;
         const root = dialogTargetPath(dialog);
-        if (!device || !browse || !root || dialog.opening || browse.loading || browse.hostKey || browse.error) return;
+        if (!device || !browse || !root || dialog.opening || dialog.form || browse.loading || browse.hostKey || browse.error) return;
         const instance = dialog.instance;
         dialog.opening = true;
         dialog.openError = '';
