@@ -3,26 +3,33 @@ const CATALOG = JSON.parse(read('internal/homedash/testdata/widget_catalog.json'
 const ENTITIES = JSON.parse(read('ui/testdata/homedash-m2/system-entities.json'));
 function contractServer(options) {
   const o = options || {}, docs = new Map(), calls = [];
+  const gates = {}; // o.hold = ['dashboard', ...]: the first GET of that path answers with its request-time snapshot only after gates[path]() runs
   const reply = body => Promise.resolve(JSON.parse(JSON.stringify(body))), fail = (status, body) => Promise.reject(Object.assign(new Error('HTTP ' + status), { status, body }));
   function request(url, init) {
     const u = new URL(url, 'http://desk'), path = u.pathname.replace('/api/desktop/homedash/', ''), method = (init && init.method) || 'GET', body = init && init.body ? JSON.parse(init.body) : null;
     calls.push({ method, path, body });
+    if (method === 'GET' && o.hold && o.hold.includes(path) && !gates[path]) { const r = request2(u, path, method, body), snap = r; return new Promise(res => { gates[path] = () => res(snap); }).then(x => x); }
+    return request2(u, path, method, body);
+  }
+  function request2(u, path, method, body) {
     if (o.disabled) return fail(503, { status: 'error', code: 'homedash_disabled', message: 'off' });
     if (method === 'GET' && path === 'bootstrap') return reply({ status: 'ok', catalog_hash: CATALOG.hash, desktop_readonly: false, sources: [{ source: 'system', state: 'idle', at: 'x' }], templates: ['system'] });
     if (method === 'GET' && path === 'widget-catalog') return reply({ status: 'ok', catalog: CATALOG });
     if (method === 'GET' && path === 'dashboards') return reply({ status: 'ok', dashboards: [...docs.values()].map(d => ({ id: d.id, slug: d.slug, name: d.name, revision: d.revision, approved_revision: d.revision, updated_at: d.updated_at, saved_by: 'user' })) });
+    if (method === 'POST' && path === 'dashboards' && o.badCreate && !o.badCreate.done) { o.badCreate.done = true; return reply({ status: 'ok', dashboard: null, warnings: [] }); }
     if (method === 'POST' && path === 'dashboards') { const d = Object.assign(JSON.parse(JSON.stringify(STARTER)), { name: body.name }); docs.set(d.id, d); return reply({ status: 'ok', dashboard: d, warnings: [] }); }
     if (method === 'GET' && path === 'dashboard') { const d = docs.get(u.searchParams.get('id')); return d ? reply({ status: 'ok', dashboard: d, schema_too_new: false }) : fail(404, { status: 'error', code: 'dashboard_not_found', message: 'gone' }); }
     if (method === 'PUT' && path === 'stream/subscriptions') return reply({ status: 'ok', accepted: body.entities, rejected: [] });
     if (method === 'GET' && path === 'history') return reply({ status: 'ok', id: u.searchParams.get('id'), origin: 'source', points: [] });
     return fail(404, { status: 'error', code: 'not_found', message: path });
   }
-  return { request, calls, docs };
+  if (o.seed) docs.set(o.seed.id, JSON.parse(JSON.stringify(o.seed)));
+  return { request, calls, docs, release: path => gates[path]() };
 }
 function mountApp(options) {
   const o = options || {}, { E, document } = loadEngine(APP_ORDER, { dom: true }), clock = fakeClock(), es = fakeSources(), server = contractServer(o);
   const host = document.createElement('div'); document.body.appendChild(host);
-  const inst = E.mount(host, { transport: { request: server.request, eventSource: es.open }, t: k => k, lang: 'en', measure: () => ({ width: 1180, height: 700 }), visibility: o.visibility,
+  const inst = E.mount(host, { dashboardId: o.dashboardId, transport: { request: server.request, eventSource: es.open }, t: k => k, lang: 'en', measure: () => ({ width: 1180, height: 700 }), visibility: o.visibility,
     timers: { setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout, now: clock.now, random: () => 0.5, raf: fn => clock.setTimeout(fn, 16), caf: id => clock.clearTimeout(id) } });
   return { inst, host, clock, es, server };
 }
@@ -53,5 +60,25 @@ export const tests = [
     const subs = [], vis = { visible: () => true, subscribe(fn) { subs.push(fn); return () => {}; } };
     const { inst, clock, es, server } = mountApp({ visibility: vis }); await clock.advance(20); inst.createStarter(); await clock.advance(20); es.last().emit('hello', HELLO); await clock.advance(20);
     for (const fn of subs) fn(false); await clock.advance(300);
-    const puts = server.calls.filter(c => c.method === 'PUT'); eq(puts[puts.length - 1].body.entities, []); inst.dispose(); }]
+    const puts = server.calls.filter(c => c.method === 'PUT'); eq(puts[puts.length - 1].body.entities, []); inst.dispose(); }],
+  ['app: a list that arrives while an open is in flight is reconciled after the open (newer revision reloads)', async () => {
+    const seed = Object.assign(JSON.parse(JSON.stringify(STARTER)), { revision: 1 });
+    const { inst, clock, es, server } = mountApp({ seed, dashboardId: seed.id, hold: ['dashboard'] }); await clock.advance(20);
+    assert.equal(inst.state().mode, 'loading'); es.last().emit('hello', HELLO); await clock.advance(20);
+    server.docs.get(seed.id).revision = 2; es.last().emit('dashboard_changed', { id: seed.id, revision: 2, approved_revision: 2 }); await clock.advance(300);
+    assert.equal(inst.state().mode, 'loading'); server.release('dashboard'); await clock.advance(300);
+    assert.equal(inst.state().mode, 'dashboard'); assert.equal(inst.state().dashboard.revision, 2); assert.equal(server.calls.filter(c => c.path === 'dashboard').length, 2); inst.dispose(); }],
+  ['app: a refresh requested during a fetch runs exactly one more fetch and its callers get the newer list', async () => {
+    const { inst, clock, server } = mountApp({ hold: ['dashboards'] }); await clock.advance(20);
+    assert.equal(inst.state().mode, 'home'); inst.createStarter(); await clock.advance(20);
+    assert.equal(inst.state().mode, 'dashboard'); server.release('dashboards'); await clock.advance(20);
+    assert.equal(server.calls.filter(c => c.method === 'GET' && c.path === 'dashboards').length, 2);
+    inst.home(); assert.equal(inst.state().dashboards.length, 1); inst.dispose(); }],
+  ['app: a failed open after create clears busy so the next create is not dropped', async () => {
+    const { inst, clock, server } = mountApp({ badCreate: {} }); await clock.advance(20);
+    inst.createEmpty(); await clock.advance(20); assert.equal(inst.state().mode, 'home'); assert.equal(inst.state().notice, 'open_failed'); assert.equal(inst.state().busy, false);
+    inst.createEmpty(); await clock.advance(20); assert.equal(server.calls.filter(c => c.method === 'POST').length, 2); assert.equal(inst.state().mode, 'dashboard'); inst.dispose(); }],
+  ['app: dispose during boot stops it before shared realm state or further requests', async () => {
+    const { inst, clock, server } = mountApp(); inst.dispose(); await clock.advance(50);
+    eq(server.calls.map(c => c.path), ['bootstrap']); }]
 ];

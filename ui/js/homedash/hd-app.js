@@ -16,15 +16,18 @@
         const stream = E.stream.shared(Object.assign({ api, random: tm.random, diagnose }, clock));
         const store = E.store.shared(Object.assign({ api, stream, raf: tm.raf, caf: tm.caf }, clock));
         const setT = tm.setTimeout || ((fn, ms) => setTimeout(fn, ms)), clearT = tm.clearTimeout || (id => clearTimeout(id));
-        const realm = { api, stream, store, list: null, load: null, timer: 0, listeners: new Set(), refresh: null };
+        const realm = { api, stream, store, list: null, load: null, next: null, timer: 0, listeners: new Set(), refresh: null };
+        const run = () => { const p = api.dashboards().then(answer => {
+            realm.list = Object.freeze((answer && Array.isArray(answer.dashboards) ? answer.dashboards : []).filter(d => d && typeof d.id === 'string'));
+            for (const fn of [...realm.listeners]) fn(realm.list);
+            return realm.list;
+        }).finally(() => { if (realm.load === p) realm.load = null; }); return p; };
+        // A refresh asked for while a fetch is in flight may follow a mutation that fetch predates: exactly one more fetch runs after it settles and all such callers share it.
         realm.refresh = () => {
-            if (realm.load) return realm.load;
-            realm.load = api.dashboards().then(answer => {
-                realm.list = Object.freeze((answer && Array.isArray(answer.dashboards) ? answer.dashboards : []).filter(d => d && typeof d.id === 'string'));
-                for (const fn of [...realm.listeners]) fn(realm.list);
-                return realm.list;
-            }).finally(() => { realm.load = null; });
-            return realm.load;
+            if (realm.next) return realm.next;
+            if (!realm.load) { realm.load = run(); return realm.load; }
+            realm.next = realm.load.catch(() => {}).then(() => { realm.next = null; realm.load = run(); return realm.load; });
+            return realm.next;
         };
         store.on('dashboards', () => { clearT(realm.timer); realm.timer = setT(() => { realm.timer = 0; realm.refresh().catch(() => {}); }, LIST_COALESCE_MS); });
         realms.set(base, realm);
@@ -39,7 +42,7 @@
         const watch = store.watch(E.core.uid('hd-win'), { ids: [], active: vis.visible() });
         life.add(vis.subscribe(on => watch.setActive(on)));
         let state = Object.freeze({ mode: 'loading', error: null, notice: null, busy: false, dashboards: null, dashboard: null, pageId: null, connection: store.connection(), desktopReadonly: !!o.readonly, banners: [] });
-        let catalog = null, view = null, doc = null, disposed = false, openSeq = 0;
+        let catalog = null, view = null, doc = null, disposed = false, openSeq = 0, late = null; // late: a list that arrived while an open was in flight
         function set(patch) {
             if (disposed) return;
             const next = Object.assign({}, state, patch);
@@ -50,11 +53,11 @@
         const hook = (type, fn) => { store.on(type, fn); life.add(() => store.off(type, fn)); };
         hook('connection', c => { if (view) view.setConnection(c); set({ connection: c }); if (c.phase === 'stopped' && c.reason === 'disabled') recheck(); });
         hook('sources', () => set({}));
-        const onList = list => reconcile(list);
+        const onList = list => { if (state.mode === 'loading') late = list; else reconcile(list); };
         realm.listeners.add(onList); life.add(() => realm.listeners.delete(onList)); life.add(() => watch.release());
         function fail(err, fallback) {
             const e = E.api.normalizeError(err);
-            if (e.code === 'aborted') return;
+            if (e.code === 'aborted' || disposed) return;
             if (e.code === 'homedash_disabled') { closeView(); set({ mode: 'disabled', busy: false }); return; }
             if (e.code === 'desktop_readonly') setReadonly(true);
             fallback(e);
@@ -63,18 +66,22 @@
             set({ mode: 'loading', error: null, notice: null });
             try {
                 const b = await api.bootstrap();
+                if (disposed) return;
                 store.setSources(b.sources);
                 const ro = !!o.readonly || b.desktop_readonly === true;
                 store.setDesktopReadonly(ro);
-                catalog = E.catalog.create(await store.widgetCatalog(b.catalog_hash));
+                const cat = await store.widgetCatalog(b.catalog_hash);
+                if (disposed) return;
+                catalog = E.catalog.create(cat);
                 set({ desktopReadonly: ro });
                 if (o.dashboardId) await open(o.dashboardId, o.pageId); else await home(null);
             } catch (err) { fail(err, e => set({ mode: 'error', error: Object.freeze({ code: e.code, status: e.status }) })); }
         }
         function recheck() { api.bootstrap().then(() => realm.stream.resume(), err => fail(err, () => {})); }
         async function home(notice) {
-            openSeq += 1; closeView();
-            set({ mode: 'home', dashboard: null, pageId: null, notice: notice || null, dashboards: realm.list });
+            if (disposed) return;
+            openSeq += 1; closeView(); late = null;
+            set({ mode: 'home', busy: false, dashboard: null, pageId: null, notice: notice || null, dashboards: realm.list });
             context();
             try { set({ dashboards: await realm.refresh() }); } catch (err) { fail(err, () => set({ notice: 'list_failed', dashboards: realm.list || [] })); }
         }
@@ -86,6 +93,7 @@
             catch (err) { if (mine !== openSeq) return; fail(err, e => home(e.code === 'dashboard_not_found' || e.code === 'bad_request' ? 'dashboard_missing' : 'open_failed')); return; }
             if (mine !== openSeq || disposed) return;
             show(answer && answer.dashboard, pageId, !!(answer && answer.schema_too_new === true));
+            const l = late; late = null; if (l && state.mode === 'dashboard') reconcile(l);
         }
         function show(d, pageId, schemaTooNew) {
             if (!d || typeof d.id !== 'string' || !catalog) { home('open_failed'); return; }

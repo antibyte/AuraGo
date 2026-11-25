@@ -52,7 +52,7 @@ export const tests = [
     view.show(Object.assign({}, TWO, { look: { family: 'minimal', palette } }));
     // the reference root: the same solved tokens minus the five names applyLook owns, then applyLook alone
     const base = Object.assign({}, solved); for (const n of ['accent', 'light-on', 'focus', 'ink-on-accent', 'hud']) delete base[n];
-    C.applyPalette(ref, base); E.core.setVars(ref, { '--hd-n-accent': solved.accent, '--hd-n-ink-on-accent': solved['ink-on-accent'] }); E.widgets.applyLook(ref);
+    E.core.setVars(ref, Object.fromEntries(C.PALETTE_TOKENS.filter(n => base[n] !== undefined).map(n => ['--hd-' + n, base[n]]))); E.core.setVars(ref, { '--hd-n-accent': solved.accent, '--hd-n-ink-on-accent': solved['ink-on-accent'] }); E.widgets.applyLook(ref);
     assert.ok(viewLog.some(l => l.startsWith('set --hd-hud=')), 'applyLook ran and wrote the hud'); // a solved palette passes 3:1 on its own surface, so no accent correction is expected
     eq(viewLog, refLog);
     for (const n of OWNED) assert.equal(inline(root, n), inline(ref, n), n);
@@ -65,5 +65,19 @@ export const tests = [
       view.show(Object.assign({}, TWO, { look: { family: 'minimal', palette: { mode } } }));
       for (const n of ['--hd-ink', '--hd-n-accent', '--hd-n-ink-on-accent']) assert.equal(inline(root, n), '', mode + ' clears ' + n);
       view.show(Object.assign({}, TWO, { look: { family: 'minimal', palette } })); assert.equal(inline(root, '--hd-n-accent'), solved.accent);
-    } }]
+    } }],
+  ['view: the view itself never sets or removes the five applyLook-owned names (custom, dark, theme)', () => {
+    const { E, document } = loadEngine(FILES, { dom: true }), OWNED = ['--hd-accent', '--hd-light-on', '--hd-focus', '--hd-ink-on-accent', '--hd-hud'];
+    document.defaultView = { getComputedStyle: () => ({ getPropertyValue: () => '', color: 'rgb(0, 0, 0)' }) };
+    E.widgets = Object.assign({}, E.widgets, { applyLook() {} }); // only the view's own writes are under test
+    const root = E.el('div', { class: 'hd-root' }); document.body.appendChild(root);
+    const touched = [], sp = root.style.setProperty.bind(root.style), rp = root.style.removeProperty.bind(root.style);
+    root.style.setProperty = (n, v) => { if (OWNED.includes(n)) touched.push('set ' + n); return sp(n, v); };
+    root.style.removeProperty = n => { if (OWNED.includes(n)) touched.push('remove ' + n); return rp(n); };
+    const bus = E.core.emitter(), store = { view: () => null, on: bus.on, off: bus.off, history: () => Promise.resolve({ points: [], source: 'none' }) };
+    const view = E.view.create({ root, store, catalog: E.catalog.create(CATALOG), t: k => k, lang: 'en', host: 'desktop', scheme: () => 'light', motion: () => 'full', raf: fn => 1, caf: () => {}, measure: () => ({ width: 1180, height: 700 }) });
+    for (const palette of [{ mode: 'custom', scheme: 'dark', accent: '#F5C542', surface_hue: 250 }, { mode: 'dark' }, { mode: 'theme' }, { mode: 'light' }]) {
+      view.show(Object.assign({}, TWO, { look: { family: 'minimal', palette } })); view.refreshLook();
+    }
+    eq(touched, []); assert.notEqual(root.style.getPropertyValue('--hd-ink'), undefined); }]
 ];

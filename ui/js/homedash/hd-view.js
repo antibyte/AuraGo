@@ -34,14 +34,13 @@
             const attrs = { 'data-hd-family': look.family, 'data-hd-palette': mode, 'data-hd-scheme': sch, 'data-hd-density': look.density, 'data-hd-backdrop': (look.backdrop && look.backdrop.kind) || 'theme', 'data-hd-motion': motion() };
             for (const [k, v] of Object.entries(attrs)) setAttr(root, k, v);
             setVars(root, { '--hd-radius-scale': look.radius_scale === 1 ? null : look.radius_scale });
-            // L1: applyLook owns the inline --hd-accent/-light-on/-focus/-ink-on-accent/-hud, so those names never reach applyPalette. The solved accent
+            // L1: applyLook owns the inline --hd-accent/-light-on/-focus/-ink-on-accent/-hud, so the view never writes or clears those names. The solved accent
             // and its ink go into the neutral layer (--hd-n-accent, --hd-n-ink-on-accent) that the bridge maps to them; --hd-focus follows --hd-accent.
-            if (mode === 'custom') {
-                const tokens = Object.assign({}, E.colour.solvePalette(look.palette).tokens);
-                setVars(root, { '--hd-n-accent': tokens.accent, '--hd-n-ink-on-accent': tokens['ink-on-accent'] });
-                for (const n of LOOK_OWNED) delete tokens[n];
-                E.colour.applyPalette(root, tokens);
-            } else { E.colour.clearPalette(root); setVars(root, { '--hd-n-accent': null, '--hd-n-ink-on-accent': null }); }
+            // Neither applyPalette nor clearPalette is used: both would also write (or remove) the five owned names, so the view builds its own map.
+            const solved = mode === 'custom' ? E.colour.solvePalette(look.palette).tokens : null, vars = {};
+            for (const n of E.colour.PALETTE_TOKENS) if (!LOOK_OWNED.includes(n)) vars['--hd-' + n] = solved ? solved[n] : null;
+            vars['--hd-n-accent'] = solved ? solved.accent : null; vars['--hd-n-ink-on-accent'] = solved ? solved['ink-on-accent'] : null;
+            setVars(root, vars);
         }
         function renderTabs() {
             const many = doc.pages.length > 1; setAttr(tabs, 'hidden', !many); tabs.replaceChildren();
