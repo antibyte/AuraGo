@@ -1144,7 +1144,7 @@
 .hd-widget .hd-head > :is(.hd-icon, .hd-sub):empty { display: none; } /* empty head spans take no flex gap: the title starts at the padding edge */
 .hd-widget .hd-title { font: var(--hd-label-weight) var(--hd-label-size) / var(--hd-head-h) var(--hd-font-label); letter-spacing: var(--hd-label-tracking); color: var(--hd-ink-muted); }
 .hd-widget .hd-body { grid-area: body; display: grid; place-items: center; }
-.hd-widget .hd-state { grid-area: state; font: 400 12.5px / var(--hd-state-h) var(--hd-font-ui); }
+.hd-widget .hd-state { grid-area: state; box-sizing: border-box; font: 400 12.5px / var(--hd-state-h) var(--hd-font-ui); }
 @container hd-widget (max-height: 139px) { .hd-widget > .hd-frame { --hd-pad-b: 10px; } }
 @container hd-widget (max-width: 139px) { .hd-widget > .hd-frame { --hd-pad-i: 10px; } }
 @container hd-widget (max-width: 139px) and (max-height: 139px) {
@@ -1233,11 +1233,18 @@
 .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"]) .hd-body { grid-template: minmax(0, 1fr) / minmax(0, 1fr); }
 @container hd-widget (max-height: 139px) and (min-width: 140px) {
   .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"]) > .hd-frame {
-    grid-template: "head state" var(--hd-head-h) "body body" minmax(0, 1fr) / minmax(calc(var(--hd-head-h) + 8px + 7ch), 1fr) minmax(0, auto);
+    grid-template: "head state" var(--hd-head-h) "body body" minmax(0, 1fr) / minmax(calc(var(--hd-head-h) + 8px + var(--hd-title-min) + 20px), 1fr) minmax(calc(var(--hd-more-pad, 0px) + 24px), auto);
+    --hd-title-min: calc(var(--hd-label-size) * 4.2); /* WS-1: icon, 7 title characters and the status icon are reserved; the head takes its full text above that, the state line truncates first */
     --hd-body-h: calc(100cqh - 2 * var(--hd-pad-b) - 2px - var(--hd-head-h) - var(--hd-gap-in)); }
   .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"]) .hd-head { padding-inline-end: 0; }
+  .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"]) .hd-title { min-inline-size: var(--hd-title-min); }
+  .hd-widget > .hd-frame:has(> .hd-more:not([hidden])) > .hd-head { padding-inline-end: 0; }
   .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"]) .hd-state { align-self: center; justify-self: end; max-inline-size: 100%; padding-inline-end: var(--hd-more-pad, 0px); text-align: end; }
 }
+/* WS-1 at width 3 and more: the head takes its full text and the state line truncates first. */
+@container hd-widget (max-height: 139px) and (min-width: 250px) {
+  .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"]) > .hd-frame {
+    grid-template-columns: minmax(calc(var(--hd-head-h) + 8px + var(--hd-title-min) + 20px), max-content) minmax(calc(var(--hd-more-pad, 0px) + 24px), 1fr); } }
 /* More button (SCR-M3-2): 44x44 at the top-right frame corner, hidden at 1x1 (and by the hidden attribute, which the base rule keeps winning); the head leaves room for it. */
 .hd-widget > .hd-frame > .hd-more { position: absolute; inset-block-start: 0; inset-inline-end: 0; z-index: 3; display: grid; place-items: center; box-sizing: border-box; inline-size: 44px; block-size: 44px;
   margin: 0; padding: 0; border: 0; background: transparent; color: var(--hd-ink-muted); font: inherit; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
@@ -1245,19 +1252,27 @@
 .hd-widget > .hd-frame > .hd-more[hidden] { display: none; }
 .hd-widget > .hd-frame:has(> .hd-more:not([hidden])) { --hd-more-pad: calc(44px - var(--hd-pad-i)); }
 .hd-widget .hd-head { padding-inline-end: var(--hd-more-pad, 0px); }
-@container hd-widget (max-width: 139px) and (max-height: 139px) { .hd-widget > .hd-frame > .hd-more { display: none; } }
+/* WS-3: hidden at width 1 at every height (the head keeps the room: no reserve for a button that is not there, no icon next to the title); hold, Shift+Enter and ContextMenu still open the sheet. */
+@container hd-widget (max-width: 139px) { .hd-widget > .hd-frame > .hd-more { display: none; }
+  .hd-widget > .hd-frame:has(> .hd-more:not([hidden])) { --hd-more-pad: 0px; }
+  .hd-widget > .hd-frame:has(> .hd-more:not([hidden])) > .hd-head { padding-inline-end: 0; }
+  .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"]) .hd-head > .hd-icon { display: none; } }
+/* WS-6: the armed bar of a W1 widget sits in the card's bottom inset, below the body, so it never crosses a control. */
+.hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"]) .hd-body { position: static; }
+.hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"]) .hd-arm { inset-inline: var(--hd-pad-i); inset-block-end: calc((var(--hd-pad-b) - 3px) / 2); }
 .hd-widget[tabindex="-1"]:focus { outline: none; } /* a focus-return target: no UA outline, no layout change */
 /* Confirmed (rule 3): the check glyph leads the state line for the 600ms the flag lives. */
 .hd-widget[data-hd-confirmed="true"] .hd-state::before { content: ""; display: inline-block; inline-size: 12px; block-size: 12px; margin-inline-end: 4px; vertical-align: -1px;
   background: var(--hd-ok-ink); -webkit-mask: var(--hd-mask-check) center / contain no-repeat; mask: var(--hd-mask-check) center / contain no-repeat; }
 /* Push chip and tile. Chip: 44px high, icon 20 and the word, full width at 1x1, 152px at the start from 2x1 on. Tile: fills the body, icon 28 (40 from 200px tall), label hidden. */
 .hd-widget:is([data-hd-type="switch"], [data-hd-type="action"], [data-hd-type="light"]) .hd-push[data-hd-variant="chip"] { grid-auto-flow: column; grid-auto-columns: max-content; justify-content: center; align-content: center;
-  column-gap: 8px; inline-size: 100%; block-size: 44px; padding: 0 12px; font: inherit; color: inherit; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+  column-gap: 8px; inline-size: 100%; block-size: 44px; padding: 0 12px; font: inherit; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+:where(.hd-widget:is([data-hd-type="switch"], [data-hd-type="action"], [data-hd-type="light"]) .hd-push[data-hd-variant="chip"], .hd-widget[data-hd-type="switch"] .hd-push[data-hd-variant="tile"]) { color: inherit; } /* WS-11: zero specificity, so a family's on-ink at normal specificity wins */
 .hd-widget:is([data-hd-type="switch"], [data-hd-type="action"], [data-hd-type="light"]) .hd-push[data-hd-variant="chip"] .hd-ico { inline-size: 20px; block-size: 20px; }
 .hd-widget .hd-push[data-hd-variant="chip"] .hd-push-label { white-space: nowrap; }
 .hd-widget .hd-push .hd-push-label:empty { display: none; }
 @container hd-widget (min-width: 140px) { .hd-widget:is([data-hd-type="switch"], [data-hd-type="action"]) .hd-push[data-hd-variant="chip"] { inline-size: min(100%, 152px); justify-self: start; } }
-.hd-widget[data-hd-type="switch"] .hd-push[data-hd-variant="tile"] { inline-size: 100%; block-size: 100%; padding: 0; font: inherit; color: inherit; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.hd-widget[data-hd-type="switch"] .hd-push[data-hd-variant="tile"] { inline-size: 100%; block-size: 100%; padding: 0; font: inherit; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .hd-widget[data-hd-type="switch"] .hd-push[data-hd-variant="tile"] .hd-ico { inline-size: 28px; block-size: 28px; }
 @container hd-widget (min-height: 200px) { .hd-widget[data-hd-type="switch"] .hd-push[data-hd-variant="tile"] .hd-ico { inline-size: 40px; block-size: 40px; } }
 .hd-widget[data-hd-type="switch"] .hd-push[data-hd-variant="tile"] .hd-push-label { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -1269,6 +1284,8 @@
 @container hd-widget (max-width: 299px) { .hd-lrow > .hd-numeral { display: none; } }
 .hd-lcol { display: flex; flex-direction: column; align-items: center; gap: 8px; inline-size: 100%; block-size: 100%; min-block-size: 0; }
 .hd-lcol > .hd-slider { flex: 1 1 0; min-block-size: 64px; }
+.hd-widget .hd-lcol > .hd-slider[data-hd-variant="v"] { min-block-size: 64px; } .hd-widget .hd-lcol > .hd-slider[data-hd-variant="v"] > .hd-slider-track { block-size: 100%; align-self: stretch; } /* the track fills the slider box and never runs into the head or the chip */
+/* WS-2: body = slider (min 64) + 8 + chip 44; a family's own slider height never pushes the chip out of the body box */
 .hd-lcol > .hd-numeral { flex: none; font-size: var(--hd-text-l); line-height: 1.2; white-space: nowrap; }
 @container hd-widget (max-height: 259px) { .hd-lcol > .hd-numeral { display: none; } }
 /* Light tile: the wash grows from the left by --hd-value (18-40 % opacity of the family's light colour), icon badge top-left, numeral bottom-left (22cqmin, 18px at 1x1). Tap powers, drag dims. */
@@ -1281,7 +1298,9 @@
 .hd-ltile > .hd-iconbadge .hd-ico { inline-size: calc(var(--hd-lt-badge) * 0.7); block-size: calc(var(--hd-lt-badge) * 0.7); }
 .hd-ltile > .hd-numeral { align-self: end; max-inline-size: 100%; overflow: hidden; font-size: 22cqmin; line-height: 1; white-space: nowrap; text-overflow: ellipsis; }
 @container hd-widget (max-height: 139px) { .hd-ltile { --hd-lt-badge: 20px; padding: 4px 8px; } }
-@container hd-widget (max-width: 139px) and (max-height: 139px) { .hd-ltile { --hd-lt-badge: 18px; padding: 3px 6px; } .hd-ltile > .hd-numeral { font-size: 18px; } }
+@container hd-widget (max-width: 139px) and (max-height: 139px) { .hd-ltile { --hd-lt-badge: 18px; padding: 3px 6px; } .hd-ltile > .hd-numeral { grid-row: 2; font-size: 18px; } .hd-widget .hd-ltile > .hd-iconbadge { display: none; } } /* WS-4: at 1x1 the badge is hidden and the numeral stands alone bottom-left */
+/* WS-5: units in W1 readouts are legible: at least 11px (0.5em when larger), baseline-aligned, with a thin gap to the number. */
+.hd-widget:is([data-hd-type="number"], [data-hd-type="light"]) .hd-numeral .hd-num-unit { font-size: max(11px, 0.5em); vertical-align: baseline; margin-inline-start: 0.15em; }
 /* Select: the segmented bar takes the full body width (overrides the H4 260px cap); the picker is full width (primitives). */
 .hd-widget[data-hd-type="select"] .hd-seg { inline-size: 100%; }
 /* Number: stepper centred; slider row = slider and a 5ch numeral with its unit. */
@@ -1292,8 +1311,11 @@
 /* Light sheet (M3 more-info, SCR-M3-3). The dialog is a widget: its frame is the card, its head carries icon, name, area and the 44px close button; body rows are label over control,
    in two columns (rows left, colour wheel right) from 560px wide; state row, then the foot (source and last update, the read-only reason). */
 .hd-widget .hd-foot { grid-area: foot; display: flex; flex-wrap: wrap; gap: 2px 12px; color: var(--hd-ink-muted); font-size: var(--hd-text-xs); line-height: 1.4; }
-.hd-widget[data-kind="moreinfo"] > .hd-frame { --hd-pad-b: 20px; --hd-pad-i: 20px; --hd-head-h: 28px; --hd-state-h: 20px; --hd-gap-in: 12px;
-  grid-template: "head" var(--hd-head-h) "body" minmax(0, 1fr) "state" var(--hd-state-h) "foot" auto / minmax(0, 1fr); }
+.hd-widget[data-kind="moreinfo"] { container-type: inline-size; } /* the dialog sizes to its content (WS-7): only the width is a container axis */
+.hd-widget[data-kind="moreinfo"] > .hd-frame { position: relative; inset: auto; --hd-pad-b: 20px; --hd-pad-i: 20px; --hd-head-h: 28px; --hd-state-h: 20px; --hd-gap-in: 12px; flex: 0 1 auto; min-block-size: 0;
+  grid-template: "head" var(--hd-head-h) "state" var(--hd-state-h) "body" minmax(0, 1fr) "foot" auto / minmax(0, 1fr); } /* WS-8a: the state row sits directly under the head */
+.hd-widget[data-kind="moreinfo"] .hd-state { margin-block-start: -6px; }
+.hd-widget[data-kind="moreinfo"] .hd-title { flex: 0 1 auto; } /* WS-8b: the area follows the name, left-aligned with it, as a muted subtitle */
 .hd-widget[data-kind="moreinfo"] .hd-head { padding-inline-end: 36px; }
 .hd-widget[data-kind="moreinfo"] .hd-head > .hd-icon .hd-ico { inline-size: 18px; block-size: 18px; }
 .hd-widget[data-kind="moreinfo"] .hd-title { font-size: var(--hd-text-l); }
@@ -1308,7 +1330,9 @@
 .hd-mi-label .hd-ico { inline-size: 16px; block-size: 16px; }
 .hd-mi-line { display: grid; align-items: center; min-block-size: 44px; min-inline-size: 0; }
 .hd-mi-line > .hd-toggle { justify-self: start; }
-.hd-mi-row[data-row="wheel"] .hd-mi-line { justify-items: center; }
+.hd-mi-row[data-row="wheel"] { align-self: start; align-content: start; } /* WS-8c: the label sits directly above the wheel, the column starts at the first row */
+.hd-mi-row[data-row="wheel"] .hd-mi-line { justify-items: center; align-items: start; }
+.hd-widget .hd-ct > .hd-ct-track { position: absolute; inset-block-start: 50%; margin-block-start: 0; translate: 0 -50%; } /* WS-9: the thumb and the track share the node's centre line */
 .hd-mi-source, .hd-mi-reason { min-inline-size: 0; }
 @container hd-widget (min-width: 560px) {
   .hd-widget[data-kind="moreinfo"] .hd-mi { grid-template-columns: minmax(0, 1fr) 220px; grid-template-rows: repeat(3, auto) minmax(0, 1fr); column-gap: 24px; }
@@ -1352,19 +1376,20 @@
 .hd-sheet-layer[data-kind="moreinfo"] { position: absolute; inset: 0; z-index: 30; box-sizing: border-box; display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); place-items: center; padding: 24px;
   background: color-mix(in srgb, var(--hd-scrim) calc(var(--hd-scrim-alpha) * 100%), transparent); }
 .hd-sheet-layer[data-kind="moreinfo"][data-hd-pop="sheet"] { align-items: end; padding: 0; }
-.hd-sheet-layer[data-kind="moreinfo"] > .hd-sheet.hd-widget[data-kind="moreinfo"] { position: relative; box-sizing: border-box; inline-size: min(640px, 100%); block-size: min(600px, 100%); margin: 0; padding: 0; border: 0;
+.hd-sheet-layer[data-kind="moreinfo"] > .hd-sheet.hd-widget[data-kind="moreinfo"] { position: relative; box-sizing: border-box; inline-size: min(640px, 100%); block-size: auto; max-block-size: min(600px, 85%); display: flex; flex-direction: column; margin: 0; padding: 0; border: 0;
   background: transparent; box-shadow: none; border-radius: var(--hd-radius-card); }
-.hd-sheet-layer[data-kind="moreinfo"][data-hd-pop="sheet"] > .hd-sheet.hd-widget[data-kind="moreinfo"] { inline-size: 100%; block-size: 85%; }
+.hd-sheet-layer[data-kind="moreinfo"][data-hd-pop="sheet"] > .hd-sheet.hd-widget[data-kind="moreinfo"] { inline-size: 100%; max-block-size: 85%; }
 .hd-sheet-layer[data-kind="moreinfo"][data-hd-pop="sheet"] > .hd-sheet > .hd-frame { border-end-start-radius: 0; border-end-end-radius: 0; }
 /* Popover layer: the listbox panel is placed by the --hd-pop-* variables of hd-popover.js, anchored below (or above) the trigger, or a bottom sheet when data-hd-pop="sheet".
    Its base paint comes from the card tokens; the families refine it. */
 .hd-pop-layer { position: absolute; inset: 0; z-index: 40; pointer-events: none; }
 .hd-pop-layer > .hd-sheet.hd-widget[data-kind="listbox"] { position: absolute; box-sizing: border-box; margin: 0; padding: 0; overflow: hidden; pointer-events: auto; color: var(--hd-ink);
   background: var(--hd-card-bg); border: var(--hd-card-border); border-radius: var(--hd-radius-card); box-shadow: var(--hd-shadow-card); }
-.hd-pop-layer > .hd-sheet.hd-widget[data-kind="listbox"][data-hd-pop="anchored"] { inset-inline-start: var(--hd-pop-x); inset-block-start: var(--hd-pop-y); inline-size: var(--hd-pop-w); block-size: var(--hd-pop-h); }
-.hd-pop-layer > .hd-sheet.hd-widget[data-kind="listbox"][data-hd-pop="sheet"] { inset-inline: 0; inset-block-end: 0; inline-size: 100%; block-size: var(--hd-pop-h); max-block-size: 85%;
+.hd-pop-layer > .hd-sheet.hd-widget[data-kind="listbox"][data-hd-pop="anchored"] { inset-inline-start: var(--hd-pop-x); inset-block-start: var(--hd-pop-y); inline-size: var(--hd-pop-w); block-size: auto; }
+.hd-pop-layer > .hd-sheet.hd-widget[data-kind="listbox"][data-hd-pop="sheet"] { inset-inline: 0; inset-block-end: 0; inline-size: 100%; block-size: auto; max-block-size: 85%;
   border-end-start-radius: 0; border-end-end-radius: 0; }
-.hd-listbox { box-sizing: border-box; inline-size: 100%; block-size: 100%; margin: 0; padding: 8px; list-style: none; overflow-y: auto; overscroll-behavior: contain; }
+.hd-pop-layer > .hd-sheet.hd-widget[data-kind="listbox"] { display: flex; flex-direction: column; container-type: inline-size; } /* WS-10: the panel is as high as its rows plus its own border, so there is no scrollbar until the rows exceed the 352px maximum */
+.hd-listbox { box-sizing: border-box; flex: 0 1 auto; min-block-size: 0; max-block-size: 352px; inline-size: 100%; margin: 0; padding: 8px; list-style: none; overflow-y: auto; overscroll-behavior: contain; }
 .hd-option { display: flex; align-items: center; gap: 8px; box-sizing: border-box; min-block-size: 44px; padding: 0 12px; border-radius: var(--hd-radius-control); color: var(--hd-ink); font: 400 var(--hd-text-m) / 1.2 var(--hd-font-ui);
   cursor: pointer; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
 .hd-option:hover, .hd-option[data-hd-active="true"] { background: color-mix(in srgb, var(--hd-ink) 6%, transparent); }

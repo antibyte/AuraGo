@@ -26,19 +26,20 @@
 .hd-sheet-layer[data-kind="moreinfo"] { position: absolute; inset: 0; z-index: 30; box-sizing: border-box; display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); place-items: center; padding: 24px;
   background: color-mix(in srgb, var(--hd-scrim) calc(var(--hd-scrim-alpha) * 100%), transparent); }
 .hd-sheet-layer[data-kind="moreinfo"][data-hd-pop="sheet"] { align-items: end; padding: 0; }
-.hd-sheet-layer[data-kind="moreinfo"] > .hd-sheet.hd-widget[data-kind="moreinfo"] { position: relative; box-sizing: border-box; inline-size: min(640px, 100%); block-size: min(600px, 100%); margin: 0; padding: 0; border: 0;
+.hd-sheet-layer[data-kind="moreinfo"] > .hd-sheet.hd-widget[data-kind="moreinfo"] { position: relative; box-sizing: border-box; inline-size: min(640px, 100%); block-size: auto; max-block-size: min(600px, 85%); display: flex; flex-direction: column; margin: 0; padding: 0; border: 0;
   background: transparent; box-shadow: none; border-radius: var(--hd-radius-card); }
-.hd-sheet-layer[data-kind="moreinfo"][data-hd-pop="sheet"] > .hd-sheet.hd-widget[data-kind="moreinfo"] { inline-size: 100%; block-size: 85%; }
+.hd-sheet-layer[data-kind="moreinfo"][data-hd-pop="sheet"] > .hd-sheet.hd-widget[data-kind="moreinfo"] { inline-size: 100%; max-block-size: 85%; }
 .hd-sheet-layer[data-kind="moreinfo"][data-hd-pop="sheet"] > .hd-sheet > .hd-frame { border-end-start-radius: 0; border-end-end-radius: 0; }
 /* Popover layer: the listbox panel is placed by the --hd-pop-* variables of hd-popover.js, anchored below (or above) the trigger, or a bottom sheet when data-hd-pop="sheet".
    Its base paint comes from the card tokens; the families refine it. */
 .hd-pop-layer { position: absolute; inset: 0; z-index: 40; pointer-events: none; }
 .hd-pop-layer > .hd-sheet.hd-widget[data-kind="listbox"] { position: absolute; box-sizing: border-box; margin: 0; padding: 0; overflow: hidden; pointer-events: auto; color: var(--hd-ink);
   background: var(--hd-card-bg); border: var(--hd-card-border); border-radius: var(--hd-radius-card); box-shadow: var(--hd-shadow-card); }
-.hd-pop-layer > .hd-sheet.hd-widget[data-kind="listbox"][data-hd-pop="anchored"] { inset-inline-start: var(--hd-pop-x); inset-block-start: var(--hd-pop-y); inline-size: var(--hd-pop-w); block-size: var(--hd-pop-h); }
-.hd-pop-layer > .hd-sheet.hd-widget[data-kind="listbox"][data-hd-pop="sheet"] { inset-inline: 0; inset-block-end: 0; inline-size: 100%; block-size: var(--hd-pop-h); max-block-size: 85%;
+.hd-pop-layer > .hd-sheet.hd-widget[data-kind="listbox"][data-hd-pop="anchored"] { inset-inline-start: var(--hd-pop-x); inset-block-start: var(--hd-pop-y); inline-size: var(--hd-pop-w); block-size: auto; }
+.hd-pop-layer > .hd-sheet.hd-widget[data-kind="listbox"][data-hd-pop="sheet"] { inset-inline: 0; inset-block-end: 0; inline-size: 100%; block-size: auto; max-block-size: 85%;
   border-end-start-radius: 0; border-end-end-radius: 0; }
-.hd-listbox { box-sizing: border-box; inline-size: 100%; block-size: 100%; margin: 0; padding: 8px; list-style: none; overflow-y: auto; overscroll-behavior: contain; }
+.hd-pop-layer > .hd-sheet.hd-widget[data-kind="listbox"] { display: flex; flex-direction: column; container-type: inline-size; } /* WS-10: the panel is as high as its rows plus its own border, so there is no scrollbar until the rows exceed the 352px maximum */
+.hd-listbox { box-sizing: border-box; flex: 0 1 auto; min-block-size: 0; max-block-size: 352px; inline-size: 100%; margin: 0; padding: 8px; list-style: none; overflow-y: auto; overscroll-behavior: contain; }
 .hd-option { display: flex; align-items: center; gap: 8px; box-sizing: border-box; min-block-size: 44px; padding: 0 12px; border-radius: var(--hd-radius-control); color: var(--hd-ink); font: 400 var(--hd-text-m) / 1.2 var(--hd-font-ui);
   cursor: pointer; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
 .hd-option:hover, .hd-option[data-hd-active="true"] { background: color-mix(in srgb, var(--hd-ink) 6%, transparent); }

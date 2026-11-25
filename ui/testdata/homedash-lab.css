@@ -111,7 +111,5 @@
 [data-hd-family="placeholder"] .hd-frame:where(:not(.hd-widget *)) > .hd-state { grid-row: 3; box-sizing: border-box; height: 16px; min-height: 0; font-size: 12px; line-height: 16px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 /* M3 lab cells. The light sheet is built into a layer the size of its cell (the host puts the layer over the whole root); the layer rule comes last so it also beats the
    placeholder family's static layer above. An open listbox hangs below its picker out of the panel flow: the cell reserves the room, so the sheet image shows it whole. */
-/* The shipped chip rule (.hd-widget:is(...) .hd-push[data-hd-variant="chip"] { color: inherit }, 0,4,0) outranks a family's on-ink at 0,3,0: the placeholder paints at 0,4,0 too and comes later. */
-[data-hd-family="placeholder"] .hd-widget .hd-push[data-hd-on="true"] { color: var(--hd-on-ink); }
 .hd-lab-stage > .hd-sheet-layer { position: relative; inset: auto; inline-size: var(--hd-lab-w); block-size: var(--hd-lab-h); }
 .hd-lab-cell[data-hd-lab-state="open"] { padding-block-end: 300px; }
