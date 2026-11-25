@@ -503,3 +503,321 @@
         const anchor = switcher && state.sidebarVisible && switcher.getClientRects().length ? switcher : shellPart('[data-status-remote]');
         if (anchor) openWorkspaceMenu(anchor);
     }
+
+    // --- Boot, connect, reconnect --------------------------------------------------------------
+
+    async function workspaceBoot(instance) {
+        const target = instance || state;
+        if (!isLiveInstance(target)) return;
+        addDisposer(target, () => workspaceClearRetry(target));
+        const wanted = WS_MODEL.readActive(localStorage);
+        await workspaceLoadList(target);
+        if (!isLiveInstance(target)) return;
+        const saved = wanted !== WS_MODEL.LOCAL_ID ? (target.workspaces || []).find(ws => ws.id === wanted) : null;
+        runWithInstance(target, () => {
+            if (saved) {
+                target.workspaceId = saved.id;
+                target.workspace = saved;
+                target.workspaceStatus = 'connecting';
+            } else if (wanted !== WS_MODEL.LOCAL_ID) {
+                WS_MODEL.writeActive(localStorage, WS_MODEL.LOCAL_ID);
+            }
+            workspaceApplySession(target.workspaceId);
+            renderTabs();
+            workspaceRenderChrome();
+        });
+        if (saved) await workspaceConnectActive(target);
+    }
+
+    async function workspaceConnectActive(target, options = {}) {
+        const id = target.workspaceId;
+        if (!WS_MODEL.isRemote(id)) return true;
+        runWithInstance(target, () => { target.workspaceStatus = 'connecting'; workspaceRenderChrome(); });
+        try {
+            const payload = await apiClient.connectWorkspace(id, options.trust || '');
+            if (!isLiveInstance(target) || target.workspaceId !== id) return false;
+            runWithInstance(target, () => {
+                target.workspace = WS_MODEL.mergeWorkspace(target.workspace, payload);
+                target.workspaceStatus = 'connected';
+                target.workspaceError = null;
+                workspaceRenderChrome();
+                renderGitPanel();
+            });
+            return true;
+        } catch (err) {
+            if (isLiveInstance(target) && target.workspaceId === id) runWithInstance(target, () => workspaceConnectFailed(err));
+            return false;
+        }
+    }
+
+    function workspaceConnectFailed(err) {
+        const instance = state;
+        const kind = WS_MODEL.classifyError(err);
+        if (kind === 'workspace_not_found') {
+            workspaceForgetMissing();
+            return;
+        }
+        instance.workspaceError = { kind, message: err && err.message ? err.message : String(err || '') };
+        instance.workspaceWasLost = true;
+        if (kind === 'unknown_host_key') {
+            instance.workspaceStatus = 'hostkey';
+            workspaceClearRetry(instance);
+        } else if (kind !== 'unreachable') {
+            // Contract fix: host_key_mismatch, auth_failed, device_not_found, remote_scope_required, invalid_root ...
+            // will not heal by retrying; only a broken connection backs off and redials.
+            instance.workspaceStatus = 'error';
+            workspaceClearRetry(instance);
+        } else {
+            instance.workspaceStatus = 'lost';
+            workspaceScheduleRetry();
+        }
+        workspaceRenderChrome();
+    }
+
+    function workspaceMarkLost(err) {
+        const instance = state;
+        if (instance.workspaceSwitching || ['lost', 'connecting', 'hostkey', 'error'].includes(instance.workspaceStatus)) return;
+        workspaceConnectFailed(err);
+    }
+
+    function workspaceClearRetry(instance = state, keepAttempt = false) {
+        if (!instance) return;
+        if (instance.workspaceRetryTimer) clearTimeout(instance.workspaceRetryTimer);
+        if (instance.workspaceRetryTick) clearInterval(instance.workspaceRetryTick);
+        instance.workspaceRetryTimer = 0;
+        instance.workspaceRetryTick = 0;
+        instance.workspaceRetryAt = 0;
+        if (!keepAttempt) instance.workspaceRetryAttempt = 0;
+    }
+
+    function workspaceScheduleRetry() {
+        const instance = state;
+        workspaceClearRetry(instance, true);
+        const attempt = instance.workspaceRetryAttempt || 0;
+        const delay = WS_MODEL.backoffDelay(attempt);
+        instance.workspaceRetryAt = Date.now() + delay;
+        instance.workspaceRetryTick = setInterval(bindInstance(instance, workspaceRenderBanner), 1000);
+        instance.workspaceRetryTimer = setTimeout(bindInstance(instance, () => {
+            workspaceClearRetry(instance, true);
+            instance.workspaceRetryAttempt = attempt + 1;
+            workspaceReconnect({ auto: true });
+        }), delay);
+    }
+
+    async function workspaceReconnect(options = {}) {
+        const target = state;
+        if (!workspaceIsRemote(target) || target.workspaceStatus === 'connecting' || target.workspaceSwitching) return false;
+        if (!options.auto) {
+            workspaceClearRetry(target);
+            target.workspaceWasLost = true; // a manual reconnect refreshes everything
+        }
+        const ok = await workspaceConnectActive(target, options);
+        if (ok && isLiveInstance(target)) runWithInstance(target, workspaceAfterReconnect);
+        return ok;
+    }
+
+    function workspaceAfterReconnect() {
+        const instance = state;
+        const wasLost = instance.workspaceWasLost;
+        instance.workspaceWasLost = false;
+        workspaceClearRetry(instance);
+        workspaceRenderChrome();
+        if (!wasLost) return;
+        flashStatus(tr('codeStudio.workspaceReconnected', 'Reconnected to {{host}}', { host: workspaceHostLabel() }));
+        refreshFiles(instance.currentPath);
+        scheduleGitRefresh();
+        const open = typeof WebSocket !== 'undefined' ? WebSocket.OPEN : 1;
+        if (canWrite() && (instance.terminalSessions || []).every(session => !session.ws || session.ws.readyState !== open)) {
+            closeTerminalSessionSockets(instance);
+            renderTerminal();
+            connectTerminal();
+        }
+        if (instance.lsp) {
+            Object.keys(instance.lsp.connections).forEach(language => {
+                const conn = instance.lsp.connections[language];
+                if (conn.state === 'error' || conn.state === 'disconnected') lspRestart(language);
+            });
+        }
+        instance.openTabs.forEach(tab => reloadCleanTabFromDisk(instance, tab));
+    }
+
+    // A remote shell that closes may mean the SSH connection broke: one connect call tells (and redials).
+    function workspaceTerminalClosed() {
+        const instance = state;
+        if (!workspaceIsRemote(instance) || instance.workspaceStatus !== 'connected' || instance.workspaceSwitching) return;
+        const id = instance.workspaceId;
+        apiClient.connectWorkspace(id).then(payload => {
+            if (isLiveInstance(instance) && instance.workspaceId === id) instance.workspace = WS_MODEL.mergeWorkspace(instance.workspace, payload);
+        }, err => {
+            if (isLiveInstance(instance) && instance.workspaceId === id) runWithInstance(instance, () => workspaceConnectFailed(err));
+        });
+    }
+
+    function workspaceForgetMissing() {
+        const instance = state;
+        if (instance.workspaceForgetting) return;
+        instance.workspaceForgetting = true;
+        const id = instance.workspaceId;
+        instance.workspaces = (instance.workspaces || []).filter(ws => ws.id !== id);
+        workspaceToast(tr('codeStudio.workspaceMissing', 'This SSH workspace no longer exists. Code Studio switched to the local workspace.'));
+        switchWorkspace(WS_MODEL.LOCAL_ID).then(ok => {
+            if (ok) WS_MODEL.forgetSession(localStorage, id);
+        }).finally(() => { instance.workspaceForgetting = false; });
+    }
+
+    // --- Switching -----------------------------------------------------------------------------
+
+    function chooseWorkspaceSwitch(count, label) {
+        return new Promise(resolve => {
+            const instance = state;
+            const overlay = document.createElement('div');
+            overlay.className = 'cs-modal-backdrop';
+            overlay.innerHTML = `<div class="cs-modal cs-ws-dirty" role="alertdialog" aria-modal="true" aria-labelledby="cs-ws-dirty-title" aria-describedby="cs-ws-dirty-text">
+                <h2 class="cs-ws-dialog-title" id="cs-ws-dirty-title">${esc(tr('codeStudio.workspaceDirtyTitle', 'Unsaved changes'))}</h2>
+                <p id="cs-ws-dirty-text">${esc(tr('codeStudio.workspaceDirtyPrompt', '{{count}} files have unsaved changes. Save them before switching to {{workspace}}?', { count, workspace: label }))}</p>
+                <div class="cs-modal-actions">
+                    <button type="button" class="cs-button" data-choice="cancel">${esc(tr('desktop.cancel', 'Cancel'))}</button>
+                    <button type="button" class="cs-button danger" data-choice="discard">${esc(tr('codeStudio.discard', 'Discard'))}</button>
+                    <button type="button" class="cs-button primary" data-choice="save"${canWrite(instance) ? '' : ' disabled'}>${esc(tr('codeStudio.saveAll', 'Save All'))}</button>
+                </div>
+            </div>`;
+            document.body.appendChild(overlay);
+            const release = trapDialogFocus(overlay);
+            let settled = false;
+            let unregister = () => {};
+            const done = choice => {
+                if (settled) return;
+                settled = true;
+                unregister();
+                overlay.remove();
+                release();
+                resolve(choice);
+            };
+            runWithInstance(instance, () => { unregister = registerDisposer(() => done('cancel')); });
+            overlay.querySelectorAll('[data-choice]').forEach(button => button.addEventListener('click', () => done(button.dataset.choice)));
+            overlay.addEventListener('click', event => { if (event.target === overlay) done('cancel'); });
+            overlay.addEventListener('keydown', event => {
+                if (event.key !== 'Escape') return;
+                event.preventDefault();
+                event.stopPropagation();
+                done('cancel');
+            });
+            (overlay.querySelector('[data-choice="save"]:not([disabled])') || overlay.querySelector('[data-choice="cancel"]')).focus();
+        });
+    }
+
+    // Dirty tabs ask Save all / Discard / Cancel; pending saves finish before the workspace id changes.
+    async function workspaceSettleTabs(target, next) {
+        const dirty = target.openTabs.filter(tab => tab.modified && !isVirtualTab(tab));
+        if (dirty.length) {
+            const choice = await runWithInstance(target, () => chooseWorkspaceSwitch(dirty.length, workspaceDisplayLabel(next)));
+            if (choice === 'cancel' || !isLiveInstance(target)) return false;
+            if (choice === 'save' && !await runWithInstance(target, () => saveAllFiles())) {
+                if (isLiveInstance(target)) runWithInstance(target, () => workspaceToast(tr('codeStudio.workspaceSwitchFailed', 'Could not open {{workspace}}: {{error}}', { workspace: workspaceDisplayLabel(next), error: tr('codeStudio.unsavedChanges', 'Unsaved changes') })));
+                return false;
+            }
+        }
+        await Promise.all(target.openTabs.map(tab => tab.pendingSave).filter(Boolean));
+        return isLiveInstance(target) && !target.openTabs.some(tab => tab.pathMutation);
+    }
+
+    async function switchWorkspace(id, options = {}) {
+        const target = state;
+        if (!isLiveInstance(target) || target.workspaceSwitching) return false;
+        const nextId = WS_MODEL.normalizeId(id);
+        if (nextId === target.workspaceId) {
+            // Same workspace (a host-key review ended in the dialog): take the fresh data and refresh.
+            if (options.workspace && WS_MODEL.isRemote(nextId)) {
+                target.workspace = Object.assign({}, target.workspace, options.workspace, { connected: true });
+                target.workspaceStatus = 'connected';
+                target.workspaceError = null;
+                target.workspaceWasLost = true;
+                runWithInstance(target, workspaceAfterReconnect);
+            }
+            return true;
+        }
+        let next = nextId === WS_MODEL.LOCAL_ID ? WS_MODEL.localWorkspace() : (options.workspace || (target.workspaces || []).find(ws => ws.id === nextId));
+        if (!next) return false;
+        target.workspaceSwitching = true;
+        try {
+            if (!await workspaceSettleTabs(target, next)) return false;
+            if (next.kind === 'ssh' && !options.connected) {
+                runWithInstance(target, () => { target.workspaceSwitchTarget = next.id; workspaceRenderChrome(); });
+                try {
+                    next = WS_MODEL.mergeWorkspace(next, await apiClient.connectWorkspace(next.id, options.trust || ''));
+                } catch (err) {
+                    if (!isLiveInstance(target)) return false;
+                    const kind = WS_MODEL.classifyError(err);
+                    const failed = next;
+                    runWithInstance(target, () => {
+                        if (kind === 'unknown_host_key') openConnectDialog({ deviceId: failed.deviceId, path: failed.root });
+                        else workspaceToast(tr('codeStudio.workspaceSwitchFailed', 'Could not open {{workspace}}: {{error}}', { workspace: workspaceDisplayLabel(failed), error: workspaceErrorText(kind, { host: workspaceHostLabel(failed), path: failed.root, error: err.message || String(err) }) }));
+                    });
+                    return false;
+                } finally {
+                    if (isLiveInstance(target)) runWithInstance(target, () => { target.workspaceSwitchTarget = ''; workspaceRenderChrome(); });
+                }
+            }
+            if (!isLiveInstance(target)) return false;
+            runWithInstance(target, () => workspaceActivate(next));
+            await runAsyncStep(target, () => refreshFiles(WORKSPACE_ROOT));
+            if (!isLiveInstance(target)) return false;
+            await runAsyncStep(target, restoreTabs);
+            if (!isLiveInstance(target)) return false;
+            runWithInstance(target, () => { connectTerminal(); scheduleGitRefresh(); });
+            return true;
+        } finally {
+            if (isLiveInstance(target)) target.workspaceSwitching = false;
+        }
+    }
+
+    // Tears the old workspace down (explorer, search, git, problems, terminals, LSP, tabs) and applies the new session.
+    function workspaceActivate(next) {
+        const instance = state;
+        saveState(); // the leaving workspace's session
+        closeWorkspaceMenu(instance);
+        // Requests of the old workspace that are still in flight must not land in the new one.
+        instance.treeRequest = instance.openRequest = instance.pathRequest = instance.gitRequest = Symbol('workspace');
+        if (instance.agentAbortController) instance.agentAbortController.abort();
+        closeTerminalSessionSockets(instance);
+        lspShutdownInstance(instance);
+        if (instance.findOpen) closeFindWidget();
+        instance.openTabs.forEach(tab => destroyTabView(tab, true));
+        instance.openTabs = [];
+        instance.activeTabIndex = -1;
+        resetSplitState();
+        instance.files = [];
+        instance.treeCache = {};
+        instance.expandedDirs.clear();
+        instance.currentPath = instance.selectedDir = WORKSPACE_ROOT;
+        instance.searchResults = [];
+        instance.searchPerformed = false;
+        instance.searchTruncated = false;
+        instance.gitIsRepo = null;
+        instance.gitBranch = '';
+        instance.gitChanges = [];
+        instance.gitLog = [];
+        instance.gitHistory = [];
+        instance.gitCommitMessage = '';
+        instance.outputLines = [];
+        instance.workspaceId = next.id;
+        instance.workspace = next.kind === 'ssh' ? next : null;
+        instance.workspaceStatus = next.kind === 'ssh' ? 'connected' : 'local';
+        instance.workspaceError = null;
+        instance.workspaceWasLost = false;
+        workspaceClearRetry(instance);
+        WS_MODEL.writeActive(localStorage, next.id);
+        workspaceApplySession(next.id);
+        setProblems([]);
+        renderTabs();
+        renderBreadcrumbs();
+        renderEditor();
+        renderSearchPanel();
+        renderGitPanel();
+        renderTerminal();
+        renderBottomPanel();
+        renderActivityBar();
+        renderWindowMenus();
+        workspaceRenderChrome();
+        saveState();
+    }

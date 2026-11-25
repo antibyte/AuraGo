@@ -581,6 +581,9 @@
             if (context && typeof context.setWindowBeforeClose === 'function') {
                 context.setWindowBeforeClose(windowId, () => confirmWindowClose(instance));
             }
+            // Plan C: pick the workspace (local or this browser's last SSH workspace) and connect it.
+            await runAsyncStep(instance, workspaceBoot);
+            if (!isLiveInstance(instance)) return;
             await runAsyncStep(instance, () => refreshFiles(instance.currentPath));
             if (!isLiveInstance(instance)) return;
             await runAsyncStep(instance, restoreTabs);

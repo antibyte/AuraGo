@@ -236,6 +236,7 @@
                 if (session.dataSubscription) session.dataSubscription.dispose();
                 session.dataSubscription = null;
                 terminalSessionStatus(session, 'codeStudio.stopped');
+                workspaceTerminalClosed(); // Plan C: a closed remote shell may mean a broken SSH connection
             });
             renderTerminal();
             mountActiveTerminalSession(session);
