@@ -57,11 +57,11 @@
   lab.fixtures.define('switch', 'rocker', { widget: { title: 'Fan heater' }, states: states(heater, heaterOff),
     scenarios: { toggle: { from: heaterOff, to: heater }, pending: { from: heater, to: merge(heater, { pending: true }) } } });
 
-  const light = entity('ha:light.reading', 'light', 'Reading light', { value: 'on', attributes: { brightness: 163 }, capabilities: ['toggle', 'brightness'] });
-  const lightOff = merge(light, { value: 'off', attributes: { brightness: null } });
+  const light = entity('ha:light.reading', 'light', 'Reading light', { value: 'on', attributes: { brightness_pct: 64 }, capabilities: ['toggle', 'brightness'] });
+  const lightOff = merge(light, { value: 'off', attributes: { brightness_pct: null } });
   lab.fixtures.define('light', 'dial', { widget: { title: 'Reading light' },
-    states: states(light, lightOff, { min: merge(light, { attributes: { brightness: 3 } }), max: merge(light, { attributes: { brightness: 255 } }) }),
-    scenarios: { remote: { from: merge(light, { attributes: { brightness: 51 } }), to: merge(light, { attributes: { brightness: 204 } }) },
+    states: states(light, lightOff, { min: merge(light, { attributes: { brightness_pct: 1 } }), max: merge(light, { attributes: { brightness_pct: 100 } }) }),
+    scenarios: { remote: { from: merge(light, { attributes: { brightness_pct: 20 } }), to: merge(light, { attributes: { brightness_pct: 80 } }) },
       pending: { from: light, to: merge(light, { pending: true }) } } });
 
   const clim = entity('ha:climate.living', 'climate', 'Living room', { value: 'heat', capabilities: ['set_temperature', 'set_hvac_mode'],

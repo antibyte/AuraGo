@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'; import { loadEngine, ENGINE_ORDER, read
 const EN = JSON.parse(read('ui/lang/homedash/en.json'));
 const WIRE = JSON.parse(read('ui/testdata/homedash-m3/ha-entities.json'));
 const IDS = WIRE.map(e => e.id);
+const pe = (type, x, y) => ({ type, pointerId: 1, isPrimary: true, button: 0, pointerType: 'touch', clientX: x, clientY: y, preventDefault() {} });
 const click = { type: 'click', preventDefault() {} };
 const key = (k, extra) => Object.assign({ type: 'keydown', key: k, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }, extra);
 
@@ -74,5 +75,46 @@ export const tests = [
     assert.ok(pill.q('.hd-toggle-key') && pill.q('.hd-toggle-led') && pill.q('.hd-toggle-legend')); eq(rk.q('.hd-rocker').querySelectorAll('.hd-rocker-legend').map(n => n.textContent), ['I', 'O']);
     assert.equal(pill.q('.hd-toggle').getAttribute('data-hd-input'), 'press');
     const none = env({ 'ha:switch.coffee': c => { c.capabilities = c.capabilities.filter(k => k.name === 'history'); } }).mount('switch', 'pill', 'ha:switch.coffee'); assert.equal(none.q('.hd-toggle').getAttribute('aria-disabled'), 'true');
-    const node = pill.q('.hd-toggle'); pill.h.destroy(); node.dispatchEvent(click); assert.equal(x.calls.commands.length, 0); }]
+    const node = pill.q('.hd-toggle'); pill.h.destroy(); node.dispatchEvent(click); assert.equal(x.calls.commands.length, 0); }],
+
+  // Task 12: light.
+  ['light dial: brightness_pct is the truth (40 gives valuenow 40 and "On · 40 %"), no / 2.55 left in the module', () => { const x = env(), w = x.mount('light', 'dial', 'ha:light.kitchen', { size: { w: 3, h: 3 } }), d = w.q('.hd-dial');
+    assert.equal(d.getAttribute('aria-valuenow'), '40'); assert.equal(w.q('.hd-state-text').textContent, EN['homedash.state.on'] + MID + '40 %'); assert.equal(d.getAttribute('aria-valuetext'), '40 %, ' + EN['homedash.state.on']);
+    assert.equal(d.getAttribute('aria-label'), 'Kitchen: ' + EN['homedash.control.brightness']); assert.equal(d.getAttribute('data-hd-input'), 'drag');
+    assert.ok(!/2\.55/.test(read('ui/js/homedash/widgets/hd-w-light.js')));
+    w.set(Object.assign({}, x.view('ha:light.kitchen'), { attributes: { brightness_pct: null, updated_at: 'x' } })); assert.equal(d.getAttribute('aria-valuenow'), '100'); assert.equal(w.q('.hd-state-text').textContent, EN['homedash.state.on']); }],
+  ['light dial: ArrowRight sends brightness 41 with phase key, Enter toggles, Shift+Enter opens more-info', () => { const x = env(), w = x.mount('light', 'dial', 'ha:light.kitchen', { size: { w: 3, h: 3 } }), d = w.q('.hd-dial');
+    d.dispatchEvent(key('ArrowRight')); eq(x.calls.commands, [['primary', 'brightness', { value: 41 }, { phase: 'key' }]]);
+    d.dispatchEvent(key('Enter')); eq(x.calls.commands[1], ['primary', 'turn_off', {}]); d.dispatchEvent(key('Enter', { shiftKey: true })); eq(x.calls.more, [['primary']]); assert.equal(x.calls.commands.length, 2); }],
+  ['light dial: unavailable shows the en dash and never Off; a read-only light announces and sends nothing', () => {
+    const x = env({ 'ha:light.kitchen': c => { c.state = { value: null, text: 'unavailable', available: false, updated_at: c.state.updated_at }; } }), w = x.mount('light', 'dial', 'ha:light.kitchen', { size: { w: 3, h: 3 } });
+    assert.equal(w.q('.hd-dial').getAttribute('aria-valuenow'), null); assert.equal(w.q('.hd-dial').getAttribute('aria-valuetext'), String.fromCodePoint(0x2013)); assert.equal(w.q('.hd-state-text').textContent, EN['homedash.state.unavailable']);
+    assert.ok(!/off/i.test(w.q('.hd-dial-readout').textContent));
+    const y = env({ 'ha:light.kitchen': readOnly }), v = y.mount('light', 'dial', 'ha:light.kitchen', { size: { w: 3, h: 3 } }); v.q('.hd-dial').dispatchEvent(key('ArrowRight')); assert.equal(y.calls.commands.length, 0); eq(y.calls.announced, [EN['homedash.reason.ha_readonly_long']]); }],
+  ['light slider: a tap on the track commits; on light.sofa the slider is disabled while the power chip still sends turn_on', () => { const x = env(), w = x.mount('light', 'slider', 'ha:light.kitchen'), s = w.q('.hd-slider');
+    w.q('.hd-slider-track').getBoundingClientRect = () => ({ left: 0, top: 0, width: 200, height: 6, right: 200, bottom: 6 });
+    assert.equal(w.q('.hd-lrow .hd-numeral .hd-num-int').textContent, '40');
+    s.dispatchEvent(pe('pointerdown', 100, 3)); s.dispatchEvent(pe('pointerup', 100, 3)); eq(x.calls.commands, [['primary', 'brightness', { value: 50 }, { phase: 'commit' }]]);
+    s.dispatchEvent(pe('pointerdown', 40, 3)); s.dispatchEvent(pe('pointermove', 60, 3)); s.dispatchEvent(pe('pointerup', 60, 3)); eq(x.calls.commands.slice(1).map(c => [c[1], c[2].value, c[3].phase]), [['brightness', 30, 'input'], ['brightness', 30, 'commit']]);
+    assert.equal(w.q('.hd-lrow .hd-numeral .hd-num-int').textContent, '30');
+    const y = env(), v = y.mount('light', 'slider', 'ha:light.sofa'); assert.equal(v.q('.hd-slider').getAttribute('aria-disabled'), 'true'); const chip = v.q('.hd-push');
+    assert.equal(chip.getAttribute('role'), 'switch'); assert.equal(chip.getAttribute('aria-label'), 'Sofa lamp: ' + EN['homedash.control.power']); chip.dispatchEvent(click); eq(y.calls.commands, [['primary', 'turn_on', {}]]); }],
+  ['light fader: numeral, vertical slider and power chip in a column', () => { const x = env(), w = x.mount('light', 'fader', 'ha:light.kitchen', { size: { w: 1, h: 3 } }), col = w.q('.hd-lcol');
+    assert.ok(col && col.querySelector('.hd-numeral') && col.querySelector('.hd-slider[data-hd-variant="v"]') && col.querySelector('.hd-push')); assert.equal(col.querySelector('.hd-slider').getAttribute('aria-valuenow'), '40');
+    col.querySelector('.hd-slider').dispatchEvent(key('End')); eq(x.calls.commands, [['primary', 'brightness', { value: 100 }, { phase: 'key' }]]); }],
+  ['light tile: switch on sofa, dimmer slider on kitchen; tap toggles, drag sends input then commit, hold opens more-info', () => {
+    const x = env(), s = x.mount('light', 'tile', 'ha:light.sofa', { size: { w: 2, h: 2 } }), t0 = s.q('.hd-ltile'); assert.equal(t0.getAttribute('role'), 'switch'); assert.equal(t0.getAttribute('aria-checked'), 'false'); assert.equal(t0.getAttribute('aria-roledescription'), null);
+    const w = x.mount('light', 'tile', 'ha:light.kitchen', { size: { w: 2, h: 2 } }), tile = w.q('.hd-ltile'); tile.getBoundingClientRect = () => ({ left: 0, top: 0, width: 200, height: 200, right: 200, bottom: 200 });
+    assert.equal(tile.getAttribute('role'), 'slider'); assert.equal(tile.getAttribute('aria-roledescription'), EN['homedash.control.dimmer']); assert.equal(tile.getAttribute('aria-valuenow'), '40'); assert.equal(tile.getAttribute('tabindex'), '0');
+    assert.equal(tile.style.getPropertyValue('--hd-value'), '0.4000'); assert.ok(tile.querySelector('.hd-ltile-wash') && tile.querySelector('.hd-iconbadge') && tile.querySelector('.hd-numeral'));
+    tile.dispatchEvent(pe('pointerdown', 100, 100)); tile.dispatchEvent(pe('pointerup', 100, 100)); eq(x.calls.commands, [['primary', 'turn_off', {}]]);
+    x.calls.commands.length = 0; tile.dispatchEvent(pe('pointerdown', 80, 100)); tile.dispatchEvent(pe('pointermove', 140, 100)); assert.equal(tile.style.getPropertyValue('--hd-value'), '0.7000'); tile.dispatchEvent(pe('pointerup', 140, 100));
+    eq(x.calls.commands.map(c => [c[1], c[2].value, c[3].phase]), [['brightness', 70, 'input'], ['brightness', 70, 'commit']]);
+    w.set(x.view('ha:light.kitchen')); x.calls.commands.length = 0; tile.dispatchEvent(key('ArrowLeft')); eq(x.calls.commands, [['primary', 'brightness', { value: 39 }, { phase: 'key' }]]); tile.dispatchEvent(key(' ')); eq(x.calls.commands[1], ['primary', 'turn_off', {}]);
+    tile.dispatchEvent(key('ContextMenu')); eq(x.calls.more, [['primary']]); t0.dispatchEvent(key('Enter', { shiftKey: true })); assert.equal(x.calls.more.length, 2);
+    t0.dispatchEvent(key('Enter')); eq(x.calls.commands[2], ['primary', 'turn_on', {}]); }],
+  ['light tile: unavailable reads the en dash; the tile never calls it Off; every light variant has a more-info hold', () => {
+    const x = env({ 'ha:light.kitchen': c => { c.state = { value: null, text: 'unavailable', available: false, updated_at: c.state.updated_at }; } }), w = x.mount('light', 'tile', 'ha:light.kitchen', { size: { w: 2, h: 2 } });
+    assert.equal(w.q('.hd-ltile .hd-num-int').textContent, String.fromCodePoint(0x2013)); assert.equal(w.q('.hd-ltile').getAttribute('aria-disabled'), 'true'); assert.equal(w.q('.hd-state-text').textContent, EN['homedash.state.unavailable']);
+    const y = env(); for (const [variant, sel] of [['slider', '.hd-slider'], ['fader', '.hd-slider'], ['tile', '.hd-ltile'], ['dial', '.hd-dial']]) { y.calls.more.length = 0; y.mount('light', variant, 'ha:light.kitchen', { size: { w: 3, h: 3 } }).q(sel).dispatchEvent(key('ContextMenu')); assert.equal(y.calls.more.length, 1, variant); } }]
 ];
