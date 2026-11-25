@@ -70,6 +70,12 @@ export const tests = [
     w.set(['system:uptime']); eq(h.sets[h.sets.length - 1], ['system:uptime', 'system:cpu', 'system:disk']);
     await clock.advance(29999); assert.equal(h.sets.length, 2); await clock.advance(1); eq(h.sets[h.sets.length - 1], ['system:uptime']);
     w.setActive(false); assert.equal(h.active, false); w.release(); assert.equal(h.detached, true); }],
+  ['store: dispose detaches every stream handle and shared() replaces a disposed instance', () => {
+    const { E, store, handles, api, bus } = setup(); store.watch('a', { ids: ['system:cpu'] }); store.watch('b', { ids: ['system:uptime'] });
+    assert.equal(handles.length, 2); store.dispose(); store.dispose(); assert.ok(handles.every(h => h.detached === true));
+    const stream = { on: bus.on, off: bus.off, status: () => ({ phase: 'idle', reason: '' }), attach: () => ({ id: 'x', set() {}, setActive() {}, detach() {} }) };
+    const first = E.store.shared({ api, stream }); assert.equal(E.store.shared({ api, stream }), first); first.dispose();
+    const second = E.store.shared({ api, stream }); assert.notEqual(second, first); second.watch('w', { ids: ['system:cpu'] }); assert.equal(second.disposed, false); second.dispose(); }],
   ['store: the widget catalog is cached by hash and refreshed with If-None-Match', async () => {
     const asked = []; let answer = { status: 'ok', catalog: { hash: 'h1', widgets: [] } };
     const { store } = setup({ widgetCatalog: etag => { asked.push(etag); return Promise.resolve(answer); } });

@@ -13,6 +13,7 @@
 // 5 History {origin, points:[{t, v}]} becomes the widget host's series {points: [[t_ms, value|null]], source: origin}; cache key id|span|points,
 //   TTL 60 s under 6 h spans else 5 min, LRU 100, 4 requests at a time; live numeric states append to every cached series of the id.
 // 6 Ids a window stops showing stay subscribed for 30 s (linger).
+// 7 dispose() is idempotent: it unhooks the stream, detaches every watcher's stream handle and drops its linger; shared() replaces a disposed instance.
 // View: {id, source, kind, name, area, unit, device_class, icon_hint, value, text, attributes (+updated_at), available, status, readonly,
 // serverReadonly, capabilities, pending: false, stale, error: null, tone: null}.
 (function () {
@@ -42,7 +43,7 @@
         if (!api || !stream) throw new Error('hd-store: api and stream are required');
         const setT = o.setTimeout || ((fn, ms) => setTimeout(fn, ms)), clearT = o.clearTimeout || (id => clearTimeout(id)), now = o.now || (() => Date.now());
         const bus = E.core.emitter(), entries = new Map(), sources = new Map(), owners = new Map(), series = new Map(), queue = [], unhook = [];
-        let changed = new Set(), all = false, desktopReadonly = false, globalRev = 0, conn = stream.status() || {}, offline = false, graceTimer = 0, lingerTimer = 0, running = 0, catalog = null, catalogLoad = null;
+        let disposed = false, changed = new Set(), all = false, desktopReadonly = false, globalRev = 0, conn = stream.status() || {}, offline = false, graceTimer = 0, lingerTimer = 0, running = 0, catalog = null, catalogLoad = null;
         const flush = E.core.frame(() => { const ids = all ? null : changed; changed = new Set(); all = false; bus.emit('change', ids); }, { raf: o.raf, caf: o.caf });
         const touch = id => { if (!all) changed.add(id); flush(); };
         const touchAll = () => { all = true; changed = new Set(); globalRev += 1; flush(); };
@@ -139,10 +140,10 @@
             }, Math.max(0, next - now()));
         }
         function watch(ownerId, init) {
-            const i = init || {}, rec = { ids: new Set(strings(i.ids)), linger: new Map(), push: null };
+            const i = init || {}, rec = { ids: new Set(strings(i.ids)), linger: new Map(), push: null, handle: null };
             const handle = stream.attach(ownerId, { entities: [], active: i.active !== false });
             rec.push = () => handle.set([...rec.ids, ...rec.linger.keys()]);
-            owners.set(handle.id, rec); rec.push();
+            rec.handle = handle; owners.set(handle.id, rec); rec.push();
             return Object.freeze({
                 set(list) {
                     const next = new Set(strings(list)), until = now() + LINGER_MS;
@@ -187,10 +188,20 @@
         return Object.freeze({
             view, watch, history, widgetCatalog, connection, setSources, on: bus.on, off: bus.off, sources: () => [...sources.values()],
             setDesktopReadonly(flag) { if (desktopReadonly === !!flag) return; desktopReadonly = !!flag; touchAll(); },
-            dispose() { for (const fn of unhook.splice(0)) fn(); clearT(graceTimer); clearT(lingerTimer); flush.cancel(); entries.clear(); series.clear(); owners.clear(); }
+            get disposed() { return disposed; },
+            dispose() {
+                if (disposed) return;
+                disposed = true; for (const fn of unhook.splice(0)) fn(); clearT(graceTimer); clearT(lingerTimer); graceTimer = 0; lingerTimer = 0; flush.cancel();
+                const recs = [...owners.values()]; entries.clear(); series.clear(); owners.clear();
+                for (const rec of recs) { rec.linger.clear(); try { rec.handle.detach(); } catch (err) { /* the stream may already be gone */ } }
+            }
         });
     }
     const instances = new Map();
-    function shared(options) { const key = options && options.api ? options.api.base : ''; if (!instances.has(key)) instances.set(key, create(options)); return instances.get(key); }
+    function shared(options) {
+        const key = options && options.api ? options.api.base : '', hit = instances.get(key);
+        if (hit && !hit.disposed) return hit;
+        const fresh = create(options); instances.set(key, fresh); return fresh;
+    }
     E.store = Object.freeze({ create, shared, convert, rangeMs, GRACE_MS, LINGER_MS });
 })();
