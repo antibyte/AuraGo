@@ -2491,6 +2491,9 @@ func (r *statusRecorder) WriteHeader(code int) {
 	r.ResponseWriter.WriteHeader(code)
 }
 
+// Unwrap lets http.ResponseController reach the connection for deadlines.
+func (r *statusRecorder) Unwrap() http.ResponseWriter { return r.ResponseWriter }
+
 // Hijack implements http.Hijacker so that WebSocket upgrade requests can pass
 // through the statusRecorder wrapper without losing hijack support.
 func (r *statusRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {

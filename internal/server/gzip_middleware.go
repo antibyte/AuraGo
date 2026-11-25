@@ -245,6 +245,9 @@ func (g *gzipResponseWriter) close() {
 	}
 }
 
+// Unwrap lets http.ResponseController reach the connection for deadlines.
+func (g *gzipResponseWriter) Unwrap() http.ResponseWriter { return g.ResponseWriter }
+
 // Hijack allows WebSocket upgrades that slipped past pre-checks to reach the
 // underlying ResponseWriter without a gzip wrapper in the way.
 func (g *gzipResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {

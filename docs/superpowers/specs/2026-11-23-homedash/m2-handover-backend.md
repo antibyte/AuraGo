@@ -43,7 +43,7 @@ Branch `claude/great-napier-86e554` in worktree `.claude/worktrees/great-napier-
 - Contract-conforming addition: principal is the session nonce only when `auth.enabled`, otherwise `local-desktop` (the plan took any cookie).
 - Contract-conforming addition: `Subscriber.Set` (M0 core) drops duplicates silently, also when rejected, and publishes one snapshot batch per call.
 - Gap (a), NOT fixed (lead decision): on shutdown the HTTP drain cancels request contexts before `closeHomeDash`, so open streams end as dropped connections without `revoked {"reason":"shutdown"}`. Client reconnect rules treat both the same.
-- Gap (b), NOT fixed: the per-frame 30 s write deadline is ineffective in production: `statusRecorder` and the gzip wrapper hide `SetWriteDeadline` (ErrNotSupported is tolerated), and the outer `httpstream.WithWriteTimeout` renews a 40-minute budget per streaming write. A client that stops reading is dropped only after up to 40 min. Same for the Docker Manager stream (security review, Medium).
+- Gap (b), closed: the per-frame 30 s write deadline is effective in production (`statusRecorder` and the gzip wrapper expose `Unwrap`; `httpstream` keeps the stricter handler deadline), for HomeDash and the Docker Manager streams alike. Verified by `TestSSEHandlerDeadlineDropsStalledClientThroughMiddleware`.
 - Gap (c), NOT fixed: `entities`/`entity` may answer partial catalogs when the 9 s request wait ends; the hub's 8 s per-source timeout reports `catalog_failed` in `sources` first. A history source timeout is `502 source_error`, not 504.
 - Minor review findings, not fixed: the system adapter reads the sample outside its mutex (a concurrent Catalog may hold a newer state; self-heals next poll); history shows a one-point gap after a counter reset while the live rate keeps its last value.
 - Test-only: the revoked-on-disable test calls `replaceConfigSnapshot` under CfgMu (write); the end-to-end test collects snapshot frames until six entities arrived.
@@ -71,7 +71,6 @@ Self-review resolutions, in short: system sample extended with network counters 
 
 - HA adapter registers a row in `homedash_sources.go`; `source_unavailable` with `source` (first needed in M3).
 - Kiosk routes and kiosk API; agent facade (M7).
-- Server-wide stream write deadline: `Unwrap` on `statusRecorder`/`gzipResponseWriter`, and an `httpstream` rule that keeps a stricter handler deadline.
 - Optional `revoked {"reason":"shutdown"}` before the drain.
 
 ## Not verified
