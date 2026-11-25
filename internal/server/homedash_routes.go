@@ -61,6 +61,10 @@ type hdEndpoint struct {
 var homeDashRoutes = map[string]map[string]hdEndpoint{
 	"bootstrap":      {http.MethodGet: {desktopRead, (*hdRequest).bootstrap}},
 	"widget-catalog": {http.MethodGet: {desktopRead, (*hdRequest).widgetCatalog}},
+	"entities":       {http.MethodGet: {desktopRead, (*hdRequest).listEntities}},
+	"entity":         {http.MethodGet: {desktopRead, (*hdRequest).getEntity}},
+	"history":        {http.MethodGet: {desktopRead, (*hdRequest).history}},
+	"snapshot":       {http.MethodGet: {desktopRead, (*hdRequest).snapshot}},
 	"dashboards":     {http.MethodGet: {desktopRead, (*hdRequest).listDashboards}, http.MethodPost: {desktopWrite, (*hdRequest).createDashboard}},
 	"dashboard": {http.MethodGet: {desktopRead, (*hdRequest).getDashboard}, http.MethodPut: {desktopWrite, (*hdRequest).updateDashboard},
 		http.MethodDelete: {desktopWrite, (*hdRequest).deleteDashboard}},
