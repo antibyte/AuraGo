@@ -20,7 +20,7 @@ func TestHomeDashWiring(t *testing.T) {
 		scripts = append(scripts, match[1])
 	}
 	engine := []string{"hd-core", "hd-format", "hd-colour", "hd-grid", "hd-layout", "hd-doc", "hd-history", "hd-icons", "hd-geometry", "hd-input", "hd-prim-displays", "hd-prim-controls", "hd-widgets", "hd-control", "hd-popover",
-		"widgets/hd-w-misc", "widgets/hd-w-climate", "widgets/hd-w-light", "widgets/hd-w-sensor", "widgets/hd-w-switch", "widgets/hd-w-action", "widgets/hd-w-select", "hd-moreinfo",
+		"widgets/hd-w-misc", "widgets/hd-w-climate", "widgets/hd-w-light", "widgets/hd-w-sensor", "widgets/hd-w-switch", "widgets/hd-w-action", "widgets/hd-w-select", "widgets/hd-w-number", "hd-moreinfo",
 		"hd-tone", "hd-api", "hd-stream", "hd-store", "hd-command", "hd-catalog", "hd-render", "hd-sheet", "hd-view", "hd-app"}
 	var want []string
 	for _, name := range engine {

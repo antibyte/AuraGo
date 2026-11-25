@@ -1,6 +1,6 @@
 // W1 widget tests (Batch C): each variant is hosted with a fake api on views that come from the contract demo entities
 // (ui/testdata/homedash-m3/ha-entities.json, wire shape) through a real E.store snapshot frame.
-import assert from 'node:assert/strict'; import { loadEngine, ENGINE_ORDER, read, eq } from './harness.mjs'; import { fakeClock } from './live-fakes.mjs';
+import assert from 'node:assert/strict'; import { loadEngine, ENGINE_ORDER, read, eq, fc } from './harness.mjs'; import { fakeClock } from './live-fakes.mjs';
 const EN = JSON.parse(read('ui/lang/homedash/en.json'));
 const WIRE = JSON.parse(read('ui/testdata/homedash-m3/ha-entities.json'));
 const IDS = WIRE.map(e => e.id);
@@ -169,5 +169,29 @@ export const tests = [
       const x = env({ [id]: readOnly }), w = x.mount('select', variant, id, { size: { w: 3, h: 1 } }); w.q(sel).dispatchEvent(click); assert.equal(x.calls.commands.length, 0, variant); eq(x.calls.announced, [EN['homedash.reason.ha_readonly_long']]);
       assert.equal(w.q('.hd-state-text').textContent.includes(EN['homedash.reason.ha_readonly']), true, variant);
       const y = env({ [id]: c => { c.state = { value: null, text: 'unavailable', available: false, updated_at: c.state.updated_at }; } }), u = y.mount('select', variant, id, { size: { w: 3, h: 1 } });
-      assert.equal(u.q(variant === 'list' ? 'button.hd-pick' : '.hd-seg').getAttribute('aria-disabled'), 'true', variant); u.q(sel).dispatchEvent(click); assert.equal(y.calls.commands.length, 0, variant); } }]
+      assert.equal(u.q(variant === 'list' ? 'button.hd-pick' : '.hd-seg').getAttribute('aria-disabled'), 'true', variant); u.q(sel).dispatchEvent(click); assert.equal(y.calls.commands.length, 0, variant); } }],
+
+  // Task 15: number.
+  ['number stepper: + and - step by the capability step and send set_value with phase key; the limits disable the button and send nothing', () => { const x = env(), w = x.mount('number', 'stepper', 'ha:number.boiler_target', { size: { w: 3, h: 1 } }), [dec, inc] = w.q('.hd-stepper').querySelectorAll('button.hd-step'), spin = w.q('[role="spinbutton"]');
+    assert.equal(spin.getAttribute('aria-valuenow'), '55'); assert.equal(spin.getAttribute('aria-valuemin'), '30'); assert.equal(spin.getAttribute('aria-valuemax'), '70'); assert.equal(spin.getAttribute('aria-valuetext'), '55' + fc(0xa0) + fc(0xb0) + 'C'); assert.equal(w.q('.hd-stepper').getAttribute('aria-label'), 'Boiler target');
+    inc.dispatchEvent(click); eq(x.calls.commands, [['primary', 'set_value', { value: 56 }, { phase: 'key' }]]); inc.dispatchEvent(click); assert.equal(x.calls.commands[1][2].value, 57); dec.dispatchEvent(click); assert.equal(x.calls.commands[2][2].value, 56);
+    x.calls.commands.length = 0; w.set(Object.assign({}, x.view('ha:number.boiler_target'), { value: 70 })); assert.equal(inc.getAttribute('aria-disabled'), 'true'); assert.equal(dec.getAttribute('aria-disabled'), null); inc.dispatchEvent(click); assert.equal(x.calls.commands.length, 0);
+    w.set(Object.assign({}, x.view('ha:number.boiler_target'), { value: 30 })); assert.equal(dec.getAttribute('aria-disabled'), 'true'); dec.dispatchEvent(click); assert.equal(x.calls.commands.length, 0); spin.dispatchEvent(key('End')); eq(x.calls.commands, [['primary', 'set_value', { value: 70 }, { phase: 'key' }]]);
+    assert.equal(w.q('.hd-state-text').textContent, '30' + fc(0xa0) + fc(0xb0) + 'C'); }],
+  ['number slider: valuetext carries the unit, End sends the top of the grid, a drag sends input then commit, the numeral follows', () => { const x = env(), b = x.mount('number', 'slider', 'ha:number.boiler_target');
+    assert.equal(b.q('.hd-slider').getAttribute('aria-valuetext'), '55' + fc(0xa0) + fc(0xb0) + 'C'); assert.equal(b.q('.hd-slider').getAttribute('aria-valuemin'), '30');
+    const w = x.mount('number', 'slider', 'ha:input_number.volume'), s = w.q('.hd-slider'); assert.ok(w.q('.hd-nrow .hd-numeral')); assert.equal(s.getAttribute('aria-label'), 'Volume'); assert.equal(s.getAttribute('aria-valuenow'), '35');
+    s.dispatchEvent(key('End')); eq(x.calls.commands, [['primary', 'set_value', { value: 100 }, { phase: 'key' }]]); w.q('.hd-slider-track').getBoundingClientRect = () => ({ left: 0, top: 0, width: 200, height: 6, right: 200, bottom: 6 }); x.calls.commands.length = 0;
+    s.dispatchEvent(pe('pointerdown', 100, 3)); s.dispatchEvent(pe('pointermove', 120, 3)); assert.equal(w.q('.hd-nrow .hd-num-int').textContent, '60'); s.dispatchEvent(pe('pointerup', 120, 3));
+    eq(x.calls.commands.map(c => [c[1], c[2].value, c[3].phase]), [['set_value', 60, 'input'], ['set_value', 60, 'commit']]); }],
+  ['number: a changed range updates ranges and key steps without a rebuild; decimals follow the step', () => { const x = env(), w = x.mount('number', 'slider', 'ha:input_number.volume'), s = w.q('.hd-slider'), v = x.view('ha:input_number.volume');
+    const caps = v.capabilities.map(c => (c.name === 'set_value' ? Object.assign({}, c, { max: 50, step: 10 }) : c)); w.set(Object.assign({}, v, { capabilities: caps, value: 30 })); assert.equal(w.q('.hd-slider'), s); assert.equal(s.getAttribute('aria-valuemax'), '50');
+    s.dispatchEvent(key('ArrowRight')); eq(x.calls.commands, [['primary', 'set_value', { value: 40 }, { phase: 'key' }]]);
+    const h = env({ 'ha:number.boiler_target': c => { c.capabilities[0].step = 0.5; c.state.value = 55.5; } }).mount('number', 'stepper', 'ha:number.boiler_target'); assert.equal(h.q('[role="spinbutton"]').getAttribute('aria-valuetext'), '55.5' + fc(0xa0) + fc(0xb0) + 'C'); }],
+  ['number: read-only announces the long reason and sends nothing; unavailable is aria-disabled; stepper and slider', () => {
+    for (const [variant, sel] of [['stepper', 'button.hd-step'], ['slider', '.hd-slider']]) {
+      const x = env({ 'ha:number.boiler_target': readOnly }), w = x.mount('number', variant, 'ha:number.boiler_target'); w.q(sel).dispatchEvent(variant === 'slider' ? key('ArrowRight') : click); assert.equal(x.calls.commands.length, 0, variant); eq(x.calls.announced, [EN['homedash.reason.ha_readonly_long']], variant);
+      assert.equal(w.q('.hd-state-text').textContent.includes(EN['homedash.reason.ha_readonly']), true, variant);
+      const y = env({ 'ha:number.boiler_target': c => { c.state = { value: null, text: 'unavailable', available: false, updated_at: c.state.updated_at }; } }), u = y.mount('number', variant, 'ha:number.boiler_target');
+      assert.equal(u.q(variant === 'slider' ? '.hd-slider' : '.hd-stepper [role="spinbutton"]').getAttribute('aria-disabled'), 'true', variant); u.q(sel).dispatchEvent(variant === 'slider' ? key('ArrowRight') : click); assert.equal(y.calls.commands.length, 0, variant); } }]
 ];
