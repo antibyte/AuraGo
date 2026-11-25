@@ -59,11 +59,3 @@ func (a *Adapter) pollOnce(ctx context.Context) (applied bool, err error) {
 	a.replaceStatesLocked(list)
 	return true, nil
 }
-
-// Temporary until Task 8 (removed there).
-func (a *Adapter) History(context.Context, string, time.Time, time.Time, int) ([]homedash.Sample, error) {
-	return []homedash.Sample{}, nil
-}
-func (a *Adapter) Snapshot(context.Context, string, int, int) ([]byte, string, error) {
-	return nil, "", &homedash.Error{Code: homedash.CodeUnsupportedCommand, Message: "not yet"}
-}
