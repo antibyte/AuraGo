@@ -500,30 +500,24 @@ func (h codeStudioHandlers) handleExec(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "stdin exceeds configured maximum size", http.StatusRequestEntityTooLarge)
 		return
 	}
-	cmd, err := normalizeCodeStudioExecCommand(body.Command, body.Args, body.CWD)
+	argv, vcwd, err := codeStudioExecArgv(body.Command, body.Args, body.CWD)
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	timeout := normalizeCodeStudioExecTimeout(body.TimeoutSec)
-	_, containerID, err := h.codeContainer(r.Context(), true)
+	b, err := h.backendFor(r)
 	if err != nil {
-		jsonError(w, err.Error(), http.StatusServiceUnavailable)
+		writeCodeStudioBackendError(w, err)
 		return
 	}
-	var result codeStudioExecResult
+	var stdin []byte
 	if body.Stdin != nil {
-		execer, ok := h.docker.(codeStudioStdinExecer)
-		if !ok {
-			jsonError(w, "stdin is not supported by this docker client", http.StatusNotImplemented)
-			return
-		}
-		result, err = execer.ExecWithStdin(r.Context(), containerID, cmd, []byte(*body.Stdin), timeout)
-	} else {
-		result, err = h.docker.Exec(r.Context(), containerID, cmd, timeout)
+		stdin = append(make([]byte, 0, len(*body.Stdin)), *body.Stdin...) // non-nil even when empty
 	}
+	result, err := b.Exec(r.Context(), argv, vcwd, stdin, timeout)
 	if err != nil {
-		jsonError(w, err.Error(), http.StatusBadGateway)
+		writeCodeStudioOpError(w, err)
 		return
 	}
 	output, truncated := capCodeStudioExecOutput(result.Output, codeStudioExecOutputLimit)
@@ -543,28 +537,18 @@ func (h codeStudioHandlers) handleSearch(w http.ResponseWriter, r *http.Request)
 		jsonError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	cmd, err := buildCodeStudioSearchCommand(options)
-	if err != nil {
+	if _, err := buildCodeStudioSearchCommand(options); err != nil {
 		jsonError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	_, containerID, err := h.codeContainer(r.Context(), true)
+	b, err := h.backendFor(r)
 	if err != nil {
-		jsonError(w, err.Error(), http.StatusServiceUnavailable)
+		writeCodeStudioBackendError(w, err)
 		return
 	}
-	result, err := h.docker.Exec(r.Context(), containerID, cmd, 60*time.Second)
+	results, truncated, err := b.Search(r.Context(), options)
 	if err != nil {
-		jsonError(w, err.Error(), http.StatusBadGateway)
-		return
-	}
-	if result.ExitCode > 1 {
-		jsonError(w, strings.TrimSpace(result.Output), http.StatusBadRequest)
-		return
-	}
-	results, truncated, err := parseCodeStudioGrepOutput(result.Output)
-	if err != nil {
-		jsonError(w, err.Error(), http.StatusBadGateway)
+		writeCodeStudioOpError(w, err)
 		return
 	}
 	payload := map[string]interface{}{"status": "ok", "results": results}
