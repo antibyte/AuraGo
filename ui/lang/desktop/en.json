@@ -3393,6 +3393,7 @@
   "desktop.qc_rdp_error_unavailable": "The RDP client could not be loaded.",
   "desktop.qc_rdp_error_unreachable": "The RDP host is unreachable.",
   "desktop.qc_rdp_error_wrong_password": "Wrong password.",
+  "desktop.qc_rdp_use_other_password": "Use a different password",
   "desktop.qc_rdp_password_connect": "Connect",
   "desktop.qc_rdp_password_label": "Password for this connection",
   "desktop.qc_rdp_password_title": "RDP password",

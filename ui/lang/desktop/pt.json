@@ -3392,6 +3392,7 @@
   "desktop.qc_rdp_error_unavailable": "Não foi possível carregar o cliente RDP.",
   "desktop.qc_rdp_error_unreachable": "O host RDP está inacessível.",
   "desktop.qc_rdp_error_wrong_password": "Senha incorreta.",
+  "desktop.qc_rdp_use_other_password": "Usar outra senha",
   "desktop.qc_rdp_password_connect": "Conectar",
   "desktop.qc_rdp_password_label": "Senha desta conexão",
   "desktop.qc_rdp_password_title": "Senha RDP",

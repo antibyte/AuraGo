@@ -23556,7 +23556,23 @@ function updateTaskbarSystemButtonsForMobile() {
             actions.insertBefore(button, actions.firstChild);
         }
 
-        return { preload, connect, rdpErrorKey, toolbarMarkup, wireToolbar, setStatus, promptPassword, addTrustAction };
+        // Adds a "Use a different password" action to an error placeholder shown for a
+        // credential failure. onPassword(typed) receives the password the user typed.
+        // opts: { box, t, onPassword(password) }
+        function addPasswordRetryAction(opts) {
+            const { box, t, onPassword } = opts;
+            const actions = box && box.querySelector ? box.querySelector('.vd-qc-reconnect-actions') : null;
+            if (!actions) return;
+            const button = document.createElement('button');
+            button.className = 'vd-qc-btn vd-qc-btn-secondary vd-qc-reconnect-btn';
+            button.type = 'button';
+            button.dataset.action = 'use-other-password';
+            button.innerHTML = `${iconMarkup('key', 'P', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.qc_rdp_use_other_password'))}</span>`;
+            button.addEventListener('click', () => onPassword());
+            actions.insertBefore(button, actions.firstChild);
+        }
+
+        return { preload, connect, rdpErrorKey, toolbarMarkup, wireToolbar, setStatus, promptPassword, addTrustAction, addPasswordRetryAction };
     })();
 
 ;
@@ -28314,7 +28330,9 @@ if (appId === 'pixel') {
         }
 
         // RDP: logic lives in quickconnect-rdp.js; this owns the session bar and placeholders.
-        async function connectRDP(deviceId) {
+        async function connectRDP(deviceId, options) {
+            // One-shot password override: lives only in this call, never saved.
+            const overridePassword = options && typeof options.password === 'string' ? options.password : null;
             const generation = await beginRemoteSession();
             if (generation === null) return;
             const isCurrent = () => !disposed && generation === connectionGeneration;
@@ -28364,7 +28382,9 @@ if (appId === 'pixel') {
                 creds = await requestTicket();
                 const issuedAt = Date.now();
                 if (dead()) return;
-                if (!creds.has_password) {
+                if (overridePassword !== null) {
+                    creds.password = overridePassword;
+                } else if (!creds.has_password) {
                     // The ticket lives 60 s: reuse it when the prompt is quick, else fetch a fresh one.
                     const typed = await QuickConnectRDP.promptPassword({
                         root: quickRoot, t, deviceName: device.name || '',
@@ -28404,6 +28424,19 @@ if (appId === 'pixel') {
                         QuickConnectRDP.addTrustAction({
                             box, t, deviceId, confirm: showConfirmModal, notify: showNotify,
                             post: url => api(url, { method: 'POST' }), onTrusted: () => connectRDP(deviceId)
+                        });
+                    }
+                    if (key === 'desktop.qc_rdp_error_logon_failure' || key === 'desktop.qc_rdp_error_wrong_password') {
+                        QuickConnectRDP.addPasswordRetryAction({
+                            box, t,
+                            onPassword: async () => {
+                                const typed = await QuickConnectRDP.promptPassword({
+                                    root: quickRoot, t, deviceName: device.name || '',
+                                    track: cancel => { pendingConfirmations.add(cancel); return () => pendingConfirmations.delete(cancel); }
+                                });
+                                if (typed === null || !isCurrent()) return;
+                                connectRDP(deviceId, { password: typed });
+                            }
                         });
                     }
                 },

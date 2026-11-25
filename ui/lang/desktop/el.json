@@ -3392,6 +3392,7 @@
   "desktop.qc_rdp_error_unavailable": "Ο πελάτης RDP δεν μπόρεσε να φορτωθεί.",
   "desktop.qc_rdp_error_unreachable": "Ο διακομιστής RDP δεν είναι προσβάσιμος.",
   "desktop.qc_rdp_error_wrong_password": "Λάθος κωδικός.",
+  "desktop.qc_rdp_use_other_password": "Χρήση άλλου κωδικού",
   "desktop.qc_rdp_password_connect": "Σύνδεση",
   "desktop.qc_rdp_password_label": "Κωδικός για αυτή τη σύνδεση",
   "desktop.qc_rdp_password_title": "Κωδικός RDP",

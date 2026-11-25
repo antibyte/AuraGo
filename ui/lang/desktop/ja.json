@@ -3392,6 +3392,7 @@
   "desktop.qc_rdp_error_unavailable": "RDPクライアントを読み込めませんでした。",
   "desktop.qc_rdp_error_unreachable": "RDPホストに到達できません。",
   "desktop.qc_rdp_error_wrong_password": "パスワードが違います。",
+  "desktop.qc_rdp_use_other_password": "別のパスワードを使用",
   "desktop.qc_rdp_password_connect": "接続",
   "desktop.qc_rdp_password_label": "この接続のパスワード",
   "desktop.qc_rdp_password_title": "RDPパスワード",

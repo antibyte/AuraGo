@@ -3392,6 +3392,7 @@
   "desktop.qc_rdp_error_unavailable": "RDP-klienten kunde inte läsas in.",
   "desktop.qc_rdp_error_unreachable": "RDP-värden kan inte nås.",
   "desktop.qc_rdp_error_wrong_password": "Fel lösenord.",
+  "desktop.qc_rdp_use_other_password": "Använd ett annat lösenord",
   "desktop.qc_rdp_password_connect": "Anslut",
   "desktop.qc_rdp_password_label": "Lösenord för den här anslutningen",
   "desktop.qc_rdp_password_title": "RDP-lösenord",

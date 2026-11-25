@@ -3392,6 +3392,7 @@
   "desktop.qc_rdp_error_unavailable": "Klienta RDP se nepodařilo načíst.",
   "desktop.qc_rdp_error_unreachable": "Hostitel RDP není dostupný.",
   "desktop.qc_rdp_error_wrong_password": "Nesprávné heslo.",
+  "desktop.qc_rdp_use_other_password": "Použít jiné heslo",
   "desktop.qc_rdp_password_connect": "Připojit",
   "desktop.qc_rdp_password_label": "Heslo pro toto připojení",
   "desktop.qc_rdp_password_title": "Heslo RDP",

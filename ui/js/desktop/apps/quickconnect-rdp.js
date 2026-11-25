@@ -344,5 +344,21 @@
             actions.insertBefore(button, actions.firstChild);
         }
 
-        return { preload, connect, rdpErrorKey, toolbarMarkup, wireToolbar, setStatus, promptPassword, addTrustAction };
+        // Adds a "Use a different password" action to an error placeholder shown for a
+        // credential failure. onPassword(typed) receives the password the user typed.
+        // opts: { box, t, onPassword(password) }
+        function addPasswordRetryAction(opts) {
+            const { box, t, onPassword } = opts;
+            const actions = box && box.querySelector ? box.querySelector('.vd-qc-reconnect-actions') : null;
+            if (!actions) return;
+            const button = document.createElement('button');
+            button.className = 'vd-qc-btn vd-qc-btn-secondary vd-qc-reconnect-btn';
+            button.type = 'button';
+            button.dataset.action = 'use-other-password';
+            button.innerHTML = `${iconMarkup('key', 'P', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.qc_rdp_use_other_password'))}</span>`;
+            button.addEventListener('click', () => onPassword());
+            actions.insertBefore(button, actions.firstChild);
+        }
+
+        return { preload, connect, rdpErrorKey, toolbarMarkup, wireToolbar, setStatus, promptPassword, addTrustAction, addPasswordRetryAction };
     })();

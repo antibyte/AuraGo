@@ -997,7 +997,9 @@
         }
 
         // RDP: logic lives in quickconnect-rdp.js; this owns the session bar and placeholders.
-        async function connectRDP(deviceId) {
+        async function connectRDP(deviceId, options) {
+            // One-shot password override: lives only in this call, never saved.
+            const overridePassword = options && typeof options.password === 'string' ? options.password : null;
             const generation = await beginRemoteSession();
             if (generation === null) return;
             const isCurrent = () => !disposed && generation === connectionGeneration;
@@ -1047,7 +1049,9 @@
                 creds = await requestTicket();
                 const issuedAt = Date.now();
                 if (dead()) return;
-                if (!creds.has_password) {
+                if (overridePassword !== null) {
+                    creds.password = overridePassword;
+                } else if (!creds.has_password) {
                     // The ticket lives 60 s: reuse it when the prompt is quick, else fetch a fresh one.
                     const typed = await QuickConnectRDP.promptPassword({
                         root: quickRoot, t, deviceName: device.name || '',
@@ -1087,6 +1091,19 @@
                         QuickConnectRDP.addTrustAction({
                             box, t, deviceId, confirm: showConfirmModal, notify: showNotify,
                             post: url => api(url, { method: 'POST' }), onTrusted: () => connectRDP(deviceId)
+                        });
+                    }
+                    if (key === 'desktop.qc_rdp_error_logon_failure' || key === 'desktop.qc_rdp_error_wrong_password') {
+                        QuickConnectRDP.addPasswordRetryAction({
+                            box, t,
+                            onPassword: async () => {
+                                const typed = await QuickConnectRDP.promptPassword({
+                                    root: quickRoot, t, deviceName: device.name || '',
+                                    track: cancel => { pendingConfirmations.add(cancel); return () => pendingConfirmations.delete(cancel); }
+                                });
+                                if (typed === null || !isCurrent()) return;
+                                connectRDP(deviceId, { password: typed });
+                            }
                         });
                     }
                 },

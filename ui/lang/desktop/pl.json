@@ -3392,6 +3392,7 @@
   "desktop.qc_rdp_error_unavailable": "Nie udało się załadować klienta RDP.",
   "desktop.qc_rdp_error_unreachable": "Host RDP jest nieosiągalny.",
   "desktop.qc_rdp_error_wrong_password": "Nieprawidłowe hasło.",
+  "desktop.qc_rdp_use_other_password": "Użyj innego hasła",
   "desktop.qc_rdp_password_connect": "Połącz",
   "desktop.qc_rdp_password_label": "Hasło dla tego połączenia",
   "desktop.qc_rdp_password_title": "Hasło RDP",

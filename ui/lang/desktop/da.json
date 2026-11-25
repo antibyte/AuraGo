@@ -3392,6 +3392,7 @@
   "desktop.qc_rdp_error_unavailable": "RDP-klienten kunne ikke indlæses.",
   "desktop.qc_rdp_error_unreachable": "RDP-værten kan ikke nås.",
   "desktop.qc_rdp_error_wrong_password": "Forkert adgangskode.",
+  "desktop.qc_rdp_use_other_password": "Brug en anden adgangskode",
   "desktop.qc_rdp_password_connect": "Forbind",
   "desktop.qc_rdp_password_label": "Adgangskode til denne forbindelse",
   "desktop.qc_rdp_password_title": "RDP-adgangskode",

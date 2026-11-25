@@ -3392,6 +3392,7 @@
   "desktop.qc_rdp_error_unavailable": "RDP क्लाइंट लोड नहीं हो सका।",
   "desktop.qc_rdp_error_unreachable": "RDP होस्ट तक पहुंचा नहीं जा सकता।",
   "desktop.qc_rdp_error_wrong_password": "गलत पासवर्ड।",
+  "desktop.qc_rdp_use_other_password": "दूसरा पासवर्ड इस्तेमाल करें",
   "desktop.qc_rdp_password_connect": "कनेक्ट करें",
   "desktop.qc_rdp_password_label": "इस कनेक्शन का पासवर्ड",
   "desktop.qc_rdp_password_title": "RDP पासवर्ड",

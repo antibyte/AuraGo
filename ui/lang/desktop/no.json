@@ -3392,6 +3392,7 @@
   "desktop.qc_rdp_error_unavailable": "RDP-klienten kunne ikke lastes.",
   "desktop.qc_rdp_error_unreachable": "RDP-verten kan ikke nås.",
   "desktop.qc_rdp_error_wrong_password": "Feil passord.",
+  "desktop.qc_rdp_use_other_password": "Bruk et annet passord",
   "desktop.qc_rdp_password_connect": "Koble til",
   "desktop.qc_rdp_password_label": "Passord for denne tilkoblingen",
   "desktop.qc_rdp_password_title": "RDP-passord",

@@ -3392,6 +3392,7 @@
   "desktop.qc_rdp_error_unavailable": "De RDP-client kon niet worden geladen.",
   "desktop.qc_rdp_error_unreachable": "De RDP-host is niet bereikbaar.",
   "desktop.qc_rdp_error_wrong_password": "Onjuist wachtwoord.",
+  "desktop.qc_rdp_use_other_password": "Ander wachtwoord gebruiken",
   "desktop.qc_rdp_password_connect": "Verbinden",
   "desktop.qc_rdp_password_label": "Wachtwoord voor deze verbinding",
   "desktop.qc_rdp_password_title": "RDP-wachtwoord",
