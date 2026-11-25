@@ -45,5 +45,13 @@ export const tests = [
     assert.equal(tr.calls[0].init.headers['If-None-Match'], '"abc"');
     await assert.rejects(api.dashboard('../etc'), e => e.status === 400 && e.code === 'bad_request');
     await assert.rejects(api.deleteDashboard('d_ABC', 1), e => e.code === 'bad_request');
-    assert.equal(tr.calls.length, 1); }]
+    assert.equal(tr.calls.length, 1); }],
+  ['hd-api posts commands and template fields (name, unassigned_title) for home_assistant', async () => {
+    const E = load(), tr = fakeTransport([{ status: 'ok' }, { status: 'ok' }, { status: 'ok', accepted: true }]), api = E.api.create({ transport: tr });
+    await api.createFromTemplate('system', 'System'); await api.createFromTemplate('home_assistant', { name: 'Zuhause', unassigned_title: 'Ohne Raum', other: 'x' });
+    await api.command({ entity: 'ha:light.kitchen', command: 'brightness', args: { value: 40 }, request_id: 'r_1', confirmed: false });
+    eq(JSON.parse(tr.calls[0].init.body), { template: 'system', name: 'System' });
+    eq(JSON.parse(tr.calls[1].init.body), { template: 'home_assistant', name: 'Zuhause', unassigned_title: 'Ohne Raum' });
+    assert.equal(tr.calls[2].init.method + ' ' + tr.calls[2].url, 'POST /api/desktop/homedash/commands');
+    eq(JSON.parse(tr.calls[2].init.body).args, { value: 40 }); }]
 ];

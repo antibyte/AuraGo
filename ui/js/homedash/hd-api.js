@@ -3,6 +3,7 @@
 // resolves the JSON body or throws an Error with status and body (desktop api(), desktop-foundation.js); transport.eventSource(url) opens SSE.
 // Every failure becomes an Error with {hdApiError, status, code, message, data, retryAfter}: code is the body's `code`, else its `error`
 // (shared auth, CSRF and desktop layers answer without `status`), else a transport word (aborted, not_modified, network, http_<status>).
+// Routes include `commands` (M3); normalizeError keeps data.source, data.blocked_by and retryAfter.
 (function () {
     'use strict';
     const E = window.HomeDashEngine;
@@ -36,6 +37,8 @@
             try { return await transport.request(url(path, params), init); } catch (err) { throw normalizeError(err); }
         }
         const dashboardId = id => { if (!DASHBOARD_ID.test(String(id))) throw normalizeError({ status: 400, body: { code: 'bad_request', message: 'invalid dashboard id' } }); return String(id); };
+        const templateBody = (template, fields) => { const f = typeof fields === 'string' ? { name: fields } : fields && typeof fields === 'object' ? fields : {}, out = { template };
+            for (const k of ['name', 'unassigned_title']) if (typeof f[k] === 'string' && f[k]) out[k] = f[k]; return out; };
         return Object.freeze({
             base, url,
             bootstrap: extra => call('GET', 'bootstrap', null, undefined, extra),
@@ -47,7 +50,8 @@
             history: (id, range, extra) => call('GET', 'history', { id, from: iso(range && range.from), to: iso(range && range.to), points: range && range.points }, undefined, extra),
             dashboards: extra => call('GET', 'dashboards', null, undefined, extra),
             dashboard: async (id, extra) => call('GET', 'dashboard', { id: dashboardId(id) }, undefined, extra),
-            createFromTemplate: (template, name, extra) => call('POST', 'dashboards', null, name ? { template, name } : { template }, extra),
+            createFromTemplate: (template, fields, extra) => call('POST', 'dashboards', null, templateBody(template, fields), extra),
+            command: (body, extra) => call('POST', 'commands', null, body, extra),
             createDocument: (document, extra) => call('POST', 'dashboards', null, { document }, extra),
             deleteDashboard: async (id, revision, extra) => call('DELETE', 'dashboard', { id: dashboardId(id), revision }, undefined, extra),
             putSubscriptions: (streamId, entities, extra) => call('PUT', 'stream/subscriptions', null, { stream_id: streamId, entities: Array.from(entities || []) }, extra),
