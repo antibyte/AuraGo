@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"encoding/json"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -79,6 +81,42 @@ func TestDesktopHomeDashBrowser(t *testing.T) {
 		t.Fatalf("empty state title = %q", got)
 	}
 	both("empty")
+	// G1: both choice hints fit in two lines and the two cards are equally high, in both looks.
+	for _, look := range [][2]string{{"fruity", "light"}, {"standard", "dark"}} {
+		theme(look[0], look[1])
+		time.Sleep(300 * time.Millisecond)
+		m := page.MustEval(`()=>{const cs=[...document.querySelectorAll('.hdx-empty .hdx-choice')].map(c=>{const s=c.querySelector('small'),lh=parseFloat(getComputedStyle(s).lineHeight);return {card:c.getBoundingClientRect().height,small:s.getBoundingClientRect().height,lh:lh,primary:c.classList.contains('is-primary')};});return JSON.stringify(cs);}`).Str()
+		var cards []struct {
+			Card, Small, Lh float64
+			Primary         bool
+		}
+		if err := json.Unmarshal([]byte(m), &cards); err != nil || len(cards) < 2 {
+			t.Fatalf("empty-state choices (%s-%s) = %q, %v", look[0], look[1], m, err)
+		}
+		t.Logf("empty state %s-%s choices: %s", look[0], look[1], m)
+		for _, c := range cards {
+			if c.Primary && c.Small > 2*c.Lh+1 {
+				t.Errorf("empty state %s-%s: primary hint is %.1f px high, want at most two lines of %.1f px", look[0], look[1], c.Small, c.Lh)
+			}
+			if math.Abs(c.Card-cards[0].Card) > 1 {
+				t.Errorf("empty state %s-%s: choice cards differ in height (%.1f vs %.1f)", look[0], look[1], c.Card, cards[0].Card)
+			}
+		}
+	}
+	theme("standard", "dark")
+	// G3b: the uptime tile's glyph ends where the neighbouring sparkline chart ends.
+	checkGlyph := func(label string) {
+		t.Helper()
+		g := page.MustEval(`()=>{const b=document.querySelector('[data-hd-wid="uptime"] .hd-iconbadge'),s=document.querySelector('[data-hd-wid="net-tx"] svg.hd-spark');if(!b||!s)return '';return JSON.stringify({glyph:b.getBoundingClientRect().bottom,spark:s.getBoundingClientRect().bottom});}`).Str()
+		var r struct{ Glyph, Spark float64 }
+		if err := json.Unmarshal([]byte(g), &r); err != nil {
+			t.Fatalf("tile glyph measurement (%s) = %q, %v", label, g, err)
+		}
+		t.Logf("%s: uptime glyph bottom %.1f, net-tx chart bottom %.1f", label, r.Glyph, r.Spark)
+		if math.Abs(r.Glyph-r.Spark) > 2 {
+			t.Errorf("%s: uptime glyph bottom %.1f is not within 2 px of the net-tx chart bottom %.1f", label, r.Glyph, r.Spark)
+		}
+	}
 
 	// 3. Starter dashboard: six widgets in Glass, subscribed on the stream.
 	page.MustEval(`()=>document.querySelector('.hdx-empty [data-action="create-starter"]').click()`)
@@ -131,12 +169,16 @@ func TestDesktopHomeDashBrowser(t *testing.T) {
 	before := page.MustEval(`()=>document.querySelector('[data-hd-wid="net-rx"] .hd-spark-line').getAttribute('d')`).Str()
 	fixture.pushState("system:net_rx", 88.5)
 	page.MustWait(`(before)=>{const l=document.querySelector('[data-hd-wid="net-rx"] .hd-spark-line');if(!l)return false;const d=l.getAttribute('d')||'',last=s=>(s.match(/-?\d+(?:\.\d+)?/g)||[]).slice(-2).join(',');return d!==before&&last(d)!==last(before);}`, before)
+	checkGlyph("glass")
 	both("starter-glass")
 
 	// 6. dashboard_changed re-renders in another family; screenshots of every family.
 	for _, family := range []string{"tactile", "minimal", "instrument", "glass"} {
 		fixture.setFamily(t, starterID, family)
 		page.MustWait(`(f)=>`+root+`.dataset.hdFamily===f&&document.querySelectorAll('.hdx-view .hd-page > .hd-widget').length===6`, family)
+		page.MustWait(`()=>!!document.querySelector('[data-hd-wid="uptime"] .hd-iconbadge')&&!!document.querySelector('[data-hd-wid="net-tx"] svg.hd-spark')`)
+		time.Sleep(300 * time.Millisecond)
+		checkGlyph(family)
 		if family != "glass" {
 			both("starter-" + family)
 		}

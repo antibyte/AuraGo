@@ -66,7 +66,7 @@
 .hdx-card-delete:hover { border-color: color-mix(in srgb, var(--ds-color-danger-fg) 40%, var(--hdx-line)); color: color-mix(in srgb, var(--ds-color-danger-fg) 80%, var(--vd-text)); }
 .hdx-skel-card { block-size: 92px; border-radius: var(--hdx-radius); background: color-mix(in srgb, var(--vd-text) 6%, var(--hdx-card)); }
 /* First run */
-.hdx-empty { display: grid; justify-items: center; gap: 10px; max-inline-size: 680px; margin: clamp(12px, 6vh, 64px) auto 0; text-align: center; }
+.hdx-empty { display: grid; justify-items: center; gap: 10px; max-inline-size: 760px; margin: clamp(12px, 6vh, 64px) auto 0; text-align: center; }
 .hdx-art { inline-size: 200px; block-size: 140px; margin-block-end: 6px; }
 .hdx-art-card { fill: var(--hdx-card); stroke: var(--hdx-line); stroke-width: 1.5; }
 .hdx-art-track { fill: none; stroke: color-mix(in srgb, var(--vd-text) 14%, transparent); stroke-width: 6; stroke-linecap: round; }
