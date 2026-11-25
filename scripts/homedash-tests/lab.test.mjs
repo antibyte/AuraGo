@@ -24,6 +24,20 @@ export const tests = [
     const fx = read('ui/testdata/homedash-lab/w1-fixtures.js'); vm.runInContext; new vm.Script(fx, { filename: 'w1-fixtures.js' }); assert.deepEqual(lintJs(fx, 'w1-fixtures.js'), []); }],
   ['probe colour maths', () => { const ctx = { window: {}, Math, JSON }; vm.createContext(ctx); vm.runInContext(read('ui/testdata/homedash-lab-probes.js'), ctx);
     const p = ctx.window.hdLabProbes; assert.equal(p.ratio([0, 0, 0, 1], [255, 255, 255, 1]).toFixed(2), '21.00'); assert.deepEqual([...p.over([255, 255, 255, 0.5], [0, 0, 0, 1])], [127.5, 127.5, 127.5, 1]); }],
+  // The canvas stub follows the real rules: fillStyle keeps its previous value on an invalid string; "#rrggbb" and "#v" test strings are valid, "nonsense" is not; oklch(...) maps to a fixed grey.
+  ['probe colour parsing: exact rgb, canvas fallback for modern syntaxes, an unreadable colour throws and never reads as transparent, 3.7:1 fails', () => {
+    let fill = '#000000', px = [0, 0, 0, 0]; const valid = s => /^(#[0-9a-f]{6}|oklch\(.*\)|color\(srgb .*\)|lab\(.*\)|color-mix\(.*\))$/i.test(s);
+    const grey = s => { const m = /^#([0-9a-f]{2})/i.exec(s); return m ? parseInt(m[1], 16) : s.startsWith('oklch') ? 133 : 51; };
+    const g = { get fillStyle() { return fill; }, set fillStyle(v) { if (valid(v)) fill = v.toLowerCase(); }, clearRect() { px = [0, 0, 0, 0]; }, fillRect() { const c = grey(fill); px = [c, c, c, 255]; }, getImageData() { return { data: px }; } };
+    const ctx = { window: {}, Math, JSON, Number, String, Error, document: { createElement: () => ({ getContext: () => g }) } }; vm.createContext(ctx); vm.runInContext(read('ui/testdata/homedash-lab-probes.js'), ctx);
+    const p = ctx.window.hdLabProbes;
+    assert.deepEqual([...p.rgba('rgb(10, 20, 30)')], [10, 20, 30, 1]); assert.deepEqual([...p.rgba('rgba(10, 20, 30, 0.5)')], [10, 20, 30, 0.5]); assert.deepEqual([...p.rgba('rgb(10 20 30 / 25%)')], [10, 20, 30, 0.25]); assert.deepEqual([...p.rgba('transparent')], [0, 0, 0, 0]);
+    assert.deepEqual([...p.rgba('color(srgb 0.2 0.4 0.6)')], [51, 51, 51, 1]); assert.deepEqual([...p.rgba('oklch(0.5 0.1 200)')], [133, 133, 133, 1]); assert.deepEqual([...p.rgba('color-mix(in oklch, #858585 100%, #fff)')], [51, 51, 51, 1]);
+    for (const bad of ['nonsense', '', 'currentcolor', 'oklch nonsense']) assert.throws(() => p.rgba(bad), /colour cannot be/, bad);
+    const list = []; assert.equal(p.safeRgba('nonsense', 'cell .x', list), null); assert.match(list[0], /unreadable colour cell \.x/);
+    // the 3.7:1 case: white ink on a mid grey (133) that the oklch syntax produces; it must fail the 4.5:1 text threshold
+    const wash = p.rgba('oklch(0.5 0.1 200)'), v = p.worst([255, 255, 255, 1], p.composites([[wash]])); assert.ok(v > 3.6 && v < 3.8 && v < 4.5, 'ratio ' + v);
+    assert.equal(typeof p.selfTest, 'function'); assert.match(read('ui/testdata/homedash-lab-probes.js'), /for \(const p of selfTest\(\)\) r\.resolution\.failures\.push\(p\)/); }],
   ['probe gradient backgrounds: stops composite over the colour, the worst value counts, url() stays unmeasured', () => { const ctx = { window: {}, Math, JSON }; vm.createContext(ctx); vm.runInContext(read('ui/testdata/homedash-lab-probes.js'), ctx);
     const p = ctx.window.hdLabProbes, layers = p.gradientLayers('linear-gradient(rgba(255, 255, 255, 0.5), rgba(0, 0, 0, 0) 46%), linear-gradient(180deg, rgb(0, 0, 0), rgb(10, 10, 10) 50%)');
     assert.equal(layers.length, 2); assert.deepEqual([...layers.map(l => l.length)], [2, 2]); assert.deepEqual([...layers[0][0]], [255, 255, 255, 0.5]);

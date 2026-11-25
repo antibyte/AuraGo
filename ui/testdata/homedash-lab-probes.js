@@ -4,17 +4,42 @@
     'use strict';
     const TEXT_MIN = 4.5, GRAPHIC_MIN = 3, HIT_MIN = 44, EPS = 0.5, WHITE = [255, 255, 255, 1];
     let ctx = null;
-    // Colour strings come from getComputedStyle: rgb()/rgba() are parsed exactly; color(srgb ...), oklch() and anything else go through
-    // a 1x1 canvas that normalises them to sRGB (an invalid string leaves the transparent default, so it reads as alpha 0).
+    // Colour strings come from getComputedStyle: rgb()/rgba() are parsed exactly; color(srgb ...), oklch(), oklab(), lab(), lch(), color-mix() and everything else go through
+    // a 1x1 canvas that normalises them to sRGB. A string the canvas cannot parse never reads as transparent: rgba() THROWS (a colour the probe cannot read must not pass silently),
+    // and the callers turn the throw into a failure that names the element.
     const RGB = /^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:\s*[,/]\s*([\d.]+)(%?))?\s*\)$/;
+    const UNRESOLVED_KEYWORD = /^(currentcolor|inherit|initial|unset|revert|revert-layer|context-fill|context-stroke)$/i;
+    const SENTINELS = ['#010203', '#fdfcfb'];
+    function canvasContext() { if (!ctx) { const c = document.createElement('canvas'); c.width = c.height = 1; ctx = c.getContext('2d', { willReadFrequently: true }); } return ctx; }
+    // True when the canvas accepts the string: an invalid assignment leaves the previous fillStyle, so the string is invalid when it leaves both distinct sentinels untouched.
+    function canvasAccepts(g, str) { const kept = SENTINELS.map(s => { g.fillStyle = s; const before = g.fillStyle; g.fillStyle = str; return g.fillStyle === before; }); return !(kept[0] && kept[1]); }
+    function canvasRead(g, str) { g.clearRect(0, 0, 1, 1); g.fillStyle = str; g.fillRect(0, 0, 1, 1); const d = g.getImageData(0, 0, 1, 1).data; return [d[0], d[1], d[2], d[3] / 255]; }
     function rgba(value) {
-        if (String(value).trim() === 'transparent') return [0, 0, 0, 0];
-        const m = RGB.exec(String(value || '').trim());
+        const s = String(value === undefined || value === null ? '' : value).trim();
+        if (s === 'transparent') return [0, 0, 0, 0];
+        const m = RGB.exec(s);
         if (m) return [Number(m[1]), Number(m[2]), Number(m[3]), m[4] === undefined ? 1 : m[5] ? Number(m[4]) / 100 : Number(m[4])];
-        if (!ctx) { const c = document.createElement('canvas'); c.width = c.height = 1; ctx = c.getContext('2d', { willReadFrequently: true }); }
-        ctx.clearRect(0, 0, 1, 1); ctx.fillStyle = 'rgba(0, 0, 0, 0)'; ctx.fillStyle = String(value || ''); ctx.fillRect(0, 0, 1, 1);
-        const d = ctx.getImageData(0, 0, 1, 1).data; return [d[0], d[1], d[2], d[3] / 255];
+        if (!s || UNRESOLVED_KEYWORD.test(s)) throw new Error('colour cannot be resolved: ' + JSON.stringify(s));
+        const g = canvasContext(); if (!canvasAccepts(g, s)) throw new Error('colour cannot be parsed: ' + JSON.stringify(s));
+        const c = canvasRead(g, s);
+        // The canvas stores premultiplied 8-bit pixels, so a translucent colour loses channel precision; the opaque twin (relative colour syntax) restores it when the browser knows that syntax.
+        if (c[3] > 0 && c[3] < 1 && canvasAccepts(g, 'rgb(from ' + s + ' r g b / 1)')) { const o = canvasRead(g, 'rgb(from ' + s + ' r g b / 1)'); if (o[3] === 1) return [o[0], o[1], o[2], c[3]]; }
+        return c;
     }
+    // Same as rgba() but reports an unreadable colour as a failure of `where` (a label) instead of throwing; null then.
+    function safeRgba(value, where, list) { try { return rgba(value); } catch (err) { list.push('unreadable colour ' + where + ': ' + String((err && err.message) || err)); return null; } }
+    // Self-check of the colour chain in the real browser: known syntaxes must resolve to known sRGB values, an unparseable string must throw, and a dark wash that computes to
+    // an oklch colour must read at about 3.7:1 against white ink. Returns a list of problems (empty when the parser is sound).
+    function selfTest() { const bad = [], close = (a, b) => a.slice(0, 3).every((v, i) => Math.abs(v - b[i]) <= 2);
+        const known = [['rgb(10, 20, 30)', [10, 20, 30]], ['rgba(10, 20, 30, 0.5)', [10, 20, 30]], ['color(srgb 0.2 0.4 0.6)', [51, 102, 153]], ['oklch(0.5 0.1 200)', [0, 116, 122]], ['oklab(0.5 0.1 0.1)', [161, 66, 3]], ['lab(50% 20 20)', [158, 105, 86]],
+            ['lch(50% 20 200)', [73, 128, 130]], ['color-mix(in oklch, #000 80%, #fff)', [22, 22, 22]], ['color-mix(in srgb, #ff0000 50%, #0000ff)', [128, 0, 128]]];
+        for (const [css, want] of known) { try { const c = rgba(css); if (!close(c, want)) bad.push('colour self-test ' + css + ' read ' + c.map(v => Math.round(v)).join(',') + ', expected ' + want.join(',')); } catch (err) { bad.push('colour self-test ' + css + ' threw ' + String((err && err.message) || err)); } }
+        try { rgba('color-mix(in oklch, #000 80%, #fff) nonsense'); bad.push('colour self-test: an unparseable string did not throw'); } catch (err) { /* expected */ }
+        try { const a = rgba('oklch(0.5 0.1 200 / 0.5)'); if (Math.abs(a[3] - 0.5) > 0.01) bad.push('colour self-test: oklch alpha read ' + a[3]); } catch (err) { bad.push('colour self-test oklch alpha threw ' + String((err && err.message) || err)); }
+        const el = document.createElement('div'); el.style.position = 'absolute'; el.style.left = '-9999px'; el.style.background = 'color-mix(in oklch, #858585 100%, #fff)'; document.body.appendChild(el);
+        try { const v = ratio(WHITE, over(rgba(getComputedStyle(el).backgroundColor), WHITE)); if (!(v > 3.6 && v < 3.8 && v < TEXT_MIN)) bad.push('colour self-test: the 3.7:1 wash read ' + v.toFixed(2) + ' (computed ' + getComputedStyle(el).backgroundColor + ')'); }
+        catch (err) { bad.push('colour self-test: the 3.7:1 wash threw ' + String((err && err.message) || err)); } finally { el.remove(); }
+        return bad; }
     function over(t, b) { const a = t[3] + b[3] * (1 - t[3]); if (!a) return [0, 0, 0, 0]; return [0, 1, 2].map(i => (t[i] * t[3] + b[i] * b[3] * (1 - t[3])) / a).concat([a]); }
     function lum(c) { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); }
     function ratio(a, b) { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); }
@@ -22,6 +47,8 @@
     const dims = b => show(b.width) + 'x' + show(b.height);
     function label(el) { const cell = el.closest('[data-hd-lab-control]'), where = cell ? cell.getAttribute('data-hd-lab-control') + ' ' + cell.getAttribute('data-hd-lab-state') : 'panel';
         return where + ' .' + String(el.getAttribute('class') || el.tagName.toLowerCase()).split(/\s+/)[0]; }
+    // A paint the probe cannot read (a url() image, a paint server) is counted and listed with its element, so the report shows what was not measured.
+    function unmeasured(r, el) { r.contrast.unmeasured++; r.contrast.unmeasuredList.push(label(el)); }
     // Only a disabled control subtree is exempt (what the user cannot operate may be dimmed). The title and state line of an unavailable tile are measured.
     const exempt = el => !!el.closest('[aria-disabled="true"], [disabled]');
     // Splits a CSS value at its top-level commas (commas inside parentheses stay).
@@ -83,7 +110,7 @@
         const probe = document.createElement('span'); probe.className = 'hd-lab-probe'; root.appendChild(probe);
         const rootStyle = getComputedStyle(root);
         // An unset custom property reads as an empty string; only a non-empty value is resolved. The colour comes from a probe element.
-        const read = t => { if (!rootStyle.getPropertyValue(t).trim()) return null; probe.style.setProperty('color', 'var(' + t + ')'); return rgba(getComputedStyle(probe).color); };
+        const read = t => { if (!rootStyle.getPropertyValue(t).trim()) return null; probe.style.setProperty('color', 'var(' + t + ')'); return safeRgba(getComputedStyle(probe).color, 'token ' + t, r.resolution.failures); };
         try {
             for (const t of PALETTE) { r.resolution.checked++; if (!read(t)) r.resolution.failures.push('token ' + t + ' does not resolve'); }
             if (palette === 'theme') { r.resolution.checked++; const a = read(S), b = read('--vd-mat-card-color'); if (!a || !b || a.slice(0, 3).some((v, i) => Math.abs(v - b[i]) > 1)) r.resolution.failures.push('bridge: --hd-surface-solid does not follow --vd-mat-card-color'); }
@@ -97,30 +124,30 @@
     function visuallyHidden(el, cs, rect) { if (el.closest('.hd-sr-only')) return true; const c = (cs.clip || '').replace(/\s/g, ''); return c === 'rect(0px,0px,0px,0px)' || (rect.width <= 1.5 && rect.height <= 1.5); }
     function text(root, r) { const owners = new Set(), walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
         for (let n = walker.nextNode(); n; n = walker.nextNode()) if (n.textContent.trim() && n.parentElement) owners.add(n.parentElement);
-        for (const el of owners) { const cs = getComputedStyle(el), rect = el.getBoundingClientRect();
+        for (const el of owners) try { const cs = getComputedStyle(el), rect = el.getBoundingClientRect();
             if (cs.visibility === 'hidden' || !rect.width || !rect.height || el.closest('[hidden]') || exempt(el) || visuallyHidden(el, cs, rect)) continue;
-            const bgs = backgroundsOf(el); if (!bgs) { r.contrast.unmeasured++; continue; }
+            const bgs = backgroundsOf(el); if (!bgs) { unmeasured(r, el); continue; }
             // SVG text is painted with fill, not color.
             const paint = el instanceof SVGElement ? cs.fill : cs.color; if (!paint || paint === 'none') continue;
-            if (/^url\(/.test(paint)) { r.contrast.unmeasured++; continue; }
+            if (/^url\(/.test(paint)) { unmeasured(r, el); continue; }
             // The 3:1 graphic threshold applies only to decorative SVG text (dial and gauge numerals, tick labels); HTML text, aria-hidden or not, needs 4.5:1.
             const fg = rgba(paint); fg[3] *= opacityOf(el); const min = el instanceof SVGElement && el.closest('[aria-hidden="true"]') ? GRAPHIC_MIN : TEXT_MIN, v = worst(fg, bgs); r.contrast.checked++;
-            if (v < min) r.contrast.failures.push('text ' + label(el) + ' ' + JSON.stringify(el.textContent.trim().slice(0, 24)) + ' ' + show(v) + ' < ' + min); } }
+            if (v < min) r.contrast.failures.push('text ' + label(el) + ' ' + JSON.stringify(el.textContent.trim().slice(0, 24)) + ' ' + show(v) + ' < ' + min); } catch (err) { r.contrast.failures.push('unreadable colour ' + label(el) + ' ' + JSON.stringify(el.textContent.trim().slice(0, 24)) + ': ' + String((err && err.message) || err)); } }
     const GRAPHICS = '.hd-dial-arc, .hd-gauge-arc, .hd-gauge-needle-shape, .hd-spark-line, .hd-slider-fill, .hd-bar-fill, .hd-seg7-seg[data-lit="true"], .hd-toggle-thumb, .hd-lamp-dot';
     // Where the background walk of a graphic starts: an svg graphic at its own svg (a background on the svg itself counts), any other element at its parent.
     function graphicHost(el, svg) { return svg ? (el.ownerSVGElement || el.parentElement) : el.parentElement; }
     function graphics(root, r, extraSelectors) { const sel = [GRAPHICS].concat(extraSelectors || []).join(', ');
-        for (const el of root.querySelectorAll(sel)) { const rect = el.getBoundingClientRect(); if (exempt(el) || !rect.width || !rect.height) continue;
+        for (const el of root.querySelectorAll(sel)) try { const rect = el.getBoundingClientRect(); if (exempt(el) || !rect.width || !rect.height) continue;
             // A switch thumb whose toggle also shows a decor glyph (the on bar or the off ring) is not the only state cue: it is a handle separated by its edge ring and contact shadow
             // (rubric G1), so its fill is not held to the 3:1 graphic threshold against the track. A thumb without a glyph stays measured.
             if (el.classList.contains('hd-toggle-thumb') && Array.from(el.closest('.hd-toggle') ? el.closest('.hd-toggle').querySelectorAll('.hd-toggle-glyph') : []).some(g => getComputedStyle(g).display !== 'none')) continue;
             const cs = getComputedStyle(el), svg = el instanceof SVGElement; let paint = null, opacity = 1;
-            if (cs.stroke && cs.stroke !== 'none') { if (/^url\(/.test(cs.stroke)) { r.contrast.unmeasured++; continue; } const s = rgba(cs.stroke); if (s[3] > 0) { paint = s; opacity = Number(cs.strokeOpacity); } }
-            if (!paint && svg && cs.fill && cs.fill !== 'none') { if (/^url\(/.test(cs.fill)) { r.contrast.unmeasured++; continue; } const f = rgba(cs.fill); if (f[3] > 0) { paint = f; opacity = Number(cs.fillOpacity); } }
+            if (cs.stroke && cs.stroke !== 'none') { if (/^url\(/.test(cs.stroke)) { unmeasured(r, el); continue; } const s = rgba(cs.stroke); if (s[3] > 0) { paint = s; opacity = Number(cs.strokeOpacity); } }
+            if (!paint && svg && cs.fill && cs.fill !== 'none') { if (/^url\(/.test(cs.fill)) { unmeasured(r, el); continue; } const f = rgba(cs.fill); if (f[3] > 0) { paint = f; opacity = Number(cs.fillOpacity); } }
             if (!paint && !svg) { const b = rgba(cs.backgroundColor); if (b[3] > 0) paint = b; }
             if (!paint) continue; paint[3] *= opacityOf(el) * (Number.isFinite(opacity) ? opacity : 1);
-            const host = graphicHost(el, svg), bgs = host ? backgroundsOf(host) : null; if (!bgs) { r.contrast.unmeasured++; continue; }
-            const v = worst(paint, bgs); r.contrast.checked++; if (v < GRAPHIC_MIN) { const msg = 'graphic ' + label(el) + ' ' + show(v) + ' < 3'; r.contrast.failures.push(msg); } } }
+            const host = graphicHost(el, svg), bgs = host ? backgroundsOf(host) : null; if (!bgs) { unmeasured(r, el); continue; }
+            const v = worst(paint, bgs); r.contrast.checked++; if (v < GRAPHIC_MIN) { const msg = 'graphic ' + label(el) + ' ' + show(v) + ' < 3'; r.contrast.failures.push(msg); } } catch (err) { r.contrast.failures.push('unreadable colour ' + label(el) + ': ' + String((err && err.message) || err)); } }
     // Options are measured wherever they are: inside a stage (the light sheet's effect list) and in the popover layer of the panel (the select widgets' listbox, which the popover appends to the root).
     const INTERACTIVE = ['button', '[role="slider"]', '[role="switch"]', '[role="radio"]', '[role="spinbutton"]', '[role="option"]', '[tabindex="0"]'].map(s => '.hd-lab-stage ' + s).concat('.hd-pop-layer [role="option"]').join(', ');
     function hit(root, r) { for (const el of root.querySelectorAll(INTERACTIVE)) { const b = el.getBoundingClientRect(); if ((!b.width && !b.height) || getComputedStyle(el).visibility === 'hidden') continue; r.hit.checked++;
@@ -144,9 +171,10 @@
         try { const list = await document.fonts.load(face, 'Ag0'); if (!list.length || list.some(f => f.status !== 'loaded')) r.resolution.failures.push('font ' + face + ' did not load'); }
         catch (err) { r.resolution.failures.push('font ' + face + ' failed: ' + String((err && err.message) || err)); } } }
     async function run(o) {
-        const r = { contrast: { checked: 0, failures: [], warnings: [], unmeasured: 0 }, hit: { checked: 0, failures: [] }, shift: { checked: 0, failures: [] }, animations: { checked: false, running: [], failures: [] }, backdrop: { count: 0, limit: 0, failures: [] }, resolution: { checked: 0, failures: [] } };
+        const r = { contrast: { checked: 0, failures: [], warnings: [], unmeasured: 0, unmeasuredList: [] }, hit: { checked: 0, failures: [] }, shift: { checked: 0, failures: [] }, animations: { checked: false, running: [], failures: [] }, backdrop: { count: 0, limit: 0, failures: [] }, resolution: { checked: 0, failures: [] } };
+        r.resolution.checked++; for (const p of selfTest()) r.resolution.failures.push(p);
         tokens(o.root, o.palette, r); text(o.root, r); graphics(o.root, r, o.graphics); hit(o.root, r); shift(o.root, (o.entries || []).filter(e => !e.entry), o.states || [], r); backdrop(o.root, r); await fonts(r); await animations(o.motion, r);
         return r;
     }
-    window.hdLabProbes = Object.freeze({ run, visuallyHidden, graphicHost, ratio, over, rgba, gradientLayers, composites, worst });
+    window.hdLabProbes = Object.freeze({ run, visuallyHidden, graphicHost, ratio, over, rgba, safeRgba, selfTest, gradientLayers, composites, worst });
 })();
