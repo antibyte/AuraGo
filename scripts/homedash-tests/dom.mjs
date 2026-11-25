@@ -97,6 +97,7 @@ export class FakeElement {
   remove() { if (this.parentNode) this.parentNode._drop(this); }
   _drop(n) { const i = this.childNodes.indexOf(n); if (i >= 0) this.childNodes.splice(i, 1); n.parentNode = null; }
   matches(sel) { return matchesParsed(this, parseSelector(sel)); }
+  contains(n) { for (let x = n; x; x = x.parentNode) if (x === this) return true; return false; }
   closest(sel) { for (let n = this; n && n.nodeType === 1; n = n.parentNode) if (n.matches(sel)) return n; return null; }
   querySelectorAll(sel) { const list = parseSelector(sel); const out = []; const walk = n => { for (const c of n.children) { if (matchesParsed(c, list)) out.push(c); walk(c); } }; walk(this); return out; }
   querySelector(sel) { return this.querySelectorAll(sel)[0] || null; }
@@ -112,7 +113,9 @@ export class FakeElement {
   focus() { this.ownerDocument.activeElement = this; }
 }
 export function createDocument() {
-  const doc = { activeElement: null };
+  const doc = { activeElement: null, _l: new Map() };
+  // The document takes listeners and events like an element (popover outside-click tests); no propagation between nodes either.
+  for (const m of ['addEventListener', 'removeEventListener', 'dispatchEvent']) doc[m] = FakeElement.prototype[m];
   doc.createElement = tag => new FakeElement(doc, tag); doc.createElementNS = (ns, tag) => new FakeElement(doc, tag, ns);
   doc.createTextNode = t => new Text(doc, t); doc.body = doc.createElement('body'); doc.documentElement = doc.createElement('html');
   return doc;
