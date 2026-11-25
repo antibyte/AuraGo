@@ -42,6 +42,7 @@
         const watch = store.watch(E.core.uid('hd-win'), { ids: [], active: vis.visible() });
         life.add(vis.subscribe(on => watch.setActive(on)));
         let state = Object.freeze({ mode: 'loading', error: null, notice: null, busy: false, dashboards: null, dashboard: null, pageId: null, connection: store.connection(), desktopReadonly: !!o.readonly, banners: [] });
+        let hostRo = !!o.readonly; // live host read-only flag: starts as the open-time snapshot, kept current by setReadonly
         let catalog = null, view = null, doc = null, disposed = false, openSeq = 0, late = null; // late: a list that arrived while an open was in flight
         function set(patch) {
             if (disposed) return;
@@ -59,7 +60,7 @@
             const e = E.api.normalizeError(err);
             if (e.code === 'aborted' || disposed) return;
             if (e.code === 'homedash_disabled') { closeView(); set({ mode: 'disabled', busy: false }); return; }
-            if (e.code === 'desktop_readonly') setReadonly(true);
+            if (e.code === 'desktop_readonly') applyReadonly(true);
             fallback(e);
         }
         async function boot() {
@@ -69,7 +70,7 @@
                 if (disposed) return;
                 store.setSources(b.sources);
                 realm.stream.resume(); // a stream stopped by revoked disabled/auth_lost restarts once bootstrap answers again (no-op otherwise)
-                const ro = !!o.readonly || b.desktop_readonly === true;
+                const ro = hostRo || b.desktop_readonly === true;
                 store.setDesktopReadonly(ro);
                 const cat = await store.widgetCatalog(b.catalog_hash);
                 if (disposed) return;
@@ -135,7 +136,8 @@
                 realm.refresh().catch(() => {}); return false;
             }
         }
-        function setReadonly(flag) { const ro = !!flag; store.setDesktopReadonly(ro); if (view) view.setReadonly(ro); if (ro !== state.desktopReadonly) set({ desktopReadonly: ro }); }
+        function applyReadonly(ro) { store.setDesktopReadonly(ro); if (view) view.setReadonly(ro); if (ro !== state.desktopReadonly) set({ desktopReadonly: ro }); }
+        function setReadonly(flag) { hostRo = !!flag; applyReadonly(hostRo); } // the host's live flag; a retry's boot() reads it, not the open-time snapshot
         boot();
         return Object.freeze({
             on: bus.on, off: bus.off, state: () => state, open, home: () => home(null), createStarter: () => create('starter'), createEmpty: () => create('empty'), remove, setReadonly,

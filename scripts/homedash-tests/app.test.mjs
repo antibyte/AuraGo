@@ -29,7 +29,7 @@ function contractServer(options) {
 function mountApp(options) {
   const o = options || {}, { E, document } = loadEngine(APP_ORDER, { dom: true }), clock = fakeClock(), es = fakeSources(), server = contractServer(o);
   const host = document.createElement('div'); document.body.appendChild(host);
-  const inst = E.mount(host, { dashboardId: o.dashboardId, transport: { request: server.request, eventSource: es.open }, t: k => k, lang: 'en', measure: () => ({ width: 1180, height: 700 }), visibility: o.visibility,
+  const inst = E.mount(host, { dashboardId: o.dashboardId, readonly: o.readonly, transport: { request: server.request, eventSource: es.open }, t: k => k, lang: 'en', measure: () => ({ width: 1180, height: 700 }), visibility: o.visibility,
     timers: { setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout, now: clock.now, random: () => 0.5, raf: fn => clock.setTimeout(fn, 16), caf: id => clock.clearTimeout(id) } });
   return { inst, host, clock, es, server };
 }
@@ -80,5 +80,11 @@ export const tests = [
     inst.createEmpty(); await clock.advance(20); assert.equal(server.calls.filter(c => c.method === 'POST').length, 2); assert.equal(inst.state().mode, 'dashboard'); inst.dispose(); }],
   ['app: dispose during boot stops it before shared realm state or further requests', async () => {
     const { inst, clock, server } = mountApp(); inst.dispose(); await clock.advance(50);
-    eq(server.calls.map(c => c.path), ['bootstrap']); }]
+    eq(server.calls.map(c => c.path), ['bootstrap']); }],
+  ['app: a retry keeps the live read-only flag the host set after the window opened', async () => {
+    const { inst, clock, server } = mountApp({ readonly: true }); await clock.advance(20);
+    assert.equal(inst.state().desktopReadonly, true); inst.createEmpty(); await clock.advance(20); assert.equal(server.calls.filter(c => c.method === 'POST').length, 0);
+    inst.setReadonly(false); assert.equal(inst.state().desktopReadonly, false);
+    inst.retry(); await clock.advance(20); assert.equal(inst.state().desktopReadonly, false);
+    inst.createEmpty(); await clock.advance(20); assert.equal(server.calls.filter(c => c.method === 'POST').length, 1); assert.equal(inst.state().mode, 'dashboard'); inst.dispose(); }]
 ];
