@@ -111,6 +111,21 @@ func (r *homeDashMetricsRing) record(snap systemMetricsSnapshot) {
 	r.appendLocked(p)
 }
 
+// latestRates returns the rates of the newest entry when it belongs to the sample taken at at.
+func (r *homeDashMetricsRing) latestRates(at time.Time) (rx, tx *float64) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.n == 0 {
+		return nil, nil
+	}
+	e := r.buf[(r.start+r.n-1)%len(r.buf)]
+	if !e.hasRate || !e.t.Equal(at) {
+		return nil, nil
+	}
+	a, b := e.rx, e.tx
+	return &a, &b
+}
+
 // recordHomeDashMetrics appends the just-stored collector sample to the history ring.
 func (s *Server) recordHomeDashMetrics() {
 	snap, ok := s.loadSystemMetricsSnapshot()

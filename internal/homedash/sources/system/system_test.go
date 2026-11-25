@@ -256,3 +256,29 @@ func TestSystemHistorySkipsNaNMetrics(t *testing.T) {
 		t.Fatalf("disk = %#v, want empty (every entry NaN)", got)
 	}
 }
+
+func TestSystemCatalogUsesServerRates(t *testing.T) {
+	t0 := time.Date(2026, 11, 25, 10, 0, 0, 0, time.UTC)
+	rx, tx := 12.5, 1.25
+	snap := Snapshot{SampledAt: t0, CPUPercent: 10, CPUOK: true, MemoryOK: true, DiskOK: true, NetworkOK: true, NetRxMbps: &rx, NetTxMbps: &tx}
+	src := New(func() (Snapshot, bool) { return snap, true }, nil, 5, func() time.Time { return t0.Add(time.Second) })
+	states := func() map[homedash.EntityID]homedash.State {
+		list, _ := src.Catalog(context.Background())
+		out := map[homedash.EntityID]homedash.State{}
+		for _, e := range list {
+			out[e.ID] = e.State
+		}
+		return out
+	}
+	got := states()
+	if st := got["system:net_rx"]; !st.Available || st.Value != 12.5 {
+		t.Fatalf("net_rx = %+v", st)
+	}
+	if st := got["system:net_tx"]; !st.Available || st.Value != 1.25 {
+		t.Fatalf("net_tx = %+v", st)
+	}
+	snap.NetRxMbps, snap.NetTxMbps = nil, nil
+	if st := states()["system:net_rx"]; st.Available {
+		t.Fatalf("net_rx without server rates and before two polls = %+v", st)
+	}
+}

@@ -80,5 +80,6 @@ func (s *Server) homeDashSystemSnapshot() (system.Snapshot, bool) {
 	if boot, ok := s.loadHostBootTime(); ok {
 		out.BootTime = boot
 	}
+	out.NetRxMbps, out.NetTxMbps = s.homeDashMetrics.latestRates(m.SampledAt)
 	return out, true
 }

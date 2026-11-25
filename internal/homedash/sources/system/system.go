@@ -35,6 +35,9 @@ type Snapshot struct {
 	CPUOK, MemoryOK, DiskOK, NetworkOK     bool
 	NetBytesRecv, NetBytesSent             uint64    // cumulative counters of the host
 	BootTime                               time.Time // zero when unknown
+	// NetRxMbps and NetTxMbps are the server's rates between its last two samples in Mbit/s; nil until
+	// it has two. The adapter prefers them, so a catalog read carries the rates without a run.
+	NetRxMbps, NetTxMbps *float64
 }
 
 // SnapshotFunc returns the latest sample; ok is false before the collector's first tick.
@@ -207,11 +210,15 @@ func (s *Source) compute(snap Snapshot, ok bool, now time.Time, advance bool) ma
 		NativeNetTX:  off,
 		NativeUptime: {Value: nil, Available: false, UpdatedAt: now},
 	}
-	if s.rx != nil {
-		out[NativeNetRX] = sample(*s.rx, snap.NetworkOK)
+	rx, tx := s.rx, s.tx
+	if snap.NetRxMbps != nil && snap.NetTxMbps != nil {
+		rx, tx = snap.NetRxMbps, snap.NetTxMbps
 	}
-	if s.tx != nil {
-		out[NativeNetTX] = sample(*s.tx, snap.NetworkOK)
+	if rx != nil {
+		out[NativeNetRX] = sample(*rx, snap.NetworkOK)
+	}
+	if tx != nil {
+		out[NativeNetTX] = sample(*tx, snap.NetworkOK)
 	}
 	if ok && !snap.BootTime.IsZero() && now.After(snap.BootTime) {
 		out[NativeUptime] = homedash.State{Value: math.Floor(now.Sub(snap.BootTime).Seconds()), Available: true, UpdatedAt: now}

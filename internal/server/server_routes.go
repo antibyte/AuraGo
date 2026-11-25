@@ -123,37 +123,33 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	// Push system metrics to all SSE clients every 10 seconds so the dashboard
 	// does not need to poll /api/dashboard/system independently.
 	go func() {
+		// First sample at once (HomeDash first values, M3 decision D7): stored, not broadcast.
+		s.sampleSystemMetrics()
 		ticker := time.NewTicker(10 * time.Second)
 		defer ticker.Stop()
 		for {
 			select {
 			case <-ticker.C:
-				raw := tools.GetSystemMetrics("")
-				var metricsResult struct {
-					Status string              `json:"status"`
-					Data   tools.SystemMetrics `json:"data"`
+				data, hostUptime, ok := s.sampleSystemMetrics()
+				if !ok {
+					continue
 				}
-				if err := json.Unmarshal([]byte(raw), &metricsResult); err == nil {
-					s.storeSystemMetricsSnapshot(metricsResult.Data, time.Now())
-					s.recordHomeDashMetrics()
-					payload := map[string]interface{}{
-						"available":      metricsResult.Data.Available,
-						"cpu":            metricsResult.Data.CPU,
-						"memory":         metricsResult.Data.Memory,
-						"disk":           metricsResult.Data.Disk,
-						"network":        metricsResult.Data.Network,
-						"sse_clients":    sse.ClientCount(),
-						"uptime_seconds": int(time.Since(s.StartedAt).Seconds()),
-					}
-					if hostInfo := tools.GetHostInfo(); hostInfo.Uptime > 0 {
-						payload["host_uptime_seconds"] = int(hostInfo.Uptime)
-						s.storeHostBootTime(time.Now().Add(-time.Duration(hostInfo.Uptime) * time.Second))
-					}
-					sse.BroadcastType(EventSystemMetrics, payload)
-					s.flushSystemWorld(serverCtx)
-					if s.CydHub != nil && s.CydHub.HasRecentDevice(2*time.Minute) {
-						s.refreshCydSnapshot()
-					}
+				payload := map[string]interface{}{
+					"available":      data.Available,
+					"cpu":            data.CPU,
+					"memory":         data.Memory,
+					"disk":           data.Disk,
+					"network":        data.Network,
+					"sse_clients":    sse.ClientCount(),
+					"uptime_seconds": int(time.Since(s.StartedAt).Seconds()),
+				}
+				if hostUptime > 0 {
+					payload["host_uptime_seconds"] = int(hostUptime)
+				}
+				sse.BroadcastType(EventSystemMetrics, payload)
+				s.flushSystemWorld(serverCtx)
+				if s.CydHub != nil && s.CydHub.HasRecentDevice(2*time.Minute) {
+					s.refreshCydSnapshot()
 				}
 			case <-serverCtx.Done():
 				return
@@ -1194,4 +1190,25 @@ func retryTsNetStartup(ctx context.Context, delay time.Duration, start func() er
 		}
 	}
 	return lastErr
+}
+
+// sampleSystemMetrics takes one collector sample: it stores the snapshot (dashboard summary, HomeDash
+// system source), the host boot time and one HomeDash history ring entry. ok is false when the
+// metrics could not be parsed; hostUptime is 0 when unknown.
+func (s *Server) sampleSystemMetrics() (data tools.SystemMetrics, hostUptime uint64, ok bool) {
+	raw := tools.GetSystemMetrics("")
+	var metricsResult struct {
+		Status string              `json:"status"`
+		Data   tools.SystemMetrics `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(raw), &metricsResult); err != nil {
+		return tools.SystemMetrics{}, 0, false
+	}
+	s.storeSystemMetricsSnapshot(metricsResult.Data, time.Now())
+	if hostInfo := tools.GetHostInfo(); hostInfo.Uptime > 0 {
+		hostUptime = hostInfo.Uptime
+		s.storeHostBootTime(time.Now().Add(-time.Duration(hostInfo.Uptime) * time.Second))
+	}
+	s.recordHomeDashMetrics()
+	return metricsResult.Data, hostUptime, true
 }
