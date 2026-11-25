@@ -135,6 +135,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				}
 				if err := json.Unmarshal([]byte(raw), &metricsResult); err == nil {
 					s.storeSystemMetricsSnapshot(metricsResult.Data, time.Now())
+					s.recordHomeDashMetrics()
 					payload := map[string]interface{}{
 						"available":      metricsResult.Data.Available,
 						"cpu":            metricsResult.Data.CPU,
@@ -146,6 +147,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 					}
 					if hostInfo := tools.GetHostInfo(); hostInfo.Uptime > 0 {
 						payload["host_uptime_seconds"] = int(hostInfo.Uptime)
+						s.storeHostBootTime(time.Now().Add(-time.Duration(hostInfo.Uptime) * time.Second))
 					}
 					sse.BroadcastType(EventSystemMetrics, payload)
 					s.flushSystemWorld(serverCtx)

@@ -18,6 +18,11 @@ type systemMetricsSnapshot struct {
 	MemoryAvailable bool
 	DiskAvailable   bool
 	SampledAt       time.Time
+
+	// Raw cumulative network counters (HomeDash system source computes rates).
+	NetBytesSent     uint64
+	NetBytesRecv     uint64
+	NetworkAvailable bool
 }
 
 // storeSystemMetricsSnapshot publishes one parsed collector sample.
@@ -33,6 +38,10 @@ func (s *Server) storeSystemMetricsSnapshot(m tools.SystemMetrics, at time.Time)
 		MemoryAvailable: m.Available["memory"],
 		DiskAvailable:   m.Available["disk"],
 		SampledAt:       at,
+
+		NetBytesSent:     m.Network.BytesSent,
+		NetBytesRecv:     m.Network.BytesRecv,
+		NetworkAvailable: m.Available["network"],
 	})
 }
 
@@ -47,4 +56,24 @@ func (s *Server) loadSystemMetricsSnapshot() (systemMetricsSnapshot, bool) {
 		return systemMetricsSnapshot{}, false
 	}
 	return *latest, true
+}
+
+// storeHostBootTime publishes the host boot time the collector derived from the host uptime.
+func (s *Server) storeHostBootTime(boot time.Time) {
+	if s == nil || boot.IsZero() {
+		return
+	}
+	s.hostBootUnix.Store(boot.Unix())
+}
+
+// loadHostBootTime returns the host boot time (UTC, whole seconds); ok is false before the first sample.
+func (s *Server) loadHostBootTime() (time.Time, bool) {
+	if s == nil {
+		return time.Time{}, false
+	}
+	sec := s.hostBootUnix.Load()
+	if sec <= 0 {
+		return time.Time{}, false
+	}
+	return time.Unix(sec, 0).UTC(), true
 }

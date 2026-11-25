@@ -428,6 +428,8 @@ type Server struct {
 	// latestSystemMetrics is the latest sample of the 10 s system-metrics
 	// collector; GET /api/dashboard/summary reads it (dashboard_metrics_snapshot.go).
 	latestSystemMetrics atomic.Pointer[systemMetricsSnapshot]
+	hostBootUnix        atomic.Int64        // host boot time (Unix seconds) the metrics collector derived; 0 = unknown
+	homeDashMetrics     homeDashMetricsRing // A1: collector samples for the HomeDash system history (homedash_metrics_ring.go)
 
 	// pushRemoteAllowedPaths sends a changed remote_control.allowed_paths to
 	// connected agents (nil means (*remote.RemoteHub).PushDefaultAllowedPaths);
