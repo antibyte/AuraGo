@@ -429,12 +429,18 @@ func (h codeStudioHandlers) handleLSP(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "unknown language server", http.StatusBadRequest)
 		return
 	}
-	container, containerID, err := h.codeContainer(r.Context(), true)
+	b, err := h.backendFor(r)
 	if err != nil {
-		jsonError(w, err.Error(), http.StatusServiceUnavailable)
+		writeCodeStudioBackendError(w, err)
 		return
 	}
-	release, err := container.HoldTerminal(containerID)
+	local, ok := b.(*codeStudioLocalBackend)
+	if !ok { // Plan D: language servers over SSH
+		writeCodeStudioRemoteError(w, &codeStudioRemoteError{Status: http.StatusNotImplemented,
+			Code: "lsp_unavailable", Message: "language servers are not available in this workspace yet"})
+		return
+	}
+	release, err := local.container.HoldTerminal(local.containerID)
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusServiceUnavailable)
 		return
@@ -445,7 +451,7 @@ func (h codeStudioHandlers) handleLSP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer conn.Close()
-	h.serveCodeStudioLSP(r.Context(), conn, containerID, lsp)
+	h.serveCodeStudioLSP(r.Context(), conn, local.containerID, lsp)
 }
 
 // serveCodeStudioLSP runs one language-server session on an upgraded socket:

@@ -582,23 +582,38 @@ func (h codeStudioHandlers) handleTerminal(w http.ResponseWriter, r *http.Reques
 		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	container, containerID, err := h.codeContainer(r.Context(), true)
+	b, err := h.backendFor(r)
 	if err != nil {
-		jsonError(w, err.Error(), http.StatusServiceUnavailable)
+		writeCodeStudioBackendError(w, err)
 		return
 	}
-	release, err := container.HoldTerminal(containerID)
-	if err != nil {
-		jsonError(w, err.Error(), http.StatusServiceUnavailable)
+	if local, ok := b.(*codeStudioLocalBackend); ok {
+		release, err := local.container.HoldTerminal(local.containerID)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusServiceUnavailable)
+			return
+		}
+		defer release()
+		conn, err := codeStudioWSUpgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		h.serveCodeStudioTerminal(r.Context(), conn, local.containerID)
 		return
 	}
-	defer release()
+	cols, rows := codeStudioTerminalSize(r)
+	session, err := b.OpenTerminal(r.Context(), cols, rows)
+	if err != nil {
+		writeCodeStudioOpError(w, err)
+		return
+	}
 	conn, err := codeStudioWSUpgrader.Upgrade(w, r, nil)
 	if err != nil {
+		_ = session.Close()
 		return
 	}
-	defer conn.Close()
-	h.serveCodeStudioTerminal(r.Context(), conn, containerID)
+	serveContainerTerminalSession(r.Context(), conn, session)
 }
 
 func (h codeStudioHandlers) handleGitStatus(w http.ResponseWriter, r *http.Request) {

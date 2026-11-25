@@ -38,7 +38,9 @@ func (h *codeStudioHandlers) localBackend(ctx context.Context) (codeStudioBacken
 	return &codeStudioLocalBackend{h: *h, container: container, containerID: containerID}, nil
 }
 
-func (b *codeStudioLocalBackend) Info() codeStudioWorkspaceInfo { return codeStudioLocalWorkspaceInfo() }
+func (b *codeStudioLocalBackend) Info() codeStudioWorkspaceInfo {
+	return codeStudioLocalWorkspaceInfo()
+}
 
 func (b *codeStudioLocalBackend) pathOp(ctx context.Context, cmd []string) error {
 	result, err := b.h.docker.Exec(ctx, b.containerID, cmd, 30*time.Second)
