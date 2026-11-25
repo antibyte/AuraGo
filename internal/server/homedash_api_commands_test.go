@@ -76,3 +76,20 @@ func TestHomeDashCommandsRefusedOnReadOnly(t *testing.T) {
 		t.Fatalf("homedash.readonly = %d %s", w.Code, w.Body.String())
 	}
 }
+
+func TestHomeDashCommandsSourceUnavailableCarriesSource(t *testing.T) {
+	fake := homeDashCommandFake()
+	fake.CommandErr = homedash.SourceUnavailable("fake", "the source is not reachable")
+	env := newHomeDashTestEnv(t, nil, fakeHomeDashSpec(fake))
+	w := env.do(t, env.admin, http.MethodPost, "commands", map[string]any{"entity": "fake:a", "command": "toggle", "request_id": "su-1"})
+	var body struct {
+		Status, Code, Source string
+	}
+	hdDecode(t, w, &body)
+	if w.Code != http.StatusServiceUnavailable || body.Status != "error" || body.Code != "source_unavailable" || body.Source != "fake" {
+		t.Fatalf("answer = %d %s", w.Code, w.Body.String())
+	}
+	if !env.audits.has("fake:a|toggle|failed") {
+		t.Fatalf("audit = %+v", env.audits.entries)
+	}
+}

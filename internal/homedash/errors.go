@@ -6,6 +6,7 @@ type Error struct {
 	Code            string  `json:"code"`
 	Message         string  `json:"message"`
 	BlockedBy       string  `json:"blocked_by,omitempty"`
+	Source          string  `json:"source,omitempty"` // source id; set with source_unavailable
 	RetryAfterMS    int64   `json:"retry_after_ms,omitempty"`
 	CurrentRevision int64   `json:"current_revision,omitempty"`
 	Issues          []Issue `json:"issues,omitempty"`
@@ -24,6 +25,12 @@ func (e *Error) Error() string { return e.Code + ": " + e.Message }
 func (e *Error) Is(target error) bool {
 	t, ok := target.(*Error)
 	return ok && t.Code == e.Code
+}
+
+// SourceUnavailable is the refusal for a source that cannot be reached right now. Message is English
+// and must not contain upstream text.
+func SourceUnavailable(src SourceID, message string) *Error {
+	return &Error{Code: CodeSourceUnavailable, Message: message, Source: string(src)}
 }
 
 func newError(code, msg string) *Error { return &Error{Code: code, Message: msg} }

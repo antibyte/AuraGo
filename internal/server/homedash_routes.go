@@ -207,6 +207,9 @@ func (h *hdRequest) fail(err error) {
 	if he.BlockedBy != "" {
 		extra["blocked_by"] = he.BlockedBy
 	}
+	if he.Source != "" {
+		extra["source"] = he.Source
+	}
 	if he.RetryAfterMS > 0 {
 		extra["retry_after_ms"] = he.RetryAfterMS
 		h.w.Header().Set("Retry-After", strconv.FormatInt((he.RetryAfterMS+999)/1000, 10))

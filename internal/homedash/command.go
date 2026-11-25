@@ -176,7 +176,8 @@ func (h *Hub) audit(ctx context.Context, cmd Command, res CommandResult, err err
 	case err == nil && res.Superseded:
 		outcome = "superseded"
 	case err == nil:
-	case errors.As(err, &he) && he.Code != CodeCommandFailed && he.Code != CodeSourceError:
+	// a source that cannot be reached is a failure, not a refusal
+	case errors.As(err, &he) && he.Code != CodeCommandFailed && he.Code != CodeSourceError && he.Code != CodeSourceUnavailable:
 		outcome = "refused:" + he.Code
 	default:
 		outcome = "failed"
