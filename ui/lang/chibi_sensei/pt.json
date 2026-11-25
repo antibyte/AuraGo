@@ -836,5 +836,9 @@
   "chibi_sensei.warning.kaggle_unavailable": "Não é possível contactar o Kaggle neste momento. O AuraGo continua a tentar.",
   "chibi_sensei.warning.desktop_readonly": "O ambiente de trabalho está no modo só de leitura. A execução espera até as alterações voltarem a ser permitidas.",
   "chibi_sensei.warning.kaggle_refused": "Uma definição do Kaggle de que esta execução precisa está desativada. A execução espera até ela voltar a ser ativada.",
-  "chibi_sensei.warning.staged_left": "Não foi possível remover alguns ficheiros temporários desta execução da pasta do Kaggle do AuraGo neste computador."
+  "chibi_sensei.warning.staged_left": "Não foi possível remover alguns ficheiros temporários desta execução da pasta do Kaggle do AuraGo neste computador.",
+  "chibi_sensei.warning.batch_reduced": "A placa gráfica ficou sem memória com o tamanho de lote planeado. O treino continua com lotes mais pequenos e demora um pouco mais.",
+  "chibi_sensei.warning.eval_batch_reduced": "A placa gráfica ficou sem memória ao medir a qualidade. A medição continua uma linha de cada vez.",
+  "chibi_sensei.warning.oom_step_skipped": "Um passo do treino ficou sem memória e foi ignorado. Linhas muito longas podem causar isto.",
+  "chibi_sensei.warning.rows_truncated": "Algumas linhas eram mais longas do que o comprimento máximo e foram cortadas no fim."
 }

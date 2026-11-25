@@ -836,5 +836,9 @@
   "chibi_sensei.warning.kaggle_unavailable": "Kaggle ist gerade nicht erreichbar. AuraGo versucht es weiter.",
   "chibi_sensei.warning.desktop_readonly": "Der Desktop ist im Nur-Lesen-Modus. Der Lauf wartet, bis Änderungen wieder erlaubt sind.",
   "chibi_sensei.warning.kaggle_refused": "Eine Kaggle-Einstellung, die dieser Lauf braucht, ist ausgeschaltet. Der Lauf wartet, bis sie wieder eingeschaltet ist.",
-  "chibi_sensei.warning.staged_left": "Einige temporäre Dateien dieses Laufs konnten nicht aus AuraGos Kaggle-Ordner auf diesem Rechner entfernt werden."
+  "chibi_sensei.warning.staged_left": "Einige temporäre Dateien dieses Laufs konnten nicht aus AuraGos Kaggle-Ordner auf diesem Rechner entfernt werden.",
+  "chibi_sensei.warning.batch_reduced": "Der Grafikkarte ist bei der geplanten Batch-Größe der Speicher ausgegangen. Das Training läuft mit kleineren Batches weiter und dauert etwas länger.",
+  "chibi_sensei.warning.eval_batch_reduced": "Der Grafikkarte ist beim Messen der Qualität der Speicher ausgegangen. Die Messung läuft Zeile für Zeile weiter.",
+  "chibi_sensei.warning.oom_step_skipped": "Bei einem Trainingsschritt ist der Speicher ausgegangen, deshalb wurde er übersprungen. Sehr lange Zeilen können das auslösen.",
+  "chibi_sensei.warning.rows_truncated": "Einige Zeilen waren länger als die maximale Länge und wurden am Ende abgeschnitten."
 }

@@ -836,5 +836,9 @@
   "chibi_sensei.warning.kaggle_unavailable": "Kaggle is op dit moment niet bereikbaar. AuraGo blijft het proberen.",
   "chibi_sensei.warning.desktop_readonly": "De desktop staat in alleen-lezen-modus. De run wacht tot wijzigingen weer zijn toegestaan.",
   "chibi_sensei.warning.kaggle_refused": "Een Kaggle-instelling die deze run nodig heeft, staat uit. De run wacht tot die weer aan staat.",
-  "chibi_sensei.warning.staged_left": "Enkele tijdelijke bestanden van deze run konden niet worden verwijderd uit de Kaggle-map van AuraGo op deze computer."
+  "chibi_sensei.warning.staged_left": "Enkele tijdelijke bestanden van deze run konden niet worden verwijderd uit de Kaggle-map van AuraGo op deze computer.",
+  "chibi_sensei.warning.batch_reduced": "Het geheugen van de videokaart was op bij de geplande batchgrootte. De training gaat verder met kleinere batches en duurt iets langer.",
+  "chibi_sensei.warning.eval_batch_reduced": "Het geheugen van de videokaart was op tijdens het meten van de kwaliteit. De meting gaat verder met één rij tegelijk.",
+  "chibi_sensei.warning.oom_step_skipped": "Bij één trainingsstap was het geheugen op, daarom is die stap overgeslagen. Zeer lange rijen kunnen dit veroorzaken.",
+  "chibi_sensei.warning.rows_truncated": "Sommige rijen waren langer dan de maximale lengte en zijn aan het einde afgekapt."
 }

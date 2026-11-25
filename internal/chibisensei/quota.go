@@ -10,9 +10,11 @@ import (
 )
 
 // ParseGPUQuota reads the remaining Kaggle GPU quota in hours from the raw JSON answer of
-// get_accelerator_quota_statistics. PROVISIONAL: the pinned SDK contract has no typed response, so the real
-// shape is unknown until the proof run records one (add it as a fixture to TestParseGPUQuota then). The
-// parser is tolerant:
+// get_accelerator_quota_statistics. The real answer was recorded on Kaggle (see TestParseGPUQuota): the keys
+// gpuQuota.timeUsed, timeReserved, totalTimeAllowed and minimumTimeAllowed hold protobuf duration strings
+// ("303.179s", "108000s"), next to a tpuQuota block of the same form and quotaRefreshTime. The remaining time
+// is totalTimeAllowed minus timeUsed of the gpuQuota block. The pinned SDK contract has no typed response, so
+// the parser stays tolerant as a safety net for other shapes:
 //   - GPU entries are objects with a type-like key (containing "type", "accelerator", "name" or "kind")
 //     whose string value contains "gpu", "nvidia" or "tesla"; every object below a key containing "gpu";
 //     and the gpu-named numeric keys of any object.

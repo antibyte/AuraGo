@@ -184,7 +184,9 @@ func statusText(data []byte) string {
 
 func sessionStatus(data []byte) string { return strings.ToUpper(statusText(data)) }
 
-// datasetReady classifies get_dataset_status. PROVISIONAL until the proof run records the real vocabulary.
+// datasetReady classifies get_dataset_status. Kaggle answers {"status":"READY"} shortly after create_dataset;
+// the other words are a tolerance. The kernel session status vocabulary seen is RUNNING, then COMPLETE
+// (remoteTerminalState).
 func datasetReady(data []byte) (ready, failed bool) {
 	switch strings.ToLower(statusText(data)) {
 	case "ready", "complete", "completed":

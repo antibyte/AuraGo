@@ -177,7 +177,7 @@ func TestPreflightFlagPatch(t *testing.T) {
 	}
 }
 
-// The fixtures are PROVISIONAL until the proof run records a real answer.
+// The "real" cases are answers recorded on Kaggle (2026-11-25); the others are tolerance cases.
 func TestParseGPUQuota(t *testing.T) {
 	cases := []struct {
 		name string
@@ -185,6 +185,11 @@ func TestParseGPUQuota(t *testing.T) {
 		want float64
 		ok   bool
 	}{
+		{"real unused", `{"quotaRefreshTime":"2026-11-28T00:00:00Z","gpuQuota":{"timeUsed":"0s","timeReserved":"0s","totalTimeAllowed":"108000s","minimumTimeAllowed":"108000s"},"tpuQuota":{"timeUsed":"0s","timeReserved":"0s","totalTimeAllowed":"72000s","minimumTimeAllowed":"72000s"}}`, 30, true},
+		{"real after use", `{"quotaRefreshTime":"2026-11-28T00:00:00Z","gpuQuota":{"timeUsed":"303.179s","timeReserved":"0s","totalTimeAllowed":"108000s","minimumTimeAllowed":"108000s","hasEverRun":true},"tpuQuota":{"timeUsed":"0s","timeReserved":"0s","totalTimeAllowed":"72000s","minimumTimeAllowed":"72000s"}}`, 29.92, true},
+		{"real nine decimals", `{"quotaRefreshTime":"2026-11-28T00:00:00Z","gpuQuota":{"timeUsed":"606.330129900s","timeReserved":"0s","totalTimeAllowed":"108000s","minimumTimeAllowed":"108000s"},"tpuQuota":{"timeUsed":"0s","timeReserved":"0s","totalTimeAllowed":"72000s","minimumTimeAllowed":"72000s"}}`, 29.83, true},
+		{"tpu has less left", `{"gpuQuota":{"timeUsed":"0s","timeReserved":"0s","totalTimeAllowed":"108000s","minimumTimeAllowed":"108000s"},"tpuQuota":{"timeUsed":"71000s","timeReserved":"0s","totalTimeAllowed":"72000s","minimumTimeAllowed":"72000s"}}`, 30, true},
+		{"gpu has less left", `{"gpuQuota":{"timeUsed":"100800s","timeReserved":"0s","totalTimeAllowed":"108000s","minimumTimeAllowed":"108000s"},"tpuQuota":{"timeUsed":"0s","timeReserved":"0s","totalTimeAllowed":"72000s","minimumTimeAllowed":"72000s"}}`, 2, true},
 		{"fake builder", string(fakeJSON(fakeQuotaJSON(27.5))), 27.5, true},
 		{"remaining hours", `{"gpu":{"remainingHours":12.5,"totalHours":30}}`, 12.5, true},
 		{"duration seconds", `{"gpuQuotaRemaining":99000}`, 27.5, true},

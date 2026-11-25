@@ -836,5 +836,9 @@
   "chibi_sensei.warning.kaggle_unavailable": "Kaggle kan ikke nås lige nu. AuraGo bliver ved med at prøve.",
   "chibi_sensei.warning.desktop_readonly": "Skrivebordet er i skrivebeskyttet tilstand. Kørslen venter, indtil ændringer er tilladt igen.",
   "chibi_sensei.warning.kaggle_refused": "En Kaggle-indstilling, som denne kørsel har brug for, er slået fra. Kørslen venter, indtil den er slået til igen.",
-  "chibi_sensei.warning.staged_left": "Nogle midlertidige filer fra denne kørsel kunne ikke fjernes fra AuraGos Kaggle-mappe på denne computer."
+  "chibi_sensei.warning.staged_left": "Nogle midlertidige filer fra denne kørsel kunne ikke fjernes fra AuraGos Kaggle-mappe på denne computer.",
+  "chibi_sensei.warning.batch_reduced": "Grafikkortet løb tør for hukommelse ved den planlagte batchstørrelse. Træningen fortsætter med mindre batches og tager lidt længere tid.",
+  "chibi_sensei.warning.eval_batch_reduced": "Grafikkortet løb tør for hukommelse under kvalitetsmålingen. Målingen fortsætter én række ad gangen.",
+  "chibi_sensei.warning.oom_step_skipped": "Et træningstrin løb tør for hukommelse og blev sprunget over. Meget lange rækker kan være årsagen.",
+  "chibi_sensei.warning.rows_truncated": "Nogle rækker var længere end den maksimale længde og blev skåret af til sidst."
 }

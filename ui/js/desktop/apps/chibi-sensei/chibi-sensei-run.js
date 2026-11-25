@@ -87,6 +87,8 @@
         manifest_missing: 'chibi_sensei.warning.manifest_missing', cleanup_failed: 'chibi_sensei.warning.cleanup_failed',
         kaggle_unavailable: 'chibi_sensei.warning.kaggle_unavailable', desktop_readonly: 'chibi_sensei.warning.desktop_readonly',
         kaggle_refused: 'chibi_sensei.warning.kaggle_refused', staged_left: 'chibi_sensei.warning.staged_left',
+        batch_reduced: 'chibi_sensei.warning.batch_reduced', eval_batch_reduced: 'chibi_sensei.warning.eval_batch_reduced',
+        oom_step_skipped: 'chibi_sensei.warning.oom_step_skipped', rows_truncated: 'chibi_sensei.warning.rows_truncated',
         unknown: 'chibi_sensei.warning.unknown'
     };
     const ARTIFACT_KEYS = {

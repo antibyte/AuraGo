@@ -836,5 +836,9 @@
   "chibi_sensei.warning.kaggle_unavailable": "Kaggle jest teraz niedostępny. AuraGo próbuje dalej.",
   "chibi_sensei.warning.desktop_readonly": "Pulpit jest w trybie tylko do odczytu. Przebieg czeka, aż zmiany będą znów dozwolone.",
   "chibi_sensei.warning.kaggle_refused": "Ustawienie Kaggle, którego potrzebuje ten przebieg, jest wyłączone. Przebieg czeka, aż zostanie znów włączone.",
-  "chibi_sensei.warning.staged_left": "Nie udało się usunąć niektórych plików tymczasowych tego przebiegu z folderu Kaggle programu AuraGo na tym komputerze."
+  "chibi_sensei.warning.staged_left": "Nie udało się usunąć niektórych plików tymczasowych tego przebiegu z folderu Kaggle programu AuraGo na tym komputerze.",
+  "chibi_sensei.warning.batch_reduced": "Karcie graficznej zabrakło pamięci przy planowanym rozmiarze partii. Trening trwa dalej z mniejszymi partiami i potrwa trochę dłużej.",
+  "chibi_sensei.warning.eval_batch_reduced": "Karcie graficznej zabrakło pamięci podczas mierzenia jakości. Pomiar trwa dalej, jeden wiersz po drugim.",
+  "chibi_sensei.warning.oom_step_skipped": "Przy jednym kroku treningu zabrakło pamięci, więc został pominięty. Przyczyną mogą być bardzo długie wiersze.",
+  "chibi_sensei.warning.rows_truncated": "Niektóre wiersze były dłuższe niż maksymalna długość i zostały obcięte na końcu."
 }

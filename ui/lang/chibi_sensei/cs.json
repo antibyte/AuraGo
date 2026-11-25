@@ -836,5 +836,9 @@
   "chibi_sensei.warning.kaggle_unavailable": "Kaggle teď není dostupný. AuraGo to zkouší dál.",
   "chibi_sensei.warning.desktop_readonly": "Plocha je v režimu jen pro čtení. Běh počká, dokud nebudou změny znovu povoleny.",
   "chibi_sensei.warning.kaggle_refused": "Nastavení Kaggle, které tento běh potřebuje, je vypnuté. Běh počká, dokud se znovu nezapne.",
-  "chibi_sensei.warning.staged_left": "Některé dočasné soubory tohoto běhu se nepodařilo odstranit ze složky Kaggle programu AuraGo v tomto počítači."
+  "chibi_sensei.warning.staged_left": "Některé dočasné soubory tohoto běhu se nepodařilo odstranit ze složky Kaggle programu AuraGo v tomto počítači.",
+  "chibi_sensei.warning.batch_reduced": "Grafické kartě došla paměť při plánované velikosti dávky. Trénink pokračuje s menšími dávkami a trvá o něco déle.",
+  "chibi_sensei.warning.eval_batch_reduced": "Grafické kartě došla paměť při měření kvality. Měření pokračuje po jednom řádku.",
+  "chibi_sensei.warning.oom_step_skipped": "U jednoho tréninkového kroku došla paměť, proto byl přeskočen. Způsobit to mohou velmi dlouhé řádky.",
+  "chibi_sensei.warning.rows_truncated": "Některé řádky byly delší než maximální délka a na konci byly oříznuty."
 }

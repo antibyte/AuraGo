@@ -836,5 +836,9 @@
   "chibi_sensei.warning.kaggle_unavailable": "Kaggle तक अभी नहीं पहुँचा जा सकता। AuraGo कोशिश करता रहता है।",
   "chibi_sensei.warning.desktop_readonly": "डेस्कटॉप केवल पढ़ने वाले मोड में है। रन तब तक रुका रहता है जब तक बदलाव फिर से अनुमत नहीं हो जाते।",
   "chibi_sensei.warning.kaggle_refused": "इस रन को जिस Kaggle सेटिंग की ज़रूरत है, वह बंद है। रन तब तक रुका रहता है जब तक वह फिर से चालू नहीं हो जाती।",
-  "chibi_sensei.warning.staged_left": "इस रन की कुछ अस्थायी फ़ाइलें इस कंप्यूटर पर AuraGo के Kaggle फ़ोल्डर से हटाई नहीं जा सकीं।"
+  "chibi_sensei.warning.staged_left": "इस रन की कुछ अस्थायी फ़ाइलें इस कंप्यूटर पर AuraGo के Kaggle फ़ोल्डर से हटाई नहीं जा सकीं।",
+  "chibi_sensei.warning.batch_reduced": "प्लान किए गए बैच आकार पर ग्राफ़िक्स कार्ड की मेमोरी खत्म हो गई। ट्रेनिंग छोटे बैच के साथ जारी रहती है और थोड़ा ज़्यादा समय लेती है।",
+  "chibi_sensei.warning.eval_batch_reduced": "गुणवत्ता मापते समय ग्राफ़िक्स कार्ड की मेमोरी खत्म हो गई। माप एक-एक पंक्ति करके जारी रहता है।",
+  "chibi_sensei.warning.oom_step_skipped": "एक ट्रेनिंग चरण में मेमोरी खत्म हो गई और उसे छोड़ दिया गया। बहुत लंबी पंक्तियों से ऐसा हो सकता है।",
+  "chibi_sensei.warning.rows_truncated": "कुछ पंक्तियाँ अधिकतम लंबाई से ज़्यादा लंबी थीं और अंत में काट दी गईं।"
 }

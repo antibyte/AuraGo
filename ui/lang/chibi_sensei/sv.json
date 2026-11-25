@@ -836,5 +836,9 @@
   "chibi_sensei.warning.kaggle_unavailable": "Kaggle kan inte nås just nu. AuraGo fortsätter att försöka.",
   "chibi_sensei.warning.desktop_readonly": "Skrivbordet är i skrivskyddat läge. Körningen väntar tills ändringar tillåts igen.",
   "chibi_sensei.warning.kaggle_refused": "En Kaggle-inställning som den här körningen behöver är avstängd. Körningen väntar tills den slås på igen.",
-  "chibi_sensei.warning.staged_left": "Vissa tillfälliga filer från den här körningen kunde inte tas bort från AuraGos Kaggle-mapp på den här datorn."
+  "chibi_sensei.warning.staged_left": "Vissa tillfälliga filer från den här körningen kunde inte tas bort från AuraGos Kaggle-mapp på den här datorn.",
+  "chibi_sensei.warning.batch_reduced": "Grafikkortet fick slut på minne med den planerade batchstorleken. Träningen fortsätter med mindre batchar och tar lite längre tid.",
+  "chibi_sensei.warning.eval_batch_reduced": "Grafikkortet fick slut på minne under kvalitetsmätningen. Mätningen fortsätter en rad i taget.",
+  "chibi_sensei.warning.oom_step_skipped": "Ett träningssteg fick slut på minne och hoppades över. Mycket långa rader kan orsaka detta.",
+  "chibi_sensei.warning.rows_truncated": "Vissa rader var längre än den största tillåtna längden och kapades i slutet."
 }

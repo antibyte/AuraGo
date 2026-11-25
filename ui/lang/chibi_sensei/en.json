@@ -836,5 +836,9 @@
   "chibi_sensei.warning.kaggle_unavailable": "Kaggle cannot be reached right now. AuraGo keeps trying.",
   "chibi_sensei.warning.desktop_readonly": "The desktop is in read-only mode. The run waits until changes are allowed again.",
   "chibi_sensei.warning.kaggle_refused": "A Kaggle setting this run needs is switched off. The run waits until it is switched on again.",
-  "chibi_sensei.warning.staged_left": "Some temporary files of this run could not be removed from AuraGo's Kaggle folder on this computer."
+  "chibi_sensei.warning.staged_left": "Some temporary files of this run could not be removed from AuraGo's Kaggle folder on this computer.",
+  "chibi_sensei.warning.batch_reduced": "The graphics card ran out of memory with the planned batch size. Training continues with smaller batches and takes a little longer.",
+  "chibi_sensei.warning.eval_batch_reduced": "The graphics card ran out of memory while measuring quality. The measurement continues one row at a time.",
+  "chibi_sensei.warning.oom_step_skipped": "One training step ran out of memory and was skipped. Very long rows can cause this.",
+  "chibi_sensei.warning.rows_truncated": "Some rows were longer than the maximum length and were cut off at the end."
 }

@@ -731,13 +731,12 @@ func (f *fakeKaggle) advanceKernelLocked(k *fakeKernel) {
 }
 
 // readLocked answers a read: the scripted answer first; otherwise the modelled default:
-//   - get_dataset, get_dataset_status: a live dataset → {"ref","isPrivate":true} / {"status":"ready"}; else 403 (as real Kaggle).
-//     PROVISIONAL status vocabulary until the proof run.
+//   - get_dataset, get_dataset_status: a live dataset → {"ref","isPrivate":true} / {"status":"READY"}; else 403 (as real Kaggle).
 //   - get_kernel: a live notebook → {"ref","isPrivate":true}; else 403.
 //   - get_kernel_session_status: a live notebook → advances it one step and answers {"status": <current>}; else 403.
 //   - any kernel read with a versionLabel parameter: 404, whatever the label (real Kaggle knows no such label).
-//   - list_kernel_session_output: {"files":[{"fileName","size"}],"nextPageToken":""} from SetOutputs (PROVISIONAL shape).
-//   - get_accelerator_quota_statistics: fakeQuotaJSON(27.5) (PROVISIONAL shape).
+//   - list_kernel_session_output: {"files":[{"fileName","url"}],"log":""} from SetOutputs (real shape, fixed URL string).
+//   - get_accelerator_quota_statistics: fakeQuotaJSON(27.5) (real shape).
 //   - anything else: {}.
 func (f *fakeKaggle) readLocked(name string, p map[string]any) (json.RawMessage, error) {
 	// Real Kaggle: a version number is not a version label, so any kernel read that sends a label is a 404.
@@ -763,7 +762,7 @@ func (f *fakeKaggle) readLocked(name string, p map[string]any) (json.RawMessage,
 		if name == "get_dataset" {
 			return fakeJSON(map[string]any{"ref": ref, "isPrivate": true}), nil
 		}
-		return fakeJSON(map[string]any{"status": "ready"}), nil
+		return fakeJSON(map[string]any{"status": "READY"}), nil
 	case "get_kernel", "get_kernel_session_status":
 		ref := fakeString(p, "userName") + "/" + fakeString(p, "kernelSlug")
 		k := f.kernels[ref]
@@ -787,9 +786,9 @@ func (f *fakeKaggle) readLocked(name string, p map[string]any) (json.RawMessage,
 		sort.Strings(names)
 		files := []map[string]any{}
 		for _, n := range names {
-			files = append(files, map[string]any{"fileName": n, "size": len(f.outputs[n])})
+			files = append(files, map[string]any{"fileName": n, "url": "https://fake.invalid/output/" + n})
 		}
-		return fakeJSON(map[string]any{"files": files, "nextPageToken": ""}), nil
+		return fakeJSON(map[string]any{"files": files, "log": ""}), nil
 	case "get_accelerator_quota_statistics":
 		return fakeJSON(fakeQuotaJSON(27.5)), nil
 	}
@@ -1040,14 +1039,17 @@ func fakeJSON(v any) json.RawMessage {
 
 // ---- builders --------------------------------------------------------------------------------------------
 
-// fakeQuotaJSON is a PROVISIONAL quota answer with the given remaining GPU hours (replace it with the proof
-// run's real shape).
+// fakeQuotaJSON is the real quota answer shape with the given remaining GPU hours: gpuQuota with protobuf
+// duration strings, a tpuQuota block and quotaRefreshTime.
 func fakeQuotaJSON(hours float64) map[string]any {
 	used := 108000 - int(hours*3600)
-	return map[string]any{"acceleratorQuotaStatistics": []any{
-		map[string]any{"acceleratorType": "GPU", "quotaLimit": "108000s", "quotaUsed": fmt.Sprintf("%ds", used)},
-		map[string]any{"acceleratorType": "TPU", "quotaLimit": "72000s", "quotaUsed": "0s"},
-	}}
+	return map[string]any{
+		"quotaRefreshTime": "2026-11-28T00:00:00Z",
+		"gpuQuota": map[string]any{"timeUsed": fmt.Sprintf("%ds", used), "timeReserved": "0s",
+			"totalTimeAllowed": "108000s", "minimumTimeAllowed": "108000s"},
+		"tpuQuota": map[string]any{"timeUsed": "0s", "timeReserved": "0s",
+			"totalTimeAllowed": "72000s", "minimumTimeAllowed": "72000s"},
+	}
 }
 
 // fakeLogLine is one trainer line: "@@chibi " + {"v":1,"seq","ts","t", fields…}.
@@ -1435,7 +1437,7 @@ func TestFakeKaggleDatasetDownloadAndBuilders(t *testing.T) {
 		t.Fatalf("dataset %v %v", names, ok)
 	}
 	r, err := fakeExec(t, f, "", "get_dataset_status", "", "", map[string]any{"ownerSlug": "tester", "datasetSlug": "chibi-data-x"})
-	if err != nil || strings.ReplaceAll(string(r.Data), " ", "") != `{"status":"ready"}` {
+	if err != nil || strings.ReplaceAll(string(r.Data), " ", "") != `{"status":"READY"}` {
 		t.Fatalf("get_dataset_status: %s %v", r.Data, err)
 	}
 	if _, err := fakeExec(t, f, "", "get_dataset", "", "", map[string]any{"ownerSlug": "tester", "datasetSlug": "nope"}); !IsKaggleNotFound(err) {

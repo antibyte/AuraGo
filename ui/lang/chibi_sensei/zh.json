@@ -836,5 +836,9 @@
   "chibi_sensei.warning.kaggle_unavailable": "目前无法连接 Kaggle。AuraGo 会继续尝试。",
   "chibi_sensei.warning.desktop_readonly": "桌面处于只读模式。运行会等待，直到再次允许更改。",
   "chibi_sensei.warning.kaggle_refused": "此运行所需的某项 Kaggle 设置已关闭。运行会等待，直到它再次开启。",
-  "chibi_sensei.warning.staged_left": "此运行的部分临时文件无法从本机上 AuraGo 的 Kaggle 文件夹中删除。"
+  "chibi_sensei.warning.staged_left": "此运行的部分临时文件无法从本机上 AuraGo 的 Kaggle 文件夹中删除。",
+  "chibi_sensei.warning.batch_reduced": "按计划的批大小训练时，显卡内存不足。训练将改用更小的批次继续，耗时会稍长一些。",
+  "chibi_sensei.warning.eval_batch_reduced": "测量质量时显卡内存不足。测量会改为一次处理一行，继续进行。",
+  "chibi_sensei.warning.oom_step_skipped": "有一个训练步骤内存不足，已被跳过。过长的行可能会导致这种情况。",
+  "chibi_sensei.warning.rows_truncated": "部分行超过了最大长度，末尾已被截断。"
 }

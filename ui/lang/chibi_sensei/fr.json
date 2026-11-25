@@ -836,5 +836,9 @@
   "chibi_sensei.warning.kaggle_unavailable": "Kaggle est injoignable pour le moment. AuraGo continue d'essayer.",
   "chibi_sensei.warning.desktop_readonly": "Le bureau est en lecture seule. L'exécution attend que les modifications soient de nouveau autorisées.",
   "chibi_sensei.warning.kaggle_refused": "Un paramètre Kaggle dont cette exécution a besoin est désactivé. L'exécution attend qu'il soit réactivé.",
-  "chibi_sensei.warning.staged_left": "Certains fichiers temporaires de cette exécution n'ont pas pu être supprimés du dossier Kaggle d'AuraGo sur cet ordinateur."
+  "chibi_sensei.warning.staged_left": "Certains fichiers temporaires de cette exécution n'ont pas pu être supprimés du dossier Kaggle d'AuraGo sur cet ordinateur.",
+  "chibi_sensei.warning.batch_reduced": "La carte graphique a manqué de mémoire avec la taille de lot prévue. L'entraînement continue avec des lots plus petits et dure un peu plus longtemps.",
+  "chibi_sensei.warning.eval_batch_reduced": "La carte graphique a manqué de mémoire pendant la mesure de la qualité. La mesure continue ligne par ligne.",
+  "chibi_sensei.warning.oom_step_skipped": "Une étape d'entraînement a manqué de mémoire et a été ignorée. Des lignes très longues peuvent en être la cause.",
+  "chibi_sensei.warning.rows_truncated": "Certaines lignes dépassaient la longueur maximale et ont été coupées à la fin."
 }

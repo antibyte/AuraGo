@@ -35,7 +35,7 @@ var (
 )
 
 func newChibiStubKaggle() *chibiStubKaggle {
-	return &chibiStubKaggle{account: "tester", quota: json.RawMessage(`{"gpuQuota":{"remainingSeconds":108000}}`),
+	return &chibiStubKaggle{account: "tester", quota: json.RawMessage(`{"quotaRefreshTime":"2026-11-28T00:00:00Z","gpuQuota":{"timeUsed":"0s","timeReserved":"0s","totalTimeAllowed":"108000s","minimumTimeAllowed":"108000s"},"tpuQuota":{"timeUsed":"0s","timeReserved":"0s","totalTimeAllowed":"72000s","minimumTimeAllowed":"72000s"}}`),
 		env: chibiKaggleEnv{VaultAvailable: true, CredentialsStored: true}, counts: map[string]int{}}
 }
 
