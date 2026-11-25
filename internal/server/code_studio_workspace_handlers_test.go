@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"aurago/internal/credentials"
+	"aurago/internal/desktop"
 	"aurago/internal/inventory"
 	"aurago/internal/remote"
 	"aurago/internal/security"
@@ -132,5 +133,33 @@ func TestCodeStudioWorkspaceHostKeyContractAndLifecycle(t *testing.T) {
 	w, _ = postJSON(t, newH().handleRemoteTrust, "/api/code-studio/remote/trust", `{"device_id":"dev1","fingerprint":"`+fp+`"}`)
 	if w.Code != 409 {
 		t.Fatal("trust endpoint overrode a mismatch")
+	}
+}
+
+func TestCodeStudioRemoteDevicesCreateAndList(t *testing.T) {
+	f := startCodeStudioSSHFixture(t)
+	s, _ := codeStudioRemoteTestServer(t, f)
+	h := codeStudioHandlers{server: s, docker: &recordingCodeStudioDockerAPI{}}
+	w, m := postJSON(t, h.handleRemoteDevices, "/api/code-studio/remote/devices", `{"name":"Lab box","host":"10.0.0.5","port":2222,"username":"ana","auth":"password","secret":"s3cret"}`)
+	if w.Code != 201 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	dev := m["device"].(map[string]any)
+	id := dev["id"].(string)
+	if dev["host"] != "10.0.0.5" || dev["port"].(float64) != 2222 || dev["username"] != "ana" || dev["has_secret"] != true || strings.Contains(w.Body.String(), "s3cret") {
+		t.Fatal(w.Body.String())
+	}
+	access, err := desktop.ResolveSSHDevice(s.InventoryDB, s.Vault, id)
+	if err != nil || string(access.Secret) != "s3cret" || access.Username != "ana" || access.Port != 2222 {
+		t.Fatalf("%+v %v", access, err)
+	}
+	w, m = postJSON(t, h.handleRemoteDevices, "/api/code-studio/remote/devices", `{"name":"K","host":"h","username":"u","auth":"key","secret":"not a key"}`)
+	if w.Code != 400 || m["code"] != "invalid_private_key" {
+		t.Fatal(w.Body.String())
+	}
+	lw := httptest.NewRecorder()
+	h.handleRemoteDevices(lw, httptest.NewRequest(http.MethodGet, "/api/code-studio/remote/devices", nil))
+	if lw.Code != 200 || !strings.Contains(lw.Body.String(), `"Lab box"`) || !strings.Contains(lw.Body.String(), `"Fixture"`) || strings.Contains(lw.Body.String(), "vault") {
+		t.Fatal(lw.Body.String())
 	}
 }

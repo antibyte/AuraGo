@@ -1,13 +1,25 @@
 package server
 
 import (
+	"crypto"
+	"encoding/json"
+	"encoding/pem"
 	"errors"
+	"net"
 	"net/http"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
 
+	"aurago/internal/credentials"
 	"aurago/internal/desktop"
+	"aurago/internal/inventory"
+	"aurago/internal/security"
+	"aurago/internal/uid"
+
+	"golang.org/x/crypto/ssh"
 )
 
 func registerCodeStudioWorkspaceRoutes(mux *http.ServeMux, h codeStudioHandlers) {
@@ -255,10 +267,205 @@ func (h codeStudioHandlers) handleRemoteTrust(w http.ResponseWriter, r *http.Req
 	writeJSON(w, map[string]interface{}{"status": "ok"})
 }
 
-func (h codeStudioHandlers) handleRemoteDevices(w http.ResponseWriter, r *http.Request) {
+func (h codeStudioHandlers) handleRemoteBrowse(w http.ResponseWriter, r *http.Request) {
 	jsonError(w, "not implemented", http.StatusNotImplemented)
 }
 
-func (h codeStudioHandlers) handleRemoteBrowse(w http.ResponseWriter, r *http.Request) {
-	jsonError(w, "not implemented", http.StatusNotImplemented)
+type codeStudioRemoteDevice struct {
+	ID          string     `json:"id"`
+	Name        string     `json:"name"`
+	Host        string     `json:"host"`
+	Port        int        `json:"port"`
+	Username    string     `json:"username"`
+	Description string     `json:"description"`
+	Tags        []string   `json:"tags"`
+	HasSecret   bool       `json:"has_secret"`
+	LastUsedAt  *time.Time `json:"last_used_at,omitempty"`
+}
+
+func (h codeStudioHandlers) handleRemoteDevices(w http.ResponseWriter, r *http.Request) {
+	scope := desktopScopeRead
+	if r.Method == http.MethodPost {
+		scope = desktopScopeWrite
+	}
+	if !h.requirePermission(w, r, scope) {
+		return
+	}
+	if !codeStudioRemoteCallerAllowed(h.server, r) {
+		writeCodeStudioOpError(w, codeStudioRemoteScopeError())
+		return
+	}
+	if h.server == nil || h.server.InventoryDB == nil {
+		jsonError(w, "inventory database not configured", http.StatusServiceUnavailable)
+		return
+	}
+	switch r.Method {
+	case http.MethodGet:
+		h.listRemoteDevices(w, r)
+	case http.MethodPost:
+		h.createRemoteDevice(w, r)
+	default:
+		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func (h codeStudioHandlers) remoteDeviceSummary(d inventory.DeviceRecord, lastUsed map[string]time.Time) codeStudioRemoteDevice {
+	a := desktop.DescribeSSHDevice(h.server.InventoryDB, d)
+	out := codeStudioRemoteDevice{ID: d.ID, Name: d.Name, Host: a.Host, Port: a.Port, Username: a.Username, Description: d.Description,
+		Tags: append([]string{}, d.Tags...), HasSecret: strings.TrimSpace(d.VaultSecretID) != "" || strings.TrimSpace(d.CredentialID) != ""}
+	if t, ok := lastUsed[d.ID]; ok {
+		out.LastUsedAt = &t
+	}
+	return out
+}
+
+func (h codeStudioHandlers) listRemoteDevices(w http.ResponseWriter, r *http.Request) {
+	devices, err := inventory.ListAllDevices(h.server.InventoryDB)
+	if err != nil {
+		jsonError(w, "Failed to list devices", http.StatusInternalServerError)
+		return
+	}
+	lastUsed := map[string]time.Time{}
+	if store, err := h.workspaceStore(r.Context()); err == nil {
+		if recs, err := store.List(r.Context()); err == nil {
+			for _, rec := range recs {
+				if rec.LastUsedAt.After(lastUsed[rec.DeviceID]) {
+					lastUsed[rec.DeviceID] = rec.LastUsedAt
+				}
+			}
+		}
+	}
+	out := []codeStudioRemoteDevice{}
+	for _, d := range devices {
+		if p := strings.ToLower(strings.TrimSpace(d.Protocol)); p == "" || p == inventory.ProtocolSSH {
+			out = append(out, h.remoteDeviceSummary(d, lastUsed))
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return strings.ToLower(out[i].Name) < strings.ToLower(out[j].Name) })
+	writeJSON(w, map[string]interface{}{"status": "ok", "devices": out})
+}
+
+func codeStudioValidHost(host string) bool {
+	if host == "" || len(host) > 253 {
+		return false
+	}
+	for _, c := range host {
+		if !(c == '.' || c == '-' || c == ':' || c == '_' || c == '%' || c == '[' || c == ']' ||
+			(c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
+			return false
+		}
+	}
+	return true
+}
+
+// codeStudioPrepareSSHKey validates a private key; a passphrase-protected key is decrypted
+// and stored unencrypted in the (encrypted) vault, because the SSH dial path has no
+// passphrase support.
+func codeStudioPrepareSSHKey(secret, passphrase string) (string, error) {
+	if passphrase == "" {
+		if _, err := ssh.ParsePrivateKey([]byte(secret)); err != nil {
+			var missing *ssh.PassphraseMissingError
+			if errors.As(err, &missing) {
+				return "", &codeStudioRemoteError{Status: http.StatusBadRequest, Code: "passphrase_required", Message: "the private key needs its passphrase"}
+			}
+			return "", &codeStudioRemoteError{Status: http.StatusBadRequest, Code: "invalid_private_key", Message: "the private key could not be read"}
+		}
+		return secret, nil
+	}
+	raw, err := ssh.ParseRawPrivateKeyWithPassphrase([]byte(secret), []byte(passphrase))
+	if err != nil {
+		return "", &codeStudioRemoteError{Status: http.StatusBadRequest, Code: "invalid_private_key", Message: "wrong passphrase or unreadable private key"}
+	}
+	block, err := ssh.MarshalPrivateKey(crypto.PrivateKey(raw), "")
+	if err != nil {
+		return "", &codeStudioRemoteError{Status: http.StatusBadRequest, Code: "invalid_private_key", Message: "the private key type is not supported"}
+	}
+	return string(pem.EncodeToMemory(block)), nil
+}
+
+func (h codeStudioHandlers) createRemoteDevice(w http.ResponseWriter, r *http.Request) {
+	if h.server.Vault == nil {
+		jsonError(w, "vault not configured", http.StatusServiceUnavailable)
+		return
+	}
+	var body struct {
+		Name       string `json:"name"`
+		Host       string `json:"host"`
+		Port       int    `json:"port"`
+		Username   string `json:"username"`
+		Auth       string `json:"auth"`
+		Secret     string `json:"secret"`
+		Passphrase string `json:"passphrase"`
+	}
+	if err := decodeJSONRequest(w, r, &body, h.server); err != nil {
+		jsonError(w, "Invalid JSON", jsonDecodeStatus(err))
+		return
+	}
+	name, host, user := strings.TrimSpace(body.Name), strings.TrimSpace(body.Host), strings.TrimSpace(body.Username)
+	if body.Port == 0 {
+		body.Port = 22
+	}
+	switch {
+	case name == "" || len([]rune(name)) > 100 || strings.IndexFunc(name, unicode.IsControl) >= 0:
+		jsonError(w, "name is required (max 100 characters)", http.StatusBadRequest)
+		return
+	case !codeStudioValidHost(host):
+		jsonError(w, "host is invalid", http.StatusBadRequest)
+		return
+	case body.Port < 1 || body.Port > 65535:
+		jsonError(w, "port must be 1-65535", http.StatusBadRequest)
+		return
+	case user == "" || strings.IndexFunc(user, unicode.IsSpace) >= 0:
+		jsonError(w, "username is required", http.StatusBadRequest)
+		return
+	case body.Secret == "":
+		jsonError(w, "secret is required", http.StatusBadRequest)
+		return
+	}
+	rec := credentials.Record{Name: name + " (SSH)", Type: "ssh", Host: host, Username: user, Description: "Created by Code Studio"}
+	secret := body.Secret
+	switch body.Auth {
+	case "password":
+		rec.PasswordVaultID = "credential_password_" + uid.NewString()
+	case "key":
+		prepared, err := codeStudioPrepareSSHKey(strings.TrimSpace(body.Secret), body.Passphrase)
+		if err != nil {
+			writeCodeStudioOpError(w, err)
+			return
+		}
+		secret = prepared
+		rec.CertificateVaultID = "credential_certificate_" + uid.NewString()
+	default:
+		jsonError(w, `auth must be "password" or "key"`, http.StatusBadRequest)
+		return
+	}
+	vaultID := rec.PasswordVaultID + rec.CertificateVaultID
+	security.RegisterSensitive(secret)
+	if err := h.server.Vault.WriteSecret(vaultID, secret); err != nil {
+		jsonError(w, "failed to store the secret in the vault", http.StatusInternalServerError)
+		return
+	}
+	credID, err := credentials.Create(h.server.InventoryDB, rec)
+	if err != nil {
+		_ = h.server.Vault.DeleteSecret(vaultID)
+		jsonError(w, "Failed to create credential", http.StatusInternalServerError)
+		return
+	}
+	id, err := inventory.CreateDevice(h.server.InventoryDB, name, "server", inventory.ProtocolSSH, host, body.Port, "", "", credID,
+		"Created by Code Studio", []string{"code-studio"}, "")
+	if err != nil {
+		_ = credentials.Delete(h.server.InventoryDB, credID)
+		_ = h.server.Vault.DeleteSecret(vaultID)
+		status := http.StatusInternalServerError
+		if strings.Contains(strings.ToUpper(err.Error()), "UNIQUE") {
+			status = http.StatusConflict
+		}
+		jsonError(w, "Failed to create device", status)
+		return
+	}
+	device, _ := inventory.GetDeviceByID(h.server.InventoryDB, id)
+	h.auditCodeStudioRemote(r, "code_studio_device_create", id, map[string]interface{}{"host": net.JoinHostPort(host, strconv.Itoa(body.Port))})
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "device": h.remoteDeviceSummary(device, nil)})
 }
