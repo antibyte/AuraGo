@@ -609,14 +609,14 @@ func (h codeStudioHandlers) handleGitStatus(w http.ResponseWriter, r *http.Reque
 		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	_, containerID, err := h.codeContainer(r.Context(), true)
+	b, err := h.backendFor(r)
 	if err != nil {
-		jsonError(w, err.Error(), http.StatusServiceUnavailable)
+		writeCodeStudioBackendError(w, err)
 		return
 	}
-	statusResult, err := h.execGit(r.Context(), containerID, 15*time.Second, "status", "--porcelain=v1", "-z")
+	statusResult, err := b.Git(r.Context(), 15*time.Second, "status", "--porcelain=v1", "-z")
 	if err != nil {
-		jsonError(w, err.Error(), http.StatusBadGateway)
+		writeCodeStudioOpError(w, err)
 		return
 	}
 	changes := []map[string]string{}
@@ -627,12 +627,12 @@ func (h codeStudioHandlers) handleGitStatus(w http.ResponseWriter, r *http.Reque
 	isRepo := true
 	if statusResult.ExitCode == 0 {
 		changes = parseGitPorcelain(statusResult.Output)
-		if result, err := h.execGit(r.Context(), containerID, 10*time.Second, "branch", "--show-current"); err == nil && result.ExitCode == 0 {
+		if result, err := b.Git(r.Context(), 10*time.Second, "branch", "--show-current"); err == nil && result.ExitCode == 0 {
 			branch = strings.TrimSpace(result.Output)
 		}
 		// A new repository has no log yet. Neither that error nor a missing
 		// repository should appear as a branch, file change or commit.
-		if result, err := h.execGit(r.Context(), containerID, 10*time.Second, codeStudioGitLogArgs(10)...); err == nil && result.ExitCode == 0 {
+		if result, err := b.Git(r.Context(), 10*time.Second, codeStudioGitLogArgs(10)...); err == nil && result.ExitCode == 0 {
 			logEntries = parseGitLog(result.Output)
 		}
 	} else if codeStudioGitNotRepository(statusResult.Output) {
@@ -665,14 +665,14 @@ func (h codeStudioHandlers) handleGitDiff(w http.ResponseWriter, r *http.Request
 	if file != "" {
 		args = append(args, "--", file)
 	}
-	_, containerID, err := h.codeContainer(r.Context(), true)
+	b, err := h.backendFor(r)
 	if err != nil {
-		jsonError(w, err.Error(), http.StatusServiceUnavailable)
+		writeCodeStudioBackendError(w, err)
 		return
 	}
-	result, err := h.execGit(r.Context(), containerID, 30*time.Second, args...)
+	result, err := b.Git(r.Context(), 30*time.Second, args...)
 	if err != nil {
-		jsonError(w, err.Error(), http.StatusBadGateway)
+		writeCodeStudioOpError(w, err)
 		return
 	}
 	if result.ExitCode != 0 {
@@ -724,15 +724,15 @@ func (h codeStudioHandlers) handleGitCommit(w http.ResponseWriter, r *http.Reque
 			rels = append(rels, rel)
 		}
 	}
-	_, containerID, err := h.codeContainer(r.Context(), true)
+	b, err := h.backendFor(r)
 	if err != nil {
-		jsonError(w, err.Error(), http.StatusServiceUnavailable)
+		writeCodeStudioBackendError(w, err)
 		return
 	}
 	if body.AddAll {
-		result, err := h.execGit(r.Context(), containerID, 30*time.Second, "add", "-A")
+		result, err := b.Git(r.Context(), 30*time.Second, "add", "-A")
 		if err != nil {
-			jsonError(w, err.Error(), http.StatusBadGateway)
+			writeCodeStudioOpError(w, err)
 			return
 		}
 		if result.ExitCode != 0 {
@@ -741,9 +741,9 @@ func (h codeStudioHandlers) handleGitCommit(w http.ResponseWriter, r *http.Reque
 		}
 	} else {
 		for _, rel := range rels {
-			result, err := h.execGit(r.Context(), containerID, 30*time.Second, "add", "--", rel)
+			result, err := b.Git(r.Context(), 30*time.Second, "add", "--", rel)
 			if err != nil {
-				jsonError(w, err.Error(), http.StatusBadGateway)
+				writeCodeStudioOpError(w, err)
 				return
 			}
 			if result.ExitCode != 0 {
@@ -752,9 +752,9 @@ func (h codeStudioHandlers) handleGitCommit(w http.ResponseWriter, r *http.Reque
 			}
 		}
 	}
-	result, err := h.execGit(r.Context(), containerID, 30*time.Second, "commit", "-m", message)
+	result, err := b.Git(r.Context(), 30*time.Second, "commit", "-m", message)
 	if err != nil {
-		jsonError(w, err.Error(), http.StatusBadGateway)
+		writeCodeStudioOpError(w, err)
 		return
 	}
 	if result.ExitCode != 0 {
@@ -765,7 +765,7 @@ func (h codeStudioHandlers) handleGitCommit(w http.ResponseWriter, r *http.Reque
 		jsonError(w, codeStudioGitExecError(result.Output, "commit failed"), http.StatusBadRequest)
 		return
 	}
-	hashResult, _ := h.execGit(r.Context(), containerID, 5*time.Second, "rev-parse", "--short", "HEAD")
+	hashResult, _ := b.Git(r.Context(), 5*time.Second, "rev-parse", "--short", "HEAD")
 	writeJSON(w, map[string]interface{}{"status": "ok", "hash": strings.TrimSpace(hashResult.Output)})
 }
 
@@ -780,7 +780,12 @@ func (h codeStudioHandlers) handleGitBranch(w http.ResponseWriter, r *http.Reque
 		if !h.requirePermission(w, r, desktopScopeRead) {
 			return
 		}
-		h.listGitBranches(w, r)
+		b, err := h.backendFor(r)
+		if err != nil {
+			writeCodeStudioBackendError(w, err)
+			return
+		}
+		h.listGitBranches(w, r, b)
 	case http.MethodPost:
 		if !h.requirePermission(w, r, desktopScopeWrite) {
 			return
@@ -794,22 +799,17 @@ func (h codeStudioHandlers) handleGitBranch(w http.ResponseWriter, r *http.Reque
 	}
 }
 
-func (h codeStudioHandlers) listGitBranches(w http.ResponseWriter, r *http.Request) {
-	_, containerID, err := h.codeContainer(r.Context(), true)
+func (h codeStudioHandlers) listGitBranches(w http.ResponseWriter, r *http.Request, b codeStudioBackend) {
+	listResult, err := b.Git(r.Context(), 10*time.Second, "branch", "-a")
 	if err != nil {
-		jsonError(w, err.Error(), http.StatusServiceUnavailable)
-		return
-	}
-	listResult, err := h.execGit(r.Context(), containerID, 10*time.Second, "branch", "-a")
-	if err != nil {
-		jsonError(w, err.Error(), http.StatusBadGateway)
+		writeCodeStudioOpError(w, err)
 		return
 	}
 	branches := []string{}
 	current := ""
 	if listResult.ExitCode == 0 {
 		branches = parseGitBranches(listResult.Output)
-		if result, err := h.execGit(r.Context(), containerID, 5*time.Second, "branch", "--show-current"); err == nil && result.ExitCode == 0 {
+		if result, err := b.Git(r.Context(), 5*time.Second, "branch", "--show-current"); err == nil && result.ExitCode == 0 {
 			current = strings.TrimSpace(result.Output)
 		}
 	}
@@ -839,9 +839,9 @@ func (h codeStudioHandlers) mutateGitBranch(w http.ResponseWriter, r *http.Reque
 		jsonError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	_, containerID, err := h.codeContainer(r.Context(), true)
+	b, err := h.backendFor(r)
 	if err != nil {
-		jsonError(w, err.Error(), http.StatusServiceUnavailable)
+		writeCodeStudioBackendError(w, err)
 		return
 	}
 	args := []string{"switch", name}
@@ -850,9 +850,9 @@ func (h codeStudioHandlers) mutateGitBranch(w http.ResponseWriter, r *http.Reque
 	case "create":
 		args = []string{"switch", "-c", name}
 	case "delete":
-		current, err := h.execGit(r.Context(), containerID, 5*time.Second, "branch", "--show-current")
+		current, err := b.Git(r.Context(), 5*time.Second, "branch", "--show-current")
 		if err != nil {
-			jsonError(w, err.Error(), http.StatusBadGateway)
+			writeCodeStudioOpError(w, err)
 			return
 		}
 		if current.ExitCode == 0 && strings.TrimSpace(current.Output) == name {
@@ -863,16 +863,19 @@ func (h codeStudioHandlers) mutateGitBranch(w http.ResponseWriter, r *http.Reque
 		args = []string{"branch", "-d", name}
 		fallback = "git branch -d failed"
 	}
-	result, err := h.execGit(r.Context(), containerID, 15*time.Second, args...)
+	result, err := b.Git(r.Context(), 15*time.Second, args...)
 	if err != nil {
-		jsonError(w, err.Error(), http.StatusBadGateway)
+		writeCodeStudioOpError(w, err)
 		return
 	}
 	if result.ExitCode != 0 {
 		jsonError(w, codeStudioGitExecError(result.Output, fallback), http.StatusBadRequest)
 		return
 	}
-	h.listGitBranches(w, r)
+	if action == "create" || action == "switch" {
+		h.notifyWorkspaceChange(b.Info().ID)
+	}
+	h.listGitBranches(w, r, b)
 }
 
 func (h codeStudioHandlers) handleGitIdentity(w http.ResponseWriter, r *http.Request) {
@@ -904,18 +907,18 @@ func (h codeStudioHandlers) handleGitIdentity(w http.ResponseWriter, r *http.Req
 		jsonError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	_, containerID, err := h.codeContainer(r.Context(), true)
+	b, err := h.backendFor(r)
 	if err != nil {
-		jsonError(w, err.Error(), http.StatusServiceUnavailable)
+		writeCodeStudioBackendError(w, err)
 		return
 	}
 	for _, args := range [][]string{
 		{"config", "--local", "user.name", name},
 		{"config", "--local", "user.email", email},
 	} {
-		result, err := h.execGit(r.Context(), containerID, 10*time.Second, args...)
+		result, err := b.Git(r.Context(), 10*time.Second, args...)
 		if err != nil {
-			jsonError(w, err.Error(), http.StatusBadGateway)
+			writeCodeStudioOpError(w, err)
 			return
 		}
 		if result.ExitCode != 0 {
@@ -1029,14 +1032,14 @@ func (h codeStudioHandlers) handleGitLog(w http.ResponseWriter, r *http.Request)
 		}
 		args = append(args, "--", rel)
 	}
-	_, containerID, err := h.codeContainer(r.Context(), true)
+	b, err := h.backendFor(r)
 	if err != nil {
-		jsonError(w, err.Error(), http.StatusServiceUnavailable)
+		writeCodeStudioBackendError(w, err)
 		return
 	}
-	result, err := h.execGit(r.Context(), containerID, 15*time.Second, args...)
+	result, err := b.Git(r.Context(), 15*time.Second, args...)
 	if err != nil {
-		jsonError(w, err.Error(), http.StatusBadGateway)
+		writeCodeStudioOpError(w, err)
 		return
 	}
 	entries := []map[string]string{}
