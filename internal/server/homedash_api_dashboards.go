@@ -280,3 +280,142 @@ func homeDashNonNil[T any](list []T) []T {
 	}
 	return list
 }
+
+// homeDashCopyName appends " (copy)" and keeps the result within 80 runes.
+func homeDashCopyName(name string) string {
+	const suffix = " (copy)"
+	runes := []rune(name)
+	if limit := 80 - len([]rune(suffix)); len(runes) > limit {
+		runes = runes[:limit]
+	}
+	return string(runes) + suffix
+}
+
+type homeDashDuplicateRequest struct {
+	Name string `json:"name"`
+}
+
+func (h *hdRequest) duplicateDashboard() {
+	id, ok := h.dashboardID()
+	if !ok {
+		return
+	}
+	var req homeDashDuplicateRequest
+	if !h.decodeOptional(&req, homeDashSmallBody) {
+		return
+	}
+	src, err := h.svc.store.GetDashboard(h.r.Context(), id)
+	if err != nil {
+		h.fail(err) // schema_too_new is refused (409): a copy would drop unknown fields
+		return
+	}
+	base := src.Slug + "-copy"
+	if req.Name != "" {
+		src.Name = req.Name
+	} else {
+		src.Name = homeDashCopyName(src.Name)
+	}
+	src.Slug = ""
+	saved, rep, err := h.svc.saveNew(h.r.Context(), src, base)
+	if err != nil {
+		h.fail(err)
+		return
+	}
+	homeDashWriteOK(h.w, http.StatusCreated, map[string]any{"dashboard": saved, "warnings": homeDashNonNil(rep.Warnings)})
+}
+
+func (h *hdRequest) listRevisions() {
+	id, ok := h.dashboardID()
+	if !ok {
+		return
+	}
+	list, err := h.svc.store.Revisions(h.r.Context(), id)
+	if err != nil {
+		h.fail(err)
+		return
+	}
+	homeDashWriteOK(h.w, http.StatusOK, map[string]any{"revisions": homeDashNonNil(list)})
+}
+
+func (h *hdRequest) restoreDashboard() {
+	id, ok := h.dashboardID()
+	if !ok {
+		return
+	}
+	rev, ok := h.revisionParam()
+	if !ok {
+		return
+	}
+	ctx := h.r.Context()
+	old, err := h.svc.store.GetRevision(ctx, id, rev)
+	if err != nil {
+		h.fail(err)
+		return
+	}
+	cur, err := h.svc.store.GetDashboard(ctx, id)
+	if err != nil {
+		h.fail(err)
+		return
+	}
+	saved, rep, err := h.svc.saveExisting(ctx, id, cur.Revision, old)
+	if err != nil {
+		h.fail(err)
+		return
+	}
+	homeDashWriteOK(h.w, http.StatusOK, map[string]any{"dashboard": saved, "warnings": homeDashNonNil(rep.Warnings)})
+}
+
+func (h *hdRequest) approveDashboard() {
+	id, ok := h.dashboardID()
+	if !ok {
+		return
+	}
+	rev, ok := h.revisionParam()
+	if !ok {
+		return
+	}
+	ctx := h.r.Context()
+	if _, err := h.svc.store.GetDashboard(ctx, id); err != nil {
+		h.fail(err) // unknown dashboard or a newer schema: nothing approved
+		return
+	}
+	d, err := h.svc.store.Approve(ctx, id, rev)
+	if err != nil {
+		h.fail(err)
+		return
+	}
+	h.svc.hub.DashboardChanged(d.ID, d.Revision, d.ApprovedRevision)
+	homeDashWriteOK(h.w, http.StatusOK, map[string]any{"dashboard": d})
+}
+
+type homeDashValidateRequest struct {
+	Document json.RawMessage `json:"document"`
+}
+
+// validateDashboard runs the save pipeline without saving. An empty slug is derived from the name
+// (uniqueness is checked only on create).
+func (h *hdRequest) validateDashboard() {
+	var req homeDashValidateRequest
+	if !h.decode(&req, homeDashDocumentBody) {
+		return
+	}
+	if len(req.Document) == 0 {
+		h.bad("document is required")
+		return
+	}
+	doc, err := homedash.DecodeDashboard(req.Document)
+	if err != nil {
+		h.fail(err)
+		return
+	}
+	if doc.Slug == "" {
+		doc.Slug = homeDashSlug(doc.Name)
+	}
+	rep, err := h.svc.prepare(h.r.Context(), &doc)
+	var he *homedash.Error
+	if err != nil && !(errors.As(err, &he) && he.Code == homedash.CodeInvalidDocument) {
+		h.fail(err)
+		return
+	}
+	homeDashWriteOK(h.w, http.StatusOK, map[string]any{"valid": rep.OK(), "issues": homeDashNonNil(rep.Issues), "warnings": homeDashNonNil(rep.Warnings), "document": doc})
+}

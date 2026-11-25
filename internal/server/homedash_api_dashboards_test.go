@@ -207,3 +207,70 @@ func assertStarterMatchesContract(t *testing.T, answer []byte) {
 		t.Fatalf("starter template differs from the contract example: %s", g)
 	}
 }
+
+func TestHomeDashDuplicateRestoreApproveRevisionsValidate(t *testing.T) {
+	env := newHomeDashTestEnv(t, nil)
+	var c hdSaved
+	hdDecode(t, env.do(t, env.admin, http.MethodPost, "dashboards", map[string]any{"document": minimalDoc("A")}), &c)
+	d := c.Dashboard
+	q := "?id=" + d.ID
+	d.Name = "B"
+	if w := env.do(t, env.admin, http.MethodPut, "dashboard"+q, map[string]any{"revision": 1, "document": d}); w.Code != 200 {
+		t.Fatalf("update = %d %s", w.Code, w.Body.String())
+	}
+	var revs struct{ Revisions []homedash.RevisionInfo }
+	hdDecode(t, env.do(t, env.admin, http.MethodGet, "dashboard/revisions"+q, nil), &revs)
+	if len(revs.Revisions) != 2 || revs.Revisions[0].Revision != 2 || revs.Revisions[1].Revision != 1 {
+		t.Fatalf("revisions = %+v", revs)
+	}
+	w := env.do(t, env.admin, http.MethodPost, "dashboard/restore"+q+"&revision=1", nil)
+	var r hdSaved
+	hdDecode(t, w, &r)
+	if w.Code != 200 || r.Dashboard.Revision != 3 || r.Dashboard.Name != "A" || r.Dashboard.ApprovedRevision != 3 {
+		t.Fatalf("restore = %d %s", w.Code, w.Body.String())
+	}
+	w = env.do(t, env.admin, http.MethodPost, "dashboard/approve"+q+"&revision=2", nil)
+	var a hdSaved
+	hdDecode(t, w, &a)
+	if w.Code != 200 || a.Dashboard.ApprovedRevision != 2 || a.Dashboard.Revision != 3 {
+		t.Fatalf("approve = %d %s", w.Code, w.Body.String())
+	}
+	for _, p := range []string{"dashboard/approve", "dashboard/restore"} {
+		if w := env.do(t, env.admin, http.MethodPost, p+q+"&revision=99", nil); w.Code != http.StatusNotFound || hdCode(t, w) != "revision_not_found" {
+			t.Fatalf("%s 99 = %d %s", p, w.Code, w.Body.String())
+		}
+	}
+	w = env.do(t, env.admin, http.MethodPost, "dashboard/duplicate"+q, nil)
+	var dup hdSaved
+	hdDecode(t, w, &dup)
+	if w.Code != http.StatusCreated || dup.Dashboard.Name != "A (copy)" || dup.Dashboard.Slug != "a-copy" || dup.Dashboard.Revision != 1 || dup.Dashboard.ID == d.ID {
+		t.Fatalf("duplicate = %d %s", w.Code, w.Body.String())
+	}
+	hdDecode(t, env.do(t, env.admin, http.MethodPost, "dashboard/duplicate"+q, map[string]any{"name": "Second"}), &dup)
+	if dup.Dashboard.Name != "Second" || dup.Dashboard.Slug != "a-copy-2" {
+		t.Fatalf("named duplicate = %+v", dup.Dashboard)
+	}
+	var v struct {
+		Valid    bool               `json:"valid"`
+		Issues   []homedash.Issue   `json:"issues"`
+		Document homedash.Dashboard `json:"document"`
+	}
+	hdDecode(t, env.do(t, env.admin, http.MethodPost, "dashboards/validate", map[string]any{"document": minimalDoc("V")}), &v)
+	if !v.Valid || v.Document.Slug != "v" || v.Document.Kiosk == nil || v.Document.Kiosk.StartPage != "main" {
+		t.Fatalf("validate valid = %+v", v)
+	}
+	hdDecode(t, env.do(t, env.admin, http.MethodPost, "dashboards/validate", map[string]any{"document": map[string]any{"name": "V"}}), &v)
+	if v.Valid || !slices.ContainsFunc(v.Issues, func(i homedash.Issue) bool { return i.Path == "/pages" }) {
+		t.Fatalf("validate invalid = %+v", v)
+	}
+}
+
+func TestHomeDashValidateWorksOnReadOnlyDesktop(t *testing.T) {
+	env := newHomeDashTestEnv(t, func(c *config.Config) { c.VirtualDesktop.ReadOnly = true })
+	if w := env.do(t, env.admin, http.MethodPost, "dashboards/validate", map[string]any{"document": minimalDoc("V")}); w.Code != http.StatusOK {
+		t.Fatalf("validate on a read-only desktop = %d %s", w.Code, w.Body.String())
+	}
+	if w := env.do(t, env.admin, http.MethodPost, "dashboard/duplicate?id=d_aaaaaaaaaaaa", nil); w.Code != http.StatusForbidden || hdCode(t, w) != "desktop_readonly" {
+		t.Fatalf("duplicate on a read-only desktop = %d %s", w.Code, w.Body.String())
+	}
+}
