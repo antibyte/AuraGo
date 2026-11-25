@@ -39,6 +39,7 @@ const (
 	homeDashCodeStorageUnavailable = "storage_unavailable"
 	homeDashCodeTimeout            = "timeout"
 	homeDashCodeInternal           = "internal_error"
+	homeDashCodeTemplateEmpty      = "template_empty"
 )
 
 // hdRequest is one routed HomeDash request with the configuration read once.
@@ -171,7 +172,7 @@ func homeDashStatus(code string) int {
 		return http.StatusConflict
 	case homeDashCodeBodyTooLarge:
 		return http.StatusRequestEntityTooLarge
-	case homedash.CodeInvalidDocument, homedash.CodeInvalidPatch, homedash.CodeLimitExceeded:
+	case homedash.CodeInvalidDocument, homedash.CodeInvalidPatch, homedash.CodeLimitExceeded, homeDashCodeTemplateEmpty:
 		return http.StatusUnprocessableEntity
 	case homedash.CodeRateLimited, homedash.CodeTooManyStreams:
 		return http.StatusTooManyRequests
@@ -320,7 +321,7 @@ func (h *hdRequest) bootstrap() {
 			"document_bytes": cat.Limits.DocumentBytes, "history_points": homedash.MaxHistoryPoints,
 			"history_range_seconds": int(homedash.MaxHistoryRange / time.Second),
 		},
-		"templates": []string{homeDashTemplateSystem},
+		"templates": h.svc.templates(),
 		"sources":   h.svc.hub.Sources(),
 	})
 }

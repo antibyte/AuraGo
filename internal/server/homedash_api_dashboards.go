@@ -166,9 +166,10 @@ func (h *hdRequest) listDashboards() {
 }
 
 type homeDashCreateRequest struct {
-	Document json.RawMessage `json:"document"`
-	Template string          `json:"template"`
-	Name     string          `json:"name"`
+	Document        json.RawMessage `json:"document"`
+	Template        string          `json:"template"`
+	Name            string          `json:"name"`
+	UnassignedTitle string          `json:"unassigned_title"`
 }
 
 func (h *hdRequest) createDashboard() {
@@ -178,21 +179,29 @@ func (h *hdRequest) createDashboard() {
 	}
 	var doc homedash.Dashboard
 	slugBase := ""
+	var extra map[string]any
 	switch {
-	case len(req.Document) > 0 && req.Template == "" && req.Name == "":
+	case len(req.Document) > 0 && req.Template == "" && req.Name == "" && req.UnassignedTitle == "":
 		d, err := homedash.DecodeDashboard(req.Document)
 		if err != nil {
 			h.fail(err)
 			return
 		}
 		doc = d
-	case len(req.Document) == 0 && req.Template == homeDashTemplateSystem:
+	case len(req.Document) == 0 && req.Template == homeDashTemplateSystem && req.UnassignedTitle == "":
 		doc, slugBase = homeDashStarterSystem(req.Name), homeDashTemplateSystem
-	case len(req.Document) == 0 && req.Template != "":
+	case len(req.Document) == 0 && req.Template == homeDashTemplateHomeAssistant:
+		d, omitted, err := h.svc.homeAssistantTemplate(h.r.Context(), req.Name, req.UnassignedTitle)
+		if err != nil {
+			h.fail(err)
+			return
+		}
+		doc, slugBase, extra = d, homeDashHASlugBase, map[string]any{"omitted": omitted}
+	case len(req.Document) == 0 && req.Template != "" && req.Template != homeDashTemplateSystem:
 		h.bad("unknown template")
 		return
 	default:
-		h.bad("send either a document or a template")
+		h.bad("send either a document or a template; unassigned_title belongs to the home_assistant template")
 		return
 	}
 	saved, rep, err := h.svc.saveNew(h.r.Context(), doc, slugBase)
@@ -200,7 +209,11 @@ func (h *hdRequest) createDashboard() {
 		h.fail(err)
 		return
 	}
-	homeDashWriteOK(h.w, http.StatusCreated, map[string]any{"dashboard": saved, "warnings": homeDashNonNil(rep.Warnings)})
+	fields := map[string]any{"dashboard": saved, "warnings": homeDashNonNil(rep.Warnings)}
+	for k, v := range extra {
+		fields[k] = v
+	}
+	homeDashWriteOK(h.w, http.StatusCreated, fields)
 }
 
 func (h *hdRequest) getDashboard() {

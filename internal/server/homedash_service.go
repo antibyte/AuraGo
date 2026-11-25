@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"log/slog"
+	"sync/atomic"
 	"time"
 
 	"aurago/internal/config"
@@ -20,6 +21,10 @@ type homeDashService struct {
 	specs    []homeDashSourceSpec
 	coalesce time.Duration // the stream writer flushes at most once per interval
 	log      *slog.Logger
+	ctx      context.Context    // service lifetime: the server context, cancelled by close; background catalog refreshes stop with it
+	cancel   context.CancelFunc // ends ctx
+	haProbe  atomic.Bool        // one background HA catalog refresh at a time (templates)
+	streams  atomic.Int64       // open SSE streams (endHomeDashStreams waits for them, Task 12)
 }
 
 // homeDashDeps are the parts newHomeDashService does not build itself.
@@ -49,7 +54,8 @@ func newHomeDashService(parent context.Context, dbPath string, cfg *config.Confi
 	for _, spec := range deps.Sources {
 		hub.Register(spec.ID, spec.Factory)
 	}
-	svc := &homeDashService{hub: hub, store: store, cat: homedash.Catalog(), specs: deps.Sources, coalesce: coalesce, log: logger}
+	sctx, cancel := context.WithCancel(parent)
+	svc := &homeDashService{hub: hub, store: store, cat: homedash.Catalog(), specs: deps.Sources, coalesce: coalesce, log: logger, ctx: sctx, cancel: cancel}
 	svc.reconfigure(cfg)
 	return svc, nil
 }
@@ -63,6 +69,7 @@ func (svc *homeDashService) reconfigure(cfg *config.Config) {
 
 // close ends every stream ("shutdown"), stops the sources (waits up to 10 s) and closes the store.
 func (svc *homeDashService) close() {
+	svc.cancel()
 	svc.hub.Close()
 	if err := svc.store.Close(); err != nil {
 		svc.log.Warn("[HomeDash] Store did not close cleanly", "error", err)
