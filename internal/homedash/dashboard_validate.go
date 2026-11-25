@@ -223,6 +223,9 @@ func (v *validator) widget(path string, w Widget, pages, seen map[string]bool) {
 		v.enum(path+"/family", w.Family, v.cat.Families...)
 	}
 	v.text(path+"/title", w.Title, 0, 80)
+	if w.Icon != "" && !ValidIcon(w.Icon) {
+		v.err(path+"/icon", IssueBadFormat, "invalid icon id")
+	}
 	if len(w.Bindings) > v.cat.Limits.Bindings {
 		v.err(path+"/bindings", IssueTooMany, "too many bindings")
 	}

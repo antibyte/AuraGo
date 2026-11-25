@@ -86,6 +86,7 @@ type Widget struct {
 	Variant  string            `json:"variant"`
 	Family   string            `json:"family,omitempty"`
 	Title    string            `json:"title,omitempty"`
+	Icon     string            `json:"icon,omitempty"` // optional glyph name (IconNames); absent = the bound entity's icon_hint
 	Bindings map[string]string `json:"bindings"`
 	Options  map[string]any    `json:"options"`
 	Actions  WidgetActions     `json:"actions"`

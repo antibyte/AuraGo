@@ -144,6 +144,9 @@ func applyOp(d *Dashboard, op PatchOp) error {
 			if src.Title != "" {
 				dst.Title = src.Title
 			}
+			if src.Icon != "" {
+				dst.Icon = src.Icon
+			}
 			if src.Bindings != nil {
 				dst.Bindings = src.Bindings
 			}
