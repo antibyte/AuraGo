@@ -86,7 +86,6 @@ func TestCodeStudioExecArgvMatchesLegacyNormalize(t *testing.T) {
 }
 
 func TestCodeStudioBackendForSelectsLocalOrRejects(t *testing.T) {
-	t.Skip("Task 3")
 	s := testCodeStudioServerWithFakeCodeContainer(t, 1)
 	h := codeStudioHandlers{server: s, docker: &recordingCodeStudioDockerAPI{}}
 	for _, ws := range []string{"", "local"} {

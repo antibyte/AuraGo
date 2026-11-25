@@ -161,24 +161,14 @@ func (h codeStudioHandlers) handleFiles(w http.ResponseWriter, r *http.Request) 
 		jsonError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	_, containerID, err := h.codeContainer(r.Context(), true)
+	b, err := h.backendFor(r)
 	if err != nil {
-		jsonError(w, err.Error(), http.StatusServiceUnavailable)
+		writeCodeStudioBackendError(w, err)
 		return
 	}
-	cmd := codeStudioPathCommand("list", path)
-	result, err := h.docker.Exec(r.Context(), containerID, cmd, 30*time.Second)
+	entries, err := b.List(r.Context(), path)
 	if err != nil {
-		jsonError(w, err.Error(), http.StatusBadGateway)
-		return
-	}
-	if result.ExitCode != 0 {
-		jsonError(w, strings.TrimSpace(result.Output), http.StatusBadRequest)
-		return
-	}
-	entries, err := parseCodeStudioFindOutput(result.Output)
-	if err != nil {
-		jsonError(w, err.Error(), http.StatusBadGateway)
+		writeCodeStudioOpError(w, err)
 		return
 	}
 	writeJSON(w, map[string]interface{}{"status": "ok", "path": path, "files": entries})
@@ -208,23 +198,23 @@ func (h codeStudioHandlers) handleReadFile(w http.ResponseWriter, r *http.Reques
 		jsonError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	_, containerID, err := h.codeContainer(r.Context(), true)
+	b, err := h.backendFor(r)
 	if err != nil {
-		jsonError(w, err.Error(), http.StatusServiceUnavailable)
+		writeCodeStudioBackendError(w, err)
 		return
 	}
-	probed, probeErr := h.probeCodeStudioFile(r.Context(), containerID, path)
-	if status, msg, ok := codeStudioProbeHTTPError(probeErr); ok {
-		jsonError(w, msg, status)
+	probed, probeErr := b.Probe(r.Context(), path)
+	if probeErr != nil {
+		writeCodeStudioProbeError(w, probeErr)
 		return
 	}
 	if probed.Size > h.maxFileSizeBytes() {
 		jsonError(w, "file exceeds configured maximum size", http.StatusRequestEntityTooLarge)
 		return
 	}
-	content, err := h.readCodeStudioFileBytes(r.Context(), containerID, probed.Path, h.maxFileSizeBytes())
+	content, err := b.Read(r.Context(), probed.Path, h.maxFileSizeBytes())
 	if err != nil {
-		jsonError(w, err.Error(), http.StatusBadGateway)
+		writeCodeStudioOpError(w, err)
 		return
 	}
 	writeJSON(w, map[string]interface{}{
@@ -264,24 +254,16 @@ func (h codeStudioHandlers) handleWriteFile(w http.ResponseWriter, r *http.Reque
 		jsonError(w, "file exceeds configured maximum size", http.StatusRequestEntityTooLarge)
 		return
 	}
-	_, containerID, err := h.codeContainer(r.Context(), true)
+	b, err := h.backendFor(r)
 	if err != nil {
-		jsonError(w, err.Error(), http.StatusServiceUnavailable)
+		writeCodeStudioBackendError(w, err)
 		return
 	}
-	result, err := h.writeContainerFile(r.Context(), containerID, path, []byte(body.Content), body.CreateOnly)
-	if err != nil {
-		jsonError(w, err.Error(), http.StatusBadGateway)
+	if err := b.Write(r.Context(), path, []byte(body.Content), body.CreateOnly); err != nil {
+		writeCodeStudioOpError(w, err)
 		return
 	}
-	if result.ExitCode != 0 {
-		status := http.StatusBadRequest
-		if result.ExitCode == codeStudioFileExists {
-			status = http.StatusConflict
-		}
-		jsonError(w, strings.TrimSpace(result.Output), status)
-		return
-	}
+	h.notifyWorkspaceChange(b.Info().ID, path)
 	writeJSON(w, map[string]interface{}{"status": "ok", "path": path})
 }
 
@@ -307,20 +289,16 @@ func (h codeStudioHandlers) handleMoveFile(w http.ResponseWriter, r *http.Reques
 		jsonError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	_, containerID, err := h.codeContainer(r.Context(), true)
+	b, err := h.backendFor(r)
 	if err != nil {
-		jsonError(w, err.Error(), http.StatusServiceUnavailable)
+		writeCodeStudioBackendError(w, err)
 		return
 	}
-	result, err := h.docker.Exec(r.Context(), containerID, codeStudioPathCommand("move", oldPath, newPath), 30*time.Second)
-	if err != nil {
-		jsonError(w, err.Error(), http.StatusBadGateway)
+	if err := b.Move(r.Context(), oldPath, newPath); err != nil {
+		writeCodeStudioOpError(w, err)
 		return
 	}
-	if result.ExitCode != 0 {
-		jsonError(w, strings.TrimSpace(result.Output), http.StatusBadRequest)
-		return
-	}
+	h.notifyWorkspaceChange(b.Info().ID, oldPath, newPath)
 	writeJSON(w, map[string]interface{}{"status": "ok", "old_path": oldPath, "new_path": newPath})
 }
 
@@ -337,20 +315,16 @@ func (h codeStudioHandlers) handleDeleteFile(w http.ResponseWriter, r *http.Requ
 		jsonError(w, "cannot delete workspace root", http.StatusBadRequest)
 		return
 	}
-	_, containerID, err := h.codeContainer(r.Context(), true)
+	b, err := h.backendFor(r)
 	if err != nil {
-		jsonError(w, err.Error(), http.StatusServiceUnavailable)
+		writeCodeStudioBackendError(w, err)
 		return
 	}
-	result, err := h.docker.Exec(r.Context(), containerID, codeStudioPathCommand("delete", path), 30*time.Second)
-	if err != nil {
-		jsonError(w, err.Error(), http.StatusBadGateway)
+	if err := b.Delete(r.Context(), path); err != nil {
+		writeCodeStudioOpError(w, err)
 		return
 	}
-	if result.ExitCode != 0 {
-		jsonError(w, strings.TrimSpace(result.Output), http.StatusBadRequest)
-		return
-	}
+	h.notifyWorkspaceChange(b.Info().ID, path)
 	writeJSON(w, map[string]interface{}{"status": "ok", "path": path})
 }
 
@@ -377,20 +351,16 @@ func (h codeStudioHandlers) handleDirectory(w http.ResponseWriter, r *http.Reque
 		jsonError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	_, containerID, err := h.codeContainer(r.Context(), true)
+	b, err := h.backendFor(r)
 	if err != nil {
-		jsonError(w, err.Error(), http.StatusServiceUnavailable)
+		writeCodeStudioBackendError(w, err)
 		return
 	}
-	result, err := h.docker.Exec(r.Context(), containerID, codeStudioPathCommand("mkdir", path), 30*time.Second)
-	if err != nil {
-		jsonError(w, err.Error(), http.StatusBadGateway)
+	if err := b.Mkdir(r.Context(), path); err != nil {
+		writeCodeStudioOpError(w, err)
 		return
 	}
-	if result.ExitCode != 0 {
-		jsonError(w, strings.TrimSpace(result.Output), http.StatusBadRequest)
-		return
-	}
+	h.notifyWorkspaceChange(b.Info().ID, path)
 	writeJSON(w, map[string]interface{}{"status": "ok", "path": path})
 }
 
@@ -453,20 +423,16 @@ func (h codeStudioHandlers) writeUploadedFile(w http.ResponseWriter, r *http.Req
 		jsonError(w, "file exceeds configured maximum size", http.StatusRequestEntityTooLarge)
 		return
 	}
-	_, containerID, err := h.codeContainer(r.Context(), true)
+	b, err := h.backendFor(r)
 	if err != nil {
-		jsonError(w, err.Error(), http.StatusServiceUnavailable)
+		writeCodeStudioBackendError(w, err)
 		return
 	}
-	result, err := h.writeContainerFile(r.Context(), containerID, path, buf.Bytes(), false)
-	if err != nil {
-		jsonError(w, err.Error(), http.StatusBadGateway)
+	if err := b.Write(r.Context(), path, buf.Bytes(), false); err != nil {
+		writeCodeStudioOpError(w, err)
 		return
 	}
-	if result.ExitCode != 0 {
-		jsonError(w, strings.TrimSpace(result.Output), http.StatusBadRequest)
-		return
-	}
+	h.notifyWorkspaceChange(b.Info().ID, path)
 	writeJSON(w, map[string]interface{}{"status": "ok", "path": path})
 }
 
@@ -483,23 +449,23 @@ func (h codeStudioHandlers) handleDownload(w http.ResponseWriter, r *http.Reques
 		jsonError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	_, containerID, err := h.codeContainer(r.Context(), true)
+	b, err := h.backendFor(r)
 	if err != nil {
-		jsonError(w, err.Error(), http.StatusServiceUnavailable)
+		writeCodeStudioBackendError(w, err)
 		return
 	}
-	probed, probeErr := h.probeCodeStudioFile(r.Context(), containerID, path)
-	if status, msg, ok := codeStudioProbeHTTPError(probeErr); ok {
-		jsonError(w, msg, status)
+	probed, probeErr := b.Probe(r.Context(), path)
+	if probeErr != nil {
+		writeCodeStudioProbeError(w, probeErr)
 		return
 	}
 	if probed.Size > h.maxFileSizeBytes() {
 		jsonError(w, "file exceeds configured maximum size", http.StatusRequestEntityTooLarge)
 		return
 	}
-	content, err := h.readCodeStudioFileBytes(r.Context(), containerID, probed.Path, h.maxFileSizeBytes())
+	content, err := b.Read(r.Context(), probed.Path, h.maxFileSizeBytes())
 	if err != nil {
-		jsonError(w, err.Error(), http.StatusBadGateway)
+		writeCodeStudioOpError(w, err)
 		return
 	}
 	w.Header().Set("Content-Type", "application/octet-stream")
