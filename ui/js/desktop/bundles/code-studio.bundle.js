@@ -1625,6 +1625,7 @@
             if (!canWrite(target) || !target.openTabs.includes(tab) || tab.path !== path) return false;
             return runWithInstance(target, () => {
                 scheduleGitRefresh();
+                lspNotifyFilesChanged([{ path, type: 2 }]); // IDE package 2b: didSave + didChangeWatchedFiles
                 tab.modified = editorValue(tab) !== content;
                 renderTabs();
                 if (!tab.modified) flashStatus(tr('codeStudio.saved', 'Saved'));
@@ -5400,6 +5401,8 @@
         } catch (err) {
             return projectReplaceFailure(file, err);
         }
+        // IDE package 2b: the language servers re-read the closed file the replace just wrote.
+        if (isLiveInstance(target)) runWithInstance(target, () => lspNotifyFilesChanged([{ path: file.path, type: 2 }]));
         const late = isLiveInstance(target) ? runWithInstance(target, () => projectReplaceTab(file.path)) : null;
         if (late) await reloadCleanTabFromDisk(target, late);
         return { status: 'written', count: plan.count };
@@ -6211,6 +6214,11 @@
         }
         if (!isLiveInstance(target)) return false;
         runWithInstance(target, () => {
+            if (action === 'discard') {
+                // IDE package 2b: the language servers re-read the restored files; a discarded untracked file is gone.
+                const untracked = new Set(gitChangeGroups().changes.filter(gitChangeUntracked).map(change => change.path));
+                lspNotifyFilesChanged(list.map(path => ({ path, type: untracked.has(path) ? 3 : 2 })));
+            }
             refreshGitStatus();
             if (action === 'discard') refreshGitWorkspaceView();
         });
@@ -6335,6 +6343,7 @@
                 flashStatus(message, 4000);
                 refreshGitStatus();
                 if (action !== 'delete') refreshGitWorkspaceView();
+                if (action === 'switch') lspNotifyBranchSwitch(); // IDE package 2b
             });
             return true;
         } catch (err) {

@@ -393,6 +393,11 @@
         }
         if (!isLiveInstance(target)) return false;
         runWithInstance(target, () => {
+            if (action === 'discard') {
+                // IDE package 2b: the language servers re-read the restored files; a discarded untracked file is gone.
+                const untracked = new Set(gitChangeGroups().changes.filter(gitChangeUntracked).map(change => change.path));
+                lspNotifyFilesChanged(list.map(path => ({ path, type: untracked.has(path) ? 3 : 2 })));
+            }
             refreshGitStatus();
             if (action === 'discard') refreshGitWorkspaceView();
         });
@@ -517,6 +522,7 @@
                 flashStatus(message, 4000);
                 refreshGitStatus();
                 if (action !== 'delete') refreshGitWorkspaceView();
+                if (action === 'switch') lspNotifyBranchSwitch(); // IDE package 2b
             });
             return true;
         } catch (err) {

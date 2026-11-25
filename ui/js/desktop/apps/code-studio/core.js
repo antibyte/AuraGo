@@ -1620,6 +1620,7 @@
             if (!canWrite(target) || !target.openTabs.includes(tab) || tab.path !== path) return false;
             return runWithInstance(target, () => {
                 scheduleGitRefresh();
+                lspNotifyFilesChanged([{ path, type: 2 }]); // IDE package 2b: didSave + didChangeWatchedFiles
                 tab.modified = editorValue(tab) !== content;
                 renderTabs();
                 if (!tab.modified) flashStatus(tr('codeStudio.saved', 'Saved'));

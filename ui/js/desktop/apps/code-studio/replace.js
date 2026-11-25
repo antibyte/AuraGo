@@ -517,6 +517,8 @@
         } catch (err) {
             return projectReplaceFailure(file, err);
         }
+        // IDE package 2b: the language servers re-read the closed file the replace just wrote.
+        if (isLiveInstance(target)) runWithInstance(target, () => lspNotifyFilesChanged([{ path: file.path, type: 2 }]));
         const late = isLiveInstance(target) ? runWithInstance(target, () => projectReplaceTab(file.path)) : null;
         if (late) await reloadCleanTabFromDisk(target, late);
         return { status: 'written', count: plan.count };
