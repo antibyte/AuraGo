@@ -163,3 +163,35 @@ func TestCodeStudioRemoteDevicesCreateAndList(t *testing.T) {
 		t.Fatal(lw.Body.String())
 	}
 }
+
+func TestCodeStudioRemoteBrowseListsFoldersFirstWithGitFlag(t *testing.T) {
+	f := startCodeStudioSSHFixture(t)
+	admin := f.adminSFTP(t)
+	for _, d := range []string{"/home/dev/proj/.git", "/home/dev/docs"} {
+		if err := admin.MkdirAll(d); err != nil {
+			t.Fatal(err)
+		}
+	}
+	fh, _ := admin.Create("/home/dev/notes.txt")
+	_, _ = fh.Write([]byte("n"))
+	_ = fh.Close()
+	s := testCodeStudioServerWithFakeCodeContainer(t, 1)
+	remote := newCodeStudioRemote(f.testDial(t), slog.Default())
+	t.Cleanup(remote.pool.closeAll)
+	h := codeStudioHandlers{server: s, remote: remote}
+	w := httptest.NewRecorder()
+	h.handleRemoteBrowse(w, httptest.NewRequest(http.MethodGet, "/api/code-studio/remote/browse?device_id=dev1&path=/home/dev", nil))
+	var body struct {
+		Path, Parent string
+		Entries      []codeStudioBrowseEntry
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil || w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	if body.Path != "/home/dev" || body.Parent != "/home" || len(body.Entries) != 3 {
+		t.Fatalf("%+v", body)
+	}
+	if body.Entries[0].Name != "docs" || body.Entries[0].IsGit || body.Entries[1].Name != "proj" || !body.Entries[1].IsGit || body.Entries[2].Type != "file" {
+		t.Fatalf("%+v", body.Entries)
+	}
+}

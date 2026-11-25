@@ -7,9 +7,12 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"os"
+	pathpkg "path"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 
@@ -267,10 +270,6 @@ func (h codeStudioHandlers) handleRemoteTrust(w http.ResponseWriter, r *http.Req
 	writeJSON(w, map[string]interface{}{"status": "ok"})
 }
 
-func (h codeStudioHandlers) handleRemoteBrowse(w http.ResponseWriter, r *http.Request) {
-	jsonError(w, "not implemented", http.StatusNotImplemented)
-}
-
 type codeStudioRemoteDevice struct {
 	ID          string     `json:"id"`
 	Name        string     `json:"name"`
@@ -468,4 +467,105 @@ func (h codeStudioHandlers) createRemoteDevice(w http.ResponseWriter, r *http.Re
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "device": h.remoteDeviceSummary(device, nil)})
+}
+
+type codeStudioBrowseEntry struct {
+	Name     string    `json:"name"`
+	Path     string    `json:"path"`
+	Type     string    `json:"type"` // directory | file
+	Size     int64     `json:"size"`
+	Modified time.Time `json:"modified"`
+	IsGit    bool      `json:"is_git"`
+	IsLink   bool      `json:"is_link"`
+	Hidden   bool      `json:"hidden"`
+}
+
+const codeStudioBrowseLimit = 2000
+
+func (h codeStudioHandlers) handleRemoteBrowse(w http.ResponseWriter, r *http.Request) {
+	if !h.requirePermission(w, r, desktopScopeRead) {
+		return
+	}
+	if r.Method != http.MethodGet {
+		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if !codeStudioRemoteCallerAllowed(h.server, r) {
+		writeCodeStudioOpError(w, codeStudioRemoteScopeError())
+		return
+	}
+	deviceID := strings.TrimSpace(r.URL.Query().Get("device_id"))
+	if deviceID == "" {
+		jsonError(w, "device_id is required", http.StatusBadRequest)
+		return
+	}
+	conn, err := h.remoteState().pool.get(r.Context(), deviceID, "")
+	if err != nil {
+		writeCodeStudioOpError(w, err) // same 409 host-key contract
+		return
+	}
+	home, err := conn.sftp.Getwd()
+	if err != nil || home == "" {
+		home = "/"
+	}
+	raw := r.URL.Query().Get("path")
+	if strings.TrimSpace(raw) == "" {
+		raw = home
+	}
+	dir, err := normalizeCodeStudioRemoteRoot(raw, home)
+	if err != nil {
+		writeCodeStudioOpError(w, &codeStudioRemoteError{Status: http.StatusBadRequest, Code: "invalid_root", Message: err.Error()})
+		return
+	}
+	infos, err := conn.sftp.ReadDir(dir)
+	if err != nil {
+		writeCodeStudioOpError(w, codeStudioSFTPError(err, dir))
+		return
+	}
+	entries := make([]codeStudioBrowseEntry, 0, len(infos))
+	for _, info := range infos {
+		e := codeStudioBrowseEntry{Name: info.Name(), Path: pathpkg.Join(dir, info.Name()), Type: "file", Size: info.Size(),
+			Modified: info.ModTime().UTC(), Hidden: strings.HasPrefix(info.Name(), "."), IsLink: info.Mode()&os.ModeSymlink != 0}
+		if info.IsDir() {
+			e.Type = "directory"
+		} else if e.IsLink {
+			if target, err := conn.sftp.Stat(e.Path); err == nil && target.IsDir() {
+				e.Type = "directory"
+			}
+		}
+		entries = append(entries, e)
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].Type != entries[j].Type {
+			return entries[i].Type == "directory"
+		}
+		return strings.ToLower(entries[i].Name) < strings.ToLower(entries[j].Name)
+	})
+	truncated := len(entries) > codeStudioBrowseLimit
+	if truncated {
+		entries = entries[:codeStudioBrowseLimit]
+	}
+	// is_git: bounded parallel Lstat of <dir>/.git for the first 500 directories.
+	sem, wg, checked := make(chan struct{}, 8), sync.WaitGroup{}, 0
+	for i := range entries {
+		if entries[i].Type != "directory" || checked >= 500 {
+			continue
+		}
+		checked++
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(e *codeStudioBrowseEntry) {
+			defer func() { <-sem; wg.Done() }()
+			if _, err := conn.sftp.Lstat(pathpkg.Join(e.Path, ".git")); err == nil {
+				e.IsGit = true
+			}
+		}(&entries[i])
+	}
+	wg.Wait()
+	parent := ""
+	if dir != "/" {
+		parent = pathpkg.Dir(dir)
+	}
+	writeJSON(w, map[string]interface{}{"status": "ok", "device_id": deviceID, "path": dir, "home": home,
+		"parent": parent, "entries": entries, "truncated": truncated})
 }
