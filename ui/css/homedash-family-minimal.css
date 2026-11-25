@@ -27,7 +27,7 @@
 .hd-widget[data-hd-family="minimal"] { font-family: var(--hd-font-ui); }
 
 /* Shared: text takes the widget ink (the root colour would not follow a widget-level override); everything is ink on the card. */
-.hd-widget[data-hd-family="minimal"] { color: var(--hd-ink); }
+.hd-widget[data-hd-family="minimal"] { color: var(--hd-ink); --hd-shake: 4px; } /* the error cue shakes 4 px (structure animation) */
 .hd-widget[data-hd-family="minimal"] .hd-head > .hd-icon { display: none; } /* the title already names the thing: no icon, so label, numeral and state share one left edge (M5) */
 .hd-widget[data-hd-family="minimal"] .hd-numeral .hd-num-unit { font-weight: 400; color: var(--hd-ink-muted); }
 .hd-widget[data-hd-family="minimal"] :is(.hd-dial-readout > .hd-numeral, .hd-gauge-readout .hd-numeral, .hd-tread .hd-numeral, .hd-body > .hd-numeral) { font-weight: var(--hd-num-weight); letter-spacing: var(--hd-num-tracking); }
@@ -135,4 +135,136 @@
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="minimal"] :is(.hd-gauge-needle, .hd-gauge-needle-shadow) { transition: transform var(--hd-dur-needle-f) var(--hd-ease-standard); }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="minimal"] .hd-gauge-arc { transition: stroke-dasharray var(--hd-dur-remote) var(--hd-ease-remote); }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="minimal"] .hd-gauge-arc-zone { transition: stroke-dasharray var(--hd-dur-remote) var(--hd-ease-remote), opacity var(--hd-dur-zone) var(--hd-ease-standard); }
+}
+
+/* ===== M3 (Task 20): paint of the W1 controls, the light sheet and the P1 states. Structure (sizes, positions, hit areas) lives in primitives.css, widgets.css and page.css; this part only paints.
+   Language: text and hairline. A control is a 1.5 px ink outline, on = ink fill with an inverted glyph (--hd-thumb-on), tracks are a 2 px line, thumbs are dots (--hd-m-dot-r), the accent appears in the focus
+   ring (base) and in the value fill only. No shadow, no gradient. A flat spread of the card colour separates a mark from a line, it is not a shadow. ===== */
+.hd-widget[data-hd-family="minimal"] .hd-arm { display: none; } /* armed is text only (the state line); the bar is hidden */
+
+/* Push chip (switch push, action button, light power chip): outline; on = ink fill with the inverted glyph and word. The M0 focus ring is a box-shadow, so the outline is a border. */
+.hd-widget[data-hd-family="minimal"]:not([data-hd-type="climate"]) .hd-push[data-hd-variant="chip"] { color: var(--hd-ink); background: transparent; border: var(--hd-stroke-1) solid var(--hd-track-line); border-radius: var(--hd-m-rect-r); font-weight: 500; letter-spacing: var(--hd-label-tracking); }
+.hd-widget[data-hd-family="minimal"]:not([data-hd-type="climate"]) .hd-push[data-hd-variant="chip"]:is([aria-checked="true"], [data-hd-on="true"]) { color: var(--hd-thumb-on); background: var(--hd-track-fill); }
+.hd-widget[data-hd-family="minimal"]:not([data-hd-type="climate"]) .hd-push[data-hd-variant="chip"]:active:not([aria-disabled="true"]) { color: var(--hd-thumb-on); background: var(--hd-track-fill); } /* pressed inverts the key */
+.hd-widget[data-hd-family="minimal"]:not([data-hd-type="climate"]) .hd-push[data-hd-variant="chip"]:is([aria-checked="true"], [data-hd-on="true"]):active:not([aria-disabled="true"]) { color: var(--hd-ink); background: transparent; }
+.hd-widget[data-hd-family="minimal"]:not([data-hd-type="climate"]) .hd-push[data-hd-variant="chip"]::after { content: ""; position: absolute; box-sizing: border-box; inset-block-start: 50%; inset-inline-end: 8px; inline-size: 14px; block-size: 14px; margin-block-start: -7px; border-radius: var(--hd-radius-pill);
+  box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-ink); -webkit-mask: var(--hd-arc-mask-75); mask: var(--hd-arc-mask-75); opacity: 0; pointer-events: none; }
+.hd-widget[data-hd-family="minimal"]:not([data-hd-type="climate"]) .hd-push[data-hd-variant="chip"]:is([aria-checked="true"], [data-hd-on="true"])::after { box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-thumb-on); }
+.hd-widget[data-hd-family="minimal"]:not([data-hd-type="climate"]) :is(.hd-lrow, .hd-lcol) > .hd-push[data-hd-variant="chip"]::after { inset: 0; margin: auto; inline-size: 28px; block-size: 28px; }
+.hd-widget[data-hd-family="minimal"]:not([data-hd-type="climate"])[data-hd-pending="true"] .hd-push[data-hd-variant="chip"]::after { opacity: 1; }
+@container hd-widget (max-width: 139px) and (max-height: 139px) { .hd-widget[data-hd-family="minimal"]:not([data-hd-type="climate"]) .hd-push[data-hd-variant="chip"]::after { inset: 0; margin: auto; inline-size: 28px; block-size: 28px; } } /* the 1x1 chip shows the icon only, so the ring sits on it */
+
+/* Switch tile: the whole body is the key and has no outline of its own; the glyph sits in a ring, an ink disc with the inverted glyph when on, and the body takes a flat ink wash. */
+.hd-widget[data-hd-family="minimal"]:not([data-hd-type="climate"])[data-hd-type="switch"] .hd-push[data-hd-variant="tile"] { color: var(--hd-ink); background: transparent; border-radius: var(--hd-m-rect-r); }
+.hd-widget[data-hd-family="minimal"]:not([data-hd-type="climate"])[data-hd-type="switch"] .hd-push[data-hd-variant="tile"][aria-checked="true"] { background: color-mix(in srgb, var(--hd-ink) 8%, transparent); }
+.hd-widget[data-hd-family="minimal"]:not([data-hd-type="climate"])[data-hd-type="switch"] .hd-push[data-hd-variant="tile"] .hd-ico { border-radius: var(--hd-radius-pill); box-shadow: 0 0 0 6px var(--hd-surface-solid), 0 0 0 calc(6px + var(--hd-stroke-1)) var(--hd-track-line); }
+.hd-widget[data-hd-family="minimal"]:not([data-hd-type="climate"])[data-hd-type="switch"] .hd-push[data-hd-variant="tile"][aria-checked="true"] .hd-ico { color: var(--hd-thumb-on); background: var(--hd-track-fill); box-shadow: 0 0 0 calc(6px + var(--hd-stroke-1)) var(--hd-track-fill); }
+@container hd-widget (min-height: 200px) {
+  .hd-widget[data-hd-family="minimal"]:not([data-hd-type="climate"])[data-hd-type="switch"] .hd-push[data-hd-variant="tile"] .hd-ico { box-shadow: 0 0 0 8px var(--hd-surface-solid), 0 0 0 calc(8px + var(--hd-stroke-1)) var(--hd-track-line); }
+  .hd-widget[data-hd-family="minimal"]:not([data-hd-type="climate"])[data-hd-type="switch"] .hd-push[data-hd-variant="tile"][aria-checked="true"] .hd-ico { box-shadow: 0 0 0 calc(8px + var(--hd-stroke-1)) var(--hd-track-fill); }
+}
+.hd-widget[data-hd-family="minimal"]:not([data-hd-type="climate"])[data-hd-type="switch"] .hd-push[data-hd-variant="tile"]::after { content: ""; position: absolute; box-sizing: border-box; inset: 0; margin: auto; inline-size: 52px; block-size: 52px; border-radius: var(--hd-radius-pill);
+  box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-ink); -webkit-mask: var(--hd-arc-mask-75); mask: var(--hd-arc-mask-75); opacity: 0; pointer-events: none; }
+@container hd-widget (min-height: 200px) { .hd-widget[data-hd-family="minimal"]:not([data-hd-type="climate"])[data-hd-type="switch"] .hd-push[data-hd-variant="tile"]::after { inline-size: 76px; block-size: 76px; } }
+.hd-widget[data-hd-family="minimal"]:not([data-hd-type="climate"])[data-hd-pending="true"] .hd-push[data-hd-variant="tile"]::after { opacity: 1; }
+
+/* Light tile: a hairline tile; the wash is flat light colour, the badge is a ring (an ink disc with the inverted glyph when on) and the dark scheme washes at a calm opaque burnt-amber (oklch mix, no alpha over the card) so the light ink keeps 4.5:1 on the lit part,
+   (stronger than the 18-40 % of structure, the lit width carries the level). */
+.hd-widget[data-hd-family="minimal"] .hd-ltile { color: var(--hd-ink); border: var(--hd-stroke-hair) solid var(--hd-hairline); border-radius: var(--hd-m-rect-r); }
+.hd-widget[data-hd-family="minimal"] .hd-ltile .hd-ltile-wash { background: var(--hd-light-on); }
+.hd-root[data-hd-scheme="dark"] .hd-widget[data-hd-family="minimal"] .hd-ltile .hd-ltile-wash { opacity: 1; background: color-mix(in oklch, var(--hd-light-on) 58%, var(--hd-shadow-ink)); }
+.hd-widget[data-hd-family="minimal"] .hd-ltile > .hd-iconbadge { border-radius: var(--hd-radius-pill); color: var(--hd-ink); box-shadow: inset 0 0 0 var(--hd-stroke-1) var(--hd-track-line); }
+.hd-widget[data-hd-family="minimal"] .hd-ltile[data-hd-on="true"] > .hd-iconbadge { color: var(--hd-thumb-on); background: var(--hd-track-fill); }
+.hd-widget[data-hd-family="minimal"] .hd-ltile .hd-num-unit, .hd-widget[data-hd-family="minimal"] .hd-ltile[data-hd-stale="true"] .hd-numeral, .hd-widget[data-hd-family="minimal"][data-hd-stale="true"] .hd-ltile .hd-numeral { color: color-mix(in srgb, var(--hd-ink-muted) 35%, var(--hd-ink)); } /* the muted ink measured under 4.5:1 on the wash */
+.hd-widget[data-hd-family="minimal"] .hd-ltile > .hd-numeral { font-weight: var(--hd-num-weight-small); letter-spacing: var(--hd-num-tracking); }
+.hd-widget[data-hd-family="minimal"] .hd-ltile > .hd-iconbadge::after { content: ""; position: absolute; box-sizing: border-box; inset: -3px; border-radius: var(--hd-radius-pill); box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-ink); -webkit-mask: var(--hd-arc-mask-75); mask: var(--hd-arc-mask-75); opacity: 0; pointer-events: none; }
+.hd-widget[data-hd-family="minimal"][data-hd-pending="true"] .hd-ltile > .hd-iconbadge::after { opacity: 1; }
+@container hd-widget (max-width: 139px) and (max-height: 139px) {
+  .hd-widget[data-hd-family="minimal"] .hd-ltile::after { content: ""; position: absolute; box-sizing: border-box; inset-block-start: 6px; inset-inline-end: 6px; inline-size: 14px; block-size: 14px; border-radius: var(--hd-radius-pill);
+    box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-ink); -webkit-mask: var(--hd-arc-mask-75); mask: var(--hd-arc-mask-75); opacity: 0; pointer-events: none; }
+  .hd-widget[data-hd-family="minimal"][data-hd-pending="true"] .hd-ltile::after { opacity: 1; } }
+
+/* Slider (h and v), the fader cap, the colour temperature strip and the wheel. The track is a 2 px ink line, the fill is the 6 px value bar (the value colour pulled toward the ink, 3:1 on the card in every
+   scheme and accent), the thumb is an ink dot with a ring of the card colour; the fader cap is an outlined rectangle with one grip line. */
+.hd-widget[data-hd-family="minimal"] .hd-slider-track { background: transparent; border-radius: 0; }
+.hd-widget[data-hd-family="minimal"] .hd-slider-track::before { content: ""; position: absolute; inset-inline: 0; inset-block-start: 50%; block-size: var(--hd-stroke-2); margin-block-start: calc(var(--hd-stroke-2) / -2); background: color-mix(in srgb, var(--hd-track-line) 30%, transparent); }
+.hd-widget[data-hd-family="minimal"] .hd-slider[data-hd-variant="v"] .hd-slider-track::before { inset-inline: auto; inset-block: 0; inset-inline-start: 50%; inline-size: var(--hd-stroke-2); block-size: auto; margin-block-start: 0; margin-inline-start: calc(var(--hd-stroke-2) / -2); }
+.hd-widget[data-hd-family="minimal"] .hd-slider-fill { border-radius: 0; background: color-mix(in srgb, var(--hd-value-colour) 45%, var(--hd-ink)); }
+.hd-widget[data-hd-family="minimal"] :is(.hd-slider-thumb, .hd-ct-thumb)::before { content: ""; position: absolute; box-sizing: border-box; inset: 0; margin: auto; inline-size: calc(var(--hd-m-dot-r) * 2px); block-size: calc(var(--hd-m-dot-r) * 2px); border-radius: var(--hd-radius-pill); background: var(--hd-thumb); box-shadow: 0 0 0 3px var(--hd-surface-solid); }
+.hd-widget[data-hd-family="minimal"] :is(.hd-slider, .hd-ct)[data-hd-dragging] :is(.hd-slider-thumb, .hd-ct-thumb)::before { scale: 1.25; }
+.hd-widget[data-hd-family="minimal"] .hd-slider[data-hd-variant="v"] .hd-slider-thumb { background: var(--hd-surface-solid); border: var(--hd-stroke-1) solid var(--hd-track-line); border-radius: var(--hd-m-rect-r); }
+.hd-widget[data-hd-family="minimal"] .hd-slider[data-hd-variant="v"] .hd-slider-thumb::before { inline-size: 14px; block-size: var(--hd-stroke-2); border-radius: 0; box-shadow: none; }
+.hd-widget[data-hd-family="minimal"] .hd-slider[data-hd-variant="v"][data-hd-dragging] .hd-slider-thumb { background: var(--hd-track-fill); }
+.hd-widget[data-hd-family="minimal"] .hd-slider[data-hd-variant="v"][data-hd-dragging] .hd-slider-thumb::before { background: var(--hd-thumb-on); scale: 1; }
+.hd-widget[data-hd-family="minimal"] .hd-ct-track { border-radius: var(--hd-m-rect-r); box-shadow: 0 0 0 var(--hd-stroke-hair) var(--hd-ink); }
+.hd-widget[data-hd-family="minimal"] .hd-wheel-canvas { box-shadow: 0 0 0 var(--hd-stroke-hair) var(--hd-ink); }
+.hd-widget[data-hd-family="minimal"] .hd-wheel-thumb { background: var(--hd-wheel-colour, var(--hd-thumb)); border: var(--hd-stroke-2) solid var(--hd-ink); box-shadow: 0 0 0 var(--hd-stroke-2) var(--hd-surface-solid); }
+.hd-widget[data-hd-family="minimal"] .hd-wheel[data-hd-dragging] .hd-wheel-thumb { scale: 1.25; }
+.hd-widget[data-hd-family="minimal"] :is(.hd-slider-thumb, .hd-ct-thumb, .hd-wheel-thumb)::after { content: ""; position: absolute; box-sizing: border-box; inset: -4px; border-radius: var(--hd-radius-pill); box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-ink); -webkit-mask: var(--hd-arc-mask-75); mask: var(--hd-arc-mask-75); opacity: 0; pointer-events: none; }
+.hd-widget[data-hd-family="minimal"] .hd-slider[data-hd-variant="v"] .hd-slider-thumb::after { inset: 0; margin: auto; inline-size: 16px; block-size: 16px; }
+.hd-widget[data-hd-family="minimal"][data-hd-pending="true"] :is(.hd-slider-thumb, .hd-ct-thumb, .hd-wheel-thumb)::after { opacity: 1; }
+.hd-widget[data-hd-family="minimal"][data-hd-pending="true"] .hd-slider[data-hd-variant="v"] .hd-slider-thumb::before { opacity: 0; }
+.hd-widget[data-hd-family="minimal"] :is(.hd-pick, .hd-stepper .hd-step, .hd-step-value) { position: relative; }
+
+/* Picker (select list trigger): a hairline field; the chevron is muted; an open list takes the ink outline. */
+.hd-widget[data-hd-family="minimal"] .hd-pick { color: var(--hd-ink); background: transparent; border: var(--hd-stroke-hair) solid var(--hd-ink-muted); border-radius: var(--hd-m-rect-r); font-weight: 500; }
+.hd-widget[data-hd-family="minimal"] .hd-pick > .hd-ico { color: var(--hd-ink-muted); }
+.hd-widget[data-hd-family="minimal"] .hd-pick[aria-expanded="true"] { border-color: var(--hd-ink); }
+.hd-widget[data-hd-family="minimal"] .hd-pick[aria-expanded="true"] > .hd-ico { color: var(--hd-ink); }
+.hd-widget[data-hd-family="minimal"] .hd-pick::after { content: ""; position: absolute; box-sizing: border-box; inset-block-start: 50%; inset-inline-end: 11px; inline-size: 16px; block-size: 16px; margin-block-start: -8px; border-radius: var(--hd-radius-pill);
+  box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-ink); -webkit-mask: var(--hd-arc-mask-75); mask: var(--hd-arc-mask-75); opacity: 0; pointer-events: none; }
+.hd-widget[data-hd-family="minimal"][data-hd-pending="true"] .hd-pick::after { opacity: 1; }
+.hd-widget[data-hd-family="minimal"][data-hd-pending="true"] .hd-pick > .hd-ico { opacity: 0; }
+
+/* Stepper: two outlined keys around the readout; an end key at its limit fades (read-only keeps full strength). */
+.hd-widget[data-hd-family="minimal"] .hd-stepper .hd-step { color: var(--hd-ink); background: transparent; border: var(--hd-stroke-hair) solid var(--hd-ink-muted); border-radius: var(--hd-m-rect-r); }
+.hd-widget[data-hd-family="minimal"] .hd-stepper .hd-step:active:not([aria-disabled="true"]) { color: var(--hd-thumb-on); background: var(--hd-track-fill); border-color: var(--hd-track-fill); }
+.hd-widget[data-hd-family="minimal"] .hd-stepper .hd-step[aria-disabled="true"] { opacity: 0.45; }
+.hd-widget[data-hd-family="minimal"][data-hd-readonly="true"] .hd-stepper .hd-step[aria-disabled="true"] { opacity: 1; }
+.hd-widget[data-hd-family="minimal"] .hd-step-value .hd-numeral { font-weight: var(--hd-num-weight-small); letter-spacing: var(--hd-num-tracking); }
+.hd-widget[data-hd-family="minimal"] .hd-step-value::after { content: ""; position: absolute; box-sizing: border-box; inset-block-start: 1px; inset-inline-end: 1px; inline-size: 10px; block-size: 10px; border-radius: var(--hd-radius-pill);
+  box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-ink); -webkit-mask: var(--hd-arc-mask-75); mask: var(--hd-arc-mask-75); opacity: 0; pointer-events: none; }
+.hd-widget[data-hd-family="minimal"][data-hd-pending="true"] .hd-step-value::after { opacity: 1; }
+
+/* Readouts of the rows: small figures at weight 500 (the light weight is for large numerals). */
+.hd-widget[data-hd-family="minimal"] :is(.hd-lrow, .hd-lcol, .hd-nrow) > .hd-numeral { font-weight: var(--hd-num-weight-small); letter-spacing: var(--hd-num-tracking); }
+.hd-widget[data-hd-family="minimal"][data-hd-tone="crit"] :is(.hd-lrow, .hd-lcol, .hd-nrow) > .hd-numeral, .hd-widget[data-hd-family="minimal"][data-hd-tone="crit"] .hd-step-value .hd-numeral { color: var(--hd-alert-ink); }
+
+/* Segmented select: the indicator wears the busy ring in its corner. */
+.hd-widget[data-hd-family="minimal"][data-hd-type="select"] .hd-seg-indicator::after { content: ""; position: absolute; box-sizing: border-box; inset-block-start: 2px; inset-inline-end: 3px; inline-size: 10px; block-size: 10px; border-radius: var(--hd-radius-pill);
+  box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-ink); -webkit-mask: var(--hd-arc-mask-75); mask: var(--hd-arc-mask-75); opacity: 0; pointer-events: none; }
+.hd-widget[data-hd-family="minimal"][data-hd-type="select"][data-hd-pending="true"] .hd-seg-indicator::after { opacity: 1; }
+
+/* More button: a ghost glyph in the muted ink; pressed it inverts. */
+.hd-widget[data-hd-family="minimal"] > .hd-frame > .hd-more { border-radius: var(--hd-m-rect-r); color: var(--hd-ink-muted); }
+.hd-widget[data-hd-family="minimal"] > .hd-frame > .hd-more:active { color: var(--hd-thumb-on); background: var(--hd-track-fill); }
+@media (hover: hover) { .hd-widget[data-hd-family="minimal"] > .hd-frame > .hd-more:hover { color: var(--hd-ink); } }
+
+/* Listbox panel and options: a flat panel in an ink-muted hairline (it floats over other widgets); the active row has an ink bar, the selected row is bold. */
+.hd-pop-layer > .hd-sheet.hd-widget[data-hd-family="minimal"][data-kind="listbox"] { background: var(--hd-surface-solid); border: var(--hd-stroke-hair) solid var(--hd-ink-muted); border-radius: var(--hd-m-rect-r); }
+.hd-widget[data-hd-family="minimal"] .hd-option { position: relative; border-radius: var(--hd-m-rect-r); }
+.hd-widget[data-hd-family="minimal"] .hd-option:is(:hover, [data-hd-active="true"]) { background: transparent; }
+.hd-widget[data-hd-family="minimal"] .hd-option:is(:hover, [data-hd-active="true"])::before { content: ""; position: absolute; inset-block: 8px; inset-inline-start: 0; inline-size: var(--hd-stroke-2); background: var(--hd-ink); }
+.hd-widget[data-hd-family="minimal"] .hd-option[aria-selected="true"] { font-weight: 600; }
+
+/* Light sheet: the dialog frame is the flat card with its hairline (an ink-muted one over the scrim), the close key is a ghost square that inverts when pressed, the labels are muted type. */
+.hd-widget[data-hd-family="minimal"][data-kind="moreinfo"] > .hd-frame { border-color: var(--hd-ink-muted); border-radius: var(--hd-radius-card); }
+.hd-widget[data-hd-family="minimal"] .hd-sheet-close { border-radius: var(--hd-m-rect-r); color: var(--hd-ink); }
+.hd-widget[data-hd-family="minimal"] .hd-sheet-close:active { color: var(--hd-thumb-on); background: var(--hd-track-fill); }
+.hd-widget[data-hd-family="minimal"] .hd-mi-label { font-weight: var(--hd-label-weight); }
+
+/* State table, Minimal column. Unavailable: the ink is the muted ink (above), keys and fields are hollow with a dashed outline, no wash, no fill, hollow dots. Read-only: the lock badge only. */
+.hd-widget[data-hd-family="minimal"]:not([data-hd-type="climate"])[data-hd-status="unavailable"] :is(.hd-push[data-hd-variant="chip"], .hd-pick, .hd-stepper .hd-step) { color: var(--hd-ink); background: transparent; border-style: dashed; border-color: var(--hd-ink-muted); }
+.hd-widget[data-hd-family="minimal"]:not([data-hd-type="climate"])[data-hd-status="unavailable"] .hd-push[data-hd-variant="tile"][aria-checked] { background: transparent; }
+.hd-widget[data-hd-family="minimal"]:not([data-hd-type="climate"])[data-hd-status="unavailable"] .hd-push[data-hd-variant="tile"][aria-checked] .hd-ico { color: var(--hd-ink); background: transparent; box-shadow: 0 0 0 6px var(--hd-surface-solid), 0 0 0 calc(6px + var(--hd-stroke-1)) var(--hd-ink-muted); }
+.hd-widget[data-hd-family="minimal"][data-hd-status="unavailable"] .hd-ltile { border-style: dashed; }
+.hd-widget[data-hd-family="minimal"][data-hd-status="unavailable"] :is(.hd-ltile-wash, .hd-slider-fill) { display: none; }
+.hd-widget[data-hd-family="minimal"][data-hd-status="unavailable"] .hd-ltile > .hd-iconbadge { color: var(--hd-ink); background: transparent; }
+.hd-widget[data-hd-family="minimal"][data-hd-status="unavailable"] :is(.hd-slider-thumb, .hd-ct-thumb)::before { background: var(--hd-surface-solid); border: var(--hd-stroke-1) solid var(--hd-ink); }
+.hd-widget[data-hd-family="minimal"][data-hd-status="unavailable"] .hd-wheel-thumb { background: var(--hd-surface-solid); }
+.hd-widget[data-hd-family="minimal"]:not([data-hd-type="climate"])[data-hd-status="unavailable"] :is(.hd-push[data-hd-variant], .hd-pick, .hd-step-value, .hd-seg-indicator)::after { opacity: 0; }
+
+/* Motion (gate selector only; transform and opacity only). The busy ring turns once per 1.2 s; reduced and none keep it still. */
+@media (prefers-reduced-motion: no-preference) {
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="minimal"]:not([data-hd-type="climate"])[data-hd-pending="true"] :is(.hd-push[data-hd-variant], .hd-pick, .hd-step-value, .hd-ltile, .hd-ltile > .hd-iconbadge, .hd-slider-thumb, .hd-ct-thumb, .hd-wheel-thumb, .hd-seg-indicator)::after { animation: hd-spin 1.2s linear infinite; }
 }
