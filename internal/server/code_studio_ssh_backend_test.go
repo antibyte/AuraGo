@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"io"
 	"strings"
 	"testing"
 	"time"
@@ -115,5 +116,63 @@ func TestCodeStudioSSHBackendExecGitSearch(t *testing.T) {
 	caps, err := b.probeCapabilities(ctx)
 	if err != nil || caps.Arch != "aarch64" || !caps.Git || !caps.LSP.CPP || caps.LSP.Go {
 		t.Fatalf("%+v %v", caps, err)
+	}
+}
+
+func TestCodeStudioSSHBackendTerminalAndProcess(t *testing.T) {
+	f := startCodeStudioSSHFixture(t)
+	b, _ := newCodeStudioTestSSHBackend(t, f, "/home/dev/proj")
+	ctx := context.Background()
+	readUntil := func(r io.Reader, want string) {
+		t.Helper()
+		got := make(chan string, 1)
+		go func() { buf := make([]byte, len(want)); _, _ = io.ReadFull(r, buf); got <- string(buf) }()
+		select {
+		case s := <-got:
+			if s != want {
+				t.Fatalf("read %q want %q", s, want)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatal("read timeout")
+		}
+	}
+	term, err := b.OpenTerminal(ctx, 100, 40)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := term.Write([]byte("hello")); err != nil {
+		t.Fatal(err)
+	}
+	readUntil(term, "hello")
+	if err := term.Resize(ctx, 120, 50); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		f.mu.Lock()
+		w := append([][2]int(nil), f.windows...)
+		f.mu.Unlock()
+		if len(w) >= 2 && w[0] == [2]int{100, 40} && w[len(w)-1] == [2]int{120, 50} {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("windows %v", w)
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if !strings.Contains(f.lastExec(), "aurago-terminal") {
+		t.Fatal(f.lastExec())
+	}
+	_ = term.Close()
+	proc, err := b.StartProcess(ctx, []string{"aurago-echo"}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	go func() { _, _ = io.Copy(io.Discard, proc.Stderr()) }()
+	_, _ = proc.Write([]byte("ping\n"))
+	readUntil(proc, "ping\n")
+	_ = proc.CloseWrite()
+	if err := proc.Wait(); err != nil {
+		t.Fatal(err)
 	}
 }

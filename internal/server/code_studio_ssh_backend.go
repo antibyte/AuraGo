@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/pkg/sftp"
+	"golang.org/x/crypto/ssh"
 )
 
 var errCodeStudioOutsideRoot = errors.New("path is outside the workspace")
@@ -731,12 +732,151 @@ func (b *codeStudioSSHBackend) probeCapabilities(ctx context.Context) (*codeStud
 	return &caps, nil
 }
 
-// ---- TEMPORARY STUBS (Task 12), replaced in Task 13 ----
-
-func (b *codeStudioSSHBackend) OpenTerminal(context.Context, int, int) (containerTerminalSession, error) {
-	return nil, errCodeStudioUnsupported
+type codeStudioSSHTerminal struct {
+	session *ssh.Session
+	stdin   io.WriteCloser
+	out     *io.PipeReader
+	release func()
+	once    sync.Once
 }
 
-func (b *codeStudioSSHBackend) StartProcess(context.Context, []string, string) (codeStudioProcess, error) {
-	return nil, errCodeStudioUnsupported
+func (t *codeStudioSSHTerminal) Read(p []byte) (int, error)  { return t.out.Read(p) }
+func (t *codeStudioSSHTerminal) Write(p []byte) (int, error) { return t.stdin.Write(p) }
+func (t *codeStudioSSHTerminal) Resize(_ context.Context, cols, rows int) error {
+	return t.session.WindowChange(rows, cols)
+}
+func (t *codeStudioSSHTerminal) End(context.Context) error {
+	_ = t.session.Signal(ssh.SIGHUP)
+	return t.Close()
+}
+func (t *codeStudioSSHTerminal) Close() error {
+	t.once.Do(func() { _ = t.stdin.Close(); _ = t.session.Close(); _ = t.out.Close(); t.release() })
+	return nil
+}
+
+var (
+	_ containerTerminalSession = (*codeStudioSSHTerminal)(nil)
+	_ containerTerminalEnder   = (*codeStudioSSHTerminal)(nil)
+)
+
+// codeStudioSSHTerminalCommand: login shell in root; stays usable if root vanished.
+func codeStudioSSHTerminalCommand(root string) string {
+	return "exec sh -c " + shellQuote(`cd "$1" 2>/dev/null || printf 'aurago: cannot enter %s\r\n' "$1"; exec "${SHELL:-/bin/sh}" -l`) +
+		" aurago-terminal " + shellQuote(root)
+}
+
+func (c *codeStudioSSHConn) acquireLong() (func(), error) {
+	select {
+	case c.longSem <- struct{}{}:
+		return sync.OnceFunc(func() { <-c.longSem; c.touch() }), nil
+	default:
+		return nil, &codeStudioStatusError{Status: http.StatusTooManyRequests,
+			Message: "too many terminals and language servers on this SSH connection"}
+	}
+}
+
+func (b *codeStudioSSHBackend) OpenTerminal(ctx context.Context, cols, rows int) (containerTerminalSession, error) {
+	var term *codeStudioSSHTerminal
+	err := b.pool.withConn(ctx, b.rec.DeviceID, codeStudioSSHRetrySessionOpen, func(c *codeStudioSSHConn) error {
+		release, err := c.acquireLong()
+		if err != nil {
+			return err
+		}
+		session, err := c.client.NewSession()
+		if err != nil {
+			release()
+			return codeStudioSSHSessionOpenError{err}
+		}
+		fail := func(err error) error { _ = session.Close(); release(); return err }
+		modes := ssh.TerminalModes{ssh.ECHO: 1, ssh.TTY_OP_ISPEED: 14400, ssh.TTY_OP_OSPEED: 14400}
+		if err := session.RequestPty("xterm-256color", rows, cols, modes); err != nil {
+			return fail(err)
+		}
+		stdin, err := session.StdinPipe()
+		if err != nil {
+			return fail(err)
+		}
+		pr, pw := io.Pipe()
+		session.Stdout, session.Stderr = pw, pw
+		if err := session.Start(codeStudioSSHTerminalCommand(b.root)); err != nil {
+			return fail(err)
+		}
+		go func() { _ = session.Wait(); _ = pw.Close(); release() }()
+		term = &codeStudioSSHTerminal{session: session, stdin: stdin, out: pr, release: release}
+		return nil
+	})
+	if err != nil {
+		return nil, err // never return a typed-nil *codeStudioSSHTerminal
+	}
+	return term, nil
+}
+
+type codeStudioSSHProcess struct {
+	session        *ssh.Session
+	stdin          io.WriteCloser
+	stdout, stderr io.Reader
+	release        func()
+	done           chan struct{}
+	waitErr        error
+}
+
+func (p *codeStudioSSHProcess) Read(b []byte) (int, error)  { return p.stdout.Read(b) }
+func (p *codeStudioSSHProcess) Write(b []byte) (int, error) { return p.stdin.Write(b) }
+func (p *codeStudioSSHProcess) CloseWrite() error           { return p.stdin.Close() }
+func (p *codeStudioSSHProcess) Stderr() io.Reader           { return p.stderr }
+func (p *codeStudioSSHProcess) Wait() error                 { <-p.done; return p.waitErr }
+func (p *codeStudioSSHProcess) Close() error {
+	_ = p.session.Signal(ssh.SIGKILL)
+	_ = p.session.Close()
+	p.release()
+	return nil
+}
+
+func (b *codeStudioSSHBackend) StartProcess(ctx context.Context, argv []string, vcwd string) (codeStudioProcess, error) {
+	if len(argv) == 0 {
+		return nil, codeStudioBadRequest("command is required")
+	}
+	cwd := b.root
+	if vcwd != "" {
+		p, err := b.remote(vcwd)
+		if err != nil {
+			return nil, err
+		}
+		cwd = p
+	}
+	var proc *codeStudioSSHProcess
+	err := b.pool.withConn(ctx, b.rec.DeviceID, codeStudioSSHRetrySessionOpen, func(c *codeStudioSSHConn) error {
+		release, err := c.acquireLong()
+		if err != nil {
+			return err
+		}
+		session, err := c.client.NewSession()
+		if err != nil {
+			release()
+			return codeStudioSSHSessionOpenError{err}
+		}
+		fail := func(err error) error { _ = session.Close(); release(); return err }
+		stdin, err := session.StdinPipe()
+		if err != nil {
+			return fail(err)
+		}
+		stdout, err := session.StdoutPipe()
+		if err != nil {
+			return fail(err)
+		}
+		stderr, err := session.StderrPipe()
+		if err != nil {
+			return fail(err)
+		}
+		if err := session.Start(codeStudioSSHCommandLine("cd " + shellQuote(cwd) + " && exec " + codeStudioShellJoin(argv))); err != nil {
+			return fail(err)
+		}
+		proc = &codeStudioSSHProcess{session: session, stdin: stdin, stdout: stdout, stderr: stderr, release: release, done: make(chan struct{})}
+		go func() { proc.waitErr = session.Wait(); release(); close(proc.done) }()
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return proc, nil
 }
