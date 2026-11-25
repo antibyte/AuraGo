@@ -2227,6 +2227,7 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 		}
 		defer close(shutdownDone)
 		s.ready.Store(false)
+		s.endHomeDashStreams(homeDashShutdownGrace) // revoked "shutdown" reaches open HomeDash streams before the drain cancels them
 		s.beginHTTPDrain()
 		s.Logger.Info("Initiating graceful server shutdown...")
 		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)

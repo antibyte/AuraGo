@@ -133,8 +133,31 @@ func (s *Server) initHomeDash(ctx context.Context) {
 	s.CfgMu.RUnlock()
 }
 
+// homeDashShutdownGrace bounds how long shutdown waits for open streams to write revoked.
+const homeDashShutdownGrace = 2 * time.Second
+
+// endHomeDashStreams closes the hub before the HTTP drain (decision D7 gap a): every open stream
+// receives revoked {"reason":"shutdown"} while its request is still alive, then it waits up to grace
+// for the stream handlers to return. The store stays open; closeHomeDash closes it after the drain
+// (Hub.Close is idempotent). Requests in between answer 503 hub_closed. A no-op without a service.
+func (s *Server) endHomeDashStreams(grace time.Duration) {
+	if s == nil {
+		return
+	}
+	svc := s.homeDash.Load()
+	if svc == nil {
+		return
+	}
+	svc.hub.Close()
+	deadline := time.Now().Add(grace)
+	for svc.streams.Load() > 0 && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
 // closeHomeDash withdraws and closes the service. Idempotent; Start defers it right after
-// initHomeDash, so it runs after the HTTP drain and before the integrations close.
+// initHomeDash, so it runs after the HTTP drain; the hub itself was already closed by
+// endHomeDashStreams before the drain.
 func (s *Server) closeHomeDash() {
 	if s == nil {
 		return

@@ -138,6 +138,8 @@ func (h *hdRequest) stream() {
 		return
 	}
 	defer sub.Close()
+	h.svc.streams.Add(1)
+	defer h.svc.streams.Add(-1)
 
 	header := h.w.Header()
 	header.Set("Content-Type", "text/event-stream")
