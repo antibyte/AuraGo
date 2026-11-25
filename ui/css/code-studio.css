@@ -4417,7 +4417,8 @@ button.cs-git-branch:hover,
 .cs-wsd-hosts { display: flex; flex-direction: column; gap: 8px; min-height: 0; padding: 12px; border-right: 1px solid var(--cs-line); background: var(--vd-mat-side, var(--cs-panel-soft)); }
 .cs-wsd-hosts-main { display: flex; flex: 1 1 auto; flex-direction: column; gap: 8px; min-height: 0; }
 .cs-wsd-hosts-main[hidden], .cs-wsd-form-slot[hidden] { display: none; }
-.cs-wsd-form-slot { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.cs-wsd-form-slot { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; }
+.cs-wsd-form-slot[hidden] { display: none; }
 .cs-wsd-pane-title { color: var(--vd-mat-label-color, var(--cs-muted)); font: 700 10.5px var(--vd-mat-label-font, var(--cs-ui-font)); letter-spacing: var(--vd-mat-label-tracking, 0.5px); text-transform: var(--vd-mat-label-transform, uppercase); }
 .cs-modal input.cs-wsd-search, .cs-modal input.cs-wsd-path { box-sizing: border-box; width: 100%; height: 30px; }
 .cs-modal :is(input.cs-wsd-search, input.cs-wsd-path, .cs-wsd-field input, .cs-wsd-field textarea):focus-visible { outline: 2px solid var(--cs-accent-border); outline-offset: 0; }
@@ -4446,6 +4447,7 @@ button.cs-git-branch:hover,
 .cs-wsd-crumbs ol { display: flex; align-items: center; gap: 2px; margin: 0; padding: 0; overflow-x: auto; list-style: none; scrollbar-width: none; }
 .cs-wsd-crumbs li { display: inline-flex; flex: 0 0 auto; align-items: center; }
 .cs-wsd-crumbs li + li::before { content: '/'; margin: 0 2px; color: var(--cs-muted); opacity: 0.6; }
+.cs-wsd-crumbs li:first-child + li::before { content: none; }
 .cs-wsd-crumb { padding: 2px 6px; border: 0; border-radius: var(--cs-radius-sm); color: var(--cs-muted); background: transparent; font: 12px var(--cs-mono-font); cursor: pointer; }
 .cs-wsd-crumb:hover { color: var(--cs-text); background: var(--cs-hover); }
 .cs-wsd-crumb:focus-visible { outline: 2px solid var(--cs-accent-border); outline-offset: 0; }
@@ -4483,14 +4485,20 @@ button.cs-git-branch:hover,
 
 .cs-wsd-footer { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "target actions" "hint actions" "error error"; align-items: center; gap: 4px 12px; padding: 10px 16px; border-top: 1px solid var(--cs-line); }
 .cs-wsd-target { grid-area: target; overflow: hidden; font: 12px var(--cs-mono-font); text-overflow: ellipsis; white-space: nowrap; }
+.cs-wsd-target.is-empty { color: var(--cs-muted); font: 12px var(--cs-ui-font); }
+.cs-wsd-footer .cs-button[disabled] { cursor: not-allowed; opacity: 0.5; }
 .cs-wsd-hint { grid-area: hint; color: var(--cs-muted); font-size: 10.5px; }
 .cs-wsd-open-error { grid-area: error; display: flex; align-items: center; gap: 6px; color: var(--cs-danger); }
 .cs-wsd-footer .cs-wsd-actions { grid-area: actions; }
 .cs-wsd-actions { display: flex; justify-content: flex-end; gap: 8px; }
 
-.cs-wsd-form { display: grid; gap: 9px; }
-.cs-wsd-row { display: grid; grid-template-columns: minmax(0, 1fr) 76px; gap: 8px; }
-.cs-wsd-field { display: grid; gap: 4px; min-width: 0; }
+.cs-wsd-form { display: flex; flex: 1 1 auto; flex-direction: column; gap: 8px; min-height: 0; }
+.cs-wsd-form-head { display: flex; flex: 0 0 auto; align-items: center; gap: 8px; }
+.cs-modal .cs-wsd-form-title { margin: 0; font-size: 13px; font-weight: 700; }
+.cs-wsd-form-fields { display: grid; flex: 1 1 auto; align-content: start; gap: 9px; min-height: 0; margin: 0 -6px; padding: 2px 6px; overflow-y: auto; }
+.cs-wsd-form-actions { flex: 0 0 auto; padding-top: 8px; border-top: 1px solid var(--cs-line); background: var(--vd-mat-side, var(--cs-panel-soft)); }
+.cs-wsd-row { display: grid; grid-template-columns: minmax(0, 1fr) 76px; align-items: start; gap: 8px; }
+.cs-wsd-field { display: grid; align-content: start; gap: 4px; min-width: 0; }
 .cs-modal .cs-wsd-field label { gap: 4px; font-size: 11.5px; }
 .cs-modal .cs-wsd-field input { box-sizing: border-box; width: 100%; height: 30px; }
 .cs-modal .cs-wsd-field textarea { box-sizing: border-box; width: 100%; min-height: 84px; padding: 6px 10px; border: 1px solid var(--vd-mat-field-border, var(--cs-border)); border-radius: var(--vd-mat-field-radius, var(--ds-radius-sm)); color: var(--cs-text); background: var(--vd-mat-field, var(--cs-panel-soft)); font: 11px var(--cs-mono-font); resize: vertical; }
@@ -4514,3 +4522,5 @@ button.cs-git-branch:hover,
     .cs-wsd-hint { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .cs-wsd-skeleton { animation: none; } }
+/* The user@host:path subtitle of an SSH workspace keeps its case whatever the theme does to window titles. */
+.desktop-body .vd-window .vd-window-subtitle[data-cs-subtitle] { text-transform: none !important; letter-spacing: 0 !important; }
