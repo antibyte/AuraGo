@@ -32,8 +32,8 @@
 .hd-widget[data-hd-family="minimal"] .hd-numeral .hd-num-unit { font-weight: 400; color: var(--hd-ink-muted); }
 .hd-widget[data-hd-family="minimal"] :is(.hd-dial-readout > .hd-numeral, .hd-gauge-readout .hd-numeral, .hd-tread .hd-numeral, .hd-body > .hd-numeral) { font-weight: var(--hd-num-weight); letter-spacing: var(--hd-num-tracking); }
 
-/* Shared state language, Minimal column. Unavailable: every ink is the faint ink (the dashed border is in widgets.css). Readonly: lock badge only. Alert: triangle badge (widgets.css) and the value in alert ink, no ring. */
-.hd-widget[data-hd-family="minimal"][data-hd-status="unavailable"] { --hd-ink: var(--hd-ink-faint); --hd-ink-muted: var(--hd-ink-faint); }
+/* Shared state language, Minimal column. Unavailable: every ink is the muted ink, 4.5:1 (the faint ink measured 2.57:1; the dashed border is in widgets.css). Readonly: lock badge only. Alert: triangle badge (widgets.css) and the value in alert ink, no ring. */
+.hd-widget[data-hd-family="minimal"][data-hd-status="unavailable"] { --hd-ink: var(--hd-ink-muted); }
 .hd-widget[data-hd-family="minimal"][data-hd-tone="crit"] :is(.hd-dial-readout > .hd-numeral, .hd-gauge-readout .hd-numeral, .hd-tread .hd-numeral, .hd-body > .hd-numeral, .hd-tread .hd-seg7) { color: var(--hd-alert-ink); }
 
 /* H1 toggle switch (pill): 1.5 px ink outline and an ink thumb, filled ink with a surface thumb when on. */
@@ -91,6 +91,8 @@
 
 /* Gauge readouts (H5, H6) and the sensor numeral (H8). */
 .hd-widget[data-hd-family="minimal"] .hd-gauge-readout { font-weight: var(--hd-num-weight); }
+/* H8 at 2x2: the box does not limit the numeral, so Minimal's is the largest of the families (M3, X-R1-02); 2x1 keeps the shared 22cqmin, which the height limits. */
+@container hd-widget (aspect-ratio < 1.6) { .hd-widget[data-hd-family="minimal"][data-hd-type="sensor"] .hd-body > .hd-numeral { font-size: 26cqmin; line-height: 1.1; } } /* the tighter line box keeps the state line 8 px or more above the trace */
 
 /* H5 needle gauge: ticks at the majors only, a hairline needle on a small hub, 2 px zone arcs. */
 .hd-widget[data-hd-family="minimal"] .hd-gauge-ticks[data-major="true"] { stroke: var(--hd-ink-muted); stroke-width: var(--hd-stroke-tick); vector-effect: non-scaling-stroke; }

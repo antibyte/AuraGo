@@ -132,7 +132,7 @@
 .hd-widget[data-hd-family="tactile"] .hd-rocker-half::before { content: ""; position: absolute; inset: 0; border-radius: 0; background: var(--hd-t-half-down); box-shadow: var(--hd-recess); opacity: 0; } /* the pressed half: flat, darker, recessed, no specular */
 .hd-widget[data-hd-family="tactile"] .hd-rocker[aria-checked="true"] .hd-rocker-half[data-half="on"]::before,
 .hd-widget[data-hd-family="tactile"] .hd-rocker[aria-checked="false"] .hd-rocker-half[data-half="off"]::before { opacity: 1; }
-.hd-widget[data-hd-family="tactile"] .hd-rocker-legend { --hd-t-ls: clamp(11px, 14cqmin, 16px); position: relative; font: 600 var(--hd-t-ls) / 1 var(--hd-font-label); color: var(--hd-t-legend); text-shadow: var(--hd-t-emboss); }
+.hd-widget[data-hd-family="tactile"] .hd-rocker-legend { --hd-t-ls: clamp(11px, 14cqmin, 16px); position: relative; font: 600 var(--hd-t-ls) / 1 var(--hd-font-label); color: var(--hd-t-faceink); text-shadow: var(--hd-t-emboss); }
 /* The off legend is the IEC ring: the letter stays for size and screen readers (font-size 0), the ring is drawn in the legend colour with the same emboss. */
 .hd-widget[data-hd-family="tactile"] :is(.hd-toggle-legend[data-glyph="off"], .hd-rocker-half[data-half="off"] .hd-rocker-legend) { font-size: 0; text-shadow: none; }
 .hd-widget[data-hd-family="tactile"] :is(.hd-toggle-legend[data-glyph="off"], .hd-rocker-half[data-half="off"] .hd-rocker-legend)::after { content: ""; position: absolute; inset-block-start: 50%; inset-inline-start: 50%; translate: -50% -50%; box-sizing: border-box;
@@ -221,7 +221,7 @@
 .hd-widget[data-hd-family="tactile"] .hd-gauge-hub { fill: var(--hd-t-faceink); }
 .hd-widget[data-hd-family="tactile"] .hd-gauge-readout { color: var(--hd-t-faceink); font-weight: var(--hd-num-weight); }
 .hd-widget[data-hd-family="tactile"] .hd-gauge-readout .hd-num-unit { color: var(--hd-t-faceink); }
-.hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] :is(.hd-gauge-needle, .hd-gauge-needle-shadow) { opacity: 0.4; }
+.hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] :is(.hd-gauge-needle, .hd-gauge-needle-shadow) { display: none; } /* no value, no needle: a dimmed needle (40 %: 1.51:1, 70 %: 2.11:1 on the face) still reads as a reading */
 
 /* H7 big temperature readout: amber VFD digits in a black window across the body (right aligned, so a changing value never shifts the box). The title above is the engraved plate. */
 .hd-widget[data-hd-family="tactile"] .hd-vfd { flex: 1 1 auto; display: flex; justify-content: flex-end; align-items: flex-end; box-sizing: border-box; background: var(--hd-t-window); box-shadow: var(--hd-window-shadow); border-radius: var(--hd-radius-control); padding: 3px 8px; }

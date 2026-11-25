@@ -87,7 +87,7 @@
 .hd-widget[data-hd-family="glass"] .hd-rocker-half::before { content: ""; position: absolute; inset: 0; background: var(--hd-on); box-shadow: var(--hd-shadow-press); opacity: 0; }
 .hd-widget[data-hd-family="glass"] .hd-rocker[aria-checked="true"] .hd-rocker-half[data-half="on"]::before { opacity: 1; }
 .hd-widget[data-hd-family="glass"] .hd-rocker[aria-checked="false"] .hd-rocker-half[data-half="off"]::before { opacity: 1; background: var(--hd-g-wash); } /* pressed off half: inset shade plus a darker wash */
-.hd-widget[data-hd-family="glass"] .hd-rocker-legend { position: relative; font: 500 15px / 1 var(--hd-font-ui); color: var(--hd-ink-muted); }
+.hd-widget[data-hd-family="glass"] .hd-rocker-legend { position: relative; font: 500 15px / 1 var(--hd-font-ui); color: var(--hd-ink); } /* the muted ink measured 4.37:1 (dark) and 3.11:1 (custom dark); the active half is told by its fill */
 .hd-widget[data-hd-family="glass"] .hd-rocker[aria-checked="true"] .hd-rocker-half[data-half="on"] .hd-rocker-legend { color: var(--hd-on-ink); }
 .hd-widget[data-hd-family="glass"] .hd-rocker-half::after { content: ""; position: absolute; inset: 0; margin: auto; inline-size: 26px; block-size: 26px; border-radius: var(--hd-radius-pill); background: var(--hd-pending-ring); -webkit-mask: var(--hd-ring-mask); mask: var(--hd-ring-mask); opacity: 0; }
 .hd-widget[data-hd-family="glass"] .hd-rocker[aria-checked="true"] .hd-rocker-half[data-half="on"]::after { background: var(--hd-pending-ring-on); }
@@ -175,7 +175,9 @@
 }
 
 /* Shared state language, Glass column. Unavailable: dashed border (widgets.css), dimmed body, hollow thumb. Readonly: lock badge (widgets.css), flat thumb and handle. */
-.hd-widget[data-hd-family="glass"][data-hd-status="unavailable"] .hd-body { opacity: 0.5; }
+.hd-widget[data-hd-family="glass"][data-hd-status="unavailable"] .hd-body { --hd-ink-muted: var(--hd-ink); } /* dimmed text must still read 4.5:1: full ink at 60 % (muted at 50 % measured 2.29:1) */
+.hd-widget[data-hd-family="glass"][data-hd-status="unavailable"] .hd-body { opacity: 0.6; }
+.hd-widget[data-hd-family="glass"][data-hd-status="unavailable"] :is(.hd-dial-arc, .hd-gauge-arc, .hd-gauge-arc-zone) { display: none; } /* no value, nothing to draw (it drew a zero-length dash) */
 .hd-widget[data-hd-family="glass"][data-hd-status="unavailable"] .hd-toggle-thumb { background: transparent; box-shadow: inset 0 0 0 var(--hd-stroke-1) var(--hd-ink-faint); }
 .hd-widget[data-hd-family="glass"][data-hd-status="unavailable"] :is(.hd-dial-knob, .hd-gauge-capdot, .hd-gauge-hub) { fill: transparent; stroke: var(--hd-ink-faint); stroke-width: var(--hd-stroke-1); vector-effect: non-scaling-stroke; }
 .hd-widget[data-hd-family="glass"][data-hd-status="unavailable"] .hd-dial-knob-shadow { display: none; }

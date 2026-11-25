@@ -15,6 +15,7 @@
   --hd-i-scan: repeating-linear-gradient(0deg, transparent 0, color-mix(in srgb, #000000 22%, transparent) 1px, transparent 2px 3px);
   --hd-i-glowline: 0 0 10px color-mix(in srgb, var(--hd-i-val) 55%, transparent);
   --hd-i-ghost: color-mix(in srgb, var(--hd-i-hud) 7%, transparent);
+  --hd-i-key-wash: color-mix(in srgb, var(--hd-i-val) 9%, transparent); --hd-i-key-edge: color-mix(in srgb, var(--hd-i-val) 45%, transparent); /* an active key emits: a wash inside and a brighter border (X-R1-01); alert re-colours both through --hd-i-val */
   --hd-i-gap-dash: 0 20 5 0;
   --hd-i-mount-l: 0 1px 2px color-mix(in srgb, #000000 30%, transparent), 0 6px 16px -6px color-mix(in srgb, #000000 35%, transparent);
   --hd-stroke-hair: 1px; --hd-stroke-1: 1.5px; --hd-stroke-2: 2px; --hd-stroke-arc: 0.08; --hd-stroke-tick: 1.25px;
@@ -90,8 +91,9 @@
 .hd-widget[data-hd-family="instrument"] .hd-toggle-track::before { background: color-mix(in srgb, var(--hd-i-hud) 12%, transparent); }
 .hd-widget[data-hd-family="instrument"] .hd-toggle-track::after { background: var(--hd-i-val); box-shadow: var(--hd-glow); opacity: 0; }
 .hd-widget[data-hd-family="instrument"] .hd-toggle[aria-checked="true"] .hd-toggle-track::after { opacity: 1; }
+.hd-widget[data-hd-family="instrument"] .hd-toggle[aria-checked="true"] .hd-toggle-track { background: var(--hd-i-key-wash); box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-i-key-edge); }
 .hd-widget[data-hd-family="instrument"][data-hd-pending="true"] .hd-toggle-track::after { opacity: 0.5; }
-.hd-widget[data-hd-family="instrument"] .hd-toggle-key { display: block; inset: 9px 0 0; text-align: center; font: 400 13px / 18px var(--hd-font-num); color: color-mix(in srgb, var(--hd-i-hud) 60%, transparent); }
+.hd-widget[data-hd-family="instrument"] .hd-toggle-key { display: block; inset: 9px 0 0; text-align: center; font: 400 13px / 18px var(--hd-font-num); color: var(--hd-ink-muted); } /* off: the neutral muted ink (HUD 60 % measured 3.2 to 3.5:1) */
 .hd-widget[data-hd-family="instrument"] .hd-toggle[aria-checked="true"] .hd-toggle-key { color: var(--hd-i-val); }
 
 /* H2 rocker switch: two stacked keys with a 4 px gap; the active one has a 2 px light underline with glow and its letter lit, the other sits at HUD 30 %.
@@ -103,7 +105,8 @@
 .hd-widget[data-hd-family="instrument"] .hd-rocker-half::after { content: ""; position: absolute; inset: auto 8px 4px; block-size: 2px; background: var(--hd-i-val); box-shadow: var(--hd-glow); opacity: 0; }
 .hd-widget[data-hd-family="instrument"] .hd-rocker[aria-checked="true"] .hd-rocker-half[data-half="on"]::after,
 .hd-widget[data-hd-family="instrument"] .hd-rocker[aria-checked="false"] .hd-rocker-half[data-half="off"]::after { opacity: 1; }
-.hd-widget[data-hd-family="instrument"] .hd-rocker-legend { font: 400 15px / 1 var(--hd-font-num); color: color-mix(in srgb, var(--hd-i-hud) 70%, transparent); } /* plan 30 %: 1.71:1; 55 % still 2.76:1 on Crazy and 2.83:1 on Lollipop; 70 % clears the 3:1 the probe asks of a legend */
+.hd-widget[data-hd-family="instrument"] .hd-rocker[aria-checked="true"] .hd-rocker-half[data-half="on"] { background: var(--hd-i-key-wash); box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-i-key-edge); }
+.hd-widget[data-hd-family="instrument"] .hd-rocker-legend { font: 400 15px / 1 var(--hd-font-num); color: var(--hd-ink-muted); } /* plan HUD 30 %; the legend is text, 4.5:1: HUD 70 % measured 4.08 to 4.48, the neutral muted ink clears it on every palette */
 .hd-widget[data-hd-family="instrument"] .hd-rocker[aria-checked="true"] .hd-rocker-half[data-half="on"] .hd-rocker-legend,
 .hd-widget[data-hd-family="instrument"] .hd-rocker[aria-checked="false"] .hd-rocker-half[data-half="off"] .hd-rocker-legend { color: var(--hd-i-val); }
 

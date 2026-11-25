@@ -308,7 +308,7 @@
 .hd-widget[data-hd-family="glass"] .hd-rocker-half::before { content: ""; position: absolute; inset: 0; background: var(--hd-on); box-shadow: var(--hd-shadow-press); opacity: 0; }
 .hd-widget[data-hd-family="glass"] .hd-rocker[aria-checked="true"] .hd-rocker-half[data-half="on"]::before { opacity: 1; }
 .hd-widget[data-hd-family="glass"] .hd-rocker[aria-checked="false"] .hd-rocker-half[data-half="off"]::before { opacity: 1; background: var(--hd-g-wash); } /* pressed off half: inset shade plus a darker wash */
-.hd-widget[data-hd-family="glass"] .hd-rocker-legend { position: relative; font: 500 15px / 1 var(--hd-font-ui); color: var(--hd-ink-muted); }
+.hd-widget[data-hd-family="glass"] .hd-rocker-legend { position: relative; font: 500 15px / 1 var(--hd-font-ui); color: var(--hd-ink); } /* the muted ink measured 4.37:1 (dark) and 3.11:1 (custom dark); the active half is told by its fill */
 .hd-widget[data-hd-family="glass"] .hd-rocker[aria-checked="true"] .hd-rocker-half[data-half="on"] .hd-rocker-legend { color: var(--hd-on-ink); }
 .hd-widget[data-hd-family="glass"] .hd-rocker-half::after { content: ""; position: absolute; inset: 0; margin: auto; inline-size: 26px; block-size: 26px; border-radius: var(--hd-radius-pill); background: var(--hd-pending-ring); -webkit-mask: var(--hd-ring-mask); mask: var(--hd-ring-mask); opacity: 0; }
 .hd-widget[data-hd-family="glass"] .hd-rocker[aria-checked="true"] .hd-rocker-half[data-half="on"]::after { background: var(--hd-pending-ring-on); }
@@ -396,7 +396,9 @@
 }
 
 /* Shared state language, Glass column. Unavailable: dashed border (widgets.css), dimmed body, hollow thumb. Readonly: lock badge (widgets.css), flat thumb and handle. */
-.hd-widget[data-hd-family="glass"][data-hd-status="unavailable"] .hd-body { opacity: 0.5; }
+.hd-widget[data-hd-family="glass"][data-hd-status="unavailable"] .hd-body { --hd-ink-muted: var(--hd-ink); } /* dimmed text must still read 4.5:1: full ink at 60 % (muted at 50 % measured 2.29:1) */
+.hd-widget[data-hd-family="glass"][data-hd-status="unavailable"] .hd-body { opacity: 0.6; }
+.hd-widget[data-hd-family="glass"][data-hd-status="unavailable"] :is(.hd-dial-arc, .hd-gauge-arc, .hd-gauge-arc-zone) { display: none; } /* no value, nothing to draw (it drew a zero-length dash) */
 .hd-widget[data-hd-family="glass"][data-hd-status="unavailable"] .hd-toggle-thumb { background: transparent; box-shadow: inset 0 0 0 var(--hd-stroke-1) var(--hd-ink-faint); }
 .hd-widget[data-hd-family="glass"][data-hd-status="unavailable"] :is(.hd-dial-knob, .hd-gauge-capdot, .hd-gauge-hub) { fill: transparent; stroke: var(--hd-ink-faint); stroke-width: var(--hd-stroke-1); vector-effect: non-scaling-stroke; }
 .hd-widget[data-hd-family="glass"][data-hd-status="unavailable"] .hd-dial-knob-shadow { display: none; }
@@ -538,7 +540,7 @@
 .hd-widget[data-hd-family="tactile"] .hd-rocker-half::before { content: ""; position: absolute; inset: 0; border-radius: 0; background: var(--hd-t-half-down); box-shadow: var(--hd-recess); opacity: 0; } /* the pressed half: flat, darker, recessed, no specular */
 .hd-widget[data-hd-family="tactile"] .hd-rocker[aria-checked="true"] .hd-rocker-half[data-half="on"]::before,
 .hd-widget[data-hd-family="tactile"] .hd-rocker[aria-checked="false"] .hd-rocker-half[data-half="off"]::before { opacity: 1; }
-.hd-widget[data-hd-family="tactile"] .hd-rocker-legend { --hd-t-ls: clamp(11px, 14cqmin, 16px); position: relative; font: 600 var(--hd-t-ls) / 1 var(--hd-font-label); color: var(--hd-t-legend); text-shadow: var(--hd-t-emboss); }
+.hd-widget[data-hd-family="tactile"] .hd-rocker-legend { --hd-t-ls: clamp(11px, 14cqmin, 16px); position: relative; font: 600 var(--hd-t-ls) / 1 var(--hd-font-label); color: var(--hd-t-faceink); text-shadow: var(--hd-t-emboss); }
 /* The off legend is the IEC ring: the letter stays for size and screen readers (font-size 0), the ring is drawn in the legend colour with the same emboss. */
 .hd-widget[data-hd-family="tactile"] :is(.hd-toggle-legend[data-glyph="off"], .hd-rocker-half[data-half="off"] .hd-rocker-legend) { font-size: 0; text-shadow: none; }
 .hd-widget[data-hd-family="tactile"] :is(.hd-toggle-legend[data-glyph="off"], .hd-rocker-half[data-half="off"] .hd-rocker-legend)::after { content: ""; position: absolute; inset-block-start: 50%; inset-inline-start: 50%; translate: -50% -50%; box-sizing: border-box;
@@ -627,7 +629,7 @@
 .hd-widget[data-hd-family="tactile"] .hd-gauge-hub { fill: var(--hd-t-faceink); }
 .hd-widget[data-hd-family="tactile"] .hd-gauge-readout { color: var(--hd-t-faceink); font-weight: var(--hd-num-weight); }
 .hd-widget[data-hd-family="tactile"] .hd-gauge-readout .hd-num-unit { color: var(--hd-t-faceink); }
-.hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] :is(.hd-gauge-needle, .hd-gauge-needle-shadow) { opacity: 0.4; }
+.hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] :is(.hd-gauge-needle, .hd-gauge-needle-shadow) { display: none; } /* no value, no needle: a dimmed needle (40 %: 1.51:1, 70 %: 2.11:1 on the face) still reads as a reading */
 
 /* H7 big temperature readout: amber VFD digits in a black window across the body (right aligned, so a changing value never shifts the box). The title above is the engraved plate. */
 .hd-widget[data-hd-family="tactile"] .hd-vfd { flex: 1 1 auto; display: flex; justify-content: flex-end; align-items: flex-end; box-sizing: border-box; background: var(--hd-t-window); box-shadow: var(--hd-window-shadow); border-radius: var(--hd-radius-control); padding: 3px 8px; }
@@ -707,8 +709,8 @@
 .hd-widget[data-hd-family="minimal"] .hd-numeral .hd-num-unit { font-weight: 400; color: var(--hd-ink-muted); }
 .hd-widget[data-hd-family="minimal"] :is(.hd-dial-readout > .hd-numeral, .hd-gauge-readout .hd-numeral, .hd-tread .hd-numeral, .hd-body > .hd-numeral) { font-weight: var(--hd-num-weight); letter-spacing: var(--hd-num-tracking); }
 
-/* Shared state language, Minimal column. Unavailable: every ink is the faint ink (the dashed border is in widgets.css). Readonly: lock badge only. Alert: triangle badge (widgets.css) and the value in alert ink, no ring. */
-.hd-widget[data-hd-family="minimal"][data-hd-status="unavailable"] { --hd-ink: var(--hd-ink-faint); --hd-ink-muted: var(--hd-ink-faint); }
+/* Shared state language, Minimal column. Unavailable: every ink is the muted ink, 4.5:1 (the faint ink measured 2.57:1; the dashed border is in widgets.css). Readonly: lock badge only. Alert: triangle badge (widgets.css) and the value in alert ink, no ring. */
+.hd-widget[data-hd-family="minimal"][data-hd-status="unavailable"] { --hd-ink: var(--hd-ink-muted); }
 .hd-widget[data-hd-family="minimal"][data-hd-tone="crit"] :is(.hd-dial-readout > .hd-numeral, .hd-gauge-readout .hd-numeral, .hd-tread .hd-numeral, .hd-body > .hd-numeral, .hd-tread .hd-seg7) { color: var(--hd-alert-ink); }
 
 /* H1 toggle switch (pill): 1.5 px ink outline and an ink thumb, filled ink with a surface thumb when on. */
@@ -766,6 +768,8 @@
 
 /* Gauge readouts (H5, H6) and the sensor numeral (H8). */
 .hd-widget[data-hd-family="minimal"] .hd-gauge-readout { font-weight: var(--hd-num-weight); }
+/* H8 at 2x2: the box does not limit the numeral, so Minimal's is the largest of the families (M3, X-R1-02); 2x1 keeps the shared 22cqmin, which the height limits. */
+@container hd-widget (aspect-ratio < 1.6) { .hd-widget[data-hd-family="minimal"][data-hd-type="sensor"] .hd-body > .hd-numeral { font-size: 26cqmin; line-height: 1.1; } } /* the tighter line box keeps the state line 8 px or more above the trace */
 
 /* H5 needle gauge: ticks at the majors only, a hairline needle on a small hub, 2 px zone arcs. */
 .hd-widget[data-hd-family="minimal"] .hd-gauge-ticks[data-major="true"] { stroke: var(--hd-ink-muted); stroke-width: var(--hd-stroke-tick); vector-effect: non-scaling-stroke; }
@@ -828,6 +832,7 @@
   --hd-i-scan: repeating-linear-gradient(0deg, transparent 0, color-mix(in srgb, #000000 22%, transparent) 1px, transparent 2px 3px);
   --hd-i-glowline: 0 0 10px color-mix(in srgb, var(--hd-i-val) 55%, transparent);
   --hd-i-ghost: color-mix(in srgb, var(--hd-i-hud) 7%, transparent);
+  --hd-i-key-wash: color-mix(in srgb, var(--hd-i-val) 9%, transparent); --hd-i-key-edge: color-mix(in srgb, var(--hd-i-val) 45%, transparent); /* an active key emits: a wash inside and a brighter border (X-R1-01); alert re-colours both through --hd-i-val */
   --hd-i-gap-dash: 0 20 5 0;
   --hd-i-mount-l: 0 1px 2px color-mix(in srgb, #000000 30%, transparent), 0 6px 16px -6px color-mix(in srgb, #000000 35%, transparent);
   --hd-stroke-hair: 1px; --hd-stroke-1: 1.5px; --hd-stroke-2: 2px; --hd-stroke-arc: 0.08; --hd-stroke-tick: 1.25px;
@@ -903,8 +908,9 @@
 .hd-widget[data-hd-family="instrument"] .hd-toggle-track::before { background: color-mix(in srgb, var(--hd-i-hud) 12%, transparent); }
 .hd-widget[data-hd-family="instrument"] .hd-toggle-track::after { background: var(--hd-i-val); box-shadow: var(--hd-glow); opacity: 0; }
 .hd-widget[data-hd-family="instrument"] .hd-toggle[aria-checked="true"] .hd-toggle-track::after { opacity: 1; }
+.hd-widget[data-hd-family="instrument"] .hd-toggle[aria-checked="true"] .hd-toggle-track { background: var(--hd-i-key-wash); box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-i-key-edge); }
 .hd-widget[data-hd-family="instrument"][data-hd-pending="true"] .hd-toggle-track::after { opacity: 0.5; }
-.hd-widget[data-hd-family="instrument"] .hd-toggle-key { display: block; inset: 9px 0 0; text-align: center; font: 400 13px / 18px var(--hd-font-num); color: color-mix(in srgb, var(--hd-i-hud) 60%, transparent); }
+.hd-widget[data-hd-family="instrument"] .hd-toggle-key { display: block; inset: 9px 0 0; text-align: center; font: 400 13px / 18px var(--hd-font-num); color: var(--hd-ink-muted); } /* off: the neutral muted ink (HUD 60 % measured 3.2 to 3.5:1) */
 .hd-widget[data-hd-family="instrument"] .hd-toggle[aria-checked="true"] .hd-toggle-key { color: var(--hd-i-val); }
 
 /* H2 rocker switch: two stacked keys with a 4 px gap; the active one has a 2 px light underline with glow and its letter lit, the other sits at HUD 30 %.
@@ -916,7 +922,8 @@
 .hd-widget[data-hd-family="instrument"] .hd-rocker-half::after { content: ""; position: absolute; inset: auto 8px 4px; block-size: 2px; background: var(--hd-i-val); box-shadow: var(--hd-glow); opacity: 0; }
 .hd-widget[data-hd-family="instrument"] .hd-rocker[aria-checked="true"] .hd-rocker-half[data-half="on"]::after,
 .hd-widget[data-hd-family="instrument"] .hd-rocker[aria-checked="false"] .hd-rocker-half[data-half="off"]::after { opacity: 1; }
-.hd-widget[data-hd-family="instrument"] .hd-rocker-legend { font: 400 15px / 1 var(--hd-font-num); color: color-mix(in srgb, var(--hd-i-hud) 70%, transparent); } /* plan 30 %: 1.71:1; 55 % still 2.76:1 on Crazy and 2.83:1 on Lollipop; 70 % clears the 3:1 the probe asks of a legend */
+.hd-widget[data-hd-family="instrument"] .hd-rocker[aria-checked="true"] .hd-rocker-half[data-half="on"] { background: var(--hd-i-key-wash); box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-i-key-edge); }
+.hd-widget[data-hd-family="instrument"] .hd-rocker-legend { font: 400 15px / 1 var(--hd-font-num); color: var(--hd-ink-muted); } /* plan HUD 30 %; the legend is text, 4.5:1: HUD 70 % measured 4.08 to 4.48, the neutral muted ink clears it on every palette */
 .hd-widget[data-hd-family="instrument"] .hd-rocker[aria-checked="true"] .hd-rocker-half[data-half="on"] .hd-rocker-legend,
 .hd-widget[data-hd-family="instrument"] .hd-rocker[aria-checked="false"] .hd-rocker-half[data-half="off"] .hd-rocker-legend { color: var(--hd-i-val); }
 
