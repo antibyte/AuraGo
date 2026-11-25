@@ -553,6 +553,11 @@ type desktopChatContext struct {
 	ImageBase64     string                  `json:"image_base64,omitempty"`
 	Annotations     *desktopChatAnnotations `json:"annotations,omitempty"`
 	WindowContext   *desktopWindowContext   `json:"window_context,omitempty"`
+	// WorkspaceID names the Code Studio workspace ("local" or a saved SSH workspace id).
+	WorkspaceID string `json:"workspace_id,omitempty"`
+	// codeStudioWorkspace is resolved by the server from WorkspaceID; it is
+	// never decoded from the request.
+	codeStudioWorkspace *codeStudioChatWorkspace
 }
 
 type desktopWindowContext struct {
@@ -737,6 +742,8 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 		return turn, err
 	}
 
+	// Label, host and folder of an SSH workspace come from the server, never from the request.
+	chatContext.codeStudioWorkspace = resolveCodeStudioChatWorkspace(ctx, s, chatContext)
 	persistContext := chatContext
 	persistContext.ImageBase64 = ""
 	desktopPromptContext := strings.TrimSpace(opts.AdditionalPrompt)
@@ -857,7 +864,7 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 		Stream:   stream,
 	}
 	turn.runCfg = buildDesktopRunConfigForSession(s, &cfg, llmClient, sessionID, messageSource)
-	if (cfg.Learnings.Enabled || cfg.CodeGraph.Enabled) && (chatContext.Source == "code-studio" || chatContext.OriginApp == "code-studio") {
+	if (cfg.Learnings.Enabled || cfg.CodeGraph.Enabled) && (chatContext.Source == "code-studio" || chatContext.OriginApp == "code-studio") && chatContext.codeStudioWorkspace == nil {
 		project, scope, fingerprint, err := s.resolveKnowledgeProject(ctx, "code-studio", chatContext.CurrentFile)
 		if err != nil {
 			return turn, fmt.Errorf("resolve project context: %w", err)
@@ -1068,8 +1075,12 @@ func buildDesktopAgentContext(chatContext desktopChatContext) string {
 	}
 	if chatContext.Source == "code-studio" {
 		b.WriteString("\n\nThe user is coding in Code Studio.")
-		b.WriteString("\nImportant: Code Studio files live inside the virtual desktop workspace mounted at /workspace, not the homepage workspace and not agent_workspace. Do not use the homepage tool for Code Studio file questions. Prefer the code/content supplied in this prompt; if content is supplied, answer from it without trying to locate the file elsewhere.")
-		b.WriteString("\nThe /workspace/<name> paths from this context are the same files as the workspace-relative <name> paths of virtual_desktop_files: never claim a Code Studio file is unreachable because of the /workspace prefix, strip it and call virtual_desktop_files. If the request asks you to change or create the current file, write the complete file with virtual_desktop_files write_file to the workspace-relative path, then call virtual_desktop_apps open_in_app with app_id \"code-studio\" and that workspace-relative path so the change lands in the open editor. After you wrote or changed a file this way, do not paste the file's code into your reply; say in one or two sentences which file you changed. The editor shows the file itself.")
+		if ws := chatContext.codeStudioWorkspace; ws != nil {
+			b.WriteString(buildCodeStudioRemoteWorkspacePrompt(*ws))
+		} else {
+			b.WriteString("\nImportant: Code Studio files live inside the virtual desktop workspace mounted at /workspace, not the homepage workspace and not agent_workspace. Do not use the homepage tool for Code Studio file questions. Prefer the code/content supplied in this prompt; if content is supplied, answer from it without trying to locate the file elsewhere.")
+			b.WriteString("\nThe /workspace/<name> paths from this context are the same files as the workspace-relative <name> paths of virtual_desktop_files: never claim a Code Studio file is unreachable because of the /workspace prefix, strip it and call virtual_desktop_files. If the request asks you to change or create the current file, write the complete file with virtual_desktop_files write_file to the workspace-relative path, then call virtual_desktop_apps open_in_app with app_id \"code-studio\" and that workspace-relative path so the change lands in the open editor. After you wrote or changed a file this way, do not paste the file's code into your reply; say in one or two sentences which file you changed. The editor shows the file itself.")
+		}
 		if strings.TrimSpace(chatContext.CurrentFile) != "" {
 			b.WriteString("\nCurrent file:\n")
 			b.WriteString(desktopExternalData("desktop_current_file", chatContext.CurrentFile, 2048))
