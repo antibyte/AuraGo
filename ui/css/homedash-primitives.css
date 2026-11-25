@@ -80,3 +80,66 @@
 .hd-tread .hd-num-unit { font-size: calc(var(--hd-unit-scale) * 1em); color: var(--hd-ink-muted); line-height: 1; }
 .hd-tread .hd-num-trend { align-self: flex-end; margin-inline-start: 0.08em; } .hd-tread .hd-num-trend .hd-ico { inline-size: 0.3em; block-size: 0.3em; }
 .hd-tread .hd-seg7 { block-size: calc(var(--hd-body-h) * 0.92); }
+/* M3 controls (SCR-M3-4, SCR-M3-6, SCR-M3-7). Structure only: every control has a 44px hit area; thumbs move by transform in container units (the track,
+   the strip and the wheel are inline-size containers), so a value change may transition; families paint tracks, fills, thumbs and states. */
+.hd-push, .hd-seg-opt { touch-action: manipulation; }
+.hd-slider, .hd-ct, .hd-wheel { cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+/* Slider: the node is the 44px hit area; the track (6px) is the measured and contained box, inset by half the thumb so the thumb never leaves the node. */
+.hd-slider { --hd-thumb-w: 20px; --hd-thumb-h: 20px; position: relative; display: grid; align-items: center; box-sizing: border-box; min-inline-size: 44px; block-size: 44px;
+  padding-inline: calc(var(--hd-thumb-w) / 2); touch-action: pan-y; border-radius: var(--hd-radius-control); }
+.hd-slider-track { position: relative; display: block; inline-size: 100%; block-size: 6px; container-type: inline-size; border-radius: var(--hd-radius-pill); }
+.hd-slider-fill { position: absolute; inset: 0; border-radius: inherit; transform-origin: 0 50%; transform: scaleX(var(--hd-value, 0)); pointer-events: none; }
+.hd-slider-thumb { position: absolute; inset-inline-start: 0; inset-block-start: 50%; box-sizing: border-box; inline-size: var(--hd-thumb-w); block-size: var(--hd-thumb-h);
+  margin-inline-start: calc(var(--hd-thumb-w) / -2); margin-block-start: calc(var(--hd-thumb-h) / -2); border-radius: var(--hd-radius-pill);
+  transform: translateX(calc(var(--hd-value, 0) * 100cqi)); pointer-events: none; }
+.hd-slider[data-hd-variant="v"] { --hd-thumb-w: 40px; --hd-thumb-h: 24px; inline-size: 44px; block-size: 120px; min-block-size: 64px; padding: calc(var(--hd-thumb-h) / 2) 0;
+  justify-items: center; align-items: stretch; touch-action: pan-x; }
+.hd-slider[data-hd-variant="v"] .hd-slider-track { inline-size: 6px; block-size: 100%; container-type: size; }
+.hd-slider[data-hd-variant="v"] .hd-slider-fill { transform-origin: 50% 100%; transform: scaleY(var(--hd-value, 0)); }
+.hd-slider[data-hd-variant="v"] .hd-slider-thumb { inset-inline-start: 50%; inset-block-start: auto; inset-block-end: 0; margin-inline-start: calc(var(--hd-thumb-w) / -2); margin-block-start: 0;
+  margin-block-end: calc(var(--hd-thumb-h) / -2); transform: translateY(calc(var(--hd-value, 0) * -100cqb)); }
+/* Colour temperature strip: the node is the measured container (44px high), the track is the gradient bar, the thumb moves by cqi. */
+.hd-ct { --hd-thumb-w: 20px; --hd-thumb-h: 20px; position: relative; display: block; container-type: inline-size; box-sizing: border-box; block-size: 44px;
+  margin-inline: calc(var(--hd-thumb-w) / 2); touch-action: pan-y; border-radius: var(--hd-radius-control); }
+.hd-ct-track { position: absolute; inset-inline: 0; inset-block-start: 50%; block-size: 14px; margin-block-start: -7px; border-radius: var(--hd-radius-pill);
+  background: linear-gradient(90deg, var(--hd-ct-2200), var(--hd-ct-4000), var(--hd-ct-6500)); }
+.hd-ct-thumb { position: absolute; inset-inline-start: 0; inset-block-start: 50%; box-sizing: border-box; inline-size: var(--hd-thumb-w); block-size: var(--hd-thumb-h);
+  margin-inline-start: calc(var(--hd-thumb-w) / -2); margin-block-start: calc(var(--hd-thumb-h) / -2); border-radius: var(--hd-radius-pill);
+  transform: translateX(calc(var(--hd-value, 0) * 100cqi)); pointer-events: none; }
+/* Colour wheel: a square inline-size container; the thumb sits by --hd-wheel-x/y (0-1 of the diameter) in cqi. The canvas is painted once by the primitive. */
+.hd-wheel { --hd-thumb-w: 22px; --hd-thumb-h: 22px; position: relative; display: block; container-type: inline-size; box-sizing: border-box; inline-size: min(100%, 220px); aspect-ratio: 1;
+  border-radius: var(--hd-radius-pill); touch-action: none; }
+.hd-wheel-canvas { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; border-radius: inherit; }
+.hd-wheel-thumb { position: absolute; inset-inline-start: 0; inset-block-start: 0; box-sizing: border-box; inline-size: var(--hd-thumb-w); block-size: var(--hd-thumb-h);
+  margin-inline-start: calc(var(--hd-thumb-w) / -2); margin-block-start: calc(var(--hd-thumb-h) / -2); border-radius: var(--hd-radius-pill);
+  transform: translate(calc(var(--hd-wheel-x, 0.5) * 100cqi), calc(var(--hd-wheel-y, 0.5) * 100cqi)); pointer-events: none; }
+/* Stepper: minus key, readout, plus key; the readout is the spinbutton and is at least 44px wide. */
+.hd-stepper { display: inline-grid; grid-template-columns: 44px minmax(4ch, auto) 44px; align-items: center; justify-items: center; font-size: var(--hd-text-l); }
+.hd-step { display: grid; place-items: center; box-sizing: border-box; inline-size: 44px; block-size: 44px; margin: 0; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.hd-step .hd-ico { inline-size: 20px; block-size: 20px; }
+.hd-step-value { display: grid; place-items: center; box-sizing: border-box; min-inline-size: 44px; block-size: 44px; padding-inline: 4px; text-align: center; white-space: nowrap; touch-action: manipulation; }
+/* Picker: the select trigger. Value (ellipsis) and a 16px chevron; the chevron turns when the listbox is open. */
+.hd-pick { display: grid; grid-template-columns: minmax(0, 1fr) 16px; align-items: center; column-gap: 8px; box-sizing: border-box; inline-size: 100%; block-size: 44px; margin: 0; padding: 0 12px;
+  border: 0; background: transparent; color: inherit; font: inherit; text-align: start; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; border-radius: var(--hd-radius-control); }
+.hd-pick-label { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hd-pick > .hd-ico { inline-size: 16px; block-size: 16px; }
+.hd-pick[aria-expanded="true"] > .hd-ico { transform: rotate(180deg); }
+/* Arm marker (SCR-M3-7): a bar along the body bottom while the widget is armed (data-hd-armed on the wrapper). Families recolour it or hide it. */
+.hd-arm { display: none; position: absolute; z-index: 2; inset-inline: 0; inset-block-end: 0; block-size: 3px; border-radius: var(--hd-radius-pill); background: var(--hd-accent); transform-origin: 0 50%; pointer-events: none; }
+.hd-widget[data-hd-armed="true"] .hd-arm { display: block; }
+@keyframes hd-arm-run { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@keyframes hd-shake { 0%, 100% { transform: translateX(0); } 8.3% { transform: translateX(calc(var(--hd-shake, 6px) * -1)); } 25% { transform: translateX(var(--hd-shake, 6px)); }
+  41.7% { transform: translateX(calc(var(--hd-shake, 6px) * -1)); } 58.3% { transform: translateX(var(--hd-shake, 6px)); } 75% { transform: translateX(calc(var(--hd-shake, 6px) * -1)); } 91.7% { transform: translateX(var(--hd-shake, 6px)); } }
+@keyframes hd-fade-out { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
+/* Focus ring on listbox options: the listbox owns focus and shows the ring on the active option (aria-activedescendant); the lab hook sets data-hd-focus="ring". */
+.hd-root [role="listbox"]:focus { outline: none; }
+.hd-root [role="listbox"]:focus-visible [role="option"][data-hd-active="true"], .hd-root [role="option"][data-hd-focus="ring"] { box-shadow: 0 0 0 2px var(--hd-focus-gap), 0 0 0 4px var(--hd-focus); }
+/* Motion (gate selector only; transform and opacity only). A thumb or fill follows a remote value change; during a drag it follows the pointer without a transition.
+   The armed bar runs down over the 4s arm window; under reduced motion it stays full and the state line carries the countdown words. */
+@media (prefers-reduced-motion: no-preference) {
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-slider:not([data-hd-dragging]) :is(.hd-slider-fill, .hd-slider-thumb) { transition: transform var(--hd-dur-state) var(--hd-ease-standard); }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-ct:not([data-hd-dragging]) .hd-ct-thumb { transition: transform var(--hd-dur-state) var(--hd-ease-standard); }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-wheel:not([data-hd-dragging]) .hd-wheel-thumb { transition: transform var(--hd-dur-state) var(--hd-ease-standard); }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-armed="true"] .hd-arm { animation: hd-arm-run 4000ms linear forwards; }
+}

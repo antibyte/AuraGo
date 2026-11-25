@@ -19,3 +19,31 @@
 .hd-page-empty-title { margin: var(--hd-space-2) 0 0; color: var(--hd-ink); font: 600 var(--hd-text-l) / 1.3 var(--hd-font-heading); }
 .hd-page-empty-text { max-inline-size: 42ch; margin: 0; font-size: var(--hd-text-m); line-height: 1.5; }
 .hd-widget.hd-unsupported .hd-body::before { content: ""; inline-size: 28px; block-size: 28px; background: var(--hd-ink-faint); -webkit-mask: var(--hd-mask-error) center / contain no-repeat; mask: var(--hd-mask-error) center / contain no-repeat; }
+/* M3 overlay layers (SCR-M3-3). The root is the containing block of every layer; both layers sit inside it (the lab hosts them in a sized cell). Selectors stay at
+   the specificity of the lab stage rule and the host's .hdx-app .hd-sheet, and the dialog and panel set every property that rule would leak onto them. */
+.hd-root { position: relative; }
+/* More-info layer: scrim and one dialog, centred (640x600 at most) or, when the root is under 600px wide, a bottom sheet (full width, 85 % high). */
+.hd-sheet-layer[data-kind="moreinfo"] { position: absolute; inset: 0; z-index: 30; box-sizing: border-box; display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); place-items: center; padding: 24px;
+  background: color-mix(in srgb, var(--hd-scrim) calc(var(--hd-scrim-alpha) * 100%), transparent); }
+.hd-sheet-layer[data-kind="moreinfo"][data-hd-pop="sheet"] { align-items: end; padding: 0; }
+.hd-sheet-layer[data-kind="moreinfo"] > .hd-sheet.hd-widget[data-kind="moreinfo"] { position: relative; box-sizing: border-box; inline-size: min(640px, 100%); block-size: min(600px, 100%); margin: 0; padding: 0; border: 0;
+  background: transparent; box-shadow: none; border-radius: var(--hd-radius-card); }
+.hd-sheet-layer[data-kind="moreinfo"][data-hd-pop="sheet"] > .hd-sheet.hd-widget[data-kind="moreinfo"] { inline-size: 100%; block-size: 85%; }
+.hd-sheet-layer[data-kind="moreinfo"][data-hd-pop="sheet"] > .hd-sheet > .hd-frame { border-end-start-radius: 0; border-end-end-radius: 0; }
+/* The host styles buttons inside any .hd-sheet-layer with an outline; the dialog keeps the M0 ring only. */
+.hd-root .hd-sheet-layer[data-kind="moreinfo"] :is(button, [tabindex="0"], [role="slider"]):focus-visible { outline: none; }
+/* Popover layer: the listbox panel is placed by the --hd-pop-* variables of hd-popover.js, anchored below (or above) the trigger, or a bottom sheet when data-hd-pop="sheet".
+   Its base paint comes from the card tokens; the families refine it. */
+.hd-pop-layer { position: absolute; inset: 0; z-index: 40; pointer-events: none; }
+.hd-pop-layer > .hd-sheet.hd-widget[data-kind="listbox"] { position: absolute; box-sizing: border-box; margin: 0; padding: 0; overflow: hidden; pointer-events: auto; color: var(--hd-ink);
+  background: var(--hd-card-bg); border: var(--hd-card-border); border-radius: var(--hd-radius-card); box-shadow: var(--hd-shadow-card); }
+.hd-pop-layer > .hd-sheet.hd-widget[data-kind="listbox"][data-hd-pop="anchored"] { inset-inline-start: var(--hd-pop-x); inset-block-start: var(--hd-pop-y); inline-size: var(--hd-pop-w); block-size: var(--hd-pop-h); }
+.hd-pop-layer > .hd-sheet.hd-widget[data-kind="listbox"][data-hd-pop="sheet"] { inset-inline: 0; inset-block-end: 0; inline-size: 100%; block-size: var(--hd-pop-h); max-block-size: 85%;
+  border-end-start-radius: 0; border-end-end-radius: 0; }
+.hd-listbox { box-sizing: border-box; inline-size: 100%; block-size: 100%; margin: 0; padding: 8px; list-style: none; overflow-y: auto; overscroll-behavior: contain; }
+.hd-option { display: flex; align-items: center; gap: 8px; box-sizing: border-box; min-block-size: 44px; padding: 0 12px; border-radius: var(--hd-radius-control); color: var(--hd-ink); font: 400 var(--hd-text-m) / 1.2 var(--hd-font-ui);
+  cursor: pointer; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+.hd-option:hover, .hd-option[data-hd-active="true"] { background: color-mix(in srgb, var(--hd-ink) 6%, transparent); }
+.hd-option > .hd-ico { inline-size: 16px; block-size: 16px; }
+.hd-option[aria-selected="false"] > .hd-ico { visibility: hidden; }
+.hd-option-label { flex: 1 1 auto; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

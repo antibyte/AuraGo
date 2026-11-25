@@ -99,3 +99,97 @@
 .hd-widget[data-hd-type="entity"] .hd-tile > .hd-numeral { grid-row: 1; max-inline-size: 100%; overflow: hidden; font-size: 22cqmin; white-space: nowrap; text-overflow: ellipsis; }
 .hd-widget[data-hd-type="entity"] .hd-tile > .hd-lamp { grid-row: 1; align-self: start; }
 @container hd-widget (max-width: 139px) and (max-height: 139px) { .hd-widget[data-hd-type="entity"] .hd-tile > .hd-iconbadge { display: none; } }
+/* M3 W1 controls (SCR-M3-1/2/5/6/7). Cell 96px, gap 12px. "W1 types" = switch push and tile, light slider, fader and tile, action, select and number: their body is one
+   definite grid cell the control fills, and at height 1 with two or more columns the frame is one row (title and state share the head row; the body is 50px at 2x1). */
+.hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"]) .hd-body { grid-template: minmax(0, 1fr) / minmax(0, 1fr); }
+@container hd-widget (max-height: 139px) and (min-width: 140px) {
+  .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"]) > .hd-frame {
+    grid-template: "head state" var(--hd-head-h) "body body" minmax(0, 1fr) / minmax(calc(var(--hd-head-h) + 8px + 7ch), 1fr) minmax(0, auto);
+    --hd-body-h: calc(100cqh - 2 * var(--hd-pad-b) - 2px - var(--hd-head-h) - var(--hd-gap-in)); }
+  .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"]) .hd-head { padding-inline-end: 0; }
+  .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"]) .hd-state { align-self: center; justify-self: end; max-inline-size: 100%; padding-inline-end: var(--hd-more-pad, 0px); text-align: end; }
+}
+/* More button (SCR-M3-2): 44x44 at the top-right frame corner, hidden at 1x1 (and by the hidden attribute, which the base rule keeps winning); the head leaves room for it. */
+.hd-widget > .hd-frame > .hd-more { position: absolute; inset-block-start: 0; inset-inline-end: 0; z-index: 3; display: grid; place-items: center; box-sizing: border-box; inline-size: 44px; block-size: 44px;
+  margin: 0; padding: 0; border: 0; background: transparent; color: var(--hd-ink-muted); font: inherit; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.hd-widget > .hd-frame > .hd-more .hd-ico { inline-size: 16px; block-size: 16px; }
+.hd-widget > .hd-frame > .hd-more[hidden] { display: none; }
+.hd-widget > .hd-frame:has(> .hd-more:not([hidden])) { --hd-more-pad: calc(44px - var(--hd-pad-i)); }
+.hd-widget .hd-head { padding-inline-end: var(--hd-more-pad, 0px); }
+@container hd-widget (max-width: 139px) and (max-height: 139px) { .hd-widget > .hd-frame > .hd-more { display: none; } }
+.hd-widget[tabindex="-1"]:focus { outline: none; } /* a focus-return target: no UA outline, no layout change */
+/* Confirmed (rule 3): the check glyph leads the state line for the 600ms the flag lives. */
+.hd-widget[data-hd-confirmed="true"] .hd-state::before { content: ""; display: inline-block; inline-size: 12px; block-size: 12px; margin-inline-end: 4px; vertical-align: -1px;
+  background: var(--hd-ok-ink); -webkit-mask: var(--hd-mask-check) center / contain no-repeat; mask: var(--hd-mask-check) center / contain no-repeat; }
+/* Push chip and tile. Chip: 44px high, icon 20 and the word, full width at 1x1, 152px at the start from 2x1 on. Tile: fills the body, icon 28 (40 from 200px tall), label hidden. */
+.hd-widget:is([data-hd-type="switch"], [data-hd-type="action"], [data-hd-type="light"]) .hd-push[data-hd-variant="chip"] { grid-auto-flow: column; grid-auto-columns: max-content; justify-content: center; align-content: center;
+  column-gap: 8px; inline-size: 100%; block-size: 44px; padding: 0 12px; font: inherit; color: inherit; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.hd-widget:is([data-hd-type="switch"], [data-hd-type="action"], [data-hd-type="light"]) .hd-push[data-hd-variant="chip"] .hd-ico { inline-size: 20px; block-size: 20px; }
+.hd-widget .hd-push[data-hd-variant="chip"] .hd-push-label { white-space: nowrap; }
+.hd-widget .hd-push .hd-push-label:empty { display: none; }
+@container hd-widget (min-width: 140px) { .hd-widget:is([data-hd-type="switch"], [data-hd-type="action"]) .hd-push[data-hd-variant="chip"] { inline-size: min(100%, 152px); justify-self: start; } }
+.hd-widget[data-hd-type="switch"] .hd-push[data-hd-variant="tile"] { inline-size: 100%; block-size: 100%; padding: 0; font: inherit; color: inherit; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.hd-widget[data-hd-type="switch"] .hd-push[data-hd-variant="tile"] .hd-ico { inline-size: 28px; block-size: 28px; }
+@container hd-widget (min-height: 200px) { .hd-widget[data-hd-type="switch"] .hd-push[data-hd-variant="tile"] .hd-ico { inline-size: 40px; block-size: 40px; } }
+.hd-widget[data-hd-type="switch"] .hd-push[data-hd-variant="tile"] .hd-push-label { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* Light slider row (power chip 44x44, slider, numeral 4.5ch hidden below 300px) and fader column (numeral from 260px tall, vertical slider 64px or more, power chip). */
+.hd-lrow { display: flex; align-items: center; gap: 8px; inline-size: 100%; min-inline-size: 0; }
+.hd-widget .hd-lrow > .hd-push[data-hd-variant], .hd-widget .hd-lcol > .hd-push[data-hd-variant] { flex: none; inline-size: 44px; block-size: 44px; padding: 0; }
+.hd-lrow > .hd-slider { flex: 1 1 0; min-inline-size: 0; }
+.hd-lrow > .hd-numeral { flex: none; inline-size: 4.5ch; font-size: var(--hd-text-m); text-align: end; white-space: nowrap; }
+@container hd-widget (max-width: 299px) { .hd-lrow > .hd-numeral { display: none; } }
+.hd-lcol { display: flex; flex-direction: column; align-items: center; gap: 8px; inline-size: 100%; block-size: 100%; min-block-size: 0; }
+.hd-lcol > .hd-slider { flex: 1 1 0; min-block-size: 64px; }
+.hd-lcol > .hd-numeral { flex: none; font-size: var(--hd-text-l); line-height: 1.2; white-space: nowrap; }
+@container hd-widget (max-height: 259px) { .hd-lcol > .hd-numeral { display: none; } }
+/* Light tile: the wash grows from the left by --hd-value (18-40 % opacity of the family's light colour), icon badge top-left, numeral bottom-left (22cqmin, 18px at 1x1). Tap powers, drag dims. */
+.hd-ltile { --hd-lt-badge: 28px; position: relative; display: grid; grid-template-rows: auto minmax(0, 1fr); justify-items: start; box-sizing: border-box; inline-size: 100%; block-size: 100%; min-inline-size: 44px;
+  padding: 6px 8px; overflow: hidden; border-radius: var(--hd-radius-control); cursor: pointer; touch-action: pan-y; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+.hd-ltile > :not(.hd-ltile-wash) { position: relative; z-index: 1; }
+.hd-ltile-wash { position: absolute; inset: 0; z-index: 0; transform-origin: 0 50%; transform: scaleX(var(--hd-value, 0)); opacity: calc(0.18 + 0.22 * var(--hd-value, 0)); pointer-events: none; }
+.hd-ltile[data-hd-on="true"][data-hd-empty="true"] .hd-ltile-wash { transform: none; opacity: 0.18; } /* on without a brightness: the whole tile is lit at the lowest level */
+.hd-ltile > .hd-iconbadge { display: inline-grid; place-items: center; inline-size: var(--hd-lt-badge); block-size: var(--hd-lt-badge); }
+.hd-ltile > .hd-iconbadge .hd-ico { inline-size: calc(var(--hd-lt-badge) * 0.7); block-size: calc(var(--hd-lt-badge) * 0.7); }
+.hd-ltile > .hd-numeral { align-self: end; max-inline-size: 100%; overflow: hidden; font-size: 22cqmin; line-height: 1; white-space: nowrap; text-overflow: ellipsis; }
+@container hd-widget (max-height: 139px) { .hd-ltile { --hd-lt-badge: 20px; padding: 4px 8px; } }
+@container hd-widget (max-width: 139px) and (max-height: 139px) { .hd-ltile { --hd-lt-badge: 18px; padding: 3px 6px; } .hd-ltile > .hd-numeral { font-size: 18px; } }
+/* Select: the segmented bar takes the full body width (overrides the H4 260px cap); the picker is full width (primitives). */
+.hd-widget[data-hd-type="select"] .hd-seg { inline-size: 100%; }
+/* Number: stepper centred; slider row = slider and a 5ch numeral with its unit. */
+.hd-widget[data-hd-type="number"] .hd-stepper { justify-self: center; }
+.hd-nrow { display: flex; align-items: center; gap: 8px; inline-size: 100%; min-inline-size: 0; }
+.hd-nrow > .hd-slider { flex: 1 1 0; min-inline-size: 0; }
+.hd-nrow > .hd-numeral { flex: none; inline-size: 5ch; font-size: var(--hd-text-m); text-align: end; white-space: nowrap; }
+/* Light sheet (M3 more-info, SCR-M3-3). The dialog is a widget: its frame is the card, its head carries icon, name, area and the 44px close button; body rows are label over control,
+   in two columns (rows left, colour wheel right) from 560px wide; state row, then the foot (source and last update, the read-only reason). */
+.hd-widget .hd-foot { grid-area: foot; display: flex; flex-wrap: wrap; gap: 2px 12px; color: var(--hd-ink-muted); font-size: var(--hd-text-xs); line-height: 1.4; }
+.hd-widget[data-kind="moreinfo"] > .hd-frame { --hd-pad-b: 20px; --hd-pad-i: 20px; --hd-head-h: 28px; --hd-state-h: 20px; --hd-gap-in: 12px;
+  grid-template: "head" var(--hd-head-h) "body" minmax(0, 1fr) "state" var(--hd-state-h) "foot" auto / minmax(0, 1fr); }
+.hd-widget[data-kind="moreinfo"] .hd-head { padding-inline-end: 36px; }
+.hd-widget[data-kind="moreinfo"] .hd-head > .hd-icon .hd-ico { inline-size: 18px; block-size: 18px; }
+.hd-widget[data-kind="moreinfo"] .hd-title { font-size: var(--hd-text-l); }
+.hd-widget[data-kind="moreinfo"] .hd-sub { flex: 0 1 auto; min-inline-size: 0; max-inline-size: 40%; overflow: hidden; font-size: var(--hd-text-s); text-overflow: ellipsis; white-space: nowrap; }
+.hd-widget[data-kind="moreinfo"] .hd-body { place-items: stretch; align-content: start; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; padding: 4px; margin: -4px; }
+.hd-sheet-close { position: absolute; inset-block-start: 12px; inset-inline-end: 12px; z-index: 3; display: grid; place-items: center; box-sizing: border-box; inline-size: 44px; block-size: 44px; margin: 0; padding: 0;
+  border: 0; background: transparent; color: var(--hd-ink-muted); font: inherit; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.hd-sheet-close .hd-ico { inline-size: 20px; block-size: 20px; }
+.hd-mi { display: grid; grid-template-columns: minmax(0, 1fr); row-gap: 14px; align-content: start; min-inline-size: 0; }
+.hd-mi-row { display: grid; row-gap: 6px; min-inline-size: 0; }
+.hd-mi-label { display: flex; align-items: center; gap: 6px; color: var(--hd-ink-muted); font: var(--hd-label-weight) var(--hd-text-s) / 1.3 var(--hd-font-label); letter-spacing: var(--hd-label-tracking); }
+.hd-mi-label .hd-ico { inline-size: 16px; block-size: 16px; }
+.hd-mi-line { display: grid; align-items: center; min-block-size: 44px; min-inline-size: 0; }
+.hd-mi-line > .hd-toggle { justify-self: start; }
+.hd-mi-row[data-row="wheel"] .hd-mi-line { justify-items: center; }
+.hd-mi-source, .hd-mi-reason { min-inline-size: 0; }
+@container hd-widget (min-width: 560px) {
+  .hd-widget[data-kind="moreinfo"] .hd-mi { grid-template-columns: minmax(0, 1fr) 220px; grid-template-rows: repeat(3, auto) minmax(0, 1fr); column-gap: 24px; }
+  .hd-widget[data-kind="moreinfo"] .hd-mi-row { grid-column: 1; }
+  .hd-widget[data-kind="moreinfo"] .hd-mi-row[data-row="wheel"] { grid-column: 2; grid-row: 1 / 5; }
+}
+/* Motion (gate selector only; transform and opacity only; never under reduced motion). Error cue: the control shakes 3 cycles in 320ms (--hd-shake sets the distance, 6px by default).
+   Confirmed: the check fades over the 600ms. The light wash follows a remote change; during a drag it follows the pointer. */
+@media (prefers-reduced-motion: no-preference) {
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-status="error"] .hd-body > :first-child { animation: hd-shake 320ms linear; }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-confirmed="true"] .hd-state::before { animation: hd-fade-out 600ms linear forwards; }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-ltile:not([data-hd-dragging]) .hd-ltile-wash { transition: transform var(--hd-dur-state) var(--hd-ease-standard), opacity var(--hd-dur-state) var(--hd-ease-standard); }
+}
