@@ -267,3 +267,135 @@
 .hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] :is(.hd-toggle-legend, .hd-rocker-legend, .hd-dial-legend)::before { content: "—"; font-size: 11px; }
 /* Square-corner themes (Amiga, Cyberpunk, Voxel World): cards, bezels and rectangular controls lose their radii; dials, knobs, LEDs and thumbs stay round (--hd-radius-pill). */
 .hd-root[data-hd-corners="square"] .hd-widget[data-hd-family="tactile"] { --hd-radius-card: 0px; --hd-radius-control: 0px; --hd-t-bezel-r: 0px; }
+/* ===== M3 (Task 19): paint of the W1 controls, the light sheet and the P1 states. Structure (sizes, positions, hit areas) lives in primitives.css, widgets.css and page.css; this part only paints.
+   Hardware language: domed bakelite keys, slot sliders with steel and bakelite caps, VFD windows for readouts, one pilot LED per control for every state. ===== */
+.hd-widget[data-hd-family="tactile"][data-hd-armed="true"]:not([data-hd-status="error"]) :is(.hd-push[data-hd-variant], .hd-pick, .hd-ltile, .hd-step-value, .hd-slider-thumb, .hd-ct-thumb, .hd-wheel-thumb)::after { background: var(--hd-t-pilot); box-shadow: var(--hd-vfd-glow); } /* armed: amber, whatever else the widget shows */
+.hd-widget[data-hd-family="tactile"][data-hd-armed="true"] .hd-arm { display: none; } /* armed is the blinking amber LED; the bar is hidden */
+
+/* Keys: push chip (switch push, action button, light power chip), switch tile and picker are domed bakelite; the stepper keys likewise. */
+.hd-widget[data-hd-family="tactile"] :is(.hd-push[data-hd-variant="chip"], .hd-push[data-hd-variant="tile"], .hd-pick, .hd-step) { position: relative; color: var(--hd-t-faceink); background: var(--hd-t-bakelite); border-radius: var(--hd-radius-control); box-shadow: var(--hd-lip), var(--hd-t-edge-low), var(--hd-shadow-cast); }
+.hd-widget[data-hd-family="tactile"] .hd-push[data-hd-variant="tile"] { border-radius: var(--hd-t-bezel-r); }
+.hd-widget[data-hd-family="tactile"] :is(.hd-push[data-hd-variant="chip"], .hd-pick) { font: 600 14px / 1 var(--hd-font-label); letter-spacing: var(--hd-label-tracking); text-shadow: var(--hd-t-emboss); }
+.hd-widget[data-hd-family="tactile"] .hd-step { font: 600 20px / 1 var(--hd-font-label); text-shadow: var(--hd-t-emboss); }
+/* Pressed: flat, darker, recessed, no cast shadow (on, open list, held key). */
+.hd-widget[data-hd-family="tactile"] :is(.hd-push[data-hd-variant]:is([aria-checked="true"], [data-hd-on="true"]), .hd-pick[aria-expanded="true"]),
+.hd-widget[data-hd-family="tactile"] :is(.hd-push[data-hd-variant], .hd-step):active:not([aria-disabled="true"]) { background: var(--hd-t-half-down); box-shadow: var(--hd-recess); }
+.hd-widget[data-hd-family="tactile"] .hd-step[aria-disabled="true"] { opacity: 0.45; background: var(--hd-t-half-down); box-shadow: var(--hd-recess); }
+.hd-widget[data-hd-family="tactile"][data-hd-readonly="true"] .hd-step[aria-disabled="true"] { opacity: 1; background: var(--hd-t-bakelite); box-shadow: var(--hd-lip), var(--hd-t-edge-low); }
+/* Focus: the M0 ring, and the hardware lifts 1 px. */
+.hd-widget[data-hd-family="tactile"] :is(.hd-push[data-hd-variant], .hd-pick, .hd-step):is(:focus-visible, [data-hd-focus="ring"]) { translate: 0 -1px; box-shadow: 0 0 0 2px var(--hd-focus-gap), 0 0 0 4px var(--hd-focus), var(--hd-lip), var(--hd-t-edge-low), var(--hd-shadow-cast); }
+.hd-widget[data-hd-family="tactile"] :is(.hd-push[data-hd-variant]:is([aria-checked="true"], [data-hd-on="true"]), .hd-pick[aria-expanded="true"]):is(:focus-visible, [data-hd-focus="ring"]) { box-shadow: 0 0 0 2px var(--hd-focus-gap), 0 0 0 4px var(--hd-focus), var(--hd-recess); }
+.hd-widget[data-hd-family="tactile"] .hd-pick > .hd-ico { color: var(--hd-t-faceink); }
+
+/* Pilot LED. Keys carry an unlit dome (::before) and a lit layer (::after); the picker, the stepper readout, the light tile and the thumbs show the lit layer only. The lit layer follows --hd-led:
+   green steady on and confirmed, amber pending and armed (blinking under motion, static otherwise), red error (3 blinks). It sits in a corner or on the icon, never over a word. */
+.hd-widget[data-hd-family="tactile"] :is(.hd-push[data-hd-variant="chip"], .hd-push[data-hd-variant="tile"], .hd-ltile)::before { content: ""; position: absolute; z-index: 1; inset-block-start: 6px; inset-inline-end: 6px; inline-size: 6px; block-size: 6px; border-radius: var(--hd-radius-pill); background: var(--hd-t-led-off); box-shadow: 0 0 0 var(--hd-stroke-hair) var(--hd-t-window); pointer-events: none; }
+.hd-widget[data-hd-family="tactile"] :is(.hd-push[data-hd-variant="chip"], .hd-push[data-hd-variant="tile"], .hd-ltile, .hd-step-value)::after { content: ""; position: absolute; z-index: 1; inset-block-start: 6px; inset-inline-end: 6px; inline-size: 6px; block-size: 6px; border-radius: var(--hd-radius-pill); background: var(--hd-t-led); box-shadow: var(--hd-t-led-halo); opacity: 0; pointer-events: none; }
+.hd-widget[data-hd-family="tactile"] .hd-push[data-hd-variant="tile"]::before, .hd-widget[data-hd-family="tactile"] .hd-push[data-hd-variant="tile"]::after { inset-block-start: 9px; inset-inline-end: 9px; }
+.hd-widget[data-hd-family="tactile"] .hd-step-value { position: relative; }
+.hd-widget[data-hd-family="tactile"] .hd-step-value::after { inset-block-start: 4px; inset-inline-end: 3px; }
+.hd-widget[data-hd-family="tactile"] .hd-pick::after { content: ""; position: absolute; inset-block-start: 50%; inset-inline-end: 17px; inline-size: 6px; block-size: 6px; margin-block-start: -3px; border-radius: var(--hd-radius-pill); background: var(--hd-t-led); box-shadow: var(--hd-t-led-halo); opacity: 0; pointer-events: none; }
+.hd-widget[data-hd-family="tactile"] :is(.hd-slider-thumb, .hd-ct-thumb, .hd-wheel-thumb)::after { content: ""; position: absolute; inset: 0; margin: auto; inline-size: 6px; block-size: 6px; border-radius: var(--hd-radius-pill); background: var(--hd-t-led); box-shadow: var(--hd-t-led-halo); opacity: 0; pointer-events: none; }
+.hd-widget[data-hd-family="tactile"] :is(.hd-push[data-hd-variant], .hd-ltile):is([aria-checked="true"], [data-hd-on="true"])::after { opacity: 1; }
+.hd-widget[data-hd-family="tactile"]:is([data-hd-pending="true"], [data-hd-armed="true"], [data-hd-confirmed="true"], [data-hd-status="error"], [data-hd-tone="crit"]) :is(.hd-push[data-hd-variant], .hd-pick, .hd-ltile, .hd-step-value, .hd-slider-thumb, .hd-ct-thumb, .hd-wheel-thumb)::after { opacity: 1; }
+.hd-widget[data-hd-family="tactile"]:is([data-hd-pending="true"], [data-hd-armed="true"], [data-hd-confirmed="true"], [data-hd-status="error"], [data-hd-tone="crit"]) .hd-pick > .hd-ico { opacity: 0; }
+/* Segmented select: the selected key's pilot follows the state colour as well. */
+.hd-widget[data-hd-family="tactile"][data-hd-type="select"]:is([data-hd-status="error"], [data-hd-tone="crit"]) .hd-seg-opt::after { background: var(--hd-t-led); box-shadow: var(--hd-t-led-halo); }
+
+/* Switch tile: the glyph sits in a dark lens (a shadow spread, so the tile geometry stays); lit amber when on. */
+.hd-widget[data-hd-family="tactile"][data-hd-type="switch"] .hd-push[data-hd-variant="tile"] .hd-ico { border-radius: var(--hd-radius-pill); color: var(--hd-t-faceink-d); background: var(--hd-t-window); box-shadow: 0 0 0 8px var(--hd-t-window), 0 0 0 9px var(--hd-t-hairline); }
+.hd-widget[data-hd-family="tactile"][data-hd-type="switch"] .hd-push[data-hd-variant="tile"][aria-checked="true"] .hd-ico { color: var(--hd-t-vfd); background: color-mix(in srgb, var(--hd-t-amber) 22%, var(--hd-t-window)); box-shadow: 0 0 0 8px color-mix(in srgb, var(--hd-t-amber) 22%, var(--hd-t-window)), 0 0 0 9px var(--hd-t-hairline); }
+@container hd-widget (min-height: 200px) {
+  .hd-widget[data-hd-family="tactile"][data-hd-type="switch"] .hd-push[data-hd-variant="tile"] .hd-ico { box-shadow: 0 0 0 10px var(--hd-t-window), 0 0 0 11px var(--hd-t-hairline); }
+  .hd-widget[data-hd-family="tactile"][data-hd-type="switch"] .hd-push[data-hd-variant="tile"][aria-checked="true"] .hd-ico { box-shadow: 0 0 0 10px color-mix(in srgb, var(--hd-t-amber) 22%, var(--hd-t-window)), 0 0 0 11px var(--hd-t-hairline); }
+}
+
+/* Light tile: a smoked lens with a lamp behind it. Off it is a dark window; on, the wash is warm light, brightest at the fill edge and around the badge; a dark strip along the bottom carries the numeral. */
+.hd-widget[data-hd-family="tactile"] .hd-ltile { color: var(--hd-t-faceink-d); background: var(--hd-t-reflection), var(--hd-t-window); border-radius: var(--hd-t-bezel-r); box-shadow: var(--hd-window-shadow), 0 0 0 1px var(--hd-t-knurl-a), var(--hd-shadow-cast); }
+.hd-widget[data-hd-family="tactile"] .hd-ltile .hd-ltile-wash { background: linear-gradient(0deg, color-mix(in srgb, var(--hd-t-window) 88%, transparent), transparent 60%), radial-gradient(circle at 16px 16px, color-mix(in srgb, var(--hd-light-on) 40%, var(--hd-t-faceink-d)), transparent 60%), linear-gradient(90deg, color-mix(in srgb, var(--hd-light-on) 55%, transparent), var(--hd-light-on) 55%, color-mix(in srgb, var(--hd-light-on) 40%, var(--hd-t-faceink-d))); }
+.hd-widget[data-hd-family="tactile"] .hd-ltile:not([data-hd-empty="true"]) .hd-ltile-wash { opacity: calc(0.7 + 0.3 * var(--hd-value, 0)); }
+.hd-widget[data-hd-family="tactile"] .hd-ltile[data-hd-on="true"] { box-shadow: var(--hd-window-shadow), 0 0 0 1px var(--hd-t-knurl-b), var(--hd-shadow-cast); }
+.hd-widget[data-hd-family="tactile"] .hd-ltile > .hd-iconbadge { border-radius: var(--hd-radius-pill); color: var(--hd-t-faceink-d); background: var(--hd-t-window); box-shadow: 0 0 0 1px var(--hd-t-knurl-b), var(--hd-window-shadow); }
+.hd-widget[data-hd-family="tactile"] .hd-ltile[data-hd-on="true"] > .hd-iconbadge { color: var(--hd-t-window); background: var(--hd-t-pilot); box-shadow: 0 0 0 1px var(--hd-t-knurl-b), var(--hd-vfd-glow); }
+.hd-widget[data-hd-family="tactile"] .hd-ltile .hd-num-unit, .hd-widget[data-hd-family="tactile"] .hd-ltile[data-hd-stale="true"] .hd-numeral, .hd-widget[data-hd-family="tactile"][data-hd-stale="true"] .hd-ltile .hd-numeral { color: var(--hd-t-faceink-d); }
+.hd-widget[data-hd-family="tactile"] .hd-ltile > .hd-numeral { font-weight: var(--hd-num-weight); }
+.hd-widget[data-hd-family="tactile"] .hd-ltile:is(:focus-visible, [data-hd-focus="ring"]) { outline: none; translate: 0 -1px; box-shadow: 0 0 0 2px var(--hd-focus-gap), 0 0 0 4px var(--hd-focus), var(--hd-window-shadow), var(--hd-shadow-cast); }
+
+/* Slider (h and v), fader cap, colour temperature strip, wheel. The slot is a black recess with an amber fill (3:1 against the slot in every scheme and accent); caps are steel (h) and bakelite with grip lines (fader). */
+.hd-widget[data-hd-family="tactile"] .hd-slider-track { background: var(--hd-sunken); box-shadow: var(--hd-recess), 0 0 0 1px var(--hd-t-hairline); }
+.hd-widget[data-hd-family="tactile"] .hd-slider-fill { background: var(--hd-t-amber); }
+.hd-widget[data-hd-family="tactile"] :is(.hd-slider-thumb, .hd-ct-thumb) { background: var(--hd-t-steel); box-shadow: var(--hd-lip), var(--hd-shadow-contact); }
+.hd-widget[data-hd-family="tactile"] .hd-slider[data-hd-variant="v"] .hd-slider-thumb { border-radius: var(--hd-radius-control); background: var(--hd-t-grip), var(--hd-t-bakelite); box-shadow: var(--hd-lip), var(--hd-t-edge-low), var(--hd-shadow-cast); }
+.hd-widget[data-hd-family="tactile"] :is(.hd-slider, .hd-ct, .hd-wheel)[data-hd-dragging] :is(.hd-slider-thumb, .hd-ct-thumb, .hd-wheel-thumb) { translate: 0 1px; box-shadow: var(--hd-lip), var(--hd-shadow-contact); }
+.hd-widget[data-hd-family="tactile"] :is(.hd-slider, .hd-ct, .hd-wheel):is(:focus-visible, [data-hd-focus="ring"]) :is(.hd-slider-thumb, .hd-ct-thumb, .hd-wheel-thumb) { translate: 0 -1px; }
+.hd-widget[data-hd-family="tactile"] .hd-ct-track { box-shadow: var(--hd-recess), 0 0 0 2px var(--hd-t-window), 0 0 0 3px var(--hd-t-hairline); }
+.hd-widget[data-hd-family="tactile"] .hd-wheel::before { content: ""; position: absolute; inset: -6px; border-radius: var(--hd-radius-pill); background: var(--hd-t-steel); box-shadow: var(--hd-shadow-cast); }
+.hd-widget[data-hd-family="tactile"] .hd-wheel-canvas { box-shadow: 0 0 0 2px var(--hd-t-window); }
+.hd-widget[data-hd-family="tactile"] .hd-wheel-thumb { background: var(--hd-wheel-colour, var(--hd-t-steel-lin)); border: var(--hd-stroke-2) solid var(--hd-t-faceink-d); box-shadow: 0 0 0 var(--hd-stroke-hair) var(--hd-t-window), var(--hd-shadow-contact); }
+
+/* Readouts of the rows: amber digits in a black window (the window grows outward as a shadow spread, so the box keeps its structure size); the stepper value fills its own window. */
+.hd-widget[data-hd-family="tactile"] :is(.hd-lrow, .hd-lcol, .hd-nrow) > .hd-numeral { color: var(--hd-t-vfd); background: var(--hd-t-window); border-radius: var(--hd-radius-control); text-shadow: var(--hd-vfd-glow); box-shadow: 0 0 0 4px var(--hd-t-window), 0 0 0 5px var(--hd-t-hairline); }
+.hd-widget[data-hd-family="tactile"][data-hd-stale="true"] :is(.hd-lrow, .hd-lcol, .hd-nrow) > .hd-numeral, .hd-widget[data-hd-family="tactile"][data-hd-stale="true"] .hd-step-value .hd-numeral { color: color-mix(in srgb, var(--hd-t-vfd) 60%, transparent); text-shadow: none; }
+.hd-widget[data-hd-family="tactile"] .hd-step-value { background: var(--hd-t-window); border-radius: var(--hd-radius-control); box-shadow: var(--hd-window-shadow); }
+.hd-widget[data-hd-family="tactile"] .hd-step-value .hd-numeral { color: var(--hd-t-vfd); text-shadow: var(--hd-vfd-glow); font-weight: var(--hd-num-weight); }
+
+/* More button: a ghost key; pressed it sinks into a dark socket. */
+.hd-widget[data-hd-family="tactile"] > .hd-frame > .hd-more { border-radius: var(--hd-radius-pill); color: color-mix(in srgb, var(--hd-t-muted) 55%, var(--hd-t-legend)); }
+.hd-widget[data-hd-family="tactile"] > .hd-frame > .hd-more:active { color: var(--hd-t-faceink-d); background: var(--hd-t-window); box-shadow: var(--hd-recess); }
+.hd-widget[data-hd-family="tactile"] > .hd-frame > .hd-more:is(:focus-visible, [data-hd-focus="ring"]) { translate: 0 -1px; }
+@media (hover: hover) { .hd-widget[data-hd-family="tactile"] > .hd-frame > .hd-more:hover { color: var(--hd-t-legend); background: color-mix(in srgb, var(--hd-t-legend) 12%, transparent); } }
+
+/* Listbox panel and options: a panel in a steel rim; the active row is lit like a display row, the selected row is recessed. */
+.hd-pop-layer > .hd-sheet.hd-widget[data-hd-family="tactile"][data-kind="listbox"] { background: var(--hd-t-panel); box-shadow: var(--hd-t-shadow-card), var(--hd-shadow-cast); }
+.hd-pop-layer > .hd-sheet.hd-widget[data-hd-family="tactile"][data-kind="listbox"]::after,
+.hd-widget[data-hd-family="tactile"][data-kind="moreinfo"] > .hd-frame::after { content: ""; position: absolute; inset: 0; z-index: 2; box-sizing: border-box; padding: 3px; border-radius: var(--hd-radius-card); background: var(--hd-t-steel-lin); pointer-events: none;
+  -webkit-mask: linear-gradient(var(--hd-t-window) 0 0) content-box, linear-gradient(var(--hd-t-window) 0 0); -webkit-mask-composite: xor; mask: linear-gradient(var(--hd-t-window) 0 0) content-box, linear-gradient(var(--hd-t-window) 0 0); mask-composite: exclude; }
+.hd-pop-layer > .hd-sheet.hd-widget[data-hd-family="tactile"][data-kind="listbox"]::after { padding: 2px; }
+.hd-sheet-layer[data-hd-pop="sheet"] .hd-widget[data-hd-family="tactile"][data-kind="moreinfo"] > .hd-frame::after, .hd-pop-layer > .hd-sheet.hd-widget[data-hd-family="tactile"][data-kind="listbox"][data-hd-pop="sheet"]::after { border-end-start-radius: 0; border-end-end-radius: 0; }
+.hd-widget[data-hd-family="tactile"] .hd-option { color: var(--hd-t-legend); font: 600 14px / 1.2 var(--hd-font-label); text-shadow: var(--hd-t-emboss); }
+.hd-widget[data-hd-family="tactile"] .hd-option[aria-selected="true"] { background: var(--hd-t-shade); box-shadow: var(--hd-recess); }
+.hd-widget[data-hd-family="tactile"] .hd-option:is(:hover, [data-hd-active="true"]) { background: var(--hd-t-window); color: var(--hd-t-vfd); text-shadow: var(--hd-vfd-glow); }
+.hd-widget[data-hd-family="tactile"] .hd-option > .hd-ico { color: var(--hd-t-legend); }
+.hd-widget[data-hd-family="tactile"] .hd-option:is(:hover, [data-hd-active="true"]) > .hd-ico { color: var(--hd-t-vfd); }
+
+/* Light sheet: a steel rim around the panel (the frame), engraved labels, a bakelite close key. */
+.hd-widget[data-hd-family="tactile"][data-kind="moreinfo"] > .hd-frame { box-shadow: var(--hd-t-shadow-card), var(--hd-shadow-cast); }
+.hd-widget[data-hd-family="tactile"][data-kind="moreinfo"] :is(.hd-sub, .hd-foot, .hd-mi-source, .hd-mi-reason) { color: color-mix(in srgb, var(--hd-t-muted) 55%, var(--hd-t-legend)); }
+.hd-widget[data-hd-family="tactile"] .hd-mi-label { color: color-mix(in srgb, var(--hd-t-muted) 55%, var(--hd-t-legend)); font: 600 12px / 1.3 var(--hd-font-label); letter-spacing: var(--hd-label-tracking); text-shadow: var(--hd-t-emboss); }
+.hd-widget[data-hd-family="tactile"] .hd-sheet-close { border-radius: var(--hd-radius-pill); color: var(--hd-t-faceink); background: var(--hd-t-bakelite); box-shadow: var(--hd-lip), var(--hd-t-edge-low), var(--hd-shadow-cast); }
+.hd-widget[data-hd-family="tactile"] .hd-sheet-close:active { background: var(--hd-t-half-down); box-shadow: var(--hd-recess); }
+.hd-widget[data-hd-family="tactile"] .hd-sheet-close:is(:focus-visible, [data-hd-focus="ring"]) { translate: 0 -1px; box-shadow: 0 0 0 2px var(--hd-focus-gap), 0 0 0 4px var(--hd-focus), var(--hd-lip), var(--hd-t-edge-low), var(--hd-shadow-cast); }
+
+/* State table (Tactile column) for the W1 controls. Unavailable: hollow keys and slots, no wash, no fill, dimmed lens. Read-only: the cast shadow goes (--hd-shadow-cast), the lock badge is structure. */
+.hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] :is(.hd-push[data-hd-variant], .hd-pick, .hd-step, .hd-ltile, .hd-sheet-close) { color: var(--hd-t-legend); background: transparent; text-shadow: none; box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-t-muted); }
+.hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] .hd-pick > .hd-ico { color: var(--hd-t-legend); }
+.hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] :is(.hd-push[data-hd-variant], .hd-ltile)::before { background: transparent; box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-t-muted); }
+.hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] .hd-ltile-wash, .hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] .hd-slider-fill { display: none; }
+.hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] .hd-ltile > .hd-iconbadge { color: var(--hd-t-legend); background: transparent; box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-t-muted); }
+.hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] .hd-push[data-hd-variant="tile"] .hd-ico { color: var(--hd-t-legend); background: transparent; box-shadow: none; }
+.hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] :is(.hd-slider-thumb, .hd-ct-thumb, .hd-wheel-thumb) { background: transparent; border-color: transparent; box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-t-muted); }
+.hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] .hd-slider-track { background: transparent; box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-t-muted); }
+.hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] :is(.hd-push[data-hd-variant], .hd-pick, .hd-ltile, .hd-step-value, .hd-slider-thumb, .hd-ct-thumb, .hd-wheel-thumb)::after { opacity: 0; }
+
+/* Motion (gate selector only; transform and opacity only): pending and armed blink the LED at 2 Hz, an error blinks it three times; a confirmed LED stays lit. */
+@media (prefers-reduced-motion: no-preference) {
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"]:is([data-hd-pending="true"], [data-hd-armed="true"]) :is(.hd-push[data-hd-variant], .hd-pick, .hd-ltile, .hd-step-value, .hd-slider-thumb, .hd-ct-thumb, .hd-wheel-thumb)::after { animation: hd-blink 500ms steps(1) infinite; }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"][data-hd-status="error"]:not([data-hd-pending="true"], [data-hd-armed="true"]) :is(.hd-push[data-hd-variant], .hd-pick, .hd-ltile, .hd-step-value, .hd-slider-thumb, .hd-ct-thumb, .hd-wheel-thumb)::after { animation: hd-blink 500ms steps(1) 3; }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"][data-hd-type="select"]:is([data-hd-pending="true"], [data-hd-armed="true"]) .hd-seg-opt[aria-checked="true"]::after { animation: hd-blink 500ms steps(1) infinite; }
+}
+.hd-widget[data-hd-family="tactile"] .hd-slider[data-hd-variant="v"] .hd-slider-thumb::after { inset-inline: auto 6px; margin-inline: 0; } /* the fader cap keeps its LED beside the grip lines */
+.hd-widget[data-hd-family="tactile"] :is(.hd-push[data-hd-variant="chip"], .hd-pick) { background: linear-gradient(180deg, color-mix(in srgb, var(--hd-t-faceink-d) var(--hd-t-spec), transparent), transparent 55%), var(--hd-t-bakelite-c); } /* wide keys: a top-lit sheen instead of the round specular spot */
+.hd-widget[data-hd-family="tactile"] :is(.hd-push[data-hd-variant]:is([aria-checked="true"], [data-hd-on="true"]), .hd-pick[aria-expanded="true"]), .hd-widget[data-hd-family="tactile"] .hd-push[data-hd-variant]:active:not([aria-disabled="true"]) { background: var(--hd-t-half-down); }
+.hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] :is(.hd-push[data-hd-variant], .hd-pick) { background: transparent; }
+.hd-widget[data-hd-family="tactile"][data-kind="moreinfo"] > .hd-frame { box-shadow: 0 0 0 var(--hd-stroke-hair) var(--hd-t-knurl-a), var(--hd-t-shadow-card), var(--hd-shadow-cast); } /* a dark outer edge so the steel rim reads on the light panel too */
+.hd-pop-layer > .hd-sheet.hd-widget[data-hd-family="tactile"][data-kind="listbox"] { box-shadow: 0 0 0 var(--hd-stroke-hair) var(--hd-t-knurl-a), var(--hd-t-shadow-card), var(--hd-shadow-cast); }
+/* Gate W-T r1. T-1: in the dark scheme a pressed (on) key lights its legend and icon amber and glows from inside, so on differs from off in luminance, not only by the LED. */
+.hd-root[data-hd-scheme="dark"] .hd-widget[data-hd-family="tactile"] .hd-push[data-hd-variant="chip"]:is([aria-checked="true"], [data-hd-on="true"]), .hd-root[data-hd-scheme="dark"] .hd-widget[data-hd-family="tactile"] .hd-pick[aria-expanded="true"] { color: var(--hd-t-vfd); text-shadow: var(--hd-vfd-glow); box-shadow: var(--hd-recess), inset 0 0 12px color-mix(in srgb, var(--hd-t-amber) 28%, transparent); }
+.hd-root[data-hd-scheme="dark"] .hd-widget[data-hd-family="tactile"] .hd-pick[aria-expanded="true"] > .hd-ico { color: var(--hd-t-vfd); }
+.hd-root[data-hd-scheme="dark"] .hd-widget[data-hd-family="tactile"] .hd-push[data-hd-variant="tile"][aria-checked="true"] { box-shadow: var(--hd-recess), inset 0 0 18px color-mix(in srgb, var(--hd-t-amber) 28%, transparent); }
+.hd-root[data-hd-scheme="dark"] .hd-widget[data-hd-family="tactile"][data-hd-type="select"] .hd-seg-opt[aria-checked="true"] { color: var(--hd-t-vfd); text-shadow: var(--hd-vfd-glow); }
+.hd-root[data-hd-scheme="dark"] .hd-widget[data-hd-family="tactile"][data-hd-type="select"] .hd-seg-opt[aria-checked="true"]::before { box-shadow: var(--hd-recess), inset 0 0 12px color-mix(in srgb, var(--hd-t-amber) 28%, transparent); }
+.hd-root[data-hd-scheme="dark"] .hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] :is(.hd-push[data-hd-variant="chip"], .hd-pick, .hd-push[data-hd-variant="tile"]) { color: var(--hd-t-legend); text-shadow: none; box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-t-muted); }
+.hd-root[data-hd-scheme="dark"] .hd-widget[data-hd-family="tactile"][data-hd-type="select"][data-hd-status="unavailable"] .hd-seg-opt[aria-checked="true"] { color: var(--hd-t-legend); text-shadow: none; }
+/* T-2: in the dark scheme the steel rims are a tonal brushed bezel (lit top left, no brighter than a widget edge highlight), not bright white. */
+.hd-root[data-hd-scheme="dark"] .hd-widget[data-hd-family="tactile"][data-kind="moreinfo"] > .hd-frame::after, .hd-root[data-hd-scheme="dark"] .hd-pop-layer > .hd-sheet.hd-widget[data-hd-family="tactile"][data-kind="listbox"]::after, .hd-root[data-hd-scheme="dark"] .hd-widget[data-hd-family="tactile"] .hd-wheel::before { background: linear-gradient(135deg, color-mix(in srgb, var(--hd-t-knurl-b) 80%, var(--hd-t-faceink-d)), var(--hd-t-knurl-b) 35%, var(--hd-t-knurl-a) 70%, color-mix(in srgb, var(--hd-t-knurl-a) 85%, var(--hd-t-knurl-b))); }
