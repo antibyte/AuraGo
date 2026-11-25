@@ -12739,6 +12739,8 @@
   "codeStudio.lspPreviewDisk": "写入磁盘",
   "codeStudio.lspPreviewSkipped": "以下部分不会应用：",
   "codeStudio.lspPreviewApply": "应用",
+  "codeStudio.lspPreviewServerAsks": "语言服务器请求：{{title}}",
+  "codeStudio.lspMore": "另外 {{count}} 项",
   "codeStudio.lspResultSummary": "已在 {{files}} 个文件中应用 {{count}} 处更改。",
   "codeStudio.lspResultFailed": "以下文件未更改：",
   "codeStudio.lspSkipFileOperation": "{{path}}：不支持创建、重命名或删除文件",

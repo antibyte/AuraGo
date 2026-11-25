@@ -12739,6 +12739,8 @@
   "codeStudio.lspPreviewDisk": "written to disk",
   "codeStudio.lspPreviewSkipped": "These parts are not applied:",
   "codeStudio.lspPreviewApply": "Apply",
+  "codeStudio.lspPreviewServerAsks": "Language server asks to: {{title}}",
+  "codeStudio.lspMore": "+{{count}} more",
   "codeStudio.lspResultSummary": "Applied {{count}} changes in {{files}} files.",
   "codeStudio.lspResultFailed": "These files were not changed:",
   "codeStudio.lspSkipFileOperation": "{{path}}: creating, renaming or deleting files is not supported",

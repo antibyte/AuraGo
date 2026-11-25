@@ -83,6 +83,18 @@ test('file operations are skipped with a reason, and so are edits of the files t
     ]);
 });
 
+test('a text edit before the rename of its file is skipped as well, whatever the order', () => {
+    const result = json(E.workspaceEditToFileChanges({ documentChanges: [
+        { textDocument: { uri: uri('x.go'), version: 1 }, edits: [edit(0, 0, 0, 1, 'b')] },
+        { kind: 'rename', oldUri: uri('x.go'), newUri: uri('y.go') }
+    ] }));
+    assert.deepEqual(result.files, []);
+    assert.deepEqual(result.skipped.map(item => [item.reason, item.path]), [
+        ['depends', '/workspace/x.go'],
+        ['rename', '/workspace/x.go']
+    ]);
+});
+
 test('edits outside the workspace and malformed edits are skipped; empty edit lists are ignored', () => {
     const result = json(E.workspaceEditToFileChanges({ changes: {
         'file:///etc/passwd': [edit(0, 0, 0, 0, 'x')],

@@ -12739,6 +12739,8 @@
   "codeStudio.lspPreviewDisk": "zapíše se na disk",
   "codeStudio.lspPreviewSkipped": "Tyto části se nepoužijí:",
   "codeStudio.lspPreviewApply": "Použít",
+  "codeStudio.lspPreviewServerAsks": "Jazykový server žádá o: {{title}}",
+  "codeStudio.lspMore": "+{{count}} dalších",
   "codeStudio.lspResultSummary": "Použito {{count}} změn v {{files}} souborech.",
   "codeStudio.lspResultFailed": "Tyto soubory nebyly změněny:",
   "codeStudio.lspSkipFileOperation": "{{path}}: vytváření, přejmenování ani mazání souborů není podporováno",

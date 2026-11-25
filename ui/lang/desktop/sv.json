@@ -12739,6 +12739,8 @@
   "codeStudio.lspPreviewDisk": "skrivs till disken",
   "codeStudio.lspPreviewSkipped": "De här delarna tillämpas inte:",
   "codeStudio.lspPreviewApply": "Tillämpa",
+  "codeStudio.lspPreviewServerAsks": "Språkservern ber om att: {{title}}",
+  "codeStudio.lspMore": "+{{count}} till",
   "codeStudio.lspResultSummary": "Tillämpade {{count}} ändringar i {{files}} filer.",
   "codeStudio.lspResultFailed": "De här filerna ändrades inte:",
   "codeStudio.lspSkipFileOperation": "{{path}}: att skapa, byta namn på eller ta bort filer stöds inte",

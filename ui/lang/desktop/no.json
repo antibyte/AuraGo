@@ -12739,6 +12739,8 @@
   "codeStudio.lspPreviewDisk": "skrives til disken",
   "codeStudio.lspPreviewSkipped": "Disse delene brukes ikke:",
   "codeStudio.lspPreviewApply": "Bruk",
+  "codeStudio.lspPreviewServerAsks": "Språkserveren ber om å: {{title}}",
+  "codeStudio.lspMore": "+{{count}} til",
   "codeStudio.lspResultSummary": "Brukte {{count}} endringer i {{files}} filer.",
   "codeStudio.lspResultFailed": "Disse filene ble ikke endret:",
   "codeStudio.lspSkipFileOperation": "{{path}}: oppretting, navneendring eller sletting av filer støttes ikke",

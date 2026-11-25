@@ -12739,6 +12739,8 @@
   "codeStudio.lspPreviewDisk": "wordt naar schijf geschreven",
   "codeStudio.lspPreviewSkipped": "Deze delen worden niet toegepast:",
   "codeStudio.lspPreviewApply": "Toepassen",
+  "codeStudio.lspPreviewServerAsks": "De taalserver vraagt om: {{title}}",
+  "codeStudio.lspMore": "+{{count}} meer",
   "codeStudio.lspResultSummary": "{{count}} wijzigingen toegepast in {{files}} bestanden.",
   "codeStudio.lspResultFailed": "Deze bestanden zijn niet gewijzigd:",
   "codeStudio.lspSkipFileOperation": "{{path}}: bestanden aanmaken, hernoemen of verwijderen wordt niet ondersteund",

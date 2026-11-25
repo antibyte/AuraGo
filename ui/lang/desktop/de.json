@@ -12739,6 +12739,8 @@
   "codeStudio.lspPreviewDisk": "wird direkt gespeichert",
   "codeStudio.lspPreviewSkipped": "Diese Teile werden nicht übernommen:",
   "codeStudio.lspPreviewApply": "Übernehmen",
+  "codeStudio.lspPreviewServerAsks": "Sprachserver möchte: {{title}}",
+  "codeStudio.lspMore": "+{{count}} weitere",
   "codeStudio.lspResultSummary": "{{count}} Änderungen in {{files}} Dateien übernommen.",
   "codeStudio.lspResultFailed": "Diese Dateien wurden nicht geändert:",
   "codeStudio.lspSkipFileOperation": "{{path}}: Dateien anlegen, umbenennen oder löschen wird nicht unterstützt",

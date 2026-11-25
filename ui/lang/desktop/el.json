@@ -12739,6 +12739,8 @@
   "codeStudio.lspPreviewDisk": "εγγράφεται στον δίσκο",
   "codeStudio.lspPreviewSkipped": "Αυτά τα μέρη δεν εφαρμόζονται:",
   "codeStudio.lspPreviewApply": "Εφαρμογή",
+  "codeStudio.lspPreviewServerAsks": "Ο διακομιστής γλώσσας ζητά: {{title}}",
+  "codeStudio.lspMore": "+{{count}} ακόμη",
   "codeStudio.lspResultSummary": "Εφαρμόστηκαν {{count}} αλλαγές σε {{files}} αρχεία.",
   "codeStudio.lspResultFailed": "Αυτά τα αρχεία δεν άλλαξαν:",
   "codeStudio.lspSkipFileOperation": "{{path}}: η δημιουργία, μετονομασία ή διαγραφή αρχείων δεν υποστηρίζεται",

@@ -12739,6 +12739,8 @@
   "codeStudio.lspPreviewDisk": "zapisany na dysku",
   "codeStudio.lspPreviewSkipped": "Te części nie zostaną zastosowane:",
   "codeStudio.lspPreviewApply": "Zastosuj",
+  "codeStudio.lspPreviewServerAsks": "Serwer języka prosi o: {{title}}",
+  "codeStudio.lspMore": "+{{count}} więcej",
   "codeStudio.lspResultSummary": "Zastosowano {{count}} zmian w {{files}} plikach.",
   "codeStudio.lspResultFailed": "Te pliki nie zostały zmienione:",
   "codeStudio.lspSkipFileOperation": "{{path}}: tworzenie, zmiana nazwy ani usuwanie plików nie jest obsługiwane",

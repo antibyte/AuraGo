@@ -15,6 +15,14 @@
     const LSP_ACT_SEVERITY = { error: 1, warning: 2, info: 3 };
     const LSP_ACT_INVALID_TEXT = String.fromCharCode(0xfffd);
     const LSP_ACT_PREVIEW_FILES = 60;
+    // Caps against a server that sends huge results: references in the panel, quick-fix entries, files and skipped
+    // parts in the preview dialog, the label of a server-sent edit, and the pause after a cancelled server edit.
+    const LSP_ACT_MAX_REFERENCES = 2000;
+    const LSP_ACT_MAX_MENU = 50;
+    const LSP_ACT_MAX_DIALOG_FILES = 200;
+    const LSP_ACT_MAX_DIALOG_SKIPPED = 50;
+    const LSP_ACT_MAX_LABEL = 120;
+    const LSP_ACT_REFUSE_MS = 30000;
     const LSP_ACT_BULB_SVG = '<svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor" aria-hidden="true">'
         + '<path d="M8 1.5a4.5 4.5 0 0 0-2.62 8.16c.39.28.62.72.62 1.2v.64h4v-.64c0-.48.23-.92.62-1.2A4.5 4.5 0 0 0 8 1.5z"/>'
         + '<path d="M6 12.5h4v.75c0 .69-.56 1.25-1.25 1.25h-1.5C6.56 14.5 6 13.94 6 13.25z"/></svg>';
@@ -149,6 +157,15 @@
         return tr('codeStudio.lspReadOnly', 'Read-only: code changes are turned off.');
     }
 
+    function lspActMoreText(count) {
+        return tr('codeStudio.lspMore', '+{{count}} more', { count });
+    }
+
+    function lspActCapText(text, max) {
+        const chars = Array.from(String(text || ''));
+        return chars.length > max ? chars.slice(0, max - 1).join('') + '…' : chars.join('');
+    }
+
     function lspActLabel(path, fallback) {
         if (path) return searchResultLabel(path);
         return String(fallback || '') || tr('codeStudio.problemWorkspace', 'Workspace');
@@ -176,7 +193,9 @@
     // Returns { decision, showResult, close }; decision resolves to true on Apply.
     function lspActDialog(target, options) {
         const settings = options || {};
-        const title = settings.title || tr('codeStudio.lspPreviewTitle', 'Apply these changes?');
+        const title = settings.title
+            ? (settings.server ? tr('codeStudio.lspPreviewServerAsks', 'Language server asks to: {{title}}', { title: settings.title }) : settings.title)
+            : tr('codeStudio.lspPreviewTitle', 'Apply these changes?');
         const overlay = document.createElement('div');
         overlay.className = 'cs-modal-backdrop';
         document.body.appendChild(overlay);
@@ -201,9 +220,12 @@
             overlay.remove();
             releaseFocus();
         }
-        const list = (items, className) => (items.length
-            ? `<ul class="${className}">${items.map(text => `<li>${esc(text)}</li>`).join('')}</ul>`
-            : '');
+        const list = (items, className, max) => {
+            if (!items.length) return '';
+            const limit = max || items.length;
+            const more = items.length > limit ? `<li class="cs-lsp-dialog-more">${esc(lspActMoreText(items.length - limit))}</li>` : '';
+            return `<ul class="${className}">${items.slice(0, limit).map(text => `<li>${esc(text)}</li>`).join('')}${more}</ul>`;
+        };
         const frame = (body, actions) => `<div class="cs-modal cs-lsp-dialog" role="dialog" aria-modal="true" aria-label="${esc(title)}">
             <h3 class="cs-lsp-dialog-title" title="${esc(title)}">${esc(title)}</h3>
             ${body}
@@ -213,15 +235,17 @@
             const files = settings.files || [];
             const skipped = settings.skipped || [];
             const total = files.reduce((sum, file) => sum + file.count, 0);
-            const rows = files.map(file => {
+            const rows = files.slice(0, LSP_ACT_MAX_DIALOG_FILES).map(file => {
                 const open = runWithInstance(target, () => !!lspActOpenTab(file.path));
                 const where = open
                     ? tr('codeStudio.lspPreviewOpenTab', 'open tab, stays unsaved')
                     : tr('codeStudio.lspPreviewDisk', 'written to disk');
                 return `<li><span class="cs-lsp-dialog-path" title="${esc(file.path)}">${esc(searchResultLabel(file.path))}</span><em class="cs-replace-count">${esc(file.count)}</em><span class="cs-lsp-dialog-where${open ? ' is-open' : ''}">${esc(where)}</span></li>`;
-            }).join('');
+            }).join('') + (files.length > LSP_ACT_MAX_DIALOG_FILES
+                ? `<li class="cs-lsp-dialog-more">${esc(lspActMoreText(files.length - LSP_ACT_MAX_DIALOG_FILES))}</li>`
+                : '');
             const skippedPart = skipped.length
-                ? `<p class="cs-lsp-dialog-note">${esc(tr('codeStudio.lspPreviewSkipped', 'These parts are not applied:'))}</p>${list(skipped, 'cs-lsp-dialog-skipped')}`
+                ? `<p class="cs-lsp-dialog-note">${esc(tr('codeStudio.lspPreviewSkipped', 'These parts are not applied:'))}</p>${list(skipped, 'cs-lsp-dialog-skipped', LSP_ACT_MAX_DIALOG_SKIPPED)}`
                 : '';
             overlay.innerHTML = frame(
                 `<p class="cs-lsp-dialog-summary">${esc(tr('codeStudio.lspPreviewSummary', '{{count}} changes in {{files}} files', { count: total, files: files.length }))}</p><ul class="cs-lsp-dialog-files">${rows}</ul>${skippedPart}`,
@@ -234,7 +258,8 @@
                 overlay.querySelectorAll('button').forEach(button => { button.disabled = true; });
                 resolveDecision(true);
             });
-            apply.focus();
+            // Cancel is the default: a dialog that appears while the user types must not apply on a stray Enter.
+            overlay.querySelector('[data-lsp-cancel]').focus();
         }
         function showResult(result) {
             if (closed) return;
@@ -265,7 +290,8 @@
 
     // Applies a WorkspaceEdit. options: { mode: 'rename' | 'fix' | 'server', title, originPath, docsBefore, focusView }.
     // A rename always shows the preview. Other edits show it when they touch another file than originPath (the file
-    // the user is in) or carry parts that cannot be applied. Resolves to { applied, cancelled, reason }.
+    // the user is in) or carry parts that cannot be applied. A server edit applies directly only with allowDirect
+    // (a command the user started is in flight). Resolves to { applied, cancelled, reason }.
     async function lspActApplyWorkspaceEdit(target, edit, options) {
         const settings = options || {};
         if (!canWrite(target)) {
@@ -280,7 +306,7 @@
         const skipped = plan.skipped.map(lspActSkipMessage);
         if (!plan.files.length) {
             if (skipped.length) {
-                runWithInstance(target, () => lspActDialog(target, { title: settings.title, result: {
+                runWithInstance(target, () => lspActDialog(target, { title: settings.title, server: settings.mode === 'server', result: {
                     summary: tr('codeStudio.lspResultSummary', 'Applied {{count}} changes in {{files}} files.', { count: 0, files: 0 }),
                     failures: skipped
                 } }));
@@ -289,14 +315,14 @@
             runWithInstance(target, () => flashStatus(tr('codeStudio.lspNoChanges', 'Nothing to change.')));
             return { applied: true };
         }
-        const direct = settings.mode !== 'rename' && !skipped.length && plan.files.length === 1
+        const direct = settings.mode !== 'rename' && (settings.mode !== 'server' || settings.allowDirect === true) && !skipped.length && plan.files.length === 1
             && !!settings.originPath && plan.files[0].path === settings.originPath;
         target.lspActBusy = true;
         let dialog = null;
         let report;
         try {
             if (!direct) {
-                dialog = runWithInstance(target, () => lspActDialog(target, { title: settings.title, files: plan.files, skipped }));
+                dialog = runWithInstance(target, () => lspActDialog(target, { title: settings.title, server: settings.mode === 'server', files: plan.files, skipped }));
                 const confirmed = await dialog.decision;
                 if (!confirmed || !canWrite(target)) {
                     dialog.close();
@@ -435,7 +461,7 @@
         if (report.failures.length) {
             const result = { summary, note, failures: report.failures };
             if (dialog) dialog.showResult(result);
-            else lspActDialog(target, { title: settings.title, result });
+            else lspActDialog(target, { title: settings.title, server: settings.mode === 'server', result });
             return;
         }
         if (dialog) dialog.close();
@@ -446,18 +472,35 @@
 
     // --- Server-sent workspace/applyEdit ---
 
-    // gopls and typescript-language-server send workspace/applyEdit while they run a command. It goes through the same
-    // applier and previews when it touches another file than the active one.
-    async function lspActServerApplyEdit(_language, params) {
+    // gopls and typescript-language-server send workspace/applyEdit while they run a command. Only while a command the
+    // user picked is in flight (lspActCommandDocs) and for a single-file edit of the active file may it apply without
+    // a preview; it then runs the stale check against the buffers captured when the command started. Any other
+    // request is unsolicited and always previews. Cancelling an unsolicited preview pauses such requests for 30 s.
+    async function lspActServerApplyEdit(language, params) {
         const target = isLiveInstance(state) ? state : currentInstance();
         if (!target) return { applied: false, failureReason: 'Code Studio is not open.' };
+        const command = target.lspActCommandDocs && target.lspActCommandDocs.language === language ? target.lspActCommandDocs : null;
+        if (!command) {
+            const until = target.lspActRefusedUntil && target.lspActRefusedUntil[language];
+            if (until && Date.now() < until) return { applied: false, failureReason: 'refused: recently cancelled' };
+        }
         target.lspActServerEdits = (target.lspActServerEdits || 0) + 1;
         const origin = runWithInstance(target, () => {
             const tab = activeTab();
             return isSourceTab(tab) ? tab.path : '';
         });
-        const title = params && typeof params.label === 'string' && params.label.trim() ? params.label : '';
-        const outcome = await runWithInstance(target, () => lspActApplyWorkspaceEdit(target, params && params.edit, { mode: 'server', title, originPath: origin }));
+        const title = params && typeof params.label === 'string' && params.label.trim() ? lspActCapText(params.label.trim(), LSP_ACT_MAX_LABEL) : '';
+        const docsBefore = command ? command.docs : runWithInstance(target, lspActCaptureDocs);
+        const outcome = await runWithInstance(target, () => lspActApplyWorkspaceEdit(target, params && params.edit, {
+            mode: 'server',
+            title,
+            originPath: origin,
+            docsBefore,
+            allowDirect: !!command
+        }));
+        if (!command && outcome.cancelled) {
+            target.lspActRefusedUntil = Object.assign({}, target.lspActRefusedUntil, { [language]: Date.now() + LSP_ACT_REFUSE_MS });
+        }
         return outcome.applied ? { applied: true } : { applied: false, failureReason: outcome.reason || 'The edit was not applied.' };
     }
 
@@ -625,8 +668,13 @@
             return;
         }
         const summary = `<div class="cs-references-summary"><span>${esc(tr('codeStudio.lspReferencesSummary', '{{count}} references to {{symbol}} in {{files}} files', { count: data.total, symbol: data.symbol, files: data.groups.length }))}</span>${outside}</div>`;
+        let budget = LSP_ACT_MAX_REFERENCES;
+        let hidden = 0;
         const groups = data.groups.map((group, groupIndex) => {
-            const rows = group.collapsed ? '' : group.items.map((item, index) => {
+            const visible = group.collapsed ? [] : group.items.slice(0, budget);
+            budget -= visible.length;
+            if (!group.collapsed) hidden += group.items.length - visible.length;
+            const rows = visible.map((item, index) => {
                 const preview = item.preview;
                 const code = preview ? `${esc(preview.before)}<mark>${esc(preview.match)}</mark>${esc(preview.after)}` : '';
                 return `<button type="button" class="cs-reference" data-ref="${groupIndex}|${index}" title="${esc(group.label)}:${esc(item.line + 1)}"><em class="cs-search-line">${esc(item.line + 1)}</em><code>${code}</code></button>`;
@@ -639,7 +687,8 @@
                 </button>${rows}
             </div>`;
         }).join('');
-        pane.innerHTML = summary + groups;
+        const moreNote = hidden ? `<div class="cs-references-summary"><span>${esc(lspActMoreText(hidden))}</span></div>` : '';
+        pane.innerHTML = summary + groups + moreNote;
         pane.querySelectorAll('[data-ref-group]').forEach(button => {
             button.addEventListener('click', bind(() => {
                 const index = Number(button.dataset.refGroup);
@@ -921,10 +970,12 @@
         menu.className = 'cs-context-menu cs-lsp-fix-menu';
         menu.setAttribute('role', 'menu');
         menu.setAttribute('aria-label', tr('codeStudio.lspQuickFix', 'Quick Fix...'));
-        menu.innerHTML = actions.map((action, index) => {
+        menu.innerHTML = actions.slice(0, LSP_ACT_MAX_MENU).map((action, index) => {
             const kind = action.kind && action.kind !== 'quickfix' ? `<kbd>${esc(action.kind)}</kbd>` : '';
             return `<button type="button" role="menuitem" tabindex="-1" data-fix-index="${index}"${action.disabled ? ' disabled' : ''} title="${esc(action.disabled || action.title)}"><span>${esc(action.title)}</span>${kind}</button>`;
-        }).join('');
+        }).join('') + (actions.length > LSP_ACT_MAX_MENU
+            ? `<button type="button" role="menuitem" tabindex="-1" disabled><span>${esc(lspActMoreText(actions.length - LSP_ACT_MAX_MENU))}</span></button>`
+            : '');
         document.body.appendChild(menu);
         lspActPlace(menu, view, pos, 2);
         const items = Array.from(menu.querySelectorAll('button:not(:disabled)'));
@@ -991,8 +1042,9 @@
         let item = action.raw;
         const provider = ctx.client && ctx.client.serverCapabilities ? ctx.client.serverCapabilities.codeActionProvider : null;
         if (!item.edit && !item.command && item.data !== undefined && provider && typeof provider === 'object' && provider.resolveProvider) {
+            if (!lspActWritable(target)) return;
             try {
-                item = (await lspActRequest(target, ctx.language, 'codeAction/resolve', item)) || item;
+                item = (await lspActWithCommand(target, ctx.language, () => lspActRequest(target, ctx.language, 'codeAction/resolve', item))) || item;
             } catch (err) {
                 if (isLiveInstance(target)) runWithInstance(target, () => lspActReportError(err));
                 return;
@@ -1017,12 +1069,33 @@
         if (command) await lspActExecuteCommand(target, ctx.language, command);
     }
 
+    // Read-only is checked again right before a command or resolve goes out; the menu may have been built earlier.
+    function lspActWritable(target) {
+        if (!isLiveInstance(target)) return false;
+        if (canWrite(target)) return true;
+        runWithInstance(target, () => flashStatus(lspActReadOnlyText()));
+        return false;
+    }
+
+    // Runs a request the user started from the quick-fix menu. While it is in flight a workspace/applyEdit of that
+    // language counts as solicited (lspActServerApplyEdit); the open buffers are captured for its stale check.
+    async function lspActWithCommand(target, language, request) {
+        const mark = { language, docs: runWithInstance(target, lspActCaptureDocs) };
+        target.lspActCommandDocs = mark;
+        try {
+            return await request();
+        } finally {
+            if (target.lspActCommandDocs === mark) target.lspActCommandDocs = null;
+        }
+    }
+
     async function lspActExecuteCommand(target, language, command) {
+        if (!lspActWritable(target)) return;
         const before = target.lspActServerEdits || 0;
         const params = { command: command.command };
         if (Array.isArray(command.arguments)) params.arguments = command.arguments;
         try {
-            await lspActRequest(target, language, 'workspace/executeCommand', params);
+            await lspActWithCommand(target, language, () => lspActRequest(target, language, 'workspace/executeCommand', params));
         } catch (err) {
             // While the server waits for a previewed workspace/applyEdit the command itself may time out; that edit
             // reports its own result.

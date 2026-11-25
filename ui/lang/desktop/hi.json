@@ -12739,6 +12739,8 @@
   "codeStudio.lspPreviewDisk": "डिस्क पर लिखा जाएगा",
   "codeStudio.lspPreviewSkipped": "ये हिस्से लागू नहीं होंगे:",
   "codeStudio.lspPreviewApply": "लागू करें",
+  "codeStudio.lspPreviewServerAsks": "भाषा सर्वर अनुरोध करता है: {{title}}",
+  "codeStudio.lspMore": "+{{count}} और",
   "codeStudio.lspResultSummary": "{{files}} फ़ाइलों में {{count}} बदलाव लागू किए गए।",
   "codeStudio.lspResultFailed": "ये फ़ाइलें नहीं बदली गईं:",
   "codeStudio.lspSkipFileOperation": "{{path}}: फ़ाइलें बनाना, उनका नाम बदलना या हटाना समर्थित नहीं है",

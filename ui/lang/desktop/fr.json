@@ -12739,6 +12739,8 @@
   "codeStudio.lspPreviewDisk": "écrit sur le disque",
   "codeStudio.lspPreviewSkipped": "Ces parties ne sont pas appliquées :",
   "codeStudio.lspPreviewApply": "Appliquer",
+  "codeStudio.lspPreviewServerAsks": "Le serveur de langage demande de : {{title}}",
+  "codeStudio.lspMore": "+{{count}} de plus",
   "codeStudio.lspResultSummary": "{{count}} modifications appliquées dans {{files}} fichiers.",
   "codeStudio.lspResultFailed": "Ces fichiers n'ont pas été modifiés :",
   "codeStudio.lspSkipFileOperation": "{{path}} : la création, le renommage ou la suppression de fichiers n'est pas pris en charge",

@@ -12739,6 +12739,8 @@
   "codeStudio.lspPreviewDisk": "ディスクに書き込み",
   "codeStudio.lspPreviewSkipped": "次の部分は適用されません:",
   "codeStudio.lspPreviewApply": "適用",
+  "codeStudio.lspPreviewServerAsks": "言語サーバーからの要求: {{title}}",
+  "codeStudio.lspMore": "他 {{count}} 件",
   "codeStudio.lspResultSummary": "{{files}} 個のファイルに {{count}} 件の変更を適用しました。",
   "codeStudio.lspResultFailed": "次のファイルは変更されませんでした:",
   "codeStudio.lspSkipFileOperation": "{{path}}: ファイルの作成、名前変更、削除には対応していません",

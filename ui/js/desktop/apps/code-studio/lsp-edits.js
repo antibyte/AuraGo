@@ -167,24 +167,30 @@
                 files.push(file);
             }
             file.batches.push(edits.slice());
-            file.edits.push(...edits);
+            for (const item of edits) file.edits.push(item);
             file.count += edits.length;
         };
         if (Array.isArray(edit.documentChanges)) {
+            // First pass: every file an operation touches, whatever the order of the changes.
             const touched = new Set();
+            edit.documentChanges.forEach(change => {
+                if (!change || typeof change !== 'object') return;
+                if (change.kind === 'create' || change.kind === 'delete') touched.add(change.uri);
+                else if (change.kind === 'rename') {
+                    touched.add(change.oldUri);
+                    touched.add(change.newUri);
+                }
+            });
             edit.documentChanges.forEach(change => {
                 if (!change || typeof change !== 'object') {
                     skip('', 'invalid');
                     return;
                 }
                 if (change.kind === 'create' || change.kind === 'delete') {
-                    touched.add(change.uri);
                     skip(change.uri, change.kind);
                     return;
                 }
                 if (change.kind === 'rename') {
-                    touched.add(change.oldUri);
-                    touched.add(change.newUri);
                     skip(change.oldUri, 'rename', { newPath: workspacePath(change.newUri) || '' });
                     return;
                 }
