@@ -16,9 +16,11 @@
 
     const DEG_C = String.fromCodePoint(0xb0) + 'C';
     const FAMILIES = ['glass', 'tactile', 'minimal', 'instrument', 'placeholder'], PALETTES = ['theme', 'dark', 'light', 'custom'], MOTIONS = ['full', 'reduced', 'none'];
-    const LAB_STATES = ['off', 'on', 'pending', 'disabled', 'unavailable', 'stale', 'readonly', 'error', 'alert', 'min', 'max', 'focus'];
+    const LAB_STATES = ['off', 'on', 'pending', 'disabled', 'unavailable', 'stale', 'readonly', 'error', 'alert', 'min', 'max', 'focus', 'mid', 'armed', 'drag', 'colour', 'dimonly', 'open'];
     const PRIM_VARIANTS = { toggle: ['default'], rocker: ['default'], pushButton: ['chip', 'tile'], slider: ['h', 'v'], knob: ['ring', 'knob'], stepper: ['default'], segmented: ['default'], numeral: ['default'], segReadout: ['default'], arcGauge: ['default'], needleGauge: ['default'], bar: ['h', 'v', 'tank'], lamp: ['default'], badge: ['default'], iconBadge: ['default'], sparkline: ['default'], frame: ['default'], sheet: ['default'], colourWheel: ['default'], ctStrip: ['default'] };
     const LAB_WIDGET_SIZES = { entity: ['1x1', '2x1'] }, CELL = 96, GAP = 12;
+    // Types the lab renders without a registered widget: the more-info light sheet (E.moreinfo.build) in a sized cell.
+    const SPECIAL = { moreinfo: { variants: ['light'], sizes: ['7x6'] } };
     const LAB_WORDS = { 'homedash.state.on': 'On', 'homedash.state.off': 'Off', 'homedash.state.pending': 'Sending', 'homedash.state.unavailable': 'Unavailable', 'homedash.state.unknown': 'Unknown', 'homedash.state.error': 'Failed' };
     let words = LAB_WORDS; // widget cell words: LAB_WORDS, then ui/lang/homedash/en.json and the lab language (loaded in main)
     function primOpts(type, variant, size, lang) {
@@ -131,6 +133,33 @@
     }
 
     let widgetCount = 0;
+    // The lab api answers can() from the view. A view with object capabilities (contract M3 section 2) is checked by name; the M1 fixtures list bare strings and were never filtered by name.
+    function canOf(view, name) {
+        const v = view || {}, caps = Array.isArray(v.capabilities) ? v.capabilities : [];
+        if (v.readonly || v.available === false || !caps.length) return false;
+        if (!name || !caps.some(c => c && typeof c === 'object')) return true;
+        return caps.some(c => c && c.name === name && c.allowed !== false);
+    }
+    // Focus: the ring marker on the first control inside the body, else on the more button (the lab cannot really focus a cell).
+    function markFocus(hostEl) {
+        const target = hostEl.querySelector(FOCUS_SELECTOR.split(', ').map(s => '.hd-body ' + s).join(', ')) || hostEl.querySelector('.hd-more');
+        if (target) target.setAttribute('data-hd-focus', 'ring');
+    }
+    // Drag: a synthetic mouse gesture on the first [data-hd-input="drag"] node, left open (pointerdown at 25 %, pointermove to 60 % of the rect). Every cell gets its own
+    // pointer id, because every open gesture listens on the window and a shared id would let one cell's move drive another's.
+    let pointerSeq = 0;
+    function startDrag(hostEl) {
+        const node = hostEl.querySelector('[data-hd-input="drag"]');
+        if (!node || typeof PointerEvent !== 'function') return false;
+        const r = node.getBoundingClientRect(), id = 100 + (++pointerSeq), vertical = r.height > r.width * 1.5, dial = node.classList.contains('hd-dial');
+        const from = dial ? [r.left + r.width * 0.15, r.top + r.height * 0.5] : vertical ? [r.left + r.width / 2, r.bottom - r.height * 0.25] : [r.left + r.width * 0.25, r.top + r.height / 2];
+        const to = dial ? [r.left + r.width * 0.5, r.top + r.height * 0.1] : vertical ? [r.left + r.width / 2, r.bottom - r.height * 0.6] : [r.left + r.width * 0.6, r.top + r.height / 2];
+        const fire = (type, pt, buttons) => node.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, composed: true, pointerId: id, pointerType: 'mouse', isPrimary: true, button: 0, buttons, clientX: pt[0], clientY: pt[1] }));
+        fire('pointerdown', from, 1); fire('pointermove', to, 1);
+        return true;
+    }
+    function openPicker(hostEl) { const pick = hostEl.querySelector('.hd-pick'); if (pick) pick.click(); return !!pick; }
+
     function addWidget(E, p, root, cells, type, variant, size, state, control) {
         const cell = E.el('div', { class: 'hd-lab-cell', 'data-hd-lab-control': control, 'data-hd-lab-state': state });
         const stage = E.el('div', { class: 'hd-lab-stage' });
@@ -141,13 +170,33 @@
         for (const key of ['title', 'icon', 'options', 'family']) if (ew[key] !== undefined) widget[key] = ew[key];
         let cur = state;
         const api = () => ({ entity: () => resolveView(entry, cur),
-            can: () => { const v = resolveView(entry, cur) || {}; return !(v.readonly || v.available === false || (Array.isArray(v.capabilities) && !v.capabilities.length)); },
-            command: () => Promise.resolve({ ok: true }), moreInfo() {}, history: () => Promise.resolve(resolveHistory(entry, cur)), announce() {} });
+            can: (binding, name) => canOf(resolveView(entry, cur), name),
+            command: () => Promise.resolve({ status: 'local' }), moreInfo() {}, history: () => Promise.resolve(resolveHistory(entry, cur)), announce() {} });
         const host = E.widgets.host({ widget, size: { w, h }, t: E.core.makeT(words, { warn() {} }), lang: p.lang, api, moreLabel: p.more === 0 ? null : 'More', parent: stage });
         host.el.style.setProperty('--hd-lab-w', width + 'px'); host.el.style.setProperty('--hd-lab-h', height + 'px');
         host.update(); host.resize({ w, h, px: { width, height } });
-        if (state === 'focus') { const more = host.el.querySelector('.hd-more'); if (more) more.setAttribute('data-hd-focus', 'ring'); }
+        if (state === 'focus') markFocus(host.el);
+        if (state === 'drag') startDrag(host.el);
+        if (state === 'open') openPicker(host.el);
         hdLab.instances.push({ kind: 'widget', type, variant, size, control, state, el: host.el, entry, host, apply(s) { cur = s; host.update(); } });
+    }
+
+    // The more-info light sheet, built (not modal) into a layer the size of the cell: below 600 px it is the bottom sheet (data-hd-pop), like the host.
+    function addSheet(E, p, root, cells, type, variant, size, state, control) {
+        const cell = E.el('div', { class: 'hd-lab-cell', 'data-hd-lab-control': control, 'data-hd-lab-state': state });
+        const stage = E.el('div', { class: 'hd-lab-stage' });
+        cell.appendChild(E.el('span', { class: 'hd-lab-statecap', text: state })); cell.appendChild(stage); cells.appendChild(cell);
+        const [w, h] = size.split('x').map(Number), width = w * CELL + (w - 1) * GAP, height = h * CELL + (h - 1) * GAP;
+        const entry = hdLab.fixtures.get(type, variant), ew = (entry && entry.widget) || {};
+        const layer = E.el('div', { class: 'hd-sheet-layer', 'data-kind': 'moreinfo', 'data-hd-pop': width < 600 ? 'sheet' : 'center' });
+        layer.style.setProperty('--hd-lab-w', width + 'px'); layer.style.setProperty('--hd-lab-h', height + 'px');
+        stage.appendChild(layer);
+        let cur = state;
+        const api = { widget: { id: 'lab-sheet', type: 'light', variant: 'dial', title: ew.title || '', bindings: { primary: 'lab:' + state }, options: {}, actions: {}, confirm: false }, t: E.core.makeT(words, { warn() {} }), lang: p.lang,
+            entity: () => resolveView(entry, cur), can: (binding, name) => canOf(resolveView(entry, cur), name), command: () => Promise.resolve({ status: 'local' }), announce() {} };
+        const inst = E.moreinfo.build({ family: p.family, api, popoverRoot: layer });
+        layer.appendChild(inst.el); inst.update();
+        hdLab.instances.push({ kind: 'sheet', type, variant, size, control, state, el: layer, entry, inst, apply(s) { cur = s; inst.update(); } });
     }
 
     function render(E, p, root) {
@@ -156,15 +205,21 @@
         const types = p.types.length ? p.types : Object.keys(PRIM_VARIANTS).concat(E.widgets.types());
         let rows = 0;
         for (const type of types) {
-            const widgetDef = has(PRIM_VARIANTS, type) ? null : E.widgets.get(type), isPrim = has(PRIM_VARIANTS, type);
-            const all = isPrim ? PRIM_VARIANTS[type] : widgetDef.variants, variants = p.variants.length ? all.filter(v => p.variants.includes(v)) : all;
+            const isPrim = has(PRIM_VARIANTS, type), special = has(SPECIAL, type), widgetDef = isPrim || special ? null : E.widgets.get(type);
+            const all = isPrim ? PRIM_VARIANTS[type] : special ? SPECIAL[type].variants : widgetDef.variants, variants = p.variants.length ? all.filter(v => p.variants.includes(v)) : all;
             const sizeRe = isPrim ? /^(m|l)$/ : /^\d+x\d+$/, picked = p.sizes.filter(s => sizeRe.test(s));
-            const sizes = picked.length ? picked : isPrim ? ['m'] : (LAB_WIDGET_SIZES[type] || ['2x1']);
+            const sizes = picked.length ? picked : isPrim ? ['m'] : special ? SPECIAL[type].sizes : (LAB_WIDGET_SIZES[type] || ['2x1']);
             for (const variant of variants) for (const size of sizes) {
                 const control = type + '/' + variant + '/' + size;
-                const row = E.el('div', { class: 'hd-lab-row' }), cells = E.el('div', { class: 'hd-lab-cells' });
-                if (p.columns > 0) { cells.setAttribute('data-hd-lab-columns', String(p.columns)); cells.style.setProperty('--hd-lab-columns', String(p.columns)); }
-                row.appendChild(E.el('div', { class: 'hd-lab-rowhead', text: type + ' / ' + variant + ' / ' + size })); row.appendChild(cells); root.appendChild(row); rows++;
+                const makeRow = () => {
+                    const row = E.el('div', { class: 'hd-lab-row' }), cells = E.el('div', { class: 'hd-lab-cells' });
+                    if (p.columns > 0) { cells.setAttribute('data-hd-lab-columns', String(p.columns)); cells.style.setProperty('--hd-lab-columns', String(p.columns)); }
+                    row.appendChild(E.el('div', { class: 'hd-lab-rowhead', text: type + ' / ' + variant + ' / ' + size })); row.appendChild(cells); root.appendChild(row); rows++;
+                    return cells;
+                };
+                // A sheet cell is a whole dialog (up to 744x636): every state gets a row of its own, so a row stays under the image band limit.
+                if (special) { for (const state of p.states) addSheet(E, p, root, makeRow(), type, variant, size, state, control); continue; }
+                const cells = makeRow();
                 for (const state of p.states) (isPrim ? addPrimitive : addWidget)(E, p, root, cells, type, variant, size, state, control);
             }
         }
@@ -219,7 +274,7 @@
             await loadLink('/css/desktop-shell.bundle.css', bundle);
         }
         for (const src of p.scripts) await loadScript(src);
-        for (const type of p.types) if (!(has(PRIM_VARIANTS, type) && typeof E.prim[type] === 'function') && !E.widgets.get(type)) fail('types', type);
+        for (const type of p.types) if (!(has(PRIM_VARIANTS, type) && typeof E.prim[type] === 'function') && !(has(SPECIAL, type) && E.moreinfo && typeof E.moreinfo.build === 'function') && !E.widgets.get(type)) fail('types', type);
         await document.fonts.ready;
         words = Object.assign({}, LAB_WORDS); for (const l of ['en', p.lang]) { const r = await fetch('/lang/homedash/' + l + '.json'); if (r.ok) Object.assign(words, await r.json()); }
         const root = buildPanel(E, p);

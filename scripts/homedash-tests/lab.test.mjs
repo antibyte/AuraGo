@@ -18,6 +18,10 @@ export const tests = [
     assert.deepEqual(srcs, [...ENGINE_ORDER.map(f => '/js/homedash/' + f), '/testdata/homedash-lab-probes.js', '/testdata/homedash-lab.js']); }],
   ['lab CSS and JS obey the guard and parse', () => { assert.deepEqual(lintCss(read('ui/testdata/homedash-lab.css'), { file: 'homedash-lab.css', kind: 'lab' }), []);
     for (const f of ['ui/testdata/homedash-lab.js', 'ui/testdata/homedash-lab-probes.js']) { const t = read(f); assert.deepEqual(lintJs(t, f), []); new vm.Script(t, { filename: f }); } }],
+  ['M3 lab: the new states, the moreinfo special type and the stricter option hit probe are in place', () => { const lab = read('ui/testdata/homedash-lab.js'), probes = read('ui/testdata/homedash-lab-probes.js');
+    for (const s of ['mid', 'armed', 'drag', 'colour', 'dimonly', 'open']) assert.ok(lab.includes("'" + s + "'"), s);
+    assert.match(lab, /E\.moreinfo\.build\(/); assert.match(probes, /\[role="option"\]/); assert.match(probes, /\.hd-pop-layer \[role="option"\]/);
+    const fx = read('ui/testdata/homedash-lab/w1-fixtures.js'); vm.runInContext; new vm.Script(fx, { filename: 'w1-fixtures.js' }); assert.deepEqual(lintJs(fx, 'w1-fixtures.js'), []); }],
   ['probe colour maths', () => { const ctx = { window: {}, Math, JSON }; vm.createContext(ctx); vm.runInContext(read('ui/testdata/homedash-lab-probes.js'), ctx);
     const p = ctx.window.hdLabProbes; assert.equal(p.ratio([0, 0, 0, 1], [255, 255, 255, 1]).toFixed(2), '21.00'); assert.deepEqual([...p.over([255, 255, 255, 0.5], [0, 0, 0, 1])], [127.5, 127.5, 127.5, 1]); }],
   ['probe gradient backgrounds: stops composite over the colour, the worst value counts, url() stays unmeasured', () => { const ctx = { window: {}, Math, JSON }; vm.createContext(ctx); vm.runInContext(read('ui/testdata/homedash-lab-probes.js'), ctx);

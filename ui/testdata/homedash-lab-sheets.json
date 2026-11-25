@@ -11,7 +11,15 @@
       "switchExtra": ["disabled", "stale", "readonly", "error"],
       "display": ["on", "min", "max", "alert", "unavailable", "stale"],
       "displayExtra": ["error"],
-      "signoffDisplay": ["on", "max", "alert"]
+      "signoffDisplay": ["on", "max", "alert"],
+      "w1": ["off", "on", "mid", "pending", "armed", "error", "unavailable", "readonly", "stale"],
+      "w1Core": ["off", "on", "mid", "pending", "unavailable"],
+      "w1Trio": ["off", "on", "mid"],
+      "w1Risk": ["off", "on", "mid", "focus"],
+      "p1": ["pending", "armed", "error", "focus", "drag"],
+      "sheet": ["on", "colour", "dimonly", "off", "pending", "unavailable", "readonly"],
+      "sheetDpr2": ["on", "colour"],
+      "open": ["open"]
     },
     "themes": {
       "standard": [{"theme": "standard", "scheme": "dark"}],
@@ -27,8 +35,14 @@
       "custom3": [{"name": "warm-light", "accent": "C2410C", "hue": 40, "scheme": "light"}, {"name": "purple", "accent": "8B5CF6", "hue": 270, "scheme": "dark"}, {"name": "near-black", "accent": "22D3EE", "hue": 220, "scheme": "dark"}]
     },
     "heroes": {
-      "H1": {"type": "switch", "variant": "pill"}, "H2": {"type": "switch", "variant": "rocker"}, "H3": {"type": "light", "variant": "dial"}, "H4": {"type": "climate", "variant": "dial"},
-      "H5": {"type": "gauge", "variant": "needle"}, "H6": {"type": "gauge", "variant": "arc"}, "H7": {"type": "temperature", "variant": "numeral"}, "H8": {"type": "sensor", "variant": "sparkline"}
+      "H1": {"type": "switch", "variant": "pill", "sizes": ["1x1", "2x1"], "more": false}, "H2": {"type": "switch", "variant": "rocker", "sizes": ["1x2", "2x2"], "more": false},
+      "H3": {"type": "light", "variant": "dial", "sizes": ["2x2", "3x3"], "more": false}, "H4": {"type": "climate", "variant": "dial"},
+      "H5": {"type": "gauge", "variant": "needle"}, "H6": {"type": "gauge", "variant": "arc"}, "H7": {"type": "temperature", "variant": "numeral"}, "H8": {"type": "sensor", "variant": "sparkline"},
+      "W1": {"type": "switch", "variant": "push", "sizes": ["1x1", "2x1"]}, "W2": {"type": "switch", "variant": "tile", "sizes": ["1x1", "2x2"]},
+      "W3": {"type": "light", "variant": "slider", "sizes": ["2x1", "4x1"]}, "W4": {"type": "light", "variant": "fader", "sizes": ["1x2", "1x3"]},
+      "W5": {"type": "light", "variant": "tile", "sizes": ["1x1", "2x2"]}, "W6": {"type": "action", "variant": "button", "sizes": ["1x1", "2x1"]},
+      "W7": {"type": "select", "variant": "segmented", "sizes": ["2x1", "3x1"]}, "W8": {"type": "select", "variant": "list", "sizes": ["1x1", "2x1"]},
+      "W9": {"type": "number", "variant": "stepper", "sizes": ["2x1", "3x1"]}, "W10": {"type": "number", "variant": "slider", "sizes": ["2x1", "4x1"]}
     }
   },
   "sheets": [
@@ -87,5 +101,20 @@
     {"id": "side-by-side-H6~signoff", "kind": "side-by-side", "families": ["glass", "tactile", "minimal", "instrument"], "types": ["gauge"], "variants": ["arc"], "palettes": ["dark", "light"], "states": "signoffDisplay", "sizes": ["2x2"], "dpr": 1, "motion": "none", "more": false, "scripts": ["/testdata/homedash-lab/hero-fixtures.js"]},
     {"id": "side-by-side-H7~signoff", "kind": "side-by-side", "families": ["glass", "tactile", "minimal", "instrument"], "types": ["temperature"], "variants": ["numeral"], "palettes": ["dark", "light"], "states": "signoffDisplay", "sizes": ["2x1"], "dpr": 1, "motion": "none", "more": false, "scripts": ["/testdata/homedash-lab/hero-fixtures.js"]},
     {"id": "side-by-side-H8~signoff", "kind": "side-by-side", "families": ["glass", "tactile", "minimal", "instrument"], "types": ["sensor"], "variants": ["sparkline"], "palettes": ["dark", "light"], "states": "signoffDisplay", "sizes": ["2x2"], "dpr": 1, "motion": "none", "more": false, "scripts": ["/testdata/homedash-lab/hero-fixtures.js"]}
+  ,
+    {"id": "w1-{hero}-{family}", "kind": "hero", "palettes": ["dark", "light"], "states": "w1", "dpr": 1, "motion": "none", "scripts": ["/testdata/homedash-lab/hero-fixtures.js", "/testdata/homedash-lab/w1-fixtures.js"]},
+    {"id": "w1-{hero}-{family}~dpr2", "kind": "hero", "palettes": ["dark", "light"], "states": "w1Core", "dpr": 2, "motion": "none", "scripts": ["/testdata/homedash-lab/hero-fixtures.js", "/testdata/homedash-lab/w1-fixtures.js"]},
+    {"id": "w1-themes-{family}", "kind": "themes", "families": ["glass", "minimal"], "types": ["switch", "light", "action", "select", "number"], "variants": ["push", "tile", "slider", "fader", "button", "segmented", "list", "stepper"], "palettes": ["theme"], "themes": "themes16", "states": "w1Trio", "sizes": ["2x2"], "dpr": 1, "motion": "none", "scripts": ["/testdata/homedash-lab/hero-fixtures.js", "/testdata/homedash-lab/w1-fixtures.js"]},
+    {"id": "w1-risk-{family}", "kind": "risk", "families": ["tactile", "instrument"], "types": ["switch", "light", "action", "select", "number"], "variants": ["push", "tile", "slider", "fader", "button", "segmented", "list", "stepper"], "palettes": ["theme"], "themes": "risk8", "states": "w1Risk", "sizes": ["2x2"], "dpr": 1, "motion": "none", "scripts": ["/testdata/homedash-lab/hero-fixtures.js", "/testdata/homedash-lab/w1-fixtures.js"]},
+    {"id": "w1-{family}~custom", "kind": "hero", "types": ["switch", "light", "action", "select", "number"], "variants": ["push", "tile", "slider", "fader", "button", "segmented", "list", "stepper"], "palettes": ["custom"], "custom": "custom3", "states": "w1Trio", "sizes": ["2x2"], "dpr": 1, "motion": "none", "scripts": ["/testdata/homedash-lab/hero-fixtures.js", "/testdata/homedash-lab/w1-fixtures.js"]},
+    {"id": "w1-glass~gradient", "kind": "hero", "families": ["glass"], "types": ["switch", "light", "action", "select", "number"], "variants": ["push", "tile", "slider", "fader", "button", "segmented", "list", "stepper"], "palettes": ["dark", "light"], "backdrop": "gradient", "states": "w1Trio", "sizes": ["2x2"], "dpr": 1, "motion": "none", "scripts": ["/testdata/homedash-lab/hero-fixtures.js", "/testdata/homedash-lab/w1-fixtures.js"]},
+    {"id": "w1-side-by-side-{hero}", "kind": "side-by-side", "families": ["glass", "tactile", "minimal", "instrument"], "palettes": ["dark", "light"], "states": "w1Core", "dpr": 1, "motion": "none", "scripts": ["/testdata/homedash-lab/hero-fixtures.js", "/testdata/homedash-lab/w1-fixtures.js"]},
+    {"id": "w1-list-open-{family}", "kind": "hero", "types": ["select"], "variants": ["list"], "palettes": ["dark", "light"], "states": "open", "sizes": ["2x1"], "dpr": 1, "motion": "none", "scripts": ["/testdata/homedash-lab/hero-fixtures.js", "/testdata/homedash-lab/w1-fixtures.js"]},
+    {"id": "sheet-light-{family}", "kind": "hero", "types": ["moreinfo"], "variants": ["light"], "palettes": ["dark", "light"], "states": "sheet", "sizes": ["7x6", "4x7"], "splitSizes": true, "dpr": 1, "motion": "none", "scripts": ["/testdata/homedash-lab/hero-fixtures.js", "/testdata/homedash-lab/w1-fixtures.js"]},
+    {"id": "sheet-light-{family}~dpr2", "kind": "hero", "types": ["moreinfo"], "variants": ["light"], "palettes": ["dark", "light"], "states": "sheetDpr2", "sizes": ["7x6"], "dpr": 2, "motion": "none", "scripts": ["/testdata/homedash-lab/hero-fixtures.js", "/testdata/homedash-lab/w1-fixtures.js"]},
+    {"id": "p1-{hero}-{family}", "kind": "hero", "palettes": ["dark", "light"], "states": "p1", "dpr": 1, "motion": "none", "scripts": ["/testdata/homedash-lab/hero-fixtures.js", "/testdata/homedash-lab/w1-fixtures.js"]},
+    {"id": "p1-{hero}-{family}~reduced", "kind": "hero", "palettes": ["dark"], "states": "p1", "dpr": 1, "motion": "reduced", "scripts": ["/testdata/homedash-lab/hero-fixtures.js", "/testdata/homedash-lab/w1-fixtures.js"]},
+    {"id": "motion-p1-{hero}-{family}", "kind": "motion", "palettes": ["dark"], "states": ["on"], "motion": ["full", "reduced"], "frames": [0, 50, 100, 200, 400, 800], "scenarios": ["press", "confirm", "rollback", "arm"], "scripts": ["/testdata/homedash-lab/hero-fixtures.js", "/testdata/homedash-lab/w1-fixtures.js"]},
+    {"id": "hero-H8-instrument~wide", "kind": "hero", "families": ["instrument"], "types": ["sensor"], "variants": ["sparkline"], "palettes": ["dark", "light"], "states": "display", "sizes": ["2x1", "4x2", "5x2"], "dpr": 1, "motion": "none", "more": false, "scripts": ["/testdata/homedash-lab/hero-fixtures.js"]}
   ]
 }

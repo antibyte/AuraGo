@@ -33,30 +33,34 @@ type homedashLabCustom struct {
 	Scheme string `json:"scheme"`
 }
 type homedashLabHero struct {
-	Type    string `json:"type"`
-	Variant string `json:"variant"`
+	Type    string   `json:"type"`
+	Variant string   `json:"variant"`
+	Sizes   []string `json:"sizes"`
+	More    *bool    `json:"more"`
 }
 type homedashLabSpec struct {
-	ID        string          `json:"id"`
-	Kind      string          `json:"kind"`
-	Families  []string        `json:"families"`
-	Types     []string        `json:"types"`
-	Variants  []string        `json:"variants"`
-	Palettes  []string        `json:"palettes"`
-	Themes    string          `json:"themes"`
-	Custom    string          `json:"custom"`
-	States    json.RawMessage `json:"states"`
-	Sizes     []string        `json:"sizes"`
-	DPR       json.RawMessage `json:"dpr"`
-	Motion    json.RawMessage `json:"motion"`
-	Backdrop  string          `json:"backdrop"`
-	Ease      string          `json:"ease"`
-	More      *bool           `json:"more"`
-	Columns   int             `json:"columns"`
-	Frames    []int           `json:"frames"`
-	Scenarios []string        `json:"scenarios"`
-	Graphics  []string        `json:"graphics"`
-	Scripts   []string        `json:"scripts"`
+	ID       string          `json:"id"`
+	Kind     string          `json:"kind"`
+	Families []string        `json:"families"`
+	Types    []string        `json:"types"`
+	Variants []string        `json:"variants"`
+	Palettes []string        `json:"palettes"`
+	Themes   string          `json:"themes"`
+	Custom   string          `json:"custom"`
+	States   json.RawMessage `json:"states"`
+	Sizes    []string        `json:"sizes"`
+	DPR      json.RawMessage `json:"dpr"`
+	Motion   json.RawMessage `json:"motion"`
+	Backdrop string          `json:"backdrop"`
+	Ease     string          `json:"ease"`
+	More     *bool           `json:"more"`
+	Columns  int             `json:"columns"`
+	// SplitSizes renders every size in a panel of its own: a panel is capped at homedashLabMaxPanelHeight and the light sheet at 7x6 plus 4x7 does not fit.
+	SplitSizes bool     `json:"splitSizes"`
+	Frames     []int    `json:"frames"`
+	Scenarios  []string `json:"scenarios"`
+	Graphics   []string `json:"graphics"`
+	Scripts    []string `json:"scripts"`
 }
 type homedashLabFile struct {
 	DefaultSheets []string `json:"defaultSheets"`
@@ -374,13 +378,20 @@ func homedashLabExpand(f homedashLabFile, s homedashLabSpec, vars map[string]str
 	if len(families) == 0 {
 		return nil, fmt.Errorf("no family")
 	}
-	types, variants := s.Types, s.Variants
+	types, variants, sizes, more := s.Types, s.Variants, s.Sizes, s.More
 	if t := vars["type"]; t != "" {
 		types = []string{t}
 	}
 	if h := vars["hero"]; h != "" {
 		hero := f.Lists.Heroes[h]
 		types, variants = []string{hero.Type}, []string{hero.Variant}
+		// A sheet without sizes (or more) of its own takes the hero's: the build sheets define the sizes a hero is judged at.
+		if len(sizes) == 0 {
+			sizes = hero.Sizes
+		}
+		if more == nil {
+			more = hero.More
+		}
 	}
 	if s.Kind == "hero" && len(types) == 0 {
 		keys := make([]string, 0, len(f.Lists.Heroes))
@@ -421,6 +432,13 @@ func homedashLabExpand(f homedashLabFile, s homedashLabSpec, vars map[string]str
 			scenarios = []string{"on"}
 		}
 	}
+	sizeSets := [][]string{sizes}
+	if s.SplitSizes && len(sizes) > 1 {
+		sizeSets = nil
+		for _, sz := range sizes {
+			sizeSets = append(sizeSets, []string{sz})
+		}
+	}
 	var panels []homedashLabPanel
 	for _, fam := range families {
 		for _, pal := range palettes {
@@ -432,50 +450,55 @@ func homedashLabExpand(f homedashLabFile, s homedashLabSpec, vars map[string]str
 				for _, dpr := range dprs {
 					for _, mo := range motions {
 						for _, sc := range scenarios {
-							v := url.Values{}
-							set := func(k, val string) {
-								if val != "" {
-									v.Set(k, val)
+							for _, sz := range sizeSets {
+								v := url.Values{}
+								set := func(k, val string) {
+									if val != "" {
+										v.Set(k, val)
+									}
 								}
+								set("family", fam)
+								set("palette", pal)
+								set("scheme", look.Scheme)
+								set("theme", look.Theme)
+								set("accent", look.Accent)
+								set("hue", look.Hue)
+								set("types", strings.Join(types, ","))
+								set("variants", strings.Join(variants, ","))
+								set("states", strings.Join(states, ","))
+								set("sizes", strings.Join(sz, ","))
+								set("backdrop", s.Backdrop)
+								set("ease", s.Ease)
+								set("scripts", strings.Join(s.Scripts, ","))
+								if more != nil && !*more {
+									v.Set("more", "0")
+								}
+								if s.Columns > 0 {
+									v.Set("columns", strconv.Itoa(s.Columns))
+								}
+								if len(s.Graphics) > 0 {
+									g, _ := json.Marshal(s.Graphics)
+									v.Set("graphics", string(g))
+								}
+								v.Set("motion", mo)
+								v.Set("dpr", strconv.FormatFloat(dpr, 'f', -1, 64))
+								v.Set("lang", "en")
+								label := fmt.Sprintf("family=%s palette=%s", fam, pal)
+								if look.Theme != "" {
+									label += " theme=" + look.Theme
+								}
+								if look.Accent != "" {
+									label += " accent=" + look.Accent
+								}
+								label += fmt.Sprintf(" scheme=%s dpr=%g motion=%s", look.Scheme, dpr, mo)
+								if sc != "" {
+									label += " scenario=" + sc
+								}
+								if len(sizeSets) > 1 {
+									label += " size=" + strings.Join(sz, ",")
+								}
+								panels = append(panels, homedashLabPanel{Label: label, Query: v, DPR: dpr, Motion: mo, Frames: s.Frames, Scenario: sc})
 							}
-							set("family", fam)
-							set("palette", pal)
-							set("scheme", look.Scheme)
-							set("theme", look.Theme)
-							set("accent", look.Accent)
-							set("hue", look.Hue)
-							set("types", strings.Join(types, ","))
-							set("variants", strings.Join(variants, ","))
-							set("states", strings.Join(states, ","))
-							set("sizes", strings.Join(s.Sizes, ","))
-							set("backdrop", s.Backdrop)
-							set("ease", s.Ease)
-							set("scripts", strings.Join(s.Scripts, ","))
-							if s.More != nil && !*s.More {
-								v.Set("more", "0")
-							}
-							if s.Columns > 0 {
-								v.Set("columns", strconv.Itoa(s.Columns))
-							}
-							if len(s.Graphics) > 0 {
-								g, _ := json.Marshal(s.Graphics)
-								v.Set("graphics", string(g))
-							}
-							v.Set("motion", mo)
-							v.Set("dpr", strconv.FormatFloat(dpr, 'f', -1, 64))
-							v.Set("lang", "en")
-							label := fmt.Sprintf("family=%s palette=%s", fam, pal)
-							if look.Theme != "" {
-								label += " theme=" + look.Theme
-							}
-							if look.Accent != "" {
-								label += " accent=" + look.Accent
-							}
-							label += fmt.Sprintf(" scheme=%s dpr=%g motion=%s", look.Scheme, dpr, mo)
-							if sc != "" {
-								label += " scenario=" + sc
-							}
-							panels = append(panels, homedashLabPanel{Label: label, Query: v, DPR: dpr, Motion: mo, Frames: s.Frames, Scenario: sc})
 						}
 					}
 				}
@@ -588,6 +611,41 @@ func TestHomeDashLabSheetResolve(t *testing.T) {
 	}
 	if !seen["fruity/dark"] || !seen["minimal/dark"] || !seen["amiga/light"] {
 		t.Errorf("theme variants %v", seen)
+	}
+	// M3 sheets: hero sizes flow into the panels, the light sheet renders the moreinfo type.
+	for id, want := range map[string]struct {
+		panels int
+		query  map[string]string
+	}{
+		"w1-W3-glass":             {2, map[string]string{"sizes": "2x1,4x1", "types": "light", "variants": "slider", "states": "off,on,mid,pending,armed,error,unavailable,readonly,stale"}},
+		"p1-H3-tactile":           {2, map[string]string{"sizes": "2x2,3x3", "more": "0", "states": "pending,armed,error,focus,drag"}},
+		"p1-W3-placeholder":       {2, map[string]string{"sizes": "2x1,4x1", "more": ""}},
+		"sheet-light-minimal":     {4, map[string]string{"types": "moreinfo", "variants": "light", "sizes": "7x6"}},
+		"w1-W1-glass~dpr2":        {2, map[string]string{"sizes": "1x1,2x1", "dpr": "2", "states": "off,on,mid,pending,unavailable"}},
+		"w1-list-open-glass":      {2, map[string]string{"types": "select", "variants": "list", "states": "open", "sizes": "2x1"}},
+		"hero-H8-instrument~wide": {2, map[string]string{"sizes": "2x1,4x2,5x2"}},
+	} {
+		s, err := homedashLabResolve(file, id)
+		if err != nil || len(s.Panels) != want.panels {
+			t.Errorf("%s: %d panels, %v; want %d", id, len(s.Panels), err, want.panels)
+			continue
+		}
+		for k, v := range want.query {
+			if got := s.Panels[0].Query.Get(k); got != v {
+				t.Errorf("%s: %s=%q, want %q", id, k, got, v)
+			}
+		}
+	}
+	for _, id := range []string{"w1-W4-minimal", "w1-themes-glass", "w1-risk-tactile", "w1-glass~custom", "w1-glass~gradient", "w1-side-by-side-W10", "sheet-light-glass~dpr2", "motion-p1-W6-instrument", "p1-H1-glass~reduced"} {
+		if s, err := homedashLabResolve(file, id); err != nil || len(s.Panels) == 0 {
+			t.Errorf("%s: %v", id, err)
+		}
+	}
+	if s, _ := homedashLabResolve(file, "motion-p1-W1-glass"); len(s.Panels) != 8 || s.Panels[0].Scenario != "press" || len(s.Panels[0].Frames) != 6 {
+		t.Errorf("motion-p1 panels %d", len(s.Panels))
+	}
+	if _, err := homedashLabResolve(file, "w1-W11-glass"); err == nil {
+		t.Error("w1-W11-glass must fail")
 	}
 	c, _ := homedashLabResolve(file, "prim-glass~custom")
 	if q := c.Panels[0].Query; q.Get("accent") != "C2410C" || q.Get("hue") != "40" || q.Get("scheme") != "light" {

@@ -38,8 +38,7 @@
 [data-hd-family="placeholder"] .hd-slider[data-hd-variant="v"] .hd-slider-track { flex: none; width: 6px; height: 112px; }
 [data-hd-family="placeholder"] .hd-slider-fill { position: absolute; inset: 0; background: var(--hd-ink); transform-origin: left center; transform: scaleX(var(--hd-value, 0)); }
 [data-hd-family="placeholder"] .hd-slider[data-hd-variant="v"] .hd-slider-fill { transform-origin: center bottom; transform: scaleY(var(--hd-value, 0)); }
-[data-hd-family="placeholder"] :is(.hd-slider-thumb, .hd-ct-thumb) { position: absolute; top: 50%; left: calc(var(--hd-value, 0) * 100%); width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; background: var(--hd-ink); }
-[data-hd-family="placeholder"] .hd-slider[data-hd-variant="v"] .hd-slider-thumb { top: calc((1 - var(--hd-value, 0)) * 100%); left: 50%; }
+[data-hd-family="placeholder"] :is(.hd-slider-thumb, .hd-ct-thumb) { border-radius: 50%; background: var(--hd-ink); } /* paint only: the shipped structure positions and sizes the thumbs */
 [data-hd-family="placeholder"] :is(.hd-dial, .hd-gauge):where(:not(.hd-widget *)) { position: relative; width: 104px; height: 104px; }
 [data-hd-family="placeholder"] :is(.hd-dial-svg, .hd-gauge-svg):where(:not(.hd-widget *)) { display: block; width: 100%; height: 100%; }
 [data-hd-family="placeholder"] :is(.hd-dial-track, .hd-gauge-track) { fill: none; stroke: var(--hd-sunken); stroke-width: 14; }
@@ -97,7 +96,7 @@
 [data-hd-family="placeholder"] .hd-sheet-layer { position: static; } [data-hd-family="placeholder"] .hd-sheet { width: 200px; padding: 8px; border: 1px solid var(--hd-hairline); border-radius: 8px; background: var(--hd-surface-raised); }
 [data-hd-family="placeholder"] .hd-sheet-title { margin: 0; font-size: 14px; color: var(--hd-ink); }
 [data-hd-family="placeholder"] .hd-wheel { position: relative; width: 120px; height: 120px; } [data-hd-family="placeholder"] .hd-wheel-canvas { width: 100%; height: 100%; }
-[data-hd-family="placeholder"] .hd-wheel-thumb { position: absolute; left: calc(var(--hd-wheel-x, .5) * 100%); top: calc(var(--hd-wheel-y, .5) * 100%); width: 14px; height: 14px; margin: -7px; border: 2px solid var(--hd-ink); border-radius: 50%; box-sizing: border-box; }
+[data-hd-family="placeholder"] .hd-wheel-thumb { border: 2px solid var(--hd-ink); border-radius: 50%; }
 [data-hd-family="placeholder"] .hd-frame:has(> .hd-more) > .hd-head { padding-inline-end: 28px; } /* the placeholder more button is 44px wide at the frame edge: 44 - 16px frame padding */
 [data-hd-family="placeholder"] .hd-frame > .hd-more { position: absolute; top: 0; right: 0; width: 44px; height: 44px; margin: 0; padding: 0; background: none; }
 [data-hd-family="placeholder"] .hd-tile { flex: 1 1 auto; min-width: 0; overflow: hidden; gap: 4px; }
@@ -110,3 +109,9 @@
 [data-hd-family="placeholder"] .hd-frame:where(:not(.hd-widget *)) > .hd-head { grid-row: 1; box-sizing: border-box; height: 30px; padding-right: 48px; align-items: flex-start; overflow: hidden; }
 [data-hd-family="placeholder"] .hd-frame:where(:not(.hd-widget *)) > .hd-body { grid-row: 2; display: flex; align-items: center; overflow: hidden; }
 [data-hd-family="placeholder"] .hd-frame:where(:not(.hd-widget *)) > .hd-state { grid-row: 3; box-sizing: border-box; height: 16px; min-height: 0; font-size: 12px; line-height: 16px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+/* M3 lab cells. The light sheet is built into a layer the size of its cell (the host puts the layer over the whole root); the layer rule comes last so it also beats the
+   placeholder family's static layer above. An open listbox hangs below its picker out of the panel flow: the cell reserves the room, so the sheet image shows it whole. */
+/* The shipped chip rule (.hd-widget:is(...) .hd-push[data-hd-variant="chip"] { color: inherit }, 0,4,0) outranks a family's on-ink at 0,3,0: the placeholder paints at 0,4,0 too and comes later. */
+[data-hd-family="placeholder"] .hd-widget .hd-push[data-hd-on="true"] { color: var(--hd-on-ink); }
+.hd-lab-stage > .hd-sheet-layer { position: relative; inset: auto; inline-size: var(--hd-lab-w); block-size: var(--hd-lab-h); }
+.hd-lab-cell[data-hd-lab-state="open"] { padding-block-end: 300px; }

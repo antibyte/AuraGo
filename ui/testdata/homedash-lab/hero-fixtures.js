@@ -57,8 +57,11 @@
   lab.fixtures.define('switch', 'rocker', { widget: { title: 'Fan heater' }, states: states(heater, heaterOff),
     scenarios: { toggle: { from: heaterOff, to: heater }, pending: { from: heater, to: merge(heater, { pending: true }) } } });
 
-  const light = entity('ha:light.reading', 'light', 'Reading light', { value: 'on', attributes: { brightness_pct: 64 }, capabilities: ['toggle', 'brightness'] });
-  const lightOff = merge(light, { value: 'off', attributes: { brightness_pct: null } });
+  // Contract M3 section 2: capabilities are objects (brightness carries its range), a dimmable light reports color_mode brightness and an off light reports null.
+  const cap = (name, extra) => Object.assign({ name, allowed: true }, extra || {});
+  const light = entity('ha:light.reading', 'light', 'Reading light', { value: 'on', attributes: { brightness_pct: 64, color_mode: 'brightness', supported_color_modes: ['brightness'] },
+    capabilities: [cap('toggle'), cap('turn_on'), cap('turn_off'), cap('brightness', { min: 0, max: 100, step: 1 })] });
+  const lightOff = merge(light, { value: 'off', attributes: { brightness_pct: null, color_mode: null } });
   lab.fixtures.define('light', 'dial', { widget: { title: 'Reading light' },
     states: states(light, lightOff, { min: merge(light, { attributes: { brightness_pct: 1 } }), max: merge(light, { attributes: { brightness_pct: 100 } }) }),
     scenarios: { remote: { from: merge(light, { attributes: { brightness_pct: 20 } }), to: merge(light, { attributes: { brightness_pct: 80 } }) },

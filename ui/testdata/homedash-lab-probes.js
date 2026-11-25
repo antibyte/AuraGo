@@ -121,7 +121,8 @@
             if (!paint) continue; paint[3] *= opacityOf(el) * (Number.isFinite(opacity) ? opacity : 1);
             const host = graphicHost(el, svg), bgs = host ? backgroundsOf(host) : null; if (!bgs) { r.contrast.unmeasured++; continue; }
             const v = worst(paint, bgs); r.contrast.checked++; if (v < GRAPHIC_MIN) { const msg = 'graphic ' + label(el) + ' ' + show(v) + ' < 3'; r.contrast.failures.push(msg); } } }
-    const INTERACTIVE = ['button', '[role="slider"]', '[role="switch"]', '[role="radio"]', '[role="spinbutton"]', '[tabindex="0"]'].map(s => '.hd-lab-stage ' + s).join(', ');
+    // Options are measured wherever they are: inside a stage (the light sheet's effect list) and in the popover layer of the panel (the select widgets' listbox, which the popover appends to the root).
+    const INTERACTIVE = ['button', '[role="slider"]', '[role="switch"]', '[role="radio"]', '[role="spinbutton"]', '[role="option"]', '[tabindex="0"]'].map(s => '.hd-lab-stage ' + s).concat('.hd-pop-layer [role="option"]').join(', ');
     function hit(root, r) { for (const el of root.querySelectorAll(INTERACTIVE)) { const b = el.getBoundingClientRect(); if ((!b.width && !b.height) || getComputedStyle(el).visibility === 'hidden') continue; r.hit.checked++;
         if (b.width < HIT_MIN - EPS || b.height < HIT_MIN - EPS) r.hit.failures.push('hit ' + label(el) + ' ' + dims(b) + ' < 44x44'); } }
     function shift(root, entries, states, r) { const groups = new Map();
