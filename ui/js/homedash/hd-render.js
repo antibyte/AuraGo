@@ -42,6 +42,16 @@
             const c = E.control.cap(d, capName); return !!c && c.allowed !== false;
         }
         function subscribe(id, fn) { let set = sheetSubs.get(id); if (!set) { set = new Set(); sheetSubs.set(id, set); } set.add(fn); return () => { set.delete(fn); if (!set.size) sheetSubs.delete(id); }; }
+        // Where focus returns after the sheet: the focused element inside the widget, else its visible more button, else the widget itself (tabindex -1 only
+        // for that, dropped again when it loses focus). A pointer hold on a non-focusable part leaves body as the active element.
+        function openerFor(rec) {
+            const doc = o.stage.ownerDocument, root = rec.el, act = doc ? doc.activeElement : null;
+            if (!root) return act || null;
+            if (act && root.contains(act)) return act;
+            const more = root.querySelector('.hd-more'); if (more && !more.hasAttribute('hidden')) return more;
+            if (!root.hasAttribute('tabindex')) { root.setAttribute('tabindex', '-1'); root.addEventListener('blur', () => root.removeAttribute('tabindex'), { once: true }); }
+            return root;
+        }
         function apiFor(rec, key, mode, onlyId) {   // the widget api, also used for the sheet (key 'sheet|...')
             const idOf = binding => { if (onlyId) return onlyId; const id = rec.widget.bindings && rec.widget.bindings[binding]; return isEntityId(id) ? id : null; };
             return {
@@ -55,7 +65,7 @@
                 moreInfo(binding) {
                     const id = idOf(binding), v = id ? store.view(id) : null;
                     if (!commands || !v || v.kind !== 'light' || typeof o.moreInfo !== 'function') return false;
-                    o.moreInfo({ family: rec.inst && rec.inst.family ? rec.inst.family : family, opener: o.stage.ownerDocument ? o.stage.ownerDocument.activeElement : null,
+                    o.moreInfo({ family: rec.inst && rec.inst.family ? rec.inst.family : family, opener: openerFor(rec),
                         api: apiFor(rec, 'sheet|' + docId + '|' + rec.widget.id, 'view', id), subscribe: fn => subscribe(id, fn) });
                     return true;
                 },
@@ -81,7 +91,7 @@
             limits.set(widget.id, catalog.constraints(widget));
             const item = lgItem(widget.id);
             try { rec.inst = E.widgets.host({ widget: rec.widget, mode: 'view', size: { w: item.w, h: item.h }, t, lang, parent: pageEl, api: api(rec),
-                moreLabel: commands && widget.type === 'light' ? t('homedash.moreinfo.open') : null, titleFallback: commands ? () => (rec.ids[0] && systemName(rec.ids[0])) || '' : null }); rec.el = rec.inst.el; }
+                moreLabel: commands ? t('homedash.moreinfo.open') : null, moreWhen: commands ? p => !!p && p.kind === 'light' : null, titleFallback: commands ? () => (rec.ids[0] && systemName(rec.ids[0])) || '' : null }); rec.el = rec.inst.el; }
             catch (err) { console.warn('HomeDash: widget ' + widget.id + ' is not rendered', err); rec.inst = null; rec.el = unsupported(widget); pageEl.appendChild(rec.el); }
             setAttr(rec.el, 'data-hd-wid', widget.id);
             recs.set(widget.id, rec); byEl.set(rec.el, rec);

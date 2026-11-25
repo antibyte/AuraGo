@@ -102,15 +102,28 @@ export const tests = [
       layouts: { lg: [{ id: 'lt', x: 0, y: 0, w: 2, h: 2 }, { id: 'up', x: 2, y: 0, w: 2, h: 1 }] } }] };
     const view = E.view.create({ root, store, catalog: E.catalog.create(CATALOG), t: k => k, lang: 'en', host: 'desktop', scheme: () => 'dark', motion: () => 'full', raf: fn => 1, caf: () => {}, measure: () => ({ width: 1180, height: 700 }), commands });
     view.show(doc); eq(view.sources(), ['ha', 'system']); eq(view.entityIds(), ['ha:light.kitchen', 'system:uptime']);
-    const more = root.querySelector('[data-hd-wid="lt"] .hd-more'); assert.ok(more, 'the light host has the more button'); assert.equal(root.querySelector('[data-hd-wid="up"] .hd-more'), null);
+    const more = root.querySelector('[data-hd-wid="lt"] .hd-more'); assert.ok(more, 'the light host has the more button'); assert.equal(root.querySelector('[data-hd-wid="up"] .hd-more').hasAttribute('hidden'), true, 'a non-light entity hides it');
+    document.activeElement = document.body;   // a pointer hold on a non-focusable part leaves body focused: the sheet still returns focus to the widget
     more.dispatchEvent({ type: 'click', preventDefault() {}, stopPropagation() {} });
     const layer = root.querySelector('.hd-sheet-layer[data-kind="moreinfo"]'); assert.ok(layer, 'the sheet layer is inside the root');
     layer.dispatchEvent({ type: 'keydown', key: 'Escape', preventDefault() {}, stopPropagation() {} }); assert.equal(root.querySelector('.hd-sheet-layer'), null);
+    assert.ok(document.activeElement === more, 'Escape returns focus to the widget more button');
     more.dispatchEvent({ type: 'click', preventDefault() {}, stopPropagation() {} }); assert.ok(root.querySelector('.hd-sheet-layer'));
     view.show(doc); assert.equal(root.querySelector('.hd-sheet-layer'), null, 'a render closes the sheet');
     root.querySelector('[data-hd-wid="lt"] .hd-more').dispatchEvent({ type: 'click', preventDefault() {}, stopPropagation() {} }); assert.ok(root.querySelector('.hd-sheet-layer'));
     view.destroy(); assert.equal(root.children.length, 0);
     const bare = E.el('div', { class: 'hd-root' }); document.body.appendChild(bare);   // without commands: no button, nothing opens
     const v2 = E.view.create({ root: bare, store, catalog: E.catalog.create(CATALOG), t: k => k, lang: 'en', host: 'desktop', raf: fn => 1, caf: () => {}, measure: () => ({ width: 1180, height: 700 }) });
-    v2.show(doc); assert.equal(bare.querySelector('.hd-more'), null); v2.destroy(); }]
+    v2.show(doc); assert.equal(bare.querySelector('.hd-more'), null); v2.destroy(); }],
+  ['view: sources covers every page of the open document, so a tab change does not flip the banner scope', () => {
+    const { E, document } = loadEngine(FILES, { dom: true }), root = E.el('div', { class: 'hd-root' }); document.body.appendChild(root);
+    const bus = E.core.emitter(), store = { view: () => null, on: bus.on, off: bus.off, history: () => Promise.resolve({ points: [], source: 'none' }) };
+    const doc = { id: 'd_aaaaaaaaaaad', name: 'P', look: { family: 'minimal', palette: { mode: 'theme' } }, pages: [
+      { id: 'main', name: 'One', widgets: [{ id: 'w1', type: 'entity', variant: 'tile', bindings: { primary: 'system:uptime' } }], layouts: { lg: [{ id: 'w1', x: 0, y: 0, w: 2, h: 1 }] } },
+      { id: 'p2', name: 'Two', widgets: [{ id: 'w2', type: 'entity', variant: 'tile', bindings: { primary: 'ha:light.hall' } }], layouts: { lg: [{ id: 'w2', x: 0, y: 0, w: 2, h: 1 }] } }] };
+    const view = E.view.create({ root, store, catalog: E.catalog.create(CATALOG), t: k => k, lang: 'en', host: 'desktop', raf: fn => 1, caf: () => {}, measure: () => ({ width: 1180, height: 700 }) });
+    view.show(doc); const sources = [{ source: 'ha', state: 'unavailable', reason: 'catalog_failed' }], banners = () => E.view.banners({ mode: 'dashboard', connection: { phase: 'live' }, sources, usedSources: view.sources() });
+    eq(view.sources(), ['system', 'ha']); eq(banners().map(b => b.source), ['ha']); assert.equal(view.pageId(), 'main');
+    root.querySelector('.hd-tabs').dispatchEvent(key('ArrowRight')); assert.equal(view.pageId(), 'p2'); eq(banners().map(b => b.source), ['ha']);
+    view.destroy(); }]
 ];

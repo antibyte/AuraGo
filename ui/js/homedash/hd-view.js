@@ -83,7 +83,10 @@
                 applyRoot(); renderTabs(); renderPage(); E.widgets.applyLook(root);
             },
             pageId: () => pageId, entityIds: () => (page ? page.entityIds() : []),
-            sources: () => [...new Set((page ? page.entityIds() : []).map(e => e.slice(0, e.indexOf(':'))))],
+            sources: () => {   // the prefixes of every entity bound anywhere in the open document, so a tab change never flips a banner
+                const ids = []; if (doc) for (const pg of doc.pages) for (const w of pg.widgets || []) for (const v of Object.values(w.bindings || {})) if (typeof v === 'string' && v.indexOf(':') > 0) ids.push(v);
+                return [...new Set(ids.map(e => e.slice(0, e.indexOf(':'))))];
+            },
             setConnection(c) { setAttr(root, 'data-hd-conn', c && c.phase === 'live' ? 'live' : c && c.offline ? 'offline' : 'connecting'); },
             setReadonly(flag) { setAttr(root, 'data-hd-readonly', !!flag); },
             refreshLook() { if (!doc) return; applyRoot(); E.widgets.applyLook(root); if (page) page.layout(); },

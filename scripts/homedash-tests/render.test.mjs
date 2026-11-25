@@ -18,17 +18,18 @@ const CMD_DOC = { id: 'd_cmdcmdcmdc1', name: 'Cmd', pages: [{ id: 'main', widget
   { id: 'sw', type: 'switch', variant: 'pill', bindings: { primary: 'ha:switch.coffee' } }, { id: 'lt', type: 'light', variant: 'tile', bindings: { primary: 'ha:light.kitchen' } },
   { id: 'cpu', type: 'gauge', variant: 'arc', bindings: { primary: 'system:cpu' } }],
   layouts: { lg: [{ id: 'sw', x: 0, y: 0, w: 2, h: 1 }, { id: 'lt', x: 2, y: 0, w: 2, h: 2 }, { id: 'cpu', x: 4, y: 0, w: 2, h: 2 }] } }] };
-function setupCmd(withCommands) {
-  const { E, document } = loadEngine(FILES, { dom: true }), catalog = E.catalog.create(CATALOG), doc = E.doc.normalise(CMD_DOC, { sizeOf: catalog.defaultSize });
+function setupCmd(withCommands, rawDoc, extraViews) {
+  const { E, document } = loadEngine(FILES, { dom: true }), catalog = E.catalog.create(CATALOG), doc = E.doc.normalise(rawDoc || CMD_DOC, { sizeOf: catalog.defaultSize });
   const root = E.el('div', { class: 'hd-root', 'data-hd-family': 'glass' }), stage = E.el('div', { class: 'hd-stage' }); root.appendChild(stage); document.body.appendChild(root);
   const views = new Map(), bus = E.core.emitter(), cbus = E.core.emitter(), frames = [], sent = [], overlay = new Map(), announced = [], sheets = [], apis = new Map();
   const real = E.widgets.host; E.widgets = Object.assign({}, E.widgets, { host(o) { const inst = real(o); apis.set(o.widget.id, o.api({ widget: o.widget, mode: 'view' })); return inst; } });
   const commands = { sent, decorate: (id, v) => (overlay.has(id) ? Object.freeze(Object.assign({}, v, overlay.get(id))) : v), send: spec => { sent.push(spec); return Promise.resolve({ status: 'accepted' }); }, on: cbus.on, off: cbus.off };
   const store = { view: id => views.get(id) || null, on: bus.on, off: bus.off, history: () => Promise.resolve({ points: [], source: 'none' }) };
   views.set('ha:switch.coffee', CV('ha:switch.coffee', 'switch')); views.set('ha:light.kitchen', CV('ha:light.kitchen', 'light', { capabilities: LIGHT_CAPS }));
+  for (const v of extraViews || []) views.set(v.id, v);
   const page = E.render.page({ doc, page: doc.pages[0], stage, store, catalog, t: k => k, lang: 'en', raf: fn => { frames.push(fn); return frames.length; }, caf: () => {}, measure: () => ({ width: 1180, height: 700 }),
     commands: withCommands === false ? null : commands, moreInfo: req => sheets.push(req), announce: x => announced.push(x) });
-  return { E, stage, views, bus, cbus, sent, overlay, announced, sheets, apis, page, run: () => { while (frames.length) frames.shift()(); }, text: id => stage.querySelector('[data-hd-wid="' + id + '"] .hd-state-text') };
+  return { E, document, stage, views, bus, cbus, sent, overlay, announced, sheets, apis, page, run: () => { while (frames.length) frames.shift()(); }, text: id => stage.querySelector('[data-hd-wid="' + id + '"] .hd-state-text') };
 }
 const vars = (el, ...names) => names.map(n => el.style.getPropertyValue(n)).join(',');
 export const tests = [
@@ -84,9 +85,28 @@ export const tests = [
     cbus.emit('cue', { id: 'ha:switch.coffee', cue: { code: 'timeout' } }); cbus.emit('cue', { id: 'ha:other', cue: { code: 'timeout' } });
     cbus.emit('armed', { id: 'ha:switch.coffee', widgetKey: 'w|d_cmdcmdcmdc1|sw' }); cbus.emit('armed', { id: 'ha:switch.coffee', widgetKey: 'w|other|sw' });
     eq(announced, ['homedash.cue.timeout', 'homedash.arm.announce']); }],
-  ['render: a widget whose entity has no view shows the localized system name as its title; only the light host has a more button', () => {
+  ['render: a widget whose entity has no view shows the localized system name as its title; only a light-kind entity shows the more button', () => {
     const { stage } = setupCmd(); assert.equal(stage.querySelector('[data-hd-wid="cpu"] .hd-title').textContent, 'homedash.system.cpu');
-    assert.equal(stage.querySelectorAll('.hd-more').length, 1); assert.ok(stage.querySelector('[data-hd-wid="lt"] .hd-more')); }],
+    const shown = Array.from(stage.querySelectorAll('.hd-more')).filter(b => !b.hasAttribute('hidden'));
+    assert.equal(shown.length, 1); assert.ok(stage.querySelector('[data-hd-wid="lt"] .hd-more') === shown[0]); }],
+  ['render: the more button follows the bound entity kind, not the widget type (pill on a light shows it, sensor widget hides it, no commands: none)', () => {
+    const raw = { id: 'd_cmdcmdcmdc2', name: 'K', pages: [{ id: 'main', widgets: [
+      { id: 'pl', type: 'switch', variant: 'pill', bindings: { primary: 'ha:light.sofa' } }, { id: 'cpu', type: 'gauge', variant: 'arc', bindings: { primary: 'system:cpu' } }],
+      layouts: { lg: [{ id: 'pl', x: 0, y: 0, w: 2, h: 1 }, { id: 'cpu', x: 2, y: 0, w: 2, h: 2 }] } }] };
+    const extra = [CV('ha:light.sofa', 'light', { capabilities: LIGHT_CAPS }), V('system:cpu', 40)];
+    const { stage, apis, sheets, views, bus } = setupCmd(true, raw, extra), more = id => stage.querySelector('[data-hd-wid="' + id + '"] .hd-more');
+    assert.ok(more('pl')); assert.equal(more('pl').hasAttribute('hidden'), false); assert.ok(more('cpu')); assert.equal(more('cpu').hasAttribute('hidden'), true);
+    more('pl').dispatchEvent({ type: 'click', preventDefault() {}, stopPropagation() {} }); assert.equal(sheets.length, 1); assert.equal(sheets[0].api.entity('primary').id, 'ha:light.sofa');
+    views.set('ha:light.sofa', CV('ha:light.sofa', 'switch')); bus.emit('change', new Set(['ha:light.sofa'])); assert.equal(more('pl').hasAttribute('hidden'), true, 'follows the kind when it changes');
+    const bare = setupCmd(false, raw, extra); assert.equal(bare.stage.querySelectorAll('.hd-more').length, 0); }],
+  ['render: the sheet opener is the focused element inside the widget, else its visible more button, else the widget with a temporary tabindex', () => {
+    const raw = { id: 'd_cmdcmdcmdc3', name: 'K', pages: [{ id: 'main', widgets: [{ id: 'lt', type: 'light', variant: 'tile', bindings: { primary: 'ha:light.kitchen' } }], layouts: { lg: [{ id: 'lt', x: 0, y: 0, w: 2, h: 2 }] } }] };
+    const { stage, apis, sheets, document } = setupCmd(true, raw), wrap = stage.querySelector('[data-hd-wid="lt"]'), more = wrap.querySelector('.hd-more'), title = wrap.querySelector('.hd-title');
+    document.activeElement = document.body; apis.get('lt').moreInfo('primary'); assert.ok(sheets[0].opener === more, 'body is not inside the widget: the more button');
+    document.activeElement = title; apis.get('lt').moreInfo('primary'); assert.ok(sheets[1].opener === title, 'an element inside the widget wins');
+    document.activeElement = document.body; more.setAttribute('hidden', ''); assert.equal(wrap.hasAttribute('tabindex'), false); apis.get('lt').moreInfo('primary');
+    assert.ok(sheets[2].opener === wrap, 'a hidden more button is no opener'); assert.equal(wrap.getAttribute('tabindex'), '-1');
+    wrap.dispatchEvent({ type: 'blur' }); assert.equal(wrap.hasAttribute('tabindex'), false, 'the temporary tabindex is dropped again'); }],
   ['render: moreInfo opens the sheet for light entities only, with a sheet api and a subscription that follows the entity', () => {
     const { apis, sheets, cbus, bus, run, sent } = setupCmd();
     assert.equal(apis.get('sw').moreInfo('primary'), false); assert.equal(sheets.length, 0);

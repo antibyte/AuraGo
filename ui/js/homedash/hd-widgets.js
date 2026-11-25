@@ -87,6 +87,7 @@
         } catch (err) { abandon(); throw err; }
         const inst = { update: instance.update.bind(instance), resize: typeof instance.resize === 'function' ? instance.resize.bind(instance) : noop, destroy: typeof instance.destroy === 'function' ? instance.destroy.bind(instance) : noop };
 
+        const moreBtn = o.moreLabel ? frame.el.querySelector('.hd-more') : null;   // o.moreWhen(p) shows it per bound entity; without moreWhen it always shows
         function update() {
             if (destroyed) return;
             const entities = {};
@@ -97,6 +98,7 @@
             setAttr(wrapper, 'data-hd-pending', !!(p && p.pending)); setAttr(wrapper, 'data-hd-stale', !!(p && p.stale)); setAttr(wrapper, 'data-hd-readonly', !!(p && p.readonly));
             setAttr(wrapper, 'data-hd-armed', !!(p && p.armed)); setAttr(wrapper, 'data-hd-confirmed', !!(p && p.confirmed));
             writeTone(p); writeState(p);
+            if (moreBtn && typeof o.moreWhen === 'function') setAttr(moreBtn, 'hidden', !o.moreWhen(p));
             inst.update({ mode, entities });
         }
         function applyMode() {
@@ -113,7 +115,7 @@
             if (destroyed) return; destroyed = true;
             resources.dispose(); inst.destroy(); frame.destroy(); wrapper.remove();
         }
-        if (o.moreLabel) resources.on(frame.el.querySelector('.hd-more'), 'click', () => { if (mode === 'view') fns.moreInfo(def.bindings[0]); });
+        if (moreBtn) resources.on(moreBtn, 'click', () => { if (mode === 'view') fns.moreInfo(def.bindings[0]); });
         applyMode(); update();
         return { el: wrapper, body: frame.body, family, update, resize, setMode, destroy };
     }
