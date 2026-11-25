@@ -1346,7 +1346,7 @@
 .hd-page-empty-text { max-inline-size: 42ch; margin: 0; font-size: var(--hd-text-m); line-height: 1.5; }
 .hd-widget.hd-unsupported .hd-body::before { content: ""; inline-size: 28px; block-size: 28px; background: var(--hd-ink-faint); -webkit-mask: var(--hd-mask-error) center / contain no-repeat; mask: var(--hd-mask-error) center / contain no-repeat; }
 /* M3 overlay layers (SCR-M3-3). The root is the containing block of every layer; both layers sit inside it (the lab hosts them in a sized cell). Selectors stay at
-   the specificity of the lab stage rule and the host's .hdx-app .hd-sheet, and the dialog and panel set every property that rule would leak onto them. */
+   the specificity of the lab stage rule; the host's confirm-sheet rules are scoped to .hd-sheet[data-kind="confirm"] and no longer reach these layers. The dialog and panel still set their own padding, border, background and shadow because the family card paint (.hd-widget) would otherwise apply. */
 .hd-root { position: relative; }
 /* More-info layer: scrim and one dialog, centred (640x600 at most) or, when the root is under 600px wide, a bottom sheet (full width, 85 % high). */
 .hd-sheet-layer[data-kind="moreinfo"] { position: absolute; inset: 0; z-index: 30; box-sizing: border-box; display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); place-items: center; padding: 24px;
@@ -1356,8 +1356,6 @@
   background: transparent; box-shadow: none; border-radius: var(--hd-radius-card); }
 .hd-sheet-layer[data-kind="moreinfo"][data-hd-pop="sheet"] > .hd-sheet.hd-widget[data-kind="moreinfo"] { inline-size: 100%; block-size: 85%; }
 .hd-sheet-layer[data-kind="moreinfo"][data-hd-pop="sheet"] > .hd-sheet > .hd-frame { border-end-start-radius: 0; border-end-end-radius: 0; }
-/* The host styles buttons inside any .hd-sheet-layer with an outline; the dialog keeps the M0 ring only. */
-.hd-root .hd-sheet-layer[data-kind="moreinfo"] :is(button, [tabindex="0"], [role="slider"]):focus-visible { outline: none; }
 /* Popover layer: the listbox panel is placed by the --hd-pop-* variables of hd-popover.js, anchored below (or above) the trigger, or a bottom sheet when data-hd-pop="sheet".
    Its base paint comes from the card tokens; the families refine it. */
 .hd-pop-layer { position: absolute; inset: 0; z-index: 40; pointer-events: none; }

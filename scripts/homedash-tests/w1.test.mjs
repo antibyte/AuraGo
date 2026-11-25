@@ -150,6 +150,15 @@ export const tests = [
     const more = v.capabilities.map(c => (c.name === 'select_option' ? Object.assign({}, c, { options: ['eco', 'comfort', 'boost', 'away'] }) : c)); w.set(Object.assign({}, v, { capabilities: more }));
     const second = w.q('.hd-seg'); assert.notEqual(second, first); assert.equal(second.querySelectorAll('.hd-seg-opt').length, 4); assert.equal(w.h.body.querySelectorAll('.hd-seg').length, 1); w.set(Object.assign({}, v, { capabilities: more })); assert.equal(w.q('.hd-seg'), second);
     const r = x.mount('select', 'segmented', 'ha:input_select.radio', { size: { w: 3, h: 1 } }); assert.equal(r.q('.hd-seg'), null); assert.ok(r.q('button.hd-pick')); assert.equal(r.q('.hd-pick-label').textContent, 'Jazz'); }],
+  ['select segmented capacity (Q10): 3 options fit at 2x1, 4 options render the list at 2x1 and the segmented control at 3x1, 6 options render the list at 3x1; a resize re-evaluates', () => {
+    const four = c => { c.capabilities.find(k => k.name === 'select_option').options = ['eco', 'comfort', 'boost', 'away']; }, six = c => { c.capabilities.find(k => k.name === 'select_option').options = ['a', 'b', 'c', 'd', 'e', 'f']; };
+    const seg = (patch, size) => { const x = env(patch ? { 'ha:select.heater_mode': patch } : undefined); return x.mount('select', 'segmented', 'ha:select.heater_mode', { size }); };
+    let w = seg(null, { w: 2, h: 1 }); assert.ok(w.q('.hd-seg')); assert.equal(w.q('button.hd-pick'), null);
+    w = seg(four, { w: 2, h: 1 }); assert.equal(w.q('.hd-seg'), null); assert.ok(w.q('button.hd-pick'));
+    w = seg(four, { w: 3, h: 1 }); assert.ok(w.q('.hd-seg')); assert.equal(w.q('.hd-seg').querySelectorAll('.hd-seg-opt').length, 4);
+    w = seg(six, { w: 3, h: 1 }); assert.equal(w.q('.hd-seg'), null); assert.ok(w.q('button.hd-pick'));
+    w = seg(four, { w: 2, h: 1 }); w.h.resize({ w: 3, h: 1 }); assert.ok(w.q('.hd-seg')); assert.equal(w.q('button.hd-pick'), null); assert.equal(w.h.body.querySelectorAll('.hd-seg').length, 1);
+    w.h.resize({ w: 2, h: 1 }); assert.equal(w.q('.hd-seg'), null); assert.ok(w.q('button.hd-pick')); }],
   ['select list: the picker shows the value, opens a listbox under the nearest root, Enter on Rock sends select_option and closes; the current value sends nothing', () => { const x = env(), root = x.document.createElement('div'), E = x.E;
     root.setAttribute('class', 'hd-root'); root.getBoundingClientRect = () => ({ left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600 }); x.document.body.appendChild(root);
     const w = x.mount('select', 'list', 'ha:input_select.radio', { parent: root }), p = w.q('button.hd-pick');

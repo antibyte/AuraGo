@@ -1,5 +1,5 @@
 // HomeDash select widget (W1): segmented (2-3 columns, up to 5 options) and list (picker + listbox popover). Options come from the select_option
-// capability, never from the widget; a segmented widget with more than 5 options renders the list control (Q10). Option and value text is untrusted
+// capability, never from the widget; a segmented widget with more options than its width holds (3 at width 1-2, 5 from width 3) renders the list control (Q10). Option and value text is untrusted
 // and only ever reaches the DOM through textContent. A click or a listbox pick sends select_option at once (phase discrete); arrow keys on the
 // segmented group send phase key (the command client trails 400 ms). Picking the value that is already current sends nothing.
 (function () {
@@ -54,17 +54,22 @@
     }
 
     function create(api) {
-        let cur = null, kind = null, part = null;
+        let cur = null, kind = null, part = null, lastView = null;
+        const sizeNow = () => { const h = api.body.closest ? api.body.closest('.hd-widget') : null, m = /^(\d+)x/.exec(h ? h.getAttribute('data-hd-size') || '' : ''); return m ? Number(m[1]) : 1; };
+        let width = sizeNow();
         const marker = C.armMarker(), ctx = { marker, cur: () => cur,
             enabled: () => C.enabled(api, cur, [CAP]), blocked: () => C.announceBlocked(api, cur, CAP),
             off: e => !e || (!e.readonly && !api.can('primary', CAP)),
             pick(id, phase) { if (!cur || (phase !== 'key' && id === valueOf(cur))) return; api.command('primary', CAP, { option: id }, { phase }); } };
         api.body.appendChild(marker);
         setAttr(api.body, 'data-hd-nodata', api.t('homedash.state.no_data'));
+        // Segmented capacity (Q10): 3 options at width 1-2, 5 options from width 3; beyond that the list control renders (each option keeps its 44 px hit target).
+        const capacity = () => (width >= 3 ? 5 : 3);
         return {
+            resize(size) { const w = size && Number(size.w) > 0 ? Number(size.w) : 1; if (w !== width) { width = w; if (lastView) this.update(lastView); } },
             update(view) {
-                const e = view.entities.primary; cur = e || null;
-                const options = C.options(e, CAP), want = api.variant === 'list' || options.length > 5 ? 'list' : 'segmented';
+                lastView = view; const e = view.entities.primary; cur = e || null;
+                const options = C.options(e, CAP), want = api.variant === 'list' || options.length > capacity() ? 'list' : 'segmented';
                 if (want !== kind) { if (part) part.destroy(); part = want === 'list' ? list(api, ctx) : segmented(api, ctx); kind = want; }
                 api.setTone(e && e.tone ? e.tone : null);
                 part.update(e, options);

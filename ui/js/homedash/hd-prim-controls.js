@@ -309,7 +309,7 @@
             applyState(node, s, input ? { interactive: true } : undefined);
             const hue = finite(s.hue) ? ((s.hue % 360) + 360) % 360 : 0, sat = finite(s.sat) ? clamp(s.sat, 0, 1) : 0, rad = hue * Math.PI / 180;
             const rgb = E.colour.hsvToRgb(hue, sat, 1).map(n => clamp(Math.round(n), 0, 255));
-            setVars(node, { '--hd-wheel-x': clamp(0.5 + 0.5 * sat * Math.sin(rad), 0, 1).toFixed(4), '--hd-wheel-y': clamp(0.5 - 0.5 * sat * Math.cos(rad), 0, 1).toFixed(4), '--hd-wheel-rgb': rgb.join(' ') });
+            setVars(node, { '--hd-wheel-x': clamp(0.5 + 0.5 * sat * Math.sin(rad), 0, 1).toFixed(4), '--hd-wheel-y': clamp(0.5 - 0.5 * sat * Math.cos(rad), 0, 1).toFixed(4), '--hd-wheel-rgb': rgb.join(' '), '--hd-wheel-colour': 'rgb(' + rgb.join(', ') + ')' });
             const text = typeof s.valueText === 'string' && s.valueText ? s.valueText : '';
             if (!input) { setAttr(node, 'aria-label', text || o.label); return; }
             setAttr(node, 'aria-valuenow', Math.round(hue)); setAttr(node, 'aria-valuetext', text || (input.valueText ? input.valueText(hue, sat * 100) : Math.round(hue) + String.fromCodePoint(0xb0) + ', ' + Math.round(sat * 100) + ' %'));

@@ -47,7 +47,7 @@ export const tests = [
     assert.equal(v(g.el, '--hd-index'), '1'); assert.equal(v(g.el, '--hd-count'), '3'); assert.deepEqual(o.map(x => [x.getAttribute('aria-checked'), x.getAttribute('tabindex')]), [['false', '-1'], ['true', '0'], ['false', '-1']]);
     g.set({ value: 'zzz' }); assert.equal(v(g.el, '--hd-index'), '-1'); assert.equal(o[0].getAttribute('tabindex'), '0'); }],
   ['colour wheel and colour temperature strip', () => { const { E } = boot(); const w = E.prim.colourWheel(OPTS.colourWheel); w.set({ hue: 90, sat: 1 });
-    assert.equal(v(w.el, '--hd-wheel-x'), '1.0000'); assert.equal(v(w.el, '--hd-wheel-y'), '0.5000'); assert.equal(v(w.el, '--hd-wheel-rgb'), '128 255 0'); assert.ok(w.el.querySelector('canvas.hd-wheel-canvas'));
+    assert.equal(v(w.el, '--hd-wheel-x'), '1.0000'); assert.equal(v(w.el, '--hd-wheel-y'), '0.5000'); assert.equal(v(w.el, '--hd-wheel-rgb'), '128 255 0'); assert.equal(v(w.el, '--hd-wheel-colour'), 'rgb(128, 255, 0)'); assert.ok(w.el.querySelector('canvas.hd-wheel-canvas'));
     const c = E.prim.ctStrip(OPTS.ctStrip); c.set({ value: 4350 }); assert.equal(v(c.el, '--hd-value'), '0.5000'); assert.equal(c.el.getAttribute('aria-valuetext'), '4350' + fc(0xa0) + 'K'); }],
   // Task 8 (SCR-M3-4): the optional input contract.
   ['input (a): without input every builder keeps today\'s markup and needs no hd-input.js', () => { const { E, document } = boot();
