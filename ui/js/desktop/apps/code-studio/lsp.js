@@ -175,10 +175,10 @@
 
     function lspOpenSocket(conn) {
         const instance = conn.instance;
-        const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
         let socket;
         try {
-            socket = new WebSocket(protocol + '//' + location.host + '/api/code-studio/lsp?lang=' + encodeURIComponent(conn.language));
+            // Plan C: the bridge serves the active workspace; a switch shuts the sessions down and later opens new sockets.
+            socket = new WebSocket(workspaceSocketURL('/api/code-studio/lsp?lang=' + encodeURIComponent(conn.language), instance));
         } catch (_) {
             conn.socket = null;
             lspSocketClosed(conn, 1006);
