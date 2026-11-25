@@ -11,11 +11,15 @@ import (
 	"strings"
 	"time"
 	"unicode"
+	"unicode/utf8"
 
 	"aurago/internal/security"
 )
 
 // HAChangedState is one entity state Home Assistant reports as changed by a service call.
+// Attributes are Home Assistant's raw, unfiltered attributes (they may carry entity_picture with an
+// access token, URLs and similar). Callers must pass them through their own allowlist (HomeDash: the
+// hass adapter's attribute filter) before anything reaches a client.
 type HAChangedState struct {
 	EntityID    string         `json:"entity_id"`
 	State       string         `json:"state"`
@@ -76,7 +80,8 @@ var haTargetKeys = []string{"entity_id", "target", "area_id", "device_id", "labe
 // HACallServiceStates calls one Home Assistant service for one concrete entity under the same gates
 // as HACallServiceContext (home_assistant.readonly, allowed/blocked services, target refusal) and
 // returns the states Home Assistant reports as changed by the call. It is HomeDash's command path;
-// HACallServiceContext (agent tool, HA Switchboard) is unchanged.
+// HACallServiceContext (agent tool, HA Switchboard) is unchanged. The returned Attributes are raw;
+// filter them with an allowlist before they reach a client.
 func HACallServiceStates(ctx context.Context, cfg HAConfig, domain, service, entityID string, data map[string]any) ([]HAChangedState, error) {
 	// No lowercasing: the typed call is stricter than HACallServiceContext and rejects "Light".
 	domain, service = strings.TrimSpace(domain), strings.TrimSpace(service)
@@ -158,15 +163,22 @@ func decodeHAChangedStates(raw []byte) ([]HAChangedState, bool) {
 }
 
 // haLogExcerpt bounds and scrubs an answer body for the server log. It is never shown to clients.
+// The whole (already size-limited) body is scrubbed before it is cut, so a registered secret that
+// straddles the cut is removed rather than leaving a prefix; the cut is on a rune boundary.
 func haLogExcerpt(raw []byte) string {
-	if len(raw) > haLogExcerptBytes {
-		raw = raw[:haLogExcerptBytes]
-	}
-	s := strings.Map(func(r rune) rune {
+	s := security.Scrub(strings.ToValidUTF8(string(raw), ""))
+	s = strings.Map(func(r rune) rune {
 		if unicode.IsControl(r) {
 			return ' '
 		}
 		return r
-	}, strings.ToValidUTF8(string(raw), ""))
-	return security.Scrub(strings.TrimSpace(s))
+	}, s)
+	if len(s) > haLogExcerptBytes {
+		cut := haLogExcerptBytes
+		for cut > 0 && !utf8.RuneStart(s[cut]) {
+			cut--
+		}
+		s = s[:cut]
+	}
+	return strings.TrimSpace(s)
 }

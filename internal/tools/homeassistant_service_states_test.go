@@ -10,6 +10,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"unicode/utf8"
 
 	"aurago/internal/testutil"
 )
@@ -127,5 +128,42 @@ func TestHACallServiceStatesClassifiesFailuresWithoutUpstreamText(t *testing.T) 
 	ha.Close()
 	if _, err := HACallServiceStates(context.Background(), cfg, "switch", "toggle", "switch.a", nil); !errors.As(err, &se) || se.Kind != HAServiceUnreachable {
 		t.Fatalf("closed server = %v", err)
+	}
+}
+
+func TestHACallServiceStatesLogExcerptScrubsATokenStraddlingTheCut(t *testing.T) {
+	const token = "tok-straddle-9f3k2"
+	ha := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(strings.Repeat("a", 240) + " " + token + " tail"))
+	}))
+	defer ha.Close()
+	cfg := HAConfig{URL: ha.URL, AccessToken: token}
+	_, err := HACallServiceStates(context.Background(), cfg, "switch", "toggle", "switch.a", nil)
+	var se *HAServiceError
+	if !errors.As(err, &se) || se.Kind != HAServiceRejected {
+		t.Fatalf("err = %v", err)
+	}
+	for n := 4; n <= len(token); n++ {
+		if strings.Contains(se.LogDetail, token[:n]) {
+			t.Fatalf("log detail leaks token prefix %q: %q", token[:n], se.LogDetail)
+		}
+	}
+	if !utf8.ValidString(se.LogDetail) || len(se.LogDetail) > haLogExcerptBytes {
+		t.Fatalf("log detail invalid or too long (%d bytes): %q", len(se.LogDetail), se.LogDetail)
+	}
+}
+
+func TestHALogExcerptCutsOnARuneBoundary(t *testing.T) {
+	for _, r := range []string{"\u00fc", "\u20ac"} {
+		for pad := haLogExcerptBytes - 4; pad <= haLogExcerptBytes; pad++ {
+			got := haLogExcerpt([]byte(strings.Repeat("a", pad) + r + r + "tail"))
+			if !utf8.ValidString(got) || len(got) > haLogExcerptBytes {
+				t.Fatalf("pad %d rune %q: invalid or %d bytes", pad, r, len(got))
+			}
+			if strings.ContainsRune(got, utf8.RuneError) {
+				t.Fatalf("pad %d rune %q: split rune became U+FFFD", pad, r)
+			}
+		}
 	}
 }
