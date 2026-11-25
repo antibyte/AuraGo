@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'; import { loadEngine, ENGINE_ORDER, read, eq } from './harness.mjs';
-const FILES = ENGINE_ORDER.concat(['hd-tone.js', 'hd-api.js', 'hd-catalog.js', 'hd-render.js', 'hd-view.js']), CATALOG = JSON.parse(read('internal/homedash/testdata/widget_catalog.json'));
+const FILES = ENGINE_ORDER.concat(['hd-tone.js', 'hd-api.js', 'hd-catalog.js', 'hd-render.js', 'hd-sheet.js', 'hd-view.js']), CATALOG = JSON.parse(read('internal/homedash/testdata/widget_catalog.json'));
 const TWO = { id: 'd_aaaaaaaaaaab', name: 'Two', look: { family: 'minimal', palette: { mode: 'theme' } }, pages: [
   { id: 'main', name: 'One', widgets: [{ id: 'w1', type: 'entity', variant: 'tile', bindings: { primary: 'system:uptime' } }], layouts: { lg: [{ id: 'w1', x: 0, y: 0, w: 2, h: 1 }] } },
   { id: 'p2', name: 'Two', widgets: [{ id: 'w2', type: 'entity', variant: 'tile', bindings: { primary: 'system:cpu' } }], layouts: { lg: [] } }] };
@@ -79,5 +79,38 @@ export const tests = [
     for (const palette of [{ mode: 'custom', scheme: 'dark', accent: '#F5C542', surface_hue: 250 }, { mode: 'dark' }, { mode: 'theme' }, { mode: 'light' }]) {
       view.show(Object.assign({}, TWO, { look: { family: 'minimal', palette } })); view.refreshLook();
     }
-    eq(touched, []); assert.notEqual(root.style.getPropertyValue('--hd-ink'), undefined); }]
+    eq(touched, []); assert.notEqual(root.style.getPropertyValue('--hd-ink'), undefined); }],
+  ['view: banners name a source only when the open dashboard uses it; a failed catalog and omitted devices have their own kinds', () => { const b = loadEngine(FILES).E.view.banners;
+    const sources = [{ source: 'system', state: 'degraded' }, { source: 'ha', state: 'unavailable', reason: 'catalog_failed' }];
+    eq(b({ mode: 'dashboard', connection: { phase: 'live' }, sources, usedSources: ['ha'] }).map(x => [x.kind, x.source]), [['source_catalog_failed', 'ha']]);
+    eq(b({ mode: 'dashboard', connection: { phase: 'live' }, sources, usedSources: ['system'] }).map(x => [x.kind, x.source]), [['source_degraded', 'system']]);
+    eq(b({ mode: 'dashboard', connection: { phase: 'live' }, sources, usedSources: [] }).map(x => x.kind), []);
+    eq(b({ mode: 'dashboard', connection: { phase: 'live' }, sources: [{ source: 'ha', state: 'unavailable', reason: 'auth_failed' }], usedSources: ['ha'] }).map(x => x.kind), ['source_unavailable']);
+    eq(b({ mode: 'dashboard', connection: { phase: 'live' }, sources }).map(x => x.kind), ['source_degraded', 'source_catalog_failed']);   // usedSources absent: every source, as in M2
+    const om = b({ mode: 'dashboard', connection: { phase: 'live' }, sources: [], notice: 'template_omitted', noticeCount: 7 }); eq(om.map(x => [x.kind, x.count, x.tone, x.role]), [['template_omitted', 7, 'info', 'status']]);
+    eq(b({ mode: 'dashboard', connection: { phase: 'live' }, sources: [], notice: 'template_omitted', noticeCount: 0 }).map(x => x.kind), []);
+    eq(b({ mode: 'home', connection: { phase: 'live' }, notice: 'template_omitted', noticeCount: 7 }).map(x => x.kind), []);
+    eq(b({ mode: 'dashboard', connection: { phase: 'live' }, sources: [], desktopReadonly: true, notice: 'template_omitted', noticeCount: 7 }).map(x => x.kind), ['readonly', 'template_omitted']); }],
+  ['view: sources lists the id prefixes of the page; with commands the light widget opens a modal sheet that closes on Escape and with the view', () => {
+    const { E, document } = loadEngine(FILES, { dom: true }), root = E.el('div', { class: 'hd-root' }); document.body.appendChild(root);
+    const views = new Map([['ha:light.kitchen', { id: 'ha:light.kitchen', kind: 'light', name: 'Kitchen', value: true, available: true, status: 'ok', readonly: false, stale: false, pending: false, attributes: { brightness_pct: 40 },
+      capabilities: ['toggle', { name: 'turn_on' }, { name: 'turn_off' }, { name: 'brightness', min: 0, max: 100, step: 1 }] }]]);
+    const bus = E.core.emitter(), cbus = E.core.emitter(), sent = [], store = { view: id => views.get(id) || null, on: bus.on, off: bus.off, history: () => Promise.resolve({ points: [], source: 'none' }) };
+    const commands = { decorate: (id, v) => v, send: spec => { sent.push(spec); return Promise.resolve({ status: 'accepted' }); }, on: cbus.on, off: cbus.off };
+    const doc = { id: 'd_aaaaaaaaaaac', name: 'L', look: { family: 'glass', palette: { mode: 'theme' } }, pages: [{ id: 'main', widgets: [
+      { id: 'lt', type: 'light', variant: 'tile', bindings: { primary: 'ha:light.kitchen' } }, { id: 'up', type: 'entity', variant: 'tile', bindings: { primary: 'system:uptime' } }],
+      layouts: { lg: [{ id: 'lt', x: 0, y: 0, w: 2, h: 2 }, { id: 'up', x: 2, y: 0, w: 2, h: 1 }] } }] };
+    const view = E.view.create({ root, store, catalog: E.catalog.create(CATALOG), t: k => k, lang: 'en', host: 'desktop', scheme: () => 'dark', motion: () => 'full', raf: fn => 1, caf: () => {}, measure: () => ({ width: 1180, height: 700 }), commands });
+    view.show(doc); eq(view.sources(), ['ha', 'system']); eq(view.entityIds(), ['ha:light.kitchen', 'system:uptime']);
+    const more = root.querySelector('[data-hd-wid="lt"] .hd-more'); assert.ok(more, 'the light host has the more button'); assert.equal(root.querySelector('[data-hd-wid="up"] .hd-more'), null);
+    more.dispatchEvent({ type: 'click', preventDefault() {}, stopPropagation() {} });
+    const layer = root.querySelector('.hd-sheet-layer[data-kind="moreinfo"]'); assert.ok(layer, 'the sheet layer is inside the root');
+    layer.dispatchEvent({ type: 'keydown', key: 'Escape', preventDefault() {}, stopPropagation() {} }); assert.equal(root.querySelector('.hd-sheet-layer'), null);
+    more.dispatchEvent({ type: 'click', preventDefault() {}, stopPropagation() {} }); assert.ok(root.querySelector('.hd-sheet-layer'));
+    view.show(doc); assert.equal(root.querySelector('.hd-sheet-layer'), null, 'a render closes the sheet');
+    root.querySelector('[data-hd-wid="lt"] .hd-more').dispatchEvent({ type: 'click', preventDefault() {}, stopPropagation() {} }); assert.ok(root.querySelector('.hd-sheet-layer'));
+    view.destroy(); assert.equal(root.children.length, 0);
+    const bare = E.el('div', { class: 'hd-root' }); document.body.appendChild(bare);   // without commands: no button, nothing opens
+    const v2 = E.view.create({ root: bare, store, catalog: E.catalog.create(CATALOG), t: k => k, lang: 'en', host: 'desktop', raf: fn => 1, caf: () => {}, measure: () => ({ width: 1180, height: 700 }) });
+    v2.show(doc); assert.equal(bare.querySelector('.hd-more'), null); v2.destroy(); }]
 ];

@@ -1,4 +1,4 @@
-import assert from 'node:assert/strict'; import { loadEngine, ENGINE_ORDER, read } from './harness.mjs';
+import assert from 'node:assert/strict'; import { loadEngine, ENGINE_ORDER, read, eq } from './harness.mjs';
 const FILES = ENGINE_ORDER.concat(['hd-tone.js', 'hd-api.js', 'hd-catalog.js', 'hd-render.js']);
 const STARTER = JSON.parse(read('ui/testdata/homedash-m2/starter-dashboard.json')), CATALOG = JSON.parse(read('internal/homedash/testdata/widget_catalog.json'));
 const V = (id, value) => ({ id, kind: 'sensor', name: id, unit: '%', value, available: true, status: 'ok', readonly: false, stale: false, pending: false, attributes: { updated_at: '2026-11-25T10:00:00Z' } });
@@ -10,6 +10,25 @@ function setup(rawDoc, tr) {
   const page = E.render.page({ doc, page: doc.pages[0], stage, store, catalog, t: tr || (k => k), lang: 'en', raf: fn => { frames.push(fn); return frames.length; }, caf: () => {},
     measure: () => ({ width, height: 700 }), onLayout: m => layouts.push(m) });
   return { E, stage, views, bus, histories, page, layouts, run: () => { while (frames.length) frames.shift()(); }, setWidth: w => { width = w; } };
+}
+// Command-enabled page: a fake commands client (decorate passthrough plus a settable overlay, a send recorder, an emitter) and a spy on the widget host that records each widget api.
+const CAPS = ['toggle', { name: 'turn_on' }, { name: 'turn_off' }], LIGHT_CAPS = CAPS.concat([{ name: 'brightness', min: 0, max: 100, step: 1 }]);
+const CV = (id, kind, extra) => Object.assign({ id, kind, name: id, value: false, available: true, status: 'ok', readonly: false, stale: false, pending: false, attributes: {}, capabilities: CAPS }, extra);
+const CMD_DOC = { id: 'd_cmdcmdcmdc1', name: 'Cmd', pages: [{ id: 'main', widgets: [
+  { id: 'sw', type: 'switch', variant: 'pill', bindings: { primary: 'ha:switch.coffee' } }, { id: 'lt', type: 'light', variant: 'tile', bindings: { primary: 'ha:light.kitchen' } },
+  { id: 'cpu', type: 'gauge', variant: 'arc', bindings: { primary: 'system:cpu' } }],
+  layouts: { lg: [{ id: 'sw', x: 0, y: 0, w: 2, h: 1 }, { id: 'lt', x: 2, y: 0, w: 2, h: 2 }, { id: 'cpu', x: 4, y: 0, w: 2, h: 2 }] } }] };
+function setupCmd(withCommands) {
+  const { E, document } = loadEngine(FILES, { dom: true }), catalog = E.catalog.create(CATALOG), doc = E.doc.normalise(CMD_DOC, { sizeOf: catalog.defaultSize });
+  const root = E.el('div', { class: 'hd-root', 'data-hd-family': 'glass' }), stage = E.el('div', { class: 'hd-stage' }); root.appendChild(stage); document.body.appendChild(root);
+  const views = new Map(), bus = E.core.emitter(), cbus = E.core.emitter(), frames = [], sent = [], overlay = new Map(), announced = [], sheets = [], apis = new Map();
+  const real = E.widgets.host; E.widgets = Object.assign({}, E.widgets, { host(o) { const inst = real(o); apis.set(o.widget.id, o.api({ widget: o.widget, mode: 'view' })); return inst; } });
+  const commands = { sent, decorate: (id, v) => (overlay.has(id) ? Object.freeze(Object.assign({}, v, overlay.get(id))) : v), send: spec => { sent.push(spec); return Promise.resolve({ status: 'accepted' }); }, on: cbus.on, off: cbus.off };
+  const store = { view: id => views.get(id) || null, on: bus.on, off: bus.off, history: () => Promise.resolve({ points: [], source: 'none' }) };
+  views.set('ha:switch.coffee', CV('ha:switch.coffee', 'switch')); views.set('ha:light.kitchen', CV('ha:light.kitchen', 'light', { capabilities: LIGHT_CAPS }));
+  const page = E.render.page({ doc, page: doc.pages[0], stage, store, catalog, t: k => k, lang: 'en', raf: fn => { frames.push(fn); return frames.length; }, caf: () => {}, measure: () => ({ width: 1180, height: 700 }),
+    commands: withCommands === false ? null : commands, moreInfo: req => sheets.push(req), announce: x => announced.push(x) });
+  return { E, stage, views, bus, cbus, sent, overlay, announced, sheets, apis, page, run: () => { while (frames.length) frames.shift()(); }, text: id => stage.querySelector('[data-hd-wid="' + id + '"] .hd-state-text') };
 }
 const vars = (el, ...names) => names.map(n => el.style.getPropertyValue(n)).join(',');
 export const tests = [
@@ -43,5 +62,41 @@ export const tests = [
     const { stage, page, run, setWidth, layouts, bus } = setup();
     setWidth(500); page.layout(); run(); assert.equal(layouts[layouts.length - 1].bp, 'sm');
     assert.equal(stage.querySelector('[data-hd-wid="cpu"]').style.getPropertyValue('--hd-w'), '2');
-    page.destroy(); assert.equal(stage.querySelectorAll('.hd-widget').length, 0); bus.emit('change', null); }]
+    page.destroy(); assert.equal(stage.querySelectorAll('.hd-widget').length, 0); bus.emit('change', null); }],
+  ['render: without commands the page is view only (can false, command rejects view_only, no more button, no sheet)', async () => {
+    const { apis, sheets, stage } = setupCmd(false), api = apis.get('sw');
+    assert.equal(api.can('primary', 'turn_on'), false); assert.equal(api.moreInfo('primary'), false); assert.equal(apis.get('lt').moreInfo('primary'), false); assert.equal(sheets.length, 0);
+    await assert.rejects(api.command('primary', 'turn_on', {}), e => e.code === 'view_only'); assert.equal(stage.querySelectorAll('.hd-more').length, 0);
+    assert.equal(stage.querySelector('[data-hd-wid="cpu"] .hd-title').textContent, ''); }],
+  ['render: can follows capability, availability, read-only and mode; command sends the full spec with the widget key', async () => {
+    const { apis, views, sent } = setupCmd(), api = apis.get('sw');
+    assert.equal(api.can('primary', 'turn_on'), true); assert.equal(api.can('primary', 'brightness'), false); assert.equal(api.can('nope', 'turn_on'), false);
+    views.set('ha:switch.coffee', CV('ha:switch.coffee', 'switch', { capabilities: ['toggle', { name: 'turn_on', allowed: false }] })); assert.equal(api.can('primary', 'turn_on'), false); assert.equal(api.can('primary', 'toggle'), true);
+    eq(await api.command('primary', 'turn_on', {}), { status: 'refused' }); assert.equal(sent.length, 0);
+    views.set('ha:switch.coffee', CV('ha:switch.coffee', 'switch')); await api.command('primary', 'turn_on', { x: 1 }, { phase: 'commit' });
+    eq(sent, [{ entity: 'ha:switch.coffee', command: 'turn_on', args: { x: 1 }, phase: 'commit', widgetKey: 'w|d_cmdcmdcmdc1|sw', widgetId: 'sw', dashboardId: 'd_cmdcmdcmdc1', confirm: false }]);
+    for (const v of [{ readonly: true }, { available: false }, { status: 'unavailable' }, { status: 'unknown' }]) { views.set('ha:switch.coffee', CV('ha:switch.coffee', 'switch', v)); assert.equal(api.can('primary', 'turn_on'), false, JSON.stringify(v)); } }],
+  ['render: a cue from the client reaches the state line as its localized text in one frame; cues and armings are announced', () => {
+    const { cbus, overlay, run, text, announced, apis } = setupCmd();
+    overlay.set('ha:switch.coffee', { status: 'error', error: { code: 'timeout' } }); cbus.emit('change', ['ha:switch.coffee']);
+    assert.notEqual(text('sw').textContent, 'homedash.cue.timeout'); run(); assert.equal(text('sw').textContent, 'homedash.cue.timeout');
+    assert.equal(apis.get('sw').entity('primary').error.text, 'homedash.cue.timeout');
+    cbus.emit('cue', { id: 'ha:switch.coffee', cue: { code: 'timeout' } }); cbus.emit('cue', { id: 'ha:other', cue: { code: 'timeout' } });
+    cbus.emit('armed', { id: 'ha:switch.coffee', widgetKey: 'w|d_cmdcmdcmdc1|sw' }); cbus.emit('armed', { id: 'ha:switch.coffee', widgetKey: 'w|other|sw' });
+    eq(announced, ['homedash.cue.timeout', 'homedash.arm.announce']); }],
+  ['render: a widget whose entity has no view shows the localized system name as its title; only the light host has a more button', () => {
+    const { stage } = setupCmd(); assert.equal(stage.querySelector('[data-hd-wid="cpu"] .hd-title').textContent, 'homedash.system.cpu');
+    assert.equal(stage.querySelectorAll('.hd-more').length, 1); assert.ok(stage.querySelector('[data-hd-wid="lt"] .hd-more')); }],
+  ['render: moreInfo opens the sheet for light entities only, with a sheet api and a subscription that follows the entity', () => {
+    const { apis, sheets, cbus, bus, run, sent } = setupCmd();
+    assert.equal(apis.get('sw').moreInfo('primary'), false); assert.equal(sheets.length, 0);
+    assert.equal(apis.get('lt').moreInfo('primary'), true); assert.equal(sheets.length, 1);
+    const req = sheets[0], hits = []; assert.equal(req.family, 'glass'); assert.equal(req.api.entity('primary').id, 'ha:light.kitchen');
+    const off = req.subscribe(() => hits.push(1)); cbus.emit('change', ['ha:light.kitchen']); run(); assert.equal(hits.length, 1);
+    bus.emit('change', new Set(['ha:light.kitchen'])); assert.equal(hits.length, 2); bus.emit('change', new Set(['ha:switch.coffee'])); assert.equal(hits.length, 2);
+    off(); bus.emit('change', null); assert.equal(hits.length, 2);
+    req.api.command('primary', 'turn_on', {}); eq(sent.map(x => x.widgetKey), ['sheet|d_cmdcmdcmdc1|lt']); }],
+  ['render: destroy detaches the command listeners', () => {
+    const { page, cbus, run, stage, announced } = setupCmd(); page.destroy(); cbus.emit('change', ['ha:switch.coffee']); cbus.emit('cue', { id: 'ha:switch.coffee', cue: { code: 'timeout' } }); run();
+    eq(announced, []); assert.equal(stage.querySelectorAll('.hd-widget').length, 0); }]
 ];

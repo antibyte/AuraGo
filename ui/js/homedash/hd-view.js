@@ -11,13 +11,16 @@
         const x = s || {}, c = x.connection || {}, dash = x.mode === 'dashboard', out = [];
         if (c.phase === 'stopped' && c.reason === 'auth_lost') out.push({ id: 'auth_lost', kind: 'auth_lost', tone: 'danger', role: 'alert' });
         else if (dash && c.offline) out.push({ id: 'offline', kind: 'offline', tone: 'warn', role: 'status', action: 'retry' });
+        const used = Array.isArray(x.usedSources) ? x.usedSources : null;   // banners only for sources the open dashboard uses (when given)
         if (dash) for (const src of Array.isArray(x.sources) ? x.sources : []) {
-            if (!src || typeof src.source !== 'string') continue;
-            if (src.state === 'unavailable') out.push({ id: 'source:' + src.source, kind: 'source_unavailable', tone: 'warn', role: 'status', source: src.source });
+            if (!src || typeof src.source !== 'string' || (used && !used.includes(src.source))) continue;
+            if (src.state === 'unavailable' && src.reason === 'catalog_failed') out.push({ id: 'source:' + src.source, kind: 'source_catalog_failed', tone: 'warn', role: 'status', source: src.source });
+            else if (src.state === 'unavailable') out.push({ id: 'source:' + src.source, kind: 'source_unavailable', tone: 'warn', role: 'status', source: src.source });
             else if (src.state === 'degraded') out.push({ id: 'source:' + src.source, kind: 'source_degraded', tone: 'warn', role: 'status', source: src.source });
         }
         if (dash && x.schemaTooNew) out.push({ id: 'schema_too_new', kind: 'schema_too_new', tone: 'info', role: 'status' });
         if (dash && x.desktopReadonly) out.push({ id: 'readonly', kind: 'readonly', tone: 'info', role: 'status' });
+        if (dash && x.notice === 'template_omitted' && Number(x.noticeCount) > 0) out.push({ id: 'omitted', kind: 'template_omitted', tone: 'info', role: 'status', count: Number(x.noticeCount) });
         return out.slice(0, 2);
     }
     function create(opts) {
@@ -25,6 +28,7 @@
         const tabs = el('div', { class: 'hd-tabs', role: 'tablist', 'aria-label': t('homedash.view.pages'), hidden: 'true' });
         const stage = el('div', { class: 'hd-stage' }), live = el('div', { class: 'hd-live hd-sr-only', 'aria-live': 'polite' });
         root.replaceChildren(tabs, stage, live);
+        const moreinfo = E.moreinfo && typeof E.moreinfo.create === 'function' ? E.moreinfo.create({ root }) : null;
         let doc = null, page = null, pageId = null;
         const scheme = () => (typeof o.scheme === 'function' && o.scheme() === 'light' ? 'light' : 'dark');
         const motion = () => (typeof o.motion === 'function' && o.motion() === 'reduced' ? 'reduced' : 'full');
@@ -50,10 +54,13 @@
                     'aria-controls': id + '-page', tabindex: on ? '0' : '-1', text: p.name || t('homedash.home.page_main') })); }
         }
         function renderPage() {
+            if (moreinfo) moreinfo.close();
+            if (E.popover) E.popover.close(root);
             if (page) page.destroy();
             const pg = doc.pages.find(p => p.id === pageId), many = doc.pages.length > 1;
             page = E.render.page({ doc, page: pg, stage, store: o.store, catalog: o.catalog, t, lang: o.lang, id: id + '-page', role: many ? 'tabpanel' : 'region',
                 labelledBy: many ? id + '-tab-' + pg.id : null, label: many ? null : doc.name, raf: o.raf, caf: o.caf, measure: o.measure,
+                commands: o.commands || null, moreInfo: moreinfo ? req => moreinfo.open(req) : null,
                 announce: text => { live.textContent = text; }, onLayout: m => { setAttr(root, 'data-hd-bp', m.bp); setAttr(root, 'data-hd-fit', m.fit); } });
         }
         function select(next, focus) {
@@ -76,10 +83,11 @@
                 applyRoot(); renderTabs(); renderPage(); E.widgets.applyLook(root);
             },
             pageId: () => pageId, entityIds: () => (page ? page.entityIds() : []),
+            sources: () => [...new Set((page ? page.entityIds() : []).map(e => e.slice(0, e.indexOf(':'))))],
             setConnection(c) { setAttr(root, 'data-hd-conn', c && c.phase === 'live' ? 'live' : c && c.offline ? 'offline' : 'connecting'); },
             setReadonly(flag) { setAttr(root, 'data-hd-readonly', !!flag); },
             refreshLook() { if (!doc) return; applyRoot(); E.widgets.applyLook(root); if (page) page.layout(); },
-            destroy() { life.dispose(); if (page) page.destroy(); page = null; doc = null; root.replaceChildren(); }
+            destroy() { life.dispose(); if (moreinfo) moreinfo.destroy(); if (E.popover) E.popover.close(root); if (page) page.destroy(); page = null; doc = null; root.replaceChildren(); }
         });
     }
     E.view = Object.freeze({ create, banners });
