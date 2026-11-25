@@ -100,6 +100,11 @@ func DescribeAction(tc ToolCall, dc *DispatchContext) ActionDescriptor {
 	case "package_manager":
 		a.Mutating = !oneOf(a.Operation, "detect", "search", "list_installed", "info")
 		a.HighRisk = a.Mutating
+	case "code_studio_workspace":
+		// run_command runs a shell on the remote host with the saved SSH identity.
+		if a.Operation == "run_command" {
+			a.Mutating, a.HighRisk = true, true
+		}
 	case "execute_sudo", "execute_remote_shell", "manage_updates":
 		a.HighRisk = true
 		if tc.Action == "execute_sudo" || tc.Action == "execute_remote_shell" {

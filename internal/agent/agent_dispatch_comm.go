@@ -1123,7 +1123,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				}{"virtual_desktop_event", exec.Event})
 				dc.Broker.SendJSON(string(payload))
 			}
-			return "Tool Output: " + exec.Output
+			return "Tool Output: " + isolateCodeStudioWorkspaceOutput(exec.Output)
 
 		case "virtual_computers":
 			logger.Info("LLM requested virtual computers operation",

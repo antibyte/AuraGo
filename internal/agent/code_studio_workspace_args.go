@@ -1,6 +1,11 @@
 package agent
 
-import "strings"
+import (
+	"encoding/json"
+	"strings"
+
+	"aurago/internal/security"
+)
 
 // codeStudioWorkspaceToolArgs copies the native arguments and fills the
 // fields a text-mode call may carry on the ToolCall instead of in Params.
@@ -33,4 +38,18 @@ func codeStudioWorkspaceOperationMismatch(tc ToolCall) bool {
 	declared := toolCallSnapshotOperation(tc)
 	raw := toolArgString(tc.Params, "operation")
 	return raw != "" && strings.ToLower(strings.TrimSpace(raw)) != declared
+}
+
+// isolateCodeStudioWorkspaceOutput fences the result of a remote workspace call
+// as external data: file contents, search hits and command output are written by
+// whoever controls the remote repository. The tool's own error envelopes stay
+// readable so the call is still classified as failed.
+func isolateCodeStudioWorkspaceOutput(output string) string {
+	var envelope struct {
+		Status string `json:"status"`
+	}
+	if json.Unmarshal([]byte(strings.TrimSpace(output)), &envelope) == nil && strings.EqualFold(envelope.Status, "error") {
+		return output
+	}
+	return security.IsolateExternalData(output)
 }
