@@ -481,10 +481,10 @@
         }),
         remoteDevices: () => api('/api/code-studio/remote/devices'),
         createRemoteDevice: body => api('/api/code-studio/remote/devices', { method: 'POST', body: JSON.stringify(body) }),
-        remoteBrowse: (deviceId, path, trust) => {
+        // The browse endpoint has no trust parameter: an unknown host key is trusted through POST /remote/trust first.
+        remoteBrowse: (deviceId, path) => {
             const query = new URLSearchParams({ device_id: deviceId });
             if (path) query.set('path', path);
-            if (trust) query.set('trust_host_key', trust);
             return api('/api/code-studio/remote/browse?' + query);
         },
     };

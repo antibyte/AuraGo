@@ -821,3 +821,736 @@
         workspaceRenderChrome();
         saveState();
     }
+
+    // --- Connect dialog: shell, hosts, new host -------------------------------------------------
+
+    const WSD_FOCUS_ATTRS = ['data-wsd-home', 'data-wsd-up', 'data-wsd-refresh', 'data-wsd-path', 'data-wsd-trust', 'data-wsd-trust-cancel', 'data-wsd-retry', 'data-wsd-other-host'];
+
+    function wsdSkeleton(count) {
+        return Array.from({ length: count }, () => '<div class="cs-wsd-skeleton" aria-hidden="true"></div>').join('');
+    }
+
+    function openConnectDialog(options = {}) {
+        const instance = state;
+        if (!isLiveInstance(instance)) return Promise.resolve(false);
+        if (instance.workspaceDialog) {
+            instance.workspaceDialog.focusFirst();
+            return instance.workspaceDialog.promise;
+        }
+        closeWorkspaceMenu(instance);
+        const dialog = {
+            instance, devices: [], devicesLoading: true, devicesError: '', query: '', deviceId: '', form: null,
+            home: {}, trusted: {}, browse: null, opening: false, openError: '',
+            initial: { deviceId: String(options.deviceId || ''), path: String(options.path || '') }
+        };
+        const overlay = document.createElement('div');
+        overlay.className = 'cs-modal-backdrop cs-wsd-backdrop';
+        overlay.innerHTML = `<div class="cs-modal cs-wsd" role="dialog" aria-modal="true" aria-labelledby="cs-wsd-title">
+            <header class="cs-wsd-head">
+                <h2 class="cs-ws-dialog-title" id="cs-wsd-title">${esc(tr('codeStudio.workspaceDialogTitle', 'Connect to SSH Folder'))}</h2>
+                <button type="button" class="cs-icon-button" data-wsd-close aria-label="${esc(tr('desktop.close', 'Close'))}" title="${esc(tr('desktop.close', 'Close'))}">${wsGlyph('x', 14)}</button>
+            </header>
+            <div class="cs-wsd-body">
+                <section class="cs-wsd-hosts" aria-labelledby="cs-wsd-hosts-title">
+                    <div class="cs-wsd-pane-title" id="cs-wsd-hosts-title">${esc(tr('codeStudio.workspaceHosts', 'Hosts'))}</div>
+                    <div class="cs-wsd-hosts-main" data-wsd-hosts-main>
+                        <input type="search" class="cs-wsd-search" data-wsd-search placeholder="${esc(tr('codeStudio.workspaceSearchHosts', 'Search hosts'))}" aria-label="${esc(tr('codeStudio.workspaceSearchHosts', 'Search hosts'))}" aria-controls="cs-wsd-hostlist" autocomplete="off" spellcheck="false">
+                        <div class="cs-wsd-hostlist" id="cs-wsd-hostlist" role="listbox" aria-labelledby="cs-wsd-hosts-title" data-wsd-hostlist></div>
+                        <button type="button" class="cs-button cs-wsd-new-host" data-wsd-new-host>${wsGlyph('plus', 14)}<span>${esc(tr('codeStudio.workspaceNewHost', 'New SSH Host'))}</span></button>
+                    </div>
+                    <div class="cs-wsd-form-slot" data-wsd-form-slot hidden></div>
+                </section>
+                <section class="cs-wsd-browser" aria-label="${esc(tr('codeStudio.workspacePathLabel', 'Folder path'))}" data-wsd-browser></section>
+            </div>
+            <footer class="cs-wsd-footer" data-wsd-footer></footer>
+        </div>`;
+        document.body.appendChild(overlay);
+        const release = trapDialogFocus(overlay);
+        let settled = false;
+        let unregister = () => {};
+        let resolvePromise = () => {};
+        dialog.promise = new Promise(resolve => { resolvePromise = resolve; });
+        dialog.overlay = overlay;
+        dialog.close = result => {
+            if (settled) return;
+            settled = true;
+            unregister();
+            dialog.form = null; // drops any typed secret
+            overlay.remove();
+            release();
+            if (instance.workspaceDialog === dialog) instance.workspaceDialog = null;
+            resolvePromise(result);
+        };
+        dialog.isOpen = () => !settled && isLiveInstance(instance);
+        dialog.focusFirst = () => {
+            const search = overlay.querySelector('[data-wsd-search]');
+            if (search && !search.closest('[hidden]')) search.focus();
+        };
+        instance.workspaceDialog = dialog;
+        unregister = registerDisposer(() => dialog.close(false));
+        wireConnectDialog(dialog);
+        renderDialogHosts(dialog);
+        renderDialogBrowser(dialog);
+        renderDialogFooter(dialog);
+        dialog.focusFirst();
+        dialogLoadDevices(dialog);
+        return dialog.promise;
+    }
+
+    function wireConnectDialog(dialog) {
+        const overlay = dialog.overlay;
+        const on = (type, handler) => overlay.addEventListener(type, bindInstance(dialog.instance, handler));
+        on('mousedown', event => { dialog.backdropDown = event.target === overlay; });
+        on('click', event => {
+            if (event.target === overlay) {
+                if (dialog.backdropDown) dialog.close(false);
+                return;
+            }
+            const el = event.target.closest('[data-wsd-close],[data-wsd-cancel],[data-wsd-new-host],[data-wsd-host],[data-wsd-entry],[data-wsd-crumb],[data-wsd-home],[data-wsd-up],[data-wsd-refresh],[data-wsd-goto],[data-wsd-trust],[data-wsd-trust-cancel],[data-wsd-retry],[data-wsd-other-host],[data-wsd-open],[data-wsd-form-cancel],[data-wsd-key-file],[data-wsd-copy]');
+            if (!el || el.disabled || el.getAttribute('aria-disabled') === 'true') return;
+            const d = el.dataset;
+            if ('wsdClose' in d || 'wsdCancel' in d) dialog.close(false);
+            else if ('wsdNewHost' in d) dialogOpenForm(dialog);
+            else if ('wsdHost' in d) dialogSelectDevice(dialog, d.wsdHost, {});
+            else if ('wsdEntry' in d) dialogSelectEntry(dialog, d.wsdEntry, {});
+            else if ('wsdCrumb' in d) dialogBrowse(dialog, d.wsdCrumb, {});
+            else if ('wsdHome' in d) dialogBrowse(dialog, '', {});
+            else if ('wsdUp' in d) dialogBrowse(dialog, WS_MODEL.remoteParent(dialog.browse.path), {});
+            else if ('wsdRefresh' in d) dialogBrowse(dialog, dialog.browse.path, {});
+            else if ('wsdGoto' in d) dialogBrowse(dialog, d.wsdGoto, {});
+            else if ('wsdTrust' in d) dialogTrust(dialog);
+            else if ('wsdTrustCancel' in d || 'wsdOtherHost' in d) dialogClearDevice(dialog);
+            else if ('wsdRetry' in d) dialogRetry(dialog);
+            else if ('wsdOpen' in d) dialogOpen(dialog, {});
+            else if ('wsdFormCancel' in d) dialogCloseForm(dialog);
+            else if ('wsdKeyFile' in d) { const input = overlay.querySelector('[data-wsd-key-input]'); if (input) input.click(); }
+            else if ('wsdCopy' in d) copyTextToClipboard(d.wsdCopy);
+        });
+        on('dblclick', event => {
+            const entry = event.target.closest('[data-wsd-entry][data-dir="true"]');
+            if (entry) dialogBrowse(dialog, entry.dataset.wsdEntry, { focus: 'list' });
+        });
+        on('input', event => {
+            if (event.target.matches('[data-wsd-search]')) {
+                dialog.query = event.target.value;
+                renderDialogHosts(dialog);
+            } else if (event.target.closest('[data-wsd-form]')) {
+                dialogFormInput(dialog, event.target);
+            }
+        });
+        on('change', event => {
+            if (event.target.matches('[data-wsd-auth]')) dialogFormAuth(dialog);
+            else if (event.target.matches('[data-wsd-key-input]')) dialogLoadKeyFile(dialog, event.target);
+        });
+        on('submit', event => {
+            event.preventDefault();
+            if (event.target.matches('[data-wsd-pathform]')) dialogSubmitPath(dialog, event.target);
+            else if (event.target.matches('[data-wsd-form]')) dialogSubmitForm(dialog, event.target);
+        });
+        on('keydown', event => dialogKeydown(dialog, event));
+    }
+
+    function dialogKeydown(dialog, event) {
+        const target = event.target;
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            event.stopPropagation();
+            if (dialog.form) dialogCloseForm(dialog);
+            else dialog.close(false);
+            return;
+        }
+        if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && !dialog.form) {
+            event.preventDefault();
+            dialogOpen(dialog, {});
+            return;
+        }
+        if (target.closest('[data-wsd-hostlist]')) { dialogHostKeydown(dialog, event); return; }
+        if (target.closest('[data-wsd-folders]')) { dialogFolderKeydown(dialog, event); return; }
+        if (target.matches('[data-wsd-search]')) {
+            const first = dialog.overlay.querySelector('[data-wsd-host]');
+            if (event.key === 'ArrowDown' && first) { event.preventDefault(); first.focus(); }
+            else if (event.key === 'Enter' && !event.isComposing) {
+                event.preventDefault();
+                if (first) dialogSelectDevice(dialog, first.dataset.wsdHost, { focus: 'list' });
+            }
+            return;
+        }
+        if (event.key !== 'Enter' || event.isComposing) return;
+        if (target.closest('form, textarea, button, a, input, [role="option"]')) return;
+        event.preventDefault();
+        dialogOpen(dialog, {}); // Enter anywhere else opens the folder
+    }
+
+    function dialogHostKeydown(dialog, event) {
+        const options = Array.from(dialog.overlay.querySelectorAll('[data-wsd-host]'));
+        const index = options.indexOf(document.activeElement);
+        let next = null;
+        if (event.key === 'ArrowDown') next = options[Math.min(options.length - 1, index + 1)];
+        else if (event.key === 'ArrowUp') {
+            if (index <= 0) {
+                event.preventDefault();
+                dialog.overlay.querySelector('[data-wsd-search]').focus();
+                return;
+            }
+            next = options[index - 1];
+        } else if (event.key === 'Home') next = options[0];
+        else if (event.key === 'End') next = options[options.length - 1];
+        else if (['Enter', ' ', 'ArrowRight'].includes(event.key)) {
+            if (index >= 0) {
+                event.preventDefault();
+                dialogSelectDevice(dialog, options[index].dataset.wsdHost, { focus: 'list' });
+            }
+            return;
+        } else return;
+        event.preventDefault();
+        if (next) {
+            options.forEach(option => { option.tabIndex = -1; });
+            next.tabIndex = 0;
+            next.focus();
+        }
+    }
+
+    function dialogDevice(dialog) {
+        return dialog.devices.find(device => device.id === dialog.deviceId) || null;
+    }
+
+    async function dialogLoadDevices(dialog) {
+        dialog.devicesLoading = true;
+        dialog.devicesError = '';
+        renderDialogHosts(dialog);
+        try {
+            const [payload] = await Promise.all([apiClient.remoteDevices(), workspaceLoadList(dialog.instance)]);
+            if (!dialog.isOpen()) return;
+            dialog.devices = WS_MODEL.sortDevices(WS_MODEL.normalizeDeviceList(payload), dialog.instance.workspaces || []);
+        } catch (err) {
+            if (!dialog.isOpen()) return;
+            dialog.devicesError = workspaceErrorText('other', { error: err.message || String(err) });
+        }
+        dialog.devicesLoading = false;
+        runWithInstance(dialog.instance, () => {
+            renderDialogHosts(dialog);
+            const initial = dialog.initial.deviceId;
+            if (initial && dialog.devices.some(device => device.id === initial)) dialogSelectDevice(dialog, initial, { path: dialog.initial.path });
+        });
+    }
+
+    function renderDialogHosts(dialog) {
+        const overlay = dialog.overlay;
+        const list = overlay.querySelector('[data-wsd-hostlist]');
+        overlay.querySelector('[data-wsd-hosts-main]').hidden = !!dialog.form;
+        overlay.querySelector('[data-wsd-form-slot]').hidden = !dialog.form;
+        const newHost = overlay.querySelector('[data-wsd-new-host]');
+        newHost.disabled = !!dialog.instance.readOnly;
+        newHost.title = dialog.instance.readOnly ? tr('codeStudio.workspaceFormReadOnly', 'The desktop is read-only: new hosts cannot be added.') : '';
+        if (dialog.devicesLoading) {
+            list.setAttribute('aria-busy', 'true');
+            list.innerHTML = wsdSkeleton(3);
+            return;
+        }
+        list.removeAttribute('aria-busy');
+        if (dialog.devicesError) {
+            list.innerHTML = `<div class="cs-wsd-empty" role="alert"><span>${esc(dialog.devicesError)}</span><button type="button" class="cs-button" data-wsd-retry>${esc(tr('desktop.retry', 'Retry'))}</button></div>`;
+            return;
+        }
+        if (!dialog.devices.length) {
+            list.innerHTML = `<div class="cs-wsd-empty">${esc(tr('codeStudio.workspaceNoHosts', 'No SSH hosts in the inventory yet.'))}</div>`;
+            return;
+        }
+        const devices = WS_MODEL.filterDevices(dialog.devices, dialog.query);
+        if (!devices.length) {
+            list.innerHTML = `<div class="cs-wsd-empty" data-wsd-no-match>${esc(tr('codeStudio.workspaceNoHostMatch', 'No host matches “{{query}}”', { query: dialog.query.trim() }))}</div>`;
+            return;
+        }
+        const hadFocus = list.contains(document.activeElement) ? document.activeElement.dataset.wsdHost : '';
+        const focusId = devices.some(device => device.id === dialog.deviceId) ? dialog.deviceId : devices[0].id;
+        list.innerHTML = devices.map(device => {
+            const selected = device.id === dialog.deviceId;
+            return `<div class="cs-wsd-host${selected ? ' is-selected' : ''}" role="option" data-wsd-host="${esc(device.id)}" aria-selected="${selected}" tabindex="${device.id === focusId ? 0 : -1}">
+                <span class="cs-wsd-host-icon">${wsGlyph('server', 16)}</span>
+                <span class="cs-wsd-host-text"><span class="cs-wsd-host-name">${esc(device.name)}</span><span class="cs-wsd-host-addr">${esc(WS_MODEL.deviceAddress(device))}</span></span>
+                <span class="cs-wsd-host-used">${esc(workspaceLastUsedText(WS_MODEL.deviceLastUsed(device, dialog.instance.workspaces || [])))}</span>
+            </div>`;
+        }).join('');
+        if (hadFocus) {
+            const again = Array.from(list.querySelectorAll('[data-wsd-host]')).find(option => option.dataset.wsdHost === hadFocus);
+            if (again) again.focus();
+        }
+    }
+
+    function dialogSelectDevice(dialog, id, options) {
+        if (!dialog.devices.some(device => device.id === id)) return;
+        const changed = dialog.deviceId !== id;
+        dialog.deviceId = id;
+        dialog.openError = '';
+        renderDialogHosts(dialog);
+        if (!changed && dialog.browse && !dialog.browse.error && !dialog.browse.hostKey) {
+            if (options.focus === 'list') dialogFocusFolders(dialog);
+            return;
+        }
+        dialog.browse = null;
+        dialogBrowse(dialog, options.path || '', { focus: options.focus });
+    }
+
+    function dialogClearDevice(dialog) {
+        dialog.deviceId = '';
+        dialog.browse = null;
+        dialog.openError = '';
+        renderDialogHosts(dialog);
+        renderDialogBrowser(dialog);
+        renderDialogFooter(dialog);
+        const option = dialog.overlay.querySelector('[data-wsd-host][tabindex="0"]');
+        if (option) option.focus();
+        else dialog.focusFirst();
+    }
+
+    function dialogRetry(dialog) {
+        if (dialog.devicesError) {
+            dialogLoadDevices(dialog);
+            return;
+        }
+        const retry = dialog.browse && dialog.browse.error && dialog.browse.error.retry;
+        if (retry) retry('');
+    }
+
+    function dialogOpenForm(dialog) {
+        if (dialog.instance.readOnly) return;
+        dialog.form = { values: { name: '', host: '', port: '22', username: '', auth: 'password', secret: '', passphrase: '' }, errors: {}, busy: false, error: '' };
+        renderDialogHosts(dialog);
+        renderDialogForm(dialog);
+        const name = dialog.overlay.querySelector('[data-wsd-form] [name="name"]');
+        if (name) name.focus();
+    }
+
+    function dialogCloseForm(dialog) {
+        dialog.form = null;
+        dialog.overlay.querySelector('[data-wsd-form-slot]').innerHTML = '';
+        renderDialogHosts(dialog);
+        dialog.overlay.querySelector('[data-wsd-new-host]').focus();
+    }
+
+    function readDialogForm(formEl) {
+        const data = new FormData(formEl);
+        const get = name => String(data.get(name) || '');
+        return { name: get('name'), host: get('host'), port: get('port'), username: get('username'), auth: get('auth') || 'password', secret: get('secret'), passphrase: get('passphrase') };
+    }
+
+    function renderDialogForm(dialog) {
+        const slot = dialog.overlay.querySelector('[data-wsd-form-slot]');
+        const form = dialog.form;
+        if (!slot || !form) return;
+        const v = form.values;
+        const e = form.errors;
+        const attrs = name => `id="cs-wsd-f-${name}" name="${name}" aria-invalid="${e[name] ? 'true' : 'false'}"${e[name] ? ` aria-describedby="cs-wsd-e-${name}"` : ''}`;
+        const msg = name => (e[name] ? `<span class="cs-wsd-field-error" id="cs-wsd-e-${name}">${esc(workspaceFormErrorText(e[name]))}</span>` : '');
+        const key = v.auth === 'key';
+        slot.innerHTML = `<form class="cs-wsd-form" data-wsd-form novalidate aria-labelledby="cs-wsd-form-title">
+            <div class="cs-wsd-pane-title" id="cs-wsd-form-title">${esc(tr('codeStudio.workspaceNewHost', 'New SSH Host'))}</div>
+            <div class="cs-wsd-field"><label for="cs-wsd-f-name">${esc(tr('codeStudio.workspaceFormName', 'Name'))}</label><input ${attrs('name')} value="${esc(v.name)}" autocomplete="off" maxlength="80" placeholder="build-box">${msg('name')}</div>
+            <div class="cs-wsd-row">
+                <div class="cs-wsd-field"><label for="cs-wsd-f-host">${esc(tr('codeStudio.workspaceFormHost', 'Host'))}</label><input ${attrs('host')} value="${esc(v.host)}" autocomplete="off" spellcheck="false" placeholder="192.168.1.20">${msg('host')}</div>
+                <div class="cs-wsd-field"><label for="cs-wsd-f-port">${esc(tr('codeStudio.workspaceFormPort', 'Port'))}</label><input ${attrs('port')} value="${esc(v.port)}" inputmode="numeric" autocomplete="off">${msg('port')}</div>
+            </div>
+            <div class="cs-wsd-field"><label for="cs-wsd-f-username">${esc(tr('codeStudio.workspaceFormUser', 'User'))}</label><input ${attrs('username')} value="${esc(v.username)}" autocomplete="off" spellcheck="false" placeholder="pi">${msg('username')}</div>
+            <fieldset class="cs-wsd-auth"><legend>${esc(tr('codeStudio.workspaceFormAuth', 'Sign in with'))}</legend>
+                <label><input type="radio" name="auth" value="password" data-wsd-auth${key ? '' : ' checked'}><span>${esc(tr('codeStudio.workspaceFormPassword', 'Password'))}</span></label>
+                <label><input type="radio" name="auth" value="key" data-wsd-auth${key ? ' checked' : ''}><span>${esc(tr('codeStudio.workspaceFormKey', 'Private key'))}</span></label>
+            </fieldset>
+            ${key ? `<div class="cs-wsd-field"><label for="cs-wsd-f-secret">${esc(tr('codeStudio.workspaceFormKey', 'Private key'))}</label><textarea ${attrs('secret')} rows="4" spellcheck="false" autocomplete="off" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----">${esc(v.secret)}</textarea>${msg('secret')}
+                    <button type="button" class="cs-button cs-wsd-keyfile" data-wsd-key-file>${esc(tr('codeStudio.workspaceFormKeyFile', 'Load Key File…'))}</button><input type="file" data-wsd-key-input hidden tabindex="-1"></div>
+                <div class="cs-wsd-field"><label for="cs-wsd-f-passphrase">${esc(tr('codeStudio.workspaceFormPassphrase', 'Passphrase (optional)'))}</label><input type="password" ${attrs('passphrase')} value="${esc(v.passphrase)}" autocomplete="off"></div>`
+            : `<div class="cs-wsd-field"><label for="cs-wsd-f-secret">${esc(tr('codeStudio.workspaceFormPassword', 'Password'))}</label><input type="password" ${attrs('secret')} value="${esc(v.secret)}" autocomplete="new-password">${msg('secret')}</div>`}
+            <p class="cs-wsd-field-hint">${esc(tr('codeStudio.workspaceFormVaultHint', 'The secret is stored in the AuraGo vault and never kept in the browser.'))}</p>
+            ${form.error ? `<div class="cs-wsd-open-error" role="alert">${wsGlyph('warning', 14)}<span>${esc(form.error)}</span></div>` : ''}
+            <div class="cs-wsd-actions">
+                <button type="button" class="cs-button" data-wsd-form-cancel>${esc(tr('desktop.cancel', 'Cancel'))}</button>
+                <button type="submit" class="cs-button primary"${form.busy ? ' disabled aria-busy="true"' : ''}>${esc(tr('codeStudio.workspaceFormAdd', 'Add Host'))}</button>
+            </div>
+        </form>`;
+    }
+
+    function dialogFormInput(dialog, input) {
+        if (!dialog.form || !input.name) return;
+        dialog.form.values[input.name] = input.value;
+        if (!dialog.form.errors[input.name]) return;
+        delete dialog.form.errors[input.name];
+        const field = input.closest('.cs-wsd-field');
+        const error = field && field.querySelector('.cs-wsd-field-error');
+        if (error) error.remove();
+        input.setAttribute('aria-invalid', 'false');
+        input.removeAttribute('aria-describedby');
+    }
+
+    function dialogFormAuth(dialog) {
+        const formEl = dialog.overlay.querySelector('[data-wsd-form]');
+        if (!dialog.form || !formEl) return;
+        dialog.form.values = Object.assign(readDialogForm(formEl), { secret: '', passphrase: '' });
+        delete dialog.form.errors.secret;
+        renderDialogForm(dialog);
+        const secret = dialog.overlay.querySelector('[data-wsd-form] [name="secret"]');
+        if (secret) secret.focus();
+    }
+
+    function dialogLoadKeyFile(dialog, input) {
+        const file = input.files && input.files[0];
+        const formEl = dialog.overlay.querySelector('[data-wsd-form]');
+        if (!file || !dialog.form || !formEl) return;
+        if (file.size > WS_KEY_FILE_LIMIT) {
+            dialog.form.values = readDialogForm(formEl);
+            dialog.form.errors.secret = 'key';
+            renderDialogForm(dialog);
+            return;
+        }
+        file.text().then(bindInstance(dialog.instance, text => {
+            const current = dialog.overlay.querySelector('[data-wsd-form]');
+            if (!dialog.isOpen() || !dialog.form || !current) return;
+            dialog.form.values = Object.assign(readDialogForm(current), { secret: text });
+            delete dialog.form.errors.secret;
+            renderDialogForm(dialog);
+            const passphrase = dialog.overlay.querySelector('[data-wsd-form] [name="passphrase"]');
+            if (passphrase) passphrase.focus();
+        }));
+    }
+
+    async function dialogSubmitForm(dialog, formEl) {
+        const form = dialog.form;
+        if (!form || form.busy) return;
+        form.values = readDialogForm(formEl);
+        const check = WS_MODEL.validateHostForm(form.values);
+        form.errors = check.errors;
+        form.error = '';
+        if (!check.valid) {
+            renderDialogForm(dialog);
+            const first = dialog.overlay.querySelector('[data-wsd-form] [aria-invalid="true"]');
+            if (first) first.focus();
+            return;
+        }
+        form.busy = true;
+        renderDialogForm(dialog);
+        try {
+            const created = await apiClient.createRemoteDevice(check.value);
+            if (!dialog.isOpen()) return;
+            const device = WS_MODEL.normalizeDevice(created);
+            if (!device.id) throw new Error('no device id');
+            dialog.devices = [device].concat(dialog.devices.filter(item => item.id !== device.id));
+            dialog.form = null; // drops the secret from memory
+            runWithInstance(dialog.instance, () => {
+                dialog.overlay.querySelector('[data-wsd-form-slot]').innerHTML = '';
+                dialog.query = '';
+                dialog.overlay.querySelector('[data-wsd-search]').value = '';
+                dialogSelectDevice(dialog, device.id, { focus: 'list' });
+            });
+        } catch (err) {
+            if (!dialog.isOpen() || dialog.form !== form) return;
+            form.busy = false;
+            form.error = tr('codeStudio.workspaceFormSaveFailed', 'Could not add the host: {{error}}', { error: err.message || String(err) });
+            runWithInstance(dialog.instance, () => renderDialogForm(dialog));
+        }
+    }
+
+    // --- Connect dialog: folder browser, host key, open ------------------------------------------
+
+    async function dialogBrowse(dialog, rawPath, options = {}) {
+        const deviceId = dialog.deviceId;
+        if (!deviceId) return;
+        const previous = dialog.browse && dialog.browse.deviceId === deviceId ? dialog.browse : null;
+        const home = dialog.home[deviceId] || '';
+        const path = rawPath ? WS_MODEL.normalizeRemotePath(WS_MODEL.expandHome(rawPath, home), previous && previous.path ? previous.path : (home || '/')) : '';
+        // '~' before the first listing is the home folder, which the server lists when no path is sent.
+        const requestPath = path.startsWith('~') ? '' : path;
+        const token = Symbol('browse');
+        dialog.browse = { deviceId, path: previous ? previous.path : '', entries: previous ? previous.entries : [], loading: true, error: null, hostKey: null, selected: '', token };
+        dialog.openError = '';
+        renderDialogBrowser(dialog);
+        renderDialogFooter(dialog);
+        const trust = options.trust || dialog.trusted[deviceId] || '';
+        try {
+            const listing = WS_MODEL.normalizeBrowse(await apiClient.remoteBrowse(deviceId, requestPath, trust));
+            if (!dialog.isOpen() || dialog.browse.token !== token) return;
+            if (!requestPath && !dialog.home[deviceId]) dialog.home[deviceId] = listing.path;
+            if (options.trust) dialog.trusted[deviceId] = options.trust;
+            Object.assign(dialog.browse, { path: listing.path, entries: listing.entries, loading: false });
+        } catch (err) {
+            if (!dialog.isOpen() || dialog.browse.token !== token) return;
+            dialogBrowseFailed(dialog, err, path, fp => dialogBrowse(dialog, rawPath, Object.assign({}, options, { trust: fp || options.trust, focus: 'list' })));
+        }
+        runWithInstance(dialog.instance, () => {
+            renderDialogBrowser(dialog);
+            renderDialogFooter(dialog);
+            const trustButton = dialog.overlay.querySelector('[data-wsd-trust]');
+            if (dialog.browse.hostKey && trustButton) trustButton.focus();
+            else if (options.focus === 'list') dialogFocusFolders(dialog);
+        });
+    }
+
+    function dialogBrowseFailed(dialog, err, path, retry) {
+        const kind = WS_MODEL.classifyError(err);
+        const device = dialogDevice(dialog);
+        const browse = dialog.browse;
+        browse.loading = false;
+        browse.entries = [];
+        if (path) browse.path = path;
+        if (kind === 'unknown_host_key') {
+            const body = err.body || {};
+            browse.hostKey = { host: String(body.host || (device && device.host) || ''), keyType: String(body.key_type || ''), fingerprint: String(body.fingerprint || ''), retry };
+            return;
+        }
+        browse.error = {
+            kind,
+            text: workspaceErrorText(kind, { host: device ? WS_MODEL.deviceAddress(device) : '', path: path || browse.path, error: err.message || String(err) }),
+            retry: kind === 'host_key_mismatch' ? null : retry
+        };
+    }
+
+    // Contract: POST /remote/trust stores the key (and pools the connection); the original call is then repeated.
+    async function dialogTrust(dialog) {
+        const key = dialog.browse && dialog.browse.hostKey;
+        if (!key || !key.fingerprint || dialog.trusting) return;
+        const deviceId = dialog.deviceId;
+        const browse = dialog.browse;
+        dialog.trusting = true;
+        const button = dialog.overlay.querySelector('[data-wsd-trust]');
+        if (button) { button.disabled = true; button.setAttribute('aria-busy', 'true'); }
+        try {
+            await apiClient.trustRemoteHost(deviceId, key.fingerprint);
+        } catch (err) {
+            dialog.trusting = false;
+            if (!dialog.isOpen() || dialog.browse !== browse) return;
+            const kind = WS_MODEL.classifyError(err);
+            const device = dialogDevice(dialog);
+            browse.hostKey = null;
+            browse.error = {
+                kind,
+                text: workspaceErrorText(kind, { host: device ? WS_MODEL.deviceAddress(device) : '', path: browse.path, error: err.message || String(err) }),
+                retry: kind === 'host_key_mismatch' ? null : (fp => dialogBrowse(dialog, browse.path, { focus: 'list' }))
+            };
+            runWithInstance(dialog.instance, () => { renderDialogBrowser(dialog); renderDialogFooter(dialog); });
+            return;
+        }
+        dialog.trusting = false;
+        if (!dialog.isOpen() || dialog.browse !== browse) return;
+        dialog.trusted[deviceId] = key.fingerprint;
+        key.retry(key.fingerprint);
+    }
+
+    function renderDialogBrowser(dialog) {
+        const pane = dialog.overlay.querySelector('[data-wsd-browser]');
+        if (!pane) return;
+        const active = pane.contains(document.activeElement) ? document.activeElement : null;
+        const focusAttr = active ? WSD_FOCUS_ATTRS.find(attr => active.hasAttribute(attr)) : '';
+        const focusList = !!active && !!active.closest('[data-wsd-folders]');
+        const device = dialogDevice(dialog);
+        const browse = dialog.browse;
+        if (!device || !browse) {
+            pane.innerHTML = `<div class="cs-wsd-placeholder">${wsGlyph('folder', 28)}<p>${esc(tr('codeStudio.workspacePickHost', 'Choose a host to see its folders.'))}</p></div>`;
+        } else if (browse.hostKey) {
+            const key = browse.hostKey;
+            pane.innerHTML = `<div class="cs-wsd-card cs-wsd-trust" role="group" aria-labelledby="cs-wsd-trust-title">
+                <span class="cs-wsd-card-icon">${wsGlyph('key', 20)}</span>
+                <h3 class="cs-wsd-card-title" id="cs-wsd-trust-title">${esc(tr('codeStudio.workspaceTrustTitle', 'Unknown host key'))}</h3>
+                <p>${esc(tr('codeStudio.workspaceTrustText', 'Code Studio has not connected to {{host}} before. Compare the fingerprint with the one the server shows before you trust it.', { host: key.host }))}</p>
+                <dl class="cs-wsd-facts">
+                    <dt>${esc(tr('codeStudio.workspaceFormHost', 'Host'))}</dt><dd><code>${esc(key.host)}</code></dd>
+                    <dt>${esc(tr('codeStudio.workspaceTrustKeyType', 'Key type'))}</dt><dd><code>${esc(key.keyType)}</code></dd>
+                    <dt>${esc(tr('codeStudio.workspaceTrustFingerprint', 'Fingerprint'))}</dt><dd><code>${esc(key.fingerprint)}</code><button type="button" class="cs-icon-button" data-wsd-copy="${esc(key.fingerprint)}" aria-label="${esc(tr('desktop.copy', 'Copy'))}" title="${esc(tr('desktop.copy', 'Copy'))}">${iconMarkup('copy', 'C', 'cs-icon-button-icon', 13)}</button></dd>
+                </dl>
+                <div class="cs-wsd-card-actions">
+                    <button type="button" class="cs-button" data-wsd-trust-cancel>${esc(tr('desktop.cancel', 'Cancel'))}</button>
+                    <button type="button" class="cs-button primary" data-wsd-trust>${esc(tr('codeStudio.workspaceTrustContinue', 'Trust and Continue'))}</button>
+                </div>
+            </div>`;
+        } else if (browse.error && browse.error.kind === 'host_key_mismatch') {
+            pane.innerHTML = `<div class="cs-wsd-card cs-wsd-danger" role="alert">
+                <span class="cs-wsd-card-icon">${wsGlyph('warning', 20)}</span>
+                <h3 class="cs-wsd-card-title">${esc(tr('codeStudio.workspaceMismatchTitle', 'Host key changed'))}</h3>
+                <p>${esc(browse.error.text)}</p>
+                <div class="cs-wsd-card-actions"><button type="button" class="cs-button" data-wsd-other-host>${esc(tr('codeStudio.workspaceChooseOtherHost', 'Choose Another Host'))}</button></div>
+            </div>`;
+        } else {
+            pane.innerHTML = dialogListingMarkup(dialog, device, browse);
+        }
+        if (active && !pane.contains(document.activeElement)) {
+            const target = (focusAttr && pane.querySelector('[' + focusAttr + ']:not([disabled])'))
+                || (focusList && pane.querySelector('[data-wsd-folders] [tabindex="0"]'))
+                || pane.querySelector('[data-wsd-trust], [data-wsd-folders] [tabindex="0"], [data-wsd-path], [data-wsd-other-host]');
+            if (target) target.focus();
+        }
+    }
+
+    function dialogListingMarkup(dialog, device, browse) {
+        const home = dialog.home[device.id] || '';
+        const crumbs = browse.path ? WS_MODEL.remoteBreadcrumbs(browse.path) : [];
+        const crumbHtml = crumbs.map((crumb, index) => (index === crumbs.length - 1
+            ? `<li><span class="cs-wsd-crumb is-current" aria-current="location">${esc(crumb.name)}</span></li>`
+            : `<li><button type="button" class="cs-wsd-crumb" data-wsd-crumb="${esc(crumb.path)}">${esc(crumb.name)}</button></li>`)).join('');
+        const recent = WS_MODEL.recentRoots(dialog.instance.workspaces || [], device.id).filter(root => root !== browse.path);
+        const dirs = browse.entries.filter(entry => entry.dir);
+        const files = browse.entries.filter(entry => !entry.dir);
+        const focusPath = dirs.some(entry => entry.path === browse.selected) ? browse.selected : (dirs[0] && dirs[0].path);
+        let rows;
+        if (browse.error) {
+            rows = `<div class="cs-wsd-card cs-wsd-error" role="alert">${wsGlyph('warning', 18)}<p>${esc(browse.error.text)}</p>${browse.error.retry ? `<button type="button" class="cs-button" data-wsd-retry>${esc(tr('desktop.retry', 'Retry'))}</button>` : ''}</div>`;
+        } else if (browse.loading && !browse.entries.length) {
+            rows = wsdSkeleton(6);
+        } else {
+            rows = dirs.map(entry => `<div class="cs-wsd-entry is-dir${entry.hidden ? ' is-hidden' : ''}${entry.path === browse.selected ? ' is-selected' : ''}" role="option" data-wsd-entry="${esc(entry.path)}" data-dir="true" data-name="${esc(entry.name)}" aria-selected="${entry.path === browse.selected}" tabindex="${entry.path === focusPath ? 0 : -1}" title="${esc(entry.path)}">${wsGlyph('folder', 15)}<span class="cs-wsd-entry-name">${esc(entry.name)}</span>${entry.git ? '<span class="cs-wsd-git" title="Git">git</span>' : ''}</div>`).join('')
+                + files.map(entry => `<div class="cs-wsd-entry is-file" role="option" data-wsd-entry="${esc(entry.path)}" data-dir="false" aria-disabled="true" aria-selected="false" tabindex="-1">${wsGlyph('file', 15)}<span class="cs-wsd-entry-name">${esc(entry.name)}</span></div>`).join('')
+                + (dirs.length ? '' : `<div class="cs-wsd-note">${esc(tr('codeStudio.workspaceNoSubfolders', 'This folder has no subfolders.'))}</div>`);
+        }
+        const pathLabel = tr('codeStudio.workspacePathLabel', 'Folder path');
+        return `<div class="cs-wsd-toolbar">
+                <button type="button" class="cs-icon-button" data-wsd-home aria-label="${esc(tr('codeStudio.workspaceHome', 'Home folder'))}" title="${esc(tr('codeStudio.workspaceHome', 'Home folder'))}">${wsGlyph('home', 15)}</button>
+                <button type="button" class="cs-icon-button" data-wsd-up aria-label="${esc(tr('codeStudio.workspaceUp', 'Parent folder'))}" title="${esc(tr('codeStudio.workspaceUp', 'Parent folder'))}"${!browse.path || browse.path === '/' ? ' disabled' : ''}>${wsGlyph('up', 15)}</button>
+                <nav class="cs-wsd-crumbs" aria-label="${esc(pathLabel)}"><ol>${crumbHtml}</ol></nav>
+                <button type="button" class="cs-icon-button" data-wsd-refresh aria-label="${esc(tr('codeStudio.refresh', 'Refresh'))}" title="${esc(tr('codeStudio.refresh', 'Refresh'))}">${wsGlyph('refresh', 15)}</button>
+            </div>
+            <form class="cs-wsd-pathform" data-wsd-pathform>
+                <label class="cs-ws-sr" for="cs-wsd-path">${esc(pathLabel)}</label>
+                <input id="cs-wsd-path" class="cs-wsd-path" data-wsd-path value="${esc(browse.path)}" autocomplete="off" spellcheck="false" placeholder="/home/user/project">
+            </form>
+            ${recent.length ? `<div class="cs-wsd-recent"><span>${esc(tr('codeStudio.workspaceRecent', 'Recent SSH folders'))}</span>${recent.map(root => `<button type="button" class="cs-wsd-chip" data-wsd-goto="${esc(root)}" title="${esc(root)}">${esc(WS_MODEL.tildePath(root, home))}</button>`).join('')}</div>` : ''}
+            <div class="cs-wsd-folders${browse.loading ? ' is-loading' : ''}" role="listbox" aria-label="${esc(browse.path || pathLabel)}" aria-busy="${browse.loading}" data-wsd-folders>${rows}</div>`;
+    }
+
+    function dialogFolderKeydown(dialog, event) {
+        const browse = dialog.browse;
+        if (!browse) return;
+        const rows = Array.from(dialog.overlay.querySelectorAll('[data-wsd-entry][data-dir="true"]'));
+        const index = rows.indexOf(document.activeElement);
+        const focusRow = row => {
+            if (!row) return;
+            rows.forEach(item => { item.tabIndex = -1; });
+            row.tabIndex = 0;
+            row.focus();
+            dialogSelectEntry(dialog, row.dataset.wsdEntry, { keepFocus: true });
+        };
+        switch (event.key) {
+            case 'ArrowDown': event.preventDefault(); focusRow(rows[Math.min(rows.length - 1, index + 1)]); break;
+            case 'ArrowUp': event.preventDefault(); focusRow(rows[Math.max(0, index - 1)]); break;
+            case 'Home': event.preventDefault(); focusRow(rows[0]); break;
+            case 'End': event.preventDefault(); focusRow(rows[rows.length - 1]); break;
+            case 'ArrowRight':
+                if (index >= 0) { event.preventDefault(); dialogBrowse(dialog, rows[index].dataset.wsdEntry, { focus: 'list' }); }
+                break;
+            case 'ArrowLeft':
+            case 'Backspace':
+                event.preventDefault();
+                if (browse.path && browse.path !== '/') dialogBrowse(dialog, WS_MODEL.remoteParent(browse.path), { focus: 'list' });
+                break;
+            case 'Enter': event.preventDefault(); dialogOpen(dialog, {}); break;
+            default:
+                if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+                    const key = event.key.toLowerCase();
+                    const hit = rows.slice(index + 1).concat(rows.slice(0, index + 1)).find(row => (row.dataset.name || '').toLowerCase().startsWith(key));
+                    if (hit) { event.preventDefault(); focusRow(hit); }
+                }
+        }
+    }
+
+    // A click toggles the selection; the target is the selected folder or, without one, the listed folder.
+    function dialogSelectEntry(dialog, path, options) {
+        const browse = dialog.browse;
+        const entry = browse && browse.entries.find(item => item.path === path);
+        if (!entry || !entry.dir) return;
+        browse.selected = options.keepFocus || browse.selected !== path ? path : '';
+        dialog.overlay.querySelectorAll('[data-wsd-entry][data-dir="true"]').forEach(row => {
+            const selected = row.dataset.wsdEntry === browse.selected;
+            row.classList.toggle('is-selected', selected);
+            row.setAttribute('aria-selected', selected ? 'true' : 'false');
+            if (!options.keepFocus) row.tabIndex = row.dataset.wsdEntry === path ? 0 : -1;
+        });
+        dialog.openError = '';
+        renderDialogFooter(dialog);
+    }
+
+    function dialogFocusFolders(dialog) {
+        const target = dialog.overlay.querySelector('[data-wsd-folders] [tabindex="0"]') || dialog.overlay.querySelector('[data-wsd-path]');
+        if (target) target.focus();
+    }
+
+    function dialogSubmitPath(dialog, formEl) {
+        const value = formEl.querySelector('[data-wsd-path]').value.trim();
+        if (value) dialogBrowse(dialog, value, { focus: 'list' });
+    }
+
+    function dialogTargetPath(dialog) {
+        return dialog.browse ? (dialog.browse.selected || dialog.browse.path) : '';
+    }
+
+    function renderDialogFooter(dialog) {
+        const footer = dialog.overlay.querySelector('[data-wsd-footer]');
+        if (!footer) return;
+        const device = dialogDevice(dialog);
+        const browse = dialog.browse;
+        const target = dialogTargetPath(dialog);
+        const ready = !!device && !!browse && !browse.loading && !browse.hostKey && !browse.error && !!target && !dialog.opening;
+        const preview = device && target ? WS_MODEL.userAtHost(device) + ':' + target : '';
+        const focused = footer.contains(document.activeElement) ? (document.activeElement.hasAttribute('data-wsd-open') ? '[data-wsd-open]' : '[data-wsd-cancel]') : '';
+        footer.innerHTML = `<code class="cs-wsd-target" data-wsd-target title="${esc(preview)}">${esc(preview || '—')}</code>
+            <div class="cs-wsd-hint" aria-hidden="true">${esc(tr('codeStudio.workspaceKeyHint', 'Enter opens · → enters a folder · ← goes up'))}</div>
+            ${dialog.openError ? `<div class="cs-wsd-open-error" role="alert">${wsGlyph('warning', 14)}<span>${esc(dialog.openError)}</span></div>` : ''}
+            <div class="cs-wsd-actions">
+                <button type="button" class="cs-button" data-wsd-cancel>${esc(tr('desktop.cancel', 'Cancel'))}</button>
+                <button type="button" class="cs-button primary" data-wsd-open${ready ? '' : ' disabled'} aria-busy="${dialog.opening}">${dialog.opening ? '<span class="cs-ws-spinner" aria-hidden="true"></span>' : ''}<span>${esc(dialog.opening ? tr('codeStudio.workspaceStatusConnecting', 'Connecting…') : tr('codeStudio.workspaceOpenFolder', 'Open Folder'))}</span></button>
+            </div>`;
+        if (focused) {
+            const el = footer.querySelector(focused);
+            (el && !el.disabled ? el : footer.querySelector('[data-wsd-cancel]')).focus();
+        }
+    }
+
+    async function dialogOpen(dialog, options) {
+        const device = dialogDevice(dialog);
+        const browse = dialog.browse;
+        const root = dialogTargetPath(dialog);
+        if (!device || !browse || !root || dialog.opening || browse.loading || browse.hostKey || browse.error) return;
+        const instance = dialog.instance;
+        dialog.opening = true;
+        dialog.openError = '';
+        renderDialogFooter(dialog);
+        const trust = options.trust || dialog.trusted[device.id] || '';
+        let workspace;
+        try {
+            const body = { device_id: device.id, root };
+            if (trust) body.trust_host_key = trust;
+            workspace = WS_MODEL.normalizeWorkspace(await apiClient.createWorkspace(body));
+            if (!WS_MODEL.isRemote(workspace.id)) throw new Error('no workspace id');
+        } catch (err) {
+            if (!dialog.isOpen()) return;
+            dialog.opening = false;
+            const kind = WS_MODEL.classifyError(err);
+            runWithInstance(instance, () => {
+                if (kind === 'unknown_host_key') {
+                    const b = err.body || {};
+                    browse.hostKey = {
+                        host: String(b.host || device.host), keyType: String(b.key_type || ''), fingerprint: String(b.fingerprint || ''),
+                        retry: fp => {
+                            browse.hostKey = null;
+                            dialog.trusted[device.id] = fp;
+                            renderDialogBrowser(dialog);
+                            dialogOpen(dialog, { trust: fp });
+                        }
+                    };
+                    renderDialogBrowser(dialog);
+                    const trustButton = dialog.overlay.querySelector('[data-wsd-trust]');
+                    if (trustButton) trustButton.focus();
+                } else if (kind === 'host_key_mismatch') {
+                    browse.error = { kind, text: workspaceErrorText(kind, { host: device.host }), retry: null };
+                    renderDialogBrowser(dialog);
+                } else {
+                    dialog.openError = workspaceErrorText(kind, { host: WS_MODEL.deviceAddress(device), path: root, error: err.message || String(err) });
+                }
+                renderDialogFooter(dialog);
+            });
+            return;
+        }
+        if (!dialog.isOpen()) return;
+        const list = (instance.workspaces || [WS_MODEL.localWorkspace()]).filter(ws => ws.id !== workspace.id);
+        list.splice(1, 0, workspace);
+        instance.workspaces = list;
+        // The dialog stays open while the switch asks about dirty tabs; Cancel there keeps the dialog.
+        const switched = await runWithInstance(instance, () => switchWorkspace(workspace.id, { workspace, connected: true }));
+        if (!dialog.isOpen()) return;
+        dialog.opening = false;
+        if (switched) dialog.close(true);
+        else runWithInstance(instance, () => renderDialogFooter(dialog));
+    }
