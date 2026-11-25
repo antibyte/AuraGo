@@ -36,7 +36,7 @@
                 const r = rng(), dead = !e || e.available === false || e.status === 'unavailable' || e.status === 'unknown', v = !dead && typeof e.value === 'number' && Number.isFinite(e.value) ? e.value : null;
                 fmt = { decimals: C.decimalsOf(r.step), unit: (e && e.unit) || '' };
                 api.setTone(e && e.tone ? e.tone : null);
-                prim.set({ value: v, min: r.min, max: r.max, decimals: fmt.decimals, unit: fmt.unit, status: e ? e.status : 'unavailable', pending: !!(e && e.pending), readonly: !!(e && e.readonly),
+                prim.set({ label: C.label(api, e) || undefined, value: v, min: r.min, max: r.max, decimals: fmt.decimals, unit: fmt.unit, status: e ? e.status : 'unavailable', pending: !!(e && e.pending), readonly: !!(e && e.readonly),
                     disabled: !e || (!e.readonly && !api.can('primary', CAP)) });
                 if (num) num.set({ value: v, decimals: fmt.decimals, unit: fmt.unit });
                 setAttr(prim.el, 'aria-label', C.label(api, e) || null);

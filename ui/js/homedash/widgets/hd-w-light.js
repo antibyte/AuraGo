@@ -50,7 +50,7 @@
                 // No live data (no entity, unavailable or unknown): an empty readout and the handle at the arc start, never the word "Off".
                 // On without a usable brightness (null, 0 or not a number): dial full, word "On", no percentage anywhere.
                 api.setTone(e && e.tone ? e.tone : null);
-                prim.set(Object.assign({ value: m.pct, word: m.dead || x.known ? null : x.word, valueText: x.valueText }, k.flags(x, x.dimOff)));
+                const r = k.rng(); prim.set(Object.assign({ value: m.pct, min: r.min, max: r.max, word: m.dead || x.known ? null : x.word, valueText: x.valueText }, k.flags(x, x.dimOff)));
                 setAttr(prim.el, 'aria-label', k.named(x, 'homedash.control.brightness'));
                 if (readout && lastPct !== null && lastPct !== m.pct) setAttr(readout, 'data-hd-tick', readout.getAttribute('data-hd-tick') === 'a' ? 'b' : 'a');
                 lastPct = m.pct;
@@ -74,7 +74,7 @@
                 const e = view.entities.primary, x = k.model(e), m = x.m;
                 api.setTone(e && e.tone ? e.tone : null);
                 chip.set(Object.assign({ on: m.on, icon: E.widgets.iconFor(api.widget, e) || 'bulb', text: '' }, k.flags(x, x.off)));
-                slider.set(Object.assign({ value: m.pct, valueText: x.valueText }, k.flags(x, x.dimOff)));
+                slider.set(Object.assign({ value: m.pct, min: k.rng().min, max: k.rng().max, valueText: x.valueText }, k.flags(x, x.dimOff)));
                 num.set(k.readout(x));
                 setAttr(chip.el, 'aria-label', k.named(x, 'homedash.control.power')); setAttr(slider.el, 'aria-label', k.named(x, 'homedash.control.brightness'));
                 k.status(x, 'brightness');

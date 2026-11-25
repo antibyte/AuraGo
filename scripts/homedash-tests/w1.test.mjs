@@ -125,7 +125,7 @@ export const tests = [
     const b = x.mount('action', 'button', 'ha:button.doorbell_test'), q = b.q('button.hd-push'); assert.equal(q.querySelector('.hd-push-label').textContent, EN['homedash.action.press']); assert.equal(q.querySelector('svg').getAttribute('data-hd-icon'), 'button');
     q.dispatchEvent(click); eq(x.calls.commands[1], ['primary', 'press', {}]); assert.equal(b.q('.hd-state-text').textContent, EN['homedash.kind.button']); }],
   ['action: script.goodnight is read-only by default: no command, the short reason in the line, the long reason announced', () => { const x = env(), w = x.mount('action', 'button', 'ha:script.goodnight'), p = w.q('button.hd-push');
-    assert.equal(p.querySelector('.hd-push-label').textContent, EN['homedash.action.run']); assert.equal(p.querySelector('svg').getAttribute('data-hd-icon'), 'script'); assert.equal(p.getAttribute('aria-disabled'), 'true');
+    assert.equal(p.querySelector('.hd-push-label').textContent, EN['homedash.action.run']); assert.equal(p.querySelector('svg').getAttribute('data-hd-icon'), 'script'); assert.equal(p.getAttribute('aria-disabled'), null); assert.equal(p.getAttribute('aria-readonly'), null);
     assert.equal(w.q('.hd-state-text').textContent, EN['homedash.kind.script'] + MID + EN['homedash.reason.allowed_services']); p.dispatchEvent(click);
     assert.equal(x.calls.commands.length, 0); eq(x.calls.announced, [EN['homedash.reason.allowed_services_long']]); }],
   ['action: an allowed sensitive script sends activate, shows the armed text, and the check state "Done" after confirmation', () => {
@@ -167,10 +167,16 @@ export const tests = [
   ['select: read-only announces the long reason and sends nothing; unavailable is aria-disabled; segmented and list', () => {
     for (const [variant, id, sel] of [['segmented', 'ha:select.heater_mode', '.hd-seg-opt'], ['list', 'ha:input_select.radio', 'button.hd-pick']]) {
       const x = env({ [id]: readOnly }), w = x.mount('select', variant, id, { size: { w: 3, h: 1 } }); w.q(sel).dispatchEvent(click); assert.equal(x.calls.commands.length, 0, variant); eq(x.calls.announced, [EN['homedash.reason.ha_readonly_long']]);
-      assert.equal(w.q('.hd-state-text').textContent.includes(EN['homedash.reason.ha_readonly']), true, variant);
+      assert.equal(w.q('.hd-state-text').textContent.includes(EN['homedash.reason.ha_readonly']), true, variant); if (variant === 'list') assert.equal(w.q('button.hd-pick').getAttribute('aria-disabled'), null, 'read-only list keeps full strength');
       const y = env({ [id]: c => { c.state = { value: null, text: 'unavailable', available: false, updated_at: c.state.updated_at }; } }), u = y.mount('select', variant, id, { size: { w: 3, h: 1 } });
       assert.equal(u.q(variant === 'list' ? 'button.hd-pick' : '.hd-seg').getAttribute('aria-disabled'), 'true', variant); u.q(sel).dispatchEvent(click); assert.equal(y.calls.commands.length, 0, variant); } }],
 
+  ['light: the dial, slider and tile ranges follow the brightness capability (max 50)', () => {
+    const cap = c => { c.capabilities = c.capabilities.map(k => (k.name === 'brightness' ? Object.assign({}, k, { max: 50 }) : k)); };
+    for (const [variant, sel] of [['dial', '.hd-dial'], ['slider', '.hd-slider'], ['tile', '.hd-ltile']]) { const w = env({ 'ha:light.kitchen': cap }).mount('light', variant, 'ha:light.kitchen', { size: { w: 3, h: 3 } });
+      assert.equal(w.q(sel).getAttribute('aria-valuemax'), '50', variant); assert.equal(w.q(sel).getAttribute('aria-valuemin'), '0', variant); } }],
+  ['number: the stepper spinbutton is named from the entity when the widget has no title', () => { const w = env().mount('number', 'stepper', 'ha:number.boiler_target', { widget: { title: '' } });
+    assert.equal(w.q('[role="spinbutton"]').getAttribute('aria-label'), 'Boiler target'); assert.equal(env().mount('number', 'stepper', 'ha:number.boiler_target', { widget: { title: 'Heat' } }).q('[role="spinbutton"]').getAttribute('aria-label'), 'Heat'); }],
   // Task 15: number.
   ['number stepper: + and - step by the capability step and send set_value with phase key; the limits disable the button and send nothing', () => { const x = env(), w = x.mount('number', 'stepper', 'ha:number.boiler_target', { size: { w: 3, h: 1 } }), [dec, inc] = w.q('.hd-stepper').querySelectorAll('button.hd-step'), spin = w.q('[role="spinbutton"]');
     assert.equal(spin.getAttribute('aria-valuenow'), '55'); assert.equal(spin.getAttribute('aria-valuemin'), '30'); assert.equal(spin.getAttribute('aria-valuemax'), '70'); assert.equal(spin.getAttribute('aria-valuetext'), '55' + fc(0xa0) + fc(0xb0) + 'C'); assert.equal(w.q('.hd-stepper').getAttribute('aria-label'), 'Boiler target');
@@ -191,7 +197,7 @@ export const tests = [
   ['number: read-only announces the long reason and sends nothing; unavailable is aria-disabled; stepper and slider', () => {
     for (const [variant, sel] of [['stepper', 'button.hd-step'], ['slider', '.hd-slider']]) {
       const x = env({ 'ha:number.boiler_target': readOnly }), w = x.mount('number', variant, 'ha:number.boiler_target'); w.q(sel).dispatchEvent(variant === 'slider' ? key('ArrowRight') : click); assert.equal(x.calls.commands.length, 0, variant); eq(x.calls.announced, [EN['homedash.reason.ha_readonly_long']], variant);
-      assert.equal(w.q('.hd-state-text').textContent.includes(EN['homedash.reason.ha_readonly']), true, variant);
+      assert.equal(w.q('.hd-state-text').textContent.includes(EN['homedash.reason.ha_readonly']), true, variant); if (variant === 'stepper') for (const b of w.q('.hd-stepper').querySelectorAll('button.hd-step')) assert.equal(b.getAttribute('aria-disabled'), null, 'read-only stepper button');
       const y = env({ 'ha:number.boiler_target': c => { c.state = { value: null, text: 'unavailable', available: false, updated_at: c.state.updated_at }; } }), u = y.mount('number', variant, 'ha:number.boiler_target');
       assert.equal(u.q(variant === 'slider' ? '.hd-slider' : '.hd-stepper [role="spinbutton"]').getAttribute('aria-disabled'), 'true', variant); u.q(sel).dispatchEvent(variant === 'slider' ? key('ArrowRight') : click); assert.equal(y.calls.commands.length, 0, variant); } }]
 ];

@@ -15,9 +15,9 @@ export const tests = [
     t.set({ on: true }); assert.equal(t.el.getAttribute('aria-checked'), 'true'); assert.equal(t.el.getAttribute('data-hd-on'), 'true');
     t.set({ readonly: true }); assert.equal(t.el.getAttribute('aria-readonly'), 'true'); t.set({ status: 'unavailable' }); assert.equal(t.el.getAttribute('aria-disabled'), 'true');
     const r = E.prim.rocker(OPTS.rocker); assert.deepEqual(r.el.querySelectorAll('.hd-rocker-legend').map(x => x.textContent), ['I', 'O']); r.set({ on: false }); assert.equal(r.el.getAttribute('aria-checked'), 'false'); }],
-  ['pushButton maps read-only to aria-disabled', () => { const { E } = boot(); const p = E.prim.pushButton(OPTS.pushButton);
+  ['pushButton never sets aria-disabled for read-only (only unavailable or disabled)', () => { const { E } = boot(); const p = E.prim.pushButton(OPTS.pushButton);
     assert.equal(p.el.querySelector('.hd-push-label').textContent, 'Scene'); assert.ok(p.el.querySelector('svg.hd-ico')); assert.equal(p.el.getAttribute('data-dir'), '-1'); p.set({ readonly: true });
-    assert.equal(p.el.getAttribute('aria-disabled'), 'true'); assert.equal(p.el.getAttribute('aria-readonly'), null); }],
+    assert.equal(p.el.getAttribute('aria-disabled'), null); assert.equal(p.el.getAttribute('aria-readonly'), null); assert.equal(p.el.getAttribute('data-hd-readonly'), 'true'); p.set({ status: 'unavailable' }); assert.equal(p.el.getAttribute('aria-disabled'), 'true'); p.set({ disabled: true }); assert.equal(p.el.getAttribute('aria-disabled'), 'true'); }],
   ['slider and knob write value, angle and ARIA', () => { const { E } = boot(); const s = E.prim.slider(OPTS.slider);
     assert.equal(s.el.getAttribute('aria-orientation'), 'vertical'); s.set({ value: 25 }); assert.equal(v(s.el, '--hd-value'), '0.2500'); assert.equal(s.el.getAttribute('aria-valuenow'), '25');
     assert.equal(s.el.getAttribute('aria-valuetext'), '25' + fc(0xa0) + '%'); s.set({ value: null }); assert.equal(s.el.getAttribute('aria-valuenow'), null); assert.equal(s.el.getAttribute('aria-valuetext'), fc(0x2013));
@@ -37,7 +37,8 @@ export const tests = [
     const s40 = E.prim.knob({ label: 'q', quantize: 40 }); s40.set({ value: 51 }); assert.equal(s40.el.querySelector('.hd-dial-arc').style.getPropertyValue('stroke-dasharray'), '500 1000'); }],
   ['stepper disables a button at its limit', () => { const { E } = boot(); const s = E.prim.stepper(OPTS.stepper); const [dec, inc] = s.el.querySelectorAll('button.hd-step');
     s.set({ value: 5 }); assert.equal(dec.getAttribute('aria-disabled'), 'true'); assert.equal(inc.getAttribute('aria-disabled'), null); assert.equal(s.el.querySelector('[role="spinbutton"]').getAttribute('aria-valuenow'), '5');
-    s.set({ value: 30 }); assert.equal(inc.getAttribute('aria-disabled'), 'true'); assert.equal(dec.getAttribute('aria-disabled'), null); assert.equal(dec.getAttribute('aria-label'), 'Decrease'); }],
+    s.set({ value: 30 }); assert.equal(inc.getAttribute('aria-disabled'), 'true'); assert.equal(dec.getAttribute('aria-disabled'), null); assert.equal(dec.getAttribute('aria-label'), 'Decrease');
+    s.set({ value: 10, readonly: true }); assert.equal(dec.getAttribute('aria-disabled'), null); assert.equal(inc.getAttribute('aria-disabled'), null); s.set({ value: 10, label: 'Target' }); assert.equal(s.el.querySelector('[role="spinbutton"]').getAttribute('aria-label'), 'Target'); }],
   ['stepper buttons always have an accessible name', () => { const { E } = boot(); const s = E.prim.stepper({ label: 'T', min: 0, max: 10 });
     assert.equal(s.el.querySelector('[data-dir="-1"]').getAttribute('aria-label'), String.fromCodePoint(0x2212)); assert.equal(s.el.querySelector('[data-dir="1"]').getAttribute('aria-label'), '+');
     const g = E.prim.stepper({ label: 'T', min: 0, max: 10, decLabel: 'Less', incLabel: 'More' });
@@ -90,7 +91,7 @@ export const tests = [
     assert.equal(p.el.tagName, 'BUTTON'); assert.equal(p.el.getAttribute('type'), 'button'); assert.equal(p.el.getAttribute('aria-haspopup'), 'listbox'); assert.equal(p.el.getAttribute('aria-expanded'), 'false'); assert.equal(p.el.getAttribute('aria-label'), 'Mode'); assert.equal(p.el.querySelector('.hd-pick-label').textContent, 'Heat');
     assert.equal(p.el.querySelector('svg').getAttribute('data-hd-icon'), 'chevron-down'); p.set({ text: 'Cool', expanded: true, label: 'Mode: Cool' }); assert.equal(p.el.getAttribute('aria-expanded'), 'true'); assert.equal(p.el.querySelector('.hd-pick-label').textContent, 'Cool'); assert.equal(p.el.getAttribute('aria-label'), 'Mode: Cool');
     p.set({}); assert.equal(p.el.querySelector('.hd-pick-label').textContent, 'Heat'); assert.equal(p.el.getAttribute('aria-expanded'), 'false'); assert.equal(p.el.getAttribute('aria-label'), 'Mode');
-    p.set({ readonly: true }); assert.equal(p.el.getAttribute('aria-disabled'), 'true'); p.el.dispatchEvent({ type: 'click' }); p.el.dispatchEvent(key('ArrowDown')); assert.deepEqual(log, ['open', 'open']); p.destroy(); p.el.dispatchEvent(key('ArrowDown')); assert.equal(log.length, 2); }],
+    p.set({ readonly: true }); assert.equal(p.el.getAttribute('aria-disabled'), null); p.set({ readonly: true, status: 'unavailable' }); assert.equal(p.el.getAttribute('aria-disabled'), 'true'); p.set({ readonly: true }); p.el.dispatchEvent({ type: 'click' }); p.el.dispatchEvent(key('ArrowDown')); assert.deepEqual(log, ['open', 'open']); p.destroy(); p.el.dispatchEvent(key('ArrowDown')); assert.equal(log.length, 2); }],
   ['input (g): pushButton({toggle}) is a switch that follows on; set({icon}) swaps the glyph', () => { const { E, document } = bootI(), log = [];
     const p = E.prim.pushButton({ label: 'Power', icon: 'bulb', toggle: true, input: { onActivate: () => log.push('act') } }); document.createElement('div').appendChild(p.el); const glyph = () => p.el.querySelector('svg').getAttribute('data-hd-icon');
     assert.equal(p.el.getAttribute('role'), 'switch'); assert.equal(p.el.getAttribute('aria-checked'), 'false'); p.set({ on: true }); assert.equal(p.el.getAttribute('aria-checked'), 'true'); p.set({ on: false, readonly: true }); assert.equal(p.el.getAttribute('aria-checked'), 'false');

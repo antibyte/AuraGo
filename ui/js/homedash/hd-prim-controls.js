@@ -18,6 +18,12 @@
     const finite = v => typeof v === 'number' && Number.isFinite(v);
     const sized = o => ({ size: o && o.size });
     const withVariant = (o, allowed, fallback) => Object.assign(sized(o), { variant: allowed.includes(o && o.variant) ? o.variant : fallback });
+    // Buttons and the combo trigger take no aria-readonly and, by the read-only rule, no aria-disabled: only unavailable or a missing capability disable them.
+    const buttonState = (node, s, targets) => {
+        applyState(node, s, { interactive: true, targets, readonlyAria: false });
+        const off = !!s.disabled || s.status === 'unavailable';
+        for (const t of targets || [node]) setAttr(t, 'aria-disabled', off);
+    };
     const iconNode = name => (name ? E.icons.icon(name) : null);
 
     const inputApi = () => { if (!E.input) throw new Error('hd-prim-controls.js: load hd-input.js for interactive controls'); return E.input; };
@@ -104,7 +110,7 @@
         if (icon) node.appendChild(icon);
         node.appendChild(label);
         function set(state) {
-            const s = state || {}; applyState(node, s, { interactive: true, readonlyAria: o.toggle ? undefined : false });
+            const s = state || {}; if (o.toggle) applyState(node, s, { interactive: true }); else buttonState(node, s);
             setAttr(node, 'data-hd-on', !!s.on); label.textContent = typeof s.text === 'string' ? s.text : (o.label || '');
             if (o.toggle) setAttr(node, 'aria-checked', s.on ? 'true' : 'false');
             const want = typeof s.icon === 'string' ? s.icon : o.icon;   // the glyph swaps only when the name changes
@@ -223,9 +229,10 @@
         const spin = el('span', { class: 'hd-step-value', role: 'spinbutton', tabindex: 0, 'aria-label': o.label }, num.el);
         node.appendChild(dec); node.appendChild(spin); node.appendChild(inc);
         const lp = lockPaint(s => {
-            applyState(node, s, { interactive: true, targets: [spin] }); applyState(node, s, { interactive: true, targets: [dec, inc], readonlyAria: false });
+            applyState(node, s, { interactive: true, targets: [spin] }); buttonState(node, s, [dec, inc]);
             const unit = s.unit ?? o.unit, decimals = s.decimals ?? o.decimals, w = writeValue(spin, s, { min: o.min, max: o.max, decimals, lang, unit });
             num.set({ value: w.v, decimals, unit });
+            if (typeof s.label === 'string' && s.label) setAttr(spin, 'aria-label', s.label);
             if (w.v !== null && w.v <= w.min) setAttr(dec, 'aria-disabled', true);
             if (w.v !== null && w.v >= w.max) setAttr(inc, 'aria-disabled', true);
         });
@@ -348,7 +355,7 @@
         const o = opts || {}, node = root('button', 'hd-pick', sized(o), { type: 'button', 'aria-haspopup': 'listbox', 'aria-expanded': 'false', 'aria-label': o.label });
         const label = el('span', { class: 'hd-pick-label', text: o.text || '' }); node.appendChild(label); node.appendChild(iconNode('chevron-down'));
         function set(state) {
-            const s = state || {}; applyState(node, s, { interactive: true, readonlyAria: false });
+            const s = state || {}; buttonState(node, s);
             label.textContent = typeof s.text === 'string' ? s.text : (o.text || ''); setAttr(node, 'aria-expanded', s.expanded ? 'true' : 'false'); setAttr(node, 'aria-label', typeof s.label === 'string' && s.label ? s.label : o.label);
         }
         function bindPicker(input) {
