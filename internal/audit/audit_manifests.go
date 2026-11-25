@@ -167,6 +167,8 @@ func RouteContractManifest() []RouteContract {
 		{Pattern: "/api/truenas/", Methods: []string{"GET", "POST", "DELETE"}, Auth: "session", Category: "integration", ContentTypes: []string{"application/json"}},
 		{Pattern: "/api/containers", Methods: []string{"GET", "POST", "DELETE"}, Auth: "session-admin", Category: "integration", ContentTypes: []string{"application/json", "websocket"}},
 		{Pattern: "/api/docker-manager/", Methods: []string{"GET", "POST", "PUT", "DELETE"}, Auth: "session-admin", Category: "integration", ContentTypes: []string{"application/json", "text/event-stream", "websocket"}},
+		// HomeDash desktop API: dashboards CRUD (DELETE), commands, SSE stream, camera snapshots (internal/server/homedash_routes.go).
+		{Pattern: "/api/desktop/homedash/", Methods: []string{"GET", "POST", "PUT", "DELETE"}, Auth: "session-or-desktop-admin-token", Category: "homedash", ContentTypes: []string{"application/json", "text/event-stream", "image/jpeg"}},
 		{Pattern: "/api/desktop/local-wikipedia/", Methods: []string{"GET", "HEAD"}, Auth: "session-or-desktop-token", Category: "local-wikipedia", ContentTypes: []string{"application/json", "zim-content"}},
 		{Pattern: "/api/desktop/", Methods: []string{"GET", "POST", "PUT"}, Auth: "session", Category: "desktop", ContentTypes: []string{"application/json", "websocket"}},
 		{Pattern: "/api/virtual-computers/", Methods: []string{"GET", "POST", "DELETE"}, Auth: "session-or-desktop-token", Category: "desktop", ContentTypes: []string{"application/json", "websocket", "proxy"}},

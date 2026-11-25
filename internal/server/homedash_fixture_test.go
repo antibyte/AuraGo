@@ -1,10 +1,14 @@
 package server
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"log/slog"
+	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -96,4 +100,46 @@ func newHomeDashTestEnv(t *testing.T, mutate func(*config.Config), specs ...home
 		}, "HomeDash configuration applied")
 	}
 	return &homeDashTestEnv{s: s, svc: svc, admin: admin, adminID: meta.ID, read: readToken, audits: audits}
+}
+
+// do calls the HomeDash handler directly. body: nil, a raw JSON string, or a value to marshal.
+func (e *homeDashTestEnv) do(t *testing.T, token, method, path string, body any) *httptest.ResponseRecorder {
+	t.Helper()
+	var rd io.Reader
+	switch b := body.(type) {
+	case nil:
+	case string:
+		rd = strings.NewReader(b)
+	default:
+		raw, err := json.Marshal(b)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rd = bytes.NewReader(raw)
+	}
+	r := httptest.NewRequest(method, homeDashAPIPrefix+path, rd)
+	if token != "" {
+		r.Header.Set("Authorization", "Bearer "+token)
+	}
+	w := httptest.NewRecorder()
+	handleHomeDash(e.s).ServeHTTP(w, r)
+	return w
+}
+
+func hdDecode(t *testing.T, w *httptest.ResponseRecorder, dst any) {
+	t.Helper()
+	if err := json.Unmarshal(w.Body.Bytes(), dst); err != nil {
+		t.Fatalf("answer is not JSON: %v\n%s", err, w.Body.String())
+	}
+}
+
+// hdCode returns "code", or "error" for answers of the shared auth layers.
+func hdCode(t *testing.T, w *httptest.ResponseRecorder) string {
+	t.Helper()
+	var body struct{ Code, Error string }
+	hdDecode(t, w, &body)
+	if body.Code != "" {
+		return body.Code
+	}
+	return body.Error
 }
