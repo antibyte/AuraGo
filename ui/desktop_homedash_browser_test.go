@@ -85,7 +85,7 @@ func TestDesktopHomeDashBrowser(t *testing.T) {
 	for _, look := range [][2]string{{"fruity", "light"}, {"standard", "dark"}} {
 		theme(look[0], look[1])
 		time.Sleep(300 * time.Millisecond)
-		m := page.MustEval(`()=>{const cs=[...document.querySelectorAll('.hdx-empty .hdx-choice')].map(c=>{const s=c.querySelector('small'),lh=parseFloat(getComputedStyle(s).lineHeight);return {card:c.getBoundingClientRect().height,small:s.getBoundingClientRect().height,lh:lh,primary:c.classList.contains('is-primary')};});return JSON.stringify(cs);}`).Str()
+		m := page.MustEval(`()=>{const cs=[...document.querySelectorAll('.hdx-empty .hdx-choice:not([hidden])')].map(c=>{const s=c.querySelector('small'),lh=parseFloat(getComputedStyle(s).lineHeight);return {card:c.getBoundingClientRect().height,small:s.getBoundingClientRect().height,lh:lh,primary:c.classList.contains('is-primary')};});return JSON.stringify(cs);}`).Str()
 		var cards []struct {
 			Card, Small, Lh float64
 			Primary         bool

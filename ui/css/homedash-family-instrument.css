@@ -134,6 +134,7 @@
 .hd-widget[data-hd-family="instrument"][data-hd-type="climate"] .hd-dial-readout > .hd-seg7 { --hd-i-seg-h: calc(var(--hd-th-d) * 0.18); }
 .hd-widget[data-hd-family="instrument"][data-hd-type="climate"] .hd-dial-sub .hd-seg7 { --hd-i-seg-h: max(12px, calc(var(--hd-th-d) * 0.08)); }
 .hd-widget[data-hd-family="instrument"] .hd-climate-steps .hd-push { color: var(--hd-i-hud); background: transparent; box-shadow: inset 0 0 0 var(--hd-stroke-hair) color-mix(in srgb, var(--hd-i-hud) 30%, transparent); border-radius: var(--hd-radius-control); }
+.hd-widget[data-hd-family="instrument"] .hd-climate-steps .hd-push:is(:focus-visible, [data-hd-focus="ring"]) { box-shadow: 0 0 0 2px var(--hd-focus-gap), 0 0 0 4px var(--hd-focus), inset 0 0 0 var(--hd-stroke-hair) color-mix(in srgb, var(--hd-i-hud) 30%, transparent); }
 .hd-widget[data-hd-family="instrument"] .hd-seg { box-shadow: inset 0 calc(-1 * var(--hd-stroke-hair)) 0 var(--hd-hairline); }
 .hd-widget[data-hd-family="instrument"] .hd-seg-indicator::after { content: ""; position: absolute; inset-inline: 6px; inset-block-end: 0; block-size: 2px; background: var(--hd-i-val); box-shadow: var(--hd-glow); }
 .hd-widget[data-hd-family="instrument"] .hd-seg-opt { color: var(--hd-ink-muted); font: 500 var(--hd-label-size) / 1 var(--hd-font-label); letter-spacing: var(--hd-label-tracking); }
@@ -152,7 +153,7 @@
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"] .hd-dial-readout[data-hd-tick="b"] { animation: hd-flash-b var(--hd-dur-flash) linear; }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"] .hd-seg-indicator { transition: transform var(--hd-dur-fill) var(--hd-ease-toggle); }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"] .hd-dial-active { transition: opacity var(--hd-dur-xfade) var(--hd-ease-toggle); }
-  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"] :is(.hd-dial-current) { transition: transform var(--hd-dur-remote) var(--hd-ease-remote); }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"] .hd-dial:not([data-hd-dragging]) :is(.hd-dial-current) { transition: transform var(--hd-dur-remote) var(--hd-ease-remote); }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"][data-hd-pending="true"] .hd-toggle-track::after,
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"][data-hd-pending="true"] .hd-rocker-half::after,
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"][data-hd-pending="true"] .hd-dial-lead,

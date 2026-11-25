@@ -15,7 +15,9 @@ export const tests = [
     assert.ok(home.el.querySelector('.hdx-empty svg.hdx-art')); const starter = home.el.querySelector('.hdx-empty [data-action="create-starter"]');
     assert.equal(home.el.querySelector('.hdx-empty-title').textContent, 'homedash.home.empty_title'); click(starter); assert.deepEqual(calls, ['starter']);
     home.render({ dashboards: [], desktopReadonly: false, busy: true });
-    assert.equal(starter.getAttribute('aria-busy'), 'true'); assert.equal(home.el.querySelector('.hdx-empty [data-action="create-empty"]').getAttribute('aria-busy'), null); assert.ok(starter.hasAttribute('disabled')); }],
+    assert.equal(starter.getAttribute('aria-busy'), 'true'); assert.equal(home.el.querySelector('.hdx-empty [data-action="create-empty"]').getAttribute('aria-busy'), null); assert.equal(starter.getAttribute('aria-disabled'), 'true'); assert.equal(starter.hasAttribute('disabled'), false);
+    click(starter); assert.deepEqual(calls, ['starter']); /* the click guard holds while busy, focus stays on the key */
+    home.render({ dashboards: [], desktopReadonly: false, busy: false }); assert.equal(starter.getAttribute('aria-disabled'), null); click(starter); assert.deepEqual(calls, ['starter', 'starter']); }],
   ['home: a read-only desktop hides creation and shows the note', () => {
     const { home } = setup(); home.render({ dashboards: [], desktopReadonly: true });
     for (const b of home.el.querySelectorAll('[data-action="create-starter"], [data-action="create-empty"]')) assert.ok(b.hasAttribute('hidden'));
@@ -31,7 +33,7 @@ export const tests = [
   ['home: notices are translated status lines', () => {
     const { home } = setup(); home.render({ dashboards: [], notice: 'limit' }); const n = home.el.querySelector('.hdx-notice');
     assert.equal(n.textContent, 'homedash.home.notice_limit'); assert.equal(n.getAttribute('role'), 'status'); assert.equal(n.getAttribute('data-tone'), 'warn');
-    home.render({ dashboards: [], notice: null }); assert.ok(n.hasAttribute('hidden')); }],
+    home.render({ dashboards: [], notice: null }); assert.equal(n.hasAttribute('hidden'), false); assert.equal(n.textContent, ''); assert.equal(n.getAttribute('role'), 'status'); }],
   ['home: the Home Assistant choice and header button follow the templates and the read-only state', () => {
     const { home, calls, click } = setup(), ha = () => Array.from(home.el.querySelectorAll('[data-action="create-ha"]'));
     home.render({ dashboards: [], templates: ['system'] }); assert.equal(ha().length, 2); assert.ok(ha().every(b => b.hasAttribute('hidden')));

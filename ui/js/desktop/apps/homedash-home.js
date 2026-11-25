@@ -41,7 +41,7 @@
         const head = el('div', { class: 'hdx-home-head', hidden: 'true' }, [el('h2', { class: 'hdx-home-title', text: t('homedash.home.title') }), el('div', { class: 'hdx-home-actions' },
             [button('create-starter', 'gauge', t('homedash.home.create_starter'), true), button('create-empty', 'plus', t('homedash.home.create_empty'), false),
                 button('create-ha', 'home', t('homedash.home.create_ha'), false)])]);
-        const notice = el('p', { class: 'hdx-note hdx-notice', role: 'status', 'data-tone': 'info', hidden: 'true' });
+        const notice = el('p', { class: 'hdx-note hdx-notice', role: 'status', 'data-tone': 'info' }); /* always rendered, empty when there is nothing to say: a live region must exist before its text does */
         const roNote = el('p', { class: 'hdx-note hdx-readonly-note', 'data-tone': 'info', hidden: 'true' }, [E.icons.icon('lock'), el('span', { text: t('homedash.home.readonly_note') })]);
         const skeleton = el('div', { class: 'hdx-skeleton', 'aria-hidden': 'true' }, [el('div', { class: 'hdx-skel-card' }), el('div', { class: 'hdx-skel-card' }), el('div', { class: 'hdx-skel-card' })]);
         const list = el('ul', { class: 'hdx-list', 'aria-label': t('homedash.home.title'), hidden: 'true' });
@@ -74,10 +74,10 @@
             setAttr(head, 'hidden', mode !== 'list'); setAttr(list, 'hidden', mode !== 'list'); setAttr(empty, 'hidden', mode !== 'empty'); setAttr(skeleton, 'hidden', mode !== 'loading');
             const ha = Array.isArray(st.templates) && st.templates.includes('home_assistant');
             for (const b of root.querySelectorAll('[data-action="create-starter"], [data-action="create-empty"], [data-action="create-ha"]')) {
-                setAttr(b, 'hidden', ro || (b.getAttribute('data-action') === 'create-ha' && !ha)); setAttr(b, 'disabled', busy); setAttr(b, 'aria-busy', busy && b.getAttribute('data-action') === pending ? 'true' : null);
+                setAttr(b, 'hidden', ro || (b.getAttribute('data-action') === 'create-ha' && !ha)); setAttr(b, 'aria-disabled', busy ? 'true' : null); setAttr(b, 'aria-busy', busy && b.getAttribute('data-action') === pending ? 'true' : null);
             }
             setAttr(roNote, 'hidden', !ro);
-            const text = noticeText(st.notice, st.noticeSource); notice.textContent = text; setAttr(notice, 'hidden', !text); setAttr(notice, 'data-tone', NOTICE_TONES[st.notice] || 'info');
+            const text = noticeText(st.notice, st.noticeSource); notice.textContent = text; setAttr(notice, 'data-tone', NOTICE_TONES[st.notice] || 'info');
             if (dashboards) {
                 current = dashboards;
                 const sig = JSON.stringify([ro, dashboards.map(d => [d.id, d.name, d.revision, d.updated_at, d.saved_by])]);
@@ -86,7 +86,7 @@
         }
         life.on(root, 'click', ev => {
             const b = ev.target && ev.target.closest ? ev.target.closest('button') : null;
-            if (!b || b.hasAttribute('disabled')) return;
+            if (!b || b.hasAttribute('disabled') || b.getAttribute('aria-disabled') === 'true') return;
             const action = b.getAttribute('data-action'), id = b.getAttribute('data-id');
             if (action === 'create-starter') { pending = action; o.onStarter(); }
             else if (action === 'create-empty') { pending = action; o.onEmpty(); }

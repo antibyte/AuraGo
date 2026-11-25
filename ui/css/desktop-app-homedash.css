@@ -10,7 +10,7 @@
 .hdx-app [hidden] { display: none !important; }
 .hdx-app :is(.hdx-bar, .hdx-banners, .hdx-home, .hdx-state, .hd-sheet-layer:not([data-kind])) :is(button, [tabindex="0"]):focus-visible { outline: var(--ds-focus-ring-width, 2px) solid var(--ds-color-border-focus, var(--vd-accent)); outline-offset: var(--ds-focus-ring-offset, 2px); }
 .hdx-app .hdx-card-open:focus-visible { outline-offset: -3px; border-radius: var(--hdx-radius); }
-.hdx-app button:disabled { opacity: .55; cursor: not-allowed; }
+.hdx-app button:is(:disabled, [aria-disabled="true"]) { opacity: .55; cursor: not-allowed; }
 .hdx-app :is(.hdx-bar, .hdx-banners, .hdx-home, .hdx-state) .hd-ico { inline-size: 18px; block-size: 18px; stroke-width: 1.75; }
 /* Bar (rows are explicit: the banner row collapses when it is empty and must not hand its track to the main area) */
 .hdx-bar { grid-row: 1; display: flex; align-items: center; gap: 10px; min-block-size: 48px; padding: 6px 14px; background: var(--vd-mat-bar, var(--vd-theme-chrome-bg)); box-shadow: var(--vd-mat-bar-edge, none); border-block-end: 1px solid var(--hdx-line); }
@@ -25,10 +25,10 @@
 /* Buttons */
 .hdx-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-block-size: 36px; padding: 0 14px; border: 1px solid var(--vd-mat-btn-border, var(--hdx-line)); border-radius: var(--vd-mat-btn-radius, 8px); background: var(--vd-mat-btn, var(--vd-theme-control-bg)); box-shadow: var(--vd-mat-btn-shadow, none); font-weight: 600; white-space: nowrap; cursor: pointer; }
 .hdx-app .hdx-btn { color: var(--vd-mat-btn-text, var(--vd-text)); }
-.hdx-btn:hover:not(:disabled) { background: var(--vd-mat-btn-hover, var(--vd-theme-control-hover)); }
+.hdx-btn:hover:not(:is(:disabled, [aria-disabled="true"])) { background: var(--vd-mat-btn-hover, var(--vd-theme-control-hover)); }
 .hdx-btn.is-primary { border-color: var(--vd-mat-primary-border, transparent); background: var(--vd-mat-primary, var(--vd-accent)); box-shadow: var(--vd-mat-primary-shadow, none); }
 .hdx-app .hdx-btn.is-primary { color: var(--vd-mat-primary-text, var(--vd-accent-contrast)); }
-.hdx-btn.is-primary:hover:not(:disabled) { background: var(--vd-mat-primary-hover, var(--vd-mat-primary, var(--vd-accent))); }
+.hdx-btn.is-primary:hover:not(:is(:disabled, [aria-disabled="true"])) { background: var(--vd-mat-primary-hover, var(--vd-mat-primary, var(--vd-accent))); }
 /* Banners */
 .hdx-banners { grid-row: 2; display: grid; gap: 8px; padding: 10px 14px 0; }
 .hdx-banners:empty { display: none; }
@@ -51,6 +51,7 @@
 .hdx-note { display: flex; align-items: center; gap: 10px; margin: 0 0 16px; padding: 10px 14px; border: 1px solid color-mix(in srgb, var(--ds-color-info-fg) 35%, var(--hdx-line)); border-radius: var(--hdx-radius); background: color-mix(in srgb, var(--ds-color-info-fg) 10%, var(--hdx-card)); font-size: 13.5px; }
 .hdx-note > .hd-ico { flex: none; color: color-mix(in srgb, var(--ds-color-info-fg) 78%, var(--vd-text)); }
 .hdx-note[data-tone="warn"] { border-color: color-mix(in srgb, var(--ds-color-warning-fg) 40%, var(--hdx-line)); background: color-mix(in srgb, var(--ds-color-warning-fg) 12%, var(--hdx-card)); }
+.hdx-notice:empty { margin: 0; padding: 0; border: 0; background: none; min-height: 0; } /* the live region stays rendered (and in the accessibility tree) while it has nothing to say */
 .hdx-list, .hdx-skeleton { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; margin: 0; padding: 0; list-style: none; }
 .hdx-item { display: flex; min-inline-size: 0; }
 .hdx-item > .hdx-card { flex: 1 1 auto; min-inline-size: 0; }
@@ -80,7 +81,7 @@
 .hdx-empty-text { max-inline-size: 54ch; margin: 0; color: var(--hdx-muted); font-size: 14.5px; }
 .hdx-choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); grid-auto-rows: 1fr; align-items: stretch; gap: 14px; inline-size: 100%; margin-block-start: 16px; }
 .hdx-choice { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: center; gap: 14px; min-block-size: 88px; padding: 16px 18px; border: 1px solid var(--vd-mat-card-border, var(--hdx-line)); border-radius: var(--hdx-radius); background: var(--vd-mat-card, var(--hdx-card)); box-shadow: var(--vd-mat-card-shadow, none); text-align: start; cursor: pointer; }
-.hdx-choice:hover:not(:disabled) { border-color: color-mix(in srgb, var(--vd-accent) 55%, var(--hdx-line)); }
+.hdx-choice:hover:not(:is(:disabled, [aria-disabled="true"])) { border-color: color-mix(in srgb, var(--vd-accent) 55%, var(--hdx-line)); }
 .hdx-choice.is-primary { border-color: color-mix(in srgb, var(--vd-mat-primary-color, var(--vd-accent)) 70%, var(--hdx-line)); background: color-mix(in srgb, var(--vd-mat-primary-color, var(--vd-accent)) 9%, var(--hdx-card)); }
 .hdx-choice.is-primary .hdx-choice-icon { background: var(--vd-mat-primary, var(--vd-accent)); color: var(--vd-mat-primary-text, var(--vd-accent-contrast)); }
 .hdx-choice-text { display: grid; justify-items: stretch; gap: 3px; inline-size: 100%; min-inline-size: 0; }
@@ -88,7 +89,7 @@
 .hdx-choice-text strong { font-size: 15px; font-weight: 650; }
 .hdx-choice-text small { color: var(--hdx-muted); font-size: 12.5px; line-height: 1.4; }
 .hdx-app :is(.hdx-choice, .hdx-btn)[aria-busy="true"] .hd-ico { opacity: 0; }
-.hdx-app :is(.hdx-choice, .hdx-btn)[aria-busy="true"]:disabled { opacity: 1; cursor: progress; }
+.hdx-app :is(.hdx-choice, .hdx-btn)[aria-busy="true"]:is(:disabled, [aria-disabled="true"]) { opacity: 1; cursor: progress; }
 .hdx-choice[aria-busy="true"] .hdx-choice-icon::after { content: ""; position: absolute; inset: 12px; border: 2.5px solid currentColor; border-inline-end-color: transparent; border-radius: 50%; }
 /* State panels */
 .hdx-state { display: grid; place-content: center; justify-items: center; gap: 10px; padding: 32px; text-align: center; }
@@ -113,7 +114,7 @@
   .hdx-conn-text { position: absolute; inline-size: 1px; block-size: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } }
 @media (prefers-reduced-motion: no-preference) {
   body:not([data-animations="false"]) .hdx-choice { transition: transform 140ms ease, border-color 140ms ease; }
-  body:not([data-animations="false"]) .hdx-choice:hover:not(:disabled) { transform: translateY(-1px); }
+  body:not([data-animations="false"]) .hdx-choice:hover:not(:is(:disabled, [aria-disabled="true"])) { transform: translateY(-1px); }
   body:not([data-animations="false"]) .hdx-card { transition: border-color 140ms ease; }
   body:not([data-animations="false"]) .hdx-conn[data-conn="connecting"] .hdx-conn-dot, body:not([data-animations="false"]) .hdx-skel-card { animation: hdx-pulse 1.3s ease-in-out infinite; }
   body:not([data-animations="false"]) .hdx-spinner, body:not([data-animations="false"]) .hdx-choice[aria-busy="true"] .hdx-choice-icon::after { animation: hdx-spin .9s linear infinite; }

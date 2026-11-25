@@ -402,6 +402,7 @@
 .hd-widget[data-hd-family="glass"] .hd-dial-sub { color: var(--hd-ink-muted); }
 .hd-widget[data-hd-family="glass"] .hd-dial-sub .hd-numeral { font-weight: var(--hd-num-weight-small); }
 .hd-widget[data-hd-family="glass"] .hd-climate-steps .hd-push { color: var(--hd-ink); background: var(--hd-surface); box-shadow: var(--hd-edge-hi), var(--hd-g-surface-edge); border-radius: var(--hd-corners-control); }
+.hd-widget[data-hd-family="glass"] .hd-climate-steps .hd-push:is(:focus-visible, [data-hd-focus="ring"]) { box-shadow: 0 0 0 2px var(--hd-focus-gap), 0 0 0 4px var(--hd-focus), var(--hd-edge-hi), var(--hd-g-surface-edge); }
 .hd-widget[data-hd-family="glass"] .hd-seg { background: var(--hd-track); box-shadow: var(--hd-track-inset); border-radius: var(--hd-corners-control); }
 .hd-widget[data-hd-family="glass"] .hd-seg-indicator::before { content: ""; position: absolute; inset: 3px; border-radius: var(--hd-corners-control); background: var(--hd-thumb); box-shadow: var(--hd-thumb-shadow); }
 .hd-widget[data-hd-family="glass"] .hd-seg-opt { color: var(--hd-ink); font: 500 12.5px / 1 var(--hd-font-ui); border-radius: var(--hd-corners-control); }
@@ -447,8 +448,8 @@
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="glass"][data-hd-pending="true"] .hd-toggle-thumb::after,
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="glass"][data-hd-pending="true"] .hd-dial::after,
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="glass"][data-hd-pending="true"] .hd-rocker-half::after { animation: hd-spin 1s linear infinite; }
-  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="glass"] .hd-dial-arc { transition: stroke-dasharray var(--hd-dur-remote) var(--hd-ease-remote); }
-  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="glass"] :is(.hd-dial-handle, .hd-dial-current) { transition: transform var(--hd-dur-remote) var(--hd-ease-remote); }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="glass"] .hd-dial:not([data-hd-dragging]) .hd-dial-arc { transition: stroke-dasharray var(--hd-dur-remote) var(--hd-ease-remote); }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="glass"] .hd-dial:not([data-hd-dragging]) :is(.hd-dial-handle, .hd-dial-current) { transition: transform var(--hd-dur-remote) var(--hd-ease-remote); }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="glass"] .hd-dial-active { transition: opacity var(--hd-dur-xfade) var(--hd-ease-standard); }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="glass"] .hd-seg-indicator { transition: transform var(--hd-dur-fill) var(--hd-ease-standard); }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="glass"] :is(.hd-gauge-needle, .hd-gauge-needle-shadow) { transition: transform var(--hd-dur-needle-f) var(--hd-ease-needle); }
@@ -803,6 +804,7 @@
 .hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] .hd-lamp-dot { background: transparent; box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-t-muted); }
 .hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] .hd-lamp-dot::after { opacity: 0; }
 .hd-widget[data-hd-family="tactile"] .hd-climate-steps .hd-push { color: var(--hd-t-legend); background: var(--hd-t-bakelite); box-shadow: var(--hd-lip), var(--hd-shadow-cast); border-radius: var(--hd-radius-control); }
+.hd-widget[data-hd-family="tactile"] .hd-climate-steps .hd-push:is(:focus-visible, [data-hd-focus="ring"]) { box-shadow: 0 0 0 2px var(--hd-focus-gap), 0 0 0 4px var(--hd-focus), var(--hd-lip), var(--hd-shadow-cast); }
 .hd-widget[data-hd-family="tactile"] .hd-climate-steps .hd-push:active { translate: -50% calc(-50% + 1px); }
 /* Mode selector: four interlocked bakelite push keys in a black slot (the 44 px radio buttons themselves). The selected key is pressed in (flat, darker, recessed, no cast shadow)
    and carries a lit amber pilot dot; the others are raised (specular, lip, cast shadow onto the neighbour). Icons 18 px, Barlow labels; the labels ellipsize, the key keeps its 44 px hit box. */
@@ -810,6 +812,8 @@
 .hd-widget[data-hd-family="tactile"] .hd-seg { column-gap: 2px; background: var(--hd-t-window); box-shadow: var(--hd-window-shadow); border-radius: var(--hd-radius-control); }
 .hd-widget[data-hd-family="tactile"] .hd-seg-opt { gap: 4px; color: var(--hd-t-faceink); background: var(--hd-t-half-up), var(--hd-t-bakelite-c); border-radius: var(--hd-radius-control); box-shadow: var(--hd-lip), var(--hd-t-edge-low), var(--hd-shadow-contact); }
 .hd-widget[data-hd-family="tactile"] .hd-seg-opt[aria-checked="true"] { box-shadow: none; }
+.hd-widget[data-hd-family="tactile"] .hd-seg-opt:is(:focus-visible, [data-hd-focus="ring"]) { box-shadow: 0 0 0 2px var(--hd-focus-gap), 0 0 0 4px var(--hd-focus), var(--hd-lip), var(--hd-t-edge-low), var(--hd-shadow-contact); }
+.hd-widget[data-hd-family="tactile"] .hd-seg-opt[aria-checked="true"]:is(:focus-visible, [data-hd-focus="ring"]) { box-shadow: 0 0 0 2px var(--hd-focus-gap), 0 0 0 4px var(--hd-focus); }
 .hd-widget[data-hd-family="tactile"] .hd-seg-opt .hd-ico { position: relative; inline-size: 18px; block-size: 18px; stroke-width: var(--hd-stroke-1); }
 .hd-widget[data-hd-family="tactile"] .hd-seg-label { position: relative; font: 600 var(--hd-label-size) / 1 var(--hd-font-label); letter-spacing: var(--hd-label-tracking); text-shadow: var(--hd-t-emboss); }
 .hd-widget[data-hd-family="tactile"] .hd-seg-opt::before { content: ""; position: absolute; inset: 0; border-radius: var(--hd-radius-control); background: var(--hd-t-half-down); box-shadow: var(--hd-recess); opacity: 0; }
@@ -863,9 +867,9 @@
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"] .hd-rocker-half::before { transition: opacity var(--hd-dur-toggle) var(--hd-ease-snap); }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"] :is(.hd-toggle-led, .hd-rocker-led)::after { transition: opacity var(--hd-dur-led) linear var(--hd-dur-toggle); }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"][data-hd-pending="true"] :is(.hd-toggle-led, .hd-rocker-led)::after { animation: hd-blink 500ms steps(1) infinite; }
-  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"] .hd-dial-pointer { transition: transform var(--hd-dur-remote) var(--hd-ease-remote); }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"] .hd-dial:not([data-hd-dragging]) .hd-dial-pointer { transition: transform var(--hd-dur-remote) var(--hd-ease-remote); }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"][data-hd-pending="true"] .hd-dial-dots-lit { animation: hd-blink 500ms steps(1) infinite; }
-  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"] .hd-dial-current { transition: transform var(--hd-dur-remote) var(--hd-ease-remote); }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"] .hd-dial:not([data-hd-dragging]) .hd-dial-current { transition: transform var(--hd-dur-remote) var(--hd-ease-remote); }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"] .hd-seg-opt::before, .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"] .hd-seg-opt::after { transition: opacity var(--hd-dur-toggle) var(--hd-ease-snap); }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"] .hd-lamp-dot::after { transition: opacity var(--hd-dur-led) linear; }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"][data-hd-pending="true"] .hd-lamp-dot::after { animation: hd-blink 500ms steps(1) infinite; }
@@ -949,6 +953,7 @@
 .hd-widget[data-hd-family="tactile"] :is(.hd-lrow, .hd-lcol, .hd-nrow) > .hd-numeral { color: var(--hd-t-vfd); background: var(--hd-t-window); border-radius: var(--hd-radius-control); text-shadow: var(--hd-vfd-glow); box-shadow: 0 0 0 4px var(--hd-t-window), 0 0 0 5px var(--hd-t-hairline); }
 .hd-widget[data-hd-family="tactile"][data-hd-stale="true"] :is(.hd-lrow, .hd-lcol, .hd-nrow) > .hd-numeral, .hd-widget[data-hd-family="tactile"][data-hd-stale="true"] .hd-step-value .hd-numeral { color: color-mix(in srgb, var(--hd-t-vfd) 60%, transparent); text-shadow: none; }
 .hd-widget[data-hd-family="tactile"] .hd-step-value { background: var(--hd-t-window); border-radius: var(--hd-radius-control); box-shadow: var(--hd-window-shadow); }
+.hd-widget[data-hd-family="tactile"] .hd-step-value:is(:focus-visible, [data-hd-focus="ring"]) { box-shadow: 0 0 0 2px var(--hd-focus-gap), 0 0 0 4px var(--hd-focus), var(--hd-window-shadow); }
 .hd-widget[data-hd-family="tactile"] .hd-step-value .hd-numeral { color: var(--hd-t-vfd); text-shadow: var(--hd-vfd-glow); font-weight: var(--hd-num-weight); }
 
 /* More button: a ghost key; pressed it sinks into a dark socket. */
@@ -1099,6 +1104,7 @@
 .hd-widget[data-hd-family="minimal"] .hd-dial-sub { color: var(--hd-ink-muted); }
 .hd-widget[data-hd-family="minimal"] .hd-dial-sub .hd-numeral { font-weight: var(--hd-num-weight-small); }
 .hd-widget[data-hd-family="minimal"] .hd-climate-steps .hd-push { color: var(--hd-ink); background: transparent; box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-hairline); border-radius: var(--hd-corners-control); }
+.hd-widget[data-hd-family="minimal"] .hd-climate-steps .hd-push:is(:focus-visible, [data-hd-focus="ring"]) { box-shadow: 0 0 0 2px var(--hd-focus-gap), 0 0 0 4px var(--hd-focus), inset 0 0 0 var(--hd-stroke-hair) var(--hd-hairline); }
 .hd-widget[data-hd-family="minimal"] .hd-seg { box-shadow: inset 0 calc(-1 * var(--hd-stroke-hair)) 0 var(--hd-hairline); }
 .hd-widget[data-hd-family="minimal"] .hd-seg-indicator::before { content: ""; position: absolute; inset-inline: 0; inset-block-end: 0; block-size: 2px; background: var(--hd-ink); }
 .hd-widget[data-hd-family="minimal"] .hd-seg-opt { color: var(--hd-ink-muted); font: 500 12.5px / 1 var(--hd-font-ui); }
@@ -1143,8 +1149,8 @@
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="minimal"] .hd-rocker-half::before { transition: opacity var(--hd-dur-toggle) var(--hd-ease-toggle); }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="minimal"][data-hd-pending="true"] .hd-toggle-thumb::after,
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="minimal"][data-hd-pending="true"] .hd-dial::after { animation: hd-spin 1.2s linear infinite; }
-  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="minimal"] .hd-dial-arc { transition: stroke-dasharray var(--hd-dur-remote) var(--hd-ease-remote); }
-  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="minimal"] :is(.hd-dial-handle, .hd-dial-current) { transition: transform var(--hd-dur-remote) var(--hd-ease-remote); }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="minimal"] .hd-dial:not([data-hd-dragging]) .hd-dial-arc { transition: stroke-dasharray var(--hd-dur-remote) var(--hd-ease-remote); }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="minimal"] .hd-dial:not([data-hd-dragging]) :is(.hd-dial-handle, .hd-dial-current) { transition: transform var(--hd-dur-remote) var(--hd-ease-remote); }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="minimal"] .hd-dial-active { transition: opacity var(--hd-dur-xfade) var(--hd-ease-standard); }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="minimal"] .hd-seg-indicator { transition: transform var(--hd-dur-fill) var(--hd-ease-standard); }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="minimal"] :is(.hd-gauge-needle, .hd-gauge-needle-shadow) { transition: transform var(--hd-dur-needle-f) var(--hd-ease-standard); }
@@ -1421,6 +1427,7 @@
 .hd-widget[data-hd-family="instrument"][data-hd-type="climate"] .hd-dial-readout > .hd-seg7 { --hd-i-seg-h: calc(var(--hd-th-d) * 0.18); }
 .hd-widget[data-hd-family="instrument"][data-hd-type="climate"] .hd-dial-sub .hd-seg7 { --hd-i-seg-h: max(12px, calc(var(--hd-th-d) * 0.08)); }
 .hd-widget[data-hd-family="instrument"] .hd-climate-steps .hd-push { color: var(--hd-i-hud); background: transparent; box-shadow: inset 0 0 0 var(--hd-stroke-hair) color-mix(in srgb, var(--hd-i-hud) 30%, transparent); border-radius: var(--hd-radius-control); }
+.hd-widget[data-hd-family="instrument"] .hd-climate-steps .hd-push:is(:focus-visible, [data-hd-focus="ring"]) { box-shadow: 0 0 0 2px var(--hd-focus-gap), 0 0 0 4px var(--hd-focus), inset 0 0 0 var(--hd-stroke-hair) color-mix(in srgb, var(--hd-i-hud) 30%, transparent); }
 .hd-widget[data-hd-family="instrument"] .hd-seg { box-shadow: inset 0 calc(-1 * var(--hd-stroke-hair)) 0 var(--hd-hairline); }
 .hd-widget[data-hd-family="instrument"] .hd-seg-indicator::after { content: ""; position: absolute; inset-inline: 6px; inset-block-end: 0; block-size: 2px; background: var(--hd-i-val); box-shadow: var(--hd-glow); }
 .hd-widget[data-hd-family="instrument"] .hd-seg-opt { color: var(--hd-ink-muted); font: 500 var(--hd-label-size) / 1 var(--hd-font-label); letter-spacing: var(--hd-label-tracking); }
@@ -1439,7 +1446,7 @@
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"] .hd-dial-readout[data-hd-tick="b"] { animation: hd-flash-b var(--hd-dur-flash) linear; }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"] .hd-seg-indicator { transition: transform var(--hd-dur-fill) var(--hd-ease-toggle); }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"] .hd-dial-active { transition: opacity var(--hd-dur-xfade) var(--hd-ease-toggle); }
-  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"] :is(.hd-dial-current) { transition: transform var(--hd-dur-remote) var(--hd-ease-remote); }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"] .hd-dial:not([data-hd-dragging]) :is(.hd-dial-current) { transition: transform var(--hd-dur-remote) var(--hd-ease-remote); }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"][data-hd-pending="true"] .hd-toggle-track::after,
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"][data-hd-pending="true"] .hd-rocker-half::after,
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="instrument"][data-hd-pending="true"] .hd-dial-lead,

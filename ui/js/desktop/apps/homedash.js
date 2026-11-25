@@ -58,9 +58,16 @@
         }
         function paintBanners(list) {
             const sig = JSON.stringify(list.map(b => [b.id, b.kind])); if (sig === lastBanners) return; lastBanners = sig;
-            banners.replaceChildren(...list.map(b => el('div', { class: 'hdx-banner', 'data-banner': b.kind, 'data-tone': b.tone, role: b.role }, [icon(BANNER_ICONS[b.kind] || 'info'),
-                el('span', { class: 'hdx-banner-text', text: bannerText(b) }),
-                b.action === 'retry' ? el('button', { type: 'button', class: 'hdx-btn hdx-banner-action', 'data-action': 'reconnect', text: t('homedash.banner.retry') }) : null])));
+            /* The container stays; banners that persist keep their node (no re-announcement), only new ones are inserted and gone ones removed. */
+            const have = new Map(Array.from(banners.children).map(n => [n.getAttribute('data-key'), n])), want = new Set();
+            list.forEach((b, i) => {
+                const key = b.id + '|' + b.kind; want.add(key);
+                const node = have.get(key) || el('div', { class: 'hdx-banner', 'data-key': key, 'data-banner': b.kind, 'data-tone': b.tone, role: b.role }, [icon(BANNER_ICONS[b.kind] || 'info'),
+                    el('span', { class: 'hdx-banner-text', text: bannerText(b) }),
+                    b.action === 'retry' ? el('button', { type: 'button', class: 'hdx-btn hdx-banner-action', 'data-action': 'reconnect', text: t('homedash.banner.retry') }) : null]);
+                const at = banners.children[i] || null; if (at !== node) banners.insertBefore(node, at);
+            });
+            for (const [key, n] of have) if (!want.has(key)) n.remove();
         }
         function paintState(s) {
             const kind = ['loading', 'disabled', 'error'].includes(s.mode) ? s.mode : '', key = kind + ':' + (s.error ? s.error.code : '');

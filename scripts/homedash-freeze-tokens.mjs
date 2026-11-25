@@ -6,16 +6,26 @@ export const ROOT = path.resolve(import.meta.dirname, '..');
 export const FREEZE_PATH = 'ui/testdata/homedash-lab/token-freeze.json';
 export const FREEZE_FILES = ['ui/css/homedash-tokens.css', 'ui/css/homedash-bridge.css', 'ui/css/homedash-family-glass.css',
   'ui/css/homedash-family-tactile.css', 'ui/css/homedash-family-minimal.css', 'ui/css/homedash-family-instrument.css'];
+// Rules are keyed by selector plus the at-rule chain (media, supports, container) they sit in: `@media (...) > @supports (...) :: selector`.
+// A selector outside any at-rule keeps its plain key, so a later declaration in another context can no longer overwrite an earlier one.
 export function tokenRules(text) {
-  const css = text.replace(/\/\*[\s\S]*?\*\//g, ''), rules = {};
-  for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-    const selector = m[1].trim().replace(/\s+/g, ' ');
-    if (selector.startsWith('@')) continue;
-    const decls = m[2].split(';').map((d) => d.trim()).filter(Boolean);
-    if (!decls.length || !decls.every((d) => d.startsWith('--hd-'))) continue;
-    const body = rules[selector] || {};
-    for (const d of decls) { const i = d.indexOf(':'); body[d.slice(0, i).trim()] = d.slice(i + 1).trim().replace(/\s+/g, ' '); }
-    rules[selector] = body;
+  const css = text.replace(/\/\*[\s\S]*?\*\//g, ''), rules = {}, stack = [];
+  let buf = '';
+  for (const ch of css) {
+    if (ch === '{') { stack.push({ prelude: buf.trim().replace(/\s+/g, ' '), kids: 0 }); buf = ''; if (stack.length > 1) stack[stack.length - 2].kids++; }
+    else if (ch === '}') {
+      const f = stack.pop(); if (!f) { buf = ''; continue; }
+      if (!f.kids && !f.prelude.startsWith('@')) {
+        const decls = buf.split(';').map((d) => d.trim()).filter(Boolean);
+        if (decls.length && decls.every((d) => d.startsWith('--hd-'))) {
+          const ctx = stack.map((x) => x.prelude).filter((x) => x.startsWith('@')).join(' > ');
+          const key = ctx ? ctx + ' :: ' + f.prelude : f.prelude, body = rules[key] || {};
+          for (const d of decls) { const i = d.indexOf(':'); body[d.slice(0, i).trim()] = d.slice(i + 1).trim().replace(/\s+/g, ' '); }
+          rules[key] = body;
+        }
+      }
+      buf = '';
+    } else buf += ch;
   }
   return rules;
 }

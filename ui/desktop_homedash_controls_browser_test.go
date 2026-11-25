@@ -559,9 +559,14 @@ func TestDesktopHomeDashControlsBrowser(t *testing.T) {
 	}
 	page.Mouse.MustMoveTo(centre.X, centre.Y)
 	page.Mouse.MustDown(proto.InputMouseButtonLeft)
-	time.Sleep(600 * time.Millisecond) // a 500 ms hold, held for real
-	until(5*time.Second, "the sheet after the hold", `(sel)=>{const d=document.querySelector(sel);return !!d&&d.getClientRects().length>0;}`, sheetSel)
+	// A 500 ms hold, held for real: keep the button down until the sheet shows (or 2 s pass), then release.
+	for holdEnd := time.Now().Add(2 * time.Second); time.Now().Before(holdEnd); time.Sleep(20 * time.Millisecond) {
+		if page.MustEval(`(sel)=>{const d=document.querySelector(sel);return !!d&&d.getClientRects().length>0;}`, sheetSel).Bool() {
+			break
+		}
+	}
 	page.Mouse.MustUp(proto.InputMouseButtonLeft)
+	until(5*time.Second, "the sheet after the hold", `(sel)=>{const d=document.querySelector(sel);return !!d&&d.getClientRects().length>0;}`, sheetSel)
 	if rows := page.MustEval(`(sel)=>[...document.querySelector(sel).querySelectorAll('.hd-mi-row:not([hidden])')].map(r=>r.dataset.row).join(',')`, sheetSel).Str(); rows != "power" {
 		t.Fatalf("sofa lamp sheet rows = %q, want only power", rows)
 	}

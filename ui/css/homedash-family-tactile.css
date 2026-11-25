@@ -191,6 +191,7 @@
 .hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] .hd-lamp-dot { background: transparent; box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-t-muted); }
 .hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] .hd-lamp-dot::after { opacity: 0; }
 .hd-widget[data-hd-family="tactile"] .hd-climate-steps .hd-push { color: var(--hd-t-legend); background: var(--hd-t-bakelite); box-shadow: var(--hd-lip), var(--hd-shadow-cast); border-radius: var(--hd-radius-control); }
+.hd-widget[data-hd-family="tactile"] .hd-climate-steps .hd-push:is(:focus-visible, [data-hd-focus="ring"]) { box-shadow: 0 0 0 2px var(--hd-focus-gap), 0 0 0 4px var(--hd-focus), var(--hd-lip), var(--hd-shadow-cast); }
 .hd-widget[data-hd-family="tactile"] .hd-climate-steps .hd-push:active { translate: -50% calc(-50% + 1px); }
 /* Mode selector: four interlocked bakelite push keys in a black slot (the 44 px radio buttons themselves). The selected key is pressed in (flat, darker, recessed, no cast shadow)
    and carries a lit amber pilot dot; the others are raised (specular, lip, cast shadow onto the neighbour). Icons 18 px, Barlow labels; the labels ellipsize, the key keeps its 44 px hit box. */
@@ -198,6 +199,8 @@
 .hd-widget[data-hd-family="tactile"] .hd-seg { column-gap: 2px; background: var(--hd-t-window); box-shadow: var(--hd-window-shadow); border-radius: var(--hd-radius-control); }
 .hd-widget[data-hd-family="tactile"] .hd-seg-opt { gap: 4px; color: var(--hd-t-faceink); background: var(--hd-t-half-up), var(--hd-t-bakelite-c); border-radius: var(--hd-radius-control); box-shadow: var(--hd-lip), var(--hd-t-edge-low), var(--hd-shadow-contact); }
 .hd-widget[data-hd-family="tactile"] .hd-seg-opt[aria-checked="true"] { box-shadow: none; }
+.hd-widget[data-hd-family="tactile"] .hd-seg-opt:is(:focus-visible, [data-hd-focus="ring"]) { box-shadow: 0 0 0 2px var(--hd-focus-gap), 0 0 0 4px var(--hd-focus), var(--hd-lip), var(--hd-t-edge-low), var(--hd-shadow-contact); }
+.hd-widget[data-hd-family="tactile"] .hd-seg-opt[aria-checked="true"]:is(:focus-visible, [data-hd-focus="ring"]) { box-shadow: 0 0 0 2px var(--hd-focus-gap), 0 0 0 4px var(--hd-focus); }
 .hd-widget[data-hd-family="tactile"] .hd-seg-opt .hd-ico { position: relative; inline-size: 18px; block-size: 18px; stroke-width: var(--hd-stroke-1); }
 .hd-widget[data-hd-family="tactile"] .hd-seg-label { position: relative; font: 600 var(--hd-label-size) / 1 var(--hd-font-label); letter-spacing: var(--hd-label-tracking); text-shadow: var(--hd-t-emboss); }
 .hd-widget[data-hd-family="tactile"] .hd-seg-opt::before { content: ""; position: absolute; inset: 0; border-radius: var(--hd-radius-control); background: var(--hd-t-half-down); box-shadow: var(--hd-recess); opacity: 0; }
@@ -251,9 +254,9 @@
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"] .hd-rocker-half::before { transition: opacity var(--hd-dur-toggle) var(--hd-ease-snap); }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"] :is(.hd-toggle-led, .hd-rocker-led)::after { transition: opacity var(--hd-dur-led) linear var(--hd-dur-toggle); }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"][data-hd-pending="true"] :is(.hd-toggle-led, .hd-rocker-led)::after { animation: hd-blink 500ms steps(1) infinite; }
-  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"] .hd-dial-pointer { transition: transform var(--hd-dur-remote) var(--hd-ease-remote); }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"] .hd-dial:not([data-hd-dragging]) .hd-dial-pointer { transition: transform var(--hd-dur-remote) var(--hd-ease-remote); }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"][data-hd-pending="true"] .hd-dial-dots-lit { animation: hd-blink 500ms steps(1) infinite; }
-  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"] .hd-dial-current { transition: transform var(--hd-dur-remote) var(--hd-ease-remote); }
+  .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"] .hd-dial:not([data-hd-dragging]) .hd-dial-current { transition: transform var(--hd-dur-remote) var(--hd-ease-remote); }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"] .hd-seg-opt::before, .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"] .hd-seg-opt::after { transition: opacity var(--hd-dur-toggle) var(--hd-ease-snap); }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"] .hd-lamp-dot::after { transition: opacity var(--hd-dur-led) linear; }
   .hd-root:not([data-hd-motion="reduced"]):not([data-hd-motion="none"]) .hd-widget[data-hd-family="tactile"][data-hd-pending="true"] .hd-lamp-dot::after { animation: hd-blink 500ms steps(1) infinite; }
@@ -337,6 +340,7 @@
 .hd-widget[data-hd-family="tactile"] :is(.hd-lrow, .hd-lcol, .hd-nrow) > .hd-numeral { color: var(--hd-t-vfd); background: var(--hd-t-window); border-radius: var(--hd-radius-control); text-shadow: var(--hd-vfd-glow); box-shadow: 0 0 0 4px var(--hd-t-window), 0 0 0 5px var(--hd-t-hairline); }
 .hd-widget[data-hd-family="tactile"][data-hd-stale="true"] :is(.hd-lrow, .hd-lcol, .hd-nrow) > .hd-numeral, .hd-widget[data-hd-family="tactile"][data-hd-stale="true"] .hd-step-value .hd-numeral { color: color-mix(in srgb, var(--hd-t-vfd) 60%, transparent); text-shadow: none; }
 .hd-widget[data-hd-family="tactile"] .hd-step-value { background: var(--hd-t-window); border-radius: var(--hd-radius-control); box-shadow: var(--hd-window-shadow); }
+.hd-widget[data-hd-family="tactile"] .hd-step-value:is(:focus-visible, [data-hd-focus="ring"]) { box-shadow: 0 0 0 2px var(--hd-focus-gap), 0 0 0 4px var(--hd-focus), var(--hd-window-shadow); }
 .hd-widget[data-hd-family="tactile"] .hd-step-value .hd-numeral { color: var(--hd-t-vfd); text-shadow: var(--hd-vfd-glow); font-weight: var(--hd-num-weight); }
 
 /* More button: a ghost key; pressed it sinks into a dark socket. */
