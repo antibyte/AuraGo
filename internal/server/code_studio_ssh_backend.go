@@ -1,15 +1,18 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
 	pathpkg "path"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/pkg/sftp"
@@ -559,19 +562,176 @@ func (b *codeStudioSSHBackend) Mkdir(ctx context.Context, vpath string) error {
 	})
 }
 
-// ---- TEMPORARY STUBS (Task 11), replaced in Tasks 12 and 13 ----
-
-func (b *codeStudioSSHBackend) Search(context.Context, codeStudioSearchOptions) ([]codeStudioSearchResult, bool, error) {
-	return nil, false, errCodeStudioUnsupported
+// codeStudioCappedBuffer keeps at most limit bytes and drains the rest (thread-safe:
+// stdout and stderr may share it).
+type codeStudioCappedBuffer struct {
+	mu    sync.Mutex
+	buf   []byte
+	limit int
 }
 
-func (b *codeStudioSSHBackend) Exec(context.Context, []string, string, []byte, time.Duration) (codeStudioExecResult, error) {
-	return codeStudioExecResult{}, errCodeStudioUnsupported
+func newCodeStudioCappedBuffer(limit int) *codeStudioCappedBuffer {
+	return &codeStudioCappedBuffer{limit: limit}
 }
 
-func (b *codeStudioSSHBackend) Git(context.Context, time.Duration, ...string) (codeStudioExecResult, error) {
-	return codeStudioExecResult{}, errCodeStudioUnsupported
+func (c *codeStudioCappedBuffer) Write(p []byte) (int, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if room := c.limit - len(c.buf); room > 0 {
+		c.buf = append(c.buf, p[:min(room, len(p))]...)
+	}
+	return len(p), nil
 }
+
+func (c *codeStudioCappedBuffer) String() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return string(c.buf)
+}
+
+// codeStudioRecordBuffer stops (closes full) after maxRecords lines or maxBytes.
+type codeStudioRecordBuffer struct {
+	mu                   sync.Mutex
+	buf                  []byte
+	records              int
+	maxRecords, maxBytes int
+	full                 chan struct{}
+	once                 sync.Once
+}
+
+func newCodeStudioRecordBuffer(maxRecords, maxBytes int) *codeStudioRecordBuffer {
+	return &codeStudioRecordBuffer{maxRecords: maxRecords, maxBytes: maxBytes, full: make(chan struct{})}
+}
+
+func (r *codeStudioRecordBuffer) Write(p []byte) (int, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, ch := range p {
+		if r.records >= r.maxRecords || len(r.buf) >= r.maxBytes {
+			r.once.Do(func() { close(r.full) })
+			break
+		}
+		r.buf = append(r.buf, ch)
+		if ch == '\n' {
+			r.records++
+		}
+	}
+	return len(p), nil
+}
+
+func (r *codeStudioRecordBuffer) Full() bool {
+	select {
+	case <-r.full:
+		return true
+	default:
+		return false
+	}
+}
+
+// Complete returns the output up to the last full record.
+func (r *codeStudioRecordBuffer) Complete() string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if i := bytes.LastIndexByte(r.buf, '\n'); i >= 0 {
+		return string(r.buf[:i+1])
+	}
+	return ""
+}
+
+func (b *codeStudioSSHBackend) run(ctx context.Context, script string, stdin []byte, stdout, stderr io.Writer, stop <-chan struct{}) (int, error) {
+	code := -1
+	err := b.pool.withConn(ctx, b.rec.DeviceID, codeStudioSSHRetrySessionOpen, func(c *codeStudioSSHConn) error {
+		var err error
+		code, err = c.run(ctx, codeStudioSSHCommandLine(script), stdin, stdout, stderr, stop)
+		return err
+	})
+	return code, err
+}
+
+func (b *codeStudioSSHBackend) Exec(ctx context.Context, argv []string, vcwd string, stdin []byte, timeout time.Duration) (codeStudioExecResult, error) {
+	if len(argv) == 0 || strings.TrimSpace(argv[0]) == "" {
+		return codeStudioExecResult{}, codeStudioBadRequest("command is required")
+	}
+	if timeout <= 0 || timeout > codeStudioMaxExecTime {
+		timeout = codeStudioMaxExecTime
+	}
+	cwd := b.root
+	if vcwd != "" {
+		p, err := b.remote(vcwd)
+		if err != nil {
+			return codeStudioExecResult{}, err
+		}
+		cwd = p
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	out := newCodeStudioCappedBuffer(codeStudioExecOutputLimit + 1)
+	code, err := b.run(ctx, "cd "+shellQuote(cwd)+" && exec "+codeStudioShellJoin(argv), stdin, out, out, nil)
+	if err != nil {
+		if ctx.Err() != nil {
+			return codeStudioExecResult{}, fmt.Errorf("code studio exec: %w", ctx.Err())
+		}
+		return codeStudioExecResult{}, err
+	}
+	return codeStudioExecResult{ExitCode: code, Output: out.String()}, nil
+}
+
+// Git pins English messages (codeStudioGitNotRepository / identity checks parse them).
+func (b *codeStudioSSHBackend) Git(ctx context.Context, timeout time.Duration, args ...string) (codeStudioExecResult, error) {
+	argv := append([]string{"env", "LC_ALL=C", "GIT_TERMINAL_PROMPT=0", "git", "-C", b.root, "--literal-pathspecs"}, args...)
+	return b.Exec(ctx, argv, "", nil, timeout)
+}
+
+func (b *codeStudioSSHBackend) Search(ctx context.Context, opts codeStudioSearchOptions) ([]codeStudioSearchResult, bool, error) {
+	if strings.TrimSpace(opts.Query) == "" {
+		return nil, false, codeStudioBadRequest("search query is required")
+	}
+	dir, err := b.remote(opts.Path)
+	if err != nil {
+		return nil, false, err
+	}
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+	out := newCodeStudioRecordBuffer(codeStudioSearchResultLimit+1, 16<<20)
+	errOut := newCodeStudioCappedBuffer(64 << 10)
+	code, err := b.run(ctx, codeStudioShellJoin(codeStudioSSHGrepArgs(opts, dir)), nil, out, errOut, out.full)
+	if err != nil && !out.Full() {
+		return nil, false, err
+	}
+	text := out.Complete()
+	if code == 127 {
+		return nil, false, codeStudioBadRequest("grep is not installed on " + b.target.Host)
+	}
+	if code > 1 && text == "" && !out.Full() {
+		msg := strings.TrimSpace(errOut.String())
+		if msg == "" {
+			msg = "search failed"
+		}
+		return nil, false, codeStudioBadRequest(msg)
+	}
+	results, truncated, err := parseCodeStudioGrepOutput(rewriteCodeStudioGrepPaths(b.root, text))
+	if err != nil {
+		return nil, false, err
+	}
+	return results, truncated || out.Full(), nil
+}
+
+func (b *codeStudioSSHBackend) probeCapabilities(ctx context.Context) (*codeStudioCapabilities, error) {
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	out := newCodeStudioCappedBuffer(64 << 10)
+	code, err := b.run(ctx, codeStudioCapabilitiesScript, nil, out, io.Discard, nil)
+	if err != nil {
+		return nil, err
+	}
+	if code != 0 {
+		return nil, fmt.Errorf("capability probe exited with %d", code)
+	}
+	caps := parseCodeStudioCapabilities(out.String(), time.Now().UTC())
+	return &caps, nil
+}
+
+// ---- TEMPORARY STUBS (Task 12), replaced in Task 13 ----
 
 func (b *codeStudioSSHBackend) OpenTerminal(context.Context, int, int) (containerTerminalSession, error) {
 	return nil, errCodeStudioUnsupported
