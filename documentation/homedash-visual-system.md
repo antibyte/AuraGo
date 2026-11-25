@@ -5,8 +5,9 @@ them, and the review rules. Engine contracts (DOM, widget host, styling rules) l
 background: `docs/superpowers/specs/2026-11-23-homedash-design.md` section 6. Gate records (findings and passes) are local working files in the
 git-ignored `reports/homedash-lab/` folder and are not in git. The versioned record of the rulings that bind later controls is the "Lead rulings that bind later controls" section at the end of this page.
 
-Status: the M1 style lab passed Gates S, G, T, M, I and X (2026-11-24 to 2026-11-25). Structure has been frozen since Gate S.
-The tokens have been frozen since Task 22 (Gate X).
+Status: the M1 style lab passed Gates S, G, T, M, I and X (2026-11-24 to 2026-11-25). Structure has been frozen since Gate S,
+except the recorded M2 changes SCR-M2-1 to SCR-M2-3 below. The tokens have been frozen since Task 22 (Gate X) and M2 leaves them unchanged.
+The M2 lead review gate passed on 2026-11-25 in round 4, on fresh screenshots in all four families.
 
 ## The four families
 
@@ -1017,7 +1018,29 @@ the 0-1 value the primitives write). `--hd-m-arc-u` is the user-unit arc width f
 - **`E.widgets.heroStatus.staleText(api, e)`** (`hd-widgets.js`): "Updated N min ago" in whole minutes (at least 1). Returns
   `null` when `updated_at` does not parse, so the hero text is shown instead. Shared by the four hero modules.
 
+## M2 additions (desktop host, view-only)
+
+- **Page part.** `ui/css/homedash-page.css` is bundle part 10, the last part. It holds the scroll stage, the page placement from
+  `--hd-x`/`--hd-y`/`--hd-w`/`--hd-h`, the page tabs, the empty-page note and the unsupported cell. It reads `--hd-*` tokens only.
+- **Host chrome.** The desktop host's bar, banners, home list, state panel and confirm sheet (`ui/css/desktop-app-homedash.css`) are
+  painted from the desktop theme (`--vd-mat-*` with `--vd-theme-*` and `--ds-*` fallbacks), not from HomeDash tokens. The dashboard
+  canvas stays the engine's `.hd-root`.
+- **SCR-M2-1 (entity tile geometry and duration text).** The `entity` tile in `homedash-widgets.css` places its numeral top-aligned
+  with the sensor numerals and its state glyph bottom-left at the card inset. Stale values use the stale ink. Duration sensors read
+  through the duration format (lead rulings below). In Instrument the numeral and glyph paint in the HUD readout colour (`--hd-i-val`).
+- **SCR-M2-2 (sparkline live tail).** The `sensor` sparkline keeps the points that arrive after its history as a live tail, so a new
+  live value moves the line without a new history request. The store appends live numeric states to the cached series.
+- **SCR-M2-3 (decimals).** `options.decimals` (integer 0 to 3) sets the readout precision of the gauge and sensor widgets. Any other
+  value keeps 0. The temperature widget keeps its 1 decimal.
+
 ## Host duties (M2 desktop host and kiosk page)
+
+Implemented in M2 by: duty 1, the desktop shell (no HomeDash file loads fonts; `homedash-tokens.css` declares the two HomeDash faces);
+duty 2, `hd-view` (`applyLook` after the first render and after every look change); duty 3, `hd-view` (never writes or clears the five
+names; the solved accent goes through `--hd-n-accent`); duty 4, `hd-render` (`E.tone.of` on each entity, zones from `E.tone.zones`);
+duty 5, `hd-render` (`resize({w, h, px})` when a widget's pixel size changes); duty 6, `hd-view` (scheme, palette and motion on
+`.hd-root`, supplied by `homedash.js` from the desktop body); duty 7, `hd-view` (`data-hd-family` on `.hd-root`; the widget host
+writes it on each `.hd-widget`). The desktop host draws the banners that `hd-view` computes.
 
 1. **Fonts.** Load `/fonts/fonts.css` before rendering. It supplies Inter, Geist, Geist Mono and Oxanium. HomeDash itself declares
    only `HomeDash Barlow Condensed` (weight 600) and `HomeDash Share Tech Mono` (weight 400), in `homedash-tokens.css`.
@@ -1162,3 +1185,10 @@ One line each. This section is the versioned record of the rulings; the local ga
 - **Probes:** the 3:1 threshold never applies to HTML text, and theme colours are fixed through tokens or `applyLook`. A probe threshold is never lowered.
 - **M3 (Minimal numerals largest):** judged on the side-by-side sheets; equal size is accepted where the body height limits the numeral.
 - **Fonts:** no new `@font-face` in the family files; fonts come from `/fonts/fonts.css` (see host duties).
+- **Duration format:** `E.format.duration` shows the largest non-zero unit and only the next smaller unit, which is omitted when it is zero:
+  7215 s reads "2h", 3900 s reads "1h 5m". Negative or non-finite input shows the en dash.
+- **Tile glyph inset:** the entity tile's state glyph keeps the card inset, so its bottom inset equals its left inset.
+- **System names:** the client localizes the six built-in `system` entity names through `homedash.system.<native>` when a widget has no
+  title. The server contract keeps English names, so other clients show English.
+- **Instrument wide sensors:** at an aspect of 1.6 or more the Instrument sensor keeps M1's fixed 15 px readout. At 5x2 it reads small;
+  revisit in M3 with a token change, not with a local override.
