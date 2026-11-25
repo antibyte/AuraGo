@@ -9,6 +9,7 @@
     const E = window.HomeDashEngine;
     if (!E || !E.core || !E.api || !E.format) throw new Error('hd-command.js: load hd-core.js, hd-format.js and hd-api.js first');
     const TIMING = Object.freeze({ PENDING_MS: 250, CONFIRM_MS: 8000, CUE_MS: 6000, THROTTLE_MS: 1250, KEY_MS: 400, ARM_MS: 4000, FLASH_MS: 600, RETRY_MS: 1000 });
+    const FRAMES_KEPT = 8;
     const CONTINUOUS = Object.freeze(['brightness', 'color_temp', 'color', 'set_value']);
     const ARMABLE = Object.freeze(['toggle', 'turn_on', 'turn_off', 'activate', 'press', 'select_option', 'effect']);
     const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v), finite = v => typeof v === 'number' && Number.isFinite(v);
@@ -58,7 +59,7 @@
         let seq = 0, disposed = false;
         const emit = id => { if (!disposed) bus.emit('change', [id]); };
         const dropCue = id => { const c = cues.get(id); if (c) { clearT(c.timer); cues.delete(id); } };
-        function stop(rec) { clearT(rec.pendingTimer); clearT(rec.confirmTimer); rec.pendingTimer = rec.confirmTimer = 0; }
+        function stop(rec) { clearT(rec.pendingTimer); clearT(rec.confirmTimer); clearT(rec.retryTimer); rec.pendingTimer = rec.confirmTimer = rec.retryTimer = 0; if (rec.retryDone) { const r = rec.retryDone; rec.retryDone = null; r(); } }
         function release(rec) { if (overlays.get(rec.id) !== rec) return false; stop(rec); overlays.delete(rec.id); return true; }
         function cue(id, entry) {
             dropCue(id); const c = { entry: Object.freeze(entry), timer: 0 };
@@ -83,7 +84,7 @@
         }
         function track(s, patch, cap) {
             const id = s.entity, prev = overlays.get(id); if (prev) stop(prev);
-            const rec = { id, seq: ++seq, command: s.command, patch, step: finite(cap && cap.step) ? cap.step : 0, expected: null, frame: null, pending: false, pendingTimer: 0, confirmTimer: 0, sent: true };
+            const rec = { id, seq: ++seq, command: s.command, patch, step: finite(cap && cap.step) ? cap.step : 0, expected: null, frames: [], pending: false, pendingTimer: 0, confirmTimer: 0, retryTimer: 0, sent: true };
             overlays.set(id, rec); dropCue(id);
             rec.pendingTimer = later(() => { if (overlays.get(id) === rec) { rec.pending = true; emit(id); } }, TIMING.PENDING_MS);
             rec.confirmTimer = later(() => expire(rec), TIMING.CONFIRM_MS);
@@ -91,12 +92,12 @@
         }
         function local(s, patch) {
             const id = s.entity, prev = overlays.get(id); if (prev && prev.sent) stop(prev);
-            const rec = prev && !prev.sent ? prev : { id, seq: ++seq, command: s.command, patch: null, step: 0, expected: null, frame: null, pending: false, pendingTimer: 0, confirmTimer: 0, sent: false };
+            const rec = prev && !prev.sent ? prev : { id, seq: ++seq, command: s.command, patch: null, step: 0, expected: null, frames: [], pending: false, pendingTimer: 0, confirmTimer: 0, retryTimer: 0, sent: false };
             rec.patch = patch; overlays.set(id, rec); dropCue(id); emit(id);
         }
         function expire(rec) {
             if (overlays.get(rec.id) !== rec) return;
-            if (rec.expected && rec.frame && valueMatches(rec.frame, rec.expected, rec.step)) { settle(rec); return; }   // late adoption (lead answer Q3)
+            if (rec.expected && rec.frames.some(f => valueMatches(f, rec.expected, rec.step))) { settle(rec); return; }   // late adoption (lead answer Q3): any frame since sending
             rollback(rec, { code: 'timeout', data: {} });
         }
         function post(s, confirmed) {
@@ -105,9 +106,14 @@
             if (typeof s.widgetId === 'string' && s.widgetId) body.widget_id = s.widgetId;
             return api.command(body);
         }
+        const clientError = () => E.api.normalizeError({ hdApiError: false, status: 0, body: { code: 'client' } });
+        function safePost(s, confirmed) {   // always a promise: a throwing or non-promise api.command, or a throwing requestId, is a 'client' failure
+            try { const p = post(s, confirmed); return p && typeof p.then === 'function' ? p : Promise.reject(clientError()); } catch (err) { return Promise.reject(clientError()); }
+        }
         function dispatch(s, cap, patch, confirmed, retried) {
             const rec = track(s, patch, cap);
-            return post(s, confirmed).then(answer => accepted(rec, answer), err => failed(rec, E.api.normalizeError(err), s, cap, patch, confirmed, retried));
+            return safePost(s, confirmed).then(answer => accepted(rec, answer), err => failed(rec, E.api.normalizeError(err), s, cap, patch, confirmed, retried))
+                .catch(() => ({ status: 'failed', code: 'client' }));
         }
         function accepted(rec, answer) {
             const a = isObj(answer) ? answer : {};
@@ -115,7 +121,7 @@
             if (a.superseded === true) { settle(rec); return { status: 'superseded' }; }
             if (!isObj(a.expected)) { confirmRec(rec); return { status: 'confirmed' }; }
             rec.expected = a.expected;
-            if ((rec.frame && matches(rec.frame, rec.expected, rec.step)) || matches(stateOf(store.view(rec.id)), rec.expected, rec.step)) confirmRec(rec);
+            if (rec.frames.some(f => matches(f, rec.expected, rec.step)) || matches(stateOf(store.view(rec.id)), rec.expected, rec.step)) confirmRec(rec);   // any frame since sending (rules 3 and 5)
             return { status: 'accepted' };
         }
         function failed(rec, e, s, cap, patch, confirmed, retried) {
@@ -124,7 +130,7 @@
             if (e.code === 'confirmation_required') { if (current) settle(rec); arm(s); return { status: 'armed' }; }
             if (e.status === 429 && current && !retried && CONTINUOUS.includes(s.command)) {
                 const wait = finite(e.retryAfter) && e.retryAfter > 0 ? Math.round(e.retryAfter * 1000) : TIMING.RETRY_MS;
-                return new Promise(resolve => later(() => resolve(disposed || overlays.get(rec.id) !== rec ? { status: 'stale' } : dispatch(s, cap, patch, confirmed, true)), wait));
+                return new Promise(resolve => { rec.retryDone = () => resolve({ status: 'stale' }); rec.retryTimer = later(() => { rec.retryTimer = 0; rec.retryDone = null; resolve(disposed || overlays.get(rec.id) !== rec ? { status: 'stale' } : dispatch(s, cap, patch, confirmed, true)); }, wait); });
             }
             if (current) rollback(rec, e);
             return { status: 'failed', code: e.code };
@@ -151,7 +157,7 @@
         function intermediate(l) {
             const sig = JSON.stringify(l.spec.args); if (sig === l.sentSig) return;
             l.sentAt = now(); l.sentSig = sig;
-            post(l.spec, false).then(() => {}, () => {});   // 429 dropped (D5); any other failure is decided by the final send
+            safePost(l.spec, false).then(() => {}, () => {});   // 429 dropped (D5); any other failure is decided by the final send
         }
         function finish(l) {
             clearT(l.timer); l.timer = 0; l.kind = ''; l.sentAt = now(); l.sentSig = JSON.stringify(l.spec.args);
@@ -161,6 +167,7 @@
             if (disposed) return Promise.resolve({ status: 'disposed' });
             const s = Object.assign({}, spec), view = store.view(s.entity), cap = capOf(view, s.command);
             if (!view || !cap || cap.allowed === false) return Promise.resolve({ status: 'refused' });
+            if (view.readonly === true || locks.has(s.entity)) return Promise.resolve({ status: 'readonly' });   // rule 9: no POST, no overlay
             let phase = s.phase || 'discrete';
             if ((phase === 'input' || phase === 'commit') && !CONTINUOUS.includes(s.command)) phase = 'discrete';
             const patch = predict(decorate(s.entity, view), s.command, s.args);
@@ -190,7 +197,7 @@
             if (a && a.id === id) out.armed = Object.freeze({ command: a.command, seconds: Math.max(1, Math.ceil((a.until - now()) / 1000)) });
             return Object.freeze(out);
         }
-        function onFrame(id, state) { const rec = overlays.get(id); if (!rec || !rec.sent || !isObj(state)) return; rec.frame = state; if (rec.expected && matches(state, rec.expected, rec.step)) confirmRec(rec); }
+        function onFrame(id, state) { const rec = overlays.get(id); if (!rec || !rec.sent || !isObj(state)) return; rec.frames.push(state); if (rec.frames.length > FRAMES_KEPT) rec.frames.shift(); if (rec.expected && matches(state, rec.expected, rec.step)) confirmRec(rec); }
         const listen = (type, fn) => { stream.on(type, fn); unhook.push(() => stream.off(type, fn)); };
         const ents = d => (d && Array.isArray(d.entities) ? d.entities : []).filter(x => isObj(x) && typeof x.id === 'string');
         listen('state', d => { if (d && isObj(d.changes)) for (const [id, st] of Object.entries(d.changes)) onFrame(id, st); });

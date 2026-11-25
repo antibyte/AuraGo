@@ -4,14 +4,15 @@ const LIGHT = { id: 'ha:light.kitchen', kind: 'light', value: true, available: t
 const SW = { id: 'ha:switch.coffee', kind: 'switch', value: false, available: true, status: 'ok', attributes: {}, capabilities: [cap('toggle'), cap('turn_on'), cap('turn_off')] };
 const SCRIPT = { id: 'ha:script.goodnight', kind: 'script', value: false, available: true, status: 'ok', attributes: {}, capabilities: [cap('activate', { sensitive: true })] };
 const NUM = { id: 'ha:number.boiler_target', kind: 'number', value: 55, available: true, status: 'ok', attributes: {}, capabilities: [cap('set_value', { min: 30, max: 70, step: 1 })] };
-function setup() {
+function setup(over, copts) {
   const { E } = loadEngine(['hd-core.js', 'hd-format.js', 'hd-api.js', 'hd-command.js']), clock = fakeClock(), stream = E.core.emitter(), views = new Map([LIGHT, SW, SCRIPT, NUM].map(v => [v.id, v])), calls = []; let n = 0;
-  const api = { base: '/b', command(body) { let ok, no; const p = new Promise((a, b) => { ok = a; no = b; }); calls.push({ body, at: clock.now(), ok, no }); return p; } };
-  const cmd = E.command.create({ api, stream, store: { view: id => views.get(id) || null }, setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout, now: clock.now, requestId: () => 'r' + (++n) });
+  const api = Object.assign({ base: '/b', command(body) { let ok, no; const p = new Promise((a, b) => { ok = a; no = b; }); calls.push({ body, at: clock.now(), ok, no }); return p; } }, over);
+  const cmd = E.command.create(Object.assign({ api, stream, store: { view: id => views.get(id) || null }, setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout, now: clock.now, requestId: () => 'r' + (++n) }, copts));
   const fail = (status, body) => Object.assign(new Error('HTTP ' + status), { status, body });
   const frame = (id, st) => stream.emit('state', { changes: { [id]: Object.assign({ available: true, updated_at: 'x' }, st) } });
   return { E, clock, views, calls, cmd, fail, frame, d: (id, k) => cmd.decorate(id, views.get(id), k) };
 }
+const readonlyView = v => Object.assign({}, v, { readonly: true });
 const exp = (value, attributes) => ({ status: 'ok', accepted: true, superseded: false, expected: Object.assign({ value, available: true, updated_at: 'x' }, attributes ? { attributes } : {}) });
 export const tests = [
   ['command: predict mirrors the contract expected table; matches uses the tolerances', () => { const { E } = setup(), P = E.command.predict, M = E.command.matches;
@@ -51,6 +52,32 @@ export const tests = [
   ['command: a 429 on the final retries once with a new request_id after retry_after_ms while it is the latest', async () => { const { clock, calls, cmd, fail } = setup();
     cmd.send({ entity: NUM.id, command: 'set_value', args: { value: 60 }, phase: 'commit' }); calls[0].no(fail(429, { code: 'rate_limited', retry_after_ms: 700 })); await clock.advance(699); assert.equal(calls.length, 1);
     await clock.advance(1); assert.equal(calls.length, 2); assert.notEqual(calls[1].body.request_id, calls[0].body.request_id); calls[1].no(fail(429, { code: 'rate_limited', retry_after_ms: 700 })); await clock.advance(2000); assert.equal(calls.length, 2); }],
+  ['command: any matching frame since sending confirms at the 202, even when a later frame does not match (rules 3 and 5)', async () => { const { clock, calls, cmd, frame, d } = setup();
+    cmd.send({ entity: SW.id, command: 'turn_on', args: {} }); frame(SW.id, { value: true }); frame(SW.id, { value: false }); calls[0].ok(exp(true)); await clock.advance(0);
+    assert.equal(d(SW.id).confirmed, true); assert.equal(d(SW.id).pending, false); }],
+  ['command: late adoption sees every frame since sending, not only the last one', async () => { const { clock, calls, cmd, frame, d } = setup();
+    cmd.send({ entity: LIGHT.id, command: 'color_temp', args: { kelvin: 6502 }, phase: 'commit' });
+    frame(LIGHT.id, { value: true, attributes: { color_temp_kelvin: 6300 } }); frame(LIGHT.id, { value: false }); calls[0].ok(exp(true, { color_temp_kelvin: 6502 })); await clock.advance(8000);
+    assert.equal(d(LIGHT.id).status, 'ok'); assert.equal(d(LIGHT.id).error, undefined); assert.ok(!d(LIGHT.id).pending); }],
+  ['command: only the last 8 frames count', async () => { const { clock, calls, cmd, frame, d } = setup();
+    cmd.send({ entity: SW.id, command: 'turn_on', args: {} }); frame(SW.id, { value: true }); for (let i = 0; i < 8; i++) frame(SW.id, { value: false }); calls[0].ok(exp(true)); await clock.advance(0);
+    assert.notEqual(d(SW.id).confirmed, true); }],
+  ['command: a read-only entity or lock is refused with no POST and no overlay (rule 9)', async () => { const { clock, calls, cmd, fail, views, d } = setup();
+    views.set(SW.id, readonlyView(SW)); eq(await cmd.send({ entity: SW.id, command: 'turn_on', args: {} }), { status: 'readonly' }); assert.equal(calls.length, 0); assert.equal(d(SW.id).value, false);
+    cmd.send({ entity: NUM.id, command: 'set_value', args: { value: 60 }, phase: 'commit' }); calls[0].no(fail(403, { code: 'read_only' })); await clock.advance(0);
+    eq(await cmd.send({ entity: NUM.id, command: 'set_value', args: { value: 61 }, phase: 'commit' }), { status: 'readonly' }); assert.equal(calls.length, 1); }],
+  ['command: dispose during the 429 wait cancels the retry', async () => { const { clock, calls, cmd, fail } = setup();
+    cmd.send({ entity: NUM.id, command: 'set_value', args: { value: 60 }, phase: 'commit' }); calls[0].no(fail(429, { code: 'rate_limited', retry_after_ms: 700 })); await clock.advance(300);
+    cmd.dispose(); await clock.advance(5000); assert.equal(calls.length, 1); }],
+  ['command: a 429 on a final that is no longer the latest value is not retried', async () => { const { clock, calls, cmd, fail } = setup();
+    cmd.send({ entity: NUM.id, command: 'set_value', args: { value: 60 }, phase: 'commit' }); cmd.send({ entity: NUM.id, command: 'set_value', args: { value: 61 }, phase: 'commit' });
+    calls[0].no(fail(429, { code: 'rate_limited', retry_after_ms: 700 })); await clock.advance(3000); assert.equal(calls.length, 2); }],
+  ['command: send never rejects when api.command throws, returns a non-promise, or requestId throws', async () => {
+    for (const [over, copts] of [[{ command() { throw new Error('boom'); } }], [{ command() { return undefined; } }], [{}, { requestId: () => { throw new Error('id'); } }]]) {
+      const { cmd, d } = setup(over, copts), r = await cmd.send({ entity: SW.id, command: 'turn_on', args: {} }); eq(r, { status: 'failed', code: 'client' }); assert.equal(d(SW.id).value, false); } }],
+  ['command: a desktop_readonly 403 locks with the desktop reason and tells the bus', async () => { const { clock, calls, cmd, fail, d } = setup(), seen = [];
+    cmd.on('readonly', e => seen.push(e)); cmd.send({ entity: SW.id, command: 'turn_on', args: {} }); calls[0].no(fail(403, { code: 'desktop_readonly' })); await clock.advance(0);
+    assert.equal(d(SW.id).readonlyReason, 'virtual_desktop.readonly'); assert.equal(seen.length, 1); assert.equal(seen[0].desktop, true); assert.equal(seen[0].reason, 'virtual_desktop.readonly'); }],
   ['command: keys move the overlay at once and send one command 400 ms after the last key', async () => { const { clock, calls, cmd, d } = setup();
     for (const v of [41, 42, 43]) { cmd.send({ entity: LIGHT.id, command: 'brightness', args: { value: v }, phase: 'key' }); await clock.advance(100); }
     assert.equal(d(LIGHT.id).attributes.brightness_pct, 43); assert.equal(calls.length, 0); await clock.advance(300); assert.equal(calls.length, 1); eq(calls[0].body.args, { value: 43 }); }],

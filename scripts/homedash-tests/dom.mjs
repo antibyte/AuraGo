@@ -101,9 +101,13 @@ export class FakeElement {
   querySelectorAll(sel) { const list = parseSelector(sel); const out = []; const walk = n => { for (const c of n.children) { if (matchesParsed(c, list)) out.push(c); walk(c); } }; walk(this); return out; }
   querySelector(sel) { return this.querySelectorAll(sel)[0] || null; }
   addEventListener(t, fn, o) { if (o && o.signal) { if (o.signal.aborted) return; o.signal.addEventListener('abort', () => this.removeEventListener(t, fn)); }
-    if (!this._l.has(t)) this._l.set(t, new Set()); this._l.get(t).add(fn); }
+    if (!this._l.has(t)) this._l.set(t, new Set()); this._l.get(t).add(fn); if (o && o.capture) (this._cap || (this._cap = new Set())).add(fn); }
   removeEventListener(t, fn) { const s = this._l.get(t); if (s) s.delete(fn); }
-  dispatchEvent(ev) { if (!ev.target) ev.target = this; if (!ev.currentTarget) ev.currentTarget = this; for (const fn of [...(this._l.get(ev.type) || [])]) fn.call(this, ev); return true; }
+  // Capture listeners run before the others (as at the target in a browser); stopImmediatePropagation ends the loop. No propagation between nodes.
+  dispatchEvent(ev) { if (!ev.target) ev.target = this; if (!ev.currentTarget) ev.currentTarget = this;
+    let halted = false; if (typeof ev.stopImmediatePropagation !== 'function') ev.stopImmediatePropagation = () => { halted = true; };
+    const all = [...(this._l.get(ev.type) || [])], cap = this._cap || new Set();
+    for (const fn of [...all.filter(f => cap.has(f)), ...all.filter(f => !cap.has(f))]) { if (halted) break; fn.call(this, ev); } return true; }
   getBoundingClientRect() { return { x: 0, y: 0, width: 0, height: 0, top: 0, left: 0, right: 0, bottom: 0 }; }
   focus() { this.ownerDocument.activeElement = this; }
 }

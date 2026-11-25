@@ -24,7 +24,7 @@
         const now = o.now || (() => Date.now()), random = o.random || Math.random, bus = E.core.emitter(), owners = new Map();
         let source = null, streamId = '', phase = 'idle', reason = '', phaseAt = now(), generation = 0, failures = 0, helloSeen = false, helloAt = 0;
         let watchMs = WATCH_MIN_MS, limit = DEFAULT_LIMIT, retryTimer = 0, putTimer = 0, watchTimer = 0, idleTimer = 0, nextRetryAt = 0;
-        let wantIds = [], wantSig = '', sentSig = '', sending = false, dirty = false, putRetries = 0, stopped = false, disposed = false;
+        let wantIds = [], wantSig = '', sentSig = '', ackedCount = 0, sending = false, dirty = false, putRetries = 0, stopped = false, disposed = false;
 
         const status = () => Object.freeze({ phase, reason, streamId, attempt: failures, nextRetryAt, since: phaseAt });
         function setPhase(next, why) { const r = why || ''; if (phase === next && reason === r) return; phase = next; reason = r; phaseAt = now(); bus.emit('connection', status()); }
@@ -39,7 +39,7 @@
         function refreshWant() {
             if (disposed) return;
             const next = union(), sig = signature(next);
-            if (sig !== wantSig) { wantIds = next; wantSig = sig; putRetries = 0; if (phase === 'live') schedulePut(sentSig === '' ? 0 : DEBOUNCE_MS); }
+            if (sig !== wantSig) { wantIds = next; wantSig = sig; putRetries = 0; if (phase === 'live') schedulePut(ackedCount === 0 && !sending ? 0 : DEBOUNCE_MS); }   // leading PUT: the acknowledged subscription is empty and nothing is in flight
             if (stopped) return;
             if (anyActive()) { if (idleTimer) { clearT(idleTimer); idleTimer = 0; } if (phase === 'idle') connect(); }
             else if (!idleTimer && phase !== 'idle') idleTimer = setT(() => { idleTimer = 0; if (!anyActive()) { teardown(); failures = 0; setPhase('idle', 'inactive'); } }, IDLE_CLOSE_MS);
@@ -53,7 +53,7 @@
             try {
                 const answer = await api.putSubscriptions(streamId, list);
                 if (mine !== generation) return;
-                sentSig = sig; putRetries = 0;
+                sentSig = sig; ackedCount = list.length; putRetries = 0;
                 bus.emit('subscribed', { accepted: Array.isArray(answer && answer.accepted) ? answer.accepted : [], rejected: Array.isArray(answer && answer.rejected) ? answer.rejected : [] });
             } catch (err) {
                 if (mine !== generation) return;
@@ -63,7 +63,7 @@
                 if (e.status === 401) { stop('auth_lost'); return; }
                 if (e.code !== 'aborted' && putRetries < PUT_RETRIES) { putRetries += 1; dirty = true; }
             } finally {
-                if (mine === generation) { sending = false; if (dirty && phase === 'live') schedulePut(putRetries ? PUT_RETRY_MS : 0); }
+                if (mine === generation) { sending = false; if (dirty && phase === 'live') schedulePut(putRetries ? PUT_RETRY_MS : DEBOUNCE_MS); }
             }
         }
         function armWatchdog() { clearT(watchTimer); watchTimer = setT(() => { watchTimer = 0; failure('watchdog'); }, watchMs); }
@@ -71,7 +71,7 @@
             generation += 1;
             if (source) { const old = source; source = null; try { old.close(); } catch (err) { /* already closed */ } }
             clearT(putTimer); clearT(watchTimer); clearT(retryTimer); putTimer = watchTimer = retryTimer = 0;
-            streamId = ''; sentSig = ''; sending = false; dirty = false; helloSeen = false; nextRetryAt = 0;
+            streamId = ''; sentSig = ''; ackedCount = 0; sending = false; dirty = false; helloSeen = false; nextRetryAt = 0;
         }
         function connect() {
             if (source || stopped || disposed) return;
@@ -79,7 +79,7 @@
             generation += 1; const mine = generation;
             let next;
             try { next = api.openStream(); } catch (err) { failure('open'); return; }
-            source = next; streamId = ''; sentSig = ''; helloSeen = false;
+            source = next; streamId = ''; sentSig = ''; ackedCount = 0; helloSeen = false;
             const live = () => source === next && mine === generation;
             const on = (type, fn) => next.addEventListener(type, event => { if (!live()) return; armWatchdog(); const data = parse(event && event.data); if (data) fn(data); });
             on('hello', hello);
@@ -95,7 +95,7 @@
             if (!id) { failure('protocol'); return; }
             const hb = Number(data.heartbeat_ms), lim = Number(data.limits && data.limits.entities);
             streamId = id; watchMs = Math.max(WATCH_MIN_MS, WATCH_FACTOR * (hb > 0 ? hb : 0)); limit = Number.isInteger(lim) && lim > 0 ? lim : DEFAULT_LIMIT;
-            helloSeen = true; helloAt = now(); sentSig = ''; sending = false; dirty = false; putRetries = 0;
+            helloSeen = true; helloAt = now(); sentSig = ''; ackedCount = 0; sending = false; dirty = false; putRetries = 0;
             armWatchdog();
             wantIds = union(); wantSig = signature(wantIds);
             setPhase('live');

@@ -30,6 +30,13 @@ export const tests = [
     const a = s.attach('a', { entities: [], active: true }); es.last().emit('hello', HELLO); await clock.flush(); assert.equal(api.puts.length, 0);
     a.set(['system:cpu']); await clock.advance(0); assert.deepEqual(api.puts, [{ streamId: 's1', ids: ['system:cpu'] }]);
     a.set(['system:cpu', 'system:disk']); await clock.advance(249); assert.equal(api.puts.length, 1); await clock.advance(1); assert.deepEqual(api.puts[1].ids, ['system:cpu', 'system:disk']); s.dispose(); }],
+  ['stream: a change made while the first PUT is in flight waits for the reply, then goes out after the 250 ms debounce', async () => {
+    const { s, clock, es, api } = setup(); let release = null, calls = 0;
+    api.putSubscriptions = (streamId, ids) => { calls += 1; const list = Array.from(ids); return new Promise(ok => { release = () => ok({ status: 'ok', accepted: list, rejected: [] }); }); };
+    const a = s.attach('a', { entities: [], active: true }); es.last().emit('hello', HELLO); await clock.flush(); assert.equal(calls, 0);
+    a.set(['system:cpu']); await clock.advance(0); assert.equal(calls, 1);
+    a.set(['system:cpu', 'system:disk']); await clock.advance(1000); assert.equal(calls, 1); release(); await clock.flush();
+    await clock.advance(249); assert.equal(calls, 1); await clock.advance(1); assert.equal(calls, 2); s.dispose(); }],
   ['stream: errors close the source and back off; failures before hello wait 5 s; 60 s of life resets the backoff', async () => {
     const { s, clock, es, random } = setup();
     s.attach('a', { entities: ['system:cpu'], active: true }); es.last().emit('hello', HELLO); await clock.flush();
