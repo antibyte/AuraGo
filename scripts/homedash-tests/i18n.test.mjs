@@ -10,21 +10,21 @@ const hd = {}, desk = {};
 for (const loc of LOCALES) { hd[loc] = load('homedash', loc); desk[loc] = load('desktop', loc); }
 
 // Values that stay identical in every language (brand names, technical abbreviations and units).
-const SAME_VALUES = new Set(['HomeDash', 'CPU']);
+const SAME_VALUES = new Set(['HomeDash', 'CPU', 'Home Assistant']);
 
 // Genuine loanwords: the native UI uses the English word. locale -> keys, with the reason on each line.
 const SAME_WORD_KEYS = {
   cs: ['homedash.climate.mode_auto', 'homedash.conn.offline', 'homedash.system.disk'], // Czech UIs use "Auto" and "Offline" as they are; "Disk" is the Czech word for a disk
-  da: ['homedash.climate.mode_auto', 'homedash.conn.live', 'homedash.conn.offline', 'homedash.home.title', 'homedash.view.back', 'homedash.home.starter_name', 'homedash.source.system'], // Danish: Auto, Live, Offline, Dashboards, System
+  da: ['homedash.climate.mode_auto', 'homedash.conn.live', 'homedash.conn.offline', 'homedash.home.title', 'homedash.view.back', 'homedash.home.starter_name', 'homedash.source.system', 'homedash.kind.scene'], // Danish: Auto, Live, Offline, Dashboards, System; Scene is the native word and the Home Assistant term
   de: ['homedash.climate.mode_auto', 'homedash.conn.live', 'homedash.conn.offline', 'homedash.home.title', 'homedash.view.back', 'homedash.home.starter_name', 'homedash.source.system'], // German: Auto, Live, Offline, Dashboards, System
-  es: ['homedash.climate.mode_auto'], // "Auto" is the usual Spanish thermostat label
-  fr: ['homedash.climate.mode_auto', 'homedash.view.pages'], // "Auto" is the usual French thermostat label; "Pages" is the French word too
-  it: ['homedash.climate.mode_auto', 'homedash.conn.offline'], // Italian apps use "Auto" and "Offline"
-  nl: ['homedash.climate.mode_auto', 'homedash.conn.live', 'homedash.conn.offline', 'homedash.home.title', 'homedash.view.back'], // Dutch: Auto, Live, Offline, Dashboards
-  no: ['homedash.climate.mode_auto', 'homedash.conn.live', 'homedash.home.starter_name', 'homedash.source.system'], // Norwegian: Auto, Live, System
+  es: ['homedash.climate.mode_auto', 'homedash.kind.script'], // "Auto" is the usual Spanish thermostat label; "Script" is the Home Assistant term
+  fr: ['homedash.climate.mode_auto', 'homedash.view.pages', 'homedash.kind.script'], // "Auto" is the usual French thermostat label; "Pages" is the French word too; "Script" is the Home Assistant term
+  it: ['homedash.climate.mode_auto', 'homedash.conn.offline', 'homedash.control.dimmer', 'homedash.kind.script'], // Italian apps use "Auto" and "Offline"; "dimmer" is the everyday word; "Script" is the Home Assistant term
+  nl: ['homedash.climate.mode_auto', 'homedash.conn.live', 'homedash.conn.offline', 'homedash.home.title', 'homedash.view.back', 'homedash.control.effect', 'homedash.control.dimmer', 'homedash.kind.script'], // Dutch: Auto, Live, Offline, Dashboards; "Effect", "dimmer" and "Script" are used as they are
+  no: ['homedash.climate.mode_auto', 'homedash.conn.live', 'homedash.home.starter_name', 'homedash.source.system', 'homedash.control.dimmer', 'homedash.kind.scene'], // Norwegian: Auto, Live, System; "dimmer" is the everyday word; "Scene" is the native word and the Home Assistant term
   pl: ['homedash.climate.mode_auto', 'homedash.conn.offline', 'homedash.home.starter_name', 'homedash.source.system'], // Polish: Auto, Offline, System
-  pt: ['homedash.climate.mode_auto', 'homedash.conn.offline'], // Portuguese apps use "Auto" and "Offline"
-  sv: ['homedash.climate.mode_auto', 'homedash.conn.live', 'homedash.conn.offline', 'homedash.home.starter_name', 'homedash.source.system'] // Swedish: Auto, Live, Offline, System
+  pt: ['homedash.climate.mode_auto', 'homedash.conn.offline', 'homedash.control.dimmer', 'homedash.kind.script'], // Portuguese apps use "Auto" and "Offline"; "dimmer" is the everyday word; "Script" is the Home Assistant term
+  sv: ['homedash.climate.mode_auto', 'homedash.conn.live', 'homedash.conn.offline', 'homedash.home.starter_name', 'homedash.source.system', 'homedash.control.dimmer'] // Swedish: Auto, Live, Offline, System; "dimmer" is the everyday word
 };
 
 const letters = /\p{L}/u;
