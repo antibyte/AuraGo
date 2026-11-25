@@ -106,6 +106,7 @@ func registerCodeStudioRoutes(mux *http.ServeMux, s *Server) {
 	mux.HandleFunc("/api/code-studio/git/blame", handlers.handleGitBlame)
 	registerCodeStudioPreviewRoutes(mux, handlers) // HTML preview (token route is auth-exempt, see authBypassSubtrees)
 	registerCodeStudioWorkspaceRoutes(mux, handlers)
+	tools.SetCodeStudioWorkspaceProvider(codeStudioAgentWorkspaces{s: s}) // agent tool code_studio_workspace (SSH workspaces)
 }
 
 func (h *codeStudioHandlers) codeContainer(ctx context.Context, start bool) (*desktop.CodeContainerService, string, error) {
