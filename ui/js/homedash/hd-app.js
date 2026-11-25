@@ -68,6 +68,7 @@
                 const b = await api.bootstrap();
                 if (disposed) return;
                 store.setSources(b.sources);
+                realm.stream.resume(); // a stream stopped by revoked disabled/auth_lost restarts once bootstrap answers again (no-op otherwise)
                 const ro = !!o.readonly || b.desktop_readonly === true;
                 store.setDesktopReadonly(ro);
                 const cat = await store.widgetCatalog(b.catalog_hash);
