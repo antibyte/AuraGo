@@ -4338,3 +4338,74 @@ button.cs-git-branch:hover,
 .cs-lsp-bulb svg {
     display: block;
 }
+/* === Plan C: SSH workspaces — chrome ===================================================== */
+.cs-ws-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.cs-ws-glyph { flex: 0 0 auto; display: block; }
+.cs-ws-spinner { flex: 0 0 auto; width: 12px; height: 12px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: cs-spin 0.8s linear infinite; }
+
+.cs-ws-switcher { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 38px; margin: 0 0 4px; padding: 5px 8px; border: 1px solid var(--vd-mat-field-border, var(--cs-line)); border-radius: var(--vd-mat-field-radius, var(--cs-radius-md)); color: var(--cs-text); background: var(--vd-mat-field, var(--cs-panel-soft)); font: inherit; text-align: left; cursor: pointer; transition: border-color var(--cs-transition-fast), background var(--cs-transition-fast); }
+.cs-ws-switcher:hover { background: var(--cs-hover); }
+.cs-ws-switcher:focus-visible { outline: 2px solid var(--cs-accent-border); outline-offset: 1px; }
+.cs-ws-switcher[aria-expanded="true"] { border-color: var(--cs-accent-border); }
+.cs-ws-switcher-icon { display: inline-flex; color: var(--cs-muted); }
+.cs-ws-switcher:is([data-remote-state="connected"], [data-remote-state="connecting"]) .cs-ws-switcher-icon { color: var(--cs-accent); }
+.cs-ws-switcher:is([data-remote-state="lost"], [data-remote-state="hostkey"]) .cs-ws-switcher-icon { color: var(--cs-warning); }
+.cs-ws-switcher[data-remote-state="error"] .cs-ws-switcher-icon { color: var(--cs-danger); }
+.cs-ws-switcher-text { display: grid; flex: 1 1 auto; min-width: 0; line-height: 1.25; }
+.cs-ws-switcher-label { overflow: hidden; font-size: 12px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.cs-ws-switcher-sub { overflow: hidden; color: var(--cs-muted); font: 11px var(--cs-mono-font); text-overflow: ellipsis; white-space: nowrap; }
+.cs-ws-switcher-chevron { display: inline-flex; color: var(--cs-muted); transition: transform var(--cs-transition-fast); }
+.cs-ws-switcher[aria-expanded="true"] .cs-ws-switcher-chevron { transform: rotate(180deg); }
+
+.cs-ws-dot { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%; background: var(--cs-muted); opacity: 0.6; }
+.cs-ws-dot[data-ws-dot="connected"] { background: var(--cs-success); opacity: 1; }
+.cs-ws-dot[data-ws-dot="connecting"] { background: var(--cs-accent); opacity: 1; animation: cs-pulse 1.2s ease-in-out infinite; }
+.cs-ws-dot:is([data-ws-dot="lost"], [data-ws-dot="hostkey"]) { background: var(--cs-warning); opacity: 1; }
+.cs-ws-dot[data-ws-dot="error"] { background: var(--cs-danger); opacity: 1; }
+
+.code-studio-statusbar > span.cs-status-remote { flex: 0 0 auto; align-self: stretch; max-width: 22em; margin-left: -10px; padding: 0 10px; border-radius: 0; color: var(--cs-muted); }
+.code-studio-statusbar > span.cs-status-remote:focus-visible { outline: 2px solid var(--cs-accent-border); outline-offset: -2px; }
+.code-studio-statusbar > span.cs-status-remote:not([data-remote-state="local"]) { color: var(--cs-accent-contrast); background: var(--cs-accent); }
+.code-studio-statusbar > span.cs-status-remote:not([data-remote-state="local"]):hover { filter: brightness(1.08); }
+.code-studio-statusbar > span.cs-status-remote:is([data-remote-state="lost"], [data-remote-state="hostkey"]) { color: #1d1400; background: var(--cs-warning); }
+.code-studio-statusbar > span.cs-status-remote[data-remote-state="error"] { color: #fff; background: var(--cs-danger); }
+.cs-status-remote-label { overflow: hidden; font-weight: 600; text-overflow: ellipsis; }
+
+.cs-ws-banner { display: flex; flex: 0 0 auto; align-items: center; gap: 10px; min-height: 36px; padding: 6px 12px; border-bottom: 1px solid var(--cs-line); color: var(--cs-text); background: rgba(245, 181, 68, 0.14); font-size: 12px; }
+.cs-ws-banner[hidden] { display: none; }
+.cs-ws-banner[data-ws-banner-state="error"] { background: var(--cs-danger-soft); }
+.cs-ws-banner[data-ws-banner-state="connecting"] { background: var(--cs-accent-faint); }
+.cs-ws-banner-icon { display: inline-flex; color: var(--cs-warning); }
+.cs-ws-banner[data-ws-banner-state="error"] .cs-ws-banner-icon { color: var(--cs-danger); }
+.cs-ws-banner[data-ws-banner-state="connecting"] .cs-ws-banner-icon { color: var(--cs-accent); }
+.cs-ws-banner-text { display: flex; flex: 1 1 auto; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; min-width: 0; }
+.cs-ws-banner-detail { color: var(--cs-muted); }
+.cs-ws-banner-actions { display: inline-flex; flex: 0 0 auto; gap: 6px; }
+.cs-ws-banner-actions .cs-button { min-height: 26px; padding: 0 10px; }
+
+.cs-context-menu.cs-ws-menu { min-width: 280px; max-width: min(440px, calc(100vw - 16px)); max-height: min(70vh, 520px); overflow-y: auto; gap: 1px; }
+.cs-ws-menu-heading { padding: 6px 9px 3px; color: var(--vd-mat-label-color, var(--cs-muted)); font: 700 10.5px var(--vd-mat-label-font, var(--cs-ui-font)); letter-spacing: var(--vd-mat-label-tracking, 0.5px); text-transform: var(--vd-mat-label-transform, uppercase); }
+.cs-ws-menu-row { display: flex; align-items: center; gap: 2px; border-radius: var(--ds-radius-sm, 6px); }
+.cs-context-menu.cs-ws-menu button span { flex: 0 0 auto; }
+.cs-context-menu.cs-ws-menu button.cs-ws-menu-item { display: flex; flex: 1 1 auto; align-items: center; gap: 9px; min-width: 0; height: auto; min-height: 32px; padding: 5px 9px; }
+.cs-context-menu.cs-ws-menu button span.cs-ws-menu-text { display: grid; flex: 1 1 auto; min-width: 0; line-height: 1.3; white-space: normal; }
+.cs-context-menu.cs-ws-menu button:focus-visible { outline: 2px solid var(--cs-accent-border); outline-offset: -2px; }
+.cs-ws-menu-row.is-current .cs-ws-menu-item { background: var(--cs-accent-faint); }
+.cs-ws-menu-icon { display: inline-flex; color: var(--cs-muted); }
+.cs-ws-menu-row.is-current .cs-ws-menu-icon { color: var(--cs-accent); }
+.cs-context-menu.cs-ws-menu .cs-ws-menu-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cs-context-menu.cs-ws-menu .cs-ws-menu-sub { overflow: hidden; color: var(--cs-muted); font: 11px var(--cs-mono-font); text-overflow: ellipsis; white-space: nowrap; }
+.cs-ws-menu-check { display: inline-flex; width: 14px; color: var(--cs-accent); }
+.cs-context-menu.cs-ws-menu button.cs-ws-menu-remove { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; color: var(--cs-muted); opacity: 0; }
+.cs-ws-menu-row:is(:hover, :focus-within) .cs-ws-menu-remove { opacity: 1; }
+.cs-context-menu.cs-ws-menu button.cs-ws-menu-remove:hover { color: var(--cs-danger); background: var(--cs-danger-soft); }
+@media (hover: none) { .cs-context-menu.cs-ws-menu button.cs-ws-menu-remove { width: 34px; height: 34px; opacity: 1; } }
+
+.cs-ws-dialog-title { margin: 0; color: var(--cs-text); font-size: 15px; font-weight: 650; }
+.cs-modal.cs-ws-dirty { width: min(440px, calc(100vw - 32px)); }
+.cs-modal.cs-ws-dirty .cs-ws-dialog-title { margin-bottom: 8px; }
+.cs-ws-git-missing strong { color: var(--cs-text); }
+
+@media (prefers-reduced-motion: reduce) {
+    .cs-ws-menu *, .cs-ws-spinner, .cs-ws-dot, .cs-ws-switcher, .cs-ws-switcher-chevron { animation: none !important; transition: none !important; }
+}
