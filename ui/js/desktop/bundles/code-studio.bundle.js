@@ -569,6 +569,7 @@
         });
         latestWindowId = windowId;
         runWithInstance(instance, watchStudioPolicy);
+        runWithInstance(instance, watchAgentFileChanges);
         runWithInstance(instance, () => {
             loadState();
             container.innerHTML = shellMarkup();
@@ -5826,6 +5827,34 @@
         sendAgentMessage(prompts[action] || prompts.explain, action);
     }
 
+    // Plan C keeps the active workspace id in state.workspaceId ('local' or a saved SSH workspace id).
+    function agentWorkspaceId() {
+        const id = state && state.workspaceId;
+        return typeof id === 'string' && id ? id : 'local';
+    }
+
+    // code_studio_file_changed {workspace_id, path} follows code_studio_workspace writes (path '' after run_command).
+    // Clean tabs of that workspace re-read the file (dirty tabs keep the user's text), the ready language servers
+    // hear about it, and the open folder in the Explorer refreshes when the file sits in it.
+    function watchAgentFileChanges() {
+        const instance = state;
+        const sse = window.AuraSSE;
+        if (!sse || typeof sse.on !== 'function') return;
+        const onEvent = bindInstance(instance, rawEvent => {
+            const event = rawEvent && rawEvent.type === 'virtual_desktop_event' && rawEvent.payload ? rawEvent.payload : rawEvent;
+            if (!event || event.type !== 'code_studio_file_changed') return;
+            const payload = event.payload || {};
+            if (String(payload.workspace_id || '') !== agentWorkspaceId()) return;
+            const changed = typeof payload.path === 'string' && payload.path ? normalizeCodeStudioPath(payload.path) : '';
+            const tabs = state.openTabs.filter(tab => !isVirtualTab(tab) && (!changed || tab.path === changed));
+            tabs.forEach(tab => { reloadCleanTabFromDisk(instance, tab); });
+            lspNotifyFilesChanged(changed ? [{ path: changed, type: 2 }] : tabs.map(tab => ({ path: tab.path, type: 2 })));
+            if (!changed || parentPath(changed) === state.currentPath) refreshFiles(state.currentPath);
+        });
+        sse.on('virtual_desktop_event', onEvent);
+        registerDisposer(() => { if (typeof sse.off === 'function') sse.off('virtual_desktop_event', onEvent); });
+    }
+
     function codeStudioAgentContext() {
         const tab = activeTab();
         const cursor = codeStudioCursor();
@@ -5833,6 +5862,7 @@
         const content = tab ? editorValue(tab) : '';
         return {
             source: 'code-studio',
+            workspace_id: agentWorkspaceId(),
             current_file: tab && !isVirtualTab(tab) ? tab.path : '',
             current_language: tab ? tab.language : '',
             current_content: selection.text ? '' : content,
@@ -9387,6 +9417,8 @@
     var LANGUAGES = ['go', 'typescript', 'python', 'cpp'];
     // One problem source per server, distinct from the container checks (go build, tsc, py_compile, gcc, ...).
     var SOURCES = { go: 'gopls', typescript: 'typescript', python: 'pyright', cpp: 'clangd' };
+    // The executables the bridge probes; they match codeStudioLSPServerFor (code_studio_lsp.go).
+    var BINARIES = { go: 'gopls', typescript: 'typescript-language-server', python: 'pyright-langserver', cpp: 'clangd' };
     var LANGUAGE_BY_EXTENSION = {
         go: 'go',
         ts: 'typescript', tsx: 'typescript', js: 'typescript', jsx: 'typescript', mjs: 'typescript', cjs: 'typescript',
@@ -9425,6 +9457,10 @@
 
     function sourceForLanguage(language) {
         return own(SOURCES, language) ? SOURCES[language] : '';
+    }
+
+    function binaryForLanguage(language) {
+        return own(BINARIES, language) ? BINARIES[language] : '';
     }
 
     // An absolute container path below /workspace without dot segments, or null.
@@ -9542,6 +9578,7 @@
         languageForPath: languageForPath,
         languageIdForPath: languageIdForPath,
         sourceForLanguage: sourceForLanguage,
+        binaryForLanguage: binaryForLanguage,
         uriForPath: uriForPath,
         pathForUri: pathForUri,
         diagnosticsToProblems: diagnosticsToProblems,
@@ -9619,8 +9656,9 @@
             }
         }
     };
-    // The files a branch switch changed: HEAD@{1} is where HEAD pointed before the switch.
-    const LSP_BRANCH_DIFF_COMMAND = "git -C /workspace -c core.quotePath=false diff --name-status --no-renames 'HEAD@{1}' HEAD";
+    // The files a branch switch changed: HEAD@{1} is where HEAD pointed before the switch. It runs in the exec cwd
+    // (WORKSPACE_ROOT), which is the folder of the active workspace, local or SSH.
+    const LSP_BRANCH_DIFF_COMMAND = "git -c core.quotePath=false diff --name-status --no-renames 'HEAD@{1}' HEAD";
     const LSP_SANITIZE_DROP = new Set(['SCRIPT', 'STYLE', 'IFRAME', 'FRAME', 'FRAMESET', 'OBJECT', 'EMBED', 'APPLET', 'SVG', 'MATH',
         'TEMPLATE', 'IMG', 'PICTURE', 'SOURCE', 'VIDEO', 'AUDIO', 'TRACK', 'CANVAS', 'LINK', 'META', 'BASE', 'FORM', 'INPUT', 'BUTTON',
         'TEXTAREA', 'SELECT', 'OPTION', 'NOSCRIPT', 'DIALOG']);
@@ -9759,7 +9797,7 @@
         };
         socket.onerror = () => {};
         socket.onclose = bindInstance(instance, event => {
-            if (conn.socket === socket) lspSocketClosed(conn, event.code);
+            if (conn.socket === socket) lspSocketClosed(conn, event.code, event.reason);
         });
     }
 
@@ -9776,12 +9814,14 @@
         }
     }
 
-    function lspSocketClosed(conn, code) {
+    function lspSocketClosed(conn, code, reason) {
         conn.socket = null;
         conn.synced = false;
         lspRejectPending(conn, 'disconnected');
         if (conn.client) conn.client.disconnect();
         if (code === 4404) {
+            // Remote: "gopls is not installed on dev@build-box"; the status item prefers its own localized text.
+            conn.closeReason = String(reason || '');
             lspEndSession(conn, 'not-installed');
             return;
         }
@@ -10465,14 +10505,18 @@
 
     // --- Status bar ---------------------------------------------------------------------------
 
-    function lspStateText(stateName) {
+    function lspStateText(stateName, conn) {
         switch (stateName) {
             case 'starting': return tr('codeStudio.lspStarting', 'Starting...');
             case 'ready': return tr('codeStudio.lspReady', 'Ready');
             case 'disconnected': return tr('codeStudio.lspDisconnected', 'Disconnected');
-            case 'not-installed': return workspaceIsRemote()
-                ? tr('codeStudio.workspaceLspNotInstalled', 'not installed on {{host}}', { host: workspaceHostLabel() }) // Plan C
-                : tr('codeStudio.lspNotInstalled', 'Language server not installed — rebuild the Code Studio image');
+            case 'not-installed': {
+                if (!workspaceIsRemote()) return tr('codeStudio.lspNotInstalled', 'Language server not installed — rebuild the Code Studio image');
+                const host = workspaceHostLabel();
+                if (!host && conn && conn.closeReason) return conn.closeReason;
+                return tr('codeStudio.lspRemoteNotInstalled', '{{binary}} is not installed on {{host}}',
+                    { binary: LSP_PROTOCOL.binaryForLanguage(conn && conn.language), host });
+            }
             case 'too-many': return tr('codeStudio.lspTooMany', 'Too many language servers');
             case 'error': return tr('codeStudio.lspError', 'Error — click to restart');
             default: return tr('codeStudio.lspIdle', 'Idle');
@@ -10480,15 +10524,28 @@
     }
 
     // The active file's server: state dot plus label; a click restarts it (renderStatus wires the click).
+    // In an SSH workspace the tooltip names the host; a missing remote server says what to install where.
     function lspStatusMarkup(tab) {
         const instance = state;
         if (!isSourceTab(tab) || !lspAvailable(instance, instance && instance.cmModule)) return '';
         const language = LSP_PROTOCOL.languageForPath(tab.path);
         const conn = language ? lspConnectionOf(instance, language) : null;
         if (!conn || (conn.state === 'off' && !conn.client)) return '';
-        const label = tr('codeStudio.lspStatus', '{{server}}: {{state}}', { server: LSP_SERVER_NAMES[language], state: lspStateText(conn.state) });
-        const hint = tr('codeStudio.lspRestartHint', 'Click to restart the language server');
-        return `<span class="cs-status-item cs-status-lsp" data-clickable data-status-lsp="${esc(language)}" data-lsp-state="${esc(conn.state)}" title="${esc(label + '\n' + hint)}"><span class="cs-lsp-dot" data-lsp-state="${esc(conn.state)}"></span><span class="cs-status-lsp-label">${esc(label)}</span></span>`;
+        const remote = workspaceIsRemote();
+        const host = remote ? workspaceHostLabel() : '';
+        const stateText = lspStateText(conn.state, conn);
+        const missingRemote = remote && conn.state === 'not-installed';
+        const label = missingRemote ? stateText : tr('codeStudio.lspStatus', '{{server}}: {{state}}', { server: LSP_SERVER_NAMES[language], state: stateText });
+        const hints = [];
+        if (missingRemote) {
+            hints.push(tr('codeStudio.lspRemoteInstallHint', 'Install {{binary}} on {{host}}, then click to try again',
+                { binary: LSP_PROTOCOL.binaryForLanguage(language), host }));
+        } else {
+            if (remote) hints.push(tr('codeStudio.lspRemoteRunning', 'Runs on {{host}} over SSH', { host }));
+            hints.push(tr('codeStudio.lspRestartHint', 'Click to restart the language server'));
+        }
+        const title = [label].concat(hints).join('\n');
+        return `<span class="cs-status-item cs-status-lsp" data-clickable data-status-lsp="${esc(language)}" data-lsp-state="${esc(conn.state)}"${remote ? ' data-lsp-remote' : ''} title="${esc(title)}" aria-label="${esc(title)}"><span class="cs-lsp-dot" data-lsp-state="${esc(conn.state)}"></span><span class="cs-status-lsp-label">${esc(label)}</span></span>`;
     }
 
     // --- Code Studio writes ---------------------------------------------------------------------
