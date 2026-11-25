@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"aurago/internal/desktop"
+	"aurago/internal/inventory"
 
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
@@ -412,4 +413,50 @@ func codeStudioRemoteCallerAllowed(s *Server, r *http.Request) bool {
 func codeStudioRemoteScopeError() error {
 	return &codeStudioRemoteError{Status: http.StatusForbidden, Code: "remote_scope_required",
 		Message: "SSH workspaces need a session or a desktop:admin token"}
+}
+
+// codeStudioBackendByID resolves a workspace id without any request: ""/"local" is the
+// container, anything else a saved SSH workspace. The SSH connection is NOT dialed here;
+// it opens lazily on the first operation (host key 409 / auth errors surface there).
+// An unknown id returns an error matching errCodeStudioWorkspaceNotFound. Callers that
+// act for an HTTP request must apply codeStudioRemoteCallerAllowed first (backendFor does).
+func (h *codeStudioHandlers) codeStudioBackendByID(ctx context.Context, id string) (codeStudioBackend, error) {
+	id = strings.TrimSpace(id)
+	if id == "" || id == codeStudioLocalWorkspaceID {
+		return h.localBackend(ctx)
+	}
+	if !codeStudioWorkspaceIDPattern.MatchString(id) {
+		return nil, &codeStudioRemoteError{Status: http.StatusBadRequest, Code: "invalid_workspace", Message: "invalid workspace id"}
+	}
+	store, err := h.workspaceStore(ctx)
+	if err != nil {
+		return nil, codeStudioUnavailableError{err}
+	}
+	rec, err := store.Get(ctx, id)
+	if errors.Is(err, errCodeStudioWorkspaceRecordNotFound) {
+		return nil, codeStudioWorkspaceNotFound()
+	}
+	if err != nil {
+		return nil, err
+	}
+	remote := h.remoteState()
+	if remote.shouldTouch(rec.ID, time.Now()) {
+		_ = store.Touch(ctx, rec.ID, nil)
+	}
+	return newCodeStudioSSHBackend(rec, remote.pool, h.codeStudioSSHTargetFor(remote, rec.DeviceID)), nil
+}
+
+// codeStudioSSHTargetFor describes the device for Info() without dialing or reading the vault.
+func (h codeStudioHandlers) codeStudioSSHTargetFor(remote *codeStudioRemote, deviceID string) codeStudioSSHTarget {
+	if target, ok := remote.pool.connected(deviceID); ok {
+		return target
+	}
+	target := codeStudioSSHTarget{DeviceID: deviceID}
+	if h.server != nil && h.server.InventoryDB != nil {
+		if device, err := inventory.GetDeviceByID(h.server.InventoryDB, deviceID); err == nil {
+			a := desktop.DescribeSSHDevice(h.server.InventoryDB, device)
+			target = codeStudioSSHTarget{DeviceID: deviceID, Name: a.Name, Host: a.Host, Port: a.Port, User: a.Username}
+		}
+	}
+	return target
 }

@@ -4,9 +4,14 @@ import (
 	"context"
 	"errors"
 	"io"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	"golang.org/x/crypto/ssh"
 )
 
 func TestCodeStudioSSHBackendFiles(t *testing.T) {
@@ -174,5 +179,83 @@ func TestCodeStudioSSHBackendTerminalAndProcess(t *testing.T) {
 	_ = proc.CloseWrite()
 	if err := proc.Wait(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestCodeStudioBackendForSSHWorkspaceServesHandlers(t *testing.T) {
+	f := startCodeStudioSSHFixture(t)
+	s := testCodeStudioServerWithFakeCodeContainer(t, 1)
+	_, remote := newCodeStudioTestSSHBackend(t, f, "/home/dev/proj")
+	h := codeStudioHandlers{server: s, docker: &recordingCodeStudioDockerAPI{}, remote: remote}
+	store, _ := h.workspaceStore(context.Background())
+	rec, _ := store.Upsert(context.Background(), "dev1", "/home/dev/proj", "", nil)
+	if err := f.adminSFTP(t).MkdirAll("/home/dev/proj/pkg"); err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodGet, "/api/code-studio/files?path=/workspace", nil)
+	req.Header.Set(codeStudioWorkspaceHeader, rec.ID)
+	w := httptest.NewRecorder()
+	h.handleFiles(w, req)
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"/workspace/pkg"`) {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	w = httptest.NewRecorder() // query form, write + read back
+	h.handleFile(w, httptest.NewRequest(http.MethodPut, "/api/code-studio/file?ws="+rec.ID, strings.NewReader(`{"path":"/workspace/a.txt","content":"hi"}`)))
+	if w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	w = httptest.NewRecorder()
+	h.handleFile(w, httptest.NewRequest(http.MethodGet, "/api/code-studio/file?ws="+rec.ID+"&path=/workspace/a.txt", nil))
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"content":"hi"`) {
+		t.Fatal(w.Body.String())
+	}
+	w = httptest.NewRecorder()
+	h.handleLSP(w, httptest.NewRequest(http.MethodGet, "/api/code-studio/lsp?lang=go&ws="+rec.ID, nil))
+	if w.Code == 200 || w.Header().Get("Upgrade") != "" {
+		t.Fatal("LSP over SSH must not upgrade in Plan A")
+	}
+}
+
+func TestCodeStudioBackendByIDResolvesWithoutDialing(t *testing.T) {
+	s := testCodeStudioServerWithFakeCodeContainer(t, 1)
+	dials := 0
+	remote := newCodeStudioRemote(func(context.Context, string, string) (*ssh.Client, codeStudioSSHTarget, error) {
+		dials++
+		return nil, codeStudioSSHTarget{}, errors.New("must not dial")
+	}, slog.Default())
+	t.Cleanup(remote.pool.closeAll)
+	h := &codeStudioHandlers{server: s, docker: &recordingCodeStudioDockerAPI{}, remote: remote}
+	ctx := context.Background()
+	for _, id := range []string{"", "local"} {
+		b, err := h.codeStudioBackendByID(ctx, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, ok := b.(*codeStudioLocalBackend); !ok {
+			t.Fatalf("%q -> %T", id, b)
+		}
+	}
+	store, err := h.workspaceStore(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec, err := store.Upsert(ctx, "dev1", "/home/dev/proj", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := h.codeStudioBackendByID(ctx, rec.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info := b.Info(); info.ID != rec.ID || info.Kind != codeStudioWorkspaceKindSSH || info.Connected || info.Root != "/home/dev/proj" {
+		t.Fatalf("%+v", info)
+	}
+	if dials != 0 {
+		t.Fatalf("resolving dialed %d times", dials)
+	}
+	_, err = h.codeStudioBackendByID(ctx, "ssh_missing")
+	var re *codeStudioRemoteError
+	if !errors.Is(err, errCodeStudioWorkspaceNotFound) || !errors.As(err, &re) || re.Status != http.StatusNotFound || re.Code != "workspace_not_found" {
+		t.Fatalf("unknown id: %v", err)
 	}
 }

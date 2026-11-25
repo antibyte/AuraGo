@@ -24,10 +24,10 @@ func (h *codeStudioHandlers) backendFor(r *http.Request) (codeStudioBackend, err
 	if err != nil {
 		return nil, err
 	}
-	if id == codeStudioLocalWorkspaceID {
-		return h.localBackend(r.Context())
+	if id != codeStudioLocalWorkspaceID && !codeStudioRemoteCallerAllowed(h.server, r) {
+		return nil, codeStudioRemoteScopeError()
 	}
-	return h.remoteBackend(r, id)
+	return h.codeStudioBackendByID(r.Context(), id)
 }
 
 func (h *codeStudioHandlers) localBackend(ctx context.Context) (codeStudioBackend, error) {

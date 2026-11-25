@@ -101,6 +101,8 @@ func codeStudioLocalWorkspaceInfo() codeStudioWorkspaceInfo {
 var (
 	errCodeStudioExists      = errors.New("file already exists")
 	errCodeStudioUnsupported = errors.New("operation is not supported by this workspace")
+	// errCodeStudioWorkspaceNotFound is wrapped by the 404 workspace_not_found error.
+	errCodeStudioWorkspaceNotFound = errors.New("code studio workspace not found")
 )
 
 // codeStudioStatusError = "the operation ran and failed"; written as {"error": Message}.
@@ -140,7 +142,8 @@ func (e codeStudioUnavailableError) Error() string { return e.err.Error() }
 func (e codeStudioUnavailableError) Unwrap() error { return e.err }
 
 func codeStudioWorkspaceNotFound() error {
-	return &codeStudioRemoteError{Status: http.StatusNotFound, Code: "workspace_not_found", Message: "workspace not found"}
+	return &codeStudioRemoteError{Status: http.StatusNotFound, Code: "workspace_not_found", Message: "workspace not found",
+		Err: errCodeStudioWorkspaceNotFound}
 }
 
 func codeStudioWorkspaceID(r *http.Request) (string, error) {
@@ -211,11 +214,6 @@ func writeCodeStudioProbeError(w http.ResponseWriter, err error) {
 	}
 	code, msg, _ := codeStudioProbeHTTPError(err)
 	jsonError(w, msg, code)
-}
-
-// remoteBackend resolves a saved SSH workspace. Stub until Task 14.
-func (h *codeStudioHandlers) remoteBackend(r *http.Request, id string) (codeStudioBackend, error) {
-	return nil, codeStudioWorkspaceNotFound()
 }
 
 // ---- workspace change hook (Plan B registers the preview version bump) ----
