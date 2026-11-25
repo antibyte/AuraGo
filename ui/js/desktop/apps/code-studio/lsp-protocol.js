@@ -13,6 +13,8 @@
     var LANGUAGES = ['go', 'typescript', 'python', 'cpp'];
     // One problem source per server, distinct from the container checks (go build, tsc, py_compile, gcc, ...).
     var SOURCES = { go: 'gopls', typescript: 'typescript', python: 'pyright', cpp: 'clangd' };
+    // The executables the bridge probes; they match codeStudioLSPServerFor (code_studio_lsp.go).
+    var BINARIES = { go: 'gopls', typescript: 'typescript-language-server', python: 'pyright-langserver', cpp: 'clangd' };
     var LANGUAGE_BY_EXTENSION = {
         go: 'go',
         ts: 'typescript', tsx: 'typescript', js: 'typescript', jsx: 'typescript', mjs: 'typescript', cjs: 'typescript',
@@ -51,6 +53,10 @@
 
     function sourceForLanguage(language) {
         return own(SOURCES, language) ? SOURCES[language] : '';
+    }
+
+    function binaryForLanguage(language) {
+        return own(BINARIES, language) ? BINARIES[language] : '';
     }
 
     // An absolute container path below /workspace without dot segments, or null.
@@ -168,6 +174,7 @@
         languageForPath: languageForPath,
         languageIdForPath: languageIdForPath,
         sourceForLanguage: sourceForLanguage,
+        binaryForLanguage: binaryForLanguage,
         uriForPath: uriForPath,
         pathForUri: pathForUri,
         diagnosticsToProblems: diagnosticsToProblems,

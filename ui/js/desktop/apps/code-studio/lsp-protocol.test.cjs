@@ -131,3 +131,11 @@ test('positionToOffset and offsetToPosition use UTF-16 units and clamp', () => {
         assert.equal(P.positionToOffset(doc, P.offsetToPosition(doc, offset)), offset, 'round trip ' + offset);
     }
 });
+
+test('binaryForLanguage names the server binary the bridge probes', () => {
+    assert.equal(P.binaryForLanguage('go'), 'gopls');
+    assert.equal(P.binaryForLanguage('typescript'), 'typescript-language-server');
+    assert.equal(P.binaryForLanguage('python'), 'pyright-langserver');
+    assert.equal(P.binaryForLanguage('cpp'), 'clangd');
+    assert.equal(P.binaryForLanguage('rust'), '');
+});
