@@ -2,7 +2,7 @@
    theme's app materials (--vd-mat-*, --vd-*, --ds-*): no hex or literal colour functions, no theme ids, no uppercase labels; motion only
    inside @media (prefers-reduced-motion: no-preference) on selectors that start with body:not([data-animations="false"]). The dashboard
    canvas (.hd-root) is the engine's and is not styled here. scripts/homedash-tests/host.test.mjs guards these rules. */
-.hdx-app { --hdx-line: var(--vd-mat-divider, var(--vd-theme-border)); --hdx-card: var(--vd-mat-card-color, var(--vd-theme-panel-bg)); --hdx-muted: var(--vd-mat-label-color, var(--vd-theme-muted)); --hdx-radius: var(--vd-mat-card-radius, 12px);
+.hdx-app { --accent: transparent; --accent-dim: transparent; --hdx-line: var(--vd-mat-divider, var(--vd-theme-border)); --hdx-card: var(--vd-mat-card-color, var(--vd-theme-panel-bg)); --hdx-muted: var(--vd-mat-label-color, var(--vd-theme-muted)); --hdx-radius: var(--vd-mat-card-radius, 12px);
   position: relative; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); inline-size: 100%; block-size: 100%; min-block-size: 0; overflow: hidden; isolation: isolate;
   color: var(--vd-text); background: var(--vd-mat-canvas, var(--vd-theme-app-bg)); font: 14px/1.45 var(--vd-font-ui, system-ui, sans-serif); container: hdx / inline-size; }
 .hdx-app * { box-sizing: border-box; }
@@ -83,7 +83,8 @@
 .hdx-choice:hover:not(:disabled) { border-color: color-mix(in srgb, var(--vd-accent) 55%, var(--hdx-line)); }
 .hdx-choice.is-primary { border-color: color-mix(in srgb, var(--vd-mat-primary-color, var(--vd-accent)) 70%, var(--hdx-line)); background: color-mix(in srgb, var(--vd-mat-primary-color, var(--vd-accent)) 9%, var(--hdx-card)); }
 .hdx-choice.is-primary .hdx-choice-icon { background: var(--vd-mat-primary, var(--vd-accent)); color: var(--vd-mat-primary-text, var(--vd-accent-contrast)); }
-.hdx-choice-text { display: grid; gap: 3px; min-inline-size: 0; }
+.hdx-choice-text { display: grid; justify-items: stretch; gap: 3px; inline-size: 100%; min-inline-size: 0; }
+.hdx-choice-text :is(strong, small) { inline-size: 100%; max-inline-size: none; text-align: start; text-wrap: pretty; overflow-wrap: anywhere; }
 .hdx-choice-text strong { font-size: 15px; font-weight: 650; }
 .hdx-choice-text small { color: var(--hdx-muted); font-size: 12.5px; line-height: 1.4; }
 .hdx-app :is(.hdx-choice, .hdx-btn)[aria-busy="true"] .hd-ico { opacity: 0; }
