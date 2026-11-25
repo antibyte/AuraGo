@@ -86,8 +86,16 @@ Test results at hand-over:
 - Revoked with `auth_lost`.
 - 503 `storage_unavailable` and `hub_closed`.
 
+## D9: backend switch
+
+D9: the switch to the real server moves to M3. The backend branch `internal/server/homedash_routes.go` has not landed on main
+(`git log --oneline -1 main -- internal/server/homedash_routes.go` is empty), so Task 20's opt-in live test is not created. The M2
+fixture stays the only data source. M3 creates the live test against a local scratch instance built from main, never against the
+shared test server.
+
 ## Open items
 
+- D9: switch to the real server (M3), as above.
 - Sheet styling moves into the engine in M3; today the host CSS styles it under `.hdx-app`.
 - Banners for the kiosk page in M6.
 - The Instrument wide-sensor readout (M1 fixed 15 px at aspect 1.6 or more) reads small at 5x2; a token change for M3.
