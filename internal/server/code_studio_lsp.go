@@ -477,6 +477,16 @@ func (h codeStudioHandlers) handleLSP(w http.ResponseWriter, r *http.Request) {
 	if h.rejectReadOnly(w) {
 		return
 	}
+	wsID, err := codeStudioWorkspaceID(r)
+	if err != nil {
+		writeCodeStudioBackendError(w, err)
+		return
+	}
+	if wsID != codeStudioLocalWorkspaceID {
+		// Docker admission must not gate an SSH workspace.
+		h.handleRemoteLSP(w, r)
+		return
+	}
 	done, admitted := h.server.admitDockerTerminal(w, r)
 	if !admitted {
 		return
@@ -505,9 +515,8 @@ func (h codeStudioHandlers) handleLSP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	local, ok := b.(*codeStudioLocalBackend)
-	if !ok { // Plan D: language servers over SSH
-		writeCodeStudioRemoteError(w, &codeStudioRemoteError{Status: http.StatusNotImplemented,
-			Code: "lsp_unavailable", Message: "language servers are not available in this workspace yet"})
+	if !ok { // SSH workspaces take handleRemoteLSP above
+		writeCodeStudioBackendError(w, codeStudioWorkspaceNotFound())
 		return
 	}
 	release, err := local.container.HoldTerminal(local.containerID)

@@ -5,7 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"strings"
+
+	"aurago/internal/desktop"
 )
 
 // Remote language servers. In an SSH workspace the bridge runs the command of
@@ -119,4 +122,43 @@ func codeStudioWorkspaceDisplayHost(info codeStudioWorkspaceInfo) string {
 		return host
 	}
 	return strings.TrimSpace(info.DeviceName)
+}
+
+// handleRemoteLSP is handleLSP for an SSH workspace (?ws=): the same auth,
+// origin, method and language checks, then the workspace's backend instead of
+// the container (no Docker admission, no container hold). backendFor applies
+// the remote-caller gate: bearer tokens need desktop:admin for SSH workspaces.
+func (h codeStudioHandlers) handleRemoteLSP(w http.ResponseWriter, r *http.Request) {
+	if !h.isAuthenticated(r) {
+		jsonError(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if !desktop.SameHostWebSocketOrigin(r) {
+		jsonError(w, "forbidden websocket origin", http.StatusForbidden)
+		return
+	}
+	if r.Method != http.MethodGet {
+		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	lsp, ok := codeStudioLSPServerFor(r.URL.Query().Get("lang"))
+	if !ok {
+		jsonError(w, "unknown language server", http.StatusBadRequest)
+		return
+	}
+	backend, err := h.backendFor(r)
+	if err != nil {
+		writeCodeStudioBackendError(w, err)
+		return
+	}
+	if backend.Info().Kind != codeStudioWorkspaceKindSSH {
+		writeCodeStudioBackendError(w, codeStudioWorkspaceNotFound())
+		return
+	}
+	conn, err := codeStudioWSUpgrader.Upgrade(w, r, nil)
+	if err != nil {
+		return
+	}
+	defer conn.Close()
+	h.serveCodeStudioLSP(r.Context(), conn, newCodeStudioRemoteLSPHost(backend), lsp)
 }

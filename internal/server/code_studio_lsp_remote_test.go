@@ -166,3 +166,19 @@ func TestCodeStudioLSPRemoteMissingServerNamesTheHost(t *testing.T) {
 		t.Fatalf("a missing server was started: %q", starts)
 	}
 }
+
+func TestCodeStudioLSPUnknownWorkspaceIs404BeforeUpgrade(t *testing.T) {
+	s := testCodeStudioServerWithFakeCodeContainer(t, 1)
+	docker := newLSPTestDocker()
+	h := codeStudioHandlers{server: s, docker: docker}
+	req := codeStudioLSPUpgradeRequest("go")
+	req.URL.RawQuery = "lang=go&ws=ws_nope"
+	rec := httptest.NewRecorder()
+	h.handleLSP(rec, req)
+	if rec.Code != http.StatusNotFound || !strings.Contains(rec.Body.String(), "workspace_not_found") {
+		t.Fatalf("status %d %q; want 404 workspace_not_found", rec.Code, rec.Body.String())
+	}
+	if probes, starts, _ := docker.snapshot(); len(probes)+len(starts) != 0 {
+		t.Fatalf("a remote request reached the container: probes=%v starts=%v", probes, starts)
+	}
+}
