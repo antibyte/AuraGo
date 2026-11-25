@@ -1,7 +1,7 @@
 // HomeDash stream client (F1; contract "Stream protocol"). One SSE connection per JS realm (shared(), keyed by the API base path), used by
 // every HomeDash window. Owners attach with the entity ids they show and an active flag (the host's visibility signal). The union of the
-// active owners' ids, cut to hello.limits.entities, goes out with PUT stream/subscriptions 250 ms after the last change and right after every
-// hello (a new stream starts empty). Silence for max(45 s, 3 x heartbeat_ms) or an EventSource error closes the source (never the browser's
+// active owners' ids, cut to hello.limits.entities, goes out with PUT stream/subscriptions 250 ms after the last change (the first ids after an empty subscription go out at once) and right after
+// every hello (a new stream starts empty). Silence for max(45 s, 3 x heartbeat_ms) or an EventSource error closes the source (never the browser's
 // own retry: the stream id changes) and reconnects after 1, 2, 4, 8, 16, 30 s with +-20 % jitter. A connection that fails before hello waits
 // at least 5 s (429 too_many_streams cannot be told apart from other refusals) and asks diagnose(). The backoff resets after a stream lived
 // 60 s. revoked shutdown reconnects; disabled and auth_lost stop until resume(). No active owner for 10 s closes the stream. Timers, clock,
@@ -39,7 +39,7 @@
         function refreshWant() {
             if (disposed) return;
             const next = union(), sig = signature(next);
-            if (sig !== wantSig) { wantIds = next; wantSig = sig; putRetries = 0; if (phase === 'live') schedulePut(DEBOUNCE_MS); }
+            if (sig !== wantSig) { wantIds = next; wantSig = sig; putRetries = 0; if (phase === 'live') schedulePut(sentSig === '' ? 0 : DEBOUNCE_MS); }
             if (stopped) return;
             if (anyActive()) { if (idleTimer) { clearT(idleTimer); idleTimer = 0; } if (phase === 'idle') connect(); }
             else if (!idleTimer && phase !== 'idle') idleTimer = setT(() => { idleTimer = 0; if (!anyActive()) { teardown(); failures = 0; setPhase('idle', 'inactive'); } }, IDLE_CLOSE_MS);

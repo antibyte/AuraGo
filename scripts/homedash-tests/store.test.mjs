@@ -29,6 +29,22 @@ export const tests = [
     bus.emit('entity', { entities: [{ id: 'ha:switch.lamp', source: 'ha', kind: 'switch', name: 'Lamp', capabilities: [{ name: 'toggle', allowed: false, blocked_by: 'homedash.readonly' }], readonly: true, state: { value: 'on', available: true, updated_at: 'x' } }] });
     assert.equal(store.view('ha:switch.lamp').readonly, true); assert.equal(store.view('ha:switch.lamp').serverReadonly, true);
     store.setDesktopReadonly(true); assert.equal(store.view('system:cpu').readonly, false); }],
+  ['store: readonlyReason names why a control is locked (D8)', () => {
+    const { store, bus } = setup(), w = store.watch('win', { ids: ['system:cpu'] });
+    w.set(['system:cpu', 'ha:script.night', 'ha:switch.lamp', 'ha:switch.fan', 'ha:switch.open']);
+    const ent = (id, extra) => Object.assign({ id, source: 'ha', kind: 'switch', name: id, capabilities: [{ name: 'toggle', allowed: true }], state: { value: 'on', available: true, updated_at: 'x' } }, extra);
+    bus.emit('snapshot', { entities: [CPU, ent('ha:script.night', { kind: 'script', readonly: true, readonly_reason: 'home_assistant.allowed_services' }),
+      ent('ha:switch.lamp', { readonly: true, capabilities: [{ name: 'numeric', allowed: true }, { name: 'toggle', allowed: false, blocked_by: 'home_assistant.blocked_services' }] }),
+      ent('ha:switch.fan', { readonly: true }), ent('ha:switch.open', {})], sources: [] });
+    assert.equal(store.view('ha:script.night').readonly, true); assert.equal(store.view('ha:script.night').readonlyReason, 'home_assistant.allowed_services');
+    assert.equal(store.view('ha:switch.lamp').readonlyReason, 'home_assistant.blocked_services');
+    assert.equal(store.view('ha:switch.fan').readonlyReason, 'homedash.readonly');
+    assert.equal(store.view('system:cpu').readonly, false); assert.equal(store.view('system:cpu').readonlyReason, '');
+    assert.equal(store.view('ha:switch.open').readonly, false); assert.equal(store.view('ha:switch.open').readonlyReason, '');
+    store.setDesktopReadonly(true);
+    assert.equal(store.view('ha:script.night').readonlyReason, 'virtual_desktop.readonly'); assert.equal(store.view('ha:switch.open').readonly, true); assert.equal(store.view('ha:switch.open').readonlyReason, 'virtual_desktop.readonly');
+    assert.equal(store.view('system:cpu').readonly, false); assert.equal(store.view('system:cpu').readonlyReason, '');
+    store.setDesktopReadonly(false); assert.equal(store.view('ha:script.night').readonlyReason, 'home_assistant.allowed_services'); assert.equal(store.view('ha:switch.open').readonlyReason, ''); }],
   ['store: removed and rejected ids are unknown entities', () => {
     const { store, bus } = setup(); store.watch('win', { ids: ['system:cpu', 'nope:x'] });
     bus.emit('snapshot', { entities: [CPU], sources: [] }); bus.emit('removed', { ids: ['system:cpu'] }); bus.emit('subscribed', { accepted: [], rejected: [{ id: 'nope:x', reason: 'unknown_source' }] });

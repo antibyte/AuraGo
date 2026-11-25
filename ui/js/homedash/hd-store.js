@@ -8,14 +8,15 @@
 //   and returns when the source leaves unavailable. Only available entities are stale.
 // 3 readonly means a control that could act is blocked: only for an entity with a command capability (not stream/snapshot/history/numeric)
 //   that the server marks read-only or that sits on a read-only desktop; a pure display (all system sensors) is never drawn locked.
-//   serverReadonly keeps the raw server value.
+//   serverReadonly keeps the raw server value. readonlyReason names why (a reason key for the widgets): '' when not read-only, else
+//   'virtual_desktop.readonly' on a read-only desktop, the entity's readonly_reason, the first command capability's blocked_by, or 'homedash.readonly'.
 // 4 removed and PUT-rejected ids are status unknown.
 // 5 History {origin, points:[{t, v}]} becomes the widget host's series {points: [[t_ms, value|null]], source: origin}; cache key id|span|points,
 //   TTL 60 s under 6 h spans else 5 min, LRU 100, 4 requests at a time; live numeric states append to every cached series of the id.
 // 6 Ids a window stops showing stay subscribed for 30 s (linger).
 // 7 dispose() is idempotent: it unhooks the stream, detaches every watcher's stream handle and drops its linger; shared() replaces a disposed instance.
 // View: {id, source, kind, name, area, unit, device_class, icon_hint, value, text, attributes (+updated_at), available, status, readonly,
-// serverReadonly, capabilities, pending: false, stale, error: null, tone: null}.
+// readonlyReason, serverReadonly, capabilities, pending: false, stale, error: null, tone: null}.
 (function () {
     'use strict';
     const E = window.HomeDashEngine;
@@ -116,6 +117,8 @@
             const key = e.rev + ':' + globalRev;
             if (e.cache && e.cache.key === key) return e.cache.view;
             const m = e.meta || {}, s = e.state || {}, src = sourceOf(e), caps = Array.isArray(m.capabilities) ? m.capabilities : [];
+            const ro = hasCommand(caps) && (m.readonly === true || desktopReadonly);
+            const blocked = caps.find(c => isObj(c) && !READ_CAPS.includes(c.name) && typeof c.blocked_by === 'string' && c.blocked_by);
             const unknown = e.status === 'unknown', gone = sourceOffline(src);
             const available = !unknown && !gone && !!e.state && s.available !== false;
             const v = Object.freeze({
@@ -123,7 +126,8 @@
                 area: typeof m.area === 'string' ? m.area : '', unit: typeof m.unit === 'string' ? m.unit : '', device_class: typeof m.device_class === 'string' ? m.device_class : '',
                 icon_hint: typeof m.icon_hint === 'string' ? m.icon_hint : '', value: unknown || s.value === undefined ? null : s.value, text: typeof s.text === 'string' ? s.text : '',
                 attributes: Object.freeze(Object.assign({}, isObj(s.attributes) ? s.attributes : {}, { updated_at: typeof s.updated_at === 'string' ? s.updated_at : null })),
-                available, status: unknown ? 'unknown' : available ? 'ok' : 'unavailable', readonly: hasCommand(caps) && (m.readonly === true || desktopReadonly), serverReadonly: m.readonly === true,
+                available, status: unknown ? 'unknown' : available ? 'ok' : 'unavailable', readonly: ro,
+                readonlyReason: !ro ? '' : desktopReadonly ? 'virtual_desktop.readonly' : (typeof m.readonly_reason === 'string' && m.readonly_reason) || (blocked ? blocked.blocked_by : 'homedash.readonly'), serverReadonly: m.readonly === true,
                 capabilities: caps, pending: false, stale: available && (s.stale === true || e.connStale), error: null, tone: null });
             e.cache = { key, view: v };
             return v;
