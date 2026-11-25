@@ -104,6 +104,7 @@ func registerCodeStudioRoutes(mux *http.ServeMux, s *Server) {
 	mux.HandleFunc("/api/code-studio/git/init", handlers.handleGitInit)
 	mux.HandleFunc("/api/code-studio/git/show", handlers.handleGitShow)
 	mux.HandleFunc("/api/code-studio/git/blame", handlers.handleGitBlame)
+	registerCodeStudioWorkspaceRoutes(mux, handlers)
 }
 
 func (h *codeStudioHandlers) codeContainer(ctx context.Context, start bool) (*desktop.CodeContainerService, string, error) {
