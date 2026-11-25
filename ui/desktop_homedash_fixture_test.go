@@ -30,6 +30,9 @@ const homeDashTemplateID = "d_m3x7q2k5a4bc"
 // the empty document, dashboard GET and DELETE, the SSE stream (hello, snapshot on every PUT that adds ids, state, dashboard_changed, hb) and
 // PUT stream/subscriptions. Controls let a test push values, change a dashboard, drop the streams, refuse reconnects and go read-only.
 type homeDashFixture struct {
+	t          *testing.T
+	quit       chan struct{}
+	quitOnce   sync.Once
 	mu         sync.Mutex
 	catalog    []byte
 	hash       string
@@ -50,17 +53,46 @@ type homeDashFixture struct {
 }
 
 type homeDashStream struct {
-	id     string
-	frames chan string
-	done   chan struct{}
-	subs   map[string]bool
+	id       string
+	gen      int
+	frames   chan string
+	done     chan struct{}
+	gone     chan struct{}
+	goneOnce sync.Once
+	subs     map[string]bool
 }
 
-func (s *homeDashStream) send(frame string) {
+// send queues a frame and never drops it: when the buffer is full it waits for the stream to drain, end or the fixture to shut down, and
+// fails the test loudly when the stream neither drains nor ends within 10 s.
+func (f *homeDashFixture) send(s *homeDashStream, frame string) {
 	select {
 	case s.frames <- frame:
+		return
 	default:
 	}
+	timer := time.NewTimer(10 * time.Second)
+	defer timer.Stop()
+	select {
+	case s.frames <- frame:
+	case <-s.done:
+	case <-s.gone:
+	case <-f.quit:
+	case <-timer.C:
+		f.t.Errorf("homedash fixture: stream %s did not drain a frame within 10 s: %.60q", s.id, frame)
+	}
+}
+
+// homeDashRoutes lists the implemented routes with their methods; the value is true for a write route (refused on a read-only desktop).
+var homeDashRoutes = map[string]map[string]bool{
+	"bootstrap":            {http.MethodGet: false},
+	"widget-catalog":       {http.MethodGet: false},
+	"entities":             {http.MethodGet: false},
+	"entity":               {http.MethodGet: false},
+	"history":              {http.MethodGet: false},
+	"stream":               {http.MethodGet: false},
+	"stream/subscriptions": {http.MethodPut: false},
+	"dashboards":           {http.MethodGet: false, http.MethodPost: true},
+	"dashboard":            {http.MethodGet: false, http.MethodDelete: true},
 }
 
 func newHomeDashFixture(t *testing.T) *homeDashFixture {
@@ -75,7 +107,7 @@ func newHomeDashFixture(t *testing.T) *homeDashFixture {
 	if err := json.Unmarshal(raw, &head); err != nil || head.Hash == "" {
 		t.Fatalf("golden catalog: %v", err)
 	}
-	f := &homeDashFixture{catalog: raw, hash: head.Hash, values: map[string]float64{}, dashboards: map[string]map[string]any{}, streams: map[string]*homeDashStream{}, bodies: map[string]string{}}
+	f := &homeDashFixture{t: t, quit: make(chan struct{}), catalog: raw, hash: head.Hash, values: map[string]float64{}, dashboards: map[string]map[string]any{}, streams: map[string]*homeDashStream{}, bodies: map[string]string{}}
 	if err := json.Unmarshal([]byte(readDesktopAssetText(t, "testdata/homedash-m2/starter-dashboard.json")), &f.starter); err != nil {
 		t.Fatal(err)
 	}
@@ -89,8 +121,12 @@ func newHomeDashFixture(t *testing.T) *homeDashFixture {
 			}
 		}
 	}
+	t.Cleanup(f.shutdown)
 	return f
 }
+
+// shutdown ends every stream handler so the test server can close; idempotent.
+func (f *homeDashFixture) shutdown() { f.quitOnce.Do(func() { close(f.quit) }) }
 
 func homeDashJSON(w http.ResponseWriter, status int, body any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -198,7 +234,7 @@ func (f *homeDashFixture) entityLocked(id string) map[string]any {
 
 func (f *homeDashFixture) broadcastLocked(frame string) {
 	for _, s := range f.streams {
-		s.send(frame)
+		f.send(s, frame)
 	}
 }
 
@@ -208,11 +244,32 @@ func (f *homeDashFixture) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
 	f.requests = append(f.requests, r.Method+" "+r.URL.RequestURI())
 	f.bodies[r.Method+" "+path] = string(raw)
-	off := f.disabled
+	off, ro := f.disabled, f.readonly
 	f.mu.Unlock()
 	w.Header().Set("Cache-Control", "no-store")
+	// Contract order: route, method, availability, desktop read-only (write routes), handler.
+	methods, known := homeDashRoutes[path]
+	if !known {
+		homeDashError(w, http.StatusNotFound, "not_found", "no route "+path)
+		return
+	}
+	write, allowed := methods[r.Method]
+	if !allowed {
+		allow := []string{}
+		for m := range methods {
+			allow = append(allow, m)
+		}
+		sort.Strings(allow)
+		w.Header().Set("Allow", strings.Join(allow, ", "))
+		homeDashError(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed")
+		return
+	}
 	if off {
 		homeDashError(w, http.StatusServiceUnavailable, "homedash_disabled", "HomeDash is disabled")
+		return
+	}
+	if write && ro {
+		homeDashReadonly(w)
 		return
 	}
 	switch r.Method + " " + path {
@@ -268,13 +325,6 @@ func (f *homeDashFixture) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		f.get(w, r)
 	case "DELETE dashboard":
 		f.remove(w, r)
-	default:
-		switch path {
-		case "bootstrap", "widget-catalog", "entities", "entity", "history", "stream", "stream/subscriptions", "dashboards", "dashboard":
-			homeDashError(w, http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed")
-		default:
-			homeDashError(w, http.StatusNotFound, "not_found", "no route "+path)
-		}
 	}
 }
 
@@ -337,10 +387,11 @@ func (f *homeDashFixture) stream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	f.opened++
-	s := &homeDashStream{id: fmt.Sprintf("%032x", f.opened), frames: make(chan string, 64), done: make(chan struct{}), subs: map[string]bool{}}
+	s := &homeDashStream{id: fmt.Sprintf("%032x", f.opened), gen: f.opened, frames: make(chan string, 64), done: make(chan struct{}), gone: make(chan struct{}), subs: map[string]bool{}}
 	f.streams[s.id] = s
 	f.mu.Unlock()
 	defer func() {
+		s.goneOnce.Do(func() { close(s.gone) })
 		f.mu.Lock()
 		if f.streams[s.id] == s {
 			delete(f.streams, s.id)
@@ -372,6 +423,8 @@ func (f *homeDashFixture) stream(w http.ResponseWriter, r *http.Request) {
 		case <-r.Context().Done():
 			return
 		case <-s.done:
+			return
+		case <-f.quit:
 			return
 		case frame := <-s.frames:
 			if !write(frame) || strings.HasPrefix(frame, "event: revoked\n") {
@@ -406,7 +459,7 @@ func (f *homeDashFixture) subscribe(w http.ResponseWriter, raw []byte) {
 		if next[id] {
 			continue
 		}
-		if !strings.Contains(id, ":") {
+		if !homeDashEntityPattern.MatchString(id) {
 			rejected = append(rejected, map[string]any{"id": id, "reason": "invalid_id"})
 			continue
 		}
@@ -422,7 +475,7 @@ func (f *homeDashFixture) subscribe(w http.ResponseWriter, raw []byte) {
 	}
 	s.subs = next
 	if len(added) > 0 {
-		s.send(homeDashFrame("snapshot", map[string]any{"entities": added, "sources": []any{homeDashSource("polling")}}))
+		f.send(s, homeDashFrame("snapshot", map[string]any{"entities": added, "sources": []any{homeDashSource("polling")}}))
 	}
 	f.mu.Unlock()
 	homeDashJSON(w, 200, map[string]any{"status": "ok", "accepted": accepted, "rejected": rejected})
@@ -448,10 +501,6 @@ func (f *homeDashFixture) list(w http.ResponseWriter) {
 func (f *homeDashFixture) create(w http.ResponseWriter, raw []byte) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if f.readonly {
-		homeDashReadonly(w)
-		return
-	}
 	var body struct {
 		Template string         `json:"template"`
 		Name     string         `json:"name"`
@@ -521,10 +570,6 @@ func (f *homeDashFixture) remove(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if f.readonly {
-		homeDashReadonly(w)
-		return
-	}
 	id := q.Get("id")
 	rev, err := strconv.Atoi(q.Get("revision"))
 	if !homeDashIDPattern.MatchString(id) || err != nil || rev < 1 {
@@ -553,7 +598,7 @@ func (f *homeDashFixture) pushState(id string, value float64) {
 	frame := homeDashFrame("state", map[string]any{"changes": map[string]any{id: map[string]any{"value": value, "available": true, "updated_at": homeDashNow()}}})
 	for _, s := range f.streams {
 		if s.subs[id] {
-			s.send(frame)
+			f.send(s, frame)
 		}
 	}
 }
@@ -594,6 +639,39 @@ func (f *homeDashFixture) setDisabled(on bool) { f.mu.Lock(); f.disabled = on; f
 
 func (f *homeDashFixture) setReadonly(on bool) { f.mu.Lock(); f.readonly = on; f.mu.Unlock() }
 
+// mutations counts the POST and DELETE requests the fixture received, refused ones included.
+func (f *homeDashFixture) mutations() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	n := 0
+	for _, r := range f.requests {
+		if strings.HasPrefix(r, "POST ") || strings.HasPrefix(r, "DELETE ") {
+			n++
+		}
+	}
+	return n
+}
+
+// subscribedIDs is the sorted subscription set of the newest open stream.
+func (f *homeDashFixture) subscribedIDs() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var newest *homeDashStream
+	for _, s := range f.streams {
+		if newest == nil || s.gen > newest.gen {
+			newest = s
+		}
+	}
+	out := []string{}
+	if newest != nil {
+		for id := range newest.subs {
+			out = append(out, id)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
 func (f *homeDashFixture) counts() (opened, refused int) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -628,13 +706,14 @@ func (f *homeDashFixture) idByName(name string) string {
 	return ""
 }
 
-func (f *homeDashFixture) waitSubscribed(t *testing.T, n int, within time.Duration) {
+// waitSubscribed waits until a stream opened after the first openedBefore streams holds n subscribed ids (openedBefore 0: any stream).
+func (f *homeDashFixture) waitSubscribed(t *testing.T, openedBefore, n int, within time.Duration) {
 	t.Helper()
 	deadline := time.Now().Add(within)
 	for time.Now().Before(deadline) {
 		f.mu.Lock()
 		for _, s := range f.streams {
-			if len(s.subs) == n {
+			if s.gen > openedBefore && len(s.subs) == n {
 				f.mu.Unlock()
 				return
 			}
@@ -642,5 +721,5 @@ func (f *homeDashFixture) waitSubscribed(t *testing.T, n int, within time.Durati
 		f.mu.Unlock()
 		time.Sleep(50 * time.Millisecond)
 	}
-	t.Fatalf("no stream holds %d subscribed ids", n)
+	t.Fatalf("no stream opened after #%d holds %d subscribed ids", openedBefore, n)
 }
