@@ -107,8 +107,26 @@
         return { el: wrapper, body: frame.body, family, update, resize, setMode, destroy };
     }
 
-    // Resolves the host's look into two derived values on `root`: --hd-hud (E.colour.hudFor of the resolved accent) and
-    // data-hd-corners="square" when the theme's card radius is 0. Called by the hosts after a palette or theme change, never at load.
+    // A computed colour string as [r, g, b] (0-255), or null when it does not resolve. rgb()/rgba() are parsed directly; anything else a browser
+    // can compute (oklch(), color(srgb ...), color-mix(), named colours) goes through a 1x1 canvas, which normalises it to sRGB. An invalid or
+    // fully transparent string leaves the transparent default and reads as null.
+    const RGB = /^rgba?\(\s*(\d+(?:\.\d+)?)[,\s]+(\d+(?:\.\d+)?)[,\s]+(\d+(?:\.\d+)?)/;
+    function resolveColour(doc, value) {
+        const text = String(value || '').trim();
+        if (!text) return null;
+        const m = RGB.exec(text);
+        if (m) return [Number(m[1]), Number(m[2]), Number(m[3])];
+        try {
+            const canvas = doc.createElement('canvas'), g = typeof canvas.getContext === 'function' ? canvas.getContext('2d', { willReadFrequently: true }) : null;
+            if (!g) return null;
+            canvas.width = canvas.height = 1; g.clearRect(0, 0, 1, 1); g.fillStyle = 'rgba(0, 0, 0, 0)'; g.fillStyle = text; g.fillRect(0, 0, 1, 1);
+            const d = g.getImageData(0, 0, 1, 1).data;
+            return d[3] > 0 ? [d[0], d[1], d[2]] : null;
+        } catch (err) { return null; }
+    }
+
+    // Resolves the host's look into two derived values on `root`: --hd-hud (E.colour.hudFor of the resolved accent; removed when the accent does
+    // not resolve) and data-hd-corners="square" when the theme's card radius is 0. Called by the hosts after a palette or theme change, never at load.
     function applyLook(root) {
         if (!root || root.nodeType !== 1 || !E.colour || typeof E.colour.hudFor !== 'function') return;
         const doc = root.ownerDocument, view = (doc && doc.defaultView) || (typeof window !== 'undefined' ? window : null);
@@ -117,8 +135,9 @@
         try {
             probe = el('span', { 'aria-hidden': 'true' }); probe.style.setProperty('display', 'none'); probe.style.setProperty('color', 'var(--hd-accent)');
             root.appendChild(probe);
-            const m = /^rgba?\(\s*(\d+(?:\.\d+)?)[,\s]+(\d+(?:\.\d+)?)[,\s]+(\d+(?:\.\d+)?)/.exec(String(view.getComputedStyle(probe).color || ''));
-            if (m) root.style.setProperty('--hd-hud', E.colour.hudFor(E.colour.rgbToHex([Number(m[1]), Number(m[2]), Number(m[3])])));
+            const rgb = resolveColour(doc, view.getComputedStyle(probe).color);
+            if (rgb) root.style.setProperty('--hd-hud', E.colour.hudFor(E.colour.rgbToHex(rgb)));
+            else if (typeof root.style.removeProperty === 'function') root.style.removeProperty('--hd-hud');
             const radius = String(view.getComputedStyle(root).getPropertyValue('--vd-mat-card-radius') || ''), nums = radius.match(/-?\d*\.?\d+/g);
             setAttr(root, 'data-hd-corners', nums && nums.every(n => Number(n) === 0) ? 'square' : null);
         } finally { if (probe) probe.remove(); }

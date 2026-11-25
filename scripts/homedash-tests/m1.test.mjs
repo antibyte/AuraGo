@@ -11,6 +11,18 @@ export const tests = [
     for (const hex of ['#ff2bd6', '#1d5faf', '#b5145f', '#c2186b', '#6688bb', '#f3e600', '#5ce1ff', '#e95420', '#0a84ff']) {
       const hud = E.colour.hudFor(hex); assert.match(hud, /^#[0-9a-f]{6}$/); assert.ok(E.colour.contrast(hud, '#090c10') >= 4.5, hex + ' -> ' + hud);
     } }],
+  ['applyLook resolves oklch, color() and invalid accents through a canvas and clears a stale --hd-hud', () => {
+    const { E, document } = loadEngine(ENGINE_ORDER.slice(0, ENGINE_ORDER.indexOf('hd-widgets.js') + 1), { dom: true });
+    const rootEl = document.createElement('div'), orig = document.createElement.bind(document);
+    let accent = 'rgb(29, 95, 175)', canvasColour = [0, 0, 0, 0];
+    const g = { clearRect() {}, fillRect() {}, set fillStyle(v) { if (v !== 'rgba(0, 0, 0, 0)' && v !== accent) throw new Error('unexpected fill ' + v); }, getImageData: () => ({ data: canvasColour }) };
+    document.createElement = tag => (tag === 'canvas' ? { width: 0, height: 0, getContext: () => g } : orig(tag));
+    document.defaultView = { getComputedStyle: node => (node === rootEl ? { getPropertyValue: () => '8px' } : { color: accent }) };
+    const hud = () => rootEl.style.getPropertyValue('--hd-hud'), expected = rgb => E.colour.hudFor(E.colour.rgbToHex(rgb));
+    E.widgets.applyLook(rootEl); assert.equal(hud(), expected([29, 95, 175]));
+    accent = 'oklch(0.62 0.19 255)'; canvasColour = [51, 112, 233, 255]; E.widgets.applyLook(rootEl); assert.equal(hud(), expected([51, 112, 233]));
+    accent = 'color(srgb 0.9 0.2 0.1)'; canvasColour = [230, 51, 26, 255]; E.widgets.applyLook(rootEl); assert.equal(hud(), expected([230, 51, 26]));
+    accent = 'not-a-colour'; canvasColour = [0, 0, 0, 0]; E.widgets.applyLook(rootEl); assert.equal(hud(), ''); }],
   ['M1 additions follow the Task 1 table and leave C2 defaults unchanged', () => {
     const { E } = loadEngine(PRIMS, { dom: true });
     const plain = E.prim.knob({ label: 'k' }); assert.equal(plain.el.querySelector('.hd-dial-glow'), null); assert.equal(plain.el.querySelector('.hd-dial-dots'), null);

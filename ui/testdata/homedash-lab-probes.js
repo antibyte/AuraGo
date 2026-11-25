@@ -22,7 +22,8 @@
     const dims = b => show(b.width) + 'x' + show(b.height);
     function label(el) { const cell = el.closest('[data-hd-lab-control]'), where = cell ? cell.getAttribute('data-hd-lab-control') + ' ' + cell.getAttribute('data-hd-lab-state') : 'panel';
         return where + ' .' + String(el.getAttribute('class') || el.tagName.toLowerCase()).split(/\s+/)[0]; }
-    const exempt = el => !!el.closest('[aria-disabled="true"], [disabled], [data-hd-status="unavailable"], [data-hd-disabled="true"]');
+    // Only a disabled control subtree is exempt (what the user cannot operate may be dimmed). The title and state line of an unavailable tile are measured.
+    const exempt = el => !!el.closest('[aria-disabled="true"], [disabled]');
     // Splits a CSS value at its top-level commas (commas inside parentheses stay).
     function splitTop(str) { const out = []; let depth = 0, from = 0;
         for (let i = 0; i < str.length; i++) { const ch = str[i]; if (ch === '(') depth++; else if (ch === ')') depth--; else if (ch === ',' && depth === 0) { out.push(str.slice(from, i).trim()); from = i + 1; } }
@@ -102,7 +103,8 @@
             // SVG text is painted with fill, not color.
             const paint = el instanceof SVGElement ? cs.fill : cs.color; if (!paint || paint === 'none') continue;
             if (/^url\(/.test(paint)) { r.contrast.unmeasured++; continue; }
-            const fg = rgba(paint); fg[3] *= opacityOf(el); const min = el.closest('[aria-hidden="true"]') ? GRAPHIC_MIN : TEXT_MIN, v = worst(fg, bgs); r.contrast.checked++;
+            // The 3:1 graphic threshold applies only to decorative SVG text (dial and gauge numerals, tick labels); HTML text, aria-hidden or not, needs 4.5:1.
+            const fg = rgba(paint); fg[3] *= opacityOf(el); const min = el instanceof SVGElement && el.closest('[aria-hidden="true"]') ? GRAPHIC_MIN : TEXT_MIN, v = worst(fg, bgs); r.contrast.checked++;
             if (v < min) r.contrast.failures.push('text ' + label(el) + ' ' + JSON.stringify(el.textContent.trim().slice(0, 24)) + ' ' + show(v) + ' < ' + min); } }
     const GRAPHICS = '.hd-dial-arc, .hd-gauge-arc, .hd-gauge-needle-shape, .hd-spark-line, .hd-slider-fill, .hd-bar-fill, .hd-seg7-seg[data-lit="true"], .hd-toggle-thumb, .hd-lamp-dot';
     // Where the background walk of a graphic starts: an svg graphic at its own svg (a background on the svg itself counts), any other element at its parent.
