@@ -4092,3 +4092,249 @@ button.cs-git-branch:hover,
 .code-studio .cm-lsp-signature-tooltip .cm-lsp-active-parameter {
     color: var(--cs-accent);
 }
+
+/* === IDE package 2C: LSP actions === */
+/* References tab of the bottom panel: a summary line, one header per file and one row per reference. */
+.cs-references-summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 14px;
+    flex: 0 0 auto;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--cs-line);
+    color: var(--cs-muted);
+    font-size: 11px;
+}
+
+.cs-references-outside {
+    font-style: italic;
+}
+
+.cs-empty.cs-references-error {
+    color: var(--cs-danger);
+}
+
+.cs-references-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.cs-references-file {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    padding: 5px 12px;
+    border: 0;
+    background: transparent;
+    color: var(--cs-text);
+    font: inherit;
+    font-size: 12px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.cs-references-file strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
+}
+
+.cs-references-count {
+    flex: 0 0 auto;
+    min-width: 18px;
+    margin-left: auto;
+    padding: 0 6px;
+    border-radius: 9px;
+    background: var(--cs-accent-soft);
+    color: var(--cs-text);
+    font-size: 10px;
+    line-height: 16px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+.cs-reference {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    min-width: 0;
+    padding: 3px 12px 3px 30px;
+    border: 0;
+    background: transparent;
+    color: var(--cs-text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.cs-references-file:hover,
+.cs-reference:hover {
+    background: var(--cs-hover);
+}
+
+.cs-references-file:focus-visible,
+.cs-reference:focus-visible,
+.cs-lsp-fix-menu button:focus-visible {
+    outline: 2px solid var(--cs-accent-border);
+    outline-offset: -2px;
+}
+
+.cs-reference .cs-search-line {
+    flex: 0 0 auto;
+    min-width: 32px;
+    color: var(--cs-muted);
+    font-size: 11px;
+    font-style: normal;
+    text-align: right;
+}
+
+.cs-reference code {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: pre;
+    color: var(--cs-text);
+    font: 12px/1.4 var(--cs-mono-font);
+}
+
+.cs-reference mark {
+    border-radius: 2px;
+    background: var(--cs-accent-soft);
+    color: inherit;
+    box-shadow: inset 0 -1px 0 var(--cs-accent-border);
+}
+
+/* Rename box at the symbol and quick-fix menu at the cursor; both reuse the context-menu card and its tokens. */
+.cs-context-menu.cs-lsp-rename-box {
+    min-width: 220px;
+    padding: 4px;
+}
+
+.cs-lsp-rename-box input {
+    width: 100%;
+    height: 28px;
+    padding: 0 8px;
+    border: 1px solid var(--cs-accent-border);
+    border-radius: var(--vd-mat-field-radius, var(--ds-radius-sm));
+    color: var(--cs-text);
+    background: var(--vd-mat-field, var(--cs-panel-soft));
+    box-shadow: var(--vd-mat-field-shadow, none);
+    font: 12px/1.4 var(--cs-mono-font);
+}
+
+.cs-lsp-rename-box input:focus {
+    outline: none;
+}
+
+.cs-context-menu.cs-lsp-fix-menu {
+    max-width: min(520px, calc(100vw - 16px));
+    max-height: min(320px, calc(100vh - 16px));
+    overflow: auto;
+}
+
+.cs-lsp-fix-menu button:focus {
+    background: var(--vd-mat-hover, var(--cs-accent-soft));
+}
+
+/* Preview of a multi-file edit and the list of files that were not changed. */
+.cs-modal.cs-lsp-dialog {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: min(560px, calc(100vw - 32px));
+    max-height: calc(100vh - 64px);
+}
+
+.cs-lsp-dialog-title {
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--cs-text);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.cs-modal .cs-lsp-dialog-summary,
+.cs-modal .cs-lsp-dialog-note {
+    color: var(--cs-muted);
+    font-size: 12px;
+}
+
+.cs-modal .cs-lsp-dialog-note.is-error {
+    color: var(--cs-danger);
+}
+
+.cs-lsp-dialog-files,
+.cs-lsp-dialog-skipped {
+    display: grid;
+    gap: 2px;
+    min-height: 0;
+    max-height: 40vh;
+    margin: 0;
+    padding: 4px;
+    overflow: auto;
+    border: 1px solid var(--cs-line);
+    border-radius: var(--cs-radius-sm);
+    background: var(--vd-mat-well, transparent);
+    list-style: none;
+}
+
+.cs-lsp-dialog-files li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 3px 6px;
+    font-size: 12px;
+}
+
+.cs-lsp-dialog-path {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--cs-text);
+    font-family: var(--cs-mono-font);
+}
+
+.cs-lsp-dialog-where {
+    flex: 0 0 auto;
+    color: var(--cs-muted);
+    font-size: 11px;
+}
+
+.cs-lsp-dialog-where.is-open {
+    font-style: italic;
+}
+
+.cs-lsp-dialog-skipped li {
+    padding: 3px 6px;
+    color: var(--cs-text);
+    font-size: 12px;
+    overflow-wrap: anywhere;
+}
+
+/* Lightbulb gutter: lines with language-server problems; a click opens the quick fixes. */
+.cs-lsp-bulb-gutter .cm-gutterElement {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 2px;
+}
+
+.cs-lsp-bulb {
+    display: inline-flex;
+    color: var(--cs-warning);
+    cursor: pointer;
+}
+
+.cs-lsp-bulb svg {
+    display: block;
+}
