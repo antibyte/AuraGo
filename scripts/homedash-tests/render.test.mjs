@@ -2,12 +2,12 @@ import assert from 'node:assert/strict'; import { loadEngine, ENGINE_ORDER, read
 const FILES = ENGINE_ORDER.concat(['hd-tone.js', 'hd-api.js', 'hd-catalog.js', 'hd-render.js']);
 const STARTER = JSON.parse(read('ui/testdata/homedash-m2/starter-dashboard.json')), CATALOG = JSON.parse(read('internal/homedash/testdata/widget_catalog.json'));
 const V = (id, value) => ({ id, kind: 'sensor', name: id, unit: '%', value, available: true, status: 'ok', readonly: false, stale: false, pending: false, attributes: { updated_at: '2026-11-25T10:00:00Z' } });
-function setup(rawDoc) {
+function setup(rawDoc, tr) {
   const { E, document } = loadEngine(FILES, { dom: true }), catalog = E.catalog.create(CATALOG), doc = E.doc.normalise(rawDoc || STARTER, { sizeOf: catalog.defaultSize });
   const root = E.el('div', { class: 'hd-root', 'data-hd-family': 'glass' }), stage = E.el('div', { class: 'hd-stage' }); root.appendChild(stage); document.body.appendChild(root);
   const views = new Map(), bus = E.core.emitter(), histories = [], frames = [], layouts = []; let width = 1180;
   const store = { view: id => views.get(id) || null, on: bus.on, off: bus.off, history(id, range, points) { histories.push([id, range, points]); return Promise.resolve({ points: [[1, 2], [2, 3]], source: 'source' }); } };
-  const page = E.render.page({ doc, page: doc.pages[0], stage, store, catalog, t: k => k, lang: 'en', raf: fn => { frames.push(fn); return frames.length; }, caf: () => {},
+  const page = E.render.page({ doc, page: doc.pages[0], stage, store, catalog, t: tr || (k => k), lang: 'en', raf: fn => { frames.push(fn); return frames.length; }, caf: () => {},
     measure: () => ({ width, height: 700 }), onLayout: m => layouts.push(m) });
   return { E, stage, views, bus, histories, page, layouts, run: () => { while (frames.length) frames.shift()(); }, setWidth: w => { width = w; } };
 }
@@ -31,6 +31,14 @@ export const tests = [
     assert.equal(cell.querySelector('.hd-title').textContent, 'Clock'); assert.equal(cell.querySelector('.hd-state-text').textContent, 'homedash.view.unsupported');
     const empty = setup({ name: 'E', pages: [{ id: 'main', widgets: [], layouts: { lg: [] } }] });
     assert.equal(empty.stage.querySelector('.hd-page-empty .hd-page-empty-title').textContent, 'homedash.view.empty_title'); }],
+  ['render: built-in system entities get localized names; other entities keep the server name', () => {
+    const { stage, views, bus } = setup(null, k => 'T:' + k), title = id => stage.querySelector('[data-hd-wid="' + id + '"] .hd-title').textContent;
+    views.set('system:memory', Object.assign(V('system:memory', 40), { source: 'system', name: 'Memory' }));
+    views.set('system:cpu', Object.assign(V('system:cpu', 10), { source: 'other', name: 'Custom CPU' }));
+    bus.emit('change', null);
+    assert.equal(title('memory'), 'T:homedash.system.memory');
+    assert.equal(views.get('system:memory').name, 'Memory');
+    assert.equal(title('cpu'), 'Custom CPU'); }],
   ['render: breakpoints follow the stage width with derived, constrained layouts; destroy cleans up', () => {
     const { stage, page, run, setWidth, layouts, bus } = setup();
     setWidth(500); page.layout(); run(); assert.equal(layouts[layouts.length - 1].bp, 'sm');

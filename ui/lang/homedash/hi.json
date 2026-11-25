@@ -82,5 +82,11 @@
   "homedash.menu.all": "सभी डैशबोर्ड",
   "homedash.menu.new_starter": "नया शुरुआती डैशबोर्ड",
   "homedash.menu.new_empty": "नया खाली डैशबोर्ड",
-  "homedash.menu.reload": "फिर से लोड करें"
+  "homedash.menu.reload": "फिर से लोड करें",
+  "homedash.system.cpu": "CPU",
+  "homedash.system.memory": "मेमोरी",
+  "homedash.system.disk": "डिस्क",
+  "homedash.system.net_rx": "नेटवर्क प्राप्त",
+  "homedash.system.net_tx": "नेटवर्क भेजा गया",
+  "homedash.system.uptime": "अपटाइम"
 }

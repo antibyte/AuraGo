@@ -82,5 +82,11 @@
   "homedash.menu.all": "Tous les tableaux de bord",
   "homedash.menu.new_starter": "Nouveau tableau de bord de départ",
   "homedash.menu.new_empty": "Nouveau tableau de bord vide",
-  "homedash.menu.reload": "Recharger"
+  "homedash.menu.reload": "Recharger",
+  "homedash.system.cpu": "CPU",
+  "homedash.system.memory": "Mémoire",
+  "homedash.system.disk": "Disque",
+  "homedash.system.net_rx": "Réseau reçu",
+  "homedash.system.net_tx": "Réseau envoyé",
+  "homedash.system.uptime": "Temps de fonctionnement"
 }

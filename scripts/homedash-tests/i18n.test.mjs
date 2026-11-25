@@ -14,7 +14,7 @@ const SAME_VALUES = new Set(['HomeDash', 'CPU']);
 
 // Genuine loanwords: the native UI uses the English word. locale -> keys, with the reason on each line.
 const SAME_WORD_KEYS = {
-  cs: ['homedash.climate.mode_auto', 'homedash.conn.offline'], // Czech UIs use "Auto" and "Offline" as they are
+  cs: ['homedash.climate.mode_auto', 'homedash.conn.offline', 'homedash.system.disk'], // Czech UIs use "Auto" and "Offline" as they are; "Disk" is the Czech word for a disk
   da: ['homedash.climate.mode_auto', 'homedash.conn.live', 'homedash.conn.offline', 'homedash.home.title', 'homedash.view.back', 'homedash.home.starter_name', 'homedash.source.system'], // Danish: Auto, Live, Offline, Dashboards, System
   de: ['homedash.climate.mode_auto', 'homedash.conn.live', 'homedash.conn.offline', 'homedash.home.title', 'homedash.view.back', 'homedash.home.starter_name', 'homedash.source.system'], // German: Auto, Live, Offline, Dashboards, System
   es: ['homedash.climate.mode_auto'], // "Auto" is the usual Spanish thermostat label

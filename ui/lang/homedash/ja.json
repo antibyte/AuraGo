@@ -82,5 +82,11 @@
   "homedash.menu.all": "すべてのダッシュボード",
   "homedash.menu.new_starter": "新しいスターターダッシュボード",
   "homedash.menu.new_empty": "新しい空のダッシュボード",
-  "homedash.menu.reload": "再読み込み"
+  "homedash.menu.reload": "再読み込み",
+  "homedash.system.cpu": "CPU",
+  "homedash.system.memory": "メモリ",
+  "homedash.system.disk": "ディスク",
+  "homedash.system.net_rx": "ネットワーク受信",
+  "homedash.system.net_tx": "ネットワーク送信",
+  "homedash.system.uptime": "稼働時間"
 }

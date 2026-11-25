@@ -82,5 +82,11 @@
   "homedash.menu.all": "所有仪表盘",
   "homedash.menu.new_starter": "新建入门仪表盘",
   "homedash.menu.new_empty": "新建空白仪表盘",
-  "homedash.menu.reload": "重新加载"
+  "homedash.menu.reload": "重新加载",
+  "homedash.system.cpu": "CPU",
+  "homedash.system.memory": "内存",
+  "homedash.system.disk": "磁盘",
+  "homedash.system.net_rx": "网络接收",
+  "homedash.system.net_tx": "网络发送",
+  "homedash.system.uptime": "运行时间"
 }

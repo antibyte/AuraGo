@@ -82,5 +82,11 @@
   "homedash.menu.all": "Todos los paneles",
   "homedash.menu.new_starter": "Nuevo panel de inicio",
   "homedash.menu.new_empty": "Nuevo panel vacío",
-  "homedash.menu.reload": "Recargar"
+  "homedash.menu.reload": "Recargar",
+  "homedash.system.cpu": "CPU",
+  "homedash.system.memory": "Memoria",
+  "homedash.system.disk": "Disco",
+  "homedash.system.net_rx": "Red recibida",
+  "homedash.system.net_tx": "Red enviada",
+  "homedash.system.uptime": "Tiempo de actividad"
 }

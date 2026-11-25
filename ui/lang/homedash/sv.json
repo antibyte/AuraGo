@@ -82,5 +82,11 @@
   "homedash.menu.all": "Alla instrumentpaneler",
   "homedash.menu.new_starter": "Ny startpanel",
   "homedash.menu.new_empty": "Ny tom instrumentpanel",
-  "homedash.menu.reload": "Läs in igen"
+  "homedash.menu.reload": "Läs in igen",
+  "homedash.system.cpu": "CPU",
+  "homedash.system.memory": "Minne",
+  "homedash.system.disk": "Hårddisk",
+  "homedash.system.net_rx": "Nätverk mottaget",
+  "homedash.system.net_tx": "Nätverk skickat",
+  "homedash.system.uptime": "Drifttid"
 }

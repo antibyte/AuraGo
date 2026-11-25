@@ -17,11 +17,23 @@
         o.stage.appendChild(pageEl);
         const recs = new Map(), byEntity = new Map(), byEl = new Map(), limits = new Map();
         let bp = null, destroyed = false;
-        const lgItem = id => (pg.layouts.lg || []).find(i => i.id === id) || { w: 1, h: 1 };
+        // The built-in system source names its entities in English; the six known ids get a localized name (presentation only).
+        const SYSTEM_NAMES = Object.freeze({
+            'system:cpu': () => t('homedash.system.cpu'), 'system:memory': () => t('homedash.system.memory'),
+            'system:disk': () => t('homedash.system.disk'), 'system:net_rx': () => t('homedash.system.net_rx'),
+            'system:net_tx': () => t('homedash.system.net_tx'), 'system:uptime': () => t('homedash.system.uptime')
+        });
+        const systemName = id => (Object.prototype.hasOwnProperty.call(SYSTEM_NAMES, id) ? SYSTEM_NAMES[id]() : null);
+        const lgItem =id => (pg.layouts.lg || []).find(i => i.id === id) || { w: 1, h: 1 };
         function api(rec) {
             const idOf = binding => { const id = rec.widget.bindings && rec.widget.bindings[binding]; return isEntityId(id) ? id : null; };
             return () => ({
-                entity(binding) { const id = idOf(binding), v = id ? store.view(id) : null; return v ? Object.assign({}, v, { tone: E.tone.of(v, rec.widget.options) }) : null; },
+                entity(binding) {
+                    const id = idOf(binding), v = id ? store.view(id) : null; if (!v) return null;
+                    const out = Object.assign({}, v, { tone: E.tone.of(v, rec.widget.options) }), sys = v.source === 'system' ? systemName(id) : null;
+                    if (sys) out.name = sys;
+                    return out;
+                },
                 can: () => false, command: viewOnly, moreInfo() {},
                 history(binding, range) {
                     const id = idOf(binding); if (!id) return Promise.resolve({ points: [], source: 'none' });

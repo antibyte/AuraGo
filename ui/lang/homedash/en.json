@@ -82,5 +82,11 @@
   "homedash.menu.all": "All dashboards",
   "homedash.menu.new_starter": "New starter dashboard",
   "homedash.menu.new_empty": "New empty dashboard",
-  "homedash.menu.reload": "Reload"
+  "homedash.menu.reload": "Reload",
+  "homedash.system.cpu": "CPU",
+  "homedash.system.memory": "Memory",
+  "homedash.system.disk": "Disk",
+  "homedash.system.net_rx": "Network receive",
+  "homedash.system.net_tx": "Network send",
+  "homedash.system.uptime": "Uptime"
 }

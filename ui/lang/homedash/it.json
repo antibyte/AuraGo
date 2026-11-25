@@ -82,5 +82,11 @@
   "homedash.menu.all": "Tutte le dashboard",
   "homedash.menu.new_starter": "Nuova dashboard iniziale",
   "homedash.menu.new_empty": "Nuova dashboard vuota",
-  "homedash.menu.reload": "Ricarica"
+  "homedash.menu.reload": "Ricarica",
+  "homedash.system.cpu": "CPU",
+  "homedash.system.memory": "Memoria",
+  "homedash.system.disk": "Disco",
+  "homedash.system.net_rx": "Rete in ricezione",
+  "homedash.system.net_tx": "Rete in invio",
+  "homedash.system.uptime": "Tempo di attività"
 }

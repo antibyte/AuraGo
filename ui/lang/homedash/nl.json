@@ -82,5 +82,11 @@
   "homedash.menu.all": "Alle dashboards",
   "homedash.menu.new_starter": "Nieuw startdashboard",
   "homedash.menu.new_empty": "Nieuw leeg dashboard",
-  "homedash.menu.reload": "Opnieuw laden"
+  "homedash.menu.reload": "Opnieuw laden",
+  "homedash.system.cpu": "CPU",
+  "homedash.system.memory": "Geheugen",
+  "homedash.system.disk": "Schijf",
+  "homedash.system.net_rx": "Netwerk ontvangen",
+  "homedash.system.net_tx": "Netwerk verzonden",
+  "homedash.system.uptime": "Looptijd"
 }

@@ -82,5 +82,11 @@
   "homedash.menu.all": "Όλοι οι πίνακες ελέγχου",
   "homedash.menu.new_starter": "Νέος πίνακας εκκίνησης",
   "homedash.menu.new_empty": "Νέος κενός πίνακας ελέγχου",
-  "homedash.menu.reload": "Επαναφόρτωση"
+  "homedash.menu.reload": "Επαναφόρτωση",
+  "homedash.system.cpu": "CPU",
+  "homedash.system.memory": "Μνήμη",
+  "homedash.system.disk": "Δίσκος",
+  "homedash.system.net_rx": "Λήψη δικτύου",
+  "homedash.system.net_tx": "Αποστολή δικτύου",
+  "homedash.system.uptime": "Χρόνος λειτουργίας"
 }

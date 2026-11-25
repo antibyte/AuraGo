@@ -82,5 +82,11 @@
   "homedash.menu.all": "Alle dashboards",
   "homedash.menu.new_starter": "Nyt startdashboard",
   "homedash.menu.new_empty": "Nyt tomt dashboard",
-  "homedash.menu.reload": "Genindlæs"
+  "homedash.menu.reload": "Genindlæs",
+  "homedash.system.cpu": "CPU",
+  "homedash.system.memory": "Hukommelse",
+  "homedash.system.disk": "Harddisk",
+  "homedash.system.net_rx": "Netværk modtaget",
+  "homedash.system.net_tx": "Netværk sendt",
+  "homedash.system.uptime": "Oppetid"
 }
