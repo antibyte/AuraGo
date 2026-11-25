@@ -195,3 +195,53 @@ func TestCodeStudioRemoteBrowseListsFoldersFirstWithGitFlag(t *testing.T) {
 		t.Fatalf("%+v", body.Entries)
 	}
 }
+
+func TestCodeStudioWorkspaceListAndDeleteNeedRemoteScope(t *testing.T) {
+	f := startCodeStudioSSHFixture(t)
+	if err := f.adminSFTP(t).MkdirAll("/home/dev/proj"); err != nil {
+		t.Fatal(err)
+	}
+	s, _ := codeStudioRemoteTestServer(t, f)
+	vault, err := security.NewVault(strings.Repeat("e", 64), filepath.Join(t.TempDir(), "tokvault.bin"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tm, err := security.NewTokenManager(vault, filepath.Join(t.TempDir(), "tokens.bin"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	readTok, _, _ := tm.Create("r", []string{desktopScopeRead}, nil)
+	writeTok, _, _ := tm.Create("w", []string{desktopScopeWrite}, nil)
+	adminTok, _, _ := tm.Create("a", []string{desktopScopeAdmin}, nil)
+	s.TokenManager = tm
+	r := newCodeStudioRemote(codeStudioDefaultSSHDialer(s), slog.Default())
+	t.Cleanup(r.pool.closeAll)
+	h := codeStudioHandlers{server: s, docker: &recordingCodeStudioDockerAPI{}, remote: r}
+	fp := ssh.FingerprintSHA256(f.hostKey)
+	_, m := postJSON(t, h.handleWorkspaces, "/api/code-studio/workspaces", `{"device_id":"dev1","root":"/home/dev/proj","trust_host_key":"`+fp+`"}`)
+	id := m["workspace"].(map[string]any)["id"].(string)
+
+	do := func(method, path, tok string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(method, path, nil)
+		req.Header.Set("Authorization", "Bearer "+tok)
+		w := httptest.NewRecorder()
+		if method == http.MethodGet {
+			h.handleWorkspaces(w, req)
+		} else {
+			h.handleWorkspaceItem(w, req)
+		}
+		return w
+	}
+	if w := do(http.MethodGet, "/api/code-studio/workspaces", readTok); w.Code != 200 || strings.Count(w.Body.String(), `"kind"`) != 1 || strings.Contains(w.Body.String(), f.host) {
+		t.Fatal("read token saw ssh workspaces:", w.Code, w.Body.String())
+	}
+	if w := do(http.MethodGet, "/api/code-studio/workspaces", adminTok); strings.Count(w.Body.String(), `"kind"`) != 2 {
+		t.Fatal("admin token lost ssh workspaces:", w.Body.String())
+	}
+	if w := do(http.MethodDelete, "/api/code-studio/workspaces/"+id, writeTok); w.Code != 403 || !strings.Contains(w.Body.String(), "remote_scope_required") {
+		t.Fatal("write token deleted:", w.Code, w.Body.String())
+	}
+	if w := do(http.MethodDelete, "/api/code-studio/workspaces/"+id, adminTok); w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+}

@@ -92,6 +92,11 @@ func (h codeStudioHandlers) handleWorkspaceItem(w http.ResponseWriter, r *http.R
 
 func (h codeStudioHandlers) listWorkspaces(w http.ResponseWriter, r *http.Request) {
 	out := []codeStudioWorkspaceInfo{codeStudioLocalWorkspaceInfo()}
+	if !codeStudioRemoteCallerAllowed(h.server, r) {
+		// SSH workspace records (host, user, root) are remote-access data: hidden from narrow bearer tokens.
+		writeJSON(w, map[string]interface{}{"status": "ok", "workspaces": out})
+		return
+	}
 	store, err := h.workspaceStore(r.Context())
 	if err == nil {
 		var recs []codeStudioWorkspaceRecord
@@ -220,6 +225,10 @@ func (h codeStudioHandlers) connectWorkspace(w http.ResponseWriter, r *http.Requ
 }
 
 func (h codeStudioHandlers) deleteWorkspace(w http.ResponseWriter, r *http.Request, id string) {
+	if !codeStudioRemoteCallerAllowed(h.server, r) {
+		writeCodeStudioOpError(w, codeStudioRemoteScopeError())
+		return
+	}
 	store, err := h.workspaceStore(r.Context())
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusServiceUnavailable)
