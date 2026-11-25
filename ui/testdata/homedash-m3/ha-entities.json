@@ -1,0 +1,391 @@
+[
+  {
+    "id": "ha:light.kitchen",
+    "source": "ha",
+    "kind": "light",
+    "name": "Kitchen",
+    "area": "Kitchen",
+    "area_id": "kitchen",
+    "icon_hint": "bulb",
+    "capabilities": [
+      {
+        "name": "toggle",
+        "allowed": true
+      },
+      {
+        "name": "turn_on",
+        "allowed": true
+      },
+      {
+        "name": "turn_off",
+        "allowed": true
+      },
+      {
+        "name": "brightness",
+        "allowed": true,
+        "min": 0,
+        "max": 100,
+        "step": 1
+      },
+      {
+        "name": "color_temp",
+        "allowed": true,
+        "min": 2202,
+        "max": 6535,
+        "step": 50
+      },
+      {
+        "name": "color",
+        "allowed": true
+      },
+      {
+        "name": "effect",
+        "allowed": true,
+        "options": [
+          "none",
+          "colorloop"
+        ]
+      }
+    ],
+    "readonly": false,
+    "state": {
+      "value": true,
+      "text": "on",
+      "attributes": {
+        "brightness_pct": 40,
+        "color_mode": "color_temp",
+        "color_temp_kelvin": 3003,
+        "effect": "none",
+        "effect_list": [
+          "none",
+          "colorloop"
+        ],
+        "hs_color": [
+          27.2,
+          56.1
+        ],
+        "max_color_temp_kelvin": 6535,
+        "min_color_temp_kelvin": 2202,
+        "supported_color_modes": [
+          "color_temp",
+          "hs"
+        ]
+      },
+      "available": true,
+      "updated_at": "2026-11-25T09:00:00Z"
+    }
+  },
+  {
+    "id": "ha:light.sofa",
+    "source": "ha",
+    "kind": "light",
+    "name": "Sofa lamp",
+    "area": "Living room",
+    "area_id": "living_room",
+    "icon_hint": "bulb",
+    "capabilities": [
+      {
+        "name": "toggle",
+        "allowed": true
+      },
+      {
+        "name": "turn_on",
+        "allowed": true
+      },
+      {
+        "name": "turn_off",
+        "allowed": true
+      }
+    ],
+    "readonly": false,
+    "state": {
+      "value": false,
+      "text": "off",
+      "attributes": {
+        "color_mode": null,
+        "supported_color_modes": [
+          "onoff"
+        ]
+      },
+      "available": true,
+      "updated_at": "2026-11-25T09:00:00Z"
+    }
+  },
+  {
+    "id": "ha:switch.coffee",
+    "source": "ha",
+    "kind": "switch",
+    "name": "Coffee machine",
+    "area": "Kitchen",
+    "area_id": "kitchen",
+    "device_class": "outlet",
+    "icon_hint": "outlet",
+    "capabilities": [
+      {
+        "name": "toggle",
+        "allowed": true
+      },
+      {
+        "name": "turn_on",
+        "allowed": true
+      },
+      {
+        "name": "turn_off",
+        "allowed": true
+      },
+      {
+        "name": "history",
+        "allowed": true
+      }
+    ],
+    "readonly": false,
+    "state": {
+      "value": false,
+      "text": "off",
+      "attributes": {
+        "device_class": "outlet"
+      },
+      "available": true,
+      "updated_at": "2026-11-25T09:00:00Z"
+    }
+  },
+  {
+    "id": "ha:input_boolean.vacation_mode",
+    "source": "ha",
+    "kind": "switch",
+    "name": "Vacation mode",
+    "icon_hint": "power",
+    "capabilities": [
+      {
+        "name": "toggle",
+        "allowed": true
+      },
+      {
+        "name": "turn_on",
+        "allowed": true
+      },
+      {
+        "name": "turn_off",
+        "allowed": true
+      },
+      {
+        "name": "history",
+        "allowed": true
+      }
+    ],
+    "readonly": false,
+    "state": {
+      "value": false,
+      "text": "off",
+      "available": true,
+      "updated_at": "2026-11-25T09:00:00Z"
+    }
+  },
+  {
+    "id": "ha:scene.movie",
+    "source": "ha",
+    "kind": "scene",
+    "name": "Movie night",
+    "area": "Living room",
+    "area_id": "living_room",
+    "icon_hint": "scene",
+    "capabilities": [
+      {
+        "name": "activate",
+        "allowed": true
+      }
+    ],
+    "readonly": false,
+    "state": {
+      "value": "2026-11-24T20:15:00.000000+00:00",
+      "text": "2026-11-24T20:15:00.000000+00:00",
+      "available": true,
+      "updated_at": "2026-11-25T09:00:00Z"
+    }
+  },
+  {
+    "id": "ha:script.goodnight",
+    "source": "ha",
+    "kind": "script",
+    "name": "Good night",
+    "icon_hint": "script",
+    "capabilities": [
+      {
+        "name": "activate",
+        "allowed": false,
+        "blocked_by": "home_assistant.allowed_services",
+        "sensitive": true
+      }
+    ],
+    "readonly": true,
+    "readonly_reason": "home_assistant.allowed_services",
+    "state": {
+      "value": false,
+      "text": "off",
+      "available": true,
+      "updated_at": "2026-11-25T09:00:00Z"
+    }
+  },
+  {
+    "id": "ha:button.doorbell_test",
+    "source": "ha",
+    "kind": "button",
+    "name": "Doorbell test",
+    "icon_hint": "button",
+    "capabilities": [
+      {
+        "name": "press",
+        "allowed": true
+      }
+    ],
+    "readonly": false,
+    "state": {
+      "value": null,
+      "text": "unknown",
+      "available": true,
+      "updated_at": "2026-11-25T09:00:00Z"
+    }
+  },
+  {
+    "id": "ha:select.heater_mode",
+    "source": "ha",
+    "kind": "select",
+    "name": "Heater mode",
+    "area": "Kitchen",
+    "area_id": "kitchen",
+    "icon_hint": "list",
+    "capabilities": [
+      {
+        "name": "select_option",
+        "allowed": true,
+        "options": [
+          "eco",
+          "comfort",
+          "boost"
+        ]
+      }
+    ],
+    "readonly": false,
+    "state": {
+      "value": "comfort",
+      "text": "comfort",
+      "attributes": {
+        "options": [
+          "eco",
+          "comfort",
+          "boost"
+        ]
+      },
+      "available": true,
+      "updated_at": "2026-11-25T09:00:00Z"
+    }
+  },
+  {
+    "id": "ha:input_select.radio",
+    "source": "ha",
+    "kind": "select",
+    "name": "Radio",
+    "icon_hint": "list",
+    "capabilities": [
+      {
+        "name": "select_option",
+        "allowed": true,
+        "options": [
+          "Jazz",
+          "Rock",
+          "News",
+          "Classic",
+          "Pop",
+          "Lounge"
+        ]
+      }
+    ],
+    "readonly": false,
+    "state": {
+      "value": "Jazz",
+      "text": "Jazz",
+      "attributes": {
+        "options": [
+          "Jazz",
+          "Rock",
+          "News",
+          "Classic",
+          "Pop",
+          "Lounge"
+        ]
+      },
+      "available": true,
+      "updated_at": "2026-11-25T09:00:00Z"
+    }
+  },
+  {
+    "id": "ha:number.boiler_target",
+    "source": "ha",
+    "kind": "number",
+    "name": "Boiler target",
+    "unit": "°C",
+    "icon_hint": "number",
+    "capabilities": [
+      {
+        "name": "set_value",
+        "allowed": true,
+        "min": 30,
+        "max": 70,
+        "step": 1
+      },
+      {
+        "name": "history",
+        "allowed": true
+      }
+    ],
+    "readonly": false,
+    "state": {
+      "value": 55,
+      "text": "55.0",
+      "attributes": {
+        "max": 70,
+        "min": 30,
+        "mode": "box",
+        "step": 1,
+        "unit_of_measurement": "°C"
+      },
+      "available": true,
+      "updated_at": "2026-11-25T09:00:00Z"
+    }
+  },
+  {
+    "id": "ha:input_number.volume",
+    "source": "ha",
+    "kind": "number",
+    "name": "Volume",
+    "area": "Living room",
+    "area_id": "living_room",
+    "icon_hint": "number",
+    "capabilities": [
+      {
+        "name": "set_value",
+        "allowed": true,
+        "min": 0,
+        "max": 100,
+        "step": 5
+      },
+      {
+        "name": "history",
+        "allowed": true
+      }
+    ],
+    "readonly": false,
+    "state": {
+      "value": 35,
+      "text": "35.0",
+      "attributes": {
+        "max": 100,
+        "min": 0,
+        "mode": "slider",
+        "step": 5
+      },
+      "available": true,
+      "updated_at": "2026-11-25T09:00:00Z"
+    }
+  }
+]
