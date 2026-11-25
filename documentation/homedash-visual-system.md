@@ -1033,6 +1033,107 @@ the 0-1 value the primitives write). `--hd-m-arc-u` is the user-unit arc width f
 - **SCR-M2-3 (decimals).** `options.decimals` (integer 0 to 3) sets the readout precision of the gauge and sensor widgets. Any other
   value keeps 0. The temperature widget keeps its 1 decimal.
 
+## M3 additions
+
+Gates W-S, W-G, W-T, W-M, W-I, W-X and P all passed (2026-11-25 and 2026-11-26). Each finding and its round is in the lead rulings
+below. The gate records are local and git-ignored.
+
+- **W1 build sheets.** A cell is 96 px with a 12 px gap. A "1-row" frame is a height of 1 with two or more columns. Its frame
+  becomes `"head state" var(--hd-head-h) / "body body" 1fr` (SCR-M3-5), so the body is 50 px at 2×1. A 1×1 keeps three rows
+  (44 px body). The variants and their sizes:
+
+  | Variant | Sizes | Body |
+  | --- | --- | --- |
+  | switch/push | 1×1, 2×1 | `button.hd-push[data-hd-variant=chip][role=switch]`, 44 px high, icon 20 px with the On/Off word (icon only at 1×1, lead rule A3); 2×1 is `min(100%,152px)` at the start |
+  | switch/tile | 1×1, 2×2 | `button.hd-push[data-hd-variant=tile][role=switch]` fills the body; icon 28 px (40 px at 200 px tall or more); label visually hidden |
+  | light/slider | 2×1, 4×1 | `.hd-lrow`: power chip 44×44 · slider (flex, 44 px hit, 6 px track) · numeral 4.5ch (hidden below 300 px) |
+  | light/fader | 1×2, 1×3 | `.hd-lcol`: numeral (only at 260 px tall or more) · vertical slider (min 64 px, cap 40×24) · power chip 44×44 |
+  | light/tile | 1×1, 2×2 | `.hd-ltile` fills the body: wash `scaleX(--hd-value)` from the left, icon badge top-left (hidden at 1×1), numeral bottom-left (22cqmin; 18 px at 1×1) |
+  | light/dial | M1 H3 | unchanged geometry; a centre tap toggles |
+  | action/button | 1×1, 2×1 | `button.hd-push[data-hd-variant=chip]`, 44 px high: kind icon (scene, script or button) and the verb (Activate, Run or Press); check icon for 600 ms after success |
+  | select/segmented | 2×1, 3×1 | `.hd-seg` full width (overrides the H4 260 px cap); more options than the capacity render the list control (lead rule A2) |
+  | select/list | 1×1, 2×1 | `button.hd-pick`, 44 px high, full width: value (ellipsis) and chevron 16 px |
+  | number/stepper | 2×1, 3×1 | `.hd-stepper` centred: − 44 · value numeral 4ch with unit · + 44 |
+  | number/slider | 2×1, 4×1 | `.hd-nrow`: slider (flex) · numeral 5ch with unit |
+  | light sheet | 7×6 (744×636), 4×7 (420×744) | `.hd-sheet.hd-widget[data-kind=moreinfo]`, 640×600 at most, centred; below 600 px root width a bottom sheet (full width, 85 % high at most) |
+  | listbox popover | — | `.hd-sheet.hd-widget[data-kind=listbox]` in `.hd-pop-layer`; width `max(anchor, 200px)`; rows 44 px; a check on the selected row; 352 px high at most |
+
+- **State table per family.** The shared state language of §7, as the four families paint it.
+
+  | State | Glass | Tactile | Minimal | Instrument |
+  | --- | --- | --- | --- | --- |
+  | pending (after 250 ms) | conic sweep ring on the thumb or icon disc | LED amber 2 Hz blink (static amber under reduced motion) | 270° hairline ring rotating; "…" word | segment chase or blinking lead; static half-lit under reduced motion |
+  | armed | accent ring around the control and `.hd-arm` bar (accent) | amber LED blink; bar hidden | text only | HUD ring and bar (`--hd-i-val`) |
+  | error cue | shake 6 px, 3 cycles, 320 ms | red LED, 3 blinks | shake 4 px | alert flash (HUD to alert, 6 cycles at most) |
+  | confirmed | thumb or disc pulse 1 → 1.06 → 1 in 180 ms, plus check glyph | steady LED and check | check only | 90 ms flash and check |
+  | drag | thumb ×1.12, deeper shadow | cap pressed 1 px, shadow shift | dot ×1.25 | lead segment glow |
+  | on (tile) | `--hd-on` wash 22 %, disc filled `--hd-on` with on-ink glyph | LED lit, legend "I" | disc ink-filled, glyph inverted | HUD top bar and glow |
+
+  `.hd-arm` defaults to the accent colour. Tactile and Minimal hide it (lead ruling, W-S round 1).
+
+- **Structure change requests (SCR-M3-1 to SCR-M3-8).** SCR-M3-1 to SCR-M3-7 were approved by the lead (Q4, 2026-11-25). SCR-M3-8 was
+  approved with decision D8.
+  - **SCR-M3-1** Head icon for every widget: `widget.icon`, then the entity's `icon_hint`, then the kind icon. The M1 hero heads
+    gain icons at 2×1 and larger. Minimal hides head icons, and 1×1 hides them too.
+  - **SCR-M3-2** `frame({more})` puts the more glyph in `.hd-more`: 44×44, top right, hidden at 1×1. The host wires it to `moreInfo`.
+  - **SCR-M3-3** Overlays (the more-info dialog and the listbox panel) carry `hd-widget` and `data-hd-family`, so the family tokens
+    and paint apply. `.hd-sheet[data-kind]` is the popover sheet primitive of §3, the only second blur.
+  - **SCR-M3-4** Primitive input contract: an optional `input` on toggle, rocker, pushButton, slider, knob, stepper, segmented, ctStrip
+    and colourWheel, `pushButton({toggle})` (role switch), `set({icon})`, and the new primitive `picker`. Without `input` the markup is
+    unchanged. The callbacks are in the engine guide.
+  - **SCR-M3-5** 1-row frame layout for the W1 types at height 1 with two or more columns (see the build sheets above).
+  - **SCR-M3-6** Production structure for slider, CT strip, colour wheel, stepper and picker, which had none before. The slider thumb
+    moves with `transform` in track container units, so value changes can transition.
+  - **SCR-M3-7** State attributes: `data-hd-armed`, `data-hd-confirmed` (on the wrapper), `data-hd-dragging` and `data-hd-input` (on
+    the control), and the `.hd-arm` marker in the body.
+  - **SCR-M3-8** Instrument wide sensor numeral: `calc(22cqmin * 0.72)` (see the lead rulings).
+
+- **`--hd-mask-check`.** A token in the `.hd-root` token block of `ui/css/homedash-tokens.css` (lead answer Q3). It is an inline SVG
+  check mark as a data URL, which the stylesheet lint allows. `homedash-widgets.css` uses it as `-webkit-mask` and `mask` on the check
+  glyph, painted with `--hd-ok-ink`. It is in the token freeze, `ui/testdata/homedash-lab/token-freeze.json`.
+
+- **Sheet ids in use (M3).** Placeholders are `{family}` (glass, tactile, minimal, instrument, placeholder), `{hero}` (a W1 cell, W1 to
+  W10, or a hero H1 to H8) and `~variant` suffixes:
+  - W1 cells: `w1-{hero}-{family}` and `w1-{hero}-{family}~dpr2` (core states); `w1-side-by-side-{hero}` (four families, dark and light).
+  - Themes, risk and custom: `w1-themes-{family}` (Glass, Minimal), `w1-risk-{family}` (Tactile, Instrument), `w1-{family}~custom`,
+    `w1-glass~gradient`.
+  - List open: `w1-list-open-{family}`.
+  - Light sheet: `sheet-light-{family}` (7×6 and 4×7) and `sheet-light-{family}~dpr2`.
+  - P1 states: `p1-{hero}-{family}`, `p1-{hero}-{family}~reduced`, `motion-p1-{hero}-{family}` (frames at 0, 50, 100, 200, 400 and 800 ms).
+  - Regression: `hero-H4-{family}` and `hero-H4-{family}~dpr2`, the climate dial, which must stay byte-identical in Minimal.
+
+- **`[role=option]` hit probe.** The 44×44 hit probe in `ui/testdata/homedash-lab-probes.js` selects interactive nodes in the lab stage
+  (buttons, `[role="slider"]`, `[role="switch"]`, `[role="radio"]`, `[role="spinbutton"]`, `[role="option"]` and `[tabindex="0"]`). It
+  also selects `.hd-pop-layer [role="option"]`, so listbox rows are measured even though the popover sits outside the stage.
+
+- **Hardened colour probe.** The colour probe in `homedash-lab-probes.js` never passes a colour it cannot read.
+  - `rgb()` and `rgba()` are parsed exactly. Other syntaxes (`oklch()`, `oklab()`, `lab()`, `lch()`, `color()`, `color-mix()`) are
+    normalised to sRGB through a 1×1 canvas.
+  - A string the canvas cannot parse is reported as an unreadable colour, never read as transparent. `rgba()` throws on it.
+  - A self-check runs in the browser. Known syntaxes must resolve to known sRGB values, a nonsense string must throw, and an
+    `oklch()` alpha must read correctly. The self-check returns its problems as a list; an empty list means the parser is sound.
+
+## M3 documented deviations
+
+These are recorded deviations from the family rules. None of them changes a token value.
+
+- **M1 family geometry overrides (approved at the M1 gates; lead finding I3, batch D+E review).** Some family files set geometry
+  that structure normally owns. They keep the M1 hero recipes that the M1 gates approved. The rule "structure owns geometry" still
+  holds for every W1 control. The examples below are not the full list; the family files are. Examples:
+  - Glass: the pill toggle's glyphs (`.hd-toggle-glyph`, inset 15 px for on and 32 px for off), the rocker's pending disc (26 px) and
+    the 15 % marker of the dial (`.hd-dial::after`).
+  - Instrument: the rocker bezel keeps 2.2 % side padding (`.hd-rocker-bezel`, rubric H2a).
+
+- **Dark light-tile wash, per family.** The base wash is `--hd-light-on` at 18 to 40 % opacity, grown from the left by `--hd-value`.
+  Each family's dark-scheme rule differs as follows.
+
+  | Family | Scheme | Wash rule | Gate |
+  | --- | --- | --- | --- |
+  | Glass | dark only | opacity `calc(0.55 + 0.3 * value)`, so the wash reads as light and not as brown card (accepted deviation, G-2) | W-G round 1 |
+  | Tactile | both | a backlit lens gradient of `--hd-light-on`, opacity `calc(0.7 + 0.3 * value)`; no dark-only rule | W-T round 1 (passed; the base 18 to 40 % does not apply) |
+  | Minimal | dark only | a flat opaque mix `color-mix(in oklch, var(--hd-light-on) 58%, var(--hd-shadow-ink))` at opacity 1, with no plate behind the numeral (M-1, after two rounds) | W-M round 1 |
+  | Instrument | both | a HUD gradient of `--hd-i-val` (20 % to 6 %) at opacity 1; 0.6 when on but empty, 0.5 when pending; no dark-only rule | W-I round 1 (no findings) |
+
 ## Host duties (M2 desktop host and kiosk page)
 
 Implemented in M2 by: duty 1, the desktop shell (no HomeDash file loads fonts; `homedash-tokens.css` declares the two HomeDash faces);
@@ -1190,5 +1291,60 @@ One line each. This section is the versioned record of the rulings; the local ga
 - **Tile glyph inset:** the entity tile's state glyph keeps the card inset, so its bottom inset equals its left inset.
 - **System names:** the client localizes the six built-in `system` entity names through `homedash.system.<native>` when a widget has no
   title. The server contract keeps English names, so other clients show English.
-- **Instrument wide sensors:** at an aspect of 1.6 or more the Instrument sensor keeps M1's fixed 15 px readout. At 5x2 it reads small;
-  revisit in M3 with a token change, not with a local override.
+- **Instrument wide sensors:** at an aspect of 1.6 or more the Instrument sensor numeral is `calc(22cqmin * 0.72)` through
+  `--hd-i-seg-h` (SCR-M3-8, D8, approved in M3). It replaces M1's fixed 15 px readout, which read small at 5x2. The token freeze
+  changed only this line. At 2x1 the numeral is 15.2 px; at 4x2 and 5x2 it is 32.3 px (Gate W-I round 1, no findings).
+- **Read-only and `aria-disabled` (lead, after the Batch C review, 2026-11-25):** read-only never sets `aria-disabled` on a control,
+  buttons included. Read-only controls stay enabled and announce the long reason. `aria-disabled` is for an unavailable entity, a
+  missing capability, or a stepper at its limit.
+- **Segmented capacity (lead, Q10 extended, Gate W-S round 1):** a select shows 3 options below width 3 and 5 from width 3; more
+  options render the list control. Four or five segments at 2×1 gave about 42 px per segment, under the 44 px hit size.
+- **Colour wheel thumb (lead, Gate W-S round 1):** the thumb colour is the JS-set `--hd-wheel-colour`, because `--hd-wheel-rgb` as
+  bare channels cannot be painted (the lint forbids a literal `rgb(`).
+- **Chip colour specificity (Gate W-S round 1, WS-11):** structure sets no colour on the chips at a specificity of 0,4,0 (`:where()`),
+  so family paint wins at normal specificity.
+- **Icon-only chips at 1×1 (Gate W-G round 1, G-1; applied everywhere at Gate W-X, X2):** a switch push and an action button at 1×1
+  show the icon only, centred. The word stays in the accessible name. The pending ring sits on the icon.
+- **Title width (Gate W-S round 1, WS-1):** the title keeps at least 6 characters plus an ellipsis in the one-row head. The state
+  text and its icon truncate first. This applies to every W1 type.
+- **Fader layout (Gate W-S round 1, WS-2):** at 1×2 the fader's slider (min 64 px), 8 px and the 44 px chip sit inside the body, and
+  the state line has its own row. Nothing overlaps at 1×2 or 1×3.
+- **More button at width 1 (Gate W-S round 1, WS-3):** the more button is hidden at width 1 at every height. Hold, Shift+Enter and
+  ContextMenu still open the sheet.
+- **Light tile badge at 1×1 (Gate W-S round 1, WS-4):** the icon badge is hidden at 1×1, so the numeral stands alone, bottom-left.
+- **Unit size (Gate W-S round 1, WS-5):** units are at least 11 px (or 0.5 em when that is larger), baseline-aligned, and the number
+  uses tabular figures.
+- **Armed bar (Gate W-S round 1, WS-6):** the armed bar never overlaps a control. Its height is reserved at the card's bottom inset.
+- **Light sheet height (Gate W-S round 1, WS-7):** the sheet sizes to its content, at most `min(600 px, 85 %)`, and the foot follows the
+  content.
+- **Light sheet head (Gate W-S round 1, WS-8):** the state row sits directly under the head. The area is a muted subtitle, aligned
+  with the name. The wheel column's top aligns with the first row, and its label sits above the wheel.
+- **Slider thumbs (Gate W-S round 1, WS-9):** the CT and brightness thumbs are centred vertically on their track at every value.
+- **List popover height (Gate W-S round 1, WS-10):** no scrollbar until the rows exceed the 352 px maximum. The border and padding count
+  in that size.
+- **Glass dark wash (Gate W-G round 1, G-2):** the dark light tile reads as warm light, never as flat brown. Numeral and unit contrast is
+  at least 4.5:1 and 3:1. The dark-scheme opacity deviation is listed under M3 documented deviations.
+- **Tactile on and off in the dark (Gate W-T round 1, T-1):** the on key differs from the off key by luminance or form, not only by the
+  LED. The pressed key shows a lit amber legend and a glow; the off key keeps an unlit legend. The same applies to the switch tile, the
+  light power chip, the segmented key bank and the picker trigger.
+- **Tactile bezel (Gate W-T round 1, T-2):** the light sheet's steel rim and the wheel rim use a brushed tonal gradient from the steel
+  tokens. No edge is brighter than the strongest widget edge highlight.
+- **Tactile M1 heroes (Gate W-T round 1, T-3):** every listed sheet was inspected. H1 to H3 are unchanged by construction, and H4 was
+  re-judged at Gate W-X.
+- **Minimal dark wash (Gate W-M round 1, M-1, closed after two rounds):** no plate or box behind the numeral. The wash is a flat opaque
+  mix, and the numeral reads directly on the tile. The mix is listed under M3 documented deviations.
+- **Instrument light tile (Gate W-I round 1, no findings):** the light tile uses the HUD tint, with a level bar and corner brackets. On
+  and off read by luminance in both schemes.
+- **Cross-family judgement (Gate W-X, 2026-11-26, no findings):** X1 each family is recognisable from a blind crop of push, slider and
+  tile. X2 the same structure, sizes and state positions in every family. X3 on and off are unmistakable in all four, in both schemes.
+  X4 the real page renders the W1 controls with German state words. X5 the M1 heroes H1 to H4 are unchanged.
+- **Pending, armed, error and focus (Gate P round 1, 2026-11-26, no findings):** P-a pending, P-b armed, P-c rollback and error, and P-d
+  focus pass. Open: no lab cell focuses a climate `+` or `−` step. The C2 rule composes the same ring, but no sheet shows it.
+- **Focus rings (lead, batch D+E review, fixes C1 and C2):** the family focus rules compose the M0 ring with the resting shadow. Tactile
+  `.hd-seg-opt` and `.hd-step-value` keep their ring. The climate steps (`.hd-push`) keep theirs in Glass, Minimal and Instrument.
+- **Drag transitions (lead, batch D+E review, fix I1):** the dial arc and pointer transitions are off in all four families while
+  `[data-hd-dragging]` is set.
+- **Live regions (lead, batch D+E review, fixes I4 and I5):** the host keeps its notice node and banner container in the DOM, so
+  announcements fire. Create buttons use `aria-disabled` while busy and keep focus. The click guard still applies.
+- **Freeze keys (lead, batch D+E review, fix I2):** the token freeze keys each rule by its selector and at-rule chain. Coverage changed;
+  no token value did.

@@ -3,20 +3,24 @@
 ## Purpose
 
 HomeDash is the engine for user-designed smart-home dashboards. This subtree holds the shell-independent browser engine:
-a pure core (document, grid, layout, history, colour and format helpers), 20 static primitive builders, a widget registry
-with a frame host, the hero widget modules (switch, light, climate, gauge, temperature, sensor), the stylesheet parts that
-style them (structure frozen since Gate S, four style families that paint only), the M2 data and view layer, and the test-only
-control lab that renders every primitive, widget and hero in every state.
+a pure core (document, grid, layout, history, colour and format helpers), the static primitive builders (M0's 20 plus `picker`
+from M3), a widget registry with a frame host, the hero widget modules (switch, light, climate, gauge, temperature, sensor), the
+W1 control modules (action, number, select, and the switch and light variants), the stylesheet parts that style them (structure
+frozen since Gate S, four style families that paint only), the M2 data and view layer, the M3 command and input layer, and the
+test-only control lab that renders every primitive, widget and hero in every state.
 
-Since M2 the desktop app loads the engine (`ui/js/desktop/apps/homedash.js` and `homedash-home.js` are its host). The engine
-runs view-only: it reads dashboards and live entity values from the server (SSE plus PUT subscriptions) and sends no
-commands. Commands arrive in M3, the designer in M4, the kiosk page in M6. Visual rules, the frozen token table and the lab
+Since M2 the desktop app loads the engine (`ui/js/desktop/apps/homedash.js` and `homedash-home.js` are its host). Since M3 the
+engine sends commands for the W1 controls (see "Command and input layer" below). The designer comes in M4 and the kiosk page in M6. Visual rules, the frozen token table and the lab
 review process are in `documentation/homedash-visual-system.md`. Desktop chrome and window policy belong to
 `ui/js/desktop/apps/AGENTS.md`.
 
 ## Ownership
 
 - Engine core and widgets: `ui/js/homedash/hd-*.js` and `ui/js/homedash/widgets/hd-w-*.js`.
+- M3 control and input layer (all in `ui/js/homedash/`): `hd-input.js` (`E.input`), `hd-control.js` (`E.control`), `hd-popover.js`
+  (`E.popover`), `hd-moreinfo.js` (`E.moreinfo`), `hd-command.js` (`E.command`, the one command client per JS realm) and the widget
+  modules `widgets/hd-w-action.js`, `widgets/hd-w-number.js` and `widgets/hd-w-select.js`. `hd-prim-controls.js` holds the control
+  primitives with their `input` contract. `widgets/hd-w-switch.js` and `widgets/hd-w-light.js` gained their W1 variants.
 - M2 data and view layer (all in `ui/js/homedash/`): `hd-tone.js` (`E.tone`), `hd-api.js` (`E.api`), `hd-stream.js` (`E.stream`),
   `hd-store.js` (`E.store`), `hd-catalog.js` (`E.catalog`), `hd-render.js` (`E.render`), `hd-sheet.js` (`E.sheet`),
   `hd-view.js` (`E.view`) and `hd-app.js` (`E.mount`). `hd-format.js` (`E.format.duration`) and `hd-widgets.js` belong to the core.
@@ -45,16 +49,21 @@ review process are in `documentation/homedash-visual-system.md`. Desktop chrome 
 
 - `window.HomeDashEngine` is the namespace, written `E` below. Files are classic IIFE scripts that extend it.
 - `ENGINE_ORDER` in `scripts/homedash-tests/harness.mjs`: `hd-core.js`, `hd-format.js`, `hd-colour.js`, `hd-grid.js`,
-  `hd-layout.js`, `hd-doc.js`, `hd-history.js`, `hd-icons.js`, `hd-geometry.js`, `hd-prim-displays.js`, `hd-prim-controls.js`,
-  `hd-widgets.js`, `widgets/hd-w-misc.js`, `widgets/hd-w-climate.js`, `widgets/hd-w-light.js`, `widgets/hd-w-sensor.js`,
-  `widgets/hd-w-switch.js`. The hero modules use `E.widgets.heroStatus`, so they load after `hd-widgets.js`.
-- `APP_ORDER` (harness) is `ENGINE_ORDER` followed by `hd-tone.js`, `hd-api.js`, `hd-stream.js`, `hd-store.js`, `hd-catalog.js`,
-  `hd-render.js`, `hd-sheet.js`, `hd-view.js`, `hd-app.js`. The desktop module-loader entry `homedash` loads the same files in the
+  `hd-layout.js`, `hd-doc.js`, `hd-history.js`, `hd-icons.js`, `hd-geometry.js`, `hd-input.js`, `hd-prim-displays.js`,
+  `hd-prim-controls.js`, `hd-widgets.js`, `hd-control.js`, `hd-popover.js`, `widgets/hd-w-misc.js`, `widgets/hd-w-climate.js`,
+  `widgets/hd-w-light.js`, `widgets/hd-w-sensor.js`, `widgets/hd-w-switch.js`, `widgets/hd-w-action.js`,
+  `widgets/hd-w-select.js`, `widgets/hd-w-number.js`, `hd-moreinfo.js`. The hero modules use `E.widgets.heroStatus`, so they
+  load after `hd-widgets.js`. `hd-control.js` and `hd-popover.js` load before the widgets that use them; `hd-moreinfo.js` is last
+  in the engine because it needs `E.popover` and `E.control`. The primitives look up `E.input` when a builder binds an `input`.
+- `APP_ORDER` (harness) is `ENGINE_ORDER` followed by `hd-tone.js`, `hd-api.js`, `hd-stream.js`, `hd-store.js`, `hd-command.js`, `hd-catalog.js`,
+  `hd-render.js`, `hd-sheet.js`, `hd-view.js`, `hd-app.js`. `hd-command.js` comes after the store because it reads the view and
+  the stream; `hd-render.js` comes after it because the widget api routes `command` through it. The desktop module-loader entry `homedash` loads the same files in the
   same order, then the host scripts `homedash-home.js` and `homedash.js`. `scripts/homedash-tests/wiring.test.mjs` and
   `TestHomeDashWiring` (`ui/desktop_homedash_wiring_test.go`) pin both lists.
 - Parts: `E.core`, `E.el`, `E.svg`, `E.format`, `E.colour`, `E.grid`, `E.layout`, `E.doc`, `E.history`, `E.icons`, `E.geometry`,
-  `E.prim` (20 builders plus `E.prim.util`), `E.widgets`, `E.tone`, `E.api`, `E.stream`, `E.store`, `E.catalog`, `E.render`,
-  `E.sheet`, `E.view` and `E.mount`.
+  `E.prim` (the builders plus `E.prim.util`; `picker` is new in M3), `E.widgets`, `E.input` (M3), `E.control` (M3), `E.popover` (M3),
+  `E.tone`, `E.api`, `E.stream`, `E.store`, `E.command` (M3), `E.catalog`, `E.render`, `E.sheet`, `E.moreinfo` (M3), `E.view` and
+  `E.mount`.
 - No file touches the DOM at load. Every file except `hd-core.js` throws when a part it needs is missing.
 
 ### Primitives (`E.prim.<name>(opts)`)
@@ -67,8 +76,21 @@ review process are in `documentation/homedash-visual-system.md`. Desktop chrome 
 - Common state written by `set()`: `data-hd-status` (`ok`, `unavailable`, `unknown`, `error`), `data-hd-pending`, `data-hd-stale`,
   `data-hd-readonly`, `data-hd-disabled` (as `"true"` or absent), `data-hd-tone` (`ok`, `warn`, `crit`), `data-hd-on`.
 - Primitives write `data-hd-on="true"` or omit the attribute.
-- Interactive builders: disabled or unavailable sets `aria-disabled="true"`; read-only sets `aria-readonly="true"`
-  (plain buttons turn read-only into `aria-disabled`).
+- Interactive builders: disabled or unavailable sets `aria-disabled="true"`; read-only sets `aria-readonly="true"`.
+  M3 amendment A1 (lead, 2026-11-25, after the Batch C review): read-only never sets `aria-disabled`, on buttons too. Plain buttons
+  keep their enabled state and announce the long read-only reason when activated (rule 9). `aria-disabled` is for an unavailable
+  entity, a missing capability, or a stepper button at its limit.
+- **Input contract (M3, SCR-M3-4).** The control builders take an optional `input` object: `toggle`, `rocker`, `pushButton`
+  (and `pushButton({toggle})`, which gives `role=switch`), `slider`, `knob`, `stepper`, `segmented`, `ctStrip`, `colourWheel`, and
+  the new `picker` (a listbox trigger). Without `input` the markup is the M0 markup. With `input` the builder binds `E.input` for
+  pointer and keyboard, and `destroy()` unbinds it. The callbacks by control:
+  - `toggle`, `rocker`, `pushButton`, `picker`: `{enabled, onBlocked, onActivate, onHold}`.
+  - `slider`, `ctStrip`: `{range, onInput, onCommit, onKey, onToggle, onHold, enabled, onBlocked}`. `knob` adds `onToggle` (centre
+    tap, Enter, Space).
+  - `stepper`: `{range, onStep(v)}`. `segmented`: `{onPick(id, viaKeyboard)}`. `colourWheel`: `{onInput, onCommit, onKey}` with
+    `{h 0-360, s 0-100}` values.
+  - A `set()` during a drag keeps the dragged value (input lock). A key press paints its value until the next `set()`.
+    The binders take injectable `win`, `setTimeout`, `clearTimeout` and `now` for tests.
 - `--hd-value` is a 0-1 fraction with 4 decimals. Angles are degrees from 12 o'clock, clockwise, written as `--hd-angle`.
   The colour token for value arcs is `--hd-value-colour`, not `--hd-value`.
 - Dials and gauges use `viewBox="0 0 200 200"` (a gauge `crop` option shortens the height). The value arc is one path
@@ -129,14 +151,27 @@ review process are in `documentation/homedash-visual-system.md`. Desktop chrome 
 
 - **API (`hd-api.js`).** The only file that knows the HomeDash routes. Routes used: `bootstrap`, `widget-catalog` (with `ETag`,
   304), `history`, `stream`, `stream/subscriptions` (PUT), `dashboards`, `dashboard` (GET), `dashboards` POST (`{template:"system", name}`
-  or `{document}`) and `dashboard` DELETE (`revision`). The M2 client does not call `entities`, `entity`, `snapshot`, `commands`,
-  `dashboards/validate`, PUT `dashboard`, `duplicate`, `revisions`, `restore` or `approve`.
+  or `{document}`) and `dashboard` DELETE (`revision`). M3 adds `commands` (POST, one request per action with its own `request_id`) and the `home_assistant`
+  template on `dashboards` POST. The client still does not call `entities`, `entity`, `snapshot`, `dashboards/validate`, PUT
+  `dashboard`, `duplicate`, `revisions`, `restore` or `approve`.
 - Every failure is an Error with `hdApiError`, `status`, `code`, `message`, `data` and `retryAfter`. The code is the body's `code`,
   else its `error`, else a transport word (`aborted`, `not_modified`, `network`, `http_<status>`).
 - Codes acted on: `homedash_disabled`, `storage_unavailable`, `desktop_readonly`, `dashboard_not_found`, `limit_exceeded`,
-  `revision_conflict`, `stream_not_found`, `unauthorized`.
-- **View-only api.** The `api` factory given to widgets returns `can` false for every capability, `command` rejects with
-  `view_only`, and `history` honours the widget's `hours`.
+  `revision_conflict`, `stream_not_found`, `unauthorized`. Command codes (M3, `hd-command`): `confirmation_required` arms the
+  control, `read_only` and `desktop_readonly` lock the entity (the second also raises the desktop read-only event), and `429`
+  drops an intermediate continuous send or retries the final one once.
+- **Widget api (M3).** The `api` factory given to widgets has `can(binding, cap)`, `command(binding, cap, args, {phase})` and
+  `moreInfo(binding)`. `history` honours the widget's `hours`.
+  - `can` is true only in view mode, for an entity that is available, not unknown, not read-only, and has the capability with
+    `allowed` not false.
+  - `command` never rejects. It resolves `{status}`: `accepted` (202 with `expected`; confirmation comes from the stream), `confirmed`
+    (202 without `expected`, confirmed at once), `superseded`, `armed` (a `409` or the first activation of a confirm-required control), `local`
+    (a continuous or key phase still in progress; nothing sent yet), `readonly` (no POST), `refused` (no capability, not allowed, or
+    the entity is unavailable or read-only at the widget level; widgets check read-only first and announce the reason), `stale`,
+    `disposed`, or `failed` with `code`.
+  - `moreInfo(binding)` returns `true` when the light sheet opens. It returns `false` for every entity that is not a light, so a
+    hold on other entities does nothing (rule 11).
+  - Without the `commands` option (the M2 page), `command` rejects with `view_only` and `can` is false for every capability.
 - **Stream (`hd-stream.js`).** One SSE connection per JS realm. The union of the active owners' ids, cut to `hello.limits.entities`,
   goes out with PUT `stream/subscriptions` 250 ms after the last change and after every `hello`.
   - Silence for max(45 s, 3 × heartbeat) or an EventSource error closes the source; the client reconnects itself (after 1, 2, 4, 8,
@@ -145,6 +180,9 @@ review process are in `documentation/homedash-visual-system.md`. Desktop chrome 
     `diagnose()` (bootstrap) to find `homedash_disabled` or 401. The backoff resets after a stream lived 60 s.
   - `revoked` with `shutdown` reconnects; `disabled` and `auth_lost` stop until `resume()`. No active owner for 10 s closes the stream.
   - PUT `stream/subscriptions` answers accepted and rejected ids; a 404 `stream_not_found` is handled by `hd-stream` `put`, and rejected ids reach the store's `subscribed` handler.
+  - `acked()` lists the ids the server last acknowledged (M3; the store's prune rule uses it). When the server has
+    acknowledged nothing yet and no PUT is in flight, the first subscription PUT goes out at once. Later changes keep the 250 ms
+    debounce.
 - **Store (`hd-store.js`).** One per realm (`shared()`, keyed by the API base path). Rules:
   1. A snapshot is the truth for the ids it lists (the contract's snapshot covers newly added ids only).
   2. The server's per-entity `stale` flag is the truth for value age. A source status of `degraded` does not mark anything stale by itself.
@@ -153,7 +191,9 @@ review process are in `documentation/homedash-visual-system.md`. Desktop chrome 
      is kept and returns when the source leaves `unavailable`. Only available entities are stale.
   3. `readonly` means a control that could act is blocked. It applies only to entities with a command capability (not `stream`,
      `snapshot`, `history` or `numeric`) that the server marks read-only or that sit on a read-only desktop. A pure display
-     (all `system` sensors) is never drawn locked. `serverReadonly` keeps the raw server value.
+     (all `system` sensors) is never drawn locked. `serverReadonly` keeps the raw server value. `readonlyReason` names why
+     (M3): `''` when the entity is not read-only, else `virtual_desktop.readonly` on a read-only desktop, the entity's
+     `readonly_reason`, the first command capability's `blocked_by`, or `homedash.readonly`.
   4. `removed` and PUT-rejected ids become status `unknown`.
   5. History `{origin, points:[{t, v}]}` becomes the host series `{points: [[t_ms, value|null]], source: origin}`. Cache key
      `id|span|points`, TTL 60 s under 6 h spans and 5 min otherwise, LRU of 100, at most 4 requests at a time. Live numeric states
@@ -161,6 +201,10 @@ review process are in `documentation/homedash-visual-system.md`. Desktop chrome 
   6. Ids a window stops showing stay subscribed for 30 s (linger).
   7. `dispose()` is idempotent: it unhooks the stream, detaches every watcher's stream handle and drops its linger.
      `shared()` replaces a disposed instance.
+  8. Pruning (M3): an id that no window watches keeps its data while the stream still holds it. The store removes it only once
+     `stream.acked()` no longer lists the id, so the server has acknowledged a subscription without it. A page shown again inside
+     the 30 s linger needs no new PUT and gets no new snapshot, so its entry must still be there. The prune runs on `subscribed`,
+     on `hello` and on every release. (The M3 browser test found the bug.)
   - Change notices are batched into one animation frame. `dashboard_changed` reaches the host as a `'dashboards'` event.
 - **Catalog (`hd-catalog.js`).** Wraps the server catalog: default size and constraints per type and variant, option defaults
   merged under a widget's own options. `registryMismatches(E.widgets)` requires every registered type to exist, its variants to
@@ -198,6 +242,116 @@ review process are in `documentation/homedash-visual-system.md`. Desktop chrome 
 - **System entity names.** The client localizes the six built-in `system` entities through `homedash.system.<native>` when a widget
   has no title. The server contract keeps English names, so other clients see English.
 
+### Command and input layer (M3, P1)
+
+- **Command client (`hd-command.js`, `E.command`).** One client per JS realm (`shared()`, keyed by the API base path), so every
+  window and the light sheet share one overlay. `send(spec)` is the only sender and never rejects. `spec` is `{entity, command,
+  args, phase, widgetKey, widgetId, dashboardId, confirm}`. `decorate(id, view, widgetKey)` merges the overlay into a view.
+  `clearLocks(reason)` drops read-only locks (all of them without a reason). `predict` gives the expected state of a command and
+  `matches` compares a view with it (rule 3 tolerances). Exports: `create`, `shared`, `predict`, `matches`, `valueMatches`, `capOf`,
+  `TIMING` and `CONTINUOUS`. `TIMING` holds the values of the P1 rules: `PENDING_MS` 250, `CONFIRM_MS` 8000, `CUE_MS` 6000,
+  `THROTTLE_MS` 1250, `KEY_MS` 400, `ARM_MS` 4000, `FLASH_MS` 600, `RETRY_MS` 1000.
+- **Phases.** `discrete` (the default: a tap, a click or a toggle), `input` (a continuous value while it moves), `commit` (the
+  release of a continuous value) and `key` (a keyboard change; one trailing send). A continuous phase on a discrete command is
+  treated as `discrete`.
+- **Bus.** The client emits `readonly` (`{id, reason, desktop}`) and `armed` (`{id, widgetKey}`). `hd-app` listens to `readonly`:
+  when `desktop` is true, the store and the view switch to the read-only desktop. `hd-app` clears the locks on every bootstrap
+  refresh and when the stream goes live again, so a `403` lock does not outlive its cause.
+- **Entity view fields (M3).** `decorate` adds these to a view: `pending` (true 250 ms after an unconfirmed send, never before),
+  `error` (`{code, text}` while the 6 s cue lives; `status` reads `error` meanwhile), `armed` (`{command, seconds}` on the armed
+  widget), `confirmed` (true during the 600 ms check), `readonly` and `readonlyReason` (store rule 3).
+- **Read-only.** `send` refuses with `{status: 'readonly'}` when the view is read-only or a lock exists: no POST, no overlay. Widgets
+  check `e.readonly` first (`E.control.activateOnOff`, `input.enabled`) and announce the long reason.
+- **Control helpers (`hd-control.js`, `E.control`).** Capabilities, ranges and options from the entity (`cap`, `range`, `ctRange`,
+  `options`, `lightModel`; `lightModel` reads the light's brightness from `brightness_pct`, and `ctRange` anchors the colour
+  temperature grid at `min`). Read-only and blocked reasons (`reasonKey`, `reasonText`, `sourceName`), cue texts (`cueText`), the
+  on and off command (`onOffCommand`, `activateOnOff`), tap and hold actions (`actions`, `tap`, `hold`), the state line
+  (`statusText`) and the armed marker (`armMarker`). `tap` and `hold` take the widget's `actions`; `navigate` is not an M3 action.
+- **Input (`hd-input.js`, `E.input`).** Pure maths: `range`, `snap`, `page`, `keyValue`, `fraction`, `valueAt`, `dialFraction`,
+  `verticalFraction`, `isHoldKey`. Values snap to a grid anchored at `min` that never passes `max`. Binders on pointer and keyboard
+  events, never HTML5 drag and drop:
+  - `press`: buttons. Activation runs through the native click, so Enter and Space work. Hold is 500 ms. A move of 4 px or more
+    swallows the click (a capture listener and `stopImmediatePropagation`), so host click handlers do not see it.
+  - `gesture`: draggable controls. Pointer capture, with window listeners as the fallback. 4 px separates a tap from a drag, and a
+    drag cancels the hold. A `pointercancel` after a drag commits.
+  - `keys`: Arrow keys step, PageUp and PageDown move 10 % of the range (at least one step), Home and End go to the ends, Enter and
+    Space toggle where the control has a toggle, and Shift+Enter and ContextMenu run hold.
+  - `repeat`: one step per click; repeats while held, 400 ms then 80 ms.
+  - `press` and `keys` both skip a hold key whose event is `defaultPrevented`, so a node bound to both runs `onHold` once.
+  - Primary pointer only. A mouse gesture also ends on a move without a pressed button. `touch-action` is set in CSS (rule 10).
+- **More-info sheet (`hd-moreinfo.js`, `E.moreinfo`).** `build({family, api, popoverRoot, onClose})` renders the dialog without
+  a modal (the lab shows it inline). `create({root})` runs it modal inside `.hd-root` through `E.sheet.trap` and returns
+  `{open(req), close(), isOpen(), destroy()}`, where `req` is `{api, family, opener, subscribe(fn)}`. The rows follow the
+  capabilities: power (always), brightness, colour temperature, colour wheel and effect. A row without its capability is hidden.
+  The effect row is an `E.prim.picker`. The foot shows the source, the last update and the read-only reason. Entity and effect
+  names reach the page through `textContent` only.
+- **Listbox popover (`hd-popover.js`, `E.popover`).** `listbox(o)` opens one non-modal listbox for a trigger. It is anchored below
+  the trigger (above when there is no room) when the root is 600 px wide or more, and is a bottom sheet below that. `o` is
+  `{root, anchor, options: [{id, label}], value, family, label, onPick(id), onClose()}`. `isOpen(root)` lets the trigger toggle,
+  and `close(root)` closes it. A pointer press outside closes the popover. Escape and Tab close it, and focus returns to the trigger
+  (the ARIA table below).
+
+### P1 interaction rules (M3)
+
+The rules below are the normative text, copied from the M3 plan without change. The amendments that follow them come from the lead
+decisions and apply on top of them.
+
+1. **Request ids.** Every user action gets a new `request_id` (`E.core.randomId('r', 20)`); a 429 retry gets a new one (the server caches failures for 30 s).
+2. **Overlay.** The predicted state (contract `expected` table) applies at once to every widget bound to the entity (and the sheet). `pending` appears 250 ms after a send that is still unconfirmed, never before; continuous input that is not yet sent has no pending.
+3. **Confirmation** (contract §4): a `state`, `snapshot` or `entity` frame received after sending confirms when `available` is true, `value` equals `expected.value` (booleans/strings exactly, numbers within half the capability step, exactly without step) and every expected attribute matches (`brightness_pct` ±1, `color_temp_kelvin` ±2 %, `hs_color` hue ±4° circular and saturation ±4, strings exactly). The server state already in the store at the 202 counts. A 202 without `expected` (activate, press, toggle from an unknown state) confirms at once. Confirmation shows the check glyph in the state line for 600 ms.
+4. **Errors.** `superseded:true` ends silently. Errors roll back at once with a 6 s cue in the state line (alert ink, error icon) and the same text in the root's `aria-live="polite"` region; `409 confirmation_required` arms instead; `403 read_only` and `403 desktop_readonly` roll back and mark the entity read-only with the localized `blocked_by` reason (no red cue, announced); `desktop_readonly` also switches the app to the read-only desktop.
+5. **Timeout.** 8 s without confirmation: if a frame since sending had `available:true` and a matching `value`, the overlay drops silently and the reported attributes show (late adoption); otherwise rollback and the timeout cue. Later frames simply update the store.
+6. **Continuous** (`brightness`, `color_temp`, `color`, `set_value`): the overlay follows every input frame; intermediate sends at most every 1250 ms (leading edge included); commit (release) always sends the latest value; a 429 on an intermediate is dropped; a 429 on the final is retried once after `retry_after_ms` (default 1000 ms) if it is still the latest value. Pointercancel after a drag started commits.
+7. **Keyboard** changes (any command) move the overlay at once and send one trailing command 400 ms after the last key.
+8. **Confirm-required** (capability `sensitive`, or widget `confirm:true` on discrete commands): the first activation arms the widget for 4 s (countdown bar + state line "Tap again to confirm · N s", announced); the second activation within 4 s sends `confirmed:true`; a `409` arms. Continuous controls ignore widget `confirm` (Q6).
+9. **Read-only** (L2 stays): controls of read-only entities keep full strength with the lock badge; activation does nothing and announces the long reason; the state line reads `word · short reason`. Unavailable entities: `aria-disabled`, word "Unavailable", no affordance.
+10. **Pointer/touch:** pointer events only; primary pointer only; pointer capture (try/catch, window listeners as fallback); 4 px separates tap from drag and cancels hold; hold = 500 ms; `touch-action`: horizontal sliders and the light tile `pan-y`, vertical faders `pan-x`, dials and the colour wheel `none`; no hover-only affordance.
+11. **More-info** for light entities only: hold, the visible `.hd-more` button (≥ 2×1), Shift+Enter or the ContextMenu key, or tap when `actions.tap.do = more_info`. Hold on other entities does nothing. Right-click is not an affordance in M3 (Q9).
+12. **Switch commands:** one activation sends `turn_on`/`turn_off` from the shown state when allowed, `toggle` only as fallback (Q5).
+
+**Amendments (lead decisions, 2026-11-25).**
+
+- **A1, rule 9 wins over the keyboard table.** Read-only never sets `aria-disabled` on any control, buttons included. The action row
+  of the table below is amended to match. `aria-disabled` is only for an unavailable entity, a missing capability, or a stepper
+  button at its limit. The light sheet follows the same rule.
+- **A2, segmented capacity (W-S round 1).** A `segmented` control holds 3 options below width 3 and 5 options from width 3. A select
+  with more options than that renders the list control.
+- **A3, icon-only word chips at 1×1 (W-G round 1, G-1).** A switch push and an action button at 1×1 show the icon only, centred. The
+  word stays in the accessible name, and the state line carries the state. At 2×1 and larger nothing changes. The pending ring
+  sits on the icon.
+- **A4, prune rule (store rule 8).** The store keeps the data of an unwatched id until `stream.acked()` no longer lists it.
+
+**Keyboard and ARIA per control** (the action row is amended by A1).
+
+| Control | Role / ARIA | Keys |
+| --- | --- | --- |
+| pill, rocker, switch push, switch tile, light power chip, on/off light tile | `button[role=switch][aria-checked]`, name "title: Power" where needed | Space/Enter toggle (native click); Shift+Enter/ContextMenu more-info (lights) |
+| light slider, fader, number slider, sheet brightness | `role=slider` + `aria-valuemin/max/now`, `aria-valuetext` in the unit ("64 %, On"; "35 %"; "55 °C") | Arrow ±step, PgUp/PgDn ±10 % (≥ 1 step), Home/End, Shift+Enter more-info |
+| light dial | `role=slider` | as slider; Enter/Space toggle power |
+| dimmable light tile | `role=slider`, `aria-roledescription` "dimmer", `aria-keyshortcuts="Enter Space"` | Arrows/PgUp/PgDn/Home/End dim; Enter/Space toggle |
+| CT strip | `role=slider`, valuetext "3000 K" | as slider; End = last grid value ≤ max |
+| colour wheel | `role=slider`, valuetext "Hue 27°, saturation 56 %" | Left/Right hue ∓/±5° (wrap), PgUp/PgDn hue ±30°, Up/Down saturation ±5, Home/End saturation 0/100 |
+| action button | `button`; read-only stays enabled and activation announces the long reason (A1) | Enter/Space |
+| segmented | `radiogroup` > `button[role=radio]`, roving tabindex | Arrows move focus and selection (trailing 400 ms send); Space/Enter select now |
+| list | `button.hd-pick[aria-haspopup=listbox][aria-expanded]`; popover `ul[role=listbox][aria-activedescendant]` > `li[role=option][aria-selected]` | Enter/Space/ArrowDown open; Up/Down, Home/End, typeahead; Enter/Space pick; Escape/Tab close; focus returns to the trigger |
+| stepper | `group` > two `button`s + `span[role=spinbutton]` | spinbutton: Arrows/PgUp/PgDn/Home/End (trailing send); buttons: click steps, hold repeats 400 ms then 80 ms |
+| light sheet | `role=dialog aria-modal=true aria-labelledby`, focus trap, Escape, backdrop click, focus return; siblings inert except the live region | Tab cycles; first focus = power toggle |
+
+Focus ring: the M0 box-shadow ring on every interactive role including `option` and `listbox`; family extras as M1. Reduced motion:
+no keyframes or transitions run (probe), countdown and pending become static plus words. Light dial and slider ranges follow the
+brightness capability, and the stepper spinbutton is named from `C.label` (the entity name when there is no title).
+
+### First values (M3)
+
+- **Parallel boot.** `E.mount` requests bootstrap and the widget catalog at the same time (`Promise.all` in `hd-app.js`).
+- **Immediate first PUT.** The first stream subscription goes out at once (see `acked()` in the stream bullets).
+- **Visibility unknown is visible.** A window counts as visible until the host has reported. The host signal starts with no report
+  (`null`), which counts as visible, and the store watch starts with `active: vis.visible()`. So a window's values load before the
+  first intersection report.
+- **Templates re-read.** Bootstrap lists the templates. `hd-app` re-reads them (`refreshTemplates`) when the home view is entered,
+  when the window becomes visible again, and when the stream goes live after a drop. A re-read also clears the command locks.
+- **Target.** First values within 1.5 s (M3 decision D8).
+
 ### Stylesheet bundle and structure
 
 - Ten parts, in this order: `tokens`, `bridge`, `base`, `primitives`, the four family files (`glass`, `tactile`, `minimal`,
@@ -234,12 +388,14 @@ review process are in `documentation/homedash-visual-system.md`. Desktop chrome 
 ### Style families and the frozen structure
 
 - Structure is frozen since Gate S: `hd-prim-*.js`, `hd-widgets.js`, `widgets/hd-w-*.js`, `homedash-base.css`,
-  `homedash-primitives.css` and `homedash-widgets.css`. The M2 changes listed above are the recorded exceptions.
+  `homedash-primitives.css` and `homedash-widgets.css`. The M2 changes listed above are the recorded exceptions. The M3 exceptions are the structure change requests SCR-M3-1 to SCR-M3-8
+  (listed in `documentation/homedash-visual-system.md`, M3 additions); the W1 structure and the overlay layers came in with them.
 - Family files (`homedash-family-*.css`) paint only: colours, shadows, gradients, masks, paint radii and motion, through `var()` and
   `color-mix()`. The Instrument family paints the entity tile's numeral and glyph in the HUD readout colour (`--hd-i-val`).
 - `data-hd-family` may sit on `.hd-root` (the view sets it). The bare `[data-hd-family]` token blocks on the root only declare family-scoped tokens and non-colour scale tokens that only widgets read; colour and font tokens are scoped to `.hd-widget[data-hd-family]` (B-1).
 - Token freeze: `ui/testdata/homedash-lab/token-freeze.json` records every all-`--hd-*` rule of the six token and family
-  parts (45 selectors). `scripts/homedash-tests/m1.test.mjs` fails on any difference. A token change needs the lead's approval,
+  parts. Since M3 each rule is keyed by its selector plus its at-rule chain (media, supports, container), so two rules with the
+  same selector in different contexts no longer overwrite each other. `scripts/homedash-freeze-tokens.mjs` writes the file. `scripts/homedash-tests/m1.test.mjs` fails on any difference. A token change needs the lead's approval,
   then `node scripts/homedash-freeze-tokens.mjs`, then `npm run test:homedash`. Do not edit the JSON by hand.
 - The Glass zero-value rule `@container style(--hd-value: 0.0000)` (`homedash-family-glass.css`) is verified: every element is a style container for style queries and `--hd-value` inherits to the arc paths. Task 20 checked it with a temporary red probe.
 - `E.colour.hudFor`, `E.colour.ensureContrast` and `E.widgets.applyLook` are the look helpers (see the view section for the owned names).
@@ -282,6 +438,9 @@ review process are in `documentation/homedash-visual-system.md`. Desktop chrome 
   - One panel per combination of family, palette, look (theme or custom entry), dpr, motion and scenario.
   - The sheet ids in use are listed in `documentation/homedash-visual-system.md`.
 - New sheets are data: add them to `homedash-lab-sheets.json`, not to Go code.
+- M3 lab fixtures: `ui/testdata/homedash-lab/w1-fixtures.js` holds the W1 fixtures and the P1 scenarios. The light sheet cells use
+  `E.moreinfo.build`, which works without a modal and without `hd-sheet.js`. The M3 sheet ids are listed in
+  `documentation/homedash-visual-system.md`.
 - Output goes to the repository-root `reports/homedash-lab/`: `<id>.png`, or `<id>-NN.png` when split (at most 2400 device px per
   side), and `probes.json` with `generated`, `report_only`, `sheets`, `failures`. The folder is git-ignored.
 - Environment: `HOMEDASH_LAB_SHEETS` (comma list of sheet ids; empty means `defaultSheets`), `HOMEDASH_LAB_REPORT_ONLY=1`
@@ -311,6 +470,9 @@ review process are in `documentation/homedash-visual-system.md`. Desktop chrome 
 - `npm run test:homedash`: the Node guard, the engine tests, the M1 token freeze in `m1.test.mjs`, and the M2 tests
   `api`, `tone`, `stream`, `store`, `catalog`, `i18n` (L5), `scr`, `render`, `sheet`, `view`, `app`, `home`, `host` and `wiring`,
   plus the existing `format` and `bundle` tests (`scripts/homedash-tests/*.test.mjs`; helpers `harness.mjs`, `live-fakes.mjs`, `dom.mjs`).
+- M3 Node tests (in the same `npm run test:homedash` run): `scripts/homedash-tests/icons.test.mjs`, `input.test.mjs`,
+  `command.test.mjs`, `control.test.mjs`, `overlay.test.mjs` (the sheet trap, the listbox popover and the light sheet) and
+  `w1.test.mjs` (the W1 widgets, hosted on views from the demo entities in `ui/testdata/homedash-m3/ha-entities.json`).
 - `npm run check:ui` (bundle drift check, `scripts/build-ui-bundles.js --check`).
 - `go test ./ui -run '(?i)^TestHomeDashWiring$' -count=1` (`ui/desktop_homedash_wiring_test.go`: load order and registration).
 - `go test ./ui -run '^(TestVirtualDesktopFirstPartyJSFilesStayBelowLineBudget|TestHomeDashLab.*)$' -count=1`.
@@ -337,6 +499,19 @@ $env:AURAGO_RUN_BROWSER_SMOKE='1'; & D:\tmp\go-build\hd-m2-ui.test.exe '-test.ru
 ```powershell
 go test -c -o D:\tmp\go-build\hdlab-ui.test.exe ./ui
 $env:AURAGO_RUN_BROWSER_SMOKE='1'; & D:\tmp\go-build\hdlab-ui.test.exe '-test.run=^TestDesktopHomeDashControlLabBrowser$' '-test.v' '-test.timeout=30m'
+```
+
+- M3 controls browser test `TestDesktopHomeDashControlsBrowser` (`ui/desktop_homedash_controls_browser_test.go`): the W1 controls
+  and the P1 paths in the desktop app, against the M3 fixture (`ui/desktop_homedash_fixture_m3_test.go`, with the commands route
+  and the demo entities of `ui/testdata/homedash-m3/`). It needs Chrome and `AURAGO_RUN_BROWSER_SMOKE=1`. Build the binary from the
+  repository root into `D:\tmp\go-build` (outside the repository, so Chrome starts), then run it from `ui` with the shell sandbox
+  off and the flags quoted. `$env:HOMEDASH_M3_SHOTS='1'` also writes the review screenshots to the repository-root
+  `reports/homedash-m3/` (git-ignored). Commands:
+
+```powershell
+go test -c -o D:\tmp\go-build\hd-m3-ui.test.exe ./ui
+Set-Location ui
+$env:AURAGO_RUN_BROWSER_SMOKE='1'; & D:\tmp\go-build\hd-m3-ui.test.exe '-test.run=^TestDesktopHomeDashControlsBrowser$' '-test.v' '-test.timeout=30m'
 ```
 
 - Colour-vision and greyscale copies (after a lab run, from the repository root): `$env:HOMEDASH_LAB_CVD='1'; go test ./ui -run '^TestHomeDashLabColourVisionSheets$' -count=1`.

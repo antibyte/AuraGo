@@ -15,6 +15,9 @@
 //   TTL 60 s under 6 h spans else 5 min, LRU 100, 4 requests at a time; live numeric states append to every cached series of the id.
 // 6 Ids a window stops showing stay subscribed for 30 s (linger).
 // 7 dispose() is idempotent: it unhooks the stream, detaches every watcher's stream handle and drops its linger; shared() replaces a disposed instance.
+// 8 Pruning: an id that no window watches keeps its data while the stream still holds it. The store removes it only once stream.acked()
+//   no longer lists the id, so the server has acknowledged a subscription without it. A page shown again inside the 30 s linger needs
+//   no new PUT and no new snapshot, so its entry must still be there. The prune runs on subscribed, on hello and on every release.
 // View: {id, source, kind, name, area, unit, device_class, icon_hint, value, text, attributes (+updated_at), available, status, readonly,
 // readonlyReason, serverReadonly, capabilities, pending: false, stale, error: null, tone: null}.
 (function () {
