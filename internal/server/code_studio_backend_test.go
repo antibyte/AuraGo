@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestCodeStudioWorkspaceIDFromRequest(t *testing.T) {
@@ -110,5 +111,50 @@ func TestCodeStudioBackendForSelectsLocalOrRejects(t *testing.T) {
 	h.handleFiles(rec, httptest.NewRequest(http.MethodGet, "/api/code-studio/files?ws=..%2Fx", nil))
 	if rec.Code != http.StatusBadRequest {
 		t.Fatal(rec.Code)
+	}
+}
+
+func TestCodeStudioRemotePathMapping(t *testing.T) {
+	cases := []struct {
+		root, v, want string
+		err           bool
+	}{
+		{"/home/u/p", "/workspace", "/home/u/p", false}, {"/home/u/p", "/workspace/src/a.go", "/home/u/p/src/a.go", false},
+		{"/", "/workspace/etc", "/etc", false}, {"/home/u/p", "/workspace/../x", "", true}, {"/home/u/p", "/etc/passwd", "", true},
+	}
+	for _, c := range cases {
+		got, err := codeStudioRemotePath(c.root, c.v)
+		if (err != nil) != c.err || got != c.want {
+			t.Fatalf("%+v -> %q %v", c, got, err)
+		}
+	}
+	if v, _ := codeStudioVirtualPath("/home/u/p", "/home/u/p/src/a.go"); v != "/workspace/src/a.go" {
+		t.Fatal(v)
+	}
+	if _, err := codeStudioVirtualPath("/home/u/p", "/home/u/proj2/a"); err == nil {
+		t.Fatal("prefix sibling accepted")
+	}
+	if r, _ := normalizeCodeStudioRemoteRoot(`~/code\x`, "/home/u"); r != "/home/u/code/x" {
+		t.Fatal(r)
+	}
+	if _, err := normalizeCodeStudioRemoteRoot("rel/dir", "/home/u"); err == nil {
+		t.Fatal("relative accepted")
+	}
+}
+
+func TestCodeStudioCapabilitiesAndGrepRewrite(t *testing.T) {
+	caps := parseCodeStudioCapabilities("os=Linux\narch=x86_64\nshell=/bin/bash\nhas=git\nhas=gopls\nhas=gofmt\n", time.Unix(1, 0))
+	if caps.OS != "Linux" || !caps.Git || caps.Grep || !caps.LSP.Go || !caps.Formatters["gofmt"] || caps.LSP.CPP {
+		t.Fatalf("%+v", caps)
+	}
+	out := rewriteCodeStudioGrepPaths("/home/u/p", "/home/u/p/a.go\x003:x\n/etc/passwd\x001:root\n/home/u/p/b\x00partial")
+	if out != "/workspace/a.go\x003:x\n" {
+		t.Fatalf("%q", out)
+	}
+	args := strings.Join(codeStudioSSHGrepArgs(codeStudioSearchOptions{Query: "q", Exclude: "node_modules"}, "/d"), " ")
+	for _, want := range []string{"--null", "-H", "-F", "-i", "--exclude-dir=node_modules", "-e q -- /d"} {
+		if !strings.Contains(args, want) {
+			t.Fatal(args)
+		}
 	}
 }
