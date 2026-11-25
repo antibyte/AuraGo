@@ -19,7 +19,11 @@
         cpu: ['M7 7h10v10H7z', 'M10 10h4v4h-4z', 'M10 3v4', 'M14 3v4', 'M10 17v4', 'M14 17v4', 'M3 10h4', 'M3 14h4', 'M17 10h4', 'M17 14h4'],
         disk: ['M4 14h16v5H4z', 'M4 14l2.5-8.5h11L20 14', 'M7.5 16.5h.01', 'M11 16.5h5'],
         'fan-heater': ['M4 5h16v11H4z', 'M12 7.75a2.75 2.75 0 1 0 0 5.5a2.75 2.75 0 1 0 0-5.5z', 'M12 7.75v5.5', 'M9.25 10.5h5.5', 'M7 16v3', 'M17 16v3'],
-        'trend-up': ['M7 17L17 7', 'M9 7h8v8'], 'trend-down': ['M7 7l10 10', 'M17 9v8H9'], 'trend-flat': ['M5 12h14', 'M14 7l5 5-5 5']
+        'trend-up': ['M7 17L17 7', 'M9 7h8v8'], 'trend-down': ['M7 7l10 10', 'M17 9v8H9'], 'trend-flat': ['M5 12h14', 'M14 7l5 5-5 5'],
+        'arrow-left': ['M19 12H5', 'M11 18l-6-6 6-6'], trash: ['M4 7h16', 'M9 7V4h6v3', 'M6 7l1 13h10l1-13', 'M10 11v6', 'M14 11v6'],
+        dashboard: ['M4 4h7v9H4z', 'M13 4h7v5h-7z', 'M13 11h7v9h-7z', 'M4 15h7v5H4z'],
+        'signal-off': ['M3 3l18 18', 'M8.5 16.4a5 5 0 0 1 7 0', 'M5.2 12.9a10 10 0 0 1 4-2.3', 'M14.6 10.5a10 10 0 0 1 4.2 2.4', 'M2 8.8a15 15 0 0 1 4.3-2.7', 'M10.4 5.1A15 15 0 0 1 22 8.8', 'M12 20h.01'],
+        info: ['M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z', 'M12 11v5', 'M12 8h.01'], refresh: ['M20 11a8 8 0 1 0-2.3 5.7', 'M20 4v7h-7']
     });
     const has = name => Object.prototype.hasOwnProperty.call(PATHS, name);
     function icon(name) { const key = has(name) ? name : 'entity';
