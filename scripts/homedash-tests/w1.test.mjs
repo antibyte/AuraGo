@@ -24,7 +24,7 @@ export function env(patch) {
       can: (b, cap) => { const v = state.view; if (!v || v.readonly || v.available === false) return false; const c = (v.capabilities || []).find(x => x === cap || (x && x.name === cap)); return !!c && c.allowed !== false; },
       command: (...a) => { calls.commands.push(a); return Promise.resolve({ status: 'sent' }); }, moreInfo: (...a) => { calls.more.push(a); }, history: () => Promise.resolve({ points: [], source: 'ring' }), announce: m => { calls.announced.push(m); } });
     const widget = Object.assign({ id: 'w', type, variant, title: '', bindings: { primary: id } }, opts.widget);
-    const h = E.widgets.host({ widget, size: opts.size || { w: 2, h: 1 }, t, api: fns, parent: document.body });
+    const h = E.widgets.host({ widget, size: opts.size || { w: 2, h: 1 }, t, api: fns, parent: opts.parent || document.body });
     return { h, state, q: s => h.el.querySelector(s), set(view) { state.view = view; h.update(); } };
   }
   return { E, document, store, view: id => store.view(id), mount, calls, t };
@@ -137,5 +137,37 @@ export const tests = [
   ['action: unavailable is aria-disabled and sends nothing; hold on a non-light does nothing; destroy unbinds', () => {
     const x = env({ 'ha:scene.movie': c => { c.state = { value: null, text: 'unavailable', available: false, updated_at: c.state.updated_at }; } }), w = x.mount('action', 'button', 'ha:scene.movie'), p = w.q('button.hd-push');
     assert.equal(p.getAttribute('aria-disabled'), 'true'); p.dispatchEvent(click); assert.equal(x.calls.commands.length, 0);
-    const y = env(), v = y.mount('action', 'button', 'ha:scene.movie'), n = v.q('button.hd-push'); n.dispatchEvent(key('Enter', { shiftKey: true })); assert.equal(y.calls.more.length, 0); v.h.destroy(); n.dispatchEvent(click); assert.equal(y.calls.commands.length, 0); }]
+    const y = env(), v = y.mount('action', 'button', 'ha:scene.movie'), n = v.q('button.hd-push'); n.dispatchEvent(key('Enter', { shiftKey: true })); assert.equal(y.calls.more.length, 0); v.h.destroy(); n.dispatchEvent(click); assert.equal(y.calls.commands.length, 0); }],
+
+  // Task 14: select.
+  ['select segmented: options come from the capability, a click sends select_option (discrete), ArrowRight sends with phase key', () => { const x = env(), w = x.mount('select', 'segmented', 'ha:select.heater_mode', { size: { w: 3, h: 1 } }), g = w.q('.hd-seg');
+    assert.equal(g.getAttribute('role'), 'radiogroup'); assert.equal(g.getAttribute('aria-label'), 'Heater mode'); const btn = () => g.querySelectorAll('.hd-seg-opt');
+    eq(btn().map(b => b.querySelector('.hd-seg-label').textContent), ['eco', 'comfort', 'boost']); eq(btn().map(b => b.getAttribute('aria-checked')), ['false', 'true', 'false']); assert.equal(w.q('.hd-state-text').textContent, 'comfort');
+    btn()[2].dispatchEvent(click); eq(x.calls.commands, [['primary', 'select_option', { option: 'boost' }, { phase: 'discrete' }]]);
+    x.calls.commands.length = 0; g.dispatchEvent(Object.assign(key('ArrowLeft'), { target: btn()[1] })); eq(x.calls.commands, [['primary', 'select_option', { option: 'eco' }, { phase: 'key' }]]); }],
+  ['select segmented: a change of the options rebuilds once; the same options keep the node; more than 5 options render the list control', () => { const x = env(), w = x.mount('select', 'segmented', 'ha:select.heater_mode', { size: { w: 3, h: 1 } }), first = w.q('.hd-seg'), v = x.view('ha:select.heater_mode');
+    w.set(Object.assign({}, v, { value: 'boost' })); assert.equal(w.q('.hd-seg'), first); eq(first.querySelectorAll('.hd-seg-opt').map(b => b.getAttribute('aria-checked')), ['false', 'false', 'true']);
+    const more = v.capabilities.map(c => (c.name === 'select_option' ? Object.assign({}, c, { options: ['eco', 'comfort', 'boost', 'away'] }) : c)); w.set(Object.assign({}, v, { capabilities: more }));
+    const second = w.q('.hd-seg'); assert.notEqual(second, first); assert.equal(second.querySelectorAll('.hd-seg-opt').length, 4); assert.equal(w.h.body.querySelectorAll('.hd-seg').length, 1); w.set(Object.assign({}, v, { capabilities: more })); assert.equal(w.q('.hd-seg'), second);
+    const r = x.mount('select', 'segmented', 'ha:input_select.radio', { size: { w: 3, h: 1 } }); assert.equal(r.q('.hd-seg'), null); assert.ok(r.q('button.hd-pick')); assert.equal(r.q('.hd-pick-label').textContent, 'Jazz'); }],
+  ['select list: the picker shows the value, opens a listbox under the nearest root, Enter on Rock sends select_option and closes; the current value sends nothing', () => { const x = env(), root = x.document.createElement('div'), E = x.E;
+    root.setAttribute('class', 'hd-root'); root.getBoundingClientRect = () => ({ left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600 }); x.document.body.appendChild(root);
+    const w = x.mount('select', 'list', 'ha:input_select.radio', { parent: root }), p = w.q('button.hd-pick');
+    assert.equal(p.getAttribute('aria-haspopup'), 'listbox'); assert.equal(p.getAttribute('aria-expanded'), 'false'); assert.equal(w.q('.hd-pick-label').textContent, 'Jazz'); assert.equal(p.getAttribute('aria-label'), 'Radio');
+    p.dispatchEvent(click); const list = root.querySelector('[role="listbox"]'); assert.ok(list); assert.equal(p.getAttribute('aria-expanded'), 'true'); assert.equal(root.querySelector('.hd-sheet').getAttribute('data-hd-family'), 'glass');
+    eq(root.querySelectorAll('[role="option"]').map(o => o.getAttribute('aria-selected')), ['true', 'false', 'false', 'false', 'false', 'false']);
+    list.dispatchEvent(key('ArrowDown')); list.dispatchEvent(key('Enter')); eq(x.calls.commands, [['primary', 'select_option', { option: 'Rock' }, { phase: 'discrete' }]]); assert.equal(root.querySelector('[role="listbox"]'), null); assert.equal(p.getAttribute('aria-expanded'), 'false');
+    p.dispatchEvent(click); root.querySelector('[role="listbox"]').dispatchEvent(key('Enter')); assert.equal(x.calls.commands.length, 1, 'picking the current value sends nothing'); assert.equal(E.popover.isOpen(root), false); }],
+  ['select list: an unknown current value is shown with no option selected; option and value text never become markup; destroy closes the listbox', () => {
+    const x = env({ 'ha:input_select.radio': c => { c.state.value = '<b>Ska</b>'; c.state.text = c.state.value; c.capabilities[0].options.push('<img src=x>'); } }), root = x.document.createElement('div');
+    root.setAttribute('class', 'hd-root'); root.getBoundingClientRect = () => ({ left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600 }); x.document.body.appendChild(root);
+    const w = x.mount('select', 'list', 'ha:input_select.radio', { parent: root }); assert.equal(w.q('.hd-pick-label').textContent, '<b>Ska</b>'); assert.equal(w.q('.hd-state-text').textContent, '<b>Ska</b>');
+    w.q('button.hd-pick').dispatchEvent(click); assert.equal(root.querySelectorAll('[role="option"]').filter(o => o.getAttribute('aria-selected') === 'true').length, 0); assert.equal(root.querySelector('img'), null);
+    assert.equal(root.querySelectorAll('[role="option"]').length, 7); w.h.destroy(); assert.equal(root.querySelector('[role="listbox"]'), null); assert.equal(x.E.popover.isOpen(root), false); }],
+  ['select: read-only announces the long reason and sends nothing; unavailable is aria-disabled; segmented and list', () => {
+    for (const [variant, id, sel] of [['segmented', 'ha:select.heater_mode', '.hd-seg-opt'], ['list', 'ha:input_select.radio', 'button.hd-pick']]) {
+      const x = env({ [id]: readOnly }), w = x.mount('select', variant, id, { size: { w: 3, h: 1 } }); w.q(sel).dispatchEvent(click); assert.equal(x.calls.commands.length, 0, variant); eq(x.calls.announced, [EN['homedash.reason.ha_readonly_long']]);
+      assert.equal(w.q('.hd-state-text').textContent.includes(EN['homedash.reason.ha_readonly']), true, variant);
+      const y = env({ [id]: c => { c.state = { value: null, text: 'unavailable', available: false, updated_at: c.state.updated_at }; } }), u = y.mount('select', variant, id, { size: { w: 3, h: 1 } });
+      assert.equal(u.q(variant === 'list' ? 'button.hd-pick' : '.hd-seg').getAttribute('aria-disabled'), 'true', variant); u.q(sel).dispatchEvent(click); assert.equal(y.calls.commands.length, 0, variant); } }]
 ];
