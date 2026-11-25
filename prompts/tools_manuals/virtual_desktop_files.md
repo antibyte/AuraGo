@@ -11,3 +11,5 @@ Notes subfolders. HTTP/SDK clients must retain each read ETag, use If-Match when
 saving, and use If-None-Match: * for a new destination. On a conflict, ask the user
 to replace the observed version, keep a distinct copy, or cancel; never silently
 overwrite. These HTTP preconditions do not add arguments to this native tool.
+
+Code Studio SSH workspaces (a Code Studio `workspace_id` other than `local`) are remote folders, not this workspace: use `code_studio_workspace` for them.
