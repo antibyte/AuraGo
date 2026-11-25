@@ -28,6 +28,8 @@ type codeStudioFixtureBackend struct {
 	// lspHandler serves /api/code-studio/lsp after the upgrade (IDE package 2b). Nil closes with 4404 like an image
 	// without language servers. Set it under mu.
 	lspHandler func(conn *websocket.Conn, lang string)
+	// previewVersion counts workspace writes for the preview long-poll (HTML preview smoke). Guarded by mu.
+	previewVersion int
 
 	mu          sync.Mutex
 	files       map[string]string
@@ -128,6 +130,7 @@ func (b *codeStudioFixtureBackend) register(mux *http.ServeMux) {
 				return
 			}
 			b.files[body.Path] = body.Content
+			b.previewVersion++
 			writeJSON(w, map[string]interface{}{"status": "ok"})
 		case http.MethodPatch:
 			var body struct {
@@ -249,6 +252,7 @@ func (b *codeStudioFixtureBackend) register(mux *http.ServeMux) {
 			}
 		}
 	})
+	b.registerPreview(mux, writeJSON)
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, map[string]interface{}{}) })
 }
 
