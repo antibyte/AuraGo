@@ -65,6 +65,7 @@ var homeDashRoutes = map[string]map[string]hdEndpoint{
 	"entity":         {http.MethodGet: {desktopRead, (*hdRequest).getEntity}},
 	"history":        {http.MethodGet: {desktopRead, (*hdRequest).history}},
 	"snapshot":       {http.MethodGet: {desktopRead, (*hdRequest).snapshot}},
+	"commands":       {http.MethodPost: {desktopWrite, (*hdRequest).command}},
 	"dashboards":     {http.MethodGet: {desktopRead, (*hdRequest).listDashboards}, http.MethodPost: {desktopWrite, (*hdRequest).createDashboard}},
 	"dashboard": {http.MethodGet: {desktopRead, (*hdRequest).getDashboard}, http.MethodPut: {desktopWrite, (*hdRequest).updateDashboard},
 		http.MethodDelete: {desktopWrite, (*hdRequest).deleteDashboard}},
