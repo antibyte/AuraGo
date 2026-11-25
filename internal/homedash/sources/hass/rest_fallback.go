@@ -60,10 +60,7 @@ func (a *Adapter) pollOnce(ctx context.Context) (applied bool, err error) {
 	return true, nil
 }
 
-// Temporary until Tasks 7-8 (removed there).
-func (a *Adapter) Command(context.Context, homedash.Command) (homedash.CommandResult, error) {
-	return homedash.CommandResult{}, &homedash.Error{Code: homedash.CodeUnsupportedCommand, Message: "not yet"}
-}
+// Temporary until Task 8 (removed there).
 func (a *Adapter) History(context.Context, string, time.Time, time.Time, int) ([]homedash.Sample, error) {
 	return []homedash.Sample{}, nil
 }
