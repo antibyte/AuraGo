@@ -5,13 +5,17 @@
 - Core of the HomeDash app: entity hub, widget catalog, dashboard document schema, `homedash.db`
   store and command pipeline.
 - `sources/hass`: Home Assistant domain/attribute mapping and websocket client.
+- `sources/system`: host metrics (CPU, memory, disk, network rates, uptime), read-only.
 
 ## Ownership
 
 - `internal/homedash` imports only the standard library, `internal/security`, `internal/dbutil` and
   `modernc.org/sqlite`; never `server`, `agent`, `tools` or integrations.
 - Adapters under `sources/` may import their own integration (`sources/hass` imports `internal/tools`).
-- Server wiring, HTTP routes, the config UI and the frontend are later milestones.
+- `sources/system` reads the server's collector sample and history ring through injected functions;
+  it imports only `internal/homedash`. The server owns the sampler; the adapter never samples.
+- Server wiring and the desktop API live in `internal/server/homedash_*.go` (see
+  `internal/server/AGENTS.md`, "HomeDash API"); the config UI and kiosk are later milestones.
 - Design: `docs/superpowers/specs/2026-11-23-homedash-design.md`. Its section 4 wins over the part
   documents in `docs/superpowers/specs/2026-11-23-homedash/`.
 - The config block `homedash` lives in `internal/config/homedash.go`.
@@ -31,6 +35,18 @@
 - Subscribers: sinks never block; latest state wins per entity; memory is bounded by the
   subscription size; the state cache keeps only entities in the catalog or with interest.
   Idle sources stop after 60 s.
+- `Subscriber.Set` drops duplicate ids silently (rejected ids too). One call publishes its snapshot
+  as one batch, so one PUT yields one `snapshot` frame.
+- `Hub.PrefetchCatalogs(ctx, ids)` refreshes only stale catalogs of the named sources, without
+  interest or start. Call it before `Subscriber.Set` so snapshots carry real entities.
+- `Hub.LookupEntities(ctx, ids)` answers validation lookups through the normal gates, with no
+  warm-up.
+- A catalog fetch abandoned because the caller's context ended (client disconnect) does not mark
+  the source `catalog_failed`. A real per-source timeout still does.
+- The dashboard cap may change at runtime: `Store.SetMaxDashboards` is atomic and safe during saves.
+- `sources/system`: live values come from the collector sample (the adapter computes the live network rates in Mbit/s between samples); history comes from the server's ring, which computes its rates the same way. `History` buckets ring entries (last entry per bucket as T, empty and NaN values
+  skipped, at most `points` buckets). Its series answer `origin:"source"` (no `since`); the hub's
+  in-memory ring is not used. `system:uptime` has no history.
 - Command order: principal kind and key (agents, unknown kinds and empty keys are refused) ->
   request id -> hub closed / HomeDash disabled -> kiosk disabled -> kiosk: entity in the allowed set
   (before any lookup, so a display cannot probe for entities) -> entity and source lookup (the
@@ -81,6 +97,7 @@
 ## Verification
 
 - `go test ./internal/homedash/... -count=1`
+- `go test ./internal/homedash/sources/system/ -count=1`
 - Race detector on Linux (Windows has no gcc): copy `go.mod`, `go.sum` and the packages
   `internal/homedash` needs to a Linux host, then run `go test -race ./internal/homedash/`.
 - `go test ./internal/config/ -run '(?i)(HomeDash|SQLite)'`
