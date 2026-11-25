@@ -116,5 +116,26 @@ export const tests = [
   ['light tile: unavailable reads the en dash; the tile never calls it Off; every light variant has a more-info hold', () => {
     const x = env({ 'ha:light.kitchen': c => { c.state = { value: null, text: 'unavailable', available: false, updated_at: c.state.updated_at }; } }), w = x.mount('light', 'tile', 'ha:light.kitchen', { size: { w: 2, h: 2 } });
     assert.equal(w.q('.hd-ltile .hd-num-int').textContent, String.fromCodePoint(0x2013)); assert.equal(w.q('.hd-ltile').getAttribute('aria-disabled'), 'true'); assert.equal(w.q('.hd-state-text').textContent, EN['homedash.state.unavailable']);
-    const y = env(); for (const [variant, sel] of [['slider', '.hd-slider'], ['fader', '.hd-slider'], ['tile', '.hd-ltile'], ['dial', '.hd-dial']]) { y.calls.more.length = 0; y.mount('light', variant, 'ha:light.kitchen', { size: { w: 3, h: 3 } }).q(sel).dispatchEvent(key('ContextMenu')); assert.equal(y.calls.more.length, 1, variant); } }]
+    const y = env(); for (const [variant, sel] of [['slider', '.hd-slider'], ['fader', '.hd-slider'], ['tile', '.hd-ltile'], ['dial', '.hd-dial']]) { y.calls.more.length = 0; y.mount('light', variant, 'ha:light.kitchen', { size: { w: 3, h: 3 } }).q(sel).dispatchEvent(key('ContextMenu')); assert.equal(y.calls.more.length, 1, variant); } }],
+
+  // Task 13: action button.
+  ['action: a scene click sends activate, a button sends press; verb, icon and kind word per kind', () => { const x = env(), s = x.mount('action', 'button', 'ha:scene.movie'), p = s.q('button.hd-push');
+    assert.equal(p.getAttribute('role'), null); assert.equal(p.querySelector('.hd-push-label').textContent, EN['homedash.action.activate']); assert.equal(p.querySelector('svg').getAttribute('data-hd-icon'), 'scene'); assert.equal(p.getAttribute('aria-label'), 'Movie night');
+    assert.equal(s.q('.hd-state-text').textContent, EN['homedash.kind.scene']); p.dispatchEvent(click); eq(x.calls.commands, [['primary', 'activate', {}]]);
+    const b = x.mount('action', 'button', 'ha:button.doorbell_test'), q = b.q('button.hd-push'); assert.equal(q.querySelector('.hd-push-label').textContent, EN['homedash.action.press']); assert.equal(q.querySelector('svg').getAttribute('data-hd-icon'), 'button');
+    q.dispatchEvent(click); eq(x.calls.commands[1], ['primary', 'press', {}]); assert.equal(b.q('.hd-state-text').textContent, EN['homedash.kind.button']); }],
+  ['action: script.goodnight is read-only by default: no command, the short reason in the line, the long reason announced', () => { const x = env(), w = x.mount('action', 'button', 'ha:script.goodnight'), p = w.q('button.hd-push');
+    assert.equal(p.querySelector('.hd-push-label').textContent, EN['homedash.action.run']); assert.equal(p.querySelector('svg').getAttribute('data-hd-icon'), 'script'); assert.equal(p.getAttribute('aria-disabled'), 'true');
+    assert.equal(w.q('.hd-state-text').textContent, EN['homedash.kind.script'] + MID + EN['homedash.reason.allowed_services']); p.dispatchEvent(click);
+    assert.equal(x.calls.commands.length, 0); eq(x.calls.announced, [EN['homedash.reason.allowed_services_long']]); }],
+  ['action: an allowed sensitive script sends activate, shows the armed text, and the check state "Done" after confirmation', () => {
+    const x = env({ 'ha:script.goodnight': c => { c.readonly = false; delete c.readonly_reason; c.capabilities = [{ name: 'activate', allowed: true, sensitive: true }]; } }), w = x.mount('action', 'button', 'ha:script.goodnight');
+    w.q('button.hd-push').dispatchEvent(click); eq(x.calls.commands, [['primary', 'activate', {}]]); const base = x.view('ha:script.goodnight');
+    w.set(Object.assign({}, base, { armed: { seconds: 3 } })); assert.equal(w.q('.hd-state-text').textContent, 'Tap again to confirm' + MID + '3 s'); assert.equal(w.h.el.getAttribute('data-hd-armed'), 'true');
+    w.set(Object.assign({}, base, { confirmed: true })); assert.equal(w.q('.hd-state-text').textContent, EN['homedash.state.done']); assert.equal(w.h.el.getAttribute('data-hd-confirmed'), 'true');
+    assert.equal(w.q('button.hd-push svg').getAttribute('data-hd-icon'), 'check'); w.set(base); assert.equal(w.q('button.hd-push svg').getAttribute('data-hd-icon'), 'script'); assert.equal(w.h.body.querySelectorAll('.hd-arm').length, 1); }],
+  ['action: unavailable is aria-disabled and sends nothing; hold on a non-light does nothing; destroy unbinds', () => {
+    const x = env({ 'ha:scene.movie': c => { c.state = { value: null, text: 'unavailable', available: false, updated_at: c.state.updated_at }; } }), w = x.mount('action', 'button', 'ha:scene.movie'), p = w.q('button.hd-push');
+    assert.equal(p.getAttribute('aria-disabled'), 'true'); p.dispatchEvent(click); assert.equal(x.calls.commands.length, 0);
+    const y = env(), v = y.mount('action', 'button', 'ha:scene.movie'), n = v.q('button.hd-push'); n.dispatchEvent(key('Enter', { shiftKey: true })); assert.equal(y.calls.more.length, 0); v.h.destroy(); n.dispatchEvent(click); assert.equal(y.calls.commands.length, 0); }]
 ];
