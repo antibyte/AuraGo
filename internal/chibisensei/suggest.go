@@ -2,8 +2,9 @@ package chibisensei
 
 var lfmLanguages = map[string]bool{"en": true, "ar": true, "zh": true, "fr": true, "de": true, "ja": true, "ko": true, "es": true}
 
-// SuggestProfile applies the Goal rule in order. All launch profiles are experimental, so the "prefer
-// verified" clause has no effect in P1.
+// SuggestProfile applies the Goal rule in order. All launch profiles are verified (proof runs of
+// 2026-11-25), so the "prefer verified" clause has no effect: it would only matter for a profile that
+// ships experimental.
 func SuggestProfile(recipe string, rows, p95 int, lang string) Suggestion {
 	switch {
 	case recipe == RecipeSpecialist && (rows == 0 || p95 <= 512):

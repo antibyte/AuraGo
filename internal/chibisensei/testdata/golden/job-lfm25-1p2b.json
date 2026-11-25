@@ -7,18 +7,14 @@
   "id": "lfm25-1p2b",
   "display_name": "LFM2.5 1.2B",
   "schema": 1,
-  "status": "experimental",
-  "verified": null,
-  "unverified": [
-   "base.revision",
-   "license.url",
-   "training.lora.target_modules",
-   "training.batch_tokens",
-   "training.t4_tokens_per_second",
-   "training.t4_gen_tokens_per_second",
-   "training.min_vram_gb",
-   "gguf.estimated_mb"
-  ],
+  "status": "verified",
+  "verified": {
+   "date": "2026-11-25",
+   "aurago_version": "v2026.11.21+dev",
+   "kaggle_ref": "chibi-10bacad5-f1b7bfc4b683",
+   "llama_cpp": "b9994"
+  },
+  "unverified": [],
   "license": {
    "id": "lfm-open-1.0",
    "name": "LFM Open License v1.0",
@@ -81,10 +77,10 @@
     "lora": 0.0002
    },
    "max_seq_cap": 2048,
-   "batch_tokens": 4096,
+   "batch_tokens": 2048,
    "grad_checkpointing": true,
-   "t4_tokens_per_second": 1800,
-   "t4_gen_tokens_per_second": 25,
+   "t4_tokens_per_second": 390,
+   "t4_gen_tokens_per_second": 31,
    "min_gpu_capability": "7.0",
    "min_vram_gb": 15,
    "extra_pip": []
@@ -106,7 +102,7 @@
    "estimated_mb": 1250
   }
  },
- "profile_sha": "dc5bac77d5f2716f9f60ef8a9316390649a17955b50465ec4d33df8e760ed45d",
+ "profile_sha": "8c33d7f67f2c544891d40df0f1b2cef2ad2b2de67d1472c44443d29540eddbcc",
  "recipe": "free",
  "task_kind": null,
  "labels": [],
@@ -144,8 +140,8 @@
   }
  },
  "budget": {
-  "session_timeout_s": 3540,
-  "max_train_s": 1125,
+  "session_timeout_s": 3600,
+  "max_train_s": 1304,
   "eval_max_samples": 20,
   "max_new_tokens": 256
  },

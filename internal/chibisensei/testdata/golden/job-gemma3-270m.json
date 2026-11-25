@@ -7,25 +7,19 @@
   "id": "gemma3-270m",
   "display_name": "Gemma 3 270M",
   "schema": 1,
-  "status": "experimental",
-  "verified": null,
-  "unverified": [
-   "base.repo",
-   "base.revision",
-   "license.version",
-   "training.lr",
-   "training.lora",
-   "training.batch_tokens",
-   "training.t4_tokens_per_second",
-   "training.t4_gen_tokens_per_second",
-   "training.min_vram_gb",
-   "gguf.estimated_mb"
-  ],
+  "status": "verified",
+  "verified": {
+   "date": "2026-11-25",
+   "aurago_version": "v2026.11.21+dev",
+   "kaggle_ref": "chibi-73f8db39-761a5a0cd4f2",
+   "llama_cpp": "b9994"
+  },
+  "unverified": [],
   "license": {
    "id": "gemma",
    "name": "Gemma Terms of Use",
    "url": "https://ai.google.dev/gemma/terms",
-   "version": "1.0",
+   "version": "2026-04-01",
    "requires_consent": true,
    "note_key": "chibi_sensei.license.gemma"
   },
@@ -77,10 +71,10 @@
     "lora": 0.0002
    },
    "max_seq_cap": 2048,
-   "batch_tokens": 8192,
+   "batch_tokens": 4096,
    "grad_checkpointing": false,
-   "t4_tokens_per_second": 6000,
-   "t4_gen_tokens_per_second": 60,
+   "t4_tokens_per_second": 2100,
+   "t4_gen_tokens_per_second": 24,
    "min_gpu_capability": "7.0",
    "min_vram_gb": 12,
    "extra_pip": []
@@ -102,7 +96,7 @@
    "estimated_mb": 300
   }
  },
- "profile_sha": "b31257700625b4242ceac7dfbb0008e9a083f9b8e70fad760a42fcffc78be708",
+ "profile_sha": "8b65b469626f9679df9298e9f4174c90d9fbfba1ef3da4f96f1282775924cc43",
  "recipe": "specialist",
  "task_kind": "classify",
  "labels": [
@@ -130,8 +124,8 @@
   "loss_on": "assistant"
  },
  "budget": {
-  "session_timeout_s": 2880,
-  "max_train_s": 1016,
+  "session_timeout_s": 3000,
+  "max_train_s": 1040,
   "eval_max_samples": 20,
   "max_new_tokens": 64
  },

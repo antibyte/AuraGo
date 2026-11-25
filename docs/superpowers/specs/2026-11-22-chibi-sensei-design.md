@@ -1,6 +1,6 @@
 # Chibi Sensei: small-model training studio
 
-Status: design approved by the user on 2026-11-22 and checked against the code that day. Nothing is implemented yet. Each phase gets its own implementation plan; the user asked for the P1 plan and its implementation to follow without a further gate. Values marked UNVERIFIED stay unproven until the run named under "Risks" passes.
+Status: design approved by the user on 2026-11-22 and checked against the code that day. P1 (dataset studio) and P2 (training on Kaggle) are implemented; the plans under `docs/superpowers/plans/` record what was built and where it differs from this design. Each phase gets its own implementation plan; the user asked for the P1 plan and its implementation to follow without a further gate. Values marked UNVERIFIED stay unproven until the run named under "Risks" passes.
 
 ## Goal
 
@@ -244,6 +244,8 @@ Validation at load:
 - `Base.Gated` must be false. A gated base would need a token on Kaggle, and the design avoids that.
 
 Launch profiles. Every value is UNVERIFIED unless the brief states it as a vendor fact. All three ship as `experimental`.
+
+Proof runs on 2026-11-25 replaced these assumptions with measured values and flipped all three profiles to `verified`; the files under `internal/chibisensei/profiles/` are authoritative, and the execution record of the P2 plan lists the differences to the table below.
 
 | Field | `gemma3-270m` | `qwen35-0p8b` | `lfm25-1p2b` |
 |---|---|---|---|

@@ -212,7 +212,7 @@ func TestChibiSenseiConsentAndMeta(t *testing.T) {
 		return nil
 	}
 	gemma := profile("gemma3-270m")["license"].(map[string]any)
-	if gemma["accepted"] != false || gemma["version"] != "1.0" {
+	if gemma["accepted"] != false || gemma["version"] != "2026-04-01" {
 		t.Fatalf("gemma license = %v", gemma)
 	}
 	qwen := profile("qwen35-0p8b")
@@ -231,7 +231,7 @@ func TestChibiSenseiConsentAndMeta(t *testing.T) {
 		chibiWant(t, w, http.StatusCreated, "")
 		c := chibiBody(t, w)["consent"].(map[string]any)
 		at, _ := c["accepted_at"].(string)
-		if c["license_id"] != "gemma" || c["license_version"] != "1.0" || at == "" {
+		if c["license_id"] != "gemma" || c["license_version"] != "2026-04-01" || at == "" {
 			t.Fatalf("consent = %v", c)
 		}
 		if i == 0 {

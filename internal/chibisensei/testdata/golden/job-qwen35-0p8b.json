@@ -7,22 +7,14 @@
   "id": "qwen35-0p8b",
   "display_name": "Qwen3.5 0.8B",
   "schema": 1,
-  "status": "experimental",
-  "verified": null,
-  "unverified": [
-   "base.revision",
-   "base.auto_class",
-   "base.auto_class_fallbacks",
-   "arch.llama_cpp_arch",
-   "gguf.expected_arch",
-   "training.lora.target_modules",
-   "training.batch_tokens",
-   "training.t4_tokens_per_second",
-   "training.t4_gen_tokens_per_second",
-   "training.min_vram_gb",
-   "training.extra_pip",
-   "gguf.estimated_mb"
-  ],
+  "status": "verified",
+  "verified": {
+   "date": "2026-11-25",
+   "aurago_version": "v2026.11.21+dev",
+   "kaggle_ref": "chibi-006c1469-1ad61091e864",
+   "llama_cpp": "b9994"
+  },
+  "unverified": [],
   "license": {
    "id": "apache-2.0",
    "name": "Apache License 2.0",
@@ -84,11 +76,11 @@
    "lr": {
     "lora": 0.0002
    },
-   "max_seq_cap": 2048,
-   "batch_tokens": 4096,
+   "max_seq_cap": 1024,
+   "batch_tokens": 1024,
    "grad_checkpointing": true,
-   "t4_tokens_per_second": 2500,
-   "t4_gen_tokens_per_second": 30,
+   "t4_tokens_per_second": 500,
+   "t4_gen_tokens_per_second": 14,
    "min_gpu_capability": "7.0",
    "min_vram_gb": 14,
    "extra_pip": []
@@ -110,7 +102,7 @@
    "estimated_mb": 900
   }
  },
- "profile_sha": "9ac04fb9d0b89c166677df83ea0bd3abe299fb45d0d51d8658ef589958257407",
+ "profile_sha": "9ae9bb5bb5fb15df7b23500b54089373ee0cc2ecfd4850c28af89acb19b6a227",
  "recipe": "assistant",
  "task_kind": null,
  "labels": [],
@@ -125,8 +117,8 @@
   "lr_scheduler": "cosine",
   "warmup_ratio": 0.03,
   "weight_decay": 0,
-  "per_device_batch": 8,
-  "grad_accum": 2,
+  "per_device_batch": 4,
+  "grad_accum": 4,
   "max_seq_len": 256,
   "seed": 42,
   "gradient_checkpointing": true,
@@ -150,8 +142,8 @@
   }
  },
  "budget": {
-  "session_timeout_s": 3360,
-  "max_train_s": 1048,
+  "session_timeout_s": 3600,
+  "max_train_s": 702,
   "eval_max_samples": 20,
   "max_new_tokens": 256
  },

@@ -25,20 +25,20 @@ func TestPresetsAndPlan(t *testing.T) {
 	}
 	b := plan("balanced")
 	h := b.Hyper
-	if h.MaxSeqLen != 256 || h.Epochs != 2 || h.PerDeviceBatch != 8 || h.GradAccum != 2 || h.LearningRate != 0.0002 ||
-		h.LoRA == nil || *h.LoRA != (LoRAHyper{16, 16, 0.05}) || b.EstimateMinutes != 27 || b.SessionTimeoutMinutes != 56 {
+	if h.MaxSeqLen != 256 || h.Epochs != 2 || h.PerDeviceBatch != 4 || h.GradAccum != 4 || h.LearningRate != 0.0002 ||
+		h.LoRA == nil || *h.LoRA != (LoRAHyper{16, 16, 0.05}) || b.EstimateMinutes != 37 || b.SessionTimeoutMinutes != 60 {
 		t.Fatalf("balanced = %+v", b)
 	}
 	if !b.Trainable || b.ReasonKey != "" || b.DataRev != 5 || b.EvalSamples != 20 || b.MaxNewTokens != 256 ||
-		b.MaxTrainSeconds != 1048 || !b.NeedBaseGGUF || b.ArtifactsEstimatedMB != 1850 {
+		b.MaxTrainSeconds != 702 || !b.NeedBaseGGUF || b.ArtifactsEstimatedMB != 1850 {
 		t.Fatalf("plan flags = %+v", b)
 	}
 	q := plan("quick")
-	if q.Hyper.Epochs != 1 || *q.Hyper.LoRA != (LoRAHyper{8, 16, 0.05}) || q.EstimateMinutes != 27 || q.MaxTrainSeconds != 1048 {
+	if q.Hyper.Epochs != 1 || *q.Hyper.LoRA != (LoRAHyper{8, 16, 0.05}) || q.EstimateMinutes != 35 || q.MaxTrainSeconds != 702 {
 		t.Fatalf("quick = %+v", q)
 	}
 	th := plan("thorough")
-	if th.Hyper.Epochs != 3 || *th.Hyper.LoRA != (LoRAHyper{32, 32, 0.05}) || th.EstimateMinutes != 28 || th.MaxTrainSeconds != 1108 {
+	if th.Hyper.Epochs != 3 || *th.Hyper.LoRA != (LoRAHyper{32, 32, 0.05}) || th.EstimateMinutes != 39 || th.MaxTrainSeconds != 702 {
 		t.Fatalf("thorough = %+v", th)
 	}
 	short := func() Plan {
@@ -56,7 +56,7 @@ func TestPresetsAndPlan(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if noBase.EstimateMinutes != 24 || noBase.SessionTimeoutMinutes != 51 || noBase.MaxTrainSeconds != 1018 ||
+	if noBase.EstimateMinutes != 34 || noBase.SessionTimeoutMinutes != 60 || noBase.MaxTrainSeconds != 972 ||
 		noBase.ArtifactsEstimatedMB != 950 || noBase.NeedBaseGGUF {
 		t.Fatalf("no base gguf = %+v", noBase)
 	}
@@ -72,7 +72,7 @@ func TestPresetsAndPlan(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if capped.EstimateMinutes != 56 || capped.SessionTimeoutMinutes != 99 || capped.MaxTrainSeconds != 1800 {
+	if capped.EstimateMinutes != 63 || capped.SessionTimeoutMinutes != 110 || capped.MaxTrainSeconds != 1800 {
 		t.Fatalf("quick cap = %+v", capped)
 	}
 
@@ -86,7 +86,7 @@ func TestPresetsAndPlan(t *testing.T) {
 			t.Errorf("BaseEpochs(%d) = %d, want %d", n, got, want)
 		}
 	}
-	if h, _ := PresetHyper(qwen, "balanced", "lora", 50, 180, Overrides{}); h.PerDeviceBatch != 5 || h.GradAccum != 1 {
+	if h, _ := PresetHyper(qwen, "balanced", "lora", 50, 180, Overrides{}); h.PerDeviceBatch != 4 || h.GradAccum != 1 {
 		t.Errorf("nTrain 50: %+v", h)
 	}
 	if h, _ := PresetHyper(qwen, "balanced", "lora", 5, 180, Overrides{}); h.PerDeviceBatch != 1 || h.GradAccum != 1 {

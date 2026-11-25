@@ -14,7 +14,7 @@ A project has a name, a goal text and one of three recipes:
 | `specialist` | Chat rows for one task kind: `classify` (with labels), `extract`, `rewrite` or `to_json`. | A small model that does exactly one job. |
 | `free` | Text rows (`{"text": "..."}`). | Continued pre-training on plain text. |
 
-Every project is linked to a model profile. The three shipped profiles (Gemma 3 270M, Qwen 3.5 0.8B and LFM 2.5 1.2B) are marked **experimental**: their throughput and size figures are not measured yet. When you do not pick a profile, the app suggests one from the recipe, the length of the inputs and the language, and shows the reason.
+Every project is linked to a model profile. The three shipped profiles (Gemma 3 270M, Qwen 3.5 0.8B and LFM 2.5 1.2B) are **verified**: each passed a full training run on Kaggle with a Tesla T4, and its speed, memory and size figures are measured (see [What to expect](#what-to-expect)). A profile carries the **experimental** badge until it has passed such a run. When you do not pick a profile, the app suggests one from the recipe, the length of the inputs and the language, and shows the reason.
 
 ## The dataset table
 
@@ -46,7 +46,7 @@ A check run reads the whole dataset and reports findings on three levels: `block
 
 ## Split and plan
 
-The split into train, validation and evaluation rows is deterministic: it hashes the project's seed with the row id, so the same data always splits the same way. You can pin a row to `train`, `eval` or `exclude`, and you can reseed. The plan shows the preset (`quick`, `balanced`, `thorough`), the hyper-parameters, the split sizes and an estimated duration. It is an estimate and will stay one until measured values from real runs exist. The plan also tells whether a run must convert the base model as well (`need_base_gguf`); once a base GGUF of the same revision and converter is stored, later runs skip it.
+The split into train, validation and evaluation rows is deterministic: it hashes the project's seed with the row id, so the same data always splits the same way. You can pin a row to `train`, `eval` or `exclude`, and you can reseed. The plan shows the preset (`quick`, `balanced`, `thorough`), the hyper-parameters, the split sizes and an estimated duration. It is an estimate and an upper bound; the proof runs on Kaggle finished well inside it (see [What to expect](#what-to-expect)). The plan also tells whether a run must convert the base model as well (`need_base_gguf`); once a base GGUF of the same revision and converter is stored, later runs skip it.
 
 ## Export
 
@@ -85,7 +85,26 @@ Training runs on a GPU in your own Kaggle account. AuraGo prepares the data and 
 - The Kaggle integration switched on with these permissions: `kaggle.enabled`, not `kaggle.read_only`, `allow_create`, `allow_remote_execute`, `allow_gpu`, `allow_internet`, `allow_download`, and the GPU of `chibi_sensei.training.machine_shape` listed in `kaggle.allowed_machine_shapes`. `allow_delete` is optional; without it the uploaded data stays on Kaggle.
 - AuraGo's network and filesystem-write permissions, a writable desktop and the Vault.
 - A ready dataset: the latest check run belongs to the current rows and found nothing blocking.
-- Acceptance of the base model's license where it requires one (Gemma, LFM).
+- Acceptance of the base model's license where it requires one (Gemma, LFM). The Gemma Terms of Use have no version number; the app shows the date of their last change, 2026-04-01, as the version you agree to.
+
+### What to expect
+
+The three shipped profiles each passed a full training run on Kaggle with a Tesla T4. These are the measured values:
+
+| Measure | Gemma 3 270M | Qwen 3.5 0.8B | LFM 2.5 1.2B |
+|---|---|---|---|
+| default method | full fine-tuning (LoRA also works) | LoRA | LoRA |
+| training speed on the T4 | about 2100 tokens per second | about 500 tokens per second | about 390 tokens per second |
+| longest row the GPU holds | 2048 tokens | 1024 tokens | 2048 tokens |
+| size of the trained model file (GGUF, 8 bit) | about 290 MB | about 810 MB | about 1250 MB |
+| quick preset with 200 short rows, whole run | about 5 minutes | about 7 minutes | about 11 minutes |
+| GPU quota used by that run | about 2.5 minutes | about 4 minutes | about 4 minutes |
+
+A profile has a maximum row length in tokens. Longer rows are cut off at the end, and the run shows the hint `rows_truncated`. Gemma 3 270M and LFM 2.5 1.2B take 2048 tokens. Qwen 3.5 0.8B takes 1024 tokens, because one longer Qwen row does not fit into the memory of a T4.
+
+If the planned batch does not fit into the GPU's memory, the trainer halves the batch by itself and goes on. The run shows the hint `batch_reduced`; training takes a little longer and the result is the same kind. This happened in the test runs with long rows for Qwen and LFM. Only a single row that does not fit makes the run fail, with `oom`. Such a run ends after about three minutes, is cleaned up on Kaggle and shows the reason, for example: "one sequence of 1834 tokens does not fit into the memory of Tesla T4 (method lora)".
+
+The estimate in the start dialog is an upper bound. The proof runs took 5 to 11 minutes where the estimate said 21 to 24.
 - Enough weekly GPU quota and no other Kaggle GPU run of AuraGo (the agent's or the Kaggle app's); `kaggle.max_remote_jobs` (default 1) is the limit. A job in state `unknown` keeps its slot until an administrator releases it in the Kaggle app.
 
 ### Preflight and the enable button
@@ -102,7 +121,11 @@ Data leaves only after you confirm the start dialog. It names the private datase
 
 ### During the run
 
-The monitor shows the run's phase (prepare, upload, start, train, download, cleanup) and the trainer's stages. When Kaggle serves the notebook log while it runs, AuraGo reads it every minute and draws the loss chart live; otherwise the numbers appear when the run ends. AuraGo's Kaggle operations show up in the Kaggle app's job list under `chibi-` names. A restart of AuraGo resumes the run; nothing is sent twice. If the status read fails after the run's deadline (its time limit plus 20 minutes), AuraGo waits up to 30 more minutes for a successful read before the run ends with `remote_timeout`; a successful read decides at once.
+The monitor shows the run's phase (prepare, upload, start, train, download, cleanup) and the trainer's stages. Kaggle serves the notebook log while the session runs. AuraGo reads it once a minute and shows the progress and the loss chart as far as the log has reached. The first trainer lines arrive 20 to 40 seconds after the start. A stage that takes less than a minute, such as the training of a tiny dataset, can pass between two reads, and its progress bar is then never seen. The loss chart is complete after the run in every case.
+
+After the last trainer stage, Kaggle saves the notebook's files before it reports the session as finished. For the largest model, LFM 2.5 1.2B, that took about three minutes. The run stays in `train`, with all stages done, during that time, and then moves to `download`. Downloading two model files of 1.25 GB took another two and a half minutes on the test server.
+
+AuraGo's Kaggle operations show up in the Kaggle app's job list under `chibi-` names. A restart of AuraGo resumes the run; nothing is sent twice. If the status read fails after the run's deadline (its time limit plus 20 minutes), AuraGo waits up to 30 more minutes for a successful read before the run ends with `remote_timeout`; a successful read decides at once.
 
 ### Cancel
 
@@ -134,7 +157,7 @@ A successful run stores `data/chibi_sensei/models/<run>/model-q8_0.gguf` (q8_0) 
 | `env_no_internet` | the notebook had no internet | verify the Kaggle account by phone |
 | `install_failed`, `base_download_failed` | pip or the model download failed | usually temporary: start again |
 | `data_changed`, `data_mismatch` | the data changed after the start | start again |
-| `oom` | GPU memory ran out | preset `quick` or a smaller `max_seq_len` |
+| `oom` | one row is too long for the GPU's memory | lower `max_seq_len` or shorten the longest rows; the quick preset does not help when a single row is too long |
 | `train_diverged` | the loss became NaN | lower the learning rate |
 | `lora_targets_missing`, `merge_failed`, `gguf_failed`, `gguf_arch_mismatch` | the model could not be adapted, saved or converted | report it with the log tail; try another profile |
 | `kaggle_submit_unknown` | AuraGo cannot tell whether the notebook started | look at the notebook on Kaggle and stop it if it runs |
@@ -148,7 +171,24 @@ A successful run stores `data/chibi_sensei/models/<run>/model-q8_0.gguf` (q8_0) 
 | `profile_changed`, `packaging_failed`, `internal_error` | AuraGo could not build or continue the run | start again; report it with the log |
 | `cancelled_by_user` | you cancelled | – |
 
-Warnings keep the run successful: `time_budget` (training stopped at the time budget; the partial result is kept), `base_gguf_skipped` and `base_gguf_invalid` (no base GGUF this time).
+The run can show these hints while it runs and after it has ended. A hint alone does not fail a run. `kaggle_unavailable`, `desktop_readonly`, `kaggle_refused` and `remote_timeout` also appear in the table above: the run fails with that code when the condition lasts too long. The meaning column gives the text the app shows (English locale).
+
+| Code | Meaning |
+|---|---|
+| `time_budget` | Training stopped at its time budget. The model uses what it learned until then. |
+| `base_gguf_skipped` | No time was left to convert the base model for comparisons. Your trained model is complete. |
+| `base_gguf_invalid` | The base model file for comparisons could not be used. Your trained model is fine. |
+| `remote_timeout` | The notebook ran until its time limit before it stopped. |
+| `manifest_missing` | Kaggle sent no list of result files. |
+| `cleanup_failed` | Cleaning up on Kaggle did not work. Some items may have stayed on your account. |
+| `kaggle_unavailable` | Kaggle cannot be reached right now. AuraGo keeps trying. |
+| `desktop_readonly` | The desktop is in read-only mode. The run waits until changes are allowed again. |
+| `kaggle_refused` | A Kaggle setting this run needs is switched off. The run waits until it is switched on again. |
+| `staged_left` | Some temporary files of this run could not be removed from AuraGo's Kaggle folder on this computer. |
+| `batch_reduced` | The graphics card ran out of memory with the planned batch size. Training continues with smaller batches and takes a little longer. |
+| `eval_batch_reduced` | The graphics card ran out of memory while measuring quality. The measurement continues one row at a time. |
+| `oom_step_skipped` | One training step ran out of memory and was skipped. Very long rows can cause this. |
+| `rows_truncated` | Some rows were longer than the maximum length and were cut off at the end. |
 
 A run that waits for Kaggle or the desktop shows a note for `kaggle_unavailable`, `desktop_readonly` or `kaggle_refused` until the wait ends. `cleanup_failed` means a Kaggle dataset or notebook could not be deleted; the run then lists it as a leftover. `staged_left` means temporary files of the run could not be removed from AuraGo's local Kaggle project folder after five attempts; the warning names the files. Cleaning retries those removals and waits while a local transfer of the run is active or cannot be read. Neither warning changes the result.
 

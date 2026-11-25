@@ -20,8 +20,13 @@ func TestCatalogLoadsLaunchProfiles(t *testing.T) {
 	var ids []string
 	for _, p := range c.List() {
 		ids = append(ids, p.ID)
-		if p.Status != "experimental" {
-			t.Fatalf("%s status %q", p.ID, p.Status)
+		if p.Status != "verified" || len(p.Unverified) != 0 {
+			t.Fatalf("%s status %q unverified %v", p.ID, p.Status, p.Unverified)
+		}
+		v := p.Verified
+		if v == nil || v.Date != "2026-11-25" || v.LlamaCpp != "b9994" || v.AuraGoVersion == "" ||
+			v.KaggleRef == "" || strings.Contains(v.KaggleRef, "/") {
+			t.Fatalf("%s verified block %+v", p.ID, v)
 		}
 	}
 	if strings.Join(ids, ",") != "gemma3-270m,qwen35-0p8b,lfm25-1p2b" {
@@ -49,7 +54,12 @@ func TestValidateProfileRules(t *testing.T) {
 		mutate func(p *Profile)
 		want   string
 	}{
-		{"verified with unverified", func(p *Profile) { p.Status = "verified" }, "unverified"},
+		{"verified with unverified", func(p *Profile) { p.Unverified = []string{"gguf.estimated_mb"} }, "unverified"},
+		{"verified without block", func(p *Profile) { p.Verified = nil }, "verified"},
+		{"experimental profile is validated too", func(p *Profile) {
+			p.Status, p.Verified, p.Unverified = "experimental", nil, []string{"x"}
+			p.Base.Gated = true
+		}, "base.gated"},
 		{"gated", func(p *Profile) { p.Base.Gated = true }, "base.gated"},
 		{"dtype", func(p *Profile) { p.Training.DType = "bf16" }, "dtype"},
 		{"max_seq_cap", func(p *Profile) { p.Training.MaxSeqCap = 128 }, "max_seq_cap"},
@@ -76,6 +86,38 @@ func TestValidateProfileRules(t *testing.T) {
 	}
 }
 
+// TestLaunchProfileMeasuredValues pins the values measured on a Tesla T4 on 2026-11-25. Change them only
+// with a new measurement.
+func TestLaunchProfileMeasuredValues(t *testing.T) {
+	c := mustCatalog(t)
+	cases := []struct {
+		id         string
+		maxSeqCap  int
+		batch      int
+		tps, gen   float64
+		licVersion string
+	}{
+		{"gemma3-270m", 2048, 4096, 2100, 24, "2026-04-01"},
+		{"qwen35-0p8b", 1024, 1024, 500, 14, "2.0"},
+		{"lfm25-1p2b", 2048, 2048, 390, 31, "1.0"},
+	}
+	for _, tc := range cases {
+		p, ok := c.Get(tc.id)
+		if !ok {
+			t.Fatalf("missing profile %s", tc.id)
+		}
+		tr := p.Training
+		if tr.MaxSeqCap != tc.maxSeqCap || tr.BatchTokens != tc.batch ||
+			tr.T4TokensPerSecond != tc.tps || tr.T4GenTokensPerSecond != tc.gen {
+			t.Errorf("%s: max_seq_cap %d batch_tokens %d t4_tps %v t4_gen %v", tc.id,
+				tr.MaxSeqCap, tr.BatchTokens, tr.T4TokensPerSecond, tr.T4GenTokensPerSecond)
+		}
+		if p.License.Version != tc.licVersion {
+			t.Errorf("%s: license version %q", tc.id, p.License.Version)
+		}
+	}
+}
+
 func TestLaunchProfilePins(t *testing.T) {
 	c := mustCatalog(t)
 	revs := map[string]string{
@@ -91,8 +133,8 @@ func TestLaunchProfilePins(t *testing.T) {
 		if p.Base.Revision != rev {
 			t.Errorf("%s revision = %q", id, p.Base.Revision)
 		}
-		if p.Status != "experimental" || p.Verified != nil {
-			t.Errorf("%s must stay experimental and unverified", id)
+		if p.Status != "verified" || p.Verified == nil || len(p.Unverified) != 0 {
+			t.Errorf("%s must be verified with an empty unverified list", id)
 		}
 	}
 	q, _ := c.Get("qwen35-0p8b")
@@ -105,15 +147,6 @@ func TestLaunchProfilePins(t *testing.T) {
 	}
 	if len(q.Training.ExtraPip) != 0 {
 		t.Errorf("qwen extra_pip = %v", q.Training.ExtraPip)
-	}
-	hasFallbacks := false
-	for _, u := range q.Unverified {
-		if u == "base.auto_class_fallbacks" {
-			hasFallbacks = true
-		}
-	}
-	if !hasFallbacks {
-		t.Error("qwen unverified must list base.auto_class_fallbacks")
 	}
 	l, _ := c.Get("lfm25-1p2b")
 	if strings.Join(l.Training.LoRA.TargetModules, ",") != "q_proj,k_proj,v_proj,out_proj,w1,w2,w3,in_proj" {
