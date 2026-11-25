@@ -2351,7 +2351,7 @@ func TestBuiltinToolSchemasVirtualDesktopUsesFocusedTools(t *testing.T) {
 	if containsName(names, "virtual_desktop") {
 		t.Fatal("legacy virtual_desktop mega-tool should no longer be emitted as a native schema")
 	}
-	for _, want := range []string{"virtual_desktop_files", "virtual_desktop_app_install", "virtual_desktop_apps", "virtual_desktop_widgets", "office_document", "office_workbook"} {
+	for _, want := range []string{"virtual_desktop_files", "virtual_desktop_app_install", "virtual_desktop_apps", "virtual_desktop_widgets", "code_studio_workspace", "office_document", "office_workbook"} {
 		if !containsName(names, want) {
 			t.Fatalf("%s schema missing from focused virtual desktop set: %v", want, names)
 		}

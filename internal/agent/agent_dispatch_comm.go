@@ -1104,6 +1104,24 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			return "Tool Output: " + exec.Output
 
+		case "code_studio_workspace":
+			args := codeStudioWorkspaceToolArgs(tc)
+			logger.Info("LLM requested Code Studio workspace operation",
+				"operation", toolArgString(args, "operation"),
+				"workspace_id", toolArgString(args, "workspace_id"),
+				"path", toolArgString(args, "path"),
+				"content_bytes", len([]byte(toolArgString(args, "content"))),
+			)
+			exec := tools.ExecuteCodeStudioWorkspace(ctx, cfg, args)
+			if exec.Event != nil && dc.Broker != nil {
+				payload, _ := json.Marshal(struct {
+					Type    string         `json:"type"`
+					Payload *desktop.Event `json:"payload"`
+				}{"virtual_desktop_event", exec.Event})
+				dc.Broker.SendJSON(string(payload))
+			}
+			return "Tool Output: " + exec.Output
+
 		case "virtual_computers":
 			logger.Info("LLM requested virtual computers operation",
 				"operation", tc.Operation,

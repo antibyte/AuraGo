@@ -442,6 +442,28 @@ func appendVirtualDesktopFocusedSchemas(toolSchemas []openai.Tool) []openai.Tool
 			"app_id":    prop("string", "Owning app ID."),
 			"widget":    map[string]interface{}{"type": "object", "description": "Widget payload.", "additionalProperties": true},
 		}, "operation")),
+		tool("code_studio_workspace", "Read, search, write and patch files and run shell commands in a saved Code Studio SSH workspace (a folder on a remote host). Use only the workspace_id named by Code Studio; local Code Studio files use virtual_desktop_files.", schema(map[string]interface{}{
+			"operation":       operationProperty("Workspace operation.", []string{"list_files", "read_file", "read_file_excerpt", "search", "write_file", "patch_file", "run_command"}),
+			"workspace_id":    prop("string", "Code Studio SSH workspace id from the chat context."),
+			"path":            prop("string", "Path relative to the remote workspace folder, e.g. src/main.go; /workspace/src/main.go is accepted."),
+			"content":         prop("string", "write_file: complete file content."),
+			"allow_empty":     prop("boolean", "write_file: allow an intentionally empty file."),
+			"find":            prop("string", "patch_file: exact text that occurs exactly once."),
+			"replace":         prop("string", "patch_file: replacement text."),
+			"replacements":    map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "object", "additionalProperties": true}, "description": "patch_file: [{find, replace}] applied in order; each find must occur once."},
+			"query":           prop("string", "search: text, or an extended regular expression with regex=true."),
+			"regex":           prop("boolean", "search: treat query as a regular expression."),
+			"case_sensitive":  prop("boolean", "search: match case."),
+			"whole_word":      prop("boolean", "search: whole words only."),
+			"include":         prop("string", "search: file glob to include, e.g. *.go."),
+			"exclude":         prop("string", "search: file glob to exclude."),
+			"max_matches":     prop("integer", "search: maximum matches, 1-200."),
+			"line_start":      prop("integer", "read_file_excerpt: 1-based first line."),
+			"line_count":      prop("integer", "read_file_excerpt: number of lines, max 240."),
+			"command":         prop("string", "run_command: shell command, run by /bin/sh -c."),
+			"cwd":             prop("string", "run_command: working directory relative to the workspace folder."),
+			"timeout_seconds": prop("integer", "run_command: timeout in seconds, 1-120 (default 60)."),
+		}, "operation", "workspace_id")),
 	)
 	return toolSchemas
 }
