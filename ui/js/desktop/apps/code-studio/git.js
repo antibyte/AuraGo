@@ -118,6 +118,19 @@
             <button type="button" class="cs-icon-button" data-git-refresh title="${esc(tr('codeStudio.refresh', 'Refresh'))}">${iconMarkup('refresh', 'R', 'cs-icon-button-icon', 14)}</button>
             <button type="button" class="cs-icon-button" data-git-close title="${esc(tr('codeStudio.closeTab', 'Close'))}">${iconMarkup('x', 'X', 'cs-icon-button-icon', 14)}</button>
         </div>`;
+        if (workspaceIsRemote() && !workspaceHas('git')) {
+            // Plan C: the host reported no git; there is nothing to initialise either.
+            panel.innerHTML = `${head}
+                <div class="cs-git-init cs-ws-git-missing" data-ws-git-missing>
+                    <p><strong>${esc(tr('codeStudio.workspaceGitMissing', 'Git is not installed on {{host}}', { host: workspaceHostLabel() }))}</strong></p>
+                    <button type="button" class="cs-button" data-ws-git-reconnect>${esc(tr('codeStudio.workspaceReconnect', 'Reconnect'))}</button>
+                </div>`;
+            wireGitPanel(panel);
+            const reconnect = panel.querySelector('[data-ws-git-reconnect]');
+            if (reconnect) reconnect.addEventListener('click', bind(() => workspaceReconnect()));
+            updatePolicyControls();
+            return;
+        }
         if (state.gitIsRepo === false) {
             panel.innerHTML = `${head}
                 <div class="cs-git-init">
@@ -220,6 +233,19 @@
     async function refreshGitStatus() {
         const target = state;
         if (!isLiveInstance(target)) return;
+        if (!workspaceHas('git', target)) {
+            // Plan C: no git calls against a host without git.
+            runWithInstance(target, () => {
+                state.gitIsRepo = null;
+                state.gitBranch = '';
+                state.gitChanges = [];
+                state.gitLog = [];
+                renderGitPanel();
+                renderActivityBar();
+                renderStatus();
+            });
+            return;
+        }
         const request = target.gitRequest = Symbol();
         try {
             const result = await apiClient.gitStatus();

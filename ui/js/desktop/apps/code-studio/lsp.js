@@ -916,7 +916,9 @@
             case 'starting': return tr('codeStudio.lspStarting', 'Starting...');
             case 'ready': return tr('codeStudio.lspReady', 'Ready');
             case 'disconnected': return tr('codeStudio.lspDisconnected', 'Disconnected');
-            case 'not-installed': return tr('codeStudio.lspNotInstalled', 'Language server not installed — rebuild the Code Studio image');
+            case 'not-installed': return workspaceIsRemote()
+                ? tr('codeStudio.workspaceLspNotInstalled', 'not installed on {{host}}', { host: workspaceHostLabel() }) // Plan C
+                : tr('codeStudio.lspNotInstalled', 'Language server not installed — rebuild the Code Studio image');
             case 'too-many': return tr('codeStudio.lspTooMany', 'Too many language servers');
             case 'error': return tr('codeStudio.lspError', 'Error — click to restart');
             default: return tr('codeStudio.lspIdle', 'Idle');
