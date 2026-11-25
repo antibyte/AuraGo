@@ -98,6 +98,21 @@
             statusTimer: null,
             terminalObserver: null,
             terminalFitScheduled: false,
+            // Plan C: the active workspace ('local' or a saved SSH workspace) and its connection state.
+            workspaceId: 'local',
+            workspace: null,
+            workspaces: [],
+            workspaceStatus: 'local',
+            workspaceError: null,
+            workspaceWasLost: false,
+            workspaceSwitching: false,
+            workspaceSwitchTarget: '',
+            workspaceRetryAttempt: 0,
+            workspaceRetryAt: 0,
+            workspaceRetryTimer: 0,
+            workspaceRetryTick: 0,
+            workspaceMenu: null,
+            workspaceDialog: null,
             iconMarkup: context && typeof context.iconMarkup === 'function' ? context.iconMarkup : null,
             disposers: []
         };
@@ -359,19 +374,31 @@
             headers: { 'Content-Type': 'application/json' }
         }, options || {});
         if (requestOptions.body instanceof FormData) delete requestOptions.headers;
-        const response = await fetch(path, requestOptions);
+        // Plan C: scoped requests name their workspace. The id is read when the request starts, so a request on its
+        // way stays with the workspace it was started for (switching waits for pending saves).
+        const instance = state || currentInstance();
+        const workspaceId = instance && WS_MODEL.isScopedPath(path) ? instance.workspaceId : 'local';
+        let response;
+        try {
+            response = await fetch(path, WS_MODEL.withWorkspaceHeaders(requestOptions, workspaceId, path));
+        } catch (err) {
+            workspaceNoteRequestError(instance, workspaceId, err);
+            throw err;
+        }
         if (!response.ok) {
-            let message = response.statusText;
-            try {
-                const body = await response.json();
-                message = body.error || body.message || message;
-            } catch (_) {
-                message = await response.text() || message;
-            }
-            const error = new Error(message);
+            const text = await response.text().catch(() => '');
+            let body = null;
+            try { body = text ? JSON.parse(text) : null; } catch (_) { body = null; }
+            const error = new Error((body && (body.error || body.message)) || text || response.statusText);
             error.status = response.status;
+            if (body && typeof body === 'object') {
+                error.code = body.code || '';
+                error.body = body;
+            }
+            workspaceNoteRequestError(instance, workspaceId, error);
             throw error;
         }
+        if (response.status === 204) return {};
         return response.json();
     }
 
@@ -439,6 +466,27 @@
         gitInit: () => api('/api/code-studio/git/init', { method: 'POST' }),
         gitShow: hash => api('/api/code-studio/git/show?hash=' + encodeURIComponent(hash)),
         gitBlame: path => api('/api/code-studio/git/blame?path=' + encodeURIComponent(path)),
+        // Plan C: workspaces and the SSH folder picker (unscoped, see workspace-model.js).
+        workspaces: () => api('/api/code-studio/workspaces'),
+        createWorkspace: body => api('/api/code-studio/workspaces', { method: 'POST', body: JSON.stringify(body) }),
+        deleteWorkspace: id => api('/api/code-studio/workspaces/' + encodeURIComponent(id), { method: 'DELETE' }),
+        connectWorkspace: (id, trust) => api('/api/code-studio/workspaces/' + encodeURIComponent(id) + '/connect', {
+            method: 'POST',
+            body: JSON.stringify(trust ? { trust_host_key: trust } : {})
+        }),
+        // Contract: POST /remote/trust stores the fingerprint; the caller then repeats the original call.
+        trustRemoteHost: (deviceId, fingerprint) => api('/api/code-studio/remote/trust', {
+            method: 'POST',
+            body: JSON.stringify({ device_id: deviceId, fingerprint })
+        }),
+        remoteDevices: () => api('/api/code-studio/remote/devices'),
+        createRemoteDevice: body => api('/api/code-studio/remote/devices', { method: 'POST', body: JSON.stringify(body) }),
+        remoteBrowse: (deviceId, path, trust) => {
+            const query = new URLSearchParams({ device_id: deviceId });
+            if (path) query.set('path', path);
+            if (trust) query.set('trust_host_key', trust);
+            return api('/api/code-studio/remote/browse?' + query);
+        },
     };
 
     function loadState() {
@@ -477,9 +525,17 @@
     function saveState() {
         const openPaths = normalizePersistedPaths(state.openTabs.filter(tab => !isVirtualTab(tab)));
         const recentPaths = normalizePersistedPaths(state.recentFiles);
+        const activeIndex = openPaths.length ? Math.min(Math.max(Number.isInteger(state.activeTabIndex) ? state.activeTabIndex : 0, 0), openPaths.length - 1) : -1;
+        const split = splitStatePayload(); // IDE package 1A
+        // Plan C: the tabs belong to the active workspace; the legacy key keeps only the local workspace's tabs.
+        workspaceSaveSession({ openTabs: openPaths, activeTabIndex: activeIndex, recentFiles: recentPaths, split });
+        let legacy = null;
+        if (workspaceIsRemote()) {
+            try { legacy = JSON.parse(localStorage.getItem(STATE_KEY) || 'null') || {}; } catch (_) { legacy = {}; }
+        }
         const payload = {
-            openTabs: openPaths.map(path => ({ path })),
-            activeTabIndex: openPaths.length ? Math.min(Math.max(Number.isInteger(state.activeTabIndex) ? state.activeTabIndex : 0, 0), openPaths.length - 1) : -1,
+            openTabs: legacy ? (Array.isArray(legacy.openTabs) ? legacy.openTabs : []) : openPaths.map(path => ({ path })),
+            activeTabIndex: legacy ? (Number.isInteger(legacy.activeTabIndex) ? legacy.activeTabIndex : -1) : activeIndex,
             sidebarVisible: state.sidebarVisible,
             sidebarWidth: clampDimension(state.sidebarWidth, MIN_SIDEBAR_WIDTH, MAX_SIDEBAR_WIDTH, 280),
             editorFontSize: state.editorFontSize,
@@ -488,8 +544,8 @@
             activePanel: state.activePanel,
             sidebarView: state.sidebarView,
             terminalHeight: clampDimension(state.terminalHeight, MIN_TERMINAL_HEIGHT, MAX_TERMINAL_HEIGHT, 220),
-            recentFiles: recentPaths,
-            split: splitStatePayload() // IDE package 1A
+            recentFiles: legacy ? (Array.isArray(legacy.recentFiles) ? legacy.recentFiles : []) : recentPaths,
+            split: legacy ? (legacy.split || null) : split
         };
         localStorage.setItem(STATE_KEY, JSON.stringify(payload));
     }
@@ -1394,7 +1450,7 @@
         const target = state;
         if (!target) return;
         const savedPaths = target.openTabs.map(tab => tab.path);
-        if (!savedPaths.length && !(target.context && target.context.path)) {
+        if (!savedPaths.length && !(target.context && target.context.path) && !workspaceIsRemote(target)) {
             for (const name of ['hello.go', 'hello.py', 'hello.c', 'hello.js', 'hello.ts']) {
                 const path = WORKSPACE_ROOT + '/' + name;
                 if (target.files.some(file => file.path === path && file.type !== 'directory')) savedPaths.push(path);
@@ -1614,7 +1670,8 @@
             try {
                 await apiClient.writeFile(path, content);
             } catch (err) {
-                if (isLiveInstance(target)) runWithInstance(target, () => showOperationError(err));
+                // Plan C: the tab stays dirty; in an SSH workspace a toast says why.
+                if (isLiveInstance(target)) runWithInstance(target, () => { showOperationError(err); workspaceSaveFailed(tab, err); });
                 return false;
             }
             if (!canWrite(target) || !target.openTabs.includes(tab) || tab.path !== path) return false;
@@ -1797,13 +1854,13 @@
             ctx.exportDesktopFile({
                 path: file.path,
                 name: file.name || baseName(file.path),
-                url: '/api/code-studio/download?path=' + encodeURIComponent(file.path)
+                url: workspaceURL('/api/code-studio/download?path=' + encodeURIComponent(file.path))
             }).catch(err => {
                 if (isLiveInstance(target)) runWithInstance(target, () => showOperationError(err));
             });
             return;
         }
-        window.location.href = '/api/code-studio/download?path=' + encodeURIComponent(file.path);
+        window.location.href = workspaceURL('/api/code-studio/download?path=' + encodeURIComponent(file.path));
     }
 
     async function uploadFile() {
@@ -1815,7 +1872,7 @@
             const result = await ctx.importFilesFromHost({
                 path: directory,
                 multiple: true,
-                uploadURL: '/api/code-studio/upload'
+                uploadURL: workspaceURL('/api/code-studio/upload')
             });
             if (result && !result.canceled && isLiveInstance(target)) {
                 runWithInstance(target, scheduleGitRefresh);
@@ -2002,7 +2059,8 @@
 
     function showOperationError(err) {
         const message = err && err.message ? err.message : String(err || '');
-        renderStatus(tr('codeStudio.containerError', 'Container error: {error}', { error: message }));
+        // Plan C: in an SSH workspace the error is not a container error.
+        renderStatus(workspaceIsRemote() ? workspaceErrorText('other', { error: message }) : tr('codeStudio.containerError', 'Container error: {error}', { error: message }));
         writeTerminalLine(message);
     }
 

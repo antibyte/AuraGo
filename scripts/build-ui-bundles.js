@@ -224,6 +224,9 @@ const jsBundles = [
       // before shortcuts.js; they only declare functions and constants, nothing runs before render().
       'ui/js/desktop/apps/code-studio/settings.js',
       'ui/js/desktop/apps/code-studio/format.js',
+      // Plan C (SSH workspaces): the pure model (window.CodeStudioWorkspaceModel) before the fragment that uses it.
+      'ui/js/desktop/apps/code-studio/workspace-model.js',
+      'ui/js/desktop/apps/code-studio/workspace.js',
       // IDE package 2b: the pure protocol helpers first (window.CodeStudioLSPProtocol), then the client core.
       // Package 2c adds lsp-edits.js and lsp-actions.js right after lsp.js: lsp-actions.js pushes into
       // lspActionExtensionFactories at load time, so it must come after lsp.js and before shortcuts.js.
