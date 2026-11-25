@@ -801,6 +801,7 @@ var authBypassSubtrees = []string{
 	"/api/agodesk/media/",            // agodesk media assets — limited to explicit media buckets by the handler
 	"/api/agodesk/knowledge/upload/", // signed AgoDesk knowledge uploads authenticate inside the handler
 	"/api/game-maker/preview/",       // short-lived project-scoped token is validated by the preview handler
+	codeStudioPreviewPrefix,          // Code Studio HTML preview: the stateless workspace token in the path is validated by the handler
 	"/api/cyd/speak/",                // CYD sanoTTS PCM — Bearer scope cyd
 	"/api/cyd-creator/device/",       // CYD Creator device endpoints — device token checked by every handler
 	"/webhook/",                      // webhook receiver — per-webhook bound token or HMAC signature

@@ -104,6 +104,7 @@ func registerCodeStudioRoutes(mux *http.ServeMux, s *Server) {
 	mux.HandleFunc("/api/code-studio/git/init", handlers.handleGitInit)
 	mux.HandleFunc("/api/code-studio/git/show", handlers.handleGitShow)
 	mux.HandleFunc("/api/code-studio/git/blame", handlers.handleGitBlame)
+	registerCodeStudioPreviewRoutes(mux, handlers) // HTML preview (token route is auth-exempt, see authBypassSubtrees)
 	registerCodeStudioWorkspaceRoutes(mux, handlers)
 }
 

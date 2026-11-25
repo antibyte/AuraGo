@@ -307,3 +307,61 @@ func codeStudioPreviewSplice(content []byte, at int, insert []byte) []byte {
 	out = append(out, insert...)
 	return append(out, content[at:]...)
 }
+
+func registerCodeStudioPreviewRoutes(mux *http.ServeMux, studio codeStudioHandlers) {
+	preview := newCodeStudioPreviewHandler(studio)
+	mux.HandleFunc("/api/code-studio/preview", preview.handleIssue)
+	mux.HandleFunc(codeStudioPreviewPrefix, preview.handleServe)
+}
+
+// handleIssue hands out the workspace-scoped preview token. It is a read: a read-only desktop still previews, so
+// the operation is desktopRead even though the method is POST. The workspace is resolved through backendFor, which
+// applies the remote-caller gate for SSH workspaces.
+func (p *codeStudioPreviewHandler) handleIssue(w http.ResponseWriter, r *http.Request) {
+	if !requireDesktopOperation(p.studio.server, w, r, desktopScopeRead, desktopRead) {
+		return
+	}
+	if r.Method != http.MethodPost {
+		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var body struct {
+		Path string `json:"path"`
+	}
+	if err := decodeJSONRequest(w, r, &body, p.studio.server); err != nil {
+		jsonError(w, "Invalid JSON", jsonDecodeStatus(err))
+		return
+	}
+	vpath, err := sanitizeCodeStudioPath(body.Path)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	workspace, err := p.studio.previewWorkspaceID(r)
+	if err != nil {
+		writeCodeStudioBackendError(w, err)
+		return
+	}
+	key, err := p.studio.server.codeStudioPreviewSigningKey()
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+	token, expires, err := issueCodeStudioPreviewToken(key, workspace, p.now())
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	base := codeStudioPreviewPrefix + token + "/"
+	rel := strings.TrimPrefix(strings.TrimPrefix(vpath, codeStudioWorkspaceRoot), "/")
+	writeJSON(w, map[string]interface{}{
+		"status":     "ok",
+		"url":        base + codeStudioPreviewEscapePath(rel),
+		"base":       base,
+		"token":      token,
+		"path":       vpath,
+		"workspace":  workspace,
+		"expires_at": expires.UTC().Format(time.RFC3339),
+		"version":    p.versions.Current(workspace),
+	})
+}

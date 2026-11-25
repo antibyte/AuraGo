@@ -16,12 +16,23 @@ type codeStudioPreviewSource interface {
 
 var errCodeStudioPreviewWorkspaceNotFound = errors.New("workspace_not_found")
 
-// previewWorkspaceID resolves the workspace of an HTTP request through backendFor, so the remote-caller gate
-// (session or desktop:admin token for SSH workspaces) applies to issuing a preview token. A missing workspace is
+// previewWorkspaceID resolves the workspace of an HTTP request with the same gate as backendFor (SSH workspaces need
+// a session or desktop:admin token), without starting the local container. A missing workspace is
 // reported as errCodeStudioWorkspaceNotFound by backendFor and stays matchable through errors.Is; the
 // errCodeStudioPreviewWorkspaceNotFound sentinel is added for callers that only know the preview contract.
 func (h codeStudioHandlers) previewWorkspaceID(r *http.Request) (string, error) {
-	backend, err := h.backendFor(r)
+	id, err := codeStudioWorkspaceID(r)
+	if err != nil {
+		return "", err
+	}
+	if id == codeStudioLocalWorkspaceID {
+		// No container lookup: issuing a link only names the workspace, the serve route reads it later.
+		return id, nil
+	}
+	if !codeStudioRemoteCallerAllowed(h.server, r) {
+		return "", codeStudioRemoteScopeError()
+	}
+	backend, err := h.codeStudioBackendByID(r.Context(), id)
 	if err != nil {
 		return "", mapCodeStudioPreviewNotFound(err)
 	}
