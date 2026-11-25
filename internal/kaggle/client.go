@@ -45,6 +45,15 @@ func (e *APIError) Error() string {
 	return fmt.Sprintf("Kaggle request failed (HTTP %d)", e.Status)
 }
 
+// NotFound reports whether err is Kaggle's answer for a resource this caller cannot see: 404, or 403. Kaggle answers
+// a read of a resource that does not exist with 403 PERMISSION_DENIED ("Permission 'kernels.get' was denied"), not
+// 404, and gives the same 403 for a private resource of someone else. Read it as "does not exist" only for a
+// resource under the authenticated account's own name, which its owner can always read.
+func NotFound(err error) bool {
+	var ae *APIError
+	return errors.As(err, &ae) && !ae.Uncertain && (ae.Status == http.StatusNotFound || ae.Status == http.StatusForbidden)
+}
+
 func NewClient(c Credentials, timeout time.Duration) (*Client, error) {
 	if c.Mode == "token" && c.Token == "" {
 		return nil, errors.New("Kaggle API token is missing")

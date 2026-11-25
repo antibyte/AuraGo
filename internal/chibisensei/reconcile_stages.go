@@ -191,7 +191,7 @@ func (o *Orchestrator) stepUploading(ctx context.Context, r Run) (stepResult, er
 }
 
 // creating_dataset: create_dataset with the upload refs. unknown → a get_dataset read decides: exists → done;
-// 404 → new attempt.
+// not found (Kaggle answers 403 for a missing resource) → new attempt.
 func (o *Orchestrator) stepCreatingDataset(ctx context.Context, r Run) (stepResult, error) {
 	rem := r.Remote
 	files := make([]map[string]any, 0, len(rem.Staged))
@@ -279,7 +279,8 @@ func (o *Orchestrator) stepWaitingDataset(ctx context.Context, r Run) (stepResul
 }
 
 // starting: save_kernel SAVE_AND_RUN_ALL. remote_running → running. unknown → a get_kernel_session_status read:
-// it answers → running untracked; 404 → kaggle_submit_unknown (nothing is sent again).
+// it answers → running untracked; not found (Kaggle answers 403 for a missing resource) → kaggle_submit_unknown
+// (nothing is sent again).
 func (o *Orchestrator) stepStarting(ctx context.Context, r Run) (stepResult, error) {
 	rem := r.Remote
 	if cfg := o.cfg(); !submitted(r) && cfg.RemoteTimeoutMinutes > 0 && rem.SessionTimeoutMinutes > cfg.RemoteTimeoutMinutes {

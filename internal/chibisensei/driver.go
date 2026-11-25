@@ -58,10 +58,13 @@ func KaggleRequestID(runID, step string, attempt int) string {
 	return hex.EncodeToString(sum[:])[:32]
 }
 
-// IsKaggleNotFound reports a Kaggle 404 (for example a read of a dataset that does not exist).
+// IsKaggleNotFound reports that Kaggle has no such resource (for example a read of a dataset that does not exist).
+// Kaggle answers a missing resource with 403 PERMISSION_DENIED, not 404, and gives the same 403 for a private
+// resource of someone else. Every read of the orchestrator names the run's own owner (the authenticated account at
+// prepare time), which that account can always read, so 403 means the resource is not there. It delegates to
+// kaggle.NotFound, which accepts 403 and 404.
 func IsKaggleNotFound(err error) bool {
-	var ae *kaggle.APIError
-	return errors.As(err, &ae) && ae.Status == 404
+	return kaggle.NotFound(err)
 }
 
 // IsKaggleUncertain reports an error whose remote outcome is unknown.
@@ -107,7 +110,7 @@ type KaggleDriver interface {
 	// Reads (grant read: get_dataset, get_dataset_status, get_kernel, get_kernel_session_status,
 	// list_kernel_session_output, get_accelerator_quota_statistics) run synchronously. Result.Data is the scrubbed
 	// JSON answer ({} when empty), Result.Job is nil, req.ID is ignored and nothing is persisted. A missing resource
-	// is an error for which IsKaggleNotFound is true.
+	// is an error for which IsKaggleNotFound is true (not found; Kaggle answers 403 for a missing resource).
 	//
 	// Every other operation (upload_dataset_file, create_dataset, save_kernel, download_kernel_output,
 	// delete_dataset, delete_kernel) is a durable job. Execute admits it and returns at once with Result.Job in

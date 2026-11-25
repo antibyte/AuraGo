@@ -24,6 +24,7 @@ In-process caller: Chibi Sensei drives Kaggle only through `internal/server/chib
 - Scope is datasets, models/variants/versions, notebooks, competition participation, benchmark tasks and read-only forums. Unsupported benchmark deletion is absent.
 - `kaggle.allowed_machine_shapes` is the only gate for `save_kernel.machineShape` (the SDK has no enum). `NormalizeKaggleConfig` keeps the names of `config.KaggleMachineShapes` in canonical spelling and order; `CheckGrants` requires a listed name, `enableGpu: true` and `allow_gpu`. `dockerImage` stays refused. `WithConfigSnapshot` copies the list and `intersectConfig` intersects it, like `allowed_owners`.
 - `ReadKernelLog` is the only non-durable download-grant path: download grant, filesystem write and network; owner equal to the authenticated account; `get_kernel_session_logs_stream` through the raw client request; a storage redirect through `storageFactory`; a 16 MiB read cap; scrubbed text and the last `maxBytes`. It writes no job row and no project file. 404, 204 or an empty body mean no log yet (empty, nil); a JSON object body is refused. Do not expose it as an agent operation or HTTP route without a receipt decision.
+- Kaggle answers a read of a missing resource with 403 `PERMISSION_DENIED`, not 404, and the same 403 for a foreign private resource. `NotFound` covers both statuses (not an uncertain error). `checkResource` lets `save_kernel` create a notebook on 404, or on 403 only when the slug's owner is the authenticated account; a 403 for another allowed owner stays an error. Other operations keep a failed pre-read as an error.
 - `RemoveFile` deletes one regular project file under `filesMu`; a missing file is success; invalid names, symlinks and directories are refused. It applies no policy gate: in-process callers apply their own, and there is no HTTP or agent route.
 
 ## Work Guidance
@@ -36,7 +37,7 @@ In-process caller: Chibi Sensei drives Kaggle only through `internal/server/chib
 
 Run the package tests and focused config, server, tools, agent and UI suites. Use local HTTP fixtures for writes; live tests require dedicated test resources.
 
-Machine shapes, log reads and file removal: `TestKaggleMachineShape*`, `TestKaggleReadKernelLog*`, `TestKaggleRemoveFilePathSafety`, and in `internal/config` `TestKaggleMachineShapes*` and `TestChibiSenseiTrainingConfig`.
+Machine shapes, log reads and file removal: `TestKaggleMachineShape*`, `TestKaggleReadKernelLog*`, `TestKaggleRemoveFilePathSafety`, missing resources `TestKaggleNotFound` and `TestKaggleSaveKernelCreatesWhenKaggleDeniesTheMissingNotebook`, and in `internal/config` `TestKaggleMachineShapes*` and `TestChibiSenseiTrainingConfig`.
 
 ## Child DOX Index
 

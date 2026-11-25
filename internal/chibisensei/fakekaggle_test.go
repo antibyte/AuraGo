@@ -602,7 +602,9 @@ func (f *fakeKaggle) finishLocked(j *fakeJob) {
 	f.setLocked(j, status, "", b)
 }
 
-func fakeNotFound() error { return &kaggle.APIError{Status: 404} }
+// fakeNotFound is what real Kaggle answers for a dataset, notebook or session that does not exist under the
+// caller's own account: HTTP 403 PERMISSION_DENIED, not 404 (measured 2026-11-25).
+func fakeNotFound() error { return &kaggle.APIError{Status: 403} }
 
 func (f *fakeKaggle) applyLocked(j *fakeJob) (map[string]any, string, error) {
 	p := j.params
@@ -678,7 +680,8 @@ func (f *fakeKaggle) applyLocked(j *fakeJob) (map[string]any, string, error) {
 		}
 		body, ok := f.outputs[fakeString(p, "filePath")]
 		if !ok {
-			return nil, "", fakeNotFound()
+			// A missing output file is no dataset, notebook or session; its real answer is not measured, so it keeps 404.
+			return nil, "", &kaggle.APIError{Status: 404}
 		}
 		dest := filepath.Join(f.dir, j.project, name)
 		if _, err := os.Lstat(dest); err == nil {
@@ -727,11 +730,11 @@ func (f *fakeKaggle) advanceKernelLocked(k *fakeKernel) {
 }
 
 // readLocked answers a read: the scripted answer first; otherwise the modelled default:
-//   - get_dataset, get_dataset_status: a live dataset → {"ref","isPrivate":true} / {"status":"ready"}; else 404.
+//   - get_dataset, get_dataset_status: a live dataset → {"ref","isPrivate":true} / {"status":"ready"}; else 403 (as real Kaggle).
 //     PROVISIONAL status vocabulary until the proof run.
-//   - get_kernel: a live notebook → {"ref","isPrivate":true}; else 404.
+//   - get_kernel: a live notebook → {"ref","isPrivate":true}; else 403.
 //   - get_kernel_session_status: a live notebook (and matching versionLabel) → advances it one step and answers
-//     {"status": <current>}; else 404.
+//     {"status": <current>}; else 403.
 //   - list_kernel_session_output: {"files":[{"fileName","size"}],"nextPageToken":""} from SetOutputs (PROVISIONAL shape).
 //   - get_accelerator_quota_statistics: fakeQuotaJSON(27.5) (PROVISIONAL shape).
 //   - anything else: {}.

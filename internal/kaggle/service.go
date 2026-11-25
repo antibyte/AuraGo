@@ -324,6 +324,7 @@ func (s *Service) checkResource(ctx context.Context, c *Client, cfg config.Kaggl
 	var read Operation
 	var query map[string]any
 	var err error
+	var notebookOwner string
 	switch op.Domain {
 	case "datasets", "models":
 		owner := stringValue(p, "ownerSlug")
@@ -355,6 +356,7 @@ func (s *Service) checkResource(ctx context.Context, c *Client, cfg config.Kaggl
 		if !ownerAllowed(cfg, account, owner) {
 			return errors.New("notebook owner is disallowed")
 		}
+		notebookOwner = owner
 		read, err = Lookup("notebooks", "get_kernel")
 		query = map[string]any{"userName": owner, "kernelSlug": slug}
 	case "benchmarks":
@@ -383,8 +385,13 @@ func (s *Service) checkResource(ctx context.Context, c *Client, cfg config.Kaggl
 	body, err := c.Call(ctx, read, query)
 	if err != nil {
 		var ae *APIError
-		if op.Name == "save_kernel" && errors.As(err, &ae) && ae.Status == 404 && cfg.AllowCreate {
-			return s.checkComputeSlotsIfRun(ctx, cfg, p)
+		if op.Name == "save_kernel" && cfg.AllowCreate && errors.As(err, &ae) && !ae.Uncertain {
+			// Kaggle answers 403 for a notebook that does not exist; that is a missing notebook only under
+			// the authenticated account's own name, because a foreign notebook may exist and be private.
+			own := account != "" && strings.EqualFold(notebookOwner, account)
+			if ae.Status == http.StatusNotFound || ae.Status == http.StatusForbidden && own {
+				return s.checkComputeSlotsIfRun(ctx, cfg, p)
+			}
 		}
 		return err
 	}
