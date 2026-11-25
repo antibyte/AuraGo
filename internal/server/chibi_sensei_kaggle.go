@@ -253,7 +253,7 @@ func (d *chibiKaggleDriver) RemoveFile(project, name string) error {
 	return svc.RemoveFile(project, name)
 }
 
-func (d *chibiKaggleDriver) ReadKernelLog(ctx context.Context, owner, slug string, version int, max int64) ([]byte, error) {
+func (d *chibiKaggleDriver) ReadKernelLog(ctx context.Context, owner, slug string, max int64) ([]byte, error) {
 	if d.desktopReadOnly() {
 		return nil, fmt.Errorf("read the Kaggle log: %w", chibisensei.ErrDesktopReadOnly)
 	}
@@ -261,7 +261,7 @@ func (d *chibiKaggleDriver) ReadKernelLog(ctx context.Context, owner, slug strin
 	if err != nil {
 		return nil, err
 	}
-	return svc.ReadKernelLog(ctx, d.s.kaggleSnapshot().Access, owner, slug, version, max)
+	return svc.ReadKernelLog(ctx, d.s.kaggleSnapshot().Access, owner, slug, max)
 }
 
 func (d *chibiKaggleDriver) Cancel(ctx context.Context, jobID string) error {

@@ -169,11 +169,13 @@ type KaggleDriver interface {
 	// RemoveFile deletes one regular project file; a missing file is not an error.
 	RemoveFile(project, name string) error
 
-	// ReadKernelLog reads the session log of one notebook version without a durable job and without a project file:
-	// at most max bytes from the end (the read itself is capped at 16 MiB). An empty body with a nil error means
-	// "no log yet". Needs the download grant, filesystem write and network; owner must be the authenticated account.
-	// The body is raw (a JSON array of {stream_name,time,data} or plain text); the caller scrubs before storing.
-	ReadKernelLog(ctx context.Context, owner, slug string, version int, max int64) ([]byte, error)
+	// ReadKernelLog reads the log of the notebook's latest session (no version label) without a durable job and
+	// without a project file: at most max bytes from the end (the read itself is capped at 16 MiB). An empty body
+	// with a nil error means "no log yet". Needs the download grant, filesystem write and network; owner must be the
+	// authenticated account. A running session answers an event stream of "data: {stream entry}" events (the read
+	// ends after a short idle time), a finished one a JSON array of {stream_name,time,data}; the body is raw and the
+	// caller scrubs before storing.
+	ReadKernelLog(ctx context.Context, owner, slug string, max int64) ([]byte, error)
 
 	// Cancel is Service.Cancel. queued or running: cancels the local job (it ends failed or unknown).
 	// remote_running: sends cancel_kernel_session, which needs a kernelSessionId that SaveKernel normally does not

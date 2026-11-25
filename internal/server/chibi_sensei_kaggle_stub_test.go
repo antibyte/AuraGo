@@ -89,7 +89,7 @@ func (k *chibiStubKaggle) OpenFile(string, string) (*os.File, error) { return ni
 
 func (k *chibiStubKaggle) RemoveFile(string, string) error { return nil }
 
-func (k *chibiStubKaggle) ReadKernelLog(context.Context, string, string, int, int64) ([]byte, error) {
+func (k *chibiStubKaggle) ReadKernelLog(context.Context, string, string, int64) ([]byte, error) {
 	return nil, nil
 }
 

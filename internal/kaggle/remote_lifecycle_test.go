@@ -79,10 +79,12 @@ func TestKaggleRemoteNotebookLifecycleAndPinnedOutput(t *testing.T) {
 			if p["text"] != `{"nbformat":4,"nbformat_minor":5,"metadata":{},"cells":[]}` {
 				t.Error("frozen notebook changed")
 			}
-			io.WriteString(w, `{"ref":"owner/analysis","versionNumber":7,"kernelId":321}`)
+			io.WriteString(w, `{"ref":"/code/owner/analysis","versionNumber":7,"kernelId":321}`)
 		case strings.HasSuffix(r.URL.Path, "GetKernelSessionStatus"):
-			if p["versionLabel"] != "7" {
-				t.Error("polled unpinned notebook version")
+			if _, has := p["versionLabel"]; has {
+				// Real Kaggle: a version number is not a label.
+				w.WriteHeader(404)
+				return
 			}
 			io.WriteString(w, `{"status":"COMPLETE"}`)
 		case strings.HasSuffix(r.URL.Path, "DownloadKernelOutput"):

@@ -105,7 +105,6 @@ type fakeCall struct {
 	ID      string         // Execute: the request (job) ID; Job and Cancel: the job ID
 	Project string         // Execute, WriteFile, OpenFile, RemoveFile
 	File    string         // Execute, WriteFile, OpenFile, RemoveFile; ReadKernelLog: owner/slug
-	Version int            // ReadKernelLog
 	Max     int64          // ReadKernelLog
 	Params  map[string]any // Execute: decoded parameters (numbers are json.Number)
 	Fresh   bool           // Execute of a mutation: a new job was admitted
@@ -641,7 +640,8 @@ func (f *fakeKaggle) applyLocked(j *fakeJob) (map[string]any, string, error) {
 			names = append(names, up.Name)
 		}
 		f.datasets[ref] = &fakeDataset{ref: ref, files: names}
-		return map[string]any{"ref": ref, "url": KaggleDatasetURL(ref), "status": "Ok"}, KaggleJobCompleted, nil
+		// Real Kaggle answers the ref of create_dataset with a "/datasets/" prefix.
+		return map[string]any{"ref": "/datasets/" + ref, "url": KaggleDatasetURL(ref), "status": "Ok"}, KaggleJobCompleted, nil
 	case "save_kernel":
 		ref := fakeString(p, "slug")
 		if strings.Count(ref, "/") != 1 {
@@ -665,7 +665,8 @@ func (f *fakeKaggle) applyLocked(j *fakeJob) (map[string]any, string, error) {
 		f.kernels[ref] = k
 		j.kernel = ref
 		f.kernelSeq++
-		return map[string]any{"ref": ref, "url": KaggleNotebookURL(ref), "versionNumber": version,
+		// Real Kaggle answers the ref of save_kernel with a "/code/" prefix.
+		return map[string]any{"ref": "/code/" + ref, "url": KaggleNotebookURL(ref), "versionNumber": version,
 			"kernelId": 9000 + f.kernelSeq}, status, nil
 	case "download_kernel_output":
 		if j.project == "" {
@@ -733,12 +734,16 @@ func (f *fakeKaggle) advanceKernelLocked(k *fakeKernel) {
 //   - get_dataset, get_dataset_status: a live dataset → {"ref","isPrivate":true} / {"status":"ready"}; else 403 (as real Kaggle).
 //     PROVISIONAL status vocabulary until the proof run.
 //   - get_kernel: a live notebook → {"ref","isPrivate":true}; else 403.
-//   - get_kernel_session_status: a live notebook (and matching versionLabel) → advances it one step and answers
-//     {"status": <current>}; else 403.
+//   - get_kernel_session_status: a live notebook → advances it one step and answers {"status": <current>}; else 403.
+//   - any kernel read with a versionLabel parameter: 404, whatever the label (real Kaggle knows no such label).
 //   - list_kernel_session_output: {"files":[{"fileName","size"}],"nextPageToken":""} from SetOutputs (PROVISIONAL shape).
 //   - get_accelerator_quota_statistics: fakeQuotaJSON(27.5) (PROVISIONAL shape).
 //   - anything else: {}.
 func (f *fakeKaggle) readLocked(name string, p map[string]any) (json.RawMessage, error) {
+	// Real Kaggle: a version number is not a version label, so any kernel read that sends a label is a 404.
+	if _, has := p["versionLabel"]; has && strings.Contains(name, "kernel") {
+		return nil, &kaggle.APIError{Status: 404}
+	}
 	if answers := f.reads[name]; len(answers) > 0 {
 		a := answers[0]
 		if len(answers) > 1 {
@@ -767,9 +772,6 @@ func (f *fakeKaggle) readLocked(name string, p map[string]any) (json.RawMessage,
 		}
 		if name == "get_kernel" {
 			return fakeJSON(map[string]any{"ref": ref, "isPrivate": true}), nil
-		}
-		if v := fakeString(p, "versionLabel"); v != "" && v != fmt.Sprint(k.version) {
-			return nil, fakeNotFound()
 		}
 		f.advanceKernelLocked(k)
 		status := k.status
@@ -902,13 +904,13 @@ func (f *fakeKaggle) RemoveFile(project, name string) error {
 	return err
 }
 
-func (f *fakeKaggle) ReadKernelLog(ctx context.Context, owner, slug string, version int, max int64) ([]byte, error) {
+func (f *fakeKaggle) ReadKernelLog(ctx context.Context, owner, slug string, max int64) ([]byte, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	call := fakeCall{Method: "ReadKernelLog", File: owner + "/" + slug, Version: version, Max: max}
+	call := fakeCall{Method: "ReadKernelLog", File: owner + "/" + slug, Max: max}
 	if len(f.logs) == 0 {
 		f.record(call)
 		return nil, nil
@@ -1553,7 +1555,7 @@ func TestFakeKaggleDatasetDownloadAndBuilders(t *testing.T) {
 
 	// Logs and quota.
 	f.ScriptLogs(fakeLog{Body: []byte("abcdef")})
-	if b, err := f.ReadKernelLog(ctx, "tester", "chibi-x", 1, 3); err != nil || string(b) != "def" {
+	if b, err := f.ReadKernelLog(ctx, "tester", "chibi-x", 3); err != nil || string(b) != "def" {
 		t.Fatalf("ReadKernelLog: %q %v", b, err)
 	}
 	if h, ok := ParseGPUQuota(fakeJSON(fakeQuotaJSON(27.5))); !ok || h != 27.5 {

@@ -28,6 +28,8 @@ Use this optional native tool for Kaggle notebooks. Discover its current schema 
 | `get_kernel_session_logs_stream` | `kernelSessionId`, `waitForLogsUrlSeconds`, `userName`, `kernelSlug`, `versionLabel` |
 | `get_accelerator_quota_statistics` | None |
 
+Leave `versionLabel` out to address the notebook's latest version and session; a version number is not a label, and Kaggle answers 404 for it.
+
 ## Permissions
 
 Integration activation, current global gates and operation grants apply equally to the agent and Desktop. Read-only blocks remote mutations and execution. Downloads require the download grant and filesystem writes. Writes require the authenticated owner or an explicitly allowed owner. Creating public resources or changing existing public resources also requires publication permission. New resources default to private where supported. Granted work needs no additional per-operation confirmation.

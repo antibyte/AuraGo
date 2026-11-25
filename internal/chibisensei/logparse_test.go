@@ -2,6 +2,7 @@ package chibisensei
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -173,5 +174,63 @@ func TestParseKernelLogBlankLines(t *testing.T) {
 	body := []byte(strings.Repeat("\n", 4<<20) + chibiLine(5) + "\n")
 	if ev := ParseKernelLog(body); !sameSeqs(ev, 5) {
 		t.Fatalf("seqs %v", seqsOf(ev))
+	}
+}
+
+type streamEntry struct {
+	Stream string  `json:"stream_name"`
+	Time   float64 `json:"time"`
+	Data   string  `json:"data"`
+}
+
+// streamTestEntries are log entries with stage and metric lines, one stdout line split across two entries and one
+// stderr entry in between.
+func streamTestEntries() []streamEntry {
+	split := fakeLogLine(3, "info", map[string]any{"msg": "split across entries"})
+	cut := len(split) / 2
+	return []streamEntry{
+		{"stdout", 1.5, fakeLogLine(1, "stage", map[string]any{"stage": "boot", "state": "start"}) + "\n"},
+		{"stdout", 2.5, split[:cut]},
+		{"stderr", 2.6, "warning: something on stderr\n"},
+		{"stdout", 2.7, split[cut:] + "\n"},
+		{"stdout", 3.5, fakeLogLine(4, "metric", map[string]any{"kind": "train", "step": 10, "max_steps": 40, "loss": 2.5}) + "\n"},
+	}
+}
+
+// eventStreamBody renders entries as the answer of a running session: one "data: {entry}" event per entry, each
+// followed by an empty line.
+func eventStreamBody(entries []streamEntry) []byte {
+	var b bytes.Buffer
+	for _, e := range entries {
+		j, _ := json.Marshal(e)
+		b.WriteString("data: " + string(j) + "\n\n")
+	}
+	return b.Bytes()
+}
+
+func TestParseKernelLogEventStream(t *testing.T) {
+	entries := streamTestEntries()
+	arrayForm, _ := json.Marshal(entries)
+	want := ParseKernelLog(arrayForm)
+	if !sameSeqs(want, 1, 3, 4) {
+		t.Fatalf("array form seqs %v", seqsOf(want))
+	}
+	got := ParseKernelLog(eventStreamBody(entries))
+	if !sameSeqs(got, 1, 3, 4) {
+		t.Fatalf("event stream seqs %v", seqsOf(got))
+	}
+	for i := range want {
+		if got[i].Seq != want[i].Seq || got[i].T != want[i].T || !bytes.Equal(got[i].Raw, want[i].Raw) {
+			t.Errorf("event %d differs: %+v vs %+v", i, got[i], want[i])
+		}
+	}
+	if m, ok := got[2].Metric(); !ok || m.Step != 10 || m.Loss != 2.5 {
+		t.Errorf("metric %+v %v", m, ok)
+	}
+
+	// A stream cut in the middle of the last event keeps the complete ones.
+	full := eventStreamBody(entries)
+	if ev := ParseKernelLog(full[:len(full)-40]); !sameSeqs(ev, 1, 3) {
+		t.Fatalf("cut stream seqs %v", seqsOf(ev))
 	}
 }

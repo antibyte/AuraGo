@@ -94,7 +94,7 @@ func TestKaggleReadKernelLogGrantsOwnerAndReferences(t *testing.T) {
 			if tc.ctx != nil {
 				ctx = tc.ctx(ctx, s.current())
 			}
-			if _, err := s.ReadKernelLog(ctx, tc.access, "owner", "chibi-run", 3, 1024); err == nil {
+			if _, err := s.ReadKernelLog(ctx, tc.access, "owner", "chibi-run", 1024); err == nil {
 				t.Fatal("refused read succeeded")
 			}
 			if f.requests.Load() != 0 {
@@ -106,16 +106,15 @@ func TestKaggleReadKernelLogGrantsOwnerAndReferences(t *testing.T) {
 	s, f := newLogTestService(t, nil, ok)
 	for _, ref := range []struct {
 		owner, slug string
-		version     int
-	}{{"owner", "owner/chibi-run", 3}, {"", "chibi-run", 3}, {"owner", "../x", 3}, {"owner", "chibi-run", 0}, {"owner", "chibi-run", -1}} {
-		if _, err := s.ReadKernelLog(context.Background(), logAccess, ref.owner, ref.slug, ref.version, 1024); err == nil {
+	}{{"owner", "owner/chibi-run"}, {"", "chibi-run"}, {"owner", "../x"}} {
+		if _, err := s.ReadKernelLog(context.Background(), logAccess, ref.owner, ref.slug, 1024); err == nil {
 			t.Fatalf("invalid reference accepted: %+v", ref)
 		}
 	}
 	if f.requests.Load() != 0 {
 		t.Fatal("invalid references contacted Kaggle")
 	}
-	if _, err := s.ReadKernelLog(context.Background(), logAccess, "stranger", "chibi-run", 3, 1024); err == nil {
+	if _, err := s.ReadKernelLog(context.Background(), logAccess, "stranger", "chibi-run", 1024); err == nil {
 		t.Fatal("foreign owner accepted")
 	}
 	if f.logCalls.Load() != 0 {
@@ -149,7 +148,7 @@ func TestKaggleReadKernelLogBodies(t *testing.T) {
 				w.WriteHeader(tc.status)
 				io.WriteString(w, tc.body)
 			})
-			got, err := s.ReadKernelLog(context.Background(), logAccess, "owner", "chibi-run", 3, tc.max)
+			got, err := s.ReadKernelLog(context.Background(), logAccess, "owner", "chibi-run", tc.max)
 			if (err != nil) != tc.wantErr {
 				t.Fatalf("err = %v, wantErr %v", err, tc.wantErr)
 			}
@@ -166,7 +165,7 @@ func TestKaggleReadKernelLogBodies(t *testing.T) {
 				t.Fatalf("got %q, want %q", got, tc.want)
 			}
 			p, _ := f.params.Load().(map[string]any)
-			if p["userName"] != "owner" || p["kernelSlug"] != "chibi-run" || p["versionLabel"] != "3" || p["waitForLogsUrlSeconds"] != float64(10) {
+			if p["userName"] != "owner" || p["kernelSlug"] != "chibi-run" || p["waitForLogsUrlSeconds"] != float64(10) {
 				t.Fatalf("wire parameters %v", p)
 			}
 			assertNoDurableTrace(t, s)
@@ -203,7 +202,7 @@ func TestKaggleReadKernelLogRedirectAndScrub(t *testing.T) {
 					return &http.Response{StatusCode: tc.storageStatus, Header: make(http.Header), Body: io.NopCloser(strings.NewReader("before " + secret + " after"))}, nil
 				})}, nil
 			}
-			got, err := s.ReadKernelLog(context.Background(), logAccess, "owner", "chibi-run", 3, 1024)
+			got, err := s.ReadKernelLog(context.Background(), logAccess, "owner", "chibi-run", 1024)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -221,5 +220,106 @@ func TestKaggleReadKernelLogRedirectAndScrub(t *testing.T) {
 			}
 			assertNoDurableTrace(t, s)
 		})
+	}
+}
+
+// shortenLogBounds shortens the live read bounds for one test. Tests that call it must not run in parallel.
+func shortenLogBounds(t *testing.T, idle, overall time.Duration) {
+	t.Helper()
+	oldIdle, oldMax := kernelLogIdle, kernelLogStreamMax
+	kernelLogIdle, kernelLogStreamMax = idle, overall
+	t.Cleanup(func() { kernelLogIdle, kernelLogStreamMax = oldIdle, oldMax })
+}
+
+// streamResponder writes the head and the chunks of a response, flushes, and then either ends the response (eof) or
+// keeps it open until done is closed. The test registers the close after the service, so it runs before the
+// fixture server waits for its handlers.
+func streamResponder(done <-chan struct{}, contentType string, eof bool, chunks ...string) func(http.ResponseWriter) {
+	return func(w http.ResponseWriter) {
+		w.Header().Set("Content-Type", contentType)
+		w.WriteHeader(http.StatusOK)
+		for _, c := range chunks {
+			io.WriteString(w, c)
+		}
+		w.(http.Flusher).Flush()
+		if !eof {
+			select {
+			case <-done:
+			case <-time.After(10 * time.Second):
+			}
+		}
+	}
+}
+
+func TestKaggleReadKernelLogEventStream(t *testing.T) {
+	secret := "chibi-stream-secret-" + newID()
+	security.RegisterSensitive(secret)
+	ev1 := `data: {"stream_name":"stdout","time":1.5,"data":"@@chibi {\"seq\":1}\n"}` + "\n\n"
+	ev2 := `data: {"stream_name":"stderr","time":2.5,"data":"` + secret + `\n"}` + "\n\n"
+	for _, tc := range []struct {
+		name   string
+		eof    bool
+		chunks []string
+		want   []string
+	}{
+		{"open stream ends by the idle timer", false, []string{ev1, ev2}, []string{ev1, "stream_name\":\"stderr"}},
+		{"silent stream is no log yet", false, nil, nil},
+		{"stream that ends by EOF", true, []string{ev1, ev2}, []string{ev1, "stream_name\":\"stderr"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			shortenLogBounds(t, 150*time.Millisecond, 2*time.Second)
+			done := make(chan struct{})
+			s, f := newLogTestService(t, nil, streamResponder(done, "text/event-stream", tc.eof, tc.chunks...))
+			t.Cleanup(func() { close(done) })
+			start := time.Now()
+			got, err := s.ReadKernelLog(context.Background(), logAccess, "owner", "chibi-run", 1<<20)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if time.Since(start) > time.Second {
+				t.Fatalf("read took %s", time.Since(start))
+			}
+			if tc.want == nil {
+				if got != nil {
+					t.Fatalf("silent stream returned %q", got)
+				}
+			}
+			for _, w := range tc.want {
+				if !strings.Contains(string(got), w) {
+					t.Fatalf("missing %q in %q", w, got)
+				}
+			}
+			if strings.Contains(string(got), secret) {
+				t.Fatal("registered secret survived the log read")
+			}
+			p, _ := f.params.Load().(map[string]any)
+			if _, has := p["versionLabel"]; has {
+				t.Fatalf("log request carries a versionLabel: %v", p)
+			}
+			assertNoDurableTrace(t, s)
+		})
+	}
+}
+
+func TestKaggleReadKernelLogJSONStall(t *testing.T) {
+	shortenLogBounds(t, 150*time.Millisecond, 2*time.Second)
+	done := make(chan struct{})
+	s, _ := newLogTestService(t, nil, streamResponder(done, "application/json", false, `[{"stream_name":"stdout","time":1,"data":"a"}`))
+	t.Cleanup(func() { close(done) })
+	if got, err := s.ReadKernelLog(context.Background(), logAccess, "owner", "chibi-run", 1<<20); err == nil {
+		t.Fatalf("stalled JSON body accepted: %q", got)
+	}
+	assertNoDurableTrace(t, s)
+}
+
+func TestKaggleReadKernelLogCallerContextEnds(t *testing.T) {
+	shortenLogBounds(t, 5*time.Second, 10*time.Second)
+	done := make(chan struct{})
+	s, _ := newLogTestService(t, nil, streamResponder(done, "text/event-stream", false, "data: {\"stream_name\":\"stdout\",\"time\":1,\"data\":\"a\"}\n\n"))
+	t.Cleanup(func() { close(done) })
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	if got, err := s.ReadKernelLog(ctx, logAccess, "owner", "chibi-run", 1<<20); err == nil {
+		t.Fatalf("the caller's cancelled context was not returned: %q", got)
 	}
 }

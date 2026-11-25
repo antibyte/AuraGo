@@ -3,7 +3,6 @@ package chibisensei
 import (
 	"context"
 	"encoding/json"
-	"strconv"
 	"time"
 )
 
@@ -47,7 +46,7 @@ func (o *Orchestrator) readRemote(ctx context.Context, r Run, force bool) (remot
 		return remoteView{status: rem.RemoteStatus}, nil
 	}
 	data, err := o.readOp(ctx, "get_kernel_session_status", map[string]any{"userName": rem.Owner,
-		"kernelSlug": rem.NotebookSlug, "versionLabel": strconv.Itoa(max(rem.KernelVersion, 1))})
+		"kernelSlug": rem.NotebookSlug})
 	if IsKaggleNotFound(err) {
 		return remoteView{status: "NOT_FOUND", final: KaggleJobFailed, polled: true}, nil
 	}
@@ -150,7 +149,7 @@ type logOutcome struct {
 func (o *Orchestrator) readLog(ctx context.Context, r Run) (logOutcome, error) {
 	rem := r.Remote
 	out := logOutcome{readAt: ts(o.now()), maxSeq: rem.LastLogSeq}
-	body, err := o.drv.ReadKernelLog(ctx, rem.Owner, rem.NotebookSlug, max(rem.KernelVersion, 1), logReadMaxBytes)
+	body, err := o.drv.ReadKernelLog(ctx, rem.Owner, rem.NotebookSlug, logReadMaxBytes)
 	if ctx.Err() != nil {
 		return out, ctx.Err()
 	}

@@ -66,3 +66,14 @@ func TestRunFilesLayout(t *testing.T) {
 		t.Fatalf("stored tail: %d %v", len(b), err)
 	}
 }
+
+func TestLogTailTextEventStream(t *testing.T) {
+	entries := []streamEntry{{"stdout", 1.5, "first line\n"}, {"stderr", 2.5, "second line\n"}}
+	got := string(logTailText(eventStreamBody(entries)))
+	if got != "first line\nsecond line\n" {
+		t.Fatalf("tail of an event stream: %q", got)
+	}
+	if strings.Contains(got, "data:") || strings.Contains(got, "stream_name") {
+		t.Fatalf("raw event lines in the tail: %q", got)
+	}
+}

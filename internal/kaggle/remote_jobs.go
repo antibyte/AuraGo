@@ -53,21 +53,20 @@ func (s *Service) pollRemote() {
 			continue
 		}
 		if j.Domain == "notebooks" {
-			ref := stringValue(r, "ref")
-			if ref == "" {
-				ref = stringValue(p, "slug")
+			owner, slug, ok := notebookRef(stringValue(r, "ref"))
+			if !ok {
+				owner, slug, ok = notebookRef(stringValue(p, "slug"))
 			}
-			parts := strings.Split(ref, "/")
-			if len(parts) != 2 {
-				continue
-			}
-			version := fmt.Sprint(r["versionNumber"])
-			if r["versionNumber"] == nil {
+			if !ok || r["versionNumber"] == nil {
 				continue
 			}
 			op, _ := Lookup("notebooks", "get_kernel_session_status")
-			body, e := c.Call(ctx, op, map[string]any{"userName": parts[0], "kernelSlug": parts[1], "versionLabel": version})
+			// No versionLabel: a version number is not a label, and Kaggle answers 404 for it.
+			body, e := c.Call(ctx, op, map[string]any{"userName": owner, "kernelSlug": slug})
 			if e != nil {
+				if NotFound(e) {
+					s.endMissingNotebook(ctx, j, r, owner, account, e, snap.Config.RemoteTimeoutMinutes)
+				}
 				continue
 			}
 			var response map[string]any
@@ -139,6 +138,50 @@ func (s *Service) pollRemote() {
 		}
 	}
 }
+
+// notebookGoneGrace is how old a notebook job must be before a 403 for the own notebook means it was deleted.
+var notebookGoneGrace = 2 * time.Minute
+
+// notebookRef splits a Kaggle notebook reference into owner and slug. save_kernel answers "/code/<owner>/<slug>",
+// get_kernel and the request slug use "<owner>/<slug>".
+func notebookRef(ref string) (owner, slug string, ok bool) {
+	ref = strings.TrimPrefix(ref, "/")
+	ref = strings.TrimPrefix(ref, "code/")
+	parts := strings.Split(ref, "/")
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return "", "", false
+	}
+	return parts[0], parts[1], true
+}
+
+// endMissingNotebook ends a notebook job whose status read answered 403 or 404 for good: the own notebook is gone
+// (403 past the grace), or Kaggle shows no run for it past the remote timeout. Otherwise the job keeps waiting.
+func (s *Service) endMissingNotebook(ctx context.Context, j Job, r map[string]any, owner, account string, readErr error, timeoutMinutes int) {
+	created, err := time.Parse(time.RFC3339Nano, j.Created)
+	if err != nil {
+		return
+	}
+	age := time.Since(created)
+	var api *APIError
+	errors.As(readErr, &api)
+	message := ""
+	switch {
+	case api != nil && api.Status == 403 && strings.EqualFold(owner, account) && age >= notebookGoneGrace:
+		message = "The Kaggle notebook no longer exists"
+	case timeoutMinutes > 0 && age >= time.Duration(timeoutMinutes)*time.Minute:
+		message = "Kaggle reports no run for this notebook"
+	default:
+		return
+	}
+	status := "failed"
+	if j.Status == "cancel_requested" {
+		status = "cancelled"
+	}
+	r["remote_status"] = "NOT_FOUND"
+	b, _ := json.Marshal(r)
+	s.Store.update(ctx, j.ID, status, j.Progress, cleanOutput(b), message)
+}
+
 func remoteState(v string) string {
 	v = strings.ToUpper(v)
 	switch {
