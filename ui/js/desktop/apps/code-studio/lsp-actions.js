@@ -462,3 +462,687 @@
     }
 
     lspOnServerRequest('workspace/applyEdit', lspActServerApplyEdit);
+
+    // --- Floating boxes at the cursor (rename box and quick-fix menu) ---
+
+    // Closes open Code Studio menus the way core.js does, so only one floating box is open at a time.
+    function lspActCloseMenus() {
+        document.querySelectorAll('.cs-context-menu').forEach(menu => {
+            if (typeof menu.__codeStudioCleanup === 'function') menu.__codeStudioCleanup();
+            else menu.remove();
+        });
+    }
+
+    // Puts a fixed box under a document position, kept inside the viewport.
+    function lspActPlace(element, view, pos, gap) {
+        const coords = view.coordsAtPos(pos) || view.contentDOM.getBoundingClientRect();
+        const rect = element.getBoundingClientRect();
+        element.style.left = Math.max(8, Math.min(coords.left, window.innerWidth - rect.width - 8)) + 'px';
+        element.style.top = Math.max(8, Math.min(coords.bottom + gap, window.innerHeight - rect.height - 8)) + 'px';
+    }
+
+    // --- Find references (Shift+F12) and the References tab of the bottom panel ---
+
+    async function lspActFindReferences(view) {
+        const target = state;
+        const ctx = lspActContext(view);
+        if (!ctx) return;
+        const head = view.state.selection.main.head;
+        const word = view.state.wordAt(head);
+        if (!word) {
+            flashStatus(tr('codeStudio.lspNoSymbol', 'There is no symbol at the cursor.'));
+            return;
+        }
+        const symbol = view.state.doc.sliceString(word.from, word.to);
+        const position = CodeStudioLSPProtocol.offsetToPosition(view.state.doc, head);
+        const client = await lspActClient(target, ctx.language);
+        if (!client) return;
+        const request = Symbol('references');
+        runWithInstance(target, () => {
+            target.lspActReferences = { request, status: 'loading', symbol, groups: [], total: 0, outside: 0, message: '' };
+            setActivePanel('references');
+        });
+        let result;
+        try {
+            result = await lspActRequest(target, ctx.language, 'textDocument/references', {
+                textDocument: { uri: ctx.uri },
+                position,
+                context: { includeDeclaration: true }
+            });
+        } catch (err) {
+            lspActUpdateReferences(target, request, {
+                status: 'error',
+                message: lspActIsTimeout(err)
+                    ? tr('codeStudio.lspTimeout', 'The language server did not answer in time. Try again.')
+                    : tr('codeStudio.lspRequestFailed', 'Language server error: {{message}}', { message: lspActErrorText(err) })
+            });
+            return;
+        }
+        if (!lspActReferencesCurrent(target, request)) return;
+        const grouped = CodeStudioLSPEdits.referencesToGroups(result);
+        const groups = grouped.groups.map(group => ({
+            path: group.path,
+            label: searchResultLabel(group.path),
+            collapsed: false,
+            items: group.items.map(item => Object.assign({ preview: null }, item))
+        }));
+        await lspActFillPreviews(target, groups);
+        lspActUpdateReferences(target, request, { status: 'ready', groups, total: grouped.total, outside: grouped.outside });
+    }
+
+    function lspActReferencesCurrent(target, request) {
+        return isLiveInstance(target) && !!target.lspActReferences && target.lspActReferences.request === request;
+    }
+
+    function lspActUpdateReferences(target, request, changes) {
+        if (!lspActReferencesCurrent(target, request)) return;
+        runWithInstance(target, () => {
+            target.lspActReferences = Object.assign({}, target.lspActReferences, changes);
+            renderReferencesPanel();
+        });
+    }
+
+    // Line previews come from the open buffer of a file, otherwise from the file API, six files at a time and at most
+    // LSP_ACT_PREVIEW_FILES files; the others keep their line numbers.
+    async function lspActFillPreviews(target, groups) {
+        const pending = [];
+        groups.forEach(group => {
+            const text = runWithInstance(target, () => {
+                const tab = lspActOpenTab(group.path);
+                return tab ? editorValue(tab) : null;
+            });
+            if (text !== null) lspActSetPreviews(group, text);
+            else if (pending.length < LSP_ACT_PREVIEW_FILES) pending.push(group);
+        });
+        for (let index = 0; index < pending.length; index += 6) {
+            await Promise.all(pending.slice(index, index + 6).map(async group => {
+                try {
+                    const result = await apiClient.file(group.path);
+                    if (result && typeof result.content === 'string') lspActSetPreviews(group, result.content);
+                } catch (_) {
+                    // A file that cannot be read keeps its line numbers without a preview.
+                }
+            }));
+            if (!isLiveInstance(target)) return;
+        }
+    }
+
+    function lspActSetPreviews(group, text) {
+        group.items.forEach(item => { item.preview = CodeStudioLSPEdits.referencePreview(text, item, 160); });
+    }
+
+    // The References tab joins the bottom panel when it is first needed, so the panel keeps its three standard views
+    // until then. renderBottomPanel (panel.js) calls this before it marks the active view.
+    function ensureReferencesPanelParts(panel) {
+        if (!panel || (!state.lspActReferences && state.activePanel !== 'references')) return;
+        if (panel.querySelector('[data-panel-tab="references"]')) return;
+        const tabs = panel.querySelector('[data-panel-tabs]');
+        const body = panel.querySelector('.cs-panel-body');
+        if (!tabs || !body) return;
+        const tab = document.createElement('button');
+        tab.type = 'button';
+        tab.className = 'cs-panel-tab';
+        tab.setAttribute('role', 'tab');
+        tab.setAttribute('aria-selected', 'false');
+        tab.dataset.panelTab = 'references';
+        tab.innerHTML = `<span>${esc(tr('codeStudio.panelReferences', 'References'))}</span>`;
+        tab.addEventListener('click', bind(() => setActivePanel('references')));
+        tabs.insertBefore(tab, tabs.querySelector('[data-panel-tab="terminal"]'));
+        const pane = document.createElement('div');
+        pane.className = 'cs-panel-pane';
+        pane.dataset.panelPane = 'references';
+        pane.setAttribute('data-references-panel', '');
+        pane.hidden = true;
+        body.insertBefore(pane, body.querySelector('[data-panel-pane="terminal"]'));
+    }
+
+    // Re-renders only when the result changed (renderBottomPanel runs on every problems update) or when forced.
+    function renderReferencesPanel(force) {
+        const pane = shellPart('[data-references-panel]');
+        if (!pane) return;
+        const data = state.lspActReferences || null;
+        if (!force && pane.lspActShown === data) return;
+        pane.lspActShown = data;
+        const message = (text, extraClass) => `<div class="cs-empty${extraClass ? ' ' + extraClass : ''}">${esc(text)}</div>`;
+        if (!data) {
+            pane.innerHTML = message(tr('codeStudio.lspReferencesEmpty', 'Place the cursor on a symbol and press Shift+F12 to list its references.'));
+            return;
+        }
+        if (data.status === 'loading') {
+            pane.innerHTML = message(tr('codeStudio.lspReferencesLoading', 'Finding references to {{symbol}}...', { symbol: data.symbol }));
+            return;
+        }
+        if (data.status === 'error') {
+            pane.innerHTML = message(data.message, 'cs-references-error');
+            return;
+        }
+        const outside = data.outside
+            ? `<span class="cs-references-outside">${esc(tr('codeStudio.lspReferencesOutside', '{{count}} more results are outside the workspace and not listed.', { count: data.outside }))}</span>`
+            : '';
+        if (!data.total) {
+            pane.innerHTML = message(tr('codeStudio.lspReferencesNone', 'No references found for {{symbol}}.', { symbol: data.symbol }))
+                + (outside ? `<div class="cs-references-summary">${outside}</div>` : '');
+            return;
+        }
+        const summary = `<div class="cs-references-summary"><span>${esc(tr('codeStudio.lspReferencesSummary', '{{count}} references to {{symbol}} in {{files}} files', { count: data.total, symbol: data.symbol, files: data.groups.length }))}</span>${outside}</div>`;
+        const groups = data.groups.map((group, groupIndex) => {
+            const rows = group.collapsed ? '' : group.items.map((item, index) => {
+                const preview = item.preview;
+                const code = preview ? `${esc(preview.before)}<mark>${esc(preview.match)}</mark>${esc(preview.after)}` : '';
+                return `<button type="button" class="cs-reference" data-ref="${groupIndex}|${index}" title="${esc(group.label)}:${esc(item.line + 1)}"><em class="cs-search-line">${esc(item.line + 1)}</em><code>${code}</code></button>`;
+            }).join('');
+            return `<div class="cs-references-group${group.collapsed ? ' collapsed' : ''}">
+                <button type="button" class="cs-references-file" data-ref-group="${groupIndex}" aria-expanded="${group.collapsed ? 'false' : 'true'}" title="${esc(group.path)}">
+                    <span class="cs-problems-caret" aria-hidden="true">${group.collapsed ? '▸' : '▾'}</span>
+                    <strong>${esc(group.label)}</strong>
+                    <span class="cs-references-count">${esc(group.items.length)}</span>
+                </button>${rows}
+            </div>`;
+        }).join('');
+        pane.innerHTML = summary + groups;
+        pane.querySelectorAll('[data-ref-group]').forEach(button => {
+            button.addEventListener('click', bind(() => {
+                const index = Number(button.dataset.refGroup);
+                const group = data.groups[index];
+                if (!group) return;
+                group.collapsed = !group.collapsed;
+                renderReferencesPanel(true);
+                const again = pane.querySelector(`[data-ref-group="${index}"]`);
+                if (again) again.focus();
+            }));
+        });
+        pane.querySelectorAll('[data-ref]').forEach(button => {
+            button.addEventListener('click', bind(() => {
+                const [groupIndex, index] = button.dataset.ref.split('|').map(Number);
+                const group = data.groups[groupIndex];
+                const item = group && group.items[index];
+                if (item) lspActOpenLocation(group.path, item.line, item.character);
+            }));
+        });
+    }
+
+    function clearReferences() {
+        state.lspActReferences = null;
+        renderReferencesPanel(true);
+    }
+
+    // Opens a reference: the file's tab comes forward (or opens) and the cursor lands on the reference.
+    async function lspActOpenLocation(path, line, character) {
+        const target = state;
+        if (!isLiveInstance(target)) return;
+        try {
+            await runAsyncStep(target, () => openFile(path));
+        } catch (err) {
+            if (isLiveInstance(target)) runWithInstance(target, () => showOperationError(err));
+            return;
+        }
+        if (!isLiveInstance(target)) return;
+        runWithInstance(target, () => {
+            const tab = activeTab();
+            const view = tab && tab.path === normalizeCodeStudioPath(path) ? focusedEditorView(tab) : null;
+            if (!view || !view.state || !view.state.doc || !state.cmModule || !state.cmModule.EditorView) return;
+            const pos = lspActOffset(view.state.doc, { line, character });
+            view.dispatch({ selection: { anchor: pos }, effects: state.cmModule.EditorView.scrollIntoView(pos, { y: 'center' }) });
+            view.focus();
+            renderStatus();
+        });
+    }
+
+    // --- Rename symbol (F2 in the editor; F2 in the file tree still renames files) ---
+
+    async function lspActRename(view) {
+        const target = state;
+        const ctx = lspActContext(view);
+        if (!ctx) return;
+        if (!canWrite(target)) {
+            flashStatus(lspActReadOnlyText());
+            return;
+        }
+        const client = await lspActClient(target, ctx.language);
+        if (!client || !view.dom.isConnected) return;
+        const capabilities = client.serverCapabilities || null;
+        const provider = capabilities ? capabilities.renameProvider : true;
+        if (!provider) {
+            runWithInstance(target, () => flashStatus(tr('codeStudio.lspCannotRename', 'This symbol cannot be renamed.')));
+            return;
+        }
+        const doc = view.state.doc;
+        const head = view.state.selection.main.head;
+        const position = CodeStudioLSPProtocol.offsetToPosition(doc, head);
+        const word = view.state.wordAt(head);
+        let range = word ? { from: word.from, to: word.to } : null;
+        let current = word ? doc.sliceString(word.from, word.to) : '';
+        if (typeof provider === 'object' && provider.prepareProvider) {
+            let prepared;
+            try {
+                prepared = await lspActRequest(target, ctx.language, 'textDocument/prepareRename', { textDocument: { uri: ctx.uri }, position });
+            } catch (err) {
+                if (isLiveInstance(target)) runWithInstance(target, () => lspActReportError(err));
+                return;
+            }
+            if (!isLiveInstance(target) || view.state.doc !== doc) return;
+            if (!prepared) {
+                runWithInstance(target, () => flashStatus(tr('codeStudio.lspCannotRename', 'This symbol cannot be renamed.')));
+                return;
+            }
+            // prepareRename answers a Range, { range, placeholder } or { defaultBehavior: true } (keep the word).
+            const preparedRange = prepared.range && prepared.range.start ? prepared.range : (prepared.start && prepared.end ? prepared : null);
+            if (preparedRange) {
+                range = { from: lspActOffset(doc, preparedRange.start), to: lspActOffset(doc, preparedRange.end) };
+                current = typeof prepared.placeholder === 'string' ? prepared.placeholder : doc.sliceString(range.from, range.to);
+            }
+        }
+        if (!range || !current) {
+            runWithInstance(target, () => flashStatus(tr('codeStudio.lspNoSymbol', 'There is no symbol at the cursor.')));
+            return;
+        }
+        const newName = await runWithInstance(target, () => lspActRenameInput(target, view, range.from, current));
+        if (!newName || newName === current || !isLiveInstance(target) || !view.dom.isConnected || view.state.doc !== doc) return;
+        const docsBefore = runWithInstance(target, lspActCaptureDocs);
+        runWithInstance(target, () => flashStatus(tr('codeStudio.lspWorking', 'Waiting for the language server...'), LSP_ACT_TIMEOUT_MS));
+        let edit;
+        try {
+            edit = await lspActRequest(target, ctx.language, 'textDocument/rename', { textDocument: { uri: ctx.uri }, position, newName });
+        } catch (err) {
+            if (isLiveInstance(target)) runWithInstance(target, () => lspActReportError(err));
+            return;
+        }
+        if (!isLiveInstance(target)) return;
+        lspActClearStatus(target);
+        if (!edit) {
+            runWithInstance(target, () => flashStatus(tr('codeStudio.lspNoChanges', 'Nothing to change.')));
+            return;
+        }
+        await runWithInstance(target, () => lspActApplyWorkspaceEdit(target, edit, {
+            mode: 'rename',
+            title: tr('codeStudio.lspPreviewRename', 'Rename {{from}} to {{to}}', { from: current, to: newName }),
+            originPath: ctx.path,
+            docsBefore,
+            focusView: view
+        }));
+    }
+
+    // The new name goes into a small box at the symbol: Enter renames, Escape or a click elsewhere cancels.
+    // Resolves to the trimmed name or null.
+    function lspActRenameInput(target, view, pos, value) {
+        return new Promise(resolve => {
+            lspActCloseMenus();
+            const label = tr('codeStudio.lspRenameLabel', 'New name');
+            const box = document.createElement('div');
+            box.className = 'cs-context-menu cs-lsp-rename-box';
+            box.setAttribute('role', 'dialog');
+            box.setAttribute('aria-label', label);
+            box.innerHTML = `<input type="text" value="${esc(value)}" aria-label="${esc(label)}" title="${esc(label)}" autocomplete="off" spellcheck="false" autocapitalize="off" enterkeyhint="done">`;
+            document.body.appendChild(box);
+            lspActPlace(box, view, pos, 4);
+            const input = box.querySelector('input');
+            let done = false;
+            let unregister = () => {};
+            const finish = result => {
+                if (done) return;
+                done = true;
+                unregister();
+                box.remove();
+                if (view.dom.isConnected) view.focus();
+                resolve(result);
+            };
+            box.__codeStudioCleanup = () => finish(null);
+            runWithInstance(target, () => { unregister = registerDisposer(() => finish(null)); });
+            input.addEventListener('keydown', event => {
+                if (event.isComposing) return;
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    finish(input.value.trim() || null);
+                } else if (event.key === 'Escape') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    finish(null);
+                }
+            });
+            input.addEventListener('blur', () => setTimeout(() => finish(null), 0));
+            input.focus();
+            input.select();
+        });
+    }
+
+    // --- Quick fixes (Ctrl+. and the lightbulb): the server's code actions for the line ---
+
+    // LSP diagnostics of one line for the codeAction context. A problem that kept the server's own diagnostic
+    // (problem.lsp, see the contract notes) sends it unchanged; otherwise the diagnostic is rebuilt from the problem.
+    function lspActLineDiagnostics(path, doc, lineNumber) {
+        return problemsForFile(path)
+            .filter(problem => LSP_ACT_SOURCES.has(problem.source))
+            .filter(problem => {
+                const range = problem.lsp && problem.lsp.range;
+                const first = range && range.start ? range.start.line + 1 : problem.line;
+                const last = range && range.end ? range.end.line + 1 : first;
+                return first <= lineNumber && lineNumber <= last;
+            })
+            .map(problem => lspActProblemDiagnostic(problem, doc));
+    }
+
+    function lspActProblemDiagnostic(problem, doc) {
+        const raw = problem.lsp;
+        if (raw && raw.range && raw.range.start && raw.range.end && typeof raw.message === 'string') return raw;
+        const line = Math.max(0, (Number(problem.line) || 1) - 1);
+        const text = line < doc.lines ? doc.line(line + 1).text : '';
+        const character = Math.min(Math.max(0, (Number(problem.column) || 1) - 1), text.length);
+        const word = /^[\p{L}\p{N}_$]+/u.exec(text.slice(character));
+        const end = { line, character: Math.min(text.length, character + (word ? word[0].length : 1)) };
+        const diagnostic = { range: { start: { line, character }, end }, severity: LSP_ACT_SEVERITY[problem.severity] || 1, message: String(problem.message || '') };
+        if (problem.code !== undefined && problem.code !== null && problem.code !== '') diagnostic.code = problem.code;
+        return diagnostic;
+    }
+
+    // Commands and code actions in one list: preferred actions first, then quick fixes, other actions, refactorings and
+    // source actions, each group in the server's order.
+    function lspActNormalizeActions(result) {
+        const rank = kind => {
+            if (kind === 'quickfix' || kind.startsWith('quickfix.')) return 0;
+            if (kind.startsWith('refactor')) return 2;
+            if (kind.startsWith('source')) return 3;
+            return 1;
+        };
+        return (Array.isArray(result) ? result : [])
+            .filter(item => item && typeof item.title === 'string' && item.title.trim())
+            .map((item, index) => {
+                const command = typeof item.command === 'string';
+                return {
+                    raw: item,
+                    command,
+                    title: item.title,
+                    kind: command ? '' : String(item.kind || ''),
+                    preferred: !command && item.isPreferred === true,
+                    disabled: !command && item.disabled ? String(item.disabled.reason || item.title) : '',
+                    index
+                };
+            })
+            .sort((a, b) => (Number(b.preferred) - Number(a.preferred)) || (rank(a.kind) - rank(b.kind)) || (a.index - b.index));
+    }
+
+    // wholeLine: the lightbulb asks for the whole line; Ctrl+. asks for the selection.
+    async function lspActQuickFixes(view, pos, wholeLine) {
+        const target = state;
+        const ctx = lspActContext(view);
+        if (!ctx) return;
+        if (!canWrite(target)) {
+            flashStatus(lspActReadOnlyText());
+            return;
+        }
+        const client = await lspActClient(target, ctx.language);
+        if (!client || !view.dom.isConnected) return;
+        const doc = view.state.doc;
+        const line = doc.lineAt(Math.min(Math.max(0, pos), doc.length));
+        const selection = view.state.selection.main;
+        const from = wholeLine ? line.from : selection.from;
+        const to = wholeLine ? line.to : selection.to;
+        const range = { start: CodeStudioLSPProtocol.offsetToPosition(doc, from), end: CodeStudioLSPProtocol.offsetToPosition(doc, to) };
+        const diagnostics = runWithInstance(target, () => lspActLineDiagnostics(ctx.path, doc, line.number));
+        const docsBefore = runWithInstance(target, lspActCaptureDocs);
+        runWithInstance(target, () => flashStatus(tr('codeStudio.lspWorking', 'Waiting for the language server...'), LSP_ACT_TIMEOUT_MS));
+        let result;
+        try {
+            result = await lspActRequest(target, ctx.language, 'textDocument/codeAction', {
+                textDocument: { uri: ctx.uri },
+                range,
+                context: { diagnostics, triggerKind: 1 }
+            });
+        } catch (err) {
+            if (isLiveInstance(target)) runWithInstance(target, () => lspActReportError(err));
+            return;
+        }
+        if (!isLiveInstance(target)) return;
+        lspActClearStatus(target);
+        const actions = lspActNormalizeActions(result);
+        if (!actions.length) {
+            runWithInstance(target, () => flashStatus(tr('codeStudio.lspQuickFixNone', 'No quick fixes available here.')));
+            return;
+        }
+        if (!view.dom.isConnected) return;
+        const run = Object.assign({}, ctx, { client, view, docsBefore });
+        runWithInstance(target, () => lspActShowFixMenu(target, view, wholeLine ? line.from : selection.head, actions, action => {
+            let pending;
+            try {
+                pending = runWithInstance(target, () => lspActRunCodeAction(target, run, action));
+            } catch (err) {
+                pending = Promise.reject(err);
+            }
+            Promise.resolve(pending).catch(err => {
+                if (isLiveInstance(target)) runWithInstance(target, () => lspActReportError(err));
+            });
+        }));
+    }
+
+    // The quick-fix menu at the cursor: arrow keys, Home and End move, Enter runs, Escape, Tab or a click elsewhere closes.
+    function lspActShowFixMenu(target, view, pos, actions, onPick) {
+        lspActCloseMenus();
+        const menu = document.createElement('div');
+        menu.className = 'cs-context-menu cs-lsp-fix-menu';
+        menu.setAttribute('role', 'menu');
+        menu.setAttribute('aria-label', tr('codeStudio.lspQuickFix', 'Quick Fix...'));
+        menu.innerHTML = actions.map((action, index) => {
+            const kind = action.kind && action.kind !== 'quickfix' ? `<kbd>${esc(action.kind)}</kbd>` : '';
+            return `<button type="button" role="menuitem" tabindex="-1" data-fix-index="${index}"${action.disabled ? ' disabled' : ''} title="${esc(action.disabled || action.title)}"><span>${esc(action.title)}</span>${kind}</button>`;
+        }).join('');
+        document.body.appendChild(menu);
+        lspActPlace(menu, view, pos, 2);
+        const items = Array.from(menu.querySelectorAll('button:not(:disabled)'));
+        let closed = false;
+        let unregister = () => {};
+        const onOutside = event => {
+            if (!menu.contains(event.target)) close(false);
+        };
+        function close(refocus) {
+            if (closed) return;
+            closed = true;
+            unregister();
+            document.removeEventListener('mousedown', onOutside, true);
+            menu.remove();
+            if (refocus && view.dom.isConnected) view.focus();
+        }
+        const move = step => {
+            if (!items.length) return;
+            const index = items.indexOf(document.activeElement);
+            const next = index < 0 ? (step > 0 ? 0 : items.length - 1) : (index + step + items.length) % items.length;
+            items[next].focus();
+        };
+        menu.__codeStudioCleanup = () => close(false);
+        runWithInstance(target, () => { unregister = registerDisposer(() => close(false)); });
+        menu.addEventListener('keydown', event => {
+            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                event.preventDefault();
+                move(event.key === 'ArrowDown' ? 1 : -1);
+            } else if (event.key === 'Home' || event.key === 'End') {
+                event.preventDefault();
+                if (items.length) items[event.key === 'Home' ? 0 : items.length - 1].focus();
+            } else if (event.key === 'Escape' || event.key === 'Tab') {
+                event.preventDefault();
+                event.stopPropagation();
+                close(true);
+            }
+        });
+        menu.querySelectorAll('[data-fix-index]').forEach(button => {
+            button.addEventListener('click', () => {
+                const action = actions[Number(button.dataset.fixIndex)];
+                close(true);
+                if (action && !action.disabled) onPick(action);
+            });
+        });
+        setTimeout(() => {
+            if (!closed) document.addEventListener('mousedown', onOutside, true);
+        }, 0);
+        if (items.length) {
+            items[0].focus();
+        } else {
+            menu.tabIndex = -1;
+            menu.focus();
+        }
+    }
+
+    // A code action applies its edit first and then runs its command, as the protocol orders it. A plain command goes
+    // straight to workspace/executeCommand; the server answers with workspace/applyEdit when it changes files.
+    async function lspActRunCodeAction(target, ctx, action) {
+        if (!isLiveInstance(target)) return;
+        if (action.command) {
+            await lspActExecuteCommand(target, ctx.language, action.raw);
+            return;
+        }
+        let item = action.raw;
+        const provider = ctx.client && ctx.client.serverCapabilities ? ctx.client.serverCapabilities.codeActionProvider : null;
+        if (!item.edit && !item.command && item.data !== undefined && provider && typeof provider === 'object' && provider.resolveProvider) {
+            try {
+                item = (await lspActRequest(target, ctx.language, 'codeAction/resolve', item)) || item;
+            } catch (err) {
+                if (isLiveInstance(target)) runWithInstance(target, () => lspActReportError(err));
+                return;
+            }
+            if (!isLiveInstance(target)) return;
+        }
+        const command = item.command && typeof item.command.command === 'string' ? item.command : null;
+        if (!item.edit && !command) {
+            runWithInstance(target, () => flashStatus(tr('codeStudio.lspNoChanges', 'Nothing to change.')));
+            return;
+        }
+        if (item.edit) {
+            const outcome = await runWithInstance(target, () => lspActApplyWorkspaceEdit(target, item.edit, {
+                mode: 'fix',
+                title: item.title,
+                originPath: ctx.path,
+                docsBefore: ctx.docsBefore,
+                focusView: ctx.view
+            }));
+            if (!outcome.applied) return;
+        }
+        if (command) await lspActExecuteCommand(target, ctx.language, command);
+    }
+
+    async function lspActExecuteCommand(target, language, command) {
+        const before = target.lspActServerEdits || 0;
+        const params = { command: command.command };
+        if (Array.isArray(command.arguments)) params.arguments = command.arguments;
+        try {
+            await lspActRequest(target, language, 'workspace/executeCommand', params);
+        } catch (err) {
+            // While the server waits for a previewed workspace/applyEdit the command itself may time out; that edit
+            // reports its own result.
+            if (!isLiveInstance(target) || (lspActIsTimeout(err) && (target.lspActServerEdits || 0) !== before)) return;
+            runWithInstance(target, () => lspActReportError(err));
+        }
+    }
+
+    // --- Lightbulb gutter and the editor hook ---
+
+    let lspActBulbType = null;
+    let lspActBulbBase = null;
+
+    // GutterMarker comes from the dynamically imported CodeMirror bundle, so the subclass is built on first use.
+    function lspActBulbClass(cm) {
+        if (lspActBulbType && lspActBulbBase === cm.GutterMarker) return lspActBulbType;
+        lspActBulbBase = cm.GutterMarker;
+        lspActBulbType = class LspActBulbMarker extends cm.GutterMarker {
+            eq(other) {
+                return other instanceof LspActBulbMarker;
+            }
+
+            toDOM() {
+                const element = document.createElement('span');
+                element.className = 'cs-lsp-bulb';
+                element.title = tr('codeStudio.lspQuickFix', 'Quick Fix...') + ' (Ctrl+.)';
+                element.innerHTML = LSP_ACT_BULB_SVG;
+                return element;
+            }
+        };
+        return lspActBulbType;
+    }
+
+    // Line numbers with language server problems in the file a view shows, cached per problem list. A view that is not
+    // attached to its tab yet (the gutter runs while the editor is built) asks for a few more updates.
+    function lspActBulbLines(view, cache) {
+        if (!cache.instance || !isLiveInstance(cache.instance)) cache.instance = lspActInstanceForView(view);
+        if (!cache.instance) {
+            if (!cache.retry && cache.retries < 3) {
+                cache.retry = true;
+                cache.retries += 1;
+                setTimeout(() => {
+                    cache.retry = false;
+                    if (view.dom.isConnected) {
+                        try { view.dispatch({}); } catch (_) {}
+                    }
+                }, 0);
+            }
+            return null;
+        }
+        return runWithInstance(cache.instance, () => {
+            const tab = state.openTabs.find(item => isSourceTab(item) && lspActTabShows(item, view));
+            if (!tab) return null;
+            if (cache.problems !== state.problems || cache.path !== tab.path) {
+                cache.problems = state.problems;
+                cache.path = tab.path;
+                cache.lines = new Set(problemsForFile(tab.path).filter(problem => LSP_ACT_SOURCES.has(problem.source)).map(problem => problem.line));
+            }
+            return cache.lines;
+        });
+    }
+
+    function lspActBulbGutter(cm) {
+        if (typeof cm.gutter !== 'function' || typeof cm.GutterMarker !== 'function') return [];
+        const Marker = lspActBulbClass(cm);
+        const marker = new Marker();
+        const cache = { instance: null, problems: null, path: '', lines: null, retry: false, retries: 0 };
+        const hasBulb = (view, from) => {
+            const lines = lspActBulbLines(view, cache);
+            return !!lines && lines.has(view.state.doc.lineAt(from).number);
+        };
+        return [cm.gutter({
+            class: 'cs-lsp-bulb-gutter',
+            lineMarker: (view, line) => (hasBulb(view, line.from) ? marker : null),
+            lineMarkerChange: update => update.docChanged || update.transactions.length > 0,
+            initialSpacer: () => marker,
+            domEventHandlers: {
+                mousedown: (view, line, event) => {
+                    if (!hasBulb(view, line.from)) return false;
+                    event.preventDefault();
+                    return lspActStart(view, editor => lspActQuickFixes(editor, line.from, true));
+                }
+            }
+        })];
+    }
+
+    // lsp.js appends these extensions to every editor whose file has a language server (contract: lspActionExtensionFactories).
+    function lspActEditorExtensions(cm) {
+        if (!cm || !cm.keymap) return [];
+        const keys = cm.keymap.of([
+            { key: 'Shift-F12', preventDefault: true, run: view => lspActStart(view, lspActFindReferences) },
+            { key: 'F2', preventDefault: true, run: view => lspActStart(view, lspActRename) },
+            { key: 'Mod-.', preventDefault: true, run: view => lspActStart(view, editor => lspActQuickFixes(editor, editor.state.selection.main.head, false)) }
+        ]);
+        return [cm.Prec && typeof cm.Prec.high === 'function' ? cm.Prec.high(keys) : keys, lspActBulbGutter(cm)];
+    }
+
+    lspActionExtensionFactories.push(lspActEditorExtensions);
+
+    // --- Command palette entries (studioCommandTable in shortcuts.js) ---
+
+    function lspActPaletteAction(action) {
+        const tab = activeTab();
+        const view = isSourceTab(tab) ? focusedEditorView(tab) : null;
+        if (!view || !lspActContext(view)) {
+            flashStatus(tr('codeStudio.lspNotReady', 'No language server is ready for this file.'));
+            return;
+        }
+        view.focus();
+        lspActStart(view, action);
+    }
+
+    function lspFindReferencesCommand() {
+        lspActPaletteAction(lspActFindReferences);
+    }
+
+    function lspRenameSymbolCommand() {
+        lspActPaletteAction(lspActRename);
+    }
+
+    function lspQuickFixCommand() {
+        lspActPaletteAction(editor => lspActQuickFixes(editor, editor.state.selection.main.head, false));
+    }
