@@ -69,11 +69,13 @@ var homeDashRoutes = map[string]map[string]hdEndpoint{
 	"dashboards":     {http.MethodGet: {desktopRead, (*hdRequest).listDashboards}, http.MethodPost: {desktopWrite, (*hdRequest).createDashboard}},
 	"dashboard": {http.MethodGet: {desktopRead, (*hdRequest).getDashboard}, http.MethodPut: {desktopWrite, (*hdRequest).updateDashboard},
 		http.MethodDelete: {desktopWrite, (*hdRequest).deleteDashboard}},
-	"dashboards/validate": {http.MethodPost: {desktopRead, (*hdRequest).validateDashboard}},
-	"dashboard/duplicate": {http.MethodPost: {desktopWrite, (*hdRequest).duplicateDashboard}},
-	"dashboard/revisions": {http.MethodGet: {desktopRead, (*hdRequest).listRevisions}},
-	"dashboard/restore":   {http.MethodPost: {desktopWrite, (*hdRequest).restoreDashboard}},
-	"dashboard/approve":   {http.MethodPost: {desktopWrite, (*hdRequest).approveDashboard}},
+	"dashboards/validate":  {http.MethodPost: {desktopRead, (*hdRequest).validateDashboard}},
+	"dashboard/duplicate":  {http.MethodPost: {desktopWrite, (*hdRequest).duplicateDashboard}},
+	"dashboard/revisions":  {http.MethodGet: {desktopRead, (*hdRequest).listRevisions}},
+	"dashboard/restore":    {http.MethodPost: {desktopWrite, (*hdRequest).restoreDashboard}},
+	"dashboard/approve":    {http.MethodPost: {desktopWrite, (*hdRequest).approveDashboard}},
+	"stream":               {http.MethodGet: {desktopRead, (*hdRequest).stream}},
+	"stream/subscriptions": {http.MethodPut: {desktopRead, (*hdRequest).subscriptions}},
 }
 
 // handleHomeDash serves /api/desktop/homedash/. Order: desktop:admin (session or token) → route
