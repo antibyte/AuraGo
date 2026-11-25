@@ -337,7 +337,8 @@ const cssBundles = [
       'ui/css/homedash-family-tactile.css',
       'ui/css/homedash-family-minimal.css',
       'ui/css/homedash-family-instrument.css',
-      'ui/css/homedash-widgets.css'
+      'ui/css/homedash-widgets.css',
+      'ui/css/homedash-page.css'
     ]
   }
 ];

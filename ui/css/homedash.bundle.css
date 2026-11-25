@@ -1159,3 +1159,26 @@
 .hd-widget[data-hd-type="entity"] .hd-tile > .hd-numeral { max-inline-size: 100%; overflow: hidden; font-size: min(20cqmin, var(--hd-num-hero-max)); font-weight: var(--hd-num-weight); letter-spacing: var(--hd-num-tracking); line-height: 1.05; white-space: nowrap; text-overflow: ellipsis; color: var(--hd-ink); }
 .hd-widget[data-hd-type="entity"] .hd-tile > .hd-lamp { align-self: center; }
 @container hd-widget (max-width: 139px) and (max-height: 139px) { .hd-widget[data-hd-type="entity"] .hd-tile > .hd-iconbadge { display: none; } }
+
+/* ui/css/homedash-page.css */
+/* HomeDash page chrome (M2, part 10 of the bundle): the scroll stage, the page that places every widget from --hd-x/--hd-y/--hd-w/--hd-h
+   (written by hd-render.js) and the metrics --hd-cols/--hd-rows/--hd-colw/--hd-rowh/--hd-gap/--hd-offx (E.layout.cssVars), the page tabs,
+   the empty-page note and the unsupported cell. Reads --hd-* tokens only and declares none; no motion. */
+.hd-root[data-hd-host] { position: relative; box-sizing: border-box; display: flex; flex-direction: column; inline-size: 100%; block-size: 100%; min-block-size: 0; overflow: hidden; }
+.hd-stage { position: relative; flex: 1 1 auto; min-block-size: 0; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.hd-root[data-hd-fit="fit"] .hd-stage { overflow: hidden; }
+.hd-page { position: relative; box-sizing: border-box; min-block-size: 100%; block-size: calc(var(--hd-rows, 1) * var(--hd-rowh, 96px) + (var(--hd-rows, 1) + 1) * var(--hd-gap, 12px)); }
+.hd-page > .hd-widget { position: absolute; box-sizing: border-box;
+  inset-inline-start: calc(var(--hd-offx, 0px) + var(--hd-gap, 12px) + var(--hd-x, 0) * (var(--hd-colw, 96px) + var(--hd-gap, 12px)));
+  inset-block-start: calc(var(--hd-gap, 12px) + var(--hd-y, 0) * (var(--hd-rowh, 96px) + var(--hd-gap, 12px)));
+  inline-size: calc(var(--hd-w, 1) * var(--hd-colw, 96px) + (var(--hd-w, 1) - 1) * var(--hd-gap, 12px));
+  block-size: calc(var(--hd-h, 1) * var(--hd-rowh, 96px) + (var(--hd-h, 1) - 1) * var(--hd-gap, 12px)); }
+.hd-tabs { display: flex; flex: none; gap: var(--hd-space-1); padding: var(--hd-space-3) var(--hd-space-4) 0; overflow-x: auto; scrollbar-width: none; }
+.hd-tab { flex: none; min-block-size: 36px; padding: 0 var(--hd-space-4); border: 0; border-radius: var(--hd-radius-pill); background: transparent; color: var(--hd-ink-muted); font: var(--hd-label-weight) var(--hd-text-m) / 1 var(--hd-font-ui); cursor: pointer; }
+.hd-tab:hover { color: var(--hd-ink); background: color-mix(in srgb, var(--hd-ink) 6%, transparent); }
+.hd-tab[aria-selected="true"] { background: var(--hd-selected); color: var(--hd-selected-ink); }
+.hd-page-empty { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: var(--hd-space-2); padding: var(--hd-space-6); text-align: center; color: var(--hd-ink-muted); }
+.hd-page-empty > .hd-ico { inline-size: 48px; block-size: 48px; color: var(--hd-ink-faint); stroke-width: 1.5; }
+.hd-page-empty-title { margin: var(--hd-space-2) 0 0; color: var(--hd-ink); font: 600 var(--hd-text-l) / 1.3 var(--hd-font-heading); }
+.hd-page-empty-text { max-inline-size: 42ch; margin: 0; font-size: var(--hd-text-m); line-height: 1.5; }
+.hd-widget.hd-unsupported .hd-body::before { content: ""; inline-size: 28px; block-size: 28px; background: var(--hd-ink-faint); -webkit-mask: var(--hd-mask-error) center / contain no-repeat; mask: var(--hd-mask-error) center / contain no-repeat; }
