@@ -235,6 +235,10 @@ const jsBundles = [
       // IDE package 2C: pure WorkspaceEdit helpers, then references, rename, quick fixes and the edit applier.
       'ui/js/desktop/apps/code-studio/lsp-edits.js',
       'ui/js/desktop/apps/code-studio/lsp-actions.js',
+      // Plan B: HTML preview. The pure helpers (window.CodeStudioPreviewModel) first, then the pane fragment; both sit
+      // before shortcuts.js, which closes the shared IIFE and lists the pane commands.
+      'ui/js/desktop/apps/code-studio/preview-model.js',
+      'ui/js/desktop/apps/code-studio/preview.js',
       'ui/js/desktop/apps/code-studio/shortcuts.js',
       'ui/js/desktop/apps/code-studio/command-palette.js'
     ]
