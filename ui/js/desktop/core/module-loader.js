@@ -279,7 +279,7 @@
             ]
         },
         'code-studio': {
-            styles: appStyles('/css/code-studio.css', '/css/xterm.css', '/css/hljs-github-dark.min.css', '/css/learnings.css'),
+            styles: appStyles('/css/code-studio.css', '/css/code-studio-preview.css', '/css/xterm.css', '/css/hljs-github-dark.min.css', '/css/learnings.css'),
             scripts: [
                 '/js/shared/learnings.js',
                 '/js/vendor/xterm.min.js',
