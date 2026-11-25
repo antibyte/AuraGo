@@ -96,6 +96,7 @@ func homeDashRuntimeConfig(cfg *config.Config, specs []homeDashSourceSpec) homed
 
 // initHomeDash opens homedash.db and starts the hub on the server lifetime context. A failure is
 // logged and leaves HomeDash unavailable (routes answer 503 storage_unavailable); the server runs on.
+// The publication runs under CfgMu (read) so no config change is lost or applied twice.
 func (s *Server) initHomeDash(ctx context.Context) {
 	if s == nil || ctx.Err() != nil {
 		return
@@ -114,11 +115,15 @@ func (s *Server) initHomeDash(ctx context.Context) {
 		s.logHomeDash("HomeDash store could not be opened", err)
 		return
 	}
+	s.CfgMu.RLock()
 	s.homeDash.Store(svc)
-	// A config change between reading the snapshot and publishing the service must not be lost.
+	// Writers hold CfgMu (write) across replaceConfigSnapshot, which calls the HomeDash hook before it
+	// publishes the snapshot: under the read lock no publication is half done, so latest is current
+	// and no reconfigure of a writer can interleave (lead amendment A2).
 	if latest := s.ConfigSnapshot(); latest != nil {
 		svc.reconfigure(latest)
 	}
+	s.CfgMu.RUnlock()
 }
 
 // closeHomeDash withdraws and closes the service. Idempotent; Start defers it right after
