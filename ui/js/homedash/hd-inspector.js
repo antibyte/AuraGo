@@ -129,7 +129,7 @@
             gallery.addEventListener('keydown', ev => { const at = hits.findIndex(h => h === ev.target); if (at < 0) return; const n = F.gridMove(ev.key, at, [hits.length], 2); if (n === null) return; ev.preventDefault(); hits[n].focus(); chooseV(hits[n].getAttribute('data-hd-field').slice(8)); });
             paintV(); fields.set('variants', { ctl: { el: gallery, set: paintV, focus() { (hits.find(h => h.getAttribute('tabindex') === '0') || hits[0]).focus(); } }, read: () => null });
             body.appendChild(F.section(t('homedash.inspector.variant'), gallery));
-            const entityName = (view(w) || {}).name, ttl = inlineText('title', t('homedash.inspector.title'), { max: 80, placeholder: entityName || typeName(w.type), read: () => (cur().w || {}).title || '',
+            const entityName = E.names.display(view(w), t), ttl = inlineText('title', t('homedash.inspector.title'), { max: 80, placeholder: entityName || typeName(w.type), read: () => (cur().w || {}).title || '',
                 apply: v => exec(C.setWidget(D.doc(), { pageId, id: wid, path: ['title'], value: v || undefined, text: true, label: 'homedash.cmd.title' })) });
             body.appendChild(ttl.el);
             body.appendChild(disclosure('icon', t('homedash.inspector.icon'), () => (cur().w || {}).icon || '', n => exec(C.setWidget(D.doc(), { pageId, id: wid, path: ['icon'], value: n || undefined, label: 'homedash.cmd.icon' })), true).el);
@@ -185,7 +185,7 @@
         // ---- render ----
         function head(k) {
             const n = k.ws.length; let icon = 'dashboard', title = k.page.name || '', sub = t('homedash.inspector.page_title');
-            if (n === 1) { const w = k.w, v = view(w); icon = E.widgets.iconFor(w, v) || 'entity'; title = w.title || (v && v.name) || typeName(w.type); sub = typeName(w.type) + DOT + variantName(w.type, w.variant); }
+            if (n === 1) { const w = k.w, v = view(w); icon = E.widgets.iconFor(w, v) || 'entity'; title = w.title || E.names.display(v, t) || typeName(w.type); sub = typeName(w.type) + DOT + variantName(w.type, w.variant); }
             else if (n > 1) { icon = 'layers'; title = t('homedash.inspector.multi_title', { count: n }); sub = ''; }
             iconBox.replaceChildren(E.icons.icon(icon)); titleEl.textContent = title; subEl.textContent = sub; setAttr(subEl, 'hidden', sub ? null : true);
         }

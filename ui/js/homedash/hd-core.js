@@ -94,6 +94,22 @@
         if (tag !== 'input') return false;
         return !['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color', 'file', 'image'].includes(String(target.getAttribute('type') || 'text').toLowerCase());
     }
+    // Entity display names (G20). The built-in system source names its six entities in English; this is the one place that gives them a localized name.
+    // Presentation only: the server, saved documents and the agent tool keep the raw name and id. display() is what every surface shows; extraIds() lists the
+    // system ids whose localized name matches a search text, so a server search (which only knows the English names and ids) can still find them.
+    const SYSTEM_NAMES = Object.freeze({
+        'system:cpu': t => t('homedash.system.cpu'), 'system:memory': t => t('homedash.system.memory'), 'system:disk': t => t('homedash.system.disk'),
+        'system:net_rx': t => t('homedash.system.net_rx'), 'system:net_tx': t => t('homedash.system.net_tx'), 'system:uptime': t => t('homedash.system.uptime')
+    });
+    const systemName = (id, t) => (typeof id === 'string' && Object.prototype.hasOwnProperty.call(SYSTEM_NAMES, id) && typeof t === 'function' ? SYSTEM_NAMES[id](t) : null);
+    const display = (v, t) => (v ? systemName(v.id, t) || (v.name == null ? '' : String(v.name)) : '');
+    const FOLD = new RegExp('[' + String.fromCodePoint(0x300) + '-' + String.fromCodePoint(0x36f) + ']', 'g');
+    const fold = s => String(s).normalize('NFD').replace(FOLD, '').toLowerCase();
+    function extraIds(q, t) {
+        const k = fold(String(q || '').trim()); if (!k) return [];
+        return Object.keys(SYSTEM_NAMES).filter(id => fold(SYSTEM_NAMES[id](t)).includes(k) && !fold(id).includes(k));
+    }
+    const names = Object.freeze({ system: systemName, display, extraIds });
     E.core = Object.freeze({ SVG_NS, el, svg, append, applyAttrs, setVars, setAttr, emitter, frame, bag, clamp, uid, randomId, clone, motionReduced, makeT, isTyping });
-    E.el = el; E.svg = svg;
+    E.el = el; E.svg = svg; E.names = names;
 })();

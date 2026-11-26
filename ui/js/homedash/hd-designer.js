@@ -22,7 +22,7 @@
         const page = () => doc.pages.find(p => p.id === pageId) || doc.pages[0], widget = id => page().widgets.find(w => w.id === id) || null;
         const constraints = id => { const w = widget(id); return w ? catalog.constraints(w) : {}; }, items = () => E.layout.effective(page().layouts, bp, constraints);
         const typeName = w => t('homedash.widget.' + w.type + '.name'), variantName = w => t('homedash.variant.' + w.type + '.' + w.variant), docEl = () => root.ownerDocument;
-        function nameOf(w) { if (!w) return ''; const id = w.bindings && w.bindings.primary, v = id ? o.store.view(id) : null; return w.title || (v && v.name) || typeName(w); }
+        function nameOf(w) { if (!w) return ''; const id = w.bindings && w.bindings.primary, v = id ? o.store.view(id) : null; return w.title || E.names.display(v, t) || typeName(w); }
         function announce(text) { if (!text) return; const s = text === lastLive ? text + NBSP : text; lastLive = s; view.announce(s); }
         // Helpers of render()/sync()/exec() (all in the create() closure, before the first render). currentState() is the C4 state builder.
         const ANNOUNCE = Object.freeze({
@@ -389,7 +389,7 @@
                         announce: kind === 'resize' ? { key: 'resized', w: box.w, h: box.h } : p.ids.length === 1 ? { key: 'moved', col: box.x + 1, row: box.y + 1 } : { key: 'moved_many', count: p.ids.length } }), { keepBox: true });
                 } else if (kind === 'marquee') { select(p.ids, { announce: true }); }
                 else if (kind === 'add') addWidgets(p.entries, { at: p.at, source: 'drop' });
-                else if (kind === 'rebind') { if (exec(C.bind(doc, { pageId, id: p.id, binding: p.binding, entity: p.entity && p.entity.id, now: now() }), { quiet: true })) announce(t('homedash.designer.announce.rebound', { name: nameOf(widget(p.id)), entity: (p.entity && (p.entity.name || p.entity.id)) || '' })); }
+                else if (kind === 'rebind') { if (exec(C.bind(doc, { pageId, id: p.id, binding: p.binding, entity: p.entity && p.entity.id, now: now() }), { quiet: true })) announce(t('homedash.designer.announce.rebound', { name: nameOf(widget(p.id)), entity: (p.entity && (E.names.display(p.entity, t) || p.entity.id)) || '' })); }
             } });
         D = Object.freeze({
             state: currentState, on: bus.on, off: bus.off, doc: () => doc, exec, undo: () => undoRedo('undo'), redo: () => undoRedo('redo'), seal: () => history.seal(), replace, select, focusFrame, setPage, setBreakpoint, addWidgets, constraints, widget,

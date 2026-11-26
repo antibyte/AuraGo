@@ -121,15 +121,27 @@
         // ---- devices tab ----
         function filter(patch) { ent = entReduce(ent, Object.assign({ type: 'filter' }, patch)); renderEnt(); load(); }
         function more() { const next = entReduce(ent, { type: 'more' }); if (next === ent) return; ent = next; renderEnt(); load(); }
+        // The server searches the English names and ids only. First page of a search: also ask for the system entities whose localized name matches (by id)
+        // and put them in front; a repeat on a later page is dropped by the list reducer.
+        function withSystemHits(s, main) {
+            const ids = s.offset === 0 ? E.names.extraIds(s.q, t) : [];
+            if (!ids.length) return main;
+            return Promise.all([main].concat(ids.map(id => Promise.resolve().then(() => api.entities(Object.assign(entRequest(s), { q: id, limit: 1 }))).catch(() => null)))).then(all => {
+                const first = all[0] || {}, have = new Set((Array.isArray(first.entities) ? first.entities : []).map(e => e && e.id)), extra = [];
+                for (const a of all.slice(1)) for (const e of a && Array.isArray(a.entities) ? a.entities : []) if (e && e.id && !have.has(e.id) && !extra.some(x => x.id === e.id)) extra.push(e);
+                return extra.length ? Object.assign({}, first, { entities: extra.concat(Array.isArray(first.entities) ? first.entities : []), total: (Number(first.total) || 0) + extra.length }) : first;
+            });
+        }
         function load() {
-            const seq = ent.seq; Promise.resolve().then(() => api.entities(entRequest(ent))).then(answer => { if (!destroyed) { ent = entReduce(ent, { type: 'loaded', seq, answer }); renderEnt(); } },
+            const seq = ent.seq; Promise.resolve().then(() => withSystemHits(ent, api.entities(entRequest(ent)))).then(answer => { if (!destroyed) { ent = entReduce(ent, { type: 'loaded', seq, answer }); renderEnt(); } },
                 err => { if (!destroyed) { ent = entReduce(ent, { type: 'failed', seq, code: err && err.code ? String(err.code) : 'network' }); renderEnt(); } });
         }
+        const nameOf = e => E.names.display(e, t) || String(e.id);
         function rowState(id) { const v = store.view(id), e = byId.get(id); return stateText(t, lang, v && v.status !== 'unknown' ? v : e ? listView(e) : null); }
         function buildRow(e) {
             const v = store.view(e.id) || listView(e), icon = E.widgets.iconFor(null, v) || 'entity', source = sourceName(t, e.source || String(e.id).split(':')[0]);
             const btn = el('button', { type: 'button', class: 'hd-ent-row', tabindex: '-1', 'data-entity': e.id, 'aria-describedby': ids.he }, [el('span', { class: 'hd-ent-icon' }, E.icons.icon(icon)),
-                el('span', { class: 'hd-ent-text' }, [el('span', { class: 'hd-ent-name', text: String(e.name || e.id) }), el('span', { class: 'hd-ent-meta', text: [e.area, source].filter(Boolean).join(DOT) })]), el('span', { class: 'hd-ent-state', text: stateText(t, lang, v) })]);
+                el('span', { class: 'hd-ent-text' }, [el('span', { class: 'hd-ent-name', text: nameOf(e) }), el('span', { class: 'hd-ent-meta', text: [e.area, source].filter(Boolean).join(DOT) })]), el('span', { class: 'hd-ent-state', text: stateText(t, lang, v) })]);
             const li = el('li', { class: 'hd-ent-item' }, btn); if (rowObserver) rowObserver.observe(btn); return { li, btn };
         }
         function renderEnt() {
@@ -150,7 +162,7 @@
         function roveE(focus) { const v = btnsE(), cur = v.find(b => b.getAttribute('tabindex') === '0') || v[0]; for (const b of v) b.setAttribute('tabindex', b === cur ? '0' : '-1'); if (cur && focus) cur.focus(); }
         life.on(list, 'click', ev => { if (ev.detail) return; const b = ev.target && ev.target.closest ? ev.target.closest('.hd-ent-row') : null, e = b && byId.get(b.getAttribute('data-entity')); if (e) addEntry(entryFor(e), 'entity'); });
         life.on(list, 'pointerdown', ev => { const b = ev.target && ev.target.closest ? ev.target.closest('.hd-ent-row') : null, e = b && byId.get(b.getAttribute('data-entity')); if (!e || (ev.button !== undefined && ev.button !== 0)) return;
-            const entry = entryFor(e), icon = E.widgets.iconFor(null, listView(e)) || 'entity'; D.gestures.dragFrom(ev, { kind: 'entity', entity: e, label: String(e.name || e.id), entries: () => (entry ? [entry] : []), onTap: () => addEntry(entry, 'entity'), avatar: () => avatar(icon, String(e.name || e.id), e.area || '') }); });
+            const entry = entryFor(e), icon = E.widgets.iconFor(null, listView(e)) || 'entity'; D.gestures.dragFrom(ev, { kind: 'entity', entity: e, label: nameOf(e), entries: () => (entry ? [entry] : []), onTap: () => addEntry(entry, 'entity'), avatar: () => avatar(icon, nameOf(e), e.area || '') }); });
         life.on(list, 'keydown', ev => { const v = btnsE(), at = v.findIndex(b => b === ev.target); if (at < 0) return; const n = E.form.roving(ev.key, at, v.length); if (n === null || ev.key === 'ArrowLeft' || ev.key === 'ArrowRight') return;
             ev.preventDefault(); for (const b of v) b.setAttribute('tabindex', b === v[n] ? '0' : '-1'); v[n].focus(); if (typeof v[n].scrollIntoView === 'function') v[n].scrollIntoView({ block: 'nearest' }); });
         life.add(store.on('change', changed => { if (tab !== 'entities') return; for (const [id, r] of rows) if (!changed || changed.has(id)) { const s = r.btn.querySelector('.hd-ent-state'); if (s) s.textContent = rowState(id); } }));

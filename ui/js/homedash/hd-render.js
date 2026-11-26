@@ -48,19 +48,13 @@
             setAttr(pageEl, 'aria-label', design ? o.label || doc.name || null : o.label || null); setAttr(pageEl, 'aria-labelledby', design ? null : o.labelledBy || null);
         }
         pageAttrs();
-        // The built-in system source names its entities in English; the six known ids get a localized name (presentation only).
-        const SYSTEM_NAMES = Object.freeze({
-            'system:cpu': () => t('homedash.system.cpu'), 'system:memory': () => t('homedash.system.memory'),
-            'system:disk': () => t('homedash.system.disk'), 'system:net_rx': () => t('homedash.system.net_rx'),
-            'system:net_tx': () => t('homedash.system.net_tx'), 'system:uptime': () => t('homedash.system.uptime')
-        });
-        const systemName = id => (Object.prototype.hasOwnProperty.call(SYSTEM_NAMES, id) ? SYSTEM_NAMES[id]() : null);
+        // The built-in system source names its entities in English; E.names (hd-core.js) gives the six known ids a localized name (presentation only).
         const lgItem =id => (pg.layouts.lg || []).find(i => i.id === id) || { w: 1, h: 1 };
         const commands = o.commands || null, docId = doc.id || '', sheetSubs = new Map();
         // decorated(): the store view plus tone and the localized system name; with commands also the overlay, cue, lock and arming (decorate) and the cue text.
         function decorated(rec, id, key) {
             const v = store.view(id); if (!v) return null;
-            const base = Object.assign({}, v, { tone: E.tone.of(v, rec.widget.options) }), sys = v.source === 'system' ? systemName(id) : null; if (sys) base.name = sys;
+            const base = Object.assign({}, v, { tone: E.tone.of(v, rec.widget.options) }), sys = v.source === 'system' ? E.names.system(id, t) : null; if (sys) base.name = sys;
             if (!commands) return base;
             const out = commands.decorate(id, Object.freeze(base), key);
             return out && out.error && !out.error.text ? Object.freeze(Object.assign({}, out, { error: Object.freeze(Object.assign({}, out.error, { text: E.control.cueText(t, out.error) })) })) : out;
@@ -123,7 +117,7 @@
             limits.set(widget.id, catalog.constraints(widget));
             const item = lgItem(widget.id);
             try { rec.inst = E.widgets.host({ widget: rec.widget, mode, size: { w: item.w, h: item.h }, t, lang, parent: pageEl, api: api(rec),
-                moreLabel: commands ? t('homedash.moreinfo.open') : null, moreWhen: commands ? p => !!p && p.kind === 'light' : null, titleFallback: commands ? () => (rec.ids[0] && systemName(rec.ids[0])) || '' : null }); rec.el = rec.inst.el; }
+                moreLabel: commands ? t('homedash.moreinfo.open') : null, moreWhen: commands ? p => !!p && p.kind === 'light' : null, titleFallback: commands ? () => (rec.ids[0] && E.names.system(rec.ids[0], t)) || '' : null }); rec.el = rec.inst.el; }
             catch (err) { console.warn('HomeDash: widget ' + widget.id + ' is not rendered', err); rec.inst = null; rec.el = unsupported(widget); pageEl.appendChild(rec.el); }
             setAttr(rec.el, 'data-hd-wid', widget.id); rec.labelledBy = rec.el.getAttribute('aria-labelledby');
             recs.set(widget.id, rec); byEl.set(rec.el, rec); applyRole(rec); if (io) io.observe(rec.el);

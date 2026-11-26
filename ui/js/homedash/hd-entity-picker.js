@@ -9,9 +9,9 @@
     // One GET entities per allowed kind (C9: one kind per request); a chosen kind narrows to it; no kinds = any kind.
     function requests(f, kinds) { const base = { q: f.q || undefined, source: f.source || undefined, area: f.area || undefined, limit: LIMIT, offset: 0 };
         return (f.kind ? [f.kind] : kinds && kinds.length ? kinds : [null]).map(k => Object.assign({}, base, k ? { kind: k } : {})); }
-    function merge(answers, accept, compare) { const seen = new Set(), out = [];
+    function merge(answers, accept, compare, nameOf) { const label = nameOf || (e => String(e.name || e.id)); const seen = new Set(), out = [];
         for (const a of answers) for (const e of a && Array.isArray(a.entities) ? a.entities : []) { if (!e || typeof e.id !== 'string' || seen.has(e.id) || !accept(e)) continue; seen.add(e.id); out.push(e); }
-        return out.sort((x, y) => compare(String(x.name || x.id), String(y.name || y.id))).slice(0, LIMIT); }
+        return out.sort((x, y) => compare(label(x), label(y))).slice(0, LIMIT); }
     const sourcesOf = answers => [...new Set(answers.flatMap(a => (a && Array.isArray(a.sources) ? a.sources : []).map(s => s && s.source).filter(s => typeof s === 'string')))];
 
     function create(o) {
@@ -35,12 +35,13 @@
         selKind.options([{ id: '', label: t('homedash.palette.all_kinds') }].concat(kinds.map(k => ({ id: k, label: t('homedash.kind.' + k) })).sort((a, b) => collator.compare(a.label, b.label))), '');
         selSource.options([{ id: '', label: t('homedash.palette.all_sources') }], ''); selArea.options([{ id: '', label: t('homedash.palette.all_areas') }], '');
 
-        function boundText() { return bound ? String(bound.name || bound.id) : value; }
+        const nameOf = e => E.names.display(e, t) || String(e.id);
+        function boundText() { return bound ? nameOf(bound) : value; }
         function paintBound() {
             const v = value ? store.view(value) : null, st = !value ? 'empty' : v && v.status === 'unknown' ? 'unknown' : bound === false ? 'unknown' : 'bound';
             const b = v && v.status !== 'unknown' ? v : bound && bound !== false ? bound : null;
             setAttr(root, 'data-hd-state', st); setAttr(clear.el, 'hidden', value ? null : true);
-            if (!open) input.value = b ? String(b.name || value) : value;
+            if (!open) input.value = b ? E.names.display(b, t) || value : value;
             meta.textContent = b ? [value, b.area, b.source].filter(Boolean).join(DOT) : ''; setAttr(meta, 'hidden', b ? null : true);
             warn.replaceChildren(); setAttr(warn, 'hidden', st === 'unknown' ? null : true);
             if (st === 'unknown') { warn.appendChild(E.icons.icon('alert')); warn.appendChild(el('span', { text: t('homedash.inspector.unknown_entity', { id: value }) })); }
@@ -59,14 +60,15 @@
         }
         function search() {
             const my = ++seq; status.textContent = t('homedash.inspector.searching');
-            Promise.all(requests(filters, kinds).map(r => Promise.resolve().then(() => api.entities(r)))).then(answers => {
-                if (my !== seq || destroyed || !open) return; options = merge(answers, e => catalog.accepts(o.type, name, e), collator.compare); sources = sourcesOf(answers); areas = [...new Set(areas.concat(options.map(e => e.area).filter(Boolean)))].sort(); renderOptions();
+            const reqs = requests(filters, kinds).concat(...E.names.extraIds(filters.q, t).map(sid => requests(Object.assign({}, filters, { q: sid }), kinds)));   // a localized system name is not in the server's search text: ask for its id too
+            Promise.all(reqs.map(r => Promise.resolve().then(() => api.entities(r)))).then(answers => {
+                if (my !== seq || destroyed || !open) return; options = merge(answers, e => catalog.accepts(o.type, name, e), collator.compare, nameOf); sources = sourcesOf(answers); areas = [...new Set(areas.concat(options.map(e => e.area).filter(Boolean)))].sort(); renderOptions();
             }, () => { if (my !== seq || destroyed || !open) return; options = []; renderOptions(); status.textContent = t('homedash.inspector.search_failed'); });
         }
         function renderOptions() {
             list.replaceChildren(); active = options.length ? Math.max(0, options.findIndex(e => e.id === value)) : -1;
             options.forEach((e, i) => list.appendChild(el('li', { class: 'hd-ep-opt', role: 'option', id: id + '-o' + i, 'aria-selected': e.id === value ? 'true' : 'false', 'data-entity': e.id, 'data-hd-active': i === active ? 'true' : null },
-                [el('span', { class: 'hd-ep-opt-name', text: String(e.name || e.id) }), el('span', { class: 'hd-ep-opt-meta', text: [e.area, e.source].filter(Boolean).join(DOT) }), el('span', { class: 'hd-ep-opt-state', text: stateOf(e) })])));
+                [el('span', { class: 'hd-ep-opt-name', text: nameOf(e) }), el('span', { class: 'hd-ep-opt-meta', text: [e.area, e.source].filter(Boolean).join(DOT) }), el('span', { class: 'hd-ep-opt-state', text: stateOf(e) })])));
             status.textContent = options.length ? '' : t('homedash.inspector.no_match'); setAttr(input, 'aria-activedescendant', active >= 0 ? id + '-o' + active : null);
             if (shownSources !== sources.join(',')) { shownSources = sources.join(','); selSource.options([{ id: '', label: t('homedash.palette.all_sources') }].concat(sources.map(s => ({ id: s, label: E.palette.model.sourceName(t, s) }))), filters.source); }
             if (shownAreas !== areas.join(',')) { shownAreas = areas.join(','); selArea.options([{ id: '', label: t('homedash.palette.all_areas') }].concat(areas.map(a => ({ id: a, label: a }))), filters.area); }
