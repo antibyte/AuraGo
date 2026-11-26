@@ -1,6 +1,6 @@
 # Quick Connect RDP: Files tab (SFTP / SMB)
 
-Status 2026-11-25: plan drafted, not started. Open decisions for the user: Part (d) questions 1 (strong-caller gate), 2 (default off for existing RDP devices) and 7 (separate file-access credential).
+Status 2026-11-25: plan drafted, not started. User decisions (do not re-ask): D7 strong-caller gate as planned; D4 existing RDP devices off, new RDP devices auto; D6 optional separate file-access credential.
 
 # Part (a): How SFTP works today
 

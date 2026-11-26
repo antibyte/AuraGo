@@ -1,5 +1,6 @@
-// Package smbclient provides a small, read-only SMB2/3 filesystem client for
-// explicitly configured Bookshelf sources.
+// Package smbclient provides a small SMB2/3 filesystem client for explicitly
+// configured shares. Bookshelf uses only the read methods (List, Stat, Open);
+// Quick Connect file access additionally uses the write methods in files.go.
 package smbclient
 
 import (
@@ -19,6 +20,8 @@ import (
 	"github.com/hirochachacha/go-smb2/v2/auth"
 )
 
+const defaultMaxListEntries = 10000
+
 // Config contains one explicit share and named user's credentials. Empty
 // credentials are rejected; the client never falls back to guest access.
 type Config struct {
@@ -27,6 +30,11 @@ type Config struct {
 	Username string
 	Domain   string
 	Password string
+
+	// Port is the TCP port of the SMB server; 0 means 445.
+	Port int
+	// MaxListEntries caps one directory listing; 0 means 10000.
+	MaxListEntries int
 }
 
 // Entry is read-only metadata for one share-relative file or directory.
@@ -44,6 +52,7 @@ type Client struct {
 	ctx     context.Context
 	session *smb2.Session
 	share   *smb2.Share
+	maxList int
 	close   sync.Once
 }
 
@@ -61,7 +70,7 @@ func Dial(ctx context.Context, cfg Config) (*Client, error) {
 	defer cancel()
 	dialer := &smb2.Dialer{
 		Credentials:           auth.NTLMCredential{User: cfg.Username, Password: cfg.Password, Domain: cfg.Domain},
-		TransportDialer:       smb2.TCPDialer{Dialer: &net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second}},
+		TransportDialer:       smb2.TCPDialer{Port: cfg.Port, Dialer: &net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second}},
 		RequireMessageSigning: true,
 		SpecifiedDialects:     []smb2.Dialect{smb2.SMB311, smb2.SMB302, smb2.SMB300, smb2.SMB210, smb2.SMB202},
 	}
@@ -74,12 +83,15 @@ func Dial(ctx context.Context, cfg Config) (*Client, error) {
 		_ = session.Close()
 		return nil, fmt.Errorf("mount configured SMB share: %w", err)
 	}
-	return &Client{ctx: ctx, session: session, share: share}, nil
+	return &Client{ctx: ctx, session: session, share: share, maxList: cfg.MaxListEntries}, nil
 }
 
 func validateCoordinates(cfg Config) error {
 	if cfg.Host == "" || cfg.Share == "" || cfg.Username == "" || cfg.Password == "" {
 		return errors.New("SMB host, share, username, and password are required")
+	}
+	if cfg.Port < 0 || cfg.Port > 65535 {
+		return errors.New("invalid SMB port")
 	}
 	return ValidateTarget(cfg)
 }
@@ -113,8 +125,8 @@ func (c *Client) List(ctx context.Context, raw string) ([]Entry, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list configured SMB directory: %w", err)
 	}
-	if len(items) > 10000 {
-		return nil, errors.New("SMB directory exceeds 10000 entries")
+	if limit := c.listLimit(); len(items) > limit {
+		return nil, fmt.Errorf("SMB directory exceeds %d entries", limit)
 	}
 	sort.Slice(items, func(i, j int) bool { return strings.ToLower(items[i].Name()) < strings.ToLower(items[j].Name()) })
 	entries := make([]Entry, 0, len(items))
@@ -161,6 +173,13 @@ func (c *Client) Open(ctx context.Context, raw string) (io.ReadCloser, error) {
 		return nil, fmt.Errorf("open configured SMB file: %w", err)
 	}
 	return &remoteReader{ctx: ctx, file: f, client: c}, nil
+}
+
+func (c *Client) listLimit() int {
+	if c.maxList > 0 {
+		return c.maxList
+	}
+	return defaultMaxListEntries
 }
 
 func (c *Client) lstatNoFollow(ctx context.Context, rel string) (os.FileInfo, error) {

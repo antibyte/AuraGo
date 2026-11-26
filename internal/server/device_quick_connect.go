@@ -16,6 +16,8 @@ import (
 type quickConnectDevice struct {
 	inventory.DeviceRecord
 	QuickConnect bool `json:"quick_connect"`
+	// FileAccess is set for RDP devices only (Files tab over SFTP or SMB).
+	FileAccess *inventory.FileAccess `json:"file_access,omitempty"`
 }
 
 // quickConnectDevices retains configured connections, including offline hosts.

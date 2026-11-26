@@ -28,7 +28,7 @@ func withDesktopRemoteGuard(s *Server, action, expectedProtocol string, next htt
 		switch action {
 		case "desktop_sftp_list", "desktop_sftp_stat", "desktop_sftp_download":
 			operation = desktopRead
-		case "desktop_ssh_connect", "desktop_vnc_connect", "desktop_rdp_connect", "desktop_rdp_ticket":
+		case "desktop_ssh_connect", "desktop_sftp_hostkey_trust", "desktop_vnc_connect", "desktop_rdp_connect", "desktop_rdp_ticket":
 			operation = desktopExecute
 		}
 		if !checkDesktopOperation(s, w, r, operation) {

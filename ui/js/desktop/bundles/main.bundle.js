@@ -21802,7 +21802,7 @@ function updateTaskbarSystemButtonsForMobile() {
     }
 
     function createSFTPNavigator(listDirectory) {
-        const nav = { path: '/', entries: [], seq: 0, controller: null, loading: false, disposed: false };
+        const nav = { path: '/', entries: [], backend: '', rootLabel: '', seq: 0, controller: null, loading: false, disposed: false };
         nav.load = async function load(targetPath) {
             if (nav.disposed) return { status: 'disposed' };
             const seq = ++nav.seq;
@@ -21820,6 +21820,8 @@ function updateTaskbarSystemButtonsForMobile() {
                 });
                 nav.path = targetPath;
                 nav.entries = entries;
+                nav.backend = String((resp && resp.backend) || '');
+                nav.rootLabel = String((resp && resp.root_label) || '');
                 return { status: 'ok', path: targetPath, entries };
             } catch (error) {
                 if (seq !== nav.seq || nav.disposed || (error && error.name === 'AbortError')) return { status: 'stale' };
@@ -23338,6 +23340,7 @@ function updateTaskbarSystemButtonsForMobile() {
             let resizeTimer = 0;
             let lastSize = null;
             let connected = false;
+            let visible = true;
 
             const teardown = () => {
                 clearTimeout(resizeTimer);
@@ -23359,6 +23362,11 @@ function updateTaskbarSystemButtonsForMobile() {
                 scale(mode) {
                     const value = SCALES[mode];
                     if (value && element) element.scale = value;
+                },
+                // Hides or shows the remote desktop without resizing it (Files tab).
+                setVisible(on) {
+                    visible = !!on;
+                    if (ui) { try { ui.setVisibility(visible); } catch (_) {} }
                 },
                 ctrlAltDel() { if (ui) { try { ui.ctrlAltDel(); } catch (_) {} } },
                 meta() { if (ui) { try { ui.metaKey(); } catch (_) {} } },
@@ -23408,7 +23416,7 @@ function updateTaskbarSystemButtonsForMobile() {
                     if (options.domain) builder = builder.withServerDomain(options.domain);
                     const config = builder.build();
                     password = '';
-                    ui.setVisibility(true);
+                    ui.setVisibility(visible);
                     const info = await ui.connect(config);
                     if (ended) { teardown(); return; }
                     connected = true;
@@ -23418,6 +23426,8 @@ function updateTaskbarSystemButtonsForMobile() {
                             clearTimeout(resizeTimer);
                             resizeTimer = setTimeout(() => {
                                 if (ended || !ui) return;
+                                // A hidden container measures 0x0: keep the remote desktop size.
+                                if (container.clientWidth === 0 || container.clientHeight === 0) return;
                                 const next = desktopSize(container);
                                 if (lastSize && Math.abs(next.width - lastSize.width) < 4 && Math.abs(next.height - lastSize.height) < 4) return;
                                 lastSize = next;
@@ -27330,6 +27340,185 @@ if (appId === 'pixel') {
     }
 
 ;
+/* ui/js/desktop/apps/quickconnect-files.js */
+    // Quick Connect file access for RDP devices, bundled inside the Desktop shell IIFE
+    // (scripts/build-ui-bundles.js). The Files tab reuses the /api/desktop/sftp/* endpoints
+    // with the RDP device id; the server picks SFTP or SMB from the device's file_access
+    // setting. This file owns the device-dialog section, the error-code mapping and the
+    // SFTP host-key trust flow. Secrets never pass through here: the server reads them.
+    window.QuickConnectFiles = (() => {
+        const MODES = ['off', 'auto', 'sftp', 'smb'];
+        const DEFAULT_SFTP_PORT = 22;
+        const DEFAULT_SHARE = 'C$';
+        const DEFAULT_BACKOFF_SECONDS = 30;
+
+        function modeOf(fileAccess) {
+            return fileAccess && MODES.includes(fileAccess.mode) ? fileAccess.mode : 'off';
+        }
+
+        // Existing RDP devices without a stored setting are off; new devices start on auto.
+        function initialSettings(device) {
+            const isRDP = !!device && device.protocol === 'rdp';
+            const stored = isRDP ? (device.file_access || null) : null;
+            if (!device) return { mode: 'auto', sftp_port: DEFAULT_SFTP_PORT, smb_share: DEFAULT_SHARE, credential_id: '' };
+            if (!isRDP) return { mode: 'auto', sftp_port: DEFAULT_SFTP_PORT, smb_share: DEFAULT_SHARE, credential_id: '' };
+            return {
+                mode: modeOf(stored),
+                sftp_port: Number(stored && stored.sftp_port) || DEFAULT_SFTP_PORT,
+                smb_share: (stored && stored.smb_share) || DEFAULT_SHARE,
+                credential_id: (stored && stored.credential_id) || ''
+            };
+        }
+
+        function sectionMarkup(t, device, credentials) {
+            const s = initialSettings(device);
+            const modeOption = mode => `<option value="${mode}" ${s.mode === mode ? 'selected' : ''}>${esc(t('desktop.qc_file_access_' + mode))}</option>`;
+            const credOptions = (Array.isArray(credentials) ? credentials : []).map(cred => {
+                const label = cred.name + (cred.username ? ' (' + cred.username + ')' : '');
+                return `<option value="${esc(cred.id)}" ${s.credential_id === cred.id ? 'selected' : ''}>${esc(label)}</option>`;
+            }).join('');
+            return `<div class="vd-qc-form-section vd-qc-file-access" data-qc-file-access hidden>
+                <div class="vd-qc-form-title">${esc(t('desktop.qc_file_access'))}</div>
+                <label class="vd-qc-label">${esc(t('desktop.qc_file_access'))}
+                    <select class="vd-qc-input" name="file_access_mode">${MODES.map(modeOption).join('')}</select>
+                </label>
+                <div class="vd-qc-form-row">
+                    <label class="vd-qc-label vd-qc-flex-1" data-qc-fa-field="sftp">${esc(t('desktop.qc_file_access_sftp_port'))}
+                        <input class="vd-qc-input" type="number" name="file_access_sftp_port" value="${esc(String(s.sftp_port))}" min="1" max="65535">
+                    </label>
+                    <label class="vd-qc-label vd-qc-flex-1" data-qc-fa-field="smb">${esc(t('desktop.qc_file_access_smb_share'))}
+                        <input class="vd-qc-input" type="text" name="file_access_smb_share" value="${esc(s.smb_share)}" maxlength="80" autocapitalize="off" spellcheck="false">
+                    </label>
+                </div>
+                <label class="vd-qc-label" data-qc-fa-field="credential">${esc(t('desktop.qc_file_access_credential'))}
+                    <select class="vd-qc-input" name="file_access_credential_id">
+                        <option value="" ${s.credential_id ? '' : 'selected'}>${esc(t('desktop.qc_file_access_same_credential'))}</option>${credOptions}
+                    </select>
+                </label>
+                <span class="vd-qc-hint">${esc(t('desktop.qc_file_access_hint'))}</span>
+            </div>`;
+        }
+
+        // Shows the section only for RDP and only the fields the chosen mode uses.
+        function wire(overlay, protocolSelect) {
+            const section = overlay.querySelector('[data-qc-file-access]');
+            if (!section) return;
+            const modeSelect = section.querySelector('select[name="file_access_mode"]');
+            const apply = () => {
+                section.hidden = protocolSelect.value !== 'rdp';
+                const mode = modeSelect.value;
+                const show = {
+                    sftp: mode === 'auto' || mode === 'sftp',
+                    smb: mode === 'auto' || mode === 'smb',
+                    credential: mode !== 'off'
+                };
+                section.querySelectorAll('[data-qc-fa-field]').forEach(field => {
+                    field.hidden = !show[field.dataset.qcFaField];
+                });
+            };
+            modeSelect.addEventListener('change', apply);
+            protocolSelect.addEventListener('change', apply);
+            apply();
+        }
+
+        // The file_access object for the device body, or null when the section is absent or hidden.
+        function read(overlay) {
+            const section = overlay.querySelector('[data-qc-file-access]');
+            if (!section || section.hidden) return null;
+            const mode = section.querySelector('select[name="file_access_mode"]').value;
+            const port = parseInt(section.querySelector('input[name="file_access_sftp_port"]').value, 10);
+            const share = section.querySelector('input[name="file_access_smb_share"]').value.trim();
+            return {
+                mode: MODES.includes(mode) ? mode : 'off',
+                sftp_port: port >= 1 && port <= 65535 ? port : DEFAULT_SFTP_PORT,
+                smb_share: share || DEFAULT_SHARE,
+                credential_id: section.querySelector('select[name="file_access_credential_id"]').value || ''
+            };
+        }
+
+        function isOffDevice(device) {
+            return !!device && device.protocol === 'rdp' && modeOf(device.file_access) === 'off';
+        }
+
+        // Maps an api() error (or a hand-built { status, body, retryAfter }) to a message.
+        function codeOf(err) {
+            const body = err && err.body;
+            return body && typeof body.code === 'string' ? body.code : '';
+        }
+
+        function messageFor(err, t) {
+            const body = (err && err.body) || {};
+            switch (codeOf(err)) {
+                case 'file_access_admin_required': return t('desktop.qc_files_admin_required');
+                case 'file_access_disabled':
+                case 'file_access_off': return t('desktop.qc_files_off');
+                case 'file_access_unavailable': return t('desktop.qc_files_unavailable');
+                case 'host_key_changed': return t('desktop.qc_files_host_key_changed');
+                case 'host_key_mismatch': return t('desktop.qc_files_host_key_mismatch');
+                case 'host_key_not_pending': return t('desktop.qc_files_host_key_not_pending');
+                case 'file_access_auth_backoff': {
+                    const seconds = Number(err.retryAfter || body.retry_after) || DEFAULT_BACKOFF_SECONDS;
+                    return t('desktop.qc_files_auth_backoff').replace('{seconds}', String(seconds));
+                }
+                default:
+                    return body.error || (err && err.message) || t('desktop.qc_sftp_error');
+            }
+        }
+
+        function isOffCode(err) {
+            const code = codeOf(err);
+            return code === 'file_access_disabled' || code === 'file_access_off';
+        }
+
+        // Error / off state markup. The edit button (data-action="files-edit-device") is
+        // wired by the caller; it only appears for RDP devices that can be edited.
+        function noticeMarkup(t, message, withEdit) {
+            const edit = withEdit
+                ? `<button class="vd-qc-btn vd-qc-btn-sm" type="button" data-action="files-edit-device">${iconMarkup('edit', 'E', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.qc_files_edit_device'))}</span></button>`
+                : '';
+            return `<div class="vd-qc-sftp-error vd-qc-files-notice"><span>${esc(message)}</span>${edit}</div>`;
+        }
+
+        // The trust POST is sent at most once per unknown_host_key response, with the fingerprint
+        // of that response only. Any failure (mismatch, expired prompt, 403, 429) is shown and
+        // never retried; the user reopens the Files tab to get a fresh prompt.
+        // Resolves with { message, off } to display, or null when the host key was trusted
+        // and ctx.reload() was called. ctx: { t, api, deviceId, confirm, reload, isCurrent }.
+        async function handleListError(err, ctx) {
+            const t = ctx.t;
+            const body = (err && err.body) || {};
+            if (codeOf(err) === 'unknown_host_key' && body.fingerprint) {
+                const detail = t('desktop.qc_host_key_prompt_message')
+                    .replace('{{host}}', () => String(body.host || ''))
+                    .replace('{{key_type}}', () => String(body.key_type || ''))
+                    .replace('{{fingerprint}}', () => String(body.fingerprint || ''));
+                const accept = await ctx.confirm(t('desktop.qc_host_key_prompt_title'), detail, {
+                    okLabel: t('desktop.qc_host_key_accept'),
+                    okIcon: 'check-square',
+                    okClass: 'vd-qc-btn-primary'
+                });
+                if (ctx.isCurrent && !ctx.isCurrent()) return null;
+                if (!accept) return { message: t('desktop.qc_host_key_rejected'), off: false };
+                try {
+                    await ctx.api('/api/desktop/sftp/hostkey?device_id=' + encodeURIComponent(ctx.deviceId), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ device_id: ctx.deviceId, fingerprint: body.fingerprint })
+                    });
+                } catch (trustErr) {
+                    return { message: messageFor(trustErr, t), off: false };
+                }
+                if (ctx.isCurrent && !ctx.isCurrent()) return null;
+                ctx.reload();
+                return null;
+            }
+            return { message: messageFor(err, t), off: isOffCode(err) };
+        }
+
+        return { sectionMarkup, wire, read, isOffDevice, messageFor, noticeMarkup, handleListError };
+    })();
+
+;
 /* ui/js/desktop/apps/quickconnect-launchpad-chat.js */
     const SDK_CHANNEL_CHALLENGE_TYPE = 'aurago.desktop.channel.challenge';
     const SDK_CHANNEL_HANDSHAKE_TYPE = 'aurago.desktop.channel.handshake';
@@ -27422,6 +27611,7 @@ if (appId === 'pixel') {
         let connectionGeneration = 0;
         let loadGeneration = 0;
         let activeSFTPNav = null;
+        let activeRDPHandle = null;
         const pendingConfirmations = new Set();
         let targetDeviceId = '';
         let focusTarget = false;
@@ -27558,6 +27748,7 @@ if (appId === 'pixel') {
             if (activeTerm) { activeTerm.dispose(); activeTerm = null; }
             activeFitAddon = null;
             disconnectActiveResizeObserver();
+            activeRDPHandle = null;
             closeSFTPPanel(tabContent);
             setSessionStatus({ state: 'idle' });
         }
@@ -27578,14 +27769,23 @@ if (appId === 'pixel') {
         }
 
         function switchTab(tab) {
-            if (tab === 'files' && connectedProtocol !== 'ssh') return;
+            const filesCapable = connectedProtocol === 'ssh' || connectedProtocol === 'rdp';
+            if (tab === 'files' && !filesCapable) return;
             activeTab = tab;
             qcTabs.querySelectorAll('.vd-qc-tab').forEach(btn => markTab(btn, btn.dataset.tab === tab));
-            if (tab === 'files' && connectedDeviceId && connectedProtocol === 'ssh') {
+            if (tab === 'files' && connectedDeviceId && filesCapable) {
+                if (connectedProtocol === 'rdp' && activeRDPHandle) activeRDPHandle.setVisible(false);
                 openSFTPPanel(connectedDeviceId, tabContent);
             } else if (tab === 'terminal') {
                 closeSFTPPanel(tabContent);
+                if (connectedProtocol === 'rdp' && activeRDPHandle) activeRDPHandle.setVisible(true);
             }
+        }
+
+        // The first tab is the terminal for SSH and the remote desktop for RDP.
+        function setTabLabel(protocol) {
+            const label = qcTabs.querySelector('[data-tab="terminal"] span');
+            if (label) label.textContent = t(protocol === 'rdp' ? 'desktop.qc_tab_desktop' : 'desktop.qc_tab_terminal');
         }
 
         qcTabs.querySelectorAll('.vd-qc-tab').forEach(btn => {
@@ -27885,6 +28085,7 @@ if (appId === 'pixel') {
                             </div>
                         </label>
                     </div>
+                    ${QuickConnectFiles.sectionMarkup(t, isEdit ? existingDevice : null, cachedCredentials || [])}
                 </div>
                 <div class="vd-qc-modal-footer">
                     <button class="vd-qc-btn vd-qc-btn-secondary" type="button" data-action="cancel">${iconMarkup('x', 'X', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.cancel'))}</span></button>
@@ -27923,6 +28124,7 @@ if (appId === 'pixel') {
             }
             protocolSelect.addEventListener('change', updateModalForProtocol);
             updateModalForProtocol();
+            QuickConnectFiles.wire(overlay, protocolSelect);
 
             overlay.querySelector('[data-action="toggle-pw"]').addEventListener('click', event => {
                 const pwInput = overlay.querySelector('input[name="password"]');
@@ -27964,6 +28166,8 @@ if (appId === 'pixel') {
                 const username = overlay.querySelector('input[name="username"]').value.trim();
                 const password = overlay.querySelector('input[name="password"]').value;
                 const certificateText = certTextarea.value.trim();
+                const fileAccess = protocol === 'rdp' ? QuickConnectFiles.read(overlay) : null;
+                const fileAccessBody = fileAccess ? { file_access: fileAccess } : {};
 
                 if (!name || !hostVal) {
                     showNotify(t('desktop.qc_validation_error'));
@@ -27997,7 +28201,7 @@ if (appId === 'pixel') {
                             existingDevice.credential_id = created.id;
                         }
                         // Update device
-                        await api('/api/desktop/integrations/devices/' + existingDevice.id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, type: existingDevice.type || 'server', protocol, ip_address: hostVal, port, description, credential_id: existingDevice.credential_id }) });
+                        await api('/api/desktop/integrations/devices/' + existingDevice.id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, type: existingDevice.type || 'server', protocol, ip_address: hostVal, port, description, credential_id: existingDevice.credential_id, tags: existingDevice.tags || [], mac_address: existingDevice.mac_address || '', ...fileAccessBody }) });
                     } else {
                         // Create credential first
                         const credBody = { name: name, type: credType, host: hostVal, username: effectiveUsername, description: description, certificate_mode: 'text' };
@@ -28005,7 +28209,7 @@ if (appId === 'pixel') {
                         if (certificateText) credBody.certificate_text = certificateText;
                         const created = await api('/api/desktop/integrations/credentials', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credBody) });
                         // Create device linked to credential
-                        await api('/api/desktop/integrations/devices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, type: 'server', protocol, ip_address: hostVal, port, description, credential_id: created.id }) });
+                        await api('/api/desktop/integrations/devices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, type: 'server', protocol, ip_address: hostVal, port, description, credential_id: created.id, ...fileAccessBody }) });
                     }
                     closeModal();
                     await loadAll();
@@ -28133,6 +28337,7 @@ if (appId === 'pixel') {
             connectedDeviceId = deviceId;
             connectedProtocol = 'ssh';
             activeTab = 'terminal';
+            setTabLabel('ssh');
             qcTabs.hidden = false;
             qcTabs.querySelector('[data-tab="files"]').hidden = false;
             qcTabs.querySelectorAll('.vd-qc-tab').forEach(btn => markTab(btn, btn.dataset.tab === 'terminal'));
@@ -28340,10 +28545,12 @@ if (appId === 'pixel') {
             connectedDeviceId = deviceId;
             connectedProtocol = 'rdp';
             activeTab = 'terminal';
-            qcTabs.hidden = true;
-            qcTabs.querySelector('[data-tab="files"]').hidden = true;
+            setTabLabel('rdp');
+            qcTabs.hidden = false;
+            qcTabs.querySelector('[data-tab="files"]').hidden = false;
             qcTabs.querySelectorAll('.vd-qc-tab').forEach(btn => markTab(btn, btn.dataset.tab === 'terminal'));
             closeSFTPPanel(tabContent);
+            activeRDPHandle = null;
             const device = cachedDevices && cachedDevices.find(d => d.id === deviceId) || {};
             setSessionStatus({ state: 'connecting', protocol: 'RDP', deviceId, target: deviceTarget(device, true), name: device.name || '' });
             const sessionEl = document.createElement('div');
@@ -28364,6 +28571,7 @@ if (appId === 'pixel') {
             const showEnd = (state, key, text) => {
                 activeWS = null;
                 session = null;
+                activeRDPHandle = null;
                 setStatus(state);
                 box.innerHTML = disconnectPlaceholderHTML(key, deviceId, true, text);
                 box.querySelector('[data-action="reconnect"]')?.addEventListener('click', () => connectRDP(deviceId));
@@ -28442,6 +28650,9 @@ if (appId === 'pixel') {
                 },
                 onClose: reason => { if (!dead()) showEnd('disconnected', 'desktop.qc_rdp_disconnected', reason ? t('desktop.qc_rdp_disconnected') + ': ' + reason : ''); }
             });
+            activeRDPHandle = session;
+            // The Files tab may have been opened while the session was still connecting.
+            if (activeTab === 'files') session.setVisible(false);
             creds = null;
         }
 
@@ -28456,6 +28667,8 @@ if (appId === 'pixel') {
             if (termContainer) termContainer.style.display = '';
             const vncContainer = container.querySelector('.vd-qc-vnc-container');
             if (vncContainer) vncContainer.style.display = '';
+            const rdpSession = container.querySelector('.vd-qc-rdp-session');
+            if (rdpSession) rdpSession.style.display = '';
         }
 
         function openSFTPPanel(deviceId, container) {
@@ -28464,6 +28677,8 @@ if (appId === 'pixel') {
             if (termContainer) termContainer.style.display = 'none';
             const vncContainer = container.querySelector('.vd-qc-vnc-container');
             if (vncContainer) vncContainer.style.display = 'none';
+            const rdpSession = container.querySelector('.vd-qc-rdp-session');
+            if (rdpSession) rdpSession.style.display = 'none';
 
             const panel = document.createElement('div');
             panel.className = 'vd-qc-sftp-panel';
@@ -28487,7 +28702,14 @@ if (appId === 'pixel') {
             `;
             container.appendChild(panel);
 
+            const deviceInfo = cachedDevices && cachedDevices.find(d => d.id === deviceId);
+            if (QuickConnectFiles.isOffDevice(deviceInfo)) {
+                renderFilesNotice(panel.querySelector('[data-sftp-list]'), t('desktop.qc_files_off'), deviceInfo);
+                return;
+            }
+
             const els = {
+                panel,
                 breadcrumb: panel.querySelector('[data-sftp-breadcrumb]'),
                 list: panel.querySelector('[data-sftp-list]'),
                 status: panel.querySelector('[data-sftp-status]')
@@ -28531,9 +28753,17 @@ if (appId === 'pixel') {
             });
         }
 
+        // Error or off state inside the file list; the edit button only for devices that can be edited.
+        function renderFilesNotice(target, message, editableDevice) {
+            const canEdit = !!editableDevice && editableDevice.protocol === 'rdp' && !editableDevice.is_template;
+            target.innerHTML = QuickConnectFiles.noticeMarkup(t, message, canEdit);
+            const editBtn = target.querySelector('[data-action="files-edit-device"]');
+            if (editBtn) editBtn.addEventListener('click', () => showServerModal(editableDevice));
+        }
+
         function renderSFTPBreadcrumb(nav, deviceId, els) {
             const parts = nav.path.split('/').filter(Boolean);
-            let html = `<button class="vd-qc-sftp-crumb" data-path="/">/</button>`;
+            let html = `<button class="vd-qc-sftp-crumb" data-path="/">${esc(nav.rootLabel || '/')}</button>`;
             let accumulated = '';
             for (const part of parts) {
                 accumulated += '/' + part;
@@ -28560,9 +28790,16 @@ if (appId === 'pixel') {
             if (result.status === 'stale' || result.status === 'disposed' || !els.list.isConnected) return;
             if (result.status === 'error') {
                 // The breadcrumb and nav.path still name the last directory that loaded.
-                els.list.innerHTML = `<div class="vd-qc-sftp-error">${esc((result.error && result.error.message) || t('desktop.qc_sftp_error'))}</div>`;
+                const info = await QuickConnectFiles.handleListError(result.error, {
+                    t, api, deviceId, confirm: showConfirmModal,
+                    isCurrent: () => !disposed && activeSFTPNav === nav && els.list.isConnected,
+                    reload: () => loadSFTPList(nav, deviceId, targetPath, els)
+                });
+                if (!info || !els.list.isConnected || activeSFTPNav !== nav) return;
+                renderFilesNotice(els.list, info.message, info.off ? cachedDevices && cachedDevices.find(d => d.id === deviceId) : null);
                 return;
             }
+            els.panel.classList.toggle('vd-qc-sftp-smb', nav.backend === 'smb');
             renderSFTPBreadcrumb(nav, deviceId, els);
             renderSFTPList(nav, deviceId, els);
         }
@@ -28646,11 +28883,11 @@ if (appId === 'pixel') {
                     formData.append('file', file);
                     const resp = await fetch('/api/desktop/sftp/upload?device_id=' + encodeURIComponent(deviceId), { method: 'POST', body: formData });
                     if (!resp.ok) {
-                        const err = await resp.json().catch(() => ({}));
-                        showNotify(err.error || t('desktop.qc_sftp_error'));
+                        const errBody = await resp.json().catch(() => ({}));
+                        showNotify(QuickConnectFiles.messageFor({ status: resp.status, body: errBody, retryAfter: resp.headers.get('Retry-After') }, t));
                     }
                 } catch (err) {
-                    showNotify(err.message || t('desktop.qc_sftp_error'));
+                    showNotify(QuickConnectFiles.messageFor(err, t));
                 }
             }
             loadSFTPList(nav, deviceId, nav.path, els);
@@ -28663,7 +28900,7 @@ if (appId === 'pixel') {
                 await api('/api/desktop/sftp/delete?device_id=' + encodeURIComponent(deviceId), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, path: fullPath }) });
                 loadSFTPList(nav, deviceId, nav.path, els);
             } catch (err) {
-                showNotify(err.message || t('desktop.qc_sftp_error'));
+                showNotify(QuickConnectFiles.messageFor(err, t));
             }
         }
 
@@ -28677,7 +28914,7 @@ if (appId === 'pixel') {
                 await api('/api/desktop/sftp/rename?device_id=' + encodeURIComponent(deviceId), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, old_path: oldPath, new_path: newPath }) });
                 loadSFTPList(nav, deviceId, nav.path, els);
             } catch (err) {
-                showNotify(err.message || t('desktop.qc_sftp_error'));
+                showNotify(QuickConnectFiles.messageFor(err, t));
             }
         }
 
@@ -28689,7 +28926,7 @@ if (appId === 'pixel') {
                 await api('/api/desktop/sftp/mkdir?device_id=' + encodeURIComponent(deviceId), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, path: newPath }) });
                 loadSFTPList(nav, deviceId, nav.path, els);
             } catch (err) {
-                showNotify(err.message || t('desktop.qc_sftp_error'));
+                showNotify(QuickConnectFiles.messageFor(err, t));
             }
         }
 
@@ -28700,7 +28937,7 @@ if (appId === 'pixel') {
                 await api('/api/desktop/sftp/copy?device_id=' + encodeURIComponent(deviceId), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, src_path: srcPath, dst_path: dstPath }) });
                 loadSFTPList(nav, deviceId, nav.path, els);
             } catch (err) {
-                showNotify(err.message || t('desktop.qc_sftp_error'));
+                showNotify(QuickConnectFiles.messageFor(err, t));
             }
         }
 
@@ -28711,7 +28948,7 @@ if (appId === 'pixel') {
                 await api('/api/desktop/sftp/move?device_id=' + encodeURIComponent(deviceId), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, src_path: srcPath, dst_path: dstPath }) });
                 loadSFTPList(nav, deviceId, nav.path, els);
             } catch (err) {
-                showNotify(err.message || t('desktop.qc_sftp_error'));
+                showNotify(QuickConnectFiles.messageFor(err, t));
             }
         }
     }

@@ -35,7 +35,9 @@ func handleListDevices(s *Server) http.HandlerFunc {
 		if r.URL.Query().Get("quick_connect") == "1" {
 			requireAdmin(s, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Cache-Control", "no-store")
-				json.NewEncoder(w).Encode(quickConnectDevices(r.Context(), devices))
+				list := quickConnectDevices(r.Context(), devices)
+				fillQuickConnectFileAccess(s, list)
+				json.NewEncoder(w).Encode(list)
 			})).ServeHTTP(w, r)
 			return
 		}
@@ -88,11 +90,12 @@ func handleCreateDevice(s *Server) http.HandlerFunc {
 			return
 		}
 
-		var req inventory.DeviceRecord
-		if err := decodeJSONRequest(w, r, &req, s); err != nil {
+		var body deviceWriteRequest
+		if err := decodeJSONRequest(w, r, &body, s); err != nil {
 			jsonError(w, "invalid JSON", jsonDecodeStatus(err))
 			return
 		}
+		req := body.DeviceRecord
 		if req.Name == "" {
 			jsonError(w, "name is required", http.StatusBadRequest)
 			return
@@ -118,10 +121,21 @@ func handleCreateDevice(s *Server) http.HandlerFunc {
 			req.VaultSecretID = ""
 		}
 
+		fileAccess, ok := validateDeviceFileAccess(s, w, body.FileAccess)
+		if !ok {
+			return
+		}
+
 		id, err := inventory.CreateDevice(s.InventoryDB, req.Name, req.Type, req.Protocol, req.IPAddress, req.Port, req.Username, req.VaultSecretID, req.CredentialID, req.Description, req.Tags, req.MACAddress)
 		if err != nil {
 			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to create device", "Failed to create device", err, "device_name", req.Name)
 			return
+		}
+		if fileAccess != nil && req.Protocol == inventory.ProtocolRDP {
+			if err := inventory.SetDeviceFileAccess(s.InventoryDB, id, *fileAccess); err != nil {
+				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to store file access", "Failed to store file access", err, "device_id", id)
+				return
+			}
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -148,11 +162,12 @@ func handleUpdateDevice(s *Server) http.HandlerFunc {
 			return
 		}
 
-		var req inventory.DeviceRecord
-		if err := decodeJSONRequest(w, r, &req, s); err != nil {
+		var body deviceWriteRequest
+		if err := decodeJSONRequest(w, r, &body, s); err != nil {
 			jsonError(w, "invalid JSON", jsonDecodeStatus(err))
 			return
 		}
+		req := body.DeviceRecord
 		req.ID = id
 		if req.Name == "" {
 			jsonError(w, "name is required", http.StatusBadRequest)
@@ -197,6 +212,11 @@ func handleUpdateDevice(s *Server) http.HandlerFunc {
 			req.VaultSecretID = existing.VaultSecretID
 		}
 
+		fileAccess, ok := validateDeviceFileAccess(s, w, body.FileAccess)
+		if !ok {
+			return
+		}
+
 		if err := inventory.UpdateDevice(s.InventoryDB, req); err != nil {
 			if strings.Contains(err.Error(), "not found") {
 				jsonError(w, "device not found", http.StatusNotFound)
@@ -204,6 +224,14 @@ func handleUpdateDevice(s *Server) http.HandlerFunc {
 				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to update device", "Failed to update device", err, "device_id", id)
 			}
 			return
+		}
+		if req.Protocol != inventory.ProtocolRDP {
+			_ = inventory.DeleteDeviceFileAccess(s.InventoryDB, id)
+		} else if fileAccess != nil {
+			if err := inventory.SetDeviceFileAccess(s.InventoryDB, id, *fileAccess); err != nil {
+				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to store file access", "Failed to store file access", err, "device_id", id)
+				return
+			}
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -282,5 +310,51 @@ func isAllowedDeviceProtocol(protocol string) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+// deviceWriteRequest is the body of POST /api/devices and PUT /api/devices/{id}.
+// FileAccess lives in a side table; nil leaves a stored setting untouched.
+type deviceWriteRequest struct {
+	inventory.DeviceRecord
+	FileAccess *inventory.FileAccess `json:"file_access"`
+}
+
+// validateDeviceFileAccess normalises the optional file access setting and
+// checks the override credential. It writes the 400 response itself.
+func validateDeviceFileAccess(s *Server, w http.ResponseWriter, in *inventory.FileAccess) (*inventory.FileAccess, bool) {
+	if in == nil {
+		return nil, true
+	}
+	fa, err := inventory.NormalizeFileAccess(*in)
+	if err != nil {
+		jsonError(w, "invalid file_access: "+err.Error(), http.StatusBadRequest)
+		return nil, false
+	}
+	if fa.CredentialID != "" {
+		if _, err := credentials.GetByID(s.InventoryDB, fa.CredentialID); err != nil {
+			jsonError(w, "file access credential not found", http.StatusBadRequest)
+			return nil, false
+		}
+	}
+	return &fa, true
+}
+
+// fillQuickConnectFileAccess sets file_access on RDP entries (off when no row).
+func fillQuickConnectFileAccess(s *Server, list []quickConnectDevice) {
+	stored, err := inventory.ListDeviceFileAccess(s.InventoryDB)
+	if err != nil {
+		stored = nil
+		s.Logger.Warn("Failed to load device file access", "error", err)
+	}
+	for i := range list {
+		if list[i].Protocol != inventory.ProtocolRDP {
+			continue
+		}
+		fa, ok := stored[list[i].ID]
+		if !ok {
+			fa = inventory.DefaultFileAccess()
+		}
+		list[i].FileAccess = &fa
 	}
 }

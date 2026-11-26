@@ -2228,3 +2228,10 @@ body[data-animations="false"] .vd-qc-notify {
     animation: none !important;
     transition: none !important;
 }
+
+/* RDP file access: device dialog section, off/error notice, SMB list columns. */
+.vd-quick-connect .vd-qc-file-access[hidden],
+.vd-quick-connect .vd-qc-file-access [data-qc-fa-field][hidden] { display: none; }
+.vd-quick-connect .vd-qc-file-access .vd-qc-hint { display: block; margin-top: 6px; }
+.vd-quick-connect .vd-qc-files-notice { flex-direction: column; }
+.vd-quick-connect .vd-qc-sftp-smb .vd-qc-sftp-col-perms { display: none; }

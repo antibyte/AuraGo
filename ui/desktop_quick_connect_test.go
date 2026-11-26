@@ -398,3 +398,90 @@ func TestDesktopQuickConnectRDPContract(t *testing.T) {
 		t.Fatal("quick connect css missing RDP container rule")
 	}
 }
+
+func TestDesktopQuickConnectRDPFilesContract(t *testing.T) {
+	t.Parallel()
+
+	mainText := readDesktopAssetText(t, "js/desktop/main.js")
+	for _, marker := range []string{
+		"window.QuickConnectFiles = (() => {",
+		"/api/desktop/sftp/hostkey?device_id=",
+		"file_access",
+		"desktop.qc_tab_desktop",
+		"setVisibility(",
+		"setVisible(on)",
+		"data-qc-file-access",
+		"QuickConnectFiles.handleListError(",
+		"QuickConnectFiles.sectionMarkup(",
+		"QuickConnectFiles.read(overlay)",
+		"container.clientWidth === 0 || container.clientHeight === 0",
+		"tags: existingDevice.tags || []",
+		"mac_address: existingDevice.mac_address || ''",
+		"vd-qc-sftp-smb",
+	} {
+		if !strings.Contains(mainText, marker) {
+			t.Fatalf("desktop bundle missing RDP files marker %q", marker)
+		}
+	}
+	source, err := os.ReadFile(filepath.Join("js", "desktop", "apps", "quickconnect-files.js"))
+	if err != nil {
+		t.Fatalf("read quickconnect-files.js: %v", err)
+	}
+	for _, forbidden := range []string{"console.", "localStorage", "sessionStorage", "https://"} {
+		if strings.Contains(string(source), forbidden) {
+			t.Fatalf("quickconnect-files.js must not contain %q", forbidden)
+		}
+	}
+	if lines := strings.Count(string(source), "\n"); lines >= 1100 {
+		t.Fatalf("quickconnect-files.js has %d lines, budget is 1100", lines)
+	}
+	builder, err := os.ReadFile(filepath.Join("..", "scripts", "build-ui-bundles.js"))
+	if err != nil {
+		t.Fatalf("read build-ui-bundles.js: %v", err)
+	}
+	files := strings.Index(string(builder), "'ui/js/desktop/apps/quickconnect-files.js'")
+	launchpad := strings.Index(string(builder), "'ui/js/desktop/apps/quickconnect-launchpad-chat.js'")
+	if files < 0 || launchpad < 0 || files > launchpad {
+		t.Fatal("quickconnect-files.js must be registered in scripts/build-ui-bundles.js before quickconnect-launchpad-chat.js")
+	}
+	keys := []string{
+		"desktop.qc_tab_desktop", "desktop.qc_file_access", "desktop.qc_file_access_off", "desktop.qc_file_access_auto",
+		"desktop.qc_file_access_sftp", "desktop.qc_file_access_smb", "desktop.qc_file_access_sftp_port", "desktop.qc_file_access_smb_share",
+		"desktop.qc_file_access_credential", "desktop.qc_file_access_same_credential", "desktop.qc_file_access_hint",
+		"desktop.qc_files_off", "desktop.qc_files_edit_device", "desktop.qc_files_admin_required", "desktop.qc_files_unavailable",
+		"desktop.qc_files_host_key_changed", "desktop.qc_files_host_key_mismatch", "desktop.qc_files_host_key_not_pending", "desktop.qc_files_auth_backoff",
+	}
+	// Loanwords that legitimately read the same as English.
+	sameAsEnglish := map[string]bool{"de/desktop.qc_tab_desktop": true, "it/desktop.qc_tab_desktop": true}
+	for _, key := range keys {
+		english := ""
+		for _, lang := range []string{"en", "cs", "da", "de", "el", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
+			data, err := os.ReadFile(filepath.Join("lang", "desktop", lang+".json"))
+			if err != nil {
+				t.Fatalf("read %s.json: %v", lang, err)
+			}
+			var table map[string]string
+			if err := json.Unmarshal(data, &table); err != nil {
+				t.Fatalf("parse %s.json: %v", lang, err)
+			}
+			value := strings.TrimSpace(table[key])
+			if value == "" {
+				t.Fatalf("%s.json is missing %s", lang, key)
+			}
+			if key == "desktop.qc_files_auth_backoff" && !strings.Contains(value, "{seconds}") {
+				t.Fatalf("%s.json: %s lost its {seconds} placeholder", lang, key)
+			}
+			if lang == "en" {
+				english = value
+			} else if value == english && !sameAsEnglish[lang+"/"+key] {
+				t.Fatalf("%s.json leaves %s untranslated", lang, key)
+			}
+		}
+	}
+	css := readAllDesktopAppCSS(t)
+	for _, marker := range []string{".vd-qc-file-access", ".vd-qc-sftp-smb"} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("quick connect css missing %s", marker)
+		}
+	}
+}

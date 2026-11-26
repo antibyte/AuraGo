@@ -305,6 +305,7 @@ func DeleteDevice(db *sql.DB, id string) error {
 	}
 	// A deleted device must not leave a pinned RDP certificate behind.
 	_ = DeleteRDPCertPin(db, id)
+	_ = DeleteDeviceFileAccess(db, id)
 	return nil
 }
 

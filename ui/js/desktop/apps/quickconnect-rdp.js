@@ -126,6 +126,7 @@
             let resizeTimer = 0;
             let lastSize = null;
             let connected = false;
+            let visible = true;
 
             const teardown = () => {
                 clearTimeout(resizeTimer);
@@ -147,6 +148,11 @@
                 scale(mode) {
                     const value = SCALES[mode];
                     if (value && element) element.scale = value;
+                },
+                // Hides or shows the remote desktop without resizing it (Files tab).
+                setVisible(on) {
+                    visible = !!on;
+                    if (ui) { try { ui.setVisibility(visible); } catch (_) {} }
                 },
                 ctrlAltDel() { if (ui) { try { ui.ctrlAltDel(); } catch (_) {} } },
                 meta() { if (ui) { try { ui.metaKey(); } catch (_) {} } },
@@ -196,7 +202,7 @@
                     if (options.domain) builder = builder.withServerDomain(options.domain);
                     const config = builder.build();
                     password = '';
-                    ui.setVisibility(true);
+                    ui.setVisibility(visible);
                     const info = await ui.connect(config);
                     if (ended) { teardown(); return; }
                     connected = true;
@@ -206,6 +212,8 @@
                             clearTimeout(resizeTimer);
                             resizeTimer = setTimeout(() => {
                                 if (ended || !ui) return;
+                                // A hidden container measures 0x0: keep the remote desktop size.
+                                if (container.clientWidth === 0 || container.clientHeight === 0) return;
                                 const next = desktopSize(container);
                                 if (lastSize && Math.abs(next.width - lastSize.width) < 4 && Math.abs(next.height - lastSize.height) < 4) return;
                                 lastSize = next;

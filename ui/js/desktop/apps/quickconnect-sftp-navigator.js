@@ -15,7 +15,7 @@
     }
 
     function createSFTPNavigator(listDirectory) {
-        const nav = { path: '/', entries: [], seq: 0, controller: null, loading: false, disposed: false };
+        const nav = { path: '/', entries: [], backend: '', rootLabel: '', seq: 0, controller: null, loading: false, disposed: false };
         nav.load = async function load(targetPath) {
             if (nav.disposed) return { status: 'disposed' };
             const seq = ++nav.seq;
@@ -33,6 +33,8 @@
                 });
                 nav.path = targetPath;
                 nav.entries = entries;
+                nav.backend = String((resp && resp.backend) || '');
+                nav.rootLabel = String((resp && resp.root_label) || '');
                 return { status: 'ok', path: targetPath, entries };
             } catch (error) {
                 if (seq !== nav.seq || nav.disposed || (error && error.name === 'AbortError')) return { status: 'stale' };

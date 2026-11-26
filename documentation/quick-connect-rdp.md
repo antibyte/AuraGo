@@ -111,6 +111,112 @@ Deleting the device removes its pin.
 TLS between AuraGo and the RDP server uses TLS 1.2. Windows RDP servers abort
 TLS 1.3 handshakes from Go clients, so TLS 1.2 is required.
 
+## File access
+
+The **Files** tab sits next to **Desktop** in an open RDP session. Use it to
+browse folders, upload and download files, and create, rename, copy, move and
+delete them. Files are reached on the same host over SFTP or SMB. They do not
+go through the remote desktop.
+
+The Files tab is always shown for RDP devices. When file access is off, the tab
+says so and offers an **Edit device** button.
+
+### Modes
+
+Set the mode for each device in the server dialog:
+
+| Mode | What AuraGo does |
+| --- | --- |
+| **Off** | No file access. AuraGo does not connect to ports 22 or 445 for this device. |
+| **Automatic (SFTP, then SMB)** | Tries SFTP on the SFTP port first. If no SSH server answers, tries SMB on port 445. |
+| **SFTP (SSH server)** | Uses SFTP only. |
+| **SMB share (Windows)** | Uses SMB only. |
+
+In Automatic mode, AuraGo remembers which protocol answered for 5 minutes.
+
+The other fields are:
+
+- **SFTP port**: default 22. Used in Automatic and SFTP modes.
+- **SMB share**: default `C$`. Used in Automatic and SMB modes.
+- **Credential for file access**: default **Same as RDP login**. Pick a saved
+  credential here if the file login is different.
+
+New RDP devices start in Automatic mode. RDP devices that already exist start
+in Off, so AuraGo makes no new connections until you turn file access on.
+
+The password stays on the AuraGo server. The browser never receives it.
+
+### Credential for file access
+
+GNOME Remote Desktop has its own RDP login. It usually differs from the Linux
+account. For a GNOME host, choose a credential that holds the Linux account
+here. AuraGo ignores the host stored in that credential and uses the host of
+the RDP device.
+
+### Linux hosts
+
+- Install an SSH server with SFTP support. On Debian and Ubuntu, run
+  `sudo apt install openssh-server`. Ubuntu Desktop does not run an SSH server
+  by default.
+- SFTP is limited to the home folder of the account.
+
+### Windows hosts
+
+Choose one of these options:
+
+- **SMB share (recommended).** Share a dedicated folder, and use a dedicated
+  account with access only to that share. For example:
+  `New-SmbShare -Name "AuraGo" -Path "D:\AuraGo" -FullAccess "LAB\auragofiles"`.
+  Then enter the share name in AuraGo.
+- **C$ (default admin share).** Needs an administrator account. For a local
+  account that is not a domain account, UAC remote restrictions remove the
+  admin rights over the network. C$ is then denied unless
+  `LocalAccountTokenFilterPolicy` is set to 1. That setting lowers protection,
+  so use a dedicated share where you can.
+- **OpenSSH Server feature.** Install it under **Settings → System → Optional
+  features**, or with `Add-WindowsCapability`. Automatic mode then uses SFTP.
+
+SMB has these rules:
+
+- SMB signing is always required.
+- Encryption depends on the server. To require it for all shares, run
+  `Set-SmbServerConfiguration -EncryptData $true`. To require it for one share,
+  run `Set-SmbShare -Name "AuraGo" -EncryptData $true`.
+- Only NTLM logins work. Kerberos is not supported yet.
+- SMB uses port 445 only. Enter an IPv4 address or a host name. IPv6 addresses
+  are not supported.
+- Microsoft accounts sign in with the e-mail address and the account password.
+
+### Who can use file access
+
+File access to an RDP device needs a signed-in browser session with
+authentication enabled, or a token with the `desktop:admin` scope. Other
+tokens are refused. This is the same rule that applies to RDP passwords.
+
+After a rejected login, file access pauses for 30 seconds. This protects the
+account from lockouts.
+
+### Trusting the SSH host key
+
+The first SFTP connection to a host needs your approval. AuraGo shows the
+fingerprint of the host key. Compare it with the key on the server before you
+confirm. On a Linux host, `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`
+shows the fingerprint.
+
+After you confirm, AuraGo stores the key in its known_hosts file and uses it
+from then on. If the key later changes, access is blocked. The dialog does not
+offer an override. Check that the change is expected, such as a reinstall, and
+then fix the entry in known_hosts on the AuraGo host.
+
+### Transfers and timeouts
+
+- Uploads are limited to 50 MiB per file.
+- The RDP session closes after it has been idle for a while (5 minutes by
+  default). Browsing in the Files tab does not count as input to the remote
+  desktop, so the desktop can disconnect while you work in Files. File access
+  does not depend on the RDP session. Click **Reconnect** to get the desktop
+  back.
+
 ## Security notes
 
 - The password is only sent to the browser when the session rules above allow
@@ -136,13 +242,22 @@ TLS 1.3 handshakes from Go clients, so TLS 1.2 is required.
 | Ticket expired | The one-time password ticket was older than 60 seconds or already used. | Click **Reconnect**. |
 | The remote computer's certificate has changed… | The stored fingerprint no longer matches the server certificate. | Check that the change is expected (renewal, reinstall). Then click **Trust new certificate**. |
 | Device not shown as connectable | No credential or user name is set, and no RDP server answered the probe. | Set a user name or linked credential, or check the port and firewall. |
+| File access is off for this device. | The device's file access mode is **Off**. | Click **Edit device**, choose a mode other than Off and save. |
+| File access to RDP devices needs a signed-in administrator session. (`file_access_admin_required`) | The browser session is not signed in, authentication is disabled, or the token lacks `desktop:admin`. | Sign in with authentication enabled, then try again. |
+| No SFTP or SMB service answered on this host. (`file_access_unavailable`) | Automatic mode found no SSH server on the SFTP port and no SMB server on port 445. | Install and start an SSH server, or turn on file sharing on Windows. Check the port and the firewall. |
+| Unknown host key prompt. (`unknown_host_key`) | This is the first SFTP connection, and the host key is not trusted yet. | Compare the fingerprint with the key on the server. Confirm only if it matches. |
+| The SSH host key of this host has changed. (`host_key_changed`) | The key in known_hosts no longer matches the server. | Check that the change is expected, such as a reinstall or renewed key. Then fix the entry in known_hosts on the AuraGo host. Access stays blocked until then. |
+| The host key changed while you were confirming it. (`host_key_mismatch`) | The key the server showed in the trust step is not the key you confirmed. | Try again and check the new fingerprint against the server. |
+| The host rejected the stored credential. Try again in 30 s. (`file_access_auth_backoff`) | The login failed. File access pauses for 30 seconds to avoid lockouts. | Check the user name, password and file-access credential. Wait for the pause to end. |
+| Access denied on C$ | The account has no admin rights over the network. This is usually UAC remote restrictions on a local account. | Use a dedicated SMB share, or set `LocalAccountTokenFilterPolicy` to 1 (lowers protection). |
 
 ## Limits
 
 The current version has these limits:
 
 - No clipboard sharing.
-- No file transfer.
+- File transfer works through the Files tab. Clipboard file transfer is not
+  supported yet.
 - No audio.
 - No printer redirection.
 - No multi-monitor support.

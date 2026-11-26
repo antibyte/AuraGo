@@ -7,17 +7,13 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"mime"
 	"net/http"
 	"path"
 	"regexp"
 	"strings"
-	"time"
 
-	"aurago/internal/inventory"
 	"aurago/internal/security"
-
-	"github.com/pkg/sftp"
-	"golang.org/x/crypto/ssh"
 )
 
 const maxSFTPUploadBytes int64 = 50 << 20
@@ -26,42 +22,6 @@ const maxSFTPUploadBytes int64 = 50 << 20
 var driveLetterPattern = regexp.MustCompile(`^[A-Za-z]:`)
 
 var errSFTPWindowsAbsolutePath = errors.New("absolute Windows or UNC paths are not allowed; use a path relative to the remote home")
-
-// connectSFTP opens an SSH connection and returns an SFTP client with a cleanup function.
-func connectSFTP(deviceID string, inventoryDB *sql.DB, vault *security.Vault, logger *slog.Logger) (*sftp.Client, func(), error) {
-	device, err := inventory.GetDeviceByID(inventoryDB, deviceID)
-	if err != nil {
-		return nil, nil, fmt.Errorf("device not found: %w", err)
-	}
-
-	host, port, username, secret, err := resolveSSHAccess(device, inventoryDB, vault)
-	if err != nil {
-		return nil, nil, fmt.Errorf("resolve SSH access: %w", err)
-	}
-
-	configResult, err := buildSSHConfig(username, secret, logger, nil)
-	if err != nil {
-		return nil, nil, fmt.Errorf("SSH config: %w", err)
-	}
-
-	addr := fmt.Sprintf("%s:%d", host, port)
-	sshClient, err := ssh.Dial("tcp", addr, configResult.Config)
-	if err != nil {
-		return nil, nil, fmt.Errorf("SSH dial: %w", err)
-	}
-
-	sftpClient, err := sftp.NewClient(sshClient)
-	if err != nil {
-		sshClient.Close()
-		return nil, nil, fmt.Errorf("SFTP client: %w", err)
-	}
-
-	cleanup := func() {
-		sftpClient.Close()
-		sshClient.Close()
-	}
-	return sftpClient, cleanup, nil
-}
 
 func normalizeSFTPRemotePath(raw string) (string, error) {
 	p := strings.TrimSpace(raw)
@@ -153,8 +113,20 @@ func jsonOK(w http.ResponseWriter, data interface{}) {
 	json.NewEncoder(w).Encode(data)
 }
 
-// HandleSFTPList returns a handler that lists directory contents via SFTP.
-func HandleSFTPList(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Logger) http.HandlerFunc {
+// openFS opens the file backend for a request and writes the error response
+// itself when that fails.
+func openFS(w http.ResponseWriter, r *http.Request, deps remoteFilesDeps, deviceID string) (remoteFS, bool) {
+	fsys, err := remoteFSOpener(r, deviceID, deps)
+	if err != nil {
+		writeRemoteFSError(w, err)
+		return nil, false
+	}
+	return fsys, true
+}
+
+// HandleSFTPList returns a handler that lists directory contents.
+func HandleSFTPList(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Logger, opts ...RemoteFilesOptions) http.HandlerFunc {
+	deps := newRemoteFilesDeps(inventoryDB, vault, logger, opts)
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			jsonSFTPError(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -175,36 +147,27 @@ func HandleSFTPList(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Log
 			return
 		}
 
-		client, cleanup, err := connectSFTP(deviceID, inventoryDB, vault, logger)
-		if err != nil {
-			jsonSFTPError(w, err.Error(), http.StatusBadGateway)
+		fsys, ok := openFS(w, r, deps, deviceID)
+		if !ok {
 			return
 		}
-		defer cleanup()
+		defer fsys.Close()
 
-		entries, err := client.ReadDir(dirPath)
+		entries, err := fsys.ReadDir(r.Context(), dirPath)
 		if err != nil {
 			jsonSFTPError(w, fmt.Sprintf("read directory: %v", err), http.StatusBadGateway)
 			return
 		}
-
-		result := make([]sftpEntry, 0, len(entries))
-		for _, e := range entries {
-			result = append(result, sftpEntry{
-				Name:    e.Name(),
-				Size:    e.Size(),
-				Mode:    e.Mode().String(),
-				ModTime: e.ModTime().Format(time.RFC3339),
-				IsDir:   e.IsDir(),
-			})
+		if entries == nil {
+			entries = []sftpEntry{}
 		}
-
-		jsonOK(w, map[string]interface{}{"entries": result})
+		jsonOK(w, map[string]interface{}{"entries": entries, "backend": fsys.Backend(), "root_label": fsys.RootLabel()})
 	}
 }
 
-// HandleSFTPStat returns a handler that stats a single file/directory via SFTP.
-func HandleSFTPStat(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Logger) http.HandlerFunc {
+// HandleSFTPStat returns a handler that stats a single file/directory.
+func HandleSFTPStat(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Logger, opts ...RemoteFilesOptions) http.HandlerFunc {
+	deps := newRemoteFilesDeps(inventoryDB, vault, logger, opts)
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			jsonSFTPError(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -222,31 +185,24 @@ func HandleSFTPStat(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Log
 			return
 		}
 
-		client, cleanup, err := connectSFTP(deviceID, inventoryDB, vault, logger)
-		if err != nil {
-			jsonSFTPError(w, err.Error(), http.StatusBadGateway)
+		fsys, ok := openFS(w, r, deps, deviceID)
+		if !ok {
 			return
 		}
-		defer cleanup()
+		defer fsys.Close()
 
-		info, err := client.Stat(filePath)
+		entry, err := fsys.Stat(r.Context(), filePath)
 		if err != nil {
 			jsonSFTPError(w, fmt.Sprintf("stat: %v", err), http.StatusBadGateway)
 			return
 		}
-
-		jsonOK(w, sftpEntry{
-			Name:    info.Name(),
-			Size:    info.Size(),
-			Mode:    info.Mode().String(),
-			ModTime: info.ModTime().Format(time.RFC3339),
-			IsDir:   info.IsDir(),
-		})
+		jsonOK(w, entry)
 	}
 }
 
-// HandleSFTPMkdir returns a handler that creates a directory via SFTP.
-func HandleSFTPMkdir(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Logger) http.HandlerFunc {
+// HandleSFTPMkdir returns a handler that creates a directory.
+func HandleSFTPMkdir(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Logger, opts ...RemoteFilesOptions) http.HandlerFunc {
+	deps := newRemoteFilesDeps(inventoryDB, vault, logger, opts)
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			jsonSFTPError(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -275,24 +231,23 @@ func HandleSFTPMkdir(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Lo
 			return
 		}
 
-		client, cleanup, err := connectSFTP(req.DeviceID, inventoryDB, vault, logger)
-		if err != nil {
-			jsonSFTPError(w, err.Error(), http.StatusBadGateway)
+		fsys, ok := openFS(w, r, deps, req.DeviceID)
+		if !ok {
 			return
 		}
-		defer cleanup()
+		defer fsys.Close()
 
-		if err := client.Mkdir(req.Path); err != nil {
+		if err := fsys.Mkdir(r.Context(), req.Path); err != nil {
 			jsonSFTPError(w, fmt.Sprintf("mkdir: %v", err), http.StatusBadGateway)
 			return
 		}
-
 		jsonOK(w, map[string]bool{"ok": true})
 	}
 }
 
-// HandleSFTPDelete returns a handler that deletes a file or directory via SFTP.
-func HandleSFTPDelete(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Logger) http.HandlerFunc {
+// HandleSFTPDelete returns a handler that deletes a file or directory.
+func HandleSFTPDelete(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Logger, opts ...RemoteFilesOptions) http.HandlerFunc {
+	deps := newRemoteFilesDeps(inventoryDB, vault, logger, opts)
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			jsonSFTPError(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -321,37 +276,32 @@ func HandleSFTPDelete(inventoryDB *sql.DB, vault *security.Vault, logger *slog.L
 			return
 		}
 
-		client, cleanup, err := connectSFTP(req.DeviceID, inventoryDB, vault, logger)
-		if err != nil {
-			jsonSFTPError(w, err.Error(), http.StatusBadGateway)
+		fsys, ok := openFS(w, r, deps, req.DeviceID)
+		if !ok {
 			return
 		}
-		defer cleanup()
+		defer fsys.Close()
 
-		info, err := client.Stat(req.Path)
+		info, err := fsys.Stat(r.Context(), req.Path)
 		if err != nil {
 			jsonSFTPError(w, fmt.Sprintf("stat: %v", err), http.StatusBadGateway)
 			return
 		}
-
-		if info.IsDir() {
-			if err := client.RemoveDirectory(req.Path); err != nil {
-				jsonSFTPError(w, fmt.Sprintf("remove directory: %v", err), http.StatusBadGateway)
-				return
+		if err := fsys.Remove(r.Context(), req.Path, info.IsDir); err != nil {
+			label := "remove"
+			if info.IsDir {
+				label = "remove directory"
 			}
-		} else {
-			if err := client.Remove(req.Path); err != nil {
-				jsonSFTPError(w, fmt.Sprintf("remove: %v", err), http.StatusBadGateway)
-				return
-			}
+			jsonSFTPError(w, fmt.Sprintf("%s: %v", label, err), http.StatusBadGateway)
+			return
 		}
-
 		jsonOK(w, map[string]bool{"ok": true})
 	}
 }
 
-// HandleSFTPRename returns a handler that renames/moves a file or directory via SFTP.
-func HandleSFTPRename(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Logger) http.HandlerFunc {
+// HandleSFTPRename returns a handler that renames a file or directory.
+func HandleSFTPRename(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Logger, opts ...RemoteFilesOptions) http.HandlerFunc {
+	deps := newRemoteFilesDeps(inventoryDB, vault, logger, opts)
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			jsonSFTPError(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -386,24 +336,37 @@ func HandleSFTPRename(inventoryDB *sql.DB, vault *security.Vault, logger *slog.L
 			return
 		}
 
-		client, cleanup, err := connectSFTP(req.DeviceID, inventoryDB, vault, logger)
-		if err != nil {
-			jsonSFTPError(w, err.Error(), http.StatusBadGateway)
+		fsys, ok := openFS(w, r, deps, req.DeviceID)
+		if !ok {
 			return
 		}
-		defer cleanup()
+		defer fsys.Close()
 
-		if err := client.Rename(req.OldPath, req.NewPath); err != nil {
+		if err := fsys.Rename(r.Context(), req.OldPath, req.NewPath); err != nil {
 			jsonSFTPError(w, fmt.Sprintf("rename: %v", err), http.StatusBadGateway)
 			return
 		}
-
 		jsonOK(w, map[string]bool{"ok": true})
 	}
 }
 
-// HandleSFTPCopy returns a handler that copies a file via SFTP (read + write through the tunnel).
-func HandleSFTPCopy(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Logger) http.HandlerFunc {
+// copyRemoteFile streams src to dst on one backend and reports the first error
+// including the destination's close error (SMB reports write failures there).
+func copyRemoteFile(r *http.Request, fsys remoteFS, src, dst string) error {
+	in, _, err := fsys.Open(r.Context(), src)
+	if err != nil {
+		return fmt.Errorf("open source: %w", err)
+	}
+	defer in.Close()
+	if err := writeRemoteFileSafely(r.Context(), fsys, dst, in); err != nil {
+		return fmt.Errorf("copy: %w", err)
+	}
+	return nil
+}
+
+// HandleSFTPCopy returns a handler that copies a file (read + write through the server).
+func HandleSFTPCopy(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Logger, opts ...RemoteFilesOptions) http.HandlerFunc {
+	deps := newRemoteFilesDeps(inventoryDB, vault, logger, opts)
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			jsonSFTPError(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -438,38 +401,23 @@ func HandleSFTPCopy(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Log
 			return
 		}
 
-		client, cleanup, err := connectSFTP(req.DeviceID, inventoryDB, vault, logger)
-		if err != nil {
+		fsys, ok := openFS(w, r, deps, req.DeviceID)
+		if !ok {
+			return
+		}
+		defer fsys.Close()
+
+		if err := copyRemoteFile(r, fsys, req.SrcPath, req.DstPath); err != nil {
 			jsonSFTPError(w, err.Error(), http.StatusBadGateway)
 			return
 		}
-		defer cleanup()
-
-		srcFile, err := client.Open(req.SrcPath)
-		if err != nil {
-			jsonSFTPError(w, fmt.Sprintf("open source: %v", err), http.StatusBadGateway)
-			return
-		}
-		defer srcFile.Close()
-
-		dstFile, err := client.Create(req.DstPath)
-		if err != nil {
-			jsonSFTPError(w, fmt.Sprintf("create destination: %v", err), http.StatusBadGateway)
-			return
-		}
-		defer dstFile.Close()
-
-		if _, err := io.Copy(dstFile, srcFile); err != nil {
-			jsonSFTPError(w, fmt.Sprintf("copy: %v", err), http.StatusBadGateway)
-			return
-		}
-
 		jsonOK(w, map[string]bool{"ok": true})
 	}
 }
 
-// HandleSFTPMove returns a handler that moves a file via SFTP (copy + delete).
-func HandleSFTPMove(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Logger) http.HandlerFunc {
+// HandleSFTPMove returns a handler that moves a file (a rename on the remote host).
+func HandleSFTPMove(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Logger, opts ...RemoteFilesOptions) http.HandlerFunc {
+	deps := newRemoteFilesDeps(inventoryDB, vault, logger, opts)
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			jsonSFTPError(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -504,24 +452,23 @@ func HandleSFTPMove(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Log
 			return
 		}
 
-		client, cleanup, err := connectSFTP(req.DeviceID, inventoryDB, vault, logger)
-		if err != nil {
-			jsonSFTPError(w, err.Error(), http.StatusBadGateway)
+		fsys, ok := openFS(w, r, deps, req.DeviceID)
+		if !ok {
 			return
 		}
-		defer cleanup()
+		defer fsys.Close()
 
-		if err := client.Rename(req.SrcPath, req.DstPath); err != nil {
+		if err := fsys.Rename(r.Context(), req.SrcPath, req.DstPath); err != nil {
 			jsonSFTPError(w, fmt.Sprintf("move: %v", err), http.StatusBadGateway)
 			return
 		}
-
 		jsonOK(w, map[string]bool{"ok": true})
 	}
 }
 
-// HandleSFTPUpload returns a handler that uploads a file to the remote host via SFTP.
-func HandleSFTPUpload(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Logger) http.HandlerFunc {
+// HandleSFTPUpload returns a handler that uploads a file to the remote host.
+func HandleSFTPUpload(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Logger, opts ...RemoteFilesOptions) http.HandlerFunc {
+	deps := newRemoteFilesDeps(inventoryDB, vault, logger, opts)
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			jsonSFTPError(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -564,21 +511,13 @@ func HandleSFTPUpload(inventoryDB *sql.DB, vault *security.Vault, logger *slog.L
 			return
 		}
 
-		client, cleanup, err := connectSFTP(deviceID, inventoryDB, vault, logger)
-		if err != nil {
-			jsonSFTPError(w, err.Error(), http.StatusBadGateway)
+		fsys, ok := openFS(w, r, deps, deviceID)
+		if !ok {
 			return
 		}
-		defer cleanup()
+		defer fsys.Close()
 
-		dstFile, err := client.Create(remotePath)
-		if err != nil {
-			jsonSFTPError(w, fmt.Sprintf("create remote file: %v", err), http.StatusBadGateway)
-			return
-		}
-		defer dstFile.Close()
-
-		if _, err := io.Copy(dstFile, file); err != nil {
+		if err := writeRemoteFileSafely(r.Context(), fsys, remotePath, file); err != nil {
 			jsonSFTPError(w, fmt.Sprintf("upload: %v", err), http.StatusBadGateway)
 			return
 		}
@@ -587,8 +526,9 @@ func HandleSFTPUpload(inventoryDB *sql.DB, vault *security.Vault, logger *slog.L
 	}
 }
 
-// HandleSFTPDownload returns a handler that downloads a file from the remote host via SFTP.
-func HandleSFTPDownload(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Logger) http.HandlerFunc {
+// HandleSFTPDownload returns a handler that downloads a file from the remote host.
+func HandleSFTPDownload(inventoryDB *sql.DB, vault *security.Vault, logger *slog.Logger, opts ...RemoteFilesOptions) http.HandlerFunc {
+	deps := newRemoteFilesDeps(inventoryDB, vault, logger, opts)
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			jsonSFTPError(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -606,32 +546,29 @@ func HandleSFTPDownload(inventoryDB *sql.DB, vault *security.Vault, logger *slog
 			return
 		}
 
-		client, cleanup, err := connectSFTP(deviceID, inventoryDB, vault, logger)
-		if err != nil {
-			jsonSFTPError(w, err.Error(), http.StatusBadGateway)
+		fsys, ok := openFS(w, r, deps, deviceID)
+		if !ok {
 			return
 		}
-		defer cleanup()
+		defer fsys.Close()
 
-		srcFile, err := client.Open(filePath)
+		src, size, err := fsys.Open(r.Context(), filePath)
 		if err != nil {
 			jsonSFTPError(w, fmt.Sprintf("open remote file: %v", err), http.StatusBadGateway)
 			return
 		}
-		defer srcFile.Close()
+		defer src.Close()
 
-		stat, err := srcFile.Stat()
-		if err != nil {
-			jsonSFTPError(w, fmt.Sprintf("stat remote file: %v", err), http.StatusBadGateway)
-			return
+		disposition := mime.FormatMediaType("attachment", map[string]string{"filename": path.Base(filePath)})
+		if disposition == "" {
+			disposition = "attachment"
 		}
-
 		w.Header().Set("Content-Type", "application/octet-stream")
-		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, path.Base(filePath)))
-		w.Header().Set("Content-Length", fmt.Sprintf("%d", stat.Size()))
+		w.Header().Set("Content-Disposition", disposition)
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", size))
 
-		if _, err := io.Copy(w, srcFile); err != nil {
-			logger.Warn("SFTP download stream error", "error", err)
+		if _, err := io.Copy(w, src); err != nil {
+			deps.logger.Warn("SFTP download stream error", "error", err)
 		}
 	}
 }
