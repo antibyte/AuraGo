@@ -403,7 +403,6 @@
   "storymaker.agent.check_scene_unfilled": "Deze scène heeft nog werk nodig. Vraag de auteur om hem af te maken.",
   "storymaker.agent.check_compile_failed": "De preview kon deze film niet voorbereiden. Vraag de auteur om een correctie, of bekijk de lijst met problemen.",
   "storymaker.agent.check_over_target": "De film is langer dan je vroeg. Vraag de auteur om hem in te korten.",
-  "storymaker.agent.check_over_budget": "Een scène heeft meer woorden dan gepland. Vraag de auteur om hem in te korten.",
   "storymaker.agent.check_craft": "De film oogt nog op één punt eentonig: omgevingen, camera, gebaren of cast. Bekijk hem eenmaal en pas scènes aan als je wilt.",
   "storymaker.agent.check_scenes_look_alike": "Sommige scènes lijken te veel op elkaar. Vraag de auteur ze te variëren.",
   "storymaker.agent.check_over_export_limit": "De film is langer dan de exportlimiet. Vraag de auteur hem in te korten.",

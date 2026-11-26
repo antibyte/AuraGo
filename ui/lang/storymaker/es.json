@@ -403,7 +403,6 @@
   "storymaker.agent.check_scene_unfilled": "Esta escena aún necesita trabajo. Pide al autor que la termine.",
   "storymaker.agent.check_compile_failed": "La vista previa no pudo preparar esta película. Pide al autor que la corrija o mira la lista de problemas.",
   "storymaker.agent.check_over_target": "La película es más larga de lo que pediste. Pide al autor que la acorte.",
-  "storymaker.agent.check_over_budget": "Una escena tiene más palabras de las previstas. Pide al autor que la acorte.",
   "storymaker.agent.check_craft": "La película aún resulta uniforme en un aspecto: entornos, encuadre, gestos o reparto. Míralo una vez y ajusta escenas si quieres.",
   "storymaker.agent.check_scenes_look_alike": "Algunas escenas se parecen demasiado. Pide al autor que las varíe.",
   "storymaker.agent.check_over_export_limit": "La película es más larga que el límite de exportación. Pide al autor que la acorte.",
