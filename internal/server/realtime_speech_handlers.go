@@ -234,7 +234,7 @@ func handlePutRealtimeSpeechConfig(s *Server, w http.ResponseWriter, r *http.Req
 		if s != nil && s.Logger != nil {
 			s.Logger.Error("[RealtimeSpeech] Failed to update configuration", "error", err)
 		}
-		jsonError(w, err.Error(), http.StatusInternalServerError)
+		jsonError(w, "Failed to update realtime speech configuration", http.StatusInternalServerError)
 		return
 	}
 	writeRealtimeSpeechConfig(w, realtimeSpeechConfigSnapshot(s))
@@ -750,7 +750,10 @@ func handleRealtimeSpeechActions(s *Server, registry *realtimespeech.Registry, w
 		})
 		responseBroker, err := newRealtimeSpeechActionResponseBroker(w, session.ChatSessionID)
 		if err != nil {
-			jsonError(w, err.Error(), http.StatusInternalServerError)
+			if s != nil && s.Logger != nil {
+				s.Logger.Error("[RealtimeSpeech] Failed to create action response broker", "error", err)
+			}
+			jsonError(w, "Failed to start realtime speech action", http.StatusInternalServerError)
 			return
 		}
 		inner := r.Clone(withFeedbackBrokerOverride(actionContext, responseBroker))
