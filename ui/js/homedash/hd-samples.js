@@ -1,11 +1,13 @@
 // HomeDash sample states (M4 part 2, D5): one sample entity view per registered widget type (the values of ui/testdata/homedash-lab/*-fixtures.js,
-// names through literal keys), deterministic history, and thumb(): a widget host in 'thumb' mode at its thumb size on 56 px cells, scaled into a
-// fixed box with --hd-e-tw/-th/-ts. A thumb never sends a command (thumb mode, can() false) and never subscribes; entity(binding) may give a real view.
+// names through literal keys), deterministic history, and thumb(): a widget host in 'thumb' mode at its thumb size on the cells a dashboard really has
+// (80 px, 12 px gap), scaled to fit the parent box (never cropped, 4 px margin) with --hd-e-tw/-th/-ts. The scale follows the parent's real size
+// (ResizeObserver); o.box is the size used until it is measured. o.family sets the style family (the dashboard's look); the caller rebuilds the thumb
+// when the family changes. A thumb never sends a command (thumb mode, can() false) and never subscribes; entity(binding) may give a real view.
 (function () {
     'use strict';
     const E = window.HomeDashEngine;
     if (!E || !E.core || !E.widgets || !E.catalog) throw new Error('hd-samples.js: load hd-widgets.js and hd-catalog.js first');
-    const { el, setVars, clamp, uid } = E.core, DEG_C = String.fromCodePoint(0xb0) + 'C', CELL = 56, GAP = 8;
+    const { el, setVars, clamp, uid } = E.core, DEG_C = String.fromCodePoint(0xb0) + 'C', CELL = 80, GAP = 12, INSET = 4;
     const cap = (name, extra) => Object.freeze(Object.assign({ name, allowed: true }, extra || {}));
     function view(id, kind, name, extra) {
         const x = extra || {};
@@ -39,7 +41,7 @@
     const pxOf = s => ({ width: s.w * CELL + (s.w - 1) * GAP, height: s.h * CELL + (s.h - 1) * GAP });
     const scaleFor = (px, box) => Math.round(Math.min(1, box.width / px.width, box.height / px.height) * 1000) / 1000;
     function thumb(o) {
-        const w = o.widget, size = o.size || thumbSize(o.catalog, w.type, w.variant), px = pxOf(size), samples = entities(w.type, o.t);
+        const w = o.family && !o.widget.family ? Object.assign({}, o.widget, { family: o.family }) : o.widget, size = o.size || thumbSize(o.catalog, w.type, w.variant), px = pxOf(size), samples = entities(w.type, o.t);
         const node = el('div', { class: 'hd-thumb', 'aria-hidden': 'true' }); setVars(node, { '--hd-e-tw': px.width + 'px', '--hd-e-th': px.height + 'px', '--hd-e-ts': scaleFor(px, o.box) });
         const entity = b => (typeof o.entity === 'function' && o.entity(b)) || samples[b] || null;
         const api = () => ({ widget: w, t: o.t, lang: o.lang, entity, can: () => false, command: () => Promise.resolve({ status: 'refused' }), moreInfo: () => false, history: () => Promise.resolve(history(w.type)), announce: () => {} });
@@ -47,7 +49,10 @@
         try { host = E.widgets.host({ widget: Object.assign({ id: uid('hd-thumb') }, w), mode: 'thumb', size, t: o.t, lang: o.lang, parent: node, api }); host.resize({ w: size.w, h: size.h, px }); }
         catch (err) { host = null; node.replaceChildren(E.icons.icon('entity')); node.setAttribute('data-hd-thumb', 'none'); }
         if (o.parent) o.parent.appendChild(node);
-        return Object.freeze({ el: node, update() { if (host) host.update(); }, destroy() { if (host) host.destroy(); host = null; node.remove(); } });
+        const fit = box => { if (box && box.width > 0 && box.height > 0) setVars(node, { '--hd-e-ts': scaleFor(px, { width: box.width - 2 * INSET, height: box.height - 2 * INSET }) }); };
+        const RO = o.ResizeObserver || (typeof ResizeObserver === 'function' ? ResizeObserver : null), ro = RO && o.parent ? new RO(() => fit({ width: o.parent.clientWidth, height: o.parent.clientHeight })) : null;
+        if (ro) ro.observe(o.parent);
+        return Object.freeze({ el: node, fit, update() { if (host) host.update(); }, destroy() { if (ro) ro.disconnect(); if (host) host.destroy(); host = null; node.remove(); } });
     }
     E.samples = Object.freeze({ CELL, GAP, entities, history, thumbSize, pxOf, scaleFor, thumb });
 })();

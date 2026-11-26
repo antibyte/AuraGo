@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'; import fs from 'node:fs'; import path from 'node:path';
-import { read, root } from './harness.mjs'; import { lintCss, lintJs } from './css-lint.mjs'; import { PARTS } from './bundle.test.mjs';
+import { read, root } from './harness.mjs'; import { lintCss, lintJs, commentIssues } from './css-lint.mjs'; import { PARTS } from './bundle.test.mjs';
 const BAD = `.x { color: #fff; }
 .hd-a { color: red; background: rgb(0 0 0); text-transform: uppercase; }
 .hd-b { transition: opacity 1s; }
@@ -29,6 +29,11 @@ export const tests = [
       assert.ok(v.includes(want), 'missing: ' + want + '\n' + v);
     assert.deepEqual(lintCss(GOOD, { file: 'good.css', kind: 'family' }), []); }],
   ['every bundle part passes the guard', () => { for (const p of PARTS) assert.deepEqual(lintCss(read(p), { file: p, kind: /family-/.test(p) ? 'family' : 'part' }), [], p); }],
+  ['the comment guard catches a star-slash inside a comment (G1) and every HomeDash stylesheet is clean', () => {
+    const bad = '/* paints from --vd-mat-*/--vd-*/--ds-* only */\n.hd-a { --hdx-e-line: red; }\n.hd-b { color: var(--x); }';
+    const v = commentIssues(bad, 'bad.css').join('\n'); assert.ok(/stray \*\//.test(v), v); assert.ok(/malformed selector/.test(v), v);
+    assert.deepEqual(commentIssues('/* a, b and --vd-mat-*, --vd-* */\n.hd-a { color: var(--x); } /* tail */\n', 'ok.css'), []);
+    for (const p of [...PARTS, 'ui/css/desktop-app-homedash.css']) assert.deepEqual(commentIssues(read(p), p), [], p); }],
   ['the JS guard reports forbidden calls', () => { const v = lintJs('a.innerHTML = x; b.setAttribute("style", y); alert(1); new Function("x"); c.style.cssText = ""', 'x.js').join('\n');
     for (const want of ['innerHTML', "setAttribute('style'", 'browser dialogs', 'new Function', 'style.cssText']) assert.ok(v.includes(want), want);
     assert.deepEqual(lintJs('E.sheet.confirm(x); el.style.setProperty("--hd-v", 1);', 'ok.js'), []); }],

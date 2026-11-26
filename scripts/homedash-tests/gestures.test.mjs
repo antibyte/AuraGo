@@ -8,11 +8,11 @@ const count = (node, type) => (node._l.get(type) || new Set()).size;
 function rig(opts) {
   const { E, document } = loadEngine(FILES, { dom: true }), clock = fakeClock(), o = Object.assign({ readonly: false, selection: [], compact: false }, opts);
   const root = document.createElement('div'), stage = document.createElement('div'), pageEl = document.createElement('div'); stage.scrollLeft = 0; stage.scrollTop = 0;
-  root.appendChild(stage); stage.appendChild(pageEl); pageEl.setAttribute('class', 'hd-page'); stage.getBoundingClientRect = () => box(0, 0, 600, 400); pageEl.getBoundingClientRect = () => box(0, 0, 600, 800); root.getBoundingClientRect = () => box(0, 0, 900, 400);
+  root.appendChild(stage); stage.appendChild(pageEl); pageEl.setAttribute('class', 'hd-page'); stage.getBoundingClientRect = () => box(0, 0, 600, 400); pageEl.getBoundingClientRect = () => box(0, 0, o.zoom ? 1180 * o.zoom : 600, 800 * (o.zoom || 1)); root.getBoundingClientRect = () => box(0, 0, 900, 400);
   let items = [{ id: 'a', x: 0, y: 0, w: 2, h: 2 }, { id: 'b', x: 4, y: 0, w: 2, h: 2 }];
   const frames = {}; for (const i of items) { const f = document.createElement('div'); f.setAttribute('class', 'hd-widget'); f.setAttribute('data-hd-wid', i.id); pageEl.appendChild(f); frames[i.id] = f; }
   const log = { preview: [], select: [], commit: [], hold: [], announce: [] }, queue = [];
-  const page = { el: pageEl, metrics: () => M, items: () => items, frame: id => frames[id] || null, preview(list, po) { log.preview.push({ list, po }); return 0; } };
+  const page = { el: pageEl, metrics: () => (o.zoom ? Object.assign({}, M, { zoom: o.zoom }) : M), items: () => items, frame: id => frames[id] || null, preview(list, po) { log.preview.push({ list, po }); return 0; } };
   const ctx = () => ({ page, doc: null, pageId: 'p', bp: 'lg', selection: o.selection, items, cols: 12, compact: o.compact, readonly: o.readonly, C: () => o.C || { minW: 1, minH: 1, maxW: 12, maxH: 20 },
     catalog: { accepts: (type, b, ent) => type === 'light' && ent.id === 'ok' }, widget: id => ({ id, type: id === 'a' ? 'light' : 'gauge' }) });
   const G = E.gestures.create({ root, stage, ctx, select: (ids, so) => log.select.push([ids, so]), commit: (k, p) => log.commit.push([k, p]), hold: on => log.hold.push(on),
@@ -112,5 +112,22 @@ export const tests = [
     down(r, r.frames.a, 50, 50); mv(r, 60, 50); mv(r, 160, 50); r.G.destroy(); eq(r.log.hold, [true, false, true, false]); eq(r.log.commit, []); assert.equal(r.pageEl.children.some(c => c.getAttribute('class') === 'hd-edit-layer'), false); assert.equal(count(r.stage, 'pointerdown'), 0); assert.equal(count(r.document, 'pointermove'), 0); assert.equal(count(r.document, 'pointerup'), 0); assert.equal(count(r.document, 'blur'), 0);
     assert.equal(r.queue.filter(Boolean).length, 0); const n = r.log.preview.length; down(r, r.frames.a, 50, 50); mv(r, 60, 50); mv(r, 160, 50); r.frame(); assert.equal(r.G.active(), null); assert.equal(r.log.preview.length, n); r.G.destroy(); }],
   ['gestures: no inline style strings and no style attribute on anything the controller builds', () => { const r = rig(); r.G.showSelection('a', 'c'); down(r, r.frames.a, 50, 50); mv(r, 60, 50); mv(r, 160, 150); r.frame();
-    const all = [r.pageEl, ...r.pageEl.querySelectorAll('*'), r.root]; for (const n of all) assert.equal(n.getAttribute('style'), null, n.getAttribute('class') || 'node'); up(r, 160, 150); }]
+    const all = [r.pageEl, ...r.pageEl.querySelectorAll('*'), r.root]; for (const n of all) assert.equal(n.getAttribute('style'), null, n.getAttribute('class') || 'node'); up(r, 160, 150); }],
+  ['gestures (G2): toPage divides a viewport length by the zoom and treats a missing zoom as 1', () => { const { E } = loadEngine(FILES, { dom: true }), m = E.gestures.math;
+    assert.equal(m.toPage(0.5, 40), 80); assert.equal(m.toPage(0.75, 75), 100); assert.equal(m.toPage(1, 33), 33); assert.equal(m.toPage(undefined, 33), 33); assert.equal(m.toPage(0, 33), 33); }],
+  ['gestures (G2): at zoom 0.5 and 0.75 a pointer move converts to page px: one cell, the drag vars, the settle and the resize all follow the page, not the screen', () => {
+    const r = rig({ zoom: 0.5 }); down(r, r.frames.a, 100, 100); mv(r, 110, 100); mv(r, 140, 100); r.frame();
+    eq(r.log.preview.at(-1).list.find(i => i.id === 'a'), { id: 'a', x: 1, y: 0, w: 2, h: 2 }, '40 screen px = 80 page px = one cell'); assert.equal(r.frames.a.style.getPropertyValue('--hd-e-dx'), '80px', 'the drag translate is in page px (the zoom scales it back to 40)');
+    up(r, 140, 100); eq(r.log.commit[0][1].next.find(i => i.id === 'a'), { id: 'a', x: 1, y: 0, w: 2, h: 2 });
+    const q = rig({ zoom: 0.75 }); down(q, q.frames.a, 100, 100); mv(q, 110, 100); mv(q, 245, 100); q.frame(); eq(q.log.preview.at(-1).list.find(i => i.id === 'a'), { id: 'a', x: 2, y: 0, w: 2, h: 2 }, '145 screen px = 193 page px = two cells'); up(q, 245, 100);
+    const s = rig({ zoom: 0.5 }); s.G.showSelection('a', ''); const se = layerOf(s).children[0].querySelectorAll('.hd-handle').find(h => h.getAttribute('data-edge') === 'se'); down(s, se, 100, 100); mv(s, 110, 100); mv(s, 140, 100); s.frame();
+    eq(s.log.preview.at(-1).list.find(i => i.id === 'a'), { id: 'a', x: 0, y: 0, w: 3, h: 2 }); up(s, 140, 100); assert.equal(s.log.commit[0][1].next.find(i => i.id === 'a').w, 3);
+    const k = rig({ zoom: 0.5 }); down(k, k.frames.a, 100, 100); mv(k, 110, 100); k.stage.scrollTop = 20; mv(k, 110, 100); k.frame(); up(k, 110, 100); eq(k.log.commit, [], '20 screen px of scroll = 40 page px, still the start cell: no commit');
+    k.stage.scrollTop = 0; const z = rig({ zoom: 0.5 }); down(z, z.frames.a, 100, 100); mv(z, 110, 100); z.stage.scrollTop = 60; mv(z, 110, 100); z.frame(); up(z, 110, 100); assert.equal(z.log.commit[0][1].next.find(i => i.id === 'a').y, 1, '60 screen px of scroll = 120 page px = one cell'); }],
+  ['gestures (G2): at zoom 0.5 the marquee rect and the drop target are page-local', () => {
+    const r = rig({ zoom: 0.5 }); down(r, r.pageEl, 260, 150); mv(r, 250, 150); mv(r, 100, 60); r.frame(); eq(r.log.select.at(-1), [['b'], { live: true }], 'page rect 200..520 x 120..300 hits b only');
+    assert.equal(layerOf(r).children.find(c => c.getAttribute('class') === 'hd-marquee').style.getPropertyValue('--hd-e-mw'), '320px', 'the marquee is drawn in page px'); up(r, 100, 60); eq(r.log.commit, [['marquee', { ids: ['b'], additive: false }]]);
+    const drop = (zoom, x, y) => { const d = rig({ zoom }), payload = { kind: 'widget', entries: () => [{ widget: { type: 'light' }, size: { w: 2, h: 2 } }], avatar: () => d.document.createElement('span'), label: 'Light' };
+      d.G.dragFrom(pe('pointerdown', 700, 20, { target: d.root, currentTarget: d.root }), payload); mv(d, 710, 20); mv(d, x, y); d.frame(); up(d, x, y); return d.log.commit[0]; };
+    const full = drop(1, 300, 300), half = drop(0.5, 150, 150); eq(half, full); assert.equal(full[0], 'add'); }]
 ];

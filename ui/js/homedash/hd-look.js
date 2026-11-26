@@ -63,7 +63,7 @@
         const swEls = ['canvas', 'surface', 'ink', 'accent', 'on'].map(n => el('span', { class: 'hd-look-swatch', 'data-swatch': n })), swBox = el('div', { class: 'hd-look-swatches', 'aria-hidden': 'true' }, swEls);
         function paintSw() { const sw = swatches(look().palette.custom); swEls.forEach(s => setVars(s, { '--hd-e-sw': sw[s.getAttribute('data-swatch')] })); }
         customBox.append(F.field({ label: t('homedash.look.accent'), control: accent }).el, F.field({ label: t('homedash.look.surface_hue'), control: hueCtl }).el, F.field({ label: t('homedash.look.scheme'), control: scheme }).el, swBox, el('p', { class: 'hd-f-help', text: t('homedash.look.custom_hint') }));
-        content.appendChild(F.section(t('homedash.look.colours'), [F.field({ label: t('homedash.look.colours'), control: mode }).el, customBox]));
+        content.appendChild(F.section(t('homedash.look.colours'), [mode, customBox]));
         // Surface
         const backdrop = track(F.segmented({ key: 'backdrop', label: t('homedash.look.backdrop'), options: [{ id: 'theme', label: t('homedash.look.mode_theme') }, { id: 'solid', label: t('homedash.look.backdrop_solid') }, { id: 'gradient', label: t('homedash.look.backdrop_gradient') }], value: 'theme',
             onChange: v => set(['look', 'backdrop'], { kind: v }) }), () => (look().backdrop && look().backdrop.kind) || 'theme');
@@ -71,7 +71,7 @@
             onChange: v => set(['look', 'density'], v) }), () => look().density);
         const nf = new Intl.NumberFormat(lang, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const rad = track(F.range({ key: 'radius', label: t('homedash.look.radius'), min: 0.5, max: 1.5, step: 0.05, value: 1, valueText: v => t('homedash.look.radius_value', { value: nf.format(v) }), onInput: v => set(['look', 'radius_scale'], radius(v), null, true), onCommit: v => { set(['look', 'radius_scale'], radius(v)); D.seal(); } }), () => radius(look().radius_scale));
-        content.appendChild(F.section(t('homedash.look.backdrop'), [F.field({ label: t('homedash.look.backdrop'), control: backdrop }).el, F.field({ label: t('homedash.look.density'), control: density }).el, F.field({ label: t('homedash.look.radius'), control: rad }).el]));
+        content.appendChild(F.section(t('homedash.look.backdrop'), [backdrop, F.field({ label: t('homedash.look.density'), control: density }).el, F.field({ label: t('homedash.look.radius'), control: rad }).el]));
         // Grid
         const fit = track(F.segmented({ key: 'fit', label: t('homedash.look.fit'), options: [{ id: 'scroll', label: t('homedash.look.fit_scroll') }, { id: 'fit_screen', label: t('homedash.menu.fit') }], value: 'scroll', onChange: v => set(['grid', 'fit'], v, 'homedash.cmd.grid') }), () => doc().grid.fit);
         const rowKind = track(F.segmented({ key: 'row-kind', label: t('homedash.look.row_unit'), options: [{ id: 'auto', label: t('homedash.look.row_auto') }, { id: 'fixed', label: t('homedash.look.row_fixed') }], value: 'auto',

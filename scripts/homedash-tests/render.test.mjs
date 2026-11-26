@@ -162,6 +162,15 @@ export const tests = [
     assert.equal(page.preview(items, { animate: true, rows: 30 }), 1); assert.equal(cell(b).getAttribute('data-hd-flip'), 'from'); assert.ok(cell(b).style.getPropertyValue('--hd-e-fy').endsWith('px'));
     assert.equal(page.el.style.getPropertyValue('--hd-rows'), '30'); run(); assert.equal(cell(b).getAttribute('data-hd-flip'), null); assert.equal(cell(b).style.getPropertyValue('--hd-e-fy'), '');
     assert.equal(page.preview(null), 2, 'null restores the document layout'); assert.equal(page.preview(null), 0); }],
+  ['render (G2): zoomFor clamps stage / preview width to 0.5..1 and floors at three decimals', () => { const { E } = setup(), z = E.render.zoomFor;
+    assert.equal(E.render.ZOOM_MIN, 0.5); assert.equal(z(1180, 960), 1); assert.equal(z(960, 960), 1); assert.equal(z(580, 960), 0.604); assert.equal(z(720, 960), 0.75); assert.equal(z(400, 960), 0.5, 'never below 0.5: the stage scrolls'); assert.equal(z(300, 600), 0.5);
+    assert.equal(z(0, 960), 1); assert.equal(z(-5, 960), 1); assert.equal(z(NaN, 960), 1); assert.ok(960 * z(581, 960) <= 581, 'the scaled page never overflows the stage'); }],
+  ['render (G2): in design mode a forced preview wider than the stage is zoomed (--hd-e-zoom, data-hd-zoomed, metrics().zoom); view mode and wide stages stay at 1', () => {
+    const { page, run, setWidth } = setup(null, null, { mode: 'design' }), pg = page.el; assert.equal(page.metrics().zoom, 1, 'unforced: no zoom'); assert.equal(pg.getAttribute('data-hd-zoomed'), null);
+    setWidth(580); page.setBreakpoint('lg'); assert.equal(page.metrics().width, 960); assert.equal(page.metrics().zoom, 0.604); assert.equal(pg.style.getPropertyValue('--hd-e-zoom'), '0.604'); assert.equal(pg.getAttribute('data-hd-zoomed'), 'true'); assert.equal(pg.style.getPropertyValue('--hd-e-pw'), '960px', 'the metrics stay the preview width (WYSIWYG)');
+    page.setBreakpoint('md'); assert.equal(page.metrics().width, 600); assert.equal(page.metrics().zoom, 0.966); setWidth(300); page.setBreakpoint('lg'); assert.equal(page.metrics().zoom, 0.5);
+    setWidth(1180); page.setBreakpoint('lg'); assert.equal(page.metrics().zoom, 1); assert.equal(pg.style.getPropertyValue('--hd-e-zoom'), ''); assert.equal(pg.getAttribute('data-hd-zoomed'), null);
+    setWidth(580); page.setBreakpoint('lg'); assert.equal(page.metrics().zoom, 0.604); page.setMode('view'); page.setBreakpoint(null); assert.equal(page.metrics().zoom, 1, 'view mode is never zoomed'); assert.equal(pg.getAttribute('data-hd-zoomed'), null); run(); }],
   ['render (M4): a forced breakpoint previews at its own width and columns; metrics, items, frame and order follow; design forces fit to scroll', () => {
     const { page, stage, run } = setup(null, null, { mode: 'design' }), pg = page.el, m0 = page.metrics();
     assert.equal(m0.bp, 'lg'); assert.equal(m0.cols, 12); assert.equal(m0.mode, 'scroll'); assert.equal(pg.style.getPropertyValue('--hd-e-pw'), '');

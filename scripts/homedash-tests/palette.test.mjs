@@ -4,13 +4,24 @@ const ENTS = [{ id: 'ha:light.kitchen', source: 'ha', kind: 'light', name: 'Kitc
 function mount(o) { const k = boot('hd-palette.js'), doc = docOf(k.E, k.cat, [], []), D = fakeD(k.E, k.cat, doc, o), store = fakeStore(), api = fakeApi(ENTS), host = k.document.createElement('div'); k.document.body.appendChild(host);
   const pal = k.E.palette.create({ host, designer: D, t: x => x, lang: 'en', catalog: k.cat, store, api }); return Object.assign(k, { D, store, api, host, pal, panels: host.querySelectorAll('.hd-pal-panel') }); }
 export const tests = [
+  ['palette (G3): the thumbs show the dashboard family and are rebuilt, not stacked, when the family changes', () => { const m = mount(), fams = () => m.host.querySelectorAll('.hd-widget').map(w => w.getAttribute('data-hd-family'));
+    const n = fams().length; assert.ok(n > 8, 'one thumb per card'); assert.ok(fams().every(f => f === 'glass'));
+    m.D.setDoc(docOf(m.E, m.cat, [], [], { look: { family: 'tactile' } })); assert.equal(fams().length, n, 'thumbs are replaced, never added'); assert.ok(fams().every(f => f === 'tactile'), fams().join());
+    m.D.setDoc(docOf(m.E, m.cat, [], [], { look: { family: 'tactile', accent: '#336699' } })); assert.equal(fams().length, n); assert.ok(fams().every(f => f === 'tactile'));
+    m.pal.destroy(); assert.equal(m.host.querySelectorAll('.hd-widget').length, 0, 'destroy removes every thumb'); }],
   ['form: grouped grid moves keep the column and cross groups', () => { const { E } = boot('hd-form.js'); const g = (k, i) => E.form.gridMove(k, i, [3, 2], 2);
     assert.equal(g('ArrowDown', 1), 2); assert.equal(g('ArrowDown', 2), 3); assert.equal(g('ArrowDown', 3), 3); assert.equal(g('ArrowUp', 4), 2); assert.equal(g('ArrowUp', 0), 0);
     assert.equal(g('ArrowRight', 2), 3); assert.equal(g('End', 0), 4); assert.equal(g('Tab', 0), null); assert.equal(E.form.roving('ArrowLeft', 0, 3), 2); }],
   ['samples: thumb size caps at 2x2, keeps the minimum; a thumb is inert and never commands', () => { const { E, cat, document } = boot('hd-samples.js');
     eq(E.samples.thumbSize(cat, 'light', 'slider'), { w: 2, h: 1 }); eq(E.samples.thumbSize(cat, 'light', 'fader'), { w: 1, h: 2 }); eq(E.samples.thumbSize(cat, 'climate', 'dial'), { w: 2, h: 2 });
     const th = E.samples.thumb({ widget: { type: 'switch', variant: 'pill', title: '', bindings: {}, options: {}, actions: {}, confirm: false }, catalog: cat, t: k => k, lang: 'en', box: { width: 116, height: 76 }, parent: document.body });
-    const w = th.el.querySelector('.hd-widget'); assert.equal(w.getAttribute('aria-hidden') || th.el.getAttribute('aria-hidden'), 'true'); assert.equal(th.el.style.getPropertyValue('--hd-e-ts'), '0.967'); noStyleAttr(th.el); th.destroy(); }],
+    const w = th.el.querySelector('.hd-widget'); assert.equal(w.getAttribute('aria-hidden') || th.el.getAttribute('aria-hidden'), 'true'); assert.equal(th.el.style.getPropertyValue('--hd-e-ts'), '0.674', '2x1 on 80 px cells is 172 x 80 and fits the box width');
+    th.fit({ width: 106, height: 92 }); assert.equal(th.el.style.getPropertyValue('--hd-e-ts'), '0.57', 'G3: fit scales into the measured box minus a 4 px margin, never cropped'); th.fit({ width: 0, height: 0 }); assert.equal(th.el.style.getPropertyValue('--hd-e-ts'), '0.57', 'an unmeasured (hidden) box keeps the last scale');
+    noStyleAttr(th.el); th.destroy();
+    const fam = E.samples.thumb({ widget: { type: 'switch', variant: 'pill', title: '', bindings: {}, options: {}, actions: {}, confirm: false }, family: 'tactile', catalog: cat, t: k => k, lang: 'en', box: { width: 98, height: 84 }, parent: document.body });
+    assert.equal(fam.el.querySelector('.hd-widget').getAttribute('data-hd-family'), 'tactile', 'G3: the thumb shows the given family'); fam.destroy();
+    const own = E.samples.thumb({ widget: { type: 'switch', variant: 'pill', title: '', bindings: {}, options: {}, actions: {}, confirm: false, family: 'minimal' }, family: 'tactile', catalog: cat, t: k => k, lang: 'en', box: { width: 98, height: 84 }, parent: document.body });
+    assert.equal(own.el.querySelector('.hd-widget').getAttribute('data-hd-family'), 'minimal', 'a widget family wins'); own.destroy(); }],
   ['form: segmented roves with the arrows, field errors set aria-invalid, text coalesces composition', () => { const { E, document } = boot('hd-form.js'), F = E.form, seen = [];
     const seg = F.segmented({ label: 'x', options: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }, { id: 'c', label: 'C' }], value: 'a', onChange: v => seen.push(v) }), opts = seg.el.querySelectorAll('.hd-f-seg-opt');
     assert.equal(opts[0].getAttribute('aria-checked'), 'true'); fire(seg.el, 'keydown', { key: 'ArrowRight' }, opts[0]); eq(seen, ['b']); assert.equal(opts[1].getAttribute('aria-checked'), 'true'); assert.equal(opts[1].getAttribute('tabindex'), '0');

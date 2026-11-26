@@ -6,7 +6,7 @@
     const E = window.HomeDashEngine;
     if (!E || !E.form || !E.samples || !E.commands || !E.catalog) throw new Error('hd-palette.js: load hd-form.js, hd-samples.js and hd-commands.js first');
     const { el, setAttr, uid } = E.core, DOT = ' ' + String.fromCodePoint(0xb7) + ' ', fold = E.form.fold;
-    const ENT_LIMIT = 200, WATCH_MAX = 20, SEARCH_MS = 250, COLS = 2, THUMB_BOX = Object.freeze({ width: 116, height: 76 }), FILTERS = Object.freeze(['q', 'source', 'kind', 'area']);
+    const ENT_LIMIT = 200, WATCH_MAX = 20, SEARCH_MS = 250, COLS = 2, THUMB_BOX = Object.freeze({ width: 98, height: 84 }), FILTERS = Object.freeze(['q', 'source', 'kind', 'area']);
     const TYPE_ICONS = Object.freeze({ switch: 'power', light: 'bulb', action: 'scene', select: 'list', number: 'number', climate: 'thermometer', temperature: 'thermometer', gauge: 'gauge', sensor: 'chart', entity: 'entity' });
     // Widget cards for a search: every whitespace-separated token must appear (case- and accent-insensitively) in the type name, variant name,
     // description, category name, type id or variant id. Catalog order kept; empty groups dropped.
@@ -51,9 +51,12 @@
     function create(o) {
         const D = o.designer, t = o.t, lang = o.lang || 'en', catalog = o.catalog, store = o.store, api = o.api, life = E.core.bag(), ids = { w: uid('hd-palw'), e: uid('hd-pale'), hw: uid('hd-palhw'), he: uid('hd-palhe') };
         const timers = o.timers || { setTimeout: (f, ms) => setTimeout(f, ms), clearTimeout: x => clearTimeout(x) }, collator = new Intl.Collator(lang), root = el('div', { class: 'hd-pal' }), thumbs = [];
+        const familyNow = () => { const d = typeof D.doc === 'function' ? D.doc() : null; return (d && d.look && d.look.family) || null; };   // the thumbs show the dashboard's own family
         const typeName = x => t('homedash.widget.' + x + '.name'), variantName = (x, v) => t('homedash.variant.' + x + '.' + v);
         const names = (type, v, cat) => ({ type: typeName(type), variant: variantName(type, v), desc: t('homedash.widget.' + type + '.desc'), category: t('homedash.category.' + cat) });
         let tab = 'widgets', ent = entInit(), entStarted = false, timer = null, queryW = '', queryE = '', destroyed = false;
+        const makeThumb = s => E.samples.thumb({ widget: { type: s.type, variant: s.variant, title: '', bindings: {}, options: catalog.optionDefaults(s.type), actions: {}, confirm: false }, family: familyNow() || undefined, catalog, t, lang, box: THUMB_BOX, parent: s.box });
+        let famShown = familyNow();
         // head
         const tabsCtl = E.form.tabs({ tabs: [{ id: 'widgets', label: t('homedash.palette.tab_widgets') }, { id: 'entities', label: t('homedash.palette.tab_entities') }], value: tab, label: t('homedash.designer.palette'), onChange: id => setTab(id) });
         const search = E.form.text({ key: 'palette-search', search: true, max: 100, onInput: v => onSearch(v) });
@@ -71,7 +74,7 @@
                 const n = names(x.type, v, g.category), box = el('div', { class: 'hd-pal-thumb' }), key = x.type + '/' + v;
                 const hitBtn = el('button', { type: 'button', class: 'hd-pal-hit', tabindex: '-1', 'aria-label': t('homedash.palette.card_label', { type: n.type, variant: n.variant }), 'aria-describedby': ids.hw, title: n.desc }, [el('span', { class: 'hd-pal-name', text: n.type }), el('span', { class: 'hd-pal-variant', text: n.variant })]);
                 const card = el('div', { class: 'hd-pal-card', 'data-type': x.type, 'data-variant': v }, [box, hitBtn]); grid.appendChild(card); cards.set(key, card); groupEls[groupEls.length - 1].keys.push(key);
-                thumbs.push(E.samples.thumb({ widget: { type: x.type, variant: v, title: '', bindings: {}, options: catalog.optionDefaults(x.type), actions: {}, confirm: false }, catalog, t, lang, box: THUMB_BOX, parent: box }));
+                const spec = { type: x.type, variant: v, box, th: null }; spec.th = makeThumb(spec); thumbs.push(spec);
             }
             panelW.appendChild(sec);
         }
@@ -170,9 +173,10 @@
             if (ev.target === search.el && search.get()) { ev.preventDefault(); ev.stopPropagation(); search.set(''); onSearch(''); return; }
             ev.preventDefault(); const s = D.state(); if (s.drawers) { D.closePanels(); return; } const id = s.focusId || s.primary || (s.items && s.items[0] && s.items[0].id); if (id) D.focusFrame(id);
         });
+        if (typeof D.on === 'function') life.add(D.on('state', () => { const f = familyNow(); if (f === famShown) return; famShown = f; for (const s of thumbs) { s.th.destroy(); s.th = makeThumb(s); } }));
         setTab('widgets'); applyWidgetSearch(); if (o.host) o.host.appendChild(root);
         return Object.freeze({ el: root, focusSearch() { search.focus(); }, setTab, destroy() {
-            if (destroyed) return; destroyed = true; timers.clearTimeout(timer); syncWatch.cancel(); if (rowObserver) rowObserver.disconnect(); if (moreObserver) moreObserver.disconnect(); life.dispose(); watch.release(); for (const th of thumbs) th.destroy(); thumbs.length = 0; root.remove(); } });
+            if (destroyed) return; destroyed = true; timers.clearTimeout(timer); syncWatch.cancel(); if (rowObserver) rowObserver.disconnect(); if (moreObserver) moreObserver.disconnect(); life.dispose(); watch.release(); for (const s of thumbs) s.th.destroy(); thumbs.length = 0; root.remove(); } });
     }
     E.palette = Object.freeze({ create, model: Object.freeze({ fold, filterGroups, entInit, entReduce, entRequest, watchIds, kindsOf, sourceName, stateText, listView, TYPE_ICONS, ENT_LIMIT, WATCH_MAX }) });
 })();

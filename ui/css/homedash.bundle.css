@@ -1767,6 +1767,11 @@
 @container hd-widget (max-width: 139px) and (max-height: 139px) {
   .hd-widget[data-hd-type="temperature"] .hd-tread .hd-numeral .hd-num-trend, .hd-widget[data-hd-type="temperature"] .hd-tread .hd-numeral[data-hd-empty="true"] .hd-num-trend { display: none; }
   .hd-widget[data-hd-type="temperature"] .hd-tread .hd-numeral { font-size: min(calc(var(--hd-body-h) / var(--hd-num-cap)), calc(var(--hd-body-w) / 3.1), var(--hd-num-hero-max)); } }
+/* G11: a one-row sensor numeral (a frame under 100 px high: the 67 px rows of a 960 px page) gets the empty state line back. Head 18 + state 16 + padding left the
+   numeral 7 px of body height (garbled "50"); without the empty line it has 25 px (29 px at 1x1). A state text brings the line back. */
+@container hd-widget (max-height: 99px) {
+  .hd-widget[data-hd-type="sensor"][data-hd-variant="numeral"] > .hd-frame:has(> .hd-state > .hd-state-text:empty) { --hd-state-h: 0px; }
+  .hd-widget[data-hd-type="sensor"][data-hd-variant="numeral"] > .hd-frame > .hd-state:has(> .hd-state-text:empty) { display: none; } }
 /* H8 sparkline */
 .hd-widget[data-hd-type="sensor"][data-hd-variant="sparkline"] .hd-body { position: static; place-items: start; }
 .hd-widget[data-hd-type="sensor"][data-hd-variant="sparkline"] > .hd-frame { grid-template: "head" var(--hd-head-h) "body" auto "state" var(--hd-state-h) "." 1fr / minmax(0, 1fr); }

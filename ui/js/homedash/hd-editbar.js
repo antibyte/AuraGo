@@ -17,7 +17,7 @@
         const undo = btn('undo', 'undo', t('homedash.designer.undo')), redo = btn('redo', 'redo', t('homedash.designer.redo'));
         const tablist = el('div', { class: 'hd-ptabs', role: 'tablist', 'aria-label': t('homedash.designer.pages') });
         const opts = BPS.map(b => el('button', { type: 'button', class: 'hd-bp-opt', role: 'radio', 'aria-checked': 'false', tabindex: '-1', 'data-bp': b, 'aria-label': t('homedash.bp.' + b), title: t('homedash.bp.' + b) }, [E.icons.icon(BP_ICON[b])]));
-        const chip = el('span', { class: 'hd-bp-chip', 'data-state': 'auto', hidden: 'true' }), reset = el('button', { type: 'button', class: 'hd-bp-reset', 'data-hd-cmd': 'reset_layout', hidden: 'true', text: t('homedash.bp.reset') });
+        const chip = el('span', { class: 'hd-bp-chip', 'data-state': 'auto', hidden: 'true' }), reset = el('button', { type: 'button', class: 'hd-bp-reset', 'data-hd-cmd': 'reset_layout', hidden: 'true', 'aria-label': t('homedash.bp.reset'), title: t('homedash.bp.reset') }, [E.icons.icon('refresh')]);   // G6: an icon button, the words are its name and tooltip
         const bp = el('div', { class: 'hd-bp', role: 'radiogroup', 'aria-label': t('homedash.bp.label') }, opts.concat([chip, reset]));
         const saveIcon = el('span', { class: 'hd-save-icon' }), saveText = el('span', { class: 'hd-save-text' }), saveAct = el('button', { type: 'button', class: 'hd-save-action', hidden: 'true' });
         const save = el('div', { class: 'hd-save', 'data-phase': 'saved' }, [saveIcon, saveText, saveAct]);
@@ -45,9 +45,9 @@
             else if (phase === 'saving') text = t('homedash.save.saving');
             else if (phase === 'retrying') { text = t('homedash.save.retrying', { seconds: Math.max(1, Math.ceil(((Number(sv.nextRetryAt) || 0) - now()) / 1000)) }); act = 'retry_save'; label = t('homedash.save.retry_now'); }
             else if (phase === 'invalid') { text = t('homedash.save.invalid', { reason: s.saveReason || '' }); if (s.canUndo) { act = 'undo'; label = t('homedash.save.undo_last'); } }
-            else if (phase === 'conflict') { text = t('homedash.save.conflict'); act = 'resolve_conflict'; label = t('homedash.conflict.resolve'); }
+            else if (phase === 'conflict') text = t('homedash.save.conflict');   // G10: the conflict bar below carries the one Resolve button
             else if (phase === 'readonly') text = t('homedash.save.readonly');
-            else { text = t('homedash.save.gone'); act = 'resolve_conflict'; label = t('homedash.save.copy'); }
+            else text = t('homedash.save.gone');
             setAttr(save, 'data-phase', phase); setText(saveText, text);
             if (saveIcon.getAttribute('data-icon') !== PHASE_ICON[phase]) { setAttr(saveIcon, 'data-icon', PHASE_ICON[phase]); saveIcon.replaceChildren(E.icons.icon(PHASE_ICON[phase])); }
             setAttr(saveAct, 'hidden', !act); setAttr(saveAct, 'data-hd-cmd', act || null); setText(saveAct, label);

@@ -12,8 +12,14 @@ export function splitSelectors(sel) { const out = []; let depth = 0, cur = '';
   for (const ch of sel) { if (ch === '(') depth++; if (ch === ')') depth--; if (ch === ',' && !depth) { out.push(cur.trim()); cur = ''; } else cur += ch; }
   if (cur.trim()) out.push(cur.trim()); return out; }
 const decls = body => body.split(';').map(r => { const i = r.indexOf(':'); return i < 0 ? null : [r.slice(0, i).trim().toLowerCase(), r.slice(i + 1).trim()]; }).filter(d => d && d[0]);
+// A star-slash inside a comment body closes the comment early; the rest of the comment text then glues onto the next rule's selector and that rule is dropped.
+// After stripping complete comments no star-slash may remain, and no selector may start with a dash or carry a slash.
+export function commentIssues(text, file = 'css') { const v = [], plain = text.replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, ' '));
+  for (const re of [/\*\//g, /\/\*/g]) for (const m of plain.matchAll(re)) v.push(`${file}:${plain.slice(0, m.index).split('\n').length}: stray ${m[0]} outside a comment (a comment body contains a star-slash or a comment is unclosed)`);
+  for (const rule of leafRules(plain)) for (const sel of splitSelectors(rule.selector)) if (/^[-/]/.test(sel.trim()) || /\//.test(sel.replace(/\[[^\]]*\]|\([^)]*\)/g, ''))) v.push(`${file}: malformed selector "${sel.trim().slice(0, 60)}"`);
+  return v; }
 export function lintCss(text, { file = 'css', kind = 'part' } = {}) {
-  const v = [], css = text.replace(/\/\*[\s\S]*?\*\//g, ''), lines = text.split('\n').length;
+  const v = [...commentIssues(text, file)], css = text.replace(/\/\*[\s\S]*?\*\//g, ''), lines = text.split('\n').length;
   if (kind !== 'lab' && lines > 900) v.push(`${file}: ${lines} lines, want at most 900`);
   if (/light-dark\(/i.test(css)) v.push(`${file}: uses light-dark(); select scheme values with [data-hd-scheme]`);
   if (/\[data-theme\b/.test(css)) v.push(`${file}: keys on [data-theme]; read the bridge tokens`);

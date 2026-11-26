@@ -21,7 +21,11 @@
     const pxOf = (m, i) => ({ left: m.offX + m.gap + i.x * (m.colW + m.gap), top: m.gap + i.y * (m.rowH + m.gap), width: i.w * m.colW + (i.w - 1) * m.gap, height: i.h * m.rowH + (i.h - 1) * m.gap });
     const rectOf = (a, b) => ({ left: Math.min(a.x, b.x), top: Math.min(a.y, b.y), width: Math.abs(a.x - b.x), height: Math.abs(a.y - b.y) });
     function hits(items, m, r) { return items.filter(i => { const p = pxOf(m, i); return p.left < r.left + r.width && r.left < p.left + p.width && p.top < r.top + r.height && r.top < p.top + p.height; }).map(i => i.id); }
+    // The one place that turns a viewport length into a page length: the design page may be scaled with CSS zoom (page.metrics().zoom, 1 when not
+    // zoomed). Chrome 128+: pointer clientX/Y and getBoundingClientRect are in viewport px, page layout px are unzoomed, scroll offsets are stage px.
+    const toPageLength = (zoom, v) => v / (zoom > 0 ? zoom : 1);
     const math = Object.freeze({
+        toPage: toPageLength,
         cellOf: (m, x, y) => ({ x: Math.round((x - m.offX - m.gap) / (m.colW + m.gap)), y: Math.round((y - m.gap) / (m.rowH + m.gap)) }),
         cellUnder: (m, x, y) => ({ x: Math.floor((x - m.offX - m.gap / 2) / (m.colW + m.gap)), y: Math.floor((y - m.gap / 2) / (m.rowH + m.gap)) }),
         pxOf, cellDelta: (m, dx, dy) => ({ dx: Math.round(dx / (m.colW + m.gap)), dy: Math.round(dy / (m.rowH + m.gap)) }),
@@ -64,10 +68,12 @@
             if (selEl.parentNode !== L) L.appendChild(selEl); setAttr(selEl, 'data-hd-wid', id); selChip.textContent = selState.chip; placeSel(it);
             for (const h of selEl.querySelectorAll('.hd-handle')) h.removeAttribute('data-hd-limit');
         }
+        // A client point as a page-local point (page px): from the page's rect at gesture start, plus the stage scroll since, divided by the zoom.
+        const local = (s, x, y, sx, sy) => ({ x: math.toPage(s.zoom, x - s.pageRect.left + (sx - s.scroll0.x)), y: math.toPage(s.zoom, y - s.pageRect.top + (sy - s.scroll0.y)) });
         // arm: the first onStart of a session. Reads (rects, scroll) happen once here; tick never reads layout.
         function arm(s, start, p, needPage) {
             const page = s.c && s.c.page, m = page && page.el ? page.metrics() : null; if (needPage && !m) return false; flushSettle();
-            Object.assign(s, { page, m, items: s.c ? s.c.items : [], cols: s.c ? (s.c.cols || (m && m.cols)) : 0, compact: !!(s.c && s.c.compact), bp: s.c ? s.c.bp : null,
+            Object.assign(s, { page, m, zoom: m && m.zoom > 0 ? m.zoom : 1, items: s.c ? s.c.items : [], cols: s.c ? (s.c.cols || (m && m.cols)) : 0, compact: !!(s.c && s.c.compact), bp: s.c ? s.c.bp : null,
                 pageRect: m ? page.el.getBoundingClientRect() : null, stageRect: stage.getBoundingClientRect(), scroll0: { x: stage.scrollLeft, y: stage.scrollTop },
                 start: { x: start.x, y: start.y }, pointer: { x: p.x, y: p.y }, bag: E.core.bag(), started: true, fresh: true, sig: '', lastKey: '', drag: { dx: 0, dy: 0 } });
             ensureLayer(); s.bag.on(stage, 'scroll', () => { if (g === s) loop(); }, { passive: true });
@@ -87,7 +93,7 @@
         }
         function step(s, scroll) {
             if (!s || g !== s || !s.started) return;
-            const sx = stage.scrollLeft, sy = stage.scrollTop, p = s.pointer, dx = p.x - s.start.x + (sx - s.scroll0.x), dy = p.y - s.start.y + (sy - s.scroll0.y);   // reads first
+            const sx = stage.scrollLeft, sy = stage.scrollTop, p = s.pointer, dx = math.toPage(s.zoom, p.x - s.start.x + (sx - s.scroll0.x)), dy = math.toPage(s.zoom, p.y - s.start.y + (sy - s.scroll0.y));   // reads first; page px
             if (s.kind === 'move') stepMove(s, dx, dy); else if (s.kind === 'resize') stepResize(s, dx, dy); else if (s.kind === 'marquee') stepMarquee(s, p, sx, sy); else stepDrop(s, p, sx, sy);
             if (!scroll) return;
             const sig = sx + ',' + sy, go = s.fresh || sig !== s.sig; s.sig = sig; s.fresh = false;
@@ -152,14 +158,14 @@
             const touch = ev.pointerType === 'touch', additive = !!ev.shiftKey, base = (c.selection || []).slice(); if (ev.pointerType === 'mouse') ev.preventDefault();
             const s = { kind: 'marquee', c, additive, base, ids: base, key: base.join('|') };
             s.tap = () => { if (!additive) o.select([]); };
-            s.begin = () => { s.startLocal = { x: s.start.x - s.pageRect.left, y: s.start.y - s.pageRect.top };
+            s.begin = () => { s.startLocal = local(s, s.start.x, s.start.y, s.scroll0.x, s.scroll0.y);
                 if (!marqueeEl) marqueeEl = el('div', { class: 'hd-marquee' }); const L = ensureLayer(); if (L && marqueeEl.parentNode !== L) L.appendChild(marqueeEl); };
             s.commit = () => { o.commit('marquee', { ids: s.ids, additive }); return true; };
             s.undo = () => o.select(base, { live: true });
             run(ev, s, { hold: touch });
         }
         function stepMarquee(s, p, sx, sy) {
-            const r = rectOf(s.startLocal, { x: p.x - s.pageRect.left + (sx - s.scroll0.x), y: p.y - s.pageRect.top + (sy - s.scroll0.y) });
+            const r = rectOf(s.startLocal, local(s, p.x, p.y, sx, sy));
             const key = [r.left, r.top, r.width, r.height].map(Math.round).join(','); if (key === s.lastKey) return; s.lastKey = key;
             setVars(marqueeEl, { '--hd-e-mx': px(r.left), '--hd-e-my': px(r.top), '--hd-e-mw': px(r.width), '--hd-e-mh': px(r.height) });
             const hit = hits(s.items, s.m, r), ids = s.additive ? s.base.concat(hit.filter(i => !s.base.includes(i))) : hit, k = ids.join('|');
@@ -189,7 +195,7 @@
         function stepDrop(s, p, sx, sy) {
             setVars(avatar, { '--hd-e-ax': px(p.x - s.rootRect.left), '--hd-e-ay': px(p.y - s.rootRect.top) });
             s.inside = !!(s.m && inRect(p, s.stageRect)); if (!s.inside) { setDrop(s, 'out'); return; }
-            const lx = p.x - s.pageRect.left + (sx - s.scroll0.x), ly = p.y - s.pageRect.top + (sy - s.scroll0.y), m = s.m;
+            const { x: lx, y: ly } = local(s, p.x, p.y, sx, sy), m = s.m;
             if (s.payload.kind === 'entity') { const it = math.itemAt(s.items, math.cellUnder(m, lx, ly)), w = it && s.c.widget(it.id);
                 if (it) { setDrop(s, w && s.c.catalog.accepts(w.type, 'primary', s.payload.entity) ? 'rebind' : 'invalid', { id: it.id }); return; } }
             const { w, h } = s.size, t = math.cellOf(m, lx - (w * m.colW + (w - 1) * m.gap) / 2, ly - (h * m.rowH + (h - 1) * m.gap) / 2), x = Math.min(Math.max(0, t.x), Math.max(0, s.cols - w)), y = Math.max(0, t.y), key = x + ',' + y + (s.full ? 'f' : '');

@@ -13,6 +13,13 @@
     const viewOnly = () => Promise.reject(E.api.normalizeError({ status: 0, body: { code: 'view_only', message: 'HomeDash M2 sends no commands' } }));
     // Forced preview widths (design mode, C13): lg max(W, 960), md clamp(W, 600, 768), sm 390.
     const PREVIEW = Object.freeze({ lg: w => Math.max(w, E.layout.BP_MIN.lg), md: w => Math.min(768, Math.max(w, E.layout.BP_MIN.md)), sm: () => 390 });
+    // Zoom to fit (design mode): the page keeps the preview width (WYSIWYG metrics) and is scaled with the CSS zoom property to the stage's inner width,
+    // never below ZOOM_MIN (then the stage scrolls). Chrome 128+ (standardised zoom, measured on Chrome 158): getBoundingClientRect and pointer clientX/Y are
+    // in viewport px (zoom applied), offsetWidth, clientWidth, computed width and every CSS length inside the page are unzoomed layout px, and a percentage
+    // size resolves visually (min-block-size: 100% fills the stage). So a page-local coordinate is (client - rect.left) / zoom; hd-gestures does that in one place.
+    // The value is floored at 3 decimals so the scaled page never overflows the stage by a rounding pixel.
+    const ZOOM_MIN = 0.5;
+    const zoomFor = (avail, width) => (avail > 0 && width > avail ? Math.floor(Math.max(ZOOM_MIN, avail / width) * 1000) / 1000 : 1);
     function page(opts) {
         const o = opts, store = o.store, catalog = o.catalog, t = o.t, lang = o.lang || 'en';
         let doc = o.doc, pg = o.page, family = doc.look && doc.look.family;
@@ -159,8 +166,10 @@
             const width = forcedBp ? PREVIEW[forcedBp](box.width) : box.width, fit = mode === 'design' ? 'scroll' : fitOverride || doc.grid.fit;
             const cols = E.layout.COLS[bp], items = E.layout.effective(pg.layouts, bp, id => limits.get(id)), rows = Math.max(1, E.layout.rows(items));
             const gap = E.layout.gapFor(doc.look.density, doc.grid.gap), m = E.layout.metrics(width, box.height || 0, cols, rows, gap, doc.grid.row_unit, fit);
-            setVars(pageEl, Object.assign(E.layout.cssVars(m, cols, rows, gap), { '--hd-e-pw': forcedBp ? Math.round(width) + 'px' : null })); setAttr(pageEl, 'data-hd-preview', forcedBp);
-            last = Object.freeze({ bp, cols, rows, gap, colW: m.colW, rowH: m.rowH, offX: m.offX, mode: m.mode, width });
+            const zoom = mode === 'design' && forcedBp ? zoomFor(box.width, width) : 1;
+            setVars(pageEl, Object.assign(E.layout.cssVars(m, cols, rows, gap), { '--hd-e-pw': forcedBp ? Math.round(width) + 'px' : null, '--hd-e-zoom': zoom < 1 ? zoom : null }));
+            setAttr(pageEl, 'data-hd-preview', forcedBp); setAttr(pageEl, 'data-hd-zoomed', zoom < 1 ? 'true' : null);
+            last = Object.freeze({ bp, cols, rows, gap, colW: m.colW, rowH: m.rowH, offX: m.offX, mode: m.mode, width, zoom });
             if (typeof o.onLayout === 'function') o.onLayout({ bp, fit: m.mode });
             for (const it of items) {
                 const rec = recs.get(it.id); if (!rec) continue;
@@ -245,5 +254,5 @@
             update, setMode, setBreakpoint(b) { forcedBp = b || null; layout(); }, setFit(f) { fitOverride = f || null; layout(); }, setEmptyAction(a) { emptyAction = a || null; renderEmpty(); },
             preview, metrics: () => last, items: itemsNow, frame: id => (recs.get(id) || {}).el || null, order: () => E.grid.sortReading(itemsNow()).map(i => i.id) });
     }
-    E.render = Object.freeze({ page, isEntityId });
+    E.render = Object.freeze({ page, isEntityId, zoomFor, ZOOM_MIN });
 })();
