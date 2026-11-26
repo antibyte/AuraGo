@@ -53,7 +53,9 @@ func TestEasyDragQuickAddSuggestionsBrowser(t *testing.T) {
 
 	// The next click on a palette step places it after the trigger, exactly where the quick-add would have.
 	p.MustElement(".ed-palette-search").MustInput("Telegram")
-	s.wait(`()=>document.querySelectorAll('.ed-palette-item[data-ed-type="notify.telegram"]').length===1`)
+	// The search re-renders the list after a debounce; wait for the filtered list (a flat result list, no
+	// category sections) so the click cannot hit a pre-filter element that is about to be detached.
+	s.wait(`()=>!document.querySelector('.ed-palette-list .ed-palette-cat') && !!document.querySelector('.ed-palette-list > .ed-palette-items') && document.querySelectorAll('.ed-palette-item[data-ed-type="notify.telegram"]').length===1`)
 	p.MustElement(`.ed-palette-item[data-ed-type="notify.telegram"]`).MustClick()
 	s.wait(`()=>{const m=edFixture.editor().model;const added=m.doc.nodes.find(n=>!window.__ids.includes(n.id));return m.doc.nodes.length===5 && !!added && added.type==='notify.telegram' && m.incoming(added.id).map(e=>e.source.node).join()==='n_zeitplan' && document.querySelector('[data-ed-palette-scope]').hidden}`)
 	s.settle()

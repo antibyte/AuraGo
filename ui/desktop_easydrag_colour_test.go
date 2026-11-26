@@ -29,7 +29,10 @@ var easyDragS0GroupWindows = map[string][2]float64{
 
 // easyDragS0GroupWidened widens one window in one context by the smallest step that keeps it clear of the status colours
 // ("<context>/<group>" to the window). Each entry is reported in the commit that adds it.
-var easyDragS0GroupWidened = map[string][2]float64{}
+var easyDragS0GroupWidened = map[string][2]float64{
+	// the dark --ds-color-warning-fg these themes got in 8857b55c6 sits on the amber window (50-90); the smallest step below it
+	"fruity-light/amber": {45, 90}, "windows_xp/amber": {49, 90}, "voxel_world/amber": {45, 90},
+}
 
 // easyDragS0MarkSoft are the marks that may stay below 3:1 on a surface (but not below 2:1): they are grey on purpose.
 var easyDragS0MarkSoft = map[string]bool{"logic": true, "tool": true}
@@ -305,6 +308,9 @@ func easyDragS0ChangeValue(ed cssSheet, ctx easyDragS0ThemeContext, preset strin
 	levels := map[string]int{easyDragS0DarkBand: 0, ctx.ThemeScope + " .ed-app": 1, ctx.Scope + " .ed-app": 2}
 	if preset != "" {
 		levels[ctx.ThemeScope+`[data-accent="`+preset+`"] .ed-app`] = 3
+		if ctx.Scope != ctx.ThemeScope {
+			levels[ctx.Scope+`[data-accent="`+preset+`"] .ed-app`] = 4
+		}
 	}
 	value, best := "", -1
 	for _, rule := range ed.Rules {
@@ -336,6 +342,7 @@ func easyDragS0ScopedSelectors(t *testing.T, ed cssSheet, contexts []easyDragS0T
 		if ctx.UserAccent {
 			for preset := range presets {
 				valid[ctx.ThemeScope+`[data-accent="`+preset+`"] .ed-app`] = true
+				valid[ctx.Scope+`[data-accent="`+preset+`"] .ed-app`] = true
 			}
 		}
 	}

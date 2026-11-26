@@ -47,7 +47,8 @@ func TestDesktopEasyDragColourRolesBrowser(t *testing.T) {
 	s.wait(`()=>document.querySelectorAll('.ed-canvas .ed-edge.is-delivered').length===3 && document.querySelectorAll('.ed-canvas .ed-node.status-success').length===4`)
 	for _, c := range []struct{ name, apply, web string }{
 		{"standard", `()=>fixtureTheme('standard')`, "rgb(1, 101, 102)"},
-		{"fruity-light", `()=>fixtureTheme('fruity-light')`, "rgb(1, 101, 102)"},
+		// Fruity light has dark status colours since 8857b55c6, so it uses the light band like Lollipop
+		{"fruity-light", `()=>fixtureTheme('fruity-light')`, "rgb(181, 234, 234)"},
 		{"lollipop", `()=>fixtureTheme('lollipop')`, "rgb(181, 234, 234)"},
 		{"cyberpunk", `()=>fixtureTheme('cyberpunk')`, "rgb(37, 92, 135)"},
 		{"minimal-light", `()=>fixtureTheme('minimal')`, "rgb(181, 234, 234)"},

@@ -172,7 +172,11 @@
 
 /* category tiles, light band (Lollipop, Minimal light): their status colours are dark, so the tiles are light */
 .desktop-body[data-theme="lollipop"] .ed-app,
-.desktop-body[data-theme="minimal"]:not([data-scheme="dark"]) .ed-app {
+.desktop-body[data-theme="minimal"]:not([data-scheme="dark"]) .ed-app,
+.desktop-body[data-theme="fruity"]:not([data-scheme="dark"]) .ed-app,
+.desktop-body[data-theme="windows_xp"] .ed-app,
+.desktop-body[data-theme="voxel_world"] .ed-app,
+.desktop-body[data-theme="amiga"] .ed-app {
     --ed-status-ink: #ffffff;
     --ed-cat-trigger: #ddd9ff;
     --ed-cat-trigger-ink: #3e316d;
@@ -194,8 +198,8 @@
     --ed-cat-tool-ink: #383e43;
     /* their status colours are dark and fill the mid tones, so the group colours that name them are deep (blue, green, amber) */
     --ed-group-blue: #09017c;
-    --ed-group-green: #003902;
-    --ed-group-amber: #4f2200;
+    --ed-group-green: #002700;
+    --ed-group-amber: #4e2100;
     --ed-group-rose: #f611b1;
     --ed-group-violet: #b41dfc;
     /* light surfaces: a mid tone between the pale tile and its dark icon colour */
@@ -208,6 +212,52 @@
     --ed-mark-smart_home: color-mix(in srgb, var(--ed-cat-smart_home) 35%, var(--ed-cat-smart_home-ink));
     --ed-mark-planner: color-mix(in srgb, var(--ed-cat-planner) 35%, var(--ed-cat-planner-ink));
     --ed-mark-tool: color-mix(in srgb, var(--ed-cat-tool) 35%, var(--ed-cat-tool-ink));
+}
+
+/* the same light band under four more themes (Fruity light, Windows XP, Voxel World, Amiga) whose status colours are dark too: green is
+   the deepest green that keeps 0.20 OKLab from them, and the smart home tile is a pale sage so that its
+   hue does not sit next to the success hue */
+.desktop-body[data-theme="fruity"]:not([data-scheme="dark"]) .ed-app,
+.desktop-body[data-theme="windows_xp"] .ed-app,
+.desktop-body[data-theme="voxel_world"] .ed-app,
+.desktop-body[data-theme="amiga"] .ed-app {
+    --ed-cat-smart_home: #e3e6d9;
+    --ed-cat-smart_home-ink: #3b4132;
+}
+
+/* the dark warning colour of these three themes sits on the amber hue window: the group amber is a deep red-brown just below it
+   (TestEasyDragCategoryColourTokens widens the window for exactly these three contexts) */
+.desktop-body[data-theme="fruity"]:not([data-scheme="dark"]) .ed-app { --ed-group-amber: #481900; }
+.desktop-body[data-theme="windows_xp"] .ed-app { --ed-group-amber: #4d1f00; }
+
+.desktop-body[data-theme="voxel_world"] .ed-app {
+    --ed-group-amber: #481900;
+    --ed-mark-logic: color-mix(in srgb, var(--ed-cat-logic) 25%, var(--ed-cat-logic-ink));
+    --ed-mark-ai: color-mix(in srgb, var(--ed-cat-ai) 25%, var(--ed-cat-ai-ink));
+    --ed-mark-web: color-mix(in srgb, var(--ed-cat-web) 25%, var(--ed-cat-web-ink));
+    --ed-mark-documents: color-mix(in srgb, var(--ed-cat-documents) 25%, var(--ed-cat-documents-ink));
+    --ed-mark-notify: color-mix(in srgb, var(--ed-cat-notify) 25%, var(--ed-cat-notify-ink));
+    --ed-mark-smart_home: color-mix(in srgb, var(--ed-cat-smart_home) 25%, var(--ed-cat-smart_home-ink));
+    --ed-mark-planner: color-mix(in srgb, var(--ed-cat-planner) 25%, var(--ed-cat-planner-ink));
+    --ed-mark-tool: color-mix(in srgb, var(--ed-cat-tool) 25%, var(--ed-cat-tool-ink));
+}
+
+/* Amiga's surfaces are grey (#aaa canvas, #bbb card, #ccc well): marks are almost the icon colour, groups are mid tones */
+.desktop-body[data-theme="amiga"] .ed-app {
+    --ed-group-blue: #5257fd;
+    --ed-group-green: #397e66;
+    --ed-group-amber: #a86000;
+    --ed-group-rose: #cf0494;
+    --ed-group-violet: #ba03e1;
+    --ed-mark-trigger: color-mix(in srgb, var(--ed-cat-trigger) 5%, var(--ed-cat-trigger-ink));
+    --ed-mark-logic: color-mix(in srgb, var(--ed-cat-logic) 5%, var(--ed-cat-logic-ink));
+    --ed-mark-ai: color-mix(in srgb, var(--ed-cat-ai) 5%, var(--ed-cat-ai-ink));
+    --ed-mark-web: color-mix(in srgb, var(--ed-cat-web) 5%, var(--ed-cat-web-ink));
+    --ed-mark-documents: color-mix(in srgb, var(--ed-cat-documents) 5%, var(--ed-cat-documents-ink));
+    --ed-mark-notify: color-mix(in srgb, var(--ed-cat-notify) 5%, var(--ed-cat-notify-ink));
+    --ed-mark-smart_home: color-mix(in srgb, var(--ed-cat-smart_home) 5%, var(--ed-cat-smart_home-ink));
+    --ed-mark-planner: color-mix(in srgb, var(--ed-cat-planner) 5%, var(--ed-cat-planner-ink));
+    --ed-mark-tool: color-mix(in srgb, var(--ed-cat-tool) 5%, var(--ed-cat-tool-ink));
 }
 
 /* category tiles, Cyberpunk band: hues kept away from its neon status colours */
@@ -237,31 +287,9 @@
     --ed-group-violet: #8c34e9;
 }
 
-/* light surfaces under the dark-band tiles (Fruity light, Windows XP, Voxel World, Amiga): deeper group colours, and marks that are
-   the tile pulled slightly towards black, since the tile is already dark and its icon colour is light */
-.desktop-body[data-theme="fruity"]:not([data-scheme="dark"]) .ed-app,
-.desktop-body[data-theme="windows_xp"] .ed-app,
-.desktop-body[data-theme="voxel_world"] .ed-app,
-.desktop-body[data-theme="amiga"] .ed-app {
-    --ed-group-blue: #034ec8;
-    --ed-group-green: #02721c;
-    --ed-group-amber: #8a5100;
-    --ed-group-rose: #ad0266;
-    --ed-group-violet: #600da8;
-    --ed-mark-trigger: color-mix(in srgb, var(--ed-cat-trigger) 85%, black);
-    --ed-mark-logic: color-mix(in srgb, var(--ed-cat-logic) 85%, black);
-    --ed-mark-ai: color-mix(in srgb, var(--ed-cat-ai) 85%, black);
-    --ed-mark-web: color-mix(in srgb, var(--ed-cat-web) 85%, black);
-    --ed-mark-documents: color-mix(in srgb, var(--ed-cat-documents) 85%, black);
-    --ed-mark-notify: color-mix(in srgb, var(--ed-cat-notify) 85%, black);
-    --ed-mark-smart_home: color-mix(in srgb, var(--ed-cat-smart_home) 85%, black);
-    --ed-mark-planner: color-mix(in srgb, var(--ed-cat-planner) 85%, black);
-    --ed-mark-tool: color-mix(in srgb, var(--ed-cat-tool) 85%, black);
-}
-
 /* the change mark is the accent, except where the accent (a theme's own, or one the user can pick on Standard and Fruity) comes
-   within 0.20 OKLab of the success colour: there it is the text colour, so "Unpublished changes" never looks like "Published"
-   (TestEasyDragCategoryColourTokens computes this list) */
+   within 0.20 OKLab of the success colour: there it is the text colour, so "Unpublished changes" never looks like "Published".
+   On Fruity that is the dark scheme only (TestEasyDragCategoryColourTokens computes this list) */
 .desktop-body[data-theme="cyberpunk"] .ed-app,
 .desktop-body[data-theme="black_gloss"] .ed-app,
 .desktop-body[data-theme="organic"] .ed-app,
@@ -271,9 +299,14 @@
 .desktop-body[data-theme="standard"][data-accent="blue"] .ed-app,
 .desktop-body[data-theme="standard"][data-accent="green"] .ed-app,
 .desktop-body[data-theme="standard"][data-accent="teal"] .ed-app,
+.desktop-body[data-theme="voxel_world"] .ed-app,
 .desktop-body[data-theme="fruity"][data-accent="blue"] .ed-app,
 .desktop-body[data-theme="fruity"][data-accent="green"] .ed-app,
 .desktop-body[data-theme="fruity"][data-accent="teal"] .ed-app { --ed-change: var(--ed-text); }
+/* Fruity light keeps its accent: the dark success colour is far from all three (the more specific selector wins over the rules above) */
+.desktop-body[data-theme="fruity"]:not([data-scheme="dark"])[data-accent="blue"] .ed-app,
+.desktop-body[data-theme="fruity"]:not([data-scheme="dark"])[data-accent="green"] .ed-app,
+.desktop-body[data-theme="fruity"]:not([data-scheme="dark"])[data-accent="teal"] .ed-app { --ed-change: var(--ed-accent); }
 .desktop-body[data-theme="black_gloss"][data-accent="orange"] .ed-app,
 .desktop-body[data-theme="black_gloss"][data-accent="violet"] .ed-app { --ed-change: var(--ed-accent); }
 
