@@ -8,9 +8,10 @@
     if (!E || !E.core || !E.grid) throw new Error('hd-clipboard.js: load hd-core.js and hd-grid.js first');
     const { clone, clamp } = E.core, KEY = 'homedash.clipboard.v1', MAX_BYTES = 262144, MAX_WIDGETS = 120;
     const SOURCE = /^[a-z][a-z0-9_]{1,15}$/, ICON = /^[a-z0-9-]{1,48}$/, HEX = /^#[0-9a-f]{6}$/, DO = ['default', 'toggle', 'more_info', 'navigate', 'none'];
+    const NATIVE = /^[\p{L}\p{M}\p{N}\p{P}\p{S}]+$/u; // Go IsPrint without the space; bidi controls are Cf
     // Entity id grammar of internal/homedash/ids.go ParseEntityID: source (2-16) ':' native (1-200 bytes, printable, no space, no bidi control); the native part may hold ':'.
     function entityId(s) { if (typeof s !== 'string') return false; const i = s.indexOf(':'); if (i < 0 || !SOURCE.test(s.slice(0, i))) return false; const n = s.slice(i + 1); if (!n) return false; let bytes = 0;
-        for (const ch of n) { const c = ch.codePointAt(0); bytes += c < 0x80 ? 1 : c < 0x800 ? 2 : c < 0x10000 ? 3 : 4; if (bytes > 200) return false; if (c <= 0x20 || (c >= 0x7f && c <= 0xa0) || c === 0xad || c === 0x2028 || c === 0x2029 || (c >= 0x200b && c <= 0x200f) || (c >= 0x202a && c <= 0x202e) || (c >= 0x2066 && c <= 0x2069) || c === 0xfeff || /\s/.test(ch)) return false; } return true; }
+        for (const ch of n) { const c = ch.codePointAt(0); bytes += c < 0x80 ? 1 : c < 0x800 ? 2 : c < 0x10000 ? 3 : 4; if (bytes > 200) return false; } return NATIVE.test(n); }
     const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
     // Mirrors the server's text rules (sanitize.go ContainsControl: unicode.IsControl = C0, DEL, C1, plus bidi controls; ContainsURL): control and bidi
     // characters are dropped, a text that still carries a URL or script scheme becomes '' (the server answers url_not_allowed for it).

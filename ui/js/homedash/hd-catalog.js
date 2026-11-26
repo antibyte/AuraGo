@@ -36,12 +36,12 @@
         }
         const defaults = Object.freeze((Array.isArray(cat.defaults) ? cat.defaults : []).filter(d => d && typeof d.kind === 'string' && typeof d.type === 'string' && typeof d.variant === 'string'));
         const exact = (type, id) => { const w = byType.get(type); return w && Array.isArray(w.variants) ? w.variants.find(v => v && v.id === id) || null : null; };
-        const capNames = e => new Set((e && Array.isArray(e.capabilities) ? e.capabilities : []).map(c => (c && typeof c === 'object' ? c.name : c)).filter(n => typeof n === 'string'));
+        const capNames = (e, allowedOnly) => new Set((e && Array.isArray(e.capabilities) ? e.capabilities : []).filter(c => !allowedOnly || (c && typeof c === 'object' && c.allowed === true)).map(c => (c && typeof c === 'object' ? c.name : c)).filter(n => typeof n === 'string'));
         const usable = (registry, type, id) => !!exact(type, id) && (!registry || !!(registry.get(type) && registry.get(type).variants.includes(id)));
-        // pickWidgetFor (frontend 5.3, M4 C10): the first catalog default with the entity's kind, its device_class when set and a capability the entity has
+        // pickWidgetFor (frontend 5.3, M4 C10): the first catalog default with the entity's kind, its device_class when set and an allowed capability the entity has
         // when set, whose type and variant the registry implements; else entity/tile.
         function pickWidgetFor(entity, registry) {
-            const e = entity || {}, kind = typeof e.kind === 'string' && e.kind ? e.kind : 'generic', dc = typeof e.device_class === 'string' ? e.device_class : '', caps = capNames(e);
+            const e = entity || {}, kind = typeof e.kind === 'string' && e.kind ? e.kind : 'generic', dc = typeof e.device_class === 'string' ? e.device_class : '', caps = capNames(e, true);
             for (const d of defaults) { if (d.kind !== kind || (d.device_class && d.device_class !== dc) || (d.capability && !caps.has(d.capability))) continue; if (usable(registry, d.type, d.variant)) return { type: d.type, variant: d.variant }; }
             return usable(registry, 'entity', 'tile') ? { type: 'entity', variant: 'tile' } : null;
         }

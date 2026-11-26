@@ -29,5 +29,8 @@ export const tests = [
     const mat = l.materialiseOverride({ lg: LG, md: null, sm: null }, 'md'); eq(map(mat.md), map(l.derive(LG, 8))); assert.equal(l.resetOverride(mat, 'md').md, null); }],
   ['addToLayouts stores the clamped size', () => { const l = Lx();
     const r = l.addToLayouts({ lg: [], md: null, sm: null }, { id: 'x', w: 20, h: 1 }, null).lg[0]; assert.equal(r.w, 12); assert.ok(r.x + r.w <= 12);
-    const f = l.addToLayouts({ lg: [], md: [], sm: null }, { id: 'y', w: 2.6, h: 0 }, null); eq([f.lg[0].w, f.lg[0].h], [3, 1]); assert.equal(f.md[0].h, 1); }]
+    const f = l.addToLayouts({ lg: [], md: [], sm: null }, { id: 'y', w: 2.6, h: 0 }, null); eq([f.lg[0].w, f.lg[0].h], [3, 1]); assert.equal(f.md[0].h, 1); }],
+  ['layout (fix): addToLayouts skips a breakpoint array that already holds the id', () => { const E = loadEngine(['hd-core.js', 'hd-grid.js', 'hd-layout.js']).E;
+    const md = [{ id: 'a', x: 0, y: 0, w: 4, h: 1 }], out = E.layout.addToLayouts({ lg: [], md, sm: null }, { id: 'a', w: 2, h: 1 });
+    assert.equal(out.md.filter(i => i.id === 'a').length, 1); eq(out.md, md); }]
 ];

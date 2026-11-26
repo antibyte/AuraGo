@@ -32,7 +32,7 @@
         return Object.assign({}, clone(d), {
             schema_version: 1,
             look: Object.assign({}, clone(look), { family: pick(look.family, ['glass', 'tactile', 'minimal', 'instrument'], 'glass'), palette, backdrop: isObj(look.backdrop) ? clone(look.backdrop) : { kind: 'theme' }, density: pick(look.density, ['compact', 'comfortable', 'spacious'], 'comfortable'), radius_scale: clamp(Number(look.radius_scale) || 1, 0.5, 1.5) }),
-            grid: { row_unit: grid.row_unit === undefined || grid.row_unit === 'auto' ? 'auto' : clamp(Number(grid.row_unit) || 96, 48, 200), gap: typeof grid.gap === 'number' ? grid.gap : null, fit: grid.fit === 'fit_screen' ? 'fit_screen' : 'scroll' },
+            grid: { row_unit: grid.row_unit === undefined || grid.row_unit === 'auto' ? 'auto' : clamp(Number(grid.row_unit) || 96, 48, 200), gap: Number.isInteger(grid.gap) && grid.gap >= 0 && grid.gap <= 32 ? grid.gap : null, fit: grid.fit === 'fit_screen' ? 'fit_screen' : 'scroll' },
             pages, kiosk: k
         });
     }
@@ -55,14 +55,18 @@
         if (!isObj(node)) throw new Error('hd-doc: path not found at ' + seg);
         const copy = Object.assign({}, node);
         if (!rest.length) { if (value === undefined) delete copy[seg]; else copy[seg] = clone(value); return copy; }
-        if (!(seg in copy)) throw new Error('hd-doc: path not found at ' + seg);
+        // A missing intermediate object is created (never an array); deleting below a missing object changes nothing.
+        if (!(seg in copy)) { if (value === undefined) return copy; copy[seg] = {}; }
         copy[seg] = setAt(copy[seg], rest, value, index); return copy;
     }
+    // An op that created missing parent objects carries from = the path length of the topmost created key; going back removes that key whole.
     function apply(doc, ops, dir) { const side = dir === 'before' ? 'before' : 'after'; let out = doc;
-        for (const op of side === 'before' ? ops.slice().reverse() : ops) out = setAt(out, op.path, op[side], op.index); return out; }
+        for (const op of side === 'before' ? ops.slice().reverse() : ops) out = op.from !== undefined && op[side] === undefined ? setAt(out, op.path.slice(0, op.from), undefined) : setAt(out, op.path, op[side], op.index); return out; }
     const invert = ops => ops.slice().reverse().map(op => Object.assign({}, op, { before: op.after, after: op.before }));
     const command = (label, ops, meta) => ({ label, ops, meta: Object.assign({ at: Date.now() }, meta) });
-    const op = (doc, path, after, index) => ({ path, before: clone(getAt(doc, path)), after: clone(after), index });
+    function firstMissing(doc, path) { let n = doc; for (let k = 0; k < path.length - 1; k++) { if (!isObj(n) || !(path[k] in n)) return isObj(n) ? k + 1 : -1; n = n[path[k]]; } return -1; }
+    function op(doc, path, after, index) { const o = { path, before: clone(getAt(doc, path)), after: clone(after), index }, from = firstMissing(doc, path);
+        if (from > 0 && after !== undefined) o.from = from; return o; }
     function pageOf(doc, id) { const p = getAt(doc, ['pages', id]); if (!p) throw new Error('hd-doc: unknown page ' + id); return p; }
     const setField = (doc, path, value, meta) => command('set', [op(doc, path, value)], Object.assign({ kind: 'set' }, meta));
     function layoutOps(doc, pageId, next) { const page = pageOf(doc, pageId), ops = [];

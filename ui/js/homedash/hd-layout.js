@@ -53,7 +53,7 @@
         const p = G.place(layouts.lg, w, h, COLS.lg);
         const out = { lg: layouts.lg.concat([{ id: item.id, x: p.x, y: p.y, w, h }]), md: layouts.md == null ? null : layouts.md, sm: layouts.sm == null ? null : layouts.sm };
         for (const bp of ['md', 'sm']) {
-            if (!Array.isArray(layouts[bp])) continue;
+            if (!Array.isArray(layouts[bp]) || layouts[bp].some(i => i.id === item.id)) continue;
             const s = derivedSize({ w, h }, COLS[bp], constraintOf(C, item.id)), q = G.place(layouts[bp], s.w, s.h, COLS[bp]);
             out[bp] = layouts[bp].concat([{ id: item.id, x: q.x, y: q.y, w: s.w, h: s.h }]);
         }

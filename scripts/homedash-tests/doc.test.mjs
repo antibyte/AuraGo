@@ -64,5 +64,17 @@ export const tests = [
   ['addWidget rejects a duplicate id', () => { const E = boot(), D = base(E);
     assert.throws(() => E.doc.addWidget(D, 'main', { id: 'w1', type: 'sensor' }, { w: 2, h: 1 }), /duplicate widget id w1/);
     const c = E.doc.addWidget(D, 'main', { id: 'fresh', type: 'sensor' }, { w: 2, h: 1 }); assert.equal(E.doc.apply(D, c.ops).pages[0].widgets.length, 3);
-    const r = E.doc.addWidget(D, 'main', { type: 'sensor' }, { w: 2, h: 1 }); assert.equal(typeof r.meta.ids[0], 'string'); }]
+    const r = E.doc.addWidget(D, 'main', { type: 'sensor' }, { w: 2, h: 1 }); assert.equal(typeof r.meta.ids[0], 'string'); }],
+  ['normalise (fix): a widget in md but not lg gets one md item, idempotent; grid.gap 0..32 integers only', () => { const E = boot();
+    const raw = { pages: [{ id: 'main', widgets: [{ id: 'w1', type: 'sensor' }], layouts: { lg: [], md: [{ id: 'w1', x: 0, y: 0, w: 4, h: 1 }] } }] }, n = E.doc.normalise(raw);
+    assert.equal(n.pages[0].layouts.md.filter(i => i.id === 'w1').length, 1); assert.equal(n.pages[0].layouts.lg.filter(i => i.id === 'w1').length, 1); eq(E.doc.normalise(n), n);
+    const gap = g => E.doc.normalise({ grid: { gap: g } }).grid.gap; eq([gap(0), gap(32), gap(8)], [0, 32, 8]); eq([gap(33), gap(-1), gap(1.5), gap(NaN), gap('4'), gap(undefined)], [null, null, null, null, null, null]); }],
+  ['setAt (fix): a missing parent object is created and undo removes it again; id-keyed missing still throws', () => { const E = boot(), D = base(E), pa = ['look', 'palette', 'custom', 'accent'];
+    assert.equal(E.doc.getAt(D, ['look', 'palette', 'custom']), undefined);
+    const c = E.doc.setField(D, pa, '#ff0000'), A = E.doc.apply(D, c.ops); assert.equal(E.doc.getAt(A, pa), '#ff0000');
+    const B = E.doc.apply(A, c.ops, 'before'); assert.equal(E.doc.keyOf(B), E.doc.keyOf(D)); assert.ok(!('custom' in B.look.palette));
+    const X = E.doc.apply(A, E.doc.invert(c.ops)); assert.equal(E.doc.keyOf(X), E.doc.keyOf(D));
+    const existing = E.doc.apply(D, E.doc.setField(D, ['look', 'palette', 'custom'], {}).ops), c2 = E.doc.setField(existing, pa, '#00ff00');
+    assert.equal(E.doc.keyOf(E.doc.apply(E.doc.apply(existing, c2.ops), c2.ops, 'before')), E.doc.keyOf(existing)); assert.ok('custom' in E.doc.apply(E.doc.apply(existing, c2.ops), c2.ops, 'before').look.palette);
+    assert.throws(() => E.doc.setAt(D, ['pages', 'nope', 'widgets', 'x', 'title'], 'q'), /path not found/); }]
 ];

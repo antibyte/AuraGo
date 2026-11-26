@@ -49,5 +49,9 @@ export const tests = [
     mem.set(E.clipboard.KEY, 'other'); listeners.storage({ key: E.clipboard.KEY }); listeners.storage({ key: 'else' }); eq(seen, ['{"v":1}', 'other']); listeners.storage({ key: null }); assert.equal(seen.length, 3);
     assert.equal(ch.write(''), false); assert.equal(ch.write('x'.repeat(E.clipboard.MAX_BYTES + 1)), false); assert.equal(ch.write(5), false); off(); ch.write('{"v":1}'); assert.equal(seen.length, 3);
     const bad = E.clipboard.channel({ storage: { getItem() { throw new Error('denied'); }, setItem() { throw new Error('quota'); } } }); assert.equal(bad.write('x'), false); assert.equal(bad.read(), null); assert.equal(E.clipboard.channel({}).write('x'), false);
-    ch.onChange(() => { throw new Error('listener'); }); ch.dispose(); assert.equal(listeners.storage, undefined); void window; }]
+    ch.onChange(() => { throw new Error('listener'); }); ch.dispose(); assert.equal(listeners.storage, undefined); void window; }],
+  ['clipboard (fix): entity id native part follows Go IsPrint and not space and not bidi', () => { const { E, cat } = boot(), b = id => one(E, cat, { type: 'sensor', bindings: { primary: id } }).widget.bindings.primary;
+    for (const bad of [0x2060, 0xe000, 0x61c, 0x378, 0x200b, 0x202e, 0xa0, 0x3000]) assert.equal(b('ha:x' + fc(bad) + 'y'), undefined, 'U+' + bad.toString(16));
+    assert.equal(b('ha:x' + String.fromCharCode(0xd800) + 'y'), undefined, 'lone surrogate');
+    for (const ok of ['ha:light.k' + fc(0xfc) + 'che', 'ha:sensor.temp_1', 'ha:a:b:c', 'ha:' + fc(0x1f600)]) assert.equal(b(ok), ok); }]
 ];

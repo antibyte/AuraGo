@@ -22,4 +22,10 @@ export const tests = [['catalog: sizes, constraints and option defaults come fro
     const groups = c.paletteGroups(E.widgets), types = groups.flatMap(g => g.types.map(x => x.type)).sort();
     eq(types, raw.widgets.map(w => w.type).filter(t => E.widgets.get(t)).sort());
     const cats = groups.map(g => g.category); eq(cats, E.catalog.CATEGORY_ORDER.filter(k => cats.includes(k)));
-    assert.ok(groups.every(g => g.types.length > 0)); assert.ok(c.paletteTokens().length <= 40 && c.paletteTokens().includes('surface-solid')); }]];
+    assert.ok(groups.every(g => g.types.length > 0)); assert.ok(c.paletteTokens().length <= 40 && c.paletteTokens().includes('surface-solid')); }],
+  ['catalog (fix): pickWidgetFor counts only allowed capabilities', () => {
+    const { E } = loadEngine(ENGINE_ORDER.concat(['hd-catalog.js'])), c = E.catalog.create(JSON.parse(read('internal/homedash/testdata/widget_catalog.json'))), R = E.widgets;
+    const light = allowed => ({ kind: 'light', device_class: '', capabilities: [{ name: 'brightness', allowed }] });
+    assert.deepEqual({ ...c.pickWidgetFor(light(false), R) }, { type: 'light', variant: 'tile' });
+    assert.deepEqual({ ...c.pickWidgetFor(light(true), R) }, { type: 'light', variant: 'slider' }); }]
+];
