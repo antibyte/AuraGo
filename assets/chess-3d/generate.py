@@ -1,4 +1,4 @@
-"""Generate AuraGo's original MIT-licensed chess piece kit in Blender 5.2 LTS.
+"""Generate AuraGo's original MIT-licensed chess piece kit in Blender 5.3 LTS.
 
 Run from the repository root:
 
@@ -8,11 +8,12 @@ The script writes one GLB per piece plus a manifest into ``ui/3d/chess/v1/``
 and saves the editable source scene to ``assets/chess-3d/aura-chess-pieces.blend``.
 
 Geometry is built from scratch: bodies are surfaces of revolution around the
-Blender Z axis, the knight head is a swept silhouette and the rook merlons and
-the king cross are extruded prisms. Everything is authored in metres with the
-base of each piece centred on the origin, so the runtime can place a piece on a
-board square without a per-model offset. Blender exports glTF Y-up, which turns
-the Blender base plane into the glTF ``y = 0`` ground plane.
+Blender Z axis, the knight head is a filled side silhouette that is extruded
+along the width axis and the rook merlons and the king cross are extruded
+prisms. Everything is authored in metres with the base of each piece centred on
+the origin, so the runtime can place a piece on a board square without a
+per-model offset. Blender exports glTF Y-up, which turns the Blender base plane
+into the glTF ``y = 0`` ground plane.
 """
 
 import hashlib
@@ -179,16 +180,18 @@ def build_prism(polygon, z_bottom, z_top):
     return verts, faces, smooth
 
 
-def build_knight_head(outline, half_width):
-    """Carve the horse head from a side silhouette and round its edges.
+def build_knight_head(sections, bevel_width=0.0012):
+    """Carve the horse head from a side silhouette.
 
-    The outline is extruded along Y, the two flats are filled and a bevel
-    turns the hard silhouette into a soft, carved pillow.
+    The silhouette is extruded along the width axis. Every point carries its
+    own half width, so the head is widest at the cheek and tapers towards the
+    muzzle instead of reading as a flat slab. A narrow bevel rounds the hard
+    silhouette into a carved edge without puffing the profile up.
     """
     bm = bmesh.new()
-    count = len(outline)
-    front = [bm.verts.new((x, half_width, z)) for x, z in outline]
-    back = [bm.verts.new((x, -half_width, z)) for x, z in outline]
+    count = len(sections)
+    front = [bm.verts.new((x, width, z)) for x, z, width in sections]
+    back = [bm.verts.new((x, -width, z)) for x, z, width in sections]
     front_edges = []
     back_edges = []
     for index in range(count):
@@ -206,8 +209,8 @@ def build_knight_head(outline, half_width):
     bpy.context.scene.collection.objects.link(obj)
 
     bevel = obj.modifiers.new("Bevel", "BEVEL")
-    bevel.width = 0.0026
-    bevel.segments = 4
+    bevel.width = bevel_width
+    bevel.segments = 3
     bevel.limit_method = "ANGLE"
     bevel.angle_limit = math.radians(25.0)
     bevel.use_clamp_overlap = True
@@ -216,6 +219,31 @@ def build_knight_head(outline, half_width):
     for polygon in obj.data.polygons:
         polygon.use_smooth = True
     return obj
+
+
+def build_merlon(radial_half, tangential_half, top_scale, z_bottom, z_top):
+    """A battlement block: a box that tapers towards the top."""
+    top_radial = radial_half * top_scale
+    top_tangential = tangential_half * top_scale
+    verts = [
+        (-radial_half, -tangential_half, z_bottom),
+        (radial_half, -tangential_half, z_bottom),
+        (radial_half, tangential_half, z_bottom),
+        (-radial_half, tangential_half, z_bottom),
+        (-top_radial, -top_tangential, z_top),
+        (top_radial, -top_tangential, z_top),
+        (top_radial, top_tangential, z_top),
+        (-top_radial, top_tangential, z_top),
+    ]
+    faces = [
+        (3, 2, 1, 0),
+        (4, 5, 6, 7),
+        (0, 1, 5, 4),
+        (1, 2, 6, 5),
+        (2, 3, 7, 6),
+        (3, 0, 4, 7),
+    ]
+    return verts, faces, [False] * len(faces)
 
 
 def append_object(builder, obj, matrix=None):
@@ -265,11 +293,9 @@ def rook_profile():
     profile.point(0.0138, 0.0480)
     profile.point(0.0146, 0.0496, True)
     profile.point(0.0164, 0.0512, True)
-    profile.point(0.0164, 0.0560, True)
-    profile.point(0.0152, 0.0572, True)
-    profile.point(0.0140, 0.0552, True)
-    profile.point(0.0140, 0.0500)
-    profile.point(0.0, 0.0500, True)
+    profile.point(0.0164, 0.0556, True)
+    profile.point(0.0150, 0.0564, True)
+    profile.point(0.0, 0.0564, True)
     return profile
 
 
@@ -328,33 +354,60 @@ def king_profile():
     return profile
 
 
-KNIGHT_OUTLINE = [
-    (-0.0098, 0.0060),
-    (-0.0118, 0.0180),
-    (-0.0122, 0.0300),
-    (-0.0100, 0.0398),
-    (-0.0072, 0.0448),
-    (-0.0062, 0.0530),
-    (-0.0038, 0.0452),
-    (-0.0004, 0.0518),
-    (0.0022, 0.0440),
-    (0.0074, 0.0398),
-    (0.0124, 0.0330),
-    (0.0152, 0.0262),
-    (0.0142, 0.0206),
-    (0.0098, 0.0192),
-    (0.0050, 0.0216),
-    (0.0000, 0.0196),
-    (-0.0038, 0.0130),
-    (-0.0074, 0.0064),
+# The horse head as a side silhouette: x runs forward towards the muzzle, z
+# climbs the neck. The outline is closed and filled, then extruded along the
+# width axis. Every point carries its own half width, so the head is widest
+# at the cheek and tapers towards the muzzle instead of reading as a flat
+# slab. The underside keeps a concave hollow under the jaw, the nose ends in
+# a small tip and the lip sits behind it, so the profile reads as a carved
+# head instead of a rounded lump.
+KNIGHT_SECTIONS = [
+    (-0.0070, 0.0040, 0.0066),   # neck base, rear
+    (-0.0100, 0.0110, 0.0063),   # neck, lower back
+    (-0.0128, 0.0196, 0.0060),   # mane, widest
+    (-0.0120, 0.0280, 0.0058),   # mane, upper
+    (-0.0096, 0.0340, 0.0058),   # crest of the neck
+    (-0.0064, 0.0378, 0.0062),   # nape
+    (-0.0018, 0.0400, 0.0058),   # poll
+    (0.0032, 0.0380, 0.0066),    # forehead
+    (0.0066, 0.0340, 0.0068),    # brow
+    (0.0082, 0.0288, 0.0064),    # nose bridge
+    (0.0112, 0.0230, 0.0056),    # upper muzzle
+    (0.0152, 0.0180, 0.0044),    # nose tip
+    (0.0156, 0.0152, 0.0038),    # nostril
+    (0.0126, 0.0130, 0.0034),    # lip
+    (0.0080, 0.0122, 0.0044),    # chin
+    (0.0030, 0.0136, 0.0072),    # cheek, widest
+    (-0.0008, 0.0164, 0.0066),   # hollow of the throat
+    (-0.0022, 0.0122, 0.0066),   # throat
+    (-0.0032, 0.0072, 0.0066),   # neck front, lower
+    (-0.0020, 0.0040, 0.0066),   # neck base, front
 ]
+
+# The head is scaled and lifted onto the turned neck of the base. The scale
+# keeps the head slightly taller than it is long, the lift buries the neck
+# base inside the collar so the head grows out of the stem.
+KNIGHT_HEAD_SCALE = (1.16, 1.16, 1.25)
+KNIGHT_HEAD_LIFT = 0.0175
+
+
+def knight_ear_profile():
+    """A small carved ear: a rounded cone."""
+    profile = Profile()
+    profile.point(0.0, 0.0)
+    profile.point(0.0019, 0.0, True)
+    profile.point(0.0013, 0.0022, True)
+    profile.point(0.0, 0.0052, True)
+    return profile
 
 
 def knight_base_profile():
     profile = base_profile(0.0180, 0.0130, 0.0060)
     profile.point(0.0120, 0.0078, True)
-    profile.point(0.0104, 0.0104, True)
-    profile.point(0.0080, 0.0122, True)
+    profile.point(0.0110, 0.0104, True)
+    profile.point(0.0092, 0.0140, True)
+    profile.point(0.0072, 0.0176, True)
+    profile.point(0.0050, 0.0260, True)
     return profile
 
 
@@ -385,15 +438,17 @@ def build_piece(name, material):
     elif name == "rook":
         verts, faces, smooth = build_lathe(rook_profile())
         builder.add(verts, faces, smooth)
-        merlon = [(-0.0043, -0.0038), (0.0043, -0.0038), (0.0043, 0.0038), (-0.0043, 0.0038)]
-        for index in range(4):
-            angle = math.radians(45.0 + 90.0 * index)
-            radius = 0.0132
+        # Six battlements stand on the flat crown. They reach the rim of the
+        # crown and leave a narrow gap each, so the ring reads as a battlement
+        # instead of blocks floating over a tube.
+        for index in range(6):
+            angle = math.radians(30.0 + 60.0 * index)
+            radius = 0.0128
             offset = (
-                Matrix.Translation(Vector((radius * math.cos(angle), radius * math.sin(angle), 0.0560)))
+                Matrix.Translation(Vector((radius * math.cos(angle), radius * math.sin(angle), 0.0)))
                 @ Matrix.Rotation(angle, 4, "Z")
             )
-            verts, faces, smooth = build_prism(merlon, 0.0, 0.0140)
+            verts, faces, smooth = build_merlon(0.0036, 0.0044, 0.78, 0.0564, 0.0700)
             builder.add(verts, faces, smooth, offset)
     elif name == "bishop":
         verts, faces, smooth = build_lathe(bishop_profile())
@@ -436,10 +491,22 @@ def build_piece(name, material):
     elif name == "knight":
         verts, faces, smooth = build_lathe(knight_base_profile())
         builder.add(verts, faces, smooth)
-        head = build_knight_head(KNIGHT_OUTLINE, 0.0080)
-        scale = Matrix.Diagonal((1.18, 1.18, 1.28, 1.0))
+        head = build_knight_head(KNIGHT_SECTIONS)
+        scale = Matrix.Diagonal(
+            (KNIGHT_HEAD_SCALE[0], KNIGHT_HEAD_SCALE[1], KNIGHT_HEAD_SCALE[2], 1.0)
+        )
+        lift = Matrix.Translation(Vector((0.0, 0.0, KNIGHT_HEAD_LIFT)))
         turn = Matrix.Rotation(math.radians(-90.0), 4, "Z")
-        append_object(builder, head, turn @ scale)
+        append_object(builder, head, turn @ lift @ scale)
+        # Two ears on the crown of the skull, leaning back and outwards.
+        for sign in (-1.0, 1.0):
+            verts, faces, smooth = build_lathe(knight_ear_profile(), 12)
+            offset = (
+                Matrix.Translation(Vector((-0.0024, sign * 0.0028, 0.0386)))
+                @ Matrix.Rotation(math.radians(-13.0 * sign), 4, "X")
+                @ Matrix.Rotation(math.radians(-14.0), 4, "Y")
+            )
+            builder.add(verts, faces, smooth, turn @ lift @ scale @ offset)
     return builder.to_object(name, material)
 
 

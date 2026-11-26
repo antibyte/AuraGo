@@ -121,6 +121,14 @@ try {
         let frame = await frameBox();
         const topBox = await plateBox('top');
         const bottomBox = await plateBox('bottom');
+        /* The board is square and the pane is wide, so the board must take the
+           free height of the shell. A toolbar that wraps or a chrome row that
+           grows would shrink it, so the board has to fill the board area. */
+        const shellBox = await page.locator('.vd-chess-board-shell').evaluate(node => { const r = node.getBoundingClientRect(); return [r.width, r.height]; });
+        assert(frame.height >= shellBox[1] * 0.85, `the 2D board must fill the board area, got ${frame.height} of ${shellBox[1]}`);
+        const headBox = await page.locator('.vd-chess-pane-head').evaluate(node => { const r = node.getBoundingClientRect(); return [r.width, r.height]; });
+        assert(headBox[1] < 48, `the toolbar must stay on one row, got ${headBox[1]}px`);
+        assert(headBox[0] <= shellBox[0], 'the toolbar must stay inside the board area');
         if (width > 820) {
             assert(Math.abs(topBox.left - frame.left) < 2 && Math.abs(topBox.right - frame.right) < 2, `the top plate follows the board width, got ${topBox.left}-${topBox.right} for ${frame.left}-${frame.right}`);
             assert(Math.abs(bottomBox.left - frame.left) < 2 && Math.abs(bottomBox.right - frame.right) < 2, 'the bottom plate follows the board width');
@@ -206,6 +214,16 @@ try {
         const square = await page.locator('.vd-chess-board-frame').evaluate(node => { const rect = node.getBoundingClientRect(); return [rect.width, rect.height]; });
         assert(Math.abs(square[0] - square[1]) < 2, `the 2D board must stay square, got ${square.join('x')}`);
         assert(square[0] > 180, `the 2D board must keep a usable size, got ${square[0]}`);
+
+        /* The remark under the board must never change the board size: while it
+           lived in the status ribbon a two-line remark grew that ribbon and
+           shrank the board mid-game. */
+        await page.locator('[data-comment]').evaluate(node => {
+            node.textContent = 'Ein langer Kommentar des Agenten, der im alten Ribbon zwei Zeilen belegt hat und das Brett dadurch kleiner gemacht hat.';
+        });
+        await page.waitForTimeout(300);
+        const afterRemark = await page.locator('.vd-chess-board-frame').evaluate(node => node.getBoundingClientRect().width);
+        assert(Math.abs(afterRemark - square[0]) < 1, `the board must not shrink when the remark grows, got ${square[0]} -> ${afterRemark}`);
 
         // Verify sound & optional Phonon commentary toggles and contextual move remark
         await page.locator('[data-sound-toggle]').click();

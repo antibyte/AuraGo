@@ -426,6 +426,10 @@
           node.receiveShadow = true;
         }
       });
+      /* The kit is authored looking along +Z, so the white pieces already face
+         the opponent. The black ones are turned half a circle, exactly like a
+         real set: the knight must not stare over its own shoulder. */
+      if (side === 'b') mesh.rotation.y = Math.PI;
       // Tournament baize felt base pad
       const padMat = new THREE.MeshStandardMaterial({
         color: PIECE_MATERIALS[side].pad,

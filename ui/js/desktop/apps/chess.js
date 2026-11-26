@@ -33,7 +33,7 @@
         instances.set(windowId, state);
         container.innerHTML = window.renderChessTemplate
             ? window.renderChessTemplate(ctx, PIECE_GLYPH)
-            : '<div class="vd-chess is-error"><div class="vd-chess-ribbon"><div class="vd-chess-status" data-status>' + ctx.esc(ctx.t('desktop.chess_load_failed')) + '</div></div></div>';
+            : '<div class="vd-chess is-error"><div class="vd-chess-board-pane"><div class="vd-chess-pane-head"><div class="vd-chess-status" data-status>' + ctx.esc(ctx.t('desktop.chess_load_failed')) + '</div></div></div></div>';
         collectRefs(state);
         window.ChessTable?.mount(state);
         state.audio = window.createChessAudio ? window.createChessAudio({ muted: state.soundMuted }) : null;
@@ -314,7 +314,9 @@
         const padY = (parseFloat(styles.paddingTop) || 0) + (parseFloat(styles.paddingBottom) || 0);
         const width = Math.max(0, (shell.clientWidth || shell.getBoundingClientRect().width || 0) - padX);
         const height = Math.max(0, (shell.clientHeight || shell.getBoundingClientRect().height || 0) - padY);
-        const size = Math.floor(Math.min(width, height, 900) - 8);
+        /* The board is square, so the free height of the pane is the only lever
+           that makes it bigger. The cap only keeps very tall screens sane. */
+        const size = Math.floor(Math.min(width, height, 1200) - 8);
         if (!Number.isFinite(size) || size < 180) return;
         state.refs.root.style.setProperty('--chess-frame-size', size + 'px');
         frame.classList.add('is-sized');

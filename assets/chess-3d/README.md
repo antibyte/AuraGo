@@ -8,7 +8,7 @@ model, texture or scan is used.
 
 | File | Purpose |
 | --- | --- |
-| `generate.py` | Blender 5.2 LTS script that builds and exports the whole kit |
+| `generate.py` | Blender 5.3 LTS script that builds and exports the whole kit |
 | `aura-chess-pieces.blend` | Editable source scene produced by the script |
 | `AGENTS.md` | Local contract for this pack |
 
@@ -35,7 +35,7 @@ model on a square without a per-model offset.
 | Piece | Height | Base radius |
 | --- | --- | --- |
 | pawn | 0.040 m | 0.0155 m |
-| knight | 0.068 m | 0.0180 m |
+| knight | 0.072 m | 0.0180 m |
 | bishop | 0.080 m | 0.0180 m |
 | rook | 0.070 m | 0.0175 m |
 | queen | 0.089 m | 0.0190 m |
@@ -44,8 +44,11 @@ model on a square without a per-model offset.
 Bodies are surfaces of revolution built from explicit profiles, the rook
 merlons and the king cross are extruded prisms and the knight head is a
 silhouette extruded along the width axis with a bevel that turns the hard
-outline into a soft, carved edge. The knight faces the opponent: the model is
-rotated so it looks along +Z in the exported Y-up glTF space.
+outline into a soft, carved edge. Every point of the head carries its own half
+width, so the head is widest at the cheek and tapers towards the muzzle, and
+the two ears are small cones on the crown of the skull. The knight faces the
+opponent: the model is rotated so it looks along +Z in the exported Y-up glTF
+space.
 
 ## License
 

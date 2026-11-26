@@ -196,18 +196,22 @@
     min-width: 0;
     min-height: 0;
     display: grid;
+    /* head / table / comment strip - every row above the board is lost board height */
     grid-template-rows: auto minmax(0, 1fr) auto;
-    padding: 14px 16px 12px;
-    gap: 9px;
+    padding: 8px 16px 6px;
+    gap: 5px;
 }
 
-/* One centered column: view switch, audio/commentary tools and material score above the board. */
+/* One centered toolbar above the board: view switch, audio/commentary tools,
+   material score and the turn status. It never wraps and never follows the
+   board width - a wrapped head eats board height and starves the board in a
+   loop, so the toolbar keeps its own width and only the board follows it. */
 .vd-chess-pane-head {
     display: flex;
     align-items: center;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 8px;
-    width: var(--chess-frame-size, min(100%, var(--chess-column), 100cqh));
+    width: fit-content;
     max-width: 100%;
     margin-inline: auto;
     box-sizing: border-box;
@@ -216,9 +220,10 @@
 .vd-chess-head-tools {
     display: inline-flex;
     align-items: center;
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
     gap: 6px;
     min-width: 0;
-    flex-wrap: wrap;
 }
 
 .vd-chess-head-pill {
@@ -386,7 +391,7 @@
 .vd-chess-table {
     display: grid;
     grid-template-rows: auto minmax(0, 1fr) auto;
-    gap: 8px;
+    gap: 4px;
     min-height: 0;
 }
 
@@ -434,7 +439,7 @@
     width: var(--chess-frame-size, min(100%, var(--chess-column)));
     max-width: 100%;
     min-width: 0;
-    height: 44px;
+    height: 36px;
     margin-inline: auto;
     padding: 0 10px 0 8px;
     box-sizing: border-box;
@@ -1103,60 +1108,52 @@
     100% { opacity: 0; transform: rotate(calc(var(--a) * 1deg)) translateY(-52px) scale(0.35); }
 }
 
-/* --- Status ribbon ------------------------------------------------------- */
+/* --- Turn status and remark ----------------------------------------------- */
 
-.vd-chess-ribbon {
-    width: var(--chess-frame-size, min(100%, var(--chess-column), 100cqh));
-    max-width: 100%;
-    margin-inline: auto;
-    box-sizing: border-box;
-    min-height: 46px;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    align-content: center;
-    gap: 3px;
-    padding: 8px 13px;
-    border-radius: var(--chess-radius-sm);
+/* The status lives in the head row as a pill, so the board keeps the height. */
+.vd-chess-status {
+    flex: 0 1 auto;
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 12px;
+    border-radius: 999px;
     background: var(--chess-bar);
     border: 1px solid var(--chess-divider);
     box-shadow: var(--chess-bar-edge);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
-}
-
-.vd-chess.is-your-turn .vd-chess-ribbon {
-    border-color: color-mix(in srgb, var(--chess-accent) 45%, transparent);
-    outline: 1px solid color-mix(in srgb, var(--chess-accent) 20%, transparent);
-}
-
-.vd-chess.is-commentary-speaking .vd-chess-ribbon {
-    border-color: color-mix(in srgb, var(--chess-warn) 55%, var(--chess-accent));
-    box-shadow: 0 10px 26px color-mix(in srgb, var(--chess-accent) 22%, rgba(0, 0, 0, 0.2));
-}
-
-.vd-chess.is-check .vd-chess-ribbon {
-    border-color: color-mix(in srgb, var(--chess-danger) 55%, transparent);
-    background: color-mix(in srgb, var(--chess-danger) 12%, var(--chess-bar-color));
-}
-
-.vd-chess.is-thinking .vd-chess-ribbon {
-    border-color: color-mix(in srgb, var(--chess-warn) 40%, transparent);
-}
-
-.vd-chess.is-game-over .vd-chess-ribbon {
-    border-color: color-mix(in srgb, var(--chess-accent) 35%, transparent);
-}
-
-.vd-chess-status {
-    min-width: 0;
     font-family: var(--chess-head-font);
-    font-size: 14px;
+    font-size: 13px;
     font-weight: var(--vd-mat-heading-weight, 700);
     color: var(--vd-mat-heading-color, var(--chess-ink));
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.vd-chess.is-your-turn .vd-chess-status {
+    border-color: color-mix(in srgb, var(--chess-accent) 45%, transparent);
+    outline: 1px solid color-mix(in srgb, var(--chess-accent) 20%, transparent);
+}
+
+.vd-chess.is-commentary-speaking .vd-chess-status {
+    border-color: color-mix(in srgb, var(--chess-warn) 55%, var(--chess-accent));
+    box-shadow: 0 10px 26px color-mix(in srgb, var(--chess-accent) 22%, rgba(0, 0, 0, 0.2));
+}
+
+.vd-chess.is-check .vd-chess-status {
+    border-color: color-mix(in srgb, var(--chess-danger) 55%, transparent);
+    background: color-mix(in srgb, var(--chess-danger) 12%, var(--chess-bar-color));
+}
+
+.vd-chess.is-thinking .vd-chess-status {
+    border-color: color-mix(in srgb, var(--chess-warn) 40%, transparent);
+}
+
+.vd-chess.is-game-over .vd-chess-status {
+    border-color: color-mix(in srgb, var(--chess-accent) 35%, transparent);
 }
 
 .vd-chess-status::before {
@@ -1200,15 +1197,20 @@
     50% { opacity: 1; transform: scale(1.12); }
 }
 
+/* The remark of the agent sits under the board in one thin line. */
 .vd-chess-comment {
-    min-height: 16px;
+    width: var(--chess-frame-size, min(100%, var(--chess-column), 100cqh));
+    max-width: 100%;
+    margin-inline: auto;
+    box-sizing: border-box;
+    height: 16px;
+    line-height: 16px;
     font-size: 12px;
-    line-height: 1.35;
     color: var(--chess-muted);
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+    text-align: center;
+    white-space: nowrap;
     overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .vd-chess-comment.has-quips {
@@ -2099,19 +2101,10 @@
         gap: 6px;
     }
 
-    /* The column is the full pane here. Following the measured board width
-       would wrap the head, shrink the shell and starve the board in a loop. */
-    .vd-chess-pane-head,
-    .vd-chess-ribbon {
+    /* The toolbar keeps its own width here as well - it never follows the
+       board, so it can never wrap and starve the board in a loop. */
+    .vd-chess-comment {
         width: 100%;
-    }
-
-    .vd-chess-pane-head .vd-chess-material-bar {
-        max-width: none;
-    }
-
-    .vd-chess-ribbon {
-        padding: 6px 12px;
     }
 
     /* The two plates share one row under the board, so the board keeps its height. */
@@ -2306,7 +2299,7 @@
 }
 
 .vd-chess.is-3d .vd-chess-pane-head,
-.vd-chess.is-3d .vd-chess-ribbon,
+.vd-chess.is-3d .vd-chess-comment,
 .vd-chess.is-3d .vd-chess-plate {
     width: 100%;
 }

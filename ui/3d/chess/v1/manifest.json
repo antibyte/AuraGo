@@ -1,6 +1,6 @@
 {
   "budget_bytes": 1048576,
-  "generator": "Blender 5.2.2 LTS / assets/chess-3d/generate.py",
+  "generator": "Blender 5.3.0 / assets/chess-3d/generate.py",
   "license": "MIT",
   "pieces": {
     "bishop": {
@@ -8,42 +8,42 @@
       "file": "bishop.glb",
       "height": 0.0796,
       "radius": 0.018,
-      "sha256": "5126cb243aea09b6ade8ad579c11444f68becbec349dcb6e16d4ef657c85a0fd"
+      "sha256": "fa719a38964fcd2d2712b311ffaff6538bedcd39b7a3db1c4b734f9aebbb9281"
     },
     "king": {
       "bytes": 35840,
       "file": "king.glb",
       "height": 0.1,
       "radius": 0.0195,
-      "sha256": "bba926f8d4fded6ae5a505dfae303806a92ce9c2496ff869ff7f424fb77ebcef"
+      "sha256": "eec161da08b07dddb1445b0d334318950ee65b39dd9e0d0035a79f246f2d9abe"
     },
     "knight": {
-      "bytes": 34980,
+      "bytes": 36900,
       "file": "knight.glb",
-      "height": 0.06695,
-      "radius": 0.01964,
-      "sha256": "c8c81284edf724f9fe5d2fe746a1452de3c70c28bee10a48b046f22068226a0e"
+      "height": 0.0719,
+      "radius": 0.0182,
+      "sha256": "972db17d75d964d59eb49574c097fe12edeeee03fae9ca82bc709f77234b3d6a"
     },
     "pawn": {
       "bytes": 38044,
       "file": "pawn.glb",
       "height": 0.0396,
       "radius": 0.0155,
-      "sha256": "756d83d481d5778679e163f16b32a99b2460acd27ade05ce61d043b67d0ea9bf"
+      "sha256": "e6a79b3bef1d0ec5f241c433cfd27aef9ce7747ab71e6646c8c44c15578439b3"
     },
     "queen": {
       "bytes": 67376,
       "file": "queen.glb",
       "height": 0.0892,
       "radius": 0.019,
-      "sha256": "fde33d8eaf52f1ffce0341e68bb0ef32a2c2993b9e35c55e7a78f0c1788df9a9"
+      "sha256": "4c33be6f378378d66d5a0fc94615a29b80ad00714242c2bfe15b53b4aa9aa70a"
     },
     "rook": {
-      "bytes": 30992,
+      "bytes": 28448,
       "file": "rook.glb",
       "height": 0.07,
-      "radius": 0.01791,
-      "sha256": "5d3e0507d19db4e089919900e8e7b165e350241088b70efc87d5646dbc1a0f16"
+      "radius": 0.0175,
+      "sha256": "40e863b1dd7cce6198f92a998221a5009c4344d5e51cc62a4285ba6870fc56e8"
     }
   },
   "square_size": 0.055,

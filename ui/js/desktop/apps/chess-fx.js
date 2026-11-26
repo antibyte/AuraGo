@@ -664,7 +664,9 @@
             '<span class="vd-chess-material-side" aria-hidden="true">' + king + '</span>' +
             '<div class="vd-chess-material-track" title="' + esc(t('desktop.chess_material')) + '">' +
             '<div class="vd-chess-material-fill" data-material-fill></div></div>' +
-            '<span class="vd-chess-material-score" data-material-bar-score>0</span></div></div>' +
+            '<span class="vd-chess-material-score" data-material-bar-score>0</span></div>' +
+            '<div class="vd-chess-status" data-status role="status" aria-live="polite">' + esc(t('desktop.chess_loading')) + '</div>' +
+            '</div>' +
             '<div class="vd-chess-table">' +
             plate('top') +
             '<div class="vd-chess-board-shell">' +
@@ -677,9 +679,7 @@
             '</div></div>' +
             plate('bottom') +
             '</div>' +
-            '<div class="vd-chess-ribbon">' +
-            '<div class="vd-chess-status" data-status role="status" aria-live="polite">' + esc(t('desktop.chess_loading')) + '</div>' +
-            '<div class="vd-chess-comment" data-comment></div></div></section>' +
+            '<div class="vd-chess-comment" data-comment></div></section>' +
             '<aside class="vd-chess-side">' +
             '<div class="vd-chess-controls">' +
             '<details class="vd-chess-settings" data-settings>' +

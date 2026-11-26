@@ -246,7 +246,12 @@ func TestDesktopChessBoardLayoutKeepsStatusVisible(t *testing.T) {
 		"container-type: size;",
 		"width: min(100%, var(--chess-column), 100cqh);",
 		".vd-chess-pane-head",
-		".vd-chess-ribbon",
+		/* the turn status is a pill in the head row, the remark a thin strip
+		   under the board - both keep their height off the board */
+		".vd-chess-status",
+		".vd-chess-comment",
+		/* a wrapped head row costs board height and starves the board in a loop */
+		"flex-wrap: nowrap;",
 		".vd-chess-material-bar",
 		"is-capture-fx",
 		"prefers-reduced-motion",
