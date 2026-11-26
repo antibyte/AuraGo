@@ -373,3 +373,26 @@ func TestEmbedFileErrorsDoNotContainTheRawBaseURL(t *testing.T) {
 		})
 	}
 }
+
+func TestEmbedFile_OpenAIKeepsBaseURLQueryAndOmitsEmptyAuth(t *testing.T) {
+	var gotPath, gotQuery string
+	var gotAuth []string
+	srv := testutil.NewHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath, gotQuery = r.URL.Path, r.URL.RawQuery
+		gotAuth = r.Header.Values("Authorization")
+		json.NewEncoder(w).Encode(map[string]interface{}{"data": []map[string]interface{}{{"embedding": []float32{0.1, 0.2}}}})
+	}))
+	defer srv.Close()
+	tmpFile := filepath.Join(t.TempDir(), "test.png")
+	os.WriteFile(tmpFile, []byte("fake-png-data"), 0644)
+	e := NewMultimodalEmbedder(srv.URL+"/v1?api-version=2024-01-01", "", "m", "openai", "", nil)
+	if _, err := e.EmbedFile(context.Background(), tmpFile); err != nil {
+		t.Fatalf("EmbedFile failed: %v", err)
+	}
+	if gotPath != "/v1/embeddings" || gotQuery != "api-version=2024-01-01" {
+		t.Fatalf("path %q query %q", gotPath, gotQuery)
+	}
+	if len(gotAuth) != 0 {
+		t.Fatalf("Authorization sent with empty key: %v", gotAuth)
+	}
+}

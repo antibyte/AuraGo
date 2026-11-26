@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"math"
 	"net/http"
@@ -78,9 +79,17 @@ func (me *MultimodalEmbedder) EmbedFile(ctx context.Context, filePath string) ([
 		return nil, fmt.Errorf("the OpenAI-compatible image embedding format does not support audio")
 	}
 
-	data, err := os.ReadFile(filePath)
+	f, err := os.Open(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("read file %s: %w", filepath.Base(filePath), err)
+	}
+	data, err := io.ReadAll(io.LimitReader(f, maxFileBytes+1))
+	f.Close()
+	if err != nil {
+		return nil, fmt.Errorf("read file %s: %w", filepath.Base(filePath), err)
+	}
+	if len(data) > maxFileBytes {
+		return nil, fmt.Errorf("file %s too large (max %d bytes)", filepath.Base(filePath), maxFileBytes)
 	}
 
 	b64 := base64.StdEncoding.EncodeToString(data)
@@ -111,13 +120,20 @@ func (me *MultimodalEmbedder) embedOpenAI(ctx context.Context, mimeType, b64 str
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
 
+	endpoint, err := openAIEmbeddingEndpoint(me.baseURL)
+	if err != nil {
+		return nil, me.requestCreationError()
+	}
+
 	return me.doHTTPEmbeddingWithRetry(ctx, func() (*http.Request, error) {
-		req, err := http.NewRequestWithContext(ctx, "POST", me.baseURL+"/embeddings", bytes.NewReader(body))
+		req, err := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewReader(body))
 		if err != nil {
 			return nil, me.requestCreationError()
 		}
 		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "Bearer "+me.apiKey)
+		if me.apiKey != "" {
+			req.Header.Set("Authorization", "Bearer "+me.apiKey)
+		}
 		return req, nil
 	}, me.doRequest)
 }
