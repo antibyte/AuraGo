@@ -17,11 +17,20 @@
         return Object.freeze({ filename: 'homedash-' + slug + '.json', text: JSON.stringify({ schema_version: Number(dashboard.schema_version) || 1, dashboard }, null, 2) + '\n', drafts: opts.catalog ? E.doc.drafts(doc, opts.catalog).size : 0 }); }
     // Import (D10): untrusted text; size cap again after reading; envelope {schema_version, dashboard} or a bare document with pages; id and slug
     // cleared, server fields removed; everything else is judged by POST dashboards/validate before anything is created or rendered.
+    function overLimits(d) {
+        const L = C.LIMITS, pages = d.pages; if (pages.length > L.pages) return true; let total = 0;
+        for (const p of pages) {
+            if (!isObj(p)) continue; if (Array.isArray(p.widgets)) { if (p.widgets.length > L.pageWidgets) return true; total += p.widgets.length; if (total > L.widgets) return true; }
+            if (isObj(p.layouts)) for (const bp of ['lg', 'md', 'sm']) if (Array.isArray(p.layouts[bp]) && p.layouts[bp].length > L.pageWidgets) return true;
+        }
+        return false;
+    }
     function importDocument(text) {
         if (typeof text !== 'string' || !text) return { ok: false, code: 'bad_json' }; if (E.save.utf8Bytes(text) > IMPORT_MAX) return { ok: false, code: 'too_large' };
         let data; try { data = JSON.parse(text.charCodeAt(0) === 0xfeff ? text.slice(1) : text); } catch (err) { return { ok: false, code: 'bad_json' }; }
         const d = isObj(data) && isObj(data.dashboard) && !Array.isArray(data.pages) ? data.dashboard : isObj(data) && Array.isArray(data.pages) ? data : null;
         if (!d || !Array.isArray(d.pages)) return { ok: false, code: 'bad_json' };
+        if (overLimits(d)) return { ok: false, code: 'limit_exceeded' };   // S1: before normalise places anything; the server limits (pages, widgets per page, widgets, layout rows per page)
         const doc = E.core.clone(d); for (const k of STRIP) delete doc[k]; doc.id = ''; doc.slug = '';
         if (d !== data && Number.isInteger(data.schema_version) && doc.schema_version === undefined) doc.schema_version = data.schema_version;
         return { ok: true, document: doc };

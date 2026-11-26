@@ -100,6 +100,21 @@ export const tests = [
     const esc = key('Escape'); assert.equal(esc.defaultPrevented, true); assert.equal(root.getAttribute('data-hd-panel'), ''); assert.equal(m.document.activeElement, tog, 'focus returns to the toggle'); assert.equal(m.inst.state().edit.mode, 'design');
     D.run('toggle_inspector'); assert.equal(root.getAttribute('data-hd-panel'), 'inspector'); m.host.querySelector('.hd-drawer-scrim').dispatchEvent({ type: 'click' }); assert.equal(root.getAttribute('data-hd-panel'), ''); assert.equal(m.document.activeElement, m.host.querySelector('.hd-eb-drawer[data-hd-cmd="toggle_inspector"]'));
     assert.equal(m.inst.state().edit.actions.toggle_palette.available, true); const menu = m.inst.contextMenu({ target: m.host.querySelectorAll('.hd-ptab')[0], clientX: 3, clientY: 4 }); eq(menu.items.map(i => i.id), ['rename-main']); m.inst.dispose(); }],
+  ['designer: narrowing the window while focus is inside the palette or inspector opens that panel as the drawer (focus never lands on a hidden shell)', async () => {
+    for (const name of ['palette', 'inspector']) {
+      const m = mountApp({ seed: SEED, dashboardId: SEED.id, en: true }), roCbs = []; let D = null; const real = m.E.designer.create;
+      m.E.designer = Object.assign({}, m.E.designer, { create: x => (D = real(Object.assign({}, x, { ResizeObserver: class { constructor(cb) { roCbs.push(cb); } observe() {} unobserve() {} disconnect() {} } }))) });
+      const inputs = {}, mod = n => ({ create: o => { const input = m.document.createElement('button'); o.host.appendChild(input); inputs[n] = input; return { focusSearch() { input.focus(); }, focusFirst() { input.focus(); }, destroy() { input.remove(); } }; } });
+      m.E.palette = mod('palette'); m.E.inspector = mod('inspector'); m.E.ddialogs = { run: async () => true, enhanceTabs: () => {}, pageMenu: () => [] };
+      await m.clock.advance(50); m.es.last().emit('hello', HELLO); await m.clock.advance(20); const root = m.host.querySelector('.hd-root'); root.clientWidth = 1400; assert.equal(await m.inst.enterEdit(), true); await m.clock.advance(20);
+      assert.equal(root.getAttribute('data-hd-drawers'), 'false'); inputs[name].focus(); assert.equal(m.document.activeElement, inputs[name]);
+      root.clientWidth = 800; for (const cb of roCbs) cb([]); await m.clock.advance(20);
+      assert.equal(root.getAttribute('data-hd-drawers'), 'true', name); assert.equal(root.getAttribute('data-hd-panel'), name, name + ' becomes the open drawer'); assert.equal(D.slot(name).getAttribute('data-hd-drawer'), 'open');
+      assert.equal(m.document.activeElement, inputs[name], 'focus stays in the shell'); assert.notEqual(m.document.activeElement, m.document.body);
+      root.clientWidth = 1400; for (const cb of roCbs) cb([]); await m.clock.advance(20); assert.equal(root.getAttribute('data-hd-panel'), ''); assert.equal(D.slot(name).getAttribute('data-hd-drawer'), 'open');
+      const stage = m.host.querySelector('.hd-stage') || root; stage.focus && stage.focus(); root.clientWidth = 800; for (const cb of roCbs) cb([]); await m.clock.advance(20); assert.equal(root.getAttribute('data-hd-panel'), '', 'no focus in a shell: no drawer opens');
+      m.inst.dispose();
+    } }],
   ['designer: a dashboard deleted elsewhere raises the gone bar and a sheet that offers only a copy or later; the local document stays', async () => { const m = await edit(), D = m.D(); m.key('ArrowRight');
     m.server.docs.delete(SEED.id); m.es.last().emit('dashboard_changed', { id: SEED.id, revision: 0, approved_revision: 0 }); await m.clock.advance(400); await m.clock.advance(900);
     assert.equal(m.host.querySelector('.hd-conflict-bar').hasAttribute('hidden'), false); assert.match(m.host.querySelector('.hd-conflict-text').textContent, /deleted elsewhere/); assert.ok(m.host.querySelector('.hd-sheet-btn[data-action="copy"]')); assert.ok(m.host.querySelector('.hd-sheet-btn[data-action="later"]')); assert.equal(m.host.querySelector('.hd-sheet-btn[data-action="theirs"]'), null);

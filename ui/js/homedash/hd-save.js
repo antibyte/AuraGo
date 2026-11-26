@@ -41,7 +41,7 @@
                 if (disposed || g !== gen) return; const err = E.api.normalizeError(raw), kind = classify(err); sent = null; flushAsk = false;
                 error = Object.freeze({ code: err.code, status: err.status, issues: Array.isArray(err.data && err.data.issues) ? err.data.issues.slice(0, 50) : [] });
                 if (kind === 'retry' && ro) phase = 'readonly';   // read-only meanwhile: no retry timer, setReadonly(false) resumes
-                else if (kind === 'retry') { const ms = Number.isFinite(err.retryAfter) && err.retryAfter > 0 ? Math.round(err.retryAfter * 1000) : BACKOFF[Math.min(attempt, BACKOFF.length - 1)];
+                else if (kind === 'retry') { const ms = Number.isFinite(err.retryAfter) && err.retryAfter > 0 ? Math.round(Math.min(30, Math.max(1, err.retryAfter)) * 1000) : BACKOFF[Math.min(attempt, BACKOFF.length - 1)];
                     attempt += 1; phase = 'retrying'; nextAt = now() + ms; retryTimer = setT(() => { retryTimer = 0; nextAt = 0; if (holding) { phase = 'pending'; emit(); return; } send(); }, ms); }
                 else if (kind === 'conflict') { phase = 'conflict'; current = Number(err.data && err.data.current_revision) || null; }
                 else phase = kind;

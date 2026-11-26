@@ -208,7 +208,7 @@
         }
         function setTab(next) { if (!TABS.includes(next)) return; tab = next; render(); }
         life.add(D.on('state', render)); life.add(store.on('change', () => { for (const th of thumbs) th.update(); }));
-        life.on(root, 'keydown', ev => { if (ev.key !== 'Escape' || ev.defaultPrevented) return; ev.preventDefault(); const s = D.state(); if (s.drawers) D.closePanels(); const idf = s.primary || (s.selection || [])[0]; if (idf) D.focusFrame(idf); });
+        life.on(root, 'keydown', ev => { if (ev.key !== 'Escape' || ev.defaultPrevented) return; ev.preventDefault(); const s = D.state(); if (s.drawers) { D.closePanels(); return; } const idf = s.primary || (s.selection || [])[0]; if (idf) D.focusFrame(idf); });
         // Choose devices (Q1): one selected draft goes to the field that is missing; otherwise the first control of the body.
         function focusFirst() {
             render(); const k = cur(), draft = k.ws.length === 1 ? draftOf(catalog, k.w) : null;

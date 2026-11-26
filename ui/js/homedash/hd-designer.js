@@ -219,7 +219,8 @@
         function openPanel(name) { if (!shells[name]) return false; if (drawers) { panel = name; applyPanels(); emit(); } return panelFocus(name); }
         function closePanels() { if (!panel) return; const was = panel, act = docEl().activeElement, inside = !act || act === docEl().body || (shells[was] && shells[was].contains(act)); panel = ''; applyPanels(); emit(); if (inside) bar.focus('toggle_' + was); }
         function togglePanel(name) { if (!shells[name]) return false; if (drawers && panel === name) { closePanels(); return true; } return openPanel(name); }
-        function measure() { const w = root.clientWidth, d = Number.isFinite(w) && w > 0 && w < DRAWER_BELOW; if (d === drawers) return; drawers = d; if (!d) panel = ''; applyPanels(); guard(() => emit()); }
+        function measure() { const w = root.clientWidth, d = Number.isFinite(w) && w > 0 && w < DRAWER_BELOW; if (d === drawers) return; drawers = d; if (!d) panel = ''; else { const act = docEl().activeElement; panel = ['palette', 'inspector'].find(n => shells[n] && act && shells[n].contains(act)) || ''; }   // E2: the shell holding focus becomes the open drawer, so focus never lands on a hidden control
+            applyPanels(); guard(() => emit()); }
         // ---- conflict, lane
         const cText = E.core.el('span', { class: 'hd-conflict-text' }), cbar = E.core.el('div', { class: 'hd-conflict-bar', role: 'alert', 'data-tone': 'warn', hidden: 'true' }, [E.icons.icon('alert'), cText,
             E.core.el('button', { type: 'button', class: 'hd-eb-btn', 'data-hd-cmd': 'resolve_conflict', text: t('homedash.conflict.resolve') })]);

@@ -68,9 +68,24 @@
         Object.assign(r, { x: clamp(x, 0, Math.max(0, cols - w)), y: Math.max(0, y), w, h });
         return settle(pushDown(out, [id]), opts);
     }
+    // First free slot, row-major from startY. With many items on whole-number geometry (at most 30 columns) one bit mask per row answers each probe without
+    // scanning every item (S1: an import of thousands of widgets without layout entries); the result is identical to the scan.
+    const GRID_MIN = 16, GRID_ROWS = 200000, whole = v => (v | 0) === v && v >= 0;   // a whole int32 (Number.isInteger is slow in a vm context)
     function place(L, w, h, cols, startY) {
         const ww = Math.min(Math.max(1, w), cols), hh = Math.max(1, h), from = Math.max(0, startY || 0);
-        const bottom = Math.max(from, L.reduce((m, i) => Math.max(m, i.y + i.h), 0));
+        let bottom = from, plain = L.length >= GRID_MIN && whole(cols) && cols <= 30 && whole(ww) && ww >= 1 && whole(hh) && whole(from);
+        for (let k = 0; k < L.length; k++) { const i = L[k], e = i.y + i.h; if (e > bottom) bottom = e; if (plain && !(whole(i.x) && whole(i.y) && whole(i.w) && whole(i.h) && i.w >= 1 && i.h >= 1)) plain = false; }
+        if (plain && whole(bottom) && bottom + hh <= GRID_ROWS) {
+            const rows = new Int32Array(bottom + hh);
+            for (let k = 0; k < L.length; k++) { const i = L[k]; if (i.x >= cols) continue; const m = ((1 << (Math.min(cols, i.x + i.w) - i.x)) - 1) << i.x; for (let yy = i.y; yy < i.y + i.h; yy++) rows[yy] |= m; }
+            const probe = (1 << ww) - 1;
+            for (let y = from; y <= bottom; y++) {
+                let busy = 0; for (let yy = y; yy < y + hh; yy++) busy |= rows[yy];
+                for (let x = 0; x <= cols - ww; x++) if (!(busy & (probe << x))) return { x, y };
+            }
+            return { x: 0, y: bottom };
+        }
+        bottom = Math.max(from, L.reduce((m, i) => Math.max(m, i.y + i.h), 0));
         for (let y = from; y <= bottom; y++) for (let x = 0; x <= cols - ww; x++) { const p = { id: PROBE, x, y, w: ww, h: hh }; if (!L.some(i => collides(i, p))) return { x, y }; }
         return { x: 0, y: bottom };
     }

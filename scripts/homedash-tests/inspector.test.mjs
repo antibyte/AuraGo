@@ -49,7 +49,8 @@ export const tests = [
     const [left] = m.host.querySelectorAll('.hd-f-row .hd-btn'); fire(left, 'click', {}); assert.equal(m.D.execs.length, 1); assert.equal(m.D.execs[0].label, 'homedash.cmd.align');
     const fam = field(m, 'family'); assert.ok(fam.querySelectorAll('option').some(o => o.getAttribute('value') === 'tactile')); fam.value = 'minimal'; fire(fam, 'change', {}); assert.ok(m.D.doc().pages[0].widgets.filter(w => ['g1', 's2'].includes(w.id)).every(w => w.family === 'minimal'));
     const del = m.host.querySelector('.hd-insp-foot .hd-btn'); fire(del, 'click', {}); eq(m.D.doc().pages[0].widgets.map(w => w.id), ['s1']);
-    const e = mount(['g1'], { drawers: true }); const ev = fire(e.host.querySelector('.hd-insp'), 'keydown', { key: 'Escape' }); assert.equal(ev.defaultPrevented, true); eq(e.D.calls, ['closePanels', 'focusFrame:g1']); }],
+    const e = mount(['g1'], { drawers: true }); const ev = fire(e.host.querySelector('.hd-insp'), 'keydown', { key: 'Escape' }); assert.equal(ev.defaultPrevented, true); eq(e.D.calls, ['closePanels'], 'drawer mode: closePanels returns focus to the toggle, no frame focus on top');
+    const w = mount(['g1'], { drawers: false }); fire(w.host.querySelector('.hd-insp'), 'keydown', { key: 'Escape' }); eq(w.D.calls, ['focusFrame:g1']); }],
   ['inspector DOM: Actions tab offers what the widget can do and writes the action object', () => { const m = mount(['s2']); m.insp.setTab('actions'); const tap = field(m, 'action:tap'); eq(tap.querySelectorAll('option').map(o => o.getAttribute('value')), ['default', 'toggle', 'navigate', 'none']);
     tap.value = 'navigate'; fire(tap, 'change', {}); eq(m.D.doc().pages[0].widgets[2].actions.tap, { do: 'navigate', page: 'p2' }); assert.ok(field(m, 'action:tap:page'), 'the target page select appears');
     const conf = field(m, 'confirm'); fire(conf, 'click', {}); assert.equal(m.D.doc().pages[0].widgets[2].confirm, true); }],

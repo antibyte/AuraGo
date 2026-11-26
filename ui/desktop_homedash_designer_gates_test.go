@@ -78,7 +78,7 @@ const homeDashGateProbeJS = `(WIN)=>{
   for(const m of cs.boxShadow.matchAll(/(rgba?\([^)]*\))\s+(-?[\d.]+)px\s+(-?[\d.]+)px\s+([\d.]+)px\s+([\d.]+)px/g))if(parseFloat(m[5])>0&&!/inset/.test(m[0]))rings.push({col:m[1],w:parseFloat(m[5])});
   let best={r:0,w:0};for(const x of rings){const r=worst(rgba(x.col),back);if(x.w>=2&&r>best.r||(!best.w&&x.w>best.w))best={r,w:x.w};}
   res.ui.push({el:path(act),what:'focus',ratio:best.r,w:Math.round(best.w*10)/10,pass:best.r>=3&&best.w>=2});}
- for(const el of root.querySelectorAll('button,input:not([type=file]),select,[role=tab],[role=radio],[role=switch],.hd-handle')){if(!shown(el)||el.closest('.hd-page > .hd-widget'))continue;
+ for(const el of [...root.querySelectorAll('button,input:not([type=file]),select,[role=tab],[role=radio],[role=switch],.hd-handle'),...app.querySelectorAll('.hdx-elsewhere .hdx-btn,.hdx-save .hdx-btn')]){if(!shown(el)||el.closest('.hd-page > .hd-widget'))continue;
   const box=(el.matches('.hd-pal-hit,.hd-insp-vhit,.hd-look-fhit')?el.parentElement:el).getBoundingClientRect(),min=el.matches('.hd-handle')?(coarse?44:12):(coarse?44:24);
   res.hits.push({el:path(el),name:snip(el)||el.getAttribute('aria-label')||'',w:Math.round(box.width),h:Math.round(box.height),pass:box.width>=min-.5&&box.height>=min-.5});}
  for(const a of document.getAnimations()){const tg=a.effect&&a.effect.target;if(!tg||!root.contains(tg)||a.playState!=='running')continue;const it=a.effect.getComputedTiming().iterations;res.anim.push({el:path(tg),name:a.animationName||a.transitionProperty||'',pass:it!==Infinity});}
@@ -494,6 +494,68 @@ func (h *hdDesigner) safeDiag() (s string) {
 	return h.diag()
 }
 
+// hdSafeOutDir resolves an environment-given output directory to an absolute path and refuses one inside the repository (the gate sheets are
+// large and must not land in the working tree).
+func hdSafeOutDir(t *testing.T, raw string) string {
+	t.Helper()
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("working directory: %v", err)
+	}
+	abs, err := hdResolveOutDir(raw, wd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return abs
+}
+
+// hdResolveOutDir makes raw absolute (relative to wd) and walks up from wd to the directory holding go.mod; a path at or under it is refused.
+func hdResolveOutDir(raw, wd string) (string, error) {
+	abs := raw
+	if !filepath.IsAbs(abs) {
+		abs = filepath.Join(wd, abs)
+	}
+	abs = filepath.Clean(abs)
+	for repo := wd; ; repo = filepath.Dir(repo) {
+		if _, err := os.Stat(filepath.Join(repo, "go.mod")); err == nil {
+			if rel, err := filepath.Rel(repo, abs); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+				return "", fmt.Errorf("output directory %s is inside the repository %s; use a directory outside it", abs, repo)
+			}
+			break
+		}
+		if filepath.Dir(repo) == repo {
+			break
+		}
+	}
+	return abs, nil
+}
+
+func TestHDResolveOutDir(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	wd := filepath.Join(root, "ui")
+	if err := os.MkdirAll(wd, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	outside := t.TempDir()
+	for _, bad := range []string{root, filepath.Join(root, "shots"), "shots", filepath.Join("..", "shots"), ".", filepath.Join(wd, "..", "ui", "x")} {
+		if got, err := hdResolveOutDir(bad, wd); err == nil {
+			t.Errorf("%q resolved to %s, want a refusal", bad, got)
+		}
+	}
+	for _, good := range []string{outside, filepath.Join(outside, "a", "..", "b")} {
+		got, err := hdResolveOutDir(good, wd)
+		if err != nil || !filepath.IsAbs(got) {
+			t.Errorf("%q: got %q, %v", good, got, err)
+		}
+	}
+	if got, err := hdResolveOutDir(filepath.Join("..", "..", "elsewhere"), wd); err != nil && filepath.Dir(root) != root {
+		t.Errorf("a path outside the repository was refused: %s, %v", got, err)
+	}
+}
+
 func hdTileLabel(name string) string { return strings.Replace(name, "-", " ", 1) }
 
 // TestDesktopHomeDashDesignerGatesBrowser stages every editor state and measures it (gates E-S, E-T, E-F). HOMEDASH_M4_SHOTS=1 runs E-S and E-F,
@@ -507,6 +569,7 @@ func TestDesktopHomeDashDesignerGatesBrowser(t *testing.T) {
 	if dir == "" {
 		t.Fatal("HOMEDASH_M4_DIR is required")
 	}
+	dir = hdSafeOutDir(t, dir)
 	if lang == "" {
 		lang = "en"
 	}

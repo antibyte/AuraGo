@@ -36,4 +36,29 @@ export const tests = [
     assert.ok(ok(g.moveItems(L, ['a'], { x: 2.6, y: 0.4 }, 12))); assert.ok(ok(g.moveItems(L, ['a'], { x: 1.5, y: -0.4 }, 12, { compact: false })));
     assert.ok(ok(g.resizeItem(L, 'a', 'se', { dx: 0.6, dy: 1.4 }, 12))); assert.ok(ok(g.resizeItem(L, 'b', 'nw', { dx: -0.6, dy: -0.4 }, 12)));
     assert.equal(JSON.stringify(L), before); }]
+  ,
+  ['place: occupancy grid is identical to the old scan (randomized, edge cases)', () => { const g = G();
+    const PROBE = {}, collides = (a, b) => a.id !== b.id && a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+    const oracle = (L, w, h, cols, startY) => { const ww = Math.min(Math.max(1, w), cols), hh = Math.max(1, h), from = Math.max(0, startY || 0);
+      const bottom = Math.max(from, L.reduce((m, i) => Math.max(m, i.y + i.h), 0));
+      for (let y = from; y <= bottom; y++) for (let x = 0; x <= cols - ww; x++) { const p = { id: PROBE, x, y, w: ww, h: hh }; if (!L.some(i => collides(i, p))) return { x, y }; }
+      return { x: 0, y: bottom }; };
+    let seed = 12345; const rnd = n => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed % n; };
+    let checked = 0;
+    for (let round = 0; round < 300; round++) {
+      const cols = [1, 2, 4, 6, 12][rnd(5)], n = rnd(70), L = [];
+      for (let i = 0; i < n; i++) { const w = 1 + rnd(Math.min(cols, 5)); L.push(it('i' + i, rnd(cols + 2 - w + 1), rnd(25), w, 1 + rnd(4))); }   // overlaps and items past the right edge are allowed
+      for (let k = 0; k < 6; k++) { const w = 1 + rnd(cols + 3), h = rnd(5), sy = rnd(3) === 0 ? rnd(30) : 0; eq(g.place(L, w, h, cols, sy), oracle(L, w, h, cols, sy), 'round ' + round); checked++; }
+    }
+    assert.ok(checked >= 1800);
+    const dense = []; for (let i = 0; i < 40; i++) dense.push(it('d' + i, (i % 6) * 2, Math.floor(i / 6) * 2, 2, 2));
+    for (const sy of [0, 3, 13, 50]) for (const w of [1, 2, 5, 12, 30]) eq(g.place(dense, w, 2, 12, sy), oracle(dense, w, 2, 12, sy));
+    const odd = []; for (let i = 0; i < 30; i++) odd.push(it('o' + i, i % 5 + 0.5, i, 1.5, 1));   // fractional geometry takes the scan path
+    eq(g.place(odd, 2, 1, 12), oracle(odd, 2, 1, 12)); eq(g.place(odd, 2.5, 1.5, 12, 0.5), oracle(odd, 2.5, 1.5, 12, 0.5));
+    const zero = []; for (let i = 0; i < 20; i++) zero.push(it('z' + i, i % 4, i, i % 3 ? 1 : 0, 1)); eq(g.place(zero, 3, 1, 12), oracle(zero, 3, 1, 12));
+    const far = []; for (let i = 0; i < 20; i++) far.push(it('f' + i, 0, i === 3 ? 100000000 : i, 2, 1)); eq(g.place(far, 2, 1, 12), oracle(far, 2, 1, 12)); }],
+  ['place: 400 widgets without layout entries place in well under 50 ms (best of three)', () => { const g = G(); let best = Infinity, L = [];
+    for (let run = 0; run < 3; run++) { L = []; const t0 = process.hrtime.bigint(); for (let i = 0; i < 400; i++) { const p = g.place(L, 3, 2 + (i % 3), 12); L.push(it('w' + i, p.x, p.y, 3, 2 + (i % 3))); } best = Math.min(best, Number(process.hrtime.bigint() - t0) / 1e6); }
+    assert.ok(best < 50, 'took ' + best + ' ms');
+    for (let a = 0; a < L.length; a++) for (let b = a + 1; b < L.length; b++) assert.equal(g.collides(L[a], L[b]), false); }]
 ];
