@@ -113,5 +113,15 @@ export const tests = [
     const asked = []; let answer = { status: 'ok', catalog: { hash: 'h1', widgets: [] } };
     const { store } = setup({ widgetCatalog: etag => { asked.push(etag); return Promise.resolve(answer); } });
     assert.equal((await store.widgetCatalog('h1')).hash, 'h1'); assert.equal((await store.widgetCatalog('h1')).hash, 'h1'); eq(asked, ['']);
-    answer = { status: 'ok', not_modified: true }; assert.equal((await store.widgetCatalog('h2')).hash, 'h1'); eq(asked, ['', 'h1']); }]
+    answer = { status: 'ok', not_modified: true }; assert.equal((await store.widgetCatalog('h2')).hash, 'h1'); eq(asked, ['', 'h1']); }],
+  ['store (M4 C7): docs cache keeps the newest revision, one editor lock, presence release, focusEditor, dispose clears', () => {
+    const { store, clock } = setup(), docs = store.docs, seen = [], locks = [];
+    store.on('doc', d => seen.push(d.id + '@' + d.revision)); store.on('lock', d => locks.push(d.id + ':' + d.owner));
+    assert.equal(docs.get('a'), null); assert.equal(docs.put('a', { revision: 3, name: 'x' }), true); assert.equal(docs.put('a', { revision: 2 }), false); assert.equal(docs.get('a').revision, 3);
+    assert.equal(docs.put('a', { revision: 3, name: 'same' }), true); assert.equal(docs.get('a').doc.name, 'same'); assert.equal(docs.put('a', null), false); assert.equal(docs.put(7, {}), false);
+    eq(seen, ['a@3', 'a@3']); docs.drop('a'); assert.equal(docs.get('a'), null); eq(seen, ['a@3', 'a@3', 'a@0']);
+    assert.equal(docs.lock('d1', 'A'), true); assert.equal(docs.lock('d1', 'B'), false); assert.equal(docs.lock('d1', 'A'), true); assert.equal(docs.editor('d1'), 'A'); eq(locks, ['d1:A']);
+    assert.equal(docs.unlock('d1', 'B'), false); let focused = 0; docs.presence('A', { focus: () => { focused++; } }); assert.equal(docs.focusEditor('d1'), true); assert.equal(focused, 1); assert.equal(docs.focusEditor('nope'), false);
+    docs.lock('d2', 'A'); docs.presence('A', null); assert.equal(docs.editor('d1'), null); assert.equal(docs.editor('d2'), null); assert.ok(locks.includes('d1:null') && locks.includes('d2:null')); assert.equal(docs.focusEditor('d1'), false);
+    docs.lock('d3', 'A'); docs.put('z', { revision: 1 }); store.dispose(); assert.equal(docs.editor('d3'), null); assert.equal(docs.get('z'), null); void clock; }]
 ];

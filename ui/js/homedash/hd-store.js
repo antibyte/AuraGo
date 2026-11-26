@@ -198,14 +198,27 @@
             }).finally(() => { catalogLoad = null; });
             return catalogLoad;
         }
+        const docCache = new Map(), locks = new Map(), presence = new Map();
+        const docs = Object.freeze({
+            get: id => docCache.get(id) || null,
+            put(id, d) { if (typeof id !== 'string' || !isObj(d)) return false; const rev = Number(d.revision) || 0, have = docCache.get(id);
+                if (have && have.revision > rev) return false; docCache.set(id, Object.freeze({ doc: d, revision: rev, loadedAt: now() })); bus.emit('doc', { id, revision: rev }); return true; },
+            drop(id) { if (docCache.delete(id)) bus.emit('doc', { id, revision: 0 }); },
+            lock(id, owner) { const cur = locks.get(id); if (cur && cur !== owner) return false; if (!cur) { locks.set(id, owner); bus.emit('lock', { id, owner }); } return true; },
+            unlock(id, owner) { if (locks.get(id) !== owner) return false; locks.delete(id); bus.emit('lock', { id, owner: null }); return true; },
+            editor: id => locks.get(id) || null,
+            presence(owner, handle) { if (handle) { presence.set(owner, handle); return; } presence.delete(owner);
+                for (const [id, o] of [...locks]) if (o === owner) { locks.delete(id); bus.emit('lock', { id, owner: null }); } },
+            focusEditor(id) { const o = locks.get(id), h = o && presence.get(o); if (!h || typeof h.focus !== 'function') return false; h.focus(); return true; }
+        });
         return Object.freeze({
-            view, watch, history, widgetCatalog, connection, setSources, on: bus.on, off: bus.off, sources: () => [...sources.values()],
+            view, watch, history, widgetCatalog, connection, setSources, docs, on: bus.on, off: bus.off, sources: () => [...sources.values()],
             setDesktopReadonly(flag) { if (desktopReadonly === !!flag) return; desktopReadonly = !!flag; touchAll(); },
             get disposed() { return disposed; },
             dispose() {
                 if (disposed) return;
                 disposed = true; for (const fn of unhook.splice(0)) fn(); clearT(graceTimer); clearT(lingerTimer); graceTimer = 0; lingerTimer = 0; flush.cancel();
-                const recs = [...owners.values()]; entries.clear(); series.clear(); owners.clear();
+                const recs = [...owners.values()]; entries.clear(); series.clear(); owners.clear(); docCache.clear(); locks.clear(); presence.clear();
                 for (const rec of recs) { rec.linger.clear(); try { rec.handle.detach(); } catch (err) { /* the stream may already be gone */ } }
             }
         });
