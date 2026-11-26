@@ -91,6 +91,8 @@ State is held in `data/kaggle.db` and `data/kaggle/projects/`. The database is p
 
 Chibi Sensei uses two in-process helpers that are not agent tools or HTTP routes: a read of its own notebook's session log (download grant and filesystem write, own account only, no job receipt and no project file, at most 16 MiB, scrubbed) and the removal of its staged project files.
 
+Answers never carry download URLs. File listings (notebook session output, dataset files, competition files, submissions) return file names only, and any URL that would grant access by itself is removed from results, job receipts and logs. To get a file, use the matching download operation: it stores the file in a project and reports the project, the file name and the size.
+
 ## Runtime delivery and verification
 
 `internal/notebooks/docker.go` pins the published runtime OCI index `ghcr.io/antibyte/aurago-kaggle-notebook@sha256:591a7ef45ba78931aa9468bb55957c2918d7fefb271aeb70d734d12e0ca60eac` (protocol tag `protocol-1-20261026`). Inspection, pulling and container creation use this exact digest; a missing or failed image never falls back to a tag. Its Dockerfile uses the 2026-10-26 scipy-notebook multiarch OCI digest `sha256:0698ec1bc3ecf0ff30e571af74816459f1a2947b560236af0d28e13900a3b296`. Each session uses UID/GID 1000:100, a read-only root, dropped capabilities, no-new-privileges, CPU/RAM/PID limits, bounded private tmpfs, no published port and no host or Docker-socket mounts. A fixed `jupyter_client` bridge communicates over Docker exec attach with bounded JSON frames.

@@ -194,33 +194,41 @@ func decodeResponse(raw []byte, value any) error {
 	return d.Decode(value)
 }
 
+// cleanOutput removes credential keys, the url of every file entry and URLs that grant access by themselves
+// (signed or token-bearing download links, also inside text). It is the only path from a Kaggle answer to
+// Result.Data and a stored job result. fileEntry is evaluated before the loop deletes keys.
 func cleanOutput(raw json.RawMessage) json.RawMessage {
 	var v any
 	if decodeResponse(raw, &v) != nil {
 		return json.RawMessage(`{}`)
 	}
-	var clean func(any) any
-	clean = func(x any) any {
+	var clean func(x any, parent string) any
+	clean = func(x any, parent string) any {
 		switch a := x.(type) {
 		case map[string]any:
+			file := fileEntry(a, parent)
 			for k, v := range a {
 				lower := strings.ToLower(k)
-				if lower == "token" || lower == "accesstoken" || lower == "refreshtoken" || strings.Contains(lower, "createurl") || strings.Contains(lower, "downloadurl") || strings.Contains(lower, "signedurl") {
+				text, isText := v.(string)
+				switch {
+				case lower == "token" || lower == "accesstoken" || lower == "refreshtoken" || strings.Contains(lower, "createurl") || strings.Contains(lower, "downloadurl") || strings.Contains(lower, "signedurl"),
+					file && lower == "url",
+					isText && credentialURL(text):
 					delete(a, k)
-				} else {
-					a[k] = clean(v)
+				default:
+					a[k] = clean(v, lower)
 				}
 			}
 		case []any:
 			for i, v := range a {
-				a[i] = clean(v)
+				a[i] = clean(v, parent)
 			}
 		case string:
-			return security.Scrub(a)
+			return redactOutputURLs(security.Scrub(a))
 		}
 		return x
 	}
-	v = clean(v)
+	v = clean(v, "")
 	b, _ := json.Marshal(v)
 	return b
 }

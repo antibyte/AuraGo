@@ -14,6 +14,7 @@ In-process caller: Chibi Sensei drives Kaggle only through `internal/server/chib
 
 - Fixed API operations come from the pinned official SDK. HTTP POST is not a mutation classification. Never expose an arbitrary service, URL or raw authenticated request.
 - Secrets come only from the Vault. Register before network access; never export tokens, signed storage URLs or local paths to the model or browser.
+- `cleanOutput` is the only path from a Kaggle answer to `Result.Data` and to a stored job result. Beyond the credential keys (`token`, `accessToken`, `refreshToken`, `*createUrl*`, `*downloadUrl*`, `*signedUrl*`) it drops the `url` of every file entry (an object with a `fileName`, or an element of a list whose key ends in `files`) and every URL value that grants access by itself: user info, a signing or token query parameter, or a `kaggleusercontent.com` host (`credentialURL` in `output_urls.go`). Inside longer text such a URL becomes `[download URL removed]`. File listings (`list_kernel_session_output`, `list_dataset_files`, `list_data_files`, submissions) therefore return names without download URLs; files leave Kaggle only through the `download_*` operations. Kaggle page links (`https://www.kaggle.com/...`) stay. A new answer shape that carries a download URL under another position needs a rule and a table case in `TestKaggleCleanOutputURLRules`.
 - Upload receipts store `kaggle_upload_<job-id>` Vault references in SQLite, never bearer material. The `kaggle_` Python-export denylist covers these slots too.
 - Enabled/read-only and operation grants are checked against current configuration. Public mutations additionally require publish; writes default to the authenticated owner. Downloads require local write permission separately.
 - Persist admission before mutations. Unknown remote outcomes are never replayed. Repeated request IDs return their original receipt only when the account and canonical request match.
@@ -41,6 +42,8 @@ In-process caller: Chibi Sensei drives Kaggle only through `internal/server/chib
 Run the package tests and focused config, server, tools, agent and UI suites. Use local HTTP fixtures for writes; live tests require dedicated test resources.
 
 Machine shapes, log reads and file removal: `TestKaggleMachineShape*`, `TestKaggleReadKernelLog*` (event stream, JSON stall, caller context), notebook polling `TestKaggleNotebookRef`, `TestKagglePollRemoteNotebookReachesTerminal`, `TestKagglePollRemoteNotebookGone`, `TestKaggleRemoveFilePathSafety`, missing resources `TestKaggleNotFound` and `TestKaggleSaveKernelCreatesWhenKaggleDeniesTheMissingNotebook`, and in `internal/config` `TestKaggleMachineShapes*` and `TestChibiSenseiTrainingConfig`.
+
+Output cleaning: `TestKaggleCleanOutputDropsKernelOutputURLs`, `TestKaggleCleanOutputURLRules` and `TestKaggleExecuteListKernelSessionOutputHidesURLs`.
 
 ## Child DOX Index
 

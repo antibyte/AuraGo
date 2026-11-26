@@ -735,7 +735,7 @@ func (f *fakeKaggle) advanceKernelLocked(k *fakeKernel) {
 //   - get_kernel: a live notebook → {"ref","isPrivate":true}; else 403.
 //   - get_kernel_session_status: a live notebook → advances it one step and answers {"status": <current>}; else 403.
 //   - any kernel read with a versionLabel parameter: 404, whatever the label (real Kaggle knows no such label).
-//   - list_kernel_session_output: {"files":[{"fileName","url"}],"log":""} from SetOutputs (real shape, fixed URL string).
+//   - list_kernel_session_output: {"files":[{"fileName"}],"log":""} from SetOutputs (the cleaned shape: AuraGo removes the download URLs).
 //   - get_accelerator_quota_statistics: fakeQuotaJSON(27.5) (real shape).
 //   - anything else: {}.
 func (f *fakeKaggle) readLocked(name string, p map[string]any) (json.RawMessage, error) {
@@ -786,7 +786,7 @@ func (f *fakeKaggle) readLocked(name string, p map[string]any) (json.RawMessage,
 		sort.Strings(names)
 		files := []map[string]any{}
 		for _, n := range names {
-			files = append(files, map[string]any{"fileName": n, "url": "https://fake.invalid/output/" + n})
+			files = append(files, map[string]any{"fileName": n})
 		}
 		return fakeJSON(map[string]any{"files": files, "log": ""}), nil
 	case "get_accelerator_quota_statistics":

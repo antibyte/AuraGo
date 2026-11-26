@@ -109,8 +109,9 @@ type KaggleDriver interface {
 	//
 	// Reads (grant read: get_dataset, get_dataset_status, get_kernel, get_kernel_session_status,
 	// list_kernel_session_output, get_accelerator_quota_statistics) run synchronously. Result.Data is the scrubbed
-	// JSON answer ({} when empty), Result.Job is nil, req.ID is ignored and nothing is persisted. A missing resource
-	// is an error for which IsKaggleNotFound is true (not found; Kaggle answers 403 for a missing resource).
+	// JSON answer ({} when empty; a file listing carries file names and no download URLs), Result.Job is nil,
+	// req.ID is ignored and nothing is persisted. A missing resource is an error for which IsKaggleNotFound is true
+	// (not found; Kaggle answers 403 for a missing resource).
 	//
 	// Every other operation (upload_dataset_file, create_dataset, save_kernel, download_kernel_output,
 	// delete_dataset, delete_kernel) is a durable job. Execute admits it and returns at once with Result.Job in
