@@ -60,7 +60,8 @@
 
         function nameOf(map, name, what, def) {
             var n = name === undefined || name === null ? def : name;
-            if (!map[n]) throw new RangeError('Unknown ' + what + ' "' + n + '". Available: ' + Object.keys(map).sort().join(', ') + '.');
+            // Own properties only, so a name such as "constructor" does not pass as a catalog entry.
+            if (!Object.prototype.hasOwnProperty.call(map, n) || !map[n]) throw new RangeError('Unknown ' + what + ' "' + n + '". Available: ' + Object.keys(map).sort().join(', ') + '.');
             return n;
         }
 
@@ -194,7 +195,7 @@
             if (!props || typeof props !== 'object') throw new TypeError('api.tween needs an object of properties, for example {opacity: 1}.');
             var t = timing(o, 0.5), from = (o && o.from) || {};
             Object.keys(props).forEach(function (key) {
-                var field = TWEEN_PROPS[key];
+                var field = Object.prototype.hasOwnProperty.call(TWEEN_PROPS, key) ? TWEEN_PROPS[key] : undefined;
                 if (!field) {
                     if (key === 'grow') { note('not_supported_yet', 'The tween property "grow" belongs to charts, which are not supported yet.'); return; }
                     throw new RangeError('Unknown tween property "' + key + '". Use ' + Object.keys(TWEEN_PROPS).join(', ') + '.');

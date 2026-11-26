@@ -85,11 +85,18 @@ func DecodeStory(data []byte, lim Limits) (Story, []Issue, error) {
 		return decodeFailure(issues...)
 	}
 
-	var s Story
+	// A story without a style block keeps this preset (json leaves an absent key alone), so captions are on
+	// exactly as Style.UnmarshalJSON defaults them when the block omits the key. A present block replaces it.
+	s := Story{Style: Style{Captions: true}}
 	strict := json.NewDecoder(bytes.NewReader(data))
 	strict.DisallowUnknownFields()
 	if err := strict.Decode(&s); err != nil {
 		return decodeFailure(jsonErrorIssue(data, err))
+	}
+	// An explicit captions:false with no palette or font would otherwise read as "no style" in ApplyDefaults
+	// and turn the captions back on.
+	if s.Style == (Style{}) {
+		s.Style.Palette = DefaultPalette
 	}
 	return s, nil, nil
 }

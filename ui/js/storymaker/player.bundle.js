@@ -2854,7 +2854,8 @@
 
         // A known name that the catalog does not have is a minor not_supported_yet and falls back; an unknown name is a warning.
         function nameOr(map, known, name, fallback, path, what) {
-            if (map[name]) return name;
+            // Own properties only, so a name such as "constructor" does not pass as a catalog entry.
+            if (Object.prototype.hasOwnProperty.call(map, name) && map[name]) return name;
             if (P.contains(known, name)) warn('minor', path, 'not_supported_yet', what + ' "' + name + '" is not in the catalog yet; the player uses "' + fallback + '".');
             else warn('warning', path, 'unknown_name', 'Unknown ' + what.toLowerCase() + ' "' + name + '"; the player uses "' + fallback + '".');
             return fallback;
@@ -3987,9 +3988,14 @@
     // poseFor(cat, name, facing): the catalog entry of a pose name. A left-facing actor is drawn mirrored, so point-left and
     // point-right swap entries and the name keeps meaning the direction on the screen. The swap needs both entries.
     function poseFor(cat, name, facing) {
-        var other = facing < 0 && MIRROR_POSES[name];
-        var pick = other && cat.poses[other] && cat.poses[name] ? other : name;
-        return cat.poses[pick] || cat.poses.stand || { bones: {} };
+        var other = facing < 0 && ownEntry(MIRROR_POSES, name);
+        var pick = other && ownEntry(cat.poses, other) && ownEntry(cat.poses, name) ? other : name;
+        return ownEntry(cat.poses, pick) || ownEntry(cat.poses, 'stand') || { bones: {} };
+    }
+
+    // ownEntry(map, key): the own entry of a map, so a name such as "constructor" never reaches Object.prototype.
+    function ownEntry(map, key) {
+        return map && Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined;
     }
 
     // rigState(st, t, rc, rig): the draw state of an actor from its logical state (pose blend, gesture, walk or idle cycle).
@@ -4697,7 +4703,8 @@
 
         function nameOf(map, name, what, def) {
             var n = name === undefined || name === null ? def : name;
-            if (!map[n]) throw new RangeError('Unknown ' + what + ' "' + n + '". Available: ' + Object.keys(map).sort().join(', ') + '.');
+            // Own properties only, so a name such as "constructor" does not pass as a catalog entry.
+            if (!Object.prototype.hasOwnProperty.call(map, n) || !map[n]) throw new RangeError('Unknown ' + what + ' "' + n + '". Available: ' + Object.keys(map).sort().join(', ') + '.');
             return n;
         }
 
@@ -4831,7 +4838,7 @@
             if (!props || typeof props !== 'object') throw new TypeError('api.tween needs an object of properties, for example {opacity: 1}.');
             var t = timing(o, 0.5), from = (o && o.from) || {};
             Object.keys(props).forEach(function (key) {
-                var field = TWEEN_PROPS[key];
+                var field = Object.prototype.hasOwnProperty.call(TWEEN_PROPS, key) ? TWEEN_PROPS[key] : undefined;
                 if (!field) {
                     if (key === 'grow') { note('not_supported_yet', 'The tween property "grow" belongs to charts, which are not supported yet.'); return; }
                     throw new RangeError('Unknown tween property "' + key + '". Use ' + Object.keys(TWEEN_PROPS).join(', ') + '.');

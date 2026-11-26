@@ -651,6 +651,9 @@ func handleStorymakerMusic(s *Server, w http.ResponseWriter, r *http.Request, id
 	if !ok {
 		return
 	}
+	if refuseStorymakerWhileAgentRuns(w, acc.rt, id) {
+		return
+	}
 	var req struct {
 		DurationMS int  `json:"duration_ms"`
 		Generate   bool `json:"generate"`
@@ -724,9 +727,15 @@ func handleStorymakerMusic(s *Server, w http.ResponseWriter, r *http.Request, id
 	if story.Music.Mode == "generated" && req.Generate {
 		payload.GenerateKey = key
 	}
+	acc.rt.gate.Lock()
+	if refuseStorymakerWhileAgentRuns(w, acc.rt, id) {
+		acc.rt.gate.Unlock()
+		return
+	}
 	job, replayed, err := acc.rt.narrate.Enqueue(render.EnqueueRequest{
 		ProjectID: id, Kind: render.KindMusic, Coalesce: true, Payload: payload,
 	})
+	acc.rt.gate.Unlock()
 	switch {
 	case errors.Is(err, render.ErrBusy):
 		writeStorymakerError(w, http.StatusTooManyRequests, render.CodeBusy, "Too many audio jobs are waiting. Try again when one has finished.", nil)

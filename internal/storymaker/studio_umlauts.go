@@ -188,7 +188,7 @@ func withRepairs(res StudioResult, fixes []UmlautFix) StudioResult {
 		return res
 	}
 	noteRepairs(body, fixes)
-	data, err := json.Marshal(body)
+	data, err := marshalStudioJSON(body)
 	if err != nil {
 		return res
 	}

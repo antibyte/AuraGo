@@ -86,9 +86,14 @@
     // poseFor(cat, name, facing): the catalog entry of a pose name. A left-facing actor is drawn mirrored, so point-left and
     // point-right swap entries and the name keeps meaning the direction on the screen. The swap needs both entries.
     function poseFor(cat, name, facing) {
-        var other = facing < 0 && MIRROR_POSES[name];
-        var pick = other && cat.poses[other] && cat.poses[name] ? other : name;
-        return cat.poses[pick] || cat.poses.stand || { bones: {} };
+        var other = facing < 0 && ownEntry(MIRROR_POSES, name);
+        var pick = other && ownEntry(cat.poses, other) && ownEntry(cat.poses, name) ? other : name;
+        return ownEntry(cat.poses, pick) || ownEntry(cat.poses, 'stand') || { bones: {} };
+    }
+
+    // ownEntry(map, key): the own entry of a map, so a name such as "constructor" never reaches Object.prototype.
+    function ownEntry(map, key) {
+        return map && Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined;
     }
 
     // rigState(st, t, rc, rig): the draw state of an actor from its logical state (pose blend, gesture, walk or idle cycle).

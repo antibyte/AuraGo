@@ -60,7 +60,8 @@
 
         // A known name that the catalog does not have is a minor not_supported_yet and falls back; an unknown name is a warning.
         function nameOr(map, known, name, fallback, path, what) {
-            if (map[name]) return name;
+            // Own properties only, so a name such as "constructor" does not pass as a catalog entry.
+            if (Object.prototype.hasOwnProperty.call(map, name) && map[name]) return name;
             if (P.contains(known, name)) warn('minor', path, 'not_supported_yet', what + ' "' + name + '" is not in the catalog yet; the player uses "' + fallback + '".');
             else warn('warning', path, 'unknown_name', 'Unknown ' + what.toLowerCase() + ' "' + name + '"; the player uses "' + fallback + '".');
             return fallback;

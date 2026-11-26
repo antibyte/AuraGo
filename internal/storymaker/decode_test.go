@@ -200,8 +200,8 @@ func TestStyleCaptionsDefaultOnWhenOmitted(t *testing.T) {
 		t.Fatalf("explicit false lost: %+v", s.Style)
 	}
 	s = mustDecode(t, `{"schema":"storymaker/1","title":"x","scenes":[]}`)
-	if s.Style != (Style{}) {
-		t.Fatalf("absent style must stay zero so ApplyDefaults can fill it: %+v", s.Style)
+	if s.Style != (Style{Captions: true}) {
+		t.Fatalf("absent style must decode with captions on and nothing else, so ApplyDefaults fills the rest: %+v", s.Style)
 	}
 }
 
@@ -281,5 +281,17 @@ func TestPointerAtOffsetEscapesAndIndexes(t *testing.T) {
 	off := int64(strings.Index(data, `"x"`) + 3)
 	if got := pointerAtOffset([]byte(data), off); got != "/a~1b/c~0d/1/e" {
 		t.Fatalf("pointer = %q", got)
+	}
+}
+
+func TestDecodeStoryKeepsCaptionsOnWithoutAStyleBlock(t *testing.T) {
+	s := mustDecode(t, `{"schema":"storymaker/1","scenes":[{"id":"a","narration":"Hi"}]}`)
+	if !s.Style.Captions {
+		t.Fatalf("a story without a style block decoded with captions off: %+v", s.Style)
+	}
+	off := mustDecode(t, `{"schema":"storymaker/1","style":{"captions":false},"scenes":[{"id":"a","narration":"Hi"}]}`)
+	ApplyDefaults(&off)
+	if off.Style.Captions {
+		t.Fatalf("an explicit captions:false was turned back on: %+v", off.Style)
 	}
 }

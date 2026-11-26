@@ -114,3 +114,14 @@ func TestRepairUmlautsOnTheRealFirewallRun(t *testing.T) {
 		t.Errorf("the run has at least 5 missing umlauts, repaired %d", total)
 	}
 }
+
+func TestWithRepairsKeepsHTMLCharactersLiteral(t *testing.T) {
+	res := withRepairs(StudioResult{JSON: []byte(`{"status":"ok","text":"a < b & c </x>"}`)}, []UmlautFix{{From: "pruft", To: "prüft", Count: 1}})
+	got := string(res.JSON)
+	if strings.Contains(got, "\\"+"u003c") || strings.Contains(got, "\\"+"u0026") {
+		t.Fatalf("the answer was HTML-escaped: %s", got)
+	}
+	if !strings.Contains(got, `a < b & c <\/x>`) {
+		t.Fatalf("the answer lost its literal characters or the </ guard: %s", got)
+	}
+}

@@ -279,16 +279,24 @@ func handleStorymakerAgentJobs(s *Server, w http.ResponseWriter, r *http.Request
 		return
 	}
 	ctx := r.Context()
+	// The handler counts the job before it creates anything and gives the count back when a later step
+	// refuses, so a full day leaves no project behind.
+	if err := storymakerAgentReserveDaily(acc); err != nil {
+		writeStorymakerAgentStartError(w, err)
+		return
+	}
 	projectID := strings.TrimSpace(req.ProjectID)
 	created := false
 	if projectID == "" {
 		id, err := storymakerAgentCreateProject(ctx, acc, topic, req.Aspect, mode)
 		if err != nil {
+			storymakerAgentReleaseDaily(acc)
 			mapStorymakerError(w, err, "project_not_found")
 			return
 		}
 		projectID, created = id, true
 	} else if !storymakerAgentProjectAcceptsCreate(ctx, w, acc, projectID, requestedMode) {
+		storymakerAgentReleaseDaily(acc)
 		return
 	}
 	audience := strings.TrimSpace(req.Audience)
@@ -298,14 +306,6 @@ func handleStorymakerAgentJobs(s *Server, w http.ResponseWriter, r *http.Request
 	payload := storymakerAgentPayload{
 		Kind: storymaker.AgentKindCreate, ProjectID: projectID, Topic: topic, Audience: audience,
 		Language: req.Language, LengthSeconds: req.LengthSeconds, Voice: req.Voice,
-	}
-	// The handler counts the job before the start and gives the count back when the start refuses.
-	if err := storymakerAgentReserveDaily(acc); err != nil {
-		if created {
-			_ = acc.rt.projects.Delete(ctx, projectID)
-		}
-		writeStorymakerAgentStartError(w, err)
-		return
 	}
 	job, err := s.storymakerStartAgentJob(ctx, acc, payload)
 	if err != nil {

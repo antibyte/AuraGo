@@ -897,11 +897,13 @@ func (run *renderRun) snapshot() (*Snapshot, error) {
 		}
 	}
 	readFont := func(file string) ([]byte, error) {
-		clean := strings.TrimPrefix(path.Clean(file), "/")
-		if !strings.HasPrefix(file, "/fonts/") || !fs.ValidPath(clean) {
+		// The prefix is checked on the cleaned path, so "/fonts/../x" cannot pass as a font.
+		clean := path.Clean(file)
+		rel := strings.TrimPrefix(clean, "/")
+		if !strings.HasPrefix(clean, "/fonts/") || !fs.ValidPath(rel) {
 			return nil, fmt.Errorf("the catalog font file %q is not a /fonts/ path", file)
 		}
-		return read(clean)
+		return read(rel)
 	}
 	catalogFamilies := map[string]bool{}
 	for _, f := range cat.Fonts {

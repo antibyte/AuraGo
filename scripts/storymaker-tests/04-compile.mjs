@@ -123,6 +123,8 @@ check('compile: the phase-1 support matrix reports not_supported_yet and falls b
     assert.equal(codes('/scenes/0/actors/0/expression', 'not_supported_yet').length, 1);
     assert.equal(codes('/scenes/0/beats/6/gesture', 'not_supported_yet').length, 1);
     assert.equal(codes('/scenes/0/beats/7/pose', 'unknown_name').length, 1, 'an unknown pose name');
+    const proto = SM.compile({ schema: 'storymaker/1', cast: [{ id: 'anna', character: 'char.office-woman-1' }], scenes: [{ id: 'a', actors: [{ cast: 'anna' }], beats: [{ do: 'pose', who: 'anna', pose: 'constructor' }] }] }, {}, catalog);
+    assert.equal(plain(proto.report.issues).filter(i => i.path === '/scenes/0/beats/0/pose' && i.code === 'unknown_name').length, 1, 'an Object.prototype name is an unknown pose name');
     const actor = out.timeline.scenes[0].entities[0];
     assert.equal(actor.pose.init, 'stand', 'the pose falls back to stand');
     assert.equal(actor.expr.init, 'neutral');

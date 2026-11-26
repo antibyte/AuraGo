@@ -68,6 +68,8 @@ check('code scene API: api.random is seeded, api.cue maps to cue times, errors n
     const err = src => { try { runScene(src, 'err', { story: { ...firewall, scenes: [{ id: 'm', narration: 'eins {1}zwei' }] }, id: 'm' }).build(); } catch (e) { return String(e.message); } return ''; };
     assert.match(err("export default function s(api) { api.add('char.nobody'); }"), /Unknown catalog id "char.nobody"/);
     assert.match(err("export default function s(api) { api.add('char.office-woman-1').pose('flying'); }"), /Unknown pose "flying"\. Available: .*stand/);
+    // Object.prototype names are no catalog entries.
+    assert.match(err("export default function s(api) { api.add('char.office-woman-1').pose('constructor'); }"), /Unknown pose "constructor"/);
     assert.match(err("export default function s(api) { api.cue(9); }"), /no cue marker \{9\}/);
     assert.match(err("export default function s(api) { api.duration(9999); }"), /between 0 and 600/);
     assert.match(err("export default function s(api) { api.tween({}, { opacity: 1 }); }"), /needs a handle/);

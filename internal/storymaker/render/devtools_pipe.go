@@ -132,7 +132,11 @@ func startBrowserProcess(ctx context.Context, o launchOptions) (*rod.Browser, *b
 	_ = outW.Close()
 	p := &browserProcess{cmd: cmd, in: inW, out: outR, exited: make(chan struct{}), output: output, profile: o.UserDataDir}
 	go func() {
-		_ = cmd.Wait()
+		// Wait gave up on the pipes after WaitDelay because helper processes still hold them; on Unix the
+		// process group kill still reaches them.
+		if err := cmd.Wait(); errors.Is(err, exec.ErrWaitDelay) {
+			killProcessTree(cmd.Process)
+		}
 		close(p.exited)
 	}()
 
