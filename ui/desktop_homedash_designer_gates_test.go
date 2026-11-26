@@ -106,7 +106,7 @@ const homeDashGateProbeJS = `(WIN)=>{
  // the focus ring is read against the pixels just outside it; its width counts as it is on screen (the design zoom scales it)
  const act=document.activeElement;if(act&&root.contains(act)&&act!==document.body&&act.matches(':focus-visible')){const cs=getComputedStyle(act),z=zoomOf(act),rings=[];let ext=0;
   if(cs.outlineStyle!=='none'&&parseFloat(cs.outlineWidth)>0){const w=parseFloat(cs.outlineWidth)*z;rings.push({col:rgba(cs.outlineColor),w});ext=Math.max(ext,parseFloat(cs.outlineOffset)*z+w);}
-  for(const m of cs.boxShadow.matchAll(/(rgba?\([^)]*\))\s+(-?[\d.]+)px\s+(-?[\d.]+)px\s+([\d.]+)px\s+([\d.]+)px/g))if(parseFloat(m[5])>0&&!/inset/.test(m[0])){const w=parseFloat(m[5])*z;rings.push({col:rgba(m[1]),w});ext=Math.max(ext,w);}
+  for(const m of cs.boxShadow.matchAll(/((?:rgba?|color)\([^)]*\))\s+(-?[\d.]+)px\s+(-?[\d.]+)px\s+([\d.]+)px\s+([\d.]+)px/g))if(parseFloat(m[5])>0&&!/inset/.test(m[0])){const w=parseFloat(m[5])*z;rings.push({col:rgba(m[1]),w});ext=Math.max(ext,w);}
   pxui(act,'focus',[0,0,0,1],act.getBoundingClientRect(),ext+1,ext+5,{rings,zoom:Math.round(z*1000)/1000});}
  for(const el of [...root.querySelectorAll('button,input:not([type=file]),select,[role=tab],[role=radio],[role=switch],.hd-handle'),...app.querySelectorAll('.hdx-elsewhere .hdx-btn,.hdx-save .hdx-btn')]){if(!shown(el)||el.closest('.hd-page > .hd-widget'))continue;
   const box=(el.matches('.hd-pal-hit,.hd-insp-vhit,.hd-look-fhit')?el.parentElement:el).getBoundingClientRect(),min=el.matches('.hd-handle')?(coarse?44:12):(coarse?44:24);
@@ -706,6 +706,19 @@ func hdGateStates() []hdGateState {
 			design(h)
 			h.hdMoreItem("homedash.menu.rename")
 			h.until(10*time.Second, "rename sheet", hdSheetOpen(` input`))
+			h.pause(200)
+			h.park()
+		}},
+		{name: "34-zoom-actual", enter: func(h *hdDesigner) {
+			// G14: a narrow window (the lg page is zoomed to fit, about 0.55), the edit bar toggle pressed: actual size, a widget selected and scrolled into view.
+			design(h)
+			h.resizeWindow(1180, 780)
+			h.until(5*time.Second, "zoom toggle", `()=>{const b=document.querySelector('.hd-editbar .hd-eb-zoom');return !!b&&!b.hidden&&document.querySelector('.hd-root .hd-page').hasAttribute('data-hd-zoomed');}`)
+			h.wantShellLanguage()
+			h.selectOne("mem")
+			h.mouseClick(`.hd-editbar .hd-eb-zoom`)
+			h.until(5*time.Second, "actual size", `()=>document.querySelector('.hd-editbar .hd-eb-zoom').getAttribute('aria-pressed')==='true'&&!document.querySelector('.hd-root .hd-page').hasAttribute('data-hd-zoomed')`)
+			h.until(5*time.Second, "the selected widget in view", `()=>{const s=document.querySelector('.hd-root .hd-stage').getBoundingClientRect(),r=document.querySelector('.hd-root .hd-page > [data-hd-wid="mem"]').getBoundingClientRect();return r.left>=s.left-1&&r.right<=s.right+1&&r.top>=s.top-1&&r.bottom<=s.bottom+1;}`)
 			h.pause(200)
 			h.park()
 		}},

@@ -164,7 +164,7 @@
 .desktop-body[data-theme="amiga"] ::selection { background: #000000; color: #ffffff; }
 
 /* !important: blue on grey is only 1.6:1, and several base focus rules say outline: none or use the accent. */
-.desktop-body[data-theme="amiga"] :focus-visible { outline: 2px dashed #000000 !important; outline-offset: 1px; }
+.desktop-body[data-theme="amiga"] :focus-visible:not(.hd-root[data-hd-mode="design"] .hd-page > .hd-widget) { outline: 2px dashed #000000 !important; outline-offset: 1px; }
 .desktop-body[data-theme="amiga"] :is(.vd-task-button, .vd-taskbar-pin, .vd-start-item, .vd-start-category):focus-visible { outline-offset: -4px; }
 .desktop-body[data-theme="amiga"] .vd-window-button:focus-visible { outline-offset: -5px; }
 .desktop-body[data-theme="amiga"] .vd-toast[data-type="error"] :focus-visible { outline-color: #ffffff !important; }

@@ -213,7 +213,7 @@
 /* G8: selection is a 2 px dashed outline 3 px off the card, keyboard focus a solid 2 px ring on the card edge: on a focused selected frame both read, and the ring has its own width, not the outline's.
    Both widths are whole layout px (round up to 1 px at the zoom): at zoom 0.6 a 2 px visual line is 3.3 px of layout, which a browser would draw blurred. The 2 px declaration before each is the fallback. */
 .hd-root[data-hd-mode="design"] .hd-page > .hd-widget[aria-selected="true"] { outline: 2px dashed var(--hdx-e-sel); outline-width: round(up, calc(2 * var(--hdx-u)), 1px); touch-action: none; }
-.hd-root[data-hd-mode="design"] .hd-page > .hd-widget:focus-visible { box-shadow: 0 0 0 2px var(--hdx-e-sel); box-shadow: 0 0 0 round(up, calc(2 * var(--hdx-u)), 1px) var(--hdx-e-sel); }
+.hd-root[data-hd-mode="design"] .hd-page > .hd-widget:focus-visible { box-shadow: 0 0 0 2px var(--hdx-e-ring-mix); box-shadow: 0 0 0 round(up, calc(2 * var(--hdx-u)), 1px) var(--hdx-e-ring-mix); --hdx-e-ring-mix: color-mix(in srgb, var(--hdx-e-sel) 65%, var(--vd-text)); }
 .hd-root[data-hd-mode="design"] .hd-page > .hd-widget:focus-visible:not([aria-selected="true"]) { outline: none; }
 .hd-root[data-hd-mode="design"] .hd-page > .hd-widget[data-hd-draft]:not([aria-selected="true"]) { outline: calc(1.5 * var(--hdx-u)) dashed color-mix(in srgb, var(--hd-ink) 30%, transparent); }
 .hd-root[data-hd-mode="design"] .hd-page > .hd-widget[data-hd-dragging] { z-index: 6; opacity: .94; cursor: grabbing; }
@@ -261,7 +261,7 @@
 .hd-f { display: grid; gap: 6px; min-inline-size: 0; }
 .hd-f[data-hd-inline] { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 12px; } .hd-f[data-hd-inline] > :is(.hd-f-help, .hd-f-error) { grid-column: 1 / -1; }
 .hd-f-label { display: flex; align-items: baseline; gap: 6px; color: var(--vd-text); font-size: 12px; font-weight: 600; }
-.hd-f-req, .hd-f-help, .hd-f-sec-title, .hd-f-out { color: var(--hdx-e-muted); font-size: 12px; } .hd-f-req { font-weight: 500; } .hd-f-help { margin: 0; line-height: 1.45; }
+.hd-f-req, .hd-f-help, .hd-f-sec-title, .hd-f-out { color: color-mix(in srgb, var(--vd-text) 35%, var(--hdx-e-muted)); font-size: 12px; } .hd-f-req { font-weight: 500; } .hd-f-help { margin: 0; line-height: 1.45; }
 .hd-f-error { margin: 0; color: var(--vd-text); font-size: 12px; } .hd-f-error::before { content: ""; display: inline-block; inline-size: 6px; block-size: 6px; margin-inline-end: 6px; border-radius: 50%; background: var(--ds-color-danger-fg); vertical-align: middle; }
 :is(.hd-root, .hdx-app) :is(.hd-f-input, .hd-f-select) { box-sizing: border-box; inline-size: 100%; min-block-size: 32px; margin: 0; padding: 0 10px; border: 1px solid var(--vd-mat-field-border, var(--hdx-e-line)); border-radius: var(--hdx-e-fr); background: var(--vd-mat-field, var(--vd-theme-control-bg)); box-shadow: var(--vd-mat-field-shadow, none); color: var(--vd-text); font: 13px/1.2 var(--vd-font-ui, system-ui, sans-serif); }
 :is(.hd-root, .hdx-app) :is(.hd-f-input, .hd-f-select):focus-visible { outline-offset: 0; border-color: var(--hdx-e-ring); }
@@ -283,7 +283,7 @@
 :is(.hd-root, .hdx-app) .hd-f-seg-opt[aria-checked="true"] { border-color: var(--vd-mat-btn-border, var(--hdx-e-line)); background: var(--vd-mat-btn, var(--vd-theme-control-bg)); box-shadow: var(--vd-mat-btn-shadow, none); color: var(--vd-mat-btn-text, var(--vd-text)); font-weight: 600; }
 .hd-f-colour { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 8px; }
 .hd-f-swatch { box-sizing: border-box; inline-size: 32px; block-size: 32px; margin: 0; padding: 3px; border: 1px solid var(--vd-mat-field-border, var(--hdx-e-line)); border-radius: var(--hdx-e-fr); background: var(--vd-mat-field, var(--vd-theme-control-bg)); cursor: pointer; }
-.hd-f-swatch::-webkit-color-swatch-wrapper { padding: 0; } .hd-f-swatch::-webkit-color-swatch { border: 0; border-radius: 3px; } .hd-f-colour[data-hd-empty] .hd-f-swatch { opacity: .45; }
+.hd-f-swatch::-webkit-color-swatch-wrapper { padding: 0; } .hd-f-swatch::-webkit-color-swatch { border: 0; border-radius: 3px; } .hd-f-colour[data-hd-empty] .hd-f-swatch::-webkit-color-swatch { background: linear-gradient(to top right, transparent calc(50% - 1px), var(--vd-text) calc(50% - 1px) calc(50% + 1px), transparent calc(50% + 1px)), var(--vd-mat-field, var(--vd-theme-control-bg)); }
 :is(.hd-root, .hdx-app) .hd-f-hex { font-family: var(--vd-mat-mono-font, ui-monospace, monospace); }
 .hd-f-rangewrap { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 6ch; align-items: center; gap: 10px; } .hd-f-out { text-align: end; font-variant-numeric: tabular-nums; }
 .hd-f-range:hover:not(:is(:disabled, [aria-disabled="true"]))::-webkit-slider-thumb { border-width: 2px; }
