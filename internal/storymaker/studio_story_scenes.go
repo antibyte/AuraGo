@@ -231,10 +231,9 @@ func (s *Studio) removeScene(ctx context.Context, sceneID string, args map[strin
 	if index >= 0 && len(story.Scenes) == 1 {
 		return sceneWriteRefused(op, sceneID, "invalid_data", "A story needs at least one scene.", "Change this scene instead of removing it.", nil)
 	}
+	// Only the in-memory draft and the dry-run count go. writes, charged and the issue counts stay,
+	// so remove_scene + put_scene of the same id cannot reset the per-scene budget.
 	delete(s.drafts, sceneID)
-	delete(s.writes, sceneID)
-	delete(s.charged, sceneID)
-	delete(s.lastIssueCount, sceneID)
 	delete(s.dryRunsScene, sceneID)
 	if index < 0 {
 		if hadDraft {
@@ -494,7 +493,7 @@ func sceneWriteIssues(issues []Issue, onlyWarnings bool) []Issue {
 
 func sceneWriteAnswer(op, status, sceneID string, body map[string]any) StudioResult {
 	body["status"] = status
-	data, err := json.Marshal(body)
+	data, err := marshalStudioJSON(body)
 	if err != nil {
 		status = "refused"
 		data = []byte(`{"status":"refused","code":"invalid_data","message":"The answer could not be encoded."}`)

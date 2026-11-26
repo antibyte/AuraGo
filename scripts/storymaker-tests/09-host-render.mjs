@@ -154,6 +154,14 @@ check('render mode: boot.frame_deadline_ms replaces the 250 ms frame deadline of
     assert.ok(absurd.includes(60000) && !absurd.includes(3600000), 'a render page never waits longer than a minute for one frame');
 });
 
+check('render mode: boot.frame_deadline_ms also lifts the warm-up deadline that the first frames and raster paints use', async () => {
+    const limits = { warmupFrames: 3, warmupDeadlineMs: 4000, frameDeadlineMs: 250 }, timers = [], kept = [];
+    assert.equal((await runRender({ story: minimal, noCode: true, limits, timers, boot: { frame_deadline_ms: 5000 } })).status.phase, 'done');
+    assert.ok(timers.includes(5000) && !timers.includes(4000), 'warm-up frames wait as long as Go offered, not 4 s');
+    assert.equal((await runRender({ story: minimal, noCode: true, limits: { ...limits, warmupDeadlineMs: 9000 }, timers: kept, boot: { frame_deadline_ms: 5000 } })).status.phase, 'done');
+    assert.ok(kept.includes(9000), 'a larger warm-up deadline stays');
+});
+
 check('render mode: restart, stop, refusal, frame limit and failures', async () => {
     let restarted = false;
     const restart = await runRender({ story: minimal, noCode: true, answer: n => { if (n === 5 && !restarted) { restarted = true; return { restart: true }; } return null; } });

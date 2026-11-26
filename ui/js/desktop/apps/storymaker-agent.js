@@ -50,7 +50,8 @@
         scene_unfilled: 'storymaker.agent.check_scene_unfilled',
         compile_failed: 'storymaker.agent.check_compile_failed',
         over_target: 'storymaker.agent.check_over_target',
-        over_budget: 'storymaker.agent.check_over_budget',
+        scenes_look_alike: 'storymaker.agent.check_scenes_look_alike',
+        over_export_limit: 'storymaker.agent.check_over_export_limit',
         caption_overlap: 'storymaker.agent.check_layout_found',
         prop_too_small: 'storymaker.agent.check_layout_found',
         offscreen: 'storymaker.agent.check_layout_found',
@@ -61,6 +62,15 @@
         gesture_monotony: 'storymaker.agent.check_craft',
         cast_unused: 'storymaker.agent.check_craft'
     };
+
+    // The text of an open check: its own line, else the issue title of a known issue code, else the generic line.
+    function checkKey(code) {
+        if (typeof code === 'string') {
+            if (Object.prototype.hasOwnProperty.call(CHECK_KEYS, code)) return CHECK_KEYS[code];
+            if (Array.isArray(S.ISSUE_CODES) && S.ISSUE_CODES.indexOf(code) >= 0) return 'storymaker.issue.' + code;
+        }
+        return 'storymaker.agent.check_unknown';
+    }
 
     function isActive(job) {
         return !!job && ACTIVE.indexOf(job.status) >= 0;
@@ -388,7 +398,7 @@
         }
 
         function checkLine(check) {
-            const key = CHECK_KEYS[check.code] || 'storymaker.agent.check_unknown';
+            const key = checkKey(check.code);
             return el('li', { class: 'stm-agent-check', dataset: { stm: 'agent-check', code: String(check.code || '') } },
                 check.scene_id ? el('code', { text: String(check.scene_id) }) : null,
                 el('span', { text: t(key) + (check.code === 'compile_unverified' && Object.prototype.hasOwnProperty.call(COMPILE_REASON_KEYS, check.detail) ? ' ' + t(COMPILE_REASON_KEYS[check.detail]) : '') }));
@@ -560,4 +570,5 @@
 
     S.createAgentPanel = createAgentPanel;
     S.createAgentStart = createAgentStart;
+    S.agentCheckKey = checkKey;
 })();

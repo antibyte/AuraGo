@@ -94,12 +94,17 @@ func repairSceneForms(data map[string]any) {
 		data["duration"] = repairDuration(text)
 	}
 	for _, list := range []string{"actors", "props"} {
-		storyArgObjects(data[list], func(obj map[string]any) { repairPosition(obj, "at") })
+		storyArgObjects(data[list], func(obj map[string]any) {
+			repairPosition(obj, "at")
+			repairNumber(obj, "scale")
+		})
 	}
 	storyArgObjects(data["beats"], func(obj map[string]any) {
 		for _, key := range []string{"at", "from", "to"} {
 			repairPosition(obj, key)
 		}
+		repairNumber(obj, "duration")
+		repairNumber(obj, "scale")
 	})
 }
 
@@ -138,6 +143,15 @@ func repairPosition(obj map[string]any, key string) {
 	y, okY := parseStoryNumber(right)
 	if okX && okY {
 		obj[key] = map[string]any{"x": x, "y": y}
+	}
+}
+
+// repairNumber turns a numeric string such as "2.5" into a number. Anything unreadable stays.
+func repairNumber(obj map[string]any, key string) {
+	if text, isText := obj[key].(string); isText {
+		if v, ok := parseStoryNumber(text); ok {
+			obj[key] = v
+		}
 	}
 }
 

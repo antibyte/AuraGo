@@ -363,8 +363,10 @@ type renderRun struct {
 	// mixCtx derives from the job ctx and is created in execute before the page opens.
 	mixCtx    context.Context
 	cancelMix context.CancelFunc
-	// onReport adds to mixWG under mu before it starts the goroutine.
-	mixWG sync.WaitGroup
+	// onReport adds to mixWG under mu before it starts the goroutine, and never once mixClosed is set (also under mu), so
+	// Add cannot run concurrently with or after Wait.
+	mixWG     sync.WaitGroup
+	mixClosed bool
 	// startCh is closed once FFmpeg runs or the start failed; startErr is read after that.
 	startCh  chan struct{}
 	startErr *JobError
@@ -533,6 +535,9 @@ func (run *renderRun) execute(ctx context.Context) (Output, error) {
 	}()
 	// Runs before the discard above: stop the mix and wait, so FFmpeg never starts or is in run.ff.
 	defer func() {
+		run.mu.Lock()
+		run.mixClosed = true
+		run.mu.Unlock()
 		run.cancelMix()
 		run.mixWG.Wait()
 	}()
@@ -581,7 +586,10 @@ func (run *renderRun) wait(ctx context.Context, page browserPage) error {
 				default:
 				}
 			}
-			overall.Reset(RenderTimeout(run.st.TimeoutSeconds, run.report.FrameCount, run.transport))
+			run.mu.Lock()
+			frameCount := run.report.FrameCount
+			run.mu.Unlock()
+			overall.Reset(RenderTimeout(run.st.TimeoutSeconds, frameCount, run.transport))
 		case <-reportTimeout:
 			msg := "The render page did not report within " + reportWait.String() + "."
 			if status := page.Status(ctx); status != "" && status != "null" {
@@ -589,7 +597,10 @@ func (run *renderRun) wait(ctx context.Context, page browserPage) error {
 			}
 			return Fail(CodeRenderFailed, "%s", msg)
 		case <-overall.C:
-			return Fail(CodeRenderTimeout, "The render took longer than %s and was stopped.", RenderTimeout(run.st.TimeoutSeconds, run.report.FrameCount, run.transport).Round(time.Second))
+			run.mu.Lock()
+			frameCount := run.report.FrameCount
+			run.mu.Unlock()
+			return Fail(CodeRenderTimeout, "The render took longer than %s and was stopped.", RenderTimeout(run.st.TimeoutSeconds, frameCount, run.transport).Round(time.Second))
 		case <-run.doneCh:
 			return nil
 		}
@@ -931,6 +942,10 @@ func (run *renderRun) onReport(body []byte) ReportAnswer {
 	if run.reported {
 		run.mu.Unlock()
 		return ReportAnswer{Error: "report_repeated", Message: "A compile report was already accepted."}
+	}
+	if run.mixClosed {
+		run.mu.Unlock()
+		return ReportAnswer{Error: "render_closed", Message: "The render is shutting down."}
 	}
 	run.reported = true
 	ids := make([]string, len(run.plan.Story.Scenes))

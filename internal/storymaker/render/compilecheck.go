@@ -213,7 +213,7 @@ func (r *Runner) compileInBrowser(ctx, checkCtx context.Context, plan *Plan, bin
 		}
 		// The stills are taken before the listener shuts down: the page still needs it while it renders a frame.
 		if st.Stills && summary.Available && !storymaker.HasErrors(summary.Issues) {
-			r.captureStills(checkCtx, page, &summary, fps, frameLimit)
+			r.captureStills(checkCtx, page, &summary, fps, frameLimit, prefix, token)
 		}
 		// Shutdown lets the handler finish, so the page reads its answer. Close would cut it.
 		shutdownCtx, stop := context.WithTimeout(context.Background(), compileShutdownWait)
@@ -292,7 +292,7 @@ func summarizeCompileReport(body []byte, want reportExpect, frameLimit int) stor
 	}
 	return storymaker.CompileSummary{
 		Available: true, DurationMS: compileFrameMS(rep.FrameCount, want.FPS), Scenes: scenes, Issues: issues,
-		Layout: layout, StoryboardScenes: storyboard, CodeScenes: code, LayoutError: clip(rep.LayoutError, 200),
+		Layout: layout, StoryboardScenes: storyboard, CodeScenes: code, LayoutError: clip(withoutSecrets(rep.LayoutError, want.Prefix, want.Token), 200),
 	}
 }
 

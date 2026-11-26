@@ -77,7 +77,7 @@ func (s *Studio) runCode(ctx context.Context, op string, args map[string]any) St
 	}
 	result := BundleCodeScene([]byte(source), id, s.deps.Limits.MaxCodeBytes)
 	count := len(result.Errors)
-	free := s.writes[id] == 0 || count < s.lastIssueCount[id]
+	free := s.writes[id] == 0 || count < s.lastCodeIssueCount[id]
 	if count > 0 && !free && s.charged[id] >= StudioSceneChargedLimit {
 		return sceneWriteRefused(op, id, "corrections_exhausted", "This scene used its correction budget.", "Stop. Its last saved version stays.", nil)
 	}
@@ -85,7 +85,7 @@ func (s *Studio) runCode(ctx context.Context, op string, args map[string]any) St
 		s.charged[id]++
 	}
 	s.writes[id]++
-	s.lastIssueCount[id] = count
+	s.lastCodeIssueCount[id] = count
 	if count > 0 {
 		if count > 4 {
 			result.Errors = result.Errors[:4]

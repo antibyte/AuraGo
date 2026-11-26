@@ -1,6 +1,7 @@
 package storymaker
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -247,8 +248,11 @@ type Studio struct {
 	charged        map[string]int
 	writes         map[string]int
 	lastIssueCount map[string]int
-	dryRunsScene   map[string]int
-	dryRunsJob     int
+	// lastCodeIssueCount is lastIssueCount for put_code: bundle errors and validation errors are
+	// different counts and must not be compared.
+	lastCodeIssueCount map[string]int
+	dryRunsScene       map[string]int
+	dryRunsJob         int
 
 	// Check state.
 	checkRounds    int
@@ -281,13 +285,14 @@ func NewStudio(deps StudioDeps, job StudioJob) (*Studio, error) {
 		job.TargetSeconds = studioDefaultTargetSeconds
 	}
 	return &Studio{
-		deps:           deps,
-		job:            job,
-		drafts:         map[string]map[string]any{},
-		charged:        map[string]int{},
-		writes:         map[string]int{},
-		lastIssueCount: map[string]int{},
-		dryRunsScene:   map[string]int{},
+		deps:               deps,
+		job:                job,
+		drafts:             map[string]map[string]any{},
+		charged:            map[string]int{},
+		writes:             map[string]int{},
+		lastIssueCount:     map[string]int{},
+		lastCodeIssueCount: map[string]int{},
+		dryRunsScene:       map[string]int{},
 	}, nil
 }
 
@@ -430,14 +435,28 @@ func studioRev(etag string) string {
 	return rev
 }
 
-// studioAnswer encodes an answer. encoding/json escapes angle brackets, so story text cannot close
-// the fence around tool output.
+// marshalStudioJSON encodes model-facing tool output. Angle brackets and ampersands stay literal,
+// because weak models copy the escaped form (as a backslash-u escape) back into code and text. A closing tag
+// start "</" is still written as "<\/", which is valid JSON, so story text cannot close the fence
+// around tool output.
+func marshalStudioJSON(v any) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(v); err != nil {
+		return nil, err
+	}
+	data := bytes.TrimRight(buf.Bytes(), "\x0a")
+	return bytes.ReplaceAll(data, []byte("</"), []byte(`<\/`)), nil
+}
+
+// studioAnswer encodes an answer.
 func studioAnswer(status string, fields map[string]any) StudioResult {
 	out := map[string]any{"status": status}
 	for key, value := range fields {
 		out[key] = value
 	}
-	data, err := json.Marshal(out)
+	data, err := marshalStudioJSON(out)
 	if err != nil {
 		return StudioResult{JSON: []byte(`{"status":"error","message":"The answer could not be encoded."}`), Status: "error"}
 	}

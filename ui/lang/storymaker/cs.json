@@ -405,6 +405,8 @@
   "storymaker.agent.check_over_target": "Film je delší, než jste chtěli. Požádejte autora, ať ho zkrátí.",
   "storymaker.agent.check_over_budget": "Scéna má více slov, než bylo plánováno. Požádejte autora, ať ji zkrátí.",
   "storymaker.agent.check_craft": "Film působí v jednom ohledu stále jednotvárně: prostředí, záběr, gesta nebo obsazení. Prohlédněte si ho a případně upravte scény.",
+  "storymaker.agent.check_scenes_look_alike": "Některé scény vypadají příliš podobně. Požádejte autora, aby je zpestřil.",
+  "storymaker.agent.check_over_export_limit": "Film je delší než limit exportu. Požádejte autora, aby ho zkrátil.",
   "storymaker.agent.check_unknown": "Něco ještě potřebuje pozornost.",
   "storymaker.agent.review_link": "Zobrazit kontaktní arch poslední kontroly",
   "storymaker.agent.make_silent": "Exportovat bez hlasu",

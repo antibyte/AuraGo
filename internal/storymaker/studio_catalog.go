@@ -58,7 +58,7 @@ func (s *Studio) runCatalog(ctx context.Context, op string, args map[string]any)
 	id := catalogOpArg(args, "id")
 	rawKind := catalogOpArg(args, "kind")
 	if strings.EqualFold(rawKind, catalogVoiceKind) {
-		return s.catalogVoiceSearch(ctx, op, query, catalogOpLimit(args))
+		return s.catalogVoiceSearch(ctx, op, query, id, catalogOpLimit(args))
 	}
 	kind := NormalizeKind(rawKind)
 	if rawKind != "" && kind == "" {
@@ -129,7 +129,7 @@ func (s *Studio) catalogMiss(op, query, kind string) StudioResult {
 
 // catalogVoiceSearch lists ready voices: the active provider first, inside that voices of the job
 // language first. Query terms filter on provider, voice, name, gender and language.
-func (s *Studio) catalogVoiceSearch(ctx context.Context, op, query string, limit int) StudioResult {
+func (s *Studio) catalogVoiceSearch(ctx context.Context, op, query, id string, limit int) StudioResult {
 	var providers []VoiceProvider
 	if s.deps.Voices != nil {
 		providers = s.deps.Voices(ctx)
@@ -172,6 +172,20 @@ func (s *Studio) catalogVoiceSearch(ctx context.Context, op, query string, limit
 		}
 	}
 	sort.SliceStable(rows, func(i, j int) bool { return rows[i].rank < rows[j].rank })
+	if id != "" {
+		// A voice id (alone or as provider/voice) names one voice: answer with that entry.
+		var voiceIDs []string
+		for _, row := range rows {
+			if strings.EqualFold(row.hit.Voice, id) || strings.EqualFold(row.hit.Provider+"/"+row.hit.Voice, id) {
+				return catalogOpAnswer(op, "ok", map[string]any{"entry": row.hit})
+			}
+			voiceIDs = append(voiceIDs, row.hit.Voice)
+		}
+		return catalogOpAnswer(op, "ok", map[string]any{
+			"results": []catalogVoiceHit{}, "alternatives": closestNames(id, voiceIDs, 5),
+			"next_action": "No voice has this id. Search with kind voice, or leave the voice as it is.",
+		})
+	}
 	terms := strings.Fields(strings.ToLower(query))
 	results := []catalogVoiceHit{}
 	for _, row := range rows {

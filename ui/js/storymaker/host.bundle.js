@@ -1100,7 +1100,11 @@
             canvas.width = boot.width;
             canvas.height = boot.height;
             // A render is not real time: Go offers a per-frame deadline far above the 250 ms of the app preview.
-            if (boot.frame_deadline_ms > 0) env.limits.frameDeadlineMs = Math.min(60000, boot.frame_deadline_ms);
+            // The first frames and, with the raster catalog, every paint wait for warmupDeadlineMs: it must not undercut the offered deadline.
+            if (boot.frame_deadline_ms > 0) {
+                env.limits.frameDeadlineMs = Math.min(60000, boot.frame_deadline_ms);
+                env.limits.warmupDeadlineMs = Math.max(env.limits.warmupDeadlineMs || 0, env.limits.frameDeadlineMs);
+            }
             var ctx =canvas.getContext('2d', { willReadFrequently: boot.transport === 'raw' });
             var story = await getJSON('story', boot.story_url);
             var catalog = await getJSON('catalog', boot.catalog_url);

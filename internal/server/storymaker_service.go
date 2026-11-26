@@ -62,7 +62,13 @@ type storymakerRuntime struct {
 	// browserRetryAfter is the time (unix nanoseconds) before which no agent job asks for the browser again, after a setup
 	// that failed. Zero means no back-off.
 	browserRetryAfter atomic.Int64
+
+	// eventStreams counts the open event streams, capped at storymakerMaxEventStreams.
+	eventStreams atomic.Int64
 }
+
+// storymakerMaxEventStreams caps the concurrent server-sent event streams of the runtime; a variable so tests can lower it.
+var storymakerMaxEventStreams int64 = 32
 
 // storymakerBrowserBackoff is how long the agent jobs leave the browser alone after a failed setup, so that a job queue does
 // not repeat a download that cannot work.

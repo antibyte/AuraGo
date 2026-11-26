@@ -94,4 +94,14 @@ func TestStudioCatalogSearchMissAndVoice(t *testing.T) {
 	if listed["provider"] != "piper" || listed["voice"] != "de_DE-thorsten-high" || listed["gender"] != "male" || len(languages) != 1 || languages[0] != "de" {
 		t.Fatalf("second voice = %v", listed)
 	}
+
+	// kind=voice with an id answers with that one voice; an unknown id gets a hint.
+	one := search(map[string]any{"kind": "voice", "id": "de_DE-thorsten-high"})
+	if entry, _ := one["entry"].(map[string]any); entry["provider"] != "piper" || entry["voice"] != "de_DE-thorsten-high" || one["results"] != nil {
+		t.Fatalf("voice by id = %v", one)
+	}
+	missing := search(map[string]any{"kind": "voice", "id": "no-such-voice"})
+	if list, isList := missing["results"].([]any); !isList || len(list) != 0 || missing["next_action"] == nil {
+		t.Fatalf("unknown voice id = %v", missing)
+	}
 }

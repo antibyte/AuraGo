@@ -41,7 +41,7 @@ func stillFrames(summary storymaker.CompileSummary, fps, frameLimit int) (frames
 
 // captureStills takes one still per measured scene from the open page and adds the hashes and the contact sheet to the
 // summary. A failure leaves the summary as it was: the stills are an extra, never a reason to fail the check.
-func (r *Runner) captureStills(ctx context.Context, page browserPage, summary *storymaker.CompileSummary, fps, frameLimit int) {
+func (r *Runner) captureStills(ctx context.Context, page browserPage, summary *storymaker.CompileSummary, fps, frameLimit int, prefix, token string) {
 	frames, ids, indexes := stillFrames(*summary, fps, frameLimit)
 	if len(frames) == 0 {
 		return
@@ -49,14 +49,14 @@ func (r *Runner) captureStills(ctx context.Context, page browserPage, summary *s
 	readyCtx, cancel := context.WithTimeout(ctx, stillsReadyLimit)
 	defer cancel()
 	if err := page.WaitReady(readyCtx); err != nil {
-		r.deps.Logger.Warn("[Storymaker] The page was not ready for stills", "error", err)
+		r.deps.Logger.Warn("[Storymaker] The page was not ready for stills", "error", withoutSecrets(err.Error(), prefix, token))
 		return
 	}
 	pngs := make([][]byte, 0, len(frames))
 	for _, n := range frames {
 		data, err := page.Capture(ctx, n)
 		if err != nil {
-			r.deps.Logger.Warn("[Storymaker] A still could not be captured", "frame", n, "error", err)
+			r.deps.Logger.Warn("[Storymaker] A still could not be captured", "frame", n, "error", withoutSecrets(err.Error(), prefix, token))
 			return
 		}
 		// The page is trusted for nothing: a screenshot over the byte cap is dropped like a failed capture, before any decoding.
@@ -68,7 +68,7 @@ func (r *Runner) captureStills(ctx context.Context, page browserPage, summary *s
 	}
 	sheet, stills, err := storymaker.BuildStills(ids, indexes, pngs)
 	if err != nil {
-		r.deps.Logger.Warn("[Storymaker] The stills could not be assembled", "error", err)
+		r.deps.Logger.Warn("[Storymaker] The stills could not be assembled", "error", withoutSecrets(err.Error(), prefix, token))
 		return
 	}
 	if len(sheet) == 0 {
@@ -83,7 +83,7 @@ func (r *Runner) captureStills(ctx context.Context, page browserPage, summary *s
 	for i := range stills {
 		texts, err := storymaker.MeasureStillContrast(ctx, pngs[i], layoutByID[stills[i].SceneID])
 		if err != nil {
-			r.deps.Logger.Warn("[Storymaker] The text contrast of a still could not be measured", "scene", stills[i].SceneID, "error", err)
+			r.deps.Logger.Warn("[Storymaker] The text contrast of a still could not be measured", "scene", stills[i].SceneID, "error", withoutSecrets(err.Error(), prefix, token))
 			continue
 		}
 		stills[i].Texts = texts

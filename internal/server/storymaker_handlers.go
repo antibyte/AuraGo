@@ -765,8 +765,12 @@ func handleStorymakerProjectJobs(s *Server, w http.ResponseWriter, r *http.Reque
 		writeStorymakerMethodError(w, "GET")
 		return
 	}
-	acc, ok := storymakerAuthorize(s, w, r, desktopScopeRead, desktopRead, false)
+	acc, ok := storymakerAuthorize(s, w, r, desktopScopeRead, desktopRead, true)
 	if !ok {
+		return
+	}
+	if _, err := acc.rt.projects.Get(r.Context(), id); err != nil {
+		mapStorymakerError(w, err, "project_not_found")
 		return
 	}
 	jobs := acc.rt.listJobs(id)
@@ -810,7 +814,7 @@ func handleStorymakerEvents(s *Server, w http.ResponseWriter, r *http.Request, i
 		writeStorymakerMethodError(w, "GET")
 		return
 	}
-	acc, ok := storymakerAuthorize(s, w, r, desktopScopeRead, desktopRead, false)
+	acc, ok := storymakerAuthorize(s, w, r, desktopScopeRead, desktopRead, true)
 	if !ok {
 		return
 	}
@@ -819,6 +823,16 @@ func handleStorymakerEvents(s *Server, w http.ResponseWriter, r *http.Request, i
 		writeStorymakerError(w, http.StatusInternalServerError, "streaming_unsupported", "Streaming is not supported.", nil)
 		return
 	}
+	if _, err := acc.rt.projects.Get(r.Context(), id); err != nil {
+		mapStorymakerError(w, err, "project_not_found")
+		return
+	}
+	if acc.rt.eventStreams.Add(1) > storymakerMaxEventStreams {
+		acc.rt.eventStreams.Add(-1)
+		writeStorymakerError(w, http.StatusTooManyRequests, "too_many_streams", "Too many open event streams.", nil)
+		return
+	}
+	defer acc.rt.eventStreams.Add(-1)
 	// A stream outlives the server's usual write window.
 	rc := http.NewResponseController(w)
 	_ = rc.SetWriteDeadline(time.Time{})
