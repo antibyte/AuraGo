@@ -1,7 +1,8 @@
 FROM ubuntu:24.04@sha256:73b999393d07f2bf65a40373778a44dc9a6d54ad7718d29247d8ff9413c4d6a8
 ARG TARGETARCH
 ENV DEBIAN_FRONTEND=noninteractive LANG=C.UTF-8 HOME=/tmp XDG_CONFIG_HOME=/tmp/config
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl gnupg python3 \
+RUN echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80-retries \
+    && apt-get update && apt-get install -y --no-install-recommends ca-certificates curl gnupg python3 \
     && curl --fail --location --proto '=https' 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xFDA854F61C4D0D9572BB95E5245D5502FAD7A805' -o /tmp/kicad.asc \
     && gpg --show-keys --with-colons /tmp/kicad.asc | grep -q '^fpr:::::::::FDA854F61C4D0D9572BB95E5245D5502FAD7A805:' \
     && gpg --dearmor --output /usr/share/keyrings/kicad.gpg /tmp/kicad.asc \
