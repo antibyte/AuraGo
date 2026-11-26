@@ -505,3 +505,13 @@ are installed only in the optional Linux desktop guest, under Apache-2.0.
 The verbatim upstream license is embedded at
 `internal/virtualcomputers/guest_workspace_agent/agent-desktop-LICENSE.txt`
 and installed as `/usr/share/doc/agent-desktop/LICENSE`.
+
+## Patched SMB2/3 client
+
+`github.com/hirochachacha/go-smb2/v2` (BSD-2-Clause, Copyright (c) 2016 Hiroshi
+Ioka) is linked from a local patched copy in `third_party/go-smb2/` through a
+`replace` directive in `go.mod`. The only change is that the 8.3 short name
+characters of directory entries are no longer validated, because Samba fills the
+short name of the "." entry with bytes the upstream check rejects. The unmodified
+upstream licence is retained in `third_party/go-smb2/LICENSE`; the exact change
+is recorded in `third_party/go-smb2/AURAGO_PATCHES.md`.

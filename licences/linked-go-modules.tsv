@@ -84,7 +84,7 @@ github.com/h2non/filetype	MIT	LICENSE
 github.com/hajimehoshi/go-mp3	Apache-2.0	LICENSE
 github.com/hdevalence/ed25519consensus	BSD-3-Clause	LICENSE
 github.com/hhrutter/tiff	BSD-3-Clause	LICENSE
-github.com/hirochachacha/go-smb2/v2	BSD-2-Clause	LICENSE
+github.com/hirochachacha/go-smb2/v2	BSD-2-Clause	LICENSE	AuraGo ships a patched local copy in third_party/go-smb2 (see AURAGO_PATCHES.md there)
 github.com/huin/goupnp	BSD-2-Clause	LICENSE
 github.com/icholy/digest	MIT	LICENSE
 github.com/itlightning/dateparse	MIT	LICENSE

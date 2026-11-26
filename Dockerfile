@@ -20,6 +20,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Download dependencies first (better layer caching)
 COPY go.mod go.sum ./
+# Locally patched module resolved through the replace directive in go.mod.
+COPY third_party/go-smb2 ./third_party/go-smb2
 RUN go mod download
 
 # Copy source and build the production binaries
