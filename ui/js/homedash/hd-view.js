@@ -34,14 +34,15 @@
         const motion = () => (typeof o.motion === 'function' && o.motion() === 'reduced' ? 'reduced' : 'full');
         function applyRoot() {
             const look = doc.look, mode = look.palette.mode;
-            const sch = mode === 'light' || mode === 'dark' ? mode : mode === 'custom' ? (look.palette.scheme === 'light' ? 'light' : 'dark') : scheme();
+            const custom = mode === 'custom' ? (look.palette.custom && typeof look.palette.custom === 'object' ? look.palette.custom : look.palette) : null;
+            const sch = mode === 'light' || mode === 'dark' ? mode : mode === 'custom' ? (custom.scheme === 'light' ? 'light' : 'dark') : scheme();
             const attrs = { 'data-hd-family': look.family, 'data-hd-palette': mode, 'data-hd-scheme': sch, 'data-hd-density': look.density, 'data-hd-backdrop': (look.backdrop && look.backdrop.kind) || 'theme', 'data-hd-motion': motion() };
             for (const [k, v] of Object.entries(attrs)) setAttr(root, k, v);
             setVars(root, { '--hd-radius-scale': look.radius_scale === 1 ? null : look.radius_scale });
             // L1: applyLook owns the inline --hd-accent/-light-on/-focus/-ink-on-accent/-hud, so the view never writes or clears those names. The solved accent
             // and its ink go into the neutral layer (--hd-n-accent, --hd-n-ink-on-accent) that the bridge maps to them; --hd-focus follows --hd-accent.
             // Neither applyPalette nor clearPalette is used: both would also write (or remove) the five owned names, so the view builds its own map.
-            const solved = mode === 'custom' ? E.colour.solvePalette(look.palette).tokens : null, vars = {};
+            const solved = custom ? E.colour.solvePalette(custom).tokens : null, vars = {};
             for (const n of E.colour.PALETTE_TOKENS) if (!LOOK_OWNED.includes(n)) vars['--hd-' + n] = solved ? solved[n] : null;
             vars['--hd-n-accent'] = solved ? solved.accent : null; vars['--hd-n-ink-on-accent'] = solved ? solved['ink-on-accent'] : null;
             setVars(root, vars);

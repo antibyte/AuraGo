@@ -6,15 +6,16 @@
     const { clone, randomId, clamp } = E.core, COLS = E.layout.COLS;
     const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v), pick = (v, l, d) => (l.includes(v) ? v : d);
     const WIDGET_DEFAULTS = { variant: '', title: '', bindings: {}, options: {}, actions: {}, confirm: false };
-    function normalisePage(raw, index, sizeOf) {
+    function normalisePage(raw, index, sizeOf, limitOf) {
         const p = isObj(raw) ? raw : {}, seen = new Set();
         const widgets = (Array.isArray(p.widgets) ? p.widgets : []).filter(w => isObj(w) && typeof w.id === 'string' && typeof w.type === 'string' && !seen.has(w.id) && seen.add(w.id)).map(w => Object.assign(clone(WIDGET_DEFAULTS), clone(w)));
         const ids = new Set(widgets.map(w => w.id)), L = isObj(p.layouts) ? p.layouts : {};
-        let layouts = { lg: E.grid.repair(L.lg, COLS.lg, null, { ids, compact: p.compact !== false }), md: null, sm: null };
-        for (const bp of ['md', 'sm']) if (Array.isArray(L[bp])) layouts[bp] = E.grid.repair(L[bp], COLS[bp], null, { ids, compact: p.compact !== false });
-        for (const w of widgets) if (!layouts.lg.some(i => i.id === w.id)) layouts = E.layout.addToLayouts(layouts, Object.assign({ id: w.id }, sizeOf(w)), null);
+        const byId = new Map(widgets.map(w => [w.id, w])), C = id => { const w = byId.get(id); return w && limitOf ? limitOf(w) || {} : {}; };
+        let layouts = { lg: E.grid.repair(L.lg, COLS.lg, C, { ids, compact: p.compact !== false }), md: null, sm: null };
+        for (const bp of ['md', 'sm']) if (Array.isArray(L[bp])) layouts[bp] = E.grid.repair(L[bp], COLS[bp], C, { ids, compact: p.compact !== false });
+        for (const w of widgets) if (!layouts.lg.some(i => i.id === w.id)) layouts = E.layout.addToLayouts(layouts, Object.assign({ id: w.id }, sizeOf(w)), C);
         for (const bp of ['md', 'sm']) if (Array.isArray(layouts[bp])) for (const w of widgets) if (!layouts[bp].some(i => i.id === w.id)) {
-            const s = E.layout.derivedSize(layouts.lg.find(i => i.id === w.id), COLS[bp], {}), q = E.grid.place(layouts[bp], s.w, s.h, COLS[bp]);
+            const s = E.layout.derivedSize(layouts.lg.find(i => i.id === w.id), COLS[bp], C(w.id)), q = E.grid.place(layouts[bp], s.w, s.h, COLS[bp]);
             layouts[bp] = layouts[bp].concat([{ id: w.id, x: q.x, y: q.y, w: s.w, h: s.h }]);
         }
         return { id: typeof p.id === 'string' && p.id ? p.id : index === 0 ? 'main' : 'p' + (index + 1), name: typeof p.name === 'string' ? p.name : '', icon: typeof p.icon === 'string' ? p.icon : 'home', compact: p.compact !== false, widgets, layouts };
@@ -23,13 +24,16 @@
         const d = isObj(raw) ? raw : {}, look = isObj(d.look) ? d.look : {}, grid = isObj(d.grid) ? d.grid : {};
         const sizeOf = (opts && opts.sizeOf) || (() => ({ w: 2, h: 1 }));
         const palette = isObj(look.palette) ? clone(look.palette) : {}; palette.mode = pick(palette.mode, ['theme', 'dark', 'light', 'custom'], 'theme');
-        const pages = (Array.isArray(d.pages) && d.pages.length ? d.pages : [{}]).map((p, i) => normalisePage(p, i, sizeOf)), used = new Set();
+        const limitOf = opts && opts.constraints;
+        const pages = (Array.isArray(d.pages) && d.pages.length ? d.pages : [{}]).map((p, i) => normalisePage(p, i, sizeOf, limitOf)), used = new Set();
         for (const p of pages) { while (used.has(p.id)) p.id += '_'; used.add(p.id); }
+        const k = isObj(d.kiosk) ? clone(d.kiosk) : { start_page: pages[0].id, idle_dim_seconds: 120, idle_dim_level: 0.3, page_rotation_seconds: 0, screen_saver: 'clock', show_clock: true };
+        if (!pages.some(p => p.id === k.start_page)) k.start_page = pages[0].id;
         return Object.assign({}, clone(d), {
             schema_version: 1,
             look: Object.assign({}, clone(look), { family: pick(look.family, ['glass', 'tactile', 'minimal', 'instrument'], 'glass'), palette, backdrop: isObj(look.backdrop) ? clone(look.backdrop) : { kind: 'theme' }, density: pick(look.density, ['compact', 'comfortable', 'spacious'], 'comfortable'), radius_scale: clamp(Number(look.radius_scale) || 1, 0.5, 1.5) }),
             grid: { row_unit: grid.row_unit === undefined || grid.row_unit === 'auto' ? 'auto' : clamp(Number(grid.row_unit) || 96, 48, 200), gap: typeof grid.gap === 'number' ? grid.gap : null, fit: grid.fit === 'fit_screen' ? 'fit_screen' : 'scroll' },
-            pages
+            pages, kiosk: k
         });
     }
     const keyOf = path => JSON.stringify(path);
@@ -76,12 +80,27 @@
     }
     function setLayout(doc, pageId, bp, layout, meta) { const page = pageOf(doc, pageId), next = Object.assign({}, page.layouts); next[bp] = layout;
         return command('layout', layoutOps(doc, pageId, next), Object.assign({ kind: 'layout' }, meta)); }
-    function toClipboard(doc, pageId, ids) { const page = pageOf(doc, pageId), set = new Set(ids);
-        return JSON.stringify({ v: 1, widgets: page.widgets.filter(w => set.has(w.id)).map(w => { const c = clone(w), l = page.layouts.lg.find(i => i.id === w.id) || { w: 2, h: 1 }; delete c.id; return { widget: c, w: l.w, h: l.h }; }) }); }
-    function fromClipboard(text) {
-        let data; try { data = JSON.parse(text); } catch (err) { return []; }
-        if (!isObj(data) || data.v !== 1 || !Array.isArray(data.widgets)) return [];
-        return data.widgets.filter(e => isObj(e) && isObj(e.widget) && typeof e.widget.type === 'string').map(e => ({ widget: Object.assign(clone(e.widget), { id: randomId('w', 8) }), w: clamp(Math.round(Number(e.w) || 2), 1, 12), h: clamp(Math.round(Number(e.h) || 1), 1, 24) }));
+    // Drafts (M4 reading 1): widgets whose required binding or required option is still empty. The server refuses a document with them.
+    function drafts(doc, catalog) {
+        const out = new Set(); if (!doc || !catalog || !Array.isArray(doc.pages)) return out;
+        for (const p of doc.pages) for (const w of p.widgets || []) {
+            const spec = catalog.widget(w.type); if (!spec) continue;
+            const empty = v => v === undefined || v === null || v === '';
+            if ((spec.bindings || []).some(b => b && b.required && empty(w.bindings && w.bindings[b.name])) || (spec.options || []).some(s => s && s.required && empty(w.options && w.options[s.key]))) out.add(w.id);
+        }
+        return out;
     }
-    E.doc = Object.freeze({ normalise, keyOf, getAt, setAt, apply, invert, command, op, setField, addWidget, removeWidgets, setLayout, toClipboard, fromClipboard });
+    // The body of a save, export or copy: drafts left out with their layout items; look.palette.snapshot written for mode theme (kept when none is
+    // given) and dropped otherwise; palette.custom dropped unless the mode is custom.
+    function forSave(doc, opts) {
+        const o = opts || {}, skip = o.catalog ? drafts(doc, o.catalog) : new Set(); let out = doc;
+        if (skip.size) out = Object.assign({}, out, { pages: out.pages.map(p => (p.widgets.some(w => skip.has(w.id)) ? Object.assign({}, p, { widgets: p.widgets.filter(w => !skip.has(w.id)), layouts: E.layout.removeFromLayouts(p.layouts, [...skip]) }) : p)) });
+        const pal = out.look && out.look.palette;
+        if (pal) { const next = Object.assign({}, pal);
+            if (next.mode === 'theme' && o.snapshot && Object.keys(o.snapshot).length) next.snapshot = Object.assign({}, o.snapshot); else if (next.mode !== 'theme') delete next.snapshot;
+            if (next.mode !== 'custom') delete next.custom;
+            out = Object.assign({}, out, { look: Object.assign({}, out.look, { palette: next }) }); }
+        return out;
+    }
+    E.doc = Object.freeze({ normalise, keyOf, getAt, setAt, apply, invert, command, op, setField, addWidget, removeWidgets, setLayout, drafts, forSave });
 })();

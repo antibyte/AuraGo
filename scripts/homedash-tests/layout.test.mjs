@@ -8,6 +8,10 @@ export const tests = [
     eq(map(l.derive(LG, 4, { c: { minW: 2 } })).c, [0,4,2,1]); }],
   ['effective uses overrides and memoises on the lg identity', () => { const l = Lx(); const lay = { lg: LG, md: null, sm: [it('a',0,0,1,1)] };
     assert.equal(l.effective(lay, 'md'), l.effective(lay, 'md')); assert.equal(l.effective(lay, 'sm'), lay.sm); assert.equal(l.effective(lay, 'lg'), LG); }],
+  ['effective memo is keyed on the constraints too (M4)', () => { const l = Lx(); const lay = { lg: LG, md: null, sm: null }, C1 = () => ({}), C2 = id => (id === 'c' ? { minW: 3 } : {});
+    assert.equal(l.effective(lay, 'md', C1), l.effective(lay, 'md', () => ({}))); assert.notEqual(l.effective(lay, 'md', C1), l.effective(lay, 'md', C2));
+    assert.equal(map(l.effective(lay, 'md', C1)).c[2], 2); assert.equal(map(l.effective(lay, 'md', C2)).c[2], 3); assert.equal(l.effective(lay, 'md', C2), l.effective(lay, 'md', C2));
+    for (let k = 0; k < 12; k++) l.effective(lay, 'sm', id => ({ minW: 1 + (k % 4), maxW: 4 })); eq(map(l.effective(lay, 'md', C2)).c[2], 3); }],
   ['breakpoint with 16 px hysteresis', () => { const b = Lx().breakpoint;
     assert.equal(b(950, 'lg'), 'lg'); assert.equal(b(943, 'lg'), 'md'); assert.equal(b(959, 'md'), 'md'); assert.equal(b(960, 'md'), 'lg');
     assert.equal(b(590, 'md'), 'md'); assert.equal(b(583, 'md'), 'sm'); assert.equal(b(500, 'lg'), 'sm'); assert.equal(b(1200), 'lg'); }],

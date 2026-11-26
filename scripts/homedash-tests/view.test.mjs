@@ -27,6 +27,14 @@ export const tests = [
     view.setReadonly(true); assert.equal(root.getAttribute('data-hd-readonly'), 'true');
     view.show(Object.assign({}, TWO, { look: { family: 'glass', palette: { mode: 'dark' } } })); assert.equal(root.getAttribute('data-hd-scheme'), 'dark'); assert.equal(view.pageId(), 'p2');
     view.destroy(); assert.equal(root.children.length, 0); }],
+  ['view (M4): the server shape palette.custom {accent, surface_hue, scheme} drives the scheme and the solved tokens', () => {
+    const { E, document } = loadEngine(FILES, { dom: true }), root = E.el('div', { class: 'hd-root' }); document.body.appendChild(root);
+    const bus = E.core.emitter(), store = { view: () => null, on: bus.on, off: bus.off, history: () => Promise.resolve({ points: [], source: 'none' }) };
+    const view = E.view.create({ root, store, catalog: E.catalog.create(CATALOG), t: k => k, lang: 'en', host: 'desktop', scheme: () => 'dark', motion: () => 'full', raf: fn => 1, caf: () => {}, measure: () => ({ width: 1180, height: 700 }) });
+    const custom = { accent: '#f5c542', surface_hue: 250, scheme: 'light' }, solved = E.colour.solvePalette(custom).tokens;
+    view.show(Object.assign({}, TWO, { look: { family: 'minimal', palette: { mode: 'custom', custom } } }));
+    assert.equal(root.getAttribute('data-hd-scheme'), 'light'); assert.equal(root.style.getPropertyValue('--hd-ink'), solved.ink); assert.equal(root.style.getPropertyValue('--hd-n-accent'), solved.accent);
+    view.destroy(); }],
   ['view: a custom palette leaves the five applyLook-owned tokens to applyLook and applies the rest', () => {
     const { E, document } = loadEngine(FILES, { dom: true }), C = E.colour, OWNED = ['--hd-accent', '--hd-light-on', '--hd-focus', '--hd-ink-on-accent', '--hd-hud'];
     const theme = { '--hd-accent': 'rgb(120, 170, 230)', '--hd-light-on': 'rgb(200, 140, 40)', '--hd-focus': 'rgb(120, 170, 230)', '--hd-surface-solid': 'rgb(255, 255, 255)', '--hd-canvas': 'rgb(240, 240, 240)', '--hd-ink-on-accent': 'rgb(255, 255, 255)' };

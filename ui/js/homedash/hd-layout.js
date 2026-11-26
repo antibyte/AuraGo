@@ -19,12 +19,15 @@
         for (const it of G.sortReading(lg)) { const s = derivedSize(it, toCols, constraintOf(C, it.id)); const p = G.place(out, s.w, s.h, toCols, lastY); out.push({ id: it.id, x: p.x, y: p.y, w: s.w, h: s.h }); lastY = p.y; }
         return G.compact(out);
     }
+    const signature = (lg, C) => { let s = ''; for (const it of lg) { const c = constraintOf(C, it.id); s += it.id + ':' + (c.minW || 1) + ',' + (c.minH || 1) + ',' + (c.maxW || 0) + ',' + (c.maxH || 0) + ';'; } return s; };
+    // Memo keyed on the lg array (identity) and the constraints of its items: a variant change refreshes md and sm. An override array is returned as it is.
     function effective(layouts, bp, C) {
         if (bp === 'lg') return layouts.lg;
         if (Array.isArray(layouts[bp])) return layouts[bp];
         let entry = memo.get(layouts.lg); if (!entry) { entry = new Map(); memo.set(layouts.lg, entry); }
-        if (!entry.has(bp)) entry.set(bp, derive(layouts.lg, COLS[bp], C));
-        return entry.get(bp);
+        const key = bp + '|' + signature(layouts.lg, C); let out = entry.get(key);
+        if (!out) { out = derive(layouts.lg, COLS[bp], C); entry.set(key, out); if (entry.size > 6) entry.delete(entry.keys().next().value); }
+        return out;
     }
     function breakpoint(width, prev) {
         const raw = width >= BP_MIN.lg ? 'lg' : width >= BP_MIN.md ? 'md' : 'sm';

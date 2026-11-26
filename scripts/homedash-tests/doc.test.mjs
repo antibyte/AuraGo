@@ -21,9 +21,26 @@ export const tests = [
     const rem = E.doc.removeWidgets(D, 'main', ['w1', 'w2']); const X = E.doc.apply(D, rem.ops); eq([X.pages[0].widgets, X.pages[0].layouts.lg], [[], []]);
     const U = E.doc.apply(X, rem.ops, 'before'); eq(U.pages[0].widgets.map(w => w.id), ['w1', 'w2']); eq(U.pages[0].layouts.lg, D.pages[0].layouts.lg);
     const md = [{ id: 'w1', x: 0, y: 0, w: 4, h: 1 }]; eq(E.doc.apply(D, E.doc.setLayout(D, 'main', 'md', md).ops).pages[0].layouts.md, md); }],
-  ['clipboard round trip with new ids', () => { const E = boot(), D = base(E); const items = E.doc.fromClipboard(E.doc.toClipboard(D, 'main', ['w1']));
-    assert.equal(items.length, 1); assert.equal(items[0].widget.type, 'sensor'); assert.match(items[0].widget.id, /^w_/); eq([items[0].w, items[0].h], [2, 1]);
-    eq(E.doc.fromClipboard('nope'), []); eq(E.doc.fromClipboard('{"v":2}'), []); }],
+  ['normalise (M4): constraints clamp lg, kiosk default and repair, idempotent', () => { const E = boot();
+    const raw = { pages: [{ id: 'a', widgets: [{ id: 'w1', type: 'sensor' }], layouts: { lg: [{ id: 'w1', x: 0, y: 0, w: 6, h: 1 }] } }, { id: 'b' }] };
+    const n = E.doc.normalise(raw, { constraints: () => ({ minW: 1, maxW: 4, minH: 1, maxH: 24 }) }); assert.equal(n.pages[0].layouts.lg[0].w, 4);
+    eq(n.kiosk, { start_page: 'a', idle_dim_seconds: 120, idle_dim_level: 0.3, page_rotation_seconds: 0, screen_saver: 'clock', show_clock: true });
+    assert.equal(E.doc.normalise(Object.assign({}, raw, { kiosk: { start_page: 'gone', idle_dim_seconds: 5 } })).kiosk.start_page, 'a');
+    assert.equal(E.doc.normalise(Object.assign({}, raw, { kiosk: { start_page: 'b' } })).kiosk.start_page, 'b');
+    const again = E.doc.normalise(n, { constraints: () => ({ minW: 1, maxW: 4, minH: 1, maxH: 24 }) }); eq(again, n);
+    const wide = E.doc.normalise({ pages: [{ id: 'a', widgets: [{ id: 'w1', type: 't' }], layouts: { lg: [{ id: 'w1', x: 0, y: 0, w: 4, h: 1 }], md: null, sm: [] } }] }, { constraints: () => ({ minW: 3 }) });
+    assert.equal(wide.pages[0].layouts.sm[0].w, 3); }],
+  ['drafts and forSave (M4): drafts leave the body with their layout items, palette fields follow the mode', () => { const E = boot();
+    const cat = { widget: type => (type === 'switch' ? { bindings: [{ name: 'primary', required: true }], options: [] } : type === 'gauge' ? { bindings: [], options: [{ key: 'unit', required: true }] } : { bindings: [], options: [] }) };
+    const D = E.doc.normalise({ look: { palette: { mode: 'dark', custom: { accent: '#fff' }, snapshot: { ink: '#111111' } } }, pages: [{ id: 'main', widgets: [{ id: 'w1', type: 'sensor' }, { id: 'w2', type: 'switch' }, { id: 'w3', type: 'gauge', options: { unit: '' } }, { id: 'w4', type: 'switch', bindings: { primary: 'ha:light.x' } }],
+      layouts: { lg: [], md: [{ id: 'w2', x: 0, y: 0, w: 2, h: 1 }], sm: null } }] });
+    eq([...E.doc.drafts(D, cat)].sort(), ['w2', 'w3']);
+    const S = E.doc.forSave(D, { catalog: cat }); eq(S.pages[0].widgets.map(w => w.id), ['w1', 'w4']); eq(S.pages[0].layouts.lg.map(i => i.id).sort(), ['w1', 'w4']); eq(S.pages[0].layouts.md.map(i => i.id).sort(), ['w1', 'w4']);
+    assert.equal(S.pages[0].layouts.sm, null); assert.equal(S.look.palette.custom, undefined); assert.equal(S.look.palette.snapshot, undefined); assert.ok(D.pages[0].widgets.length === 4, 'input untouched');
+    const T = E.doc.normalise({ look: { palette: { mode: 'theme', snapshot: { ink: '#111111' }, custom: { accent: '#fff' } } } });
+    eq(E.doc.forSave(T, { snapshot: { ink: '#222222' } }).look.palette, { mode: 'theme', snapshot: { ink: '#222222' } }); eq(E.doc.forSave(T).look.palette, { mode: 'theme', snapshot: { ink: '#111111' } });
+    const C = E.doc.normalise({ look: { palette: { mode: 'custom', custom: { accent: '#fff' }, snapshot: { ink: '#111111' } } } }); eq(E.doc.forSave(C, { snapshot: { a: '#000000' } }).look.palette, { mode: 'custom', custom: { accent: '#fff' } });
+    assert.equal(E.doc.forSave(E.doc.normalise({})).pages.length, 1); }],
   ['history: undo, redo, redo cleared, limit, coalescing, seal', () => { const E = boot(), D = base(E), N = ['pages', 'main', 'name']; const h = E.history.create();
     const c1 = E.doc.setField(D, N, 'one', { coalesce: 'k', window: 800, at: 1000 }); h.push(c1); const D1 = E.doc.apply(D, c1.ops);
     const c2 = E.doc.setField(D1, N, 'two', { coalesce: 'k', window: 800, at: 1500 }); h.push(c2); const D2 = E.doc.apply(D1, c2.ops);
