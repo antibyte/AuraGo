@@ -133,5 +133,48 @@ export const tests = [
     view.show(doc); const sources = [{ source: 'ha', state: 'unavailable', reason: 'catalog_failed' }], banners = () => E.view.banners({ mode: 'dashboard', connection: { phase: 'live' }, sources, usedSources: view.sources() });
     eq(view.sources(), ['system', 'ha']); eq(banners().map(b => b.source), ['ha']); assert.equal(view.pageId(), 'main');
     root.querySelector('.hd-tabs').dispatchEvent(key('ArrowRight')); assert.equal(view.pageId(), 'p2'); eq(banners().map(b => b.source), ['ha']);
-    view.destroy(); }]
+    view.destroy(); }],
+  ['view (M4): setMode moves hd-backdrop from the root to the stage, hides the tabs and puts the page into design; the tabs ignore keys in design', () => {
+    const { E, document } = loadEngine(FILES, { dom: true }), root = E.el('div', { class: 'hd-root hd-backdrop' }); document.body.appendChild(root);
+    const bus = E.core.emitter(), store = { view: () => null, on: bus.on, off: bus.off, history: () => Promise.resolve({ points: [], source: 'none' }) };
+    const view = E.view.create({ root, store, catalog: E.catalog.create(CATALOG), t: k => k, lang: 'en', host: 'desktop', raf: fn => 1, caf: () => {}, measure: () => ({ width: 1180, height: 700 }) });
+    view.show(TWO); const tabs = root.querySelector('.hd-tabs'); assert.equal(tabs.hasAttribute('hidden'), false); assert.equal(root.classList.contains('hd-backdrop'), true);
+    view.setMode('design'); assert.equal(root.classList.contains('hd-backdrop'), false); assert.equal(view.stage.classList.contains('hd-backdrop'), true); assert.equal(tabs.hasAttribute('hidden'), true);
+    assert.equal(view.page().el.getAttribute('role'), 'listbox'); assert.equal(root.querySelector('[data-hd-wid="w1"]').getAttribute('role'), 'option');
+    tabs.dispatchEvent(key('ArrowRight')); assert.equal(view.pageId(), 'main', 'no page switch by tab keys in design');
+    view.select('p2', {}); assert.equal(view.pageId(), 'p2'); assert.equal(view.page().el.getAttribute('role'), 'listbox', 'the next page renders in design too');
+    view.setMode('view'); assert.equal(root.classList.contains('hd-backdrop'), true); assert.equal(view.stage.classList.contains('hd-backdrop'), false); assert.equal(tabs.hasAttribute('hidden'), false); assert.equal(view.page().el.getAttribute('role'), 'tabpanel');
+    view.destroy(); }],
+  ['view (M4): update keeps the page node while its id exists, re-renders (with a page event) when it disappears or the page count changes, and calls onEntities', () => {
+    const { E, document } = loadEngine(FILES, { dom: true }), root = E.el('div', { class: 'hd-root' }); document.body.appendChild(root);
+    const bus = E.core.emitter(), store = { view: () => null, on: bus.on, off: bus.off, history: () => Promise.resolve({ points: [], source: 'none' }) }, seen = [], pages = [];
+    const view = E.view.create({ root, store, catalog: E.catalog.create(CATALOG), t: k => k, lang: 'en', host: 'desktop', raf: fn => 1, caf: () => {}, measure: () => ({ width: 1180, height: 700 }), onEntities: ids => seen.push(ids.slice()) });
+    view.on('page', p => pages.push(p)); view.show(TWO); eq(pages.length, 1); eq(seen[0], ['system:uptime']); const first = view.page(), node = root.querySelector('[data-hd-wid="w1"]');
+    const edited = JSON.parse(JSON.stringify(TWO)); edited.pages[0].widgets.push({ id: 'w3', type: 'entity', variant: 'tile', bindings: { primary: 'system:memory' } }); edited.pages[0].layouts.lg.push({ id: 'w3', x: 2, y: 0, w: 2, h: 1 });
+    view.update(edited); assert.ok(view.page() === first); assert.equal(pages.length, 1); assert.ok(root.querySelector('[data-hd-wid="w1"]') === node); assert.ok(root.querySelector('[data-hd-wid="w3"]')); eq(seen[seen.length - 1], ['system:uptime', 'system:memory']);
+    assert.equal(view.doc().pages[0].widgets.length, 2); const norm = view.doc(); view.update(norm, { normalised: true }); assert.ok(view.doc() === norm, 'a normalised document is taken as it is');
+    const one = Object.assign({}, edited, { pages: [edited.pages[1]] }); view.update(one); assert.equal(view.pageId(), 'p2'); assert.equal(pages.length, 2); assert.ok(view.page() !== first); assert.equal(root.querySelectorAll('.hd-tab').length, 0);
+    view.update(edited); assert.equal(pages.length, 3, 'the page count changed, so the tabpanel role is rebuilt');
+    view.destroy(); }],
+  ['view (M4): a look change through update re-applies the root attributes; setBreakpoint, setFit, setDescribe and setEmptyAction reach the page, also across a re-render', () => {
+    const { E, document } = loadEngine(FILES, { dom: true }), root = E.el('div', { class: 'hd-root' }); document.body.appendChild(root);
+    const bus = E.core.emitter(), store = { view: () => null, on: bus.on, off: bus.off, history: () => Promise.resolve({ points: [], source: 'none' }) };
+    const view = E.view.create({ root, store, catalog: E.catalog.create(CATALOG), t: k => k, lang: 'en', host: 'desktop', raf: fn => 1, caf: () => {}, measure: () => ({ width: 1180, height: 700 }) });
+    view.show(TWO); assert.equal(root.getAttribute('data-hd-family'), 'minimal'); view.update(Object.assign({}, TWO, { look: { family: 'glass', palette: { mode: 'theme' } } })); assert.equal(root.getAttribute('data-hd-family'), 'glass');
+    view.setMode('design'); view.setDescribe((w, it) => 'D:' + w.id + ':' + it.w); view.setBreakpoint('sm'); assert.equal(view.page().metrics().bp, 'sm'); assert.equal(view.page().el.getAttribute('data-hd-preview'), 'sm');
+    assert.equal(root.querySelector('[data-hd-wid="w1"]').getAttribute('aria-label'), 'D:w1:' + view.page().items().find(i => i.id === 'w1').w); view.select('p2', {}); assert.equal(view.page().metrics().bp, 'sm', 'a forced breakpoint survives a page switch');
+    view.setEmptyAction({ cmd: 'add_widget', label: 'Add' }); view.select('main', {}); view.update(Object.assign({}, TWO, { pages: [Object.assign({}, TWO.pages[0], { widgets: [], layouts: { lg: [] } }), TWO.pages[1]] }));
+    assert.equal(root.querySelector('.hd-page-empty-action').getAttribute('data-hd-cmd'), 'add_widget'); view.setEmptyAction(null); assert.equal(root.querySelector('.hd-page-empty-action'), null);
+    view.setBreakpoint(null); assert.equal(view.page().metrics().bp, 'lg'); view.setFit('fit_screen'); view.setMode('view'); assert.equal(view.page().metrics().mode, 'fit');
+    view.destroy(); }],
+  ['view (M4): toast keeps at most three, carries the tone, announces the text and removes itself; destroy clears the timers', async () => {
+    const { E, document } = loadEngine(FILES, { dom: true }), root = E.el('div', { class: 'hd-root' }); document.body.appendChild(root);
+    const bus = E.core.emitter(), store = { view: () => null, on: bus.on, off: bus.off, history: () => Promise.resolve({ points: [], source: 'none' }) };
+    const view = E.view.create({ root, store, catalog: E.catalog.create(CATALOG), t: k => k, lang: 'en', host: 'desktop', raf: fn => 1, caf: () => {}, measure: () => ({ width: 1180, height: 700 }) });
+    view.show(TWO); const box = root.querySelector('.hd-toasts'); assert.equal(box.getAttribute('aria-hidden'), 'true'); assert.equal(box.parentNode === root, true);
+    view.toast('one', { ms: 15 }); view.toast('two', { tone: 'warn', ms: 5000 }); view.toast('three'); view.toast('four');
+    eq(Array.from(box.children).map(n => n.textContent), ['two', 'three', 'four']); assert.equal(box.children[0].getAttribute('data-tone'), 'warn'); assert.equal(box.children[1].getAttribute('data-tone'), 'info');
+    assert.equal(root.querySelector('.hd-live').textContent, 'four'); view.announce('hello'); assert.equal(root.querySelector('.hd-live').textContent, 'hello');
+    view.toast('short', { ms: 10 }); await new Promise(r => setTimeout(r, 40)); assert.ok(!Array.from(box.children).some(n => n.textContent === 'short')); eq(Array.from(box.children).map(n => n.textContent), ['three', 'four'], 'the oldest was dropped for the fourth and the short one expired');
+    view.destroy(); assert.equal(root.children.length, 0); }]
 ];
