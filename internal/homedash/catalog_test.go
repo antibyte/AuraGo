@@ -100,3 +100,49 @@ func TestWidgetCatalogInvariants(t *testing.T) {
 		t.Fatal("palette tokens or grid columns")
 	}
 }
+
+func TestWidgetCatalogDefaults(t *testing.T) {
+	c := Catalog()
+	catchAll := map[Kind]int{}
+	for i, d := range c.Defaults {
+		wt, ok := c.Type(d.Type)
+		if !ok {
+			t.Errorf("default %d: unknown type %s", i, d.Type)
+			continue
+		}
+		if _, ok := wt.Variant(d.Variant); !ok {
+			t.Errorf("default %d: %s has no variant %s", i, d.Type, d.Variant)
+		}
+		if !slices.Contains(c.Kinds, d.Kind) {
+			t.Errorf("default %d: unknown kind %s", i, d.Kind)
+		}
+		b, ok := wt.Binding("primary")
+		if !ok {
+			t.Errorf("default %d: %s has no primary binding", i, d.Type)
+			continue
+		}
+		if len(b.Kinds) > 0 && !slices.Contains(b.Kinds, d.Kind) {
+			t.Errorf("default %d: %s.primary does not accept %s", i, d.Type, d.Kind)
+		}
+		if d.Capability != "" {
+			if _, ok := LookupCapability(d.Capability); !ok {
+				t.Errorf("default %d: unknown capability %s", i, d.Capability)
+			}
+		}
+		if len(b.AnyCapability) > 0 && !slices.Contains(b.AnyCapability, d.Capability) {
+			t.Errorf("default %d: %s.primary needs one of %v; set capability", i, d.Type, b.AnyCapability)
+		}
+		qualified := d.DeviceClass != "" || d.Capability != ""
+		if j, seen := catchAll[d.Kind]; qualified && seen {
+			t.Errorf("default %d (%s/%s) follows the catch-all %d of %s and is never used", i, d.Type, d.Variant, j, d.Kind)
+		}
+		if _, seen := catchAll[d.Kind]; !qualified && !seen {
+			catchAll[d.Kind] = i
+		}
+	}
+	for _, k := range c.Kinds {
+		if _, ok := catchAll[k]; !ok {
+			t.Errorf("kind %s has no catch-all default", k)
+		}
+	}
+}

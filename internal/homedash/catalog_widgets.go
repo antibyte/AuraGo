@@ -211,3 +211,26 @@ func widgetTypes() []WidgetType {
 			Commands: cmds("primary", caps(CapToggle))},
 	}
 }
+
+// widgetDefaults agrees with the Home Assistant template (homedash_template_ha.go): dimmable lights get the slider, other lights the tile,
+// switches the tile, scenes/scripts/buttons the action button. Select and number use list and slider (the template's option-count and box-mode
+// refinements are not catalog data). Every kind has a catch-all entry; qualified entries come before it.
+func widgetDefaults() []WidgetDefault {
+	d := func(k Kind, dc string, c Capability, typ, v string) WidgetDefault {
+		return WidgetDefault{Kind: k, DeviceClass: dc, Capability: c, Type: typ, Variant: v}
+	}
+	return []WidgetDefault{
+		d(KindSwitch, "", "", "switch", "tile"),
+		d(KindLight, "", CapBrightness, "light", "slider"), d(KindLight, "", "", "light", "tile"),
+		d(KindSensor, "temperature", CapNumeric, "temperature", "numeral"), d(KindSensor, "humidity", CapNumeric, "gauge", "arc"),
+		d(KindSensor, "battery", CapNumeric, "battery", "glyph"), d(KindSensor, "", "", "sensor", "numeral"),
+		d(KindBinarySensor, "", "", "binary", "indicator"), d(KindClimate, "", "", "climate", "dial"), d(KindCover, "", "", "cover", "shutter"),
+		d(KindFan, "", "", "fan", "speed"), d(KindFan, "", "", "switch", "tile"), d(KindLock, "", "", "lock", "slide"),
+		d(KindMediaPlayer, "", "", "media", "compact"), d(KindCamera, "", "", "camera", "frame"),
+		d(KindScene, "", "", "action", "button"), d(KindScript, "", "", "action", "button"), d(KindButton, "", "", "action", "button"),
+		d(KindNumber, "", "", "number", "slider"), d(KindSelect, "", "", "select", "list"), d(KindHumidifier, "", "", "switch", "tile"),
+		d(KindVacuum, "", "", "entity", "tile"), d(KindPresence, "", "", "binary", "indicator"), d(KindWeather, "", "", "weather", "compact"),
+		d(KindSun, "", "", "entity", "tile"), d(KindUpdate, "", "", "entity", "tile"), d(KindServiceStatus, "", "", "entity", "tile"),
+		d(KindPrinter, "", "", "entity", "tile"), d(KindGeneric, "", "", "entity", "tile"),
+	}
+}

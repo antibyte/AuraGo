@@ -27,6 +27,18 @@ type WidgetCatalog struct {
 	PaletteTokens []string         `json:"palette_tokens"`
 	CommonOptions []OptionSpec     `json:"common_options"`
 	Widgets       []WidgetType     `json:"widgets"`
+	Defaults      []WidgetDefault  `json:"defaults"`
+}
+
+// WidgetDefault is one entry of the ordered widget defaults that pickWidgetFor (hd-catalog.js) reads: the first entry whose kind equals the
+// entity's, whose device_class (when set) equals the entity's and whose capability (when set) the entity has wins. The client skips entries whose
+// type it does not implement and falls back to entity/tile. Several catch-all entries of one kind form a fallback chain (fan: speed, then switch).
+type WidgetDefault struct {
+	Kind        Kind       `json:"kind"`
+	DeviceClass string     `json:"device_class,omitempty"`
+	Capability  Capability `json:"capability,omitempty"`
+	Type        string     `json:"type"`
+	Variant     string     `json:"variant"`
 }
 
 // GridColumns are the column counts per breakpoint.
@@ -136,6 +148,7 @@ func Catalog() WidgetCatalog {
 			PaletteTokens: append([]string(nil), paletteTokens...),
 			CommonOptions: []OptionSpec{optColor("accent", "")},
 			Widgets:       widgetTypes(),
+			Defaults:      widgetDefaults(),
 		}
 		c.Hash = catalogHash(c)
 		catalogValue = c

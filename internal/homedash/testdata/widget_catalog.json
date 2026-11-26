@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "hash": "ee1d3b09a2c21f7f0096bbac5c51ca48b7952358b2b4264b055d23351f6066d0",
+  "hash": "576730f3a64adc8dfd0d1e49427c9911df41304356d5dd609150737aeb6389ee",
   "schema_version": 1,
   "grid": {
     "columns": {
@@ -1813,6 +1813,160 @@
           "toggle"
         ]
       }
+    }
+  ],
+  "defaults": [
+    {
+      "kind": "switch",
+      "type": "switch",
+      "variant": "tile"
+    },
+    {
+      "kind": "light",
+      "capability": "brightness",
+      "type": "light",
+      "variant": "slider"
+    },
+    {
+      "kind": "light",
+      "type": "light",
+      "variant": "tile"
+    },
+    {
+      "kind": "sensor",
+      "device_class": "temperature",
+      "capability": "numeric",
+      "type": "temperature",
+      "variant": "numeral"
+    },
+    {
+      "kind": "sensor",
+      "device_class": "humidity",
+      "capability": "numeric",
+      "type": "gauge",
+      "variant": "arc"
+    },
+    {
+      "kind": "sensor",
+      "device_class": "battery",
+      "capability": "numeric",
+      "type": "battery",
+      "variant": "glyph"
+    },
+    {
+      "kind": "sensor",
+      "type": "sensor",
+      "variant": "numeral"
+    },
+    {
+      "kind": "binary_sensor",
+      "type": "binary",
+      "variant": "indicator"
+    },
+    {
+      "kind": "climate",
+      "type": "climate",
+      "variant": "dial"
+    },
+    {
+      "kind": "cover",
+      "type": "cover",
+      "variant": "shutter"
+    },
+    {
+      "kind": "fan",
+      "type": "fan",
+      "variant": "speed"
+    },
+    {
+      "kind": "fan",
+      "type": "switch",
+      "variant": "tile"
+    },
+    {
+      "kind": "lock",
+      "type": "lock",
+      "variant": "slide"
+    },
+    {
+      "kind": "media_player",
+      "type": "media",
+      "variant": "compact"
+    },
+    {
+      "kind": "camera",
+      "type": "camera",
+      "variant": "frame"
+    },
+    {
+      "kind": "scene",
+      "type": "action",
+      "variant": "button"
+    },
+    {
+      "kind": "script",
+      "type": "action",
+      "variant": "button"
+    },
+    {
+      "kind": "button",
+      "type": "action",
+      "variant": "button"
+    },
+    {
+      "kind": "number",
+      "type": "number",
+      "variant": "slider"
+    },
+    {
+      "kind": "select",
+      "type": "select",
+      "variant": "list"
+    },
+    {
+      "kind": "humidifier",
+      "type": "switch",
+      "variant": "tile"
+    },
+    {
+      "kind": "vacuum",
+      "type": "entity",
+      "variant": "tile"
+    },
+    {
+      "kind": "presence",
+      "type": "binary",
+      "variant": "indicator"
+    },
+    {
+      "kind": "weather",
+      "type": "weather",
+      "variant": "compact"
+    },
+    {
+      "kind": "sun",
+      "type": "entity",
+      "variant": "tile"
+    },
+    {
+      "kind": "update",
+      "type": "entity",
+      "variant": "tile"
+    },
+    {
+      "kind": "service_status",
+      "type": "entity",
+      "variant": "tile"
+    },
+    {
+      "kind": "printer",
+      "type": "entity",
+      "variant": "tile"
+    },
+    {
+      "kind": "generic",
+      "type": "entity",
+      "variant": "tile"
     }
   ]
 }
