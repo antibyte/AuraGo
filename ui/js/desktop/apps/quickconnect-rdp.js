@@ -144,10 +144,13 @@
             };
             const fail = (key, detail) => finish(() => { callbacks.status('error'); callbacks.error(key, detail || ''); });
 
+            let requestedScale = '';
             const handle = {
                 scale(mode) {
                     const value = SCALES[mode];
-                    if (value && element) element.scale = value;
+                    if (!value) return;
+                    requestedScale = value;
+                    if (element) element.scale = value;
                 },
                 // Hides or shows the remote desktop without resizing it (Files tab).
                 setVisible(on) {
@@ -181,7 +184,7 @@
                     element = document.createElement('iron-remote-desktop');
                     element.style.cssText = 'display:block;width:100%;height:100%';
                     element.module = backend.Backend;
-                    element.scale = 'fit';
+                    element.scale = requestedScale || 'fit';
                     element.flexcenter = 'true';
                     const ready = waitForReady(element);
                     container.appendChild(element);

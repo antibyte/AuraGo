@@ -349,7 +349,7 @@ func resolveSSHAccess(device inventory.DeviceRecord, inventoryDB *sql.DB, vault 
 	if strings.TrimSpace(device.CredentialID) != "" {
 		cred, err := credentials.GetByID(inventoryDB, device.CredentialID)
 		if err != nil {
-			return "", 0, "", nil, fmt.Errorf("linked credential %q could not be loaded: %w", device.CredentialID, err)
+			return "", 0, "", nil, fmt.Errorf("linked credential could not be loaded")
 		}
 		if strings.TrimSpace(cred.Host) != "" {
 			host = strings.TrimSpace(cred.Host)
@@ -382,7 +382,7 @@ func resolveSSHAccess(device inventory.DeviceRecord, inventoryDB *sql.DB, vault 
 
 	secretStr, err := vault.ReadSecret(secretID)
 	if err != nil {
-		return "", 0, "", nil, fmt.Errorf("read vault secret %q: %w", secretID, err)
+		return "", 0, "", nil, fmt.Errorf("read vault secret: %w", err)
 	}
 
 	return host, port, username, []byte(secretStr), nil

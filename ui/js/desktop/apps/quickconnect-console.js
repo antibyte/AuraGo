@@ -154,7 +154,7 @@
             function apply(id) {
                 root.dataset.qcPhosphor = id;
                 const name = tr('desktop.qc_phosphor_' + id);
-                const text = tr('desktop.qc_phosphor_label').replace('{{name}}', name);
+                const text = tr('desktop.qc_phosphor_label').replace('{{name}}', () => name);
                 labelEl.textContent = name;
                 button.setAttribute('aria-label', text);
                 button.title = text;

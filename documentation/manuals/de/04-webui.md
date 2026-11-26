@@ -255,7 +255,7 @@ Der Virtual Desktop öffnet Workspace-basierte Apps direkt im AuraGo-Browser-Des
 | **Homepage Studio** | Verwaltete Website-Projekte bauen, prüfen und deployen. Der Design-Picker bietet 25 mitgelieferte DESIGN.md-Templates mit je einem Vorschaubild, und eine Auswahl gilt für eine Website |
 | **Software Store** | Verwaltete Docker-Apps wie Homarr, n8n, Node-RED, Open WebUI, Arcane, Termix, code-server, Dozzle, Beszel und OliveTin installieren und bedienen |
 | **Docker Manager** | Lokale und entfernte Compose-Stacks verwalten, Live-Logs und Ressourcenverbrauch ansehen, ein Terminal öffnen und mit **Aufräumen** Speicherplatz freigeben |
-| **Quick Connect** | SSH-, VNC- und serielle Verbindungen verwalten |
+| **Quick Connect** | SSH-, VNC-, RDP- und serielle Verbindungen verwalten |
 | **Network Cameras** | go2rtc-Kamera-Streams ansehen; Personenerkennung mit Ereignissen, Zonen und Scharfschaltung |
 | **Virtual Computers** | Boring-Computers-Maschinen und Workspaces steuern |
 | **MeshCore** | Desktop-Messenger für das MeshCore-Funkgerät (siehe Kapitel 8) |
@@ -321,7 +321,7 @@ Details: [Retro-Net-Deep-Dive](../../retro-net.md) und [Kapitel 8](08-integratio
 
 ### Quick Connect
 
-**Quick Connect** öffnet SSH-Terminals, VNC-Desktops und serielle Konsolen in einem Fenster. Die Seitenleiste zeigt deine Geräte und seriellen Profile, der Hauptbereich die laufende Sitzung.
+**Quick Connect** öffnet SSH-Terminals, VNC- und RDP-Desktops und serielle Konsolen in einem Fenster; ein Dateien-Tab übernimmt die Dateiübertragung. Die Seitenleiste zeigt deine Geräte und seriellen Profile, der Hauptbereich die laufende Sitzung.
 
 - **Server hinzufügen:** Klicke in der Seitenleiste auf **+** oder wähle **Datei → Server hinzufügen**.
 - **Suchen und verbinden:** `/` springt in das Suchfeld. Pfeil nach unten wechselt in die Liste, die Pfeiltasten wählen eine Zeile, Pos1 und Ende springen zur ersten und letzten Zeile. Enter im Suchfeld verbindet das erste passende Gerät, Enter auf einer gewählten Zeile verbindet dieses Gerät. Escape leert ein gefülltes Suchfeld und schließt Dialoge.

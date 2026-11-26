@@ -476,6 +476,11 @@ func HandleSFTPUpload(inventoryDB *sql.DB, vault *security.Vault, logger *slog.L
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, maxSFTPUploadBytes)
 		if err := r.ParseMultipartForm(maxSFTPUploadBytes); err != nil {
+			var tooLarge *http.MaxBytesError
+			if errors.As(err, &tooLarge) {
+				jsonSFTPError(w, "upload exceeds the 50 MiB limit", http.StatusRequestEntityTooLarge)
+				return
+			}
 			jsonSFTPError(w, "invalid multipart form", http.StatusBadRequest)
 			return
 		}

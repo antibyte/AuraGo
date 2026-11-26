@@ -111,10 +111,11 @@
             targetPanel.hidden = !targetDeviceId;
             if (!targetDeviceId || !cachedDevices) return;
             const device = cachedDevices.find(item => item.id === targetDeviceId);
+            if (!device) focusTarget = false;
             targetPanel.replaceChildren();
             const label = document.createElement('p');
             label.setAttribute('role', 'status');
-            label.textContent = device ? t('desktop.qc_target_selected').replace('{name}', device.name) : t('desktop.qc_no_devices');
+            label.textContent = device ? t('desktop.qc_target_selected').replace('{name}', () => device.name) : t('desktop.qc_no_devices');
             targetPanel.appendChild(label);
             if (!device) return;
             const button = document.createElement('button');
@@ -392,7 +393,7 @@
                 const badge = d.is_template ? '<span class="vd-qc-badge vd-qc-badge-info">' + esc(t('desktop.qc_badge_setup')) + '</span>'
                     : (d.credential_id ? '<span class="vd-qc-badge vd-qc-badge-ok">' + esc(protoLabel) + '</span>'
                         : '<span class="vd-qc-badge vd-qc-badge-warn" title="' + noCredential + '" aria-label="' + noCredential + '">?</span>');
-                return `<button class="vd-qc-device${d.is_template ? ' template' : ''}${mine ? ' active' : ''}" type="button" data-device-id="${esc(d.id)}" aria-current="${d.id === targetDeviceId ? 'true' : 'false'}" data-conn="${mine ? (sessionState === 'disconnected' ? 'idle' : sessionState) : 'idle'}">
+                return `<button class="vd-qc-device${d.is_template ? ' template' : ''}${mine ? ' active' : ''}" type="button" data-device-id="${esc(d.id)}" aria-current="${d.id === targetDeviceId ? 'true' : 'false'}" data-conn="${esc(mine ? (sessionState === 'disconnected' ? 'idle' : sessionState) : 'idle')}">
                     <span class="vd-qc-device-led" aria-hidden="true"></span>
                     <span class="vd-qc-device-main">
                         <span class="vd-qc-device-name">${esc(d.name)}</span>
@@ -446,10 +447,10 @@
         }
 
         async function confirmDeleteDevice(device) {
-            const ok = await showConfirmModal(t('desktop.qc_delete_confirm'), t('desktop.qc_delete_confirm_msg').replace('{{name}}', device.name));
+            const ok = await showConfirmModal(t('desktop.qc_delete_confirm'), t('desktop.qc_delete_confirm_msg').replace('{{name}}', () => device.name));
             if (!ok) return;
             try {
-                await api('/api/desktop/integrations/devices/' + device.id, { method: 'DELETE' });
+                await api('/api/desktop/integrations/devices/' + encodeURIComponent(device.id), { method: 'DELETE' });
                 await loadAll();
             } catch (err) {
                 showNotify(t('desktop.qc_delete_error') + ': ' + err.message);
@@ -500,6 +501,17 @@
         }
 
         function showServerModal(existingDevice) {
+            const before = new Set(quickRoot.querySelectorAll('.vd-qc-modal-overlay'));
+            try {
+                buildServerModal(existingDevice);
+            } catch (err) {
+                console.error('Quick Connect: server dialog failed', err);
+                quickRoot.querySelectorAll('.vd-qc-modal-overlay').forEach(node => { if (!before.has(node)) node.remove(); });
+                showNotify(t('desktop.qc_sftp_error') + (err && err.message ? ': ' + err.message : ''));
+            }
+        }
+
+        function buildServerModal(existingDevice) {
             const isTemplate = !!(existingDevice && existingDevice.is_template);
             const isEdit = !!existingDevice && !isTemplate;
             const existingCred = isEdit && existingDevice.credential_id && cachedCredentials
@@ -614,7 +626,7 @@
             if (dlPwBtn && existingCred) {
                 dlPwBtn.addEventListener('click', async () => {
                     try {
-                        const body = await api('/api/desktop/integrations/credentials/export/' + existingCred.id + '?type=password');
+                        const body = await api('/api/desktop/integrations/credentials/export/' + encodeURIComponent(existingCred.id) + '?type=password');
                         downloadText(body.content, (existingCred.name || 'password') + '.txt');
                     } catch (err) { showNotify(err.message); }
                 });
@@ -624,7 +636,7 @@
             if (dlCertBtn && existingCred) {
                 dlCertBtn.addEventListener('click', async () => {
                     try {
-                        const body = await api('/api/desktop/integrations/credentials/export/' + existingCred.id + '?type=certificate');
+                        const body = await api('/api/desktop/integrations/credentials/export/' + encodeURIComponent(existingCred.id) + '?type=certificate');
                         downloadText(body.content, (existingCred.name || 'key') + '_key.pem');
                     } catch (err) { showNotify(err.message); }
                 });
@@ -669,7 +681,7 @@
                             const credBody = { name: name, type: credType, host: hostVal, username: effectiveUsername, description: description, certificate_mode: 'text' };
                             if (password) credBody.password = password;
                             if (certificateText) credBody.certificate_text = certificateText;
-                            await api('/api/desktop/integrations/credentials/' + existingCred.id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credBody) });
+                            await api('/api/desktop/integrations/credentials/' + encodeURIComponent(existingCred.id), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credBody) });
                         } else {
                             // Create credential and link
                             const credBody = { name: name, type: credType, host: hostVal, username: effectiveUsername, description: description, certificate_mode: 'text' };
@@ -679,7 +691,7 @@
                             existingDevice.credential_id = created.id;
                         }
                         // Update device
-                        await api('/api/desktop/integrations/devices/' + existingDevice.id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, type: existingDevice.type || 'server', protocol, ip_address: hostVal, port, description, credential_id: existingDevice.credential_id, tags: existingDevice.tags || [], mac_address: existingDevice.mac_address || '', ...fileAccessBody }) });
+                        await api('/api/desktop/integrations/devices/' + encodeURIComponent(existingDevice.id), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, type: existingDevice.type || 'server', protocol, ip_address: hostVal, port, description, credential_id: existingDevice.credential_id, tags: existingDevice.tags || [], mac_address: existingDevice.mac_address || '', ...fileAccessBody }) });
                     } else {
                         // Create credential first
                         const credBody = { name: name, type: credType, host: hostVal, username: effectiveUsername, description: description, certificate_mode: 'text' };
@@ -1372,7 +1384,7 @@
         }
 
         async function sftpDelete(nav, deviceId, fullPath, name, els) {
-            const ok = await showConfirmModal(t('desktop.qc_sftp_delete'), t('desktop.qc_sftp_delete_confirm').replace('{{name}}', name));
+            const ok = await showConfirmModal(t('desktop.qc_sftp_delete'), t('desktop.qc_sftp_delete_confirm').replace('{{name}}', () => name));
             if (!ok) return;
             try {
                 await api('/api/desktop/sftp/delete?device_id=' + encodeURIComponent(deviceId), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id: deviceId, path: fullPath }) });
@@ -1559,7 +1571,7 @@
         async function deleteLink(linkId) {
             const ok = await confirmDialog(t('desktop.launchpad_delete_confirm'), '');
             if (!ok) return;
-            try { await api('/api/desktop/integrations/launchpad/links/' + linkId, { method: 'DELETE' }); await load(); }
+            try { await api('/api/desktop/integrations/launchpad/links/' + encodeURIComponent(linkId), { method: 'DELETE' }); await load(); }
             catch (e) { showDesktopNotification({ message: t('desktop.launchpad_delete_error') }); }
         }
 
@@ -1672,7 +1684,7 @@
             const payload = { title, url, category, description, icon_path: iconPath };
             try {
                 if (linkId) {
-                    await api('/api/desktop/integrations/launchpad/links/' + linkId, { method: 'PUT', body: JSON.stringify(payload) });
+                    await api('/api/desktop/integrations/launchpad/links/' + encodeURIComponent(linkId), { method: 'PUT', body: JSON.stringify(payload) });
                 } else {
                     await api('/api/desktop/integrations/launchpad/links', { method: 'POST', body: JSON.stringify(payload) });
                 }
@@ -1887,12 +1899,6 @@
         }
     }
 
-    function cleanupExistingStoreTerminalPreview(host) {
-        if (window.StoreTerminalPreviewApp && typeof window.StoreTerminalPreviewApp.cleanupExisting === 'function') {
-            window.StoreTerminalPreviewApp.cleanupExisting(host);
-        }
-    }
-
     function shouldOpenStoreAppExternally(app) {
         return !!(app && app.metadata && (app.metadata.open_external === 'true' || app.metadata.store_app_id === 'romm' || app.metadata.store_app_id === 'termix'));
     }
@@ -1932,17 +1938,6 @@
     function closeExternalStoreWindow(pendingWindow) {
         if (pendingWindow && !pendingWindow.closed) {
             pendingWindow.close();
-        }
-    }
-
-    async function openExternalStoreApp(storeAppId, title) {
-        const pendingWindow = openPendingExternalStoreWindow();
-        try {
-            const body = await api(desktopStoreOpenURL(storeAppId));
-            navigateExternalStoreWindow(pendingWindow, body.url);
-        } catch (err) {
-            closeExternalStoreWindow(pendingWindow);
-            showDesktopNotification({ title: title || storeAppId, message: t('desktop.load_failed') });
         }
     }
 
@@ -2161,12 +2156,6 @@
         if (!html.trim()) {
             throw new Error(t('desktop.embed_empty'));
         }
-    }
-
-    function findSDKClient(source) {
-        const frame = findSDKFrame(source);
-        const client = frame && sdkFrameClients.get(frame);
-        return isCurrentSDKClient(client) ? client : null;
     }
 
     function handleSDKChannelHandshake(event) {

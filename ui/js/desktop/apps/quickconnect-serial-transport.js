@@ -55,7 +55,12 @@
                 conn.closePromise = (async () => {
                     if (conn.breakTimer) ownerWindow.clearTimeout(conn.breakTimer);
                     conn.breakTimer = null;
-                    if (conn.openPromise) { try { await conn.openPromise; } catch (_) {} }
+                    if (conn.openPromise && !conn.opened) {
+                        // A hanging port.open() must not block later connections.
+                        let waitTimer = 0;
+                        const gaveUp = new Promise(resolve => { waitTimer = ownerWindow.setTimeout(() => { conn.openAbandoned = true; resolve(); }, 2000); });
+                        try { await Promise.race([conn.openPromise.catch(() => {}), gaveUp]); } finally { ownerWindow.clearTimeout(waitTimer); }
+                    }
                     if (conn.opened) {
                         const signals = { dataTerminalReady: false, break: false };
                         if (conn.profile.options.flow_control !== 'hardware') signals.requestToSend = false;
@@ -76,7 +81,9 @@
                         try { conn.writer.releaseLock(); } catch (_) {}
                         conn.writer = null;
                     }
-                    try { await conn.port.close(); } catch (_) {}
+                    let closeTimer = 0;
+                    const closeGaveUp = new Promise(resolve => { closeTimer = ownerWindow.setTimeout(resolve, 2000); });
+                    try { await Promise.race([Promise.resolve().then(() => conn.port.close()).catch(() => {}), closeGaveUp]); } finally { ownerWindow.clearTimeout(closeTimer); }
                 })();
                 return conn.closePromise;
             }

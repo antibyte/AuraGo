@@ -453,7 +453,7 @@ func resolveRDPTarget(device inventory.DeviceRecord, inventoryDB *sql.DB) (host 
 	if strings.TrimSpace(device.CredentialID) != "" {
 		c, credErr := credentials.GetByID(inventoryDB, device.CredentialID)
 		if credErr != nil {
-			return "", 0, "", nil, fmt.Errorf("linked credential %q could not be loaded: %w", device.CredentialID, credErr)
+			return "", 0, "", nil, fmt.Errorf("linked credential could not be loaded")
 		}
 		cred = &c
 		if strings.TrimSpace(c.Host) != "" {
@@ -488,7 +488,7 @@ func resolveRDPAccess(device inventory.DeviceRecord, inventoryDB *sql.DB, vault 
 		}
 		secret, vaultErr := vault.ReadSecret(secretID)
 		if vaultErr != nil {
-			return "", 0, "", "", fmt.Errorf("read vault secret %q: %w", secretID, vaultErr)
+			return "", 0, "", "", fmt.Errorf("read vault secret: %w", vaultErr)
 		}
 		password = secret
 	}

@@ -517,7 +517,7 @@ func resolveVNCAccess(device inventory.DeviceRecord, inventoryDB *sql.DB, vault 
 	if strings.TrimSpace(device.CredentialID) != "" {
 		cred, credErr := credentials.GetByID(inventoryDB, device.CredentialID)
 		if credErr != nil {
-			return "", 0, "", fmt.Errorf("linked credential %q could not be loaded: %w", device.CredentialID, credErr)
+			return "", 0, "", fmt.Errorf("linked credential could not be loaded")
 		}
 		if strings.TrimSpace(cred.Host) != "" {
 			host = strings.TrimSpace(cred.Host)
@@ -528,7 +528,7 @@ func resolveVNCAccess(device inventory.DeviceRecord, inventoryDB *sql.DB, vault 
 			}
 			secretStr, vaultErr := vault.ReadSecret(cred.PasswordVaultID)
 			if vaultErr != nil {
-				return "", 0, "", fmt.Errorf("read vault secret %q: %w", cred.PasswordVaultID, vaultErr)
+				return "", 0, "", fmt.Errorf("read vault secret: %w", vaultErr)
 			}
 			password = secretStr
 		}
@@ -538,7 +538,7 @@ func resolveVNCAccess(device inventory.DeviceRecord, inventoryDB *sql.DB, vault 
 		}
 		secretStr, vaultErr := vault.ReadSecret(device.VaultSecretID)
 		if vaultErr != nil {
-			return "", 0, "", fmt.Errorf("read vault secret %q: %w", device.VaultSecretID, vaultErr)
+			return "", 0, "", fmt.Errorf("read vault secret: %w", vaultErr)
 		}
 		password = secretStr
 	}

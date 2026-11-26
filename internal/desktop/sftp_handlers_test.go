@@ -133,3 +133,24 @@ func TestSFTPUploadRejectsMultipartDeviceMismatch(t *testing.T) {
 		t.Fatalf("status = %d body = %s", resp.Code, resp.Body.String())
 	}
 }
+
+func TestSFTPUploadOversizedBodyReturns413(t *testing.T) {
+	var body bytes.Buffer
+	form := multipart.NewWriter(&body)
+	_ = form.WriteField("device_id", "authorized")
+	file, err := form.CreateFormFile("file", "big.bin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = file.Write(make([]byte, maxSFTPUploadBytes+1024))
+	if err := form.Close(); err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/desktop/sftp/upload?device_id=authorized", &body)
+	req.Header.Set("Content-Type", form.FormDataContentType())
+	resp := httptest.NewRecorder()
+	HandleSFTPUpload(nil, nil, nil).ServeHTTP(resp, req)
+	if resp.Code != http.StatusRequestEntityTooLarge || !strings.Contains(resp.Body.String(), "50 MiB") {
+		t.Fatalf("status = %d body = %s", resp.Code, resp.Body.String())
+	}
+}

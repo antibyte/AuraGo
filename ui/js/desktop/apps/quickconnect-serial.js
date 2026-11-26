@@ -479,7 +479,7 @@
                 if (readonly()) return;
                 const profile = profiles.find(item => item.id === id);
                 if (!profile) return;
-                const message = tr('desktop.qc_delete_confirm_msg').replace('{{name}}', profile.name);
+                const message = tr('desktop.qc_delete_confirm_msg').replace('{{name}}', () => profile.name);
                 if (!await confirmDialog(tr('desktop.qc_serial_delete_profile'), message)) return;
                 if (connection && connection.profileId === id) await disconnect('switch');
                 const next = profiles.filter(item => item.id !== id);
@@ -581,8 +581,20 @@
                         bufferSize: 65536,
                         flowControl: profile.options.flow_control
                     };
-                    conn.openPromise = Promise.resolve().then(() => port.open(serialOptions)).then(() => { conn.opened = true; });
-                    await conn.openPromise;
+                    const openCall = Promise.resolve().then(() => port.open(serialOptions)).then(() => { conn.opened = true; });
+                    conn.openPromise = openCall;
+                    // A late open after the attempt was abandoned must not leave the port open.
+                    openCall.then(() => { if (conn.openAbandoned) { try { Promise.resolve(port.close()).catch(() => {}); } catch (_) {} } }, () => {});
+                    let openTimer = 0;
+                    const openTimeout = new Promise((_, reject) => {
+                        openTimer = ownerWindow.setTimeout(() => {
+                            conn.openAbandoned = true;
+                            const timeoutError = new Error('serial open timed out');
+                            timeoutError.name = 'TimeoutError';
+                            reject(timeoutError);
+                        }, 15000);
+                    });
+                    try { await Promise.race([openCall, openTimeout]); } finally { ownerWindow.clearTimeout(openTimer); }
                     if (!isCurrent(conn)) { await closePort(conn); return; }
                     conn.reader = port.readable.getReader();
                     conn.writer = port.writable.getWriter();
@@ -787,7 +799,7 @@
                 link.href = url;
                 link.download = `serial-capture-${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
                 link.click();
-                setTimeout(() => URL.revokeObjectURL(url), 0);
+                setTimeout(() => URL.revokeObjectURL(url), 30000);
             }
 
             function queueTransmit(conn, bytes, mode, explicitActivity) {

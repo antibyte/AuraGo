@@ -65,7 +65,7 @@ func resolveRDPFileTarget(device inventory.DeviceRecord, db *sql.DB, vault *secu
 	if id := strings.TrimSpace(settings.CredentialID); id != "" {
 		oc, err := credentials.GetByID(db, id)
 		if err != nil {
-			return fileTarget{}, fmt.Errorf("file access credential %q could not be loaded: %w", id, err)
+			return fileTarget{}, fmt.Errorf("file access credential could not be loaded")
 		}
 		cred = &oc
 		if u := strings.TrimSpace(oc.Username); u != "" {

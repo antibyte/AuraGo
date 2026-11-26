@@ -71,8 +71,8 @@
             const name = String(value.name || '').trim();
             const id = String(value.id || '');
             const port = String(value.port || '').trim();
-            const hasVendor = value.usb_vendor_id !== undefined && value.usb_vendor_id !== null;
-            const hasProduct = value.usb_product_id !== undefined && value.usb_product_id !== null;
+            const hasVendor = source === 'browser' && value.usb_vendor_id !== undefined && value.usb_vendor_id !== null;
+            const hasProduct = source === 'browser' && value.usb_product_id !== undefined && value.usb_product_id !== null;
             const vendor = hasVendor ? Number(value.usb_vendor_id) : undefined;
             const product = hasProduct ? Number(value.usb_product_id) : undefined;
             const validUSBID = id => Number.isInteger(id) && id >= 0 && id <= 0xFFFF;
@@ -122,8 +122,8 @@
             const name = form.elements.name.value.trim();
             const source = form.elements.source.value;
             const baudRate = form.elements.baud_preset.value === 'custom' ? Number(form.elements.baud_custom.value) : Number(form.elements.baud_preset.value);
-            const usbVendor = parseHexID(form.elements.usb_vendor_id.value);
-            const usbProduct = parseHexID(form.elements.usb_product_id.value);
+            const usbVendor = source === 'browser' ? parseHexID(form.elements.usb_vendor_id.value) : undefined;
+            const usbProduct = source === 'browser' ? parseHexID(form.elements.usb_product_id.value) : undefined;
             if (!name || Array.from(name).length > 80 || /[\u0000-\u001F\u007F-\u009F]/.test(name)) throw new Error(tr('desktop.qc_serial_profile_name'));
             if (!['browser', 'host'].includes(source)) throw new Error(tr('desktop.qc_serial_source'));
             if (source === 'host' && !form.elements.port.value) throw new Error(tr('desktop.qc_serial_choose_port'));

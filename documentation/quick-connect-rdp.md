@@ -210,7 +210,7 @@ then fix the entry in known_hosts on the AuraGo host.
 
 ### Transfers and timeouts
 
-- Uploads are limited to 50 MiB per file.
+- Uploads are limited to 50 MiB per upload request (all files of one upload together).
 - The RDP session closes after it has been idle for a while (5 minutes by
   default). Browsing in the Files tab does not count as input to the remote
   desktop, so the desktop can disconnect while you work in Files. File access
