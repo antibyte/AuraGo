@@ -265,3 +265,22 @@ func TestHomepageWorkspaceCommandRecordsMissingOtherProject(t *testing.T) {
 		t.Fatalf("%+v %v", site, err)
 	}
 }
+
+func TestHomepageAutomaticWebServerIntentIgnoresStaleSavedProject(t *testing.T) {
+	db := newHomepageLedgerTestDB(t)
+	cfg := HomepageConfig{WorkspacePath: t.TempDir()}
+	os.MkdirAll(filepath.Join(cfg.WorkspacePath, "live"), 0755)
+	os.WriteFile(filepath.Join(cfg.WorkspacePath, "live", "index.html"), []byte("live"), 0644)
+	if err := saveWebserverState(cfg.WorkspacePath, "deleted-site", "."); err != nil {
+		t.Fatal(err)
+	}
+	raw := ExecuteHomepageOperation(cfg, db, HomepageOperation{Name: "webserver_start", Reason: "Restore published site"}, slog.Default(), func(c HomepageConfig) string {
+		if c.ManagedProjectDir != "live" {
+			t.Fatalf("stale saved project was used: %q", c.ManagedProjectDir)
+		}
+		return `{"status":"ok"}`
+	})
+	if !strings.Contains(raw, `"ledger_updated":true`) {
+		t.Fatal(raw)
+	}
+}

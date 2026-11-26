@@ -104,7 +104,14 @@ func ExecuteHomepageOperation(cfg HomepageConfig, db *sql.DB, op HomepageOperati
 		}
 		if op.Name == "webserver_start" || op.Name == "publish_local" {
 			if saved, _ := loadWebserverState(cfg.WorkspacePath); saved != "" {
-				op.ProjectDir = saved
+				// A saved project that was deleted or moved must not block the fallback search.
+				savedPath := saved
+				if !filepath.IsAbs(savedPath) {
+					savedPath = filepath.Join(cfg.WorkspacePath, savedPath)
+				}
+				if info, statErr := os.Stat(savedPath); statErr == nil && info.IsDir() {
+					op.ProjectDir = saved
+				}
 			}
 			if op.ProjectDir == "" {
 				op.ProjectDir, _ = findServableProject(cfg.WorkspacePath)
