@@ -87,8 +87,17 @@ so it came back empty. Fix in c7139bf57: an unwatched id keeps its data until `s
 
 ## Open items
 
-- Task 28: the live-handler test against the real backend with `hasstest`. It waits until both M3 branches land on main.
 - D14: live Home Assistant acceptance by the user, or a local HA demo container with the user's OK.
 - Kiosk inherits P1 in M6. Sensor sheet in M5. Right-click menus in M4. D10 allowlist question before M5.
 
-Nothing is pushed or deployed. Branch not merged.
+## Live-handler test (Task 28)
+
+2026-11-26, after both M3 branches landed on main (89ef81820): `internal/server/desktop_homedash_live_browser_test.go`
+(`TestDesktopHomeDashLiveHABrowser`) drives the desktop shell against the real `handleHomeDash` handlers with `hasstest` as Home
+Assistant. It creates the `home_assistant` dashboard from the start screen, switches `switch.coffee` on and dims `light.kitchen` by two
+arrow keys (one trailing `brightness_pct` send of the demo value + 2). Each widget then confirms with no `data-hd-pending` and status ok.
+The fake records exactly one `light.turn_on`. No upstream text and no page errors reach the page. PASS three times (4.6-5.1 s) with
+`AURAGO_RUN_BROWSER_SMOKE=1`, SKIP without. No product bug found. Trap: in empty mode the header `create-ha` button stays in the DOM
+but hidden, so a selector must target `.hdx-choice[data-action="create-ha"]` (or check `[hidden]` ancestors).
+
+Nothing is pushed or deployed. Both M3 branches are merged into local main.
