@@ -465,7 +465,7 @@ func matchesRule(r Rule, m Message) (bool, error) {
 		case "body":
 			actual = m.Text + " " + m.HTML
 		case "has_attachments":
-			actual = fmt.Sprint(len(m.Attachments) > 0)
+			actual = fmt.Sprint(len(m.Attachments) > 0 || m.AttachmentCount > 0)
 		}
 		want := strings.ToLower(c.Value)
 		got := strings.ToLower(actual)
@@ -489,7 +489,7 @@ func matchesRule(r Rule, m Message) (bool, error) {
 
 func needsBody(r Rule) bool {
 	for _, c := range r.Conditions {
-		if strings.EqualFold(c.Field, "body") {
+		if strings.EqualFold(c.Field, "body") || strings.EqualFold(c.Field, "has_attachments") {
 			return true
 		}
 	}

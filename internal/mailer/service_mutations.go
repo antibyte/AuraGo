@@ -125,7 +125,8 @@ func (s *Service) Mutate(ctx context.Context, id string, mutation Mutation) erro
 	if err := s.checkMutationPublication(ctx); err != nil {
 		return err
 	}
-	if err := s.store.UpdateMessage(ctx, m); err != nil {
+	folderID := m.FolderID
+	if err := s.store.UpdateMessageState(ctx, id, func(cur *Message) { applyMutationState(cur, mutation, folderID) }); err != nil {
 		return err
 	}
 	s.emit(Event{Type: "message", AccountID: m.AccountID, ID: m.ID, Status: string(mutation.Kind)})
@@ -203,6 +204,35 @@ func (s *Service) applyLocalMutation(ctx context.Context, message *Message, muta
 		return ErrCapability
 	}
 	return nil
+}
+
+// applyMutationState replays a mutation's local effect on the current stored
+// row; folderID is the already resolved destination for folder-changing kinds.
+func applyMutationState(message *Message, mutation Mutation, folderID string) {
+	switch mutation.Kind {
+	case MutationRead:
+		message.Unread = false
+	case MutationUnread:
+		message.Unread = true
+	case MutationStar:
+		message.Starred = true
+	case MutationUnstar:
+		message.Starred = false
+	case MutationMove, MutationArchive, MutationTrash, MutationRestore, MutationJunk, MutationDelete:
+		message.FolderID = folderID
+	case MutationLabelAdd:
+		if label := strings.TrimSpace(mutation.Label); !contains(message.Labels, label) {
+			message.Labels = append(message.Labels, label)
+		}
+	case MutationLabelRemove:
+		kept := make([]string, 0, len(message.Labels))
+		for _, label := range message.Labels {
+			if label != strings.TrimSpace(mutation.Label) {
+				kept = append(kept, label)
+			}
+		}
+		message.Labels = kept
+	}
 }
 
 func (s *Service) folderByKind(ctx context.Context, accountID, kind string) (Folder, error) {

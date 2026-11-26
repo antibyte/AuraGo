@@ -164,6 +164,13 @@ func dialIMAP(ctx context.Context, cfg TransportConfig) (*imapclient.Client, net
 	if err != nil {
 		return nil, nil, func() {}, err
 	}
+	// Idle deadline on every read/write; the context deadline is a hard cap.
+	// Wrapping the raw conn keeps it in place under TLS and after STARTTLS.
+	idleConn := &idleDeadlineConn{Conn: conn, idle: pop3IdleTimeout}
+	if dl, ok := ctx.Deadline(); ok {
+		idleConn.hard = dl
+	}
+	conn = idleConn
 	cancelConn := conn
 	afterCancel := context.AfterFunc(ctx, func() { _ = cancelConn.Close() })
 	stop := func() { afterCancel() }
@@ -172,7 +179,7 @@ func dialIMAP(ctx context.Context, cfg TransportConfig) (*imapclient.Client, net
 		_ = conn.Close()
 		return nil, nil, func() {}, err
 	}
-	_ = conn.SetDeadline(time.Now().Add(30 * time.Second))
+	_ = conn.SetDeadline(time.Now().Add(30 * time.Second)) // dial and handshake only
 	if receiveTLS == "tls" {
 		tlsConn := tls.Client(conn, transportTLSConfig(cfg, cfg.IMAPHost))
 		if err = tlsConn.HandshakeContext(ctx); err != nil {
@@ -224,7 +231,15 @@ func dialIMAP(ctx context.Context, cfg TransportConfig) (*imapclient.Client, net
 		c.Logout()
 		return fail(c, fmt.Errorf("%w: %w", ErrMailAuthentication, err))
 	}
+	// Long operations are governed by the per-I/O idle deadline and the context.
+	_ = conn.SetDeadline(time.Time{})
 	return c, conn, stop, nil
+}
+
+// smtpDataDeadline allows a base interval plus transfer time at a modest
+// minimum rate, so large messages are not cut off by the greeting deadline.
+func smtpDataDeadline(size int) time.Duration {
+	return 60*time.Second + time.Duration(size/(32<<10))*time.Second
 }
 
 func transportTLSConfig(cfg TransportConfig, host string) *tls.Config {
@@ -295,6 +310,13 @@ func sendSMTP(ctx context.Context, cfg TransportConfig, out Outgoing) (SendResul
 	if err != nil {
 		return SendResult{}, fmt.Errorf("connect SMTP: %w", err)
 	}
+	// Idle deadline on every read/write; the context deadline is a hard cap.
+	// Wrapping the raw conn keeps it in place under TLS and after STARTTLS.
+	idleConn := &idleDeadlineConn{Conn: conn, idle: pop3IdleTimeout}
+	if dl, ok := ctx.Deadline(); ok {
+		idleConn.hard = dl
+	}
+	conn = idleConn
 	cancelConn := conn
 	stop := context.AfterFunc(ctx, func() { _ = cancelConn.Close() })
 	defer stop()
@@ -343,6 +365,7 @@ func sendSMTP(ctx context.Context, cfg TransportConfig, out Outgoing) (SendResul
 	if err != nil {
 		return SendResult{Rejected: true}, err
 	}
+	_ = conn.SetDeadline(time.Now().Add(60 * time.Second)) // envelope phase
 	fromAddr, err := mailboxAddress(from)
 	if err != nil {
 		return SendResult{Rejected: true}, err
@@ -365,6 +388,7 @@ func sendSMTP(ctx context.Context, cfg TransportConfig, out Outgoing) (SendResul
 		}
 		accepted++
 	}
+	_ = conn.SetDeadline(time.Now().Add(smtpDataDeadline(len(mimeBytes))))
 	w, err := c.Data()
 	if err != nil {
 		return smtpRejected(err)
@@ -418,6 +442,13 @@ func TestSMTPAuth(ctx context.Context, cfg TransportConfig) error {
 	if err != nil {
 		return fmt.Errorf("connect SMTP: %w", err)
 	}
+	// Idle deadline on every read/write; the context deadline is a hard cap.
+	// Wrapping the raw conn keeps it in place under TLS and after STARTTLS.
+	idleConn := &idleDeadlineConn{Conn: conn, idle: pop3IdleTimeout}
+	if dl, ok := ctx.Deadline(); ok {
+		idleConn.hard = dl
+	}
+	conn = idleConn
 	cancelConn := conn
 	stop := context.AfterFunc(ctx, func() { _ = cancelConn.Close() })
 	defer stop()
@@ -453,7 +484,7 @@ func TestSMTPAuth(ctx context.Context, cfg TransportConfig) error {
 			auth = smtp.PlainAuth("", username, password, host)
 		}
 		if err = c.Auth(auth); err != nil {
-			return fmt.Errorf("SMTP authentication rejected")
+			return fmt.Errorf("SMTP authentication rejected: %w", err)
 		}
 	}
 	return nil

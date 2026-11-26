@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -16,7 +17,10 @@ import (
 	"net/textproto"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
+
+	"aurago/internal/security"
 )
 
 const maxPOP3MessageBytes = 16 << 20
@@ -24,6 +28,77 @@ const maxPOP3SyncBytes = 32 << 20
 const maxPOP3IDScanBytes = 64 << 20
 const maxPOP3Messages = 20000
 const maxPOP3FallbackHashes = 4096
+
+// pop3IdleTimeout bounds each network read or write of a POP3 session. A large
+// RETR therefore keeps its connection as long as data flows, while a stalled
+// server still fails quickly; the context bounds the session as a whole.
+const pop3IdleTimeout = 30 * time.Second
+
+var errPOP3Rejected = errors.New("POP3 server rejected command")
+
+// idleDeadlineConn refreshes the deadline before every read and write. A
+// non-zero hard deadline (the context deadline) caps the refreshed value, and
+// so does an explicit SetDeadline/SetReadDeadline/SetWriteDeadline from the
+// caller: a phase deadline or a past deadline that interrupts a blocked read
+// must survive the next refresh. A zero explicit deadline clears it.
+// It is shared by the POP3, IMAP and SMTP sessions.
+type idleDeadlineConn struct {
+	net.Conn
+	idle time.Duration
+	hard time.Time
+
+	mu            sync.Mutex
+	readExplicit  time.Time
+	writeExplicit time.Time
+}
+
+func (c *idleDeadlineConn) deadline(explicit time.Time) time.Time {
+	d := time.Now().Add(c.idle)
+	if !c.hard.IsZero() && c.hard.Before(d) {
+		d = c.hard
+	}
+	if !explicit.IsZero() && explicit.Before(d) {
+		d = explicit
+	}
+	return d
+}
+
+func (c *idleDeadlineConn) Read(p []byte) (int, error) {
+	c.mu.Lock()
+	d := c.deadline(c.readExplicit)
+	c.mu.Unlock()
+	_ = c.Conn.SetReadDeadline(d)
+	return c.Conn.Read(p)
+}
+
+func (c *idleDeadlineConn) Write(p []byte) (int, error) {
+	c.mu.Lock()
+	d := c.deadline(c.writeExplicit)
+	c.mu.Unlock()
+	_ = c.Conn.SetWriteDeadline(d)
+	return c.Conn.Write(p)
+}
+
+func (c *idleDeadlineConn) SetDeadline(t time.Time) error {
+	c.mu.Lock()
+	c.readExplicit, c.writeExplicit = t, t
+	c.mu.Unlock()
+	return c.Conn.SetDeadline(t)
+}
+
+func (c *idleDeadlineConn) SetReadDeadline(t time.Time) error {
+	c.mu.Lock()
+	c.readExplicit = t
+	c.mu.Unlock()
+	return c.Conn.SetReadDeadline(t)
+}
+
+func (c *idleDeadlineConn) SetWriteDeadline(t time.Time) error {
+	c.mu.Lock()
+	c.writeExplicit = t
+	c.mu.Unlock()
+	return c.Conn.SetWriteDeadline(t)
+}
 
 type pop3Adapter struct{ cfg TransportConfig }
 
@@ -38,9 +113,14 @@ func (a *pop3Adapter) connect(ctx context.Context) (*textproto.Conn, net.Conn, f
 	if strings.ContainsAny(a.cfg.Username, "\r\n\x00") || strings.ContainsAny(a.cfg.Password, "\r\n\x00") {
 		return nil, nil, func() {}, fmt.Errorf("invalid POP3 credentials")
 	}
+	registerLogin(a.cfg.Username, a.cfg.Password)
+	mode := strings.ToLower(strings.TrimSpace(a.cfg.ReceiveTLS))
+	if mode == "" {
+		mode = "tls"
+	}
 	port := a.cfg.POP3Port
 	if port <= 0 {
-		if strings.EqualFold(a.cfg.ReceiveTLS, "starttls") {
+		if mode == "starttls" {
 			port = 110
 		} else {
 			port = 995
@@ -55,6 +135,7 @@ func (a *pop3Adapter) connect(ctx context.Context) (*textproto.Conn, net.Conn, f
 		return nil, nil, func() {}, err
 	}
 	cancelConn := conn
+	conn = &idleDeadlineConn{Conn: conn, idle: pop3IdleTimeout}
 	afterCancel := context.AfterFunc(ctx, func() { _ = cancelConn.Close() })
 	stop := func() { afterCancel() }
 	fail := func(err error) (*textproto.Conn, net.Conn, func(), error) {
@@ -62,8 +143,7 @@ func (a *pop3Adapter) connect(ctx context.Context) (*textproto.Conn, net.Conn, f
 		_ = conn.Close()
 		return nil, nil, func() {}, err
 	}
-	_ = conn.SetDeadline(time.Now().Add(30 * time.Second))
-	if a.cfg.ReceiveTLS == "" || strings.EqualFold(a.cfg.ReceiveTLS, "tls") {
+	if mode == "tls" {
 		tc := tls.Client(conn, transportTLSConfig(a.cfg, host))
 		if err = tc.HandshakeContext(ctx); err != nil {
 			return fail(err)
@@ -75,7 +155,7 @@ func (a *pop3Adapter) connect(ctx context.Context) (*textproto.Conn, net.Conn, f
 	if err != nil || !strings.HasPrefix(greeting, "+OK") {
 		return fail(fmt.Errorf("POP3 greeting rejected"))
 	}
-	if a.cfg.ReceiveTLS == "starttls" {
+	if mode == "starttls" {
 		if err = popExpectOK(tc, "STLS"); err != nil {
 			return fail(fmt.Errorf("POP3 STLS unavailable: %w", err))
 		}
@@ -88,7 +168,7 @@ func (a *pop3Adapter) connect(ctx context.Context) (*textproto.Conn, net.Conn, f
 		}
 		conn = tlsConn
 		tc = textproto.NewConn(conn)
-	} else if !strings.EqualFold(a.cfg.ReceiveTLS, "tls") {
+	} else if mode != "tls" {
 		return fail(fmt.Errorf("POP3 requires TLS or STLS"))
 	}
 	if a.cfg.OAuthSource != "" || strings.EqualFold(a.cfg.SMTPAuthMethod, "xoauth2") {
@@ -99,17 +179,28 @@ func (a *pop3Adapter) connect(ctx context.Context) (*textproto.Conn, net.Conn, f
 		if tokenErr != nil {
 			return fail(tokenErr)
 		}
+		security.RegisterSensitive(token)
 		initial := base64.StdEncoding.EncodeToString([]byte("user=" + a.cfg.Username + "\x01auth=Bearer " + token + "\x01\x01"))
 		if err = popExpectOK(tc, "AUTH XOAUTH2 "+initial); err != nil {
-			return fail(fmt.Errorf("POP3 OAuth authentication failed"))
+			return fail(pop3AuthError("POP3 OAuth authentication failed", err))
 		}
 	} else if err = popExpectOK(tc, "USER "+a.cfg.Username); err == nil {
 		err = popExpectOK(tc, "PASS "+a.cfg.Password)
 	}
 	if err != nil {
-		return fail(fmt.Errorf("POP3 authentication failed"))
+		return fail(pop3AuthError("POP3 authentication failed", err))
 	}
 	return tc, conn, stop, nil
+}
+
+// pop3AuthError marks a server rejection as a credential failure. I/O and
+// timeout errors keep their own identity so they are not reported as bad
+// credentials. The text never contains the password or the server reply.
+func pop3AuthError(msg string, err error) error {
+	if errors.Is(err, errPOP3Rejected) {
+		return fmt.Errorf("%s: %w: %w", msg, ErrMailAuthentication, err)
+	}
+	return fmt.Errorf("%s: %w", msg, err)
 }
 
 func popExpectOK(c *textproto.Conn, cmd string) error {
@@ -124,7 +215,7 @@ func popExpectOK(c *textproto.Conn, cmd string) error {
 		return e
 	}
 	if !strings.HasPrefix(line, "+OK") {
-		return fmt.Errorf("server rejected command")
+		return errPOP3Rejected
 	}
 	return nil
 }

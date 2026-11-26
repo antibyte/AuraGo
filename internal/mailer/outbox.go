@@ -2,8 +2,10 @@ package mailer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"time"
 	_ "time/tzdata" // Scheduled mail must resolve IANA zones on portable installations.
 )
@@ -221,31 +223,31 @@ func (s *Service) dispatchDue(parent context.Context) {
 	adapter, account, err := s.sendAccount(ctx, item.AccountID)
 	if err != nil {
 		status := "failed"
-		_ = s.store.FinishSend(context.WithoutCancel(ctx), item.ID, status, "account_unavailable", "")
+		s.finishSend(ctx, item.ID, status, "account_unavailable", "")
 		s.emit(Event{Type: "outbox", AccountID: item.AccountID, ID: item.ID, Status: status})
 		return
 	}
 	if err := validateOutgoingSize(draft); err != nil {
-		_ = s.store.FinishSend(context.WithoutCancel(ctx), item.ID, "failed", "message_too_large", "")
+		s.finishSend(ctx, item.ID, "failed", "message_too_large", "")
 		s.emit(Event{Type: "outbox", AccountID: item.AccountID, ID: item.ID, Status: "failed"})
 		return
 	}
 	for i := range draft.Attachments {
 		if !s.store.BlobOwnedBy(ctx, draft.Attachments[i].ID, "draft", draft.ID) {
-			_ = s.store.FinishSend(context.WithoutCancel(ctx), item.ID, "failed", "attachment_unavailable", "")
+			s.finishSend(ctx, item.ID, "failed", "attachment_unavailable", "")
 			s.emit(Event{Type: "outbox", AccountID: item.AccountID, ID: item.ID, Status: "failed"})
 			return
 		}
 		_, f, openErr := s.blobs.Open(ctx, draft.Attachments[i].ID)
 		if openErr != nil {
-			_ = s.store.FinishSend(context.WithoutCancel(ctx), item.ID, "failed", "attachment_unavailable", "")
+			s.finishSend(ctx, item.ID, "failed", "attachment_unavailable", "")
 			s.emit(Event{Type: "outbox", AccountID: item.AccountID, ID: item.ID, Status: "failed"})
 			return
 		}
 		data, readErr := io.ReadAll(io.LimitReader(f, s.blobs.maxFile+1))
 		closeErr := f.Close()
 		if readErr != nil || closeErr != nil || int64(len(data)) > s.blobs.maxFile {
-			_ = s.store.FinishSend(context.WithoutCancel(ctx), item.ID, "failed", "attachment_unavailable", "")
+			s.finishSend(ctx, item.ID, "failed", "attachment_unavailable", "")
 			s.emit(Event{Type: "outbox", AccountID: item.AccountID, ID: item.ID, Status: "failed"})
 			return
 		}
@@ -253,12 +255,12 @@ func (s *Service) dispatchDue(parent context.Context) {
 	}
 	adapter, account, err = s.sendAccount(ctx, item.AccountID)
 	if err != nil {
-		_ = s.store.FinishSend(context.WithoutCancel(ctx), item.ID, "failed", "account_unavailable", "")
+		s.finishSend(ctx, item.ID, "failed", "account_unavailable", "")
 		s.emit(Event{Type: "outbox", AccountID: item.AccountID, ID: item.ID, Status: "failed"})
 		return
 	}
 	if err := ctx.Err(); err != nil {
-		_ = s.store.FinishSend(context.WithoutCancel(ctx), item.ID, "failed", "account_unavailable", "")
+		s.finishSend(ctx, item.ID, "failed", "account_unavailable", "")
 		s.emit(Event{Type: "outbox", AccountID: item.AccountID, ID: item.ID, Status: "failed"})
 		return
 	}
@@ -272,7 +274,7 @@ func (s *Service) dispatchDue(parent context.Context) {
 		if status == "failed" {
 			code = "provider_rejected"
 		}
-		_ = s.store.FinishSend(context.WithoutCancel(ctx), item.ID, status, code, result.RemoteID)
+		s.finishSend(ctx, item.ID, status, code, result.RemoteID)
 		s.emit(Event{Type: "outbox", AccountID: item.AccountID, ID: item.ID, Status: status})
 		return
 	}
@@ -285,13 +287,13 @@ func (s *Service) dispatchDue(parent context.Context) {
 		if status == "failed" {
 			code = "provider_rejected"
 		}
-		_ = s.store.FinishSend(context.WithoutCancel(ctx), item.ID, status, code, result.RemoteID)
+		s.finishSend(ctx, item.ID, status, code, result.RemoteID)
 		s.emit(Event{Type: "outbox", AccountID: item.AccountID, ID: item.ID, Status: status})
 		return
 	}
-	if err := s.store.FinishSend(context.WithoutCancel(ctx), item.ID, "sent", "", result.RemoteID); err != nil {
-		return
-	}
+	// The mail was delivered: finishSend logs and retries its own failure, so
+	// the Sent copy, local index and outbox event must still follow.
+	_ = s.finishSend(ctx, item.ID, "sent", "", result.RemoteID)
 	appendErr := error(nil)
 	accountSettings, _ := s.store.AccountSettings(ctx, account.ID)
 	if ctx.Err() != nil {
@@ -377,4 +379,20 @@ func (s *Service) ensureStarted() bool {
 	s.lifeMu.Lock()
 	defer s.lifeMu.Unlock()
 	return s.lifeCancel != nil
+}
+
+// finishSend records a send outcome. A transient store failure is retried once;
+// if it still fails the row stays in `sending`, which restart reconciliation
+// marks unknown. The row is never moved to a replayable state.
+func (s *Service) finishSend(ctx context.Context, id, status, message, remoteID string) error {
+	ctx = context.WithoutCancel(ctx)
+	err := s.store.FinishSend(ctx, id, status, message, remoteID)
+	if err == nil || errors.Is(err, ErrConflict) {
+		return err
+	}
+	time.Sleep(100 * time.Millisecond)
+	if err = s.store.FinishSend(ctx, id, status, message, remoteID); err != nil {
+		slog.Error("mailer: could not record send outcome; row stays in sending until restart marks it unknown", "outbox_id", id, "status", status, "error", err)
+	}
+	return err
 }

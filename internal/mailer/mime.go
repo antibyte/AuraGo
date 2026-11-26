@@ -9,6 +9,7 @@ import (
 	"io"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	message "github.com/emersion/go-message"
 	_ "github.com/emersion/go-message/charset"
@@ -95,6 +96,8 @@ func buildMIME(from string, draft Draft, now time.Time, includeBCC bool) ([]byte
 	}
 	var out bytes.Buffer
 	if draft.HTML == "" && len(draft.Attachments) == 0 {
+		header.Set("Content-Type", "text/plain; charset=utf-8")
+		header.Set("Content-Transfer-Encoding", "quoted-printable")
 		part, err := mailmime.CreateSingleInlineWriter(&out, header)
 		if err != nil {
 			return nil, fmt.Errorf("create MIME body: %w", err)
@@ -267,7 +270,7 @@ func ParseMIME(raw []byte, maxBytes int64) (subject, from string, to, cc []strin
 		if e == io.EOF {
 			break
 		}
-		if e != nil {
+		if e != nil && !(message.IsUnknownCharset(e) && p != nil) {
 			err = e
 			return
 		}
@@ -430,12 +433,27 @@ func cleanHeaderText(s string) string {
 		return r
 	}, s)
 }
+
+// safeContentType returns a header-safe media type, falling back to
+// application/octet-stream for empty values or values with line breaks.
+func safeContentType(raw string) string {
+	ct := strings.TrimSpace(raw)
+	if ct == "" || strings.ContainsAny(ct, "\r\n") {
+		return "application/octet-stream"
+	}
+	return ct
+}
+
 func safeFilename(s string) string {
 	s = strings.ReplaceAll(s, "\\", "_")
 	s = strings.ReplaceAll(s, "/", "_")
 	s = cleanHeaderText(s)
 	if len(s) > 255 {
-		s = s[:255]
+		cut := 255
+		for cut > 0 && !utf8.RuneStart(s[cut]) {
+			cut--
+		}
+		s = s[:cut]
 	}
 	if strings.TrimSpace(s) == "" {
 		return "attachment"

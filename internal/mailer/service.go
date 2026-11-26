@@ -803,7 +803,7 @@ func (s *Service) AddDraftAttachment(ctx context.Context, draftID string, revisi
 	if _, _, err := s.writableAccount(ctx, d.AccountID, "send"); err != nil {
 		return Draft{}, err
 	}
-	a, err := s.blobs.Put(ctx, "draft", draftID, filename, contentType, src)
+	a, err := s.blobs.put(ctx, "draft", draftID, filename, contentType, src, s.AttachmentLimits().MaxMessageBytes)
 	if err != nil {
 		return Draft{}, err
 	}

@@ -765,6 +765,141 @@ func (s *Store) SetMessageFlags(ctx context.Context, id string, unread, starred 
 	return nil
 }
 
+// lockMessageRow takes SQLite's write lock for the row before any read in the
+// transaction. The pool does not use _txlock=immediate, so a deferred
+// SELECT-then-UPDATE transaction can fail with SQLITE_BUSY (stale snapshot)
+// when another writer commits in between; writing first avoids that.
+func lockMessageRow(ctx context.Context, tx *sql.Tx, id string) error {
+	res, err := tx.ExecContext(ctx, "UPDATE mailer_messages SET id=id WHERE id=?", id)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// MergeMessageContent persists provider-fetched content (text, html, snippet,
+// attachments, raw, counts) onto the CURRENT stored row inside one
+// transaction, so concurrent state mutations (folder, flags, labels, snooze)
+// survive. The cache budget is checked in the same transaction. It returns
+// the merged message; with ErrStorageFull the merged message is still
+// returned but nothing is persisted.
+func (s *Store) MergeMessageContent(ctx context.Context, content Message, maxCacheBytes int64) (Message, error) {
+	if maxCacheBytes <= 0 {
+		maxCacheBytes = defaultMailCacheBytes
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Message{}, err
+	}
+	defer tx.Rollback()
+	if err := lockMessageRow(ctx, tx, content.ID); err != nil {
+		return Message{}, err
+	}
+	var body, raw []byte
+	var threadID string
+	if err := tx.QueryRowContext(ctx, "SELECT body,raw,thread_id FROM mailer_messages WHERE id=?", content.ID).Scan(&body, &raw, &threadID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Message{}, ErrNotFound
+		}
+		return Message{}, fmt.Errorf("read mail message: %w", err)
+	}
+	var cur Message
+	if err := unmarshal(body, &cur); err != nil {
+		return Message{}, err
+	}
+	cur.ThreadID = threadID
+	oldRaw := int64(len(raw))
+	cur.Raw = raw
+	if content.Text != "" {
+		cur.Text = content.Text
+	}
+	if content.HTML != "" {
+		cur.HTML = content.HTML
+	}
+	if content.Snippet != "" {
+		cur.Snippet = content.Snippet
+	}
+	if content.Attachments != nil {
+		cur.Attachments = content.Attachments
+	}
+	if content.AttachmentCount > 0 {
+		cur.AttachmentCount = content.AttachmentCount
+	}
+	if content.HTMLSkipped {
+		cur.HTMLSkipped = true
+	}
+	if content.ReadError != "" {
+		cur.ReadError = content.ReadError
+	}
+	if len(content.Raw) > 0 {
+		cur.Raw = content.Raw
+	}
+	newBody, err := marshal(cur)
+	if err != nil {
+		return Message{}, err
+	}
+	var used int64
+	if err := tx.QueryRowContext(ctx, "SELECT COALESCE(SUM(length(raw)+length(body)),0) FROM mailer_messages").Scan(&used); err != nil {
+		return Message{}, fmt.Errorf("check mail cache budget: %w", err)
+	}
+	delta := int64(len(cur.Raw)) + int64(len(newBody)) - oldRaw - int64(len(body))
+	if delta > 0 && used+delta > maxCacheBytes {
+		return cur, ErrStorageFull
+	}
+	if _, err := tx.ExecContext(ctx, "UPDATE mailer_messages SET body=?,raw=CASE WHEN length(?)>0 THEN ? ELSE raw END WHERE id=?", newBody, nullIfEmpty(cur.Raw), nullIfEmpty(cur.Raw), content.ID); err != nil {
+		return Message{}, fmt.Errorf("update indexed message content: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return Message{}, err
+	}
+	return cur, nil
+}
+
+// UpdateMessageState applies mutate to the freshly stored message state and
+// writes back only folder, flags, labels and snooze, so concurrent mutations
+// of different fields survive and body/raw are never rewritten from a stale
+// snapshot. mutate must not call into the store.
+func (s *Store) UpdateMessageState(ctx context.Context, id string, mutate func(*Message)) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err := lockMessageRow(ctx, tx, id); err != nil {
+		return err
+	}
+	var b []byte
+	var threadID string
+	err = tx.QueryRowContext(ctx, "SELECT body,thread_id FROM mailer_messages WHERE id=?", id).Scan(&b, &threadID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrNotFound
+	}
+	if err != nil {
+		return err
+	}
+	var m Message
+	if err := unmarshal(b, &m); err != nil {
+		return err
+	}
+	m.ThreadID = threadID
+	mutate(&m)
+	labels, err := marshal(m.Labels)
+	if err != nil {
+		return err
+	}
+	body, err := marshal(m)
+	if err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, "UPDATE mailer_messages SET folder_id=?,unread=?,starred=?,labels=?,snoozed_until=?,body=? WHERE id=?", m.FolderID, m.Unread, m.Starred, labels, timeNS(m.SnoozedUntil), body, id); err != nil {
+		return fmt.Errorf("update indexed message state: %w", err)
+	}
+	return tx.Commit()
+}
+
 func (s *Store) UpdateMessage(ctx context.Context, m Message) error {
 	labels, err := marshal(m.Labels)
 	if err != nil {

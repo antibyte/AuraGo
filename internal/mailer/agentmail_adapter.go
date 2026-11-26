@@ -246,7 +246,7 @@ func (a *agentMailAdapter) Send(ctx context.Context, out Outgoing) (SendResult, 
 		if total > attachmentLimit {
 			return SendResult{Rejected: true}, fmt.Errorf("attachments exceed size limit")
 		}
-		attachment := agentmail.OutgoingAttachment{Filename: safeFilename(att.Filename), ContentType: att.ContentType, ContentBase64: base64.StdEncoding.EncodeToString(att.Data)}
+		attachment := agentmail.OutgoingAttachment{Filename: safeFilename(att.Filename), ContentType: safeContentType(att.ContentType), ContentBase64: base64.StdEncoding.EncodeToString(att.Data)}
 		if att.ContentID != "" {
 			id, err := safeMessageID(att.ContentID)
 			if err != nil {
@@ -434,7 +434,7 @@ func agentMailMessage(cfg TransportConfig, raw agentmail.Message) Message {
 	}
 	att := make([]Attachment, 0, len(raw.Attachments))
 	for _, x := range raw.Attachments {
-		att = append(att, Attachment{ID: x.ID, Filename: safeFilename(x.Filename), ContentType: x.ContentType, Size: x.Size, ContentID: strings.Trim(x.ContentID, "<>"), Inline: x.ContentDisposition == "inline"})
+		att = append(att, Attachment{ID: x.ID, Filename: safeFilename(x.Filename), ContentType: x.ContentType, Size: x.Size, ContentID: strings.Trim(x.ContentID, "<>"), Inline: strings.EqualFold(strings.TrimSpace(x.ContentDisposition), "inline")})
 	}
 	hasUnread := false
 	hasRead := false
@@ -470,10 +470,16 @@ func agentMailMessage(cfg TransportConfig, raw agentmail.Message) Message {
 		references = parseAgentMailReferences(strings.Join(raw.References, " "))
 	}
 	htmlBody := ""
+	htmlSkipped := false
 	if raw.HTML != "" {
-		htmlBody, _ = SanitizeHTML(raw.HTML)
+		var sanitizeErr error
+		htmlBody, sanitizeErr = SanitizeHTML(raw.HTML)
+		if sanitizeErr != nil {
+			htmlBody = ""
+			htmlSkipped = true
+		}
 	}
-	return Message{AccountID: cfg.Source + ":" + cfg.ID, FolderID: agentMailFolderID(cfg.Source+":"+cfg.ID, "inbox"), RemoteID: raw.ID, ThreadID: raw.ThreadID, MessageID: messageID, InReplyTo: inReplyTo, References: references, Subject: raw.Subject, From: from, ReplyTo: replyTo, To: tos, CC: cc, BCC: bcc, Date: date, Text: raw.Text, HTML: htmlBody, Unread: unread, Starred: starred, Labels: append([]string(nil), raw.Labels...), Attachments: att}
+	return Message{AccountID: cfg.Source + ":" + cfg.ID, FolderID: agentMailFolderID(cfg.Source+":"+cfg.ID, "inbox"), RemoteID: raw.ID, ThreadID: raw.ThreadID, MessageID: messageID, InReplyTo: inReplyTo, References: references, Subject: raw.Subject, From: from, ReplyTo: replyTo, To: tos, CC: cc, BCC: bcc, Date: date, Text: raw.Text, HTML: htmlBody, HTMLSkipped: htmlSkipped, Unread: unread, Starred: starred, Labels: append([]string(nil), raw.Labels...), Attachments: att}
 }
 
 func agentMailHeader(headers map[string]string, name string) string {

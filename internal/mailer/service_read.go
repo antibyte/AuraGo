@@ -44,10 +44,18 @@ func (s *Service) GetMessage(ctx context.Context, id string) (Message, error) {
 	if err := ctx.Err(); err != nil {
 		return Message{}, err
 	}
-	if err := s.store.UpdateMessage(ctx, hydrated); err != nil {
+	// Persist only the fetched content onto the current row so a mutation
+	// that ran during the network read is not reverted.
+	merged, err := s.store.MergeMessageContent(ctx, hydrated, s.opts.MaxMessageCacheBytes)
+	if err != nil {
+		if errors.Is(err, ErrStorageFull) {
+			// The cache budget is exhausted: serve the hydrated copy without
+			// persisting its body so the cache stays bounded.
+			return merged, nil
+		}
 		return Message{}, err
 	}
-	return hydrated, nil
+	return merged, nil
 }
 
 func mergeHydratedMessage(hydrated *Message, indexed Message) {
@@ -91,6 +99,12 @@ func mergeHydratedMessage(hydrated *Message, indexed Message) {
 	}
 	if len(hydrated.Raw) == 0 {
 		hydrated.Raw = indexed.Raw
+	}
+	if hydrated.Snippet == "" {
+		hydrated.Snippet = indexed.Snippet
+	}
+	if hydrated.AttachmentCount == 0 {
+		hydrated.AttachmentCount = max(indexed.AttachmentCount, len(hydrated.Attachments))
 	}
 	hydrated.Unread = indexed.Unread
 	hydrated.Starred = indexed.Starred
@@ -159,11 +173,11 @@ func (s *Service) RawMessage(ctx context.Context, id string) ([]byte, error) {
 	if int64(len(raw)) > limit {
 		return nil, errors.New("raw message exceeds configured size limit")
 	}
-	m.Raw = append([]byte(nil), raw...)
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	if err := s.store.UpdateMessage(ctx, m); err != nil {
+	content := Message{ID: m.ID, Raw: append([]byte(nil), raw...)}
+	if _, err := s.store.MergeMessageContent(ctx, content, s.opts.MaxMessageCacheBytes); err != nil && !errors.Is(err, ErrStorageFull) {
 		return nil, err
 	}
 	return raw, nil

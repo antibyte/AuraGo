@@ -6,10 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	_ "modernc.org/sqlite"
 	"os"
 	"path/filepath"
 	"time"
-	_ "modernc.org/sqlite"
 
 	"aurago/internal/dbutil"
 )
@@ -24,6 +24,7 @@ var (
 	ErrInvalid     = errors.New("invalid mailer request")
 	ErrSyncFailed  = errors.New("mail account sync failed")
 	ErrStorageFull = errors.New("mailer storage quota exceeded")
+	ErrTooLarge    = errors.New("mailer payload exceeds size limit")
 )
 
 type Store struct{ db *sql.DB }

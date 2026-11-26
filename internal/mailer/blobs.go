@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"unicode"
 
 	"aurago/internal/fileutil"
 )
@@ -58,6 +59,12 @@ func OpenBlobStore(root string, store *Store, maxFile, maxTotal int64) (*BlobSto
 }
 
 func (b *BlobStore) Put(ctx context.Context, ownerKind, ownerID, filename, contentType string, src io.Reader) (Attachment, error) {
+	return b.put(ctx, ownerKind, ownerID, filename, contentType, src, 0)
+}
+
+// put stores one blob. ownerMax, when positive, bounds the summed size of all
+// blobs already owned by the same owner plus this one.
+func (b *BlobStore) put(ctx context.Context, ownerKind, ownerID, filename, contentType string, src io.Reader, ownerMax int64) (Attachment, error) {
 	if ownerKind == "" || ownerID == "" {
 		return Attachment{}, errors.New("attachment owner is required")
 	}
@@ -75,12 +82,15 @@ func (b *BlobStore) Put(ctx context.Context, ownerKind, ownerID, filename, conte
 		contentType = "application/octet-stream"
 	}
 	contentType = strings.TrimSpace(strings.SplitN(contentType, ";", 2)[0])
+	if strings.IndexFunc(contentType, unicode.IsControl) >= 0 {
+		contentType = "application/octet-stream"
+	}
 	data, err := io.ReadAll(io.LimitReader(src, b.maxFile+1))
 	if err != nil {
 		return Attachment{}, fmt.Errorf("read mail attachment: %w", err)
 	}
 	if int64(len(data)) > b.maxFile {
-		return Attachment{}, fmt.Errorf("mail attachment exceeds %d-byte limit", b.maxFile)
+		return Attachment{}, fmt.Errorf("%w: mail attachment exceeds %d-byte limit", ErrTooLarge, b.maxFile)
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -89,7 +99,16 @@ func (b *BlobStore) Put(ctx context.Context, ownerKind, ownerID, filename, conte
 		return Attachment{}, fmt.Errorf("check mail attachment quota: %w", err)
 	}
 	if used+int64(len(data)) > b.maxTotal {
-		return Attachment{}, fmt.Errorf("mail attachments exceed %d-byte storage limit", b.maxTotal)
+		return Attachment{}, fmt.Errorf("%w: mail attachments exceed %d-byte storage limit", ErrStorageFull, b.maxTotal)
+	}
+	if ownerMax > 0 {
+		var owned int64
+		if err := b.store.db.QueryRowContext(ctx, "SELECT COALESCE(SUM(size),0) FROM mailer_blobs WHERE owner_kind=? AND owner_id=?", ownerKind, ownerID).Scan(&owned); err != nil {
+			return Attachment{}, fmt.Errorf("check mail attachment message size: %w", err)
+		}
+		if owned+int64(len(data)) > ownerMax {
+			return Attachment{}, fmt.Errorf("%w: mail attachments exceed %d-byte message limit", ErrTooLarge, ownerMax)
+		}
 	}
 	id, err := newID("blob_")
 	if err != nil {
