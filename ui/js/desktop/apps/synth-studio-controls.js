@@ -29,6 +29,19 @@
         const rad = (deg - 90) * Math.PI / 180;
         return [CX + R * Math.cos(rad), CY + R * Math.sin(rad)];
     }
+    function tickMarkup() {
+        let out = '';
+        for (let i = 0; i <= 10; i++) {
+            const rad = (angle(i / 10) - 90) * Math.PI / 180;
+            const major = i === 0 || i === 5 || i === 10;
+            const r0 = major ? 24.3 : 24.8, r1 = major ? 27.5 : 26.8;
+            const cos = Math.cos(rad), sin = Math.sin(rad);
+            out += '<line' + (major ? ' class="is-major"' : '') +
+                ' x1="' + (CX + r0 * cos).toFixed(2) + '" y1="' + (CY + r0 * sin).toFixed(2) +
+                '" x2="' + (CX + r1 * cos).toFixed(2) + '" y2="' + (CY + r1 * sin).toFixed(2) + '"/>';
+        }
+        return '<g class="ss-ctl-ticks">' + out + '</g>';
+    }
     function arcPath(f0, f1) {
         const a = Math.min(f0, f1), b = Math.max(f0, f1);
         if (b - a < 0.002) return '';
@@ -146,8 +159,8 @@
         dial.className = 'ss-ctl-dial ss-ctl-' + kind;
         dial.setAttribute('aria-hidden', 'true');
         dial.innerHTML = kind === 'knob'
-            ? '<svg viewBox="0 0 56 56"><path class="ss-ctl-groove" d="' + arcPath(0, 1) + '"/><path class="ss-ctl-arc" d=""/></svg><span class="ss-ctl-cap"></span>'
-            : '<span class="ss-ctl-groove-' + (kind === 'vfader' ? 'v' : 'h') + '"></span><span class="ss-ctl-fill"></span><span class="ss-ctl-thumb"></span>';
+            ? '<svg viewBox="0 0 56 56">' + tickMarkup() + '<path class="ss-ctl-groove" d="' + arcPath(0, 1) + '"/><path class="ss-ctl-arc" d=""/></svg><span class="ss-ctl-base"></span><span class="ss-ctl-cap"></span><span class="ss-ctl-sheen"></span>'
+            : '<span class="ss-ctl-scale"></span><span class="ss-ctl-groove-' + (kind === 'vfader' ? 'v' : 'h') + '"></span><span class="ss-ctl-fill"></span><span class="ss-ctl-thumb"></span>';
         input.after(dial);
         paint(input, dial);
         bind(input, dial, kind);

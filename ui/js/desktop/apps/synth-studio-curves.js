@@ -105,6 +105,7 @@
 
     // ---- SVG geometry -------------------------------------------------------
     const VIEW_W = 240, VIEW_H = 90;
+    let curveUid = 0;
     const freqX = (f, width = VIEW_W) => width * Math.log(clamp(f, F_MIN, F_MAX) / F_MIN) / Math.log(F_MAX / F_MIN);
     const dbY = (db, minDb, maxDb, height = VIEW_H) => height * (1 - (clamp(db, minDb, maxDb) - minDb) / (maxDb - minDb));
     function curvePaths(values, minDb, maxDb, width = VIEW_W, height = VIEW_H) {
@@ -116,7 +117,12 @@
     }
     function gridMarkup(minDb, maxDb) {
         let g = '';
+        for (const f of [50, 200, 500, 2000, 5000]) g += '<line class="ss-curve-sub" x1="' + freqX(f).toFixed(1) + '" x2="' + freqX(f).toFixed(1) + '" y1="0" y2="' + VIEW_H + '"/>';
         for (const f of [100, 1000, 10000]) g += '<line x1="' + freqX(f).toFixed(1) + '" x2="' + freqX(f).toFixed(1) + '" y1="0" y2="' + VIEW_H + '"/>';
+        for (const db of (minDb <= -25 ? [10, -10, -20] : [10, -10])) {
+            const y = dbY(db, minDb, maxDb).toFixed(1);
+            g += '<line class="ss-curve-sub" x1="0" x2="' + VIEW_W + '" y1="' + y + '" y2="' + y + '"/>';
+        }
         g += '<line class="ss-curve-zero" x1="0" x2="' + VIEW_W + '" y1="' + dbY(0, minDb, maxDb).toFixed(1) + '" y2="' + dbY(0, minDb, maxDb).toFixed(1) + '"/>';
         return '<g class="ss-curve-grid">' + g + '</g>';
     }
@@ -128,11 +134,13 @@
         return curvePaths(filterResponse(type, cutoff, q), FILTER_RANGE[0], FILTER_RANGE[1]);
     }
     function svgShell(kind, label, grid, extra) {
-        return '<svg class="ss-curve ss-curve-' + kind + '" data-curve="' + kind + '" viewBox="0 0 ' + VIEW_W + ' ' + VIEW_H + '" preserveAspectRatio="none" role="img" aria-label="' + label + '">' + grid + '<path class="ss-curve-fill" d=""/><path class="ss-curve-line" d=""/>' + (extra || '') + '</svg>';
+        const gid = 'ss-cg-' + kind + '-' + (++curveUid);
+        const defs = '<defs><linearGradient id="' + gid + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#86f3df" stop-opacity="0.34"/><stop offset="68%" stop-color="#86f3df" stop-opacity="0.09"/><stop offset="100%" stop-color="#86f3df" stop-opacity="0.01"/></linearGradient></defs>';
+        return '<svg class="ss-curve ss-curve-' + kind + '" data-curve="' + kind + '" viewBox="0 0 ' + VIEW_W + ' ' + VIEW_H + '" preserveAspectRatio="none" role="img" aria-label="' + label + '">' + defs + grid + '<path class="ss-curve-fill" fill="url(#' + gid + ')" d=""/><path class="ss-curve-line" d=""/>' + (extra || '') + '<polygon class="ss-curve-glare" points="0,0 240,0 240,20 0,46"/></svg>';
     }
     function eqMarkup(label) { return svgShell('eq', label, gridMarkup(EQ_RANGE[0], EQ_RANGE[1])); }
     function filterMarkup(label) {
-        return svgShell('filter', label, gridMarkup(FILTER_RANGE[0], FILTER_RANGE[1]), '<line class="ss-curve-marker" x1="0" x2="0" y1="0" y2="' + VIEW_H + '"/>');
+        return svgShell('filter', label, gridMarkup(FILTER_RANGE[0], FILTER_RANGE[1]), '<line class="ss-curve-marker" x1="0" x2="0" y1="0" y2="' + VIEW_H + '"/><circle class="ss-curve-dot" cx="0" cy="45" r="3"/>');
     }
 
     // ---- envelope shape -----------------------------------------------------
@@ -155,7 +163,11 @@
         return { line, fill: line + 'L0 ' + pts[0][1].toFixed(1) + 'Z' };
     }
     function adsrMarkup(label) {
-        return svgShell('adsr', label, '<g class="ss-curve-grid"><line class="ss-curve-zero" x1="0" x2="' + VIEW_W + '" y1="' + (VIEW_H - 4) + '" y2="' + (VIEW_H - 4) + '"/></g>');
+        let g = '';
+        for (const x of [60, 120, 180]) g += '<line class="ss-curve-sub" x1="' + x + '" x2="' + x + '" y1="0" y2="' + VIEW_H + '"/>';
+        g += '<line class="ss-curve-sub" x1="0" x2="' + VIEW_W + '" y1="' + (VIEW_H / 2).toFixed(1) + '" y2="' + (VIEW_H / 2).toFixed(1) + '"/>';
+        g += '<line class="ss-curve-zero" x1="0" x2="' + VIEW_W + '" y1="' + (VIEW_H - 4) + '" y2="' + (VIEW_H - 4) + '"/>';
+        return svgShell('adsr', label, '<g class="ss-curve-grid">' + g + '</g>');
     }
 
     // ---- painting -----------------------------------------------------------
@@ -168,11 +180,18 @@
     function paintFilter(svg, type, cutoff, q) {
         if (!svg) return;
         setPaths(svg, filterPaths(type, cutoff, q));
+        const hz = cutoffHz(cutoff), x = freqX(hz).toFixed(1);
         const marker = svg.querySelector('.ss-curve-marker');
         if (marker) {
-            const x = freqX(cutoffHz(cutoff)).toFixed(1);
             marker.setAttribute('x1', x);
             marker.setAttribute('x2', x);
+        }
+        const dot = svg.querySelector('.ss-curve-dot');
+        if (dot) {
+            const kind = FILTER_TYPES.includes(type) ? type : 'lowpass';
+            const stage = biquad(kind, hz, 0, clamp(num(q, 1), 0.7, 15));
+            dot.setAttribute('cx', x);
+            dot.setAttribute('cy', dbY(magnitudeDb(stage, hz), FILTER_RANGE[0], FILTER_RANGE[1]).toFixed(1));
         }
     }
     function paintAdsr(svg, attack, decay, sustain, release) { if (svg) setPaths(svg, adsrPaths(attack, decay, sustain, release)); }

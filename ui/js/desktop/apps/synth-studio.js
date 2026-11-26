@@ -1106,50 +1106,89 @@
                 const ctx2d = canvas.getContext?.('2d');
                 if (ctx2d) {
                     const tint = meterRgb(canvas), width = canvas.width, height = canvas.height;
+                    const tintStr = tint[0] + ',' + tint[1] + ',' + tint[2];
                     ctx2d.clearRect(0, 0, width, height);
+                    // OLED/CRT recessed graticule
+                    ctx2d.strokeStyle = 'rgba(' + tintStr + ',.065)';
+                    ctx2d.lineWidth = 1;
+                    ctx2d.beginPath();
+                    for (let gx = 1; gx < 8; gx++) {
+                        const x = Math.round((gx / 8) * width) + 0.5;
+                        ctx2d.moveTo(x, 0); ctx2d.lineTo(x, height);
+                    }
+                    for (let gy = 1; gy < 4; gy++) {
+                        const y = Math.round((gy / 4) * height) + 0.5;
+                        ctx2d.moveTo(0, y); ctx2d.lineTo(width, y);
+                    }
+                    ctx2d.stroke();
                     if (scopeMode === 'scope') {
                         const wave = audio.waveform?.(160);
-                        ctx2d.strokeStyle = 'rgba(' + tint[0] + ',' + tint[1] + ',' + tint[2] + ',.14)'; ctx2d.lineWidth = 1;
-                        ctx2d.beginPath(); ctx2d.moveTo(0, height / 2); ctx2d.lineTo(width, height / 2); ctx2d.stroke();
-                        ctx2d.strokeStyle = 'rgba(' + tint[0] + ',' + tint[1] + ',' + tint[2] + ',.92)'; ctx2d.lineWidth = 1.6;
-                        ctx2d.beginPath();
-                        if (wave && wave.length) {
-                            for (let i = 0; i < wave.length; i++) {
-                                const x = (i / (wave.length - 1)) * width, y = height / 2 - Math.max(-1, Math.min(1, wave[i])) * (height * 0.44);
-                                if (i === 0) ctx2d.moveTo(x, y); else ctx2d.lineTo(x, y);
-                            }
-                        } else { ctx2d.moveTo(0, height / 2); ctx2d.lineTo(width, height / 2); }
-                        ctx2d.stroke();
+                        ctx2d.strokeStyle = 'rgba(' + tintStr + ',.14)'; ctx2d.lineWidth = 1;
+                        ctx2d.beginPath(); ctx2d.moveTo(0, Math.round(height / 2) + 0.5); ctx2d.lineTo(width, Math.round(height / 2) + 0.5); ctx2d.stroke();
+                        const trace = () => {
+                            ctx2d.beginPath();
+                            if (wave && wave.length) {
+                                for (let i = 0; i < wave.length; i++) {
+                                    const x = (i / (wave.length - 1)) * width, y = height / 2 - Math.max(-1, Math.min(1, wave[i])) * (height * 0.42);
+                                    if (i === 0) ctx2d.moveTo(x, y); else ctx2d.lineTo(x, y);
+                                }
+                            } else { ctx2d.moveTo(0, height / 2); ctx2d.lineTo(width, height / 2); }
+                        };
+                        ctx2d.lineJoin = 'round'; ctx2d.lineCap = 'round';
+                        ctx2d.strokeStyle = 'rgba(' + tintStr + ',.18)'; ctx2d.lineWidth = 5; trace(); ctx2d.stroke();
+                        ctx2d.strokeStyle = 'rgba(' + tintStr + ',.90)'; ctx2d.lineWidth = 2; trace(); ctx2d.stroke();
+                        ctx2d.strokeStyle = 'rgba(232,255,250,.92)'; ctx2d.lineWidth = 0.85; trace(); ctx2d.stroke();
                     } else {
                         const data = audio.spectrum(48), bins = data ? data.length : 0;
                         if (bins) {
-                            const step = width / bins, mid = height / 2;
+                            const step = width / bins, mid = height / 2, barW = Math.max(1.5, step - 1.4);
+                            if (scopeMode === 'mirror') {
+                                ctx2d.fillStyle = 'rgba(' + tintStr + ',.22)';
+                                ctx2d.fillRect(0, Math.round(mid), width, 1);
+                            }
                             for (let i = 0; i < bins; i++) {
-                                const value = data[i] / 255;
+                                const value = data[i] / 255, bx = i * step + 0.5;
                                 if (scopeMode === 'mirror') {
                                     const half = Math.max(1, value * (mid - 2));
-                                    ctx2d.fillStyle = value > 0.82 ? 'rgba(255,180,84,' + (0.5 + value * 0.5).toFixed(3) + ')' : 'rgba(' + tint[0] + ',' + tint[1] + ',' + tint[2] + ',' + (0.25 + value * 0.75).toFixed(3) + ')';
-                                    ctx2d.fillRect(i * step, mid - half, Math.max(1, step - 1), half * 2);
+                                    for (let segY = 1; segY < half; segY += 3) {
+                                        const ratio = segY / (mid - 2);
+                                        ctx2d.fillStyle = ratio > 0.84 ? 'rgba(255,99,85,.92)' : ratio > 0.68 ? 'rgba(255,180,84,.88)' : 'rgba(' + tintStr + ',' + (0.45 + ratio * 0.5).toFixed(3) + ')';
+                                        ctx2d.fillRect(bx, mid - segY - 2, barW, 2);
+                                        ctx2d.fillRect(bx, mid + segY, barW, 2);
+                                    }
                                 } else {
                                     const bar = Math.max(1, value * height);
                                     scopePeaks[i] = value >= scopePeaks[i] ? value : Math.max(0, scopePeaks[i] - 0.012);
-                                    ctx2d.fillStyle = 'rgba(' + tint[0] + ',' + tint[1] + ',' + tint[2] + ',' + (0.25 + value * 0.75).toFixed(3) + ')';
-                                    ctx2d.fillRect(i * step, height - bar, Math.max(1, step - 1), bar);
+                                    for (let seg = 0; seg < bar; seg += 3) {
+                                        const ratio = seg / height;
+                                        ctx2d.fillStyle = ratio > 0.86 ? 'rgba(255,99,85,.94)' : ratio > 0.68 ? 'rgba(255,180,84,.9)' : 'rgba(' + tintStr + ',' + (0.42 + ratio * 0.55).toFixed(3) + ')';
+                                        ctx2d.fillRect(bx, height - seg - 2, barW, 2);
+                                    }
                                     if (scopePeaks[i] > 0.03) {
                                         const py = Math.max(0, height - scopePeaks[i] * height - 2);
-                                        ctx2d.fillStyle = scopePeaks[i] > 0.82 ? 'rgba(255,180,84,.92)' : 'rgba(' + tint[0] + ',' + tint[1] + ',' + tint[2] + ',.9)';
-                                        ctx2d.fillRect(i * step, py, Math.max(1, step - 1), 2);
+                                        const hot = scopePeaks[i] > 0.82;
+                                        ctx2d.fillStyle = hot ? 'rgba(255,180,84,.24)' : 'rgba(' + tintStr + ',.22)';
+                                        ctx2d.fillRect(bx - 0.5, Math.max(0, py - 1), barW + 1, 4);
+                                        ctx2d.fillStyle = hot ? 'rgba(255,205,132,.96)' : 'rgba(232,255,250,.94)';
+                                        ctx2d.fillRect(bx, py, barW, 1.8);
                                     }
                                 }
                             }
                         } else {
-                            ctx2d.fillStyle = 'rgba(' + tint[0] + ',' + tint[1] + ',' + tint[2] + ',.4)';
+                            ctx2d.fillStyle = 'rgba(' + tintStr + ',.4)';
                             ctx2d.fillRect(0, scopeMode === 'mirror' ? height / 2 : height - 1, width, 1);
                         }
                     }
-                    ctx2d.fillStyle = 'rgba(' + tint[0] + ',' + tint[1] + ',' + tint[2] + ',.55)';
-                    ctx2d.font = '9px monospace'; ctx2d.textAlign = 'right';
-                    ctx2d.fillText(scopeMode === 'scope' ? 'OSC' : scopeMode === 'mirror' ? 'SYM' : 'RTA', width - 4, 10);
+                    // Subtle anti-reflective glass highlight
+                    ctx2d.fillStyle = 'rgba(255,255,255,.042)';
+                    ctx2d.beginPath(); ctx2d.moveTo(0, 0); ctx2d.lineTo(width, 0); ctx2d.lineTo(width, Math.round(height * 0.25)); ctx2d.lineTo(0, Math.round(height * 0.58)); ctx2d.closePath(); ctx2d.fill();
+                    // Crisp phosphor mode badge
+                    const modeTag = scopeMode === 'scope' ? 'OSC' : scopeMode === 'mirror' ? 'SYM' : 'RTA';
+                    ctx2d.fillStyle = 'rgba(2,6,10,.72)';
+                    ctx2d.fillRect(width - 28, 2, 26, 11);
+                    ctx2d.fillStyle = 'rgba(' + tintStr + ',.82)';
+                    ctx2d.font = 'bold 8.5px monospace'; ctx2d.textAlign = 'right';
+                    ctx2d.fillText(modeTag, width - 4, 10);
                 }
             }
             drawLedMeter();
