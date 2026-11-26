@@ -1,4 +1,4 @@
-import assert from 'node:assert/strict'; import { loadEngine, ENGINE_ORDER, read, eq, noStyleAttr } from './harness.mjs';
+import assert from 'node:assert/strict'; import vm from 'node:vm'; import { loadEngine, ENGINE_ORDER, read, eq, noStyleAttr } from './harness.mjs';
 const FILES = ENGINE_ORDER.concat(['hd-tone.js', 'hd-api.js', 'hd-catalog.js', 'hd-render.js']);
 const STARTER = JSON.parse(read('ui/testdata/homedash-m2/starter-dashboard.json')), CATALOG = JSON.parse(read('internal/homedash/testdata/widget_catalog.json'));
 const V = (id, value) => ({ id, kind: 'sensor', name: id, unit: '%', value, available: true, status: 'ok', readonly: false, stale: false, pending: false, attributes: { updated_at: '2026-11-25T10:00:00Z' } });
@@ -190,5 +190,16 @@ export const tests = [
   ['render (M4 F1): contentBox subtracts the stage padding so metrics and zoom work on the inner width', () => { const { E } = setup(), cb = E.render.contentBox, node = { clientWidth: 600, clientHeight: 400 };
     eq(cb(node, { paddingLeft: '16px', paddingRight: '16px', paddingTop: '16px', paddingBottom: '16px' }), { width: 568, height: 368 }); eq(cb(node, { paddingLeft: '0px', paddingRight: '0px', paddingTop: '0px', paddingBottom: '0px' }), { width: 600, height: 400 });
     eq(cb(node, null), { width: 600, height: 400 }); eq(cb({ clientWidth: 10, clientHeight: 10 }, { paddingLeft: '8px', paddingRight: '8px', paddingTop: '9px', paddingBottom: '9px' }), { width: 0, height: 0 });
-    assert.equal(E.render.zoomFor(cb({ clientWidth: 600, clientHeight: 0 }, { paddingLeft: '16px', paddingRight: '16px' }).width, 960), 0.591, 'the zoom fits the inner width'); }]
+    assert.equal(E.render.zoomFor(cb({ clientWidth: 600, clientHeight: 0 }, { paddingLeft: '16px', paddingRight: '16px' }).width, 960), 0.591, 'the zoom fits the inner width'); }],
+  ['render (D11): the page height is written only when it changes, the placement variables are registered as non-inherited, and update({ keepBox }) reuses the last stage measure', () => {
+    let reads = 0; const { page, stage, doc, run } = setup(null, null, { measure: () => { reads += 1; return { width: 1180, height: 700 }; } }), items = page.items().map(i => Object.assign({}, i)), pg = page.el, writes = [];
+    const set0 = pg.style.setProperty.bind(pg.style); pg.style.setProperty = (n, v) => { writes.push(n + '=' + v); set0(n, v); };
+    items[0].x += 1; page.preview(items, { rows: 30 }); page.preview(items, { rows: 30 }); items[1].y += 1; page.preview(items, { rows: 30 });
+    eq(writes, ['--hd-rows=30'], 'three previews with the same height write it once'); page.preview(items, { rows: 31 }); eq(writes, ['--hd-rows=30', '--hd-rows=31']); page.preview(null); assert.equal(writes.length, 3, 'null restores the document height once');
+    const before = reads; page.update(doc, doc.pages[0], { keepBox: true }); assert.equal(reads, before, 'a keepBox update does not read the stage again'); page.update(doc, doc.pages[0]); assert.equal(reads, before + 1, 'a plain update measures'); run(); }],
+  ['render (D11): the engine registers the placement and gesture variables as non-inherited (syntax *) and survives a duplicate or missing CSS.registerProperty', () => {
+    const calls = [], names = () => calls.map(c => c.name), load = css => { const window = {}, context = { window, console, setTimeout, clearTimeout, AbortController, Intl, Map, Set, JSON, Math, Date, URL, CSS: css }; vm.createContext(context);
+      for (const f of FILES) vm.runInContext(read('ui/js/homedash/' + f), context, { filename: f }); return window.HomeDashEngine; };
+    load({ registerProperty: d => calls.push(d) }); eq(names(), ['--hd-x', '--hd-y', '--hd-w', '--hd-h', '--hd-rows', '--hd-e-fx', '--hd-e-fy', '--hd-e-dx', '--hd-e-dy']); assert.ok(calls.every(c => c.syntax === '*' && c.inherits === false));
+    assert.ok(load({ registerProperty() { throw new Error('already registered'); } }).render, 'a duplicate registration is ignored'); assert.ok(load({}).render, 'no registerProperty: plain custom properties'); assert.ok(load(undefined).render); }]
 ];

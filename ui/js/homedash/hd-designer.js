@@ -33,6 +33,12 @@
             now_auto_md: 'homedash.bp.now_auto_md', now_auto_sm: 'homedash.bp.now_auto_sm'
         });
         function emit() { if (!destroyed) bus.emit('state', currentState()); }
+        // A write that only repeats the current value still costs: setAttribute('tabindex') on the focused frame forces a synchronous layout (~1 per sync on the
+        // 60-widget page), so sync() and the badge write an attribute only when it differs.
+        function setIf(node, name, value) {
+            const want = value === null || value === undefined || value === false ? null : value === true ? 'true' : String(value);
+            if (node.getAttribute(name) !== want) E.core.setAttr(node, name, value);
+        }
         function draftBadge(frame, on) {
             const old = frame.querySelector('.hd-draft-badge');
             if (on && !old) {
@@ -41,7 +47,7 @@
                 badge.appendChild(E.core.el('span', { class: 'hd-draft-text', text: t('homedash.designer.draft_state') }));
                 frame.appendChild(badge);
             } else if (!on && old) old.remove();
-            E.core.setAttr(frame, 'data-hd-draft', on ? 'true' : null);
+            setIf(frame, 'data-hd-draft', on ? 'true' : null);
         }
         // One literal t() call per key: a ternary of keys inside t() would escape the key lint (R4).
         function limitText(limit) {
@@ -88,23 +94,27 @@
             if (f && typeof f.focus === 'function') f.focus({ preventScroll: true }); else bar.focus('done');
         }
         const guard = fn => { const had = wasInside(), r = fn(); if (had) settleFocus(); return r; };
-        function render() {
-            const fs = focusState(); view.update(doc, { normalised: true }); pageId = view.pageId(); sync(); restoreFocus(fs);
+        // keepBox: the stage did not change size (a gesture commit), so the page reuses its last measure instead of forcing a layout to read it again.
+        function render(keepBox) {
+            const fs = focusState(); view.update(doc, { normalised: true, keepBox: !!keepBox }); pageId = view.pageId(); sync(); restoreFocus(fs);
         }
         function sync() {
             const pg = view.page(); if (!pg) return; const order = C.readingOrder(items()), drafts = E.doc.drafts(doc, catalog);
             selection = selection.filter(id => order.includes(id));
             const anchor = (focusId && order.includes(focusId) && focusId) || selection[selection.length - 1] || order[0] || null;
-            for (const id of order) { const f = pg.frame(id); if (!f) continue; E.core.setAttr(f, 'aria-selected', selection.includes(id) ? 'true' : 'false'); E.core.setAttr(f, 'tabindex', id === anchor ? '0' : '-1'); draftBadge(f, drafts.has(id)); }
-            E.core.setAttr(pg.el, 'tabindex', order.length ? '-1' : '0');
+            for (const id of order) { const f = pg.frame(id); if (!f) continue; setIf(f, 'aria-selected', selection.includes(id) ? 'true' : 'false'); setIf(f, 'tabindex', id === anchor ? '0' : '-1'); draftBadge(f, drafts.has(id)); }
+            setIf(pg.el, 'tabindex', order.length ? '-1' : '0');
             const one = selection.length === 1 ? widget(selection[0]) : null;
             gestures.showSelection(one ? one.id : null, one ? (one.family ? t('homedash.designer.chip_family', { type: typeName(one), variant: variantName(one), family: t('homedash.family.' + one.family) }) : t('homedash.designer.chip', { type: typeName(one), variant: variantName(one) })) : '');
             emit();
         }
         const frameOfFocus = () => focusState().fid, focused = () => { const f = frameOfFocus() || focusId; return f && widget(f) ? f : null; };
+        // The reads (focus, scrollIntoView) run before the writes of sync(): each read after a write is a forced layout (~220 ms on the 60-widget page under load).
+        // focusId is set first, so the focusin handler finds nothing to sync.
         function focusFrame(id, scroll) {
-            const pg = view.page(); if (!pg) return; if (id) { focusId = id; sync(); }
+            const pg = view.page(); if (!pg) return; if (id) focusId = id;
             const f = (id && pg.frame(id)) || pg.el; if (typeof f.focus === 'function') f.focus({ preventScroll: true }); if (scroll && f !== pg.el && typeof f.scrollIntoView === 'function') f.scrollIntoView({ block: 'nearest' });
+            if (id) sync();
         }
         function sayCount(ids) {
             if (ids.length > 1) announce(t('homedash.designer.announce.selected', { count: ids.length }));
@@ -114,7 +124,8 @@
             const s = so || {}, order = C.readingOrder(items()); let list = [...new Set(ids || [])].filter(id => order.includes(id));
             if (s.primary && list.includes(s.primary)) list = list.filter(i => i !== s.primary).concat(s.primary);
             selection = list; if (s.focus && list.length) focusId = list[list.length - 1];
-            sync(); if (s.focus) focusFrame(list.length ? list[list.length - 1] : null, true); if (s.announce) sayCount(list);
+            if (s.focus && list.length) focusFrame(list[list.length - 1], true); else { sync(); if (s.focus) focusFrame(null, true); }   // focusFrame syncs once itself
+            if (s.announce) sayCount(list);
         }
         // ---- commands
         function toastText(key) { return key === 'reload_agent' ? t('homedash.designer.reload_agent') : key === 'reload_other' ? t('homedash.designer.reload_other') : key === 'theirs_done' ? t('homedash.conflict.theirs_done') : ''; }
@@ -126,7 +137,7 @@
             const before = doc, a = cmd.announce, gone = a && a.key === 'deleted' ? before.pages.flatMap(p => p.widgets).find(w => w.id === a.id) : null; let next;
             try { next = E.doc.apply(doc, cmd.ops, 'after'); } catch (err) { console.warn('HomeDash: command failed', err); return false; }
             gestures.cancel(); doc = next; history.push(cmd); redoLabels = []; lane.set(doc);
-            const fs = focusState(); render(); if (cmd.page && cmd.page !== pageId) setPage(cmd.page, { focus: fs.in }); if (cmd.select) select(cmd.select, { focus: true });
+            const fs = focusState(); render(xo && xo.keepBox); if (cmd.page && cmd.page !== pageId) setPage(cmd.page, { focus: fs.in }); if (cmd.select) select(cmd.select, { focus: true });
             const kind = cmd.meta && cmd.meta.kind, ids = (cmd.meta && cmd.meta.ids) || [], draft = ids.length === 1 && (kind === 'add' || kind === 'paste' || kind === 'duplicate') && E.doc.drafts(doc, catalog).has(ids[0]);
             if (xo && xo.quiet) return true;
             if (cmd.materialised) announce(cmd.materialised === 'md' ? t('homedash.bp.now_custom_md') : t('homedash.bp.now_custom_sm'));
@@ -365,7 +376,7 @@
                 if (kind === 'move' || kind === 'resize') {
                     const mine = p.next.filter(i => (kind === 'move' ? p.ids : [p.id]).includes(i.id)), box = mine.length ? E.grid.bbox(mine) : { x: 0, y: 0, w: 1, h: 1 };
                     exec(C.layout(doc, { pageId, bp: p.bp, next: p.next, C: constraints, ids: kind === 'move' ? p.ids : [p.id], kind, now: now(), label: kind === 'resize' ? 'homedash.cmd.resize' : 'homedash.cmd.move',
-                        announce: kind === 'resize' ? { key: 'resized', w: box.w, h: box.h } : p.ids.length === 1 ? { key: 'moved', col: box.x + 1, row: box.y + 1 } : { key: 'moved_many', count: p.ids.length } }));
+                        announce: kind === 'resize' ? { key: 'resized', w: box.w, h: box.h } : p.ids.length === 1 ? { key: 'moved', col: box.x + 1, row: box.y + 1 } : { key: 'moved_many', count: p.ids.length } }), { keepBox: true });
                 } else if (kind === 'marquee') { select(p.ids, { announce: true }); }
                 else if (kind === 'add') addWidgets(p.entries, { at: p.at, source: 'drop' });
                 else if (kind === 'rebind') { if (exec(C.bind(doc, { pageId, id: p.id, binding: p.binding, entity: p.entity && p.entity.id, now: now() }), { quiet: true })) announce(t('homedash.designer.announce.rebound', { name: nameOf(widget(p.id)), entity: (p.entity && (p.entity.name || p.entity.id)) || '' })); }

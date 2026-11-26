@@ -104,7 +104,7 @@
                 const prev = doc; doc = uo && uo.normalised ? raw : E.doc.normalise(raw, { sizeOf: o.catalog.defaultSize, constraints: o.catalog.constraints });
                 if (!doc.pages.some(p => p.id === pageId)) { pageId = doc.pages[0].id; applyRoot(); renderTabs(); renderPage(); E.widgets.applyLook(root); return; }
                 const lookChanged = !prev || E.doc.keyOf(prev.look) !== E.doc.keyOf(doc.look); if (lookChanged) applyRoot(); renderTabs();
-                if (!page || (doc.pages.length > 1) !== pageMany) renderPage(); else page.update(doc, doc.pages.find(p => p.id === pageId));
+                if (!page || (doc.pages.length > 1) !== pageMany) renderPage(); else page.update(doc, doc.pages.find(p => p.id === pageId), { keepBox: !!(uo && uo.keepBox) });
                 if (lookChanged) E.widgets.applyLook(root); if (typeof o.onEntities === 'function') o.onEntities(page.entityIds());
             },
             select(next, so) { select(next, !!(so && so.focus)); },

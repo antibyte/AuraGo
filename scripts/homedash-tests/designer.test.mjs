@@ -103,5 +103,12 @@ export const tests = [
   ['designer: a dashboard deleted elsewhere raises the gone bar and a sheet that offers only a copy or later; the local document stays', async () => { const m = await edit(), D = m.D(); m.key('ArrowRight');
     m.server.docs.delete(SEED.id); m.es.last().emit('dashboard_changed', { id: SEED.id, revision: 0, approved_revision: 0 }); await m.clock.advance(400); await m.clock.advance(900);
     assert.equal(m.host.querySelector('.hd-conflict-bar').hasAttribute('hidden'), false); assert.match(m.host.querySelector('.hd-conflict-text').textContent, /deleted elsewhere/); assert.ok(m.host.querySelector('.hd-sheet-btn[data-action="copy"]')); assert.ok(m.host.querySelector('.hd-sheet-btn[data-action="later"]')); assert.equal(m.host.querySelector('.hd-sheet-btn[data-action="theirs"]'), null);
-    const b = m.host.querySelector('.hd-sheet-btn[data-action="later"]'); b.closest('.hd-sheet-layer').dispatchEvent({ type: 'click', target: b }); await m.clock.advance(10); assert.equal(m.inst.state().edit.mode, 'design'); assert.equal(m.inst.state().edit.phase, 'gone'); assert.equal(D.state().conflict.gone, true); assert.equal(m.cell('cpu').split(',')[0], '1'); m.inst.dispose(); }]
+    const b = m.host.querySelector('.hd-sheet-btn[data-action="later"]'); b.closest('.hd-sheet-layer').dispatchEvent({ type: 'click', target: b }); await m.clock.advance(10); assert.equal(m.inst.state().edit.mode, 'design'); assert.equal(m.inst.state().edit.phase, 'gone'); assert.equal(D.state().conflict.gone, true); assert.equal(m.cell('cpu').split(',')[0], '1'); m.inst.dispose(); }],
+  ['designer (D11): re-selecting the selected frame writes no attribute and a new selection writes only the frames that changed', async () => {
+    const m = await edit(), D = m.D(), writes = [], proto = Object.getPrototypeOf(m.frame('cpu')), set0 = proto.setAttribute;
+    proto.setAttribute = function (n, v) { if (this.getAttribute && this.getAttribute('data-hd-wid') && (n === 'aria-selected' || n === 'tabindex')) writes.push(this.getAttribute('data-hd-wid') + ':' + n + '=' + v); return set0.call(this, n, v); };
+    try {
+      D.select(['cpu'], { focus: true }); writes.length = 0; D.select(['cpu'], { focus: true }); eq(writes, [], 'nothing changed, nothing written');
+      const other = D.state().items.find(i => i.id !== 'cpu').id; D.select([other], { focus: true }); eq(writes.slice().sort(), [other + ':aria-selected=true', other + ':tabindex=0', 'cpu:aria-selected=false', 'cpu:tabindex=-1'].sort(), 'only the two frames that changed');
+    } finally { proto.setAttribute = set0; } m.inst.dispose(); }]
 ];

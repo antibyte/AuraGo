@@ -980,7 +980,7 @@ func hdSaveSteps() []hdDesignerStep {
 			}
 			doc["pages"] = []any{map[string]any{"id": "main", "name": "Main", "icon": "dashboard", "compact": true, "widgets": ws, "layouts": map[string]any{"lg": its, "md": nil, "sm": nil}}}
 			h.freshDoc(doc, true)
-			h.page.MustEval(`()=>{window.__long=[];window.__frames=0;try{new PerformanceObserver(l=>{for(const e of l.getEntries())__long.push(Math.round(e.startTime)+"+"+Math.round(e.duration));}).observe({type:'longtask'});}catch(e){window.__nolong=String(e);}
+			h.page.MustEval(`()=>{window.__longEntries=[];window.__frames=0;try{new PerformanceObserver(l=>{for(const e of l.getEntries())__longEntries.push(e);}).observe({type:'longtask'});}catch(e){window.__nolong=String(e);}
 				const tick=()=>{window.__frames++;window.__raf=requestAnimationFrame(tick);};window.__raf=requestAnimationFrame(tick);}`)
 			if h.yes(`()=>!!window.__nolong`) {
 				h.t.Fatal("this browser has no longtask observer")
@@ -990,7 +990,7 @@ func hdSaveSteps() []hdDesignerStep {
 			started := time.Now()
 			m := h.page.Mouse
 			m.MustMoveTo(x, y)
-			h.page.MustEval(`()=>{window.__t0=Math.round(performance.now());}`)
+			h.page.MustEval(`()=>{window.__t0=performance.now();}`)
 			m.MustDown(proto.InputMouseButtonLeft)
 			for i := 1; time.Since(started) < 2*time.Second; i++ {
 				f := float64(i%120) / 120
@@ -1000,25 +1000,47 @@ func hdSaveSteps() []hdDesignerStep {
 				}
 				time.Sleep(16 * time.Millisecond)
 			}
-			h.page.MustEval(`()=>{window.__t1=Math.round(performance.now());}`)
+			h.page.MustEval(`()=>{window.__t1=performance.now();window.__f1=window.__frames;}`)
 			m.MustUp(proto.InputMouseButtonLeft)
 			h.pause(300)
-			frames := h.num(`()=>{cancelAnimationFrame(window.__raf);return window.__frames;}`)
-			long := h.str(`()=>JSON.stringify(window.__long)`)
-			t0, t1 := h.num(`()=>window.__t0`), h.num(`()=>window.__t1`)
-			h.t.Logf("60 widgets: %v frames in the 2 s drag (press at %.0f ms, release at %.0f ms); long tasks start+duration in ms: %s", frames, t0, t1, long)
-			// The drag has to work at this size: the gesture ran and the page kept painting.
-			if frames < 20 {
-				h.t.Fatalf("only %v frames in a 2 s drag of one of 60 widgets", frames)
+			// A long task belongs to the phase it overlaps: down = press and drag (pointer down), release = the commit and the frames after it.
+			// The observer only reports tasks over 50 ms, so every entry is a miss of the D11 budget.
+			phases := h.str(`()=>{cancelAnimationFrame(window.__raf);const t0=window.__t0,t1=window.__t1,t2=performance.now(),at=e=>Math.round(e.startTime-t0)+"+"+Math.round(e.duration);
+				const down=[],release=[];for(const e of window.__longEntries){const end=e.startTime+e.duration;if(end>t0&&e.startTime<t1)down.push(at(e));else if(e.startTime>=t1&&e.startTime<t2)release.push(at(e));}
+				return JSON.stringify({down,release,frames:window.__f1,dragMs:Math.round(t1-t0)});}`)
+			var res struct {
+				Down, Release []string
+				Frames        float64
+				DragMs        float64
 			}
-			// D11: no long task (over 50 ms) while the pointer is down. Measured on the CI-like dev box the press, the frames and the release of the
-			// 60-widget page take 250-1300 ms each (layout of 60 frames per frame, see the report); the budget is enforced when HOMEDASH_M4_PERF=strict and
-			// reported otherwise.
-			if long != "[]" {
-				if os.Getenv("HOMEDASH_M4_PERF") == "strict" {
-					h.t.Fatalf("long tasks during the drag: %s (budget: none over 50 ms)", long)
+			if err := json.Unmarshal([]byte(phases), &res); err != nil {
+				h.t.Fatalf("phases %q: %v", phases, err)
+			}
+			h.t.Logf("60 widgets: %.0f frames in the %.0f ms drag; long tasks (start from the press + duration, ms) while the pointer is down: %v, at the release: %v", res.Frames, res.DragMs, res.Down, res.Release)
+			// The drag has to work at this size: the gesture ran and the page kept painting.
+			if res.Frames < 20 {
+				h.t.Fatalf("only %v frames in a 2 s drag of one of 60 widgets", res.Frames)
+			}
+			// D11: a drag or resize on a page with 60 widgets keeps one rAF per frame, writes only changed items and shows no long task (over 50 ms) while the
+			// pointer is down and at the release, with at least 90 frames in the 2 s drag (a 60 Hz page paints at most 120; the 75% floor leaves room for a
+			// busy host and still fails the old 40-90). The budget is enforced by default. HOMEDASH_M4_PERF=log only logs the misses: use it on a host that
+			// is overloaded by other processes (a long task is a wall-clock measure, so a loaded CPU stretches every layout); the numbers stay in the log.
+			var miss []string
+			if len(res.Down) > 0 {
+				miss = append(miss, fmt.Sprintf("long tasks while the pointer is down: %v", res.Down))
+			}
+			if len(res.Release) > 0 {
+				miss = append(miss, fmt.Sprintf("long tasks at the release: %v", res.Release))
+			}
+			if res.Frames < 90 {
+				miss = append(miss, fmt.Sprintf("%.0f frames in the 2 s drag, want at least 90", res.Frames))
+			}
+			if len(miss) > 0 {
+				if os.Getenv("HOMEDASH_M4_PERF") == "log" {
+					h.t.Logf("D11 budget missed (HOMEDASH_M4_PERF=log: not enforced): %s", strings.Join(miss, "; "))
+				} else {
+					h.t.Fatalf("D11 budget missed (budget: no task over 50 ms, at least 90 frames; HOMEDASH_M4_PERF=log only logs it): %s", strings.Join(miss, "; "))
 				}
-				h.t.Logf("D11 budget missed (not enforced without HOMEDASH_M4_PERF=strict): %s", long)
 			}
 		}},
 	}

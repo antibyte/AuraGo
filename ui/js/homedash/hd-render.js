@@ -18,6 +18,14 @@
     // in viewport px (zoom applied), offsetWidth, clientWidth, computed width and every CSS length inside the page are unzoomed layout px, and a percentage
     // size resolves visually (min-block-size: 100% fills the stage). So a page-local coordinate is (client - rect.left) / zoom; hd-gestures does that in one place.
     // The value is floored at 3 decimals so the scaled page never overflows the stage by a rounding pixel.
+    // Placement and gesture variables of one widget (and the page's --hd-rows) are read by that element only. They are registered as non-inherited so that
+    // writing one does not restyle the widget's whole subtree: a cell change of 14 widgets costs ~11 ms instead of ~80 ms, a drag frame restyles 1 element
+    // instead of 82 (measured on the 60-widget page, M4 D11). Syntax '*' keeps every value as the token string it was written as; an unsupported browser
+    // or an earlier registration (another bundle copy) leaves the variables as plain inherited custom properties, which only costs speed.
+    const OWN_VARS = Object.freeze(['--hd-x', '--hd-y', '--hd-w', '--hd-h', '--hd-rows', '--hd-e-fx', '--hd-e-fy', '--hd-e-dx', '--hd-e-dy']);
+    if (typeof CSS !== 'undefined' && CSS && typeof CSS.registerProperty === 'function') {
+        for (const name of OWN_VARS) { try { CSS.registerProperty({ name, syntax: '*', inherits: false }); } catch (err) { /* already registered */ } }
+    }
     const ZOOM_MIN = 0.5;
     const zoomFor = (avail, width) => (avail > 0 && width > avail ? Math.floor(Math.max(ZOOM_MIN, avail / width) * 1000) / 1000 : 1);
     // The stage's inner box (design mode gives the stage padding so the outline, handles and chip of an edge widget stay visible): client size minus the padding.
@@ -33,7 +41,7 @@
         const pageEl = el('div', { class: 'hd-page', id: o.id || null });
         o.stage.appendChild(pageEl);
         const recs = new Map(), byEntity = new Map(), byEl = new Map(), limits = new Map();
-        let bp = null, destroyed = false, io = null;
+        let bp = null, destroyed = false, io = null, shownRows = 0;
         function pageAttrs() {   // design: a multi-select listbox named by the document; view: the region or tabpanel of M2
             const design = mode === 'design';
             setAttr(pageEl, 'role', design ? 'listbox' : o.role || 'region'); setAttr(pageEl, 'aria-multiselectable', design ? true : null);
@@ -163,9 +171,11 @@
         const flips = new Set(), flipFrame = E.core.frame(() => { for (const r of flips) { r.el.removeAttribute('data-hd-flip'); setVars(r.el, { '--hd-e-fx': null, '--hd-e-fy': null }); } flips.clear(); }, { raf: o.raf, caf: o.caf });
         for (const w of pg.widgets) mount(w);
         renderEmpty();
-        function layout() {
+        // lastBox: the stage box of the last measure. layout(true) reuses it (a gesture commit: the stage did not resize, and reading it again would force a layout).
+        let lastBox = null;
+        function layout(reuse) {
             if (destroyed) return;
-            const box = measure(o.stage);
+            const box = reuse && lastBox ? lastBox : (lastBox = measure(o.stage));
             if (!box || !(box.width > 0)) return;
             bp = forcedBp || E.layout.breakpoint(box.width, bp);
             const width = forcedBp ? PREVIEW[forcedBp](box.width) : box.width, fit = mode === 'design' ? 'scroll' : fitOverride || doc.grid.fit;
@@ -174,7 +184,7 @@
             const zoom = mode === 'design' && forcedBp ? zoomFor(box.width, width) : 1;
             setVars(pageEl, Object.assign(E.layout.cssVars(m, cols, rows, gap), { '--hd-e-pw': forcedBp ? Math.round(width) + 'px' : null, '--hd-e-zoom': zoom < 1 ? zoom : null }));
             setAttr(pageEl, 'data-hd-preview', forcedBp); setAttr(pageEl, 'data-hd-zoomed', zoom < 1 ? 'true' : null);
-            last = Object.freeze({ bp, cols, rows, gap, colW: m.colW, rowH: m.rowH, offX: m.offX, mode: m.mode, width, zoom });
+            shownRows = rows; last = Object.freeze({ bp, cols, rows, gap, colW: m.colW, rowH: m.rowH, offX: m.offX, mode: m.mode, width, zoom });
             if (typeof o.onLayout === 'function') o.onLayout({ bp, fit: m.mode });
             for (const it of items) {
                 const rec = recs.get(it.id); if (!rec) continue;
@@ -185,7 +195,7 @@
                 refreshLabel(rec, it);
             }
         }
-        const schedule = E.core.frame(layout, { raf: o.raf, caf: o.caf });
+        const schedule = E.core.frame(() => layout(), { raf: o.raf, caf: o.caf });
         function onChange(ids) {
             if (destroyed) return;
             const targets = new Set();
@@ -221,8 +231,8 @@
             pageEl.remove(); recs.clear(); byEntity.clear(); byEl.clear(); sheetSubs.clear();
         }
         // update(nd, np): the same page with a new document; widgets are diffed by their JSON plus the effective family, so unchanged widgets keep
-        // their nodes (and focus, scroll and drag state). Layout runs synchronously.
-        function update(nd, np) {
+        // their nodes (and focus, scroll and drag state). Layout runs synchronously; update(nd, np, { keepBox: true }) reuses the last stage measure.
+        function update(nd, np, uo) {
             if (destroyed) return;
             doc = nd; pg = np; family = nd.look && nd.look.family; pageAttrs();
             const want = new Map(pg.widgets.map(w => [w.id, w]));
@@ -230,7 +240,7 @@
             for (const w of pg.widgets) if (!recs.has(w.id)) mount(w);
             byEntity.clear();
             for (const rec of recs.values()) for (const id of rec.ids) { if (!byEntity.has(id)) byEntity.set(id, new Set()); byEntity.get(id).add(rec); }
-            renderEmpty(); keepLayerLast(); layout();
+            renderEmpty(); keepLayerLast(); layout(!!(uo && uo.keepBox));
         }
         // preview(items, {skip, animate, rows}): writes the cells of changed items only (gesture feedback, no relayout); returns how many changed.
         function preview(items, po) {
@@ -246,7 +256,7 @@
                 const px = { width: Math.round(it.w * last.colW + (it.w - 1) * last.gap), height: Math.round(it.h * last.rowH + (it.h - 1) * last.gap) }, key = cell + ':' + px.width + 'x' + px.height;
                 if (rec.inst && key !== rec.px) { rec.px = key; rec.inst.resize({ w: it.w, h: it.h, px }); }
             }
-            setVars(pageEl, { '--hd-rows': Math.max(1, E.layout.rows(list), p.rows || 0) });
+            const rows = Math.max(1, E.layout.rows(list), p.rows || 0); if (rows !== shownRows) { shownRows = rows; setVars(pageEl, { '--hd-rows': rows }); }   // a page height change relays out every widget: write it only when it differs
             return n;
         }
         function setMode(m) {

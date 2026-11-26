@@ -129,5 +129,14 @@ export const tests = [
     assert.equal(layerOf(r).children.find(c => c.getAttribute('class') === 'hd-marquee').style.getPropertyValue('--hd-e-mw'), '320px', 'the marquee is drawn in page px'); up(r, 100, 60); eq(r.log.commit, [['marquee', { ids: ['b'], additive: false }]]);
     const drop = (zoom, x, y) => { const d = rig({ zoom }), payload = { kind: 'widget', entries: () => [{ widget: { type: 'light' }, size: { w: 2, h: 2 } }], avatar: () => d.document.createElement('span'), label: 'Light' };
       d.G.dragFrom(pe('pointerdown', 700, 20, { target: d.root, currentTarget: d.root }), payload); mv(d, 710, 20); mv(d, x, y); d.frame(); up(d, x, y); return d.log.commit[0]; };
-    const full = drop(1, 300, 300), half = drop(0.5, 150, 150); eq(half, full); assert.equal(full[0], 'add'); }]
+    const full = drop(1, 300, 300), half = drop(0.5, 150, 150); eq(half, full); assert.equal(full[0], 'add'); }],
+  ['gestures (D11): the first step reads the scroll position once (arm), a frame reads it once, and the page height of a gesture only grows', () => { const r = rig(); let reads = 0, sx = 0;
+    Object.defineProperty(r.stage, 'scrollLeft', { configurable: true, get() { reads += 1; return sx; }, set(v) { sx = v; } });
+    down(r, r.frames.a, 50, 50); mv(r, 52, 50); assert.equal(reads, 0, 'no read before the drag starts'); mv(r, 54, 50); assert.equal(r.G.active(), 'move'); assert.equal(reads, 1, 'arm reads the scroll once; the first step reuses it');
+    mv(r, 160, 50); const at = reads; r.frame(); assert.equal(reads, at + 1, 'a frame reads the scroll position once');
+    mv(r, 160, 190); r.frame(); const tall = r.log.preview.at(-1).po.rows; mv(r, 60, 50); r.frame(); assert.ok(r.log.preview.at(-1).po.rows >= tall, 'a shorter layout does not shrink the page during the gesture'); assert.ok(tall >= 3); up(r, 60, 50); }],
+  ['gestures (D11): the commit passes through once with the preview reset, and the stage box and page rect are read once per gesture (not per frame)', () => { const r = rig(); let rects = 0; const sb = r.stage.getBoundingClientRect, pb = r.pageEl.getBoundingClientRect;
+    r.stage.getBoundingClientRect = () => { rects += 1; return sb(); }; r.pageEl.getBoundingClientRect = () => { rects += 1; return pb(); };
+    down(r, r.frames.a, 50, 50); mv(r, 60, 50); mv(r, 160, 50); const armed = rects; for (let i = 0; i < 6; i++) { mv(r, 160 + i * 20, 50); r.frame(); } assert.equal(rects, armed, 'no rect read after the gesture started'); assert.equal(armed, 2, 'one stage rect and one page rect at the start');
+    up(r, 300, 50); assert.equal(r.log.commit.length, 1); assert.equal(r.log.preview.at(-1).list, null); assert.equal(rects, armed, 'the release reads no rect'); }]
 ];

@@ -68,6 +68,9 @@
             if (selEl.parentNode !== L) L.appendChild(selEl); setAttr(selEl, 'data-hd-wid', id); selChip.textContent = selState.chip; placeSel(it);
             for (const h of selEl.querySelectorAll('.hd-handle')) h.removeAttribute('data-hd-limit');
         }
+        // The page height of a gesture only grows: a height change relays out every widget (the costliest write of a drag), so a layout that is shorter for a
+        // moment does not shrink the page and the next frame does not grow it again. The commit and the cancel restore the exact height of the document.
+        const roomFor = (s, next) => { s.rows = Math.max(s.rows || 0, E.layout.rows(next) + 1); return s.rows; };
         // A client point as a page-local point (page px): from the page's rect at gesture start, plus the stage scroll since, divided by the zoom.
         const local = (s, x, y, sx, sy) => ({ x: math.toPage(s.zoom, x - s.pageRect.left + (sx - s.scroll0.x)), y: math.toPage(s.zoom, y - s.pageRect.top + (sy - s.scroll0.y)) });
         // arm: the first onStart of a session. Reads (rects, scroll) happen once here; tick never reads layout.
@@ -85,15 +88,17 @@
             const hold = !!spec.hold; g = s;
             s.track = E.input.track(ev, Object.assign({ capture: stage, win: o.win, setTimeout: tm.setTimeout, clearTimeout: tm.clearTimeout, now: tm.now,
                 threshold: hold ? NEVER : THRESHOLD_CANVAS, holdMs: hold ? HOLD_TOUCH_MS : 0 }, spec.track, {
-                onStart: (start, p) => { if (g !== s) return; if (!arm(s, start, p, spec.needPage !== false)) { finish(s, 'cancel'); return; } if (s.begin) s.begin(); step(s, true); },
+                onStart: (start, p) => { if (g !== s) return; if (!arm(s, start, p, spec.needPage !== false)) { finish(s, 'cancel'); return; } if (s.begin) s.begin(); step(s, true, true); },
                 onMove: p => { if (g !== s || !s.started) return; s.pointer = p; s.fresh = true; loop(); },
                 onEnd: (p, start, how) => { if (g !== s) return; if (how === 'up' && s.started) { s.pointer = p; step(s, false); } finish(s, how); },
                 onTap: start => { if (g !== s) return; g = null; if (s.tap) s.tap(start); } }));
             if (!s.track && g === s) g = null; return s.track;
         }
-        function step(s, scroll) {
+        // first: the step right after arm() writes (attributes, layer, ghosts): the scroll position was read a moment ago and cannot have changed, and reading it
+        // again after those writes would force a layout (~220 ms on the 60-widget page).
+        function step(s, scroll, first) {
             if (!s || g !== s || !s.started) return;
-            const sx = stage.scrollLeft, sy = stage.scrollTop, p = s.pointer, dx = math.toPage(s.zoom, p.x - s.start.x + (sx - s.scroll0.x)), dy = math.toPage(s.zoom, p.y - s.start.y + (sy - s.scroll0.y));   // reads first; page px
+            const sx = first ? s.scroll0.x : stage.scrollLeft, sy = first ? s.scroll0.y : stage.scrollTop, p = s.pointer, dx = math.toPage(s.zoom, p.x - s.start.x + (sx - s.scroll0.x)), dy = math.toPage(s.zoom, p.y - s.start.y + (sy - s.scroll0.y));   // reads first; page px
             if (s.kind === 'move') stepMove(s, dx, dy); else if (s.kind === 'resize') stepResize(s, dx, dy); else if (s.kind === 'marquee') stepMarquee(s, p, sx, sy); else stepDrop(s, p, sx, sy);
             if (!scroll) return;
             const sig = sx + ',' + sy, go = s.fresh || sig !== s.sig; s.sig = sig; s.fresh = false;
@@ -138,7 +143,7 @@
             if (dx !== s.drag.dx || dy !== s.drag.dy || !s.lastKey) { s.drag = { dx, dy }; for (const f of s.frames) setVars(f, { '--hd-e-dx': px(dx), '--hd-e-dy': px(dy) }); }
             const d = math.cellDelta(s.m, dx, dy), key = d.dx + ',' + d.dy; if (key === s.lastKey) return; s.lastKey = key;
             const next = E.grid.moveItems(s.items, s.ids, { x: s.B.x + d.dx, y: s.B.y + d.dy }, s.cols, { compact: s.compact }), moved = next.filter(i => s.idSet.has(i.id)); s.next = next;
-            s.page.preview(next, { skip: s.idSet, animate: true, rows: E.layout.rows(next) + 1 }); showGhosts(moved); showGuides(guides(next, moved, s.idSet, s.cols));
+            s.page.preview(next, { skip: s.idSet, animate: true, rows: roomFor(s, next) }); showGhosts(moved); showGuides(guides(next, moved, s.idSet, s.cols));
         }
         // ---- resize
         function startResize(ev, handle, c) {
@@ -151,7 +156,7 @@
             const d = math.cellDelta(s.m, dx, dy), key = d.dx + ',' + d.dy; if (key === s.lastKey) return; s.lastKey = key;
             const next = E.grid.resizeItem(s.items, s.id, s.edge, d, s.cols, s.C, { compact: s.compact }), it = next.find(i => i.id === s.id); s.next = next;
             const lim = limitOf(s, d); if (lim !== s.limit) { s.limit = lim; setAttr(s.limitEl, 'data-hd-limit', lim || null); if (lim) o.announce(o.describeLimit(lim)); }
-            s.page.preview(next, { animate: true, rows: E.layout.rows(next) + 1 }); placeSel(it); showGuides(guides(next, [it], s.idSet, s.cols));
+            s.page.preview(next, { animate: true, rows: roomFor(s, next) }); placeSel(it); showGuides(guides(next, [it], s.idSet, s.cols));
         }
         // ---- marquee
         function startMarquee(ev, c) {
@@ -203,7 +208,7 @@
             const slot = E.grid.place(s.items, w, h, s.cols, 0), base = s.items.concat([{ id: s.temp, x: slot.x, y: slot.y, w, h }]);
             const next = E.grid.moveItems(base, [s.temp], { x, y }, s.cols, { compact: s.compact }), tmp = next.find(i => i.id === s.temp), shown = next.filter(i => i.id !== s.temp);
             setDrop(s, s.full ? 'invalid' : 'add', { at: { x: tmp.x, y: tmp.y } });
-            s.page.preview(shown, { animate: true, rows: E.layout.rows(next) + 1 }); showGhosts([tmp], s.full ? 'invalid' : null); showGuides(s.full ? [] : guides(next, [tmp], new Set([s.temp]), s.cols));
+            s.page.preview(shown, { animate: true, rows: roomFor(s, next) }); showGhosts([tmp], s.full ? 'invalid' : null); showGuides(s.full ? [] : guides(next, [tmp], new Set([s.temp]), s.cols));
         }
         // ---- canvas pointerdown (delegated)
         life.on(stage, 'pointerdown', ev => {
