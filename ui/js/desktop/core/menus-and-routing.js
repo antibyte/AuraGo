@@ -1701,8 +1701,10 @@
         }
         if (appId === 'homedash' && window.HomeDashApp) {
             return window.HomeDashApp.render(contentEl(id), id, Object.assign({}, context || {}, {
-                esc, t, api, setWindowMenus, clearWindowMenus, readonly: desktopReadonly(),
-                updateWindowContext: (windowId, patch) => { updateWindowContext(windowId, patch); scheduleSessionPersist(); }
+                esc, t, api, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary, readonly: desktopReadonly(),
+                updateWindowContext: (windowId, patch) => { updateWindowContext(windowId, patch); scheduleSessionPersist(); },
+                setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
+                focusWindow: winId => { if (state.windows.has(winId)) focusWindow(winId); }
             }));
         }
         if (appId === 'ha-switchboard' && window.HASwitchboardApp) {

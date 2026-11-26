@@ -46,4 +46,22 @@ func TestHomeDashWiring(t *testing.T) {
 			}
 		}
 	}
+	// The homedash dispatch block hands the host the context-menu, close-guard and focus functions (M4 C3).
+	for _, file := range []string{"js/desktop/core/menus-and-routing.js", "js/desktop/bundles/main.bundle.js"} {
+		source := readDesktopAssetText(t, file)
+		start := strings.Index(source, "appId === 'homedash' && window.HomeDashApp")
+		if start < 0 {
+			t.Errorf("%s has no homedash dispatch block", file)
+			continue
+		}
+		block := source[start:]
+		if next := strings.Index(block[1:], "if (appId ==="); next >= 0 {
+			block = block[:next+1]
+		}
+		for _, marker := range []string{"setWindowBeforeClose", "showContextMenu", "wireContextMenuBoundary", "focusWindow"} {
+			if !strings.Contains(block, marker) {
+				t.Errorf("%s: the homedash dispatch block is missing %q (run npm run build:ui after editing the core files)", file, marker)
+			}
+		}
+	}
 }
