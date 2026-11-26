@@ -176,7 +176,7 @@
             s.commit = () => { const d = s.drop;
                 if (d.mode === 'add') { o.commit('add', { entries: s.entries, at: d.at, bp: s.bp }); return true; }
                 if (d.mode === 'rebind') { o.commit('rebind', { id: d.id, binding: 'primary', entity: payload.entity }); return true; }
-                if (d.mode === 'invalid') o.announce(o.describeLimit('drop_invalid')); return false; };
+                if (d.mode === 'invalid') o.announce(o.describeLimit(s.full ? 'page_full' : 'drop_invalid', payload.label || '')); return false; };
             return run(ev, s, { needPage: false, track: Object.assign({ capture: ev.currentTarget || null }, touch ? TOUCH_LIST : { threshold: THRESHOLD_PALETTE, holdMs: 0 }) });
         }
         function setDrop(s, mode, extra) {

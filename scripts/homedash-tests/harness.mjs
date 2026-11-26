@@ -17,7 +17,7 @@ export function loadEngine(files, { dom = false } = {}) {
   return { E: window.HomeDashEngine, window, document: context.document };
 }
 export function noStyleAttr(el) { for (const n of allElements(el)) assert.equal(n.getAttribute('style'), null, `style attribute on ${n.localName}`); }
-export const APP_ORDER = ENGINE_ORDER.concat(['hd-tone.js', 'hd-api.js', 'hd-stream.js', 'hd-store.js', 'hd-command.js', 'hd-catalog.js', 'hd-render.js', 'hd-sheet.js', 'hd-view.js', 'hd-clipboard.js', 'hd-commands.js', 'hd-save.js', 'hd-gestures.js', 'hd-app.js']);
+export const APP_ORDER = ENGINE_ORDER.concat(['hd-tone.js', 'hd-api.js', 'hd-stream.js', 'hd-store.js', 'hd-command.js', 'hd-catalog.js', 'hd-render.js', 'hd-sheet.js', 'hd-view.js', 'hd-clipboard.js', 'hd-commands.js', 'hd-save.js', 'hd-gestures.js', 'hd-editbar.js', 'hd-designer.js', 'hd-app.js']);
 // Like loadEngine, but for any repository-relative files (desktop host scripts after the engine).
 export function loadFiles(relPaths, { dom = false } = {}) {
   const window = {};
