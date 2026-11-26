@@ -246,7 +246,7 @@
         }
 
         // state
-        let host = null, hostState = 'idle', active = false, disposed = false, rafId = 0;
+        let host = null, hostState = 'idle', active = false, disposed = false, rafId = 0, blockedShown = false;
         let snap = null;
         let seq = 0, lastSent = 0, flushToken = 0;
         let transport = M.createTransport();
@@ -530,6 +530,8 @@
                 host = null;
                 fail('rb_load_failed', err && err.message ? err.message : '');
             }
+            const ctx = host && host.context;
+            if (ctx && typeof ctx.addEventListener === 'function') ctx.addEventListener('statechange', syncBlocked, { signal: sig });
         }
         // The engine is not booted outside a gesture: the rack waits for the first click or key inside it.
         function awaitGesture() {
@@ -538,17 +540,25 @@
             setLoadText(tr('rb_audio_blocked'), false);
         }
         function gestureBoot() {
-            if (!active || disposed || host || hostState !== 'idle') return;
+            if (!active || disposed) return;
+            // a click on the panel is the promised cure for a blocked context: resume inside this gesture
+            if (host) { if (host.context && host.context.state === 'suspended') wake(); return; }
+            if (hostState !== 'idle') return;
             setLoadText(tr('rb_loading'), false);
             ensureHost();
             wake();
+        }
+        // The blocked notice follows the live context: shown while suspended after a resume, cleared once running.
+        function syncBlocked() {
+            const state = host && host.context ? host.context.state : '';
+            if (state === 'suspended' && !blockedShown) { blockedShown = true; say(tr('rb_audio_blocked')); }
+            else if (state !== 'suspended' && blockedShown) { blockedShown = false; say(''); }
         }
         function wake() {
             if (!host || typeof host.resume !== 'function') return;
             let p;
             try { p = host.resume(); } catch (_) { return; }
-            const check = () => { if (host && host.context && host.context.state === 'suspended') say(tr('rb_audio_blocked')); };
-            if (p && typeof p.then === 'function') p.then(check, check);
+            if (p && typeof p.then === 'function') p.then(syncBlocked, syncBlocked);
         }
 
         // ---- bindings --------------------------------------------------------------------------
