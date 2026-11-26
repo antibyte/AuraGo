@@ -45,19 +45,29 @@
 }
 
 /* Hover, selection and keyboard focus reveal the whole name; the icon rises above its neighbours so
-   the longer label may overlap them, and its box grows with the label instead of clipping it. */
+   the longer label may overlap them, and its box grows with the label instead of clipping it.
+   Once the box is drawn, the label must stay inside it, or a pill/chip label (Electronic Dreams,
+   Organic, Lollipop ...) sticks out of the highlighted tile. The implicit auto column grows to the
+   label's max-content width, so a percentage max-width on the label never limits it; a fixed
+   minmax(0, 1fr) column does. The box also grows 3px to each side (negative margins keep it centred
+   on its grid cell) to the full 92px grid pitch, so a 13-letter word such as "Einstellungen" stays on
+   one line while two selected neighbours still do not overlap. */
 .vd-icon:hover,
 .vd-icon.selected,
 .vd-icon:focus-visible {
     z-index: 2;
     height: auto;
     min-height: 88px;
+    width: calc(var(--vd-icon-glyph-size) + 50px);
+    margin-inline: -3px;
+    grid-template-columns: minmax(0, 1fr);
 }
 
 .vd-icon:hover .vd-icon-label,
 .vd-icon.selected .vd-icon-label,
 .vd-icon:focus-visible .vd-icon-label {
     -webkit-line-clamp: 6;
+    max-width: 100%;
 }
 
 .vd-icon:hover,
