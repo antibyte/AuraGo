@@ -30,7 +30,7 @@
         const stage = el('div', { class: 'hd-stage' }), live = el('div', { class: 'hd-live hd-sr-only', 'aria-live': 'polite' }), toasts = el('div', { class: 'hd-toasts', 'aria-hidden': 'true' });
         root.replaceChildren(tabs, stage, live, toasts);
         const moreinfo = E.moreinfo && typeof E.moreinfo.create === 'function' ? E.moreinfo.create({ root }) : null;
-        let doc = null, page = null, pageId = null, pageMany = false, mode = 'view', forcedBp = null, fitOverride = null, describe = null, emptyAction = null;
+        let doc = null, page = null, pageId = null, pageMany = false, mode = 'view', forcedBp = null, fitOverride = null, zoomActual = false, describe = null, emptyAction = null;
         const bus = E.core.emitter(), toastTimers = new Map();   // toast node -> its removal timer; one disposer clears what is left
         life.add(() => { for (const h of toastTimers.values()) clearTimeout(h); toastTimers.clear(); });
         const scheme = () => (typeof o.scheme === 'function' && o.scheme() === 'light' ? 'light' : 'dark');
@@ -62,10 +62,10 @@
             if (E.popover) E.popover.close(root);
             if (page) page.destroy();
             const pg = doc.pages.find(p => p.id === pageId), many = doc.pages.length > 1; pageMany = many;
-            page = E.render.page({ doc, page: pg, stage, mode, bp: forcedBp, fit: fitOverride, emptyAction, describe: (w, it, ent) => (describe ? describe(w, it, ent) : ''), store: o.store, catalog: o.catalog, t, lang: o.lang, id: id + '-page', role: many ? 'tabpanel' : 'region',
+            page = E.render.page({ doc, page: pg, stage, mode, bp: forcedBp, fit: fitOverride, zoomActual, emptyAction, describe: (w, it, ent) => (describe ? describe(w, it, ent) : ''), store: o.store, catalog: o.catalog, t, lang: o.lang, id: id + '-page', role: many ? 'tabpanel' : 'region',
                 labelledBy: many ? id + '-tab-' + pg.id : null, label: many ? null : doc.name, raf: o.raf, caf: o.caf, measure: o.measure,
                 commands: o.commands || null, moreInfo: moreinfo ? req => moreinfo.open(req) : null,
-                announce: text => { live.textContent = text; }, onLayout: m => { setAttr(root, 'data-hd-bp', m.bp); setAttr(root, 'data-hd-fit', m.fit); } });
+                announce: text => { live.textContent = text; }, onLayout: m => { setAttr(root, 'data-hd-bp', m.bp); setAttr(root, 'data-hd-fit', m.fit); bus.emit('layout', m); } });
             bus.emit('page', page); if (typeof o.onEntities === 'function') o.onEntities(page.entityIds());
         }
         function select(next, focus) {
@@ -108,7 +108,7 @@
                 if (lookChanged) E.widgets.applyLook(root); if (typeof o.onEntities === 'function') o.onEntities(page.entityIds());
             },
             select(next, so) { select(next, !!(so && so.focus)); },
-            setBreakpoint(b) { forcedBp = b || null; if (page) page.setBreakpoint(forcedBp); }, setFit(v) { fitOverride = v || null; if (page) page.setFit(fitOverride); },
+            setBreakpoint(b) { forcedBp = b || null; if (page) page.setBreakpoint(forcedBp); }, setFit(v) { fitOverride = v || null; if (page) page.setFit(fitOverride); }, setZoomActual(v) { zoomActual = !!v; if (page) page.setZoomActual(zoomActual); },
             setDescribe(fn) { describe = typeof fn === 'function' ? fn : null; }, setEmptyAction(a) { emptyAction = a || null; if (page) page.setEmptyAction(emptyAction); },
             page: () => page, get stage() { return stage; }, doc: () => doc, announce(text) { live.textContent = String(text); },
             toast(text, to) {   // at most three toasts at once, each removed after ms; the text is also announced

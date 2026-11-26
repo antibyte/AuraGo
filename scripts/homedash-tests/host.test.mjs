@@ -43,6 +43,14 @@ export const tests = [
     h.push(Object.assign({}, h.state(), { edit: Object.assign({}, h.state().edit, { mode: 'design', undoLabel: 'Move', actions: Object.assign({}, h.state().edit.actions, { undo: { available: true, enabled: true }, edit: { available: true, enabled: true, checked: true } }) }) }));
     const next = h.menus.at(-1), undo = walk(next[1].items).find(i => i.id === 'undo');
     assert.equal(undo.disabled, false); assert.equal(undo.label, 'homedash.designer.undo_label:Move'); assert.equal(walk(next[2].items).find(i => i.id === 'edit-mode').checked, true); }],
+  ['host (G14): the View menu carries the zoom radio pair after Layout: labelled, no shortcut hint, enabled only in design mode while the fit zoom is below 1, one of the two checked', async () => {
+    const h = setup(), walk = items => items.flatMap(it => (it.type === 'separator' ? [] : [it, ...walk(it.items || [])])), zoom = () => { const v = walk(h.menus.at(-1)[2].items); return [v.find(i => i.id === 'zoom-fit'), v.find(i => i.id === 'zoom-actual')]; };
+    const A = (enabled, checked) => ({ available: true, enabled, checked }), design = (fit, actual) => Object.assign({}, h.state(), { edit: Object.assign({}, h.state().edit, { mode: 'design', actions: Object.assign({}, h.state().edit.actions, { zoom_fit: A(fit, fit && !actual), zoom_actual: A(fit, fit && actual) }) }) });
+    let [f, a] = zoom(); assert.ok(f && a, 'both items exist in view mode'); assert.equal(f.label, 'homedash.menu.zoom_fit'); assert.equal(a.label, 'homedash.designer.zoom_actual'); assert.equal(f.disabled, true, 'view mode: greyed'); assert.equal(a.disabled, true); assert.equal(f.shortcutHint, ''); assert.equal(a.shortcutHint, '');
+    const ids = walk(h.menus.at(-1)[2].items).map(i => i.id); assert.ok(ids.indexOf('zoom-fit') === ids.indexOf('layout-sm') + 1 && ids.indexOf('zoom-actual') === ids.indexOf('zoom-fit') + 1, 'right after the Layout submenu: ' + ids.join(','));
+    h.push(design(true, false)); [f, a] = zoom(); eq([f.disabled, f.checked, a.disabled, a.checked], [false, true, false, false]); f.action(); a.action(); eq(h.calls, ['run:zoom_fit', 'run:zoom_actual']);
+    h.push(design(true, true)); [f, a] = zoom(); eq([f.disabled, f.checked, a.disabled, a.checked], [false, false, false, true]);
+    h.push(design(false, false)); [f, a] = zoom(); eq([f.disabled, f.checked, a.disabled, a.checked], [true, false, true, false], 'nothing to fit: both greyed and unchecked'); }],
   ['host: an edit-action change while the primary button is down waits for its own task after the release (D11); without a press it rebuilds at once', async () => {
     const h = setup(), up = () => h.window.document.dispatchEvent({ type: 'pointerup' });
     const next = on => Object.assign({}, h.state(), { edit: Object.assign({}, h.state().edit, { actions: Object.assign({}, h.state().edit.actions, { undo: { available: true, enabled: on } }) }) });

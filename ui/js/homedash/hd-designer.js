@@ -8,12 +8,12 @@
     if (!E || !E.commands || !E.save || !E.gestures || !E.editbar || !E.clipboard || !E.history || !E.sheet || !E.view) throw new Error('hd-designer.js: load hd-commands.js, hd-save.js, hd-gestures.js, hd-editbar.js and hd-clipboard.js first');
     const DRAWER_BELOW = 900, BPS = Object.freeze(['lg', 'md', 'sm']), NBSP = String.fromCodePoint(0xa0), FRAME = '[data-hd-wid]';
     const ACTIONS = Object.freeze(['undo', 'redo', 'cut', 'copy', 'paste', 'duplicate', 'delete', 'select_all', 'select_none', 'reset_layout', 'retry_save', 'resolve_conflict', 'show_draft', 'add_widget', 'focus_inspector', 'toggle_palette', 'toggle_inspector',
-        'layout_lg', 'layout_md', 'layout_sm', 'page_prev', 'page_next']);
+        'layout_lg', 'layout_md', 'layout_sm', 'page_prev', 'page_next', 'zoom_fit', 'zoom_actual', 'toggle_zoom']);
     function create(o) {
         if (!o || !o.lane || !o.root || !o.view) throw new Error('hd-designer.js: root, view and lane are required');
         const root = o.root, view = o.view, t = o.t, catalog = o.catalog, lane = o.lane, C = E.commands, life = E.core.bag(), bus = E.core.emitter(), history = E.history.create({ limit: 100 });
         const tm = o.timers || {}, setT = tm.setTimeout || ((fn, ms) => setTimeout(fn, ms)), clearT = tm.clearTimeout || (h => clearTimeout(h)), now = typeof tm.now === 'function' ? tm.now : () => Date.now();
-        let doc = o.doc, pageId = view.pageId(), bp = 'lg', selection = [], focusId = null, conflict = null, drawers = false, panel = '', lastLive = '', destroyed = false, redoLabels = [], palette = null, inspector = null, gestures = null, D = null;
+        let doc = o.doc, pageId = view.pageId(), bp = 'lg', zoomActual = false, lastFit = 1, selection = [], focusId = null, conflict = null, drawers = false, panel = '', lastLive = '', destroyed = false, redoLabels = [], palette = null, inspector = null, gestures = null, D = null;
         let retryTimer = 0, lastPhase = 'saved', problem = false, autoOpened = false, resolving = false, minePending = false, ro = null;
         // Every sheet of the designer hands focus back inside the root when it closes: its opener may be gone, hidden by the command, or have been body.
         const sheet0 = E.sheet.create(root), after = v => { settleFocus(); return v; };
@@ -70,15 +70,17 @@
         function describeLimit(kind, label) { return kind === 'drop_invalid' ? t('homedash.designer.announce.drop_invalid', { entity: label || '' }) : kind === 'page_full' ? t('homedash.designer.announce.limit_widgets', { max: C.LIMITS.pageWidgets }) : limitText(kind); }
         // ---- state, render, sync
         const pageElId = () => { const pg = view.page(); return pg ? pg.el.getAttribute('id') : null; };
+        // G14: the design zoom. fit is the zoom to fit of the preview (1 when it fits, from the layout events of the view); actual size is a session choice of this window, kept across breakpoint changes.
+        const zoomInfo = () => ({ fit: lastFit, actual: zoomActual, available: lastFit < 1 });
         function currentState() {
             const pg = page(), st = lane.state(), peek = history.peek();
             return Object.freeze({ doc, pageId: pg.id, page: pg, bp, override: { md: Array.isArray(pg.layouts.md), sm: Array.isArray(pg.layouts.sm) }, selection: selection.slice(), primary: selection.length ? selection[selection.length - 1] : null, focusId,
                 canUndo: history.canUndo(), canRedo: history.canRedo(), undoLabel: peek ? t(peek.label) : '', redoLabel: redoLabels.length ? t(redoLabels[redoLabels.length - 1]) : '', save: st, saveReason: st.error ? E.save.errorText(t, st.error) : '',
-                drafts: E.doc.drafts(doc, catalog).size, conflict, drawers, panel, clipboard: !!(o.clipboard && o.clipboard.has()), gesture: gestures.active(), items: items() });
+                drafts: E.doc.drafts(doc, catalog).size, conflict, drawers, panel, clipboard: !!(o.clipboard && o.clipboard.has()), gesture: gestures.active(), items: items(), zoom: zoomInfo() });
         }
         function barState(s) {
             return { canUndo: s.canUndo, canRedo: s.canRedo, undoLabel: s.undoLabel, redoLabel: s.redoLabel, pages: doc.pages.map((p, i) => ({ id: p.id, name: p.name || t('homedash.designer.page_n', { n: i + 1 }) })), pageId: s.pageId, panelId: pageElId(), bp, override: s.override,
-                save: s.save, saveReason: s.saveReason, drafts: s.drafts, hasLook: !!(E.ddialogs && E.ddialogs.run), drawers, panel, hasPalette: !!shells.palette, hasInspector: !!shells.inspector, ids: { palette: shells.palette && shells.palette.getAttribute('id'), inspector: shells.inspector && shells.inspector.getAttribute('id') } };
+                zoomFit: s.zoom.fit, zoomActual: s.zoom.actual, save: s.save, saveReason: s.saveReason, drafts: s.drafts, hasLook: !!(E.ddialogs && E.ddialogs.run), drawers, panel, hasPalette: !!shells.palette, hasInspector: !!shells.inspector, ids: { palette: shells.palette && shells.palette.getAttribute('id'), inspector: shells.inspector && shells.inspector.getAttribute('id') } };
         }
         function focusState() { const act = docEl().activeElement, inCanvas = !!(act && view.stage.contains(act)), w = inCanvas && typeof act.closest === 'function' ? act.closest(FRAME) : null; return { in: inCanvas, fid: w ? w.getAttribute('data-hd-wid') : null }; }
         function restoreFocus(fs, force) {   // never leave focus on body: the same frame, else the focused one, else the page
@@ -204,6 +206,12 @@
             const pg = page(); announce(t('homedash.designer.announce.page', { name: pg.name || id })); if (fs.in || (so && so.focus)) restoreFocus({ in: true, fid: null }, true);
         }
         function setBreakpoint(b) { if (!BPS.includes(b) || b === bp) return; gestures.cancel(); bp = b; view.setBreakpoint(b); sync(); }
+        function setZoom(actual) {
+            if (!zoomInfo().available) return false; if (actual === zoomActual) return true;
+            gestures.cancel(); zoomActual = actual; view.setZoomActual(actual);
+            const pg = view.page(), id = selection.length ? selection[selection.length - 1] : focusId, f = pg && id ? pg.frame(id) : null; if (f && typeof f.scrollIntoView === 'function') f.scrollIntoView({ block: 'center', inline: 'center' });   // the selected widget stays in view
+            sync(); announce(actual ? t('homedash.designer.zoom_actual') : t('homedash.designer.announce.zoom_fit', { percent: Math.round(lastFit * 100) })); return true;
+        }
         function showDraft() {
             const dr = E.doc.drafts(doc, catalog); for (const p of doc.pages) { const id = C.readingOrder(p.layouts.lg).find(i => dr.has(i)); if (!id) continue;
                 if (p.id !== pageId) setPage(p.id, {}); select([id], { focus: true }); openPanel('inspector'); if (inspector && typeof inspector.setTab === 'function') inspector.setTab('data'); return true; }
@@ -319,6 +327,7 @@
                 case 'retry_save': lane.retryNow(); return true; case 'resolve_conflict': resolveConflict(); return !!conflict; case 'show_draft': return showDraft();
                 case 'add_widget': return openPanel('palette'); case 'focus_inspector': return openPanel('inspector'); case 'toggle_palette': return togglePanel('palette'); case 'toggle_inspector': return togglePanel('inspector');
                 case 'layout_lg': case 'layout_md': case 'layout_sm': setBreakpoint(action.slice(7)); return true; case 'page_prev': return stepPage(-1); case 'page_next': return stepPage(1);
+                case 'zoom_fit': return setZoom(false); case 'zoom_actual': return setZoom(true); case 'toggle_zoom': return setZoom(!zoomActual);
                 default: return false;
             }
         }
@@ -391,7 +400,7 @@
         life.add(bus.on('state', s => { guard(() => bar.update(barState(s))); if (typeof o.onState === 'function') o.onState(); }));
         life.on(root, 'keydown', onKey); life.on(scrim, 'click', () => closePanels());
         life.on(view.stage, 'focusin', ev => { const w = ev.target && typeof ev.target.closest === 'function' ? ev.target.closest(FRAME) : null, id = w ? w.getAttribute('data-hd-wid') : null; if (id && id !== focusId) { focusId = id; sync(); } });
-        life.add(lane.on('state', onLane)); life.add(view.on('page', () => { const np = view.pageId(); if (np !== pageId) { pageId = np; selection = []; focusId = null; } gestures.reset(); sync(); bus.emit('page', pageId); }));
+        life.add(view.on('layout', m => { const f = m && m.fitZoom > 0 ? m.fitZoom : 1; if (f !== lastFit) { lastFit = f; emit(); } })); life.add(lane.on('state', onLane)); life.add(view.on('page', () => { const np = view.pageId(); if (np !== pageId) { pageId = np; selection = []; focusId = null; } gestures.reset(); sync(); bus.emit('page', pageId); }));
         const RO = o.ResizeObserver || (typeof ResizeObserver === 'function' ? ResizeObserver : null); if (RO) { ro = new RO(() => measure()); ro.observe(root); } measure();
         if (E.palette && shells.palette) palette = E.palette.create({ host: shells.palette, designer: D, t, lang: o.lang, catalog, store: o.store, api: o.api });
         if (E.inspector && shells.inspector) inspector = E.inspector.create({ host: shells.inspector, designer: D, t, lang: o.lang, catalog, store: o.store, api: o.api });

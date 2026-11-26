@@ -101,7 +101,7 @@
             body.appendChild(inlineText('page:name', t('homedash.inspector.page_name'), { max: 40, read, required: true, apply: v => { if (v.trim()) exec(C.renamePage(D.doc(), { pageId, name: v })); } }).el);
             body.appendChild(disclosure('page:icon', t('homedash.inspector.page_icon'), () => cur().page.icon || 'dashboard', n => exec(C.setPageIcon(D.doc(), { pageId, icon: n || undefined })), false).el);
             const tg = reg('page:compact', F.toggle({ key: 'page:compact', label: t('homedash.inspector.page_compact'), value: cur().page.compact !== false, onChange: on => exec(C.setPageCompact(D.doc(), { pageId, compact: on })) }), () => cur().page.compact !== false);
-            body.appendChild(F.field({ label: t('homedash.inspector.page_compact'), control: tg, inline: true }).el);
+            body.appendChild(F.field({ label: t('homedash.inspector.page_compact'), help: t('homedash.look.compaction_help'), control: tg, inline: true }).el);
         }
         // ---- data ----
         function buildData(w) {

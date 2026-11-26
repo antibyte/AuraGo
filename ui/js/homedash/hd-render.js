@@ -35,7 +35,7 @@
     function page(opts) {
         const o = opts, store = o.store, catalog = o.catalog, t = o.t, lang = o.lang || 'en';
         let doc = o.doc, pg = o.page, family = doc.look && doc.look.family;
-        let mode = o.mode === 'design' ? 'design' : 'view', forcedBp = o.bp || null, fitOverride = o.fit || null, last = null, emptyAction = o.emptyAction || null, emptyKey = null, emptyEl = null;
+        let mode = o.mode === 'design' ? 'design' : 'view', forcedBp = o.bp || null, fitOverride = o.fit || null, zoomActual = !!o.zoomActual, last = null, emptyAction = o.emptyAction || null, emptyKey = null, emptyEl = null;
         // Only the design stage has padding (the inset of the page); the view stage is read as it is.
         const measure = o.measure || (node => contentBox(node, mode === 'design' && typeof getComputedStyle === 'function' ? getComputedStyle(node) : null));
         const pageEl = el('div', { class: 'hd-page', id: o.id || null });
@@ -181,11 +181,11 @@
             const width = forcedBp ? PREVIEW[forcedBp](box.width) : box.width, fit = mode === 'design' ? 'scroll' : fitOverride || doc.grid.fit;
             const cols = E.layout.COLS[bp], items = E.layout.effective(pg.layouts, bp, id => limits.get(id)), rows = Math.max(1, E.layout.rows(items));
             const gap = E.layout.gapFor(doc.look.density, doc.grid.gap), m = E.layout.metrics(width, box.height || 0, cols, rows, gap, doc.grid.row_unit, fit);
-            const zoom = mode === 'design' && forcedBp ? zoomFor(box.width, width) : 1;
+            const fitZoom = mode === 'design' && forcedBp ? zoomFor(box.width, width) : 1, zoom = zoomActual ? 1 : fitZoom;   // actual size (G14): zoom 1, the stage scrolls; fitZoom stays known for the control
             setVars(pageEl, Object.assign(E.layout.cssVars(m, cols, rows, gap), { '--hd-e-pw': forcedBp ? Math.round(width) + 'px' : null, '--hd-e-zoom': zoom < 1 ? zoom : null }));
             setAttr(pageEl, 'data-hd-preview', forcedBp); setAttr(pageEl, 'data-hd-zoomed', zoom < 1 ? 'true' : null);
-            shownRows = rows; last = Object.freeze({ bp, cols, rows, gap, colW: m.colW, rowH: m.rowH, offX: m.offX, mode: m.mode, width, zoom });
-            if (typeof o.onLayout === 'function') o.onLayout({ bp, fit: m.mode });
+            shownRows = rows; last = Object.freeze({ bp, cols, rows, gap, colW: m.colW, rowH: m.rowH, offX: m.offX, mode: m.mode, width, zoom, fitZoom });
+            if (typeof o.onLayout === 'function') o.onLayout({ bp, fit: m.mode, fitZoom, zoom });
             for (const it of items) {
                 const rec = recs.get(it.id); if (!rec) continue;
                 const cell = [it.x, it.y, it.w, it.h].join(',');
@@ -266,7 +266,7 @@
         }
         const itemsNow = () => (last ? E.layout.effective(pg.layouts, last.bp, id => limits.get(id)) : []);
         return Object.freeze({ el: pageEl, entityIds: () => [...byEntity.keys()], layout: () => schedule(), refreshAll: () => onChange(null), destroy,
-            update, setMode, setBreakpoint(b) { forcedBp = b || null; layout(); }, setFit(f) { fitOverride = f || null; layout(); }, setEmptyAction(a) { emptyAction = a || null; renderEmpty(); },
+            update, setMode, setBreakpoint(b) { forcedBp = b || null; layout(); }, setFit(f) { fitOverride = f || null; layout(); }, setZoomActual(a) { zoomActual = !!a; layout(); }, setEmptyAction(a) { emptyAction = a || null; renderEmpty(); },
             preview, metrics: () => last, items: itemsNow, frame: id => (recs.get(id) || {}).el || null, order: () => E.grid.sortReading(itemsNow()).map(i => i.id) });
     }
     E.render = Object.freeze({ page, isEntityId, zoomFor, contentBox, ZOOM_MIN });

@@ -136,6 +136,7 @@
                     act('duplicate', t('homedash.menu.duplicate')), act('delete', t('homedash.menu.delete_widgets'), { icon: 'trash' }), sep, act('select_all', t('homedash.menu.select_all')), sep, act('look', t('homedash.designer.look'))]) });
                 menusOut.push({ id: 'homedash-view', label: t('homedash.menu.view'), items: tidy([act('edit', t('homedash.menu.edit_mode'), { id: 'edit-mode', icon: 'edit' }), sep,
                     { id: 'layout', label: t('homedash.menu.layout'), items: [act('layout_auto', t('homedash.bp.auto')), act('layout_lg', t('homedash.bp.lg')), act('layout_md', t('homedash.bp.md')), act('layout_sm', t('homedash.bp.sm'))].filter(Boolean) },
+                    act('zoom_fit', t('homedash.menu.zoom_fit')), act('zoom_actual', t('homedash.designer.zoom_actual')),
                     act('fit', t('homedash.menu.fit')), act('present', t('homedash.menu.present'))]) });
             }
             ctx.setWindowMenus?.(id, menusOut);

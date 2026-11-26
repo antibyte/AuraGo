@@ -25,7 +25,11 @@ func TestDesktopHomeDashDesignerBrowser(t *testing.T) {
 	if os.Getenv("AURAGO_RUN_BROWSER_SMOKE") != "1" {
 		t.Skip("set AURAGO_RUN_BROWSER_SMOKE=1 to run the HomeDash designer browser test")
 	}
-	h := newHDDesigner(t, "en")
+	lang := "en"
+	if l := os.Getenv("HOMEDASH_M4_LANG"); l != "" {
+		lang = l // development: run steps whose texts come from the words (not the English literals) in another language
+	}
+	h := newHDDesigner(t, lang)
 	h.page.MustSetViewport(1600, 1000, 1, false)
 	shots, dir := os.Getenv("HOMEDASH_M4_SHOTS") != "" && os.Getenv("HOMEDASH_M4_DIR") != "", ""
 	if shots {
@@ -1045,6 +1049,75 @@ func hdSaveSteps() []hdDesignerStep {
 					h.t.Fatalf("D11 budget missed (budget: no task over 50 ms, at least 90 frames; HOMEDASH_M4_PERF=log only logs it): %s", strings.Join(miss, "; "))
 				}
 			}
+		}},
+		{"21-zoom-actual", func(h *hdDesigner) {
+			// G14: at 1180 px the lg page is zoomed to fit (about 0.55). The edit bar toggle and the View menu switch to actual size (zoom 1, the stage scrolls),
+			// a drag of one cell moves the widget one cell, and zoom to fit returns.
+			h.page.MustSetViewport(1180, 780, 1, false)
+			defer h.page.MustSetViewport(1600, 1000, 1, false)
+			id := h.design()
+			h.wantShellLanguage()
+			h.pause(300)
+			const toggle, pageSel = `.hd-root .hd-editbar .hd-eb-zoom`, `.hd-root[data-hd-mode="design"] .hd-page`
+			fit := h.num(`(s)=>parseFloat(getComputedStyle(document.querySelector(s)).getPropertyValue('--hd-e-zoom'))||1`, pageSel)
+			if fit >= 1 || fit < 0.5 {
+				h.t.Fatalf("zoom to fit is %v at 1180 px, want between 0.5 and 1\n%s", fit, h.diag())
+			}
+			percent := fmt.Sprint(int(fit*100 + 0.5))
+			pressed := func(want string) bool {
+				return h.str(`(s)=>{const b=document.querySelector(s);return b&&!b.hidden?b.getAttribute('aria-pressed'):'hidden';}`, toggle) == want
+			}
+			if !pressed("false") || h.str(`(s)=>document.querySelector(s).getAttribute('title')`, toggle) != h.word("homedash.designer.zoom_actual") {
+				h.t.Fatalf("the zoom toggle is not shown unpressed as %q\n%s", h.word("homedash.designer.zoom_actual"), h.diag())
+			}
+			// The toggle switches to actual size: no zoom, the stage scrolls sideways, the tooltip offers zoom to fit with the percentage.
+			h.mouseClick(toggle)
+			h.until(5*time.Second, "actual size", `(s,p)=>document.querySelector(s).getAttribute('aria-pressed')==='true'&&!document.querySelector(p).hasAttribute('data-hd-zoomed')`, toggle, pageSel)
+			if got, want := h.str(`(s)=>document.querySelector(s).getAttribute('title')`, toggle), h.fill("homedash.designer.zoom_fit", map[string]string{"percent": percent}); got != want {
+				h.t.Fatalf("toggle title %q, want %q", got, want)
+			}
+			h.wantLive(h.word("homedash.designer.zoom_actual"), "actual size")
+			if !h.yes(`(p)=>{const pg=document.querySelector(p),st=pg.closest('.hd-stage');return !pg.style.getPropertyValue('--hd-e-zoom')&&st.scrollWidth>st.clientWidth+4&&getComputedStyle(st).overflowX!=='hidden';}`, pageSel) {
+				h.t.Fatalf("at actual size the page has no zoom and the stage scrolls sideways\n%s", h.diag())
+			}
+			// A drag of one grid pitch to the right lands one cell to the right (the pointer maps at zoom 1).
+			n := len(h.fixture.putLog())
+			mx, my := h.center(hdFrame("mem"))
+			px, _ := h.pitch()
+			if px < 40 {
+				h.t.Fatalf("grid pitch %v px at actual size, want at least 40", px)
+			}
+			h.drag(mx, my, mx+px, my, 12, func() bool {
+				h.until(5*time.Second, "move gesture", `()=>document.querySelector('.hd-root').dataset.hdGesture==='move'`)
+				return true
+			})
+			h.waitPut(n, "the move at actual size", func(d map[string]any) bool { x, _, _, _, ok := hdItem(d, "main", "lg", "mem"); return ok && x == 3 })
+			if x, y, _, _, _ := hdItem(h.fixture.dashboardDoc(id), "main", "lg", "mem"); x != 3 || y != 1 {
+				h.t.Fatalf("mem stored at %d,%d, want 3,1", x, y)
+			}
+			if os.Getenv("HOMEDASH_M4_SHOTS") != "" && os.Getenv("HOMEDASH_M4_DIR") != "" {
+				h.capture(filepath.Join(hdSafeOutDir(h.t, os.Getenv("HOMEDASH_M4_DIR")), "flow"), "21-zoom-actual-"+h.lang)
+			}
+			// The View menu carries the radio pair: Actual size is checked; Zoom to fit returns the zoomed page and announces the percentage.
+			menuItems := `()=>[...document.querySelectorAll('.vd-window-menu.open .vd-window-menu-item')].map(e=>[e.innerText.trim(),e.classList.contains('checked'),e.disabled])`
+			h.mouseClick(`.vd-window-menubar .vd-window-menu-button[data-window-menu="homedash-view"]`)
+			h.until(5*time.Second, "View menu", `()=>!!document.querySelector('.vd-window-menu.open')`)
+			var checked []string
+			for _, row := range h.page.MustEval(menuItems).Arr() {
+				c := row.Arr()
+				if c[1].Bool() {
+					if c[2].Bool() {
+						h.t.Fatalf("checked menu item %q is disabled", c[0].Str())
+					}
+					checked = append(checked, c[0].Str())
+				}
+			}
+			if !slices.ContainsFunc(checked, func(s string) bool { return strings.HasPrefix(s, h.word("homedash.designer.zoom_actual")) }) || slices.ContainsFunc(checked, func(s string) bool { return strings.HasPrefix(s, h.word("homedash.menu.zoom_fit")) }) {
+				h.t.Fatalf("View menu checked items %v, want Actual size only", checked)
+			}
+			h.mouseText(`.vd-window-menu.open .vd-window-menu-item`, h.word("homedash.menu.zoom_fit"))
+			h.until(5*time.Second, "zoom to fit", `(s,p)=>document.querySelector(s).getAttribute('aria-pressed')==='false'&&document.querySelector(p).getAttribute('data-hd-zoomed')==='true'`, toggle, pageSel)
+			h.wantLive(h.fill("homedash.designer.announce.zoom_fit", map[string]string{"percent": percent}), "zoom to fit")
 		}},
 	}
 }

@@ -71,7 +71,7 @@
             onChange: v => set(['look', 'density'], v) }), () => look().density);
         const nf = new Intl.NumberFormat(lang, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const rad = track(F.range({ key: 'radius', label: t('homedash.look.radius'), min: 0.5, max: 1.5, step: 0.05, value: 1, valueText: v => t('homedash.look.radius_value', { value: nf.format(v) }), onInput: v => set(['look', 'radius_scale'], radius(v), null, true), onCommit: v => { set(['look', 'radius_scale'], radius(v)); D.seal(); } }), () => radius(look().radius_scale));
-        content.appendChild(F.section(t('homedash.look.backdrop'), [backdrop, F.field({ label: t('homedash.look.density'), control: density }).el, F.field({ label: t('homedash.look.radius'), control: rad }).el]));
+        content.appendChild(F.section(t('homedash.look.surface'), [backdrop, F.field({ label: t('homedash.look.radius'), control: rad }).el]));   // G17: Background and Corner rounding
         // Grid
         const fit = track(F.segmented({ key: 'fit', label: t('homedash.look.fit'), options: [{ id: 'scroll', label: t('homedash.look.fit_scroll') }, { id: 'fit_screen', label: t('homedash.menu.fit') }], value: 'scroll', onChange: v => set(['grid', 'fit'], v, 'homedash.cmd.grid') }), () => doc().grid.fit);
         const rowKind = track(F.segmented({ key: 'row-kind', label: t('homedash.look.row_unit'), options: [{ id: 'auto', label: t('homedash.look.row_auto') }, { id: 'fixed', label: t('homedash.look.row_fixed') }], value: 'auto',
@@ -80,7 +80,7 @@
         rowPx.get = () => Number(rowPx.el.value); track(rowPx, () => (doc().grid.row_unit === 'auto' ? '' : doc().grid.row_unit));
         const compact = track(F.toggle({ key: 'compact', label: t('homedash.look.compaction'), value: true, onChange: on => D.exec(C.setPageCompact(D.doc(), { pageId: D.state().pageId, compact: on })) }), () => { const p = doc().pages.find(x => x.id === D.state().pageId); return !p || p.compact !== false; });
         const rowWrap = rowPx.wrap;
-        content.appendChild(F.section(t('homedash.look.grid'), [F.field({ label: t('homedash.look.fit'), help: t('homedash.look.fit_note'), control: fit }).el, F.field({ label: t('homedash.look.row_unit'), control: rowKind }).el, rowWrap, F.field({ label: t('homedash.look.compaction'), control: compact, inline: true }).el]));
+        content.appendChild(F.section(t('homedash.look.grid'), [F.field({ label: t('homedash.look.density'), control: density }).el, F.field({ label: t('homedash.look.fit'), help: t('homedash.look.fit_note'), control: fit }).el, F.field({ label: t('homedash.look.row_unit'), control: rowKind }).el, rowWrap, F.field({ label: t('homedash.look.compaction'), help: t('homedash.look.compaction_help'), control: compact, inline: true }).el]));
         function sync() {
             const isCustom = look().palette.mode === 'custom'; setAttr(customBox, 'hidden', isCustom ? null : true); setAttr(rowWrap, 'hidden', doc().grid.row_unit === 'auto' ? true : null);
             for (const c of controls) { if (c.ctl.el && focused(c.ctl)) continue; const v = c.read(); if (v !== null) c.ctl.set(v); else c.ctl.set(); }

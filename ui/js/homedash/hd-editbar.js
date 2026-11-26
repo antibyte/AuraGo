@@ -19,6 +19,7 @@
         const opts = BPS.map(b => el('button', { type: 'button', class: 'hd-bp-opt', role: 'radio', 'aria-checked': 'false', tabindex: '-1', 'data-bp': b, 'aria-label': t('homedash.bp.' + b), title: t('homedash.bp.' + b) }, [E.icons.icon(BP_ICON[b])]));
         const chip = el('span', { class: 'hd-bp-chip', 'data-state': 'auto', hidden: 'true' }), reset = el('button', { type: 'button', class: 'hd-bp-reset', 'data-hd-cmd': 'reset_layout', hidden: 'true', 'aria-label': t('homedash.bp.reset'), title: t('homedash.bp.reset') }, [E.icons.icon('refresh')]);   // G6: an icon button, the words are its name and tooltip
         const bp = el('div', { class: 'hd-bp', role: 'radiogroup', 'aria-label': t('homedash.bp.label') }, opts.concat([chip, reset]));
+        const zoom = el('button', { type: 'button', class: 'hd-eb-btn hd-eb-zoom', 'data-hd-cmd': 'toggle_zoom', 'aria-pressed': 'false', hidden: 'true' }, [E.icons.icon('fullscreen')]);   // G14: actual size / zoom to fit, shown only while the fit zoom is below 1
         const saveIcon = el('span', { class: 'hd-save-icon' }), saveText = el('span', { class: 'hd-save-text' }), saveAct = el('button', { type: 'button', class: 'hd-save-action', hidden: 'true' });
         const save = el('div', { class: 'hd-save', 'data-phase': 'saved' }, [saveIcon, saveText, saveAct]);
         const look = btn('look', 'look', t('homedash.designer.look'), 'hd-eb-look'), more = btn('more', 'more', t('homedash.designer.more'), 'hd-eb-more'); setAttr(more, 'aria-haspopup', 'menu'); setAttr(look, 'hidden', true);
@@ -27,8 +28,8 @@
         const slots = { pages: el('div', { class: 'hd-eb-group', 'data-hd-group': 'pages', 'data-hd-slot': 'pages' }, [tablist]), bp: el('div', { class: 'hd-eb-slot', 'data-hd-slot': 'bp' }, [bp]) };
         const bar = el('div', { class: 'hd-editbar', role: 'group', 'aria-label': t('homedash.designer.editbar') }, [
             el('div', { class: 'hd-eb-group', 'data-hd-group': 'start' }, [done, el('span', { class: 'hd-eb-sep', 'aria-hidden': 'true' }), undo, redo]), slots.pages,
-            el('div', { class: 'hd-eb-group', 'data-hd-group': 'end' }, [slots.bp, save, look, more, tp, ti])]);
-        const focusable = { done, undo, redo, look, more, toggle_palette: tp, toggle_inspector: ti, save: saveAct };
+            el('div', { class: 'hd-eb-group', 'data-hd-group': 'end' }, [slots.bp, zoom, save, look, more, tp, ti])]);
+        const focusable = { zoom, done, undo, redo, look, more, toggle_palette: tp, toggle_inspector: ti, save: saveAct };
         let sig = '';
         const tabEls = () => Array.from(tablist.children).filter(isTab);
         function rebuildTabs(pages) {
@@ -63,6 +64,8 @@
             for (const n of opts) { const on = n.getAttribute('data-bp') === cur; setAttr(n, 'aria-checked', on ? 'true' : 'false'); setAttr(n, 'tabindex', on ? '0' : '-1'); }
             const custom = cur !== 'lg' && !!ov[cur]; setAttr(chip, 'hidden', cur === 'lg'); setAttr(chip, 'data-state', custom ? 'custom' : 'auto');
             setText(chip, cur === 'lg' ? '' : custom ? t('homedash.bp.custom') : t('homedash.bp.auto')); setAttr(reset, 'hidden', !custom);
+            const fit = Number(st.zoomFit), showZoom = fit > 0 && fit < 1, zl = st.zoomActual ? t('homedash.designer.zoom_fit', { percent: Math.round(fit * 100) }) : t('homedash.designer.zoom_actual');
+            setAttr(zoom, 'hidden', !showZoom); if (showZoom) { setAttr(zoom, 'aria-pressed', st.zoomActual ? 'true' : 'false'); setAttr(zoom, 'aria-label', zl); setAttr(zoom, 'title', zl); }
             updateSave(st);
             setAttr(look, 'hidden', !st.hasLook);
             for (const [b, name, has] of [[tp, 'palette', st.hasPalette], [ti, 'inspector', st.hasInspector]]) { setAttr(b, 'hidden', !st.drawers || has === false); setAttr(b, 'aria-expanded', st.panel === name ? 'true' : 'false'); setAttr(b, 'aria-controls', (st.ids && st.ids[name]) || null); }

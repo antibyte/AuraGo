@@ -29,6 +29,7 @@ type hdDesigner struct {
 	words   map[string]string
 	winSel  string // the window that capture and probe look at (hdWinSel unless a state tags another window with data-hd-shot)
 	id      string // the dashboard opened by the last freshDoc
+	lang    string // the language of the pass: the HomeDash words and the desktop shell words
 }
 
 // hdWinSel is the default target window of capture and probe.
@@ -55,12 +56,27 @@ func newHDDesigner(t *testing.T, lang string) *hdDesigner {
 	if err := json.Unmarshal([]byte(raw), &words); err != nil {
 		t.Fatal(err)
 	}
+	// One language end to end: the shell words (window menu, desktop chrome) of the same language go in first, the HomeDash bundle on top. The audit shell
+	// loads lang/desktop/de.json; t() reads fixtureWords on every call, so the shell and the app follow the pass language from here on.
+	page.MustEval(`(w)=>{Object.assign(window.fixtureWords,JSON.parse(w));}`, readDesktopAssetText(t, "lang/desktop/"+lang+".json"))
 	page.MustEval(hdDesignerSetupJS, raw)
 	if hdSetupExtraJS != "" {
 		page.MustEval(hdSetupExtraJS)
 	}
 	page.MustEval(`(l)=>{document.documentElement.lang=l;}`, lang)
-	return &hdDesigner{t: t, page: page, fixture: fixture, words: words, winSel: hdWinSel}
+	return &hdDesigner{t: t, page: page, fixture: fixture, words: words, winSel: hdWinSel, lang: lang}
+}
+
+// wantShellLanguage checks that the desktop shell of the open window speaks the language of the pass (G15): the Window menu of the menu bar carries
+// the desktop word "desktop.menu_window" of the language ("Window" in English, "Fenster" in German).
+func (h *hdDesigner) wantShellLanguage() {
+	h.t.Helper()
+	var desk map[string]string
+	if err := json.Unmarshal([]byte(readDesktopAssetText(h.t, "lang/desktop/"+h.lang+".json")), &desk); err != nil {
+		h.t.Fatal(err)
+	}
+	want := desk["desktop.menu_window"]
+	h.until(5*time.Second, "the Window menu in "+h.lang+" ("+want+")", `(w)=>{const b=document.querySelector('.vd-window-menubar .vd-window-menu-button[data-window-menu="window"]');return !!b&&b.textContent.trim()===w;}`, want)
 }
 
 func (h *hdDesigner) str(js string, args ...any) string  { return h.page.MustEval(js, args...).Str() }

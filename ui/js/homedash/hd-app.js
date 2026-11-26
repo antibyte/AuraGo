@@ -71,6 +71,7 @@
                 select_all: A(true, design && ds.items.length > 0), select_none: A(true, design && sel > 0), reset_layout: A(true, design && ds.bp !== 'lg' && !!ds.override[ds.bp]), retry_save: A(true, ['retrying', 'readonly', 'pending'].includes(e.phase)),
                 resolve_conflict: A(true, design && !!ds.conflict), show_draft: A(true, design && e.drafts > 0), add_widget: A(!!E.palette, design), focus_inspector: A(!!E.inspector, design), toggle_palette: A(!!E.palette, design), toggle_inspector: A(!!E.inspector, design),
                 edit: A(true, e.canEdit && !e.editElsewhere, design), exit_edit: A(true, design), show_editor: A(e.editElsewhere, e.editElsewhere), layout_auto: A(true, dash && !design, !design && e.bp === null), fit: A(true, dash && !design, e.fit === 'fit_screen'),
+                zoom_fit: A(true, design && !!ds.zoom && ds.zoom.available, design && !!ds.zoom && ds.zoom.available && !ds.zoom.actual), zoom_actual: A(true, design && !!ds.zoom && ds.zoom.available, design && !!ds.zoom && ds.zoom.available && ds.zoom.actual),
                 present: A(true, dash), page_prev: A(true, pages > 1), page_next: A(true, pages > 1) };
             for (const b of ['lg', 'md', 'sm']) out['layout_' + b] = A(true, dash, e.bp === b);
             return Object.freeze(out);
