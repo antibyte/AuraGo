@@ -13,9 +13,12 @@
         if (!o || !o.lane || !o.root || !o.view) throw new Error('hd-designer.js: root, view and lane are required');
         const root = o.root, view = o.view, t = o.t, catalog = o.catalog, lane = o.lane, C = E.commands, life = E.core.bag(), bus = E.core.emitter(), history = E.history.create({ limit: 100 });
         const tm = o.timers || {}, setT = tm.setTimeout || ((fn, ms) => setTimeout(fn, ms)), clearT = tm.clearTimeout || (h => clearTimeout(h)), now = typeof tm.now === 'function' ? tm.now : () => Date.now();
-        let doc = o.doc, pageId = view.pageId(), bp = 'lg', selection = [], focusId = null, conflict = null, drawers = false, panel = '', lastLive = '', destroyed = false, redoLabels = [], palette = null, inspector = null;
+        let doc = o.doc, pageId = view.pageId(), bp = 'lg', selection = [], focusId = null, conflict = null, drawers = false, panel = '', lastLive = '', destroyed = false, redoLabels = [], palette = null, inspector = null, gestures = null, D = null;
         let retryTimer = 0, lastPhase = 'saved', problem = false, autoOpened = false, resolving = false, minePending = false, ro = null;
-        const sheet = E.sheet.create(root), bar = E.editbar.create({ t, now, onCommand: (name, arg, ev) => command(name, arg, ev) });
+        // Every sheet of the designer hands focus back inside the root when it closes: its opener may be gone, hidden by the command, or have been body.
+        const sheet0 = E.sheet.create(root), after = v => { settleFocus(); return v; };
+        const sheet = Object.freeze({ el: sheet0.el, isOpen: sheet0.isOpen, close: sheet0.close, destroy: sheet0.destroy, open: spec => sheet0.open(spec).then(after), confirm: spec => sheet0.confirm(spec).then(after) });
+        const bar = E.editbar.create({ t, now, onCommand: (name, arg, ev) => command(name, arg, ev) });
         const page = () => doc.pages.find(p => p.id === pageId) || doc.pages[0], widget = id => page().widgets.find(w => w.id === id) || null;
         const constraints = id => { const w = widget(id); return w ? catalog.constraints(w) : {}; }, items = () => E.layout.effective(page().layouts, bp, constraints);
         const typeName = w => t('homedash.widget.' + w.type + '.name'), variantName = w => t('homedash.variant.' + w.type + '.' + w.variant), docEl = () => root.ownerDocument;
@@ -76,6 +79,15 @@
             if (!fs.in && !force) return; const act = docEl().activeElement; if (act && act !== root && root.contains(act) && !(force && !view.stage.contains(act))) return;
             const pg = view.page(), f = pg && ((fs.fid && pg.frame(fs.fid)) || (focusId && pg.frame(focusId)) || pg.el); if (f && typeof f.focus === 'function') f.focus({ preventScroll: true });
         }
+        // Focus is never left on body or on a hidden control (a command can hide the control that ran it): the selected frame, else the first one, else the page, else Done.
+        const usable = a => !!a && a !== docEl().body && a !== root && root.contains(a) && !(typeof a.closest === 'function' && a.closest('[hidden]'));
+        const wasInside = () => { const a = docEl().activeElement; return !!a && a !== docEl().body && root.contains(a); };
+        function settleFocus() {
+            if (destroyed || usable(docEl().activeElement)) return; const pg = view.page(), order = pg ? C.readingOrder(items()) : [];
+            const id = selection.slice().reverse().find(i => order.includes(i)) || (focusId && order.includes(focusId) ? focusId : null) || order[0] || null, f = pg ? (id && pg.frame(id)) || pg.el : null;
+            if (f && typeof f.focus === 'function') f.focus({ preventScroll: true }); else bar.focus('done');
+        }
+        const guard = fn => { const had = wasInside(), r = fn(); if (had) settleFocus(); return r; };
         function render() {
             const fs = focusState(); view.update(doc, { normalised: true }); pageId = view.pageId(); sync(); restoreFocus(fs);
         }
@@ -106,7 +118,8 @@
         }
         // ---- commands
         function toastText(key) { return key === 'reload_agent' ? t('homedash.designer.reload_agent') : key === 'reload_other' ? t('homedash.designer.reload_other') : key === 'theirs_done' ? t('homedash.conflict.theirs_done') : ''; }
-        function exec(cmd, xo) {
+        function exec(cmd, xo) { const ok = execCommand(cmd, xo); if (ok) settleFocus(); return ok; }
+        function execCommand(cmd, xo) {
             if (!cmd || destroyed) return false;
             if (cmd.refused) { announce(cmd.refused === 'last_page' ? t('homedash.designer.announce.last_page') : doc.pages.length >= C.LIMITS.pages && page().widgets.length < C.LIMITS.pageWidgets ? t('homedash.designer.announce.limit_pages', { max: C.LIMITS.pages }) : t('homedash.designer.announce.limit_widgets', { max: C.LIMITS.pageWidgets })); return false; }
             if (cmd.limit) { announce(limitText(cmd.limit)); return false; }
@@ -122,7 +135,8 @@
             else announceCmd(cmd);
             return true;
         }
-        function undoRedo(dir) {
+        function undoRedo(dir) { const ok = undoRedoStep(dir); if (ok) settleFocus(); return ok; }
+        function undoRedoStep(dir) {
             gestures.cancel(); let r = null;
             try { r = dir === 'undo' ? history.undo(doc) : history.redo(doc); } catch (err) { console.warn('HomeDash: history cleared', err); history.clear(); redoLabels = []; emit(); return false; }
             if (!r) { announce(dir === 'undo' ? t('homedash.designer.announce.nothing_undo') : t('homedash.designer.announce.nothing_redo')); return false; }
@@ -194,11 +208,11 @@
         function openPanel(name) { if (!shells[name]) return false; if (drawers) { panel = name; applyPanels(); emit(); } return panelFocus(name); }
         function closePanels() { if (!panel) return; const was = panel, act = docEl().activeElement, inside = !act || act === docEl().body || (shells[was] && shells[was].contains(act)); panel = ''; applyPanels(); emit(); if (inside) bar.focus('toggle_' + was); }
         function togglePanel(name) { if (!shells[name]) return false; if (drawers && panel === name) { closePanels(); return true; } return openPanel(name); }
-        function measure() { const w = root.clientWidth, d = Number.isFinite(w) && w > 0 && w < DRAWER_BELOW; if (d === drawers) return; drawers = d; if (!d) panel = ''; applyPanels(); emit(); }
+        function measure() { const w = root.clientWidth, d = Number.isFinite(w) && w > 0 && w < DRAWER_BELOW; if (d === drawers) return; drawers = d; if (!d) panel = ''; applyPanels(); guard(() => emit()); }
         // ---- conflict, lane
         const cText = E.core.el('span', { class: 'hd-conflict-text' }), cbar = E.core.el('div', { class: 'hd-conflict-bar', role: 'alert', 'data-tone': 'warn', hidden: 'true' }, [E.icons.icon('alert'), cText,
             E.core.el('button', { type: 'button', class: 'hd-eb-btn', 'data-hd-cmd': 'resolve_conflict', text: t('homedash.conflict.resolve') })]);
-        function setConflict(c) { conflict = c; if (!c) autoOpened = false; paintConflict(); emit(); }
+        function setConflict(c) { conflict = c; if (!c) autoOpened = false; guard(() => { paintConflict(); emit(); }); }
         function paintConflict() {
             E.core.setAttr(cbar, 'hidden', !conflict); if (!conflict) return;
             const text = conflict.gone ? t('homedash.conflict.gone_title') : conflict.savedBy === 'agent' ? t('homedash.conflict.banner_agent') : t('homedash.conflict.banner'); if (cText.textContent !== text) cText.textContent = text;
@@ -216,7 +230,7 @@
                 else if (ph === 'saved') { if (minePending) { minePending = false; toast(t('homedash.conflict.mine_done'), 'info'); } else if (problem) announce(t('homedash.save.announce_saved_again')); problem = false; }
             }
             if (ph === 'retrying' && !retryTimer) retryTimer = setT(tick, 1000);
-            paintConflict(); emit();
+            guard(() => { paintConflict(); emit(); });
         }
         function openConflictOnce() { if (!autoOpened) { autoOpened = true; resolveConflict(); } }
         async function resolveConflict() {
@@ -227,7 +241,7 @@
                 else if (c === 'mine') { minePending = true; lane.overwrite(conflict.revision || lane.state().currentRevision); setConflict(null); }
                 else if (c === 'copy') await saveCopy();
                 return true;
-            } finally { resolving = false; }
+            } finally { resolving = false; settleFocus(); }
         }
         async function fetchDoc() { const a = await o.api.dashboard(lane.id), d = a && a.dashboard; if (!d) throw new Error('no dashboard'); return d; }
         const normalise = d => E.doc.normalise(d, { sizeOf: catalog.defaultSize, constraints: catalog.constraints });
@@ -257,7 +271,7 @@
         }
         // ---- context menu, more menu, actions
         function registered(w) { const spec = catalog.widget(w.type), def = E.widgets && E.widgets.get ? E.widgets.get(w.type) : null; return (spec && spec.variants ? spec.variants.map(v => v.id) : []).filter(v => !def || def.variants.includes(v)); }
-        const keep = fn => () => { const r = fn(); const act = docEl().activeElement; if (!act || act === docEl().body || !root.contains(act)) restoreFocus({ in: true, fid: null }, true); return r; };
+        const keep = fn => () => { const r = fn(); settleFocus(); return r; };
         function frameItems() {
             const one = selection.length === 1 ? widget(selection[0]) : null, list = one ? registered(one) : [];
             return [{ id: 'edit', label: t('homedash.ctx.edit'), icon: 'edit', shortcut: 'Enter', disabled: !inspector, run: keep(() => run('focus_inspector')) },
@@ -283,7 +297,8 @@
             if (dd) out.push({ id: 'import', label: t('homedash.menu.import'), run: ask('import') }, { id: 'export', label: t('homedash.menu.export'), run: ask('export') });
             out.push({ separator: true }, { id: 'delete_dashboard', label: t('homedash.menu.delete'), icon: 'delete', danger: true, run: ask('delete_dashboard') }); return out;
         }
-        function run(action, arg) {
+        function run(action, arg) { const r = runAction(action, arg); settleFocus(); return r; }
+        function runAction(action, arg) {
             switch (action) {
                 case 'undo': case 'redo': return undoRedo(action);
                 case 'copy': return copy(); case 'cut': return cut(); case 'paste': return paste(); case 'duplicate': return duplicate(); case 'delete': return del(); case 'select_all': return selectAll();
@@ -328,6 +343,15 @@
             const k = C.keymap(ev, { canvas: !!closest('.hd-stage'), typing: E.core.isTyping(tg) }); if (k && handle(k)) ev.preventDefault();
         }
         // ---- setup (F1): root attributes, chrome, view mode, then the gesture controller, then everything that reads it
+        function teardown() {   // the destroy of D, also the rollback of a failed setup (the parts that exist so far are torn down)
+            if (destroyed) return; if (gestures) gestures.cancel(); const pg = view.page(), order = pg ? C.readingOrder(items()) : []; destroyed = true; clearT(retryTimer); if (ro) ro.disconnect();
+            for (const n of [palette, inspector]) if (n && typeof n.destroy === 'function') n.destroy();
+            if (gestures) gestures.destroy(); bar.destroy(); sheet.destroy(); life.dispose(); for (const n of [cbar, scrim, shells.palette, shells.inspector]) if (n) n.remove();
+            if (pg) for (const id of order) { const f = pg.frame(id); if (f) draftBadge(f, false); }
+            for (const a of ['data-hd-drawers', 'data-hd-panel', 'data-hd-has-palette', 'data-hd-has-inspector', 'data-hd-gesture']) root.removeAttribute(a);
+            view.setMode('view'); view.setDescribe(null); view.setEmptyAction(null); view.setBreakpoint(null); E.core.setAttr(root, 'data-hd-mode', 'view'); history.clear(); view.announce(t('homedash.designer.exit_announce'));
+        }
+        try {
         E.core.setAttr(root, 'data-hd-mode', 'design'); root.insertBefore(bar.el, root.children[0] || null); root.insertBefore(cbar, root.children[1] || null);
         for (const [name, cls] of [['palette', 'hd-palette'], ['inspector', 'hd-inspector']]) {
             if (!E[name]) continue; const label = name === 'palette' ? t('homedash.designer.palette') : t('homedash.designer.inspector');
@@ -335,7 +359,7 @@
             if (name === 'palette') root.insertBefore(shells[name], view.stage); else { const kids = Array.from(root.children); root.insertBefore(shells[name], kids[kids.indexOf(view.stage) + 1] || null); }
         }
         root.appendChild(scrim); view.setMode('design');
-        const gestures = E.gestures.create({ root, stage: view.stage, win: o.win || docEl().defaultView || docEl(), timers: tm, raf: o.raf, caf: o.caf, hold: on => lane.hold(on), announce, describeLimit, select: (ids, so) => select(ids, so),
+        gestures = E.gestures.create({ root, stage: view.stage, win: o.win || docEl().defaultView || docEl(), timers: tm, raf: o.raf, caf: o.caf, hold: on => lane.hold(on), announce, describeLimit, select: (ids, so) => select(ids, so),
             ctx: () => ({ page: view.page(), doc, pageId, bp, selection, items: items(), cols: E.layout.COLS[bp], compact: page().compact !== false, C: constraints, catalog, readonly: false, widget }),
             commit(kind, p) {
                 if (kind === 'move' || kind === 'resize') {
@@ -346,20 +370,13 @@
                 else if (kind === 'add') addWidgets(p.entries, { at: p.at, source: 'drop' });
                 else if (kind === 'rebind') { if (exec(C.bind(doc, { pageId, id: p.id, binding: p.binding, entity: p.entity && p.entity.id, now: now() }), { quiet: true })) announce(t('homedash.designer.announce.rebound', { name: nameOf(widget(p.id)), entity: (p.entity && (p.entity.name || p.entity.id)) || '' })); }
             } });
-        const D = Object.freeze({
+        D = Object.freeze({
             state: currentState, on: bus.on, off: bus.off, doc: () => doc, exec, undo: () => undoRedo('undo'), redo: () => undoRedo('redo'), seal: () => history.seal(), replace, select, focusFrame, setPage, setBreakpoint, addWidgets, constraints, widget,
             slot: name => (name === 'palette' || name === 'inspector' ? shells[name] : bar.slot(name)), openPanel, closePanels, announce, toast, sheet: () => sheet, gestures, t, lang: o.lang, catalog, store: o.store, api: o.api, run, handles: a => ACTIONS.includes(a), contextMenu,
             reconcile, prepareExit, flush: ms => lane.flush({ keepalive: ms === 0 }),
-            destroy() {
-                if (destroyed) return; gestures.cancel(); const pg = view.page(), order = pg ? C.readingOrder(items()) : []; destroyed = true; clearT(retryTimer); if (ro) ro.disconnect();
-                for (const n of [palette, inspector]) if (n && typeof n.destroy === 'function') n.destroy();
-                gestures.destroy(); bar.destroy(); sheet.destroy(); life.dispose(); for (const n of [cbar, scrim, shells.palette, shells.inspector]) if (n) n.remove();
-                if (pg) for (const id of order) { const f = pg.frame(id); if (f) draftBadge(f, false); }
-                for (const a of ['data-hd-drawers', 'data-hd-panel', 'data-hd-has-palette', 'data-hd-has-inspector', 'data-hd-gesture']) root.removeAttribute(a);
-                view.setMode('view'); view.setDescribe(null); view.setEmptyAction(null); view.setBreakpoint(null); E.core.setAttr(root, 'data-hd-mode', 'view'); history.clear(); view.announce(t('homedash.designer.exit_announce'));
-            }
+            destroy: teardown
         });
-        life.add(bus.on('state', s => { bar.update(barState(s)); if (typeof o.onState === 'function') o.onState(); }));
+        life.add(bus.on('state', s => { guard(() => bar.update(barState(s))); if (typeof o.onState === 'function') o.onState(); }));
         life.on(root, 'keydown', onKey); life.on(scrim, 'click', () => closePanels());
         life.on(view.stage, 'focusin', ev => { const w = ev.target && typeof ev.target.closest === 'function' ? ev.target.closest(FRAME) : null, id = w ? w.getAttribute('data-hd-wid') : null; if (id && id !== focusId) { focusId = id; sync(); } });
         life.add(lane.on('state', onLane)); life.add(view.on('page', () => { const np = view.pageId(); if (np !== pageId) { pageId = np; selection = []; focusId = null; } gestures.reset(); sync(); bus.emit('page', pageId); }));
@@ -370,6 +387,7 @@
         if (o.widgetId && widget(o.widgetId)) select([o.widgetId], { focus: true }); else { const first = C.readingOrder(items())[0]; focusFrame(first || null, false); }
         announce(t('homedash.designer.enter_announce')); onLane(lane.state());
         if (E.ddialogs && typeof E.ddialogs.enhanceTabs === 'function') E.ddialogs.enhanceTabs(D, bar.slot('pages'));
+        } catch (err) { teardown(); throw err; }
         return D;
     }
     E.designer = Object.freeze({ create, ACTIONS, DRAWER_BELOW });

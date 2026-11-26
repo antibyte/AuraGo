@@ -60,7 +60,9 @@
         const saveChip = el('div', { class: 'hdx-save', 'aria-label': t('homedash.save.label'), hidden: 'true' }, [saveText, saveRetry]);
         const banners = el('div', { class: 'hdx-banners' });
         const viewHost = el('div', { class: 'hdx-view', hidden: 'true' }), statePanel = el('div', { class: 'hdx-state', hidden: 'true' });
-        const home = Home.create({ t, lang, onOpen: dashboardId => inst.open(dashboardId), onStarter: () => inst.createStarter(), onEmpty: () => inst.createEmpty().then(() => { const s = inst.state(); if (s.mode === 'dashboard' && s.edit && s.edit.canEdit && s.edit.mode === 'view') return inst.enterEdit(); }), onHa: () => inst.createHomeAssistant(), onImport: () => inst.run('import'), sourceName: src => sourceName(src), onDelete: summary => askDelete(summary) });
+        // "New empty dashboard" (home card and window menu): create it, open it and drop straight into the designer.
+        const createEmptyAndEdit = () => inst.createEmpty().then(() => { const s = inst.state(); if (s.mode === 'dashboard' && s.edit && s.edit.canEdit && s.edit.mode === 'view') return inst.enterEdit(); });
+        const home = Home.create({ t, lang, onOpen: dashboardId => inst.open(dashboardId), onStarter: () => inst.createStarter(), onEmpty: () => createEmptyAndEdit(), onHa: () => inst.createHomeAssistant(), onImport: () => inst.run('import'), sourceName: src => sourceName(src), onDelete: summary => askDelete(summary) });
         setAttr(home.el, 'hidden', true);
         const root = el('div', { class: 'hdx-app', 'data-hdx-view': 'loading' }, [el('header', { class: 'hdx-bar' }, [back, el('div', { class: 'hdx-heading' }, title), conn, saveChip, elsewhere, editBtn]), banners,
             el('main', { class: 'hdx-main' }, [home.el, viewHost, statePanel])]);
@@ -113,7 +115,7 @@
                 return Object.assign({ id: name.replace(/_/g, '-'), label, disabled: a.enabled !== true, checked: !!a.checked, shortcutHint: HINTS[name] || '', action: () => inst.run?.(name) }, extra); };
             const newItem = acts.new && acts.new.available !== false ? act('new', t('homedash.menu.new')) : { id: 'new', label: t('homedash.menu.new'), icon: 'plus', items: [
                 { id: 'new-starter', label: t('homedash.menu.new_starter'), disabled: blocked, action: () => inst.createStarter() },
-                { id: 'new-empty', label: t('homedash.menu.new_empty'), disabled: blocked, action: () => inst.createEmpty() },
+                { id: 'new-empty', label: t('homedash.menu.new_empty'), disabled: blocked, action: () => createEmptyAndEdit() },
                 ...(ha ? [{ id: 'new-ha', label: t('homedash.menu.new_ha'), icon: 'home', disabled: blocked, action: () => inst.createHomeAssistant() }] : [])] };
             const reload = { id: 'reload', label: t('homedash.menu.reload'), icon: 'refresh', action: () => { const st = inst.state(); if (st.mode === 'dashboard' && st.dashboard) inst.open(st.dashboard.id, st.pageId); else inst.retry(); } };
             const open = { id: 'open', label: t('homedash.menu.open'), disabled: s.mode === 'disabled', action: () => inst.home() };

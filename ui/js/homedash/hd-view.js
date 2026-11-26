@@ -31,7 +31,8 @@
         root.replaceChildren(tabs, stage, live, toasts);
         const moreinfo = E.moreinfo && typeof E.moreinfo.create === 'function' ? E.moreinfo.create({ root }) : null;
         let doc = null, page = null, pageId = null, pageMany = false, mode = 'view', forcedBp = null, fitOverride = null, describe = null, emptyAction = null;
-        const bus = E.core.emitter();
+        const bus = E.core.emitter(), toastTimers = new Map();   // toast node -> its removal timer; one disposer clears what is left
+        life.add(() => { for (const h of toastTimers.values()) clearTimeout(h); toastTimers.clear(); });
         const scheme = () => (typeof o.scheme === 'function' && o.scheme() === 'light' ? 'light' : 'dark');
         const motion = () => (typeof o.motion === 'function' && o.motion() === 'reduced' ? 'reduced' : 'full');
         function applyRoot() {
@@ -94,7 +95,7 @@
             setConnection(c) { setAttr(root, 'data-hd-conn', c && c.phase === 'live' ? 'live' : c && c.offline ? 'offline' : 'connecting'); },
             setReadonly(flag) { setAttr(root, 'data-hd-readonly', !!flag); },
             setMode(m) {
-                mode = m === 'design' ? 'design' : 'view'; root.classList.toggle('hd-backdrop', mode === 'view'); stage.classList.toggle('hd-backdrop', mode === 'design');
+                mode = m === 'design' ? 'design' : 'view'; if (mode === 'design' && moreinfo) moreinfo.close(); root.classList.toggle('hd-backdrop', mode === 'view'); stage.classList.toggle('hd-backdrop', mode === 'design');
                 if (doc) renderTabs(); if (page) page.setMode(mode);
             },
             // update(raw, {normalised}): the live document of the designer. The page node stays while its id exists (widgets are diffed by the renderer);
@@ -111,8 +112,9 @@
             setDescribe(fn) { describe = typeof fn === 'function' ? fn : null; }, setEmptyAction(a) { emptyAction = a || null; if (page) page.setEmptyAction(emptyAction); },
             page: () => page, get stage() { return stage; }, doc: () => doc, announce(text) { live.textContent = String(text); },
             toast(text, to) {   // at most three toasts at once, each removed after ms; the text is also announced
-                const n = el('div', { class: 'hd-toast', 'data-tone': (to && to.tone) || 'info', text: String(text) }); toasts.appendChild(n); while (toasts.children.length > 3) toasts.firstElementChild.remove();
-                const h = setTimeout(() => n.remove(), (to && to.ms) || 4000); life.add(() => clearTimeout(h)); live.textContent = String(text);
+                const n = el('div', { class: 'hd-toast', 'data-tone': (to && to.tone) || 'info', text: String(text) }); toasts.appendChild(n);
+                while (toasts.children.length > 3) { const old = toasts.firstElementChild; clearTimeout(toastTimers.get(old)); toastTimers.delete(old); old.remove(); }
+                toastTimers.set(n, setTimeout(() => { toastTimers.delete(n); n.remove(); }, (to && to.ms) || 4000)); live.textContent = String(text);
             },
             on: bus.on, off: bus.off,
             refreshLook() { if (!doc) return; applyRoot(); E.widgets.applyLook(root); if (page) page.layout(); },

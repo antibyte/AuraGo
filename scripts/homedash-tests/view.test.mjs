@@ -176,5 +176,13 @@ export const tests = [
     eq(Array.from(box.children).map(n => n.textContent), ['two', 'three', 'four']); assert.equal(box.children[0].getAttribute('data-tone'), 'warn'); assert.equal(box.children[1].getAttribute('data-tone'), 'info');
     assert.equal(root.querySelector('.hd-live').textContent, 'four'); view.announce('hello'); assert.equal(root.querySelector('.hd-live').textContent, 'hello');
     view.toast('short', { ms: 10 }); await new Promise(r => setTimeout(r, 40)); assert.ok(!Array.from(box.children).some(n => n.textContent === 'short')); eq(Array.from(box.children).map(n => n.textContent), ['three', 'four'], 'the oldest was dropped for the fourth and the short one expired');
-    view.destroy(); assert.equal(root.children.length, 0); }]
+    view.destroy(); assert.equal(root.children.length, 0); }],
+  ['view (M4): entering design mode closes an open more-info sheet; a pushed-out toast leaves no timer that disturbs the others', async () => {
+    const { E, document } = loadEngine(FILES, { dom: true }), root = E.el('div', { class: 'hd-root' }); document.body.appendChild(root); const closed = [];
+    E.moreinfo = Object.freeze({ create: () => ({ open() {}, close() { closed.push(1); }, isOpen: () => false, destroy() {} }) });
+    const bus = E.core.emitter(), store = { view: () => null, on: bus.on, off: bus.off, history: () => Promise.resolve({ points: [], source: 'none' }) };
+    const view = E.view.create({ root, store, catalog: E.catalog.create(CATALOG), t: k => k, lang: 'en', host: 'desktop', raf: fn => 1, caf: () => {}, measure: () => ({ width: 1180, height: 700 }) }); view.show(TWO);
+    const n = closed.length; view.setMode('design'); assert.equal(closed.length, n + 1, 'the sheet is closed on entering design mode'); view.setMode('view'); assert.equal(closed.length, n + 1, 'leaving design mode does not close anything');
+    const box = root.querySelector('.hd-toasts'); view.toast('a', { ms: 20 }); view.toast('b', { ms: 5000 }); view.toast('c', { ms: 5000 }); view.toast('d', { ms: 5000 }); eq(Array.from(box.children).map(n => n.textContent), ['b', 'c', 'd']);
+    await new Promise(r => setTimeout(r, 50)); eq(Array.from(box.children).map(n => n.textContent), ['b', 'c', 'd'], 'the pushed-out toast timer did not touch the others'); view.destroy(); assert.equal(root.children.length, 0); }]
 ];

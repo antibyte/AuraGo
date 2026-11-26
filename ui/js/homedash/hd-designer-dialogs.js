@@ -105,6 +105,8 @@
         const failed = err => notice(ctx, t('homedash.dialog.import_title'), t('homedash.dialog.import_failed', { reason: E.save.errorText(t, { code: err && err.code }) }));
         // A bare document may lack the kiosk block the validator requires: normalise (server defaults) before validate and create.
         const document = E.doc.normalise(parsed.document, { sizeOf: w => ctx.catalog.defaultSize(w), constraints: w => ctx.catalog.constraints(w) });
+        let size = 0; try { size = E.save.utf8Bytes(JSON.stringify(E.doc.forSave(document, { catalog: ctx.catalog, snapshot: E.widgets.paletteSnapshot(ctx.root, ctx.catalog.paletteTokens()) }))); } catch (err) { size = 0; }   // the body the lane would send; the server judges anything unreadable
+        if (size > E.save.DOC_MAX) { await tooLarge(ctx); return false; }
         let res; try { res = await ctx.api.validateDocument(document); }
         catch (err) { const issues = err && err.data && Array.isArray(err.data.issues) ? err.data.issues : null; if (issues && issues.length) await issuesSheet(ctx, issues); else await failed(err); return false; }
         if (!res || res.valid !== true) { await issuesSheet(ctx, res && Array.isArray(res.issues) && res.issues.length ? res.issues : [{ code: 'invalid_document' }]); return false; }
@@ -128,7 +130,7 @@
         const picked = await F.formSheet(sheet, { title: t('homedash.dialog.rename_title'), content: el('div', { class: 'hd-dlg' }, field.el), actions: [{ id: 'cancel', label: t('homedash.dialog.cancel') }, { id: 'save', label: t('homedash.dialog.save'), tone: 'primary' }], onAction: id => (id === 'save' ? check() : true), first: ctl });
         if (picked !== 'save') return false; D.exec(C.setDoc(D.doc(), { path: ['name'], value: ctl.get().trim(), label: 'homedash.cmd.rename' })); D.seal(); return true;
     }
-    const tabsOf = new WeakMap(), lastOf = n => { const k = n.children; return k.length ? k[k.length - 1] : null; };
+    const tabsOf = new WeakMap(), focusCurrentTab = (D, id) => { const h = tabsOf.get(D); if (h) h.focusTab(id || D.state().pageId); }, lastOf = n => { const k = n.children; return k.length ? k[k.length - 1] : null; };
     function addPage(D) {
         const doc = D.doc(), cmd = C.addPage(doc, { name: D.t('homedash.designer.page_n', { n: doc.pages.length + 1 }), icon: 'dashboard' });
         const ok = D.exec(cmd), h = tabsOf.get(D); if (ok && h && cmd && cmd.page) h.rename(cmd.page); return !!ok;   // a refusal (12 pages) is announced by exec
@@ -137,7 +139,7 @@
     function iconSheet(D, pageId) {
         const t = D.t, page = D.doc().pages.find(p => p.id === pageId); if (!page) return Promise.resolve(false);
         const grid = F.iconGrid({ t, label: t('homedash.inspector.page_icon'), value: page.icon || 'dashboard', allowAuto: false, onPick: n => D.exec(C.setPageIcon(D.doc(), { pageId, icon: n || undefined })) });
-        return F.formSheet(D.sheet(), { title: t('homedash.inspector.page_icon'), content: el('div', { class: 'hd-dlg' }, grid.el), actions: [{ id: 'done', label: t('homedash.designer.done'), tone: 'primary' }], first: grid }).then(() => { D.seal(); return true; });
+        return F.formSheet(D.sheet(), { title: t('homedash.inspector.page_icon'), content: el('div', { class: 'hd-dlg' }, grid.el), actions: [{ id: 'done', label: t('homedash.designer.done'), tone: 'primary' }], first: grid }).then(() => { D.seal(); focusCurrentTab(D, pageId); return true; });
     }
     async function deletePage(D, pageId) {
         const t = D.t, page = D.doc().pages.find(p => p.id === pageId); if (!page) return false;
@@ -150,12 +152,12 @@
         const h = () => tabsOf.get(D);
         return [{ id: 'page_rename', label: t('homedash.menu.page_rename'), icon: 'rename', shortcut: 'F2', run: () => { if (h()) h().rename(pageId); } },
             { id: 'page_icon', label: t('homedash.menu.page_icon'), icon: 'icon', run: () => iconSheet(D, pageId) },
-            { id: 'page_duplicate', label: t('homedash.ctx.duplicate'), icon: 'duplicate', run: () => D.exec(C.duplicatePage(D.doc(), { pageId, name: copyName(t, page.name) })) },
+            { id: 'page_duplicate', label: t('homedash.ctx.duplicate'), icon: 'duplicate', run: () => { const ok = D.exec(C.duplicatePage(D.doc(), { pageId, name: copyName(t, page.name) })); focusCurrentTab(D); return ok; } },
             { separator: true },
             { id: 'page_left', label: t('homedash.menu.page_left'), icon: 'left', shortcut: 'Alt+Shift+Left', disabled: i === 0, run: () => movePageBy(D, pageId, i - 1) },
             { id: 'page_right', label: t('homedash.menu.page_right'), icon: 'right', shortcut: 'Alt+Shift+Right', disabled: i === n - 1, run: () => movePageBy(D, pageId, i + 1) },
             { separator: true },
-            { id: 'page_delete', label: t('homedash.menu.page_delete'), icon: 'delete', danger: true, disabled: n <= 1, run: () => deletePage(D, pageId) }];
+            { id: 'page_delete', label: t('homedash.menu.page_delete'), icon: 'delete', danger: true, disabled: n <= 1, run: () => deletePage(D, pageId).then(ok => { focusCurrentTab(D); return ok; }) }];
     }
     // ---- tab strip upgrade (part 1 builds the select-only tabs; this decorates the same nodes) ----
     function enhanceTabs(D, slot) {
@@ -170,7 +172,7 @@
             for (const tab of tabsEl()) { const page = pages.find(p => p.id === pageOf(tab)); if (!page) continue; const want = E.icons.has(page.icon) ? page.icon : 'dashboard', have = tab.querySelector('.hd-ptab-icon');
                 if (have && have.getAttribute('data-hd-icon') === want) continue; const ico = E.icons.icon(want); setAttr(ico, 'class', 'hd-ico hd-ptab-icon'); if (have) have.remove(); tab.insertBefore(ico, tab.children[0] || null); }
         }
-        const schedule = E.core.frame(decorate), off = D.on('state', schedule); decorate();
+        const off = D.on('state', decorate); decorate();   // synchronous: the bar rebuilds the tab buttons inside the same emit (its listener is registered first), so no frame shows them without icons
         const focusTab = id => { const tab = tabFor(id); if (tab) tab.focus(); };
         function rename(pageId, retry) {
             const tab = tabFor(pageId), page = D.doc().pages.find(p => p.id === pageId);
@@ -178,12 +180,12 @@
             const sr = slot.getBoundingClientRect(), tr = tab.getBoundingClientRect(); let closed = false;
             input = el('input', { class: 'hd-ptab-input', type: 'text', spellcheck: 'false', autocomplete: 'off', 'aria-label': t('homedash.inspector.page_name') }); input.value = page.name;
             setVars(input, { '--hd-e-ix': (tr.left - sr.left) + 'px', '--hd-e-iw': Math.max(96, tr.width) + 'px' }); setAttr(tab, 'data-hd-renaming', 'true'); slot.appendChild(input); input.focus(); if (typeof input.select === 'function') input.select();
-            const finish = restore => { if (closed) return; closed = true; const node = input; input = null; node.remove(); const tb = tabFor(pageId); if (tb) tb.removeAttribute('data-hd-renaming'); focusTab(pageId); E.core.frame(() => focusTab(pageId))(); if (add && lastOf(slot) !== add) slot.appendChild(add); return restore; };
+            const finish = refocus => { if (closed) return; closed = true; const node = input; input = null; node.remove(); const tb = tabFor(pageId); if (tb) tb.removeAttribute('data-hd-renaming'); if (refocus) { focusTab(pageId); E.core.frame(() => focusTab(pageId))(); } if (add && lastOf(slot) !== add) slot.appendChild(add); };   // focus returns to the tab only for Enter and Escape; a blur (a click elsewhere) keeps the new focus
             const commit = byEnter => { if (closed) return; const v = F.runes(input.value, PAGE_NAME_MAX), bad = F.textIssue(v);
-                if (!v.trim()) { finish(); return; }
-                if (bad) { if (byEnter) { setAttr(input, 'aria-invalid', 'true'); D.announce(t('homedash.error.' + bad)); return; } finish(); return; }
-                D.exec(C.renamePage(D.doc(), { pageId, name: v })); D.seal(); finish(); };
-            input.addEventListener('keydown', ev => { if (ev.isComposing) return; if (ev.key === 'Enter') { ev.preventDefault(); ev.stopPropagation(); commit(true); } else if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); finish(); } });
+                if (!v.trim()) { finish(byEnter); return; }
+                if (bad) { if (byEnter) { setAttr(input, 'aria-invalid', 'true'); D.announce(t('homedash.error.' + bad)); return; } finish(false); return; }
+                D.exec(C.renamePage(D.doc(), { pageId, name: v })); D.seal(); finish(byEnter); };
+            input.addEventListener('keydown', ev => { if (ev.isComposing) return; if (ev.key === 'Enter') { ev.preventDefault(); ev.stopPropagation(); commit(true); } else if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); finish(true); } });
             input.addEventListener('input', () => { setAttr(input, 'aria-invalid', null); }); input.addEventListener('blur', () => commit(false)); return true;
         }
         function cancelRename() { if (!input) return; const node = input; input = null; node.remove(); }
@@ -204,7 +206,7 @@
                 onEnd: (p, start, how) => { const d = drag; drag = null; tab.removeAttribute('data-hd-dragging'); setVars(tab, { '--hd-e-tx': null }); if (caret) { caret.remove(); caret = null; }
                     if (d && how === 'up') { const to = targetIndex(d.rects, p.x, d.from); if (to !== d.from) movePageBy(D, pageId, to); } } });
         });
-        const api = Object.freeze({ rename, focusTab, decorate, destroy() { off(); schedule.cancel(); life.dispose(); if (add) add.remove(); if (input) input.remove(); tabsOf.delete(D); } });
+        const api = Object.freeze({ rename, focusTab, decorate, destroy() { off(); life.dispose(); if (add) add.remove(); if (input) input.remove(); tabsOf.delete(D); } });
         tabsOf.set(D, api); return api;
     }
     E.ddialogs = Object.freeze({ ACTIONS, run, pageMenu, enhanceTabs, exportFile, importDocument, newChoices, nameError, targetIndex, slugify, IMPORT_MAX });

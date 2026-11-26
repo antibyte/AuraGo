@@ -77,7 +77,7 @@
                     const id = idOf(binding), v = id ? store.view(id) : null;
                     if (now() !== 'view' || !commands || !v || v.kind !== 'light' || typeof o.moreInfo !== 'function') return false;
                     o.moreInfo({ family: rec.inst && rec.inst.family ? rec.inst.family : family, opener: openerFor(rec),
-                        api: apiFor(rec, 'sheet|' + docId + '|' + rec.widget.id, 'view', id), subscribe: fn => subscribe(id, fn) });
+                        api: apiFor(rec, 'sheet|' + docId + '|' + rec.widget.id, () => rec.mode, id), subscribe: fn => subscribe(id, fn) });
                     return true;
                 },
                 history(binding, range) {

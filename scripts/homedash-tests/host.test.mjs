@@ -88,7 +88,11 @@ export const tests = [
     assert.equal(hidden('.hdx-save [data-action="retry-save"]'), false); click('.hdx-save [data-action="retry-save"]'); assert.equal(h.calls.at(-1), 'run:retry_save');
     ed({ phase: 'conflict' }); assert.equal(q('.hdx-save-text').textContent, 'homedash.save.conflict'); assert.equal(hidden('.hdx-save [data-action="retry-save"]'), true);
     ed({ mode: 'design', phase: 'retrying' }); assert.equal(h.root.getAttribute('data-hdx-edit'), 'design'); assert.equal(hidden('.hdx-save'), true); assert.equal(hidden('.hdx-edit'), true);
-    ed({ mode: 'view', phase: 'saved', canEdit: false }); assert.equal(hidden('.hdx-edit'), true); assert.equal(hidden('.hdx-save'), true); }]
+    ed({ mode: 'view', phase: 'saved', canEdit: false }); assert.equal(hidden('.hdx-edit'), true); assert.equal(hidden('.hdx-save'), true); }],
+  ['host: window menu New > Empty dashboard behaves like the home card: create, open and enter the designer (only when editing is possible)', async () => {
+    const gone = { new: { available: false, enabled: false } }, actions = Object.assign({}, ACTIONS, gone), h = setup({ edit: { mode: 'view', canEdit: true, editElsewhere: false, phase: 'saved', actions } });
+    const nw = h.menus.at(-1)[0].items.find(i => i.id === 'new'); nw.items.find(i => i.id === 'new-empty').action(); await Promise.resolve(); await Promise.resolve(); eq(h.calls, ['createEmpty', 'enterEdit']);
+    const ro = setup({ edit: { mode: 'view', canEdit: false, editElsewhere: false, phase: 'saved', actions } }), r = ro.menus.at(-1)[0].items.find(i => i.id === 'new'); r.items.find(i => i.id === 'new-empty').action(); await Promise.resolve(); await Promise.resolve(); eq(ro.calls, ['createEmpty']); }]
 ];
 const ACTIONS = Object.fromEntries(['new', 'open', 'rename', 'look', 'add_page', 'export', 'import', 'duplicate_dashboard', 'delete_dashboard', 'edit', 'layout_auto', 'layout_lg', 'layout_md', 'layout_sm', 'fit', 'present'].map(n => [n, { available: true, enabled: true, checked: false }])
   .concat(['undo', 'redo', 'cut', 'copy', 'paste', 'duplicate', 'delete', 'select_all'].map(n => [n, { available: true, enabled: false, checked: false }])));
@@ -100,7 +104,7 @@ function setup(patch) {
   let st = Object.freeze(Object.assign({ mode: 'dashboard', dashboard: { id: 'd_aaaaaaaaaaab', name: 'Home' }, dashboards: [], pageId: 'p', desktopReadonly: false, busy: false, templates: [], banners: [], connection: { phase: 'live' },
     edit: { mode: 'view', canEdit: true, editElsewhere: false, phase: 'saved', nextRetryAt: 0, undoLabel: '', redoLabel: '', bp: null, fit: null, actions: ACTIONS } }, patch || {}));
   const inst = { state: () => st, on: (type, fn) => { listeners.push(fn); return () => {}; }, dispose: () => calls.push('dispose'), run: a => { calls.push('run:' + a); return Promise.resolve(true); }, remove: s => { calls.push('remove:' + s.id); return Promise.resolve(true); },
-    contextMenu: ev => ev.menu, beforeClose: () => Promise.resolve(true), home: () => {}, open: () => {}, retry: () => {}, reconnect: () => {}, refreshLook: () => {}, setReadonly: () => {}, createStarter: () => {}, createEmpty: () => {}, createHomeAssistant: () => {} };
+    contextMenu: ev => ev.menu, beforeClose: () => Promise.resolve(true), home: () => {}, open: () => {}, retry: () => {}, reconnect: () => {}, refreshLook: () => {}, setReadonly: () => {}, createStarter: () => {}, createEmpty: () => { calls.push('createEmpty'); return Promise.resolve(); }, enterEdit: () => { calls.push('enterEdit'); return Promise.resolve(true); }, createHomeAssistant: () => {} };
   window.HomeDashEngine = Object.assign({}, real, { mount: (host, o) => { Object.assign(mounted, o); return inst; }, sheet: { create: () => ({ confirm: o => { confirms.push(o.title); return Promise.resolve(true); }, destroy: () => {} }) } });
   const focusWindow = Object.assign(id => focusWindow.calls.push(id), { calls: [] });
   const ctx = { t: (k, v) => (v && v.label ? k + ':' + v.label : k), api: () => Promise.resolve({}), readonly: false, setWindowMenus: (id, m) => menus.push(m), showContextMenu: (x, y, items) => shown.push([x, y, items]), focusWindow,

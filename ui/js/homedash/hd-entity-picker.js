@@ -54,14 +54,14 @@
                 err => { const gone = !!err && err.code === 'entity_not_found'; if (gone) cache.set(value, { at: Date.now(), entity: false }); if (my === boundSeq && !destroyed) { bound = gone ? false : null; paintBound(); } });
         }
         function setOpen(on) {
-            if (open === on) return; open = on; setAttr(pop, 'hidden', on ? null : true); setAttr(input, 'aria-expanded', on ? 'true' : 'false'); if (!on) { setAttr(input, 'aria-activedescendant', null); active = -1; watch.set([]); }
+            if (open === on) return; open = on; setAttr(pop, 'hidden', on ? null : true); setAttr(input, 'aria-expanded', on ? 'true' : 'false'); if (!on) { setAttr(input, 'aria-activedescendant', null); active = -1; watch.set([]); timers.clearTimeout(timer); timer = null; seq += 1; }
             if (on) search(); else paintBound();
         }
         function search() {
             const my = ++seq; status.textContent = t('homedash.inspector.searching');
             Promise.all(requests(filters, kinds).map(r => Promise.resolve().then(() => api.entities(r)))).then(answers => {
-                if (my !== seq || destroyed) return; options = merge(answers, e => catalog.accepts(o.type, name, e), collator.compare); sources = sourcesOf(answers); areas = [...new Set(areas.concat(options.map(e => e.area).filter(Boolean)))].sort(); renderOptions();
-            }, () => { if (my !== seq || destroyed) return; options = []; renderOptions(); status.textContent = t('homedash.inspector.search_failed'); });
+                if (my !== seq || destroyed || !open) return; options = merge(answers, e => catalog.accepts(o.type, name, e), collator.compare); sources = sourcesOf(answers); areas = [...new Set(areas.concat(options.map(e => e.area).filter(Boolean)))].sort(); renderOptions();
+            }, () => { if (my !== seq || destroyed || !open) return; options = []; renderOptions(); status.textContent = t('homedash.inspector.search_failed'); });
         }
         function renderOptions() {
             list.replaceChildren(); active = options.length ? Math.max(0, options.findIndex(e => e.id === value)) : -1;

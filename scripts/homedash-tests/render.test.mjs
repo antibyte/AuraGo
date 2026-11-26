@@ -173,5 +173,9 @@ export const tests = [
     page.setMode('view'); assert.equal(page.metrics().mode, 'fit', 'view mode applies the override'); run(); noStyleAttr(pg); }],
   ['render (M4): destroy cancels the FLIP frame; update and preview after destroy do nothing', () => {
     const { page, stage, run } = setup(), items = page.items().map(i => Object.assign({}, i)); items[0].x += 1; page.preview(items, { animate: true }); page.destroy(); run();
-    page.update(null, null); assert.equal(stage.querySelectorAll('.hd-widget').length, 0); assert.equal(page.preview(items), 0); }]
+    page.update(null, null); assert.equal(stage.querySelectorAll('.hd-widget').length, 0); assert.equal(page.preview(items), 0); }],
+  ['render (M4): the more-info sheet api reads the live mode: after the page goes to design mode it refuses commands and capabilities', () => {
+    const { apis, sheets, sent, page } = setupCmd(); assert.equal(apis.get('lt').moreInfo('primary'), true); const req = sheets[0];
+    assert.equal(req.api.can('primary', 'turn_on'), true); req.api.command('primary', 'turn_on', {}); assert.equal(sent.length, 1);
+    page.setMode('design'); assert.equal(req.api.can('primary', 'turn_on'), false); return Promise.resolve(req.api.command('primary', 'turn_on', {})).then(r => { assert.equal(r.status, 'refused'); assert.equal(sent.length, 1, 'nothing was sent in design mode'); }); }]
 ];

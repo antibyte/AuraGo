@@ -19,7 +19,7 @@
         const store = E.store.shared(Object.assign({ api, stream, raf: tm.raf, caf: tm.caf }, clock));
         const setT = tm.setTimeout || ((fn, ms) => setTimeout(fn, ms)), clearT = tm.clearTimeout || (id => clearTimeout(id)), win = typeof window !== 'undefined' ? window : null;
         const realm = { api, stream, store, commands: E.command.shared(Object.assign({ api, stream, store }, clock)), list: null, load: null, next: null, timer: 0, listeners: new Set(), refresh: null,
-            lanes: new Map(), clipboard: E.clipboard.channel({ storage: storage || safeLocalStorage(), win }) };
+            lanes: new Map(), roDesktop: false, roHome: false, clipboard: E.clipboard.channel({ storage: storage || safeLocalStorage(), win }) };
         const run = () => { const p = api.dashboards().then(answer => {
             realm.list = Object.freeze((answer && Array.isArray(answer.dashboards) ? answer.dashboards : []).filter(d => d && typeof d.id === 'string'));
             for (const fn of [...realm.listeners]) fn(realm.list);
@@ -33,8 +33,15 @@
             return realm.next;
         };
         store.on('dashboards', () => { clearT(realm.timer); realm.timer = setT(() => { realm.timer = 0; realm.refresh().catch(() => {}); }, LIST_COALESCE_MS); });
-        // A tab that unloads flushes every dirty lane (keepalive PUT, up to 61 440 bytes).
-        if (win && typeof win.addEventListener === 'function') win.addEventListener('pagehide', () => { for (const l of realm.lanes.values()) if (!l.disposed && l.state().dirty) l.flush({ keepalive: true }); });
+        // A tab that unloads flushes every dirty lane (keepalive PUT, up to 61 440 bytes). Changes keepalive cannot guarantee (a body over the gate, an open PUT with a
+        // queued follow-up) make the browser ask before a close or reload (beforeunload).
+        if (win && typeof win.addEventListener === 'function') {
+            win.addEventListener('pagehide', () => { for (const l of realm.lanes.values()) if (!l.disposed && l.state().dirty) l.flush({ keepalive: true }); });
+            win.addEventListener('beforeunload', ev => {
+                let risk = false; for (const l of realm.lanes.values()) { try { if (l.atRisk()) { risk = true; break; } } catch (err) { risk = true; break; } }
+                if (!risk || !ev) return; if (typeof ev.preventDefault === 'function') ev.preventDefault(); ev.returnValue = '';
+            });
+        }
         realms.set(base, realm);
         return realm;
     }
@@ -58,7 +65,7 @@
         function actionsOf(s, e) {
             const dash = s.mode === 'dashboard' && !!s.dashboard, ro = !!s.desktopReadonly, free = !ro && !s.busy, dd = !!E.ddialogs, design = e.mode === 'design', ds = designer ? designer.state() : null;
             const A = (available, enabled, checked) => Object.freeze({ available: !!available, enabled: !!(available && enabled), checked: !!checked }), sel = ds ? ds.selection.length : 0, pages = view && view.doc() ? view.doc().pages.length : 0;
-            const out = { new: A(true, free), new_starter: A(true, free), new_empty: A(true, free), new_ha: A((s.templates || []).includes('home_assistant'), free), open: A(true, true),
+            const out = { new: A(dd, free), new_starter: A(true, free), new_empty: A(true, free), new_ha: A((s.templates || []).includes('home_assistant'), free), open: A(true, true),
                 rename: A(dd, dash && !ro), look: A(dd, dash && !ro), add_page: A(dd, dash && !ro), export: A(dd, dash), import: A(dd, !ro), duplicate_dashboard: A(true, dash && !ro), delete_dashboard: A(true, dash && !ro),
                 undo: A(true, design && ds.canUndo), redo: A(true, design && ds.canRedo), cut: A(true, design && sel > 0), copy: A(true, design && sel > 0), paste: A(true, design && e.hasClipboard), duplicate: A(true, design && sel > 0), delete: A(true, design && sel > 0),
                 select_all: A(true, design && ds.items.length > 0), select_none: A(true, design && sel > 0), reset_layout: A(true, design && ds.bp !== 'lg' && !!ds.override[ds.bp]), retry_save: A(true, ['retrying', 'readonly', 'pending'].includes(e.phase)),
@@ -128,7 +135,7 @@
                 store.setSources(b.sources); realm.commands.clearLocks();
                 realm.stream.resume(); // a stream stopped by revoked disabled/auth_lost restarts once bootstrap answers again (no-op otherwise)
                 const ro = hostRo || b.desktop_readonly === true; homeRo = b.readonly === true;
-                store.setDesktopReadonly(ro);
+                syncLanes(ro, homeRo); store.setDesktopReadonly(ro);
                 const cat = first && first.hash === b.catalog_hash ? first : await store.widgetCatalog(b.catalog_hash);
                 if (disposed) return;
                 catalog = E.catalog.create(cat);
@@ -138,7 +145,7 @@
         }
         // Bootstrap again: the template list (and the source states) follow the server, e.g. once Home Assistant is configured.
         function refreshTemplates() {
-            return api.bootstrap().then(b => { if (!disposed) { store.setSources(b.sources); realm.commands.clearLocks(); homeRo = b.readonly === true; set({ templates: templatesOf(b) }); } }, () => {});
+            return api.bootstrap().then(b => { if (!disposed) { store.setSources(b.sources); realm.commands.clearLocks(); homeRo = b.readonly === true; syncLanes(undefined, homeRo); set({ templates: templatesOf(b) }); } }, () => {});
         }
         function recheck() { api.bootstrap().then(() => realm.stream.resume(), err => fail(err, () => {})); }
         async function home(notice) {
@@ -213,7 +220,9 @@
                 realm.refresh().catch(() => {}); return false;
             }
         }
-        function applyReadonly(ro) { store.setDesktopReadonly(ro); if (view) view.setReadonly(ro); if (ro !== state.desktopReadonly) set({ desktopReadonly: ro }); if (ro && designer) exitEdit({ force: true }); }
+        // Lanes of the realm do not send while the desktop or HomeDash is read-only (the server would answer 403); lifting both resumes them.
+        function syncLanes(desktop, home) { if (desktop !== undefined) realm.roDesktop = !!desktop; if (home !== undefined) realm.roHome = !!home; const on = realm.roDesktop || realm.roHome; for (const l of realm.lanes.values()) if (!l.disposed) l.setReadonly(on); }
+        function applyReadonly(ro) { syncLanes(ro); store.setDesktopReadonly(ro); if (view) view.setReadonly(ro); if (ro !== state.desktopReadonly) set({ desktopReadonly: ro }); if (ro && designer) exitEdit({ force: true }); }
         function setReadonly(flag) { hostRo = !!flag; applyReadonly(hostRo); if (!hostRo) { realm.commands.clearLocks('virtual_desktop.readonly'); for (const l of realm.lanes.values()) l.retryNow(); } } // the host's live flag; a retry's boot() reads it, not the open-time snapshot
         // ---- edit surface (C2)
         const appSheet = () => { if (!sheetInst) { sheetInst = E.sheet.create(root); life.add(() => sheetInst.destroy()); } return sheetInst; }, sheetFor = () => (designer ? designer.sheet() : appSheet());
@@ -222,7 +231,7 @@
         function laneFor(id, revision, ndoc) {
             const have = realm.lanes.get(id); if (have && !have.disposed) return have;
             const l = E.save.lane({ api, id, revision, doc: ndoc, prepare: d => E.doc.forSave(d, { catalog, snapshot: snapshot() }), timers: o.timers });
-            realm.lanes.set(id, l);
+            realm.lanes.set(id, l); l.setReadonly(realm.roDesktop || realm.roHome);
             l.on('saved', ev => { bumpRevision(id, ev.revision); store.docs.put(id, Object.assign({}, ev.body, { revision: ev.revision })); afterLane(l); });
             return l;
         }
@@ -238,7 +247,8 @@
         }
         function stopDesign() {   // synchronous teardown shared by exit, close, dispose and read-only; the lane stays in the realm
             const d = designer; if (!d) return null; const l = laneOf(), act = docEl().activeElement, had = !!(act && root.contains(act));
-            designer = null; d.destroy(); if (doc) store.docs.unlock(doc.id, ownerId); if (l) l.detach(ownerId); return { lane: l, had };
+            designer = null; d.destroy(); if (view) { view.setBreakpoint(viewBp); view.setFit(fitOv); }   // the designer forced lg and scrolling: the view's own override returns
+            if (doc) store.docs.unlock(doc.id, ownerId); if (l) l.detach(ownerId); return { lane: l, had };
         }
         function focusRoot() { if (typeof root.focus !== 'function') return; if (!root.hasAttribute('tabindex')) root.setAttribute('tabindex', '-1'); root.focus({ preventScroll: true }); }
         async function exitEdit(xo) {
