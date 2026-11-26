@@ -105,6 +105,7 @@
                 }
                 if (toolDef && toolDef.raster && !this.canPaintActiveLayer(this.activeTool)) return;
                 if (!this.canvas.width || e.button === 1) return;
+                this.strokeTool = this.activeTool;
                 const isDrawingTool = this.activeTool && STROKE_TOOLS.includes(this.activeTool);
                 const isPointTool = this.activeTool && POINT_TOOLS.includes(this.activeTool);
                 const isShapeTool = this.activeTool && SHAPE_TOOLS.includes(this.activeTool);
@@ -340,27 +341,29 @@
                     return;
                 }
                 const coords = this.canvasCoords(e);
-                const isDrawingTool = this.activeTool && STROKE_TOOLS.includes(this.activeTool);
-                const isPointTool = this.activeTool && POINT_TOOLS.includes(this.activeTool);
-                const isShapeTool = this.activeTool && SHAPE_TOOLS.includes(this.activeTool);
-                const isSelectionTool = this.activeTool && SELECTION_TOOLS.includes(this.activeTool);
+                // The tool that started the stroke decides how it ends, even if the active tool changed meanwhile.
+                const tool = (this.isDrawing && this.strokeTool) || this.activeTool;
+                const isDrawingTool = tool && STROKE_TOOLS.includes(tool);
+                const isPointTool = tool && POINT_TOOLS.includes(tool);
+                const isShapeTool = tool && SHAPE_TOOLS.includes(tool);
+                const isSelectionTool = tool && SELECTION_TOOLS.includes(tool);
 
                 if (this.isDrawing && isDrawingTool) {
                     this.isDrawing = false;
-                    if (this.activeTool === 'clone-stamp') {
+                    if (tool === 'clone-stamp') {
                         if (this.cloneSampleCanvas) {
                             this.releaseTempCanvas(this.cloneSampleCanvas);
                             this.cloneSampleCanvas = null;
                         }
                         if (this.cloneStampUsed) this.pushHistory('draw:clone-stamp');
                     } else {
-                        if (this.activeTool !== 'clone-stamp') this.addRecentColor(this.primaryColor);
-                        this.pushHistory('draw:' + this.activeTool);
+                        if (tool !== 'clone-stamp') this.addRecentColor(this.primaryColor);
+                        this.pushHistory('draw:' + tool);
                     }
                     return;
                 }
 
-                if (this.isDrawing && this.activeTool === 'lasso') {
+                if (this.isDrawing && tool === 'lasso') {
                     this.isDrawing = false;
                     this.commitLassoPath();
                     return;
@@ -369,7 +372,7 @@
                 if (this.isDrawing && isPointTool) {
                     this.isDrawing = false;
                     this.addRecentColor(this.primaryColor);
-                    this.pushHistory('draw:' + this.activeTool);
+                    this.pushHistory('draw:' + tool);
                     return;
                 }
 
@@ -382,9 +385,9 @@
                     }
                     this.commitShape(this.drawStartX, this.drawStartY, ex, ey);
                     this.clearOverlay();
-                    if (this.activeTool !== 'gradient') {
+                    if (tool !== 'gradient') {
                         this.addRecentColor(this.primaryColor);
-                        this.pushHistory('draw:' + this.activeTool);
+                        this.pushHistory('draw:' + tool);
                     }
                     return;
                 }
@@ -401,6 +404,9 @@
                     }
                     return;
                 }
+
+                // A stroke whose tool no longer matches any branch above must not stay "drawing".
+                if (this.isDrawing) this.isDrawing = false;
 
                 if (this.isMovingSel) {
                     if (this.activeTool === 'move') {
@@ -565,9 +571,9 @@
                     ).join('')}</div>
                     <div class="vd-modal-actions"><button type="button" class="vd-button vd-button-primary" data-close>${this.esc(this.t('pixel.close'))}</button></div>
                 </div>`;
-                document.body.appendChild(dlg);
-                dlg.querySelector('[data-close]').addEventListener('click', () => dlg.remove());
-                dlg.addEventListener('click', e => { if (e.target === dlg) dlg.remove(); });
+                const close = this.openDialog(dlg);
+                dlg.querySelector('[data-close]').addEventListener('click', close);
+                dlg.addEventListener('click', e => { if (e.target === dlg) close(); });
             }),
             showContextMenu: Pixel.bindRuntime(runtime, function showContextMenu(e) {
                 e.preventDefault();
@@ -599,10 +605,14 @@
                 this.canvasArea.appendChild(menu);
                 const btns = menu.querySelectorAll('.pixel-ctx-item:not([disabled])');
                 const actionItems = items.filter(i => !i.type && !i.disabled);
-                btns.forEach((btn, idx) => {
-                    btn.addEventListener('click', () => { if (actionItems[idx] && actionItems[idx].action) actionItems[idx].action(); menu.remove(); });
-                });
                 const closeMenu = ev => { if (!menu.contains(ev.target)) { menu.remove(); document.removeEventListener('mousedown', closeMenu); } };
+                btns.forEach((btn, idx) => {
+                    btn.addEventListener('click', () => {
+                        document.removeEventListener('mousedown', closeMenu);
+                        menu.remove();
+                        if (actionItems[idx] && actionItems[idx].action) actionItems[idx].action();
+                    });
+                });
                 setTimeout(() => document.addEventListener('mousedown', closeMenu), 0);
             }),
             wireDrawOptionEvents: Pixel.bindRuntime(runtime, function wireDrawOptionEvents() {

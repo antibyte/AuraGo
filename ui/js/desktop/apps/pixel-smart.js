@@ -704,9 +704,9 @@
                     <button type="submit" class="vd-button vd-button-primary">${r.esc(t('pixel.apply'))}</button>
                 </div>
             </form>`;
-            document.body.appendChild(dlg);
-            const wire = r.wireParamControls(dlg.querySelector('[data-caf-params]'), FILL_SCHEMA, values, () => {});
-            const close = () => { if (wire) wire.dispose(); dlg.remove(); };
+            let wire = null;
+            const close = r.openDialog(dlg, () => { if (wire) wire.dispose(); });
+            wire = r.wireParamControls(dlg.querySelector('[data-caf-params]'), FILL_SCHEMA, values, () => {});
             dlg.querySelector('form').addEventListener('submit', e => {
                 e.preventDefault();
                 smart.fill = { area: values.area, margin: values.margin, grow: values.grow, quality: values.quality };
@@ -863,7 +863,7 @@
                     <button type="submit" class="vd-button vd-button-primary">${r.esc(t('pixel.apply'))}</button>
                 </div>
             </form>`;
-            document.body.appendChild(dlg);
+            const close = r.openDialog(dlg);
             const wInput = dlg.querySelector('[data-cs-w]'), hInput = dlg.querySelector('[data-cs-h]');
             const lock = dlg.querySelector('[data-cs-lock]'), fill = dlg.querySelector('[data-cs-fill]');
             const ratio = r.imgWidth / r.imgHeight;
@@ -878,7 +878,6 @@
                     other.setAttribute('aria-checked', on ? 'true' : 'false');
                 });
             }));
-            const close = () => dlg.remove();
             dlg.querySelector('form').addEventListener('submit', e => {
                 e.preventDefault();
                 const done = resizeCanvas(wInput.value, hInput.value, { anchor, fill: fill.value });

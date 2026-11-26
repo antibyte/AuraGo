@@ -10,11 +10,11 @@ const H = Pixel.layerHelpers;
 const runtimes = [];
 Pixel.registerModule('test-capture-layers', r => { runtimes.push(r); });
 const notes = [];
-function renderWindow(id) {
+function renderWindow(id, apiFn) {
     const host = makeEl('div');
     window.PixelApp.render(host, id, {
         esc: v => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'),
-        t: (k, f) => f || k, api: async () => ({}), iconMarkup: () => '', notify: n => notes.push(n),
+        t: (k, f) => f || k, api: apiFn || (async () => ({})), iconMarkup: () => '', notify: n => notes.push(n),
         setWindowMenus: () => {}, readonly: false
     });
     return { host, rt: runtimes[runtimes.length - 1] };
@@ -28,6 +28,10 @@ function check(name, fn) {
     } catch (err) {
         results.push('FAIL ' + name + ': ' + (err && err.stack || err));
     }
+}
+const pending = [];
+function checkAsync(name, fn) {
+    pending.push(fn().then(() => { results.push('ok   ' + name); }, err => { results.push('FAIL ' + name + ': ' + (err && err.stack || err)); }));
 }
 const keyEvent = props => {
     const e = Object.assign({ key: '', ctrlKey: false, metaKey: false, shiftKey: false, altKey: false, defaultPrevented: false, target: { closest: () => null } }, props);
@@ -902,6 +906,117 @@ check('dock events: footer buttons', () => {
     assert.equal(dock.footerBtns.find(b => b.dataset.layerAct === 'merge').disabled, true, 'merge down is off for the bottom layer');
 });
 
+check('document transforms keep mask alpha and only reveal the newly exposed area', () => {
+    fresh();
+    assert.ok(ops.addMask({ mode: 'hide' }));
+    const layer = rt.activeLayer();
+    const temps = [];
+    const realAcquire = Pixel.acquireTempCanvas, realRelease = Pixel.releaseTempCanvas;
+    Pixel.releaseTempCanvas = () => {}; // keep the recording canvases out of the shared pool
+    // Temp canvases that record the order of the drawing calls instead of drawing.
+    Pixel.acquireTempCanvas = (w, h) => {
+        const log = [];
+        const ctx = new Proxy({ log }, {
+            get(t, p) {
+                if (p === 'save') return () => { (t.stack || (t.stack = [])).push(t.globalCompositeOperation); };
+                if (p === 'restore') return () => { t.globalCompositeOperation = t.stack.pop(); };
+                return p in t ? t[p] : (...args) => { log.push([String(p), t.globalCompositeOperation || 'source-over', ...args.filter(a => typeof a === 'string')]); }; },
+            set(t, p, v) { t[p] = v; return true; }
+        });
+        const canvas = { width: w, height: h, log, getContext: () => ctx };
+        temps.push(canvas);
+        return canvas;
+    };
+    try {
+        rt.flipCanvas(true);
+        rt.transformDocument([1, 0, 0, 1, 10, 10], 120, 100);
+    } finally { Pixel.acquireTempCanvas = realAcquire; Pixel.releaseTempCanvas = realRelease; }
+    const used = temps.filter(c => c.log.some(e => e[0] === 'setTransform'));
+    assert.equal(used.length, 4, 'pixel layer and mask, twice');
+    const pixelCalls = [used[0], used[2]].map(c => c.log.map(e => e[0]));
+    pixelCalls.forEach(calls => assert.ok(!calls.includes('fillRect'), 'pixel layers get no underlay'));
+    [used[1], used[3]].forEach(c => {
+        const names = c.log.map(e => e[0]);
+        assert.equal(names[0], 'fillRect', 'the exposed area starts revealed (white)');
+        const out = c.log.findIndex(e => e[0] === 'fillRect' && e[1] === 'destination-out');
+        assert.ok(out > 0, 'the old footprint is cut out of the underlay');
+        assert.ok(names.indexOf('drawImage') > out, 'the mask itself is drawn last, with its own alpha');
+        assert.notEqual(c.log[names.indexOf('drawImage')][1], 'destination-out');
+    });
+    assert.ok(layer.maskCanvas);
+});
+
+check('layer via cut from mask-edit mode cuts the layer pixels, not the mask', () => {
+    fresh();
+    assert.ok(ops.addMask({ mode: 'reveal' }));
+    assert.equal(rt.editMaskMode, true);
+    rt.selection = { type: 'rect', x: 10, y: 10, w: 30, h: 20 };
+    const real = rt.commitLayerPixels;
+    let modeAtCommit = null;
+    rt.commitLayerPixels = function (...args) { modeAtCommit = rt.editMaskMode; return real.apply(this, args); };
+    try { assert.equal(rt.layerFromSelection(true), true); } finally { rt.commitLayerPixels = real; }
+    assert.equal(modeAtCommit, false);
+    rt.deselect();
+});
+
+check('selection to mask refuses when the layer already has a mask', () => {
+    fresh();
+    assert.ok(ops.addMask({ mode: 'reveal' }));
+    const mask = rt.activeLayer().maskCanvas;
+    rt.selection = { type: 'rect', x: 10, y: 10, w: 30, h: 20 };
+    assert.equal(rt.selectionToLayerMask(), false);
+    assert.equal(rt.activeLayer().maskCanvas, mask, 'the existing mask is untouched');
+    assert.equal(lastNote().message, 'pixel.layer_has_mask');
+    rt.deselect();
+});
+
+check('dialogs opened by the editor are removed when the window is disposed', () => {
+    const win = renderWindow('dialog-w1');
+    win.rt.newBlankCanvas(40, 30);
+    const el = makeEl('div');
+    let closed = 0;
+    const close = win.rt.openDialog(el, () => { closed++; });
+    const again = win.rt.openDialog(makeEl('div'));
+    close(); close();
+    assert.equal(closed, 1, 'closing twice runs the cleanup once');
+    window.PixelApp.dispose('dialog-w1');
+    assert.equal(win.rt.state.openDialogs.size, 0);
+    assert.doesNotThrow(() => again());
+});
+
+checkAsync('AI generate replaces the document; a document swap or an edit during the request discards the result', async () => {
+    let currentApi = async () => ({});
+    const win = renderWindow('ai-w1', (...args) => currentApi(...args));
+    const a = win.rt;
+    a.newBlankCanvas(40, 30);
+    a.loadImage = async () => ({ naturalWidth: 64, naturalHeight: 48 });
+    win.host.querySelector('[data-ai-prompt]').value = 'a cat';
+    const run = async (mutate) => {
+        currentApi = async () => { if (mutate) mutate(); return { url: '/x.png', path: 'out/x.png' }; };
+        notes.length = 0;
+        await a.aiGenerate();
+    };
+    await run(null);
+    assert.equal(a.imgWidth, 64, 'the result replaced the document');
+    assert.equal(a.fileName, 'x.png');
+    a.newBlankCanvas(40, 30);
+    await run(() => a.newBlankCanvas(20, 20));
+    assert.equal(a.imgWidth, 20, 'a swapped document is kept');
+    a.newBlankCanvas(40, 30);
+    await run(() => a.pushHistory('stroke'));
+    assert.equal(a.imgWidth, 40, 'an edit during the request keeps the document');
+    assert.equal(notes[notes.length - 1].message, 'pixel.ai_result_discarded');
+    // a second job while one runs is refused with a toast
+    let release;
+    currentApi = () => new Promise(resolve => { release = () => resolve({}); });
+    const first = a.aiGenerate();
+    notes.length = 0;
+    await a.aiGenerate();
+    assert.equal(notes[0].message, 'pixel.ai_busy');
+    release(); await first;
+    window.PixelApp.dispose('ai-w1');
+});
+
 check('dispose releases the panel', () => {
     const panel = rt.layersPanel;
     window.PixelApp.dispose('layers-w1');
@@ -909,6 +1024,7 @@ check('dispose releases the panel', () => {
     assert.doesNotThrow(() => panel.sync());
 });
 
+await Promise.all(pending);
 await new Promise(resolve => setTimeout(resolve, 150));
 console.log(results.join('\n'));
 if (results.some(line => line.startsWith('FAIL'))) process.exit(1);

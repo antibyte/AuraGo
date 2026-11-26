@@ -97,7 +97,7 @@
 
         Object.assign(runtime, {
             activePanels: {},
-            dockSplit: DEFAULT_DOCK_SPLIT,
+            dockSplit: null,
             toolSvg: Pixel.bindRuntime(runtime, function toolSvg(name) {
                 const def = Pixel.getTool(name);
                 return (def && def.svg) || this.TOOL_SVGS[name] || '';

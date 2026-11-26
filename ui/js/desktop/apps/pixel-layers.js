@@ -585,8 +585,10 @@
             const layer = requireMask();
             if (!layer) return false;
             if (layer.lockPixels || layer.lockAlpha) { lockedNotice(); return false; }
-            r.editMaskMode = false;
+            // A sticker repaints its canvas from the sticker image, so bake it into pixels first (the mask stays until applied).
+            if (layer.sticker && typeof r.rasterizeSticker === 'function') r.rasterizeSticker();
             if (!r.requireRasterLayer(layer)) return false;
+            r.editMaskMode = false;
             hook('commitPendingPreviews');
             const lctx = layer.canvas.getContext('2d');
             lctx.save();
@@ -829,7 +831,7 @@
                     <button type="submit" class="vd-button vd-button-primary">${esc(tr('pixel.apply', 'Apply'))}</button>
                 </div>
             </form>`;
-            document.body.appendChild(dlg);
+            const close = r.openDialog(dlg);
             const field = prop => dlg.querySelector('[data-prop="' + prop + '"]');
             const slider = field('opacity');
             const shown = dlg.querySelector('[data-prop-opacity-value]');
@@ -839,12 +841,12 @@
                 const props = { name: field('name').value, opacity: Number(slider.value) / 100, blend: field('blend').value };
                 LOCKS.map(lock => lock.prop).concat('clip').forEach(prop => { props[prop] = field(prop).checked; });
                 if (props.clip && r.layers.indexOf(layer) === 0) props.clip = false;
-                dlg.remove();
+                close();
                 setProps(layer.id, props, tr('pixel.layer_properties', 'Layer properties'));
             });
-            dlg.querySelector('[data-cancel]').addEventListener('click', () => dlg.remove());
-            dlg.addEventListener('click', e => { if (e.target === dlg) dlg.remove(); });
-            dlg.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); dlg.remove(); } });
+            dlg.querySelector('[data-cancel]').addEventListener('click', close);
+            dlg.addEventListener('click', e => { if (e.target === dlg) close(); });
+            dlg.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } });
             const nameField = field('name');
             if (nameField && nameField.focus) nameField.focus();
             return true;

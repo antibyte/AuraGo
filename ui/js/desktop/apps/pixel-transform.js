@@ -474,7 +474,8 @@
     function applyFT(r) {
         const ft = r.ft;
         if (!ft) return;
-        if (!ftChanged(ft)) { cancelFT(r); return; }
+        // History restores rebuild the layer objects; a transform on a replaced layer must not be written back.
+        if (!ftChanged(ft) || !r.layers.includes(ft.layer)) { cancelFT(r); return; }
         r.ft = null;
         const layer = ft.layer, w = ft.w, h = ft.h;
         if (ft.mode === 'outline') {

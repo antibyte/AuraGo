@@ -1486,7 +1486,7 @@
         }
         const preview = r.makeCanvas(pw, ph);
         return {
-            kind: 'qs', pw, ph, sx: pw / w, sy: ph / h, last: null, timer: 0, dead: false, feather: o.feather,
+            kind: 'qs', docW: w, docH: h, rev: r.state.documentRevision, pw, ph, sx: pw / w, sy: ph / h, last: null, timer: 0, dead: false, feather: o.feather,
             mode: modeFromPointer(p, o.qsMode),
             grower: kit.createGrower(data, pw, ph, { tolerance: o.qsTolerance, barrier: 4 + (100 - o.qsEdge) * 0.2 }),
             preview, pctx: preview.getContext('2d')
@@ -1545,11 +1545,14 @@
     }
 
     async function qsFinish(r, g) {
-        const w = r.canvas.width, h = r.canvas.height;
+        const w = g.docW, h = g.docH;
+        // The proxy was sampled from the document at begin: drop the result if another document or size replaced it.
+        const stale = () => r.state.disposed || !r.canvas || r.canvas.width !== w || r.canvas.height !== h || r.state.documentRevision !== g.rev;
         g.dead = true;
         clearTimeout(g.timer);
         try {
-            while (!g.grower.grow(20)) await tick();
+            while (!g.grower.grow(20)) { await tick(); if (stale()) return; }
+            if (stale()) return;
             const bin = kit.majority(g.grower.binary(), g.pw, g.ph);
             const alpha = kit.upscaleBinary(bin, g.pw, g.ph, w, h);
             await finishMask(r, alpha, g.mode, 'select:quick', g.feather);
@@ -1636,7 +1639,7 @@
     // spec: { title, ok, fields: [{ key, label, type: 'number' | 'select' | 'color', min, max, step, value, options }], onSubmit(values) }
     function askValues(r, spec) {
         const u = ui(r);
-        if (u.dialog) { u.dialog.remove(); u.dialog = null; }
+        if (u.dialog) { if (u.closeDialog) u.closeDialog(); else u.dialog.remove(); u.dialog = null; u.closeDialog = null; }
         const dlg = document.createElement('div');
         dlg.className = 'vd-modal-backdrop pixel-sel-dialog-backdrop';
         const fieldHTML = f => {
@@ -1656,11 +1659,12 @@
                 <button type="submit" class="vd-button vd-button-primary">${r.esc(spec.ok || r.t('pixel.apply'))}</button>
             </div>
         </form>`;
-        document.body.appendChild(dlg);
+        const closeTracked = r.openDialog(dlg);
         u.dialog = dlg;
+        u.closeDialog = closeTracked;
         const close = () => {
-            dlg.remove();
-            if (u.dialog === dlg) u.dialog = null;
+            closeTracked();
+            if (u.dialog === dlg) { u.dialog = null; u.closeDialog = null; }
         };
         dlg.querySelector('form').addEventListener('submit', ev => {
             ev.preventDefault();
@@ -1694,8 +1698,10 @@
     const MORPH_PIXEL_LIMIT = 8000000;
 
     async function blurPart(r, part, w, h, radius) {
+        // The job gets a copy: its buffer is detached on transfer, and the local fallback needs the original.
+        const sent = part.slice();
         try {
-            const res = await r.runJob('core.blurAlpha', { alpha: part, width: w, height: h, radius }, { transfer: [part.buffer] });
+            const res = await r.runJob('core.blurAlpha', { alpha: sent, width: w, height: h, radius }, { transfer: [sent.buffer] });
             return res.alpha;
         } catch (err) {
             if ((err && err.name === 'AbortError') || !window.AuraPixelLib) throw err;
@@ -1842,6 +1848,10 @@
         const sel = r.getSelectionMask();
         const layer = r.activeLayer();
         if (!sel || !layer) return false;
+        if (layer.maskCanvas) {
+            r.notify({ type: 'info', message: r.t('pixel.layer_has_mask') });
+            return false;
+        }
         r.commitPendingPreviews();
         const canvas = r.makeCanvas(r.canvas.width, r.canvas.height);
         const ctx = canvas.getContext('2d');
@@ -1870,7 +1880,10 @@
     function layerFromSelection(r, cut) {
         const sel = r.getSelectionMask();
         const src = r.activeLayer();
-        if (!sel || !src || !r.requireRasterLayer(src)) return false;
+        if (!sel || !src) return false;
+        // Leave mask editing first (refreshes the panel): the cut must hit the layer pixels, and a sticker refusal must see raster mode.
+        if (r.editMaskMode) r.leaveMaskEdit();
+        if (!r.requireRasterLayer(src)) return false;
         if (r.layers.length >= r.MAX_LAYERS) {
             r.notify({ type: 'error', message: r.t('pixel.layer_max', { n: r.MAX_LAYERS }) });
             return false;

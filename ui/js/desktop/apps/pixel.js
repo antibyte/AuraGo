@@ -561,6 +561,7 @@
             runtime.disposeCore();
             if (runtime._filterPreviewRAF) cancelAnimationFrame(runtime._filterPreviewRAF);
             state.disposed = true;
+            runtime.closeAllDialogs();
             state.imageRead?.abort();
             if (abortCtrl) abortCtrl.abort();
             stopMarchingAnts();

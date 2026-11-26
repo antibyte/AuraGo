@@ -482,12 +482,13 @@ filters and generators, with their shortcuts and groups.
 
 ### Image actions
 
-The **Image** menu has four actions:
+The **Image** menu has five actions:
 
 - **Trim transparent pixels** removes transparent edges.
 - **Auto-crop to content** crops away the background, meaning the colour in the corners or transparency.
 - **Canvas size…** (**Ctrl+Alt+C**) sets a new width and height, with the old picture placed by an anchor in a 3 × 3 grid. The new
   area is Transparent, Primary, Secondary, White or Black. The canvas can be up to 16384 px per side and 120 million pixels.
+- **Resize…** scales the whole picture to a new width and height. Every layer and mask is resampled, so the content is stretched or shrunk. Nothing is cropped or padded, which is the difference from **Canvas size**. The dialog has **Width** and **Height** fields, which start at the current size, and **Lock aspect ratio** (on by default). With the lock on, typing in one field sets the other to match. **Apply** makes one undo step and clears the selection. There is no keyboard shortcut. The limits are the same as for Canvas size: 16384 px per side and 120 million pixels.
 - **Fit canvas to layers** shrinks the canvas to the area that the layers cover.
 
 ## Project Files
@@ -514,6 +515,7 @@ of memory is refused.
 | Layers per document | 64 |
 | Undo steps (History tab) | 60. Older steps are dropped, and the memory held by undo steps is capped at about 768 MiB. |
 | Canvas size | 16384 px per side and 120 million pixels |
+| Resize | 16384 px per side and 120 million pixels |
 | New document from a generator | 16 to 8192 px per side (default 1024 × 1024) |
 | PNG and JPEG files | Up to 32 MiB and 32 megapixels. A lower desktop file size limit applies when it is set. |
 | OpenRaster project | Up to 32 MiB, up to 64 layers when opening, and up to 128 files inside the archive |

@@ -88,6 +88,8 @@
                 this.restoreHistory(this.history[idx]);
                 this.updateStatus();
                 this.refreshHistoryPanel();
+                // Like undo/redo: listeners (free transform, previews) must drop state that points at the rebuilt layers.
+                this.emit('history-changed');
             }),
             renderRecentColors: Pixel.bindRuntime(runtime, function renderRecentColors() {
                 const wrap = this.host.querySelector('[data-recent-colors]');

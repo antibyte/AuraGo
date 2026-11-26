@@ -71,6 +71,8 @@
                                 });
             }),
             loadImageToCanvas: Pixel.bindRuntime(runtime, async function loadImageToCanvas(src, current) {
+                                // Callers' own fences run first: resetStickerDocument bumps the document revision they may compare against.
+                                if (current && !current()) return false;
                                 this.resetStickerDocument();
                                 const revision = this.state.documentRevision;
                                 const img = await this.loadImage(src);
@@ -329,11 +331,15 @@
             transformDocument: Pixel.bindRuntime(runtime, function transformDocument(matrix, width, height) {
                 this.cancelStickerGesture();
                 this.commitPendingPreviews();
-                // Masks keep revealing the area a canvas expansion adds, hence the white underlay for them.
-                const transform = (canvas, underlay) => {
+                // Masks keep their alpha (= visibility); only the area the transform newly exposes is revealed (white).
+                const transform = (canvas, isMask) => {
                     if (!canvas) return;
                     const next = this.acquireTempCanvas(width, height), ctx = next.getContext('2d');
-                    if (underlay) { ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height); }
+                    if (isMask) {
+                        ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height);
+                        ctx.save(); ctx.globalCompositeOperation = 'destination-out'; ctx.setTransform(...matrix);
+                        ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.restore();
+                    }
                     ctx.imageSmoothingQuality = 'high'; ctx.setTransform(...matrix); ctx.drawImage(canvas, 0, 0);
                     canvas.width = width; canvas.height = height;
                     canvas.getContext('2d').drawImage(next, 0, 0); this.releaseTempCanvas(next);
@@ -417,9 +423,9 @@
                                     <div class="vd-modal-title">${this.esc(this.t('pixel.resize'))}</div>
                                     <div class="pixel-resize-form">
                                         <label class="pixel-label">${this.esc(this.t('pixel.width'))}</label>
-                                        <input class="vd-modal-input" type="number" data-resize-w value="${this.imgWidth}" min="1">
+                                        <input class="vd-modal-input" type="number" data-resize-w value="${this.imgWidth}" min="1" max="16384">
                                         <label class="pixel-label">${this.esc(this.t('pixel.height'))}</label>
-                                        <input class="vd-modal-input" type="number" data-resize-h value="${this.imgHeight}" min="1">
+                                        <input class="vd-modal-input" type="number" data-resize-h value="${this.imgHeight}" min="1" max="16384">
                                         <label class="pixel-checkbox-row"><input type="checkbox" data-lock-ratio checked> ${this.esc(this.t('pixel.lock_ratio'))}</label>
                                     </div>
                                     <div class="vd-modal-actions">
@@ -427,7 +433,7 @@
                                         <button type="submit" class="vd-button vd-button-primary">${this.esc(this.t('pixel.apply'))}</button>
                                     </div>
                                 </form>`;
-                                document.body.appendChild(dlg);
+                                const close = this.openDialog(dlg);
                                 const wInput = dlg.querySelector('[data-resize-w]');
                                 const hInput = dlg.querySelector('[data-resize-h]');
                                 const lock = dlg.querySelector('[data-lock-ratio]');
@@ -438,14 +444,18 @@
                                     e.preventDefault();
                                     const nw = parseInt(wInput.value) || this.imgWidth;
                                     const nh = parseInt(hInput.value) || this.imgHeight;
-                                    if (nw < 1 || nh < 1) return;
+                                    // Same limits as Canvas size (pixel-smart.js resizeCanvas).
+                                    if (nw < 1 || nh < 1 || nw > 16384 || nh > 16384 || nw * nh > 120000000) {
+                                        this.notify({ type: 'error', message: this.t('pixel.canvas_too_large') });
+                                        return;
+                                    }
                                     this.transformDocument([nw / this.imgWidth, 0, 0, nh / this.imgHeight, 0, 0], nw, nh);
                                     this.pushHistory('resize');
                                     this.zoomFit();
-                                    dlg.remove();
+                                    close();
                                 });
-                                dlg.querySelector('[data-cancel]').addEventListener('click', () => dlg.remove());
-                                dlg.addEventListener('click', e => { if (e.target === dlg) dlg.remove(); });
+                                dlg.querySelector('[data-cancel]').addEventListener('click', close);
+                                dlg.addEventListener('click', e => { if (e.target === dlg) close(); });
             })
         });
 

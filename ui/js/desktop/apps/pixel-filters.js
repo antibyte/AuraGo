@@ -1062,9 +1062,9 @@
                 this.commitPendingPreviews();
                 const layer = this.activeLayer();
                 if (!layer || layer.lockPixels) return Promise.resolve(false);
-                const img = sampleProxy(layer, 512), apply = !!(options && options.apply);
+                const img = sampleProxy(layer, 512), apply = !!(options && options.apply), startRev = layer.rev;
                 return this.runJob('fx.autoTone', { image: img }, { key: 'fx-auto' }).then(res => {
-                    if (!alive() || this.activeLayer() !== layer || layer.rev === undefined) return false;
+                    if (!alive() || this.activeLayer() !== layer || layer.rev !== startRev) return false;
                     setAdjustValues(res.params);
                     if (!apply) return true;
                     const s = sess;

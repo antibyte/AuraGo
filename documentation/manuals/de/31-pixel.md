@@ -510,13 +510,19 @@ Werkzeuge, Reiter, Filter und Generatoren, mit Tastenkürzel und Gruppe.
 
 ### Bildaktionen
 
-Das Menü **Bild** enthält vier Aktionen:
+Das Menü **Bild** enthält fünf Aktionen:
 
 - **Transparente Pixel zuschneiden** entfernt transparente Ränder.
 - **Automatisch auf Inhalt zuschneiden** schneidet den Hintergrund weg, also die Farbe in den Ecken oder die Transparenz.
 - **Leinwandgröße…** (**Strg+Alt+C**) setzt eine neue Breite und Höhe. Das alte Bild sitzt an einem Anker aus einem 3 × 3-Raster.
   Der neue Bereich ist Transparent, Vordergrund, Hintergrund, Weiß oder Schwarz. Die Leinwand darf bis zu 16384 px pro Seite und
   120 Millionen Pixel groß sein.
+- **Größe ändern…** skaliert das ganze Bild auf eine neue Breite und Höhe. Alle Ebenen und Masken werden neu berechnet, der
+  Inhalt wird also gestreckt oder verkleinert. Nichts wird abgeschnitten oder aufgefüllt, anders als bei der **Leinwandgröße**.
+  Der Dialog hat die Felder **Breite** und **Höhe**, die mit der aktuellen Größe beginnen, und **Seitenverhältnis sperren**
+  (standardmäßig an). Ist die Sperre an, setzt eine Eingabe in einem Feld das andere passend. **Übernehmen** führt das Ändern
+  als einen Rückgängig-Schritt aus und hebt die Auswahl auf. Es gibt kein Tastenkürzel. Die Grenzen sind wie bei der
+  Leinwandgröße: 16384 px pro Seite und 120 Millionen Pixel.
 - **Leinwand an Ebenen anpassen** verkleinert die Leinwand auf den Bereich, den die Ebenen abdecken.
 
 ## Projektdateien
@@ -543,6 +549,7 @@ Arbeitsspeicher brauchen, wird abgelehnt.
 | Ebenen pro Dokument | 64 |
 | Rückgängig-Schritte (Reiter Verlauf) | 60. Ältere Schritte fallen weg, und der Speicher für die Schritte ist auf etwa 768 MiB begrenzt. |
 | Leinwandgröße | 16384 px pro Seite und 120 Millionen Pixel |
+| Größe ändern | 16384 px pro Seite und 120 Millionen Pixel |
 | Neues Dokument aus einem Generator | 16 bis 8192 px pro Seite (Standard 1024 × 1024) |
 | PNG- und JPEG-Dateien | Bis 32 MiB und 32 Megapixel. Ist im Virtual Desktop eine kleinere Dateigrößengrenze gesetzt, gilt diese. |
 | OpenRaster-Projekt | Bis 32 MiB, beim Öffnen bis 64 Ebenen und bis 128 Einträge im Archiv |

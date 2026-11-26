@@ -3,6 +3,28 @@
 
     Pixel.installActions = function installActions(runtime) {
         Object.assign(runtime, {
+            // Appends a modal/menu element to document.body and tracks it, so closing the window removes it too.
+            // Returns the close function (idempotent); onClose runs once when the element is closed or the window is disposed.
+            openDialog: Pixel.bindRuntime(runtime, function openDialog(el, onClose) {
+                                const open = this.state.openDialogs || (this.state.openDialogs = new Set());
+                                const entry = { el, onClose };
+                                open.add(entry);
+                                document.body.appendChild(el);
+                                return () => {
+                                    if (!open.delete(entry)) return;
+                                    try { if (onClose) onClose(); } catch (_) {}
+                                    el.remove();
+                                };
+            }),
+            closeAllDialogs: Pixel.bindRuntime(runtime, function closeAllDialogs() {
+                                const open = this.state.openDialogs;
+                                if (!open) return;
+                                Array.from(open).forEach(entry => {
+                                    open.delete(entry);
+                                    try { if (entry.onClose) entry.onClose(); } catch (_) {}
+                                    entry.el.remove();
+                                });
+            }),
             showNewImageDialog: Pixel.bindRuntime(runtime, function showNewImageDialog() {
                                 const dlg = document.createElement('div');
                                 dlg.className = 'vd-modal-backdrop';
@@ -19,7 +41,7 @@
                                         <button type="submit" class="vd-button vd-button-primary">${this.esc(this.t('pixel.create'))}</button>
                                     </div>
                                 </form>`;
-                                document.body.appendChild(dlg);
+                                const close = this.openDialog(dlg);
                                 dlg.querySelector('form').addEventListener('submit', e => {
                                     e.preventDefault();
                                     const w = parseInt(dlg.querySelector('[data-new-w]').value) || 1024;
@@ -28,11 +50,11 @@
                                     this.filePath = '';
                                     this.state.fileVersion = '';
                                     this.state.versionPath = '';
-                                    this.newBlankCanvas(Math.min(w, 8192), Math.min(h, 8192));
-                                    dlg.remove();
+                                    this.newBlankCanvas(Math.max(1, Math.min(w, 8192)), Math.max(1, Math.min(h, 8192)));
+                                    close();
                                 });
-                                dlg.querySelector('[data-cancel]').addEventListener('click', () => dlg.remove());
-                                dlg.addEventListener('click', e => { if (e.target === dlg) dlg.remove(); });
+                                dlg.querySelector('[data-cancel]').addEventListener('click', close);
+                                dlg.addEventListener('click', e => { if (e.target === dlg) close(); });
             }),
             loadRecentFiles: Pixel.bindRuntime(runtime, function loadRecentFiles() {
                                 try {
@@ -183,7 +205,7 @@
                                         <button type="submit" class="vd-button vd-button-primary">${this.esc(this.t('pixel.export'))}</button>
                                     </div>
                                 </form>`;
-                                document.body.appendChild(dlg);
+                                const close = this.openDialog(dlg);
                                 const qSlider = dlg.querySelector('[data-export-quality]');
                                 const qVal = dlg.querySelector('[data-export-quality-val]');
                                 qSlider.addEventListener('input', () => { qVal.textContent = qSlider.value + '%'; });
@@ -192,10 +214,10 @@
                                     const fmt = dlg.querySelector('[data-export-format]').value;
                                     const quality = Number(qSlider.value) / 100;
                                     this.exportWithFormat(fmt, quality);
-                                    dlg.remove();
+                                    close();
                                 });
-                                dlg.querySelector('[data-cancel]').addEventListener('click', () => dlg.remove());
-                                dlg.addEventListener('click', e => { if (e.target === dlg) dlg.remove(); });
+                                dlg.querySelector('[data-cancel]').addEventListener('click', close);
+                                dlg.addEventListener('click', e => { if (e.target === dlg) close(); });
             }),
             exportWithFormat: Pixel.bindRuntime(runtime, function exportWithFormat(format, quality) {
                                 const mime = format === 'jpeg' ? 'image/jpeg' : (format === 'webp' ? 'image/webp' : 'image/png');
@@ -212,11 +234,45 @@
                                 this.releaseTempCanvas(flat);
                                 return url;
             }),
-            applyAIResult: Pixel.bindRuntime(runtime, async function applyAIResult(resp) {
-                                if (!resp || !resp.url) return;
+            // One AI request at a time: each job owns its AbortController and the document revision it started on.
+            beginAIJob: Pixel.bindRuntime(runtime, function beginAIJob() {
+                                if (this.state.aiBusy) {
+                                    this.notify({ type: 'info', message: this.t('pixel.ai_busy') });
+                                    return null;
+                                }
+                                this.state.aiBusy = true;
+                                const controller = new AbortController();
+                                this.abortCtrl = controller;
+                                // The document revision (open/new) and the history position tell whether anything changed meanwhile.
+                                return { controller, rev: this.state.documentRevision, histIdx: this.historyIdx, histEntry: this.history[this.historyIdx] };
+            }),
+            // Fence for loadImageToCanvas(url, current): it asks once before it resets the document (revision still the job's)
+            // and again after its own load, when the revision has legitimately moved on (it checks that one itself).
+            aiJobGuard: Pixel.bindRuntime(runtime, function aiJobGuard(job) {
+                                let first = true;
+                                return () => {
+                                    const full = first;
+                                    first = false;
+                                    return !this.state.disposed && (!full || job.rev === this.state.documentRevision) &&
+                                        job.histIdx === this.historyIdx && this.history[this.historyIdx] === job.histEntry;
+                                };
+            }),
+            aiResultDiscarded: Pixel.bindRuntime(runtime, function aiResultDiscarded() {
+                                if (!this.state.disposed) this.notify({ type: 'info', message: this.t('pixel.ai_result_discarded') });
+            }),
+            endAIJob: Pixel.bindRuntime(runtime, function endAIJob(job) {
+                                if (this.abortCtrl === job.controller) this.abortCtrl = null;
+                                this.state.aiBusy = false;
+            }),
+            applyAIResult: Pixel.bindRuntime(runtime, async function applyAIResult(resp, job) {
+                                if (!resp || !resp.url) return undefined;
+                                if (!job) job = { rev: this.state.documentRevision, histIdx: this.historyIdx, histEntry: this.history[this.historyIdx] };
+                                const current = this.aiJobGuard(job);
                                 const mode = (this.host.querySelector('[data-ai-result-mode]') || {}).value || 'layer';
                                 if (mode === 'layer' && this.layers.length < this.MAX_LAYERS) {
                                     const img = await this.loadImage(resp.url);
+                                    // Adding a layer keeps later edits, so only a replaced document invalidates it.
+                                    if (this.state.disposed || job.rev !== this.state.documentRevision) return false;
                                     const nw = img.naturalWidth;
                                     const nh = img.naturalHeight;
                                     if (nw > this.canvas.width || nh > this.canvas.height) {
@@ -229,11 +285,12 @@
                                     this.editMaskMode = false;
                                     this.layersStructureChanged();
                                     this.pushHistory('ai');
-                                } else {
-                                    await this.loadImageToCanvas(resp.url);
-                                    this.filePath = resp.path || '';
-                                    this.fileName = this.filePath ? this.filePath.split('/').pop() : '';
+                                    return true;
                                 }
+                                if (!await this.loadImageToCanvas(resp.url, current)) return false;
+                                this.filePath = resp.path || '';
+                                this.fileName = this.filePath ? this.filePath.split('/').pop() : '';
+                                return true;
             }),
             aiGenerate: Pixel.bindRuntime(runtime, async function aiGenerate() {
                                 const prompt = (this.host.querySelector('[data-ai-prompt]') || {}).value || '';
@@ -242,95 +299,111 @@
                                 const quality = (this.host.querySelector('[data-ai-quality]') || {}).value || 'standard';
                                 const style = (this.host.querySelector('[data-ai-style]') || {}).value || 'vivid';
                                 const statusEl = this.host.querySelector('[data-ai-status]');
+                                const job = this.beginAIJob();
+                                if (!job) return;
                                 if (statusEl) statusEl.textContent = this.t('pixel.generating');
                                 try {
-                                    this.abortCtrl = new AbortController();
                                     const resp = await this.api('/api/pixel/generate', {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
                                         body: JSON.stringify({ prompt, size, quality, style }),
-                                        signal: this.abortCtrl.signal
+                                        signal: job.controller.signal
                                     });
+                                    let applied = true;
                                     if (resp && resp.url) {
-                                        await this.loadImageToCanvas(resp.url);
-                                        this.filePath = resp.path || '';
-                                        this.fileName = this.filePath ? this.filePath.split('/').pop() : '';
+                                        const current = this.aiJobGuard(job);
+                                        applied = await this.loadImageToCanvas(resp.url, current);
+                                        if (!applied) this.aiResultDiscarded();
+                                        if (applied) {
+                                            this.filePath = resp.path || '';
+                                            this.fileName = this.filePath ? this.filePath.split('/').pop() : '';
+                                        }
                                     }
                                     if (statusEl) statusEl.textContent = '';
-                                    this.notify({ type: 'success', message: this.t('pixel.generated') });
+                                    if (applied) this.notify({ type: 'success', message: this.t('pixel.generated') });
                                 } catch (err) {
                                     if (statusEl) statusEl.textContent = '';
                                     if (err.name !== 'AbortError') this.notify({ type: 'error', message: this.t('pixel.error_generate') });
-                                } finally { this.abortCtrl = null; }
+                                } finally { this.endAIJob(job); }
             }),
             aiEnhance: Pixel.bindRuntime(runtime, async function aiEnhance() {
                                 const prompt = (this.host.querySelector('[data-enhance-prompt]') || {}).value || '';
                                 const strength = parseFloat((this.host.querySelector('[data-enhance-strength]') || {}).value) || 0.7;
                                 if (!this.canvas.width) return;
                                 const statusEl = this.host.querySelector('[data-ai-status]');
+                                const job = this.beginAIJob();
+                                if (!job) return;
                                 if (statusEl) statusEl.textContent = this.t('pixel.generating');
                                 try {
                                     const dataURL = this.flattenToDataURL('image/png');
-                                    this.abortCtrl = new AbortController();
                                     const resp = await this.api('/api/pixel/enhance', {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
                                         body: JSON.stringify({ source_data: dataURL, prompt, strength }),
-                                        signal: this.abortCtrl.signal
+                                        signal: job.controller.signal
                                     });
+                                    let applied = true;
                                     if (resp && resp.url) {
-                                        await this.loadImageToCanvas(resp.url);
-                                        this.filePath = resp.path || '';
-                                        this.fileName = this.filePath ? this.filePath.split('/').pop() : '';
+                                        const current = this.aiJobGuard(job);
+                                        applied = await this.loadImageToCanvas(resp.url, current);
+                                        if (!applied) this.aiResultDiscarded();
+                                        if (applied) {
+                                            this.filePath = resp.path || '';
+                                            this.fileName = this.filePath ? this.filePath.split('/').pop() : '';
+                                        }
                                     }
                                     if (statusEl) statusEl.textContent = '';
-                                    this.notify({ type: 'success', message: this.t('pixel.enhanced') });
+                                    if (applied) this.notify({ type: 'success', message: this.t('pixel.enhanced') });
                                 } catch (err) {
                                     if (statusEl) statusEl.textContent = '';
                                     if (err.name !== 'AbortError') this.notify({ type: 'error', message: this.t('pixel.error_generate') });
-                                } finally { this.abortCtrl = null; }
+                                } finally { this.endAIJob(job); }
             }),
             aiRemoveBG: Pixel.bindRuntime(runtime, async function aiRemoveBG() {
                                 if (!this.canvas.width) return;
                                 const statusEl = this.host.querySelector('[data-ai-status]');
+                                const job = this.beginAIJob();
+                                if (!job) return;
                                 if (statusEl) statusEl.textContent = this.t('pixel.generating');
                                 try {
                                     const dataURL = this.flattenToDataURL('image/png');
-                                    this.abortCtrl = new AbortController();
                                     const resp = await this.api('/api/pixel/remove-bg', {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
                                         body: JSON.stringify({ source_data: dataURL }),
-                                        signal: this.abortCtrl.signal
+                                        signal: job.controller.signal
                                     });
-                                    await this.applyAIResult(resp);
+                                    const applied = await this.applyAIResult(resp, job);
                                     if (statusEl) statusEl.textContent = '';
-                                    this.notify({ type: 'success', message: this.t('pixel.remove_bg_done') });
+                                    if (applied === false) this.aiResultDiscarded();
+                                    else this.notify({ type: 'success', message: this.t('pixel.remove_bg_done') });
                                 } catch (err) {
                                     if (statusEl) statusEl.textContent = '';
                                     if (err.name !== 'AbortError') this.notify({ type: 'error', message: this.t('pixel.error_generate') });
-                                } finally { this.abortCtrl = null; }
+                                } finally { this.endAIJob(job); }
             }),
             aiUpscale: Pixel.bindRuntime(runtime, async function aiUpscale() {
                                 if (!this.canvas.width) return;
                                 const statusEl = this.host.querySelector('[data-ai-status]');
+                                const job = this.beginAIJob();
+                                if (!job) return;
                                 if (statusEl) statusEl.textContent = this.t('pixel.generating');
                                 try {
                                     const dataURL = this.flattenToDataURL('image/png');
-                                    this.abortCtrl = new AbortController();
                                     const resp = await this.api('/api/pixel/upscale', {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
                                         body: JSON.stringify({ source_data: dataURL, scale: 2 }),
-                                        signal: this.abortCtrl.signal
+                                        signal: job.controller.signal
                                     });
-                                    await this.applyAIResult(resp);
+                                    const applied = await this.applyAIResult(resp, job);
                                     if (statusEl) statusEl.textContent = '';
-                                    this.notify({ type: 'success', message: this.t('pixel.upscale_done') });
+                                    if (applied === false) this.aiResultDiscarded();
+                                    else this.notify({ type: 'success', message: this.t('pixel.upscale_done') });
                                 } catch (err) {
                                     if (statusEl) statusEl.textContent = '';
                                     if (err.name !== 'AbortError') this.notify({ type: 'error', message: this.t('pixel.error_generate') });
-                                } finally { this.abortCtrl = null; }
+                                } finally { this.endAIJob(job); }
             }),
             checkAIConfig: Pixel.bindRuntime(runtime, async function checkAIConfig() {
                                 try {
