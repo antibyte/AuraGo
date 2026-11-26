@@ -136,7 +136,8 @@ func (h *hdRequest) stream() {
 	// wait for the revoked frame. Every path leaves through the one deferred decrement.
 	h.svc.streams.Add(1)
 	defer h.svc.streams.Add(-1)
-	sub, err := h.svc.hub.Attach(homeDashPrincipal(h.cfg, h.r))
+	principal := homeDashPrincipal(h.cfg, h.r)
+	sub, err := h.svc.hub.Attach(principal)
 	if err != nil {
 		h.fail(err)
 		return
@@ -156,7 +157,7 @@ func (h *hdRequest) stream() {
 	}
 	if st.send("hello", homeDashHello{
 		StreamID: sub.ID(), Protocol: homeDashStreamProtocol, HeartbeatMS: homeDashHeartbeat.Milliseconds(),
-		Limits: homeDashHelloLimits{Entities: limit}, ServerTime: time.Now().UTC(), Principal: string(homedash.PrincipalSession),
+		Limits: homeDashHelloLimits{Entities: limit}, ServerTime: time.Now().UTC(), Principal: homeDashPrincipalLabel(principal),
 	}) != nil {
 		return
 	}

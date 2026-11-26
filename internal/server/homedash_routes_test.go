@@ -138,3 +138,16 @@ func TestHomeDashPrincipalIgnoresUnvalidatedCookieWhenLoginIsOff(t *testing.T) {
 		t.Errorf("nil config: key %q", k)
 	}
 }
+
+func TestHomeDashPrincipalLabel(t *testing.T) {
+	bearer := httptest.NewRequest(http.MethodGet, "/api/homedash/stream", nil)
+	bearer.Header.Set("Authorization", "Bearer secret")
+	p := homeDashPrincipal(&config.Config{}, bearer)
+	if p.Kind != homedash.PrincipalSession || homeDashPrincipalLabel(p) != "token" {
+		t.Errorf("bearer: kind %q label %q", p.Kind, homeDashPrincipalLabel(p))
+	}
+	p = homeDashPrincipal(nil, httptest.NewRequest(http.MethodGet, "/api/homedash/stream", nil))
+	if homeDashPrincipalLabel(p) != string(homedash.PrincipalSession) {
+		t.Errorf("local: label %q", homeDashPrincipalLabel(p))
+	}
+}

@@ -365,12 +365,25 @@ func (h *hdRequest) restoreDashboard() {
 		h.fail(err)
 		return
 	}
-	cur, err := h.svc.store.GetDashboard(ctx, id)
-	if err != nil {
-		h.fail(err)
-		return
+	// expected_revision is the revision the caller last saw; a stale value yields the same
+	// revision_conflict as a normal save. Without it the restore applies on top of the current head.
+	var expected int64
+	if raw := h.r.URL.Query().Get("expected_revision"); raw != "" {
+		var perr error
+		expected, perr = strconv.ParseInt(raw, 10, 64)
+		if perr != nil || expected < 1 {
+			h.bad("expected_revision must be a positive integer")
+			return
+		}
+	} else {
+		cur, err := h.svc.store.GetDashboard(ctx, id)
+		if err != nil {
+			h.fail(err)
+			return
+		}
+		expected = cur.Revision
 	}
-	saved, rep, err := h.svc.saveExisting(ctx, id, cur.Revision, old)
+	saved, rep, err := h.svc.saveExisting(ctx, id, expected, old)
 	if err != nil {
 		h.fail(err)
 		return

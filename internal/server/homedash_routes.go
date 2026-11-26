@@ -304,6 +304,15 @@ func homeDashPrincipal(cfg *config.Config, r *http.Request) homedash.Principal {
 	return homedash.Principal{Kind: homedash.PrincipalSession, Key: key}
 }
 
+// homeDashPrincipalLabel names the principal for the stream hello frame: "token" for bearer
+// credentials (key prefix "t:"), otherwise the authorization kind. It never feeds authorization.
+func homeDashPrincipalLabel(p homedash.Principal) string {
+	if strings.HasPrefix(p.Key, "t:") {
+		return "token"
+	}
+	return string(p.Kind)
+}
+
 func homeDashDigest(v string) string {
 	sum := sha256.Sum256([]byte(v))
 	return hex.EncodeToString(sum[:16])

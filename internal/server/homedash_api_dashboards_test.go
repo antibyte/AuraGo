@@ -274,3 +274,33 @@ func TestHomeDashValidateWorksOnReadOnlyDesktop(t *testing.T) {
 		t.Fatalf("duplicate on a read-only desktop = %d %s", w.Code, w.Body.String())
 	}
 }
+
+func TestHomeDashRestoreHonoursExpectedRevision(t *testing.T) {
+	env := newHomeDashTestEnv(t, nil)
+	w := env.do(t, env.admin, http.MethodPost, "dashboards", map[string]any{"document": minimalDoc("Hall")})
+	var c hdSaved
+	hdDecode(t, w, &c)
+	d := c.Dashboard
+	d.Name = "Hall v2"
+	if w := env.do(t, env.admin, http.MethodPut, "dashboard?id="+d.ID, map[string]any{"revision": 1, "document": d}); w.Code != 200 {
+		t.Fatalf("update = %d %s", w.Code, w.Body.String())
+	}
+	base := "dashboard/restore?id=" + d.ID + "&revision=1"
+	if w := env.do(t, env.admin, http.MethodPost, base+"&expected_revision=abc", nil); w.Code != http.StatusBadRequest {
+		t.Fatalf("bad expected_revision = %d %s", w.Code, w.Body.String())
+	}
+	w = env.do(t, env.admin, http.MethodPost, base+"&expected_revision=1", nil)
+	if w.Code != http.StatusConflict || hdCode(t, w) != "revision_conflict" {
+		t.Fatalf("stale restore = %d %s", w.Code, w.Body.String())
+	}
+	w = env.do(t, env.admin, http.MethodPost, base+"&expected_revision=2", nil)
+	var ok hdSaved
+	hdDecode(t, w, &ok)
+	if w.Code != 200 || ok.Dashboard.Revision != 3 || ok.Dashboard.Name != "Hall" {
+		t.Fatalf("matching restore = %d %s", w.Code, w.Body.String())
+	}
+	// Without expected_revision the restore keeps applying on top of the current head.
+	if w := env.do(t, env.admin, http.MethodPost, base, nil); w.Code != 200 {
+		t.Fatalf("unconditional restore = %d %s", w.Code, w.Body.String())
+	}
+}

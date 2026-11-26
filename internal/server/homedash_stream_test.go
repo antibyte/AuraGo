@@ -55,8 +55,9 @@ func openHomeDashStream(t *testing.T, env *homeDashTestEnv, token string) (strin
 		StreamID    string `json:"stream_id"`
 		Protocol    int    `json:"protocol"`
 		HeartbeatMS int64  `json:"heartbeat_ms"`
+		Principal   string `json:"principal"`
 	}
-	if err := json.Unmarshal([]byte(hello.data), &h); err != nil || len(h.StreamID) != 32 || h.Protocol != 1 || h.HeartbeatMS <= 0 {
+	if err := json.Unmarshal([]byte(hello.data), &h); err != nil || len(h.StreamID) != 32 || h.Protocol != 1 || h.HeartbeatMS <= 0 || h.Principal != "token" {
 		t.Fatalf("hello = %s", hello.data)
 	}
 	return h.StreamID, events, func() { resp.Body.Close(); srv.Close() }
