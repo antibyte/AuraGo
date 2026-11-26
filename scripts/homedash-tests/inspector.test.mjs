@@ -64,5 +64,11 @@ export const tests = [
     const u = mount(['s2']); u.store.views['ha:switch.x'] = { id: 'ha:switch.x', kind: 'switch', status: 'unknown', name: 'x' }; u.insp.setTab('look'); u.insp.setTab('data'); assert.equal(u.host.querySelector('.hd-ep').getAttribute('data-hd-state'), 'unknown'); }],
   ['entity picker (bfix 14): closing cancels the debounced and the in-flight search; nothing re-arms the watch afterwards', async () => { const m = mount(['s1']); m.insp.focusFirst(); const input = field(m, 'binding:primary'), nonEmpty = () => m.store.calls.filter(c => c.length > 0).length;
     input.value = 'kit'; fire(input, 'input', {}); fire(input, 'keydown', { key: 'Tab' }); await flush(60); assert.equal(nonEmpty(), 0, 'a search in flight when the popup closed does not render'); assert.equal(m.host.querySelectorAll('.hd-ep-opt').length, 0);
-    input.value = 'k'; fire(input, 'input', {}); await flush(60); const n = nonEmpty(); assert.ok(n >= 1); input.value = 'ki'; fire(input, 'input', {}); fire(input, 'keydown', { key: 'Tab' }); await flush(300); assert.equal(nonEmpty(), n, 'a debounced search after the close does nothing'); eq(m.store.calls.at(-1), []); }]
+    input.value = 'k'; fire(input, 'input', {}); await flush(60); const n = nonEmpty(); assert.ok(n >= 1); input.value = 'ki'; fire(input, 'input', {}); fire(input, 'keydown', { key: 'Tab' }); await flush(300); assert.equal(nonEmpty(), n, 'a debounced search after the close does nothing'); eq(m.store.calls.at(-1), []); }],
+  ['inspector DOM: variant thumbs use the dashboard family, a widget family wins, and a family change rebuilds them', () => {
+    const fam = m => [...m.host.querySelectorAll('.hd-insp-thumb .hd-widget')].map(x => x.getAttribute('data-hd-family')), m = mount(['g1']); m.insp.setTab('look');
+    assert.ok(fam(m).length >= 3); assert.ok(fam(m).every(f => f === 'glass'), 'default dashboard: glass');
+    const d = m.D.doc(); m.D.setDoc(Object.assign({}, d, { look: Object.assign({}, d.look, { family: 'tactile' }) }));
+    assert.ok(fam(m).every(f => f === 'tactile'), 'the dashboard family changed: thumbs rebuilt in tactile: ' + fam(m).join());
+    const f2 = field(m, 'family'); f2.value = 'instrument'; fire(f2, 'change', {}); assert.ok(fam(m).every(f => f === 'instrument'), 'the widget family wins over the dashboard family'); }]
 ];

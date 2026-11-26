@@ -46,7 +46,7 @@
     // Rebuild key: mode, tab, page, selection (ids, types, variants) and what changes the structure of a tab; everything else is patched in place.
     function structureKey(s, tab) {
         const page = s.page || { widgets: [] }, ws = (s.selection || []).map(id => page.widgets.find(w => w.id === id)).filter(Boolean), mode = ws.length === 0 ? 'page' : ws.length === 1 ? 'single' : 'multi', w = ws[0];
-        return [mode, mode === 'single' ? tab : '', s.pageId, ws.map(x => x.id + ':' + x.type + ':' + x.variant).join(','), mode === 'single' && (tab === 'options' || tab === 'actions') ? ((s.doc && s.doc.pages) || []).map(p => p.id + ':' + p.name).join(',') : '',
+        return [mode, mode === 'single' ? tab : '', s.pageId, ws.map(x => x.id + ':' + x.type + ':' + x.variant + ':' + (x.family || '')).join(','), (s.doc && s.doc.look && s.doc.look.family) || '', mode === 'single' && (tab === 'options' || tab === 'actions') ? ((s.doc && s.doc.pages) || []).map(p => p.id + ':' + p.name).join(',') : '',
             mode === 'single' && tab === 'actions' ? JSON.stringify(w.actions || {}) + ':' + ((w.bindings || {}).primary || '') : '', mode === 'multi' ? s.primary : ''].join('|');
     }
     const familyCount = s => new Set(((s.page && s.page.widgets) || []).map(w => w.family || (s.doc && s.doc.look.family) || 'glass')).size;
@@ -121,7 +121,7 @@
             for (const v of ids) {
                 const box = el('div', { class: 'hd-insp-thumb' }), hit = el('button', { type: 'button', class: 'hd-insp-vhit', role: 'radio', 'aria-checked': w.variant === v ? 'true' : 'false', tabindex: '-1', 'data-hd-field': 'variant:' + v, text: variantName(w.type, v) });
                 gallery.appendChild(el('div', { class: 'hd-insp-variant' }, [box, hit])); hits.push(hit);
-                thumbs.push(E.samples.thumb({ widget: Object.assign({}, w, { variant: v, options: catalog.options(w) }), catalog, t, lang, box: { width: 132, height: 80 }, parent: box, entity: b => { const e = (w.bindings || {})[b]; return e ? store.view(e) : null; } }));
+                thumbs.push(E.samples.thumb({ widget: Object.assign({}, w, { variant: v, options: catalog.options(w) }), family: w.family || (k.s.doc && k.s.doc.look && k.s.doc.look.family) || 'glass', catalog, t, lang, box: { width: 132, height: 80 }, parent: box, entity: b => { const e = (w.bindings || {})[b]; return e ? store.view(e) : null; } }));
             }
             const paintV = () => { const now = (cur().w || {}).variant; hits.forEach((h, i) => { const on = h.getAttribute('data-hd-field') === 'variant:' + now; h.setAttribute('aria-checked', on ? 'true' : 'false'); h.setAttribute('tabindex', on || (!hits.some(x => x.getAttribute('aria-checked') === 'true') && i === 0) ? '0' : '-1'); }); };
             const chooseV = v => exec(C.variant(D.doc(), { pageId, id: wid, variant: v, limits: catalog.constraints({ type: w.type, variant: v }) }));

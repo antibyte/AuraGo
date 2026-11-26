@@ -136,6 +136,8 @@
 .hd-root[data-hd-mode="design"] > .hd-conflict-bar { grid-area: 2 / 1 / 3 / -1; }
 .hd-root[data-hd-mode="design"] > .hd-palette { grid-area: 3 / 1 / 4 / 2; inline-size: 280px; border-inline-end: 1px solid var(--hdx-e-line); }
 .hd-root[data-hd-mode="design"] > .hd-stage { grid-area: 3 / 2 / 4 / 3; min-inline-size: 0; }
+/* The stage insets the page: the outline, the eight handles and the chip of a widget in the first or last column and row stay whole. The engine measures the stage's inner box (E.render.contentBox), so metrics and zoom follow the inset. */
+.hd-root[data-hd-mode="design"] > .hd-stage { box-sizing: border-box; padding: 16px; }
 .hd-root[data-hd-mode="design"] > .hd-inspector { grid-area: 3 / 3 / 4 / 4; inline-size: 320px; border-inline-start: 1px solid var(--hdx-e-line); }
 .hd-root[data-hd-mode="design"] > :is(.hd-palette, .hd-inspector) { position: relative; display: flex; flex-direction: column; min-block-size: 0; overflow: hidden; background: var(--vd-mat-side, var(--vd-theme-chrome-bg)); box-shadow: var(--vd-mat-side-edge, none); color: var(--vd-text); }
 .hd-root[data-hd-mode="design"] > :is(.hd-tabs, .hd-drawer-scrim) { display: none; }

@@ -110,10 +110,11 @@
         }
         const hitsW = () => [...cards.values()].filter(c => !c.hasAttribute('hidden')).map(c => c.querySelector('.hd-pal-hit'));
         function roveW(focus) { const v = hitsW(), cur = v.find(b => b.getAttribute('tabindex') === '0' && v.includes(b)) || v[0]; for (const b of cards.values()) b.querySelector('.hd-pal-hit').setAttribute('tabindex', '-1'); if (cur) { cur.setAttribute('tabindex', '0'); if (focus) cur.focus(); } }
-        life.on(panelW, 'click', ev => { const h = ev.target && ev.target.closest ? ev.target.closest('.hd-pal-hit') : null, card = h && h.closest('.hd-pal-card'); if (card) addEntry(E.commands.entry(catalog, card.getAttribute('data-type'), card.getAttribute('data-variant')), 'palette'); });
+        // A mouse or touch tap adds through the gesture's onTap: the gesture holds pointer capture on the panel, so the browser retargets the click there. Only a keyboard click (detail 0) adds here.
+        life.on(panelW, 'click', ev => { if (ev.detail) return; const h = ev.target && ev.target.closest ? ev.target.closest('.hd-pal-hit') : null, card = h && h.closest('.hd-pal-card'); if (card) addEntry(E.commands.entry(catalog, card.getAttribute('data-type'), card.getAttribute('data-variant')), 'palette'); });
         life.on(panelW, 'pointerdown', ev => { const card = ev.target && ev.target.closest ? ev.target.closest('.hd-pal-card') : null; if (!card || (ev.button !== undefined && ev.button !== 0)) return;
             const type = card.getAttribute('data-type'), variant = card.getAttribute('data-variant'), entry = E.commands.entry(catalog, type, variant);
-            D.gestures.dragFrom(ev, { kind: 'widget', label: typeName(type), entries: () => [entry], avatar: () => avatar(TYPE_ICONS[type] || 'dashboard', typeName(type), variantName(type, variant)) }); });
+            D.gestures.dragFrom(ev, { kind: 'widget', label: typeName(type), entries: () => [entry], onTap: () => addEntry(entry, 'palette'), avatar: () => avatar(TYPE_ICONS[type] || 'dashboard', typeName(type), variantName(type, variant)) }); });
         life.on(panelW, 'keydown', ev => { const v = hitsW(), at = v.findIndex(b => b === ev.target); if (at < 0) return;
             const sizes = groupEls.map(g => g.keys.filter(k => !cards.get(k).hasAttribute('hidden')).length), n = E.form.gridMove(ev.key, at, sizes, COLS); if (n === null) return;
             ev.preventDefault(); for (const b of v) b.setAttribute('tabindex', b === v[n] ? '0' : '-1'); v[n].focus(); if (typeof v[n].scrollIntoView === 'function') v[n].scrollIntoView({ block: 'nearest' }); });
@@ -147,9 +148,9 @@
         }
         const btnsE = () => [...rows.values()].map(r => r.btn);
         function roveE(focus) { const v = btnsE(), cur = v.find(b => b.getAttribute('tabindex') === '0') || v[0]; for (const b of v) b.setAttribute('tabindex', b === cur ? '0' : '-1'); if (cur && focus) cur.focus(); }
-        life.on(list, 'click', ev => { const b = ev.target && ev.target.closest ? ev.target.closest('.hd-ent-row') : null, e = b && byId.get(b.getAttribute('data-entity')); if (e) addEntry(entryFor(e), 'entity'); });
+        life.on(list, 'click', ev => { if (ev.detail) return; const b = ev.target && ev.target.closest ? ev.target.closest('.hd-ent-row') : null, e = b && byId.get(b.getAttribute('data-entity')); if (e) addEntry(entryFor(e), 'entity'); });
         life.on(list, 'pointerdown', ev => { const b = ev.target && ev.target.closest ? ev.target.closest('.hd-ent-row') : null, e = b && byId.get(b.getAttribute('data-entity')); if (!e || (ev.button !== undefined && ev.button !== 0)) return;
-            const entry = entryFor(e), icon = E.widgets.iconFor(null, listView(e)) || 'entity'; D.gestures.dragFrom(ev, { kind: 'entity', entity: e, label: String(e.name || e.id), entries: () => (entry ? [entry] : []), avatar: () => avatar(icon, String(e.name || e.id), e.area || '') }); });
+            const entry = entryFor(e), icon = E.widgets.iconFor(null, listView(e)) || 'entity'; D.gestures.dragFrom(ev, { kind: 'entity', entity: e, label: String(e.name || e.id), entries: () => (entry ? [entry] : []), onTap: () => addEntry(entry, 'entity'), avatar: () => avatar(icon, String(e.name || e.id), e.area || '') }); });
         life.on(list, 'keydown', ev => { const v = btnsE(), at = v.findIndex(b => b === ev.target); if (at < 0) return; const n = E.form.roving(ev.key, at, v.length); if (n === null || ev.key === 'ArrowLeft' || ev.key === 'ArrowRight') return;
             ev.preventDefault(); for (const b of v) b.setAttribute('tabindex', b === v[n] ? '0' : '-1'); v[n].focus(); if (typeof v[n].scrollIntoView === 'function') v[n].scrollIntoView({ block: 'nearest' }); });
         life.add(store.on('change', changed => { if (tab !== 'entities') return; for (const [id, r] of rows) if (!changed || changed.has(id)) { const s = r.btn.querySelector('.hd-ent-state'); if (s) s.textContent = rowState(id); } }));

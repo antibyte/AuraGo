@@ -186,5 +186,9 @@ export const tests = [
   ['render (M4): the more-info sheet api reads the live mode: after the page goes to design mode it refuses commands and capabilities', () => {
     const { apis, sheets, sent, page } = setupCmd(); assert.equal(apis.get('lt').moreInfo('primary'), true); const req = sheets[0];
     assert.equal(req.api.can('primary', 'turn_on'), true); req.api.command('primary', 'turn_on', {}); assert.equal(sent.length, 1);
-    page.setMode('design'); assert.equal(req.api.can('primary', 'turn_on'), false); return Promise.resolve(req.api.command('primary', 'turn_on', {})).then(r => { assert.equal(r.status, 'refused'); assert.equal(sent.length, 1, 'nothing was sent in design mode'); }); }]
+    page.setMode('design'); assert.equal(req.api.can('primary', 'turn_on'), false); return Promise.resolve(req.api.command('primary', 'turn_on', {})).then(r => { assert.equal(r.status, 'refused'); assert.equal(sent.length, 1, 'nothing was sent in design mode'); }); }],
+  ['render (M4 F1): contentBox subtracts the stage padding so metrics and zoom work on the inner width', () => { const { E } = setup(), cb = E.render.contentBox, node = { clientWidth: 600, clientHeight: 400 };
+    eq(cb(node, { paddingLeft: '16px', paddingRight: '16px', paddingTop: '16px', paddingBottom: '16px' }), { width: 568, height: 368 }); eq(cb(node, { paddingLeft: '0px', paddingRight: '0px', paddingTop: '0px', paddingBottom: '0px' }), { width: 600, height: 400 });
+    eq(cb(node, null), { width: 600, height: 400 }); eq(cb({ clientWidth: 10, clientHeight: 10 }, { paddingLeft: '8px', paddingRight: '8px', paddingTop: '9px', paddingBottom: '9px' }), { width: 0, height: 0 });
+    assert.equal(E.render.zoomFor(cb({ clientWidth: 600, clientHeight: 0 }, { paddingLeft: '16px', paddingRight: '16px' }).width, 960), 0.591, 'the zoom fits the inner width'); }]
 ];

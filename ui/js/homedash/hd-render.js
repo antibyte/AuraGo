@@ -20,11 +20,16 @@
     // The value is floored at 3 decimals so the scaled page never overflows the stage by a rounding pixel.
     const ZOOM_MIN = 0.5;
     const zoomFor = (avail, width) => (avail > 0 && width > avail ? Math.floor(Math.max(ZOOM_MIN, avail / width) * 1000) / 1000 : 1);
+    // The stage's inner box (design mode gives the stage padding so the outline, handles and chip of an edge widget stay visible): client size minus the padding.
+    // The layout metrics and the zoom both work on this box, so the page never overflows the stage sideways.
+    const contentBox = (node, cs) => { const px = k => (cs && Number.isFinite(parseFloat(cs[k])) ? parseFloat(cs[k]) : 0);
+        return { width: Math.max(0, node.clientWidth - px('paddingLeft') - px('paddingRight')), height: Math.max(0, node.clientHeight - px('paddingTop') - px('paddingBottom')) }; };
     function page(opts) {
         const o = opts, store = o.store, catalog = o.catalog, t = o.t, lang = o.lang || 'en';
         let doc = o.doc, pg = o.page, family = doc.look && doc.look.family;
         let mode = o.mode === 'design' ? 'design' : 'view', forcedBp = o.bp || null, fitOverride = o.fit || null, last = null, emptyAction = o.emptyAction || null, emptyKey = null, emptyEl = null;
-        const measure = o.measure || (node => ({ width: node.clientWidth, height: node.clientHeight }));
+        // Only the design stage has padding (the inset of the page); the view stage is read as it is.
+        const measure = o.measure || (node => contentBox(node, mode === 'design' && typeof getComputedStyle === 'function' ? getComputedStyle(node) : null));
         const pageEl = el('div', { class: 'hd-page', id: o.id || null });
         o.stage.appendChild(pageEl);
         const recs = new Map(), byEntity = new Map(), byEl = new Map(), limits = new Map();
@@ -254,5 +259,5 @@
             update, setMode, setBreakpoint(b) { forcedBp = b || null; layout(); }, setFit(f) { fitOverride = f || null; layout(); }, setEmptyAction(a) { emptyAction = a || null; renderEmpty(); },
             preview, metrics: () => last, items: itemsNow, frame: id => (recs.get(id) || {}).el || null, order: () => E.grid.sortReading(itemsNow()).map(i => i.id) });
     }
-    E.render = Object.freeze({ page, isEntityId, zoomFor, ZOOM_MIN });
+    E.render = Object.freeze({ page, isEntityId, zoomFor, contentBox, ZOOM_MIN });
 })();

@@ -81,5 +81,11 @@ export const tests = [
     fire(host.querySelector('.hd-pal'), 'keydown', { key: 'Escape' }, hit); assert.equal(D.calls.filter(c => c === 'closePanels').length, 2); }],
   ['palette: a failed device query shows the retry state; the retry loads', async () => { const m = mount(); let fail = true; const real = m.api.entities; m.api.entities = async p => { if (fail) { const e = new Error('x'); e.code = 'network'; throw e; } return real(p); };
     m.pal.setTab('entities'); await flush(30); const status = m.host.querySelector('.hd-pal-filters').parentElement.querySelector('p.hd-pal-status'); assert.equal(status.getAttribute('data-state'), 'failed'); fail = false;
-    fire(status.querySelector('button'), 'click', {}); await flush(30); assert.equal(m.host.querySelectorAll('.hd-ent-row').length, 2); assert.equal(status.getAttribute('data-state'), 'ready'); }]
+    fire(status.querySelector('button'), 'click', {}); await flush(30); assert.equal(m.host.querySelectorAll('.hd-ent-row').length, 2); assert.equal(status.getAttribute('data-state'), 'ready'); }],
+  ['palette (F1): a pointer tap adds through the gesture onTap (the browser retargets the click to the capturing panel); a click with detail > 0 adds nothing', () => { const m = mount(), { D, host } = m, panelW = m.panels[0];
+    const pill = host.querySelector('.hd-pal-card[data-type="switch"][data-variant="pill"]'), hit = pill.querySelector('.hd-pal-hit');
+    fire(panelW, 'pointerdown', { button: 0 }, pill); assert.equal(typeof D.lastDrag.onTap, 'function'); assert.equal(D.calls.filter(c => c.addWidgets).length, 0, 'the press alone adds nothing');
+    D.lastDrag.onTap(); eq(D.calls.filter(c => c.addWidgets).map(c => c.addWidgets.map(e => [e.widget.type, e.widget.variant])), [[['switch', 'pill']]]);
+    fire(panelW, 'click', { detail: 1 }, panelW); fire(panelW, 'click', { detail: 1 }, hit); assert.equal(D.calls.filter(c => c.addWidgets).length, 1, 'a pointer click never adds twice');
+    fire(panelW, 'click', { detail: 0 }, hit); assert.equal(D.calls.filter(c => c.addWidgets).length, 2, 'the keyboard click adds'); }]
 ];

@@ -115,7 +115,7 @@
         const unknownList = (Array.isArray(made.warnings) ? made.warnings : Array.isArray(res.warnings) ? res.warnings : []).filter(w => w && w.code === 'entity_unknown'), unknown = unknownList.length;
         ctx.refresh(); if (ctx.designer) { const left = await ctx.mount.exitEdit(); if (left !== 'left') { ctx.toast(t('homedash.dialog.import_done', { name: d.name || '' })); return true; } }
         await ctx.open(d.id, null); ctx.toast(t('homedash.dialog.import_done', { name: d.name || '' }) + (unknown ? ' ' + t('homedash.dialog.import_unknown', { count: unknown }) : ''));
-        if (unknown) await issuesSheet(ctx, unknownList, true);    // D10: the unknown devices are listed after the import (at most 8 rows plus import_more)
+        if (unknown) await issuesSheet(Object.assign({}, ctx, { designer: null }), unknownList, true);   // the designer of this ctx left with exitEdit: its sheet is gone, the app's sheet carries the list    // D10: the unknown devices are listed after the import (at most 8 rows plus import_more)
         return true;
     }
     // ---- rename ----

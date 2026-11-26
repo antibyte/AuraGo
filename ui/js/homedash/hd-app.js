@@ -95,6 +95,8 @@
         function set(patch) {
             if (disposed) return;
             const next = Object.assign({}, state, patch);
+            // While the designer edits, the window title follows the name of the document in the lane (a rename of your own or of a foreign save).
+            const ld = designer && next.dashboard ? laneOf() : null, ln = ld && ld.doc() && ld.doc().name; if (typeof ln === 'string' && ln && ln !== next.dashboard.name) next.dashboard = Object.freeze(Object.assign({}, next.dashboard, { name: ln }));
             next.banners = E.view.banners({ mode: next.mode, connection: next.connection, sources: store.sources(), usedSources: view ? view.sources() : [], notice: next.notice, noticeCount: next.noticeCount, desktopReadonly: next.desktopReadonly, schemaTooNew: !!(next.dashboard && next.dashboard.schemaTooNew) });
             next.edit = editState(next); state = Object.freeze(next); E.core.setAttr(root, 'data-hd-mode', next.edit.mode); followLane(); syncEmpty(); bus.emit('state', state);
         }
