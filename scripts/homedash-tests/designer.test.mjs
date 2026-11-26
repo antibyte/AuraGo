@@ -47,7 +47,7 @@ export const tests = [
   ['designer: an empty page renders in design mode without throwing; the page takes the tab stop and the empty action adds a widget', async () => {
     const seed = seedOf([page('main', [], [])]), m = await edit({ seed, dashboardId: seed.id }); const pg = m.host.querySelector('.hd-page'); assert.equal(pg.getAttribute('tabindex'), '0'); assert.equal(m.document.activeElement, pg);
     const empty = m.host.querySelector('.hd-page-empty'); assert.equal(empty.getAttribute('data-hd-mode'), 'design'); assert.equal(m.host.querySelector('.hd-page-empty-action').getAttribute('data-hd-cmd'), 'add_widget');
-    assert.equal(m.inst.state().edit.actions.add_widget.available, false, 'no palette in part 1'); m.D().addWidgets([m.E.commands.entry(m.D().catalog, 'entity', 'tile', 'system:cpu')]); assert.equal(m.host.querySelector('.hd-page-empty'), null);
+    assert.equal(m.inst.state().edit.actions.add_widget.available, true, 'the palette of part 2 is loaded'); m.D().addWidgets([m.E.commands.entry(m.D().catalog, 'entity', 'tile', 'system:cpu')]); assert.equal(m.host.querySelector('.hd-page-empty'), null);
     assert.equal(pg.getAttribute('tabindex'), '-1'); assert.equal(m.host.querySelectorAll('[tabindex="0"].hd-widget').length, 1); m.inst.dispose(); }],
   ['designer: announceCmd says nothing for an unknown key; repeated texts get the no-break space toggle', async () => { const m = await edit(), D = m.D(), E = m.E, before = m.live();
     const cmd = E.commands.setWidget(D.doc(), { pageId: D.state().pageId, id: 'cpu', path: ['title'], value: 'Prozessor' }); cmd.announce = { key: 'evil.key' }; assert.equal(D.exec(cmd), true); assert.equal(m.live(), before, 'nothing announced');

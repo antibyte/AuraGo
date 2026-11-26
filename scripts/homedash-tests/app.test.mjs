@@ -48,7 +48,7 @@ const fakeStorage = () => { const m = new Map(); return { getItem: k => (m.has(k
 const EN = JSON.parse(read('ui/lang/homedash/en.json'));
 function mountApp(options) {
   const o = options || {}, { E, document } = loadEngine(APP_ORDER, { dom: true }), clock = fakeClock(), es = fakeSources(), server = contractServer(o);
-  if (o.ddialogs) E.ddialogs = o.ddialogs;
+  if (o.ddialogs === false) delete E.ddialogs; else if (o.ddialogs) E.ddialogs = o.ddialogs;
   const host = document.createElement('div'); document.body.appendChild(host);
   const apis = new Map(), real = E.widgets.host; E.widgets = Object.assign({}, E.widgets, { host(w) { const inst = real(w); apis.set(w.widget.id, w.api({ widget: w.widget, mode: 'view' })); return inst; } }); // the widget apis the page hands out
   const inst = E.mount(host, { dashboardId: o.dashboardId, readonly: o.readonly, transport: { request: server.request, eventSource: es.open }, t: o.en ? E.core.makeT(EN, { warn() {} }) : k => k, lang: 'en', measure: () => ({ width: 1180, height: 700 }), visibility: o.visibility, storage: o.storage || fakeStorage(), ui: o.ui, canEdit: o.canEdit,
@@ -241,7 +241,7 @@ export const tests = [
     eq(m.inst.contextMenu({ target: m.host.querySelector('[data-hd-wid="g"]'), clientX: 1, clientY: 1 }).items.map(i => i.id), ['edit_widget']); assert.equal(m.inst.contextMenu({ target: m.host.querySelector('.hd-stage'), clientX: 1, clientY: 1 }), null);
     menu.items[1].run(); await m.clock.advance(20); assert.equal(m.inst.state().edit.mode, 'design'); eq(m.inst.state().edit.selection, ['k']); eq(m.inst.contextMenu({ target: m.host.querySelector('[data-hd-wid="k"]'), clientX: 1, clientY: 1 }).items.slice(0, 2).map(i => i.id), ['edit', 'duplicate']); m.inst.dispose(); }],
   ['app (M4): actions follow E.ddialogs (rename, import, export, look, add_page unavailable without it); import needs no dashboard and no write access; run hands over a ctx with sheetHost', async () => {
-    const m = mountApp(); await m.clock.advance(20); const A = () => m.inst.state().edit.actions; for (const k of ['rename', 'look', 'add_page', 'export', 'import']) assert.equal(A()[k].available, false, k);
+    const m = mountApp({ ddialogs: false }); await m.clock.advance(20); const A = () => m.inst.state().edit.actions; for (const k of ['rename', 'look', 'add_page', 'export', 'import']) assert.equal(A()[k].available, false, k);
     assert.equal(A().new_starter.available, true); assert.equal(A().new_starter.enabled, true); assert.equal(await m.inst.run('rename'), false); assert.equal(m.inst.state().edit.reason, 'not_dashboard'); m.inst.dispose();
     const seen = [], sheetHost = () => 'host', dd = { run: async (ctx, action, arg) => { seen.push([ctx, action, arg]); return true; } }, n = mountApp({ ddialogs: dd, ui: { sheetHost } }); await n.clock.advance(20); const B = () => n.inst.state().edit.actions;
     assert.equal(n.inst.state().mode, 'home'); assert.equal(B().import.available, true); assert.equal(B().import.enabled, true); assert.equal(B().rename.enabled, false, 'rename needs an open dashboard'); assert.equal(await n.inst.run('import', 'x'), true);

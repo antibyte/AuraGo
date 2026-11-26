@@ -21,7 +21,7 @@ func TestHomeDashWiring(t *testing.T) {
 	}
 	engine := []string{"hd-core", "hd-format", "hd-colour", "hd-grid", "hd-layout", "hd-doc", "hd-history", "hd-icons", "hd-geometry", "hd-input", "hd-prim-displays", "hd-prim-controls", "hd-widgets", "hd-control", "hd-popover",
 		"widgets/hd-w-misc", "widgets/hd-w-climate", "widgets/hd-w-light", "widgets/hd-w-sensor", "widgets/hd-w-switch", "widgets/hd-w-action", "widgets/hd-w-select", "widgets/hd-w-number", "hd-moreinfo",
-		"hd-tone", "hd-api", "hd-stream", "hd-store", "hd-command", "hd-catalog", "hd-render", "hd-sheet", "hd-view", "hd-clipboard", "hd-commands", "hd-save", "hd-gestures", "hd-editbar", "hd-designer", "hd-app"}
+		"hd-tone", "hd-api", "hd-stream", "hd-store", "hd-command", "hd-catalog", "hd-render", "hd-sheet", "hd-view", "hd-clipboard", "hd-commands", "hd-save", "hd-gestures", "hd-editbar", "hd-form", "hd-samples", "hd-palette", "hd-entity-picker", "hd-inspector", "hd-look", "hd-designer-dialogs", "hd-designer", "hd-app"}
 	var want []string
 	for _, name := range engine {
 		want = append(want, "homedash/"+name+".js")
