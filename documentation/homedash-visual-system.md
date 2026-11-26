@@ -1348,3 +1348,108 @@ One line each. This section is the versioned record of the rulings; the local ga
   announcements fire. Create buttons use `aria-disabled` while busy and keep focus. The click guard still applies.
 - **Freeze keys (lead, batch D+E review, fix I2):** the token freeze keys each rule by its selector and at-rule chain. Coverage changed;
   no token value did.
+
+## Editor chrome (V14)
+
+Scope: the designer chrome of M4 in the desktop app: the edit bar and its page tabs and breakpoint radio, the save chip, the conflict
+bar, the palette and inspector drawers, the look editor and the designer sheets. Paint is in `ui/css/desktop-app-homedash.css`
+("Designer chrome (M4, V14)" and the rules below it). The form controls (`.hd-f-*`) and the canvas overlays come from the bundle.
+The gate records are local (git-ignored); the rules here are the versioned part.
+
+### Tokens
+
+- The plan adds no `--hd-*` design token. The token freeze (`m1.test.mjs`) covers only the `--hd-*` rules of the six token and family
+  parts, and the M4 chrome lives outside them.
+- Host-local editor variables are declared on `.hd-root[data-hd-host]` in `desktop-app-homedash.css`:
+  - `--hdx-e-line`: `--vd-mat-divider`, fallback `--vd-theme-border`.
+  - `--hdx-e-muted`: `--vd-theme-muted`.
+  - `--hdx-e-sel`: `--hd-focus`, fallback `--vd-accent` (the selection colour).
+  - `--hdx-e-ring`: `--ds-color-border-focus`, fallback `--vd-accent` (the focus ring).
+  - `--hdx-e-r`: `--vd-mat-btn-radius`, fallback 6 px. `--hdx-e-fr`: `--vd-mat-field-radius`, fallback 6 px.
+- Engine geometry written by JS through the CSSOM is `--hd-e-*` (page width, drag offsets, guides, marquee, drop avatar, thumb box).
+  These are runtime variables, not tokens, and they stay out of the freeze.
+- Text on the bar and the side panels is `--vd-text` or `--vd-theme-muted`: the pairs the materials test measures there.
+  `--vd-mat-label-color` is used only on cards and sheets.
+- Canvas overlays (selection outline, focus ring, handles, ghost, guides, marquee) use `--hd-focus`, the dashboard accent that
+  `E.widgets.applyLook` keeps at 3:1 on cards and on the canvas. Chrome never uses `--hd-focus` for its fills.
+
+### One accent and monochrome states
+
+- Only `.hd-eb-done` (Done) and the empty page's primary action take an accent fill.
+- Switches (on), segmented controls, page tabs, the chosen variant and family cards use the ink (`--vd-text`). Selected rows use
+  `--vd-mat-selected`.
+- Save phases and the conflict bar are monochrome: the icon and the words carry the state, and the conflict bar uses
+  `data-tone="warn"` with the alert icon. No red or green fill is used in the chrome.
+
+### Sizes and targets
+
+- 8 px grid, 13 px text, 16 px icons. The edit bar is 48 px tall. Bar controls are 32 px visually.
+- Coarse pointers (`@media (pointer: coarse)`) get 44 px targets: the host buttons (`.hdx-btn`) and the sheet buttons in the desktop CSS,
+  and the editor controls in the `@media (pointer: coarse)` blocks of the same file. The 44 px value for the editor controls is the
+  plan's (C15, E1); check it against the file when a gate runs.
+- Canvas handles are drawn 8 × 8 with a 12 px hit area. With a coarse pointer they are 44 px, and only the `se`, `e` and `s` handles
+  get that size.
+- Selection, focus and drag never change the layout: the outline, the ring and the handles are drawn over the frame.
+
+### Fields and borders
+
+- Field, select, segmented, device-box and swatch borders are `color-mix(in srgb, var(--vd-text) 60%, var(--vd-mat-field-color, var(--vd-theme-control-bg)))`
+  (the `.hd-root :is(.hd-f-input, .hd-f-select, .hd-f-seg, .hd-ep-box, .hd-f-swatch)` rule). The 60 % is the starting value.
+- The gate E-T decides it: each border must reach 3:1 against its own surface in all 16 variants (Q17). Until the gate passes,
+  the value is unverified.
+
+### States and focus
+
+- Save chip: `.hdx-save[data-phase]` in the host and `.hd-save[data-phase]` in the engine bar, with the phases of the engine guide.
+  The text box keeps at least 22 characters, so a phase change does not move the bar. The chip is not a live region; the
+  engine announces the transitions.
+- Focus ring on bar controls: `--hdx-e-ring` (the theme focus outline). On the canvas: the `--hd-focus` ring, drawn as a box-shadow so
+  the layout does not move.
+- Disabled: `aria-disabled="true"` for an unavailable control only. Read-only never sets `aria-disabled` (M3 rule, unchanged in M4).
+
+### Motion
+
+- Motion appears only inside `@media (prefers-reduced-motion: no-preference)`, on selectors that start with
+  `body:not([data-animations="false"])`. Reduced or no motion (`data-hd-motion`) turns it off.
+- Widget moves transition `transform` for 140 ms. The flip after a drop and the dragged frame have no transition. A dragged item
+  follows the pointer through `--hd-e-dx/dy` without a transition.
+
+### Gates
+
+- E-S (Q1: Fruity light and Fruity dark, placeholder theme), E-F (the focus gate; its states are staged by the gate test) and E-T
+  (the 16 variants of `parseDesktopThemeRegistry`, 1x and 2x, only with `HOMEDASH_M4_SHOTS=all`, Q15).
+- Run: `ui/desktop_homedash_designer_gates_test.go` with `HOMEDASH_M4_SHOTS` (`1` or `all`), `HOMEDASH_M4_DIR` (required; the sheets
+  go there, never into the repository), and `HOMEDASH_M4_LANG` (`en` default, `de` for the German pass). `HOMEDASH_M4_STATES` is a
+  development filter. The run command is in `ui/js/homedash/AGENTS.md`, "Designer (M4)".
+- The probe definitions are in the gate test file. This section states the thresholds that apply: 3:1 for field borders and for
+  `--hd-focus` on cards and canvas, 44 px coarse targets, and the muted text pairs on the bar and side panels. A threshold is never
+  lowered to pass a sheet.
+- The gate runs are not recorded in this file. The hand-over (F5) lists the directories and dates.
+
+### Sheet locations
+
+- Engine sheets (`E.sheet`, `.hd-sheet-layer > .hd-sheet[data-kind=confirm|conflict|leave|form]`) sit in the `.hd-root` of the open dashboard.
+  The conflict and leave sheets reuse the confirm paint.
+- Home-mode sheets (the import sheets, reached from the home screen) are built on the host's `.hdx-app`, because the engine root is hidden
+  there. The host passes `ui.sheetHost()`.
+- The look editor is a modal form docked at the end edge with no scrim (Q3, `data-kind=form`). The canvas stays visible and live.
+
+## M4 lead rulings
+
+One line each. These bind the designer controls of M4 and later editor work. The lead decisions are the plan's Decisions section
+(`docs/superpowers/plans/2026-11-26-homedash-m4-designer.md`).
+
+- **Q1 placeholder theme:** the E-S gate uses Fruity light and Fruity dark.
+- **Q2 overlays:** canvas overlays use `--hd-focus`.
+- **Q3 look editor:** an end-docked modal sheet with no scrim and a live canvas.
+- **Q4 view mode:** rename, look and add page enter edit first.
+- **Q7 German:** "Du" everywhere; no formal address in any string of parts 1 and 2.
+- **Q9 states:** monochrome; one accent.
+- **Q10 icons:** icon names are translated (`homedash.icon.<name>`), and the icon search matches the label.
+- **Q11 thumbs:** capped at 2×2.
+- **Q13 area options:** come from the loaded rows.
+- **Q15 gates:** E-T runs only with `HOMEDASH_M4_SHOTS=all`; CI skips the gates test.
+- **Q16 details:** "Show details" only for lights.
+- **Q17 borders:** field and segmented borders are probed at 3:1 in all 16 variants; the editor CSS draws them from `--vd-*`.
+- **Reading 4 accent:** only Done and the empty page's primary action use an accent fill.
+- **Reading 5 muted text:** on the bar and the side panels, muted text is `--vd-theme-muted`.

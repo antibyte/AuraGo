@@ -41,6 +41,11 @@ review process are in `documentation/homedash-visual-system.md`. Desktop chrome 
 - Shared files this guide does not own but whose HomeDash entries it relies on: `scripts/build-ui-bundles.js` (`cssBundles`),
   `package.json` (`test:homedash`), `ui/desktop_js_line_budget_test.go` (walks `ui/js/homedash`), and the `lang/homedash` case of
   `TestTranslations_SectionFilesOnlyOwnPrefixes` in `ui/i18n_lint_test.go`.
+- M4 designer (all in `ui/js/homedash/`): the new files `hd-clipboard.js`, `hd-commands.js`, `hd-save.js`, `hd-gestures.js`,
+  `hd-editbar.js`, `hd-designer.js` and the part-2 files `hd-form.js`, `hd-samples.js`, `hd-palette.js`, `hd-entity-picker.js`,
+  `hd-inspector.js`, `hd-look.js`, `hd-designer-dialogs.js`; plus the M4 edits to `hd-app.js` (edit surface, realm lanes),
+  `hd-render.js` (design mode), `hd-store.js` (docs cache and lock), `hd-api.js` (save, validate, duplicate, entities) and
+  `hd-catalog.js` (`pickWidgetFor`, palette groups). The contract and the test commands are in "Designer (M4)" below.
 - Not owned here: the desktop app shell and editor, and all backend code (`internal/homedash`, `internal/server`).
 
 ## Local Contracts
@@ -452,6 +457,211 @@ brightness capability, and the stepper spinbutton is named from `C.label` (the e
   against the resolved `--hd-canvas`, SVG graphics start at their own svg, and visually hidden text is skipped. Exact rules and
   what the probes cannot see: `documentation/homedash-visual-system.md`.
 - Never weaken a probe threshold to make a sheet pass. A real failure is fixed or reported, not hidden by `HOMEDASH_LAB_REPORT_ONLY=1`.
+
+## Designer (M4)
+
+The designer turns an open dashboard into an edit surface. It is engine code: `E.mount` (`hd-app.js`) owns the mode and the
+realm lane, and `E.designer` (`hd-designer.js`) owns the document while a window edits it. The contract (C1 to C20) was frozen in
+the M4 plan (`docs/superpowers/plans/2026-11-26-homedash-m4-designer.md`); this section describes the code. Where the plan and the
+code differ, the code is the truth and the difference is listed under "Plan differences" at the end of this section.
+
+### Load order and globals (C1)
+
+- `APP_ORDER` (`scripts/homedash-tests/harness.mjs`) is the M2/M3 list, then `hd-clipboard.js`, `hd-commands.js`, `hd-save.js`,
+  `hd-gestures.js`, `hd-editbar.js` (the M4 core), then the part-2 slot `hd-form.js`, `hd-samples.js`, `hd-palette.js`,
+  `hd-entity-picker.js`, `hd-inspector.js`, `hd-look.js`, `hd-designer-dialogs.js`, then `hd-designer.js` and `hd-app.js`.
+  The desktop module-loader entry `homedash` and `TestHomeDashWiring` pin the same order. The host scripts follow it.
+- No designer file touches the DOM at load. `hd-designer.js` needs `E.commands`, `E.save`, `E.gestures`, `E.editbar` and
+  `E.clipboard` at load; `E.palette`, `E.inspector` and `E.ddialogs` are feature-detected at call time. The kiosk (M6) never loads these files.
+
+| File | Global | Exports (as written in the code) |
+| --- | --- | --- |
+| `hd-clipboard.js` | `E.clipboard` | `KEY`, `MAX_BYTES`, `MAX_WIDGETS`, `encode`, `decode`, `sanitizeWidget`, `channel` |
+| `hd-commands.js` | `E.commands` | `NUDGE_MS`, `FIELD_MS`, `LIMITS`, the builders (`layout` … `setDoc`), `entry`, `keymap`, `spatial`, `readingOrder` |
+| `hd-save.js` | `E.save` | `BACKOFF`, `DEBOUNCE_MS`, `KEEPALIVE_MAX`, `DOC_MAX`, `ERROR_CODES`, `lane`, `classify`, `utf8Bytes`, `errorText`, `conflictSheet`, `leaveSheet`, `draftsSheet` |
+| `hd-gestures.js` | `E.gestures` | `THRESHOLD_CANVAS`, `THRESHOLD_PALETTE`, `HOLD_TOUCH_MS`, `TOUCH_LIST`, `EDGE_PX`, `SCROLL_MAX`, `EDGES`, `math`, `create` |
+| `hd-editbar.js` | `E.editbar` | `create` (48 px bar; phases `saved saving retrying invalid conflict readonly gone`) |
+| `hd-designer.js` | `E.designer` | `create`, `ACTIONS`, `DRAWER_BELOW` (900) |
+| `hd-form.js` | `E.form` | `roving`, `gridMove`, `runes`, `fold`, `textIssue`, `field`, `text`, `number`, `select`, `toggle`, `segmented`, `colour`, `range`, `tabs`, `button`, `section`, `iconGrid`, `formSheet` |
+| `hd-samples.js` | `E.samples` | `CELL`, `GAP`, `entities`, `history`, `thumbSize`, `pxOf`, `scaleFor`, `thumb` |
+| `hd-palette.js` | `E.palette` | `create`, `model` (`fold`, `filterGroups`, `entInit`, `entReduce`, `entRequest`, `watchIds`, `listView`, `ENT_LIMIT` 200, `WATCH_MAX` 20, …) |
+| `hd-entity-picker.js` | `E.entityPicker` | `create`, `model` (`requests`, `merge`, `sourcesOf`, `LIMIT`) |
+| `hd-inspector.js` | `E.inspector` | `create`, `TABS`, `model` (`fieldFor`, `commitValue`, `actionChoices`, `actionValue`, `structureKey`, `familyCount`, `draftOf`) |
+| `hd-look.js` | `E.look` | `open`, `model` (`custom`, `paletteFor`, `radius`, `swatches`, `previewWidgets`, `hueOf`, the option lists) |
+| `hd-designer-dialogs.js` | `E.ddialogs` | `ACTIONS`, `run`, `pageMenu`, `enhanceTabs`, `exportFile`, `importDocument`, `newChoices`, `nameError`, `targetIndex`, `slugify`, `IMPORT_MAX` |
+
+The part-2 `model` objects are pure helpers for the Node tests. No part-1 code reads them.
+
+### Mount surface (C2, `hd-app.js`)
+
+- Options: `canEdit` (default true), `ui: {menu, focusWindow, sheetHost}` (the host functions; `sheetHost()` returns the element that
+  carries the sheet layers while the engine root is hidden on the home screen), `storage`.
+- Methods: `enterEdit({widgetId?})`, `exitEdit({force?})`, `run(action, arg)`, `contextMenu(event)`, `beforeClose()`.
+  `state().edit` is recomputed on every `set` (fields: `mode`, `canEdit`, `reason`, `editElsewhere`, `dirty`, `saving`, `phase`,
+  `nextRetryAt`, `errorCode`, `canUndo`, `canRedo`, `selection`, `bp`, `fit`, `drafts`, `hasClipboard`, `actions`).
+- Root `data-hd-mode` = `edit.mode` (`view` or `design`). Read-only (desktop policy or bootstrap) sets `canEdit` false.
+  `setReadonly(true)` while editing forces `exitEdit`; `setReadonly(false)` retries every realm lane.
+- Entering edit takes the realm lock (`store.docs.lock(id, ownerId)`), attaches the realm lane, then starts the designer. A failed
+  start unlocks, detaches and returns `false`.
+- `run` action owners (C2): the designer owns `undo redo cut copy paste duplicate delete select_all select_none reset_layout
+  retry_save resolve_conflict show_draft add_widget focus_inspector toggle_palette toggle_inspector layout_lg layout_md layout_sm
+  page_prev page_next` (`E.designer.ACTIONS`); `E.ddialogs` owns `new rename import export look add_page` (`E.ddialogs.ACTIONS`);
+  the app owns `new_starter new_empty new_ha open duplicate_dashboard delete_dashboard edit exit_edit show_editor layout_auto fit present`.
+  `rename`, `look` and `add_page` in view mode enter edit first, then run again (part-2 reading 8).
+- `delete_dashboard` uses the engine confirm sheet and is for the open dashboard only. Home-list delete stays on the host's own
+  confirm (Q6).
+- Realm lanes: a window's dirty lane outlives the window. `hd-app.js` listens for `pagehide` and flushes every dirty realm lane with
+  `keepalive`, and for `beforeunload` asks the browser to confirm while any lane reports `atRisk()`.
+- Reconcile (C2, C7; the rules of the plan, not re-checked line by line in this pass): a `doc` event is ignored unless its revision
+  is newer than the one shown. A newer revision in design mode goes to `designer.reconcile(...)`; in view mode it refetches unless
+  the cache is at least as new. A dashboard that is gone goes home in view mode, and goes to `designer.reconcile({gone: true})` in design mode.
+- `presence(owner, {focus} | null)` registers the window's focus handle; `show_editor` (another window holds the lock) calls
+  `store.docs.focusEditor(id)`. `editor(id)` and `unlock(id, owner)` return the owner and release the lock (`lock` event).
+
+### Designer controller (C4, C5, C6, C14, C16)
+
+- `E.designer.create(o)` returns `D` (`state`, `on`, `doc`, `exec`, `undo`, `redo`, `seal`, `replace`, `select`, `focusFrame`,
+  `setPage`, `setBreakpoint`, `addWidgets`, `slot`, `openPanel`, `closePanels`, `announce`, `toast`, `sheet`, `run`, `handles`,
+  `contextMenu`, `reconcile`, `prepareExit`, `flush`, `destroy`). `D.state()` is frozen and rebuilt on every change.
+- Every change goes through `exec(cmd)`: the command's `after` ops are applied, the command is pushed to history, the lane takes the
+  new document, the view re-renders, the selection is restored by id and the announcement is spoken. Pointer gestures commit once,
+  at pointer-up. Text fields pass `text: true` and call `seal()` on blur.
+- Commands are pure builders `(doc, args) → command | refusal | limit | null`. A refusal is `{refused: 'limit' | 'last_page'}`; a
+  limit is `{limit: 'min' | 'max' | 'edge' | 'blocked'}`. Limits: 12 pages, 120 widgets per page, 400 widgets (`E.commands.LIMITS`).
+  Nudge coalesces for 800 ms (`NUDGE_MS`), field edits for 1000 ms (`FIELD_MS`). `add`, `duplicate` and `paste` compact a compact
+  page with `E.grid.compact`, so the local document equals the reloaded one (F14).
+- History: `E.history.create({limit: 100})` per designer. History is cleared on dashboard switch, on "take theirs" and on a clean
+  reload, never on save, and dropped on exit.
+- Selection: click selects; Shift and Ctrl/Cmd toggle; marquee replaces (Shift adds); Ctrl+A selects the page; Escape clears;
+  switching page clears; the selection is filtered by id after every render, undo and reload.
+- Keys (`E.commands.keymap`, root listener, `preventDefault` on each consumed key, ignored while typing): Ctrl/Cmd+Z undo;
+  Ctrl/Cmd+Shift+Z and Ctrl+Y redo; Ctrl/Cmd+Alt+PageUp/PageDown page; Escape runs the escape ladder (gesture, drawer, selection,
+  then exit edit). Ctrl/Cmd+E (mount level) toggles edit mode. Ctrl+Alt+Arrow is not used (Spaces shortcuts).
+- Focus: the designer never leaves focus on `body`. Every command, undo, redo and run ends in `settleFocus()` (`hd-designer.js`),
+  which restores focus inside the root (the focused frame, else the page). Roving tabindex: one frame has `tabindex=0`.
+- Announcements go to one polite region (`.hd-live`). Repeated text gets a trailing NBSP so it is spoken again.
+
+### Save lane (C8, `hd-save.js`)
+
+- `E.save.lane({api, id, revision, doc, prepare, timers, debounceMs})`. Constants: `DEBOUNCE_MS` 800, `BACKOFF` 2, 4, 8, 16 and
+  then 30 s, `DOC_MAX` 262 144 bytes (a larger document fails locally with `limit_exceeded`), `KEEPALIVE_MAX` 61 440 bytes.
+- One PUT is in flight at a time. A PUT whose body is at most `KEEPALIVE_MAX` bytes is sent with `keepalive: true`, so it survives
+  a tab unload; a longer body is sent without it. `flush({keepalive})` only picks `settle(0)` against `settle(5000)`.
+- `flush()` while a PUT is open marks one follow-up (`flushAsk`). The follow-up goes out right after that PUT succeeds, without the
+  debounce. A failed PUT drops it. Residual window: a change made while a PUT is open is lost if the whole tab unloads before the
+  open PUT answers.
+- Generation counter: `conflict`, `overwrite` and `reset` start a new generation. A late answer of an older PUT changes nothing.
+- Error mapping: retry for status 0, 401, 408, 429 and 5xx (`retryAfter` wins); 409 goes to `conflict`; 404 to `gone`; 403 to
+  `readonly` until `retryNow()`; other 4xx (400, 413, 422 incl. `bad_json`, `limit_exceeded`) to `invalid` until the next `set`.
+- `atRisk()` tells the window whether a close could lose changes (a dirty body over `KEEPALIVE_MAX`, or an open PUT that is not
+  keepalive or has a queued follow-up). `hd-app.js` uses it for the `beforeunload` prompt.
+- Conflict choices: "Take theirs" (GET, `replace`, clear history, `reset`), "Keep mine" (`overwrite(currentRevision)`), "Save mine
+  as a copy" (create with a copy suffix, open the copy in edit mode; the original lane is discarded).
+- Sheets (`E.sheet`): `conflictSheet`, `leaveSheet` (mode `exit` uses `keep` / `leave` / `discard`; mode `close` uses
+  `close_keep` / `close_leave` / `close_discard`; the primary button depends on the phase), `draftsSheet`.
+
+### Store docs, lock and presence (C7, `hd-store.js`)
+
+- `store.docs`: `get(id)`, `put(id, doc)` (refuses an older revision, accepts an equal one, emits `doc`), `drop(id)`, `lock(id, owner)`,
+  `unlock(id, owner)`, `editor(id)`, `presence(owner, handle|null)`, `focusEditor(id)`. The lane saves the body with the new
+  revision (`Object.assign({}, ev.body, {revision})`).
+- The lock is per dashboard and per realm: one owner at a time. Other windows see `editElsewhere` and can focus the editor.
+
+### API (C9, `hd-api.js`) and catalog (C10, `hd-catalog.js`)
+
+- `saveDashboard(id, revision, document, extra)` (PUT `dashboard?id=`), `validateDocument(document, extra)` (POST
+  `dashboards/validate`), `duplicateDashboard(id, name?, extra)` (POST `dashboard/duplicate?id=`), `entities` and `entity` (C9).
+  `extra.keepalive` sets `init.keepalive`.
+- The server answers `422 invalid_document` with `bad_json` for an unknown field, so no client body may carry one (the save lane
+  strips the server-owned fields).
+- Catalog: `defaults()`, `pickWidgetFor(entity, registry)` (first catalog default with the entity's kind, device class and capability
+  when set; else `entity/tile`), `accepts`, `binding`, `optionSpecs`, `canToggle`, `families()`, `paletteTokens()` (at most 40),
+  `paletteGroups(registry)` in the order `control, climate, sensor, media, camera, status, layout`.
+
+### Clipboard (C11, `hd-clipboard.js`)
+
+- `encode(doc, pageId, ids)` writes `{"v":1,"widgets":[…]}` in reading order, without ids. `decode(text, {catalog, pages})` treats the
+  text as untrusted: length cap before parse, version 1, at most 120 entries, and each widget is rebuilt by `sanitizeWidget`
+  (catalog type and variant, text rules from `internal/homedash/sanitize.go`, entity ids through `ParseEntityID` grammar, typed options).
+- `channel({storage, win})` is one per realm (`realm.clipboard`); it notifies same-realm windows directly and other tabs through `storage`.
+
+### Gestures and render (C12, C13, `hd-gestures.js`, `hd-render.js`)
+
+- `E.input.track` drives every drag: primary pointer and main button only, thresholds 4 px (canvas) and 5 px (palette), touch
+  long-press 300 ms for an unselected frame. Commit kinds: `move`, `resize`, `marquee`, `add`, `rebind`. Cancel (Escape, pointer
+  cancel, blur, page switch, reconcile, exit) restores the start layout.
+- Auto-scroll within 48 px of the stage edge. Metrics are frozen at gesture start. The page is laid out at the preview width and
+  scaled with CSS zoom to the stage (`page.metrics().zoom`); gestures divide client coordinates by the zoom in `local()`.
+- `E.render.page({mode, bp, fit, describe, emptyAction})`: design mode uses `role=listbox` with `aria-multiselectable` on the page and
+  `role=option` on frames. Forced widths: lg `max(W, 960)`, md `clamp(W, 600, 768)`, sm `390` (`--hd-e-pw`).
+
+### Keyboard, DOM and CSS contract (C14, C15)
+
+- The DOM contract table is C15 in the plan. The styled selectors are in `ui/css/desktop-app-homedash.css` (editor chrome) and the
+  bundle parts (widgets and frames). Editor geometry is written as `--hd-e-*` (`fx`, `fy`, `dx`, `dy`, `pw`, `g`, `mx`, `my`, `mw`,
+  `mh`, `ax`, `ay`, `tw`, `th`, `ts`). Those are runtime variables, not design tokens. Host-local chrome variables are
+  `--hdx-e-*` (see the visual system page).
+- The designer root carries `data-hd-mode`, `data-hd-drawers`, `data-hd-panel`, `data-hd-gesture`, `data-hd-has-palette`,
+  `data-hd-has-inspector`. Drawers are used below 900 px root width.
+
+### Part 2 rules (C17 to C20)
+
+- **i18n prefixes.** Part 2 adds `palette.*`, `inspector.*`, `look.*`, `dialog.*`, `option.<key>.label|help`, `category.<cat>`,
+  `family.<id>`, `device_class.*` and `icon.<name>`. `homedash.icon.` is in the registered dynamic list (`ui/i18n_lint_test.go`).
+  Every key is a literal in the code, and every new key exists in all 16 locales.
+- **Forms.** `E.form` controls build the shared chrome (`hd-f-*` classes). A form dialog opens on `E.sheet` with no built-in
+  actions and its own `.hd-dlg-btn` buttons, so it can refuse to close while invalid. Text that the server refuses
+  (`E.form.textIssue`, the copy of the `ContainsControl` and `ContainsURL` rules) is flagged inline and never sent.
+- **Thumbs.** Palette thumbs render at their thumb size, capped at 2×2 (Q11), in 56 px cells with an 8 px gap.
+- **Entity browser.** Pages of 200 rows; area options come from the loaded rows (Q13); at most 20 visible rows have live state
+  through their own watch owner. The picker sends one request per allowed kind and filters with `catalog.accepts`.
+- **Look editor.** An end-docked modal sheet with no scrim (Q3). The canvas stays visible and updates live but is inert while the
+  sheet is open. The sheet is built on `ui.sheetHost()` when the engine root is hidden.
+- **Icons.** `E.icons.choices()` lists the icon names. Each has a translated label `homedash.icon.<name>`; the search matches the
+  label and the id, with accents folded (`E.form.fold`).
+
+### Fixture API (C18, Go, test-only)
+
+- The M4 fixture (`ui`, the Go test fixture) adds these routes: `PUT dashboard?id=` (queued answers, dropped connection, delay, revision
+  check with 409 `revision_conflict` and `current_revision`, lint with 422 `invalid_document`); `POST dashboards/validate`;
+  `POST dashboard/duplicate?id=` (201, name plus " (copy)"); `GET entities` with the filters `q`, `source`, `kind`, `area`, `limit`, `offset`.
+- Controls for the Go tests: `answerPut(status, body, times)`, `dropPut(n)`, `setPutDelay(d)`, `putLog()`, `foreignSave(t, id, savedBy, mutate)`,
+  `dashboardDoc(id)`. The lint codes follow the server's `validator.text` (empty or missing name and page name `required`, over the
+  limits `too_long`, more than 12 pages `too_many`).
+- The Go side is not re-read in this pass; the names are the plan's C18.
+
+### Icons (C19)
+
+- New glyph names: `undo redo copy cut paste edit duplicate panel-left panel-right window grip look layers align-left align-top search
+  device-desktop device-tablet device-phone fullscreen sync cloud-off arrow-right`. `E.icons.choices()` lists the names that are not UI glyphs.
+
+### Tests and commands (M4)
+
+- Node (`npm run test:homedash`, all suites): `clipboard.test.mjs`, `commands.test.mjs`, `save.test.mjs`, `designer.test.mjs`,
+  `palette.test.mjs`, `inspector.test.mjs`, `dialogs.test.mjs`, plus `wiring.test.mjs` (APP_ORDER) and `i18n.test.mjs` (the
+  locale key sets and the allowlist of English-equal values; each allowlist entry needs a reason).
+- Go, no browser: `go test ./ui -run '(?i)^(TestHomeDashWiring|TestHomeDashFixture.*|TestTranslations_.*|TestFrontend_StaticI18nKeysExistInEnglishBundle|TestFrontend_JS_NoLiteralTranslationFallbacks|TestDesktopDynamicI18nPrefixKeysExistInAllLanguages|TestDesktopAppMaterialsAdoptedByApps)$' -count=1`
+  and `go vet ./ui`. The Go tests that read embedded files need a real build, not `-overlay`.
+- Gates (browser, Chrome, shell sandbox off, outside the repository): `HOMEDASH_M4_SHOTS=1` runs gates E-S and E-F; `HOMEDASH_M4_SHOTS=all`
+  adds E-T (16 variants at 1x and 2x). `HOMEDASH_M4_DIR` is required and receives the sheets, never the repository.
+  `HOMEDASH_M4_LANG` (default `en`; `de` for the German pass) and `HOMEDASH_M4_STATES` (a regexp for development) are optional.
+  The test is `TestDesktopHomeDashDesignerGatesBrowser` in `ui/desktop_homedash_designer_gates_test.go`; CI skips it.
+
+  ```powershell
+  go test -c -o D:\tmp\go-build\hd-m4-ui.test.exe ./ui
+  Set-Location ui
+  $env:AURAGO_RUN_BROWSER_SMOKE='1'; $env:HOMEDASH_M4_SHOTS='1'; $env:HOMEDASH_M4_DIR='C:\disposable\homedash-m4\<run>'
+  & D:\tmp\go-build\hd-m4-ui.test.exe '-test.run=^TestDesktopHomeDashDesignerGatesBrowser$' '-test.v' '-test.timeout=30m'
+  ```
+
+- After adding or renaming a browser test, run `go test ./internal/audit -run '^TestUIBrowserCIShardsCoverEveryTest$' -count=1`.
+
+### Plan differences (M4 code against the plan text)
+
+- The test files `form`, `look`, `samples` and `entity-picker` have no Node suite in `scripts/homedash-tests/` (the palette, inspector,
+  dialogs, clipboard, commands, save and designer suites exist). Their behaviour is covered by the designer and the browser gates.
+- `hd-app.js` listens for `pagehide` and `beforeunload` on the window; the host `homedash.js` does not. The plan places both in the
+  mount, and the code agrees.
 
 ## Work Guidance
 

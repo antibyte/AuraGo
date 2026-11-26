@@ -75,6 +75,37 @@
 - Read-only from commands (M3): the engine's `readonly` event with `desktop: true` (a `desktop_readonly` answer to a command) switches the window to the read-only desktop: the create items are disabled, Home shows no create or delete buttons, and the dashboard view shows the read-only banner. The engine's per-entity locks are shown on the controls only, not as a window state.
 - Tests: `npm run test:homedash` (the `host`, `home` and `app` suites), `TestHomeDashWiring`, `TestDesktopHomeDashControlsBrowser` (`ui/desktop_homedash_controls_browser_test.go`, run commands in `ui/js/homedash/AGENTS.md`) and `TestDesktopHomeDashBrowser` (`ui/desktop_homedash_browser_test.go`, run commands in `ui/js/homedash/AGENTS.md`), and `go test ./internal/desktop -count=1`.
 
+- HomeDash M4 designer host (`homedash.js`; the engine side is in `ui/js/homedash/AGENTS.md`, "Designer (M4)"):
+  - Mount options: `canEdit: true`; `ui.menu` maps to `ctx.showContextMenu` through `toDesktopItems`; `ui.focusWindow` to `ctx.focusWindow`;
+    `ui.sheetHost` returns the host's `.hdx-app` element.
+  - Window menus (`ctx.setWindowMenus`), item sets as in contract C3 of the engine guide: the Dashboard menu (home mode: New, Open,
+    Import, Reload; with a dashboard: Rename, Duplicate, Delete, Export and Import added), the Edit menu (undo, redo, cut, copy,
+    paste, duplicate, delete, select all) and the View menu (Edit mode, Layout, Fit to screen, Present). Items come from
+    `edit.actions`, so `disabled` and `checked` follow the engine. Keyboard shortcuts are display only: items carry `shortcutHint` and never `shortcut`, because
+    `handleWindowMenuShortcut` only matches `shortcut`. The desktop shell keys stay in the engine's own root listener.
+  - Context menus: `wireContextMenuBoundary(root, {onContextMenu})` asks `inst.contextMenu(ev)` and shows its items. `toDesktopItems`
+    maps engine icon ids to desktop icon names with a text-glyph fallback, shows `shortcutHint` as the shortcut label, and leaves out
+    items whose action is unavailable (plan rule B7; `{separator: true}` entries are kept).
+  - Close guard: `ctx.setWindowBeforeClose(id, () => inst.beforeClose())`, cleared with `null` on dispose. A dirty lane or a lane at
+    risk makes the close ask first (the engine's leave sheet, see the save lane in the engine guide).
+  - Edit chrome in the host bar: `button.hdx-btn.hdx-edit[data-action=edit][aria-keyshortcuts="Control+E"]` (shown in view mode when the
+    dashboard can be edited and no other window holds it); `div.hdx-elsewhere` with `button[data-action=show-editor]` when another
+    window is editing; `div.hdx-save[data-phase]` in view mode when a lane of the open dashboard is not saved, with
+    `button[data-action=retry-save]` while retrying. `.hdx-app[data-hdx-edit=design|view]` is written on every change, and
+    `.hdx-app[data-hdx-edit="design"] > .hdx-bar` is hidden (the engine edit bar replaces it). Host banners stay visible in design mode.
+  - Empty dashboard and first run: "Empty" on the home screen creates the dashboard and enters edit mode at once (`createEmptyAndEdit`,
+    when `canEdit` and the view is not already editing). "Import…" is on the home screen (first run and list head) and in the
+    Dashboard menu in home mode (`onImport` → `run('import')`).
+  - Home-list delete keeps the host's own `sheet.confirm` and then removes the card (Q6). The open dashboard uses the engine confirm.
+  - Sheets: the engine's `E.sheet` layer sits in `.hd-root` while a dashboard is open. On the home screen the engine root is hidden,
+    so the import and other home-mode sheets are built on `.hdx-app` (`sheetHost`). The plan text says "inside `.hd-root`" only; the
+    home-mode case is the code's behaviour (see "Plan differences" in the engine guide).
+  - Gate harness: the browser gates in `ui/desktop_homedash_designer_gates_test.go` are skipped unless `HOMEDASH_M4_SHOTS` is `1`
+    or `all`; they need `HOMEDASH_M4_DIR` (the sheets go there, never into the repository), and `HOMEDASH_M4_LANG` and
+    `HOMEDASH_M4_STATES` are optional. The engine guide has the run command.
+  - Tests: `npm run test:homedash` (the `host`, `home` and `app` suites), `TestHomeDashWiring`, `TestDesktopAppMaterialsAdoptedByApps`
+    and the gate test above.
+
 ## ECalc
 
 - `ecalc/` holds 31 classic scripts in this load order (module-loader entry `ecalc`, pinned by `TestECalcIsWiredIntoTheDesktopCore`; the count is checked as at least 21): the DOM-free core `ecalc-expr.js`, `ecalc-units.js`, `ecalc-eseries.js`, `ecalc-solve.js`, `ecalc-tables.js`, `ecalc-codes.js` (`window.ECalcCore`, a mirror of `internal/ecalc`; no `eval`, no `Function`), `ecalc-typeset.js`, `ecalc-symbols.js`, `ecalc-chart.js` (`window.ECalcChart.svg(spec, sample)`, a DOM-free SVG string builder), the twelve schematics files `ecalc-schematics-<category>.js` (basics first, then digital, drives, filters, opamps, passive, power, rf, semiconductors, sensors, timers, wiring; each exactly `window.ECalcSchematics = Object.assign(window.ECalcSchematics || {}, {JSON});`, one file per calculator category, ids unique across the files), `ecalc-store.js`, `ecalc-calc-page.js`, `ecalc-table-page.js`, `ecalc-materials.js` (`window.ECalcMaterials`, before the drawings), `ecalc-code-draw.js`, `ecalc-code-page.js`, `ecalc-pinout-draw.js`, `ecalc-pinout-page.js`, `ecalc-shell.js`, then the composition root `ecalc.js` (`window.ECalcApp = { render, dispose, launch }`). Style: `css/desktop-app-ecalc.css`, tokens only, motion gated. The catalog comes from `GET /api/ecalc/catalog?lang=` once per window; every string is a `desktop.ecalc_*` key.
