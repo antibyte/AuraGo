@@ -162,6 +162,55 @@ func TestDesktopHomeDashLiveHABrowser(t *testing.T) {
 	if st, ok := ha.State("light.kitchen"); !ok || st.State != "on" {
 		t.Fatalf("fake Home Assistant kitchen light = %+v", st)
 	}
+	// M4 (D13): edit and save against the real handlers. The designer's forSave body (kiosk block, theme snapshot, a widget added from the device
+	// browser through pickWidgetFor) must pass the strict decoder and the validator.
+	type hdDash struct {
+		Dashboard map[string]any `json:"dashboard"`
+	}
+	var list struct {
+		Dashboards []struct {
+			ID       string `json:"id"`
+			Revision int    `json:"revision"`
+		} `json:"dashboards"`
+	}
+	hdDecode(t, env.do(t, env.admin, http.MethodGet, "dashboards", nil), &list)
+	if len(list.Dashboards) != 1 {
+		t.Fatalf("dashboards = %+v", list.Dashboards)
+	}
+	dashID, rev0 := list.Dashboards[0].ID, list.Dashboards[0].Revision
+	server := func() map[string]any { var d hdDash; hdDecode(t, env.do(t, env.admin, http.MethodGet, "dashboard?id="+dashID, nil), &d); return d.Dashboard }
+	waitRev := func(after int) map[string]any {
+		var d map[string]any
+		sourcetest.WaitFor(t, 15*time.Second, func() bool { d = server(); n, _ := d["revision"].(float64); return int(n) > after }, "a saved revision")
+		return d
+	}
+	page.MustEval(`()=>document.querySelector('.hdx-edit').click()`)
+	until(10*time.Second, "design mode", `()=>!!document.querySelector('.hd-root[data-hd-mode="design"] .hd-editbar')`)
+	page.MustEval(`()=>document.querySelector('.hd-root[data-hd-mode="design"] [data-hd-wid="w2"]').focus()`)
+	page.Keyboard.MustType(input.ArrowRight)
+	d1 := waitRev(rev0)
+	page.MustEval(`()=>document.querySelector('.hd-palette .hd-f-tab[data-tab="entities"]').click()`)
+	until(15*time.Second, "the kitchen light row", `()=>!!document.querySelector('.hd-ent-row[data-entity="ha:light.kitchen"]')`)
+	page.MustEval(`()=>document.querySelector('.hd-ent-row[data-entity="ha:light.kitchen"]').click()`)
+	d2 := waitRev(int(d1["revision"].(float64)))
+	found := false
+	for _, p := range d2["pages"].([]any) {
+		for _, w := range p.(map[string]any)["widgets"].([]any) {
+			wm := w.(map[string]any)
+			if b, _ := wm["bindings"].(map[string]any); b != nil && b["primary"] == "ha:light.kitchen" && wm["type"] == "light" {
+				found = true
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("no light widget for ha:light.kitchen in %v", d2["pages"])
+	}
+	pal := d2["look"].(map[string]any)["palette"].(map[string]any)
+	if snap, _ := pal["snapshot"].(map[string]any); pal["mode"] == "theme" && (len(snap) == 0 || len(snap) > 40) {
+		t.Fatalf("theme snapshot = %v", pal["snapshot"])
+	}
+	page.MustEval(`()=>document.querySelector('.hd-eb-done').click()`)
+	until(10*time.Second, "view mode", `()=>document.querySelector('.hdx-view .hd-root').dataset.hdMode==='view'`)
 
 	if strings.Contains(page.MustEval(`()=>document.body.textContent`).Str(), hasstest.UpstreamSecret) {
 		t.Fatal("Home Assistant text reached the page")
