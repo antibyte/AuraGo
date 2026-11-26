@@ -744,6 +744,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		if err := config.ValidateAgentMailWebSocketURL(validateCfg.AgentMail.WebSocketURL); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		if err := config.ValidateTelnyxOwner(&validateCfg); err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return

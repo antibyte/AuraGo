@@ -22,7 +22,7 @@ func (s *Server) mailerDraftsHTTP(w http.ResponseWriter, r *http.Request, p []st
 		case len(p) == 1 && r.Method == http.MethodPost:
 			var body mailer.SendRequest
 			if err := decodeMailerJSON(w, r, &body, 8192); err != nil {
-				mailerJSON(w, 400, map[string]string{"error": "invalid_request"})
+				mailerDecodeFailed(w, err)
 				return
 			}
 			item, err := s.Mailer.QueueSend(ctx, body)
@@ -70,7 +70,7 @@ func (s *Server) mailerDraftsHTTP(w http.ResponseWriter, r *http.Request, p []st
 	if (len(p) == 1 && r.Method == http.MethodPost) || (len(p) == 2 && r.Method == http.MethodPut) {
 		var body mailer.Draft
 		if err := decodeMailerJSON(w, r, &body, 1<<20); err != nil {
-			mailerJSON(w, 400, map[string]string{"error": "invalid_request"})
+			mailerDecodeFailed(w, err)
 			return
 		}
 		if len(p) == 1 {
@@ -117,8 +117,8 @@ func (s *Server) mailerDraftsHTTP(w http.ResponseWriter, r *http.Request, p []st
 				MessageID    string `json:"message_id"`
 				AttachmentID string `json:"attachment_id"`
 			}
-			if decodeMailerJSON(w, r, &body, 4096) != nil || body.MessageID == "" || body.AttachmentID == "" {
-				mailerHTTPError(w, mailer.ErrInvalid)
+			if err := decodeMailerJSON(w, r, &body, 4096); err != nil || body.MessageID == "" || body.AttachmentID == "" {
+				mailerDecodeFailed(w, err)
 				return
 			}
 			draft, err := s.Mailer.GetDraft(ctx, p[1])

@@ -5,6 +5,7 @@ import (
 	"aurago/internal/security"
 	"aurago/internal/tools"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -368,6 +369,11 @@ func handleGetEmailAccounts(s *Server, w http.ResponseWriter, _ *http.Request) {
 func handlePutEmailAccounts(s *Server, w http.ResponseWriter, r *http.Request) {
 	var incoming []emailAccountJSON
 	if err := decodeMailerJSON(w, r, &incoming, 128<<10); err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			jsonError(w, "Request body too large", http.StatusRequestEntityTooLarge)
+			return
+		}
 		jsonError(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}

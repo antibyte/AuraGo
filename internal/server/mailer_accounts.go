@@ -83,8 +83,8 @@ func (s *Server) handleMailerCreateAccount(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	var body mailerCreateAccountRequest
-	if decodeMailerJSON(w, r, &body, 32<<10) != nil {
-		mailerHTTPError(w, mailer.ErrInvalid)
+	if err := decodeMailerJSON(w, r, &body, 32<<10); err != nil {
+		mailerDecodeFailed(w, err)
 		return
 	}
 	if body.GogAccountID != "" && (body.ReceiveProtocol == "" || body.ReceiveProtocol == "gmail_api") {

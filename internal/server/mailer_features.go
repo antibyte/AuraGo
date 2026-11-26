@@ -28,7 +28,7 @@ func (s *Server) mailerFeaturesHTTP(w http.ResponseWriter, r *http.Request, p []
 		if (len(p) == 1 && r.Method == http.MethodPost) || (len(p) == 2 && r.Method == http.MethodPut) {
 			var body mailer.Template
 			if err := decodeMailerJSON(w, r, &body, 128<<10); err != nil {
-				mailerJSON(w, 400, map[string]string{"error": "invalid_request"})
+				mailerDecodeFailed(w, err)
 				return
 			}
 			if len(p) == 2 {
@@ -80,7 +80,7 @@ func (s *Server) mailerFeaturesHTTP(w http.ResponseWriter, r *http.Request, p []
 				MessageIDs []string    `json:"message_ids"`
 			}
 			if err := decodeMailerJSON(w, r, &body, 64<<10); err != nil {
-				mailerJSON(w, 400, map[string]string{"error": "invalid_request"})
+				mailerDecodeFailed(w, err)
 				return
 			}
 			items, err := s.Mailer.PreviewRule(ctx, body.Rule, body.MessageIDs)
@@ -103,7 +103,7 @@ func (s *Server) mailerFeaturesHTTP(w http.ResponseWriter, r *http.Request, p []
 				Revision   int64    `json:"revision"`
 			}
 			if err := decodeMailerJSON(w, r, &body, 64<<10); err != nil {
-				mailerJSON(w, 400, map[string]string{"error": "invalid_request"})
+				mailerDecodeFailed(w, err)
 				return
 			}
 			if err := s.Mailer.ApplyRule(ctx, p[1], body.Revision, body.MessageIDs); err != nil {
@@ -116,7 +116,7 @@ func (s *Server) mailerFeaturesHTTP(w http.ResponseWriter, r *http.Request, p []
 		if (len(p) == 1 && r.Method == http.MethodPost) || (len(p) == 2 && r.Method == http.MethodPut) {
 			var body mailer.Rule
 			if err := decodeMailerJSON(w, r, &body, 64<<10); err != nil {
-				mailerJSON(w, 400, map[string]string{"error": "invalid_request"})
+				mailerDecodeFailed(w, err)
 				return
 			}
 			if len(p) == 2 {

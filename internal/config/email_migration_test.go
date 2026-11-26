@@ -48,3 +48,16 @@ func TestValidateAgentMailBaseURL(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateAgentMailWebSocketURL(t *testing.T) {
+	for _, raw := range []string{"", "wss://ws.agentmail.to/v0", "WSS://relay.example.test:8443/v0"} {
+		if err := ValidateAgentMailWebSocketURL(raw); err != nil {
+			t.Fatalf("valid URL %q: %v", raw, err)
+		}
+	}
+	for _, raw := range []string{"ws://ws.agentmail.to/v0", "https://ws.agentmail.to", "wss://", "wss://u:p@relay.example.test", "wss://relay.example.test?key=x", "wss://relay.example.test#f", "//relay.example.test"} {
+		if err := ValidateAgentMailWebSocketURL(raw); err == nil {
+			t.Fatalf("accepted invalid websocket URL %q", raw)
+		}
+	}
+}

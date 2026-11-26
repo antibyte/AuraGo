@@ -17,7 +17,7 @@ import (
 // result becomes unclassified) or can append a second "status" key. Lower the
 // baseline whenever call sites move to toolErrorJSON/toolErrorf
 // (internal/agent) or tools.ErrorJSON/ErrorJSONf (internal/tools).
-const toolErrorJSONSprintfBaseline = 228
+const toolErrorJSONSprintfBaseline = 185
 
 var (
 	sprintfBacktickLiteral = regexp.MustCompile("Sprintf\\(\\s*`([^`]*)`")

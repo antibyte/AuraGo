@@ -66,6 +66,18 @@ func boundedRunes(s string, maxRunes int) string {
 	return s
 }
 
+// isolateEmailField fences one fetched-mail field as external data. Without a guardian the
+// field still gets the plain external-data boundary instead of reaching the model raw.
+func isolateEmailField(guardian *security.Guardian, value string) string {
+	if value == "" {
+		return value // nothing to isolate; skip the wrapper's token cost
+	}
+	if guardian == nil {
+		return security.IsolateExternalData(value)
+	}
+	return guardian.SanitizeToolOutput("email", value)
+}
+
 func sanitizeFetchedEmails(ctx context.Context, logger *slog.Logger, guardian *security.Guardian, llmGuardian emailContentEvaluator, scanEmails bool, messages []tools.EmailMessage) []tools.EmailMessage {
 	if len(messages) == 0 {
 		return messages
@@ -135,10 +147,13 @@ func sanitizeFetchedEmails(ctx context.Context, logger *slog.Logger, guardian *s
 					continue
 				}
 
-				if guardian != nil {
-					msg.Body = guardian.SanitizeToolOutput("email", msg.Body)
-					msg.Snippet = guardian.SanitizeToolOutput("email", msg.Snippet)
-				}
+				// Every header is attacker-controlled, not only the body: isolate each field.
+				msg.From = isolateEmailField(guardian, msg.From)
+				msg.To = isolateEmailField(guardian, msg.To)
+				msg.Subject = isolateEmailField(guardian, msg.Subject)
+				msg.Date = isolateEmailField(guardian, msg.Date)
+				msg.Body = isolateEmailField(guardian, msg.Body)
+				msg.Snippet = isolateEmailField(guardian, msg.Snippet)
 				sanitized[idx] = msg
 			}
 		}()
@@ -169,7 +184,7 @@ func dispatchEmailCases(ctx context.Context, tc ToolCall, dc *DispatchContext) (
 		if req.Account != "" {
 			acct = cfg.FindEmailAccount(req.Account)
 			if acct == nil {
-				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Email account '%s' not found. Use list_email_accounts to see available accounts."}`, req.Account), true
+				return toolErrorf("Email account '%s' not found. Use list_email_accounts to see available accounts.", boundedRunes(req.Account, logTextRunes)), true
 			}
 		} else {
 			acct = defaultAgentEmailAccount(cfg)
@@ -178,7 +193,7 @@ func dispatchEmailCases(ctx context.Context, tc ToolCall, dc *DispatchContext) (
 			return `Tool Output: {"status": "error", "message": "No active email account configured. Enable an account in Settings > Email."}`, true
 		}
 		if acct.Disabled || !acct.AllowsAgentAccess() {
-			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Email account '%s' is disabled. Enable it in Settings > Email."}`, acct.ID), true
+			return toolErrorf("Email account '%s' is disabled. Enable it in Settings > Email.", acct.ID), true
 		}
 		logger.Info("LLM requested email fetch", "account", acct.ID, "folder", req.Folder)
 		folder := req.Folder
@@ -196,7 +211,7 @@ func dispatchEmailCases(ctx context.Context, tc ToolCall, dc *DispatchContext) (
 			folder, limit, logger,
 		)
 		if err != nil {
-			return fmt.Sprintf(`Tool Output: {"status": "error", "message": "IMAP fetch failed (%s): %v"}`, acct.ID, err), true
+			return toolErrorf("IMAP fetch failed (%s): %v", acct.ID, err), true
 		}
 		messages = sanitizeFetchedEmails(ctx, logger, guardian, llmGuardian, cfg.LLMGuardian.ScanEmails, messages)
 		result := tools.EmailResult{Status: "success", Count: len(messages), Data: messages, Message: fmt.Sprintf("Account: %s", acct.ID)}

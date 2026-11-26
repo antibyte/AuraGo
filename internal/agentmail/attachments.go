@@ -136,7 +136,9 @@ func PrepareAttachments(maxAttachmentMB int, inputs []AttachmentInput, openFile 
 
 		path := strings.TrimSpace(input.Path)
 		if path == "" {
-			continue
+			// A descriptor with neither a path nor base64 data must not vanish silently:
+			// the send would go out without a file the caller believes is attached.
+			return nil, fmt.Errorf("attachment %q has neither a path nor base64 data", input.Filename)
 		}
 		if openFile == nil {
 			return nil, fmt.Errorf("workspace attachment reader is not configured")

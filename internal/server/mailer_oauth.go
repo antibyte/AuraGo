@@ -112,7 +112,7 @@ func mailerOAuthRedirect(r *http.Request, cfg *config.Config) string {
 }
 
 func mailerOAuthSetCookie(w http.ResponseWriter, r *http.Request, cfg *config.Config, nonce string) {
-	secure := r.TLS != nil || strings.EqualFold(strings.TrimSpace(r.Header.Get("X-Forwarded-Proto")), "https")
+	secure := IsSecureRequest(r) // X-Forwarded-Proto counts only from a trusted proxy
 	if cfg != nil && cfg.Server.HTTPS.Enabled {
 		secure = true
 	}
@@ -121,7 +121,7 @@ func mailerOAuthSetCookie(w http.ResponseWriter, r *http.Request, cfg *config.Co
 }
 
 func mailerOAuthClearCookie(w http.ResponseWriter, r *http.Request, cfg *config.Config) {
-	secure := r.TLS != nil || strings.EqualFold(strings.TrimSpace(r.Header.Get("X-Forwarded-Proto")), "https")
+	secure := IsSecureRequest(r)
 	if cfg != nil && cfg.Server.HTTPS.Enabled {
 		secure = true
 	}
@@ -272,6 +272,7 @@ func (s *Server) beginMailerOAuth(w http.ResponseWriter, r *http.Request, accoun
 	if err != nil {
 		return nil, err
 	}
+	s.reapMailerOAuthStates(time.Now())
 	if err := s.Vault.WriteSecret(mailerOAuthStatePrefix+p.State, string(data)); err != nil {
 		return nil, err
 	}
@@ -384,7 +385,7 @@ func (s *Server) handleMailerOAuthStart(w http.ResponseWriter, r *http.Request) 
 		AccountID string `json:"account_id"`
 	}
 	if err := decodeMailerJSON(w, r, &body, 4096); err != nil || strings.TrimSpace(body.AccountID) == "" {
-		mailerJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid_request"})
+		mailerDecodeFailed(w, err)
 		return
 	}
 	cfg := s.ConfigSnapshot()
@@ -493,15 +494,56 @@ func microsoftMailerScopes(a config.EmailAccount) []string {
 	if protocol == "pop3" {
 		scope = "https://outlook.office.com/POP.AccessAsUser.All"
 	}
+	if a.ReadOnly {
+		// A read-only account never sends, so it neither asks for nor stores a send-capable grant.
+		return []string{"offline_access", scope}
+	}
 	return []string{"offline_access", scope, "https://outlook.office.com/SMTP.Send"}
 }
 
 func microsoftMailerRequiredScopes(a config.EmailAccount) []string {
 	protocol := strings.ToLower(strings.TrimSpace(a.ReceiveProtocol))
+	scope := "https://outlook.office.com/IMAP.AccessAsUser.All"
 	if protocol == "pop3" {
-		return []string{"https://outlook.office.com/POP.AccessAsUser.All", "https://outlook.office.com/SMTP.Send"}
+		scope = "https://outlook.office.com/POP.AccessAsUser.All"
 	}
-	return []string{"https://outlook.office.com/IMAP.AccessAsUser.All", "https://outlook.office.com/SMTP.Send"}
+	if a.ReadOnly {
+		return []string{scope}
+	}
+	return []string{scope, "https://outlook.office.com/SMTP.Send"}
+}
+
+// mailerOAuthReapBudget bounds how many pending-state entries one OAuth start inspects.
+const mailerOAuthReapBudget = 64
+
+// reapMailerOAuthStates deletes pending OAuth states that were emptied, are corrupt or have
+// expired, so abandoned flows do not keep a PKCE verifier in the Vault forever. Work per call
+// is bounded; the remaining entries are reaped by later starts.
+func (s *Server) reapMailerOAuthStates(now time.Time) {
+	if s == nil || s.Vault == nil {
+		return
+	}
+	keys, err := s.Vault.ListKeys()
+	if err != nil {
+		return
+	}
+	inspected := 0
+	for _, key := range keys {
+		if !strings.HasPrefix(key, mailerOAuthStatePrefix) {
+			continue
+		}
+		if inspected++; inspected > mailerOAuthReapBudget {
+			return
+		}
+		raw, err := s.Vault.ReadSecret(key)
+		if err != nil {
+			continue
+		}
+		var p mailerOAuthPending
+		if raw == "" || json.Unmarshal([]byte(raw), &p) != nil || p.ExpiresAt.IsZero() || now.After(p.ExpiresAt) {
+			_ = s.Vault.DeleteSecret(key)
+		}
+	}
 }
 
 func (s *Server) consumeMailerOAuthPending(r *http.Request, state string) (mailerOAuthPending, error) {
@@ -533,6 +575,8 @@ func (s *Server) consumeMailerOAuthPending(r *http.Request, state string) (maile
 	if err := s.Vault.CompareAndSwapSecret(mailerOAuthStatePrefix+state, raw, ""); err != nil {
 		return mailerOAuthPending{}, fmt.Errorf("OAuth state already consumed")
 	}
+	// The CAS above is the single-use guard; the emptied entry itself is dead weight.
+	_ = s.Vault.DeleteSecret(mailerOAuthStatePrefix + state)
 	security.RegisterSensitive(cookie.Value)
 	return p, nil
 }
@@ -1017,7 +1061,7 @@ func (s *Server) googleWorkspaceMailerScopeCapabilities() gog.MailerGmailScopes 
 }
 
 func (s *Server) microsoftMailerToken(ctx context.Context, a config.EmailAccount, grant string) (string, error) {
-	if grant == "delete" {
+	if grant == "delete" || (grant == "send" && a.ReadOnly) {
 		return "", fmt.Errorf("permission_denied")
 	}
 	clientSecret := s.mailerSecret("email_"+a.ID+"_oauth_client_secret", a.OAuthClientSecret)

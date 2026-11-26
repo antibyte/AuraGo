@@ -36,9 +36,25 @@ func decodeMailerJSON(w http.ResponseWriter, r *http.Request, dst any, maxBytes 
 	}
 	var trailing any
 	if err := decoder.Decode(&trailing); err != io.EOF {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			return err
+		}
 		return mailer.ErrInvalid
 	}
 	return nil
+}
+
+// mailerDecodeFailed answers a request body that decodeMailerJSON refused: 413 when it
+// exceeded the byte limit, 400 for anything else (err may be nil for a decoded but
+// semantically invalid body).
+func mailerDecodeFailed(w http.ResponseWriter, err error) {
+	var tooLarge *http.MaxBytesError
+	if errors.As(err, &tooLarge) {
+		mailerHTTPError(w, mailer.ErrTooLarge)
+		return
+	}
+	mailerHTTPError(w, mailer.ErrInvalid)
 }
 
 func mailerHTTPError(w http.ResponseWriter, err error) {
@@ -58,6 +74,8 @@ func mailerHTTPError(w http.ResponseWriter, err error) {
 		code, status = "capability_unavailable", http.StatusForbidden
 	case errors.Is(err, mailer.ErrStorageFull):
 		code, status = "storage_full", http.StatusInsufficientStorage
+	case errors.Is(err, mailer.ErrTooLarge):
+		code, status = "too_large", http.StatusRequestEntityTooLarge
 	}
 	mailerJSON(w, status, map[string]string{"error": code, "code": code})
 }
@@ -107,7 +125,7 @@ func (s *Server) handleMailer(w http.ResponseWriter, r *http.Request) {
 			if r.Method == http.MethodPost {
 				var settings mailer.Settings
 				if err := decodeMailerJSON(w, r, &settings, 4096); err != nil {
-					mailerJSON(w, 400, map[string]string{"error": "invalid_request"})
+					mailerDecodeFailed(w, err)
 					return
 				}
 				if err := s.Mailer.UpdateSettings(r.Context(), settings); err != nil {
@@ -126,7 +144,7 @@ func (s *Server) handleMailer(w http.ResponseWriter, r *http.Request) {
 					AccountID string `json:"account_id"`
 				}
 				if err := decodeMailerJSON(w, r, &body, 4096); err != nil {
-					mailerJSON(w, 400, map[string]string{"error": "invalid_request"})
+					mailerDecodeFailed(w, err)
 					return
 				}
 				if err := s.Mailer.SyncAccount(r.Context(), body.AccountID); err != nil {
@@ -238,7 +256,7 @@ func (s *Server) mailerAccountsHTTP(w http.ResponseWriter, r *http.Request, part
 			SourceID string `json:"source_id"`
 		}
 		if err := decodeMailerJSON(w, r, &body, 4096); err != nil || body.SourceID == "" {
-			mailerJSON(w, 400, map[string]string{"error": "invalid_request"})
+			mailerDecodeFailed(w, err)
 			return
 		}
 		if err := s.Mailer.Connect(ctx, body.SourceID); err != nil {
@@ -255,7 +273,7 @@ func (s *Server) mailerAccountsHTTP(w http.ResponseWriter, r *http.Request, part
 			Send      bool   `json:"send"`
 		}
 		if err := decodeMailerJSON(w, r, &body, 4096); err != nil || body.AccountID == "" || (!body.Receive && !body.Send) {
-			mailerJSON(w, 400, map[string]string{"error": "invalid_request"})
+			mailerDecodeFailed(w, err)
 			return
 		}
 		s.mailerTestConnection(w, r, body.AccountID, body.Receive, body.Send)
@@ -272,7 +290,7 @@ func (s *Server) mailerAccountsHTTP(w http.ResponseWriter, r *http.Request, part
 	if len(parts) == 2 && parts[1] == "settings" && r.Method == http.MethodPut {
 		var body mailer.AccountSettings
 		if err := decodeMailerJSON(w, r, &body, 8192); err != nil {
-			mailerJSON(w, 400, map[string]string{"error": "invalid_request"})
+			mailerDecodeFailed(w, err)
 			return
 		}
 		if err := s.Mailer.SetAccountSettings(ctx, parts[0], body); err != nil {
@@ -282,13 +300,25 @@ func (s *Server) mailerAccountsHTTP(w http.ResponseWriter, r *http.Request, part
 		mailerJSON(w, 200, body)
 		return
 	}
+	if len(parts) == 2 && parts[1] == "folders" && r.Method == http.MethodGet {
+		folders, err := s.Mailer.Folders(ctx, parts[0])
+		if err != nil {
+			mailerHTTPError(w, err)
+			return
+		}
+		if folders == nil {
+			folders = []mailer.Folder{}
+		}
+		mailerJSON(w, 200, map[string]any{"folders": folders})
+		return
+	}
 	if len(parts) == 2 && parts[1] == "folders" && r.Method == http.MethodPost {
 		var body struct {
 			Name     string `json:"name"`
 			ParentID string `json:"parent_id"`
 		}
 		if err := decodeMailerJSON(w, r, &body, 4096); err != nil {
-			mailerJSON(w, 400, map[string]string{"error": "invalid_request"})
+			mailerDecodeFailed(w, err)
 			return
 		}
 		folder, err := s.Mailer.CreateFolder(ctx, parts[0], body.Name, body.ParentID)

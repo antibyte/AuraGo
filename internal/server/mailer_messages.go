@@ -99,7 +99,7 @@ func (s *Server) mailerMessagesHTTP(w http.ResponseWriter, r *http.Request, p []
 				Until               time.Time           `json:"until"`
 			}
 			if err := decodeMailerJSON(w, r, &body, 8192); err != nil {
-				mailerJSON(w, 400, map[string]string{"error": "invalid_request"})
+				mailerDecodeFailed(w, err)
 				return
 			}
 			kind := body.Kind
@@ -213,7 +213,7 @@ func (s *Server) mailerMessagesHTTP(w http.ResponseWriter, r *http.Request, p []
 				Until time.Time `json:"until"`
 			}
 			if err := decodeMailerJSON(w, r, &body, 4096); err != nil {
-				mailerJSON(w, 400, map[string]string{"error": "invalid_request"})
+				mailerDecodeFailed(w, err)
 				return
 			}
 			var err error

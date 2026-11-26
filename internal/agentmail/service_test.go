@@ -211,6 +211,7 @@ func TestRunWebSocketSendsKeepalivePing(t *testing.T) {
 		Logger: slog.New(slog.NewTextHandler(testWriter{t: t}, &slog.HandlerOptions{Level: slog.LevelError})),
 		Notify: func(context.Context, string) error { return nil },
 	})
+	svc.allowInsecureWebSocket = true
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	errCh := make(chan error, 1)

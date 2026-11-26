@@ -122,7 +122,7 @@ func (s *Server) handleMailerAssist(w http.ResponseWriter, r *http.Request) {
 	r = r.WithContext(operationCtx)
 	var body mailerAssistRequest
 	if err := decodeMailerJSON(w, r, &body, 96<<10); err != nil {
-		mailerJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid_request"})
+		mailerDecodeFailed(w, err)
 		return
 	}
 	system, input, err := mailerAssistPrompt(body)

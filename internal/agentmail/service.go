@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"aurago/internal/config"
 	"aurago/internal/security"
 
 	"github.com/gorilla/websocket"
@@ -40,6 +41,9 @@ type RelayCheatsheet struct {
 }
 
 type Service struct {
+	// allowInsecureWebSocket lets a test dial a plain ws:// loopback server.
+	allowInsecureWebSocket bool
+
 	cfg         Config
 	client      *Client
 	logger      *slog.Logger
@@ -269,6 +273,12 @@ func (s *Service) pollOnce(ctx context.Context) {
 }
 
 func (s *Service) runWebSocket(ctx context.Context) error {
+	// The API key goes into the handshake: dial nothing but a validated wss:// endpoint.
+	if !s.allowInsecureWebSocket {
+		if err := config.ValidateAgentMailWebSocketURL(s.cfg.WebSocketURL); err != nil {
+			return err
+		}
+	}
 	wsURL, err := url.Parse(strings.TrimSpace(s.cfg.WebSocketURL))
 	if err != nil || wsURL.Scheme == "" || wsURL.Host == "" {
 		return fmt.Errorf("invalid websocket URL %q", s.cfg.WebSocketURL)

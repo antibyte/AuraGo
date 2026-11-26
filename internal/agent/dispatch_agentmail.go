@@ -389,7 +389,7 @@ func decodeAgentMailArgs(tc ToolCall, defaultInboxID string) agentMailArgs {
 	req := agentMailArgs{
 		Operation:    strings.ToLower(strings.TrimSpace(firstNonEmptyToolString(tc.Operation, tc.ActionType, toolArgString(params, "operation")))),
 		InboxID:      firstNonEmptyToolString(toolArgString(params, "inbox_id"), defaultInboxID),
-		MessageID:    firstNonEmptyToolString(tc.ID, toolArgString(params, "message_id", "id")),
+		MessageID:    toolArgString(params, "message_id"), // a generic id is never a message id
 		ThreadID:     firstNonEmptyToolString(toolArgString(params, "thread_id")),
 		DraftID:      firstNonEmptyToolString(toolArgString(params, "draft_id")),
 		AttachmentID: firstNonEmptyToolString(toolArgString(params, "attachment_id")),
