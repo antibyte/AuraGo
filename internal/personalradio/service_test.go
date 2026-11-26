@@ -394,6 +394,80 @@ func TestNewsDeadlinesExpiryAndUntrustedSourceIDs(t *testing.T) {
 	}
 }
 
+// A rejected editor answer before 10:30 must not silently skip the bulletin:
+// the slot stays announced, is retried, and only advances once settled.
+func TestNewsSlotRetriesAfterRejectedEditorAnswer(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		failures int64
+		aired    bool
+	}{{"recovers", 1, true}, {"gives up", 99, false}} {
+		t.Run(tc.name, func(t *testing.T) {
+			var newsCalls atomic.Int64
+			s, clock := testService(t, Adapters{Research: func(context.Context, Station) ([]Source, error) {
+				return []Source{{ID: "verified", Published: time.Now(), Text: "source"}}, nil
+			}, Plan: func(_ context.Context, req EditorialRequest) (Plan, error) {
+				if !req.News {
+					return Plan{}, nil
+				}
+				if newsCalls.Add(1) <= tc.failures {
+					return Plan{}, errors.New("radio_invalid_editorial")
+				}
+				return Plan{NewsText: "Bulletin", SourceIDs: []string{"verified"}}, nil
+			}, Speak: func(context.Context, Station, string) (Audio, error) {
+				return Audio{testWave(1, 3), "wav"}, nil
+			}})
+			p := testProfile(t, s, "local")
+			p.Topics = "Technology"
+			p.NewsMinutes = 30
+			p.NewsTopics = true
+			p.Timezone = "Europe/Berlin"
+			p, _ = s.SaveStation(p)
+			testImport(t, s, p, 1)
+			testImport(t, s, p, 2)
+			st, _ := s.Start(p.ID, testDevice, false)
+			due := s.Snapshot().NextNews
+			s.Tick()
+			s.wg.Wait()
+			if err := s.Playback(testDevice, st.Epoch, s.Snapshot().Queue[0].ID, "started"); err != nil {
+				t.Fatal(err)
+			}
+			tick := func(d time.Duration) State {
+				clock.Add(int64(d))
+				s.mu.Lock()
+				s.leaseUntil = s.now().Add(time.Minute)
+				s.mu.Unlock()
+				s.Tick()
+				s.wg.Wait()
+				return s.Snapshot()
+			}
+			snap := tick(23 * time.Minute)
+			if newsCalls.Load() != 1 || snap.NewsCode == "" || !snap.NextNews.Equal(due) {
+				t.Fatal("first rejected attempt", newsCalls.Load(), snap.NewsCode, snap.NextNews, due)
+			}
+			for range maxNewsTries {
+				snap = tick(time.Minute)
+			}
+			s.mu.Lock()
+			pendingNews := slices.ContainsFunc(append(slices.Clone(s.state.Queue), s.pendingSpeech...), func(x Segment) bool { return x.Kind == "news" && x.Due.Equal(due) })
+			s.mu.Unlock()
+			if pendingNews != tc.aired || newsCalls.Load() > maxNewsTries {
+				t.Fatal("retry outcome", tc.name, pendingNews, newsCalls.Load())
+			}
+			if tc.aired && snap.NewsCode != "" {
+				t.Fatal("successful retry kept the failure code", snap.NewsCode)
+			}
+			if !snap.NextNews.Equal(due) {
+				t.Fatal("slot advanced before its time", snap.NextNews, due)
+			}
+			snap = tick(due.Sub(s.now()))
+			if !snap.NextNews.Equal(due.Add(30 * time.Minute)) {
+				t.Fatal("slot did not advance once settled", snap.NextNews, due)
+			}
+		})
+	}
+}
+
 func TestStalledPlaybackStopsImmediately(t *testing.T) {
 	s, clock := testService(t, Adapters{})
 	p := testProfile(t, s, "local")

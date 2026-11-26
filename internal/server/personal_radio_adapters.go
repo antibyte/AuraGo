@@ -116,6 +116,9 @@ func (s *Server) personalRadioPlan(ctx context.Context, req personalradio.Editor
 		if err != nil {
 			var incomplete *agent.IncompleteCompletionError
 			lengthOnly := errors.As(err, &incomplete) && incomplete.FinishReason == openai.FinishReasonLength && !incomplete.HasToolCalls
+			if s.Logger != nil {
+				s.Logger.Warn("Personal Radio editor response rejected", "news", req.News, "attempt", attempt+1, "length_limit", lengthOnly, "error", err)
+			}
 			if err.Error() != "radio_incomplete_editorial" && !lengthOnly {
 				return plan, err
 			}
@@ -132,6 +135,9 @@ func (s *Server) personalRadioPlan(ctx context.Context, req personalradio.Editor
 		plan = personalradio.Plan{}
 		if err = json.Unmarshal([]byte(raw), &plan); err == nil {
 			return plan, nil
+		}
+		if s.Logger != nil && raw != "" {
+			s.Logger.Warn("Personal Radio editor response is not valid JSON", "news", req.News, "attempt", attempt+1, "response_len", len(raw))
 		}
 		req.Tracks = req.Tracks[:min(12, len(req.Tracks))]
 		req.Recent = nil

@@ -126,7 +126,12 @@ func (s *Service) scheduleProductionLocked(p Station, tracks []Track) {
 	s.state.EditorBusy = true
 	s.lastEditorialPlay = s.plays
 	if news {
+		if !s.newsSlot.Equal(s.state.NextNews) {
+			s.newsSlot, s.newsTries = s.state.NextNews, 0
+		}
+		s.newsTries++
 		s.newsAttempt = s.state.NextNews
+		s.newsInFlight = true
 	}
 	req := EditorialRequest{Station: p, Tracks: slices.Clone(tracks[:min(40, len(tracks))]), Recent: s.recent(p.ID), News: news}
 	ctx, epoch, due := s.runCtx, s.state.Epoch, s.state.NextNews
@@ -312,6 +317,9 @@ func (s *Service) produceEditorial(parent context.Context, epoch, job string, re
 	defer s.mu.Unlock()
 	s.editorActive = false
 	s.state.EditorBusy = false
+	if req.News {
+		s.newsInFlight = false
+	}
 	if err == nil {
 		err = ctx.Err()
 	}
@@ -336,6 +344,11 @@ func (s *Service) produceEditorial(parent context.Context, epoch, job string, re
 			}
 			if req.News {
 				s.state.NewsCode = errorCode(err, "radio_editorial_failed")
+				// One rejected editor answer must not cancel the bulletin: release
+				// the slot for another attempt while it can still air near its time.
+				if s.newsAttempt.Equal(due) && s.newsSlot.Equal(due) && s.newsTries < maxNewsTries && newsRetryable(err) && s.now().Before(due.Add(newsLateLimit(req.Station))) {
+					s.newsAttempt = time.Time{}
+				}
 			} else {
 				s.state.EditorialCode = errorCode(err, "radio_editorial_failed")
 			}
@@ -430,9 +443,37 @@ func (s *Service) insertSpeechLocked(p Station) {
 		s.state.Queue = slices.Insert(s.state.Queue, idx, x)
 	}
 	s.pendingSpeech = pending
-	if p.NewsMinutes > 0 && !s.state.NextNews.IsZero() && s.now().After(s.state.NextNews.Add(time.Duration(p.NewsMinutes)*time.Minute)) {
-		s.state.NextNews = nextNews(s.now(), p)
-	} else if p.NewsMinutes > 0 && s.newsAttempt == s.state.NextNews && !s.now().Before(s.state.NextNews) {
+	if p.NewsMinutes == 0 || s.state.NextNews.IsZero() {
+		return
+	}
+	due := s.state.NextNews
+	missed := s.now().After(due.Add(time.Duration(p.NewsMinutes) * time.Minute))
+	// The announced time stays visible while its bulletin is still produced or
+	// may be retried; it advances once the slot aired, failed for good or is late.
+	settled := !s.newsInFlight && s.newsAttempt.Equal(due) && !s.now().Before(due)
+	late := !s.newsInFlight && s.newsSlot.Equal(due) && s.newsTries > 0 && s.now().After(due.Add(newsLateLimit(p)))
+	if missed || settled || late {
 		s.state.NextNews = nextNews(s.now(), p)
 	}
+}
+
+const maxNewsTries = 3
+
+// newsLateLimit bounds how long after its announced time a bulletin may still
+// be retried: a third of the interval, at most ten minutes.
+func newsLateLimit(p Station) time.Duration {
+	return min(time.Duration(p.NewsMinutes)*time.Minute/3, 10*time.Minute)
+}
+
+// newsRetryable reports failures a fresh attempt can fix. Quotas, missing
+// services, cancelled sessions and an empty news situation are not retried.
+func newsRetryable(err error) bool {
+	if err == nil || errors.Is(err, ErrLimit) || errors.Is(err, context.Canceled) {
+		return false
+	}
+	switch err.Error() {
+	case "radio_news_unavailable", "radio_tts_unavailable", "radio_llm_unavailable", "radio_no_verified_news", "radio_disabled":
+		return false
+	}
+	return true
 }

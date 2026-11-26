@@ -77,7 +77,8 @@ func (s *Server) personalRadioResearch(ctx context.Context, p personalradio.Stat
 			seen[canonical] = true
 			attempts++
 			page, e := scraper.New(s.Guardian).WithContext(ctx).FetchStatic(canonical)
-			if e != nil || len([]rune(page.Markdown)) < 100 {
+			// A withheld page is not a source: the editor cannot cite a quarantine notice.
+			if e != nil || len([]rune(page.Markdown)) < 100 || strings.HasPrefix(strings.TrimSpace(page.Markdown), "[QUARANTINE NOTICE]") {
 				continue
 			}
 			published, _ := dateparse.ParseAny(h.Published)

@@ -117,7 +117,7 @@
         const jobs=active?(st.music_busy?s.t('generating'):st.editor_busy?s.t('editing'):st.relaxed?s.t('relaxed'):''):'';
         setText(s.q('jobs'),jobs);s.q('jobs').hidden=!jobs;
         preparationStatus(s, p, st, active);
-        const next=active&&st.next_news&&new Date(st.next_news);const newsTime=next&&next.getFullYear()>2000?s.t('next_news')+' '+next.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}):'';
+        const next=active&&st.next_news&&new Date(st.next_news);const newsTime=next&&next.getFullYear()>2000?s.t('next_news')+' '+next.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})+(st.news_code?' · '+s.t('news_failed'):''):'';
         setText(s.q('news-time'),newsTime);s.q('news-time').hidden=!newsTime;
         const readonly=s.ctx.readonly||d.capabilities&&d.capabilities.read_only;
         for(const name of ['new','settings','start'])s.host.querySelector('[data-action="'+name+'"]').disabled=readonly||!d.available||(name!=='new'&&!p)||s.busy;

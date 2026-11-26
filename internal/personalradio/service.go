@@ -46,6 +46,9 @@ type Service struct {
 	lastEditorialPlay int
 	plays             int
 	newsAttempt       time.Time
+	newsSlot          time.Time
+	newsTries         int
+	newsInFlight      bool
 	musicActive       bool
 	editorActive      bool
 	previewActive     bool
@@ -155,6 +158,8 @@ func (s *Service) Start(id, device string, takeover bool) (State, error) {
 		previewRetry = s.editorRetry
 	}
 	s.newsAttempt = time.Time{}
+	s.newsSlot = time.Time{}
+	s.newsTries = 0
 	s.musicRetry = time.Time{}
 	s.editorRetry = time.Time{}
 	s.libraryRetry = time.Time{}
