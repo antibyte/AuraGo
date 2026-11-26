@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>HomeDash widget fit survey (test fixture)</title>
+<script>window.hdFitEarlyErrors=[];addEventListener('error',e=>hdFitEarlyErrors.push(String(e.message)));</script>
+<link rel="stylesheet" href="/fonts/fonts.css"><link rel="stylesheet" href="/css/homedash.bundle.css">
+<style>
+body { margin: 0; background: #20242b; }
+#fit-root.hd-root[data-hd-host] { display: block; box-sizing: border-box; inline-size: 1500px; block-size: auto; padding: 14px; overflow: visible; }
+.fit-title { margin: 0 0 10px; font: 600 14px/1.3 system-ui, sans-serif; color: var(--hd-ink); }
+.fit-tiles { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: flex-start; }
+.fit-tile { display: flex; flex-direction: column; gap: 3px; min-inline-size: 96px; }
+.fit-label { max-inline-size: 190px; font: 10px/1.25 system-ui, sans-serif; color: var(--hd-ink-muted); overflow-wrap: anywhere; }
+.fit-tile[data-fit-fail="true"] > .fit-label { color: #ff8a80; font-weight: 700; }
+.fit-stage { position: relative; }
+.fit-ext { margin-block-start: 24px; }
+</style>
+</head><body>
+<div id="fit-root" class="hd-root hd-backdrop" data-hd-host="kiosk" data-hd-mode="view" data-hd-density="comfortable" data-hd-backdrop="solid"></div>
+<script src="/js/homedash/hd-core.js"></script>
+<script src="/js/homedash/hd-format.js"></script>
+<script src="/js/homedash/hd-colour.js"></script>
+<script src="/js/homedash/hd-grid.js"></script>
+<script src="/js/homedash/hd-layout.js"></script>
+<script src="/js/homedash/hd-doc.js"></script>
+<script src="/js/homedash/hd-history.js"></script>
+<script src="/js/homedash/hd-icons.js"></script>
+<script src="/js/homedash/hd-geometry.js"></script>
+<script src="/js/homedash/hd-input.js"></script>
+<script src="/js/homedash/hd-prim-displays.js"></script>
+<script src="/js/homedash/hd-prim-controls.js"></script>
+<script src="/js/homedash/hd-widgets.js"></script>
+<script src="/js/homedash/hd-control.js"></script>
+<script src="/js/homedash/hd-popover.js"></script>
+<script src="/js/homedash/widgets/hd-w-misc.js"></script>
+<script src="/js/homedash/widgets/hd-w-climate.js"></script>
+<script src="/js/homedash/widgets/hd-w-light.js"></script>
+<script src="/js/homedash/widgets/hd-w-sensor.js"></script>
+<script src="/js/homedash/widgets/hd-w-switch.js"></script>
+<script src="/js/homedash/widgets/hd-w-action.js"></script>
+<script src="/js/homedash/widgets/hd-w-select.js"></script>
+<script src="/js/homedash/widgets/hd-w-number.js"></script>
+<script src="/js/homedash/hd-moreinfo.js"></script>
+<script src="/js/homedash/hd-catalog.js"></script>
+<script src="/js/homedash/hd-samples.js"></script>
+<script src="/testdata/homedash-widget-fit.js"></script>
+</body></html>

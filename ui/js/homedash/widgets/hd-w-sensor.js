@@ -161,11 +161,11 @@
             update(view) { lastView = view; tail(view.entities.primary); render(); },
             resize(size) {
                 const px = size && size.px; if (!px || !Number.isFinite(px.width) || !Number.isFinite(px.height)) return;
-                const w = px.width - 2, h = Math.round(px.height * 0.38);
-                // Tactile draws into an inset window: 8 px in from the sides, and at 2x1 (aspect >= 1.6, as the family's container query) 4 px above the bottom with 3 px less height
+                // One row (a 2x1 under 96 px high, the 67 px rows of a 960 px page): the numeral takes the left part, so the chart takes the right 45 % and half the height (widgets.css positions it at 55 %).
+                const wide = px.width / px.height >= 1.6, row = wide && px.height <= 95, w = row ? Math.round((px.width - 2) * 0.45) : px.width - 2, h = Math.round(px.height * (row ? 0.5 : 0.38));
+                // Tactile draws into an inset window: 8 px in from the sides (8 px from the right edge only in a row), and at 2x1 (aspect >= 1.6, as the family's container query) 4 px above the bottom with 3 px less height
                 // so it clears the state text. The module owns these numbers and draws for the exact window; the CSS only positions the svg (inset), it never resizes it.
-                const wide = px.width / px.height >= 1.6;
-                dims = { w: Math.max(1, tact ? w - 16 : w), h: Math.max(1, tact ? h - (wide ? 11 : 8) : h) };
+                dims = { w: Math.max(1, tact ? w - (row ? 8 : 16) : w), h: Math.max(1, tact ? h - (wide ? 11 : 8) : h) };
                 if (lastView) spark.set(sparkState());
             },
             destroy() { prim.destroy(); spark.destroy(); if (sr) sr.remove(); }

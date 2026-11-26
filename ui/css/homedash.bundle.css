@@ -1711,6 +1711,14 @@
   .hd-widget .hd-title, .hd-widget .hd-state { font-size: 11px; }
   .hd-widget .hd-head > .hd-icon { display: none; } /* 1x1: the title gets the full width */
 }
+/* G13 head economy: the title is the one text that must read, so it gets the row before the icon, the status badge and the state text. One column under 90px (the 83px cells
+   of 768 and 390, the 67px cells of a 960px page) drops the head icon and the status badge (stale, read-only and alert facts stay in the state line, the tone ring and the
+   accessible name) and takes 6px padding and 11px labels; under 80px the padding is 4px and the family's label tracking a fifth, so "Coffee m..." keeps 8 characters.
+   Two columns of a 960px page (140-159px) drop the head icon and take in the tracking. 96px cells keep icon and badge. */
+@container hd-widget (max-width: 89px) { .hd-widget > .hd-frame { --hd-pad-i: 6px; } .hd-widget .hd-title, .hd-widget .hd-state { font-size: 11px; } .hd-widget .hd-head > .hd-icon { display: none; }
+  .hd-widget[data-hd-type][data-hd-family] .hd-head::after { display: none; } }
+@container hd-widget (min-width: 140px) and (max-width: 159px) { .hd-widget .hd-head > .hd-icon { display: none; } .hd-widget .hd-title { letter-spacing: calc(var(--hd-label-tracking) * 0.4); } }
+@container hd-widget (max-width: 79px) { .hd-widget > .hd-frame { --hd-pad-i: 4px; } .hd-widget .hd-title { letter-spacing: calc(var(--hd-label-tracking) * 0.2 - 0.01em); } }
 /* T5 shared painting from card tokens */
 .hd-widget > .hd-frame { background: var(--hd-card-bg); border: var(--hd-card-border); border-radius: var(--hd-radius-card); box-shadow: var(--hd-shadow-card); overflow: hidden; }
 .hd-widget[data-hd-status="unavailable"] > .hd-frame { border: var(--hd-dash-unavail); }
@@ -1747,6 +1755,7 @@
 .hd-climate-dialbox .hd-dial { inline-size: 100%; }
 .hd-climate-steps .hd-push { position: absolute; inline-size: 44px; block-size: 44px; translate: -50% -50%; inset-block-start: calc(var(--hd-th-d) * 0.866 + 26px); }
 .hd-climate-steps .hd-push[data-dir="-1"] { inset-inline-start: 33.5%; } .hd-climate-steps .hd-push[data-dir="1"] { inset-inline-start: 66.5%; }
+.hd-widget[data-hd-type="climate"] .hd-climate-steps .hd-push[data-dir] { position: absolute; } /* a family's relative key (Tactile) must not push the steps out of the card */
 .hd-climate-steps .hd-push-label { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 .hd-widget[data-hd-type="climate"] .hd-dial-readout > .hd-numeral { font-size: calc(var(--hd-th-d) * var(--hd-thermo-num-k)); }
 .hd-widget[data-hd-type="climate"] .hd-dial-marker { translate: 0 -5px; }
@@ -1792,6 +1801,10 @@
 .hd-widget[data-hd-type="entity"] .hd-tile > .hd-numeral { grid-row: 1; max-inline-size: 100%; overflow: hidden; font-size: 22cqmin; white-space: nowrap; text-overflow: ellipsis; }
 .hd-widget[data-hd-type="entity"] .hd-tile > .hd-lamp { grid-row: 1; align-self: start; }
 @container hd-widget (max-width: 139px) and (max-height: 139px) { .hd-widget[data-hd-type="entity"] .hd-tile > .hd-iconbadge { display: none; } }
+/* An entity with a state text ("On", "Updated 14 min ago"): the text starts after the badge (28px + 6px) in the state row, where the badge also sits; the one-row layout and 1x1 have the badge elsewhere. */
+.hd-widget[data-hd-type="entity"] .hd-state { padding-inline-start: 34px; }
+@container hd-widget (max-width: 139px) and (max-height: 139px) { .hd-widget[data-hd-type="entity"] .hd-state { padding-inline-start: 0; } }
+@container hd-widget (max-height: 95px) and (min-width: 140px) { .hd-widget[data-hd-type="entity"] .hd-state { padding-inline-start: 0; } }
 /* M3 W1 controls (SCR-M3-1/2/5/6/7). Cell 96px, gap 12px. "W1 types" = switch push and tile, light slider, fader and tile, action, select and number: their body is one
    definite grid cell the control fills, and at height 1 with two or more columns the frame is one row (title and state share the head row; the body is 50px at 2x1). */
 .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"]) .hd-body { grid-template: minmax(0, 1fr) / minmax(0, 1fr); }
@@ -1825,6 +1838,32 @@
 .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"]) .hd-body { position: static; }
 .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"]) .hd-arm { inset-inline: var(--hd-pad-i); inset-block-end: calc((var(--hd-pad-b) - 3px) / 2); }
 .hd-widget[tabindex="-1"]:focus { outline: none; } /* a focus-return target: no UA outline, no layout change */
+/* G13 compact stack. A frame under 96px high (the 67px rows of a 960px page, the 83px rows of 768 and 390) has no room for head, 44px control and state line, so the
+   controls keep their 44px, the head is one 14px line above them and the state line leaves the layout. It stays in the accessibility tree (visually hidden), and the
+   control already shows the value. The vertical padding takes what is left (2px at 67px rows, 8px at most). One selector: W1 types plus the pill. */
+@container hd-widget (max-height: 95px) {
+  .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"], [data-hd-variant="pill"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"])[data-hd-type] > .hd-frame {
+    --hd-head-h: 14px; --hd-state-h: 0px; --hd-gap-in: 2px; --hd-pad-b: clamp(2px, calc((100cqh - 2px - 14px - 2px - 44px) / 2), 8px);
+    grid-template: "head" 14px "body" minmax(0, 1fr) / minmax(0, 1fr); }
+  .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"], [data-hd-variant="pill"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"])[data-hd-type] .hd-head { padding-inline-end: var(--hd-more-pad, 0px); }
+  .hd-widget[data-hd-type="switch"] .hd-toggle { max-inline-size: 100%; } /* 1x1 of a 960px page: the 64px toggle gives way to the 55px body */
+  .hd-widget[data-hd-type="light"] .hd-body { padding-inline-end: var(--hd-more-pad, 0px); } /* the sheet button (44x44 at the corner) keeps the body row clear */
+  .hd-widget:is([data-hd-type="temperature"][data-hd-variant="numeral"], [data-hd-type="sensor"]:is([data-hd-variant="numeral"], [data-hd-variant="sparkline"])) > .hd-frame { --hd-state-h: 0px; } /* the numeral takes the row of the state line */
+  .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"], [data-hd-variant="pill"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"], [data-hd-type="temperature"][data-hd-variant="numeral"], [data-hd-type="sensor"]:is([data-hd-variant="numeral"], [data-hd-variant="sparkline"]))[data-hd-type] > .hd-frame > .hd-state {
+    position: absolute; inline-size: 1px; block-size: 1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); }
+}
+/* Two columns of a 960px page in one row (146px wide): chip 44 + slider cannot share the row with the 44px sheet button (the slider track would be 12px), so the button gives way
+   like it does at one column (WS-3); hold, Shift+Enter and ContextMenu still open the sheet. */
+@container hd-widget (max-height: 95px) and (max-width: 159px) { .hd-widget > .hd-frame > .hd-more { display: none; }
+  .hd-widget > .hd-frame:has(> .hd-more:not([hidden])) { --hd-more-pad: 0px; } }
+/* The fader column (slider 64 + 8 + chip 44) needs the same stack up to 179px high. */
+@container hd-widget (max-height: 179px) {
+  .hd-widget[data-hd-type="light"][data-hd-variant="fader"] > .hd-frame { --hd-head-h: 14px; --hd-state-h: 0px; --hd-gap-in: 2px; --hd-pad-b: clamp(2px, calc((100cqh - 2px - 14px - 2px - 116px) / 2), 10px);
+    grid-template: "head" 14px "body" minmax(0, 1fr) / minmax(0, 1fr); }
+  .hd-widget[data-hd-type="light"][data-hd-variant="fader"] > .hd-frame > .hd-state { position: absolute; inline-size: 1px; block-size: 1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); }
+}
+/* A 2x1 sparkline under 96px high (hd-w-sensor.js draws the chart for the right 45 %) keeps the numeral clear of the trace. */
+@container hd-widget (max-height: 95px) and (aspect-ratio >= 1.6) { .hd-widget[data-hd-type="sensor"][data-hd-variant="sparkline"] :is(.hd-spark, .hd-spark-fill) { inset-inline-start: 55%; } }
 /* Confirmed (rule 3): the check glyph leads the state line for the 600ms the flag lives. */
 .hd-widget[data-hd-confirmed="true"] .hd-state::before { content: ""; display: inline-block; inline-size: 12px; block-size: 12px; margin-inline-end: 4px; vertical-align: -1px;
   background: var(--hd-ok-ink); -webkit-mask: var(--hd-mask-check) center / contain no-repeat; mask: var(--hd-mask-check) center / contain no-repeat; }
@@ -1865,6 +1904,16 @@
 .hd-ltile > .hd-numeral { align-self: end; max-inline-size: 100%; overflow: hidden; font-size: 22cqmin; line-height: 1; white-space: nowrap; text-overflow: ellipsis; }
 @container hd-widget (max-height: 139px) { .hd-ltile { --hd-lt-badge: 20px; padding: 4px 8px; } }
 @container hd-widget (max-width: 139px) and (max-height: 139px) { .hd-ltile { --hd-lt-badge: 18px; padding: 3px 6px; } .hd-ltile > .hd-numeral { grid-row: 2; font-size: 18px; } .hd-widget .hd-ltile > .hd-iconbadge { display: none; } } /* WS-4: at 1x1 the badge is hidden and the numeral stands alone bottom-left */
+/* One row of the entity and the light tile: the badge sits beside the numeral instead of under it. */
+@container hd-widget (max-height: 95px) and (min-width: 140px) {
+  .hd-widget[data-hd-type="entity"] .hd-tile { grid-template-rows: minmax(0, 1fr); grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+  .hd-widget[data-hd-type="entity"] .hd-tile > .hd-iconbadge { grid-row: 1; grid-column: 2; align-self: center; }
+  .hd-widget[data-hd-type="entity"] .hd-tile > .hd-numeral { grid-column: 1; align-self: center; }
+  .hd-ltile { grid-template-rows: minmax(0, 1fr); grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 8px; }
+  .hd-ltile > .hd-numeral { grid-row: 1; align-self: center; }
+}
+/* The tile numeral never grows into the badge: it is the body height minus the tile padding (12px) and the badge, with 2px of air (from 2x2 up). */
+@container hd-widget (min-height: 140px) and (min-width: 140px) { .hd-ltile > .hd-numeral { font-size: min(22cqmin, calc(var(--hd-body-h) - 12px - var(--hd-lt-badge) - 2px)); } }
 /* WS-5: units in W1 readouts are legible: at least 11px (0.5em when larger), baseline-aligned, with a thin gap to the number. */
 .hd-widget:is([data-hd-type="number"], [data-hd-type="light"]) .hd-numeral .hd-num-unit { font-size: max(11px, 0.5em); vertical-align: baseline; margin-inline-start: 0.15em; }
 /* Select: the segmented bar takes the full body width (overrides the H4 260px cap); the picker is full width (primitives). */
