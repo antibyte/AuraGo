@@ -166,6 +166,9 @@ func (s *Studio) writeScene(ctx context.Context, op, sceneID string, args map[st
 	if left == 0 {
 		next = "Fix the listed issues with patch_scene and the same scene_id. Only a patch that removes an issue is still accepted."
 	}
+	if sceneWriteIndex(&story, sceneID) < 0 {
+		next += fmt.Sprintf(" Scene %s is not in the saved story yet: it only exists as a draft until a write without errors.", sceneID)
+	}
 	return sceneWriteAnswer(op, "draft", sceneID, map[string]any{
 		"draft": true, "scene_id": sceneID, "issues": sceneWriteIssues(ev.issues, false), "corrections_left": left, "next_action": withCueNotes(next, cueNotes),
 	})
@@ -246,7 +249,7 @@ func (s *Studio) removeScene(ctx context.Context, sceneID string, args map[strin
 	if err != nil {
 		return sceneWriteSaveRefused(op, sceneID, err)
 	}
-	return sceneWriteOK(op, sceneID, newETag, nil, "")
+	return sceneWriteOK(op, sceneID, newETag, nil, fmt.Sprintf("Scene %s is removed from the story for good. To rewrite a scene, use put_scene on its id instead of removing it.", sceneID))
 }
 
 func (s *Studio) moveScene(ctx context.Context, sceneID string, args map[string]any) StudioResult {

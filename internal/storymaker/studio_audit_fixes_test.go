@@ -2,6 +2,7 @@ package storymaker
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -28,6 +29,25 @@ func TestStudioRemoveSceneKeepsWriteBudget(t *testing.T) {
 	}
 	if a := put(); a["code"] != "corrections_exhausted" {
 		t.Fatalf("put after remove = %v, want corrections_exhausted", a)
+	}
+}
+
+// remove_scene points to put_scene, and a failing put of a removed id warns that the scene is not saved.
+func TestStudioRemoveSceneWarnsAboutRewrite(t *testing.T) {
+	studio, _, _ := newStudioWriteRig(t, nil)
+	studio.SetPhase(PhaseRevise, "")
+	good := studioWriteCall(t, studio, ToolStory, "put_scene", `{"scene_id":"s3","data":{"environment":"env.office"}}`)
+	if good["status"] != "ok" {
+		t.Fatalf("put = %v", good)
+	}
+	a := studioWriteCall(t, studio, ToolStory, "remove_scene", `{"scene_id":"s3"}`)
+	if a["status"] != "ok" || !strings.Contains(fmt.Sprint(a["next_action"]), "put_scene") {
+		t.Fatalf("remove = %v", a)
+	}
+	const bad = `"data":{"environment":"env.office","actors":[{"cast":"ghost"}],"beats":[{"do":"show","item":"prop.nope","at":"right","entry":"pop"}]}`
+	d := studioWriteCall(t, studio, ToolStory, "put_scene", `{"scene_id":"s3",`+bad+`}`)
+	if d["draft"] != true || !strings.Contains(fmt.Sprint(d["next_action"]), "not in the saved story") {
+		t.Fatalf("draft = %v", d)
 	}
 }
 
