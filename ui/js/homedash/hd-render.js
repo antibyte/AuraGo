@@ -11,13 +11,23 @@
     const { el, setVars, setAttr } = E.core, ENTITY_ID = /^[a-z][a-z0-9_]*:\S+$/;
     const isEntityId = v => typeof v === 'string' && ENTITY_ID.test(v);
     const viewOnly = () => Promise.reject(E.api.normalizeError({ status: 0, body: { code: 'view_only', message: 'HomeDash M2 sends no commands' } }));
+    // Forced preview widths (design mode, C13): lg max(W, 960), md clamp(W, 600, 768), sm 390.
+    const PREVIEW = Object.freeze({ lg: w => Math.max(w, E.layout.BP_MIN.lg), md: w => Math.min(768, Math.max(w, E.layout.BP_MIN.md)), sm: () => 390 });
     function page(opts) {
-        const o = opts, doc = o.doc, pg = o.page, store = o.store, catalog = o.catalog, t = o.t, lang = o.lang || 'en', family = doc.look && doc.look.family;
+        const o = opts, store = o.store, catalog = o.catalog, t = o.t, lang = o.lang || 'en';
+        let doc = o.doc, pg = o.page, family = doc.look && doc.look.family;
+        let mode = o.mode === 'design' ? 'design' : 'view', forcedBp = o.bp || null, fitOverride = o.fit || null, last = null, emptyAction = o.emptyAction || null, emptyKey = null, emptyEl = null;
         const measure = o.measure || (node => ({ width: node.clientWidth, height: node.clientHeight }));
-        const pageEl = el('div', { class: 'hd-page', id: o.id || null, role: o.role || 'region', 'aria-label': o.label || null, 'aria-labelledby': o.labelledBy || null });
+        const pageEl = el('div', { class: 'hd-page', id: o.id || null });
         o.stage.appendChild(pageEl);
         const recs = new Map(), byEntity = new Map(), byEl = new Map(), limits = new Map();
-        let bp = null, destroyed = false;
+        let bp = null, destroyed = false, io = null;
+        function pageAttrs() {   // design: a multi-select listbox named by the document; view: the region or tabpanel of M2
+            const design = mode === 'design';
+            setAttr(pageEl, 'role', design ? 'listbox' : o.role || 'region'); setAttr(pageEl, 'aria-multiselectable', design ? true : null);
+            setAttr(pageEl, 'aria-label', design ? o.label || doc.name || null : o.label || null); setAttr(pageEl, 'aria-labelledby', design ? null : o.labelledBy || null);
+        }
+        pageAttrs();
         // The built-in system source names its entities in English; the six known ids get a localized name (presentation only).
         const SYSTEM_NAMES = Object.freeze({
             'system:cpu': () => t('homedash.system.cpu'), 'system:memory': () => t('homedash.system.memory'),
@@ -52,19 +62,20 @@
             if (!root.hasAttribute('tabindex')) { root.setAttribute('tabindex', '-1'); root.addEventListener('blur', () => root.removeAttribute('tabindex'), { once: true }); }
             return root;
         }
-        function apiFor(rec, key, mode, onlyId) {   // the widget api, also used for the sheet (key 'sheet|...')
+        function apiFor(rec, key, modeOf, onlyId) {   // the widget api, also used for the sheet (key 'sheet|...'); modeOf is a mode or a function that reads it live
+            const now = typeof modeOf === 'function' ? modeOf : () => modeOf;
             const idOf = binding => { if (onlyId) return onlyId; const id = rec.widget.bindings && rec.widget.bindings[binding]; return isEntityId(id) ? id : null; };
             return {
                 widget: rec.widget, t, lang,
                 entity: binding => { const id = idOf(binding); return id ? decorated(rec, id, key) : null; },
-                can: (binding, capName) => canFor(idOf(binding), capName, mode),
+                can: (binding, capName) => canFor(idOf(binding), capName, now()),
                 command(binding, command, args, copts) {
-                    const id = idOf(binding); if (!commands) return viewOnly(); if (!canFor(id, command, mode)) return Promise.resolve({ status: 'refused' });
+                    const id = idOf(binding); if (!commands) return viewOnly(); if (!canFor(id, command, now())) return Promise.resolve({ status: 'refused' });
                     return commands.send({ entity: id, command, args: args || {}, phase: copts && copts.phase, widgetKey: key, widgetId: rec.widget.id, dashboardId: docId, confirm: rec.widget.confirm === true });
                 },
                 moreInfo(binding) {
                     const id = idOf(binding), v = id ? store.view(id) : null;
-                    if (!commands || !v || v.kind !== 'light' || typeof o.moreInfo !== 'function') return false;
+                    if (now() !== 'view' || !commands || !v || v.kind !== 'light' || typeof o.moreInfo !== 'function') return false;
                     o.moreInfo({ family: rec.inst && rec.inst.family ? rec.inst.family : family, opener: openerFor(rec),
                         api: apiFor(rec, 'sheet|' + docId + '|' + rec.widget.id, 'view', id), subscribe: fn => subscribe(id, fn) });
                     return true;
@@ -77,7 +88,7 @@
                 announce(text) { if (typeof o.announce === 'function') o.announce(String(text)); }
             };
         }
-        const api = rec => { const key = 'w|' + docId + '|' + rec.widget.id; return a => apiFor(rec, key, a && a.mode, null); };
+        const api = rec => { const key = 'w|' + docId + '|' + rec.widget.id; return () => apiFor(rec, key, () => rec.mode, null); };
         function unsupported(widget) {
             const frame = E.prim.frame({ title: widget.title || widget.type });
             frame.set({ stateText: t('homedash.view.unsupported') });
@@ -87,27 +98,69 @@
         function mount(widget) {
             const options = Object.assign({}, catalog.options(widget));
             if ((options.warn != null || options.alert != null) && !Array.isArray(options.zones)) options.zones = E.tone.zones(options);
-            const rec = { widget: Object.assign({}, widget, { options }), ids: Object.values(widget.bindings || {}).filter(isEntityId), inst: null, el: null, cell: '', px: '', visible: true, dirty: false };
+            const rec = { widget: Object.assign({}, widget, { options }), ids: Object.values(widget.bindings || {}).filter(isEntityId), inst: null, el: null, cell: '', px: '', visible: true, dirty: false,
+                mode, key: E.doc.keyOf(widget) + '|' + (widget.family || family || ''), labelledBy: null, label: '' };
             limits.set(widget.id, catalog.constraints(widget));
             const item = lgItem(widget.id);
-            try { rec.inst = E.widgets.host({ widget: rec.widget, mode: 'view', size: { w: item.w, h: item.h }, t, lang, parent: pageEl, api: api(rec),
+            try { rec.inst = E.widgets.host({ widget: rec.widget, mode, size: { w: item.w, h: item.h }, t, lang, parent: pageEl, api: api(rec),
                 moreLabel: commands ? t('homedash.moreinfo.open') : null, moreWhen: commands ? p => !!p && p.kind === 'light' : null, titleFallback: commands ? () => (rec.ids[0] && systemName(rec.ids[0])) || '' : null }); rec.el = rec.inst.el; }
             catch (err) { console.warn('HomeDash: widget ' + widget.id + ' is not rendered', err); rec.inst = null; rec.el = unsupported(widget); pageEl.appendChild(rec.el); }
-            setAttr(rec.el, 'data-hd-wid', widget.id);
-            recs.set(widget.id, rec); byEl.set(rec.el, rec);
+            setAttr(rec.el, 'data-hd-wid', widget.id); rec.labelledBy = rec.el.getAttribute('aria-labelledby');
+            recs.set(widget.id, rec); byEl.set(rec.el, rec); applyRole(rec); if (io) io.observe(rec.el);
             for (const id of rec.ids) { if (!byEntity.has(id)) byEntity.set(id, new Set()); byEntity.get(id).add(rec); }
         }
+        function unmount(rec) {
+            if (io) io.unobserve(rec.el); flips.delete(rec);
+            if (rec.inst) rec.inst.destroy(); else rec.el.remove();
+            recs.delete(rec.widget.id); byEl.delete(rec.el); limits.delete(rec.widget.id);
+        }
+        // Design: option frames of a listbox (name from describe, no title reference); view: the labelled groups of M2.
+        function applyRole(rec) {
+            const n = rec.el;
+            if (mode === 'design') {
+                setAttr(n, 'role', 'option'); setAttr(n, 'aria-labelledby', null); setAttr(n, 'tabindex', '-1');
+                if (!n.hasAttribute('aria-selected')) setAttr(n, 'aria-selected', 'false');
+            } else {
+                setAttr(n, 'role', 'group'); setAttr(n, 'aria-labelledby', rec.labelledBy); setAttr(n, 'aria-selected', null); setAttr(n, 'aria-label', null); setAttr(n, 'tabindex', null); rec.label = '';
+            }
+        }
+        function labelOf(rec, it) {
+            const ent = rec.ids[0] ? decorated(rec, rec.ids[0], null) : null;
+            return String((typeof o.describe === 'function' ? o.describe(rec.widget, it, ent) : '') || rec.widget.title || rec.widget.type || '');
+        }
+        function refreshLabel(rec, it) {
+            if (mode !== 'design' || !it) return;
+            const label = labelOf(rec, it); if (label !== rec.label) { rec.label = label; setAttr(rec.el, 'aria-label', label || null); }
+        }
+        function keepLayerLast() {   // the gesture layer stays above the widgets and the empty note
+            const kids = Array.from(pageEl.children), layer = kids.find(c => String(c.getAttribute('class') || '').split(' ').includes('hd-edit-layer'));
+            if (layer && layer !== kids[kids.length - 1]) pageEl.appendChild(layer);
+        }
+        // The empty note: mode-specific text and the optional action button; rebuilt only when mode or action change, removed once widgets exist.
+        function renderEmpty() {
+            if (pg.widgets.length) { if (emptyEl) { emptyEl.remove(); emptyEl = null; emptyKey = null; } return; }
+            const key = mode + '|' + (emptyAction ? emptyAction.cmd + '|' + emptyAction.label : ''); if (emptyEl && key === emptyKey) return;
+            if (emptyEl) emptyEl.remove(); emptyKey = key;
+            const design = mode === 'design';
+            emptyEl = el('div', { class: 'hd-page-empty', role: 'note', 'data-hd-mode': mode }, [E.icons.icon('dashboard'),
+                el('p', { class: 'hd-page-empty-title', text: design ? t('homedash.designer.empty_title') : t('homedash.view.empty_title') }),
+                el('p', { class: 'hd-page-empty-text', text: design ? t('homedash.designer.empty_text') : t('homedash.view.empty_text') }),
+                emptyAction ? el('button', { type: 'button', class: 'hd-page-empty-action', 'data-hd-cmd': emptyAction.cmd, text: emptyAction.label }) : null]);
+            pageEl.appendChild(emptyEl); keepLayerLast();
+        }
+        const flips = new Set(), flipFrame = E.core.frame(() => { for (const r of flips) { r.el.removeAttribute('data-hd-flip'); setVars(r.el, { '--hd-e-fx': null, '--hd-e-fy': null }); } flips.clear(); }, { raf: o.raf, caf: o.caf });
         for (const w of pg.widgets) mount(w);
-        if (!pg.widgets.length) pageEl.appendChild(el('div', { class: 'hd-page-empty', role: 'note' }, [E.icons.icon('dashboard'),
-            el('p', { class: 'hd-page-empty-title', text: t('homedash.view.empty_title') }), el('p', { class: 'hd-page-empty-text', text: t('homedash.view.empty_text') })]));
+        renderEmpty();
         function layout() {
             if (destroyed) return;
             const box = measure(o.stage);
             if (!box || !(box.width > 0)) return;
-            bp = E.layout.breakpoint(box.width, bp);
+            bp = forcedBp || E.layout.breakpoint(box.width, bp);
+            const width = forcedBp ? PREVIEW[forcedBp](box.width) : box.width, fit = mode === 'design' ? 'scroll' : fitOverride || doc.grid.fit;
             const cols = E.layout.COLS[bp], items = E.layout.effective(pg.layouts, bp, id => limits.get(id)), rows = Math.max(1, E.layout.rows(items));
-            const gap = E.layout.gapFor(doc.look.density, doc.grid.gap), m = E.layout.metrics(box.width, box.height || 0, cols, rows, gap, doc.grid.row_unit, doc.grid.fit);
-            setVars(pageEl, E.layout.cssVars(m, cols, rows, gap));
+            const gap = E.layout.gapFor(doc.look.density, doc.grid.gap), m = E.layout.metrics(width, box.height || 0, cols, rows, gap, doc.grid.row_unit, fit);
+            setVars(pageEl, Object.assign(E.layout.cssVars(m, cols, rows, gap), { '--hd-e-pw': forcedBp ? Math.round(width) + 'px' : null })); setAttr(pageEl, 'data-hd-preview', forcedBp);
+            last = Object.freeze({ bp, cols, rows, gap, colW: m.colW, rowH: m.rowH, offX: m.offX, mode: m.mode, width });
             if (typeof o.onLayout === 'function') o.onLayout({ bp, fit: m.mode });
             for (const it of items) {
                 const rec = recs.get(it.id); if (!rec) continue;
@@ -115,6 +168,7 @@
                 if (cell !== rec.cell) { rec.cell = cell; setVars(rec.el, { '--hd-x': it.x, '--hd-y': it.y, '--hd-w': it.w, '--hd-h': it.h }); }
                 const px = { width: Math.round(it.w * m.colW + (it.w - 1) * gap), height: Math.round(it.h * m.rowH + (it.h - 1) * gap) }, key = cell + ':' + px.width + 'x' + px.height;
                 if (rec.inst && key !== rec.px) { rec.px = key; rec.inst.resize({ w: it.w, h: it.h, px }); }
+                refreshLabel(rec, it);
             }
         }
         const schedule = E.core.frame(layout, { raf: o.raf, caf: o.caf });
@@ -123,6 +177,7 @@
             const targets = new Set();
             if (ids === null) for (const r of recs.values()) targets.add(r); else for (const id of ids) for (const r of byEntity.get(id) || []) targets.add(r);
             for (const r of targets) { if (!r.inst) continue; if (r.visible) r.inst.update(); else r.dirty = true; }
+            if (mode === 'design' && last && targets.size) { const list = E.layout.effective(pg.layouts, last.bp, id => limits.get(id)); for (const r of targets) refreshLabel(r, list.find(i => i.id === r.widget.id)); }
             for (const [id, set] of [...sheetSubs]) if (ids === null || (typeof ids.has === 'function' ? ids.has(id) : ids.includes(id))) for (const fn of [...set]) fn();
         }
         store.on('change', onChange);
@@ -137,21 +192,58 @@
             sub('armed', ev => { if (ev && byEntity.has(ev.id) && ownKey(ev.widgetKey) && typeof o.announce === 'function') o.announce(t('homedash.arm.announce')); });
         }
         const IO = o.IntersectionObserver || (typeof IntersectionObserver === 'function' ? IntersectionObserver : null);
-        const io = IO ? new IO(entries => { for (const en of entries) { const r = byEl.get(en.target); if (!r) continue; r.visible = !!en.isIntersecting; if (r.visible && r.dirty && r.inst) { r.dirty = false; r.inst.update(); } } }, { root: o.stage, rootMargin: '200px' }) : null;
+        io = IO ? new IO(entries => { for (const en of entries) { const r = byEl.get(en.target); if (!r) continue; r.visible = !!en.isIntersecting; if (r.visible && r.dirty && r.inst) { r.dirty = false; r.inst.update(); } } }, { root: o.stage, rootMargin: '200px' }) : null;
         if (io) for (const r of recs.values()) io.observe(r.el);
         const RO = o.ResizeObserver || (typeof ResizeObserver === 'function' ? ResizeObserver : null);
         const ro = RO ? new RO(() => schedule()) : null;
         if (ro) ro.observe(o.stage);
         layout();
         function destroy() {
-            if (destroyed) return; destroyed = true; schedule.cancel(); flushCmd.cancel(); store.off('change', onChange);
+            if (destroyed) return; destroyed = true; schedule.cancel(); flushCmd.cancel(); flipFrame.cancel(); flips.clear(); store.off('change', onChange);
             for (const off of cmdOff.splice(0)) off();
             if (commands && E.popover) { const rootEl = o.stage.closest ? o.stage.closest('.hd-root') : null; if (rootEl) E.popover.close(rootEl); }
             if (ro) ro.disconnect(); if (io) io.disconnect();
             for (const r of recs.values()) if (r.inst) r.inst.destroy();
             pageEl.remove(); recs.clear(); byEntity.clear(); byEl.clear(); sheetSubs.clear();
         }
-        return Object.freeze({ el: pageEl, entityIds: () => [...byEntity.keys()], layout: () => schedule(), refreshAll: () => onChange(null), destroy });
+        // update(nd, np): the same page with a new document; widgets are diffed by their JSON plus the effective family, so unchanged widgets keep
+        // their nodes (and focus, scroll and drag state). Layout runs synchronously.
+        function update(nd, np) {
+            if (destroyed) return;
+            doc = nd; pg = np; family = nd.look && nd.look.family; pageAttrs();
+            const want = new Map(pg.widgets.map(w => [w.id, w]));
+            for (const rec of [...recs.values()]) { const w = want.get(rec.widget.id); if (!w || rec.key !== E.doc.keyOf(w) + '|' + (w.family || family || '')) unmount(rec); }
+            for (const w of pg.widgets) if (!recs.has(w.id)) mount(w);
+            byEntity.clear();
+            for (const rec of recs.values()) for (const id of rec.ids) { if (!byEntity.has(id)) byEntity.set(id, new Set()); byEntity.get(id).add(rec); }
+            renderEmpty(); keepLayerLast(); layout();
+        }
+        // preview(items, {skip, animate, rows}): writes the cells of changed items only (gesture feedback, no relayout); returns how many changed.
+        function preview(items, po) {
+            if (destroyed || !last) return 0;
+            const p = po || {}, list = items || E.layout.effective(pg.layouts, last.bp, id => limits.get(id)), skip = p.skip || null;
+            const rootEl = o.stage.closest ? o.stage.closest('.hd-root') : null, flip = !!p.animate && !E.core.motionReduced(rootEl); let n = 0;
+            for (const it of list) {
+                const rec = recs.get(it.id); if (!rec || (skip && skip.has(it.id))) continue;
+                const cell = [it.x, it.y, it.w, it.h].join(','); if (cell === rec.cell) continue;
+                const prev = rec.cell ? rec.cell.split(',').map(Number) : null; rec.cell = cell; n += 1;
+                setVars(rec.el, { '--hd-x': it.x, '--hd-y': it.y, '--hd-w': it.w, '--hd-h': it.h });
+                if (flip && prev) { setVars(rec.el, { '--hd-e-fx': Math.round((prev[0] - it.x) * (last.colW + last.gap)) + 'px', '--hd-e-fy': Math.round((prev[1] - it.y) * (last.rowH + last.gap)) + 'px' }); setAttr(rec.el, 'data-hd-flip', 'from'); flips.add(rec); flipFrame(); }
+                const px = { width: Math.round(it.w * last.colW + (it.w - 1) * last.gap), height: Math.round(it.h * last.rowH + (it.h - 1) * last.gap) }, key = cell + ':' + px.width + 'x' + px.height;
+                if (rec.inst && key !== rec.px) { rec.px = key; rec.inst.resize({ w: it.w, h: it.h, px }); }
+            }
+            setVars(pageEl, { '--hd-rows': Math.max(1, E.layout.rows(list), p.rows || 0) });
+            return n;
+        }
+        function setMode(m) {
+            mode = m === 'design' ? 'design' : 'view';
+            for (const r of recs.values()) { r.mode = mode; if (r.inst) r.inst.setMode(mode); applyRole(r); }
+            pageAttrs(); renderEmpty(); layout();
+        }
+        const itemsNow = () => (last ? E.layout.effective(pg.layouts, last.bp, id => limits.get(id)) : []);
+        return Object.freeze({ el: pageEl, entityIds: () => [...byEntity.keys()], layout: () => schedule(), refreshAll: () => onChange(null), destroy,
+            update, setMode, setBreakpoint(b) { forcedBp = b || null; layout(); }, setFit(f) { fitOverride = f || null; layout(); }, setEmptyAction(a) { emptyAction = a || null; renderEmpty(); },
+            preview, metrics: () => last, items: itemsNow, frame: id => (recs.get(id) || {}).el || null, order: () => E.grid.sortReading(itemsNow()).map(i => i.id) });
     }
     E.render = Object.freeze({ page, isEntityId });
 })();

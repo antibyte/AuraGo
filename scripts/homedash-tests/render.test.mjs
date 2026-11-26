@@ -1,15 +1,15 @@
-import assert from 'node:assert/strict'; import { loadEngine, ENGINE_ORDER, read, eq } from './harness.mjs';
+import assert from 'node:assert/strict'; import { loadEngine, ENGINE_ORDER, read, eq, noStyleAttr } from './harness.mjs';
 const FILES = ENGINE_ORDER.concat(['hd-tone.js', 'hd-api.js', 'hd-catalog.js', 'hd-render.js']);
 const STARTER = JSON.parse(read('ui/testdata/homedash-m2/starter-dashboard.json')), CATALOG = JSON.parse(read('internal/homedash/testdata/widget_catalog.json'));
 const V = (id, value) => ({ id, kind: 'sensor', name: id, unit: '%', value, available: true, status: 'ok', readonly: false, stale: false, pending: false, attributes: { updated_at: '2026-11-25T10:00:00Z' } });
-function setup(rawDoc, tr) {
+function setup(rawDoc, tr, extra) {
   const { E, document } = loadEngine(FILES, { dom: true }), catalog = E.catalog.create(CATALOG), doc = E.doc.normalise(rawDoc || STARTER, { sizeOf: catalog.defaultSize });
   const root = E.el('div', { class: 'hd-root', 'data-hd-family': 'glass' }), stage = E.el('div', { class: 'hd-stage' }); root.appendChild(stage); document.body.appendChild(root);
   const views = new Map(), bus = E.core.emitter(), histories = [], frames = [], layouts = []; let width = 1180;
   const store = { view: id => views.get(id) || null, on: bus.on, off: bus.off, history(id, range, points) { histories.push([id, range, points]); return Promise.resolve({ points: [[1, 2], [2, 3]], source: 'source' }); } };
-  const page = E.render.page({ doc, page: doc.pages[0], stage, store, catalog, t: tr || (k => k), lang: 'en', raf: fn => { frames.push(fn); return frames.length; }, caf: () => {},
-    measure: () => ({ width, height: 700 }), onLayout: m => layouts.push(m) });
-  return { E, stage, views, bus, histories, page, layouts, run: () => { while (frames.length) frames.shift()(); }, setWidth: w => { width = w; } };
+  const page = E.render.page(Object.assign({ doc, page: doc.pages[0], stage, store, catalog, t: tr || (k => k), lang: 'en', raf: fn => { frames.push(fn); return frames.length; }, caf: () => {},
+    measure: () => ({ width, height: 700 }), onLayout: m => layouts.push(m) }, extra));
+  return { E, doc, stage, views, bus, histories, page, layouts, run: () => { while (frames.length) frames.shift()(); }, setWidth: w => { width = w; } };
 }
 // Command-enabled page: a fake commands client (decorate passthrough plus a settable overlay, a send recorder, an emitter) and a spy on the widget host that records each widget api.
 const CAPS = ['toggle', { name: 'turn_on' }, { name: 'turn_off' }], LIGHT_CAPS = CAPS.concat([{ name: 'brightness', min: 0, max: 100, step: 1 }]);
@@ -18,7 +18,7 @@ const CMD_DOC = { id: 'd_cmdcmdcmdc1', name: 'Cmd', pages: [{ id: 'main', widget
   { id: 'sw', type: 'switch', variant: 'pill', bindings: { primary: 'ha:switch.coffee' } }, { id: 'lt', type: 'light', variant: 'tile', bindings: { primary: 'ha:light.kitchen' } },
   { id: 'cpu', type: 'gauge', variant: 'arc', bindings: { primary: 'system:cpu' } }],
   layouts: { lg: [{ id: 'sw', x: 0, y: 0, w: 2, h: 1 }, { id: 'lt', x: 2, y: 0, w: 2, h: 2 }, { id: 'cpu', x: 4, y: 0, w: 2, h: 2 }] } }] };
-function setupCmd(withCommands, rawDoc, extraViews) {
+function setupCmd(withCommands, rawDoc, extraViews, extra) {
   const { E, document } = loadEngine(FILES, { dom: true }), catalog = E.catalog.create(CATALOG), doc = E.doc.normalise(rawDoc || CMD_DOC, { sizeOf: catalog.defaultSize });
   const root = E.el('div', { class: 'hd-root', 'data-hd-family': 'glass' }), stage = E.el('div', { class: 'hd-stage' }); root.appendChild(stage); document.body.appendChild(root);
   const views = new Map(), bus = E.core.emitter(), cbus = E.core.emitter(), frames = [], sent = [], overlay = new Map(), announced = [], sheets = [], apis = new Map();
@@ -27,8 +27,8 @@ function setupCmd(withCommands, rawDoc, extraViews) {
   const store = { view: id => views.get(id) || null, on: bus.on, off: bus.off, history: () => Promise.resolve({ points: [], source: 'none' }) };
   views.set('ha:switch.coffee', CV('ha:switch.coffee', 'switch')); views.set('ha:light.kitchen', CV('ha:light.kitchen', 'light', { capabilities: LIGHT_CAPS }));
   for (const v of extraViews || []) views.set(v.id, v);
-  const page = E.render.page({ doc, page: doc.pages[0], stage, store, catalog, t: k => k, lang: 'en', raf: fn => { frames.push(fn); return frames.length; }, caf: () => {}, measure: () => ({ width: 1180, height: 700 }),
-    commands: withCommands === false ? null : commands, moreInfo: req => sheets.push(req), announce: x => announced.push(x) });
+  const page = E.render.page(Object.assign({ doc, page: doc.pages[0], stage, store, catalog, t: k => k, lang: 'en', raf: fn => { frames.push(fn); return frames.length; }, caf: () => {}, measure: () => ({ width: 1180, height: 700 }),
+    commands: withCommands === false ? null : commands, moreInfo: req => sheets.push(req), announce: x => announced.push(x) }, extra));
   return { E, document, stage, views, bus, cbus, sent, overlay, announced, sheets, apis, page, run: () => { while (frames.length) frames.shift()(); }, text: id => stage.querySelector('[data-hd-wid="' + id + '"] .hd-state-text') };
 }
 const vars = (el, ...names) => names.map(n => el.style.getPropertyValue(n)).join(',');
@@ -118,5 +118,60 @@ export const tests = [
     req.api.command('primary', 'turn_on', {}); eq(sent.map(x => x.widgetKey), ['sheet|d_cmdcmdcmdc1|lt']); }],
   ['render: destroy detaches the command listeners', () => {
     const { page, cbus, run, stage, announced } = setupCmd(); page.destroy(); cbus.emit('change', ['ha:switch.coffee']); cbus.emit('cue', { id: 'ha:switch.coffee', cue: { code: 'timeout' } }); run();
-    eq(announced, []); assert.equal(stage.querySelectorAll('.hd-widget').length, 0); }]
+    eq(announced, []); assert.equal(stage.querySelectorAll('.hd-widget').length, 0); }],
+  ['render (M4): design mode makes a listbox of options named by describe, hides the more button and refuses every command and more-info', async () => {
+    const describe = (w, it, ent) => w.id + '@' + it.x + ',' + it.y + (ent ? '#' + ent.id : '');
+    const { page, stage, apis, sheets, sent } = setupCmd(true, null, null, { mode: 'design', describe }), pg = page.el;
+    assert.equal(pg.getAttribute('role'), 'listbox'); assert.equal(pg.getAttribute('aria-multiselectable'), 'true'); assert.equal(pg.getAttribute('aria-label'), 'Cmd'); assert.equal(pg.getAttribute('aria-labelledby'), null);
+    const lt = stage.querySelector('[data-hd-wid="lt"]'); assert.equal(lt.getAttribute('role'), 'option'); assert.equal(lt.getAttribute('aria-selected'), 'false'); assert.equal(lt.getAttribute('aria-labelledby'), null);
+    assert.equal(lt.getAttribute('aria-label'), 'lt@2,0#ha:light.kitchen'); assert.equal(lt.getAttribute('tabindex'), '-1');
+    for (const m of stage.querySelectorAll('.hd-more')) assert.equal(m.hasAttribute('hidden'), true);
+    assert.equal(apis.get('lt').can('primary', 'turn_on'), false); eq(await apis.get('lt').command('primary', 'turn_on', {}), { status: 'refused' });
+    assert.equal(apis.get('lt').moreInfo('primary'), false); assert.equal(sheets.length, 0); assert.equal(sent.length, 0); noStyleAttr(pg); }],
+  ['render (M4): setMode switches roles, labels, the more button and command rights both ways; a view frame gets its title reference back', async () => {
+    const { page, stage, apis, sent } = setupCmd(true), lt = stage.querySelector('[data-hd-wid="lt"]'), ref = lt.getAttribute('aria-labelledby');
+    assert.ok(ref); assert.equal(lt.getAttribute('role'), 'group'); assert.equal(apis.get('lt').can('primary', 'turn_on'), true);
+    page.setMode('design'); assert.equal(lt.getAttribute('role'), 'option'); assert.equal(lt.getAttribute('aria-labelledby'), null); assert.equal(lt.getAttribute('aria-label'), 'light');
+    assert.equal(lt.querySelector('.hd-more').hasAttribute('hidden'), true); assert.equal(apis.get('lt').can('primary', 'turn_on'), false);
+    eq(await apis.get('lt').command('primary', 'turn_on', {}), { status: 'refused' }); assert.equal(sent.length, 0);
+    page.setMode('view'); assert.equal(lt.getAttribute('role'), 'group'); assert.equal(lt.getAttribute('aria-labelledby'), ref); assert.equal(lt.getAttribute('aria-label'), null); assert.equal(lt.getAttribute('aria-selected'), null);
+    assert.equal(lt.getAttribute('tabindex'), null); assert.equal(lt.querySelector('.hd-more').hasAttribute('hidden'), false); assert.equal(apis.get('lt').can('primary', 'turn_on'), true);
+    assert.equal(page.el.getAttribute('role'), 'region'); assert.equal(page.el.getAttribute('aria-multiselectable'), null); }],
+  ['render (M4): update keeps the nodes of unchanged widgets, replaces a changed one, mounts new ones and rebuilds the entity index', () => {
+    const { doc, page, stage, run } = setup(), node = id => stage.querySelector('[data-hd-wid="' + id + '"]'), before = new Map(['cpu', 'memory', 'net-rx'].map(id => [id, node(id)]));
+    const next = JSON.parse(JSON.stringify(doc)), widgets = next.pages[0].widgets; widgets.find(w => w.id === 'cpu').title = 'Processor';
+    page.update(next, next.pages[0]);
+    assert.ok(node('memory') === before.get('memory')); assert.ok(node('net-rx') === before.get('net-rx')); assert.ok(node('cpu') !== before.get('cpu')); assert.equal(node('cpu').querySelector('.hd-title').textContent, 'Processor');
+    assert.equal(stage.querySelectorAll('.hd-page > .hd-widget').length, 6);
+    const cut = Object.assign({}, next.pages[0], { widgets: widgets.filter(w => w.id !== 'memory') }); page.update(Object.assign({}, next, { pages: [cut] }), cut);
+    assert.equal(node('memory'), null); assert.equal(stage.querySelectorAll('.hd-page > .hd-widget').length, 5); assert.ok(!page.entityIds().includes('system:memory')); assert.ok(page.entityIds().includes('system:cpu'));
+    const none = Object.assign({}, next.pages[0], { widgets: [], layouts: { lg: [], md: null, sm: null } }); page.update(Object.assign({}, next, { pages: [none] }), none);
+    assert.equal(stage.querySelectorAll('.hd-page > .hd-widget').length, 0); assert.ok(stage.querySelector('.hd-page-empty')); eq(page.entityIds(), []); run(); }],
+  ['render (M4): the empty note follows mode and action, is rebuilt only when they change, and a new widget removes it', () => {
+    const raw = { name: 'E', pages: [{ id: 'main', widgets: [], layouts: { lg: [] } }] }, { doc, page, stage } = setup(raw, null, { mode: 'design', emptyAction: { cmd: 'add_widget', label: 'Add' } });
+    const note = () => stage.querySelector('.hd-page-empty'), btn = () => stage.querySelector('.hd-page-empty-action');
+    assert.equal(note().getAttribute('data-hd-mode'), 'design'); assert.equal(note().querySelector('.hd-page-empty-title').textContent, 'homedash.designer.empty_title'); assert.equal(btn().getAttribute('data-hd-cmd'), 'add_widget'); assert.equal(btn().textContent, 'Add');
+    const same = note(); page.update(doc, doc.pages[0]); assert.ok(note() === same, 'unchanged inputs keep the note');
+    page.setEmptyAction(null); assert.equal(btn(), null); page.setMode('view'); assert.equal(note().getAttribute('data-hd-mode'), 'view'); assert.equal(note().querySelector('.hd-page-empty-title').textContent, 'homedash.view.empty_title');
+    const next = JSON.parse(JSON.stringify(doc)); next.pages[0].widgets = [{ id: 'u', type: 'entity', variant: 'tile', bindings: { primary: 'system:uptime' } }]; next.pages[0].layouts = { lg: [{ id: 'u', x: 0, y: 0, w: 2, h: 1 }], md: null, sm: null };
+    page.update(next, next.pages[0]); assert.equal(note(), null); assert.ok(stage.querySelector('[data-hd-wid="u"]')); }],
+  ['render (M4): preview writes only changed items, animates a move with a FLIP the next frame clears, honours skip and rows, and null restores the document layout', () => {
+    const { page, stage, run } = setup(), items = page.items().map(i => Object.assign({}, i)), cell = id => stage.querySelector('[data-hd-wid="' + id + '"]');
+    assert.equal(page.preview(items), 0); items[0].x += 1; items[1].y += 1; const a = items[0].id, b = items[1].id;
+    assert.equal(page.preview(items, { skip: new Set([b]) }), 1); assert.equal(cell(a).style.getPropertyValue('--hd-x'), String(items[0].x)); assert.notEqual(cell(b).style.getPropertyValue('--hd-y'), String(items[1].y));
+    assert.equal(page.preview(items, { animate: true, rows: 30 }), 1); assert.equal(cell(b).getAttribute('data-hd-flip'), 'from'); assert.ok(cell(b).style.getPropertyValue('--hd-e-fy').endsWith('px'));
+    assert.equal(page.el.style.getPropertyValue('--hd-rows'), '30'); run(); assert.equal(cell(b).getAttribute('data-hd-flip'), null); assert.equal(cell(b).style.getPropertyValue('--hd-e-fy'), '');
+    assert.equal(page.preview(null), 2, 'null restores the document layout'); assert.equal(page.preview(null), 0); }],
+  ['render (M4): a forced breakpoint previews at its own width and columns; metrics, items, frame and order follow; design forces fit to scroll', () => {
+    const { page, stage, run } = setup(null, null, { mode: 'design' }), pg = page.el, m0 = page.metrics();
+    assert.equal(m0.bp, 'lg'); assert.equal(m0.cols, 12); assert.equal(m0.mode, 'scroll'); assert.equal(pg.style.getPropertyValue('--hd-e-pw'), '');
+    page.setBreakpoint('sm'); const m = page.metrics(); assert.equal(pg.style.getPropertyValue('--hd-e-pw'), '390px'); assert.equal(pg.getAttribute('data-hd-preview'), 'sm'); assert.equal(pg.style.getPropertyValue('--hd-cols'), '4'); assert.equal(m.bp, 'sm'); assert.equal(m.cols, 4); assert.equal(m.width, 390);
+    assert.equal(page.items().length, 6); assert.ok(page.items().every(i => i.x + i.w <= 4)); assert.ok(page.frame('cpu') === stage.querySelector('[data-hd-wid="cpu"]')); assert.equal(page.frame('nope'), null);
+    eq(page.order(), page.items().slice().sort((a, b) => a.y - b.y || a.x - b.x || (a.id < b.id ? -1 : 1)).map(i => i.id));
+    page.setBreakpoint('md'); assert.equal(page.metrics().width, 768); assert.equal(pg.style.getPropertyValue('--hd-e-pw'), '768px'); page.setBreakpoint('lg'); assert.equal(page.metrics().width, 1180);
+    page.setBreakpoint(null); assert.equal(pg.getAttribute('data-hd-preview'), null); assert.equal(pg.style.getPropertyValue('--hd-e-pw'), ''); page.setFit('fit_screen'); assert.equal(page.metrics().mode, 'scroll', 'design ignores the fit setting');
+    page.setMode('view'); assert.equal(page.metrics().mode, 'fit', 'view mode applies the override'); run(); noStyleAttr(pg); }],
+  ['render (M4): destroy cancels the FLIP frame; update and preview after destroy do nothing', () => {
+    const { page, stage, run } = setup(), items = page.items().map(i => Object.assign({}, i)); items[0].x += 1; page.preview(items, { animate: true }); page.destroy(); run();
+    page.update(null, null); assert.equal(stage.querySelectorAll('.hd-widget').length, 0); assert.equal(page.preview(items), 0); }]
 ];
