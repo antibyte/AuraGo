@@ -1171,6 +1171,20 @@ var desktopDynamicI18nPrefixes = []string{
 	"docker_manager.logs_state_",
 	"docker_manager.logs_notice_",
 	"docker_manager.term_status_",
+	"homedash.error.",
+	"homedash.widget.",
+	"homedash.variant.",
+	"homedash.cmd.",
+	"homedash.bp.",
+	"homedash.state.",
+	"homedash.kind.",
+	"homedash.source.",
+	"homedash.category.",
+	"homedash.option.",
+	"homedash.family.",
+	"homedash.device_class.",
+	"homedash.action.",
+	"homedash.icon.",
 }
 
 // desktopDynamicI18nPrefixKeys returns every merged English key that belongs to
