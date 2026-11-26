@@ -71,5 +71,12 @@ export const tests = [
     E.input.track(pe('pointerdown', 10, 10), T); document.dispatchEvent(pe('pointerup', 10, 10)); click(); assert.deepEqual(log, [], 'a tap does not swallow');
     const cap = document.createElement('div'), calls = []; cap.setPointerCapture = id => calls.push('set:' + id); cap.releasePointerCapture = id => calls.push('release:' + id);
     const ends = []; E.input.track(pe('pointerdown', 10, 10, { pointerType: 'mouse', buttons: 1 }), Object.assign({ capture: cap, onEnd: (p, s, how) => ends.push(how) }, T)); document.dispatchEvent(pe('pointermove', 30, 10, { pointerType: 'mouse', buttons: 1 })); cap.dispatchEvent({ type: 'lostpointercapture', pointerId: 1 }); assert.deepEqual(ends, []); document.dispatchEvent(pe('pointerup', 30, 10, { pointerType: 'mouse', buttons: 0 })); assert.deepEqual(ends, ['up']); assert.equal(calls[0], 'set:1');
-    const te = []; E.input.track(pe('pointerdown', 10, 10), Object.assign({ capture: cap, onEnd: (p, s, how) => te.push(how) }, T)); document.dispatchEvent(pe('pointermove', 30, 10)); cap.dispatchEvent({ type: 'lostpointercapture', pointerId: 1 }); assert.deepEqual(te, ['cancel']); }]
+    const te = []; E.input.track(pe('pointerdown', 10, 10), Object.assign({ capture: cap, onEnd: (p, s, how) => te.push(how) }, T)); document.dispatchEvent(pe('pointermove', 30, 10)); cap.dispatchEvent({ type: 'lostpointercapture', pointerId: 1 }); assert.deepEqual(te, ['cancel']); }],
+  ['input (M4): the track click-eater belongs to the finished gesture only; a new pointerdown disarms it', async () => { const { E, document } = boot(), clock = fakeClock(), log = [], T = { win: document, setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout, now: clock.now };
+    const click = () => document.dispatchEvent({ type: 'click', preventDefault() { log.push('prevented'); }, stopPropagation() { log.push('stopped'); } });
+    const drag = () => { E.input.track(pe('pointerdown', 10, 10), T); document.dispatchEvent(pe('pointermove', 30, 10)); document.dispatchEvent(pe('pointerup', 30, 10)); };
+    drag(); await clock.advance(50); document.dispatchEvent(pe('pointerdown', 200, 200)); document.dispatchEvent(pe('pointerup', 200, 200)); click(); assert.deepEqual(log, [], 'a click of a new press within 400 ms is not eaten');
+    click(); assert.deepEqual(log, [], 'and the eater is gone');
+    drag(); await clock.advance(50); click(); assert.deepEqual(log, ['prevented', 'stopped'], 'the trailing click of the drag is eaten'); log.length = 0; click(); assert.deepEqual(log, [], 'once');
+    drag(); await clock.advance(450); document.dispatchEvent(pe('pointerdown', 5, 5)); click(); assert.deepEqual(log, [], 'expired by the timeout'); }]
 ];

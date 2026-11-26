@@ -27,7 +27,10 @@ func TestDesktopHomeDashDesignerBrowser(t *testing.T) {
 	}
 	h := newHDDesigner(t, "en")
 	h.page.MustSetViewport(1600, 1000, 1, false)
-	shots, dir := os.Getenv("HOMEDASH_M4_SHOTS") != "" && os.Getenv("HOMEDASH_M4_DIR") != "", filepath.Join(os.Getenv("HOMEDASH_M4_DIR"), "flow")
+	shots, dir := os.Getenv("HOMEDASH_M4_SHOTS") != "" && os.Getenv("HOMEDASH_M4_DIR") != "", ""
+	if shots {
+		dir = filepath.Join(hdSafeOutDir(t, os.Getenv("HOMEDASH_M4_DIR")), "flow")
+	}
 	only := regexp.MustCompile(`.`)
 	if s := os.Getenv("HOMEDASH_M4_F1_STEPS"); s != "" {
 		only = regexp.MustCompile(s)

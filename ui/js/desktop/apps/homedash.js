@@ -48,7 +48,7 @@
         const E = window.HomeDashEngine, Home = window.HomeDashHome, el = E.el, setAttr = E.core.setAttr, icon = name => E.icons.icon(name);
         const t = (key, vars) => ctx.t(key, vars), lifetime = new AbortController(), signal = lifetime.signal, lang = document.documentElement.lang || 'en';
         const BANNER_ICONS = { auth_lost: 'lock', offline: 'signal-off', source_unavailable: 'alert', source_degraded: 'clock', schema_too_new: 'info', readonly: 'lock', source_catalog_failed: 'alert', template_omitted: 'info' };
-        let inst = null, lastBanners = '', lastState = '', lastMenus = '', lookFrame = 0;
+        let inst = null, lastBanners = '', lastState = '', lastMenus = '', lastMenuBase = '', menuTimer = 0, lookFrame = 0, pressedAt = 0, releasing = false;
         const title = el('h1', { class: 'hdx-title', text: t('desktop.app_homedash') });
         const back = el('button', { type: 'button', class: 'hdx-back', 'data-action': 'home', hidden: 'true' }, [icon('arrow-left'), el('span', { text: t('homedash.view.back') })]);
         const connText = el('span', { class: 'hdx-conn-text' });
@@ -106,7 +106,13 @@
                 el('p', { class: 'hdx-state-text', text: s.error && s.error.code === 'storage_unavailable' ? t('homedash.error.storage') : t('homedash.error.generic', { code: (s.error && s.error.code) || '?' }) }),
                 el('button', { type: 'button', class: 'hdx-btn', 'data-action': 'retry', text: t('homedash.home.retry') }));
         }
-        function menus(s) {
+        // Rebuilding the window menus replaces ~250 nodes of the shell. A change of the edit actions that arrives while the primary button is down on the dashboard, or in the task of its release
+        // (a selection, a commit, an undo step), waits for its own task, so it never lands in the press or the release of a drag. Every other change (a context menu may be open) rebuilds at once.
+        const pressed = () => pressedAt > 0 && Date.now() - pressedAt < 10000;
+        function menus(s, now) {
+            const base = [s.mode, !!s.desktopReadonly, !!s.busy].join('|');
+            if (!now && base === lastMenuBase && (pressed() || releasing)) { if (!menuTimer && !pressed()) menuTimer = setTimeout(() => { menuTimer = 0; menus(inst.state(), true); }, 0); return; }
+            if (menuTimer) { clearTimeout(menuTimer); menuTimer = 0; } lastMenuBase = base;
             const ed = s.edit || null, acts = (ed && ed.actions) || {}, ha = Array.isArray(s.templates) && s.templates.includes('home_assistant'), dash = s.mode === 'dashboard' && !!s.dashboard;
             const sig = [s.mode, !!s.desktopReadonly, !!s.busy, ha, ed && ed.mode, ed && ed.bp, ed && ed.fit, ed && ed.undoLabel, ed && ed.redoLabel, JSON.stringify(acts)].join('|'); if (sig === lastMenus) return; lastMenus = sig;
             const blocked = !!s.desktopReadonly || !!s.busy || s.mode === 'disabled' || s.mode === 'error', sep = { type: 'separator' };
@@ -185,18 +191,24 @@
             if (action === 'home') inst.home(); else if (action === 'reconnect') inst.reconnect(); else if (action === 'retry') inst.retry();
             else if (action === 'edit') inst.run?.('edit'); else if (action === 'show-editor') inst.run?.('show_editor'); else if (action === 'retry-save') inst.run?.('retry_save');
         }, { signal });
+        root.addEventListener('pointerdown', event => { if (event.button === 0) pressedAt = Date.now(); }, { capture: true, signal });
+        const released = () => { if (!pressedAt) return; pressedAt = 0; releasing = true; if (menuTimer) clearTimeout(menuTimer); menuTimer = setTimeout(() => { menuTimer = 0; releasing = false; menus(inst.state(), true); }, 0); };
+        document.addEventListener('pointerup', released, { capture: true, signal }); document.addEventListener('pointercancel', released, { capture: true, signal });
         document.addEventListener('aurago:desktop-policy', event => {
             const d = (event && event.detail) || {};
             const ro = d.readonly === true || d.read_only === true ? true : d.readonly === false || d.read_only === false ? false : null;
             if (ro !== null) inst.setReadonly(ro);
         }, { signal });
+        // refreshLook re-reads the theme and relays the page: only a change of what it reads (the theme attributes, the body class and the body style) runs it, once per frame.
+        const lookSig = () => ['data-theme', 'data-scheme', 'data-fruity-mode', 'data-accent', 'data-animations'].map(a => document.body.getAttribute(a)).join('|') + '|' + document.body.className + '|' + (document.body.getAttribute('style') || '');
+        let lastLook = lookSig();
         const themeObserver = typeof MutationObserver === 'function' ? new MutationObserver(() => {
-            if (lookFrame) return; lookFrame = requestAnimationFrame(() => { lookFrame = 0; inst.refreshLook(); });
+            if (lookFrame) return; lookFrame = requestAnimationFrame(() => { lookFrame = 0; const sig = lookSig(); if (sig === lastLook) return; lastLook = sig; inst.refreshLook(); });
         }) : null;
         if (themeObserver) themeObserver.observe(document.body, { attributes: true, attributeFilter: ['data-theme', 'data-scheme', 'data-fruity-mode', 'data-accent', 'data-animations', 'style', 'class'] });
         inst.on('state', paint); paint(inst.state());
         instances.set(id, () => {
-            lifetime.abort(); if (themeObserver) themeObserver.disconnect(); if (lookFrame) cancelAnimationFrame(lookFrame);
+            lifetime.abort(); if (themeObserver) themeObserver.disconnect(); if (lookFrame) cancelAnimationFrame(lookFrame); if (menuTimer) clearTimeout(menuTimer);
             ctx.setWindowBeforeClose?.(id, null); inst.dispose(); sheet.destroy(); home.destroy(); ctx.setWindowMenus?.(id, []); subtitle(''); root.replaceChildren(); root.remove();
         });
     }

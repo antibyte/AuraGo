@@ -29,7 +29,7 @@ export const tests = [
       if (/!important/.test(body)) assert.ok(/\[hidden\]$/.test(sel), '!important outside [hidden]: ' + sel);
       if (/\b(transition|animation)\s*:/.test(body)) assert.ok(sel.split(',').every(s => s.trim().startsWith('body:not([data-animations="false"])')), 'ungated motion: ' + sel); }
     assert.ok(plain.includes('@media (prefers-reduced-motion: no-preference)')); }],
-  ['host: the dashboard, edit and view window menus carry ids and shortcut hints only; Edit items are disabled in view mode', () => {
+  ['host: the dashboard, edit and view window menus carry ids and shortcut hints only; Edit items are disabled in view mode', async () => {
     const h = setup(); const menus = h.menus.at(-1);
     eq(menus.map(m => m.id), ['homedash-dashboard', 'homedash-edit', 'homedash-view']);
     const walk = items => items.flatMap(it => (it.type === 'separator' ? [] : [it, ...walk(it.items || [])]));
@@ -43,6 +43,15 @@ export const tests = [
     h.push(Object.assign({}, h.state(), { edit: Object.assign({}, h.state().edit, { mode: 'design', undoLabel: 'Move', actions: Object.assign({}, h.state().edit.actions, { undo: { available: true, enabled: true }, edit: { available: true, enabled: true, checked: true } }) }) }));
     const next = h.menus.at(-1), undo = walk(next[1].items).find(i => i.id === 'undo');
     assert.equal(undo.disabled, false); assert.equal(undo.label, 'homedash.designer.undo_label:Move'); assert.equal(walk(next[2].items).find(i => i.id === 'edit-mode').checked, true); }],
+  ['host: an edit-action change while the primary button is down waits for its own task after the release (D11); without a press it rebuilds at once', async () => {
+    const h = setup(), up = () => h.window.document.dispatchEvent({ type: 'pointerup' });
+    const next = on => Object.assign({}, h.state(), { edit: Object.assign({}, h.state().edit, { actions: Object.assign({}, h.state().edit.actions, { undo: { available: true, enabled: on } }) }) });
+    const n0 = h.menus.length; h.push(next(true)); assert.equal(h.menus.length, n0 + 1, 'no press: rebuilt in the same task');
+    h.root.dispatchEvent({ type: 'pointerdown', button: 0 });
+    h.push(next(false)); assert.equal(h.menus.length, n0 + 1, 'pressed: not rebuilt while the button is down');
+    up(); h.push(next(false)); assert.equal(h.menus.length, n0 + 1, 'in the task of the release: still waiting');
+    await new Promise(r => setTimeout(r, 10)); assert.equal(h.menus.length, n0 + 2, 'rebuilt once after the release');
+    assert.equal(h.menus.at(-1)[1].items.find(i => i.id === 'undo').disabled, true); }],
   ['host: without E.ddialogs the menus leave out Rename, Import, Export and Look, and New falls back to the submenu', () => {
     const gone = { rename: 1, import: 1, export: 1, look: 1, add_page: 1, new: 1 }, actions = Object.assign({}, ACTIONS); for (const k of Object.keys(gone)) actions[k] = { available: false, enabled: false };
     const h = setup({ edit: { actions } }), ids = m => m.items.map(i => i.id), dash = h.menus.at(-1)[0];
@@ -51,13 +60,13 @@ export const tests = [
     const nw = dash.items.find(i => i.id === 'new'); eq(nw.items.map(i => i.id), ['new-starter', 'new-empty']); assert.equal(typeof nw.action, 'undefined');
     const withDlg = setup().menus.at(-1)[0]; for (const id of ['new', 'rename', 'import', 'export']) assert.ok(withDlg.items.some(i => i.id === id), id);
     assert.ok(withDlg.items.find(i => i.id === 'new').action); assert.equal(withDlg.items.find(i => i.id === 'new').items, undefined); }],
-  ['host: home mode shows one Dashboard menu with Import, greyed when read-only', () => {
+  ['host: home mode shows one Dashboard menu with Import, greyed when read-only', async () => {
     const h = setup({ mode: 'home', dashboard: null, edit: { mode: 'view', canEdit: false, phase: 'saved', actions: Object.assign({}, ACTIONS, { import: { available: true, enabled: true } }) } });
     const menus = h.menus.at(-1); eq(menus.map(m => m.id), ['homedash-dashboard']);
     eq(menus[0].items.filter(i => i.type !== 'separator').map(i => i.id), ['new', 'open', 'import', 'reload']);
     assert.equal(menus[0].items.find(i => i.id === 'import').disabled, false); menus[0].items.find(i => i.id === 'import').action(); eq(h.calls, ['run:import']);
     h.push(Object.assign({}, h.state(), { desktopReadonly: true, edit: Object.assign({}, h.state().edit, { actions: Object.assign({}, h.state().edit.actions, { import: { available: true, enabled: false } }) }) }));
-    assert.equal(h.menus.at(-1)[0].items.find(i => i.id === 'import').disabled, true); }],
+    await new Promise(r => setTimeout(r, 5)); assert.equal(h.menus.at(-1)[0].items.find(i => i.id === 'import').disabled, true); }],
   ['host: mount options, context menu boundary and the close guard', () => {
     const h = setup(); assert.equal(h.mounted.canEdit, true);
     const items = [{ id: 'copy', label: 'Copy', icon: 'copy', run: () => h.calls.push('copy') }, { separator: true }, { id: 'variant', label: 'Variant', icon: 'variant', items: [{ id: 'v1', label: 'One', icon: 'check', run: () => h.calls.push('v1') }] }];

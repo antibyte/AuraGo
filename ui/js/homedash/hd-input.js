@@ -123,8 +123,11 @@
         let drag = false, done = false, timer = null, last = start, captured = false;
         const mine = e => e.pointerId === ev.pointerId, point = e => ({ x: e.clientX, y: e.clientY, type: start.type, target: e.target, shift: !!e.shiftKey, ctrl: !!(e.ctrlKey || e.metaKey) });
         function begin(p) { drag = true; if (timer !== null) { clearT(timer); timer = null; } if (o.onStart) o.onStart(start, p); }
-        function swallow() { const until = now() + 400, eat = e => { win.removeEventListener('click', eat, true); if (now() <= until) { e.preventDefault(); e.stopPropagation(); } };
-            win.addEventListener('click', eat, true); setT(() => win.removeEventListener('click', eat, true), 450); }
+        // The eater belongs to the finished gesture: a new pointerdown, the timeout or one eaten click disarms it (a drag that ends without a click must not eat the next real one).
+        function swallow() { const until = now() + 400; let tid = null;
+            const off = () => { win.removeEventListener('click', eat, true); win.removeEventListener('pointerdown', off, true); if (tid !== null) { clearT(tid); tid = null; } };
+            const eat = e => { off(); if (now() <= until) { e.preventDefault(); e.stopPropagation(); } };
+            win.addEventListener('click', eat, true); win.addEventListener('pointerdown', off, true); tid = setT(off, 450); }
         function end(how, p) { if (done) return; done = true; if (timer !== null) clearT(timer); life.dispose();
             if (captured && cap && typeof cap.releasePointerCapture === 'function') { try { cap.releasePointerCapture(ev.pointerId); } catch (err) { /* released with the up */ } }
             if (drag) { if (how === 'up' && win) swallow(); if (o.onEnd) o.onEnd(how === 'up' ? p : last, start, how); } else if (how === 'up' && o.onTap) o.onTap(start, p); }

@@ -18,7 +18,9 @@ import (
 
 // homeDashGateProbeJS measures the designer chrome of the window WIN (a selector). It returns {contrast, ui, hits, anim, clip}; every row has `pass`.
 //   - contrast: every chrome text against EVERY colour its background can show (a gradient material is measured at each of its stops and at its
-//     opaque -color token, translucent layers are composited over what lies under them); the worst case must reach 4.5:1.
+//     opaque -color token, translucent layers are composited over what lies under them); the worst case must reach 4.5:1. A text that something
+//     outside it (an open context menu, another window) covers completely is not measured: it is recorded as skip "occluded" (not a pass); a text
+//     that is covered only in part is measured as before (the background stack is the same at every point of the text).
 //   - ui: selection outline, handles, guides, ghost, marquee and focus rings against the page canvas (3:1, worst case), switch tracks against the panel,
 //     field, select, device box, segmented and swatch borders against their own surface (3:1, Q17), the focus ring of the focused element
 //     against its surroundings (3:1 and at least 2 px when it is an outline).
@@ -53,12 +55,17 @@ const homeDashGateProbeJS = `(WIN)=>{
  const worst=(fg,list)=>{let w=1e9;for(const b of list){const r=ratio(over(fg,b),b);if(r<w)w=r;}return Math.round(w*100)/100;};
  const inView=el=>{const r=el.getBoundingClientRect();for(let n=el.parentElement;n&&n!==win;n=n.parentElement){const s=getComputedStyle(n);if(s.overflowX!=='visible'||s.overflowY!=='visible'){const p=n.getBoundingClientRect();if(r.bottom<=p.top||r.top>=p.bottom||r.right<=p.left||r.left>=p.right)return false;}}return true;};
  const shown=el=>{const r=el.getBoundingClientRect();if(!r.width||!r.height)return false;const s=getComputedStyle(el);return s.visibility!=='hidden'&&Number(s.opacity)>.05&&!el.closest('[hidden],[inert],.hd-thumb,[data-hd-drawer="closed"]')&&inView(el);};
+ const covered=el=>{const rs=[];for(const n of el.childNodes){if(n.nodeType!==3||!n.textContent.trim())continue;const rg=document.createRange();rg.selectNodeContents(n);for(const r of rg.getClientRects())if(r.width>0&&r.height>0)rs.push(r);}
+  if(!rs.length)return false;const L=Math.min(...rs.map(r=>r.left)),R=Math.max(...rs.map(r=>r.right)),T=Math.min(...rs.map(r=>r.top)),B=Math.max(...rs.map(r=>r.bottom)),cy=(T+B)/2;let seen=0,free=0;
+  for(const [x,y] of [[(L+R)/2,cy],[L+(R-L)*.15,cy],[L+(R-L)*.85,cy],[(L+R)/2,T+(B-T)*.3],[(L+R)/2,T+(B-T)*.7]]){const hit=document.elementFromPoint(x,y);if(!hit)continue;seen++;if(hit===el||el.contains(hit)||hit.contains(el))free++;}
+  return seen>0&&free===0;};
  const path=el=>{const own=[...el.classList].slice(0,2).join('.'),up=el.closest('[class*="hd-"]:not(span)');return el.tagName.toLowerCase()+'.'+(own||(up&&up!==el?'in '+[...up.classList][0]:''))+(el.dataset.hdWid?'#'+el.dataset.hdWid:'');};
  const snip=el=>[...el.childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent.trim()).join(' ').slice(0,32);
  const CHROME='.hdx-bar,.hdx-banner,.hd-editbar,.hd-conflict-bar,.hd-palette,.hd-inspector,.hd-sheet-layer:not([data-kind]) .hd-sheet,.hd-sel-chip,.hd-toast,.hd-drop-avatar,.hd-draft-badge,.hdx-elsewhere,.hdx-save';
  const coarse=matchMedia('(pointer: coarse)').matches,hosts=[...app.querySelectorAll(CHROME)];
  for(const host of hosts)for(const el of [host,...host.querySelectorAll('*')]){
   if(!shown(el)||el.closest('[aria-disabled="true"],:disabled'))continue;const txt=snip(el);if(!txt)continue;
+  if(covered(el)){res.contrast.push({el:path(el),name:txt,skip:'occluded',pass:false});continue;}
   const list=cands(el),r=worst(rgba(getComputedStyle(el).color),list);res.contrast.push({el:path(el),name:txt,ratio:r,pass:r>=4.5});
   if(el.closest('[data-entity],.hd-sr-only'))continue;
   const cs=getComputedStyle(el),box=el.getBoundingClientRect(),rg=document.createRange();rg.selectNodeContents(el);const tr=rg.getBoundingClientRect();
@@ -91,6 +98,7 @@ type hdProbeRow struct {
 	W     float64 `json:"w,omitempty"`
 	H     int     `json:"h,omitempty"`
 	Name  string  `json:"name,omitempty"`
+	Skip  string  `json:"skip,omitempty"`
 	Pass  bool    `json:"pass"`
 }
 
@@ -106,7 +114,13 @@ type hdProbe struct {
 // (a probe that measures nothing must not pass: the M2 lesson).
 func (p hdProbe) failures() []string {
 	var out []string
-	if len(p.Contrast) == 0 {
+	measured := 0
+	for _, r := range p.Contrast {
+		if r.Skip == "" {
+			measured++
+		}
+	}
+	if measured == 0 {
 		out = append(out, "probe measured no chrome text")
 	}
 	for _, k := range []struct {
@@ -114,7 +128,7 @@ func (p hdProbe) failures() []string {
 		rows []hdProbeRow
 	}{{"contrast", p.Contrast}, {"ui", p.UI}, {"hits", p.Hits}, {"anim", p.Anim}, {"clip", p.Clip}} {
 		for _, r := range k.rows {
-			if r.Pass {
+			if r.Pass || r.Skip != "" {
 				continue
 			}
 			switch k.kind {
@@ -128,6 +142,22 @@ func (p hdProbe) failures() []string {
 				out = append(out, fmt.Sprintf("anim %s %s runs forever", r.El, r.Name))
 			default:
 				out = append(out, fmt.Sprintf("clip %s %q %s scroll=%v client=%v", r.El, r.Name, r.What, r.W, r.H))
+			}
+		}
+	}
+	return out
+}
+
+// skipped lists every row the probe did not measure (a text that another element covers completely), as "contrast element "text" occluded".
+func (p hdProbe) skipped() []string {
+	var out []string
+	for _, k := range []struct {
+		kind string
+		rows []hdProbeRow
+	}{{"contrast", p.Contrast}, {"ui", p.UI}, {"hits", p.Hits}, {"anim", p.Anim}, {"clip", p.Clip}} {
+		for _, r := range k.rows {
+			if r.Skip != "" {
+				out = append(out, fmt.Sprintf("%s %s %q %s", k.kind, r.El, r.Name, r.Skip))
 			}
 		}
 	}
@@ -466,6 +496,7 @@ type hdGateResult struct {
 	State, Variant string
 	DPR            int
 	Failures       []string
+	Skipped        []string // rows the probe did not measure (reported, never counted as passed)
 }
 
 // stage runs fn as a subtest so that one state that cannot be staged (a failed wait, a missing element, a panic of a rod call) is reported and
@@ -622,7 +653,7 @@ func TestDesktopHomeDashDesignerGatesBrowser(t *testing.T) {
 					if !entered {
 						notStaged = append(notStaged, st.name+" "+v.Name)
 					}
-					results = append(results, hdGateResult{State: st.name, Variant: v.Name, DPR: dpr, Failures: p.failures()})
+					results = append(results, hdGateResult{State: st.name, Variant: v.Name, DPR: dpr, Failures: p.failures(), Skipped: p.skipped()})
 					t.Logf("%s %s %dx %s staged=%v in %v, %d probe failures", group, v.Name, dpr, st.name, entered, time.Since(started).Round(10*time.Millisecond), len(p.failures()))
 				}
 				name := fmt.Sprintf("%s-%s-%dx.png", group, v.Name, dpr)
@@ -674,8 +705,11 @@ func (h *hdDesigner) safeStr(js string) (s string) {
 // writeHDIndex writes index.html: the sheets, the states that could not be staged and every failed probe by state and variant.
 func writeHDIndex(dir string, results []hdGateResult, notStaged []string) {
 	kinds := map[string]int{}
-	var rows strings.Builder
+	var rows, skips strings.Builder
 	for _, r := range results {
+		for _, f := range r.Skipped {
+			skips.WriteString("<tr><td>" + html.EscapeString(r.State+" "+r.Variant+fmt.Sprintf(" %dx", r.DPR)) + "</td><td>" + html.EscapeString(f) + "</td></tr>\n")
+		}
 		for _, f := range r.Failures {
 			kinds[strings.SplitN(f, " ", 2)[0]]++
 			rows.WriteString("<tr><td>" + html.EscapeString(r.State+" "+r.Variant+fmt.Sprintf(" %dx", r.DPR)) + "</td><td>" + html.EscapeString(f) + "</td></tr>\n")
@@ -699,6 +733,9 @@ func writeHDIndex(dir string, results []hdGateResult, notStaged []string) {
 	}
 	index := "<!doctype html><meta charset=utf-8><title>HomeDash M4 gates</title><h1>Gate sheets</h1><ul>" + sheets.String() + "</ul><p>Not staged: " + ns + "</p><h2>Failing probes (" +
 		html.EscapeString(strings.Join(counts, ", ")) + ")</h2><table>" + rows.String() + "</table>\n"
+	if skips.Len() > 0 {
+		index += "<h2>Skipped probes (not measured, not passed)</h2><table>" + skips.String() + "</table>\n"
+	}
 	_ = os.WriteFile(filepath.Join(dir, "index.html"), []byte(index), 0o644)
 }
 
