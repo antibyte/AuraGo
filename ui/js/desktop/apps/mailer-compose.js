@@ -46,6 +46,15 @@
         return safe.replace(/\s+/g, ' ').replace(/>\s+</g, '><').trim();
     }
 
+    function assistPreviewHTML(html) {
+        if (!window.DOMPurify) return '';
+        const safe = window.DOMPurify.sanitize(String(html || ''), { ALLOWED_TAGS: ['p', 'div', 'span', 'a', 'ul', 'ol', 'li', 'strong', 'em', 'b', 'i', 'u', 's', 'br', 'hr', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'code', 'pre', 'table', 'thead', 'tbody', 'tr', 'th', 'td'], ALLOWED_ATTR: ['href', 'title', 'colspan', 'rowspan'], ALLOW_DATA_ATTR: false });
+        const output = document.createElement('template');
+        output.innerHTML = safe;
+        for (const link of output.content.querySelectorAll('a[href]')) { link.setAttribute('target', '_blank'); link.setAttribute('rel', 'noopener noreferrer'); }
+        return output.innerHTML;
+    }
+
     function previewHTML(html) {
         const safe = normalizeHTML(html);
         return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'none'; style-src 'unsafe-inline'; font-src 'none'; connect-src 'none'; form-action 'none'; base-uri 'none'"><meta name="referrer" content="no-referrer"></head><body>${safe}</body></html>`;
@@ -1014,7 +1023,7 @@
             const node = inst.host.querySelector('[data-assist-preview-content]');
             const providerName = providerConfig?.name || inst.assistPreview.provider || t(inst.ctx, 'provider_default');
             const providerModel = inst.assistPreview.model ? ` · ${inst.assistPreview.model}` : '';
-            node.innerHTML = `<p>${esc(t(inst.ctx, 'assist_preview_from'))} ${esc(providerName)}${esc(providerModel)}</p><div>${preview.html ? (window.DOMPurify ? window.DOMPurify.sanitize(preview.html) : esc(preview.text || '')) : `<pre>${esc(preview.text || '')}</pre>`}</div>`;
+            node.innerHTML = `<p>${esc(t(inst.ctx, 'assist_preview_from'))} ${esc(providerName)}${esc(providerModel)}</p><div>${preview.html ? (window.DOMPurify ? assistPreviewHTML(preview.html) : esc(preview.text || '')) : `<pre>${esc(preview.text || '')}</pre>`}</div>`;
             inst.host.querySelector('[data-assist-preview]').hidden = false;
             inst.host.querySelector('[data-assist-status]').textContent = t(inst.ctx, 'assist_ready');
         } catch (error) {

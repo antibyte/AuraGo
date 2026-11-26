@@ -276,8 +276,11 @@
     async function loadFolders(inst) {
         if (!inst.state) return;
         if (inst.accountId && !inst.state.folders.some(folder => folder.account_id === inst.accountId)) {
-            try { inst.state.folders = responseItems(await inst.api.request('/accounts/' + encodeURIComponent(inst.accountId) + '/folders'), 'folders'); }
-            catch (_) { inst.state.folders = []; }
+            const accountId = inst.accountId;
+            try {
+                const fetched = responseItems(await inst.api.request('/accounts/' + encodeURIComponent(accountId) + '/folders'), 'folders');
+                inst.state.folders = inst.state.folders.filter(folder => folder.account_id !== accountId).concat(fetched);
+            } catch (_) { /* keep the folders already known */ }
         }
         inst.folders = inst.state.folders.filter(folder => !inst.accountId || folder.account_id === inst.accountId);
     }
@@ -331,12 +334,12 @@
     function queryFor(inst, append) {
         const params = { limit: PAGE_SIZE, query: inst.query };
         if (append && inst.nextCursor) params.cursor = inst.nextCursor;
-        if (inst.remoteSearch) { delete params.query; params.q = inst.query; params.remote = 'true'; }
+        if (inst.remoteSearch && inst.query) { delete params.query; params.q = inst.query; params.remote = 'true'; }
         if (inst.accountId) params.account_id = inst.accountId;
         if (inst.view === 'folder') params.folder_id = inst.folderId;
         else if (['inbox', 'unread', 'starred', 'snoozed'].includes(inst.view)) params.view = inst.view;
         else if (inst.view === 'label') params.folder_id = inst.selectedLabel;
-        if (inst.remoteSearch) {
+        if (inst.remoteSearch && inst.query) {
             const folderId = providerSearchFolder(inst);
             if (folderId) { params.folder_id = folderId; delete params.view; }
         }
@@ -382,7 +385,7 @@
         inst.abort = controller;
         const generation = ++inst.loadGeneration;
         const list = inst.host.querySelector('[data-thread-list]');
-        inst.loadingRemote = inst.remoteSearch;
+        inst.loadingRemote = inst.remoteSearch && !!inst.query;
         inst.loadingMore = !!append;
         if (!append) inst.nextCursor = '';
         syncProviderSearchButton(inst);

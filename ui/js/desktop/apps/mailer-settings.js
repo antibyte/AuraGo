@@ -417,20 +417,16 @@
                 const selectedThreads = Array.from(inst.selected);
                 const messageIds = await selectedMessageIDs(inst, selectedThreads);
                 if (!messageIds.length) { form.querySelector('[data-rule-preview-result]').textContent = t(inst.ctx, 'select_messages_for_rule'); return; }
-                let rule = activeRecordForm(inst);
-                rule = await inst.api.saveRule(rule);
-                inst.records.editing = rule;
-                editRecord(inst, rule);
-                const currentForm = inst.host.querySelector('[data-record-form]');
+                const rule = activeRecordForm(inst);
                 const preview = await inst.api.previewRule(rule, messageIds);
-                if (Number(preview.revision) !== Number(rule.revision)) throw new Error(t(inst.ctx, 'request_failed'));
+                if (Number(preview.revision) !== Number(rule.revision || 0)) throw new Error(t(inst.ctx, 'request_failed'));
                 const items = Array.isArray(preview.items) ? preview.items : [];
                 const count = Number.isFinite(Number(preview.match_count)) ? Number(preview.match_count) : items.filter(item => item.matches).length;
-                currentForm.dataset.previewRevision = String(preview.revision);
-                currentForm.dataset.previewSignature = ruleReviewSignature(rule);
-                currentForm.dataset.previewMessages = JSON.stringify(messageIds.slice().sort());
-                currentForm.querySelector('[data-rule-apply]').disabled = false;
-                currentForm.querySelector('[data-rule-preview-result]').textContent = t(inst.ctx, 'rule_preview_count', { count });
+                form.dataset.previewRevision = String(preview.revision);
+                form.dataset.previewSignature = ruleReviewSignature(rule);
+                form.dataset.previewMessages = JSON.stringify(messageIds.slice().sort());
+                form.querySelector('[data-rule-apply]').disabled = false;
+                form.querySelector('[data-rule-preview-result]').textContent = t(inst.ctx, 'rule_preview_count', { count });
             } catch (error) { showError(inst, error); }
         }
 
@@ -441,11 +437,14 @@
             try {
                 const ids = await selectedMessageIDs(inst, threadIDs);
                 const revision = Number(form?.dataset.previewRevision);
-                if (!rule?.id || !ids.length || inst.state.readonly || !Number.isInteger(revision) || revision !== Number(rule.revision) || form.dataset.previewSignature !== ruleReviewSignature(rule) || form.dataset.previewMessages !== JSON.stringify(ids.slice().sort())) {
+                if (!rule || !ids.length || inst.state.readonly || !Number.isInteger(revision) || revision !== Number(rule.revision || 0) || form.dataset.previewSignature !== ruleReviewSignature(rule) || form.dataset.previewMessages !== JSON.stringify(ids.slice().sort())) {
                     if (form) { invalidateRulePreview({ currentTarget: form }); form.querySelector('[data-rule-preview-result]').textContent = t(inst.ctx, 'preview_rule'); }
                     return;
                 }
-                await inst.api.applyRule(rule.id, ids, revision);
+                // Previews never persist; the previewed rule is saved here, on the explicit apply action.
+                const saved = await inst.api.saveRule(rule);
+                inst.records.editing = saved;
+                await inst.api.applyRule(saved.id, ids, Number(saved.revision));
                 setStatus(inst, t(inst.ctx, 'rule_applied'));
                 await refreshCurrent(inst, true);
             }
