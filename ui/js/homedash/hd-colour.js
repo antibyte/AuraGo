@@ -50,9 +50,16 @@
         let mutedL = inkL, muted = t.ink;
         for (let i = 0; i < 100; i++) { const L = mutedL - away * 0.01, c = tone(L, 0.01); if (contrast(c, t['surface-solid']) < 5 || contrast(c, t.canvas) < 4.5) break; mutedL = L; muted = c; }
         t['ink-muted'] = muted; t['ink-faint'] = tone((mutedL + surfL) / 2, 0.01); t.hairline = tone(surfL + away * 0.12, 0.01);
-        // 3: on = accent, on-ink = black or white, on stepped to 4.5:1
-        const accentLch = rgbToOklch(accentRgb), onInk = contrast(accentRgb, [255, 255, 255]) >= contrast(accentRgb, [0, 0, 0]) ? '#FFFFFF' : '#000000';
-        t['on-ink'] = onInk; t.on = stepUntil(accentLch, onInk === '#FFFFFF' ? -0.02 : 0.02, h => contrast(h, onInk) >= 4.5);
+        // 3: on = the accent moved least in lightness so that on-ink (black or white, the better one for the accent first) reaches 4.5:1 on it and on
+        // reaches 3:1 on surface-solid (design 12.4: the ON fill carries state). Both inks are tried; on a dark surface black ink and on a light one
+        // white ink always fit, so the search ends inside the loop.
+        const accentLch = rgbToOklch(accentRgb), a0 = oklchToHex(accentLch), inks = contrast(a0, '#FFFFFF') >= contrast(a0, '#000000') ? ['#FFFFFF', '#000000'] : ['#000000', '#FFFFFF'];
+        let onHex = null, onInk = inks[0];
+        for (const ink of inks) { for (let k = 0; k <= 100 && !onHex; k++) for (const dir of k ? [1, -1] : [1]) {
+            const L = Math.round((accentLch[0] + dir * k * 0.01) * 1e6) / 1e6; if (L < 0 || L > 1) continue;
+            const hex = oklchToHex([L, accentLch[1], accentLch[2]]); if (contrast(hex, ink) >= 4.5 && contrast(hex, t['surface-solid']) >= 3) { onHex = hex; onInk = ink; break; } }
+            if (onHex) break; }
+        t['on-ink'] = onInk; t.on = onHex || (onInk === '#FFFFFF' ? '#000000' : '#FFFFFF');
         // 4: accent as a graphic, 3:1 on the surface
         t.accent = stepUntil(accentLch, away * 0.02, h => contrast(h, t['surface-solid']) >= 3);
         t['ink-on-accent'] = contrast(t.accent, '#FFFFFF') >= contrast(t.accent, '#000000') ? '#FFFFFF' : '#000000'; t.focus = t.accent;

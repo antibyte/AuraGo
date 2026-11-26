@@ -13,7 +13,7 @@ export const tests = [
       const accent = C.rgbToHex([r() * 255, r() * 255, r() * 255]), input = { accent, surface_hue: r() * 360, scheme: r() < 0.5 ? 'dark' : 'light' };
       const t = C.solvePalette(input).tokens, at = (a, b) => C.contrast(t[a], t[b]), tag = JSON.stringify(input);
       for (const name of C.PALETTE_TOKENS) assert.match(t[name], /^#[0-9A-F]{6}$/, name + ' ' + tag);
-      for (const [a, b, min] of [['ink','surface-solid',4.5],['ink','canvas',4.5],['ink-muted','surface-solid',5],['ink-muted','canvas',4.5],['on-ink','on',4.5],['ink-on-accent','accent',4.5],['accent','surface-solid',3],['selected-ink','selected',4.5],['btn-ink','btn',4.5],['ok','surface-solid',4.5],['warn','surface-solid',4.5],['alert','surface-solid',4.5],['info','surface-solid',4.5]])
+      for (const [a, b, min] of [['ink','surface-solid',4.5],['ink','canvas',4.5],['ink-muted','surface-solid',5],['ink-muted','canvas',4.5],['on-ink','on',4.5],['on','surface-solid',3],['ink-on-accent','accent',4.5],['accent','surface-solid',3],['selected-ink','selected',4.5],['btn-ink','btn',4.5],['ok','surface-solid',4.5],['warn','surface-solid',4.5],['alert','surface-solid',4.5],['info','surface-solid',4.5]])
         assert.ok(at(a, b) >= min, `${a} on ${b} ${at(a, b).toFixed(2)} ${tag}`);
     } }],
   ['ensureContrast keeps passing colours, steps lightness with hue kept and handles several backgrounds', () => { const C = boot().E.colour;
@@ -28,6 +28,9 @@ export const tests = [
     assert.ok(C.contrast(warm, '#FFFFFF') >= 3.05 && ho[0] < hw[0] && Math.abs(ho[2] - hw[2]) < 6, 'darker, same hue: ' + warm);
     const mid = C.ensureContrast('#808080', ['#FFFFFF', '#000000'], 3); assert.match(mid, /^#[0-9a-f]{6}$/);
     assert.equal(C.ensureContrast('#7AA7FF', '#808080', 99), C.ensureContrast('#7AA7FF', '#808080', 99), 'unreachable minimum returns the best extreme deterministically'); }],
+  ['solver (M4): on reaches 4.5 with its ink and 3:1 on the surface for a dark navy accent', () => { const C = boot().E.colour;
+    for (const input of [{ accent: '#1a237e', surface_hue: 220, scheme: 'dark' }, { accent: '#fff59d', surface_hue: 60, scheme: 'light' }]) { const t = C.solvePalette(input).tokens;
+      assert.ok(C.contrast(t.on, t['on-ink']) >= 4.5, JSON.stringify(input)); assert.ok(C.contrast(t.on, t['surface-solid']) >= 3, JSON.stringify(input)); } }],
   ['applyPalette writes --hd- custom properties', () => { const { E, document } = boot(true); const el = document.createElement('div');
     E.colour.applyPalette(el, E.colour.solvePalette({ accent: '#8E5BD9', surface_hue: 285, scheme: 'dark' }).tokens);
     assert.match(el.style.getPropertyValue('--hd-ink'), /^#/); E.colour.clearPalette(el); assert.equal(el.style.getPropertyValue('--hd-ink'), ''); }]
