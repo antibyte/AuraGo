@@ -82,7 +82,10 @@ RUN curl -fsSL https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --p
 # provide an export named 'default'". From 1.89.0 the CLI imports the named
 # exports instead and works with every 1.x of that package. The floor keeps a
 # resolution below that switch out, npm installs the newest matching 1.x, and
-# the build gate below proves that the resolved CLI really starts.
+# the build gate below proves that the resolved CLI really starts. The image
+# user owns the global npm tree (see the user setup below) because the CLI's
+# own background updater swaps its package directory under
+# /usr/local/lib/node_modules in place.
 RUN npm install -g --force \
         "command-code@^1.93.0" \
         http-server \
@@ -114,6 +117,8 @@ RUN chmod 0755 /usr/local/bin/commandcode-preview.js /usr/local/bin/commandcode-
     fi \
     && mkdir -p "$WORKSPACE" /home/developer/.npm /home/developer/.cache /home/developer/.commandcode \
     && chown -R developer:developer "$WORKSPACE" /home/developer \
+    && chown developer:developer /usr/local/bin /usr/local/lib/node_modules \
+    && chown -R developer:developer /usr/local/lib/node_modules/command-code \
     && echo "developer ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/developer \
     && chmod 0440 /etc/sudoers.d/developer
 

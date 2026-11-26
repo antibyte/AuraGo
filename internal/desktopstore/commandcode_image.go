@@ -5,7 +5,9 @@ import (
 	"embed"
 	"fmt"
 	"runtime"
+	"strconv"
 	"strings"
+	"time"
 )
 
 const commandCodeAppID = "commandcode"
@@ -22,6 +24,15 @@ func (s *Service) ensureCatalogImage(ctx context.Context, entry CatalogEntry) er
 	if entry.ID != commandCodeAppID {
 		return s.requireDocker().PullImage(ctx, entry.Image)
 	}
+	if err := s.ensureCommandCodeBaseImage(ctx, entry); err != nil {
+		return err
+	}
+	return s.refreshCommandCodeCLI(ctx, entry.Image)
+}
+
+// ensureCommandCodeBaseImage leaves a CommandCode image whose CLI starts under
+// entry.Image: the published one when it works, otherwise a bundled build.
+func (s *Service) ensureCommandCodeBaseImage(ctx context.Context, entry CatalogEntry) error {
 	// A published CommandCode image can carry a dependency tree whose CLI
 	// aborts on start. Installing it would hide the failure until the user
 	// opens the terminal, so the image is probed before it is used and rebuilt
@@ -44,6 +55,55 @@ func (s *Service) ensureCatalogImage(ctx context.Context, entry CatalogEntry) er
 		return fmt.Errorf("CommandCode image %s cannot start the CLI: %w", entry.Image, err)
 	}
 	return nil
+}
+
+// refreshCommandCodeCLI installs the newest command-code release on top of the
+// image. The published image is only rebuilt on release tags and a bundled
+// build reuses Docker's layer cache, so either can carry an old CLI; an install
+// or update must still bring the newest one. The layer also hands the global
+// npm tree to the image user, so the CLI's own background updater can replace
+// itself between Store updates. A failed refresh (offline, npm outage, a new
+// release that does not start) keeps the working base image: the classic
+// builder only moves the tag when every step, including the start gate,
+// succeeded.
+func (s *Service) refreshCommandCodeCLI(ctx context.Context, image string) error {
+	builder, ok := s.requireDocker().(DockerImageBuilder)
+	if !ok {
+		return nil
+	}
+	buildArgs := map[string]string{
+		// A new value per run invalidates the cached npm layer, so every
+		// refresh asks the registry for the newest release.
+		commandCodeRefreshArg: strconv.FormatInt(time.Now().UnixNano(), 10),
+	}
+	if err := builder.BuildImage(ctx, image, "Dockerfile", commandCodeRefreshDockerfile(image), nil, buildArgs); err != nil {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		s.logger().Warn("CommandCode CLI refresh failed, keeping the image's CLI",
+			"image", image, "error", err)
+		return nil
+	}
+	if err := s.probeCommandCodeImage(ctx, image); err != nil {
+		return fmt.Errorf("CommandCode image %s cannot start the CLI after the update: %w", image, err)
+	}
+	return nil
+}
+
+const commandCodeRefreshArg = "COMMAND_CODE_REFRESH"
+
+// commandCodeRefreshDockerfile builds the refresh layer on the local image.
+// The Engine API build uses the classic builder without pull, so FROM resolves
+// the image that was just pulled or built under the same tag.
+func commandCodeRefreshDockerfile(image string) []byte {
+	return []byte("FROM " + image + "\n" +
+		"USER root\n" +
+		"ARG " + commandCodeRefreshArg + "=\n" +
+		"RUN npm install -g --no-audit --no-fund --no-update-notifier \"command-code@latest\" \\\n" +
+		"    && chown developer:developer /usr/local/bin /usr/local/lib/node_modules \\\n" +
+		"    && chown -R developer:developer /usr/local/lib/node_modules/command-code\n" +
+		"USER developer\n" +
+		"RUN command-code --version\n")
 }
 
 // probeCommandCodeImage runs the CLI in the image and reports whether it

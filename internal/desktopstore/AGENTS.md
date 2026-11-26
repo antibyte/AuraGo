@@ -52,9 +52,15 @@ Store app configuration, runtime, assets, and publication.
 - The Store pulls `ghcr.io/antibyte/aurago-commandcode:latest` and probes the
   CLI in the image before it installs it: an image whose dependency tree cannot
   start the CLI is rebuilt from the embedded build context, and an image that
-  still cannot start the CLI fails the install with a clear error. Source
-  updates require image publication and a Store update before installed apps
-  change.
+  still cannot start the CLI fails the install with a clear error. Every
+  install and update then runs `refreshCommandCodeCLI`: a one-layer build on
+  the local tag that installs `command-code@latest` (cache key
+  `COMMAND_CODE_REFRESH` changes per run), hands the npm tree to `developer`
+  and reruns the start gate. A failed refresh is logged and keeps the working
+  image. The image user owns `/usr/local/lib/node_modules` and the
+  `command-code` package so the CLI's own updater can swap itself in place.
+  Dockerfile changes (preview, entrypoint, toolchains) still require image
+  publication and a Store update before installed apps change.
 - The entrypoint adds one absolute import of image-owned
   `/usr/local/share/aurago/commandcode-preview.md` to user memory
   `~/.commandcode/AGENTS.md`, including existing home volumes. Preserve all

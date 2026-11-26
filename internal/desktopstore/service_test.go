@@ -340,8 +340,11 @@ func TestCommandCodeInstallBuildsBundledImageWhenPullFails(t *testing.T) {
 		t.Fatalf("run install: %v", err)
 	}
 
-	if len(docker.builtImages) != 1 || docker.builtImages[0] != "ghcr.io/antibyte/aurago-commandcode:latest" {
-		t.Fatalf("built images = %#v, want CommandCode image fallback build", docker.builtImages)
+	if len(docker.builtImages) != 2 || docker.builtImages[0] != "ghcr.io/antibyte/aurago-commandcode:latest" {
+		t.Fatalf("built images = %#v, want CommandCode image fallback build plus the CLI refresh", docker.builtImages)
+	}
+	if !strings.Contains(docker.builtDockerfiles[0], "FROM node:22") || !strings.Contains(docker.builtDockerfiles[1], "command-code@latest") {
+		t.Fatalf("built Dockerfiles = %#v, want the bundled build first, then the CLI refresh", docker.builtDockerfiles)
 	}
 	if len(docker.created) != 1 || docker.created[0].Image != "ghcr.io/antibyte/aurago-commandcode:latest" {
 		t.Fatalf("created containers = %#v, want CommandCode container after fallback build", docker.created)
@@ -387,11 +390,11 @@ func TestCommandCodeInstallRebuildsImageWhenThePublishedCLIDoesNotStart(t *testi
 		t.Fatalf("run install: %v", err)
 	}
 
-	if len(docker.builtImages) != 1 || docker.builtImages[0] != "ghcr.io/antibyte/aurago-commandcode:latest" {
-		t.Fatalf("built images = %#v, want a rebuild of the CommandCode image", docker.builtImages)
+	if len(docker.builtImages) != 2 || docker.builtImages[0] != "ghcr.io/antibyte/aurago-commandcode:latest" {
+		t.Fatalf("built images = %#v, want a rebuild of the CommandCode image plus the CLI refresh", docker.builtImages)
 	}
-	if len(docker.probes) != 2 {
-		t.Fatalf("probes = %#v, want the published image and the rebuilt one to be probed", docker.probes)
+	if len(docker.probes) != 3 {
+		t.Fatalf("probes = %#v, want the published, the rebuilt and the refreshed image to be probed", docker.probes)
 	}
 	if len(docker.created) != 1 || docker.created[0].Image != "ghcr.io/antibyte/aurago-commandcode:latest" {
 		t.Fatalf("created containers = %#v, want the rebuilt CommandCode container", docker.created)
@@ -421,6 +424,86 @@ func TestCommandCodeInstallFailsWhenTheCLIStillDoesNotStart(t *testing.T) {
 	}
 	if len(docker.created) != 0 {
 		t.Fatalf("created containers = %#v, want none for a broken image", docker.created)
+	}
+}
+
+// The published image is only rebuilt on release tags, so an install or
+// update must not stop at the CLI that image carries: the Store layers the
+// newest command-code release on top, with a fresh cache key every time, and
+// hands the npm tree to the image user so the CLI can update itself later.
+func TestCommandCodeInstallAndUpdateRefreshTheCLIToTheNewestRelease(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{}
+	svc := newTestService(t, docker, nil, nil, fixedPorts(18083))
+
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "commandcode", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	if err := svc.RunOperation(ctx, op.ID); err != nil {
+		t.Fatalf("run install: %v", err)
+	}
+	if len(docker.builtDockerfiles) != 1 {
+		t.Fatalf("builds after install = %d, want only the CLI refresh on the working published image", len(docker.builtDockerfiles))
+	}
+	refresh := docker.builtDockerfiles[0]
+	for _, want := range []string{
+		"FROM ghcr.io/antibyte/aurago-commandcode:latest\n",
+		"ARG " + commandCodeRefreshArg,
+		`"command-code@latest"`,
+		"chown developer:developer /usr/local/bin /usr/local/lib/node_modules",
+		"chown -R developer:developer /usr/local/lib/node_modules/command-code",
+		"USER developer\nRUN command-code --version\n",
+	} {
+		if !strings.Contains(refresh, want) {
+			t.Fatalf("refresh Dockerfile misses %q:\n%s", want, refresh)
+		}
+	}
+	if len(docker.probes) != 2 {
+		t.Fatalf("probes = %#v, want the published and the refreshed image to be probed", docker.probes)
+	}
+	if indexOfString(docker.events, "build:ghcr.io/antibyte/aurago-commandcode:latest") > indexOfString(docker.events, "create:aurago-store-commandcode") {
+		t.Fatalf("events = %#v, want the refresh before the container is created", docker.events)
+	}
+
+	if err := runStoreOperation(t, svc, "commandcode", OperationUpdate); err != nil {
+		t.Fatalf("run update: %v", err)
+	}
+	if len(docker.builtDockerfiles) != 2 || docker.builtDockerfiles[1] != refresh {
+		t.Fatalf("builds after update = %#v, want a second CLI refresh", docker.builtDockerfiles)
+	}
+	first, second := docker.buildArgs[0][commandCodeRefreshArg], docker.buildArgs[1][commandCodeRefreshArg]
+	if first == "" || first == second {
+		t.Fatalf("refresh cache keys = %q, %q, want a new value per refresh so npm is asked again", first, second)
+	}
+}
+
+// Without the npm registry (offline host, outage, a release whose CLI does
+// not start) the refresh build fails and the classic builder keeps the tag on
+// the working image, so the install goes on with the image's own CLI.
+func TestCommandCodeInstallKeepsTheImageWhenTheCLIRefreshFails(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{}
+	docker.buildHook = func(_, dockerfile string) error {
+		if strings.Contains(dockerfile, "command-code@latest") {
+			return errors.New("npm ERR! network request to https://registry.npmjs.org/command-code failed")
+		}
+		return nil
+	}
+	svc := newTestService(t, docker, nil, nil, fixedPorts(18084))
+
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "commandcode", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	if err := svc.RunOperation(ctx, op.ID); err != nil {
+		t.Fatalf("run install: %v", err)
+	}
+	if len(docker.created) != 1 || docker.created[0].Image != "ghcr.io/antibyte/aurago-commandcode:latest" {
+		t.Fatalf("created containers = %#v, want the CommandCode container from the published image", docker.created)
+	}
+	if len(docker.probes) != 1 {
+		t.Fatalf("probes = %#v, want only the published image to be probed", docker.probes)
 	}
 }
 
@@ -472,6 +555,16 @@ func TestCommandCodeDockerfileKeepsCommandCodeUpdatableAndChecksCLIStarts(t *tes
 	gate := strings.Index(text, "\nRUN command-code --version\n")
 	if user < 0 || gate < 0 || gate < user {
 		t.Fatal("CommandCode Dockerfile must run `command-code --version` after USER developer so a broken dependency tree fails the build")
+	}
+	// The CLI's background updater swaps its package directory in place, so
+	// the image user must own the global npm tree.
+	for _, want := range []string{
+		"chown developer:developer /usr/local/bin /usr/local/lib/node_modules",
+		"chown -R developer:developer /usr/local/lib/node_modules/command-code",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("CommandCode Dockerfile must let the image user update the CLI: missing %q", want)
+		}
 	}
 }
 
@@ -2607,6 +2700,11 @@ type fakeDockerAdapter struct {
 	// CommandCode image. A nil hook means the CLI starts.
 	probeHook func(image string, attempt int) (exitCode int, output string, err error)
 	probes    []string // every probed image, in order
+	// builtDockerfiles and buildArgs record each BuildImage call, in order;
+	// buildHook, when set, decides whether that build fails.
+	builtDockerfiles []string
+	buildArgs        []map[string]string
+	buildHook        func(image, dockerfile string) error
 }
 
 // ctxErr returns ctx.Err() when honourContext is set, like a real engine call
@@ -2751,7 +2849,12 @@ func (f *fakeDockerAdapter) PullImage(_ context.Context, image string) error {
 
 func (f *fakeDockerAdapter) BuildImage(_ context.Context, image, dockerfileName string, dockerfile []byte, files map[string][]byte, buildArgs map[string]string) error {
 	f.builtImages = append(f.builtImages, image)
+	f.builtDockerfiles = append(f.builtDockerfiles, string(dockerfile))
+	f.buildArgs = append(f.buildArgs, buildArgs)
 	f.events = append(f.events, "build:"+image)
+	if f.buildHook != nil {
+		return f.buildHook(image, string(dockerfile))
+	}
 	return nil
 }
 

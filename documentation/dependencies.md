@@ -69,11 +69,22 @@ instead of being installed, and an image that still cannot start the CLI
 fails the install with a clear error. This keeps the Store working while the
 published `:latest` tag is only refreshed on release tags.
 
-Updating the CLI inside the container stays possible: `npm install -g
-command-code@latest` keeps the resolved `@opentelemetry/semantic-conventions`
+Every Store install and update then layers the newest command-code release on
+the chosen image (`npm install -g command-code@latest` with a fresh cache key
+per run, followed by the same start gate), so the app gets the newest CLI even
+when the published image is older. When the refresh fails (offline host, npm
+outage, a release that does not start), the classic builder leaves the tag on
+the working image and the install goes on with that image's CLI.
+
+The image user owns `/usr/local/lib/node_modules` and the `command-code`
+package directory, so the CLI's own background updater can replace itself in
+the container between Store updates, and `npm install -g command-code@latest`
+works without sudo. Each install resolves `@opentelemetry/semantic-conventions`
 in the range the CLI declares, and every CLI from 1.89.0 on starts with every
 1.x of that package. A manual downgrade below 1.89.0 brings the default import
 back and has to be paired with `@opentelemetry/semantic-conventions@1.43.0`.
+Container-local updates end with the next Store update, which installs the
+newest release again.
 
 The root npm lock retains `deepmerge` 4.3.1 through
 `@rollup/plugin-node-resolve` 16.0.3. [GHSA-gcqx-w48m-w2h4](https://github.com/advisories/GHSA-gcqx-w48m-w2h4)
