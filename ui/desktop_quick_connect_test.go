@@ -327,6 +327,7 @@ func TestDesktopQuickConnectRDPContract(t *testing.T) {
 		"QuickConnectRDP.addTrustAction(",
 		"QuickConnectRDP.addPasswordRetryAction(",
 		"connectRDP(deviceId, { password: typed })",
+		"onTrusted: () => connectRDP(deviceId, retryOpts)",
 		"desktop.qc_rdp_error_cert_changed",
 		"desktop.qc_rdp_error_rate_limited",
 		"err.retryAfter",

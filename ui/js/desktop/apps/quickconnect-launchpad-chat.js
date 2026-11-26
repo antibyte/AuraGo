@@ -1063,13 +1063,13 @@
                 if (!dead()) showEnd('error', 'desktop.qc_rdp_error_unavailable');
                 return;
             }
-            let creds;
+            let creds, retryOpts;
             try {
                 creds = await requestTicket();
                 const issuedAt = Date.now();
                 if (dead()) return;
                 if (overridePassword !== null) {
-                    creds.password = overridePassword;
+                    creds.password = overridePassword; retryOpts = { password: overridePassword };
                 } else if (!creds.has_password) {
                     // The ticket lives 60 s: reuse it when the prompt is quick, else fetch a fresh one.
                     const typed = await QuickConnectRDP.promptPassword({
@@ -1082,7 +1082,7 @@
                         creds = await requestTicket();
                         if (dead()) return;
                     }
-                    creds.password = typed;
+                    creds.password = typed; retryOpts = { password: typed };
                 }
             } catch (err) {
                 if (dead()) return;
@@ -1109,7 +1109,7 @@
                     if (key === 'desktop.qc_rdp_error_cert_changed') {
                         QuickConnectRDP.addTrustAction({
                             box, t, deviceId, confirm: showConfirmModal, notify: showNotify,
-                            post: url => api(url, { method: 'POST' }), onTrusted: () => connectRDP(deviceId)
+                            post: url => api(url, { method: 'POST' }), onTrusted: () => connectRDP(deviceId, retryOpts)
                         });
                     }
                     if (key === 'desktop.qc_rdp_error_logon_failure' || key === 'desktop.qc_rdp_error_wrong_password') {
