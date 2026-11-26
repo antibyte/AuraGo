@@ -51,6 +51,7 @@ type homeDashFixture struct {
 	requests   []string
 	bodies     map[string]string
 	m3         *homeDashM3 // nil until enableM3 (desktop_homedash_fixture_m3_test.go)
+	m4         *homeDashM4 // nil until the first M4 save route or control (desktop_homedash_fixture_m4_test.go)
 }
 
 // homeDashCreateBody is the body of POST dashboards: a template (with the optional name and, for home_assistant, unassigned_title) or a document.
@@ -348,7 +349,12 @@ func (f *homeDashFixture) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		f.mu.Unlock()
-		homeDashJSON(w, 200, map[string]any{"status": "ok", "entities": list, "total": len(list), "limit": 100, "offset": 0, "sources": sources})
+		page, total, limit, offset, bad := homeDashEntityPage(list, r.URL.Query())
+		if bad != "" {
+			homeDashError(w, 400, "bad_request", "bad "+bad)
+			return
+		}
+		homeDashJSON(w, 200, map[string]any{"status": "ok", "entities": page, "total": total, "limit": limit, "offset": offset, "sources": sources})
 	case "GET entity":
 		id := r.URL.Query().Get("id")
 		if !homeDashEntityPattern.MatchString(id) {
@@ -383,6 +389,12 @@ func (f *homeDashFixture) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		f.remove(w, r)
 	case "POST commands":
 		f.command(w, raw)
+	case "PUT dashboard":
+		f.update(w, r, raw)
+	case "POST dashboards/validate":
+		f.validate(w, raw)
+	case "POST dashboard/duplicate":
+		f.duplicate(w, r, raw)
 	}
 }
 
@@ -608,18 +620,20 @@ func (f *homeDashFixture) create(w http.ResponseWriter, raw []byte) {
 		}
 		doc["slug"] = f.uniqueSlugLocked("system")
 	} else {
-		name, _ := body.Document["name"].(string)
-		pages, _ := body.Document["pages"].([]any)
-		if name == "" || len(pages) == 0 {
-			homeDashJSON(w, 422, map[string]any{"status": "error", "code": "invalid_document", "message": "invalid document", "issues": []any{map[string]any{"path": "/pages", "code": "required", "message": "at least one page"}}})
+		if code, issues := f.lintLocked(body.Document); code != "" || len(issues) > 0 {
+			homeDashJSON(w, 422, map[string]any{"status": "error", "code": "invalid_document", "message": "invalid document", "issues": issues})
 			return
 		}
-		page, _ := pages[0].(map[string]any)
-		doc = map[string]any{"schema_version": 1, "name": name, "slug": f.uniqueSlugLocked(homeDashSlug(name)),
-			"look":  map[string]any{"family": "glass", "palette": map[string]any{"mode": "theme"}, "backdrop": map[string]any{"kind": "theme"}, "density": "comfortable", "radius_scale": 1},
-			"grid":  map[string]any{"row_unit": "auto", "gap": nil, "fit": "scroll"},
-			"pages": []any{map[string]any{"id": page["id"], "name": page["name"], "compact": true, "widgets": []any{}, "layouts": map[string]any{"lg": []any{}}}},
-			"kiosk": map[string]any{"start_page": page["id"], "idle_dim_seconds": 120, "idle_dim_level": 0.3, "page_rotation_seconds": 0, "screen_saver": "clock", "show_clock": true}}
+		doc = homeDashClone(body.Document)
+		name, _ := doc["name"].(string)
+		if slug, _ := doc["slug"].(string); slug == "" || f.slugTakenLocked(slug) {
+			doc["slug"] = f.uniqueSlugLocked(homeDashSlug(name))
+		}
+		if doc["kiosk"] == nil {
+			pages, _ := doc["pages"].([]any)
+			first, _ := pages[0].(map[string]any)
+			doc["kiosk"] = map[string]any{"start_page": first["id"], "idle_dim_seconds": 120, "idle_dim_level": 0.3, "page_rotation_seconds": 0, "screen_saver": "clock", "show_clock": true}
+		}
 	}
 	f.seq++
 	id := homeDashID(f.seq)
