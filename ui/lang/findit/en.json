@@ -875,5 +875,12 @@
   "findit.pending_command": "Resolve pending change",
   "findit.invalid_number": "Enter a valid number.",
   "findit.invalid_url": "Enter a valid web address.",
-  "findit.required_field": "This field is required."
+  "findit.required_field": "This field is required.",
+  "findit.csv_error_duplicate_item": "This part already exists or repeats an earlier row. Skip the row to import the rest.",
+  "findit.csv_error_invalid_quantity": "Enter a positive quantity; pieces must be whole numbers.",
+  "findit.csv_error_item_not_found": "No matching item was found. Choose an item for this row.",
+  "findit.csv_error_ambiguous_item": "Several items match. Choose the right one for this row.",
+  "findit.csv_error_column_count": "This row has a different number of columns than the header.",
+  "findit.csv_error_invalid_data": "This row contains an invalid value.",
+  "findit.error_rejected": "The action was rejected:"
 }

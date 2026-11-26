@@ -58,7 +58,7 @@
         if (!response.ok) {
             const body = await response.json().catch(() => ({}));
             const error = new Error(String(body.message || body.error || `HTTP ${response.status}`));
-            error.status = response.status; error.code = String(body.code || `http_${response.status}`); error.reason = String(body.reason || ''); error.field = String(body.field || ''); error.details = body.details;
+            error.status = response.status; error.code = String(body.code || `http_${response.status}`); error.reason = String(body.reason || ''); error.field = String(body.field || ''); error.details = body.details; error.detailMessage = String(body.message || '');
             throw error;
         }
         return options.raw ? response : response.status === 204 ? null : response.json();

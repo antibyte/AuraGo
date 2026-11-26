@@ -875,5 +875,12 @@
   "findit.pending_command": "保留中の変更を解決",
   "findit.invalid_number": "有効な数値を入力してください。",
   "findit.invalid_url": "有効な Web アドレスを入力してください。",
-  "findit.required_field": "この項目は必須です。"
+  "findit.required_field": "この項目は必須です。",
+  "findit.csv_error_duplicate_item": "この部品は既に存在するか、前の行と重複しています。残りをインポートするにはこの行をスキップしてください。",
+  "findit.csv_error_invalid_quantity": "正の数量を入力してください。個数は整数である必要があります。",
+  "findit.csv_error_item_not_found": "一致するアイテムが見つかりません。この行のアイテムを選択してください。",
+  "findit.csv_error_ambiguous_item": "複数のアイテムが一致します。この行に合うものを選択してください。",
+  "findit.csv_error_column_count": "この行の列数がヘッダーと異なります。",
+  "findit.csv_error_invalid_data": "この行に無効な値が含まれています。",
+  "findit.error_rejected": "操作は拒否されました:"
 }

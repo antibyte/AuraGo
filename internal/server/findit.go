@@ -110,7 +110,16 @@ func findItStoreError(w http.ResponseWriter, err error) {
 		code, status = "policy_changed", http.StatusConflict
 	}
 	detail := findit.ErrorDetail(err)
-	findItJSON(w, status, map[string]any{"error": code, "code": code, "reason": detail.Reason, "field": detail.Field, "details": detail.Details})
+	findItJSON(w, status, map[string]any{"error": code, "code": code, "reason": detail.Reason, "field": detail.Field, "details": detail.Details, "message": findItSafeMessage(code, detail)})
+}
+
+// findItSafeMessage returns the domain's explanation for client-correctable
+// errors. Unavailable errors keep their wording server-side.
+func findItSafeMessage(code string, detail *findit.DomainError) string {
+	if code != "conflict" && code != "invalid" && code != "not_found" {
+		return ""
+	}
+	return detail.Message
 }
 
 func decodeFindItJSON(w http.ResponseWriter, r *http.Request, target any, limit int64) bool {
@@ -364,9 +373,9 @@ func (s *Server) saveFindItSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		Enabled         bool   `json:"enabled"`
-		AgentAccess     bool   `json:"agent_access"`
-		ReadOnly        bool   `json:"readonly"`
+		Enabled         *bool  `json:"enabled"`
+		AgentAccess     *bool  `json:"agent_access"`
+		ReadOnly        *bool  `json:"readonly"`
 		ExpectedVersion string `json:"expected_version"`
 	}
 	if !decodeFindItJSON(w, r, &req, 4096) {
@@ -389,7 +398,18 @@ func (s *Server) saveFindItSettings(w http.ResponseWriter, r *http.Request) {
 		findItHTTPError(w, 503, "config_unavailable")
 		return
 	}
-	raw["findit"] = config.FindItConfig{Enabled: req.Enabled, AgentAccess: req.AgentAccess, ReadOnly: req.ReadOnly}
+	// Omitted switches keep their saved value instead of silently turning off.
+	settings := cfg.FindIt
+	if req.Enabled != nil {
+		settings.Enabled = *req.Enabled
+	}
+	if req.AgentAccess != nil {
+		settings.AgentAccess = *req.AgentAccess
+	}
+	if req.ReadOnly != nil {
+		settings.ReadOnly = *req.ReadOnly
+	}
+	raw["findit"] = settings
 	out, err := yaml.Marshal(raw)
 	if err != nil {
 		findItHTTPError(w, 503, "config_unavailable")

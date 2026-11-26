@@ -111,11 +111,31 @@ func applyStockCommand(ctx context.Context, tx *sql.Tx, requestID string, input 
 			if err := ensureItemStockIncrease(ctx, tx, input.ItemID, quantity); err != nil {
 				return nil, err
 			}
-			stock = stockState{ID: newID(), ItemID: input.ItemID, LocationID: locationID, Lot: lot, Condition: condition, Serial: serial, Version: 1, TrackSerials: item.TrackSerials, Unit: item.Unit}
-			if err := createStockRow(ctx, tx, stock, quantity); err != nil {
-				return nil, mapWriteError(err, "receive stock")
+			// Untracked stock with the same location, lot and condition joins the
+			// existing position so one place never lists the same stock twice.
+			var existingID string
+			if !item.TrackSerials {
+				err := tx.QueryRowContext(ctx, `SELECT id FROM stocks WHERE item_id=? AND location_id=? AND lot=? AND condition=? AND serial_norm='' ORDER BY created_at, id LIMIT 1`, input.ItemID, locationID, lot, condition).Scan(&existingID)
+				if err != nil && !errors.Is(err, sql.ErrNoRows) {
+					return nil, wrapError("unavailable", "find FindIt receive position", err)
+				}
 			}
-			stock.Quantity = quantity
+			if existingID != "" {
+				stock, err = loadStock(ctx, tx, existingID)
+				if err != nil {
+					return nil, err
+				}
+				if err := addStock(ctx, tx, stock, quantity); err != nil {
+					return nil, err
+				}
+				stock.Quantity += quantity
+			} else {
+				stock = stockState{ID: newID(), ItemID: input.ItemID, LocationID: locationID, Lot: lot, Condition: condition, Serial: serial, Version: 1, TrackSerials: item.TrackSerials, Unit: item.Unit}
+				if err := createStockRow(ctx, tx, stock, quantity); err != nil {
+					return nil, mapWriteError(err, "receive stock")
+				}
+				stock.Quantity = quantity
+			}
 			delta = quantity
 		} else {
 			stock, err = loadStock(ctx, tx, input.StockID)
@@ -291,7 +311,7 @@ func applyStockCommand(ctx context.Context, tx *sql.Tx, requestID string, input 
 			dest.Quantity += quantity
 		}
 		delta = quantity
-		if err := insertMovement(ctx, tx, requestID, kind, input.ItemID, stock.ID, sourceLocation, targetLocation, delta, "", "", "", lot, condition, note); err != nil {
+		if err := insertMovement(ctx, tx, requestID, kind, input.ItemID, stock.ID, sourceLocation, targetLocation, delta, "", "", "", stock.Lot, stock.Condition, note); err != nil {
 			return nil, err
 		}
 		if targetID != "" {
@@ -303,7 +323,7 @@ func applyStockCommand(ctx context.Context, tx *sql.Tx, requestID string, input 
 		return stockResult(ctx, tx, requestID, kind, quantity, stock)
 	}
 	if kind != "transfer" {
-		if err := insertMovement(ctx, tx, requestID, kind, input.ItemID, stock.ID, movementSource(kind, stock.LocationID), movementTarget(kind, stock.LocationID), delta, "", "", stock.Serial, stock.Lot, stock.Condition, note); err != nil {
+		if err := insertMovement(ctx, tx, requestID, kind, input.ItemID, stock.ID, movementSource(kind, stock.LocationID, delta), movementTarget(kind, stock.LocationID, delta), delta, "", "", stock.Serial, stock.Lot, stock.Condition, note); err != nil {
 			return nil, err
 		}
 	}
@@ -469,6 +489,11 @@ func stockRecord(ctx context.Context, tx *sql.Tx, id string) (StockRecord, error
 	}
 	result.Location = location
 	result.Quantity = FormatQuantity(quantity)
+	locationRecord, err := getLocation(ctx, tx, result.LocationID)
+	if err != nil {
+		return StockRecord{}, err
+	}
+	result.LocationPath = locationRecord.Path
 	var reserved int64
 	if err := tx.QueryRowContext(ctx, `SELECT COALESCE(sum(quantity_micro-consumed_micro-released_micro),0) FROM reservations WHERE stock_id=?`, id).Scan(&reserved); err != nil {
 		return StockRecord{}, wrapError("unavailable", "read FindIt stock reservations", err)
@@ -757,15 +782,17 @@ func releaseProjectReservations(ctx context.Context, tx *sql.Tx, requestID, proj
 	return nil
 }
 
-func movementSource(kind, location string) string {
-	if kind == "issue" || kind == "adjust" {
+// movementSource names the location stock left; a positive adjustment adds
+// stock, so it has a target instead.
+func movementSource(kind, location string, delta int64) string {
+	if kind == "issue" || kind == "adjust" && delta < 0 {
 		return location
 	}
 	return ""
 }
 
-func movementTarget(kind, location string) string {
-	if kind == "receive" || kind == "return" {
+func movementTarget(kind, location string, delta int64) string {
+	if kind == "receive" || kind == "return" || kind == "adjust" && delta > 0 {
 		return location
 	}
 	return ""

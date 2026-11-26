@@ -875,5 +875,12 @@
   "findit.pending_command": "Resolver cambio pendiente",
   "findit.invalid_number": "Introduce un número válido.",
   "findit.invalid_url": "Introduce una dirección web válida.",
-  "findit.required_field": "Este campo es obligatorio."
+  "findit.required_field": "Este campo es obligatorio.",
+  "findit.csv_error_duplicate_item": "Esta pieza ya existe o repite una fila anterior. Omite la fila para importar el resto.",
+  "findit.csv_error_invalid_quantity": "Introduce una cantidad positiva; las piezas deben ser números enteros.",
+  "findit.csv_error_item_not_found": "No se encontró ningún artículo coincidente. Elige un artículo para esta fila.",
+  "findit.csv_error_ambiguous_item": "Coinciden varios artículos. Elige el correcto para esta fila.",
+  "findit.csv_error_column_count": "Esta fila tiene un número de columnas distinto al del encabezado.",
+  "findit.csv_error_invalid_data": "Esta fila contiene un valor no válido.",
+  "findit.error_rejected": "La acción fue rechazada:"
 }

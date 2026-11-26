@@ -875,5 +875,12 @@
   "findit.pending_command": "Lös väntande ändring",
   "findit.invalid_number": "Ange ett giltigt tal.",
   "findit.invalid_url": "Ange en giltig webbadress.",
-  "findit.required_field": "Det här fältet är obligatoriskt."
+  "findit.required_field": "Det här fältet är obligatoriskt.",
+  "findit.csv_error_duplicate_item": "Den här delen finns redan eller upprepar en tidigare rad. Hoppa över raden för att importera resten.",
+  "findit.csv_error_invalid_quantity": "Ange en positiv mängd; styckantal måste vara heltal.",
+  "findit.csv_error_item_not_found": "Ingen matchande artikel hittades. Välj en artikel för den här raden.",
+  "findit.csv_error_ambiguous_item": "Flera artiklar matchar. Välj rätt artikel för den här raden.",
+  "findit.csv_error_column_count": "Den här raden har ett annat antal kolumner än rubriken.",
+  "findit.csv_error_invalid_data": "Den här raden innehåller ett ogiltigt värde.",
+  "findit.error_rejected": "Åtgärden avvisades:"
 }

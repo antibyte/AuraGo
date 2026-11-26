@@ -875,5 +875,12 @@
   "findit.pending_command": "Afklar ventende ændring",
   "findit.invalid_number": "Angiv et gyldigt tal.",
   "findit.invalid_url": "Angiv en gyldig webadresse.",
-  "findit.required_field": "Dette felt er påkrævet."
+  "findit.required_field": "Dette felt er påkrævet.",
+  "findit.csv_error_duplicate_item": "Denne del findes allerede eller gentager en tidligere række. Spring rækken over for at importere resten.",
+  "findit.csv_error_invalid_quantity": "Angiv en positiv mængde; stykantal skal være hele tal.",
+  "findit.csv_error_item_not_found": "Der blev ikke fundet nogen matchende vare. Vælg en vare til denne række.",
+  "findit.csv_error_ambiguous_item": "Flere varer matcher. Vælg den rigtige til denne række.",
+  "findit.csv_error_column_count": "Denne række har et andet antal kolonner end overskriften.",
+  "findit.csv_error_invalid_data": "Denne række indeholder en ugyldig værdi.",
+  "findit.error_rejected": "Handlingen blev afvist:"
 }

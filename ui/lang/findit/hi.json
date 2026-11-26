@@ -875,5 +875,12 @@
   "findit.pending_command": "लंबित बदलाव सुलझाएँ",
   "findit.invalid_number": "एक मान्य संख्या दर्ज करें।",
   "findit.invalid_url": "एक मान्य वेब पता दर्ज करें।",
-  "findit.required_field": "यह फ़ील्ड आवश्यक है।"
+  "findit.required_field": "यह फ़ील्ड आवश्यक है।",
+  "findit.csv_error_duplicate_item": "यह पुर्ज़ा पहले से मौजूद है या किसी पिछली पंक्ति को दोहराता है। बाकी आयात करने के लिए इस पंक्ति को छोड़ें।",
+  "findit.csv_error_invalid_quantity": "धनात्मक मात्रा दर्ज करें; नग पूर्ण संख्या में होने चाहिए।",
+  "findit.csv_error_item_not_found": "कोई मेल खाता आइटम नहीं मिला। इस पंक्ति के लिए एक आइटम चुनें।",
+  "findit.csv_error_ambiguous_item": "कई आइटम मेल खाते हैं। इस पंक्ति के लिए सही आइटम चुनें।",
+  "findit.csv_error_column_count": "इस पंक्ति में हेडर से अलग संख्या में कॉलम हैं।",
+  "findit.csv_error_invalid_data": "इस पंक्ति में एक अमान्य मान है।",
+  "findit.error_rejected": "कार्रवाई अस्वीकार कर दी गई:"
 }

@@ -875,5 +875,12 @@
   "findit.pending_command": "Openstaande wijziging oplossen",
   "findit.invalid_number": "Voer een geldig getal in.",
   "findit.invalid_url": "Voer een geldig webadres in.",
-  "findit.required_field": "Dit veld is verplicht."
+  "findit.required_field": "Dit veld is verplicht.",
+  "findit.csv_error_duplicate_item": "Dit onderdeel bestaat al of herhaalt een eerdere rij. Sla de rij over om de rest te importeren.",
+  "findit.csv_error_invalid_quantity": "Voer een positieve hoeveelheid in; stuks moeten hele getallen zijn.",
+  "findit.csv_error_item_not_found": "Geen overeenkomend artikel gevonden. Kies een artikel voor deze rij.",
+  "findit.csv_error_ambiguous_item": "Meerdere artikelen komen overeen. Kies het juiste voor deze rij.",
+  "findit.csv_error_column_count": "Deze rij heeft een ander aantal kolommen dan de kopregel.",
+  "findit.csv_error_invalid_data": "Deze rij bevat een ongeldige waarde.",
+  "findit.error_rejected": "De actie is geweigerd:"
 }

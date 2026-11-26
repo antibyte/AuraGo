@@ -581,7 +581,10 @@ func replaceProjectLines(ctx context.Context, tx *sql.Tx, projectID string, line
 		if err != nil {
 			return err
 		}
-		if item.Archived || item.Unit == "piece" && qty%quantityScale != 0 {
+		if item.Archived {
+			return domainError("conflict", "a project BOM references an archived item")
+		}
+		if item.Unit == "piece" && qty%quantityScale != 0 {
 			return domainError("invalid", "BOM quantity is invalid for the item")
 		}
 		lineID := strings.TrimSpace(line.ID)

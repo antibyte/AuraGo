@@ -875,5 +875,12 @@
   "findit.pending_command": "Løs ventende endring",
   "findit.invalid_number": "Skriv inn et gyldig tall.",
   "findit.invalid_url": "Skriv inn en gyldig webadresse.",
-  "findit.required_field": "Dette feltet er obligatorisk."
+  "findit.required_field": "Dette feltet er obligatorisk.",
+  "findit.csv_error_duplicate_item": "Denne delen finnes allerede eller gjentar en tidligere rad. Hopp over raden for å importere resten.",
+  "findit.csv_error_invalid_quantity": "Angi en positiv mengde; stykkantall må være hele tall.",
+  "findit.csv_error_item_not_found": "Fant ingen samsvarende vare. Velg en vare for denne raden.",
+  "findit.csv_error_ambiguous_item": "Flere varer samsvarer. Velg den riktige for denne raden.",
+  "findit.csv_error_column_count": "Denne raden har et annet antall kolonner enn overskriften.",
+  "findit.csv_error_invalid_data": "Denne raden inneholder en ugyldig verdi.",
+  "findit.error_rejected": "Handlingen ble avvist:"
 }

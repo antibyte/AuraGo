@@ -875,5 +875,12 @@
   "findit.pending_command": "解决待处理的变更",
   "findit.invalid_number": "请输入有效数字。",
   "findit.invalid_url": "请输入有效的网址。",
-  "findit.required_field": "此字段为必填项。"
+  "findit.required_field": "此字段为必填项。",
+  "findit.csv_error_duplicate_item": "此零件已存在或与前面的行重复。跳过此行即可导入其余内容。",
+  "findit.csv_error_invalid_quantity": "请输入正数数量；件数必须为整数。",
+  "findit.csv_error_item_not_found": "未找到匹配的物品。请为此行选择一个物品。",
+  "findit.csv_error_ambiguous_item": "有多个物品匹配。请为此行选择正确的物品。",
+  "findit.csv_error_column_count": "此行的列数与表头不同。",
+  "findit.csv_error_invalid_data": "此行包含无效值。",
+  "findit.error_rejected": "操作被拒绝："
 }

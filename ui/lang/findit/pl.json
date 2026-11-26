@@ -875,5 +875,12 @@
   "findit.pending_command": "Rozwiąż oczekującą zmianę",
   "findit.invalid_number": "Wpisz prawidłową liczbę.",
   "findit.invalid_url": "Wpisz prawidłowy adres internetowy.",
-  "findit.required_field": "To pole jest wymagane."
+  "findit.required_field": "To pole jest wymagane.",
+  "findit.csv_error_duplicate_item": "Ta część już istnieje lub powtarza wcześniejszy wiersz. Pomiń wiersz, aby zaimportować resztę.",
+  "findit.csv_error_invalid_quantity": "Podaj dodatnią ilość; sztuki muszą być liczbami całkowitymi.",
+  "findit.csv_error_item_not_found": "Nie znaleziono pasującej pozycji. Wybierz pozycję dla tego wiersza.",
+  "findit.csv_error_ambiguous_item": "Pasuje kilka pozycji. Wybierz właściwą dla tego wiersza.",
+  "findit.csv_error_column_count": "Ten wiersz ma inną liczbę kolumn niż nagłówek.",
+  "findit.csv_error_invalid_data": "Ten wiersz zawiera nieprawidłową wartość.",
+  "findit.error_rejected": "Akcja została odrzucona:"
 }

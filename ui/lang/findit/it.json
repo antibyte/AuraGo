@@ -875,5 +875,12 @@
   "findit.pending_command": "Risolvi la modifica in sospeso",
   "findit.invalid_number": "Inserisci un numero valido.",
   "findit.invalid_url": "Inserisci un indirizzo web valido.",
-  "findit.required_field": "Questo campo è obbligatorio."
+  "findit.required_field": "Questo campo è obbligatorio.",
+  "findit.csv_error_duplicate_item": "Questo componente esiste già o ripete una riga precedente. Salta la riga per importare il resto.",
+  "findit.csv_error_invalid_quantity": "Inserisci una quantità positiva; i pezzi devono essere numeri interi.",
+  "findit.csv_error_item_not_found": "Nessun articolo corrispondente trovato. Scegli un articolo per questa riga.",
+  "findit.csv_error_ambiguous_item": "Corrispondono più articoli. Scegli quello giusto per questa riga.",
+  "findit.csv_error_column_count": "Questa riga ha un numero di colonne diverso dall'intestazione.",
+  "findit.csv_error_invalid_data": "Questa riga contiene un valore non valido.",
+  "findit.error_rejected": "L'azione è stata rifiutata:"
 }

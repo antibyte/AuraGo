@@ -875,5 +875,12 @@
   "findit.pending_command": "Offene Änderung klären",
   "findit.invalid_number": "Bitte eine gültige Zahl eingeben.",
   "findit.invalid_url": "Bitte eine gültige Webadresse eingeben.",
-  "findit.required_field": "Dieses Feld ist erforderlich."
+  "findit.required_field": "Dieses Feld ist erforderlich.",
+  "findit.csv_error_duplicate_item": "Dieses Teil existiert bereits oder wiederholt eine frühere Zeile. Überspringe die Zeile, um den Rest zu importieren.",
+  "findit.csv_error_invalid_quantity": "Gib eine positive Menge ein; Stückzahlen müssen ganze Zahlen sein.",
+  "findit.csv_error_item_not_found": "Kein passender Artikel gefunden. Wähle einen Artikel für diese Zeile.",
+  "findit.csv_error_ambiguous_item": "Mehrere Artikel passen. Wähle den richtigen für diese Zeile.",
+  "findit.csv_error_column_count": "Diese Zeile hat eine andere Spaltenzahl als die Kopfzeile.",
+  "findit.csv_error_invalid_data": "Diese Zeile enthält einen ungültigen Wert.",
+  "findit.error_rejected": "Die Aktion wurde abgelehnt:"
 }

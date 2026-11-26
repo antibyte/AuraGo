@@ -875,5 +875,12 @@
   "findit.pending_command": "Vyřešit čekající změnu",
   "findit.invalid_number": "Zadejte platné číslo.",
   "findit.invalid_url": "Zadejte platnou webovou adresu.",
-  "findit.required_field": "Toto pole je povinné."
+  "findit.required_field": "Toto pole je povinné.",
+  "findit.csv_error_duplicate_item": "Tento díl již existuje nebo opakuje dřívější řádek. Přeskočte řádek a importujte zbytek.",
+  "findit.csv_error_invalid_quantity": "Zadejte kladné množství; kusy musí být celá čísla.",
+  "findit.csv_error_item_not_found": "Nebyla nalezena žádná odpovídající položka. Vyberte položku pro tento řádek.",
+  "findit.csv_error_ambiguous_item": "Odpovídá více položek. Vyberte správnou pro tento řádek.",
+  "findit.csv_error_column_count": "Tento řádek má jiný počet sloupců než záhlaví.",
+  "findit.csv_error_invalid_data": "Tento řádek obsahuje neplatnou hodnotu.",
+  "findit.error_rejected": "Akce byla odmítnuta:"
 }

@@ -453,12 +453,15 @@
             const preset = stock && choices.find(value => value.id === stock.id) || choices[0];
             const locations = asList(state.locations);
             const locationOptions = locations.map(value => ({ value: value.id, label: locationPath(value.id).join(' › ') || value.name }));
+            // An issued serial returns to any active place: its old location may be archived.
+            const serialReturn = kind === 'return' && !!item.track_serials;
+            const activeLocation = id => locations.some(value => value.id === id) ? id : '';
             const conditionOptions = ['new', 'used', 'refurbished', 'damaged', 'unknown'].map(value => ({ value, label: tr('condition_' + value, value) }));
             const fieldsFor = stockId => {
                 const selected = choices.find(value => value.id === stockId) || preset;
                 return [
                     ...(stockRequired ? [{ key: 'stock_id', label: 'stock_record', type: 'select', required: true, disabled: retryExact, options: choices.map(value => ({ value: value.id, label: stockChoiceLabel(value, item) })) }] : []),
-                    ...(kind === 'receive' ? [{ key: 'location_id', label: 'location', type: 'select', required: true, disabled: retryExact, options: locationOptions }] : []),
+                    ...(kind === 'receive' || serialReturn ? [{ key: 'location_id', label: 'location', type: 'select', required: true, disabled: retryExact, options: locationOptions }] : []),
                     ...(kind === 'transfer' ? [{ key: 'target_location_id', label: 'target_location', type: 'select', required: true, disabled: retryExact, options: locationOptions.filter(value => value.value !== selected?.location_id) }] : []),
                     { key: 'quantity', label: 'quantity', type: 'text', required: true, inputmode: 'decimal', disabled: retryExact },
                     ...(kind === 'receive' ? [
@@ -470,7 +473,7 @@
                 ];
             };
             const initialStock = preset;
-            const values = { stock_id: retryValues.stock_id || initialStock?.id || '', location_id: retryValues.location_id || initialStock?.location_id || locations[0]?.id || '', target_location_id: retryValues.target_location_id || locations.find(value => value.id !== initialStock?.location_id)?.id || '', quantity: retryValues.quantity || (kind === 'adjust' ? initialStock?.quantity || '0' : item.track_serials && kind === 'return' ? '1' : ''), lot: retryValues.lot || '', serial: retryValues.serial || '', condition: retryValues.condition || 'new', note: retryValues.note || '' };
+            const values = { stock_id: retryValues.stock_id || initialStock?.id || '', location_id: retryValues.location_id || activeLocation(initialStock?.location_id) || locations[0]?.id || '', target_location_id: retryValues.target_location_id || locations.find(value => value.id !== initialStock?.location_id)?.id || '', quantity: retryValues.quantity || (kind === 'adjust' ? initialStock?.quantity || '0' : item.track_serials && kind === 'return' ? '1' : ''), lot: retryValues.lot || '', serial: retryValues.serial || '', condition: retryValues.condition || 'new', note: retryValues.note || '' };
             const fields = fieldsFor(values.stock_id);
             const titleKeys = { receive: 'receive_stock', issue: 'issue_stock', transfer: 'transfer', adjust: 'adjust_stock', return: 'return_stock' };
             const result = await D.openForm(dialogOptions({ title: titleKeys[kind] || 'stock_record', description: retryExact ? 'pending_command_intro' : 'stock_form_help', fields, fieldsWatch: kind === 'transfer' ? 'stock_id' : undefined, fieldsFor: kind === 'transfer' ? fieldsFor : undefined,
@@ -492,7 +495,7 @@
             if (stockRequired && !selected) return showNotice(tr('no_stock_records'), true);
             if ((kind === 'issue' || kind === 'transfer') && M.quantityCompare(amount, selected.available ?? selected.quantity ?? '0') > 0) return showNotice(tr('error_insufficient_stock'), true);
             if (kind === 'adjust' && M.quantityCompare(amount, selected.reserved ?? '0') < 0) return showNotice(tr('release_holds_first'), true);
-            const locationId = selected?.location_id || result.location_id || '';
+            const locationId = serialReturn ? result.location_id || selected?.location_id || '' : selected?.location_id || result.location_id || '';
             const beforeTotal = availability?.on_hand ?? '0'; let afterTotal = beforeTotal;
             if (kind === 'receive' || kind === 'return') afterTotal = M.quantityAdd(beforeTotal, amount) ?? beforeTotal;
             else if (kind === 'issue') afterTotal = M.quantityAdd(beforeTotal, '-' + amount) ?? beforeTotal;

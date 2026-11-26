@@ -103,3 +103,25 @@ func TestFindItSettingsCanToggleReadOnlyAndRestoreWriteAccess(t *testing.T) {
 		t.Fatalf("FindIt query after readonly restore: %d %s", got.Code, got.Body)
 	}
 }
+
+func TestFindItSettingsPartialSaveKeepsOmittedSwitches(t *testing.T) {
+	s, call := findItHTTPFixture(t)
+	if got := call("POST", "/settings", map[string]any{"enabled": true, "agent_access": true, "readonly": true, "expected_version": findItConfigRevision(s.ConfigSnapshot())}); got.Code != 200 {
+		t.Fatalf("full save: %d %s", got.Code, got.Body)
+	}
+	if got := call("POST", "/settings", map[string]any{"enabled": true, "expected_version": findItConfigRevision(s.ConfigSnapshot())}); got.Code != 200 {
+		t.Fatalf("partial save: %d %s", got.Code, got.Body)
+	}
+	if cfg := s.ConfigSnapshot().FindIt; !cfg.Enabled || !cfg.AgentAccess || !cfg.ReadOnly {
+		t.Fatalf("partial save reset omitted switches: %+v", cfg)
+	}
+}
+
+func TestFindItDomainErrorCarriesMessage(t *testing.T) {
+	_, call := findItHTTPFixture(t)
+	got := call("POST", "/command", map[string]any{"operation": "stock", "request_id": "missing-stock-return",
+		"data": map[string]any{"kind": "return", "item_id": "00000000-0000-4000-8000-000000000000", "quantity": "1"}})
+	if got.Code == 200 || !strings.Contains(got.Body.String(), `"message":"FindIt record not found"`) {
+		t.Fatalf("domain error response lacks its message: %d %s", got.Code, got.Body)
+	}
+}

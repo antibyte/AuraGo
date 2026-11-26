@@ -15,6 +15,7 @@
     const MAX_PENDING_COMMANDS = 100;
     const DEFAULT_LIST_COLUMNS = ['part', 'location', 'package', 'available', 'minimum'];
     const NAME = 'FindIt';
+    const GENERIC_DOMAIN_MESSAGES = new Set(['FindIt record conflicts with current state', 'invalid FindIt request', 'FindIt record not found']);
 
     function t(ctx, key, fallback) {
         const id = 'findit.' + key;
@@ -147,6 +148,12 @@
             pending_command_queue_full: 'pending_command_queue_full', pending_command_storage_unavailable: 'pending_command_storage_unavailable',
             initial_stock_rejected: 'initial_stock_rejected'
         }[code];
+        // A specific domain explanation beats the generic label: a rule-based
+        // conflict (serial in stock, held stock …) is not a stale record.
+        const detail = String(error?.detailMessage || '');
+        if (detail && ['conflict', 'invalid', 'not_found'].includes(code) && !GENERIC_DOMAIN_MESSAGES.has(detail)) {
+            return `${t(ctx, code === 'conflict' ? 'error_rejected' : known)} ${detail}`;
+        }
         return t(ctx, known || 'error_generic');
     };
     const unitName = (catalog, id) => asList(catalog?.units).find(value => (typeof value === 'object' ? value.id : value) === id);
@@ -558,7 +565,7 @@
         async function loadLocations() {
             try {
                 const locations = await searchAll('locations');
-                if (!stale()) { state.locations = locations; draw(); }
+                if (!stale()) { state.locations = locations; state.lastLoadedAt = Date.now(); draw(); }
             } catch (error) { if (!stale() && error?.name !== 'AbortError') state.error = noteText(ctx, error); }
         }
         async function loadProjects() {
@@ -566,7 +573,7 @@
             try {
                 const projects = await searchAll('projects', state.queryText);
                 if (!isCurrent(serial)) return;
-                state.projects = projects;
+                state.projects = projects; state.lastLoadedAt = Date.now();
                 if (state.project && !state.projects.some(project => project.id === state.project.id)) state.project = null;
             } catch (error) { if (isCurrent(serial) && error?.name !== 'AbortError') state.error = noteText(ctx, error); }
             finally { if (isCurrent(serial)) { state.busy = false; draw(); } }
@@ -577,7 +584,7 @@
             for (const value of templates) merged.set(value.id, value);
             state.templates = [...merged.values()].sort((a, b) => String(a.name).localeCompare(String(b.name)));
             if (state.catalog) state.catalog.templates = state.templates;
-            draw();
+            state.lastLoadedAt = Date.now(); draw();
         }
         async function loadViewData() {
             if (!state.status?.enabled) return;
@@ -781,7 +788,7 @@
         async function saveSearch() {
             const result = await D.openForm(dialogOptions({ title: 'save_search', fields: [{ key: 'name', label: 'search_name', type: 'text', required: true }], values: { name: state.queryText || state.category || tr('new_search') }, submitLabel: 'save' }));
             if (!result) return;
-            const saved = [...state.savedSearches, { name: result.name.trim(), query: state.queryText, category: state.category, package_family: state.packageFamily, location_id: state.locationId, available_only: state.onlyAvailable, low_stock: state.lowStock, template_id: state.filterTemplateID, property_filters: state.propertyFilters, property_filter_operators: state.propertyFilterOperators }].slice(-20);
+            const saved = [...state.savedSearches, { name: result.name.trim(), query: state.queryText, category: state.category, package_family: state.packageFamily, location_id: state.locationId, available_only: state.onlyAvailable, low_stock: state.lowStock, template_id: state.filterTemplateID, property_filters: { ...state.propertyFilters }, property_filter_operators: { ...state.propertyFilterOperators } }].slice(-20);
             state.savedSearches = saved; storeLocal(SAVED_SEARCHES_KEY, saved); draw();
         }
         function applySavedSearch(index) {
