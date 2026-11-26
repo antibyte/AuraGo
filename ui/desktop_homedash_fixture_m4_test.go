@@ -1,9 +1,10 @@
 package ui
 
 // M4 additions to the HomeDash fixture (plan 2026-11-26-homedash-m4-designer.md, contract C18): PUT dashboard with the revision check (409
-// revision_conflict + current_revision), POST dashboards/validate, POST dashboard/duplicate, entity filters and paging, a lint that mirrors the
-// server's strict decoder (unknown field -> 422 invalid_document/bad_json) and the checks a designer can get wrong (ids, names, required bindings,
-// lg layout), scripted PUT failures (answers, dropped connections, delay) and a foreign save that sends dashboard_changed.
+// revision_conflict + current_revision), POST dashboards/validate, POST dashboard/duplicate, entity filters and paging, document checks that run the
+// server's own code (homedash.DecodeDashboard, Migrate, Normalize, Autopack, Validate against the fixture's entities; the same status codes and
+// bodies as internal/server/homedash_api_dashboards.go), scripted PUT failures (answers, dropped connections, delay) and a foreign save that sends
+// dashboard_changed.
 
 import (
 	"encoding/json"
@@ -11,13 +12,14 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"regexp"
 	"slices"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 	"unicode/utf8"
+
+	"aurago/internal/homedash"
 )
 
 func init() {
@@ -55,20 +57,6 @@ type homeDashM4 struct {
 	types   map[string]homeDashWidgetSpec
 }
 
-var homeDashDocKeys = map[string][]string{
-	"dashboard": {"schema_version", "id", "slug", "name", "icon", "revision", "approved_revision", "updated_at", "saved_by", "look", "grid", "pages", "kiosk"},
-	"look": {"family", "palette", "backdrop", "density", "radius_scale"}, "palette": {"mode", "custom", "snapshot"}, "custom": {"accent", "surface_hue", "scheme"},
-	"backdrop": {"kind"}, "grid": {"row_unit", "gap", "fit"}, "page": {"id", "name", "icon", "compact", "widgets", "layouts"},
-	"widget": {"id", "type", "variant", "family", "title", "icon", "bindings", "options", "actions", "confirm"}, "actions": {"tap", "hold"}, "action": {"do", "page"},
-	"layouts": {"lg", "md", "sm"}, "item": {"id", "x", "y", "w", "h"},
-	"kiosk": {"start_page", "idle_dim_seconds", "idle_dim_level", "page_rotation_seconds", "screen_saver", "show_clock"},
-}
-var homeDashItemID = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,31}$`)
-
-func homeDashIssue(path, code, msg string) map[string]any {
-	return map[string]any{"path": path, "code": code, "message": msg}
-}
-
 func (f *homeDashFixture) m4Locked() *homeDashM4 {
 	if f.m4 == nil {
 		var cat struct {
@@ -83,154 +71,89 @@ func (f *homeDashFixture) m4Locked() *homeDashM4 {
 	return f.m4
 }
 
-// lintLocked returns ("bad_json", issues) for a field the strict decoder refuses, ("", issues) for document issues and ("", nil) when clean.
-func (f *homeDashFixture) lintLocked(doc map[string]any) (string, []map[string]any) {
-	var bad []map[string]any
-	unknown := func(path, kind string, v any) {
-		m, _ := v.(map[string]any)
-		for k := range m {
-			if !slices.Contains(homeDashDocKeys[kind], k) {
-				bad = append(bad, homeDashIssue(path+"/"+k, "bad_json", `json: unknown field "`+k+`"`))
-			}
-		}
+// homeDashHTTPStatus is the server's code -> status table (internal/server/homedash_routes.go homeDashStatus) for the codes the save routes produce.
+func homeDashHTTPStatus(code string) int {
+	switch code {
+	case homedash.CodeInvalidDocument, homedash.CodeLimitExceeded:
+		return http.StatusUnprocessableEntity
+	case homedash.CodeRevisionConflict, homedash.CodeSchemaTooNew, homedash.CodeSlugTaken:
+		return http.StatusConflict
 	}
-	unknown("", "dashboard", doc)
-	if look, _ := doc["look"].(map[string]any); look != nil {
-		unknown("/look", "look", look)
-		pal, _ := look["palette"].(map[string]any)
-		unknown("/look/palette", "palette", pal)
-		if pal != nil {
-			unknown("/look/palette/custom", "custom", pal["custom"])
-		}
-		unknown("/look/backdrop", "backdrop", look["backdrop"])
+	return http.StatusInternalServerError
+}
+
+// homeDashFail answers a *homedash.Error like hdRequest.fail: its code's status, status/code/message, current_revision and issues.
+func homeDashFail(w http.ResponseWriter, he *homedash.Error) {
+	body := map[string]any{"status": "error", "code": he.Code, "message": he.Message}
+	if he.CurrentRevision > 0 {
+		body["current_revision"] = he.CurrentRevision
 	}
-	unknown("/grid", "grid", doc["grid"])
-	unknown("/kiosk", "kiosk", doc["kiosk"])
-	pages, _ := doc["pages"].([]any)
-	for i, rp := range pages {
-		p, _ := rp.(map[string]any)
-		pp := fmt.Sprintf("/pages/%d", i)
-		unknown(pp, "page", p)
-		lay, _ := p["layouts"].(map[string]any)
-		unknown(pp+"/layouts", "layouts", lay)
-		for _, bp := range []string{"lg", "md", "sm"} {
-			items, _ := lay[bp].([]any)
-			for j, it := range items {
-				unknown(fmt.Sprintf("%s/layouts/%s/%d", pp, bp, j), "item", it)
-			}
-		}
-		ws, _ := p["widgets"].([]any)
-		for j, rw := range ws {
-			wp := fmt.Sprintf("%s/widgets/%d", pp, j)
-			unknown(wp, "widget", rw)
-			w, _ := rw.(map[string]any)
-			acts, _ := w["actions"].(map[string]any)
-			unknown(wp+"/actions", "actions", acts)
-			for _, k := range []string{"tap", "hold"} {
-				if acts != nil {
-					unknown(wp+"/actions/"+k, "action", acts[k])
-				}
-			}
-		}
+	if len(he.Issues) > 0 {
+		body["issues"] = he.Issues
 	}
-	if len(bad) > 0 {
-		return "bad_json", bad
+	homeDashJSON(w, homeDashHTTPStatus(he.Code), body)
+}
+
+// knownLocked looks up an entity the fixture serves (values, or the Home Assistant ones once M3 is on) for Validate's entity warnings.
+func (f *homeDashFixture) knownLocked(id homedash.EntityID) (homedash.Entity, bool) {
+	_, listed := f.values[string(id)]
+	if f.m3 != nil && f.m3.ha[string(id)] != nil {
+		listed = true
 	}
-	var issues []map[string]any
-	// Codes follow validator.text of the server: fewer characters than the minimum is "required", more than the maximum "too_long".
-	textIssue := func(path string, v any, min, max int) {
-		n := 0
-		if s, ok := v.(string); ok {
-			n = utf8.RuneCountInString(s)
-		}
-		switch {
-		case n < min:
-			issues = append(issues, homeDashIssue(path, "required", "required"))
-		case n > max:
-			issues = append(issues, homeDashIssue(path, "too_long", fmt.Sprintf("at most %d characters", max)))
-		}
+	if !listed {
+		return homedash.Entity{}, false
 	}
-	textIssue("/name", doc["name"], 1, 80)
-	switch {
-	case len(pages) == 0:
-		issues = append(issues, homeDashIssue("/pages", "required", "at least one page"))
-	case len(pages) > 12:
-		issues = append(issues, homeDashIssue("/pages", "too_many", "at most 12 pages"))
+	var e homedash.Entity
+	raw, _ := json.Marshal(f.entityLocked(string(id)))
+	_ = json.Unmarshal(raw, &e)
+	return e, true
+}
+
+// prepareLocked is the server's save pipeline (svc.prepare behind DecodeDashboard): decode strictly, give the document a slug (slug may be nil),
+// Migrate, Normalize, Autopack, Validate. A decode or migrate failure and a report with issues come back as the server's *homedash.Error; the
+// report is returned either way so the validate route can answer it.
+func (f *homeDashFixture) prepareLocked(raw []byte, slug func(d homedash.Dashboard) string) (homedash.Dashboard, homedash.Report, *homedash.Error) {
+	doc, err := homedash.DecodeDashboard(raw)
+	if err != nil {
+		he, _ := err.(*homedash.Error)
+		return homedash.Dashboard{}, homedash.Report{}, he
 	}
-	seen := map[string]bool{}
-	for i, rp := range pages {
-		p, _ := rp.(map[string]any)
-		pp := fmt.Sprintf("/pages/%d", i)
-		if id, _ := p["id"].(string); !homeDashItemID.MatchString(id) {
-			issues = append(issues, homeDashIssue(pp+"/id", "bad_format", "invalid page id"))
-		}
-		textIssue(pp+"/name", p["name"], 1, 40)
-		ws, _ := p["widgets"].([]any)
-		ids := map[string]bool{}
-		for j, rw := range ws {
-			w, _ := rw.(map[string]any)
-			wp := fmt.Sprintf("%s/widgets/%d", pp, j)
-			id, _ := w["id"].(string)
-			switch {
-			case !homeDashItemID.MatchString(id):
-				issues = append(issues, homeDashIssue(wp+"/id", "bad_format", "invalid widget id"))
-			case seen[id]:
-				issues = append(issues, homeDashIssue(wp+"/id", "duplicate_id", "widget id used twice"))
-			}
-			seen[id], ids[id] = true, true
-			spec, ok := f.m4Locked().types[fmt.Sprint(w["type"])]
-			if !ok {
-				issues = append(issues, homeDashIssue(wp+"/type", "unknown_type", "unknown widget type"))
-				continue
-			}
-			if !slices.ContainsFunc(spec.Variants, func(v struct {
-				ID string `json:"id"`
-			}) bool {
-				return v.ID == w["variant"]
-			}) {
-				issues = append(issues, homeDashIssue(wp+"/variant", "unknown_variant", "unknown variant"))
-			}
-			bind, _ := w["bindings"].(map[string]any)
-			for _, b := range spec.Bindings {
-				if v, _ := bind[b.Name].(string); b.Required && v == "" {
-					issues = append(issues, homeDashIssue(wp+"/bindings/"+b.Name, "binding_required", "this binding is required"))
-				}
-			}
-		}
-		lay, _ := p["layouts"].(map[string]any)
-		lg, _ := lay["lg"].([]any)
-		placed, cells := map[string]bool{}, map[[2]int]bool{}
-		for j, ri := range lg {
-			it, _ := ri.(map[string]any)
-			id := fmt.Sprint(it["id"])
-			x, y, wd, ht := homeDashInt(it["x"]), homeDashInt(it["y"]), homeDashInt(it["w"]), homeDashInt(it["h"])
-			lp := fmt.Sprintf("%s/layouts/lg/%d", pp, j)
-			switch {
-			case !ids[id]:
-				issues = append(issues, homeDashIssue(lp, "layout_unknown_widget", "no such widget"))
-			case placed[id]:
-				issues = append(issues, homeDashIssue(lp, "layout_duplicate", "placed twice"))
-			case x < 0 || wd < 1 || ht < 1 || x+wd > 12 || y < 0:
-				issues = append(issues, homeDashIssue(lp, "layout_out_of_bounds", "outside the grid"))
-			}
-			placed[id] = true
-			for cx := x; cx < x+wd && cx < 12; cx++ {
-				for cy := y; cy < y+ht && cy < 500; cy++ {
-					if cells[[2]int{cx, cy}] {
-						issues = append(issues, homeDashIssue(lp, "layout_overlap", "overlaps another widget"))
-						cx, cy = 12, 500
-					}
-					cells[[2]int{cx, cy}] = true
-				}
-			}
-		}
-		for id := range ids {
-			if !placed[id] {
-				issues = append(issues, homeDashIssue(pp+"/layouts/lg", "layout_missing", "widget "+id+" has no place"))
-			}
-		}
+	if slug != nil {
+		doc.Slug = slug(doc)
 	}
-	return "", issues
+	if err := homedash.Migrate(&doc); err != nil {
+		he, _ := err.(*homedash.Error)
+		return doc, homedash.Report{}, he
+	}
+	homedash.Normalize(&doc)
+	homedash.Autopack(&doc, homedash.Catalog())
+	report := homedash.Validate(doc, homedash.Catalog(), f.knownLocked)
+	if !report.OK() {
+		return doc, report, &homedash.Error{Code: homedash.CodeInvalidDocument, Message: "the dashboard is not valid", Issues: report.Issues}
+	}
+	return doc, report, nil
+}
+
+// homeDashDocMap turns a prepared document into the JSON object the fixture stores.
+func homeDashDocMap(doc homedash.Dashboard) map[string]any {
+	raw, _ := json.Marshal(doc)
+	out := map[string]any{}
+	_ = json.Unmarshal(raw, &out)
+	return out
+}
+
+// homeDashWarnings is the answer's warnings array ([] when none); homeDashIssues the same for issues.
+func homeDashWarnings(r homedash.Report) []homedash.Issue {
+	if r.Warnings == nil {
+		return []homedash.Issue{}
+	}
+	return r.Warnings
+}
+func homeDashIssues(r homedash.Report) []homedash.Issue {
+	if r.Issues == nil {
+		return []homedash.Issue{}
+	}
+	return r.Issues
 }
 
 // slugTakenLocked reports whether a stored dashboard already uses the slug (used by create in desktop_homedash_fixture_test.go).
@@ -288,89 +211,79 @@ func (f *homeDashFixture) update(w http.ResponseWriter, r *http.Request, raw []b
 		return
 	}
 	var body struct {
-		Revision int            `json:"revision"`
-		Document map[string]any `json:"document"`
+		Revision int             `json:"revision"`
+		Document json.RawMessage `json:"document"`
 	}
-	if json.Unmarshal(raw, &body) != nil || body.Revision < 1 || body.Document == nil {
-		homeDashError(w, 400, "bad_request", "send {revision, document}")
+	if json.Unmarshal(raw, &body) != nil {
+		homeDashError(w, 400, "bad_request", "the body is not valid JSON for this endpoint")
+		return
+	}
+	if body.Revision < 1 || len(body.Document) == 0 {
+		homeDashError(w, 400, "bad_request", "revision and document are required")
 		return
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	cur := f.dashboards[id]
+	// The server validates before the store checks the revision, so an invalid document answers 422 even when the revision is stale.
+	doc, report, he := f.prepareLocked(body.Document, func(d homedash.Dashboard) string {
+		if d.Slug == "" && cur != nil {
+			s, _ := cur["slug"].(string)
+			return s
+		}
+		return d.Slug
+	})
+	if he != nil {
+		homeDashFail(w, he)
+		return
+	}
 	if cur == nil {
 		homeDashError(w, 404, "dashboard_not_found", "no such dashboard")
 		return
 	}
 	have := homeDashInt(cur["revision"])
 	if body.Revision != have {
-		homeDashJSON(w, 409, map[string]any{"status": "error", "code": "revision_conflict", "message": "stale revision", "current_revision": have})
+		homeDashFail(w, &homedash.Error{Code: homedash.CodeRevisionConflict, Message: "stale revision", CurrentRevision: int64(have)})
 		return
 	}
-	if code, issues := f.lintLocked(body.Document); code != "" || len(issues) > 0 {
-		homeDashJSON(w, 422, map[string]any{"status": "error", "code": "invalid_document", "message": "invalid document", "issues": issues})
-		return
-	}
-	next := homeDashClone(body.Document)
-	if s, _ := next["slug"].(string); s == "" {
-		next["slug"] = cur["slug"]
-	}
+	next := homeDashDocMap(doc)
 	rev := have + 1
 	next["id"], next["revision"], next["approved_revision"], next["updated_at"], next["saved_by"] = id, rev, rev, homeDashNow(), "user"
 	f.dashboards[id] = next
-	f.m4Locked().puts = append(f.m4Locked().puts, homeDashPut{ID: id, Revision: body.Revision, Document: homeDashClone(body.Document), At: time.Now()})
+	var sent map[string]any
+	_ = json.Unmarshal(body.Document, &sent)
+	f.m4Locked().puts = append(f.m4Locked().puts, homeDashPut{ID: id, Revision: body.Revision, Document: sent, At: time.Now()})
 	f.broadcastLocked(homeDashFrame("dashboard_changed", map[string]any{"id": id, "revision": rev, "approved_revision": rev}))
-	homeDashJSON(w, 200, map[string]any{"status": "ok", "dashboard": homeDashClone(next), "warnings": []any{}})
+	homeDashJSON(w, 200, map[string]any{"status": "ok", "dashboard": homeDashClone(next), "warnings": homeDashWarnings(report)})
 }
 
+// validate answers like hdRequest.validateDashboard: 200 {valid, issues, warnings, document} for a decodable document (an empty slug is derived from
+// the name), 422 with the decoder's issue when it is not.
 func (f *homeDashFixture) validate(w http.ResponseWriter, raw []byte) {
 	var body struct {
-		Document map[string]any `json:"document"`
+		Document json.RawMessage `json:"document"`
 	}
-	if json.Unmarshal(raw, &body) != nil || body.Document == nil {
-		homeDashError(w, 400, "bad_request", "send {document}")
+	if json.Unmarshal(raw, &body) != nil {
+		homeDashError(w, 400, "bad_request", "the body is not valid JSON for this endpoint")
+		return
+	}
+	if len(body.Document) == 0 {
+		homeDashError(w, 400, "bad_request", "document is required")
 		return
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	code, issues := f.lintLocked(body.Document)
-	if code == "bad_json" {
-		homeDashJSON(w, 422, map[string]any{"status": "error", "code": "invalid_document", "message": "invalid document", "issues": issues})
+	doc, report, he := f.prepareLocked(body.Document, func(d homedash.Dashboard) string {
+		if d.Slug == "" {
+			return homeDashSlug(d.Name)
+		}
+		return d.Slug
+	})
+	if he != nil && he.Code != homedash.CodeInvalidDocument || he != nil && len(he.Issues) == 1 && he.Issues[0].Code == "bad_json" {
+		homeDashFail(w, he)
 		return
 	}
-	if issues == nil {
-		issues = []map[string]any{}
-	}
-	warnings := []map[string]any{}
-	pages, _ := body.Document["pages"].([]any)
-	for i, rp := range pages {
-		p, _ := rp.(map[string]any)
-		ws, _ := p["widgets"].([]any)
-		for j, rw := range ws {
-			wd, _ := rw.(map[string]any)
-			bind, _ := wd["bindings"].(map[string]any)
-			names := make([]string, 0, len(bind))
-			for n := range bind {
-				names = append(names, n)
-			}
-			slices.Sort(names)
-			for _, n := range names {
-				eid, _ := bind[n].(string)
-				_, known := f.values[eid]
-				if f.m3 != nil && f.m3.ha[eid] != nil {
-					known = true
-				}
-				if eid != "" && !known {
-					warnings = append(warnings, homeDashIssue(fmt.Sprintf("/pages/%d/widgets/%d/bindings/%s", i, j, n), "entity_unknown", "no such entity"))
-				}
-			}
-		}
-	}
-	doc := homeDashClone(body.Document)
-	if s, _ := doc["slug"].(string); s == "" {
-		doc["slug"] = f.uniqueSlugLocked(homeDashSlug(fmt.Sprint(doc["name"])))
-	}
-	homeDashJSON(w, 200, map[string]any{"status": "ok", "valid": len(issues) == 0, "issues": issues, "warnings": warnings, "document": doc})
+	homeDashJSON(w, 200, map[string]any{"status": "ok", "valid": report.OK(), "issues": homeDashIssues(report), "warnings": homeDashWarnings(report), "document": doc})
 }
 
 func (f *homeDashFixture) duplicate(w http.ResponseWriter, r *http.Request, raw []byte) {
@@ -584,6 +497,41 @@ func TestHomeDashFixtureSaveRoutes(t *testing.T) {
 	} {
 		if got := codeAt(c.body, c.path); got != c.want {
 			t.Fatalf("lint %s: got %q, want %q", c.path, got, c.want)
+		}
+	}
+	// The checks are the server's own (homedash.Validate): an md item under the variant minimum, a URL in a title and a fractional layout position.
+	docWith := func(widgetExtra, lg, md string) string {
+		return `{"document":{"name":"x","pages":[{"id":"a","name":"A","widgets":[{"id":"w1","type":"sensor","variant":"sparkline",` + widgetExtra + `"bindings":{"primary":"system:cpu"}}],"layouts":{"lg":[` + lg + `],"md":` + md + `}}]}}`
+	}
+	okLG := `{"id":"w1","x":0,"y":0,"w":2,"h":2}`
+	if status, out := call("POST", "dashboards/validate", docWith("", okLG, "null")); status != 200 || out["valid"] != true {
+		t.Fatalf("the baseline document is valid: %d %v", status, out)
+	}
+	issueAt := func(body string) (string, string) {
+		status, out := call("POST", "dashboards/validate", body)
+		if (status == 422) != (out["code"] == "invalid_document") {
+			t.Fatalf("validate answers 422 only with invalid_document: %d %v", status, out)
+		}
+		list, _ := out["issues"].([]any)
+		if len(list) == 0 {
+			return "", ""
+		}
+		m, _ := list[0].(map[string]any)
+		path, _ := m["path"].(string)
+		code, _ := m["code"].(string)
+		return path, code
+	}
+	for _, c := range []struct{ name, body, path, want string }{
+		{"md below the minimum size", docWith("", okLG, `[{"id":"w1","x":0,"y":0,"w":1,"h":1}]`), "/pages/0/layouts/md/0", "size_out_of_range"},
+		{"title with a URL", docWith(`"title":"see http://x.y",`, okLG, "null"), "/pages/0/widgets/0/title", "url_not_allowed"},
+		{"fractional x", docWith("", `{"id":"w1","x":0.5,"y":0,"w":2,"h":2}`, "null"), "", "bad_json"}, // the strict decoder refuses 0.5 for an int: 422 invalid_document, not a validate report
+	} {
+		path, code := issueAt(c.body)
+		if code == "" {
+			t.Fatalf("%s: no issue", c.name)
+		}
+		if code != c.want || path != c.path {
+			t.Fatalf("%s: issue %q at %q, want %q at %q", c.name, code, path, c.want, c.path)
 		}
 	}
 	if status, out := call("POST", "dashboard/duplicate?id="+id, ``); status != 201 || out["dashboard"].(map[string]any)["name"] != "Test (copy)" || out["dashboard"].(map[string]any)["slug"] != "test-copy" {

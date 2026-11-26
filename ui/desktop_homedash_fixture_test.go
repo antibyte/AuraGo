@@ -15,6 +15,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"aurago/internal/homedash"
 )
 
 var homeDashIDPattern = regexp.MustCompile(`^d_[a-z2-7]{12}$`)
@@ -56,10 +58,10 @@ type homeDashFixture struct {
 
 // homeDashCreateBody is the body of POST dashboards: a template (with the optional name and, for home_assistant, unassigned_title) or a document.
 type homeDashCreateBody struct {
-	Template        string         `json:"template"`
-	Name            string         `json:"name"`
-	UnassignedTitle string         `json:"unassigned_title"`
-	Document        map[string]any `json:"document"`
+	Template        string          `json:"template"`
+	Name            string          `json:"name"`
+	UnassignedTitle string          `json:"unassigned_title"`
+	Document        json.RawMessage `json:"document"`
 }
 
 type homeDashStream struct {
@@ -595,7 +597,7 @@ func (f *homeDashFixture) create(w http.ResponseWriter, raw []byte) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	var body homeDashCreateBody
-	if json.Unmarshal(raw, &body) != nil || (body.Template == "") == (body.Document == nil) {
+	if json.Unmarshal(raw, &body) != nil || (body.Template == "") == (len(body.Document) == 0) {
 		homeDashError(w, 400, "bad_request", "send a template or a document")
 		return
 	}
@@ -608,6 +610,7 @@ func (f *homeDashFixture) create(w http.ResponseWriter, raw []byte) {
 		return
 	}
 	var doc map[string]any
+	warnings := any([]any{})
 	if body.Template != "" {
 		if body.Template != "system" {
 			homeDashError(w, 400, "bad_request", "unknown template")
@@ -620,20 +623,17 @@ func (f *homeDashFixture) create(w http.ResponseWriter, raw []byte) {
 		}
 		doc["slug"] = f.uniqueSlugLocked("system")
 	} else {
-		if code, issues := f.lintLocked(body.Document); code != "" || len(issues) > 0 {
-			homeDashJSON(w, 422, map[string]any{"status": "error", "code": "invalid_document", "message": "invalid document", "issues": issues})
+		prepared, report, he := f.prepareLocked(body.Document, func(d homedash.Dashboard) string {
+			if d.Slug == "" || f.slugTakenLocked(d.Slug) {
+				return f.uniqueSlugLocked(homeDashSlug(d.Name))
+			}
+			return d.Slug
+		})
+		if he != nil {
+			homeDashFail(w, he)
 			return
 		}
-		doc = homeDashClone(body.Document)
-		name, _ := doc["name"].(string)
-		if slug, _ := doc["slug"].(string); slug == "" || f.slugTakenLocked(slug) {
-			doc["slug"] = f.uniqueSlugLocked(homeDashSlug(name))
-		}
-		if doc["kiosk"] == nil {
-			pages, _ := doc["pages"].([]any)
-			first, _ := pages[0].(map[string]any)
-			doc["kiosk"] = map[string]any{"start_page": first["id"], "idle_dim_seconds": 120, "idle_dim_level": 0.3, "page_rotation_seconds": 0, "screen_saver": "clock", "show_clock": true}
-		}
+		doc, warnings = homeDashDocMap(prepared), homeDashWarnings(report)
 	}
 	f.seq++
 	id := homeDashID(f.seq)
@@ -643,7 +643,7 @@ func (f *homeDashFixture) create(w http.ResponseWriter, raw []byte) {
 	doc["id"], doc["revision"], doc["approved_revision"], doc["updated_at"], doc["saved_by"] = id, 1, 1, homeDashNow(), "user"
 	f.dashboards[id] = doc
 	f.broadcastLocked(homeDashFrame("dashboard_changed", map[string]any{"id": id, "revision": 1, "approved_revision": 1}))
-	homeDashJSON(w, 201, map[string]any{"status": "ok", "dashboard": doc, "warnings": []any{}})
+	homeDashJSON(w, 201, map[string]any{"status": "ok", "dashboard": doc, "warnings": warnings})
 }
 
 func (f *homeDashFixture) get(w http.ResponseWriter, r *http.Request) {
