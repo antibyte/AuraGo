@@ -98,7 +98,7 @@
             setAttr(wrapper, 'data-hd-pending', !!(p && p.pending)); setAttr(wrapper, 'data-hd-stale', !!(p && p.stale)); setAttr(wrapper, 'data-hd-readonly', !!(p && p.readonly));
             setAttr(wrapper, 'data-hd-armed', !!(p && p.armed)); setAttr(wrapper, 'data-hd-confirmed', !!(p && p.confirmed));
             writeTone(p); writeState(p);
-            if (moreBtn && typeof o.moreWhen === 'function') setAttr(moreBtn, 'hidden', !o.moreWhen(p));
+            if (moreBtn) setAttr(moreBtn, 'hidden', mode !== 'view' || (typeof o.moreWhen === 'function' && !o.moreWhen(p)));
             inst.update({ mode, entities });
         }
         function applyMode() {
@@ -188,5 +188,16 @@
         } finally { if (probe) probe.remove(); }
     }
 
-    E.widgets = Object.freeze({ register, get, types, host, applyLook, heroStatus, iconFor });
+    // The palette snapshot (frontend 5.12, D7): the catalog's palette tokens as resolved on , lower-case #rrggbb, only names the root defines,
+    // at most 40. Saved with mode theme so the kiosk shows the desktop theme's colours.
+    function paletteSnapshot(root, names) {
+        const out = {}; if (!root || root.nodeType !== 1) return out;
+        const doc = root.ownerDocument, view = doc && doc.defaultView; if (!view || typeof view.getComputedStyle !== 'function') return out;
+        const cs = view.getComputedStyle(root), probe = el('span', { 'aria-hidden': 'true' }); probe.style.setProperty('display', 'none'); root.appendChild(probe);
+        try { for (const n of (names || []).slice(0, 40)) { if (!/^[a-z0-9-]{1,32}$/.test(n) || !String(cs.getPropertyValue('--hd-' + n) || '').trim()) continue;
+            probe.style.setProperty('color', 'var(--hd-' + n + ')'); const rgb = resolveColour(doc, view.getComputedStyle(probe).color); if (rgb) out[n] = E.colour.rgbToHex(rgb).toLowerCase(); } }
+        finally { probe.remove(); }
+        return out;
+    }
+    E.widgets = Object.freeze({ register, get, types, host, applyLook, heroStatus, iconFor, paletteSnapshot });
 })();

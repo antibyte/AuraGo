@@ -38,5 +38,6 @@ export const tests = [
     assert.equal(q('.hd-head .hd-icon svg').getAttribute('data-hd-icon'), 'power'); state.view = view({ icon_hint: 'outlet' }); h.update(); assert.equal(q('.hd-head .hd-icon svg').getAttribute('data-hd-icon'), 'outlet');
     state.view = null; h.update(); assert.equal(q('.hd-title').textContent, 'Fallback title');
     const more = q('.hd-more'); assert.ok(more.querySelector('svg[data-hd-icon="more"]')); more.dispatchEvent({ type: 'click', preventDefault() {} }); assert.deepEqual(calls, [['primary']]);
-    h.setMode('design'); more.dispatchEvent({ type: 'click', preventDefault() {} }); assert.equal(calls.length, 1); h.destroy(); }]
+    h.setMode('design'); more.dispatchEvent({ type: 'click', preventDefault() {} }); assert.equal(calls.length, 1); assert.equal(more.hasAttribute('hidden'), true);
+    h.setMode('thumb'); assert.equal(more.hasAttribute('hidden'), true); h.setMode('view'); assert.equal(more.hasAttribute('hidden'), false); h.destroy(); }]
 ];

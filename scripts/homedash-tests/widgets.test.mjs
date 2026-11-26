@@ -75,5 +75,13 @@ export const tests = [
     const frame = h.el.querySelector('.hd-frame');
     h.setMode('thumb'); assert.equal(frame.hasAttribute('inert'), true); assert.equal(h.el.getAttribute('aria-hidden'), 'true'); assert.equal(h.body.hasAttribute('inert'), true);
     h.setMode('view'); assert.equal(frame.hasAttribute('inert'), false); assert.equal(h.el.hasAttribute('aria-hidden'), false); assert.equal(h.body.hasAttribute('inert'), false);
-    h.setMode('design'); assert.equal(frame.hasAttribute('inert'), false); assert.equal(h.body.hasAttribute('inert'), true); }]
+    h.setMode('design'); assert.equal(frame.hasAttribute('inert'), false); assert.equal(h.body.hasAttribute('inert'), true); }],
+  ['widgets (M4): paletteSnapshot resolves the defined tokens to lower-case hex, skips undefined and malformed names, caps at 40 and leaves no probe behind', () => {
+    const { E, document } = loadEngine(ENGINE_ORDER, { dom: true }), root = document.createElement('div'); document.body.appendChild(root);
+    const theme = { '--hd-ink': 'rgb(240, 240, 240)', '--hd-canvas': 'rgb(16, 20, 30)', '--hd-accent': 'rgb(122, 167, 255)' };
+    document.defaultView = { getComputedStyle: node => { if (node === root) return { getPropertyValue: n => (theme[n] ? 'x' : '') }; const m = /var\((.*)\)/.exec(node.style.getPropertyValue('color')); return { color: m && theme[m[1]] ? theme[m[1]] : 'rgba(0, 0, 0, 0)' }; } };
+    const snap = E.widgets.paletteSnapshot(root, ['ink', 'canvas', 'accent', 'missing', 'Bad Name', '', 'x'.repeat(40)]); assert.deepEqual({ ...snap }, { ink: '#f0f0f0', canvas: '#10141e', accent: '#7aa7ff' }); assert.equal(root.children.length, 0, 'the probe is removed');
+    assert.deepEqual({ ...E.widgets.paletteSnapshot(root, []) }, {}); assert.deepEqual({ ...E.widgets.paletteSnapshot(null, ['ink']) }, {}); assert.deepEqual({ ...E.widgets.paletteSnapshot({ nodeType: 3 }, ['ink']) }, {});
+    const many = Array.from({ length: 60 }, (_, i) => 't' + i); for (const n of many) theme['--hd-' + n] = 'rgb(1, 2, 3)'; assert.equal(Object.keys(E.widgets.paletteSnapshot(root, many)).length, 40); assert.equal(root.children.length, 0);
+    document.defaultView = undefined; assert.deepEqual({ ...E.widgets.paletteSnapshot(root, ['ink']) }, {}); }]
 ];

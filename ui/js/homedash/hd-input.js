@@ -110,5 +110,37 @@
         ctx.life.on(el, 'contextmenu', ev => { if (g && g.type !== 'mouse') stop(ev); });
         ctx.life.add(() => halt(false));
         return () => ctx.life.dispose(); }
-    E.input = Object.freeze({ THRESHOLD_PX, HOLD_MS, REPEAT_FIRST_MS, REPEAT_MS, DEAD_ZONE_DEG, DIAL_PX, range, snap, page, keyValue, fraction, valueAt, dialFraction, verticalFraction, isHoldKey, press, gesture, keys, repeat });
+    // track(ev, o): one pointer session from a pointerdown the caller received (delegated listeners: canvas, palette). Primary pointer and main button
+    // only (null otherwise). Below the threshold nothing happens; o.axis 'x' abandons a mostly vertical first move (a touch list scrolls); o.holdMs starts
+    // the drag after a still press. onEnd(point, start, how): 'up', 'cancel' (pointercancel, a lost capture of touch or pen, cancel()), 'lost' (mouse move
+    // without a button). A mouse keeps its session when the capture is lost with the button down (re-render; Infra F14). A tap calls onTap. A click
+    // within 400 ms after a drag is swallowed.
+    function track(ev, opts) {
+        const o = opts || {}; if (!ev || !primary(ev)) return null;
+        const cap = o.capture || null, doc = cap && cap.ownerDocument, win = o.win || (doc && doc.defaultView) || null;
+        const setT = o.setTimeout || ((fn, ms) => setTimeout(fn, ms)), clearT = o.clearTimeout || (id => clearTimeout(id)), now = o.now || (() => Date.now());
+        const life = E.core.bag(), threshold = finite(o.threshold) ? o.threshold : THRESHOLD_PX, start = { x: ev.clientX, y: ev.clientY, type: ev.pointerType, target: ev.target, shift: !!ev.shiftKey, ctrl: !!(ev.ctrlKey || ev.metaKey) };
+        let drag = false, done = false, timer = null, last = start, captured = false;
+        const mine = e => e.pointerId === ev.pointerId, point = e => ({ x: e.clientX, y: e.clientY, type: start.type, target: e.target, shift: !!e.shiftKey, ctrl: !!(e.ctrlKey || e.metaKey) });
+        function begin(p) { drag = true; if (timer !== null) { clearT(timer); timer = null; } if (o.onStart) o.onStart(start, p); }
+        function swallow() { const until = now() + 400, eat = e => { win.removeEventListener('click', eat, true); if (now() <= until) { e.preventDefault(); e.stopPropagation(); } };
+            win.addEventListener('click', eat, true); setT(() => win.removeEventListener('click', eat, true), 450); }
+        function end(how, p) { if (done) return; done = true; if (timer !== null) clearT(timer); life.dispose();
+            if (captured && cap && typeof cap.releasePointerCapture === 'function') { try { cap.releasePointerCapture(ev.pointerId); } catch (err) { /* released with the up */ } }
+            if (drag) { if (how === 'up' && win) swallow(); if (o.onEnd) o.onEnd(how === 'up' ? p : last, start, how); } else if (how === 'up' && o.onTap) o.onTap(start, p); }
+        if (cap && typeof cap.setPointerCapture === 'function') { try { cap.setPointerCapture(ev.pointerId); captured = true; } catch (err) { /* synthetic pointer: window listeners carry it */ } }
+        if (finite(o.holdMs) && o.holdMs > 0) timer = setT(() => { timer = null; if (!done && !drag) begin(start); }, o.holdMs);
+        const c = { capture: true };
+        if (win) {
+            life.on(win, 'pointermove', e => { if (!mine(e) || done) return; if (start.type === 'mouse' && e.buttons === 0) { end('lost', last); return; }
+                const p = point(e); if (!drag) { const dx = p.x - start.x, dy = p.y - start.y; if (Math.hypot(dx, dy) < threshold) return;
+                    if (o.axis === 'x' && Math.abs(dy) > Math.abs(dx)) { end('scroll', p); return; } begin(p); }
+                last = p; if (o.onMove) o.onMove(p, start); }, c);
+            life.on(win, 'pointerup', e => { if (mine(e)) end('up', point(e)); }, c);
+            life.on(win, 'pointercancel', e => { if (mine(e)) end('cancel', last); }, c);
+        }
+        if (cap) life.on(cap, 'lostpointercapture', e => { if (!mine(e) || done) return; captured = false; if (start.type !== 'mouse') end('cancel', last); });
+        return Object.freeze({ cancel() { end('cancel', last); }, dragging: () => drag, done: () => done });
+    }
+    E.input = Object.freeze({ THRESHOLD_PX, HOLD_MS, REPEAT_FIRST_MS, REPEAT_MS, DEAD_ZONE_DEG, DIAL_PX, range, snap, page, keyValue, fraction, valueAt, dialFraction, verticalFraction, isHoldKey, press, gesture, keys, repeat, track });
 })();
