@@ -73,7 +73,17 @@ const (
 //     to its destination goes through one master GainNode per context
 //     (archive.org's own mute falls back to eval, which the CSP blocks);
 //   - a script that fails to load, or a blocked script or worker, marks the
-//     start as failed (fail() runs onFail once the start script set it).
+//     start as failed (fail() runs onFail once the start script set it);
+//   - the splash logos: off archive.org the loader asks for other_logos/*,
+//     which archive.org answers with 404; the same logos live under /images/.
+//     An image that still fails is hidden instead of drawn as a broken icon;
+//   - pointer lock is granted only right after a mouse press in the page.
+//     Emscripten queues a lock request and runs it in the next input event,
+//     a key press included, so once Esc had freed the mouse any key caught it
+//     again. Ctrl+F10 (DOSBox's own key for it) frees the mouse as well;
+//   - C64 (rg-keys c64): archive.org's VICE has the port-2 joystick on the
+//     numeric keypad (-joydev2 1); the arrow keys and Ctrl stand in for it,
+//     so the joystick works on keyboards without a keypad.
 const retroGamesPlayerBootstrap = `
 const rgPlayer = (() => {
   const player = {
@@ -91,7 +101,64 @@ const rgPlayer = (() => {
   };
   window.addEventListener('error', (event) => {
     if (event.target instanceof HTMLScriptElement) player.fail();
+    else if (event.target instanceof HTMLImageElement) event.target.style.visibility = 'hidden';
   }, true);
+  window.addEventListener('load', (event) => {
+    if (event.target instanceof HTMLImageElement) event.target.style.visibility = '';
+  }, true);
+
+  const imageSrc = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
+  if (imageSrc && imageSrc.set) {
+    Object.defineProperty(HTMLImageElement.prototype, 'src', {
+      configurable: true,
+      enumerable: imageSrc.enumerable,
+      get: imageSrc.get,
+      set(value) {
+        const logo = /^other_logos\/([A-Za-z0-9._-]+)$/.exec(String(value));
+        const name = logo && (logo[1] === 'ia-logo-150x150.png' ? 'ialogo.png' : logo[1]);
+        imageSrc.set.call(this, name ? '/images/' + name : value);
+      },
+    });
+  }
+
+  let pressedAt = -Infinity;
+  for (const type of ['pointerdown', 'mousedown', 'mouseup', 'click']) {
+    window.addEventListener(type, (event) => {
+      if (event.isTrusted) pressedAt = performance.now();
+    }, true);
+  }
+  const requestLock = Element.prototype.requestPointerLock;
+  if (typeof requestLock === 'function') {
+    Element.prototype.requestPointerLock = function (...args) {
+      if (performance.now() - pressedAt > 1000) return undefined;
+      return requestLock.apply(this, args);
+    };
+  }
+  window.addEventListener('keydown', (event) => {
+    if (event.isTrusted && event.ctrlKey && event.key === 'F10' && document.pointerLockElement) document.exitPointerLock();
+  }, true);
+
+  if (document.querySelector('meta[name=rg-keys]').content === 'c64') {
+    const keypad = {
+      ArrowUp: ['8', 104], ArrowDown: ['2', 98], ArrowLeft: ['4', 100], ArrowRight: ['6', 102],
+      ControlLeft: ['0', 96], ControlRight: ['0', 96], Control: ['0', 96],
+    };
+    const joystick = (event) => {
+      const pad = event.isTrusted && keypad[event.code || event.key];
+      if (!pad) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const copy = new KeyboardEvent(event.type, {
+        key: pad[0], code: 'Numpad' + pad[0], location: KeyboardEvent.DOM_KEY_LOCATION_NUMPAD,
+        repeat: event.repeat, bubbles: true, cancelable: true,
+      });
+      Object.defineProperty(copy, 'keyCode', { value: pad[1] });
+      Object.defineProperty(copy, 'which', { value: pad[1] });
+      event.target.dispatchEvent(copy);
+    };
+    window.addEventListener('keydown', joystick, true);
+    window.addEventListener('keyup', joystick, true);
+  }
   document.addEventListener('securitypolicyviolation', (event) => {
     if (event.effectiveDirective === 'script-src-elem' || event.effectiveDirective === 'worker-src') player.fail();
   });
@@ -252,6 +319,9 @@ const retroGamesPlayerStart = `
 
   window.addEventListener('pointerdown', resumeAudio, true);
   window.addEventListener('keydown', resumeAudio, true);
+  document.addEventListener('pointerlockchange', () => {
+    post({ rg: 1, type: 'pointer', locked: !!document.pointerLockElement });
+  });
   window.addEventListener('focus', () => canvas.focus());
   window.addEventListener('message', (event) => {
     const data = event.data;
@@ -280,6 +350,7 @@ const retroGamesPlayerPage = `<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="rg-id" content="{{.ID}}">
 <meta name="rg-muted" content="{{if .Muted}}1{{else}}0{{end}}">
+<meta name="rg-keys" content="{{.Keys}}">
 <title>Retro Games</title>
 <style>
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000;color:#ddd;font:14px/1.4 system-ui,sans-serif}
@@ -307,6 +378,7 @@ var retroGamesPlayerTemplate = template.Must(template.New("retro-games-player").
 type retroGamesPlayerData struct {
 	ID        string
 	Muted     bool
+	Keys      string
 	Sound     string
 	Bootstrap template.JS
 	Start     template.JS
@@ -342,8 +414,17 @@ func retroGamesPlayerSoundLabel(raw string) string {
 	return label
 }
 
+// retroGamesPlayerKeys returns the key layout the page applies: "c64" (arrow
+// keys and Ctrl as the keypad joystick) or "" for every other value.
+func retroGamesPlayerKeys(raw string) string {
+	if raw == "c64" {
+		return raw
+	}
+	return ""
+}
+
 // ServeRetroGamesPlayerUngated writes the player page for the request's id,
-// muted and sound query parameters. It neither authenticates nor checks that
+// muted, keys and sound query parameters. It neither authenticates nor checks that
 // Retro Games is on: handleRetroGames does both before it calls this. It is
 // exported so the desktop browser tests (package ui) can serve the real page.
 func ServeRetroGamesPlayerUngated(w http.ResponseWriter, r *http.Request) {
@@ -357,6 +438,7 @@ func ServeRetroGamesPlayerUngated(w http.ResponseWriter, r *http.Request) {
 	if err := retroGamesPlayerTemplate.Execute(&page, retroGamesPlayerData{
 		ID:        id,
 		Muted:     query.Get("muted") == "1",
+		Keys:      retroGamesPlayerKeys(query.Get("keys")),
 		Sound:     retroGamesPlayerSoundLabel(query.Get("sound")),
 		Bootstrap: template.JS(retroGamesPlayerBootstrap),
 		Start:     template.JS(retroGamesPlayerStart),

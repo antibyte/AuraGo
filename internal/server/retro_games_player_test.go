@@ -162,7 +162,7 @@ func TestRetroGamesPlayerPageStructure(t *testing.T) {
 	}
 	for _, forbidden := range []string{
 		"/api/", "/js/", "/css/", "url(", "@import",
-		"location",   // the page trusts only server-rendered values
+		"location.", "location[", // the page trusts only server-rendered values, never its address
 		"object-fit", // the canvas box itself is sized to the picture
 		".setMute(",  // archive.org's mute falls back to eval; the page mutes with a gain
 	} {
@@ -231,6 +231,42 @@ func TestRetroGamesPlayerPageIdentifierAndMuted(t *testing.T) {
 		if !strings.Contains(page, `<meta name="rg-muted" content="0">`) {
 			t.Fatalf("muted=%q must start unmuted", muted)
 		}
+	}
+}
+
+// keys=c64 is the only key layout; every other value renders none.
+func TestRetroGamesPlayerPageKeys(t *testing.T) {
+	h := newRetroGamesHarness(t)
+	_, page := h.playerPage(url.Values{"id": {"Bubble_Bobble_1987_Firebird"}, "keys": {"c64"}})
+	if !strings.Contains(page, `<meta name="rg-keys" content="c64">`) {
+		t.Fatalf("keys=c64 did not reach the page")
+	}
+	for _, keys := range []string{"", "C64", "amiga", `c64"`, "c64 "} {
+		_, page := h.playerPage(url.Values{"id": {"arcade_tron"}, "keys": {keys}})
+		if !strings.Contains(page, `<meta name="rg-keys" content="">`) {
+			t.Fatalf("keys=%q must render no key layout", keys)
+		}
+	}
+}
+
+// The hooks behind three player fixes: the splash logos come from /images/
+// (other_logos/ answers 404 off archive.org), a pointer lock needs a recent
+// mouse press (a queued request must not re-lock on a key after Esc), and C64
+// arrow keys and Ctrl become the keypad joystick of archive.org's VICE.
+func TestRetroGamesPlayerInputAndLogoHooks(t *testing.T) {
+	for _, want := range []string{
+		"other_logos", "'/images/'", "ia-logo-150x150.png", "'ialogo.png'", "instanceof HTMLImageElement",
+		"Element.prototype.requestPointerLock", "event.isTrusted", "performance.now() - pressedAt > 1000",
+		"event.key === 'F10'", "document.exitPointerLock()",
+		"meta[name=rg-keys]", "'c64'", "KeyboardEvent.DOM_KEY_LOCATION_NUMPAD", "ArrowUp: ['8', 104]", "ControlLeft: ['0', 96]",
+		"event.stopImmediatePropagation()",
+	} {
+		if !strings.Contains(retroGamesPlayerBootstrap, want) {
+			t.Errorf("bootstrap lacks %q", want)
+		}
+	}
+	if !strings.Contains(retroGamesPlayerStart, "rg: 1, type: 'pointer', locked: !!document.pointerLockElement") {
+		t.Error("start script must report pointer lock changes to the app")
 	}
 }
 

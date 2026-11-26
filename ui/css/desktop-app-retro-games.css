@@ -469,6 +469,7 @@
 .rg-panel-label { font: 9px/1.6 var(--rg-pixel); color: var(--rg-green); }
 .rg-panel-controls { min-width: 0; text-wrap: pretty; }
 .rg-panel-hint { color: #cfcfcf; }
+.rg-panel-hint.is-captured { color: var(--rg-green); }
 
 @container (max-width: 720px) {
     .rg-browse { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }

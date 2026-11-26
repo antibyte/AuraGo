@@ -610,7 +610,8 @@ func TestDesktopRetroGamesListFailureOffersRetry(t *testing.T) {
 }
 
 // assertRetroGamesPlayerSource checks a frame src: AuraGo's own player route
-// with the identifier, the muted flag and the sound label, and nothing else.
+// with the identifier, the muted flag, the key layout (empty: the fixtures
+// are not C64 games) and the sound label, and nothing else.
 func assertRetroGamesPlayerSource(t *testing.T, src, id string, muted bool, sound string) {
 	t.Helper()
 	if !strings.HasPrefix(src, "/api/desktop/retro-games/player?id=") || !strings.Contains(src, "muted=") || !strings.Contains(src, "sound=") {
@@ -625,8 +626,8 @@ func assertRetroGamesPlayerSource(t *testing.T, src, id string, muted bool, soun
 		wantMuted = "1"
 	}
 	query := u.Query()
-	if u.Host != "" || u.Path != "/api/desktop/retro-games/player" || len(query) != 3 || query.Get("id") != id || query.Get("muted") != wantMuted || query.Get("sound") != sound {
-		t.Fatalf("frame src = %q, want id=%s muted=%s sound=%q", src, id, wantMuted, sound)
+	if u.Host != "" || u.Path != "/api/desktop/retro-games/player" || len(query) != 4 || query.Get("id") != id || query.Get("muted") != wantMuted || !query.Has("keys") || query.Get("keys") != "" || query.Get("sound") != sound {
+		t.Fatalf("frame src = %q, want id=%s muted=%s keys= sound=%q", src, id, wantMuted, sound)
 	}
 }
 

@@ -27,8 +27,9 @@ func TestDesktopRetroGamesTranslations(t *testing.T) {
 			keys = append(keys, key)
 		}
 	}
-	if len(keys) != 81 {
-		t.Fatalf("desktop.retro_games_* keys = %d, want 81", len(keys))
+	// 82 since the hint that names how to get the mouse back (pointer_hint).
+	if len(keys) != 82 {
+		t.Fatalf("desktop.retro_games_* keys = %d, want 82", len(keys))
 	}
 	// The own player page: the failure hint, the sound toggle and the page's
 	// "click for sound" pill (its label travels in the player URL).

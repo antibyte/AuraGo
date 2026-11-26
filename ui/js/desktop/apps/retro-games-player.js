@@ -16,8 +16,11 @@
     const PLAYER_STATES = ['loading', 'running', 'failed'];
     const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 
-    function playerURL(id, muted, soundLabel) {
-        return PLAYER_BASE + encodeURIComponent(id) + '&muted=' + (muted ? '1' : '0') + '&sound=' + encodeURIComponent(soundLabel || '');
+    // keys names the page's key layout: 'c64' lets the arrow keys and Ctrl
+    // drive the C64 joystick (archive.org's VICE has it on the keypad).
+    function playerURL(id, muted, soundLabel, keys) {
+        return PLAYER_BASE + encodeURIComponent(id) + '&muted=' + (muted ? '1' : '0') +
+            '&keys=' + (keys === 'c64' ? 'c64' : '') + '&sound=' + encodeURIComponent(soundLabel || '');
     }
 
     // The sound choice is remembered per viewer; storage may be blocked or full.
@@ -115,10 +118,12 @@
         // The frame goes in front of the strip when the first start() builds it.
         const screen = el('div', { className: 'rg-screen' }, [overlay]);
         const bezel = el('div', { className: 'rg-bezel' }, [screen]);
+        // The hint names how to get the mouse back while the game holds it.
+        const panelHint = el('span', { className: 'rg-panel-hint', 'aria-live': 'polite', text: t('desktop.retro_games_focus_hint') });
         const panel = el('footer', { className: 'rg-panel' }, [
             el('span', { className: 'rg-panel-label', text: t('desktop.retro_games_controls_label') }),
             el('span', { className: 'rg-panel-controls', text: t('desktop.retro_games_controls_' + game.platform) }),
-            el('span', { className: 'rg-panel-hint', text: t('desktop.retro_games_focus_hint') })
+            panelHint
         ]);
 
         // The page tells us how it is doing; nothing else says anything about the
@@ -135,7 +140,14 @@
                 onPlayerState(data.state);
             } else if (data.type === 'audio' && typeof data.blocked === 'boolean') {
                 // Well-formed and deliberately unused: the page shows its own click-for-sound pill.
+            } else if (data.type === 'pointer' && typeof data.locked === 'boolean') {
+                setPointerHint(data.locked);
             }
+        }
+
+        function setPointerHint(locked) {
+            panelHint.classList.toggle('is-captured', locked);
+            panelHint.textContent = t(locked ? 'desktop.retro_games_pointer_hint' : 'desktop.retro_games_focus_hint');
         }
 
         // A healthy page goes idle -> loading -> running. failed ends it before it
@@ -154,6 +166,9 @@
                 if (phase !== 'loading') return;
                 phase = 'running';
                 hideOverlay();
+                // The frame was focused before its page existed; hand it the
+                // keyboard again unless the user has since moved elsewhere.
+                if (document.activeElement === document.body || bezel.contains(document.activeElement)) focusFrame();
             } else if (state === 'failed') {
                 if (phase === 'running') return;
                 phase = 'failed';
@@ -219,8 +234,9 @@
             armOverlay();
             phase = 'idle';
             urlMuted = muted;
+            setPointerHint(false);
             const next = makeFrame();
-            next.setAttribute('src', playerURL(game.identifier, muted, t('desktop.retro_games_click_for_sound')));
+            next.setAttribute('src', playerURL(game.identifier, muted, t('desktop.retro_games_click_for_sound'), game.platform));
             if (frame) frame.replaceWith(next);
             else screen.prepend(next);
             frame = next;
