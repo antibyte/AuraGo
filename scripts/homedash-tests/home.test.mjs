@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'; import { ENGINE_ORDER, loadFiles } from
 const FILES = ENGINE_ORDER.map(f => 'ui/js/homedash/' + f).concat(['ui/js/desktop/apps/homedash-home.js']);
 function setup() {
   const { window, document } = loadFiles(FILES, { dom: true }), calls = [];
-  const home = window.HomeDashHome.create({ t: (k, v) => (v && v.name ? k + ':' + v.name : v && v.source ? k + ':' + v.source : k), lang: 'en', onOpen: id => calls.push('open:' + id), onStarter: () => calls.push('starter'),
+  const home = window.HomeDashHome.create({ onImport: () => calls.push('import'), t: (k, v) => (v && v.name ? k + ':' + v.name : v && v.source ? k + ':' + v.source : k), lang: 'en', onOpen: id => calls.push('open:' + id), onStarter: () => calls.push('starter'),
     onEmpty: () => calls.push('empty'), onHa: () => calls.push('ha'), sourceName: x => 'src:' + x, onDelete: s => calls.push('delete:' + s.id) });
   document.body.appendChild(home.el);
   return { home, calls, click: node => home.el.dispatchEvent({ type: 'click', target: node }) };
@@ -46,5 +46,15 @@ export const tests = [
     const { home } = setup(), n = home.el.querySelector('.hdx-notice');
     home.render({ dashboards: [], notice: 'template_empty' }); assert.equal(n.textContent, 'homedash.home.notice_template_empty'); assert.equal(n.getAttribute('data-tone'), 'warn');
     home.render({ dashboards: [], notice: 'source_unavailable', noticeSource: 'ha' }); assert.equal(n.getAttribute('data-tone'), 'warn');
-    assert.equal(n.textContent, 'homedash.home.notice_source_unavailable:src:ha'); }]
+    assert.equal(n.textContent, 'homedash.home.notice_source_unavailable:src:ha'); }],
+  ['home: choiceState is a pure table (read-only hides everything, Home Assistant needs the template, busy marks the pressed choice, import ignores templates)', () => {
+    const { window } = loadFiles(FILES, { dom: true }), cs = window.HomeDashHome.choiceState, plain = v => JSON.parse(JSON.stringify(v));
+    assert.deepEqual(plain(cs({ desktopReadonly: false, templates: [] }, '')), { 'create-starter': { hidden: false, disabled: false, busy: false }, 'create-empty': { hidden: false, disabled: false, busy: false }, 'create-ha': { hidden: true, disabled: false, busy: false }, import: { hidden: false, disabled: false, busy: false } });
+    assert.equal(cs({ templates: ['home_assistant'] }, '')['create-ha'].hidden, false); assert.ok(Object.values(cs({ desktopReadonly: true, templates: ['home_assistant'] }, '')).every(c => c.hidden));
+    const busy = plain(cs({ busy: true, templates: ['home_assistant'] }, 'create-empty')); assert.equal(busy['create-empty'].busy, true); assert.equal(busy['create-starter'].busy, false); assert.ok(Object.values(busy).every(c => c.disabled)); assert.equal(busy.import.busy, false); assert.doesNotThrow(() => cs(null, undefined)); }],
+  ['home: Import is a secondary action below the first-run choices and in the list head, hidden when read-only, and runs onImport without a pending create', () => {
+    const { home, calls, click } = setup(); home.render({ dashboards: [], desktopReadonly: false }); const imp = home.el.querySelector('.hdx-empty [data-action="import"]'); assert.ok(imp); assert.equal(imp.textContent, 'homedash.menu.import');
+    assert.equal(imp.parentElement.getAttribute('class'), 'hdx-secondary'); click(imp); assert.deepEqual(calls, ['import']); home.render({ dashboards: [D], desktopReadonly: false }); assert.ok(home.el.querySelector('.hdx-home-head [data-action="import"]'));
+    click(home.el.querySelector('.hdx-home-head [data-action="import"]')); assert.deepEqual(calls, ['import', 'import']); home.render({ dashboards: [], desktopReadonly: false, busy: true }); click(imp); assert.equal(calls.length, 2, 'the busy guard holds');
+    home.render({ dashboards: [], desktopReadonly: true }); assert.ok(imp.hasAttribute('hidden')); assert.ok(home.el.querySelector('.hdx-home-head [data-action="import"]').hasAttribute('hidden')); }]
 ];

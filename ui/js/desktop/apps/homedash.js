@@ -60,7 +60,7 @@
         const saveChip = el('div', { class: 'hdx-save', 'aria-label': t('homedash.save.label'), hidden: 'true' }, [saveText, saveRetry]);
         const banners = el('div', { class: 'hdx-banners' });
         const viewHost = el('div', { class: 'hdx-view', hidden: 'true' }), statePanel = el('div', { class: 'hdx-state', hidden: 'true' });
-        const home = Home.create({ t, lang, onOpen: dashboardId => inst.open(dashboardId), onStarter: () => inst.createStarter(), onEmpty: () => inst.createEmpty(), onHa: () => inst.createHomeAssistant(), sourceName: src => sourceName(src), onDelete: summary => askDelete(summary) });
+        const home = Home.create({ t, lang, onOpen: dashboardId => inst.open(dashboardId), onStarter: () => inst.createStarter(), onEmpty: () => inst.createEmpty().then(() => { const s = inst.state(); if (s.mode === 'dashboard' && s.edit && s.edit.canEdit && s.edit.mode === 'view') return inst.enterEdit(); }), onHa: () => inst.createHomeAssistant(), onImport: () => inst.run('import'), sourceName: src => sourceName(src), onDelete: summary => askDelete(summary) });
         setAttr(home.el, 'hidden', true);
         const root = el('div', { class: 'hdx-app', 'data-hdx-view': 'loading' }, [el('header', { class: 'hdx-bar' }, [back, el('div', { class: 'hdx-heading' }, title), conn, saveChip, elsewhere, editBtn]), banners,
             el('main', { class: 'hdx-main' }, [home.el, viewHost, statePanel])]);
