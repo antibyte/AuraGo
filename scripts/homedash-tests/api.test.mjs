@@ -53,5 +53,15 @@ export const tests = [
     eq(JSON.parse(tr.calls[0].init.body), { template: 'system', name: 'System' });
     eq(JSON.parse(tr.calls[1].init.body), { template: 'home_assistant', name: 'Zuhause', unassigned_title: 'Ohne Raum' });
     assert.equal(tr.calls[2].init.method + ' ' + tr.calls[2].url, 'POST /api/desktop/homedash/commands');
-    eq(JSON.parse(tr.calls[2].init.body).args, { value: 40 }); }]
+    eq(JSON.parse(tr.calls[2].init.body).args, { value: 40 }); }],
+  ['hd-api saves, validates, duplicates and lists entities (M4 C9)', async () => {
+    const E = load(), tr = fakeTransport([{ status: 'ok', dashboard: { revision: 4 } }, { status: 'ok', valid: true }, { status: 'ok' }, { status: 'ok', entities: [] }, { status: 'ok' }, { status: 'ok' }]), api = E.api.create({ transport: tr });
+    await api.saveDashboard('d_abcdefghijkl', 3, { name: 'X' }, { keepalive: true }); await api.validateDocument({ name: 'Y' }); await api.duplicateDashboard('d_abcdefghijkl');
+    await api.entities({ q: '  lamp ', kind: 'light', limit: 900, offset: -2 });
+    assert.equal(tr.calls[0].init.method + ' ' + tr.calls[0].url, 'PUT /api/desktop/homedash/dashboard?id=d_abcdefghijkl'); eq(JSON.parse(tr.calls[0].init.body), { revision: 3, document: { name: 'X' } }); assert.equal(tr.calls[0].init.keepalive, true);
+    assert.equal(tr.calls[1].url, '/api/desktop/homedash/dashboards/validate'); assert.equal(tr.calls[2].url, '/api/desktop/homedash/dashboard/duplicate?id=d_abcdefghijkl'); eq(JSON.parse(tr.calls[2].init.body), {});
+    assert.equal(tr.calls[3].url, '/api/desktop/homedash/entities?q=lamp&kind=light&limit=500&offset=0');
+    await api.duplicateDashboard('d_abcdefghijkl', 'Copy'); eq(JSON.parse(tr.calls[4].init.body), { name: 'Copy' }); await api.entity('ha:light.x'); assert.equal(tr.calls[5].url, '/api/desktop/homedash/entity?id=ha%3Alight.x');
+    assert.equal(tr.calls[1].init.keepalive, undefined);
+    await assert.rejects(api.saveDashboard('nope', 1, {}), e => e.code === 'bad_request'); }]
 ];

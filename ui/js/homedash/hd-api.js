@@ -34,13 +34,22 @@
             const x = extra || {}, init = { method, headers: Object.assign({}, x.headers) };
             if (body !== undefined) { init.headers['Content-Type'] = 'application/json'; init.body = JSON.stringify(body); }
             if (x.signal) init.signal = x.signal;
+            if (x.keepalive) init.keepalive = true;
             try { return await transport.request(url(path, params), init); } catch (err) { throw normalizeError(err); }
         }
         const dashboardId = id => { if (!DASHBOARD_ID.test(String(id))) throw normalizeError({ status: 400, body: { code: 'bad_request', message: 'invalid dashboard id' } }); return String(id); };
         const templateBody = (template, fields) => { const f = typeof fields === 'string' ? { name: fields } : fields && typeof fields === 'object' ? fields : {}, out = { template };
             for (const k of ['name', 'unassigned_title']) if (typeof f[k] === 'string' && f[k]) out[k] = f[k]; return out; };
+        function entityQuery(p) { const x = p || {}, int = (v, d, lo, hi) => (Number.isFinite(Number(v)) ? Math.min(hi, Math.max(lo, Math.round(Number(v)))) : d);
+            const cut = (v, n) => (typeof v === 'string' ? Array.from(v.trim()).slice(0, n).join('') : undefined);
+            return { q: cut(x.q, 100), source: typeof x.source === 'string' ? x.source : undefined, kind: typeof x.kind === 'string' ? x.kind : undefined, area: cut(x.area, 80), limit: int(x.limit, 100, 1, 500), offset: int(x.offset, 0, 0, 1 << 30) }; }
         return Object.freeze({
             base, url,
+            saveDashboard: async (id, revision, document, extra) => call('PUT', 'dashboard', { id: dashboardId(id) }, { revision, document }, extra),
+            validateDocument: (document, extra) => call('POST', 'dashboards/validate', null, { document }, extra),
+            duplicateDashboard: async (id, name, extra) => call('POST', 'dashboard/duplicate', { id: dashboardId(id) }, typeof name === 'string' && name ? { name } : {}, extra),
+            entities: (params, extra) => call('GET', 'entities', entityQuery(params), undefined, extra),
+            entity: (id, extra) => call('GET', 'entity', { id: String(id) }, undefined, extra),
             bootstrap: extra => call('GET', 'bootstrap', null, undefined, extra),
             async widgetCatalog(etag, extra) {
                 const headers = etag ? { 'If-None-Match': '"' + etag + '"' } : {};
