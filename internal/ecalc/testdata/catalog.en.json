@@ -59005,6 +59005,1654 @@
     },
     {
       "kind": "pinout",
+      "id": "sn74hc02",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "SN74HC02 (DIP-14)",
+      "name_en": "SN74HC02 (DIP-14)",
+      "doc": "Quad 2-input NOR gate, drawn as the 14-pin PDIP from above.",
+      "notes": "gates 1 and 2 run Y, A, B by rising pin number: 1Y is pin 1 (1A 2, 1B 3) and 2Y is pin 4 (2A 5, 2B 6). Gates 3 and 4 run A, B, Y: 3Y is pin 10 (3A 8, 3B 9) and 4Y is pin 13 (4A 11, 4B 12). Read from the top of the package, every gate starts with its output on both sides. This is not the 74HC00 order: the 74HC00's output pins 3, 6, 8 and 11 are inputs here.",
+      "tags": [
+        "sn74hc02",
+        "74hc02",
+        "hc02",
+        "7402",
+        "nor",
+        "gate",
+        "gatter",
+        "logic",
+        "logik",
+        "dip14",
+        "dip-14"
+      ],
+      "source": "Texas Instruments SN54HC02, SN74HC02 datasheet SCLS076G (December 2020), section 5, Figure 5-1 and table Pin Functions; cross-checked against onsemi MC74HC02A/D Rev. 17 (September 2026), page 1, Figures 1 and 2",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 14,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "1Y",
+          "function": "Gate 1, output: NOR of 1A and 1B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "1A",
+          "function": "Gate 1, input A",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "1B",
+          "function": "Gate 1, input B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "2Y",
+          "function": "Gate 2, output: NOR of 2A and 2B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "2A",
+          "function": "Gate 2, input A",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "2B",
+          "function": "Gate 2, input B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "3A",
+          "function": "Gate 3, input A",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "9",
+          "name": "3B",
+          "function": "Gate 3, input B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "10",
+          "name": "3Y",
+          "function": "Gate 3, output: NOR of 3A and 3B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "11",
+          "name": "4A",
+          "function": "Gate 4, input A",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "12",
+          "name": "4B",
+          "function": "Gate 4, input B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "13",
+          "name": "4Y",
+          "function": "Gate 4, output: NOR of 4A and 4B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "14",
+          "name": "VCC",
+          "function": "Supply, 2 V to 6 V",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "sn74hc08",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "SN74HC08 (DIP-14)",
+      "name_en": "SN74HC08 (DIP-14)",
+      "doc": "Quad 2-input AND gate, drawn as the 14-pin PDIP from above.",
+      "notes": "gates 1 and 2 run A, B, Y by rising pin number (pins 1 to 6). Gates 3 and 4 are the other way round: the output has the lowest number, 3Y is pin 8 (3A 9, 3B 10) and 4Y is pin 11 (4A 12, 4B 13). The pins sit where the 74HC00 has them.",
+      "tags": [
+        "sn74hc08",
+        "74hc08",
+        "hc08",
+        "7408",
+        "and",
+        "gate",
+        "gatter",
+        "logic",
+        "logik",
+        "dip14",
+        "dip-14"
+      ],
+      "source": "Texas Instruments SN54HC08, SN74HC08 datasheet SCLS081J (February 2025), section 4, pin figure and table Pin Functions; cross-checked against onsemi MC74HC08A/D Rev. 17 (September 2026), page 1, logic diagram and pinout",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 14,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "1A",
+          "function": "Gate 1, input A",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "1B",
+          "function": "Gate 1, input B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "1Y",
+          "function": "Gate 1, output: AND of 1A and 1B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "2A",
+          "function": "Gate 2, input A",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "2B",
+          "function": "Gate 2, input B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "2Y",
+          "function": "Gate 2, output: AND of 2A and 2B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "3Y",
+          "function": "Gate 3, output: AND of 3A and 3B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "9",
+          "name": "3A",
+          "function": "Gate 3, input A",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "10",
+          "name": "3B",
+          "function": "Gate 3, input B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "11",
+          "name": "4Y",
+          "function": "Gate 4, output: AND of 4A and 4B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "12",
+          "name": "4A",
+          "function": "Gate 4, input A",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "13",
+          "name": "4B",
+          "function": "Gate 4, input B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "14",
+          "name": "VCC",
+          "function": "Supply, 2 V to 6 V",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "sn74hc32",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "SN74HC32 (DIP-14)",
+      "name_en": "SN74HC32 (DIP-14)",
+      "doc": "Quad 2-input OR gate, drawn as the 14-pin PDIP from above.",
+      "notes": "gates 1 and 2 run A, B, Y by rising pin number (pins 1 to 6). Gates 3 and 4 are the other way round: the output has the lowest number, 3Y is pin 8 (3A 9, 3B 10) and 4Y is pin 11 (4A 12, 4B 13). The pins sit where the 74HC00 has them.",
+      "tags": [
+        "sn74hc32",
+        "74hc32",
+        "hc32",
+        "7432",
+        "or",
+        "gate",
+        "gatter",
+        "logic",
+        "logik",
+        "dip14",
+        "dip-14"
+      ],
+      "source": "Texas Instruments SN54HC32, SN74HC32 datasheet SCLS200F (April 2021), section 5, Figure 5-1 and table Pin Functions; cross-checked against onsemi MC74HC32A/D Rev. 15 (September 2026), page 1, Figures 1 and 2",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 14,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "1A",
+          "function": "Gate 1, input A",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "1B",
+          "function": "Gate 1, input B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "1Y",
+          "function": "Gate 1, output: OR of 1A and 1B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "2A",
+          "function": "Gate 2, input A",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "2B",
+          "function": "Gate 2, input B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "2Y",
+          "function": "Gate 2, output: OR of 2A and 2B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "3Y",
+          "function": "Gate 3, output: OR of 3A and 3B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "9",
+          "name": "3A",
+          "function": "Gate 3, input A",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "10",
+          "name": "3B",
+          "function": "Gate 3, input B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "11",
+          "name": "4Y",
+          "function": "Gate 4, output: OR of 4A and 4B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "12",
+          "name": "4A",
+          "function": "Gate 4, input A",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "13",
+          "name": "4B",
+          "function": "Gate 4, input B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "14",
+          "name": "VCC",
+          "function": "Supply, 2 V to 6 V",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "sn74hc86",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "SN74HC86 (DIP-14)",
+      "name_en": "SN74HC86 (DIP-14)",
+      "doc": "Quad 2-input exclusive-OR gate, drawn as the 14-pin PDIP from above.",
+      "notes": "gates 1 and 2 run A, B, Y by rising pin number (pins 1 to 6). Gates 3 and 4 are the other way round: the output has the lowest number, 3Y is pin 8 (3A 9, 3B 10) and 4Y is pin 11 (4A 12, 4B 13). An output is high when its two inputs differ; with one input held high the gate inverts the other.",
+      "tags": [
+        "sn74hc86",
+        "74hc86",
+        "hc86",
+        "7486",
+        "xor",
+        "exclusive or",
+        "gate",
+        "gatter",
+        "logic",
+        "logik",
+        "dip14",
+        "dip-14"
+      ],
+      "source": "Texas Instruments SN54HC86, SN74HC86 datasheet SCLS100F (April 2021), section 5, Figure 5-1 and table Pin Functions; cross-checked against onsemi MC74HC86A/D Rev. 9 (September 2026), pages 1 and 2, Figures 1 and 2",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 14,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "1A",
+          "function": "Gate 1, input A",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "1B",
+          "function": "Gate 1, input B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "1Y",
+          "function": "Gate 1, output: XOR of 1A and 1B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "2A",
+          "function": "Gate 2, input A",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "2B",
+          "function": "Gate 2, input B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "2Y",
+          "function": "Gate 2, output: XOR of 2A and 2B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "3Y",
+          "function": "Gate 3, output: XOR of 3A and 3B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "9",
+          "name": "3A",
+          "function": "Gate 3, input A",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "10",
+          "name": "3B",
+          "function": "Gate 3, input B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "11",
+          "name": "4Y",
+          "function": "Gate 4, output: XOR of 4A and 4B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "12",
+          "name": "4A",
+          "function": "Gate 4, input A",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "13",
+          "name": "4B",
+          "function": "Gate 4, input B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "14",
+          "name": "VCC",
+          "function": "Supply, 2 V to 6 V",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "sn74hc74",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "SN74HC74 (DIP-14)",
+      "name_en": "SN74HC74 (DIP-14)",
+      "doc": "Dual D flip-flop with preset and clear, drawn as the 14-pin PDIP from above.",
+      "notes": "flip-flop 2 repeats the order of flip-flop 1 from pin 13 down to pin 8 (CLR, D, CLK, PRE, Q, ~Q), so it sits one row lower: 2CLR on pin 13 faces 1D on pin 2. PRE and CLR act at once, without the clock, and are active low; hold both high for clocked operation. If both are low together, Q and ~Q are both high, and that state does not persist when they return high.",
+      "tags": [
+        "sn74hc74",
+        "74hc74",
+        "hc74",
+        "7474",
+        "flip-flop",
+        "flipflop",
+        "d flip-flop",
+        "register",
+        "logic",
+        "logik",
+        "dip14",
+        "dip-14"
+      ],
+      "source": "Texas Instruments SN54HC74, SN74HC74 datasheet SCLS094F (June 2021), section 5, pin figure and table Pin Functions; cross-checked against onsemi MC74HC74A/D Rev. 17 (September 2026), page 2, Figures 1 and 2",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 14,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "1CLR",
+          "function": "Flip-flop 1, clear, active low: low forces 1Q low",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "1D",
+          "function": "Flip-flop 1, data input",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "1CLK",
+          "function": "Flip-flop 1, clock: a rising edge stores 1D",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "1PRE",
+          "function": "Flip-flop 1, preset, active low: low forces 1Q high",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "1Q",
+          "function": "Flip-flop 1, output",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "~1Q",
+          "function": "Flip-flop 1, inverted output",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "~2Q",
+          "function": "Flip-flop 2, inverted output",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "9",
+          "name": "2Q",
+          "function": "Flip-flop 2, output",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "10",
+          "name": "2PRE",
+          "function": "Flip-flop 2, preset, active low: low forces 2Q high",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "11",
+          "name": "2CLK",
+          "function": "Flip-flop 2, clock: a rising edge stores 2D",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "12",
+          "name": "2D",
+          "function": "Flip-flop 2, data input",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "13",
+          "name": "2CLR",
+          "function": "Flip-flop 2, clear, active low: low forces 2Q low",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "14",
+          "name": "VCC",
+          "function": "Supply, 2 V to 6 V",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "sn74hc139",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "SN74HC139 (DIP-16)",
+      "name_en": "SN74HC139 (DIP-16)",
+      "doc": "Dual 2-to-4 line decoder/demultiplexer, drawn as the 16-pin PDIP from above.",
+      "notes": "with G low, B and A pick one output as a binary number, A is the lowest bit, and that output goes low while the other three stay high; with G high all four are high. The second decoder mirrors the first from pin 15 down to pin 9 (2G, 2A, 2B, 2Y0 to 2Y3), one row lower: 2G on pin 15 faces 1A on pin 2. As a demultiplexer, G is the data input.",
+      "tags": [
+        "sn74hc139",
+        "74hc139",
+        "hc139",
+        "74139",
+        "decoder",
+        "dekoder",
+        "demultiplexer",
+        "2-to-4",
+        "logic",
+        "logik",
+        "dip16",
+        "dip-16"
+      ],
+      "source": "Texas Instruments SN54HC139, SN74HC139 datasheet SCLS108E (February 2022), section 4, DIP pin figure; cross-checked against onsemi MC74HC139A/D Rev. 13 (April 2024), pages 1 and 2, pin assignment and Figure 1",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 16,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "1G",
+          "function": "Decoder 1, enable, active low: high sets all four outputs high",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "1A",
+          "function": "Decoder 1, select input A, least significant bit",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "1B",
+          "function": "Decoder 1, select input B, most significant bit",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "1Y0",
+          "function": "Decoder 1, output 0, low when selected",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "1Y1",
+          "function": "Decoder 1, output 1, low when selected",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "1Y2",
+          "function": "Decoder 1, output 2, low when selected",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "1Y3",
+          "function": "Decoder 1, output 3, low when selected",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "9",
+          "name": "2Y3",
+          "function": "Decoder 2, output 3, low when selected",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "10",
+          "name": "2Y2",
+          "function": "Decoder 2, output 2, low when selected",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "11",
+          "name": "2Y1",
+          "function": "Decoder 2, output 1, low when selected",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "12",
+          "name": "2Y0",
+          "function": "Decoder 2, output 0, low when selected",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "13",
+          "name": "2B",
+          "function": "Decoder 2, select input B, most significant bit",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "14",
+          "name": "2A",
+          "function": "Decoder 2, select input A, least significant bit",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "15",
+          "name": "2G",
+          "function": "Decoder 2, enable, active low: high sets all four outputs high",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "16",
+          "name": "VCC",
+          "function": "Supply, 2 V to 6 V",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "sn74hc161",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "SN74HC161 / SN74HC163 (DIP-16)",
+      "name_en": "SN74HC161 / SN74HC163 (DIP-16)",
+      "doc": "4-bit synchronous binary counter with synchronous load (SN74HC161 with asynchronous clear, SN74HC163 with synchronous clear), drawn as the 16-pin PDIP from above.",
+      "notes": "the counter counts only while ENP, ENT, LOAD and CLR are all high; each rising edge at CLK then adds one. QA is the lowest bit. A low at LOAD loads A to D at the next rising edge. The SN74HC161 clears as soon as CLR goes low; the SN74HC163 clears only at the next rising clock edge, so a gate that decodes the outputs can shorten the count. Otherwise the two parts are pin-compatible.",
+      "tags": [
+        "sn74hc161",
+        "sn74hc163",
+        "74hc161",
+        "74hc163",
+        "hc161",
+        "hc163",
+        "74161",
+        "74163",
+        "counter",
+        "zähler",
+        "binary counter",
+        "binärzähler",
+        "logic",
+        "logik",
+        "dip16",
+        "dip-16"
+      ],
+      "source": "Texas Instruments SN54HC161, SN74HC161 datasheet SCLS297D (September 2003) and SN54HC163, SN74HC163 datasheet SCLS298D (October 2003), page 1, DIP pin figures; cross-checked against onsemi MC74HC161A/D Rev. 14 (May 2024), page 2, Figure 1",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 16,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "CLR",
+          "function": "Clear, active low: sets QA to QD low; on the 'HC161 at once, on the 'HC163 at the next rising clock edge",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "CLK",
+          "function": "Clock: counting and loading happen on the rising edge",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "A",
+          "function": "Preset input A, least significant bit",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "B",
+          "function": "Preset input B",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "C",
+          "function": "Preset input C",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "D",
+          "function": "Preset input D, most significant bit",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "ENP",
+          "function": "Count enable P: counts only while ENP and ENT are both high",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "9",
+          "name": "LOAD",
+          "function": "Load, active low: the next rising clock edge copies A to D to the outputs",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "10",
+          "name": "ENT",
+          "function": "Count enable T: like ENP, and also enables RCO",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "11",
+          "name": "QD",
+          "function": "Counter output D, most significant bit",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "12",
+          "name": "QC",
+          "function": "Counter output C",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "13",
+          "name": "QB",
+          "function": "Counter output B",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "14",
+          "name": "QA",
+          "function": "Counter output A, least significant bit",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "15",
+          "name": "RCO",
+          "function": "Ripple-carry output: high at count 15 while ENT is high; enables the next counter",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "16",
+          "name": "VCC",
+          "function": "Supply, 2 V to 6 V",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "cd4011",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "CD4011B (DIP-14)",
+      "name_en": "CD4011B (DIP-14)",
+      "doc": "Quad 2-input NAND gate (CMOS 4000 series), drawn as the 14-pin PDIP from above.",
+      "notes": "the outputs sit in the middle of each side, J on pin 3 and K on pin 4, L on pin 10 and M on pin 11; the inputs take the outer pins. Supply and ground are where the 74HC00 has them, but the gates are not: pins 4 and 10 are outputs here and inputs on the 74HC00, pins 6 and 8 the other way round. Tie unused inputs to VSS or VDD.",
+      "tags": [
+        "cd4011",
+        "cd4011b",
+        "4011",
+        "mc14011b",
+        "nand",
+        "gate",
+        "gatter",
+        "cmos",
+        "4000",
+        "logic",
+        "logik",
+        "dip14",
+        "dip-14"
+      ],
+      "source": "Texas Instruments CD4011B, CD4012B, CD4023B datasheet SCHS021D (September 2003), page 1, terminal assignments CD4011B; cross-checked against onsemi MC14001B/D Rev. 13 (November 2025), page 2, pin assignments, and Renesas CD4011BMS FN3079, page 1, pinouts",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 14,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "A",
+          "function": "Gate 1, input A",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "B",
+          "function": "Gate 1, input B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "J",
+          "function": "Gate 1, output J: NAND of A and B",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "K",
+          "function": "Gate 2, output K: NAND of C and D",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "C",
+          "function": "Gate 2, input C",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "D",
+          "function": "Gate 2, input D",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "VSS",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "E",
+          "function": "Gate 3, input E",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "9",
+          "name": "F",
+          "function": "Gate 3, input F",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "10",
+          "name": "L",
+          "function": "Gate 3, output L: NAND of E and F",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "11",
+          "name": "M",
+          "function": "Gate 4, output M: NAND of G and H",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "12",
+          "name": "G",
+          "function": "Gate 4, input G",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "13",
+          "name": "H",
+          "function": "Gate 4, input H",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "14",
+          "name": "VDD",
+          "function": "Supply, 3 V to 18 V",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "cd4013",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "CD4013B (DIP-14)",
+      "name_en": "CD4013B (DIP-14)",
+      "doc": "Dual D flip-flop with set and reset (CMOS 4000 series), drawn as the 14-pin PDIP from above.",
+      "notes": "unlike the 74HC74, SET and RESET are active high: hold both low for clocked operation. If both are high, Q and ~Q are both high. Flip-flop 2 repeats the order of flip-flop 1 from pin 13 down to pin 8 (Q, ~Q, CLOCK, RESET, D, SET), so it sits one row lower: Q2 on pin 13 faces ~Q1 on pin 2. The pinout is not that of the 74HC74. Tie unused inputs to VSS or VDD.",
+      "tags": [
+        "cd4013",
+        "cd4013b",
+        "4013",
+        "mc14013b",
+        "flip-flop",
+        "flipflop",
+        "d flip-flop",
+        "register",
+        "cmos",
+        "4000",
+        "logic",
+        "logik",
+        "dip14",
+        "dip-14"
+      ],
+      "source": "Texas Instruments CD4013B datasheet SCHS023E (September 2016), section 5, pin figure and table Pin Functions; cross-checked against onsemi MC14013B/D Rev. 11 (July 2025), page 1, pin assignment, and Renesas CD4013BMS FN3080, page 1, pinout",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 14,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "Q1",
+          "function": "Flip-flop 1, output",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "~Q1",
+          "function": "Flip-flop 1, inverted output",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "CLOCK1",
+          "function": "Flip-flop 1, clock: a rising edge stores D1",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "RESET1",
+          "function": "Flip-flop 1, reset, active high: high forces Q1 low",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "D1",
+          "function": "Flip-flop 1, data input",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "SET1",
+          "function": "Flip-flop 1, set, active high: high forces Q1 high",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "VSS",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "SET2",
+          "function": "Flip-flop 2, set, active high: high forces Q2 high",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "9",
+          "name": "D2",
+          "function": "Flip-flop 2, data input",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "10",
+          "name": "RESET2",
+          "function": "Flip-flop 2, reset, active high: high forces Q2 low",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "11",
+          "name": "CLOCK2",
+          "function": "Flip-flop 2, clock: a rising edge stores D2",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "12",
+          "name": "~Q2",
+          "function": "Flip-flop 2, inverted output",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "13",
+          "name": "Q2",
+          "function": "Flip-flop 2, output",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "14",
+          "name": "VDD",
+          "function": "Supply, 3 V to 18 V",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "cd4511",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "CD4511B (DIP-16)",
+      "name_en": "CD4511B (DIP-16)",
+      "doc": "BCD-to-7-segment latch, decoder and driver (CMOS 4000 series), drawn as the 16-pin PDIP from above.",
+      "notes": "the BCD inputs are scattered: A (lowest bit) is pin 7, B pin 1, C pin 2, D pin 6. The segment outputs a to g are on pins 13, 12, 11, 10, 9, 15 and 14. With LT and BL high and LE low, the code on D C B A shows as a digit; codes above 9 blank the display. LT low lights every segment, BL low blanks the display, and LE high holds the last code. The outputs drive common-cathode LED displays with up to 25 mA each; an output that is high must not be shorted to VSS. Pin 4 is called BL in TI's pin figure; onsemi and TI's truth table call it BI.",
+      "tags": [
+        "cd4511",
+        "cd4511b",
+        "4511",
+        "mc14511b",
+        "bcd",
+        "7-segment",
+        "7-segment-treiber",
+        "seven segment",
+        "decoder",
+        "dekoder",
+        "display driver",
+        "anzeigetreiber",
+        "cmos",
+        "4000",
+        "logic",
+        "logik",
+        "dip16",
+        "dip-16"
+      ],
+      "source": "Texas Instruments CD4511B datasheet SCHS072B (July 2003), page 1, CD4511B terminal assignment; cross-checked against onsemi MC14511B/D Rev. 13 (March 2022), page 2, pin assignment",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 16,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "B",
+          "function": "BCD input B, weight 2",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "C",
+          "function": "BCD input C, weight 4",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "LT",
+          "function": "Lamp test, active low: low lights all seven segments",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "BL",
+          "function": "Blanking, active low: low switches all segments off",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "LE/STROBE",
+          "function": "Latch enable: low passes A to D through, high holds the last code",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "D",
+          "function": "BCD input D, weight 8, most significant bit",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "A",
+          "function": "BCD input A, weight 1, least significant bit",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "VSS",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "9",
+          "name": "e",
+          "function": "Segment e output, high = lit",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "10",
+          "name": "d",
+          "function": "Segment d output, high = lit",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "11",
+          "name": "c",
+          "function": "Segment c output, high = lit",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "12",
+          "name": "b",
+          "function": "Segment b output, high = lit",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "13",
+          "name": "a",
+          "function": "Segment a output, high = lit",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "14",
+          "name": "g",
+          "function": "Segment g output, high = lit",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "15",
+          "name": "f",
+          "function": "Segment f output, high = lit",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "16",
+          "name": "VDD",
+          "function": "Supply, 3 V to 18 V",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
       "id": "atx12v_4",
       "category": "pinouts",
       "group": "pc_power",
