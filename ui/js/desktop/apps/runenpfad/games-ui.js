@@ -1,8 +1,8 @@
-/* Runenpfad games window: the rune dice table and the wardens' task board, one overlay in the style of the dialogue
+/* Runenpfad games window: the rune dice table, the wardens' task board and the cook and forge windows (crafts-ui.js), one overlay in the style of the dialogue
  * window (same panel, same buttons and focus look). Builds DOM through the `el` helper (createElement/textContent only).
  * The game is paused while it is open; app.js owns the shell, the pause state and the audio sink (`emit`).
  * Options: { el, t, fill, hud, flush(), emit(events), cue(id), onChange(), isBlocked() }.
- * `request(req, { sim, music })` handles the uiRequest values `board`, `dice:<npcId>` and `song:<theme>`. */
+ * `request(req, { sim, music })` handles the uiRequest values `board`, `cook`, `forge`, `dice:<npcId>` and `song:<theme>`. */
 (function (root) {
     'use strict';
 
@@ -266,8 +266,14 @@
             canvas = null;
             if (!open || !sim) return;
             rootEl.dataset.rpGames = mode;
-            rootEl.setAttribute('aria-label', t(mode === 'dice' ? 'runenpfad.dice.title' : 'runenpfad.bounty.title'));
-            if (mode === 'dice' && game) renderDice(); else renderBoard();
+            const craft = (mode === 'cook' || mode === 'forge') && root.RunenpfadCraftsUi;
+            rootEl.setAttribute('aria-label', t(craft ? 'runenpfad.craft.' + mode + '_title' : (mode === 'dice' ? 'runenpfad.dice.title' : 'runenpfad.bounty.title')));
+            if (craft && game) {
+                root.RunenpfadCraftsUi.render(mode, {
+                    body: body, el: el, t: t, fill: fill, hud: hud, sim: sim, state: game, btn: btn, head: head, close: function () { close(); }, rerender: render,
+                    forward: forward, evCount: evCount, isOpen: function () { return open; }, setFocus: setFocus
+                });
+            } else if (mode === 'dice' && game) renderDice(); else renderBoard();
             setFocus(Math.min(focusIdx, Math.max(0, focusables().length - 1)));
         }
 
@@ -329,6 +335,7 @@
             const theSim = ctx && ctx.sim;
             if (disposed || !theSim || typeof req !== 'string') return false;
             if (req === 'board') return board() ? show('board', theSim, null) : false;
+            if ((req === 'cook' || req === 'forge') && root.RunenpfadCraftsUi) return show(req, theSim, { kind: req, forge: null });
             let m = /^dice:([a-z_]+)$/.exec(req);
             if (m) return dice() ? show('dice', theSim, dice().create(theSim, m[1])) : false;
             m = /^song:([a-z_]+)$/.exec(req);

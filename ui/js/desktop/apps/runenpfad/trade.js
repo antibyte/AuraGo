@@ -45,7 +45,12 @@
         map_charm: offer('map_charm', 15, 'map_charm', 'stage', 1, function (sim) { sim.mapCharm = true; }),
         lucky_amulet: offer('lucky_amulet', 25, 'lucky_amulet', 'item', 1, stored('lucky_amulet')),
         discount_token: offer('discount_token', 30, 'discount_token', 'item', 1, stored('discount_token')),
-        rune_attune: offer('rune_attune', 35, 'rune_attune', 'item', 1, stored('rune_attune'))
+        rune_attune: offer('rune_attune', 35, 'rune_attune', 'item', 1, stored('rune_attune')),
+        // Round 11: kitchen ingredients (Tilda sells them; crafts.js turns pairs into meals).
+        turnip: offer('turnip', 4, 'heart', 'item', 3, stored('turnip')),
+        ham: offer('ham', 6, 'heart', 'item', 3, stored('ham')),
+        frostberry: offer('frostberry', 6, 'heart', 'item', 3, stored('frostberry')),
+        honey: offer('honey', 5, 'heart', 'item', 3, stored('honey'))
     };
 
     // Reputation -5..+5 moves the price by +30 % .. -30 %.
@@ -149,7 +154,7 @@
 
     function textKeys() {
         const out = [];
-        const ids = Object.keys(OFFERS).concat(['glow_mushroom', 'sun_shard', 'gear_part', 'hex_charm']);
+        const ids = Object.keys(OFFERS).concat(['glow_mushroom', 'sun_shard', 'gear_part', 'hex_charm', 'bell_bronze', 'dragon_scale', 'desk_key', 'room_key', 'clan_charm']);
         ids.forEach(function (id) {
             const k = itemKeys(id);
             out.push(k.nameKey, k.descKey);

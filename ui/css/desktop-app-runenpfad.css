@@ -2293,3 +2293,114 @@
     color: var(--rp-parch);
     overflow-wrap: anywhere;
 }
+
+/* ---- round 11: kitchen and forge windows (inside the games window; transitions only) ---- */
+.rp-craft-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 8px;
+}
+
+.rp-app.rp-narrow .rp-craft-grid {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.rp-app .rp-craft-item {
+    position: relative;
+    padding-right: 32px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+
+.rp-app .rp-craft-item.is-on {
+    border-color: var(--rp-gold);
+    color: var(--rp-gold);
+    box-shadow: inset 0 0 0 1px rgba(255, 213, 107, 0.45), 0 0 10px rgba(255, 190, 90, 0.35);
+}
+
+.rp-craft-dot {
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    width: 14px;
+    height: 14px;
+    margin-top: -7px;
+    border: 2px solid rgba(11, 8, 5, 0.85);
+    border-radius: 50%;
+    box-shadow: 0 0 0 1px rgba(255, 225, 160, 0.35);
+}
+
+.rp-craft-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-height: 3.4em;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.32);
+    border-left: 3px solid var(--rp-bronze);
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.rp-craft-preview.is-ok {
+    border-left-color: #86efac;
+    background: rgba(40, 90, 50, 0.28);
+}
+
+.rp-craft-preview.is-bad {
+    border-left-color: #fca5a5;
+}
+
+.rp-craft-meal {
+    color: var(--rp-gold);
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.rp-craft-desc {
+    color: var(--rp-parch);
+    font-size: 13.5px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+.rp-craft-forge-list .rp-games-offer {
+    transition: border-color 0.2s ease, opacity 0.2s ease;
+}
+
+.rp-craft-job.is-done {
+    border-color: #86efac;
+    opacity: 0.8;
+}
+
+.rp-craft-need {
+    flex: 1 1 auto;
+    color: #fca5a5;
+    font-size: 12.5px;
+}
+
+.rp-craft-need.is-have {
+    color: #86efac;
+}
+
+.rp-games-canvas.rp-craft-meter {
+    width: min(340px, 100%);
+    background: linear-gradient(180deg, rgba(40, 22, 12, 0.85), rgba(16, 9, 6, 0.9));
+    border-color: var(--rp-bronze-hi);
+}
+
+.rp-craft-status {
+    font-size: 14px;
+}
+
+.rp-app .rp-craft-strike {
+    min-height: 44px;
+    justify-content: center;
+    font-size: 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .rp-app .rp-craft-item,
+    .rp-craft-preview,
+    .rp-craft-forge-list .rp-games-offer {
+        transition: none;
+    }
+}
