@@ -31,8 +31,8 @@ const deepFreeze = value => {
     return value;
 };
 const items = new Map(catalog.items.filter(item => item.kind === 'code').map(item => [item.code, deepFreeze(item)]));
-const KINDS = ['resistor_bands', 'inductor_bands', 'smd_resistor', 'smd_inductor', 'capacitor', 'ceramic_temp'];
-assert.deepStrictEqual([...items.keys()].sort(), [...KINDS].sort(), 'the catalog snapshot carries the six code items');
+const KINDS = ['resistor_bands', 'inductor_bands', 'smd_resistor', 'smd_inductor', 'capacitor', 'ceramic_temp', 'date_code'];
+assert.deepStrictEqual([...items.keys()].sort(), [...KINDS].sort(), 'the catalog snapshot carries the seven code items');
 // A kind that is no code kind: the item is built here.
 const itemOf = kind => items.get(kind) || { kind: 'code', code: kind, data: {} };
 

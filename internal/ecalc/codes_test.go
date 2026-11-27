@@ -150,7 +150,7 @@ func TestCodesVectors(t *testing.T) {
 			t.Errorf("%s %s %q %+v: error %q, want %s containing %q", c.Op, c.Kind, c.Code, c.Req, err, c.Error, c.Contains)
 		}
 	}
-	for _, kind := range []string{"resistor_bands", "inductor_bands", "smd_resistor", "smd_inductor", "capacitor", "ceramic_temp"} {
+	for _, kind := range []string{"resistor_bands", "inductor_bands", "smd_resistor", "smd_inductor", "capacitor", "ceramic_temp", "date_code"} {
 		for _, what := range []string{"decode", "encode", "error"} {
 			if n := perKind[what+" "+kind]; n < 8 {
 				t.Errorf("%s %s has %d vectors, want at least 8", what, kind, n)
@@ -163,7 +163,7 @@ func TestCodesKindsAndItemsInTheDefaultCatalog(t *testing.T) {
 	cat := codeTestCatalog(t)
 	want := map[string]string{
 		"resistor_color_code": "resistor_bands", "inductor_color_code": "inductor_bands", "smd_resistor_code": "smd_resistor",
-		"smd_inductor_code": "smd_inductor", "capacitor_code": "capacitor", "ceramic_temp_code": "ceramic_temp",
+		"smd_inductor_code": "smd_inductor", "capacitor_code": "capacitor", "ceramic_temp_code": "ceramic_temp", "date_code_code": "date_code",
 	}
 	for id, kind := range want {
 		c := cat.Code(id)
@@ -224,6 +224,7 @@ func TestCodesItemJSONCarriesTheTables(t *testing.T) {
 		"smd_resistor":   {"eia96", "letters", "rkm", "ambiguous", "notes"},
 		"smd_inductor":   {"tolerances", "not_cross_checked", "notes"},
 		"capacitor":      {"multipliers", "rkm", "tolerances", "voltages", "not_cross_checked", "notes"},
+		"date_code":      {"first_year", "last_year", "year_letters", "months", "notes"},
 		"ceramic_temp":   {"class1", "class2", "aliases", "industry", "not_cross_checked", "common", "notes"},
 	}
 	for kind, want := range keys {
@@ -482,7 +483,7 @@ func TestCodesDecodeSurvivesGarbage(t *testing.T) {
 	for _, ch := range "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.|_" {
 		inputs = append(inputs, string(ch), string(ch)+string(ch), "1"+string(ch), string(ch)+"1", "10"+string(ch), "1"+string(ch)+"1")
 	}
-	for _, kind := range []string{"resistor_bands", "inductor_bands", "smd_resistor", "smd_inductor", "capacitor", "ceramic_temp"} {
+	for _, kind := range []string{"resistor_bands", "inductor_bands", "smd_resistor", "smd_inductor", "capacitor", "ceramic_temp", "date_code"} {
 		for _, in := range inputs {
 			res, err := cat.Decode(kind, in)
 			if err != nil && AsCodeError(err) == nil {
@@ -532,6 +533,8 @@ func TestCodesLoadRejectsBrokenData(t *testing.T) {
 		{"ceramic_temp", `{digit: "5", value: 1}`, `{digit: "5", value: 0}`, "a unique digit and a multiplier other than 0"},
 		{"ceramic_temp", `{letter: "G", ppm: 30}`, `{letter: "G", ppm: -30}`, "a unique letter and a positive tolerance"},
 		{"ceramic_temp", `{name: "NP0", code: "C0G"}`, `{name: "", code: "C0G"}`, "aliases: a name and a 3-character code"},
+		{"date_code", `"H", "J"`, `"H", "H"`, "year_letters[7]: the letter H is listed twice"},
+		{"date_code", `{char: "O", month: 10}`, `{char: "O", month: 9}`, "months[9]"},
 	}
 	for _, c := range cases {
 		src := read(c.file)

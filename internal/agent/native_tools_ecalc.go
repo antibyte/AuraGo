@@ -30,9 +30,9 @@ func ecalcSchema() openai.Tool {
 		}
 	}
 	return tool("ecalc",
-		"Electronics calculators, tables, component codes and pinouts: search, describe, calculate, read tables or pinouts, decode/encode codes, or open in the ECalc app.",
+		"Electronics calculators, tables, component codes and pinouts: search, describe, calculate, table, pinout, decode/encode, or open in the ECalc app.",
 		schema(map[string]interface{}{
-			"operation": operationProperty("search finds items; describe lists variables, columns, code forms or variants; table reads rows or one lookup; pinout reads pins; decode/encode convert codes; open shows it in the app.", []string{"search", "describe", "calculate", "open", "table", "pinout", "decode", "encode"}),
+			"operation": operationProperty("search finds items; describe lists variables, columns, code forms or variants; table reads rows or a lookup; pinout reads pins; decode/encode convert codes; open shows it in the app.", []string{"search", "describe", "calculate", "open", "table", "pinout", "decode", "encode"}),
 			"query":     prop("string", "search: topic, part or formula, English or German. Empty lists the categories."),
 			"id":        prop("string", "describe, calculate, table, pinout, open: id from search."),
 			"inputs":    pairs("calculate, open: known values as {name, value}, e.g. 4k7, 12 V or 25 °C. A bare number is in the variable's default unit.", "value", "Value as typed."),
@@ -49,7 +49,7 @@ func ecalcSchema() openai.Tool {
 			"variant": prop("string", "pinout: variant id."),
 			"lookup": map[string]interface{}{
 				"type":        "object",
-				"description": "table: exact finds the row, ge the row with the smallest cell >= value, interp interpolates output.",
+				"description": "table: exact finds the row, ge the smallest cell >= value, interp interpolates output.",
 				"properties": map[string]interface{}{
 					"column": prop("string", "Column id."),
 					"value":  prop("string", "As typed; a bare number is in the column's unit."),
@@ -65,7 +65,7 @@ func ecalcSchema() openai.Tool {
 				"enum":        append([]string(nil), ecalc.CodeKindIDs()...),
 			},
 			"code":      prop("string", "decode: code as printed or band colours."),
-			"value":     prop("string", "encode: value, e.g. 4k7 or 100n."),
+			"value":     prop("string", "encode: value (4k7, 100n) or a date YYYY-MM-DD."),
 			"bands":     prop("integer", "encode: number of bands."),
 			"tolerance": prop("string", "encode: e.g. 5% or K."),
 			"tempco":    prop("string", "encode: ppm/K."),

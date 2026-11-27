@@ -31,7 +31,7 @@ type codeForms struct {
 	decode, encode, fields []string
 }
 
-// codeFormsByKind describes the six code kinds of codes.go; the keys are the kind ids.
+// codeFormsByKind describes the seven code kinds of codes.go; the keys are the kind ids.
 var codeFormsByKind = map[string]codeForms{
 	"resistor_bands": {
 		decode: []string{"1 to 6 band colours as English names, for example blue grey red (3 bands), brown black red gold (4), red yellow white orange brown (5)"},
@@ -52,6 +52,11 @@ var codeFormsByKind = map[string]codeForms{
 		decode: []string{"a marking as printed: 101 (100 µH), 4R7 (4.7 µH), R47, 47N (47 nH), 4N7, optionally with a tolerance letter (4R7M)"},
 		encode: []string{"value (required, for example 4.7u)", "tolerance (optional: a letter C, G, H, J, K or M, or a percentage such as 10%)"},
 		fields: []string{"family", "tolerance"},
+	},
+	"date_code": {
+		decode: []string{"four digits YYWW as printed (2448 = week 48 of 2024), or a year letter and a month character of IEC 60062 (J5 = May 2017, 1997, ...)"},
+		encode: []string{"value (required: a date YYYY-MM-DD; gives the YYWW code of its ISO week and the IEC 60062 letter code)"},
+		fields: []string{"year, week, week_start, week_end (YYWW)", "years, month (letter code)", "letter_code (encode)"},
 	},
 	"capacitor": {
 		decode: []string{"up to three parts as printed: a value (104, 4p7), a tolerance letter (K) and a voltage code (1H), for example 104K 1H"},

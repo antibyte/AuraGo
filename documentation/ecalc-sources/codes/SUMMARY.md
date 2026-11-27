@@ -8,6 +8,7 @@ All CSV blocks parse; computed test vectors checked with a helper script that is
 | smd_inductor.md | 3 value notations, 14 tolerance letters (6 decoded, 8 not cross-checked) | 5 | Murata, Bourns, Vishay, TDK |
 | capacitor.md | 5 value-code families, 21 tolerance rows, 31 voltage codes | 9 | Vishay, KEMET, TDK, Murata, Nichicon, Panasonic |
 | ceramic_temp.md | 48 code symbols, 12 common codes | 6 | Vishay 23140 (EIA-198-1), Murata |
+| date_code.md | 2 forms (YYWW, year letter and month), 20 year letters, 12 month characters | 17 | IEC 60062 (GOST IDT), ISO 8601, ECIA, TI, Microchip, TDK, Vishay |
 
 Edition followed: IEC 60062:2016 with the 2016 corrigendum and the 2019 amendment (Table 1 identical in the 2016 and
 2019 previews read).
@@ -23,6 +24,6 @@ Edition followed: IEC 60062:2016 with the 2016 corrigendum and the 2019 amendmen
 - UNVERIFIED: resistor tolerance letters W, P, L (Wikipedia only); some MIL inductor tolerances (single, badly
   extracted source); capacitor tolerance letters E, F/G in pF, H, N, S, P (one source or conflicting); rare ceramic
   letters/digits (class 1: B, L, A, V; class 2: digits 2 and 9, change letters A–F) one source each.
-- Not covered (possible future tables): TCR letter codes, date codes, the two-character capacitance marking (KEMET
+- Not covered (possible future tables): TCR letter codes, the two-character capacitance marking (KEMET
   "KA8").
 - Colour names are the agent's own translations; the Hindi ones need a native-speaker check.

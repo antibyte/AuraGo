@@ -14,20 +14,21 @@ import (
 )
 
 // The code pages of ECalc (phase 3, part UK): resistor and inductor colour bands, SMD resistor, capacitor and ceramic
-// temperature codes. The tests at the top and at the end are source tests (they always run): the 45 translation keys in 16
+// temperature codes. The tests at the top and at the end are source tests (they always run): the 53 translation keys in 16
 // languages, the DOM-free drawing builders, the stylesheet section, the loader order, the use of the codes engine and of the
 // store. The tests in the middle drive the pages inside the real desktop shell (AURAGO_RUN_BROWSER_SMOKE=1).
 
 // ecalcCodeKeys are the strings of the code pages (desktop.ecalc_code_*); the page names every one of them as a literal.
 var ecalcCodeKeys = []string{
 	"desktop.ecalc_code_auto", "desktop.ecalc_code_band_aria", "desktop.ecalc_code_bands", "desktop.ecalc_code_class_1", "desktop.ecalc_code_class_2",
-	"desktop.ecalc_code_colors", "desktop.ecalc_code_common", "desktop.ecalc_code_empty", "desktop.ecalc_code_error_invalid_code",
+	"desktop.ecalc_code_colors", "desktop.ecalc_code_common", "desktop.ecalc_code_date", "desktop.ecalc_code_empty", "desktop.ecalc_code_error_invalid_code",
 	"desktop.ecalc_code_error_invalid_value", "desktop.ecalc_code_error_unsupported", "desktop.ecalc_code_field_change",
 	"desktop.ecalc_code_field_change_minus", "desktop.ecalc_code_field_change_plus", "desktop.ecalc_code_field_class", "desktop.ecalc_code_field_code_3digit",
 	"desktop.ecalc_code_field_code_4digit", "desktop.ecalc_code_field_code_eia96", "desktop.ecalc_code_field_family", "desktop.ecalc_code_field_industry_code",
-	"desktop.ecalc_code_field_layout", "desktop.ecalc_code_field_rkm", "desktop.ecalc_code_field_tc", "desktop.ecalc_code_field_tcr",
+	"desktop.ecalc_code_field_layout", "desktop.ecalc_code_field_letter_code", "desktop.ecalc_code_field_month", "desktop.ecalc_code_field_rkm", "desktop.ecalc_code_field_tc", "desktop.ecalc_code_field_tcr",
 	"desktop.ecalc_code_field_temp_high", "desktop.ecalc_code_field_temp_low", "desktop.ecalc_code_field_tolerance", "desktop.ecalc_code_field_tolerance_minus",
-	"desktop.ecalc_code_field_tolerance_plus", "desktop.ecalc_code_field_value_code", "desktop.ecalc_code_field_voltage", "desktop.ecalc_code_hint",
+	"desktop.ecalc_code_field_tolerance_plus", "desktop.ecalc_code_field_value_code", "desktop.ecalc_code_field_voltage", "desktop.ecalc_code_field_week", "desktop.ecalc_code_field_week_end",
+	"desktop.ecalc_code_field_week_start", "desktop.ecalc_code_field_year", "desktop.ecalc_code_field_years", "desktop.ecalc_code_hint",
 	"desktop.ecalc_code_marking", "desktop.ecalc_code_menu", "desktop.ecalc_code_none", "desktop.ecalc_code_notes", "desktop.ecalc_code_print",
 	"desktop.ecalc_code_result", "desktop.ecalc_code_role_digit", "desktop.ecalc_code_role_identifier", "desktop.ecalc_code_role_multiplier",
 	"desktop.ecalc_code_role_point", "desktop.ecalc_code_role_tcr", "desktop.ecalc_code_role_tolerance", "desktop.ecalc_code_role_value",
@@ -40,8 +41,8 @@ var ecalcCodePlaceholders = map[string][]string{
 
 func TestECalcCodeLocaleKeys(t *testing.T) {
 	t.Parallel()
-	if len(ecalcCodeKeys) != 45 {
-		t.Errorf("%d code keys are listed, want the 45 of the plan", len(ecalcCodeKeys))
+	if len(ecalcCodeKeys) != 53 {
+		t.Errorf("%d code keys are listed, want the 53 of the plan", len(ecalcCodeKeys))
 	}
 	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
 		words := readMergedLangMap(t, lang)
@@ -371,8 +372,8 @@ func TestDesktopECalcCodesBandsBrowser(t *testing.T) {
 	bandCenter := func(i int) string { return fmt.Sprintf(`.ec-band[data-index="%d"]`, i) }
 	colorsNow := func(id string) []string { return h.colorsOf(id, h.read()) }
 
-	// ---- the rail lists the six codes; the page opens with the 1 kOhm / 5 % example drawn from the data ----------------------------
-	h.same("the Codes rail counts the six code items", page.MustEval(`()=>document.querySelector('.ec-rail-btn[data-rail="codes"] .ec-count').textContent`).Str(), "6")
+	// ---- the rail lists the seven codes; the page opens with the 1 kOhm / 5 % example drawn from the data ----------------------------
+	h.same("the Codes rail counts the seven code items", page.MustEval(`()=>document.querySelector('.ec-rail-btn[data-rail="codes"] .ec-count').textContent`).Str(), "7")
 	h.open(resistor)
 	state := h.read()
 	h.same("page", []string{state.ID, state.Kind, state.Art, state.Count}, []string{resistor, "resistor_bands", "resistor", "4"})
@@ -905,7 +906,7 @@ func TestECalcCodePageUsesTheEngineAndTheStore(t *testing.T) {
 		"window.ECalcCodePage = { create };", "codes.decode(item, ", "codes.encode(item, ", "store.saveCalc(item.id, ", "store.calcState(item.id)", "el.dataset.code = item.id;",
 		"el.dataset.kind = String(item.code);", "Draw.bandsSVG(", "Draw.chipSVG(", `role="listbox"`, `role="option"`, "event.key === 'Escape'", "event.key === 'ArrowDown'",
 		"function describe(error)", "store.flush()", "ERROR_CODES = ['invalid_code', 'invalid_value', 'unsupported']", "const CONTROLLERS = {",
-		"resistor_bands: resistorController, inductor_bands: inductorController, smd_resistor: ctx => smdController(ctx, SMD_RESISTOR)", "smd_inductor: ctx => smdController(ctx, SMD_INDUCTOR), capacitor: capacitorController, ceramic_temp: ceramicController",
+		"resistor_bands: resistorController, inductor_bands: inductorController, smd_resistor: ctx => smdController(ctx, SMD_RESISTOR)", "smd_inductor: ctx => smdController(ctx, SMD_INDUCTOR), capacitor: capacitorController, ceramic_temp: ceramicController, date_code: dateController",
 	} {
 		if !strings.Contains(page, marker) {
 			t.Errorf("ecalc-code-page.js is missing %q", marker)

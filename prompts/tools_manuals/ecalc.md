@@ -58,6 +58,14 @@ Use `ecalc` for electronics formulas: Ohm's law, voltage dividers, filters, time
 ```
 
 ```json
+{"action":"ecalc","operation":"decode","kind":"date_code","code":"2448"}
+```
+
+```json
+{"action":"ecalc","operation":"encode","kind":"date_code","value":"2026-11-27"}
+```
+
+```json
 {"action":"ecalc","operation":"open","id":"rms_waveform","inputs":[{"name":"vrms","value":"230 V"}],"choices":[{"name":"wave","option":"triangle"}]}
 ```
 
@@ -127,6 +135,7 @@ Use `ecalc` for electronics formulas: Ohm's law, voltage dividers, filters, time
 | `smd_inductor` | `101` (100 µH), `4R7` (4.7 µH), `R47`, `47N` (47 nH), `4N7`, optionally with a tolerance letter (`4R7M`); only the letters C, G, H, J, K, M are read, the other letters differ between makers and answer `unsupported` | `value`, `tolerance` (a letter or a percentage) | `family`, `tolerance` |
 | `capacitor` | up to three parts: `104`, `4p7`, `K`, `1H` (`104K 1H` = 100 nF ±10 %, 50 V) | `value`, `tolerance` (letter or %), `voltage` | `family`, `tolerance`, `voltage`; encode adds `value_code`, `rkm` |
 | `ceramic_temp` | `X7R`, `C0G`, `NP0`, `U2J` | `class` (required); class 1: `tempco`, `tolerance`; class 2: `value` as a range (`-55..125`), `tolerance` (`15%`) | class 1: `class`, `tc`, `tolerance`, `industry_code`; class 2: `class`, `temp_low`, `temp_high`, `change` |
+| `date_code` | the date of manufacture: four digits YYWW (`2448` = week 48 of 2024, ISO week, Monday to Sunday; week 53 only in some years) or an IEC 60062 year letter and month character (`J5` = May 2017, 1997, 1977 or 2037; the candidate years 1970 to 2049 are listed, no "today" is assumed). The week-first reading is not offered | `value` = a date `YYYY-MM-DD` (`2026-11-27`): gives the YYWW code of its ISO week (the ISO week-year, so `2021-01-01` is `2053`; none outside 2000 to 2099, the letter code is given with a warning) and the letter code | YYWW: `year`, `week`, `week_start`, `week_end`; letter: `years`, `month`; encode: `year`, `week`, `week_start`, `week_end`, `letter_code`. No `value` or `dim`. Makers count weeks a little differently (ECIA Sunday start, Microchip week of 1 January, TI first week of a six-week period): say the week can be off by one |
 
 - The answer has `kind`, `code` (the canonical text), `bands` (colour ids), `value` (SI) with `formatted`, `dim`, `fields` (`id`, `name`, `text` and `value` where it is a number) and `warnings`. A code without a value (a class 2 ceramic code) has none of `value`, `dim` and `formatted`. Pass the `warnings` on: they say that an older tolerance reading exists, that voltage codes are a maker convention (check the datasheet), or that a symbol is ambiguous between makers.
 - For a capacitor marked `3F`, report both voltage fields. `voltage_tdk` is 3 kV and `voltage_murata` is 3.15 kV. Encoding either voltage returns `3F` with the matching maker.

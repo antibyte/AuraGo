@@ -1,5 +1,5 @@
 /* ECalc component codes: reading and writing the markings of resistors, inductors and capacitors (resistor and inductor
-   colour bands, SMD resistor and inductor codes, capacitor codes, ceramic temperature codes). A DOM-free classic script that publishes
+   colour bands, SMD resistor and inductor codes, capacitor codes, ceramic temperature codes, date codes). A DOM-free classic script that publishes
    window.ECalcCore.codes = { decode(item, code, units), encode(item, req, units) }; it mirrors internal/ecalc/codes*.go and
    is checked against the same vectors (internal/ecalc/testdata/vectors/codes.json, scripts/test-ecalc-codes.mjs).
 
@@ -1094,6 +1094,98 @@
         return decodeCeramic(item, code);
     }
 
+    // ---- date_code -------------------------------------------------------------------------------------------------------------------------
+    // Four digits YYWW (year 2000 + YY, ISO 8601 week) or an IEC 60062 year letter and month character. All date arithmetic is on
+    // calendar days in UTC (milliseconds since the epoch); nothing here knows "today".
+    const DATE_YYWW = /^\d{4}$/;
+    const DATE_LETTER = /^[A-Z][0-9A-Z]$/;
+    const DATE_ISO = /^(\d{4})-(\d{2})-(\d{2})$/;
+    const DATE_UNUSED = 'G, I, O, Q, Y and Z';
+    const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const DAY = 86400000;
+
+    function dateIndex(item) {
+        let ix = indexes.get(item);
+        if (ix) return ix;
+        const data = item.data;
+        ix = { data, letter: new Map(data.year_letters.map((l, i) => [l, i])), month: new Map(data.months.map(m => [m.char, m.month])), char: new Map(data.months.map(m => [m.month, m.char])) };
+        indexes.set(item, ix);
+        return ix;
+    }
+
+    // The Monday of ISO week 01 of a year (the week holding 4 January), as milliseconds.
+    function isoWeek1Monday(year) {
+        const jan4 = Date.UTC(year, 0, 4);
+        return jan4 - ((new Date(jan4).getUTCDay() + 6) % 7) * DAY;
+    }
+    // The number of ISO weeks of a year: 52 or 53 (28 December always lies in the last week).
+    const isoWeeks = year => Math.floor((Date.UTC(year, 11, 28) - isoWeek1Monday(year)) / (7 * DAY)) + 1;
+    const dateText = ms => new Date(ms).toISOString().slice(0, 10);
+
+    function weekFields(res, year, week) {
+        const mon = isoWeek1Monday(year) + (week - 1) * 7 * DAY;
+        addField(res, 'year', 'Year', String(year), NaN, '');
+        addField(res, 'week', 'Week (ISO 8601)', String(week).padStart(2, '0'), NaN, '');
+        addField(res, 'week_start', 'Week starts (Monday)', dateText(mon), NaN, '');
+        addField(res, 'week_end', 'Week ends (Sunday)', dateText(mon + 6 * DAY), NaN, '');
+    }
+
+    function decodeDate(item, code) {
+        const ix = dateIndex(item);
+        const s = code.replace(/\s+/g, '').toUpperCase();
+        if (s === '') throw invalidCode('the code is empty');
+        const res = newResult('date_code');
+        res.code = s;
+        if (DATE_YYWW.test(s)) {
+            const year = 2000 + parseInt(s.slice(0, 2), 10), week = parseInt(s.slice(2), 10);
+            const weeks = isoWeeks(year);
+            if (week === 0) throw invalidCode('week 00 does not exist (the weeks run from 01 to 52 or 53)');
+            if (week > 53) throw invalidCode('week ' + s.slice(2) + ' does not exist (the weeks run from 01 to 52 or 53)');
+            if (week > weeks) throw invalidCode(year + ' has only ' + weeks + ' weeks, so week ' + s.slice(2) + ' does not exist');
+            weekFields(res, year, week);
+            return res;
+        }
+        if (!DATE_LETTER.test(s)) throw invalidCode('cannot read ' + JSON.stringify(s) + ' as a date code (four digits YYWW such as 2448, or a year letter and a month character such as J5)');
+        const idx = ix.letter.get(s[0]);
+        if (idx === undefined) throw invalidCode(s[0] + ' is not a year letter (the letters ' + DATE_UNUSED + ' are not used)');
+        const month = ix.month.get(s[1]);
+        if (month === undefined) throw invalidCode(s[1] + ' is not a month character (1 to 9, O for October, N for November, D for December)');
+        const years = [];
+        for (let y = ix.data.first_year + idx; y <= ix.data.last_year; y += ix.data.year_letters.length) years.push(String(y));
+        addField(res, 'years', 'Years', years.join(', '), NaN, '');
+        addField(res, 'month', 'Month', MONTH_NAMES[month - 1], NaN, '');
+        return res;
+    }
+
+    function encodeDate(item, req) {
+        const ix = dateIndex(item);
+        const text = req.value.trim();
+        if (text === '') throw invalidValue('give a date as YYYY-MM-DD');
+        const m = DATE_ISO.exec(text);
+        if (!m) throw invalidValue('value: cannot read ' + JSON.stringify(text) + ' as a date (YYYY-MM-DD)');
+        const y = parseInt(m[1], 10), mo = parseInt(m[2], 10), da = parseInt(m[3], 10);
+        const ms = Date.UTC(y, mo - 1, da), d = new Date(ms);
+        if (y < 1583 || mo < 1 || mo > 12 || d.getUTCFullYear() !== y || d.getUTCMonth() !== mo - 1 || d.getUTCDate() !== da) {
+            throw invalidValue('value: ' + text + ' is not a calendar date from the year 1583 on');
+        }
+        const letters = ix.data.year_letters;
+        const letter = letters[(((y - ix.data.first_year) % 20) + 20) % 20] + ix.char.get(mo);
+        // The ISO week-year and week: those of the Thursday of the week of the date.
+        const thursday = ms + (3 - ((d.getUTCDay() + 6) % 7)) * DAY;
+        const wy = new Date(thursday).getUTCFullYear();
+        const ww = Math.floor((thursday - Date.UTC(wy, 0, 1)) / (7 * DAY)) + 1;
+        const res = newResult('date_code');
+        if (wy >= 2000 && wy <= 2099) {
+            res.code = String(wy % 100).padStart(2, '0') + String(ww).padStart(2, '0');
+        } else {
+            res.code = letter;
+            res.warnings.push('the ISO week-year ' + wy + ' is outside 2000 to 2099, so there is no YYWW code; the letter code is given');
+        }
+        weekFields(res, wy, ww);
+        addField(res, 'letter_code', 'IEC 60062 letter code', letter, NaN, '');
+        return res;
+    }
+
     // ---- API ---------------------------------------------------------------------------------------------------------------------------------------------
     const KINDS = {
         resistor_bands: { decode: decodeResistor, encode: encodeResistor },
@@ -1101,7 +1193,8 @@
         smd_resistor: { decode: decodeSMD, encode: encodeSMD },
         smd_inductor: { decode: decodeSMDInductor, encode: encodeSMDInductor },
         capacitor: { decode: decodeCapacitor, encode: encodeCapacitor },
-        ceramic_temp: { decode: decodeCeramic, encode: encodeCeramic }
+        ceramic_temp: { decode: decodeCeramic, encode: encodeCeramic },
+        date_code: { decode: decodeDate, encode: encodeDate }
     };
 
     function kindOf(item) {

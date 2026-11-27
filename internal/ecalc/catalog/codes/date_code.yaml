@@ -1,0 +1,32 @@
+- id: date_code_code
+  kind: code
+  category: codes
+  code: date_code
+  name: {cs: "Datumové kódy součástek", da: "Datokoder på komponenter", de: "Datumscodes auf Bauteilen", el: "Κωδικοί ημερομηνίας εξαρτημάτων", en: "Component date codes", es: "Códigos de fecha de componentes", fr: "Codes de date des composants", hi: "घटकों के तिथि कोड", it: "Codici data dei componenti", ja: "部品の製造日コード", nl: "Datumcodes op componenten", no: "Datokoder på komponenter", pl: "Kody daty na podzespołach", pt: "Códigos de data dos componentes", sv: "Datumkoder på komponenter", zh: "元器件日期代码"}
+  doc: {en: "The date of manufacture that makers print on a component. Four digits are YYWW: the last two digits of the year and the ISO 8601 week, Monday to Sunday (2448 = week 48 of 2024, IEC 60062); week 53 exists only in some years. Two characters are the IEC 60062 year and month code: a year letter of the 20-year cycle (A B C D E F H J K L M N P R S T U V W X) and a month character (1 to 9, O = October, N = November, D = December). The letter code repeats every 20 years, so J5 is May 2017 but also May 1997, and the reader lists the candidate years. A date gives both codes. Makers count weeks in slightly different ways, so a week can be off by one.", de: "Das Herstellungsdatum, das Hersteller auf ein Bauteil drucken. Vier Ziffern sind JJWW: die letzten zwei Ziffern des Jahres und die ISO-8601-Kalenderwoche, Montag bis Sonntag (2448 = KW 48/2024, IEC 60062); eine KW 53 gibt es nur in manchen Jahren. Zwei Zeichen sind der Jahr/Monat-Code nach IEC 60062: ein Jahresbuchstabe des 20-Jahres-Zyklus (A B C D E F H J K L M N P R S T U V W X) und ein Monatszeichen (1 bis 9, O = Oktober, N = November, D = Dezember). Der Buchstabencode wiederholt sich alle 20 Jahre, J5 ist also Mai 2017, aber auch Mai 1997; der Leser nennt die möglichen Jahre. Ein Datum liefert beide Codes. Hersteller zählen die Wochen leicht unterschiedlich, eine Woche kann deshalb um eins abweichen."}
+  tags: ["date code", "datumscode", "datecode", "yyww", "jjww", "week", "woche", "kalenderwoche", "year", "month", "manufacture", "herstellungsdatum", "marking", "aufdruck", "iec 60062", "iso 8601", "j5", "2448", "lot"]
+  source: "IEC 60062:2016 clause 8 (date code system) and IEC 60062:2004 clauses 6.1.1 and 6.2.1, read in the identical GOST IEC 60062-2014 (IDT); ISO 8601-1:2019 (week calendar); ECIA NIGP 117 date code marking guideline; Texas Instruments device marking conventions (SNOA039C); Microchip MCP6001 data sheet; onsemi 1N4001 data sheet; Vishay Dale product marking (document 30327); TDK film capacitor marking and ordering code system; Vishay SMF body marking (document 98534)"
+  data:
+    first_year: 1970
+    last_year: 2049
+    year_letters: ["A", "B", "C", "D", "E", "F", "H", "J", "K", "L", "M", "N", "P", "R", "S", "T", "U", "V", "W", "X"]
+    months:
+      - {char: "1", month: 1}
+      - {char: "2", month: 2}
+      - {char: "3", month: 3}
+      - {char: "4", month: 4}
+      - {char: "5", month: 5}
+      - {char: "6", month: 6}
+      - {char: "7", month: 7}
+      - {char: "8", month: 8}
+      - {char: "9", month: 9}
+      - {char: "O", month: 10}
+      - {char: "N", month: 11}
+      - {char: "D", month: 12}
+    notes:
+      - {en: "Most makers print the date code as YYWW: 2448 = week 48 of 2024.", de: "Die meisten Hersteller drucken den Datumscode als JJWW: 2448 = Kalenderwoche 48/2024."}
+      - {en: "Weeks follow ISO 8601 (IEC 60062): Monday to Sunday; week 01 is the week with the first Thursday of the year, so it can start in December of the previous year. Week 53 exists only in some years (2020, 2026, 2032 ...).", de: "Die Wochen zählen nach ISO 8601 (IEC 60062): Montag bis Sonntag; KW 01 ist die Woche mit dem ersten Donnerstag des Jahres und kann deshalb schon im Dezember des Vorjahres beginnen. Eine KW 53 gibt es nur in manchen Jahren (2020, 2026, 2032 ...)."}
+      - {en: "Makers count weeks differently: ECIA (US) starts the week on Sunday, Microchip counts the week of 1 January as week 01 (not ISO when 1 January is a Friday, Saturday or Sunday), and Texas Instruments and National print the first week of a six-week period on commercial parts. A decoded week can therefore be off by one or more.", de: "Hersteller zählen die Wochen unterschiedlich: ECIA (USA) beginnt die Woche am Sonntag, Microchip zählt die Woche mit dem 1. Januar als KW 01 (nicht ISO, wenn der 1. Januar ein Freitag, Samstag oder Sonntag ist), und Texas Instruments und National drucken auf kommerziellen Teilen die erste Woche eines Sechs-Wochen-Zeitraums. Eine gelesene Woche kann deshalb um eins oder mehr abweichen."}
+      - {en: "A two-digit year is read as 20xx; an old part can be from 19xx (Texas Instruments: week 48 of 1999 = 9948).", de: "Eine zweistellige Jahreszahl wird als 20xx gelesen; ein altes Bauteil kann aus 19xx stammen (Texas Instruments: KW 48/1999 = 9948)."}
+      - {en: "The IEC 60062 letter code repeats every 20 years: J5 is May 2017, but also May 1997 (and 1977, 2037). The letters G, I, O, Q, Y and Z are not year letters; O is the month October.", de: "Der Buchstabencode nach IEC 60062 wiederholt sich alle 20 Jahre: J5 ist Mai 2017, aber auch Mai 1997 (und 1977, 2037). Die Buchstaben G, I, O, Q, Y und Z sind keine Jahresbuchstaben; O ist der Monat Oktober."}
+      - {en: "Not every four-digit number on a part is a date code (7805 is a part number). A reading with the week first (WWYY) is not read: no maker document prints it. The ten-year letter cycle is not read either, because its sources disagree.", de: "Nicht jede vierstellige Zahl auf einem Bauteil ist ein Datumscode (7805 ist eine Typenbezeichnung). Eine Lesart mit der Woche zuerst (WWYY) wird nicht gelesen: kein Herstellerdokument druckt sie. Der Zehn-Jahres-Buchstabenzyklus wird ebenfalls nicht gelesen, weil sich die Quellen widersprechen."}

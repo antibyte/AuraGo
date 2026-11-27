@@ -1,5 +1,5 @@
-/* ECalc code page: reading and writing component markings. One page creator for the five code items of the catalog
-   (resistor colour bands, inductor colour bands, SMD resistor codes, capacitor codes, ceramic temperature codes); the
+/* ECalc code page: reading and writing component markings. One page creator for the code items of the catalog
+   (resistor colour bands, inductor colour bands, SMD resistor and inductor codes, capacitor codes, ceramic temperature codes, date codes); the
    `code` kind of the item picks the controller, the tables come from `item.data`, and every decode and encode goes through
    ECalcCore.codes (ecalc-codes.js). A page has two directions that are live at the same time: the marking (colour bands,
    a printed code) decodes into the fields, and the fields (a value, a tolerance, a voltage ...) encode into the marking.
@@ -26,7 +26,7 @@
         bands: 'desktop.ecalc_code_bands', bandAria: 'desktop.ecalc_code_band_aria', menu: 'desktop.ecalc_code_menu', hint: 'desktop.ecalc_code_hint',
         auto: 'desktop.ecalc_code_auto', none: 'desktop.ecalc_code_none', marking: 'desktop.ecalc_code_marking', colors: 'desktop.ecalc_code_colors',
         result: 'desktop.ecalc_code_result', empty: 'desktop.ecalc_code_empty', common: 'desktop.ecalc_code_common', print: 'desktop.ecalc_code_print',
-        notes: 'desktop.ecalc_code_notes', class1: 'desktop.ecalc_code_class_1', class2: 'desktop.ecalc_code_class_2'
+        notes: 'desktop.ecalc_code_notes', date: 'desktop.ecalc_code_date', class1: 'desktop.ecalc_code_class_1', class2: 'desktop.ecalc_code_class_2'
     };
     const ROLE_KEY = {
         digit: 'desktop.ecalc_code_role_digit', multiplier: 'desktop.ecalc_code_role_multiplier', tolerance: 'desktop.ecalc_code_role_tolerance',
@@ -43,7 +43,9 @@
         tolerance_minus: 'desktop.ecalc_code_field_tolerance_minus', tolerance_plus: 'desktop.ecalc_code_field_tolerance_plus', class: 'desktop.ecalc_code_field_class',
         tc: 'desktop.ecalc_code_field_tc', industry_code: 'desktop.ecalc_code_field_industry_code', temp_low: 'desktop.ecalc_code_field_temp_low',
         temp_high: 'desktop.ecalc_code_field_temp_high', change: 'desktop.ecalc_code_field_change', change_plus: 'desktop.ecalc_code_field_change_plus',
-        change_minus: 'desktop.ecalc_code_field_change_minus'
+        change_minus: 'desktop.ecalc_code_field_change_minus', year: 'desktop.ecalc_code_field_year', week: 'desktop.ecalc_code_field_week',
+        week_start: 'desktop.ecalc_code_field_week_start', week_end: 'desktop.ecalc_code_field_week_end', years: 'desktop.ecalc_code_field_years',
+        month: 'desktop.ecalc_code_field_month', letter_code: 'desktop.ecalc_code_field_letter_code'
     };
     const DIM_KEY = {
         resistance: 'desktop.ecalc_dim_resistance', inductance: 'desktop.ecalc_dim_inductance', capacitance: 'desktop.ecalc_dim_capacitance',
@@ -829,9 +831,80 @@
         };
     }
 
+    // ---- date code ---------------------------------------------------------------------------------------------------------
+    // A code (YYWW or the IEC 60062 year letter and month) decodes into the date; a date encodes into both codes. No drawing.
+    const DATE_SAMPLE = { code: '2448', date: '' };
+    const MONTH_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+    // The English month name of the engine in the language of the page.
+    function monthName(english) {
+        const index = MONTH_EN.indexOf(english);
+        if (index < 0) return english;
+        try { return new Intl.DateTimeFormat(String(window.SYSTEM_LANG || document.documentElement.lang || 'en'), { month: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(2000, index, 15))); } catch (error) { return english; }
+    }
+
+    function dateController(ctx) {
+        const { item, units, t, codes } = ctx;
+        const st = { code: '', date: '', last: 'code' };
+        let root = null, codeInput = null, dateInput = null, timer = 0, pending = null;
+
+        function markup() {
+            const input = (id, placeholder) => '<input class="ec-input" id="' + ctx.uid + '-' + id + '" data-input="' + id + '" type="text" inputmode="text" maxlength="' + MAX_TEXT + '" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="' + esc(placeholder) + '">';
+            return '<div class="ec-code-fields">' + ctx.field('code', t(KEY.marking), input('code', '2448 / J5')) + ctx.field('date', t(KEY.date), input('date', 'YYYY-MM-DD')) + '</div>';
+        }
+        function sync() {
+            if (codeInput !== codeInput.ownerDocument.activeElement) codeInput.value = st.code;
+            if (dateInput !== dateInput.ownerDocument.activeElement) dateInput.value = st.date;
+        }
+        function fromCode() {
+            st.last = 'code';
+            ctx.run(() => codes.decode(item, st.code, units), 'code');
+            sync();
+            ctx.persist();
+        }
+        function fromDate() {
+            st.last = 'date';
+            if (!st.date.trim()) { ctx.clear(); sync(); ctx.persist(); return; }
+            const out = ctx.run(() => codes.encode(item, { value: st.date }, units), 'date');
+            if (out.result) st.code = out.result.code;
+            sync();
+            ctx.persist();
+        }
+        // The typed text is read after a pause, or at once when the field is left (the pause is cut short).
+        const flush = () => { clearTimeout(timer); const run = pending; pending = null; if (run) run(); };
+        const later = fn => { clearTimeout(timer); pending = fn; timer = setTimeout(flush, TYPING_PAUSE_MS); };
+
+        return {
+            markup,
+            mount(host) {
+                root = host;
+                codeInput = root.querySelector('[data-input="code"]');
+                dateInput = root.querySelector('[data-input="date"]');
+                root.addEventListener('input', event => {
+                    if (event.target === codeInput) { st.code = text64(codeInput.value); later(fromCode); }
+                    else if (event.target === dateInput) { st.date = text64(dateInput.value); later(fromDate); }
+                });
+                root.addEventListener('change', () => { flush(); sync(); });
+            },
+            valueHTML(field) { return field.id === 'month' ? esc(monthName(field.text)) : ''; },
+            handleClick() { return false; },
+            state() { return { inputs: { code: st.code, date: st.date, last: st.last }, choices: {} }; },
+            restore(saved) {
+                const inputs = saved && saved.inputs ? saved.inputs : {};
+                st.code = text64(inputs.code) || DATE_SAMPLE.code;
+                st.date = text64(inputs.date);
+                if (inputs.last === 'date' && st.date) fromDate(); else fromCode();
+            },
+            reset() { st.code = DATE_SAMPLE.code; st.date = ''; fromCode(); },
+            refresh() { sync(); },
+            layout() {},
+            dispose() { clearTimeout(timer); }
+        };
+    }
+
     const CONTROLLERS = {
         resistor_bands: resistorController, inductor_bands: inductorController, smd_resistor: ctx => smdController(ctx, SMD_RESISTOR),
-        smd_inductor: ctx => smdController(ctx, SMD_INDUCTOR), capacitor: capacitorController, ceramic_temp: ceramicController
+        smd_inductor: ctx => smdController(ctx, SMD_INDUCTOR), capacitor: capacitorController, ceramic_temp: ceramicController, date_code: dateController
     };
 
     // ---- the page ----------------------------------------------------------------------------------------------------------------
