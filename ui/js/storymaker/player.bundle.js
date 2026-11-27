@@ -3090,6 +3090,15 @@
         return { box: { x: st.x + pl.box.x * k, y: st.y + pl.box.y * k, w: pl.box.w * k, h: pl.box.h * k }, labelPx: pl.labelPx * stage.scale * k };
     }
 
+    // cacheKey(st): a string that changes when the drawing of a block state changes. The scene time is part of it only while the block
+    // animates: its reveal runs, a node mark is active or the diagram flows. The raster overlay redraws only when the key changes.
+    function cacheKey(st) {
+        var end = st.t0 + st.dur;
+        for (var k = 0; st.reveals && k < st.reveals.length; k++) if (st.reveals[k] + ITEM_SPAN > end) end = st.reveals[k] + ITEM_SPAN;
+        var moving = st.time < end || !!st.mark || !!(st.block.diagram && st.block.diagram.flow === true);
+        return JSON.stringify([st.id, st.x, st.y, st.alpha, st.scale, st.rot, st.block, st.w, st.h, st.surface, st.t0, st.dur, st.entry, st.reveals, st.mark, st.highlight || null, moving ? st.time : 0]);
+    }
+
     // ---- serialize and revive
 
     function trackOut(track) {
@@ -3200,7 +3209,7 @@
         POINTS_MAX: POINTS_MAX, MAX_BLOCKS: MAX_BLOCKS, LABEL_BASE: 0.034, LABEL_MIN: 0.026, ITEM_SPAN: ITEM_SPAN, WORD_SPAN: WORD_SPAN,
         FLOW_PERIOD: FLOW_PERIOD, BOARD_RECTS: BOARD_RECTS, isBoard: isBoard, area: area, check: check, create: create,
         revealSeconds: revealSeconds, itemProgress: itemProgress, serialize: serialize, revive: revive,
-        itemCount: itemCount, lines: lines, parseHeadline: parseHeadline, layout: layout, layoutNodes: layoutNodes, measure: measure
+        itemCount: itemCount, lines: lines, parseHeadline: parseHeadline, layout: layout, layoutNodes: layoutNodes, measure: measure, cacheKey: cacheKey
     };
 })(typeof globalThis !== 'undefined' ? globalThis : self);
 
@@ -5135,6 +5144,7 @@
 
     // entityBox(st, rc, stage): the box of an actor or a prop in design pixels, or null when its art is missing.
     function entityBox(st, rc, stage) {
+        if (st.type === 'block') return null;   // the box of a block comes from SM.blocks.measure, which needs a context
         var depth = stage.depthScale(st.y, st.depth), h, w;
         if (st.type === 'prop') {
             var entry = rc.cat.byId[st.item], part = entry && rc.assets.props && rc.assets.props[entry.file];
@@ -5171,6 +5181,11 @@
             ctx.setTransform(1, 0, 0, 1, 0, 0);
             box = textBox(ctx, st, rc, stage, bw);
             unit = stage.scale;
+        } else if (st.type === 'block') {
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            var measured = SM.blocks.measure(ctx, st, rc, stage, null);
+            box = measured && measured.box;
+            setM(ctx, Mv);
         } else {
             box = entityBox(st, rc, stage);
             setM(ctx, Mv);
@@ -5236,6 +5251,7 @@
             .forEach(function (s) { drawActor(ctx, s, t, rc, stage, Mv); });
         states.filter(function (s) { return s.type === 'prop' && s.layer !== 'back' && live(s); }).forEach(function (s) { drawProp(ctx, s, rc, stage, Mv); });
         states.filter(function (s) { return s.type === 'shape' && live(s); }).forEach(function (s) { drawShapeEntity(ctx, s, rc, Mv); });
+        states.filter(function (s) { return s.type === 'block' && live(s); }).forEach(function (s) { SM.blocks.draw(ctx, s, rc, stage, win); });
         var tokens = envTokens(sc, rc);
         states.filter(function (s) { return s.type === 'text'; }).forEach(function (s) { drawText(ctx, s, rc, stage, bw, tokens); });
         states.filter(function (s) { return s.type === 'bubble'; }).forEach(function (s) { drawBubble(ctx, s, states, rc, stage, win); });
@@ -5638,14 +5654,15 @@
         states.filter(function (s) { return s.type === 'prop' && s.layer !== 'back' && s.alpha > 0; }).forEach(prop);
         this.nodes.forEach(function (node, key) { node.visible = self.used.has(key); });
         var overlay = this.overlayContext;
-        var visibleOverlay = states.filter(function (s) { return s.alpha > 0 && (s.type === 'shape' || s.type === 'text' && s.text || s.type === 'bubble' && s.lines && s.lines.length || s.highlight && s.highlight.style !== 'pulse'); });
+        var visibleOverlay = states.filter(function (s) { return s.alpha > 0 && (s.type === 'shape' || s.type === 'block' || s.type === 'text' && s.text || s.type === 'bubble' && s.lines && s.lines.length || s.highlight && s.highlight.style !== 'pulse'); });
         var owners = new Set(visibleOverlay.filter(function (s) { return s.type === 'bubble'; }).map(function (s) { return s.owner; }));
-        var inputs = visibleOverlay.concat(states.filter(function (s) { return owners.has(s.id); })).map(function (s) { var plain = Object.assign({}, s); delete plain.entity; return plain; });
+        var inputs = visibleOverlay.concat(states.filter(function (s) { return owners.has(s.id); })).map(function (s) { if (s.type === 'block') return SM.blocks.cacheKey(s); var plain = Object.assign({}, s); delete plain.entity; return plain; });
         var overlayKey = visibleOverlay.length ? JSON.stringify([sc.id, cam, inputs]) : '';
         if (this.overlayKey !== overlayKey) {
             // Reset backing pixels only when contents change; transparent CanvasSource uploads must invalidate old pixels.
             this.overlay.width = rc.W;
             states.filter(function (s) { return s.type === 'shape' && s.alpha > 0; }).forEach(function (s) { SM.render.drawShapeEntity(overlay,s,rc,camera); });
+            states.filter(function (s) { return s.type === 'block' && s.alpha > 0; }).forEach(function (s) { SM.blocks.draw(overlay,s,rc,stage,win); });
             states.filter(function (s) { return s.type === 'text'; }).forEach(function (s) { SM.render.drawText(overlay,s,rc,stage,base); });
             states.filter(function (s) { return s.type === 'bubble'; }).forEach(function (s) { SM.render.drawBubble(overlay,s,states,rc,stage,win); });
             states.forEach(function (s) { SM.render.drawHighlight(overlay,s,rc,stage,base,camera); });

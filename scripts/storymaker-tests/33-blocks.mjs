@@ -374,3 +374,41 @@ check('blocks: measure gives a box inside the area and a label of at least LABEL
     assert.ok(text({ id: 'h', kind: 'headline', text: 'Kurz' }).w < area.w * 0.5, 'a headline box is the text bounds, not the area');
     assert.ok(text({ id: 'l', kind: 'list', text: 'Eins\nZwei' }).h < area.h * 0.5, 'a list box is the text bounds, not the area');
 });
+
+// ---- C8: render and raster draw blocks
+
+check('blocks: drawScene paints a block after the shapes and before the texts, and a block can carry an outline highlight', () => {
+    const stage = SM.stage.create({ aspect: '16:9', width: 1920, height: 1080 }), rc = rcOf(1920, 1080), area = B.area(stage, null, 'day', 'center');
+    const sceneOf = extra => {
+        const block = B.create({ id: 'i', kind: 'icon', icon: 'icon.cpu', style: 'line', entry: 'draw', area, t0: 0, dur: 1 });
+        if (extra) extra(block);
+        return {
+            id: 's1', env: null, variant: 'day', camera: SM.camera.create(1, 960, 540), stages: {},
+            entities: [SM.scene.createText({ id: 't', text: 'Hallo', x: 960, y: 900 }), block, SM.scene.createShape({ id: 'r', kind: 'rect', x: 300, y: 300, w: 100, h: 100, color: '$accent' })]
+        };
+    };
+    const run = (time, extra) => { const cv = new FakeCanvas(1920, 1080); SM.render.drawScene(cv.ctx, sceneOf(extra), time, rc); return cv.ctx.log; };
+    const log = run(1), at = prefix => log.findIndex(l => l.startsWith(prefix));
+    const shape = at('fillRect(-50,-50,100,100)'), block = at('stroke(path('), text = at('fillText(Hallo');
+    assert.ok(shape >= 0 && block > shape && text > block, 'shape ' + shape + ', block ' + block + ', text ' + text);
+    assert.equal(digest(run(1)), digest(run(1)));
+    assert.notEqual(digest(run(0.2)), digest(run(1)), 'the reveal changes the drawing');
+    const marked = run(1, e => e.highlights.add(0, 5, { style: 'outline' }));
+    assert.ok(marked.some(l => l.startsWith('strokeRect(')), 'an outline highlight frames the block');
+    assert.equal(run(1, e => e.alpha.init = 0).filter(l => l.startsWith('stroke(path(')).length, 0, 'a block with alpha 0 is not drawn');
+});
+
+check('blocks: cacheKey only follows the scene time while the block animates', () => {
+    const area = { x: 0, y: 0, w: 800, h: 400, surface: 'panel' };
+    const key = (def, time) => B.cacheKey(SM.scene.evalEntity(B.create({ ...def, area, t0: 0, dur: 1 }), time));
+    const icon = { id: 'i', kind: 'icon', icon: 'icon.cpu' };
+    assert.notEqual(key(icon, 0.3), key(icon, 0.6), 'during the reveal');
+    assert.equal(key(icon, 3), key(icon, 4), 'after the reveal');
+    const flow = { ...diagram('flow', 3), diagram: { layout: 'flow', flow: true, nodes: flowNodes(3) } };
+    assert.notEqual(key(flow, 3), key(flow, 4), 'flow dots keep moving');
+    assert.equal(key(diagram('flow', 3), 3), key(diagram('flow', 3), 4));
+    const e = B.create({ ...diagram('flow', 3), area, t0: 0, dur: 1 });
+    e.marks.add(2, 6, { node: 'n1', style: 'pulse' });
+    assert.notEqual(B.cacheKey(SM.scene.evalEntity(e, 3)), B.cacheKey(SM.scene.evalEntity(e, 4)), 'a running mark');
+    assert.notEqual(key(icon, 3), key({ ...icon, icon: 'icon.server' }, 3));
+});

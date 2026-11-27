@@ -185,6 +185,7 @@
 
     // entityBox(st, rc, stage): the box of an actor or a prop in design pixels, or null when its art is missing.
     function entityBox(st, rc, stage) {
+        if (st.type === 'block') return null;   // the box of a block comes from SM.blocks.measure, which needs a context
         var depth = stage.depthScale(st.y, st.depth), h, w;
         if (st.type === 'prop') {
             var entry = rc.cat.byId[st.item], part = entry && rc.assets.props && rc.assets.props[entry.file];
@@ -221,6 +222,11 @@
             ctx.setTransform(1, 0, 0, 1, 0, 0);
             box = textBox(ctx, st, rc, stage, bw);
             unit = stage.scale;
+        } else if (st.type === 'block') {
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            var measured = SM.blocks.measure(ctx, st, rc, stage, null);
+            box = measured && measured.box;
+            setM(ctx, Mv);
         } else {
             box = entityBox(st, rc, stage);
             setM(ctx, Mv);
@@ -286,6 +292,7 @@
             .forEach(function (s) { drawActor(ctx, s, t, rc, stage, Mv); });
         states.filter(function (s) { return s.type === 'prop' && s.layer !== 'back' && live(s); }).forEach(function (s) { drawProp(ctx, s, rc, stage, Mv); });
         states.filter(function (s) { return s.type === 'shape' && live(s); }).forEach(function (s) { drawShapeEntity(ctx, s, rc, Mv); });
+        states.filter(function (s) { return s.type === 'block' && live(s); }).forEach(function (s) { SM.blocks.draw(ctx, s, rc, stage, win); });
         var tokens = envTokens(sc, rc);
         states.filter(function (s) { return s.type === 'text'; }).forEach(function (s) { drawText(ctx, s, rc, stage, bw, tokens); });
         states.filter(function (s) { return s.type === 'bubble'; }).forEach(function (s) { drawBubble(ctx, s, states, rc, stage, win); });

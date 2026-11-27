@@ -310,6 +310,15 @@
         return { box: { x: st.x + pl.box.x * k, y: st.y + pl.box.y * k, w: pl.box.w * k, h: pl.box.h * k }, labelPx: pl.labelPx * stage.scale * k };
     }
 
+    // cacheKey(st): a string that changes when the drawing of a block state changes. The scene time is part of it only while the block
+    // animates: its reveal runs, a node mark is active or the diagram flows. The raster overlay redraws only when the key changes.
+    function cacheKey(st) {
+        var end = st.t0 + st.dur;
+        for (var k = 0; st.reveals && k < st.reveals.length; k++) if (st.reveals[k] + ITEM_SPAN > end) end = st.reveals[k] + ITEM_SPAN;
+        var moving = st.time < end || !!st.mark || !!(st.block.diagram && st.block.diagram.flow === true);
+        return JSON.stringify([st.id, st.x, st.y, st.alpha, st.scale, st.rot, st.block, st.w, st.h, st.surface, st.t0, st.dur, st.entry, st.reveals, st.mark, st.highlight || null, moving ? st.time : 0]);
+    }
+
     // ---- serialize and revive
 
     function trackOut(track) {
@@ -420,6 +429,6 @@
         POINTS_MAX: POINTS_MAX, MAX_BLOCKS: MAX_BLOCKS, LABEL_BASE: 0.034, LABEL_MIN: 0.026, ITEM_SPAN: ITEM_SPAN, WORD_SPAN: WORD_SPAN,
         FLOW_PERIOD: FLOW_PERIOD, BOARD_RECTS: BOARD_RECTS, isBoard: isBoard, area: area, check: check, create: create,
         revealSeconds: revealSeconds, itemProgress: itemProgress, serialize: serialize, revive: revive,
-        itemCount: itemCount, lines: lines, parseHeadline: parseHeadline, layout: layout, layoutNodes: layoutNodes, measure: measure
+        itemCount: itemCount, lines: lines, parseHeadline: parseHeadline, layout: layout, layoutNodes: layoutNodes, measure: measure, cacheKey: cacheKey
     };
 })(typeof globalThis !== 'undefined' ? globalThis : self);

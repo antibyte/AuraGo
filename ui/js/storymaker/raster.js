@@ -194,14 +194,15 @@
         states.filter(function (s) { return s.type === 'prop' && s.layer !== 'back' && s.alpha > 0; }).forEach(prop);
         this.nodes.forEach(function (node, key) { node.visible = self.used.has(key); });
         var overlay = this.overlayContext;
-        var visibleOverlay = states.filter(function (s) { return s.alpha > 0 && (s.type === 'shape' || s.type === 'text' && s.text || s.type === 'bubble' && s.lines && s.lines.length || s.highlight && s.highlight.style !== 'pulse'); });
+        var visibleOverlay = states.filter(function (s) { return s.alpha > 0 && (s.type === 'shape' || s.type === 'block' || s.type === 'text' && s.text || s.type === 'bubble' && s.lines && s.lines.length || s.highlight && s.highlight.style !== 'pulse'); });
         var owners = new Set(visibleOverlay.filter(function (s) { return s.type === 'bubble'; }).map(function (s) { return s.owner; }));
-        var inputs = visibleOverlay.concat(states.filter(function (s) { return owners.has(s.id); })).map(function (s) { var plain = Object.assign({}, s); delete plain.entity; return plain; });
+        var inputs = visibleOverlay.concat(states.filter(function (s) { return owners.has(s.id); })).map(function (s) { if (s.type === 'block') return SM.blocks.cacheKey(s); var plain = Object.assign({}, s); delete plain.entity; return plain; });
         var overlayKey = visibleOverlay.length ? JSON.stringify([sc.id, cam, inputs]) : '';
         if (this.overlayKey !== overlayKey) {
             // Reset backing pixels only when contents change; transparent CanvasSource uploads must invalidate old pixels.
             this.overlay.width = rc.W;
             states.filter(function (s) { return s.type === 'shape' && s.alpha > 0; }).forEach(function (s) { SM.render.drawShapeEntity(overlay,s,rc,camera); });
+            states.filter(function (s) { return s.type === 'block' && s.alpha > 0; }).forEach(function (s) { SM.blocks.draw(overlay,s,rc,stage,win); });
             states.filter(function (s) { return s.type === 'text'; }).forEach(function (s) { SM.render.drawText(overlay,s,rc,stage,base); });
             states.filter(function (s) { return s.type === 'bubble'; }).forEach(function (s) { SM.render.drawBubble(overlay,s,states,rc,stage,win); });
             states.forEach(function (s) { SM.render.drawHighlight(overlay,s,rc,stage,base,camera); });
