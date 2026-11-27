@@ -4336,6 +4336,407 @@
     },
     {
       "kind": "calculator",
+      "id": "logic_level_check",
+      "category": "digital",
+      "name": "Logic level compatibility",
+      "name_en": "Logic level compatibility",
+      "doc": "Checks whether a logic output (driver) can drive a logic input (receiver). Noise margin HIGH NM_H = V_OH(min, driver) − V_IH(min, receiver), noise margin LOW NM_L = V_IL(max, receiver) − V_OL(max, driver); both must be at least 0 V. Each family is taken at its nominal supply. V_OH and V_OL are the data-sheet limits at light load (CMOS inputs: 20 µA for 74HC and 74HCT, 100 µA for 74LVC); the TTL, 74LS and RP2040 data sheets give them only at their rated output current, so those margins are conservative. 74HC at 5 V uses V_IH = 0.7 × V_CC = 3.5 V and V_IL = 0.3 × V_CC = 1.5 V; its data sheets list 4.5 V and 6 V only. The over-voltage check compares the driver's supply, the highest level its HIGH output can reach, with the highest input voltage the receiver allows in operation. The table logic_levels has the full data of the families. Example: 3.3 V LVCMOS (V_OH 3.2 V) does not reliably drive 74HC at 5 V (V_IH 3.5 V) but does drive 74HCT (V_IH 2.0 V).",
+      "tags": [
+        "logic level",
+        "logic compatibility",
+        "noise margin",
+        "interfacing",
+        "level shifting",
+        "3.3 V to 5 V",
+        "5 V tolerant",
+        "voh",
+        "vol",
+        "vih",
+        "vil",
+        "ttl",
+        "74ls",
+        "74hc",
+        "74hct",
+        "74lvc",
+        "lvcmos",
+        "rp2040",
+        "raspberry pi pico",
+        "atmega328p",
+        "arduino",
+        "logikpegel",
+        "pegelverträglichkeit",
+        "störabstand",
+        "pegelanpassung",
+        "pegelwandler",
+        "5-v-tolerant",
+        "überspannung",
+        "cmos",
+        "mikrocontroller"
+      ],
+      "source": "Maker data sheets of the parts named in the options: Texas Instruments SDLS025D (SN7400, SN74LS00), SCLS181H (SN74HC00), SCLS062F (SN74HCT00), SCES212AC (SN74LVC1G00), SCES115G (SN74ALVC00) and the Logic Guide SDYU001AC; Fairchild DM74LS00 (DS006439); Diodes Incorporated 74HC00 (DS35319), 74HCT00 (DS35329), 74LVC1G00 (DS32196); Raspberry Pi RP2040 Datasheet (DC characteristics of the GPIO); Microchip ATmega48A/PA/88A/PA/168A/PA/328/P (DS40002061A, common DC characteristics)",
+      "vars": [
+        {
+          "id": "nmh",
+          "dim": "voltage",
+          "label": "NM_H",
+          "name": "Noise margin HIGH",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": false
+        },
+        {
+          "id": "nml",
+          "dim": "voltage",
+          "label": "NM_L",
+          "name": "Noise margin LOW",
+          "default": null,
+          "default_list": null,
+          "unit": "",
+          "units": [],
+          "eseries": false,
+          "list": false,
+          "input": false
+        }
+      ],
+      "choices": [
+        {
+          "id": "drv",
+          "name": "Driver (output)",
+          "default": "lvc33",
+          "options": [
+            {
+              "id": "ttl",
+              "name": "TTL 74xx (SN7400)",
+              "consts": {
+                "vdd": 5,
+                "voh": 2.4,
+                "vol": 0.4
+              },
+              "ignore": [],
+              "refs": {}
+            },
+            {
+              "id": "ls",
+              "name": "74LS (SN74LS00)",
+              "consts": {
+                "vdd": 5,
+                "voh": 2.5,
+                "vol": 0.4
+              },
+              "ignore": [],
+              "refs": {}
+            },
+            {
+              "id": "hc",
+              "name": "74HC (5 V)",
+              "consts": {
+                "vdd": 5,
+                "voh": 4.4,
+                "vol": 0.1
+              },
+              "ignore": [],
+              "refs": {}
+            },
+            {
+              "id": "hct",
+              "name": "74HCT (5 V)",
+              "consts": {
+                "vdd": 5,
+                "voh": 4.4,
+                "vol": 0.1
+              },
+              "ignore": [],
+              "refs": {}
+            },
+            {
+              "id": "lvc5",
+              "name": "74LVC (5 V)",
+              "consts": {
+                "vdd": 5,
+                "voh": 4.9,
+                "vol": 0.1
+              },
+              "ignore": [],
+              "refs": {}
+            },
+            {
+              "id": "lvc33",
+              "name": "74LVC / LVCMOS (3.3 V)",
+              "consts": {
+                "vdd": 3.3,
+                "voh": 3.2,
+                "vol": 0.1
+              },
+              "ignore": [],
+              "refs": {}
+            },
+            {
+              "id": "lvc25",
+              "name": "74LVC / LVCMOS (2.5 V)",
+              "consts": {
+                "vdd": 2.5,
+                "voh": 2.4,
+                "vol": 0.1
+              },
+              "ignore": [],
+              "refs": {}
+            },
+            {
+              "id": "lvc18",
+              "name": "74LVC / LVCMOS (1.8 V)",
+              "consts": {
+                "vdd": 1.8,
+                "voh": 1.7,
+                "vol": 0.1
+              },
+              "ignore": [],
+              "refs": {}
+            },
+            {
+              "id": "rp2040",
+              "name": "RP2040 GPIO (3.3 V)",
+              "consts": {
+                "vdd": 3.3,
+                "voh": 2.62,
+                "vol": 0.5
+              },
+              "ignore": [],
+              "refs": {}
+            }
+          ]
+        },
+        {
+          "id": "rcv",
+          "name": "Receiver (input)",
+          "default": "hc",
+          "options": [
+            {
+              "id": "ttl",
+              "name": "TTL 74xx (SN7400)",
+              "consts": {
+                "vih": 2,
+                "vil": 0.8,
+                "vimax": 5.5
+              },
+              "ignore": [],
+              "refs": {}
+            },
+            {
+              "id": "ls",
+              "name": "74LS (SN74LS00)",
+              "consts": {
+                "vih": 2,
+                "vil": 0.8,
+                "vimax": 7
+              },
+              "ignore": [],
+              "refs": {}
+            },
+            {
+              "id": "hc",
+              "name": "74HC (5 V)",
+              "consts": {
+                "vih": 3.5,
+                "vil": 1.5,
+                "vimax": 5
+              },
+              "ignore": [],
+              "refs": {}
+            },
+            {
+              "id": "hct",
+              "name": "74HCT (5 V)",
+              "consts": {
+                "vih": 2,
+                "vil": 0.8,
+                "vimax": 5
+              },
+              "ignore": [],
+              "refs": {}
+            },
+            {
+              "id": "lvc5",
+              "name": "74LVC (5 V)",
+              "consts": {
+                "vih": 3.5,
+                "vil": 1.5,
+                "vimax": 5.5
+              },
+              "ignore": [],
+              "refs": {}
+            },
+            {
+              "id": "lvc33",
+              "name": "74LVC (3.3 V, 5-V-tolerant)",
+              "consts": {
+                "vih": 2,
+                "vil": 0.8,
+                "vimax": 5.5
+              },
+              "ignore": [],
+              "refs": {}
+            },
+            {
+              "id": "alvc33",
+              "name": "LVCMOS 3.3 V, not 5-V-tolerant (74ALVC)",
+              "consts": {
+                "vih": 2,
+                "vil": 0.8,
+                "vimax": 3.6
+              },
+              "ignore": [],
+              "refs": {}
+            },
+            {
+              "id": "lvc25",
+              "name": "74LVC / LVCMOS (2.5 V)",
+              "consts": {
+                "vih": 1.7,
+                "vil": 0.7,
+                "vimax": 5.5
+              },
+              "ignore": [],
+              "refs": {}
+            },
+            {
+              "id": "lvc18",
+              "name": "74LVC / LVCMOS (1.8 V)",
+              "consts": {
+                "vih": 1.17,
+                "vil": 0.63,
+                "vimax": 5.5
+              },
+              "ignore": [],
+              "refs": {}
+            },
+            {
+              "id": "rp2040",
+              "name": "RP2040 GPIO (3.3 V, not 5-V-tolerant)",
+              "consts": {
+                "vih": 2,
+                "vil": 0.8,
+                "vimax": 3.6
+              },
+              "ignore": [],
+              "refs": {}
+            },
+            {
+              "id": "avr5",
+              "name": "ATmega328P (5 V)",
+              "consts": {
+                "vih": 3,
+                "vil": 1.5,
+                "vimax": 5.5
+              },
+              "ignore": [],
+              "refs": {}
+            }
+          ]
+        }
+      ],
+      "dof": 0,
+      "rules": [
+        {
+          "target": "nmh",
+          "alts": [
+            "voh-vih"
+          ]
+        },
+        {
+          "target": "nml",
+          "alts": [
+            "vil-vol"
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "id": "oh",
+          "dim": "voltage",
+          "label": "V_OH",
+          "name": "HIGH output level of the driver, V_OH(min)",
+          "alts": [
+            "voh"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "ol",
+          "dim": "voltage",
+          "label": "V_OL",
+          "name": "LOW output level of the driver, V_OL(max)",
+          "alts": [
+            "vol"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "ih",
+          "dim": "voltage",
+          "label": "V_IH",
+          "name": "HIGH input threshold of the receiver, V_IH(min)",
+          "alts": [
+            "vih"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "il",
+          "dim": "voltage",
+          "label": "V_IL",
+          "name": "LOW input threshold of the receiver, V_IL(max)",
+          "alts": [
+            "vil"
+          ],
+          "unit": "",
+          "units": []
+        },
+        {
+          "id": "imax",
+          "dim": "voltage",
+          "label": "V_I,max",
+          "name": "Highest input voltage of the receiver",
+          "alts": [
+            "vimax"
+          ],
+          "unit": "",
+          "units": []
+        }
+      ],
+      "checks": [
+        {
+          "when": "nmh < 0",
+          "warn": "HIGH is not reliably recognised: V_OH(min) of the driver is below V_IH(min) of the receiver. Use a receiver with TTL-level inputs (such as 74HCT) or a level shifter."
+        },
+        {
+          "when": "nml < 0",
+          "warn": "LOW is not reliably recognised: V_OL(max) of the driver is above V_IL(max) of the receiver."
+        },
+        {
+          "when": "vdd > vimax",
+          "warn": "Over-voltage: the driver's HIGH level can reach its supply, which is above the highest input voltage the receiver allows. Use a level shifter or a 5-V-tolerant input (such as 74LVC)."
+        }
+      ],
+      "formula": [
+        "nmh = voh - vih",
+        "nml = vil - vol"
+      ],
+      "schematic": "",
+      "finder": "",
+      "chart": null,
+      "sets": [
+        []
+      ]
+    },
+    {
+      "kind": "calculator",
       "id": "stepper_steps_per_mm",
       "category": "drives",
       "name": "Stepper motor steps per mm",
