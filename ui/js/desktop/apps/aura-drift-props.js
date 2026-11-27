@@ -437,7 +437,7 @@
             group.position.set(site.x, site.z, site.y);
             let along = 0, across = 0;
             if (terrain) {
-                ray.set(new T.Vector3(site.x, 80, site.y), down);
+                ray.set(new T.Vector3(site.x, 400, site.y), down);
                 const ground = ray.intersectObject(terrain, true)[0];
                 if (ground) {
                     group.position.y = ground.point.y;

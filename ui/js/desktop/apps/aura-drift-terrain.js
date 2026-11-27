@@ -95,6 +95,7 @@
         const minX = b.minX - R, minY = b.minY - R;
         const nx = Math.ceil((b.maxX + R - minX) / cell) + 1, ny = Math.ceil((b.maxY + R - minY) / cell) + 1;
         const near = new Float32Array(nx * ny).fill(R), idx = new Int32Array(nx * ny).fill(-1);
+        const rz = new Float32Array(nx * ny);
         const span = Math.ceil(R / cell);
         for (let i = 0; i < S.length; i++) {
             const s = S[i];
@@ -104,7 +105,7 @@
                 const py = minY + cy * cell - s.y, row = cy * nx;
                 for (let cx = x0; cx <= x1; cx++) {
                     const px = minX + cx * cell - s.x, d = sqrt(px * px + py * py);
-                    if (d < near[row + cx]) { near[row + cx] = d; idx[row + cx] = i; }
+                    if (d < near[row + cx]) { near[row + cx] = d; idx[row + cx] = i; rz[row + cx] = s.z || 0; }
                 }
             }
         }
@@ -175,9 +176,21 @@
                 const gx = round((x - minX) / cell), gy = round((y - minY) / cell);
                 let i = -1;
                 if (gx >= 0 && gy >= 0 && gx < nx && gy < ny) i = idx[gy * nx + gx];
-                if (i < 0) { out.halfWidth = track.width * 0.5; out.side = 0; out.inner = null; out.s = 0; out.field = field; return out; }
-                const s = S[i], off = (x - s.x) * s.nx + (y - s.y) * s.ny;
-                out.halfWidth = s.halfWidth; out.side = off >= 0 ? 1 : -1; out.inner = out.side * orient > 0; out.s = s.s; out.field = field;
+                if (i < 0) { out.halfWidth = track.width * 0.5; out.side = 0; out.inner = null; out.s = 0; out.roadZ = 0; out.field = field; return out; }
+                const s = S[i], dx = x - s.x, dy = y - s.y, off = dx * s.nx + dy * s.ny;
+                let roadZ = 0;
+                if (track.maxZ) {
+                    const along = dx * s.tx + dy * s.ty;
+                    const exactZ = AD.roadProfileAt ? AD.roadProfileAt(track, s.s + along).z : (s.z || 0);
+                    const d = hypot(dx, dy);
+                    if (d <= 36) roadZ = exactZ;
+                    else {
+                        const fx = clamp((x - minX) / cell, 0, nx - 1.001), fy = clamp((y - minY) / cell, 0, ny - 1.001);
+                        const smoothZ = sampleGrid(rz, nx, fx, fy);
+                        roadZ = lerp(exactZ, smoothZ, sstep(36, 72, d)) * (1 - sstep(R - 48, R - 8, d));
+                    }
+                }
+                out.halfWidth = s.halfWidth; out.side = off >= 0 ? 1 : -1; out.inner = out.side * orient > 0; out.s = s.s; out.roadZ = roadZ; out.field = field;
                 return out;
             },
             inside(x, y) {
@@ -201,8 +214,10 @@
         const hw = sample && sample.halfWidth ? sample.halfWidth : 12;
         const e = dist - hw;
         const base = rule.base !== undefined ? rule.base : -0.4;
-        if (e <= 10) return base;
+        const roadZ = (sample && sample.roadZ) || 0;
+        if (e <= 10) return roadZ + base;
         const r = sstep(10, RAMP_END[biomeId] || 60, e);
+        const roadLift = roadZ ? roadZ * (1 - r) : 0;
         const fine = ((noise2(x / 9, y / 9) - 0.5) + (noise2(x / 27 + 11, y / 27) - 0.5) * 6.5) * sstep(12, 50, e);
         switch (rule.kind) {
             case 'hills': {
@@ -211,7 +226,7 @@
                 h += (noise2(x / 52, y / 52) - 0.5) * 9 + (noise2(x / 17, y / 17) - 0.5) * 2.5;
                 let peaks = 0;
                 if (rule.ridged) peaks = rule.ridged.amp * pow(ridged(x / 620, y / 620, 4), 1.7) * sstep(rule.ridged.from * 0.4, rule.ridged.from * 1.1, dist);
-                return base + r * h + fine + peaks;
+                return base + roadLift + r * h + fine + peaks;
             }
             case 'dunes': {
                 const wx = x + 70 * (noise2(x / 190 + 7, y / 190) - 0.5), wy = y + 70 * (noise2(x / 190, y / 190 + 3) - 0.5);
@@ -226,10 +241,10 @@
                         mesa = m * (f + sstep(0, 0.16, t - f)) * rule.mesas.quant;
                     }
                 }
-                return base + r * h + fine + mesa;
+                return base + roadLift + r * h + fine + mesa;
             }
             case 'flat': {
-                let h = base;
+                let h = base + roadLift;
                 if (rule.water) {
                     const inner = sample && sample.inner !== null && sample.inner !== undefined ? sample.inner : (sample && sample.field ? sample.field.inside(x, y) : true);
                     /* The quay: `from` and `to` are the distances from the road edge
@@ -246,20 +261,20 @@
             case 'rolling': {
                 const n = fbm(x / rule.wave, y / rule.wave, 4);
                 const h = rule.amp * pow(clamp((n - 0.2) * 1.55, 0, 1), 1.15) + (noise2(x / 34, y / 34) - 0.5) * 5;
-                return base + r * h + fine;
+                return base + roadLift + r * h + fine;
             }
             case 'embankments': {
                 const bank = rule.amp * sstep(10, 28, e) * (1 - 0.8 * sstep(70, 140, e)) * (0.65 + 0.7 * noise2(x / 90, y / 90));
                 const lumps = (fbm(x / 160, y / 160, 3) - 0.5) * 5 * sstep(30, 90, e);
                 const cone = clamp((fbm(x / 260 + 9, y / 260, 3) - 0.5) * 5, 0, 1);
                 const heap = rule.heaps ? rule.heaps.amp * pow(cone, 1.3) * sstep(rule.heaps.from * 0.7, rule.heaps.from * 1.3, dist) : 0;
-                return base + bank + lumps + fine + heap;
+                return base + roadLift + bank + lumps + fine + heap;
             }
             case 'ridged': {
                 const h = terrace(rule.amp * pow(ridged(x / rule.wave, y / rule.wave, 3), 1.45), 14, 0.34) + 24 * fbm(x / 1500, y / 1500, 2);
-                return base + r * h + fine;
+                return base + roadLift + r * h + fine;
             }
-            default: return base;
+            default: return base + roadLift;
         }
     };
 

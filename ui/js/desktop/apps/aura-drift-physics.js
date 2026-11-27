@@ -40,7 +40,7 @@
             impact: 0, carIndex: carIndex, car: car,
             wallContacts: 0,
             /* Section 2.2: height, flight, timers and effect state. */
-            z: 0, vz: 0, airborne: false, airTime: 0,
+            z: 0, roadZ: 0, vz: 0, airborne: false, airTime: 0,
             roll: 0, pitch: 0, rollRate: 0, pitchRate: 0, spinRate: 0,
             rollAccum: 0, pitchAccum: 0, spinAccum: 0,
             wx: 0, wy: 0, onRamp: -1, landWobble: 0,
@@ -61,7 +61,7 @@
         v.nitro = 1; v.brakeHold = 0; v.slipstream = 0;
         v.handbrake = 0;
         v.impact = 0; v.wallContacts = 0;
-        v.z = 0; v.vz = 0; v.airborne = false; v.airTime = 0;
+        v.z = 0; v.roadZ = 0; v.vz = 0; v.airborne = false; v.airTime = 0;
         v.roll = 0; v.pitch = 0; v.rollRate = 0; v.pitchRate = 0; v.spinRate = 0;
         v.rollAccum = 0; v.pitchAccum = 0; v.spinAccum = 0;
         v.wx = 0; v.wy = 0; v.onRamp = -1; v.landWobble = 0;
@@ -160,7 +160,10 @@
         const drag = DRAG * c.dragK * (1 - 0.32 * draft) * v.vx * Math.abs(v.vx);
         const rolling = roll * Mm * G * dir * brakeFade;
         const waterDrag = puddle * Mm * 3.4 * clamp(speed / 30, 0, 1);
-        const fx = drive - dir * (braking + waterDrag) - drag - rolling;
+        const slope = env && env.sample && env.sample.slope ? env.sample.slope : 0;
+        const slopeAlong = slope ? slope * (Math.cos(v.psi) * env.sample.tx + Math.sin(v.psi) * env.sample.ty) : 0;
+        const slopeForce = slopeAlong ? Mm * G * clamp(slopeAlong, -0.35, 0.35) * 0.42 : 0;
+        const fx = drive - dir * (braking + waterDrag) - drag - rolling - slopeForce;
 
         const transfer = clamp(fx * CG_HEIGHT / L, -0.35 * Mm * G, 0.35 * Mm * G);
         const fzf = Math.max(900 * c.mass, Mm * G * B / L - transfer);

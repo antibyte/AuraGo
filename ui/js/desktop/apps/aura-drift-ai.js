@@ -18,13 +18,13 @@
        9500*power*driveMul*(1-0.55*v/75) = 0.85*dragK*v^2 + roll*M*mass*g.
        Damage, toast, Hot Potato driveK and nitro thrust are included, so the
        AI never sets itself a slower ceiling than the identical player car. */
-    AD.aiTerminalSpeed = function (v, surface, driveMul) {
+    AD.aiTerminalSpeed = function (v, surface, driveMul, slopeForceK) {
         const c = v.car;
         const power = c.power * (1 - 0.32 * clamp(v.damage / 100, 0, 1)) *
             (v.toast > 0 ? 0.6 : 1) * (driveMul || 1);
         const a = 0.85 * c.dragK;
         const b = 9500 * power * 0.55 / 75;
-        const c0 = surface.roll * 1250 * c.mass * 9.81 - 9500 * power;
+        const c0 = (surface.roll + (slopeForceK || 0)) * 1250 * c.mass * 9.81 - 9500 * power;
         return clamp((-b + Math.sqrt(Math.max(0, b * b - 4 * a * c0))) / (2 * a), 10, 95);
     };
 
@@ -36,7 +36,7 @@
         v.x = point.x; v.y = point.y;
         v.psi = Math.atan2(point.ty, point.tx);
         v.vx = 10; v.vy = 0; v.r = 0;
-        v.z = 0; v.vz = 0; v.airborne = false; v.roll = 0; v.pitch = 0;
+        v.z = 0; v.roadZ = point.z || 0; v.vz = 0; v.airborne = false; v.roll = 0; v.pitch = Math.atan(point.slope || 0);
         v.planing = 0; v.oilFilm = 0; v.oilSide = 0;
         v.disabled = 0; v.impact = 0.4;
         car.lastS = current.s;
@@ -110,7 +110,9 @@
            and their straight-line ceiling accounts for the extra thrust. */
         const boost = (v.nitro > 0.55 && curvature < 0.02 && speed > 46) ? 1 : 0;
         const driveK = (v.hasBomb && race.rules && race.rules.driveK) || 1;
-        const straight = AD.aiTerminalSpeed(v, surface, driveK * (boost ? 1.55 : 1)) * catchup;
+        const slopeAlong = sample.slope ? sample.slope * (Math.cos(v.psi) * sample.tx + Math.sin(v.psi) * sample.ty) : 0;
+        const slopeForceK = clamp(Math.min(0, slopeAlong), -0.35, 0) * 0.42;
+        const straight = AD.aiTerminalSpeed(v, surface, driveK * (boost ? 1.55 : 1), slopeForceK) * catchup;
         /* Braking envelope: at each fixed distance ahead, the speed the local
            radius allows plus what the brakes can shed on the way there. Fixed
            metres, not a speed-scaled tangent sweep, keep the braking point

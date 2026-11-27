@@ -29,8 +29,10 @@
     }
 
     function makeCar(index, g, carId, driver, livery, rng, track, isPlayer) {
+        const v = AD.createVehicle(g.x, g.y, g.psi, AD.carIndex(carId));
+        v.roadZ = AD.roadHeight ? AD.roadHeight(track, v.x, v.y) : 0;
         return {
-            v: AD.createVehicle(g.x, g.y, g.psi, AD.carIndex(carId)),
+            v: v,
             isPlayer: isPlayer, index: index,
             input: AD.createInput(),
             driver: driver, livery: livery,
@@ -104,9 +106,11 @@
         const tape = AD.decodeTape(options.ghostTape);
         if (tape.length && options.showGhost !== false) {
             const g = grid[playerSlot];
+            const gv = AD.createVehicle(g.x, g.y, g.psi, AD.carIndex(options.ghostCar || playerCar));
+            gv.roadZ = AD.roadHeight ? AD.roadHeight(track, gv.x, gv.y) : 0;
             race.ghostTape = tape;
             race.ghost = {
-                v: AD.createVehicle(g.x, g.y, g.psi, AD.carIndex(options.ghostCar || playerCar)),
+                v: gv,
                 step: 0, active: true, index: -1, ghost: true, isPlayer: false,
                 style: null, tricks: AD.createTrickState(), tally: null,
                 fs: AD.createFeatures(track, seed, Object.assign({}, featureRules, { crates: false }))
@@ -307,6 +311,11 @@
             const env = environmentAt(race, car);
             AD.stepVehicle(v, input, dt, env);
             AD.resolveWall(v, env.sample, dt);
+            v.roadZ = env.sample && env.sample.z ? env.sample.z : 0;
+            const slopeAlong = env.sample && env.sample.slope
+                ? env.sample.slope * (Math.cos(v.psi) * env.sample.tx + Math.sin(v.psi) * env.sample.ty) : 0;
+            v.pitch = AD.smooth(v.pitch, Math.atan(slopeAlong), 14, dt);
+            v.roll = AD.smooth(v.roll, 0, 10, dt);
             car.tally = tally;
         }
         for (let i = 0; i < race.cars.length; i++) {

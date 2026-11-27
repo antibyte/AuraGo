@@ -57,7 +57,10 @@ for (const manifest of AD.TRACKS) {
     check(id + ' distance field is clamped far away', field.at(track.bounds.maxX + 3000, track.bounds.maxY + 3000) >= 160);
 
     /* corridor floor */
-    let high = -Infinity, bad = 0;
+    let high = -Infinity, bad = 0, roadTop = 0;
+    for (let k = 1; k < rib.positions.length; k += 3) roadTop = Math.max(roadTop, rib.positions[k]);
+    if (track.maxZ > 0) check(id + ' roadRibbon elevates hills above 8 m', roadTop > 8, 'maxY=' + roadTop.toFixed(2));
+    else check(id + ' roadRibbon stays flat at y = 0', roadTop === 0, 'maxY=' + roadTop.toFixed(2));
     const smp = {};
     for (let i = 0; i < track.samples.length; i += 5) {
         const s = track.samples[i];
@@ -66,11 +69,12 @@ for (const manifest of AD.TRACKS) {
             const dist = field.at(x, y);
             field.info(x, y, smp);
             const h = AD.terrainHeight(manifest.biome, dist, x, y, smp);
-            high = Math.max(high, h);
-            if (!(h <= -0.2)) bad++;
+            const rel = h - (s.z || 0);
+            high = Math.max(high, rel);
+            if (!(rel <= -0.2) || Math.abs(rel + 0.4) > 0.25) bad++;
         }
     }
-    check(id + ' terrain is at most -0.2 inside the corridor', bad === 0, 'max=' + high.toFixed(2) + ' bad=' + bad);
+    check(id + ' terrain is at most -0.2 below road inside the corridor', bad === 0, 'maxRel=' + high.toFixed(2) + ' bad=' + bad);
 
     /* hills rise beyond the shoulder and stay finite */
     let top = -Infinity, nan = 0;

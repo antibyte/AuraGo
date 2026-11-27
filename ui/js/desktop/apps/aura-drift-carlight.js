@@ -202,7 +202,8 @@
                     const half = halfOf ? halfOf(idx) : 2.2, wid = half * 0.2;
                     const braking = v.brake > 0.1 || v.handbrake || v.vx < -0.5;
                     const reversing = v.vx < -0.5;
-                    const lift = v.z + 0.7;
+                    const baseZ = (v.roadZ || 0) + v.z;
+                    const lift = baseZ + 0.7;
                     /* Seen from the front the lamps glow, seen from behind the tail lights do. */
                     const fx = eye.x - v.x, fz = eye.z - v.y, fl = Math.hypot(fx, fz) || 1;
                     const facing = (fx * c + fz * s) / fl;
@@ -221,20 +222,21 @@
                     }
                     if (car.carId === 'softeis' && (night || v.boost || v.overdrive > 0 || v.burst > 0) && gi < MAX * 6) {
                         const pulse = 0.65 + 0.35 * Math.sin((race.time || 0) * 14 + idx);
-                        put(glows, gi++, v.x - c * 0.15, v.z + 2.25, v.y - s * 0.15, camera.quaternion, 0.85, 0.85, 1, 2.1 * pulse, 0.38 * pulse, 0.65 * pulse);
+                        put(glows, gi++, v.x - c * 0.15, baseZ + 2.25, v.y - s * 0.15, camera.quaternion, 0.85, 0.85, 1, 2.1 * pulse, 0.38 * pulse, 0.65 * pulse);
                     }
                     if (v.z < 1.2 && !v.airborne) {
-                        e0.set(0, -v.psi, 0);
+                        e0.order = 'YZX';
+                        e0.set(0, -v.psi, v.pitch || 0);
                         q0.setFromEuler(e0);
                         const hasUnder = v.overdrive > 0 || v.boost || v.burst > 0 || v.shield > 0 || (v.driftLevel > 0 && v.slip > 1.1);
                         if (hasUnder && bi < MAX * 2) {
                             const ur = v.overdrive > 0 ? 1.35 : v.shield > 0 ? 0.25 : v.driftLevel === 3 ? 1.35 : v.driftLevel === 2 ? 1.25 : 0.2;
                             const ug = v.overdrive > 0 ? 0.48 : v.shield > 0 ? 1.15 : v.driftLevel === 3 ? 0.22 : v.driftLevel === 2 ? 0.82 : 0.95;
                             const ub = v.overdrive > 0 ? 0.12 : v.shield > 0 ? 0.85 : v.driftLevel === 3 ? 0.88 : v.driftLevel === 2 ? 0.18 : 1.35;
-                            put(beams, bi++, v.x - c * half * 0.85, v.z + 0.08, v.y - s * half * 0.85, q0, half * 1.9, 1, half * 1.45, ur, ug, ub);
+                            put(beams, bi++, v.x - c * half * 0.85, baseZ + 0.08, v.y - s * half * 0.85, q0, half * 1.9, 1, half * 1.45, ur, ug, ub);
                         }
                         if (useBeams && bi < MAX * 2) {
-                            put(beams, bi++, v.x + c * (half - 0.2), v.z + 0.09, v.y + s * (half - 0.2), q0, 12 + 8 * headK, 1, 8.5, 0.95, 0.85, 0.6);
+                            put(beams, bi++, v.x + c * (half - 0.2), baseZ + 0.09, v.y + s * (half - 0.2), q0, 12 + 8 * headK, 1, 8.5, 0.95, 0.85, 0.6);
                         }
                     }
                 }

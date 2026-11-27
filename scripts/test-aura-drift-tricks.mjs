@@ -319,6 +319,61 @@ function startRun(holdFrom) {
         events(race, 'takeoff').length === 0 && events(race, 'landing').length === 0 && !race.ghost.v.airborne);
 }
 
+/* Steep hill crest jump: fast crosses go airborne and land cleanly downhill; slow crosses stay grounded. */
+{
+    for (const v0 of [58, 66]) {
+        const race = newRace({ mode: 'time_trial', opponents: 0, weapons: false, seed: 101 });
+        const hill = race.track.hills.find(h => h.steep);
+        const startPt = AD.pointAt(race.track, hill.center - 68);
+        const p = race.cars[0], v = p.v;
+        v.x = startPt.x; v.y = startPt.y; v.psi = Math.atan2(startPt.ty, startPt.tx);
+        v.vx = v0; v.vy = 0; v.roadZ = startPt.z || 0;
+        let peakClearance = 0, tookOff = false;
+        for (let i = 0; i < 360; i++) {
+            const sm = AD.sampleTrack(race.track, v.x, v.y);
+            const steerToRoad = AD.wrapAngle(Math.atan2(sm.ty, sm.tx) - v.psi) * 2;
+            race.playerInput = Object.assign(none(), { throttle: 1, steer: v.airborne ? 0 : AD.clamp(steerToRoad, -0.5, 0.5) });
+            AD.stepRace(race, AD.STEP);
+            if (v.airborne) { tookOff = true; peakClearance = Math.max(peakClearance, v.z); }
+        }
+        const hillTakeoffs = events(race, 'takeoff').filter(e => e.source === 'hill');
+        const landings = events(race, 'landing');
+        check('fast run (' + v0 + ' m/s) over a steep hill crest launches with source "hill" and clears > 0.8 m',
+            tookOff && hillTakeoffs.length === 1 && peakClearance > 0.8 && !v.airborne,
+            'peakZ=' + peakClearance.toFixed(2) + ' takeoffs=' + hillTakeoffs.length);
+        check('downhill crest landing (' + v0 + ' m/s) is clean (perfect or good)',
+            landings.length === 1 && (landings[0].quality === 'perfect' || landings[0].quality === 'good'),
+            JSON.stringify(landings[0]));
+    }
+    const baseTrack = AD.buildTrack(AD.trackById('alpenpass'));
+    const startPt = AD.pointAt(baseTrack, baseTrack.hills.find(h => h.steep).center - 68);
+
+    const slowRace = newRace({ mode: 'time_trial', opponents: 0, weapons: false, seed: 101 });
+    const sv = slowRace.cars[0].v;
+    sv.x = startPt.x; sv.y = startPt.y; sv.psi = Math.atan2(startPt.ty, startPt.tx);
+    sv.vx = 25; sv.vy = 0; sv.roadZ = startPt.z || 0;
+    let maxPitchUp = 0, minPitchDown = 0, slowAir = false;
+    for (let i = 0; i < 420; i++) {
+        sv.vx = 25;
+        const sm = AD.sampleTrack(slowRace.track, sv.x, sv.y);
+        const steerToRoad = AD.wrapAngle(Math.atan2(sm.ty, sm.tx) - sv.psi) * 2;
+        slowRace.playerInput = Object.assign(none(), { throttle: 0.25, steer: AD.clamp(steerToRoad, -0.5, 0.5) });
+        AD.stepRace(slowRace, AD.STEP);
+        if (sv.airborne) slowAir = true;
+        maxPitchUp = Math.max(maxPitchUp, sv.pitch);
+        minPitchDown = Math.min(minPitchDown, sv.pitch);
+    }
+    check('slow crossing over the same steep crest stays grounded and pitches nose-up then nose-down',
+        !slowAir && events(slowRace, 'takeoff').length === 0 && maxPitchUp > 0.12 && minPitchDown < -0.12,
+        'up=' + maxPitchUp.toFixed(3) + ' down=' + minPitchDown.toFixed(3));
+
+    const flatRace = AD.createRace({ track: AD.buildTrack(AD.trackById('salzsee')), mode: 'time_trial', opponents: 0, seed: 101 });
+    flatRace.countdown = 0; flatRace.state = 'running';
+    flatRace.cars[0].v.vx = 65;
+    for (let i = 0; i < 600; i++) { flatRace.playerInput = Object.assign(none(), { throttle: 1 }); AD.stepRace(flatRace, AD.STEP); }
+    check('flat tracks never trigger hill takeoffs', events(flatRace, 'takeoff').filter(e => e.source === 'hill').length === 0);
+}
+
 /* Determinism */
 function replayHash() {
     const race = newRace({ seed: 31 });

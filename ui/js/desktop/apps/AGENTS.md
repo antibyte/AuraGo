@@ -4163,9 +4163,22 @@ buttons and menu popovers remain excluded from those gestures.
   ramp. `aura-drift-physics.js` owns the wider lock (`MAX_STEER` 0.58 rad) for every car and
   keeps `SPEED_TAPER` at 0.018 (a changed taper breaks the drift medal calibration);
   `cos(delta)` keeps full-lock cornering from getting stronger. Bump
-  `AD.GHOST_HANDLING` with every handling change: tapes from the linear 0.50 rad lock cannot
-  replay. Guards: the tap, ratio, wheel-lock and one-g checks in
+  `AD.GHOST_HANDLING` (`5` after adding hills and crest jumps) with every handling or
+  elevation/physics change: tapes from the linear 0.50 rad lock cannot replay. Guards:
+  the tap, ratio, wheel-lock and one-g checks in
   `scripts/test-aura-drift-physics.mjs`, plus the camera and browser direction checks above.
+- Hills and crest jumps: `aura-drift-track.js` supports $C^2$ `hills` (`z`, `slope`, `curveZ`
+  on samples and `AD.evalHills` / `AD.roadProfileAt` / `AD.roadHeight`) on `alpenpass`,
+  `wuesten-canyon`, `wald-rallye`, `gletscherpass`, `industrie-ring` and hilly `dailyTrack`
+  routes, keeping start/finish zones and `neon-hafen` / `salzsee` / `metropolis` flat.
+  `v.z` remains height clearance above `v.roadZ`; `stepAir` integrates world altitude across
+  moving road elevation and `AD.updateVehicleTricks` launches fast cars (`source: 'hill'`)
+  when convex crest curvature exceeds gravity while rolling onto a downhill drop.
+  `aura-drift-terrain.js` (`field.info().roadZ` + `AD.terrainHeight`) elevates corridors
+  to `roadZ + base` and blends embankments smoothly into biome terrain. `aura-drift-road.js`,
+  `actors`, `carlight`, `fx`, `camera`, `props`, and `render` share `(v.roadZ || 0) + v.z`
+  world elevation. Guards: `test-aura-drift-tracks.mjs`, `test-aura-drift-world.mjs`,
+  `test-aura-drift-tricks.mjs`.
 - Handling contract: the tyres bite harder than the surface grip alone (`AD.ARCADE_GRIP`), because
   the limit in a fast corner is the friction and not the steering angle - a bigger lock only makes
   the car turn wider. The solver then delivers the lateral force the pace model assumes

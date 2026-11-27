@@ -18,54 +18,86 @@
     AD.BIOMES = BIOMES;
 
     /* Radial harmonics keep every generated loop simple (no self intersections)
-       while giving each layout a genuinely different shape. */
+       while giving each layout a genuinely different shape. `hills` adds smooth
+       C2 elevation crests [{ at, length, height }]; steep crests (large height /
+       length^2) launch fast cars airborne as the road drops away downhill. */
     AD.TRACKS = [
         {
             id: 'alpenpass', name: 'Alpenpass', seed: 1101, radius: 568, aspect: 0.72,
             harmonics: [{ k: 3, amp: 0.20, phase: 0.4 }, { k: 5, amp: 0.075, phase: 1.2 }],
             width: 22, laps: 2, biome: 'alpine',
-            zones: [{ from: 0.24, to: 0.33, side: 1, type: 'gravel' }, { from: 0.68, to: 0.74, side: -1, type: 'wet' }]
+            zones: [{ from: 0.24, to: 0.33, side: 1, type: 'gravel' }, { from: 0.68, to: 0.74, side: -1, type: 'wet' }],
+            hills: [
+                { at: 0.16, length: 155, height: 10.5 },
+                { at: 0.34, length: 300, height: 15.5 },
+                { at: 0.60, length: 150, height: 10.0 },
+                { at: 0.78, length: 165, height: 11.0 }
+            ]
         },
         {
             id: 'wuesten-canyon', name: 'Wüsten-Canyon', seed: 2202, radius: 766, aspect: 0.52,
             harmonics: [{ k: 2, amp: 0.10, phase: 0.1 }, { k: 7, amp: 0.035, phase: 0.8 }],
             width: 28, laps: 2, biome: 'desert',
-            zones: [{ from: 0.40, to: 0.52, side: -1, type: 'sand' }]
+            zones: [{ from: 0.40, to: 0.52, side: -1, type: 'sand' }],
+            hills: [
+                { at: 0.18, length: 160, height: 10.5 },
+                { at: 0.40, length: 320, height: 15.0 },
+                { at: 0.66, length: 155, height: 10.5 },
+                { at: 0.84, length: 180, height: 10.0 }
+            ]
         },
         {
             id: 'neon-hafen', name: 'Neon-Hafen', seed: 3303, radius: 510, aspect: 0.86,
             harmonics: [{ k: 4, amp: 0.16, phase: 0.9 }, { k: 9, amp: 0.055, phase: 0.2 }],
             width: 20, laps: 2, biome: 'harbour',
-            zones: [{ from: 0.10, to: 0.55, side: 0, type: 'wet' }]
+            zones: [{ from: 0.10, to: 0.55, side: 0, type: 'wet' }],
+            hills: []
         },
         {
             id: 'salzsee', name: 'Salzsee', seed: 4404, radius: 847, aspect: 0.94,
             harmonics: [{ k: 2, amp: 0.055, phase: 1.7 }, { k: 6, amp: 0.03, phase: 0.5 }],
-            width: 34, laps: 2, biome: 'salt', zones: []
+            width: 34, laps: 2, biome: 'salt', zones: [], hills: []
         },
         {
             id: 'wald-rallye', name: 'Wald-Rallye', seed: 5505, radius: 441, aspect: 0.78,
             harmonics: [{ k: 5, amp: 0.13, phase: 0.3 }, { k: 8, amp: 0.04, phase: 1.1 }],
             width: 22, laps: 2, biome: 'forest',
-            zones: [{ from: 0.15, to: 0.62, side: 0, type: 'mud' }]
+            zones: [{ from: 0.15, to: 0.62, side: 0, type: 'mud' }],
+            hills: [
+                { at: 0.14, length: 145, height: 9.5 },
+                { at: 0.48, length: 220, height: 11.5 },
+                { at: 0.75, length: 140, height: 9.5 },
+                { at: 0.84, length: 135, height: 8.5 }
+            ]
         },
         {
             id: 'industrie-ring', name: 'Industrie-Ring', seed: 6606, radius: 603, aspect: 0.58,
             harmonics: [{ k: 3, amp: 0.13, phase: 1.4 }, { k: 6, amp: 0.045, phase: 0.7 }],
             width: 25, laps: 2, biome: 'industry',
-            zones: [{ from: 0.30, to: 0.38, side: 1, type: 'gravel' }]
+            zones: [{ from: 0.30, to: 0.38, side: 1, type: 'gravel' }],
+            hills: [
+                { at: 0.26, length: 160, height: 10.0 },
+                { at: 0.72, length: 155, height: 10.0 }
+            ]
         },
         {
             id: 'gletscherpass', name: 'Gletscherpass', seed: 7707, radius: 529, aspect: 0.66,
             harmonics: [{ k: 3, amp: 0.17, phase: 2.1 }, { k: 7, amp: 0.05, phase: 0.3 }],
             width: 24, laps: 2, biome: 'glacier',
-            zones: [{ from: 0.18, to: 0.46, side: 0, type: 'snow' }, { from: 0.72, to: 0.80, side: -1, type: 'ice' }]
+            zones: [{ from: 0.18, to: 0.46, side: 0, type: 'snow' }, { from: 0.72, to: 0.80, side: -1, type: 'ice' }],
+            hills: [
+                { at: 0.24, length: 240, height: 14.0 },
+                { at: 0.44, length: 150, height: 9.5 },
+                { at: 0.68, length: 155, height: 10.5 },
+                { at: 0.85, length: 210, height: 11.0 }
+            ]
         },
         {
             id: 'metropolis', name: 'Metropolis-Ring', seed: 8808, radius: 648, aspect: 0.79,
             harmonics: [{ k: 2, amp: 0.12, phase: 0.6 }, { k: 5, amp: 0.05, phase: 1.9 }],
             width: 26, laps: 2, biome: 'metro',
-            zones: [{ from: 0.44, to: 0.62, side: 0, type: 'wet' }]
+            zones: [{ from: 0.44, to: 0.62, side: 0, type: 'wet' }],
+            hills: []
         }
     ];
 
@@ -92,6 +124,94 @@
     }
 
     function cellKey(cx, cy) { return cx + ',' + cy; }
+
+    function wrapDelta(ds, length) {
+        let d = ds % length;
+        if (d > length * 0.5) d -= length;
+        if (d < -length * 0.5) d += length;
+        return d;
+    }
+
+    /* Smooth C2 hill profile: raised-cosine bump with continuous elevation, slope,
+       and vertical curvature (negative curveZ at the crest launches fast cars). */
+    AD.evalHills = function (hills, length, s) {
+        if (!hills || !hills.length || !(length > 0)) return { z: 0, slope: 0, curveZ: 0 };
+        const ss = ((s % length) + length) % length;
+        let z = 0, slope = 0, curveZ = 0;
+        for (let i = 0; i < hills.length; i++) {
+            const h = hills[i], span = h.length, H = h.height;
+            const ds = wrapDelta(ss - h.center, length);
+            if (Math.abs(ds) < span * 0.5) {
+                const u = ds / span + 0.5;
+                const sinPi = Math.sin(Math.PI * u);
+                z += H * sinPi * sinPi;
+                slope += (Math.PI * H / span) * Math.sin(2 * Math.PI * u);
+                curveZ += (2 * Math.PI * Math.PI * H / (span * span)) * Math.cos(2 * Math.PI * u);
+            }
+        }
+        return { z: z, slope: slope, curveZ: curveZ };
+    };
+
+    AD.roadProfileAt = function (track, s) {
+        if (!track || !track.maxZ) return { z: 0, slope: 0, curveZ: 0 };
+        return AD.evalHills(track.hills, track.length, s);
+    };
+
+    AD.roadHeight = function (track, x, y) {
+        if (!track || !track.maxZ) return 0;
+        const sm = AD.sampleTrack(track, x, y);
+        return sm.z || 0;
+    };
+
+    function resolveHills(manifest, length, samples, curvature, trackSeed) {
+        const list = [];
+        const pushHill = (center, span, height) => {
+            const c = ((center % length) + length) % length;
+            if (c - span * 0.5 < 180 || c + span * 0.5 > length - 140) return false;
+            for (let i = 0; i < list.length; i++) {
+                if (Math.abs(wrapDelta(c - list[i].center, length)) < (span + list[i].length) * 0.5 + 24) return false;
+            }
+            const peakCurve = 2 * Math.PI * Math.PI * height / (span * span);
+            list.push({
+                center: c, length: span, height: height,
+                s0: c - span * 0.5, s1: c + span * 0.5,
+                steep: peakCurve > 0.0045
+            });
+            return true;
+        };
+        if (Array.isArray(manifest.hills) && manifest.hills.length) {
+            for (let i = 0; i < manifest.hills.length; i++) {
+                const h = manifest.hills[i];
+                const center = h.center !== undefined ? h.center : (h.at || 0) * length;
+                pushHill(center, h.length || 160, h.height || 10);
+            }
+            return list;
+        }
+        if (manifest.dailyHills) {
+            const rng = AD.rng(AD.hashString(manifest.id + '/hills/' + trackSeed));
+            const out = [];
+            let from = -1;
+            for (let i = 0; i <= samples.length; i++) {
+                const sVal = i < samples.length ? samples[i].s : length;
+                const ok = i < samples.length && curvature[i] < 0.01 && sVal >= 180 && sVal <= length - 140;
+                if (ok && from < 0) from = i;
+                if (!ok && from >= 0) {
+                    const a = samples[from].s, b = samples[i - 1].s;
+                    if (b - a >= 185) out.push({ from: a, to: b });
+                    from = -1;
+                }
+            }
+            for (let i = 0; i < out.length && list.length < 3; i++) {
+                const w = out[i], avail = w.to - w.from;
+                const steep = i !== 1;
+                const span = clamp(steep ? 148 + rng() * 16 : Math.min(270, avail - 20), 140, avail - 10);
+                const height = steep ? 9.5 + rng() * 1.4 : 11.5 + rng() * 2.5;
+                const center = w.from + span * 0.5 + rng() * Math.max(0, avail - span);
+                pushHill(center, span, height);
+            }
+        }
+        return list;
+    }
 
     AD.buildTrack = function (manifest, seed) {
         const points = AD.trackPoints(manifest);
@@ -169,10 +289,21 @@
             curvature[i] = sum / 9;
         }
 
+        const hills = resolveHills(manifest, length, samples, curvature, trackSeed);
+        let maxZ = 0;
+        for (let i = 0; i < samples.length; i++) {
+            const prof = AD.evalHills(hills, length, samples[i].s);
+            samples[i].z = prof.z;
+            samples[i].slope = prof.slope;
+            samples[i].curveZ = prof.curveZ;
+            if (prof.z > maxZ) maxZ = prof.z;
+        }
+
         const track = {
             id: manifest.id, name: manifest.name, manifest: manifest,
             seed: trackSeed, samples: samples, grid: grid, length: length,
             gates: gates, pads: pads, width: manifest.width, curvature: curvature,
+            hills: hills, maxZ: maxZ,
             biome: BIOMES[manifest.biome] || BIOMES.alpine,
             biomeId: manifest.biome, zones: manifest.zones || [],
             laps: manifest.laps, points: points,
@@ -201,9 +332,18 @@
         const wetZones = track.zones.filter(z => z.type === 'wet');
         const rainy = ['harbour', 'forest', 'metro'].includes(track.biomeId);
         function add(fraction, side, permanent) {
-            const s = fraction * track.length, p = AD.pointAt(track, s);
+            let bestF = fraction, p = AD.pointAt(track, bestF * track.length);
+            if (Math.abs(p.slope || 0) > 0.08) {
+                for (const shift of [0.012, -0.012, 0.025, -0.025, 0.04, -0.04]) {
+                    const f2 = ((fraction + shift) % 1 + 1) % 1;
+                    const p2 = AD.pointAt(track, f2 * track.length);
+                    if (Math.abs(p2.slope || 0) < Math.abs(p.slope || 0)) { p = p2; bestF = f2; }
+                    if (Math.abs(p.slope || 0) <= 0.05) break;
+                }
+            }
+            const s = bestF * track.length;
             const off = side * p.halfWidth * 0.45;
-            out.push({ s, x: p.x + p.nx * off, y: p.y + p.ny * off, tx: p.tx, ty: p.ty,
+            out.push({ s, x: p.x + p.nx * off, y: p.y + p.ny * off, z: p.z || 0, slope: p.slope || 0, tx: p.tx, ty: p.ty,
                 length: 8 + rng() * 3, width: Math.min(3.6, p.halfWidth * 0.32), permanent });
         }
         for (const zone of wetZones) for (const part of [0.24, 0.77]) {
@@ -260,10 +400,13 @@
         const s = track.samples[best] || track.samples[0];
         const dx = x - s.x, dy = y - s.y;
         const offset = dx * s.nx + dy * s.ny;
+        const along = dx * s.tx + dy * s.ty;
+        const prof = track.maxZ ? AD.roadProfileAt(track, (s.s || 0) + along) : null;
         return {
             index: best, s: s.s, offset: offset,
             nx: s.nx, ny: s.ny, tx: s.tx, ty: s.ty,
-            halfWidth: s.halfWidth, x: s.x, y: s.y
+            halfWidth: s.halfWidth, x: s.x, y: s.y,
+            z: prof ? prof.z : 0, slope: prof ? prof.slope : 0, curveZ: prof ? prof.curveZ : 0
         };
     };
 
@@ -279,8 +422,10 @@
         const b = track.samples[(idx + 1) % track.samples.length];
         const span = (b.s || track.length) - a.s || 4;
         const t = clamp((target - a.s) / span, 0, 1);
+        const prof = track.maxZ ? AD.roadProfileAt(track, target) : null;
         return {
             x: AD.lerp(a.x, b.x, t), y: AD.lerp(a.y, b.y, t),
+            z: prof ? prof.z : 0, slope: prof ? prof.slope : 0, curveZ: prof ? prof.curveZ : 0,
             nx: a.nx, ny: a.ny, tx: a.tx, ty: a.ty,
             halfWidth: a.halfWidth
         };
@@ -345,6 +490,7 @@
         return props;
     };
 
+    const HILLY_BIOMES = { alpine: true, desert: true, forest: true, glacier: true, industry: true };
     AD.dailyTrack = function (seed) {
         const rng = AD.rng((seed >>> 0) || 1);
         const biomeIds = Object.keys(BIOMES);
@@ -356,7 +502,8 @@
                 { k: 2 + Math.floor(rng() * 2), amp: 0.06 + rng() * 0.11, phase: rng() * 6.28 },
                 { k: 5 + Math.floor(rng() * 4), amp: 0.02 + rng() * 0.05, phase: rng() * 6.28 }
             ],
-            width: 19 + Math.floor(rng() * 12), laps: 3, biome: biome, zones: []
+            width: 19 + Math.floor(rng() * 12), laps: 3, biome: biome, zones: [],
+            dailyHills: !!HILLY_BIOMES[biome]
         };
     };
 
@@ -365,13 +512,20 @@
         if (!track || !track.samples || track.samples.length < 200) reasons.push('too few samples');
         if (track.length < 1500) reasons.push('track too short');
         if (track.width < 12) reasons.push('track too narrow');
-        let minRadius = Infinity, maxGap = 0;
+        let minRadius = Infinity, maxGap = 0, badElevation = false;
         for (let i = 0; i < track.samples.length; i++) {
             const a = track.samples[i], b = track.samples[(i + 1) % track.samples.length];
             const gap = Math.hypot(b.x - a.x, b.y - a.y);
             maxGap = Math.max(maxGap, gap);
             const cross = a.tx * b.ty - a.ty * b.tx;
             if (Math.abs(cross) > 1e-6) minRadius = Math.min(minRadius, gap / Math.abs(cross));
+            const az = a.z || 0, asl = a.slope || 0, acz = a.curveZ || 0;
+            if (!Number.isFinite(az) || !Number.isFinite(asl) || !Number.isFinite(acz) || az < -1e-6 || Math.abs(asl) > 0.35) {
+                badElevation = true;
+            }
+        }
+        if (badElevation || Math.abs((track.samples[0] && track.samples[0].z) || 0) >= 1e-3) {
+            reasons.push('invalid elevation profile');
         }
         if (maxGap > 8) reasons.push('spline spacing too large');
         if (minRadius < 14) reasons.push('corner radius too tight: ' + AD.round2(minRadius));

@@ -87,8 +87,11 @@
         const bump = params.dist > 0 && view ? clamp(view.h - 1.4, 0, 2) : 0;
         const d = params.dist + 0.025 * speed + 1.3 * bump;
         const lift = (state.lift || 0) * 1.4;
-        let eye = [v.x - fx * d, v.z * 0.6 + params.height + 1.5 * bump + lift, v.y - fy * d];
-        const target = [v.x + fx * (params.ahead + 2 * bump), v.z * 0.85 + params.targetY, v.y + fy * (params.ahead + 2 * bump)];
+        const eyeRoad = state.eyeRoadZ !== undefined ? state.eyeRoadZ : (v.roadZ || 0);
+        const targetRoad = state.targetRoadZ !== undefined ? state.targetRoadZ : (v.roadZ || 0);
+        let eye = [v.x - fx * d, eyeRoad + v.z * 0.6 + params.height + 1.5 * bump + lift, v.y - fy * d];
+        if (state.minEyeY !== undefined && eye[1] < state.minEyeY) eye[1] = state.minEyeY;
+        const target = [v.x + fx * (params.ahead + 2 * bump), targetRoad + v.z * 0.85 + params.targetY, v.y + fy * (params.ahead + 2 * bump)];
         let fov = params.fov;
         let roll = 0;
         if (!params.reduced) {
@@ -200,13 +203,14 @@
     AD.createChaseCamera = function (options) {
         const st = {
             h: undefined, punch: 0, kick: 0, shake: 0, lift: 0, seed: 0x9e3779b9,
-            scale: 5.6, lead: 0, orbit: 0, script: null, scriptT: 0
+            scale: 5.6, lead: 0, orbit: 0, script: null, scriptT: 0,
+            eyeRoadZ: undefined, targetRoadZ: undefined, minEyeY: undefined
         };
         const cam = {
             mode: AD.CAMERA_MODES.includes(options && options.mode) ? options.mode : 'chase',
             pose: null,
             get heading() { return st.h === undefined ? 0 : st.h; },
-            snap() { st.h = undefined; st.lead = 0; st.lift = 0; st.shake = 0; st.punch = 0; st.kick = 0; },
+            snap() { st.h = undefined; st.lead = 0; st.lift = 0; st.shake = 0; st.punch = 0; st.kick = 0; st.eyeRoadZ = undefined; st.targetRoadZ = undefined; st.minEyeY = undefined; },
             reset() { cam.snap(); cam.script('none'); },
             setMode(m) { if (AD.CAMERA_MODES.includes(m)) cam.mode = m; return cam.mode; },
             cycle() {
@@ -261,6 +265,27 @@
                 st.punch += (clamp((v.boost ? 0.7 : 0) + st.kick, 0, 1) - st.punch) * k;
                 st.kick = Math.max(0, st.kick - step * 3);
                 st.lift += ((v.airborne ? 1 : 0) - st.lift) * (1 - Math.exp(-3 * step));
+                const tr = race && race.track;
+                if (tr && tr.maxZ && AD.roadHeight) {
+                    const fx = Math.cos(st.h), fy = Math.sin(st.h);
+                    const view = AD.CAR_VIEW[v.car && v.car.id];
+                    const bump = params.dist > 0 && view ? clamp(view.h - 1.4, 0, 2) : 0;
+                    const d = params.dist + 0.025 * Math.hypot(v.vx || 0, v.vy || 0) + 1.3 * bump;
+                    const carRoadZ = v.roadZ || 0;
+                    const backRoadZ = AD.roadHeight(tr, v.x - fx * d, v.y - fy * d);
+                    const aheadRoadZ = AD.roadHeight(tr, v.x + fx * params.ahead, v.y + fy * params.ahead);
+                    const wantEye = Math.max(carRoadZ, backRoadZ);
+                    const wantTarget = AD.lerp(carRoadZ, aheadRoadZ, 0.55);
+                    if (st.eyeRoadZ === undefined || reduced || step <= 0) {
+                        st.eyeRoadZ = wantEye; st.targetRoadZ = wantTarget;
+                    } else {
+                        st.eyeRoadZ = AD.smooth(st.eyeRoadZ, wantEye, 10, step);
+                        st.targetRoadZ = AD.smooth(st.targetRoadZ, wantTarget, 10, step);
+                    }
+                    st.minEyeY = backRoadZ + (cam.mode === 'bumper' ? 0.9 : 1.3);
+                } else {
+                    st.eyeRoadZ = 0; st.targetRoadZ = 0; st.minEyeY = undefined;
+                }
                 const pose = AD.computeChasePose(st, v, params);
                 st.shake = Math.max(0, st.shake - step * 2.4);
 
@@ -291,9 +316,9 @@
                     const phi = Math.PI * (1 - e);
                     const dd = 14 + (params.dist + 0.025 * pose.speed - 14) * e;
                     const a = st.h + phi;
-                    const eye = [v.x - Math.cos(a) * dd, 6 + (params.height - 6) * e + v.z * 0.6, v.y - Math.sin(a) * dd];
+                    const eye = [v.x - Math.cos(a) * dd, (v.roadZ || 0) + 6 + (params.height - 6) * e + v.z * 0.6, v.y - Math.sin(a) * dd];
                     pose.eye = eye;
-                    pose.target = mix([v.x, v.z + 0.8, v.y], pose.target, e);
+                    pose.target = mix([v.x, (v.roadZ || 0) + v.z + 0.8, v.y], pose.target, e);
                     pose.fov = params.fov;
                     pose.roll = 0;
                 } else if (st.script === 'orbit') {
@@ -303,8 +328,8 @@
                     st.orbit += reduced ? 0 : step * 0.4;
                     const phi = reduced ? 0.7 : 0.95 * Math.sin(st.orbit);
                     const a = st.h + Math.PI + phi;
-                    pose.eye = [v.x + Math.cos(a) * 13, v.z * 0.6 + 10.5, v.y + Math.sin(a) * 13];
-                    pose.target = [v.x + Math.cos(st.h) * 5, v.z + 0.8, v.y + Math.sin(st.h) * 5];
+                    pose.eye = [v.x + Math.cos(a) * 13, (v.roadZ || 0) + v.z * 0.6 + 10.5, v.y + Math.sin(a) * 13];
+                    pose.target = [v.x + Math.cos(st.h) * 5, (v.roadZ || 0) + v.z + 0.8, v.y + Math.sin(st.h) * 5];
                     pose.fov = 58;
                     pose.roll = 0;
                 }

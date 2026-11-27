@@ -21,10 +21,10 @@
         const positions = new Float32Array((N + 1) * 2 * 3), uvs = new Float32Array((N + 1) * 2 * 2);
         const indices = new Uint32Array(N * 6);
         for (let k = 0; k <= N; k++) {
-            const s = S[k % N], v = k === N ? V : s.s / track.length * V;
+            const s = S[k % N], v = k === N ? V : s.s / track.length * V, y = s.z || 0;
             for (let c = 0; c < 2; c++) {
                 const side = c === 0 ? -1 : 1, off = side * (s.halfWidth + (grow || 0)), o = k * 2 + c;
-                positions[o * 3] = s.x + s.nx * off; positions[o * 3 + 1] = 0; positions[o * 3 + 2] = s.y + s.ny * off;
+                positions[o * 3] = s.x + s.nx * off; positions[o * 3 + 1] = y; positions[o * 3 + 2] = s.y + s.ny * off;
                 uvs[o * 2] = c; uvs[o * 2 + 1] = v;
             }
             if (k < N) {
@@ -36,10 +36,11 @@
     };
 
     function ringTable(track) {
-        const S = track.samples, N = S.length, R = { N: N, L: track.length, x: [], z: [], nx: [], nz: [], tx: [], tz: [], hw: [], s: [] };
+        const S = track.samples, N = S.length, R = { N: N, L: track.length, x: [], y: [], slope: [], z: [], nx: [], nz: [], tx: [], tz: [], hw: [], s: [] };
         for (let k = 0; k <= N; k++) {
             const s = S[k % N];
-            R.x.push(s.x); R.z.push(s.y); R.nx.push(s.nx); R.nz.push(s.ny); R.tx.push(s.tx); R.tz.push(s.ty);
+            R.x.push(s.x); R.y.push(s.z || 0); R.slope.push(s.slope || 0); R.z.push(s.y);
+            R.nx.push(s.nx); R.nz.push(s.ny); R.tx.push(s.tx); R.tz.push(s.ty);
             R.hw.push(s.halfWidth); R.s.push(k === N ? track.length : s.s);
         }
         return R;
@@ -49,7 +50,8 @@
         while (lo < hi - 1) { const m = (lo + hi) >> 1; if (R.s[m] <= sv) lo = m; else hi = m; }
         const t = clamp((sv - R.s[lo]) / ((R.s[lo + 1] - R.s[lo]) || 1), 0, 1), k = lo;
         return {
-            k: k, x: lerp(R.x[k], R.x[k + 1], t), z: lerp(R.z[k], R.z[k + 1], t), nx: lerp(R.nx[k], R.nx[k + 1], t), nz: lerp(R.nz[k], R.nz[k + 1], t),
+            k: k, x: lerp(R.x[k], R.x[k + 1], t), y: lerp(R.y[k], R.y[k + 1], t), slope: lerp(R.slope[k], R.slope[k + 1], t),
+            z: lerp(R.z[k], R.z[k + 1], t), nx: lerp(R.nx[k], R.nx[k + 1], t), nz: lerp(R.nz[k], R.nz[k + 1], t),
             tx: lerp(R.tx[k], R.tx[k + 1], t), tz: lerp(R.tz[k], R.tz[k + 1], t), hw: lerp(R.hw[k], R.hw[k + 1], t)
         };
     }
@@ -325,7 +327,7 @@
         for (let side = -1; side <= 1; side += 2) {
             const base = b.n;
             for (let k = 0; k <= Nn; k++) {
-                const kk = k % Nn, edge = R.hw[k] + 0.05;
+                const kk = k % Nn, edge = R.hw[k] + 0.05, ry = R.y[k];
                 for (let pi = 0; pi < prof.length; pi++) {
                     const pt = prof[pi];
                     let lat = edge + pt.l, y = pt.y * hv[k];
@@ -336,7 +338,7 @@
                     }
                     if (style === 'snow') lat += (W.noise2(kk / 6, pi * 1.7) - 0.5) * 0.5 * (pi > 0 && pi < prof.length - 1 ? 1 : 0);
                     const c = colour(k, pi, y);
-                    vert(b, R.x[k] + R.nx[k] * side * lat, y, R.z[k] + R.nz[k] * side * lat, c, R.s[k] / R.L * tiles, pt.u);
+                    vert(b, R.x[k] + R.nx[k] * side * lat, ry + y, R.z[k] + R.nz[k] * side * lat, c, R.s[k] / R.L * tiles, pt.u);
                 }
             }
             const P2 = prof.length;
@@ -370,7 +372,7 @@
             let n = 0;
             for (let side = -1; side <= 1; side += 2) for (let k = 0; k < Nn; k += step) {
                 const lat = R.hw[k] + 0.08;
-                dummy.position.set(R.x[k] + R.nx[k] * side * lat, h / 2, R.z[k] + R.nz[k] * side * lat);
+                dummy.position.set(R.x[k] + R.nx[k] * side * lat, R.y[k] + h / 2, R.z[k] + R.nz[k] * side * lat);
                 dummy.rotation.set(0, Math.atan2(-R.tz[k], R.tx[k]), 0);
                 dummy.updateMatrix();
                 im.setMatrixAt(n, dummy.matrix);
@@ -400,7 +402,7 @@
                     for (let a = 0; a < seg; a++) {
                         const an = a / seg * 6.283, dl = Math.cos(an) * rad, dy = Math.sin(an) * rad;
                         const l2 = lat + dl;
-                        vert(rb, R.x[k] + R.nx[k] * side * l2, sag + dy, R.z[k] + R.nz[k] * side * l2, c, 0, 0);
+                        vert(rb, R.x[k] + R.nx[k] * side * l2, R.y[k] + sag + dy, R.z[k] + R.nz[k] * side * l2, c, 0, 0);
                     }
                 }
                 for (let k = 0; k < Nn; k++) for (let a = 0; a < seg; a++) {
@@ -422,7 +424,7 @@
                 for (let k = 0; k <= Nn; k++) {
                     const lat = R.hw[k] - 0.1;
                     for (let r = 0; r < 2; r++) {
-                        const y = 1.02 + r * 0.07;
+                        const y = R.y[k] + 1.02 + r * 0.07;
                         vert(nb, R.x[k] + R.nx[k] * side * lat, y, R.z[k] + R.nz[k] * side * lat, accent, 0, 0);
                     }
                 }
@@ -477,7 +479,7 @@
         for (let k = 0; k <= Nn; k++) { const row = []; for (const f of COLS) row.push(wear(k, f)); colV.push(row); }
         const emit = (b, k, ci) => {
             const f = COLS[ci], w = colV[k][ci], hw = R.hw[k];
-            return vert(b, R.x[k] + R.nx[k] * f * hw, 0, R.z[k] + R.nz[k] * f * hw, [w, w, w], (f + 1) / 2, ringV(k));
+            return vert(b, R.x[k] + R.nx[k] * f * hw, R.y[k], R.z[k] + R.nz[k] * f * hw, [w, w, w], (f + 1) / 2, ringV(k));
         };
         for (let k = 0; k < Nn; k++) {
             const mid = (R.s[k] + R.s[k + 1]) / 2;
@@ -500,7 +502,7 @@
             const phys = WET_MAT[kind].coat > 0;
             const opts = { map: tex.map, roughnessMap: tex.rough, vertexColors: true, roughness: 1, metalness: 0 };
             const mat = own(phys ? new T.MeshPhysicalMaterial(Object.assign(opts, { clearcoat: 0.001, clearcoatRoughness: 0.08 })) : new T.MeshStandardMaterial(opts));
-            const geo = own(makeGeo(T, { pos: groups[type].pos, col: groups[type].col, uv: groups[type].uv, idx: groups[type].idx }));
+            const geo = own(makeGeo(T, { pos: groups[type].pos, col: groups[type].col, uv: groups[type].uv, idx: groups[type].idx, normals: true }));
             const mesh = new T.Mesh(geo, mat);
             mesh.receiveShadow = true; mesh.name = 'road-' + type;
             group.add(mesh);
@@ -520,8 +522,8 @@
                     pts.push(ringAt(R, Math.min(s1, L - 1e-4)));
                     let prev = -1;
                     for (const pt of pts) {
-                        const a = vert(kb, pt.x + pt.nx * side * (pt.hw - 1.25), 0.03, pt.z + pt.nz * side * (pt.hw - 1.25), c, 0, 0);
-                        const bb = vert(kb, pt.x + pt.nx * side * (pt.hw - 0.2), 0.03, pt.z + pt.nz * side * (pt.hw - 0.2), c, 0, 0);
+                        const a = vert(kb, pt.x + pt.nx * side * (pt.hw - 1.25), pt.y + 0.03, pt.z + pt.nz * side * (pt.hw - 1.25), c, 0, 0);
+                        const bb = vert(kb, pt.x + pt.nx * side * (pt.hw - 0.2), pt.y + 0.03, pt.z + pt.nz * side * (pt.hw - 0.2), c, 0, 0);
                         if (prev >= 0) quad(kb, prev, a, bb, prev + 1);
                         prev = a;
                     }
@@ -529,10 +531,13 @@
             }
             AD.driftZonePaint?.(track, (colour, points) => {
                 const base = kb.n, rgb = W.hexLin(colour);
-                for (const [x, z] of points) vert(kb, x, .023, z, rgb, 0, 0);
+                for (const [x, z] of points) {
+                    const rz = AD.roadHeight ? AD.roadHeight(track, x, z) : 0;
+                    vert(kb, x, rz + .023, z, rgb, 0, 0);
+                }
                 quad(kb, base, base + 1, base + 2, base + 3);
             });
-            const kg = own(makeGeo(T, { pos: kb.pos, col: kb.col, idx: kb.idx, normals: false }));
+            const kg = own(makeGeo(T, { pos: kb.pos, col: kb.col, idx: kb.idx, normals: true }));
             const km = own(new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, side: T.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
             const kmesh = new T.Mesh(kg, km);
             kmesh.receiveShadow = true; kmesh.name = 'kerbs';
@@ -547,7 +552,7 @@
             for (let side = -1; side <= 1; side += 2) {
                 const base = sb.n;
                 for (let k = 0; k <= Nn; k++) {
-                    const kk = k % Nn, hw = R.hw[k], cur = Math.max(1e-4, S[kk].curvature !== undefined ? S[kk].curvature : track.curvature[kk]);
+                    const kk = k % Nn, hw = R.hw[k], ry = R.y[k], cur = Math.max(1e-4, S[kk].curvature !== undefined ? S[kk].curvature : track.curvature[kk]);
                     const insideTurn = turn[kk] * side > 0;
                     const ext = insideTurn ? clamp(0.8 / cur - hw, 1.5, 10) : 10;
                     const cols = [[0, -0.02], [Math.min(2.4, ext * 0.3), -0.12], [ext, -0.36]];
@@ -555,16 +560,16 @@
                         const lat = hw + cols[ci][0], x = R.x[k] + R.nx[k] * side * lat, z = R.z[k] + R.nz[k] * side * lat;
                         let c = inner;
                         if (pal) {
-                            AD.terrainColor(pal, -0.4, 0.02, x, z, 10, tc);
+                            AD.terrainColor(pal, ry - 0.4, 0.02, x, z, 10, tc);
                             const t = ci / 2, nj = 0.92 + 0.16 * W.noise2(x / 5, z / 5);
                             c = [lerp(inner[0], tc[0], t) * nj, lerp(inner[1], tc[1], t) * nj, lerp(inner[2], tc[2], t) * nj];
                         }
-                        vert(sb, x, cols[ci][1], z, c, x / 32, z / 32);
+                        vert(sb, x, ry + cols[ci][1], z, c, x / 32, z / 32);
                     }
                 }
                 for (let k = 0; k < Nn; k++) for (let ci = 0; ci < 2; ci++) quad(sb, base + k * 3 + ci, base + (k + 1) * 3 + ci, base + (k + 1) * 3 + ci + 1, base + k * 3 + ci + 1);
             }
-            const sg = own(makeGeo(T, { pos: sb.pos, col: sb.col, uv: sb.uv, idx: sb.idx }));
+            const sg = own(makeGeo(T, { pos: sb.pos, col: sb.col, uv: sb.uv, idx: sb.idx, normals: true }));
             const dtex = own(typeof AD.makeTerrainDetail === 'function' ? AD.makeTerrainDetail(T, biomeId, look) : new T.Texture());
             const sm = own(new T.MeshStandardMaterial({ vertexColors: true, map: dtex, roughness: 0.95, metalness: 0, side: T.DoubleSide }));
             const smesh = new T.Mesh(sg, sm);
@@ -583,9 +588,9 @@
         {
             const cols = Math.max(12, Math.round(R.hw[0] * 2)), ct = own(checkerTexture(T, cols));
             const strip = (sv, len, tex, color) => {
-                const p = ringAt(R, sv), b = bag(), hw = p.hw - 1.3, y = 0.018;
+                const p = ringAt(R, sv), b = bag(), hw = p.hw - 1.3;
                 const pts = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
-                const ids = pts.map(c => vert(b, p.x + p.nx * c[0] * hw + p.tx * c[1] * len / 2, y, p.z + p.nz * c[0] * hw + p.tz * c[1] * len / 2, [1, 1, 1], (c[0] + 1) / 2, (c[1] + 1) / 2));
+                const ids = pts.map(c => vert(b, p.x + p.nx * c[0] * hw + p.tx * c[1] * len / 2, p.y + (p.slope || 0) * (c[1] * len / 2) + 0.018, p.z + p.nz * c[0] * hw + p.tz * c[1] * len / 2, [1, 1, 1], (c[0] + 1) / 2, (c[1] + 1) / 2));
                 quad(b, ids[0], ids[1], ids[2], ids[3]);
                 const geo = own(makeGeo(T, { pos: b.pos, col: b.col, uv: b.uv, idx: b.idx }));
                 const mat = own(new T.MeshStandardMaterial({ map: tex || null, color: color || 0xffffff, roughness: 0.7, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, side: T.DoubleSide }));
@@ -612,10 +617,12 @@
                 polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
             rainPools = own(pools.clone());
             for (const p of track.puddles) {
+                const rp = AD.roadProfileAt ? AD.roadProfileAt(track, p.s) : { z: 0, slope: 0 };
                 const mesh = new T.Mesh(geometry, p.permanent ? pools : rainPools);
                 mesh.name = 'standing-water';
-                mesh.position.set(p.x, 0.033, p.y);
-                mesh.rotation.y = -Math.atan2(p.ty, p.tx);
+                mesh.position.set(p.x, rp.z + 0.033, p.y);
+                mesh.rotation.order = 'YZX';
+                mesh.rotation.set(0, -Math.atan2(p.ty, p.tx), Math.atan(rp.slope || 0));
                 mesh.scale.set(p.length, 1, p.width);
                 group.add(mesh);
                 if (!p.permanent) rainPocket = p;
@@ -648,7 +655,12 @@
                 surfacePrints.marks.forEach((m, i) => {
                     const mesh = printMeshes[i]; mesh.visible = m.alpha > 0;
                     if (!mesh.visible) return;
-                    mesh.position.set(m.x, .075, m.y); mesh.rotation.y = -m.angle;
+                    const sm = track.maxZ ? AD.sampleTrack(track, m.x, m.y) : null;
+                    const rz = sm ? (sm.z || 0) : 0;
+                    const slope = sm ? (sm.slope || 0) * (Math.cos(m.angle) * sm.tx + Math.sin(m.angle) * sm.ty) : 0;
+                    mesh.position.set(m.x, rz + .075, m.y);
+                    mesh.rotation.order = 'YZX';
+                    mesh.rotation.set(0, -m.angle, Math.atan(slope));
                     mesh.scale.set(m.length, 1, m.width);
                     mesh.material.map = printMaps.get(m.kind); mesh.material.opacity = m.alpha;
                 });

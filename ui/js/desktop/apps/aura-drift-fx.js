@@ -67,11 +67,11 @@
         };
 
         /* ---- particle store ---------------------------------------------- */
-        let S = null, pools = null, dens = 1;
+        let S = null, pools = null, dens = 1, curFloor = 0;
         function makeStore(cap) {
             const f = () => new Float32Array(cap);
             return {
-                cap: cap, cur: 0, live: 0, x: f(), y: f(), z: f(), vx: f(), vy: f(), vz: f(), age: f(), life: f(), s0: f(), s1: f(), rot: f(), spin: f(),
+                cap: cap, cur: 0, live: 0, x: f(), y: f(), z: f(), vx: f(), vy: f(), vz: f(), floor: f(), age: f(), life: f(), s0: f(), s1: f(), rot: f(), spin: f(),
                 c0: new Float32Array(cap * 3), c1: new Float32Array(cap * 3), a: f(), drag: f(), grav: f(), str: f(), lit: f(),
                 fr: new Uint8Array(cap), fl: new Uint8Array(cap)
             };
@@ -108,6 +108,7 @@
         function spawn(fr, add, x, y, z, vx, vy, vz, life, s0, s1, c0, c1, a, drag, grav, str, lit, spin, kind) {
             const i = S.cur; S.cur = (i + 1) % S.cap;
             S.x[i] = x; S.y[i] = y; S.z[i] = z; S.vx[i] = vx; S.vy[i] = vy; S.vz[i] = vz;
+            S.floor[i] = curFloor;
             S.age[i] = 0; S.life[i] = life; S.s0[i] = s0; S.s1[i] = s1; S.a[i] = a; S.drag[i] = drag; S.grav[i] = grav;
             S.str[i] = str; S.lit[i] = lit; S.rot[i] = rnd() * TAU; S.spin[i] = spin; S.fr[i] = fr; S.fl[i] = add | (kind << 1);
             S.c0[i * 3] = c0[0]; S.c0[i * 3 + 1] = c0[1]; S.c0[i * 3 + 2] = c0[2];
@@ -200,10 +201,11 @@
             ripples.push({ mesh: mesh, mat: mat, on: false, r0: 0, r1: 0, life: 1, age: 0, a: 1 });
         }
         let rippleCur = 0, rippleTotal = 0;
-        function ripple(x, z, r1, life, c, a) {
+        function ripple(x, h, z, r1, life, c, a, slope) {
             const r = ripples[rippleCur]; rippleCur = (rippleCur + 1) % ripples.length; rippleTotal++;
             r.on = true; r.r0 = 0.06; r.r1 = r1; r.life = life; r.age = 0; r.a = a === undefined ? 0.4 : a;
-            r.mesh.position.set(x, 0.06, z);
+            r.mesh.position.set(x, (h || 0) + 0.06, z);
+            r.mesh.rotation.z = slope ? Math.atan(slope) : 0;
             r.mat.uniforms.uColor.value.setRGB(c[0], c[1], c[2]);
             r.mesh.visible = true;
         }
@@ -262,22 +264,22 @@
             skid = { cap: cap, cur: 0, filled: 0, lo: 1e9, hi: -1, full: false, geo: geo, mat: mat, mesh: mesh, pos: pos, clr: clr };
         }
         /* One wheel trail: the previous end edge becomes the next start edge, so curves stay closed. */
-        function skidAdd(w, x, z, width, c) {
-            if (!w.has) { w.has = true; w.x = x; w.z = z; w.lx = w.rx = w.ly = w.ry = NaN; return; }
+        function skidAdd(w, x, y, z, width, c) {
+            if (!w.has) { w.has = true; w.x = x; w.y = y; w.z = z; w.lx = w.rx = w.lz = w.rz = NaN; return; }
             const dx = x - w.x, dz = z - w.z, len = Math.hypot(dx, dz);
             if (len < 0.55) return;
             const nx = -dz / len * width * 0.5, nz = dx / len * width * 0.5;
             const lx = x + nx, lz = z + nz, rx = x - nx, rz = z - nz;
             if (w.lx !== w.lx) { w.lx = w.x + nx; w.lz = w.z + nz; w.rx = w.x - nx; w.rz = w.z - nz; }
-            const i = skid.cur, p = skid.pos.array, k = skid.clr.array, o = i * 12, ko = i * 16, y = 0.045;
-            p[o] = w.lx; p[o + 1] = y; p[o + 2] = w.lz; p[o + 3] = w.rx; p[o + 4] = y; p[o + 5] = w.rz;
-            p[o + 6] = lx; p[o + 7] = y; p[o + 8] = lz; p[o + 9] = rx; p[o + 10] = y; p[o + 11] = rz;
+            const i = skid.cur, p = skid.pos.array, k = skid.clr.array, o = i * 12, ko = i * 16, y0 = w.y, y1 = y;
+            p[o] = w.lx; p[o + 1] = y0; p[o + 2] = w.lz; p[o + 3] = w.rx; p[o + 4] = y0; p[o + 5] = w.rz;
+            p[o + 6] = lx; p[o + 7] = y1; p[o + 8] = lz; p[o + 9] = rx; p[o + 10] = y1; p[o + 11] = rz;
             for (let v = 0; v < 4; v++) { k[ko + v * 4] = c[0]; k[ko + v * 4 + 1] = c[1]; k[ko + v * 4 + 2] = c[2]; k[ko + v * 4 + 3] = c[3] * (v < 2 ? 0.7 : 1); }
             skid.lo = Math.min(skid.lo, i); skid.hi = Math.max(skid.hi, i);
             skid.cur = (i + 1) % skid.cap;
             if (skid.cur === 0) skid.full = true;
             if (skid.filled < skid.cap) skid.filled++;
-            w.x = x; w.z = z; w.lx = lx; w.lz = lz; w.rx = rx; w.rz = rz;
+            w.x = x; w.y = y; w.z = z; w.lx = lx; w.lz = lz; w.rx = rx; w.rz = rz;
         }
         function flushSkid() {
             if (skid.hi < 0) return;
@@ -294,9 +296,11 @@
         let reduced = false, moteAcc = 0;
         /* Drift aura: target set by the simulation every frame, eased in `update` so the halo never pops. */
         let auraTarget = 0, auraSeen = -1e9, auraA = 0, auraSpin = 0, auraR = 3.1, auraRT = 3.1;
-        let auraX = 0, auraZ = 0;
+        let auraX = 0, auraY = 0, auraZ = 0, auraPitch = 0, auraYaw = 0;
         const auraC = [0.4, 0.8, 1], auraCT = [0.4, 0.8, 1];
         const cst = [], timers = [], ufos = [];
+        const rzOf = (race, x, z) => (race && race.track && race.track.maxZ && AD.roadHeight ? AD.roadHeight(race.track, x, z) : 0);
+        const carY = v => (v ? (v.roadZ || 0) + (v.z || 0) : 0);
         const carState = i => cst[i] || (cst[i] = { wl: { has: false }, wr: { has: false }, gear: 1, thr: 0 });
         function use(race) {
             if (race === lastRace) return;
@@ -315,9 +319,11 @@
         function later(delay, fn) { timers.push({ t: delay, fn: fn }); }
 
         /* ---- one-shot effects ---------------------------------------------------- */
-        function explode(x, z, h, s) {
+        function explode(x, z, h, s, gnd) {
+            const fl = gnd || 0;
+            curFloor = fl;
             glow(x, h, z, 0, 0, 0, 0.12, 4 * s, 8 * s, HOT, HOT, 0.8);
-            ring(x, 0, z, 0.8 * s, 11 * s, 0.55, HOT, 0.45);
+            ring(x, fl, z, 0.8 * s, 11 * s, 0.55, HOT, 0.45);
             ringBb(x, h + 0.8, z, 2 * s, 20 * s, 0.45, FIRE, 0.6);
             /* Fireball: blended (not additive) flame puffs, so the edges go red and sooty instead of burning out to white. */
             for (let k = cnt(34 * s); k > 0; k--) {
@@ -333,23 +339,25 @@
             addLight(x, h + 1.8, z, FIRE, 340 * s * s, 0.5, 22 + 10 * s);
         }
         function wallSparks(race, x, z, speed, heavy, car) {
-            const sm = AD.sampleTrack(race.track, x, z), side = sm.offset >= 0 ? 1 : -1;
+            const sm = AD.sampleTrack(race.track, x, z), side = sm.offset >= 0 ? 1 : -1, rz = sm.z || 0;
+            curFloor = rz;
             const inx = -side * sm.nx, inz = -side * sm.ny, v = carOf(race, car);
             const dir = v && (Math.cos(v.psi) * sm.tx + Math.sin(v.psi) * sm.ty) < 0 ? -1 : 1;
             const px = x - inx * 0.8, pz = z - inz * 0.8;
             for (let k = cnt(heavy ? 38 : 16); k > 0; k--) {
                 const sp = speed * rr(0.25, 0.8) * dir, side2 = rr(3, 11);
-                spark(px, rr(0.15, 0.8), pz, sm.tx * sp + inx * side2, rr(1.5, 8), sm.ty * sp + inz * side2, rr(0.35, 0.9), rr(0.28, 0.5), HOT, FIRE);
+                spark(px, rz + rr(0.15, 0.8), pz, sm.tx * sp + inx * side2, rr(1.5, 8), sm.ty * sp + inz * side2, rr(0.35, 0.9), rr(0.28, 0.5), HOT, FIRE);
             }
-            glow(px, 0.5, pz, 0, 0, 0, 0.12, 1.5, 3, HOT, FIRE, 0.9);
-            for (let k = cnt(heavy ? 5 : 2); k > 0; k--) puff(px, 0.5, pz, inx * rr(1, 3), rr(0.5, 1.5), inz * rr(1, 3), 1.0, 0.7, 2.4, SMOKE1, SMOKE1, 0.35);
-            if (car === 0) addLight(px, 1, pz, FIRE, heavy ? 60 : 25, 0.2, 14);
+            glow(px, rz + 0.5, pz, 0, 0, 0, 0.12, 1.5, 3, HOT, FIRE, 0.9);
+            for (let k = cnt(heavy ? 5 : 2); k > 0; k--) puff(px, rz + 0.5, pz, inx * rr(1, 3), rr(0.5, 1.5), inz * rr(1, 3), 1.0, 0.7, 2.4, SMOKE1, SMOKE1, 0.35);
+            if (car === 0) addLight(px, rz + 1, pz, FIRE, heavy ? 60 : 25, 0.2, 14);
         }
         function turboBurst(v, level, power) {
-            const g = geoOf(v), cp = Math.cos(v.psi), sp = Math.sin(v.psi), rx = -sp, rz = cp;
+            const g = geoOf(v), cp = Math.cos(v.psi), sp = Math.sin(v.psi), rx = -sp, rz = cp, cy = carY(v);
+            curFloor = v.roadZ || 0;
             const c = TURBO[clamp(level - 1, 0, 2)], cs = TURBO_SOFT[clamp(level - 1, 0, 2)];
             for (const side of [-1, 1]) {
-                const ex = v.x - cp * g[1] + rx * g[2] * 0.5 * side, ez = v.y - sp * g[1] + rz * g[2] * 0.5 * side, h = v.z + 0.5;
+                const ex = v.x - cp * g[1] + rx * g[2] * 0.5 * side, ez = v.y - sp * g[1] + rz * g[2] * 0.5 * side, h = cy + 0.5;
                 glow(ex, h, ez, -cp * 4, 0, -sp * 4, 0.16, 2.2 * power, 4 * power, WHITE, c, 1);
                 for (let k = cnt(14 * power); k > 0; k--) {
                     const sd = 8 + rr(0, 12) * power;
@@ -357,136 +365,155 @@
                 }
                 for (let k = cnt(6); k > 0; k--) spark(ex, h, ez, -cp * rr(10, 26) + rx * rr(-4, 4), rr(0, 4), -sp * rr(10, 26) + rz * rr(-4, 4), rr(0.3, 0.6), 0.35, c, cs);
             }
-            addLight(v.x - cp * (g[1] + 1.2), v.z + 0.9, v.y - sp * (g[1] + 1.2), c, 55 * power, 0.35, 16);
+            addLight(v.x - cp * (g[1] + 1.2), cy + 0.9, v.y - sp * (g[1] + 1.2), c, 55 * power, 0.35, 16);
         }
-        function dustRing(x, z, n, speed, prof, size) {
-            for (let k = cnt(n); k > 0; k--) { const an = (k / n) * TAU + rr(-0.2, 0.2), sp = speed * rr(0.6, 1.2); puff(x + Math.cos(an) * 0.8, 0.5, z + Math.sin(an) * 0.8, Math.cos(an) * sp, rr(0.4, 1.4), Math.sin(an) * sp, rr(0.9, 1.6), size * 0.45, size, prof.c0, prof.c1, prof.a * 0.9, 2.2, -0.3); }
+        function dustRing(x, z, n, speed, prof, size, y0) {
+            const base = y0 || 0;
+            curFloor = base;
+            for (let k = cnt(n); k > 0; k--) { const an = (k / n) * TAU + rr(-0.2, 0.2), sp = speed * rr(0.6, 1.2); puff(x + Math.cos(an) * 0.8, base + 0.5, z + Math.sin(an) * 0.8, Math.cos(an) * sp, rr(0.4, 1.4), Math.sin(an) * sp, rr(0.9, 1.6), size * 0.45, size, prof.c0, prof.c1, prof.a * 0.9, 2.2, -0.3); }
         }
         function landing(evt, race) {
             const v = carOf(race, evt.car), prof = v ? profOf(v) : SURF.asphalt, q2 = evt.quality;
             const big = q2 === 'crash' ? 1.5 : q2 === 'perfect' ? 0.9 : q2 === 'good' ? 1 : 0.8;
-            dustRing(evt.x, evt.y, 14 * big, 7 * big, prof, 2.8 * big);
-            ring(evt.x, 0, evt.y, 0.6, 6.5 * big, 0.45, q2 === 'perfect' ? GOLD : WHITE, 0.55);
+            const y0 = v ? (v.roadZ || 0) : rzOf(race, evt.x, evt.y);
+            curFloor = y0;
+            dustRing(evt.x, evt.y, 14 * big, 7 * big, prof, 2.8 * big, y0);
+            ring(evt.x, y0, evt.y, 0.6, 6.5 * big, 0.45, q2 === 'perfect' ? GOLD : WHITE, 0.55);
             if (q2 === 'crash') {
-                for (let k = cnt(26); k > 0; k--) { const an = rnd() * TAU, sp = rr(6, 18); spark(evt.x, 0.4, evt.y, Math.cos(an) * sp, rr(3, 9), Math.sin(an) * sp, rr(0.4, 0.9), 0.4, HOT, FIRE); }
-                for (let k = cnt(5); k > 0; k--) puff(evt.x + rr(-1, 1), 0.8, evt.y + rr(-1, 1), rr(-2, 2), rr(1, 3), rr(-2, 2), 2, 1.5, 5, SOOT0, SOOT1, 0.6, 0.8, -0.4);
+                for (let k = cnt(26); k > 0; k--) { const an = rnd() * TAU, sp = rr(6, 18); spark(evt.x, y0 + 0.4, evt.y, Math.cos(an) * sp, rr(3, 9), Math.sin(an) * sp, rr(0.4, 0.9), 0.4, HOT, FIRE); }
+                for (let k = cnt(5); k > 0; k--) puff(evt.x + rr(-1, 1), y0 + 0.8, evt.y + rr(-1, 1), rr(-2, 2), rr(1, 3), rr(-2, 2), 2, 1.5, 5, SOOT0, SOOT1, 0.6, 0.8, -0.4);
             } else if (q2 === 'perfect') {
-                for (let k = cnt(12); k > 0; k--) { const an = rnd() * TAU, sp = rr(3, 8); bit(F.STAR, evt.x, 0.8, evt.y, Math.cos(an) * sp, rr(3, 9), Math.sin(an) * sp, rr(0.7, 1.2), rr(0.4, 0.8), GOLD, GOLD, 8, 0, 1.2, 1); }
-                ringBb(evt.x, 1, evt.y, 1, 9, 0.5, GOLD, 0.8);
+                for (let k = cnt(12); k > 0; k--) { const an = rnd() * TAU, sp = rr(3, 8); bit(F.STAR, evt.x, y0 + 0.8, evt.y, Math.cos(an) * sp, rr(3, 9), Math.sin(an) * sp, rr(0.7, 1.2), rr(0.4, 0.8), GOLD, GOLD, 8, 0, 1.2, 1); }
+                ringBb(evt.x, y0 + 1, evt.y, 1, 9, 0.5, GOLD, 0.8);
             }
         }
         function confetti(x, z, race, big) {
-            const sm = AD.sampleTrack(race.track, x, z), hw = sm.halfWidth + 2.5;
+            const sm = AD.sampleTrack(race.track, x, z), hw = sm.halfWidth + 2.5, y0 = sm.z || 0;
+            curFloor = y0;
             const shot = (px, pz, vx, vz, n) => {
                 for (let k = cnt(n); k > 0; k--) {
                     const c = PARTY[(Math.random() * PARTY.length) | 0], sp = rr(0.4, 1);
-                    bit(F.CONFETTI, px, rr(0.5, 2), pz, (vx + rr(-5, 5)) * sp, rr(12, 26) * sp, (vz + rr(-5, 5)) * sp, rr(2.4, 4), rr(0.28, 0.46), c, c, 8, K_FLUTTER, 1.5);
+                    bit(F.CONFETTI, px, y0 + rr(0.5, 2), pz, (vx + rr(-5, 5)) * sp, rr(12, 26) * sp, (vz + rr(-5, 5)) * sp, rr(2.4, 4), rr(0.28, 0.46), c, c, 8, K_FLUTTER, 1.5);
                 }
             };
             for (const side of [-1, 1]) shot(sm.x + sm.nx * hw * side, sm.y + sm.ny * hw * side, -sm.nx * side * 5 + sm.tx * 2, -sm.ny * side * 5 + sm.ty * 2, big ? 55 : 12);
             for (let k = cnt(big ? 60 : 12); k > 0; k--) {
                 const c = PARTY[(Math.random() * PARTY.length) | 0];
-                bit(F.CONFETTI, x + rr(-9, 9), rr(10, 16), z + rr(-9, 9), rr(-3, 3), rr(-2, 1), rr(-3, 3), rr(2.6, 4.2), rr(0.28, 0.46), c, c, 3, K_FLUTTER, 1.6);
+                bit(F.CONFETTI, x + rr(-9, 9), y0 + rr(10, 16), z + rr(-9, 9), rr(-3, 3), rr(-2, 1), rr(-3, 3), rr(2.6, 4.2), rr(0.28, 0.46), c, c, 3, K_FLUTTER, 1.6);
             }
-            if (big) for (let k = cnt(10); k > 0; k--) { const an = rnd() * TAU, sp = rr(4, 11); bit(F.STAR, x, 1.5, z, Math.cos(an) * sp, rr(5, 12), Math.sin(an) * sp, rr(0.8, 1.4), rr(0.5, 0.9), GOLD, GOLD, 8, 0, 1.2, 1); }
+            if (big) for (let k = cnt(10); k > 0; k--) { const an = rnd() * TAU, sp = rr(4, 11); bit(F.STAR, x, y0 + 1.5, z, Math.cos(an) * sp, rr(5, 12), Math.sin(an) * sp, rr(0.8, 1.4), rr(0.5, 0.9), GOLD, GOLD, 8, 0, 1.2, 1); }
         }
         const FEATHER_SETS = { cow: ['#ffffff', '#262626'], sheep: ['#fbfbf6', '#e9e6dc'], penguin: ['#16181c', '#f5f7fa'], llama: ['#e7d2b0', '#c9a97a'], crab: ['#ff7a45', '#ffd2b0'] };
-        function creatureBurst(x, z, kind, ducks) {
-            const set = ducks ? ['#ffe14a', '#fff2a8'] : (FEATHER_SETS[kind] || FEATHER_SETS.cow);
+        function creatureBurst(x, z, kind, ducks, y0) {
+            const base = y0 || 0, set = ducks ? ['#ffe14a', '#fff2a8'] : (FEATHER_SETS[kind] || FEATHER_SETS.cow);
             const a = col(set[0]), b = col(set[1]);
+            curFloor = base;
             for (let k = cnt(ducks ? 14 : 22); k > 0; k--) {
                 const an = rnd() * TAU, sp = rr(2, 9);
-                if (kind === 'sheep' && !ducks && k % 2) puff(x, 1.3, z, Math.cos(an) * sp * 0.5, rr(2, 5), Math.sin(an) * sp * 0.5, rr(1, 1.7), 0.5, 1.5, a, b, 0.8, 1.6, 1);
-                else bit(F.FEATHER, x, rr(0.8, 1.8), z, Math.cos(an) * sp, rr(3, 9), Math.sin(an) * sp, rr(1.6, 2.8), rr(0.55, 0.9), k % 2 ? a : b, b, 4.5, K_FLUTTER, 1.1);
+                if (kind === 'sheep' && !ducks && k % 2) puff(x, base + 1.3, z, Math.cos(an) * sp * 0.5, rr(2, 5), Math.sin(an) * sp * 0.5, rr(1, 1.7), 0.5, 1.5, a, b, 0.8, 1.6, 1);
+                else bit(F.FEATHER, x, base + rr(0.8, 1.8), z, Math.cos(an) * sp, rr(3, 9), Math.sin(an) * sp, rr(1.6, 2.8), rr(0.55, 0.9), k % 2 ? a : b, b, 4.5, K_FLUTTER, 1.1);
             }
-            for (let k = cnt(7); k > 0; k--) { const an = rnd() * TAU, sp = rr(2, 6); bit(F.STAR, x, 1.8, z, Math.cos(an) * sp, rr(4, 9), Math.sin(an) * sp, rr(0.7, 1.2), rr(0.45, 0.8), GOLD, GOLD, 6, 0, 1.1, 1); }
-            dustRing(x, z, 6, 4, SURF.sand, 1.8);
+            for (let k = cnt(7); k > 0; k--) { const an = rnd() * TAU, sp = rr(2, 6); bit(F.STAR, x, base + 1.8, z, Math.cos(an) * sp, rr(4, 9), Math.sin(an) * sp, rr(0.7, 1.2), rr(0.45, 0.8), GOLD, GOLD, 6, 0, 1.1, 1); }
+            dustRing(x, z, 6, 4, SURF.sand, 1.8, base);
         }
         const SMASH = {
             cone: [col('#ff7a1a'), col('#ffffff'), F.SHARD], hay: [STRAW0, STRAW1, F.LEAF], barrel: [col('#d83a3a'), col('#8f9aa8'), F.SHARD], tyres: [col('#1a1a1c'), col('#3a3a3e'), F.SHARD]
         };
         function smash(evt, race) {
-            const s = SMASH[evt.kind] || SMASH.cone, v = carOf(race, evt.car), prof = v ? profOf(v) : SURF.asphalt;
-            for (let k = cnt(evt.kind === 'hay' ? 18 : 12); k > 0; k--) { const an = rnd() * TAU, sp = rr(3, 10); bit(s[2], evt.x, rr(0.3, 1), evt.y, Math.cos(an) * sp, rr(4, 10), Math.sin(an) * sp, rr(1.0, 1.8), rr(0.28, 0.55), k % 2 ? s[0] : s[1], s[1], 18, K_BOUNCE, 0.2); }
-            for (let k = cnt(3); k > 0; k--) { const an = rnd() * TAU; bit(F.STAR, evt.x, 1.2, evt.y, Math.cos(an) * 3, rr(4, 8), Math.sin(an) * 3, 0.8, 0.6, GOLD, GOLD, 8, 0, 1.2, 1); }
-            dustRing(evt.x, evt.y, 5, 3, evt.kind === 'tyres' ? { c0: SOOT0, c1: SOOT1, a: 0.6 } : evt.kind === 'hay' ? { c0: STRAW0, c1: STRAW1, a: 0.5 } : prof, 1.8);
+            const s = SMASH[evt.kind] || SMASH.cone, v = carOf(race, evt.car), prof = v ? profOf(v) : SURF.asphalt, y0 = rzOf(race, evt.x, evt.y);
+            curFloor = y0;
+            for (let k = cnt(evt.kind === 'hay' ? 18 : 12); k > 0; k--) { const an = rnd() * TAU, sp = rr(3, 10); bit(s[2], evt.x, y0 + rr(0.3, 1), evt.y, Math.cos(an) * sp, rr(4, 10), Math.sin(an) * sp, rr(1.0, 1.8), rr(0.28, 0.55), k % 2 ? s[0] : s[1], s[1], 18, K_BOUNCE, 0.2); }
+            for (let k = cnt(3); k > 0; k--) { const an = rnd() * TAU; bit(F.STAR, evt.x, y0 + 1.2, evt.y, Math.cos(an) * 3, rr(4, 8), Math.sin(an) * 3, 0.8, 0.6, GOLD, GOLD, 8, 0, 1.2, 1); }
+            dustRing(evt.x, evt.y, 5, 3, evt.kind === 'tyres' ? { c0: SOOT0, c1: SOOT1, a: 0.6 } : evt.kind === 'hay' ? { c0: STRAW0, c1: STRAW1, a: 0.5 } : prof, 1.8, y0);
         }
-        function crateBurst(evt) {
-            glow(evt.x, 1, evt.y, 0, 0, 0, 0.2, 2, 5, HOT, GOLD, 0.9);
-            ring(evt.x, 0, evt.y, 0.5, 4.5, 0.4, GOLD, 0.6);
-            for (let k = cnt(10); k > 0; k--) { const an = rnd() * TAU, sp = rr(3, 8); bit(F.SHARD, evt.x, 1, evt.y, Math.cos(an) * sp, rr(4, 9), Math.sin(an) * sp, rr(0.8, 1.4), rr(0.25, 0.45), WOOD, WOOD, 20, K_BOUNCE, 0.2); }
-            for (let k = cnt(9); k > 0; k--) { const an = rnd() * TAU, sp = rr(2, 7); bit(F.STAR, evt.x, 1, evt.y, Math.cos(an) * sp, rr(3, 8), Math.sin(an) * sp, rr(0.6, 1.1), rr(0.4, 0.7), GOLD, GOLD, 6, 0, 1.2, 1); }
+        function crateBurst(evt, y0) {
+            const fl = y0 || 0;
+            curFloor = fl;
+            glow(evt.x, fl + 1, evt.y, 0, 0, 0, 0.2, 2, 5, HOT, GOLD, 0.9);
+            ring(evt.x, fl, evt.y, 0.5, 4.5, 0.4, GOLD, 0.6);
+            for (let k = cnt(10); k > 0; k--) { const an = rnd() * TAU, sp = rr(3, 8); bit(F.SHARD, evt.x, fl + 1, evt.y, Math.cos(an) * sp, rr(4, 9), Math.sin(an) * sp, rr(0.8, 1.4), rr(0.25, 0.45), WOOD, WOOD, 20, K_BOUNCE, 0.2); }
+            for (let k = cnt(9); k > 0; k--) { const an = rnd() * TAU, sp = rr(2, 7); bit(F.STAR, evt.x, fl + 1, evt.y, Math.cos(an) * sp, rr(3, 8), Math.sin(an) * sp, rr(0.6, 1.1), rr(0.4, 0.7), GOLD, GOLD, 6, 0, 1.2, 1); }
         }
         function emp(evt, race) {
-            const r = evt.r || 20;
-            ring(evt.x, 0, evt.y, 1, r, 0.6, ELEC, 0.9);
-            ringBb(evt.x, 1.5, evt.y, 2, r * 1.1, 0.5, ELEC, 0.5);
-            glow(evt.x, 1.2, evt.y, 0, 0, 0, 0.2, 2, 6, WHITE, ELEC, 0.7);
-            for (let k = cnt(22); k > 0; k--) { const an = rnd() * TAU, d = r * rr(0.55, 1); glow(evt.x + Math.cos(an) * d, rr(0.2, 2.5), evt.y + Math.sin(an) * d, 0, 0, 0, rr(0.15, 0.35), rr(1.2, 2.6), 1, ELEC, ELEC, 0.95, 0, F.BOLT); }
-            for (let k = cnt(8); k > 0; k--) { const an = rnd() * TAU; glow(evt.x, 1, evt.y, Math.cos(an) * r * 1.2, 0, Math.sin(an) * r * 1.2, 0.5, 0.5, 0.9, ELEC, ELEC, 0.6, 0, F.HEX); }
-            addLight(evt.x, 2, evt.y, ELEC, 260, 0.5, 30);
+            const r = evt.r || 20, y0 = rzOf(race, evt.x, evt.y);
+            curFloor = y0;
+            ring(evt.x, y0, evt.y, 1, r, 0.6, ELEC, 0.9);
+            ringBb(evt.x, y0 + 1.5, evt.y, 2, r * 1.1, 0.5, ELEC, 0.5);
+            glow(evt.x, y0 + 1.2, evt.y, 0, 0, 0, 0.2, 2, 6, WHITE, ELEC, 0.7);
+            for (let k = cnt(22); k > 0; k--) { const an = rnd() * TAU, d = r * rr(0.55, 1); glow(evt.x + Math.cos(an) * d, y0 + rr(0.2, 2.5), evt.y + Math.sin(an) * d, 0, 0, 0, rr(0.15, 0.35), rr(1.2, 2.6), 1, ELEC, ELEC, 0.95, 0, F.BOLT); }
+            for (let k = cnt(8); k > 0; k--) { const an = rnd() * TAU; glow(evt.x, y0 + 1, evt.y, Math.cos(an) * r * 1.2, 0, Math.sin(an) * r * 1.2, 0.5, 0.5, 0.9, ELEC, ELEC, 0.6, 0, F.HEX); }
+            addLight(evt.x, y0 + 2, evt.y, ELEC, 260, 0.5, 30);
         }
-        function railFire(evt) {
+        function railFire(evt, race) {
+            const y1 = rzOf(race, evt.x, evt.y), y2 = rzOf(race, evt.x2, evt.y2);
             const dx = evt.x2 - evt.x, dz = evt.y2 - evt.y, len = Math.hypot(dx, dz) || 1, steps = Math.min(40, Math.ceil(len / 6));
+            curFloor = y2;
             for (let k = 0; k < steps; k++) {
                 const t = k / steps;
-                glow(evt.x + dx * t, 0.9, evt.y + dz * t, rr(-1, 1), rr(0, 1.5), rr(-1, 1), rr(0.3, 0.6), rr(0.8, 1.6), 0.2, ELEC, PINK, 0.8, 0.5);
+                glow(evt.x + dx * t, y1 + (y2 - y1) * t + 0.9, evt.y + dz * t, rr(-1, 1), rr(0, 1.5), rr(-1, 1), rr(0.3, 0.6), rr(0.8, 1.6), 0.2, ELEC, PINK, 0.8, 0.5);
             }
-            glow(evt.x, 0.9, evt.y, 0, 0, 0, 0.18, 2, 6, WHITE, ELEC, 1);
-            glow(evt.x2, 0.9, evt.y2, 0, 0, 0, 0.2, 3, 9, WHITE, PINK, 1);
-            for (let k = cnt(16); k > 0; k--) { const an = rnd() * TAU, sp = rr(6, 20); spark(evt.x2, 0.9, evt.y2, Math.cos(an) * sp, rr(2, 10), Math.sin(an) * sp, rr(0.3, 0.7), 0.35, WHITE, PINK); }
-            ring(evt.x2, 0, evt.y2, 0.5, 6, 0.35, PINK, 0.8);
-            addLight(evt.x, 1.5, evt.y, ELEC, 120, 0.3, 24);
-            addLight(evt.x2, 1.5, evt.y2, PINK, 150, 0.3, 24);
+            glow(evt.x, y1 + 0.9, evt.y, 0, 0, 0, 0.18, 2, 6, WHITE, ELEC, 1);
+            glow(evt.x2, y2 + 0.9, evt.y2, 0, 0, 0, 0.2, 3, 9, WHITE, PINK, 1);
+            for (let k = cnt(16); k > 0; k--) { const an = rnd() * TAU, sp = rr(6, 20); spark(evt.x2, y2 + 0.9, evt.y2, Math.cos(an) * sp, rr(2, 10), Math.sin(an) * sp, rr(0.3, 0.7), 0.35, WHITE, PINK); }
+            ring(evt.x2, y2, evt.y2, 0.5, 6, 0.35, PINK, 0.8);
+            addLight(evt.x, y1 + 1.5, evt.y, ELEC, 120, 0.3, 24);
+            addLight(evt.x2, y2 + 1.5, evt.y2, PINK, 150, 0.3, 24);
         }
         function hitFx(evt, race) {
-            const v = carOf(race, evt.car), h = (v ? v.z : 0) + 0.7, w = evt.weapon;
+            const v = carOf(race, evt.car), fl = v ? (v.roadZ || 0) : rzOf(race, evt.x, evt.y), h = (v ? carY(v) : fl) + 0.7, w = evt.weapon;
+            curFloor = fl;
             if (w === 'mg') {
                 for (let k = cnt(7); k > 0; k--) { const an = rnd() * TAU, sp = rr(5, 14); spark(evt.x, h, evt.y, Math.cos(an) * sp, rr(2, 8), Math.sin(an) * sp, rr(0.25, 0.5), 0.3, HOT, FIRE); }
                 glow(evt.x, h, evt.y, 0, 0, 0, 0.08, 1, 2.2, HOT, FIRE, 0.9);
             } else if (w === 'popcorn' || w === 'bubblegum') {
-                sparkle(evt.x, evt.y, w === 'popcorn' ? GOLD : PINK, 12);
+                sparkle(evt.x, evt.y, w === 'popcorn' ? GOLD : PINK, 12, fl);
                 ringBb(evt.x, h, evt.y, 0.6, 4.5, 0.25, w === 'popcorn' ? HOT : PINK, 0.7);
             } else if (w === 'ducks') {
-                creatureBurst(evt.x, evt.y, 'duck', true);
+                creatureBurst(evt.x, evt.y, 'duck', true, fl);
             } else if (w === 'glove') {
                 for (let k = cnt(8); k > 0; k--) { const an = rnd() * TAU; bit(F.STAR, evt.x, h, evt.y, Math.cos(an) * 5, rr(3, 8), Math.sin(an) * 5, 0.8, 0.7, GOLD, GOLD, 8, 0, 1.2, 1); }
                 ringBb(evt.x, h, evt.y, 0.8, 5, 0.3, WHITE, 0.8);
             } else if (w === 'harpoon') {
                 for (let k = cnt(10); k > 0; k--) { const an = rnd() * TAU, sp = rr(5, 12); spark(evt.x, h, evt.y, Math.cos(an) * sp, rr(2, 7), Math.sin(an) * sp, rr(0.3, 0.6), 0.32, WHITE, FIRE); }
             } else {
-                explode(evt.x, evt.y, h, evt.heavy ? 1.5 : 0.9);
+                explode(evt.x, evt.y, h, evt.heavy ? 1.5 : 0.9, fl);
             }
         }
-        function eliminated(evt) {
-            glow(evt.x, 1.5, evt.y, 0, 0, 0, 0.3, 2, 9, WHITE, GOLD, 0.9);
-            ringBb(evt.x, 1.5, evt.y, 1, 10, 0.5, GOLD, 0.8);
-            for (let k = cnt(22); k > 0; k--) { const an = rnd() * TAU, sp = rr(5, 16), c = PARTY[(Math.random() * PARTY.length) | 0]; bit(k % 3 ? F.STAR : F.CONFETTI, evt.x, 1.5, evt.y, Math.cos(an) * sp, rr(4, 14), Math.sin(an) * sp, rr(1.2, 2.2), rr(0.5, 0.9), c, c, 9, K_FLUTTER, 1.0, k % 3 ? 1 : 0); }
-            for (let k = cnt(8); k > 0; k--) { const an = rnd() * TAU, sp = rr(2, 6); puff(evt.x, 1.5, evt.y, Math.cos(an) * sp, rr(1, 4), Math.sin(an) * sp, rr(1, 1.8), 1.5, 4.5, WHITE, SMOKE1, 0.85, 1.6, -0.3); }
+        function eliminated(evt, y0) {
+            const fl = y0 || 0;
+            curFloor = fl;
+            glow(evt.x, fl + 1.5, evt.y, 0, 0, 0, 0.3, 2, 9, WHITE, GOLD, 0.9);
+            ringBb(evt.x, fl + 1.5, evt.y, 1, 10, 0.5, GOLD, 0.8);
+            for (let k = cnt(22); k > 0; k--) { const an = rnd() * TAU, sp = rr(5, 16), c = PARTY[(Math.random() * PARTY.length) | 0]; bit(k % 3 ? F.STAR : F.CONFETTI, evt.x, fl + 1.5, evt.y, Math.cos(an) * sp, rr(4, 14), Math.sin(an) * sp, rr(1.2, 2.2), rr(0.5, 0.9), c, c, 9, K_FLUTTER, 1.0, k % 3 ? 1 : 0); }
+            for (let k = cnt(8); k > 0; k--) { const an = rnd() * TAU, sp = rr(2, 6); puff(evt.x, fl + 1.5, evt.y, Math.cos(an) * sp, rr(1, 4), Math.sin(an) * sp, rr(1, 1.8), 1.5, 4.5, WHITE, SMOKE1, 0.85, 1.6, -0.3); }
         }
-        function frostBurst(evt) {
-            const r = evt.r || 8;
-            ring(evt.x, 0, evt.y, 1, r * 1.3, 0.5, ICE0, 0.8);
-            glow(evt.x, 0.8, evt.y, 0, 0, 0, 0.25, 2, r * 1.2, WHITE, ICE1, 0.8);
-            for (let k = cnt(24); k > 0; k--) { const an = rnd() * TAU, sp = rr(4, 14); bit(F.SHARD, evt.x, 0.6, evt.y, Math.cos(an) * sp, rr(4, 11), Math.sin(an) * sp, rr(0.9, 1.6), rr(0.25, 0.55), ICE0, ICE1, 20, K_BOUNCE, 0.3); }
-            for (let k = cnt(12); k > 0; k--) { const an = rnd() * TAU, sp = rr(1, 5); puff(evt.x + Math.cos(an) * 2, 0.5, evt.y + Math.sin(an) * 2, Math.cos(an) * sp, rr(0.5, 2), Math.sin(an) * sp, rr(1.4, 2.4), 1.5, 4.5, WHITE, ICE1, 0.6, 1.4, -0.2); }
-            for (let k = cnt(10); k > 0; k--) glow(evt.x + rr(-r, r) * 0.6, rr(0.5, 2.5), evt.y + rr(-r, r) * 0.6, 0, rr(0.5, 1.5), 0, rr(0.8, 1.4), 0.7, 0.1, WHITE, ICE0, 0.95, 0, F.STAR);
-            addLight(evt.x, 1.5, evt.y, ICE0, 90, 0.4, 20);
+        function frostBurst(evt, y0) {
+            const r = evt.r || 8, fl = y0 || 0;
+            curFloor = fl;
+            ring(evt.x, fl, evt.y, 1, r * 1.3, 0.5, ICE0, 0.8);
+            glow(evt.x, fl + 0.8, evt.y, 0, 0, 0, 0.25, 2, r * 1.2, WHITE, ICE1, 0.8);
+            for (let k = cnt(24); k > 0; k--) { const an = rnd() * TAU, sp = rr(4, 14); bit(F.SHARD, evt.x, fl + 0.6, evt.y, Math.cos(an) * sp, rr(4, 11), Math.sin(an) * sp, rr(0.9, 1.6), rr(0.25, 0.55), ICE0, ICE1, 20, K_BOUNCE, 0.3); }
+            for (let k = cnt(12); k > 0; k--) { const an = rnd() * TAU, sp = rr(1, 5); puff(evt.x + Math.cos(an) * 2, fl + 0.5, evt.y + Math.sin(an) * 2, Math.cos(an) * sp, rr(0.5, 2), Math.sin(an) * sp, rr(1.4, 2.4), 1.5, 4.5, WHITE, ICE1, 0.6, 1.4, -0.2); }
+            for (let k = cnt(10); k > 0; k--) glow(evt.x + rr(-r, r) * 0.6, fl + rr(0.5, 2.5), evt.y + rr(-r, r) * 0.6, 0, rr(0.5, 1.5), 0, rr(0.8, 1.4), 0.7, 0.1, WHITE, ICE0, 0.95, 0, F.STAR);
+            addLight(evt.x, fl + 1.5, evt.y, ICE0, 90, 0.4, 20);
         }
-        function sparkle(x, z, c, n) {
-            for (let k = cnt(n); k > 0; k--) { const an = rnd() * TAU, d = rr(0.4, 1.8); glow(x + Math.cos(an) * d, rr(0, 1), z + Math.sin(an) * d, 0, rr(2, 6), 0, rr(0.6, 1.1), rr(0.35, 0.7), 0.1, c, c, 0.95, 0.3, k % 2 ? F.STAR : F.GLOW); }
+        function sparkle(x, z, c, n, y0) {
+            const fl = y0 || 0;
+            curFloor = fl;
+            for (let k = cnt(n); k > 0; k--) { const an = rnd() * TAU, d = rr(0.4, 1.8); glow(x + Math.cos(an) * d, fl + rr(0, 1), z + Math.sin(an) * d, 0, rr(2, 6), 0, rr(0.6, 1.1), rr(0.35, 0.7), 0.1, c, c, 0.95, 0.3, k % 2 ? F.STAR : F.GLOW); }
         }
-        function blackHole(evt, close) {
-            const r = evt.r || 26;
+        function blackHole(evt, close, y0) {
+            const r = evt.r || 26, fl = y0 || 0;
+            curFloor = fl;
             if (close) {
-                glow(evt.x, 2, evt.y, 0, 0, 0, 0.3, 3, 16, WHITE, PURPLE, 1);
-                ring(evt.x, 0, evt.y, r, 1, 0.5, PURPLE, 0.8);
-                for (let k = cnt(30); k > 0; k--) { const an = rnd() * TAU, d = rr(0.4, 1) * r; glow(evt.x + Math.cos(an) * d, rr(0.3, 3), evt.y + Math.sin(an) * d, -Math.cos(an) * d * 2.2, 0, -Math.sin(an) * d * 2.2, 0.45, 0.9, 0.1, PURPLE, PINK, 0.9, 0); }
-                addLight(evt.x, 3, evt.y, PURPLE, 220, 0.4, 28);
+                glow(evt.x, fl + 2, evt.y, 0, 0, 0, 0.3, 3, 16, WHITE, PURPLE, 1);
+                ring(evt.x, fl, evt.y, r, 1, 0.5, PURPLE, 0.8);
+                for (let k = cnt(30); k > 0; k--) { const an = rnd() * TAU, d = rr(0.4, 1) * r; glow(evt.x + Math.cos(an) * d, fl + rr(0.3, 3), evt.y + Math.sin(an) * d, -Math.cos(an) * d * 2.2, 0, -Math.sin(an) * d * 2.2, 0.45, 0.9, 0.1, PURPLE, PINK, 0.9, 0); }
+                addLight(evt.x, fl + 3, evt.y, PURPLE, 220, 0.4, 28);
             } else {
-                glow(evt.x, 2, evt.y, 0, 0, 0, 0.4, 2, 16, WHITE, PURPLE, 0.9);
-                ring(evt.x, 0, evt.y, 1, r, 0.7, PURPLE, 0.8);
-                ringBb(evt.x, 2.5, evt.y, 2, r * 1.2, 0.6, PURPLE, 0.6);
+                glow(evt.x, fl + 2, evt.y, 0, 0, 0, 0.4, 2, 16, WHITE, PURPLE, 0.9);
+                ring(evt.x, fl, evt.y, 1, r, 0.7, PURPLE, 0.8);
+                ringBb(evt.x, fl + 2.5, evt.y, 2, r * 1.2, 0.6, PURPLE, 0.6);
             }
         }
 
@@ -505,14 +532,15 @@
             if (lvl <= 0 && !charging) { auraTarget = 0; return; }
             auraTarget = (reduced ? 0.5 : 1) * (lvl > 0 ? 1 : 0.4);
             auraSeen = time;
-            auraX = v.x; auraZ = v.y;
+            auraX = v.x; auraY = v.roadZ || 0; auraZ = v.y; auraPitch = v.pitch || 0; auraYaw = -v.psi;
             const c = lvl === 4 ? OVER_CORE : lvl > 0 ? TURBO[clamp(lvl - 1, 0, 2)] : TEAL;
             auraCT[0] = c[0]; auraCT[1] = c[1]; auraCT[2] = c[2];
             auraRT = (lvl === 4 ? 3.6 : lvl > 0 ? 3.1 + 0.35 * (lvl - 1) : 2.7) + 0.7 * Math.min(1, Math.abs(v.r) * 0.45);
             if (reduced) return;
+            curFloor = v.roadZ || 0;
             if (rnd() < 24 * dens * (0.4 + 0.6 * auraA)) {
                 const an = rnd() * TAU, d = auraRT * rr(0.5, 0.95);
-                glow(v.x + Math.cos(an) * d, rr(0.15, 0.9), v.y + Math.sin(an) * d, 0, rr(1.2, 3.4), 0,
+                glow(v.x + Math.cos(an) * d, curFloor + rr(0.15, 0.9), v.y + Math.sin(an) * d, 0, rr(1.2, 3.4), 0,
                     rr(0.45, 0.95), rr(0.28, 0.55), 0.08, c, c, 0.75, 0.4, rnd() < 0.4 ? F.STAR : F.DOT);
             }
         }
@@ -528,7 +556,9 @@
             for (let i = 0; i < 3; i++) auraC[i] += (auraCT[i] - auraC[i]) * k;
             if (!reduced) auraSpin += dt * (1.3 + 2.6 * auraA);
             auraGround.visible = true;
-            auraGround.position.set(auraX, 0.075, auraZ);
+            auraGround.position.set(auraX, auraY + 0.075, auraZ);
+            auraGround.rotation.order = 'YZX';
+            auraGround.rotation.set(0, auraYaw, auraPitch);
             auraGround.scale.set(auraR, 1, auraR);
             const g = auraMatG.uniforms;
             g.uAlpha.value = auraA * 1.05;
@@ -540,14 +570,15 @@
         /* ---- weather animations ------------------------------------------------------- */
         /* A gust crosses the view as one broad wave of the biome's own motes, lifting a few leaves. */
         function gustSweep(race) {
-            const p = race.cars && race.cars[0] ? race.cars[0].v : null;
-            if (reduced || !eyeSet) { if (p) sparkle(p.x, p.y, ICE1, 6); return; }
+            const p = race.cars && race.cars[0] ? race.cars[0].v : null, cy0 = p ? (p.roadZ || 0) : 0;
+            if (reduced || !eyeSet) { if (p) sparkle(p.x, p.y, ICE1, 6, cy0); return; }
+            curFloor = cy0;
             const m = MOTES[race.track.biomeId] || MOTES.alpine;
             const an = rnd() * TAU, dx = Math.cos(an), dz = Math.sin(an);
             const c0 = col(m[1], m[8] ? 1.5 : 1), c1 = col(m[2], m[8] ? 0.8 : 1);
             for (let k = cnt(54); k > 0; k--) {
                 const ahead = rr(-70, 16), side = rr(-46, 46);
-                spawn(m[0], m[8], eyeX + dx * ahead - dz * side, rr(0.4, 7), eyeZ + dz * ahead + dx * side,
+                spawn(m[0], m[8], eyeX + dx * ahead - dz * side, cy0 + rr(0.4, 7), eyeZ + dz * ahead + dx * side,
                     dx * rr(13, 24), rr(-0.6, 1.8), dz * rr(13, 24), rr(0.7, 1.5), m[6] * rr(0.7, 1.5), m[6] * 1.1,
                     c0, c1, m[8] ? 0.7 : 0.45, 0.3, 0, 0, 0, rr(-1, 1), 0);
             }
@@ -555,10 +586,10 @@
             const leaf = col(leafy ? '#d8c46a' : m[1], 1.1);
             for (let k = cnt(leafy ? 16 : 8); k > 0; k--) {
                 const ahead = rr(-40, 6), side = rr(-24, 24);
-                bit(leafy ? F.LEAF : F.DOT, eyeX + dx * ahead - dz * side, rr(0.3, 3), eyeZ + dz * ahead + dx * side,
+                bit(leafy ? F.LEAF : F.DOT, eyeX + dx * ahead - dz * side, cy0 + rr(0.3, 3), eyeZ + dz * ahead + dx * side,
                     dx * rr(10, 20), rr(0.5, 3), dz * rr(10, 20), rr(1.1, 2.0), rr(0.22, 0.4), leaf, leaf, 2.4, K_FLUTTER, 0.5, leafy ? 0 : 1, 0);
             }
-            if (p) ring(p.x, 0, p.y, 4, 26, 0.5, ICE1, 0.16);
+            if (p) ring(p.x, cy0, p.y, 4, 26, 0.5, ICE1, 0.16);
         }
 
         /* ---- event dispatch --------------------------------------------------------- */
@@ -567,13 +598,15 @@
             use(race);
             const v = evt.car !== undefined ? carOf(race, evt.car) : null;
             const ex = evt.x !== undefined ? evt.x : (v ? v.x : 0), ey = evt.y !== undefined ? evt.y : (v ? v.y : 0);
+            const eFloor = v && evt.x === undefined ? (v.roadZ || 0) : rzOf(race, ex, ey);
+            curFloor = eFloor;
             switch (evt.type) {
                 case 'weapon':
                     if (evt.id === 'popcorn' && v) {
                         const x = v.x + Math.cos(v.psi) * 2.5, z = v.y + Math.sin(v.psi) * 2.5;
                         for (let k = cnt(reduced ? 6 : 22); k > 0; k--) {
                             const a = v.psi + rr(-0.5, 0.5), speed = rr(13, 28);
-                            bit(F.PUFF, x, v.z + 1, z, Math.cos(a) * speed, rr(3, 8), Math.sin(a) * speed,
+                            bit(F.PUFF, x, carY(v) + 1, z, Math.cos(a) * speed, rr(3, 8), Math.sin(a) * speed,
                                 rr(0.4, 0.9), rr(0.35, 0.65), WHITE, GOLD, 13, K_BOUNCE, 0.4);
                         }
                     }
@@ -585,121 +618,126 @@
                 case 'turbo_burst': if (v) turboBurst(v, evt.level || 1, 0.8 + 0.3 * (evt.level || 1)); break;
                 case 'wall_hit': wallSparks(race, evt.x, evt.y, evt.speed || 20, evt.heavy, evt.car); break;
                 case 'car_hit':
-                    for (let k = cnt(evt.heavy ? 22 : 10); k > 0; k--) { const an = rnd() * TAU, sp = rr(4, 14); spark(evt.x, rr(0.3, 0.9), evt.y, Math.cos(an) * sp, rr(1, 6), Math.sin(an) * sp, rr(0.3, 0.7), 0.3, HOT, FIRE); }
-                    glow(evt.x, 0.7, evt.y, 0, 0, 0, 0.1, 1.2, 3, HOT, FIRE, 0.8);
+                    for (let k = cnt(evt.heavy ? 22 : 10); k > 0; k--) { const an = rnd() * TAU, sp = rr(4, 14); spark(evt.x, eFloor + rr(0.3, 0.9), evt.y, Math.cos(an) * sp, rr(1, 6), Math.sin(an) * sp, rr(0.3, 0.7), 0.3, HOT, FIRE); }
+                    glow(evt.x, eFloor + 0.7, evt.y, 0, 0, 0, 0.1, 1.2, 3, HOT, FIRE, 0.8);
                     break;
                 case 'slingshot': if (v) windStreaks(v, 18); break;
-                case 'takeoff': if (v) { dustRing(evt.x, evt.y, 8, 4, profOf(v), 2.4); windStreaks(v, 8); } break;
+                case 'takeoff': if (v) { dustRing(evt.x, evt.y, 8, 4, profOf(v), 2.4, eFloor); windStreaks(v, 8); } break;
                 case 'landing': landing(evt, race); break;
                 case 'boost_pad':
                     if (evt.superTurbo && v) {
                         if (!reduced) turboBurst(v, 2, 1.5);
-                        ring(evt.x, 0, evt.y, 1, 9, 0.45, GOLD, 0.85);
+                        ring(evt.x, eFloor, evt.y, 1, 9, 0.45, GOLD, 0.85);
                         break;
                     }
-                    glow(evt.x, 0.6, evt.y, 0, 0, 0, 0.25, 2, 7, WHITE, TURBO[0], 0.9);
-                    ring(evt.x, 0, evt.y, 0.5, 4.5, 0.4, TURBO[0], 0.7);
+                    glow(evt.x, eFloor + 0.6, evt.y, 0, 0, 0, 0.25, 2, 7, WHITE, TURBO[0], 0.9);
+                    ring(evt.x, eFloor, evt.y, 0.5, 4.5, 0.4, TURBO[0], 0.7);
                     if (v) windStreaks(v, 14);
-                    addLight(evt.x, 1.2, evt.y, TURBO[0], 70, 0.35, 18);
+                    addLight(evt.x, eFloor + 1.2, evt.y, TURBO[0], 70, 0.35, 18);
                     break;
-                case 'pickup': crateBurst(evt); break;
-                case 'gift': if (!reduced) confetti(evt.x, evt.y, race, false); sparkle(evt.x, evt.y, GOLD, reduced ? 5 : 14); break;
+                case 'pickup': crateBurst(evt, eFloor); break;
+                case 'gift': if (!reduced) confetti(evt.x, evt.y, race, false); sparkle(evt.x, evt.y, GOLD, reduced ? 5 : 14, eFloor); break;
                 case 'smash': smash(evt, race); break;
-                case 'animal_hit': creatureBurst(evt.x, evt.y, evt.kind, false); break;
-                case 'duck_hit': creatureBurst(evt.x, evt.y, 'duck', true); break;
+                case 'animal_hit': creatureBurst(evt.x, evt.y, evt.kind, false, eFloor); break;
+                case 'duck_hit': creatureBurst(evt.x, evt.y, 'duck', true, eFloor); break;
                 case 'finish': if (v) { const big = evt.car === 0; confetti(v.x, v.y, race, big); if (big) { later(0.5, () => confetti(v.x + Math.cos(v.psi) * 20, v.y + Math.sin(v.psi) * 20, race, true)); later(1.1, () => confetti(v.x + Math.cos(v.psi) * 40, v.y + Math.sin(v.psi) * 40, race, true)); } } break;
-                case 'respawn': ring(evt.x, 0, evt.y, 0.5, 4, 0.6, TEAL, 0.7); sparkle(evt.x, evt.y, TEAL, 22); break;
-                case 'ufo_abduct': ufos.push({ x: evt.x, z: evt.y, t0: time, dur: 5.5 }); break;
+                case 'respawn': ring(evt.x, eFloor, evt.y, 0.5, 4, 0.6, TEAL, 0.7); sparkle(evt.x, evt.y, TEAL, 22, eFloor); break;
+                case 'ufo_abduct': ufos.push({ x: evt.x, z: evt.y, y: eFloor, t0: time, dur: 5.5 }); break;
                 case 'hit': hitFx(evt, race); break;
                 case 'shield':
-                    ring(evt.x, 0, evt.y, 0.5, 4.5, 0.5, TEAL, 0.7); sparkle(evt.x, evt.y, TEAL, 12);
+                    ring(evt.x, eFloor, evt.y, 0.5, 4.5, 0.5, TEAL, 0.7); sparkle(evt.x, evt.y, TEAL, 12, eFloor);
                     break;
                 case 'shield_block':
-                    ringBb(evt.x, 1, evt.y, 1.5, evt.broken ? 9 : 6, 0.35, TEAL, 0.9);
-                    for (let k = cnt(evt.broken ? 18 : 8); k > 0; k--) { const an = rnd() * TAU, sp = rr(4, 11); if (evt.broken) bit(F.HEX, evt.x, 1, evt.y, Math.cos(an) * sp, rr(2, 7), Math.sin(an) * sp, 0.7, 0.7, TEAL, TEAL, 8, 0, 1.2, 1); else spark(evt.x, 1, evt.y, Math.cos(an) * sp, rr(1, 5), Math.sin(an) * sp, 0.35, 0.3, TEAL, TEAL); }
+                    ringBb(evt.x, eFloor + 1, evt.y, 1.5, evt.broken ? 9 : 6, 0.35, TEAL, 0.9);
+                    for (let k = cnt(evt.broken ? 18 : 8); k > 0; k--) { const an = rnd() * TAU, sp = rr(4, 11); if (evt.broken) bit(F.HEX, evt.x, eFloor + 1, evt.y, Math.cos(an) * sp, rr(2, 7), Math.sin(an) * sp, 0.7, 0.7, TEAL, TEAL, 8, 0, 1.2, 1); else spark(evt.x, eFloor + 1, evt.y, Math.cos(an) * sp, rr(1, 5), Math.sin(an) * sp, 0.35, 0.3, TEAL, TEAL); }
                     break;
-                case 'emp_charge': ringBb(evt.x, 1, evt.y, 9, 1, 0.28, ELEC, 0.8); break;
+                case 'emp_charge': ringBb(evt.x, eFloor + 1, evt.y, 9, 1, 0.28, ELEC, 0.8); break;
                 case 'emp_pulse': emp(evt, race); break;
                 case 'emp_hit':
-                    for (let k = cnt(9); k > 0; k--) { const an = rnd() * TAU, sp = rr(3, 9); spark(evt.x, 0.9, evt.y, Math.cos(an) * sp, rr(2, 6), Math.sin(an) * sp, rr(0.2, 0.45), 0.3, ELEC, ELEC); }
-                    glow(evt.x, 1, evt.y, 0, 0, 0, 0.2, 1.5, 3.5, ELEC, ELEC, 0.9, 0, F.BOLT);
+                    for (let k = cnt(9); k > 0; k--) { const an = rnd() * TAU, sp = rr(3, 9); spark(evt.x, eFloor + 0.9, evt.y, Math.cos(an) * sp, rr(2, 6), Math.sin(an) * sp, rr(0.2, 0.45), 0.3, ELEC, ELEC); }
+                    glow(evt.x, eFloor + 1, evt.y, 0, 0, 0, 0.2, 1.5, 3.5, ELEC, ELEC, 0.9, 0, F.BOLT);
                     break;
-                case 'rail_charge': glow(evt.x, 0.9, evt.y, 0, 0, 0, 0.35, 0.5, 2.4, ELEC, WHITE, 0.9); break;
-                case 'rail_fire': railFire(evt); break;
+                case 'rail_charge': glow(evt.x, eFloor + 0.9, evt.y, 0, 0, 0, 0.35, 0.5, 2.4, ELEC, WHITE, 0.9); break;
+                case 'rail_fire': railFire(evt, race); break;
                 case 'flame_hit': if (carOf(race, evt.car)) embers(carOf(race, evt.car), 10); break;
-                case 'toast': if (v) for (let k = cnt(10); k > 0; k--) puff(v.x + rr(-1, 1), v.z + 1, v.y + rr(-1, 1), rr(-1.5, 1.5), rr(2, 4), rr(-1.5, 1.5), rr(1.4, 2.4), 1.2, 4, SOOT0, SOOT1, 0.8, 0.8, -0.5); break;
-                case 'frost_throw': glow(evt.x, 1.2, evt.y, 0, 0, 0, 0.2, 0.8, 2.2, ICE0, ICE1, 0.8); break;
-                case 'frost_burst': frostBurst(evt); break;
+                case 'toast': if (v) for (let k = cnt(10); k > 0; k--) puff(v.x + rr(-1, 1), carY(v) + 1, v.y + rr(-1, 1), rr(-1.5, 1.5), rr(2, 4), rr(-1.5, 1.5), rr(1.4, 2.4), 1.2, 4, SOOT0, SOOT1, 0.8, 0.8, -0.5); break;
+                case 'frost_throw': glow(evt.x, eFloor + 1.2, evt.y, 0, 0, 0, 0.2, 0.8, 2.2, ICE0, ICE1, 0.8); break;
+                case 'frost_burst': frostBurst(evt, eFloor); break;
                 case 'horn':
-                    ring(evt.x, 0, evt.y, 1, evt.r || 20, 0.55, HOT, 0.7);
-                    if (v) { ringBb(evt.x + Math.cos(v.psi) * 2, 1, evt.y + Math.sin(v.psi) * 2, 1, 8, 0.4, WHITE, 0.7); dustRing(evt.x, evt.y, 14, 12, SURF.asphalt, 2.4); }
+                    ring(evt.x, eFloor, evt.y, 1, evt.r || 20, 0.55, HOT, 0.7);
+                    if (v) { ringBb(evt.x + Math.cos(v.psi) * 2, eFloor + 1, evt.y + Math.sin(v.psi) * 2, 1, 8, 0.4, WHITE, 0.7); dustRing(evt.x, evt.y, 14, 12, SURF.asphalt, 2.4, eFloor); }
                     break;
-                case 'hole_open': blackHole(evt, false); break;
-                case 'hole_close': blackHole(evt, true); break;
-                case 'disco_on': sparkle(evt.x, evt.y, PINK, 20); ring(evt.x, 0, evt.y, 1, evt.r || 22, 0.7, PINK, 0.6); break;
+                case 'hole_open': blackHole(evt, false, eFloor); break;
+                case 'hole_close': blackHole(evt, true, eFloor); break;
+                case 'disco_on': sparkle(evt.x, evt.y, PINK, 20, eFloor); ring(evt.x, eFloor, evt.y, 1, evt.r || 22, 0.7, PINK, 0.6); break;
                 case 'glove':
-                    if (evt.hit) { for (let k = cnt(9); k > 0; k--) { const an = rnd() * TAU; bit(F.STAR, evt.x, 1, evt.y, Math.cos(an) * 6, rr(3, 8), Math.sin(an) * 6, 0.8, 0.7, GOLD, GOLD, 8, 0, 1.2, 1); } ringBb(evt.x, 1, evt.y, 1, 6, 0.3, WHITE, 0.9); }
-                    else if (v) ringBb(v.x + Math.cos(v.psi) * 2.5, 1, v.y + Math.sin(v.psi) * 2.5, 2, 0.6, 0.18, WHITE, 0.7);
+                    if (evt.hit) { for (let k = cnt(9); k > 0; k--) { const an = rnd() * TAU; bit(F.STAR, evt.x, eFloor + 1, evt.y, Math.cos(an) * 6, rr(3, 8), Math.sin(an) * 6, 0.8, 0.7, GOLD, GOLD, 8, 0, 1.2, 1); } ringBb(evt.x, eFloor + 1, evt.y, 1, 6, 0.3, WHITE, 0.9); }
+                    else if (v) ringBb(v.x + Math.cos(v.psi) * 2.5, carY(v) + 1, v.y + Math.sin(v.psi) * 2.5, 2, 0.6, 0.18, WHITE, 0.7);
                     break;
-                case 'harpoon_break': { const t = carOf(race, evt.target); if (v && t) for (let k = cnt(12); k > 0; k--) { const an = rnd() * TAU, sp = rr(4, 10); spark((v.x + t.x) / 2, 0.9, (v.y + t.y) / 2, Math.cos(an) * sp, rr(1, 6), Math.sin(an) * sp, 0.4, 0.3, WHITE, FIRE); } break; }
+                case 'harpoon_break': { const t = carOf(race, evt.target); if (v && t) for (let k = cnt(12); k > 0; k--) { const an = rnd() * TAU, sp = rr(4, 10); spark((v.x + t.x) / 2, (carY(v) + carY(t)) * 0.5 + 0.9, (v.y + t.y) / 2, Math.cos(an) * sp, rr(1, 6), Math.sin(an) * sp, 0.4, 0.3, WHITE, FIRE); } break; }
                 case 'cow_land': {
                     const r = evt.r || 9;
-                    ring(evt.x, 0, evt.y, 1, r * 1.4, 0.55, WHITE, 0.6);
-                    dustRing(evt.x, evt.y, 22, 9, SURF.sand, 3.2);
-                    for (let k = cnt(14); k > 0; k--) { const an = rnd() * TAU, sp = rr(4, 12); bit(F.SHARD, evt.x, 0.5, evt.y, Math.cos(an) * sp, rr(5, 12), Math.sin(an) * sp, rr(0.9, 1.5), rr(0.3, 0.6), ROCK, ROCK, 22, K_BOUNCE, 0.2); }
-                    for (let k = cnt(8); k > 0; k--) { const an = rnd() * TAU; bit(F.STAR, evt.x, 1.5, evt.y, Math.cos(an) * 4, rr(5, 10), Math.sin(an) * 4, 0.9, 0.7, GOLD, GOLD, 8, 0, 1.2, 1); }
+                    ring(evt.x, eFloor, evt.y, 1, r * 1.4, 0.55, WHITE, 0.6);
+                    dustRing(evt.x, evt.y, 22, 9, SURF.sand, 3.2, eFloor);
+                    for (let k = cnt(14); k > 0; k--) { const an = rnd() * TAU, sp = rr(4, 12); bit(F.SHARD, evt.x, eFloor + 0.5, evt.y, Math.cos(an) * sp, rr(5, 12), Math.sin(an) * sp, rr(0.9, 1.5), rr(0.3, 0.6), ROCK, ROCK, 22, K_BOUNCE, 0.2); }
+                    for (let k = cnt(8); k > 0; k--) { const an = rnd() * TAU; bit(F.STAR, evt.x, eFloor + 1.5, evt.y, Math.cos(an) * 4, rr(5, 10), Math.sin(an) * 4, 0.9, 0.7, GOLD, GOLD, 8, 0, 1.2, 1); }
                     break;
                 }
                 case 'overdrive_on': if (v) turboBurst(v, 2, 1.1); break;
-                case 'eliminated': eliminated(evt); break;
+                case 'eliminated': eliminated(evt, eFloor); break;
                 case 'bomb_pass':
-                    for (let k = cnt(10); k > 0; k--) { const an = rnd() * TAU, sp = rr(3, 8); spark(evt.x, 1.5, evt.y, Math.cos(an) * sp, rr(2, 6), Math.sin(an) * sp, 0.4, 0.3, GOLD, FIRE); }
-                    ringBb(evt.x, 1.5, evt.y, 0.8, 5, 0.3, GOLD, 0.8);
+                    for (let k = cnt(10); k > 0; k--) { const an = rnd() * TAU, sp = rr(3, 8); spark(evt.x, eFloor + 1.5, evt.y, Math.cos(an) * sp, rr(2, 6), Math.sin(an) * sp, 0.4, 0.3, GOLD, FIRE); }
+                    ringBb(evt.x, eFloor + 1.5, evt.y, 0.8, 5, 0.3, GOLD, 0.8);
                     break;
-                case 'bomb_blast': explode(evt.x, evt.y, 0.8, clamp((evt.r || 8) / 6, 1, 2.2)); break;
-                case 'near_miss': if (v) windStreaks(v, 9); sparkle(ex, ey, WHITE, 6); break;
+                case 'bomb_blast': explode(evt.x, evt.y, eFloor + 0.8, clamp((evt.r || 8) / 6, 1, 2.2), eFloor); break;
+                case 'near_miss': if (v) windStreaks(v, 9); sparkle(ex, ey, WHITE, 6, eFloor); break;
                 case 'style_bank': {
                     for (let k = cnt(clamp((evt.multiplier || 1) * 4, 6, 34)); k > 0; k--) {
                         const an = rnd() * TAU, sp = rr(2, 9);
-                        bit(F.STAR, ex, rr(0.5, 2.2), ey, Math.cos(an) * sp, rr(3, 9), Math.sin(an) * sp, rr(0.6, 1.2), rr(0.35, 0.7), GOLD, PARTY[k % PARTY.length], 7, K_FLUTTER, 0.8, 1);
+                        bit(F.STAR, ex, eFloor + rr(0.5, 2.2), ey, Math.cos(an) * sp, rr(3, 9), Math.sin(an) * sp, rr(0.6, 1.2), rr(0.35, 0.7), GOLD, PARTY[k % PARTY.length], 7, K_FLUTTER, 0.8, 1);
                     }
-                    ringBb(ex, 1.2, ey, 0.8, 5, 0.35, GOLD, 0.6);
+                    ringBb(ex, eFloor + 1.2, ey, 0.8, 5, 0.35, GOLD, 0.6);
                     break;
                 }
-                case 'sector': ring(ex, 0, ey, 0.5, 5, 0.45, TEAL, 0.6); sparkle(ex, ey, TEAL, 10); break;
-                case 'cloak_on': ringBb(ex, 1.2, ey, 5, 0.8, 0.4, PURPLE, 0.7); sparkle(ex, ey, ELEC, 12); break;
-                case 'cloak_off': sparkle(ex, ey, PURPLE, 8); break;
-                case 'bomb_tick': if (v) ring(v.x, 0.4, v.y, 0.4, 3.2, 0.28, GOLD, 0.5); break;
-                case 'lightning': { const p = race.cars[0].v; sparkle(p.x, p.y, WHITE, 16); ringBb(p.x, 6, p.y, 2, 26, 0.45, ELEC, 0.45); break; }
+                case 'sector': ring(ex, eFloor, ey, 0.5, 5, 0.45, TEAL, 0.6); sparkle(ex, ey, TEAL, 10, eFloor); break;
+                case 'cloak_on': ringBb(ex, eFloor + 1.2, ey, 5, 0.8, 0.4, PURPLE, 0.7); sparkle(ex, ey, ELEC, 12, eFloor); break;
+                case 'cloak_off': sparkle(ex, ey, PURPLE, 8, eFloor); break;
+                case 'bomb_tick': if (v) ring(v.x, (v.roadZ || 0) + 0.4, v.y, 0.4, 3.2, 0.28, GOLD, 0.5); break;
+                case 'lightning': { const p = race.cars[0].v, py0 = p ? (p.roadZ || 0) : 0; sparkle(p.x, p.y, WHITE, 16, py0); ringBb(p.x, py0 + 6, p.y, 2, 26, 0.45, ELEC, 0.45); break; }
                 case 'gust': gustSweep(race); break;
-                case 'weather': { const p = race.cars[0].v; sparkle(p.x, p.y, ICE0, 10); break; }
+                case 'weather': { const p = race.cars[0].v; sparkle(p.x, p.y, ICE0, 10, p ? (p.roadZ || 0) : 0); break; }
                 default: break;
             }
         }
         function smokeBurst(v, n) {
-            const g = geoOf(v), prof = profOf(v), cp = Math.cos(v.psi), sp = Math.sin(v.psi);
+            const g = geoOf(v), prof = profOf(v), cp = Math.cos(v.psi), sp = Math.sin(v.psi), cy0 = v.roadZ || 0;
+            curFloor = cy0;
             for (const side of [-1, 1]) {
                 const x = v.x - cp * g[0] - sp * g[2] * side, z = v.y - sp * g[0] + cp * g[2] * side;
-                for (let k = cnt(n); k > 0; k--) puff(x + rr(-0.3, 0.3), 0.3, z + rr(-0.3, 0.3), -sp * side * rr(0.5, 3) - cp * rr(0, 3), rr(0.5, 1.8), cp * side * rr(0.5, 3) - sp * rr(0, 3), prof.life * rr(0.8, 1.2), prof.s0, prof.s1 * 1.1, prof.c0, prof.c1, prof.a, 1.5, -0.3);
+                for (let k = cnt(n); k > 0; k--) puff(x + rr(-0.3, 0.3), cy0 + 0.3, z + rr(-0.3, 0.3), -sp * side * rr(0.5, 3) - cp * rr(0, 3), rr(0.5, 1.8), cp * side * rr(0.5, 3) - sp * rr(0, 3), prof.life * rr(0.8, 1.2), prof.s0, prof.s1 * 1.1, prof.c0, prof.c1, prof.a, 1.5, -0.3);
             }
         }
         function driftFlare(v, level) {
-            const g = geoOf(v), c = TURBO[clamp(level - 1, 0, 2)], cp = Math.cos(v.psi), sp = Math.sin(v.psi);
+            const g = geoOf(v), c = TURBO[clamp(level - 1, 0, 2)], cp = Math.cos(v.psi), sp = Math.sin(v.psi), cy0 = v.roadZ || 0;
+            curFloor = cy0;
             for (const side of [-1, 1]) {
                 const x = v.x - cp * g[0] - sp * g[2] * side, z = v.y - sp * g[0] + cp * g[2] * side;
-                glow(x, 0.35, z, 0, 0, 0, 0.22, 1.2, 3.2, WHITE, c, 0.95);
-                for (let k = cnt(10); k > 0; k--) { const an = rnd() * TAU, s2 = rr(3, 9); spark(x, 0.3, z, Math.cos(an) * s2, rr(1, 5), Math.sin(an) * s2, rr(0.25, 0.5), 0.3, c, c); }
+                glow(x, cy0 + 0.35, z, 0, 0, 0, 0.22, 1.2, 3.2, WHITE, c, 0.95);
+                for (let k = cnt(10); k > 0; k--) { const an = rnd() * TAU, s2 = rr(3, 9); spark(x, cy0 + 0.3, z, Math.cos(an) * s2, rr(1, 5), Math.sin(an) * s2, rr(0.25, 0.5), 0.3, c, c); }
             }
         }
         function windStreaks(v, n) {
-            const cp = Math.cos(v.psi), sp = Math.sin(v.psi);
+            const cp = Math.cos(v.psi), sp = Math.sin(v.psi), cy = carY(v);
+            curFloor = v.roadZ || 0;
             for (let k = cnt(n); k > 0; k--) {
                 const side = rr(-2.6, 2.6), fwd = rr(-1, 4), sd = Math.abs(v.vx) * rr(0.5, 0.9);
-                spawn(F.STREAK, 1, v.x + cp * fwd - sp * side, v.z + rr(0.2, 1.8), v.y + sp * fwd + cp * side, -cp * sd, 0, -sp * sd, rr(0.25, 0.45), 2.2, 2.2, WHITE, WHITE, 0.5, 0.2, 0, 1.5, 0, 0, 0);
+                spawn(F.STREAK, 1, v.x + cp * fwd - sp * side, cy + rr(0.2, 1.8), v.y + sp * fwd + cp * side, -cp * sd, 0, -sp * sd, rr(0.25, 0.45), 2.2, 2.2, WHITE, WHITE, 0.5, 0.2, 0, 1.5, 0, 0, 0);
             }
         }
         function embers(v, n) {
-            for (let k = cnt(n); k > 0; k--) glow(v.x + rr(-1, 1), v.z + rr(0.3, 1.2), v.y + rr(-1, 1), rr(-2, 2), rr(1, 4), rr(-2, 2), rr(0.6, 1.2), 0.22, 0.05, FIRE, EMBER, 0.95, 0.4, F.DOT);
+            const cy = carY(v);
+            curFloor = v.roadZ || 0;
+            for (let k = cnt(n); k > 0; k--) glow(v.x + rr(-1, 1), cy + rr(0.3, 1.2), v.y + rr(-1, 1), rr(-2, 2), rr(1, 4), rr(-2, 2), rr(0.6, 1.2), 0.22, 0.05, FIRE, EMBER, 0.95, 0.4, F.DOT);
         }
 
         /* Camera-relative biome motes: one quiet layer of life in the air, never simulation state. */
@@ -712,19 +750,22 @@
             let n = Math.floor(moteAcc);
             moteAcc -= n;
             if (rnd() < moteAcc) { n++; moteAcc = 0; }
+            const eyeBase = rzOf(race, eyeX, eyeZ);
+            curFloor = eyeBase;
             for (; n > 0; n--) {
                 const a = rnd() * TAU, d = 12 + Math.sqrt(rnd()) * 62, c0 = col(m[1], m[8] ? 1.5 : 1), c1 = col(m[2], m[8] ? 0.8 : 1);
-                spawn(m[0], m[8], eyeX + Math.cos(a) * d, rr(0.3, 7), eyeZ + Math.sin(a) * d,
+                spawn(m[0], m[8], eyeX + Math.cos(a) * d, eyeBase + rr(0.3, 7), eyeZ + Math.sin(a) * d,
                     rr(-m[5], m[5]) + gust * 5, m[4] + rr(-0.25, 0.25), rr(-m[5], m[5]) + gust * 2, m[7] * rr(0.8, 1.2),
                     m[6], m[6] * 1.7, c0, c1, m[8] ? 0.55 : 0.35, 0.14, 0, 0, 0, rr(-1, 1), 0);
             }
             /* Headlamp-catching spray on a wet road; it fades as the surface dries. */
             const pv = race.cars && race.cars[0] ? race.cars[0].v : null;
             if (wet > 0.3 && pv && !pv.airborne && Math.abs(pv.vx) > 16 && rnd() < wet * dens * dt * 22) {
-                const cp = Math.cos(pv.psi), sp = Math.sin(pv.psi);
+                const cp = Math.cos(pv.psi), sp = Math.sin(pv.psi), py0 = pv.roadZ || 0;
+                curFloor = py0;
                 for (let k = 0; k < 2; k++) {
                     const side = k ? 1 : -1;
-                    spawn(F.DROP, 1, pv.x - cp * 1.6 - sp * side, 0.25, pv.y - sp * 1.6 + cp * side,
+                    spawn(F.DROP, 1, pv.x - cp * 1.6 - sp * side, py0 + 0.25, pv.y - sp * 1.6 + cp * side,
                         -cp * 5 + rr(-2, 2), rr(1, 3), -sp * 5 + rr(-2, 2), 0.5, 0.3, 0.9,
                         col('#bfe6ff', 1.2), col('#6fa8d8', 0.8), 0.5, 1.2, -3, 0, 0, 0, 0);
                 }
@@ -735,9 +776,11 @@
                 const x = eyeX + Math.cos(an) * d, z = eyeZ + Math.sin(an) * d;
                 const sm = AD.sampleTrack(race.track, x, z);
                 if (sm && Math.abs(sm.offset) < sm.halfWidth + 1.5) {
-                    ripple(x, z, rr(1.2, 3.2), rr(0.35, 0.6), col('#bfe6ff', 0.9), rr(0.16, 0.32));
+                    const rFloor = sm.z || 0;
+                    curFloor = rFloor;
+                    ripple(x, rFloor, z, rr(1.2, 3.2), rr(0.35, 0.6), col('#bfe6ff', 0.9), rr(0.16, 0.32), (sm.slope || 0) * sm.tx);
                     for (let k = N(6 * wet * dens); k > 0; k--) {
-                        bit(F.DROP, x, 0.08, z, rr(-0.7, 0.7), rr(1.4, 3.4), rr(-0.7, 0.7), rr(0.22, 0.38), rr(0.1, 0.2),
+                        bit(F.DROP, x, rFloor + 0.08, z, rr(-0.7, 0.7), rr(1.4, 3.4), rr(-0.7, 0.7), rr(0.22, 0.38), rr(0.1, 0.2),
                             col('#dceffc', 1.1), col('#8fc4e8', 0.8), 14, K_DIE, 0.2, 0, 0);
                     }
                 }
@@ -751,7 +794,8 @@
             const cs = carState(i), g = geoOf(v), prof = v.planing > 0.08 ? SURF.wet : profOf(v), surf = v.surface || 'asphalt';
             const cp = Math.cos(v.psi), sp = Math.sin(v.psi), rx = -sp, rz = cp, speed = Math.abs(v.vx);
             const wvx = cp * v.vx + rx * v.vy, wvz = sp * v.vx + rz * v.vy, w = i === 0 ? 1 : 0.45;
-            const gnd = !v.airborne;
+            const gnd = !v.airborne, cy0 = v.roadZ || 0, cy = cy0 + (v.z || 0);
+            curFloor = cy0;
             const slideK = gnd && speed > 7 ? clamp((v.slip - 2.2) / 7, 0, 1) : 0;
             const hb = gnd && v.handbrake && speed > 6 ? 0.65 : 0;
             const k = Math.max(slideK, hb);
@@ -759,12 +803,12 @@
             for (let n = 0; n < 2; n++) {
                 const side = n ? 1 : -1, st = n ? cs.wr : cs.wl;
                 const wx = v.x - cp * g[0] + rx * g[2] * side, wz = v.y - sp * g[0] + rz * g[2] * side;
-                if (Math.max(k, brakeK) > 0.12) skidAdd(st, wx, wz, 0.3, (SKID[surf] || SKID.asphalt));
+                if (Math.max(k, brakeK) > 0.12) skidAdd(st, wx, cy0 + 0.045, wz, 0.3, (SKID[surf] || SKID.asphalt));
                 else st.has = false;
                 if (!gnd) continue;
                 if (i === 0 && !reduced && AD.earnedDriftZone?.(car) > 1) {
                     for (let n = N(27 * dens * dt); n > 0; n--) {
-                        spark(wx, .18, wz, wvx * .45 + rx * side * 2, rr(1.2, 3.4), wvz * .45 + rz * side * 2,
+                        spark(wx, cy0 + .18, wz, wvx * .45 + rx * side * 2, rr(1.2, 3.4), wvz * .45 + rz * side * 2,
                             rr(.19, .32), .36, ICE0, PURPLE);
                     }
                 }
@@ -776,39 +820,39 @@
                 else if (prof.spray && speed > 14) rate = prof.rate * 0.5 * clamp(speed / 45, 0.3, 1);
                 rate *= dens * w * (1 + (v.planing || 0) * 1.5);
                 for (let c = N(rate * dt); c > 0; c--) {
-                    puff(wx + rr(-0.25, 0.25) - wvx * rr(0, dt), 0.4, wz + rr(-0.25, 0.25) - wvz * rr(0, dt), wvx * 0.3 + rx * side * rr(0, prof.sp) + rr(-0.6, 0.6), rr(0.3, 1) * prof.up, wvz * 0.3 + rz * side * rr(0, prof.sp) + rr(-0.6, 0.6),
+                    puff(wx + rr(-0.25, 0.25) - wvx * rr(0, dt), cy0 + 0.4, wz + rr(-0.25, 0.25) - wvz * rr(0, dt), wvx * 0.3 + rx * side * rr(0, prof.sp) + rr(-0.6, 0.6), rr(0.3, 1) * prof.up, wvz * 0.3 + rz * side * rr(0, prof.sp) + rr(-0.6, 0.6),
                         prof.life * rr(0.75, 1.25), prof.s0 * rr(0.8, 1.2), prof.s1 * rr(0.8, 1.2), prof.c0, prof.c1, prof.a * rr(0.8, 1), 1.3, -0.25 * prof.up);
                 }
                 const spray = (k > 0.2 || speed > 18) ? dens * w : 0;
-                if (spray && prof.stones) for (let c = N(55 * k * spray * dt); c > 0; c--) bit(F.SHARD, wx, 0.2, wz, -cp * speed * 0.2 + rx * side * rr(1, 6), rr(3, 7), -sp * speed * 0.2 + rz * side * rr(1, 6), rr(0.5, 0.9), rr(0.1, 0.2), ROCK, ROCK, 17, K_BOUNCE, 0.1);
-                if (spray && prof.clods) for (let c = N(40 * (k + 0.3) * spray * dt); c > 0; c--) bit(F.DROP, wx, 0.2, wz, -cp * speed * 0.25 + rx * side * rr(0, 4), rr(4, 9), -sp * speed * 0.25 + rz * side * rr(0, 4), rr(0.6, 1.0), rr(0.25, 0.45), prof.c0, prof.c1, 19, K_DIE, 0.1);
-                if (spray && prof.spray) for (let c = N(90 * (speed / 40) * spray * dt); c > 0; c--) spawn(F.DROP, 0, wx, 0.25, wz, -cp * speed * 0.3 + rx * side * rr(1, 5), rr(2, 6), -sp * speed * 0.3 + rz * side * rr(1, 5), rr(0.4, 0.8), 0.28, 0.12, WHITE, prof.c1, 0.55, 0.2, 14, 1.4, 0, 0, K_DIE);
-                if (spray && prof.powder) for (let c = N(30 * k * spray * dt); c > 0; c--) glow(wx, 0.5, wz, rr(-3, 3), rr(1, 4), rr(-3, 3), rr(0.5, 0.9), 0.14, 0.05, WHITE, ICE0, 0.95, 0.5, F.DOT);
+                if (spray && prof.stones) for (let c = N(55 * k * spray * dt); c > 0; c--) bit(F.SHARD, wx, cy0 + 0.2, wz, -cp * speed * 0.2 + rx * side * rr(1, 6), rr(3, 7), -sp * speed * 0.2 + rz * side * rr(1, 6), rr(0.5, 0.9), rr(0.1, 0.2), ROCK, ROCK, 17, K_BOUNCE, 0.1);
+                if (spray && prof.clods) for (let c = N(40 * (k + 0.3) * spray * dt); c > 0; c--) bit(F.DROP, wx, cy0 + 0.2, wz, -cp * speed * 0.25 + rx * side * rr(0, 4), rr(4, 9), -sp * speed * 0.25 + rz * side * rr(0, 4), rr(0.6, 1.0), rr(0.25, 0.45), prof.c0, prof.c1, 19, K_DIE, 0.1);
+                if (spray && prof.spray) for (let c = N(90 * (speed / 40) * spray * dt); c > 0; c--) spawn(F.DROP, 0, wx, cy0 + 0.25, wz, -cp * speed * 0.3 + rx * side * rr(1, 5), rr(2, 6), -sp * speed * 0.3 + rz * side * rr(1, 5), rr(0.4, 0.8), 0.28, 0.12, WHITE, prof.c1, 0.55, 0.2, 14, 1.4, 0, 0, K_DIE);
+                if (spray && prof.powder) for (let c = N(30 * k * spray * dt); c > 0; c--) glow(wx, cy0 + 0.5, wz, rr(-3, 3), rr(1, 4), rr(-3, 3), rr(0.5, 0.9), 0.14, 0.05, WHITE, ICE0, 0.95, 0.5, F.DOT);
                 /* Turbo sparks at the rear wheels, in the colour of the charge level. */
                 if (v.driftLevel > 0 && slideK > 0.08) {
                     const lv = clamp(v.driftLevel - 1, 0, 2);
                     for (let c = N((60 + 40 * lv) * dens * w * dt); c > 0; c--) {
                         const sd = rr(3, 9);
-                        spark(wx - wvx * rr(0, dt), rr(0.1, 0.35), wz - wvz * rr(0, dt), wvx * 0.6 - cp * sd * 0.7 + rx * side * rr(1, 6), rr(1, 5), wvz * 0.6 - sp * sd * 0.7 + rz * side * rr(1, 6), rr(0.22, 0.5), rr(0.28, 0.45), TURBO[lv], TURBO_SOFT[lv]);
+                        spark(wx - wvx * rr(0, dt), cy0 + rr(0.1, 0.35), wz - wvz * rr(0, dt), wvx * 0.6 - cp * sd * 0.7 + rx * side * rr(1, 6), rr(1, 5), wvz * 0.6 - sp * sd * 0.7 + rz * side * rr(1, 6), rr(0.22, 0.5), rr(0.28, 0.45), TURBO[lv], TURBO_SOFT[lv]);
                     }
-                    if (rnd() < 0.6) glow(wx, 0.3, wz, 0, 0, 0, 0.08, 0.9, 1.6, TURBO[lv], TURBO[lv], 0.55);
+                    if (rnd() < 0.6) glow(wx, cy0 + 0.3, wz, 0, 0, 0, 0.08, 0.9, 1.6, TURBO[lv], TURBO[lv], 0.55);
                 }
             }
             /* Hard braking from speed heats the discs: a small animated glow at the rear wheels. */
             if (brakeK > 0 && speed > 30 && !reduced) {
                 for (let c = N(16 * dens * w * dt); c > 0; c--) {
                     const side = rnd() < 0.5 ? -1 : 1;
-                    glow(v.x - cp * g[0] + rx * g[2] * side, v.z + 0.42, v.y - sp * g[0] + rz * g[2] * side,
+                    glow(v.x - cp * g[0] + rx * g[2] * side, cy + 0.42, v.y - sp * g[0] + rz * g[2] * side,
                         0, rr(0.2, 1.1), 0, rr(0.18, 0.36), rr(0.24, 0.4), 0.05, HOT, EMBER, 0.55 * brakeK, 0, F.DOT);
                 }
             }
-            if (i === 0 && v.driftLevel > 0 && slideK > 0.08 && gnd) addLight(v.x, 0.9, v.y, TURBO[clamp(v.driftLevel - 1, 0, 2)], 12, 1, 12, true);
+            if (i === 0 && v.driftLevel > 0 && slideK > 0.08 && gnd) addLight(v.x, cy + 0.9, v.y, TURBO[clamp(v.driftLevel - 1, 0, 2)], 12, 1, 12, true);
             /* Nitro, overdrive and pad/turbo boost: thick flames at the exhausts with a heat flicker. */
             if ((v.boost || v.overdrive > 0 || v.burst > 0) && speed > 6) {
                 const over = v.overdrive > 0, outer = over ? OVER_OUT : NITRO_OUT, core = over ? OVER_CORE : NITRO_CORE;
                 const flick = 0.75 + 0.25 * Math.sin(time * 52 + i * 3);
                 for (const side of [-0.5, 0.5]) {
-                    const ex = v.x - cp * g[1] + rx * g[2] * side, ez = v.y - sp * g[1] + rz * g[2] * side, h = v.z + 0.5;
+                    const ex = v.x - cp * g[1] + rx * g[2] * side, ez = v.y - sp * g[1] + rz * g[2] * side, h = cy + 0.5;
                     /* World-space blobs spawned along the car's path and carried with it, so the jet is one continuous, attached tongue. */
                     for (let c = N(150 * dens * w * dt * flick); c > 0; c--) {
                         const sd = rr(7, 13), bk = rr(0, dt);
@@ -817,47 +861,48 @@
                     for (let c = N(110 * dens * w * dt); c > 0; c--) { const bk = rr(0, dt); glow(ex - wvx * bk, h, ez - wvz * bk, wvx * 0.95 - cp * 5, 0, wvz * 0.95 - sp * 5, rr(0.1, 0.2), 0.9, 0.2, core, outer, 0.95 * flick, 0, F.FLAME); }
                     if (rnd() < 0.7 * dens * w) glow(ex - cp * 0.5, h, ez - sp * 0.5, wvx, 0, wvz, 0.07, 1.8, 3, core, core, 0.45 * flick);
                 }
-                if (i === 0) addLight(v.x - cp * (g[1] + 1.5), v.z + 0.8, v.y - sp * (g[1] + 1.5), outer, 22 + 12 * flick, 1, 14, true);
+                if (i === 0) addLight(v.x - cp * (g[1] + 1.5), cy + 0.8, v.y - sp * (g[1] + 1.5), outer, 22 + 12 * flick, 1, 14, true);
             }
             const pop = (v.gear !== cs.gear && cs.gear > 0 && speed > 14) || (cs.thr > 0.65 && v.throttle < 0.15 && v.rpm > 4800 && speed > 18);
             cs.gear = v.gear; cs.thr = v.throttle;
             if (pop && !(v.boost || v.overdrive > 0 || v.burst > 0)) {
                 for (const side of [-0.5, 0.5]) {
-                    const ex = v.x - cp * g[1] + rx * g[2] * side, ez = v.y - sp * g[1] + rz * g[2] * side, h = v.z + 0.5;
+                    const ex = v.x - cp * g[1] + rx * g[2] * side, ez = v.y - sp * g[1] + rz * g[2] * side, h = cy + 0.5;
                     glow(ex - cp * 0.35, h, ez - sp * 0.35, wvx * 0.8 - cp * 8, rr(0, 1.2), wvz * 0.8 - sp * 8, 0.14, 1.35, 0.25, HOT, FIRE, 0.92, 0.4, F.FLAME);
                     for (let c = 4; c > 0; c--) spark(ex, h, ez, wvx * 0.6 - cp * rr(6, 12) + rx * rr(-2, 2), rr(0.5, 3), wvz * 0.6 - sp * rr(6, 12) + rz * rr(-2, 2), rr(0.14, 0.28), 0.25, HOT, FIRE);
                 }
-                if (i === 0) addLight(v.x - cp * (g[1] + 1), v.z + 0.7, v.y - sp * (g[1] + 1), FIRE, 16, 1, 10, true);
+                if (i === 0) addLight(v.x - cp * (g[1] + 1), cy + 0.7, v.y - sp * (g[1] + 1), FIRE, 16, 1, 10, true);
             }
             if (speed > 46 && gnd && rnd() < 28 * dens * w * dt) {
                 for (const side of [-1, 1]) {
                     const wx = v.x - cp * (g[1] - 0.2) + rx * (g[2] + 0.15) * side, wz = v.y - sp * (g[1] - 0.2) + rz * (g[2] + 0.15) * side;
-                    glow(wx, v.z + 0.95, wz, wvx * 0.3 - cp * 6, 0.2, wvz * 0.3 - sp * 6, 0.16, 0.16, 2.2, WHITE, SMOKE0, 0.22 * clamp((speed - 46) / 24, 0, 1), 0, F.STREAK);
+                    glow(wx, cy + 0.95, wz, wvx * 0.3 - cp * 6, 0.2, wvz * 0.3 - sp * 6, 0.16, 0.16, 2.2, WHITE, SMOKE0, 0.22 * clamp((speed - 46) / 24, 0, 1), 0, F.STREAK);
                 }
             }
             /* Wall scrape sparks, damage smoke, soot, frost. */
             if (v.impact > 0.35 && speed > 8) {
                 const sm = AD.sampleTrack(race.track, v.x, v.y), sd = sm.offset >= 0 ? 1 : -1;
-                for (let c = N(70 * v.impact * dens * dt); c > 0; c--) spark(v.x - sm.nx * sd * 0.9, rr(0.15, 0.7), v.y - sm.ny * sd * 0.9, wvx * rr(0.2, 0.6) - sm.nx * sd * rr(2, 6), rr(1, 6), wvz * rr(0.2, 0.6) - sm.ny * sd * rr(2, 6), rr(0.25, 0.6), rr(0.25, 0.4), HOT, FIRE);
+                for (let c = N(70 * v.impact * dens * dt); c > 0; c--) spark(v.x - sm.nx * sd * 0.9, cy0 + rr(0.15, 0.7), v.y - sm.ny * sd * 0.9, wvx * rr(0.2, 0.6) - sm.nx * sd * rr(2, 6), rr(1, 6), wvz * rr(0.2, 0.6) - sm.ny * sd * rr(2, 6), rr(0.25, 0.6), rr(0.25, 0.4), HOT, FIRE);
             }
-            if (v.damage > 62 && speed > 4) for (let c = N(14 * dens * w * dt); c > 0; c--) puff(v.x + cp * g[0] * 0.7, v.z + 0.9, v.y + sp * g[0] * 0.7, rr(-0.5, 0.5) - cp * 3, rr(1, 2.5), rr(-0.5, 0.5) - sp * 3, rr(1, 1.8), 0.6, 2.2, SOOT0, SOOT1, 0.55, 1, -0.3);
-            if (v.toast > 0) for (let c = N(22 * dens * w * dt); c > 0; c--) puff(v.x + rr(-0.8, 0.8), v.z + 1.4, v.y + rr(-0.8, 0.8), rr(-0.8, 0.8) - cp * 2, rr(1.5, 3), rr(-0.8, 0.8) - sp * 2, rr(1.2, 2), 0.8, 2.8, SOOT0, SOOT1, 0.7, 1, -0.5);
-            if (v.frozen > 0) for (let c = N(24 * dt); c > 0; c--) glow(v.x + rr(-1.4, 1.4), v.z + rr(0.2, 1.4), v.y + rr(-1.4, 1.4), 0, rr(0.3, 1), 0, rr(0.5, 0.9), 0.5, 0.1, ICE0, WHITE, 0.95, 0, F.STAR);
+            if (v.damage > 62 && speed > 4) for (let c = N(14 * dens * w * dt); c > 0; c--) puff(v.x + cp * g[0] * 0.7, cy + 0.9, v.y + sp * g[0] * 0.7, rr(-0.5, 0.5) - cp * 3, rr(1, 2.5), rr(-0.5, 0.5) - sp * 3, rr(1, 1.8), 0.6, 2.2, SOOT0, SOOT1, 0.55, 1, -0.3);
+            if (v.toast > 0) for (let c = N(22 * dens * w * dt); c > 0; c--) puff(v.x + rr(-0.8, 0.8), cy + 1.4, v.y + rr(-0.8, 0.8), rr(-0.8, 0.8) - cp * 2, rr(1.5, 3), rr(-0.8, 0.8) - sp * 2, rr(1.2, 2), 0.8, 2.8, SOOT0, SOOT1, 0.7, 1, -0.5);
+            if (v.frozen > 0) for (let c = N(24 * dt); c > 0; c--) glow(v.x + rr(-1.4, 1.4), cy + rr(0.2, 1.4), v.y + rr(-1.4, 1.4), 0, rr(0.3, 1), 0, rr(0.5, 0.9), 0.5, 0.1, ICE0, WHITE, 0.95, 0, F.STAR);
             if (car.flame > 0) {
                 const nx = v.x + cp * (g[1] + 0.6), nz = v.y + sp * (g[1] + 0.6);
                 for (let c = N(340 * dens * dt); c > 0; c--) {   /* fan as wide as the 14 degree damage cone, rising: a jet from the chase seat, not an end-on blob */
                     const sd = rr(24, 36), bk = rr(0, dt), lat = rr(-0.26, 0.26) * sd;
-                    glow(nx - wvx * bk, v.z + 0.7, nz - wvz * bk, cp * sd + wvx * 0.5 + lat * rx, rr(0.5, 6.5), sp * sd + wvz * 0.5 + lat * rz, rr(0.35, 0.6), rr(0.5, 0.9), rr(2.2, 3.2), c % 5 ? FIRE : HOT, EMBER, 0.55, 1.2, F.FLAME);
+                    glow(nx - wvx * bk, cy + 0.7, nz - wvz * bk, cp * sd + wvx * 0.5 + lat * rx, rr(0.5, 6.5), sp * sd + wvz * 0.5 + lat * rz, rr(0.35, 0.6), rr(0.5, 0.9), rr(2.2, 3.2), c % 5 ? FIRE : HOT, EMBER, 0.55, 1.2, F.FLAME);
                 }
-                for (let c = N(30 * dens * dt); c > 0; c--) puff(nx + cp * rr(4, 12), v.z + 1.2, nz + sp * rr(4, 12), rr(-1, 1), rr(1, 3), rr(-1, 1), rr(0.9, 1.5), 1.2, 3.4, SOOT0, SOOT1, 0.5, 1, -0.4);
-                if (i === 0 || near(v.x, v.y, 80)) addLight(nx + cp * 5, v.z + 1, nz + sp * 5, FIRE, 40 + rnd() * 15, 1, 16, true);
+                for (let c = N(30 * dens * dt); c > 0; c--) puff(nx + cp * rr(4, 12), cy + 1.2, nz + sp * rr(4, 12), rr(-1, 1), rr(1, 3), rr(-1, 1), rr(0.9, 1.5), 1.2, 3.4, SOOT0, SOOT1, 0.5, 1, -0.4);
+                if (i === 0 || near(v.x, v.y, 80)) addLight(nx + cp * 5, cy + 1, nz + sp * 5, FIRE, 40 + rnd() * 15, 1, 16, true);
             }
             if (i === 0 && v.slipstream > 0.3 && speed > 38) windStreaks(v, N(20 * dt));
             else if (i === 0 && gnd && speed > 52 && rnd() < 12 * dens * dt) windStreaks(v, 1);
         }
         function projectileEmit(race, dt) {
             for (const p of race.projectiles) {
-                const cp = Math.cos(p.psi), sp = Math.sin(p.psi), h = (p.z || 0) + 0.8;
+                const cp = Math.cos(p.psi), sp = Math.sin(p.psi), fl = rzOf(race, p.x, p.y), h = fl + (p.z || 0) + 0.8;
+                curFloor = fl;
                 switch (p.type) {
                     case 'rocket': {
                         const tx = p.x - cp * 1.3, tz = p.y - sp * 1.3;
@@ -882,12 +927,12 @@
                         if (rnd() < 0.5) bit(F.STAR, p.x, h, p.y, rr(-2, 2), rr(0, 2), rr(-2, 2), 0.6, 0.45, GOLD, GOLD, 4, 0, 1, 1);
                         break;
                     case 'emp_charge':
-                        if (rnd() < 14 * dt) ringBb(p.x, 1, p.y, 8, 1.2, 0.22, ELEC, 0.7);
-                        for (let c = N(40 * dt); c > 0; c--) { const an = rnd() * TAU; glow(p.x + Math.cos(an) * 4, 1 + rr(-0.5, 1), p.y + Math.sin(an) * 4, -Math.cos(an) * 16, 0, -Math.sin(an) * 16, 0.22, 1.2, 0.6, ELEC, ELEC, 0.9, 0, F.BOLT); }
+                        if (rnd() < 14 * dt) ringBb(p.x, fl + 1, p.y, 8, 1.2, 0.22, ELEC, 0.7);
+                        for (let c = N(40 * dt); c > 0; c--) { const an = rnd() * TAU; glow(p.x + Math.cos(an) * 4, fl + 1 + rr(-0.5, 1), p.y + Math.sin(an) * 4, -Math.cos(an) * 16, 0, -Math.sin(an) * 16, 0.22, 1.2, 0.6, ELEC, ELEC, 0.9, 0, F.BOLT); }
                         break;
                     case 'rail_charge':
-                        for (let c = N(70 * dt); c > 0; c--) { const an = rnd() * TAU, d = rr(2, 4); glow(p.x + Math.cos(an) * d, 0.9 + rr(-1, 1), p.y + Math.sin(an) * d, -Math.cos(an) * d * 3.5, 0, -Math.sin(an) * d * 3.5, 0.28, 0.5, 0.1, PINK, ELEC, 0.9, 0); }
-                        glow(p.x, 0.9, p.y, 0, 0, 0, 0.05, 1.2 + (1 - Math.min(1, p.ttl / 0.35)) * 2, 1.4, WHITE, ELEC, 0.7);
+                        for (let c = N(70 * dt); c > 0; c--) { const an = rnd() * TAU, d = rr(2, 4); glow(p.x + Math.cos(an) * d, fl + 0.9 + rr(-1, 1), p.y + Math.sin(an) * d, -Math.cos(an) * d * 3.5, 0, -Math.sin(an) * d * 3.5, 0.28, 0.5, 0.1, PINK, ELEC, 0.9, 0); }
+                        glow(p.x, fl + 0.9, p.y, 0, 0, 0, 0.05, 1.2 + (1 - Math.min(1, p.ttl / 0.35)) * 2, 1.4, WHITE, ELEC, 0.7);
                         break;
                     default: break;
                 }
@@ -896,49 +941,56 @@
         function hazardEmit(race, dt) {
             for (const hz of race.hazards) {
                 if (!near(hz.x, hz.y, 260)) continue;
+                const fl = rzOf(race, hz.x, hz.y);
+                curFloor = fl;
                 if (hz.type === 'black_hole') {
                     const r = hz.r || 26;
                     for (let c = N(70 * dens * dt); c > 0; c--) {
                         const an = rnd() * TAU, d = r * rr(0.3, 1), tx = -Math.sin(an), tz = Math.cos(an), sd = rr(8, 16), inw = rr(5, 12);
                         const cc = rnd() < 0.5 ? PURPLE : PINK;
-                        glow(hz.x + Math.cos(an) * d, rr(0.2, 2.8), hz.y + Math.sin(an) * d, tx * sd - Math.cos(an) * inw, 0, tz * sd - Math.sin(an) * inw, rr(0.5, 0.9), rr(1.2, 2.2), 0.2, cc, BLACK, 0.9, 0.3);
+                        glow(hz.x + Math.cos(an) * d, fl + rr(0.2, 2.8), hz.y + Math.sin(an) * d, tx * sd - Math.cos(an) * inw, 0, tz * sd - Math.sin(an) * inw, rr(0.5, 0.9), rr(1.2, 2.2), 0.2, cc, BLACK, 0.9, 0.3);
                     }
-                    for (let c = N(9 * dt); c > 0; c--) spawn(F.PUFF, 0, hz.x + rr(-1, 1), 1.8, hz.y + rr(-1, 1), 0, 0, 0, 0.6, 7, 4, BLACK, BLACK, 0.55, 0, 0, 0, 0, rr(-1, 1), 0);
-                    addLight(hz.x, 3, hz.y, PURPLE, 40, 1, 24, true);
+                    for (let c = N(9 * dt); c > 0; c--) spawn(F.PUFF, 0, hz.x + rr(-1, 1), fl + 1.8, hz.y + rr(-1, 1), 0, 0, 0, 0.6, 7, 4, BLACK, BLACK, 0.55, 0, 0, 0, 0, rr(-1, 1), 0);
+                    addLight(hz.x, fl + 3, hz.y, PURPLE, 40, 1, 24, true);
                 } else if (hz.type === 'disco') {
-                    for (let c = N(22 * dt); c > 0; c--) { const an = rnd() * TAU, d = (hz.r || 22) * Math.sqrt(rnd()), cc = PARTY[(Math.random() * PARTY.length) | 0]; glow(hz.x + Math.cos(an) * d, rr(1.5, 8), hz.y + Math.sin(an) * d, rr(-1, 1), rr(-1, 1), rr(-1, 1), rr(0.6, 1.2), 0.8, 0.1, cc, cc, 0.95, 0.3, F.STAR); }
+                    for (let c = N(22 * dt); c > 0; c--) { const an = rnd() * TAU, d = (hz.r || 22) * Math.sqrt(rnd()), cc = PARTY[(Math.random() * PARTY.length) | 0]; glow(hz.x + Math.cos(an) * d, fl + rr(1.5, 8), hz.y + Math.sin(an) * d, rr(-1, 1), rr(-1, 1), rr(-1, 1), rr(0.6, 1.2), 0.8, 0.1, cc, cc, 0.95, 0.3, F.STAR); }
                 } else if (hz.type === 'ice') {
-                    for (let c = N(5 * dt); c > 0; c--) { const an = rnd() * TAU, d = (hz.r || 8) * Math.sqrt(rnd()); glow(hz.x + Math.cos(an) * d, 0.3, hz.y + Math.sin(an) * d, 0, rr(0.3, 1), 0, rr(0.6, 1.2), 0.45, 0.1, ICE0, WHITE, 0.9, 0, F.STAR); }
+                    for (let c = N(5 * dt); c > 0; c--) { const an = rnd() * TAU, d = (hz.r || 8) * Math.sqrt(rnd()); glow(hz.x + Math.cos(an) * d, fl + 0.3, hz.y + Math.sin(an) * d, 0, rr(0.3, 1), 0, rr(0.6, 1.2), 0.45, 0.1, ICE0, WHITE, 0.9, 0, F.STAR); }
                 }
             }
         }
         function beamsEmit(race) {
             beamN = 0;
             for (const b of race.beams) {
-                if (b.type === 'rail') beam(0, b.x, 0.9, b.y, b.x2, 0.9, b.y2, 0.45, 0.45, ELEC, clamp(b.ttl / 0.25, 0, 1));
-                else if (b.type === 'rail_aim') beam(0, b.x, 0.9, b.y, b.x2, 0.9, b.y2, 0.06, 0.06, RAIL_AIM, 0.6 + 0.4 * Math.sin(time * 50));
-                else if (b.type === 'tether') {
+                if (b.type === 'rail') {
+                    const y1 = rzOf(race, b.x, b.y), y2 = rzOf(race, b.x2, b.y2);
+                    beam(0, b.x, y1 + 0.9, b.y, b.x2, y2 + 0.9, b.y2, 0.45, 0.45, ELEC, clamp(b.ttl / 0.25, 0, 1));
+                } else if (b.type === 'rail_aim') {
+                    const y1 = rzOf(race, b.x, b.y), y2 = rzOf(race, b.x2, b.y2);
+                    beam(0, b.x, y1 + 0.9, b.y, b.x2, y2 + 0.9, b.y2, 0.06, 0.06, RAIL_AIM, 0.6 + 0.4 * Math.sin(time * 50));
+                } else if (b.type === 'tether') {
                     const a = carOf(race, b.a), c = carOf(race, b.b);
-                    if (a && c) beam(1, a.x, a.z + 0.9, a.y, c.x, c.z + 0.9, c.y, 0.12, 0.12, ROPE, 0.95);
+                    if (a && c) beam(1, a.x, carY(a) + 0.9, a.y, c.x, carY(c) + 0.9, c.y, 0.12, 0.12, ROPE, 0.95);
                 } else if (b.type === 'flame') {
                     const v = carOf(race, b.car);
                     if (v) {
-                        const g = geoOf(v), cp = Math.cos(v.psi), sp = Math.sin(v.psi);
-                        for (let f = 1; f <= 2; f++) beam(3, v.x + cp * g[1], v.z + 0.7, v.y + sp * g[1], v.x + cp * (g[1] + 14), v.z + 0.7, v.y + sp * (g[1] + 14), 0.2, 2.4, WHITE, 0.6, f);
+                        const g = geoOf(v), cp = Math.cos(v.psi), sp = Math.sin(v.psi), vy = carY(v);
+                        for (let f = 1; f <= 2; f++) beam(3, v.x + cp * g[1], vy + 0.7, v.y + sp * g[1], v.x + cp * (g[1] + 14), vy + 0.7, v.y + sp * (g[1] + 14), 0.2, 2.4, WHITE, 0.6, f);
                     }
                 }
             }
             for (const p of race.projectiles) {
                 if (p.type !== 'harpoon') continue;
                 const o = carOf(race, p.owner);
-                if (o) beam(1, o.x + Math.cos(o.psi) * 2, o.z + 0.9, o.y + Math.sin(o.psi) * 2, p.x, (p.z || 0) + 0.9, p.y, 0.1, 0.1, ROPE, 0.9);
+                if (o) beam(1, o.x + Math.cos(o.psi) * 2, carY(o) + 0.9, o.y + Math.sin(o.psi) * 2, p.x, rzOf(race, p.x, p.y) + (p.z || 0) + 0.9, p.y, 0.1, 0.1, ROPE, 0.9);
             }
             for (let i = ufos.length - 1; i >= 0; i--) {
-                const u = ufos[i], age = time - u.t0;
+                const u = ufos[i], age = time - u.t0, uy = u.y || 0;
                 if (age > u.dur) { ufos.splice(i, 1); continue; }
                 const f = Math.min(1, age / 0.6) * Math.min(1, (u.dur - age) / 0.8);
-                beam(2, u.x, 54, u.z, u.x, 0, u.z, 4, 26, UFO0, 1.0 * f);
-                if (rnd() < 0.7 && near(u.x, u.z, 700)) glow(u.x + rr(-4, 4), 0.3, u.z + rr(-4, 4), 0, rr(4, 9), 0, rr(1, 2), 0.7, 0.2, UFO1, WHITE, 0.8, 0.2);
+                beam(2, u.x, uy + 54, u.z, u.x, uy, u.z, 4, 26, UFO0, 1.0 * f);
+                curFloor = uy;
+                if (rnd() < 0.7 && near(u.x, u.z, 700)) glow(u.x + rr(-4, 4), uy + 0.3, u.z + rr(-4, 4), 0, rr(4, 9), 0, rr(1, 2), 0.7, 0.2, UFO1, WHITE, 0.8, 0.2);
             }
             for (let i = beamN; i < beams.length; i++) beams[i].mesh.visible = false;
         }
@@ -955,16 +1007,16 @@
                 const age = S.age[i] + dt;
                 if (age >= life) { S.life[i] = 0; continue; }
                 S.age[i] = age;
-                const fl = S.fl[i], kind = fl >> 1;
+                const fl = S.fl[i], kind = fl >> 1, ground = S.floor[i] + 0.03;
                 let x = S.x[i], y = S.y[i], z = S.z[i], vx = S.vx[i], vy = S.vy[i], vz = S.vz[i];
                 if (dt > 0) {
                     const dr = Math.exp(-S.drag[i] * dt);
                     vx *= dr; vy = vy * dr - S.grav[i] * dt; vz *= dr;
                     if (kind === K_FLUTTER) { vx += Math.sin(age * 6 + i) * 5 * dt; vz += Math.cos(age * 5.3 + i * 1.7) * 5 * dt; }
                     x += vx * dt; y += vy * dt; z += vz * dt;
-                    if (y < 0.03) {
+                    if (y < ground) {
                         if (kind === K_DIE) { S.life[i] = 0; continue; }
-                        if (kind === K_BOUNCE && vy < 0) { y = 0.03; vy *= -0.4; vx *= 0.72; vz *= 0.72; } else if (vy < 0) { y = 0.03; vy = 0; vx *= 0.92; vz *= 0.92; }
+                        if (kind === K_BOUNCE && vy < 0) { y = ground; vy *= -0.4; vx *= 0.72; vz *= 0.72; } else if (vy < 0) { y = ground; vy = 0; vx *= 0.92; vz *= 0.92; }
                     }
                     S.x[i] = x; S.y[i] = y; S.z[i] = z; S.vx[i] = vx; S.vy[i] = vy; S.vz[i] = vz;
                     S.rot[i] += S.spin[i] * dt;

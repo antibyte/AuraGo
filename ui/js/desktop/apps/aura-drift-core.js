@@ -297,9 +297,9 @@
        The old key is removed (no migration) unless the desktop is readonly. */
     AD.BEST_KEY = 'aurago.desktop.aura-drift.best.v2';
     AD.OLD_BEST_KEY = 'aurago.desktop.aura-drift.best.v1';
-    /* v3 was the linear 0.50 rad lock; v4 adds the progressive steering map and
-       the wider lock, so tapes recorded against the old response cannot replay. */
-    AD.GHOST_HANDLING = 4;
+    /* v3 was the linear 0.50 rad lock; v4 added progressive steering; v5 adds
+       hilly track elevation and steep-crest jumps, so older ghosts cannot replay. */
+    AD.GHOST_HANDLING = 5;
     const FINISHES_KEY = 'aurago.desktop.aura-drift.finishes.v1';
     AD.readFinishes = function () {
         try {

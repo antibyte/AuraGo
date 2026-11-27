@@ -195,7 +195,7 @@
                     w.spin = (w.spin || 0) + st.wheelSpeed / (w.radius * rig.scale) * dt;
                 }
             }
-            group.position.set(v.x, v.z + rig.cy * rig.scale + st.dip * st.gw, v.y);
+            group.position.set(v.x, (v.roadZ || 0) + v.z + rig.cy * rig.scale + st.dip * st.gw, v.y);
             group.rotation.set(v.roll + st.roll * st.gw, -v.psi, v.pitch + st.pitch * st.gw);
             for (const w of wheels) {
                 w.node.rotation.y = w.front ? -v.steer : 0;
@@ -556,32 +556,35 @@
             const byKind = {};
             for (const d of fs.destructibles || []) (byKind[d.kind] = byKind[d.kind] || []).push(d);
             for (const kind of Object.keys(byKind)) f.destr[kind] = add(byKind[kind], DESTRUCT_PIECE[kind], trk, null, 'solid');
-            const fit = (m, inst, x, y, psi, len, wid, hgt, centred, lift) => {
+            const roadZAt = (x, y) => race && race.track && race.track.maxZ && AD.roadHeight ? AD.roadHeight(race.track, x, y) : 0;
+            const fit = (m, inst, x, y, psi, len, wid, hgt, centred, lift, roadZ, slope) => {
                 const b = inst.box, sx = len / (b.max.x - b.min.x || 1), sz = wid / (b.max.z - b.min.z || 1), sy = hgt ? hgt / (b.max.y - b.min.y || 1) : 1;
-                tmp.p.set(x, lift || 0, y); tmp.e.set(0, -psi, 0); tmp.q.setFromEuler(tmp.e); tmp.s.set(sx, sy, sz);
+                tmp.p.set(x, (roadZ || 0) + (lift || 0), y); tmp.e.order = 'YZX'; tmp.e.set(0, -psi, Math.atan(slope || 0)); tmp.q.setFromEuler(tmp.e); tmp.s.set(sx, sy, sz);
                 m.compose(tmp.p, tmp.q, tmp.s);
                 tmp.m2.makeTranslation(-(centred ? (b.min.x + b.max.x) / 2 : b.min.x), 0, -(b.min.z + b.max.z) / 2);
                 m.multiply(tmp.m2);
             };
-            if (f.ramps) { fs.ramps.forEach((r, i) => { fit(tmp.m, f.ramps, r.x, r.y, r.psi, r.length, r.width, r.height, false); f.ramps.set(i, tmp.m); }); f.ramps.flush(); }
+            if (f.ramps) { fs.ramps.forEach((r, i) => { const pt = AD.pointAt(race.track, r.s); fit(tmp.m, f.ramps, r.x, r.y, r.psi, r.length, r.width, r.height, false, 0, pt.z, pt.slope); f.ramps.set(i, tmp.m); }); f.ramps.flush(); }
             for (const inst of [f.pads, superPads]) {
                 if (!inst) continue;
-                inst.list.forEach((p, i) => { fit(tmp.m, inst, p.x, p.y, p.psi, p.length, p.width, 0, true, 0.06); inst.set(i, tmp.m); });
+                inst.list.forEach((p, i) => { const pt = AD.pointAt(race.track, p.s); fit(tmp.m, inst, p.x, p.y, p.psi, p.length, p.width, 0, true, 0.06, pt.z, pt.slope); inst.set(i, tmp.m); });
                 inst.flush();
             }
             if (f.bars) {
                 bars.forEach((c, i) => {
                     const p = AD.pointAt(race.track, c.barsS);
-                    fit(tmp.m, f.bars, p.x, p.y, Math.atan2(p.ty, p.tx), 8.3, Math.max(8, (p.halfWidth || 7) * 1.9), 0, true, 0.03);
+                    fit(tmp.m, f.bars, p.x, p.y, Math.atan2(p.ty, p.tx), 8.3, Math.max(8, (p.halfWidth || 7) * 1.9), 0, true, 0.03, p.z, p.slope);
                     f.bars.set(i, tmp.m);
                 });
                 f.bars.flush();
             }
+            void roadZAt;
             (fs.animals || []).forEach((a, i) => { f.animals.push(animalMaker(a.kind, i)()); });
             feat = f;
             standIns = AD.assets.stats().standIns;
         }
 
+        const rzOf = (r, x, y) => r && r.track && r.track.maxZ && AD.roadHeight ? AD.roadHeight(r.track, x, y) : 0;
         function drawFeatures(r, dt) {
             const f = feat, fs = r.features;
             if (!f || !fs) return;
@@ -594,7 +597,7 @@
                     tmp.e.set(0, (reduced ? 0 : time * 1.4) + c.id, 0);
                     tmp.q.setFromEuler(tmp.e);
                     const bob = reduced ? 0 : Math.sin(time * 2.2 + i * 1.7) * 0.18;
-                    tmp.p.set(c.x, 0.9 + bob, c.y);
+                    tmp.p.set(c.x, rzOf(r, c.x, c.y) + 0.9 + bob, c.y);
                     const sc = Math.max(pop, 0.0001) * 1.1 * (1 + (reduced ? 0 : 0.07 * Math.sin(time * 6 + i)));
                     tmp.s.set(sc, sc, sc);
                     m.compose(tmp.p, tmp.q, tmp.s);
@@ -615,7 +618,7 @@
                     tmp.a.set(fly ? (d.y - d.hy) / dl : 0, 0, fly ? -(d.x - d.hx) / dl : 1);
                     tmp.q.setFromAxisAngle(tmp.a, !fly ? 0 : d.z > 0.02 ? d.spin * (r.time - d.t) : (d.id % 2 ? 1 : -1) * 1.5);
                     tmp.v.set(0, half, 0).applyQuaternion(tmp.q);
-                    tmp.p.set(d.x - tmp.v.x, d.z + half - tmp.v.y, d.y - tmp.v.z);
+                    tmp.p.set(d.x - tmp.v.x, rzOf(r, d.x, d.y) + d.z + half - tmp.v.y, d.y - tmp.v.z);
                     tmp.s.set(1, 1, 1);
                     m.compose(tmp.p, tmp.q, tmp.s);
                     inst.set(i, m);
@@ -631,7 +634,7 @@
                 const far = near.findIndex(e => e.i === i) >= cap || near.find(e => e.i === i).d > (gl.casters === 2 ? 420 : 190);
                 rig.group.visible = !far;
                 if (far) continue;
-                rig.group.position.set(a.x, a.z || 0, a.y);
+                rig.group.position.set(a.x, rzOf(r, a.x, a.y) + (a.z || 0), a.y);
                 rig.group.rotation.y = -a.psi;
                 const mode = a.state === 'flying' ? 'fly' : a.state === 'trot' ? 'trot' : a.state === 'walk' ? 'walk' : 'idle';
                 animate(rig, mode, dt);
@@ -643,26 +646,34 @@
         /* ---- hazards, projectiles, tethers ------------------------------------------------------ */
         const POOLS = ['oil', 'ice', 'mine', 'hole', 'disco', 'shadow', 'rocket', 'bratwurst', 'duck', 'grenade', 'discoShot',
             'harpoon', 'glove', 'holeShot', 'cowA', 'cowB'];
-        const place = (o, x, y, z, psi) => { o.group.position.set(x, y, z); o.group.rotation.y = -(psi || 0); };
+        const place = (o, x, y, z, psi, slope) => {
+            o.group.position.set(x, y, z);
+            o.group.rotation.order = 'YZX';
+            o.group.rotation.set(0, -(psi || 0), slope ? Math.atan(slope) : 0);
+        };
         const hsl = (mat, h, s, l) => { mat.color.setHSL(((h % 1) + 1) % 1, s, l); };
 
         function drawHazards(r) {
+            const tr = r.track, hills = tr && tr.maxZ;
             for (const h of r.hazards) {
                 if (Math.abs(h.x - viewer.x) > 520 || Math.abs(h.y - viewer.y) > 520) continue;
+                const sm = hills ? AD.sampleTrack(tr, h.x, h.y) : null, hz0 = sm ? (sm.z || 0) : 0;
                 const grow = ease(clamp((h.age || 0) / 0.3, 0, 1)), fade = clamp(h.ttl / 0.5, 0, 1);
                 if (h.type === 'oil') {
-                    const o = get('oil').next(), s = h.r * grow;
-                    place(o, h.x, 0.05, h.y, h.x * 0.37);
+                    const o = get('oil').next(), s = h.r * grow, ang = h.x * 0.37;
+                    const sl = sm ? (sm.slope || 0) * (Math.cos(ang) * sm.tx + Math.sin(ang) * sm.ty) : 0;
+                    place(o, h.x, hz0 + 0.05, h.y, ang, sl);
                     o.group.scale.set(s, 1, s * 0.88);
                     o.body.material.opacity = 0.9 * fade; o.sheen.material.opacity = 0.3 * fade;
                 } else if (h.type === 'bubblegum') {
                     const o = get('bubblegum').next();
-                    place(o, h.x, 0.08, h.y, h.x);
+                    place(o, h.x, hz0 + 0.08, h.y, h.x);
                     o.group.scale.setScalar(h.r * grow * fade);
                     o.bubble.scale.y = 0.55 + (reduced ? 0 : 0.12 * Math.sin(time * 5));
                 } else if (h.type === 'ice') {
                     const o = get('ice').next(), s = h.r * grow, k = grow * fade + 0.001;
-                    place(o, h.x, 0.05, h.y, 0);
+                    const sl = sm ? (sm.slope || 0) * sm.tx : 0;
+                    place(o, h.x, hz0 + 0.05, h.y, 0, sl);
                     o.disc.scale.set(s, 1, s); o.disc.material.opacity = 0.8 * fade;
                     o.crystals.forEach((c, i) => {
                         const a = i * 2.4 + 0.5, d = (0.18 + 0.7 * ((i * 37 % 9) / 9)) * s * 0.8;
@@ -670,20 +681,20 @@
                     });
                 } else if (h.type === 'gnome_mine') {
                     const o = get('mine').next(), armed = !(h.arm > 0), drop = clamp((h.age || 0) / 0.3, 0, 1);
-                    place(o, h.x, (1 - drop * drop) * 3.2, h.y, h.x * 0.9);
+                    place(o, h.x, hz0 + (1 - drop * drop) * 3.2, h.y, h.x * 0.9);
                     o.group.scale.setScalar(1.8 * (armed || reduced ? 1 : 1 + 0.06 * Math.sin(time * 8)) * fade);
                     o.spin.rotation.z = reduced ? 0 : Math.sin(time * 4 + h.x) * 0.07;
                     o.spin.scale.y = 1 + (armed && !reduced ? 0.05 * Math.sin(time * 10) : 0);
                     if (o.mats.glow_red) o.mats.glow_red.emissiveIntensity = armed ? (Math.sin(time * 9 + h.y) > 0 ? 3.4 : 0.6) : 0.3 + 0.5 * Math.pow(Math.sin(time * 5), 2);
                 } else if (h.type === 'black_hole') {
                     const o = get('hole').next(), g = Math.max(0.01, ease(clamp((h.age || 0) / 0.4, 0, 1)) * fade);
-                    place(o, h.x, 0, h.y, 0);
+                    place(o, h.x, hz0, h.y, 0);
                     o.group.scale.setScalar(g);
                     o.a.rotation = -time * 2.6; o.b.rotation = time * 1.5;
                     o.core.scale.setScalar(2.6 * (1 + (reduced ? 0 : 0.05 * Math.sin(time * 9))));
                 } else if (h.type === 'disco') {
                     const o = get('disco').next(), g = ease(clamp((h.age || 0) / 0.3, 0, 1)) * fade, hz = h.z || 6;
-                    place(o, h.x, 0, h.y, 0);
+                    place(o, h.x, hz0, h.y, 0);
                     o.ball.group.position.y = hz;
                     o.ball.group.scale.setScalar(2.6 * Math.max(g, 0.01));
                     o.ball.spin.rotation.y = time * 2.2;
@@ -699,7 +710,8 @@
                     });
                 } else if (h.type === 'cow_shadow') {
                     const o = get('shadow').next(), k = 1 - clamp((h.land || 0) / 1.4, 0, 1), disc = h.r * (0.35 + 0.65 * k), ring = h.r * (1.5 - 0.5 * k);
-                    place(o, h.x, 0.06, h.y, 0);
+                    const sl = sm ? (sm.slope || 0) * sm.tx : 0;
+                    place(o, h.x, hz0 + 0.06, h.y, 0, sl);
                     o.disc.scale.set(disc, 1, disc); o.disc.material.opacity = 0.12 + 0.5 * k;
                     o.ring.scale.set(ring, 1, ring); o.ring.material.opacity = Math.sin(time * (8 + 14 * k)) > -0.2 ? 0.95 : 0.35;
                 }
@@ -708,31 +720,32 @@
 
         function gloveAt(o, v, ext, squash) {
             const c = Math.cos(v.psi), s = Math.sin(v.psi), d = 2.4 + ext * 4.4;
-            place(o, v.x + c * d, 1.0 + v.z, v.y + s * d, v.psi);
+            place(o, v.x + c * d, 1.0 + (v.roadZ || 0) + v.z, v.y + s * d, v.psi);
             o.group.scale.set(1.3 * (1 - 0.3 * squash), 1.3 * (1 + 0.25 * squash), 1.3 * (1 + 0.25 * squash));
         }
 
         function drawProjectiles(r, dt) {
             for (const p of r.projectiles) {
                 if (Math.abs(p.x - viewer.x) > 520 || Math.abs(p.y - viewer.y) > 520) continue;
+                const pz = rzOf(r, p.x, p.y) + (p.z || 0);
                 switch (p.type) {
-                    case 'rocket': { const o = get('rocket').next(); place(o, p.x, 0.75 + p.z, p.y, p.psi); o.group.scale.setScalar(1.7); o.spin.rotation.x = time * 9; break; }
-                    case 'bullet': { const o = get('bratwurst').next(); place(o, p.x, 0.8 + p.z, p.y, p.psi); o.group.scale.setScalar(1.9); o.spin.rotation.set(time * 26 + p.x, time * 7, time * 13); break; }
+                    case 'rocket': { const o = get('rocket').next(); place(o, p.x, 0.75 + pz, p.y, p.psi); o.group.scale.setScalar(1.7); o.spin.rotation.x = time * 9; break; }
+                    case 'bullet': { const o = get('bratwurst').next(); place(o, p.x, 0.8 + pz, p.y, p.psi); o.group.scale.setScalar(1.9); o.spin.rotation.set(time * 26 + p.x, time * 7, time * 13); break; }
                     case 'duck': {      /* waddle: roll and squash with the hop phase */
                         const o = get('duck').next(), w = p.wob || 0;
-                        place(o, p.x, p.z, p.y, p.psi);
+                        place(o, p.x, pz, p.y, p.psi);
                         o.group.scale.setScalar(1.45);
                         o.spin.rotation.set(Math.sin(w * 0.5) * 0.35, 0, Math.sin(w) * 0.22); o.spin.scale.y = 1 + 0.14 * Math.cos(w);
                         break;
                     }
-                    case 'grenade': { const o = get('grenade').next(); place(o, p.x, p.z + 0.4, p.y, p.psi); o.group.scale.setScalar(1.8); o.spin.rotation.set(time * 7, 0, time * 11); break; }
-                    case 'hole_shot': { const o = get('holeShot').next(); place(o, p.x, p.z + 0.6, p.y, p.psi); const k = 1 + 0.1 * Math.sin(time * 18); o.group.scale.setScalar(1.5 * k); break; }
-                    case 'disco_shot': { const o = get('discoShot').next(); place(o, p.x, p.z + 0.6, p.y, p.psi); o.group.scale.setScalar(1.1); o.spin.rotation.y = time * 9; break; }
-                    case 'harpoon': { const o = get('harpoon').next(); place(o, p.x, 0.95 + p.z, p.y, p.psi); o.group.scale.setScalar(1.4); break; }
+                    case 'grenade': { const o = get('grenade').next(); place(o, p.x, pz + 0.4, p.y, p.psi); o.group.scale.setScalar(1.8); o.spin.rotation.set(time * 7, 0, time * 11); break; }
+                    case 'hole_shot': { const o = get('holeShot').next(); place(o, p.x, pz + 0.6, p.y, p.psi); const k = 1 + 0.1 * Math.sin(time * 18); o.group.scale.setScalar(1.5 * k); break; }
+                    case 'disco_shot': { const o = get('discoShot').next(); place(o, p.x, pz + 0.6, p.y, p.psi); o.group.scale.setScalar(1.1); o.spin.rotation.y = time * 9; break; }
+                    case 'harpoon': { const o = get('harpoon').next(); place(o, p.x, 0.95 + pz, p.y, p.psi); o.group.scale.setScalar(1.4); break; }
                     case 'glove': if (r.cars[p.owner]) gloveAt(get('glove').next(), r.cars[p.owner].v, backOut(clamp(1 - p.ttl / 0.12, 0, 1)), 0); break;
                     case 'cow': {   /* one somersault over the flight, legs flailing */
                         const o = get('cowA').next();
-                        place(o, p.x, Math.max(0, p.z - 0.6), p.y, p.psi);
+                        place(o, p.x, Math.max(rzOf(r, p.x, p.y), pz - 0.6), p.y, p.psi);
                         o.group.scale.setScalar(1.6);
                         animate(o, 'fly', dt); tumbleAnimal(o, clamp((p.t || 0) / (p.flight || 1.4), 0, 1), 0);
                         break;
@@ -743,7 +756,7 @@
                 const A = b.type === 'tether' && r.cars[b.a], B = A && r.cars[b.b];
                 if (!B) continue;
                 const head = get('harpoon').next();
-                place(head, B.v.x, 0.95, B.v.y, Math.atan2(B.v.y - A.v.y, B.v.x - A.v.x));
+                place(head, B.v.x, (B.v.roadZ || 0) + B.v.z + 0.95, B.v.y, Math.atan2(B.v.y - A.v.y, B.v.x - A.v.x));
                 head.group.scale.setScalar(1.1);
             }
         }
@@ -756,7 +769,8 @@
                 if (age > 0.6 + T0.len / 7 + 2.4) { trots.splice(i, 1); continue; }
                 const o = get('cowB').next(), moving = go > 0 && dist < T0.len;
                 const yaw = go > 0 ? T0.psi + AD.wrapAngle(T0.face - T0.psi) * ease(clamp(go / 0.3, 0, 1)) : T0.psi;
-                place(o, T0.x + T0.dx * dist, 0, T0.y + T0.dy * dist, yaw);
+                const cx = T0.x + T0.dx * dist, cy = T0.y + T0.dy * dist;
+                place(o, cx, rzOf(r, cx, cy), cy, yaw);
                 o.group.scale.setScalar(Math.max(0.01, 1 - ease(clamp((age - (T0.len / 7 + 2.5)) / 0.5, 0, 1))));
                 animate(o, moving ? 'trot' : 'idle', dt);
                 tumbleAnimal(o, 0, Math.max(0, 1 - age / 0.4));
@@ -947,8 +961,11 @@
                     if (s.launch) applyLaunch(s, r);
                     const b = s.blob;
                     b.visible = s.rig.group.visible && !s.launch;
-                    b.position.set(v.x, 0.07, v.y);
-                    b.rotation.y = -v.psi;
+                    const sm = r.track && r.track.maxZ ? AD.sampleTrack(r.track, v.x, v.y) : null;
+                    const bPitch = sm && sm.slope ? Math.atan(sm.slope * (Math.cos(v.psi) * sm.tx + Math.sin(v.psi) * sm.ty)) : 0;
+                    b.position.set(v.x, (v.roadZ || 0) + 0.07, v.y);
+                    b.rotation.order = 'YZX';
+                    b.rotation.set(0, -v.psi, bPitch);
                     const fade = clamp(1 - v.z / 7, 0, 1);
                     b.material.opacity = (gl.shadows ? 0.5 : 0.8) * fade;
                     const grow = 1 + v.z * 0.12;
@@ -980,7 +997,7 @@
                     case 'eliminated': if (s) {
                         /* Cartoon launch: the car is shot into the sky, tumbling, and shrinks away. */
                         const v = s.actor.v, sg = evt.car % 2 ? 1 : -1, fwd = Math.max(0, v.vx) * 0.35;
-                        s.launch = { t0: time, x: evt.x, z: evt.y, y0: 0.6, psi: v.psi, vz: 17, spin: sg * 9,
+                        s.launch = { t0: time, x: evt.x, z: evt.y, y0: (v.roadZ || 0) + 0.6, psi: v.psi, vz: 17, spin: sg * 9,
                             vx: Math.cos(v.psi) * fwd - Math.sin(v.psi) * sg * 6, vy: Math.sin(v.psi) * fwd + Math.cos(v.psi) * sg * 6 };
                     } break;
                 }
@@ -990,7 +1007,7 @@
                 const s = slots[slot || 0];
                 if (!s) return null;
                 const v = s.actor.v, half = s.rig.size.l / 2;
-                const c = Math.cos(v.psi), n = Math.sin(v.psi), y = v.z + 0.7;
+                const c = Math.cos(v.psi), n = Math.sin(v.psi), y = (v.roadZ || 0) + v.z + 0.7;
                 return { car: [v.x, y, v.y], nose: [v.x + c * half, y, v.y + n * half], tail: [v.x - c * half, y, v.y - n * half] };
             },
             stats() {

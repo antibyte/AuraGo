@@ -40,7 +40,7 @@
         return {
             chain: 0, chainPoints: 0, counts: {}, best: 0,
             /* flight */
-            flight: null, plan: null, latchThrottle: false, latchBrake: false,
+            flight: null, plan: null, latchThrottle: false, latchBrake: false, hillCooldown: 0,
             /* ground */
             driftGrace: 0, wallSeen: 0, hold: 0,
             rev: 0, revPaid: 0, revHero: false, revSeen: false, sinceRev: 9, draftHeld: 0
@@ -109,6 +109,9 @@
         const v = actor.v, st = actor.tricks;
         if (v.airborne || v.out || !(vz > 0)) return false;
         const cos = Math.cos(v.psi), sin = Math.sin(v.psi);
+        if (race && race.track && race.track.maxZ && AD.roadHeight) {
+            v.roadZ = AD.roadHeight(race.track, v.x, v.y);
+        }
         v.wx = v.vx * cos - v.vy * sin;
         v.wy = v.vx * sin + v.vy * cos;
         v.vz = vz;
@@ -131,10 +134,11 @@
             const rng = fs && typeof fs.rng === 'function' ? fs.rng : race.rng;
             const air = 2 * vz / K.GRAVITY;
             const u = rng(), dir = rng() < 0.5 ? -1 : 1;
+            const minPlanAir = source === 'hill' ? 1.05 : 0.95;
             let kind = 'none';
             if (source !== 'hit') {
-                if (u >= 0.4 && u < 0.8 && air >= 0.95 && air * K.ROLL_RATE * v.car.airControl >= 6.5) kind = 'roll';
-                else if (u >= 0.8 && air >= 1.0 && air * K.SPIN_RATE * v.car.airControl >= 8) kind = 'spin';
+                if (u >= 0.4 && u < 0.8 && air >= minPlanAir && air * K.ROLL_RATE * v.car.airControl >= 6.5) kind = 'roll';
+                else if (u >= 0.8 && air >= Math.max(minPlanAir, 1.0) && air * K.SPIN_RATE * v.car.airControl >= 8) kind = 'spin';
             }
             st.plan = { kind: kind, dir: dir };
         }
@@ -144,8 +148,8 @@
         return true;
     };
 
-    AD.landingQuality = function (v) {
-        const roll = Math.abs(AD.wrapAngle(v.roll)), pitch = Math.abs(AD.wrapAngle(v.pitch));
+    AD.landingQuality = function (v, roadPitch) {
+        const roll = Math.abs(AD.wrapAngle(v.roll)), pitch = Math.abs(AD.wrapAngle(v.pitch - (roadPitch || 0)));
         let yaw = 0;
         if (Math.hypot(v.wx, v.wy) > 4) yaw = Math.abs(AD.wrapAngle(v.psi - Math.atan2(v.wy, v.wx)));
         const worst = Math.max(roll, pitch);
@@ -183,13 +187,14 @@
         }
     }
 
-    function land(race, actor) {
+    function land(race, actor, sample) {
         const v = actor.v, st = actor.tricks, fl = st.flight || newFlight();
-        const quality = AD.landingQuality(v);
+        const cos = Math.cos(v.psi), sin = Math.sin(v.psi);
+        const roadPitch = sample && sample.slope ? Math.atan(sample.slope * (cos * sample.tx + sin * sample.ty)) : 0;
+        const quality = AD.landingQuality(v, roadPitch);
         const airTime = v.airTime;
         const hop = airTime < 0.35 && quality !== 'crash';
         /* Landing conversion: world velocity back to the body frame. */
-        const cos = Math.cos(v.psi), sin = Math.sin(v.psi);
         v.vx = v.wx * cos + v.wy * sin;
         v.vy = -v.wx * sin + v.wy * cos;
         v.airborne = false;
@@ -201,6 +206,7 @@
         v.rollRate = 0; v.pitchRate = 0; v.spinRate = 0;
         v.wx = 0; v.wy = 0;
         st.plan = null; st.flight = null;
+        st.hillCooldown = 0.45;
         if (hop) {
             st.chain = 0; st.chainPoints = 0;
             return;
@@ -265,10 +271,17 @@
         v.r *= Math.exp(-1.5 * dt);
         v.psi = AD.wrapAngle(v.psi + (v.r + v.spinRate) * dt);
 
+        const track = race && race.track;
+        const prevRoadZ = v.roadZ || 0;
+        const worldZ = prevRoadZ + v.z;
         v.x += v.wx * dt;
         v.y += v.wy * dt;
         v.vz -= K.GRAVITY * dt;
-        v.z += v.vz * dt;
+        const nextWorldZ = worldZ + v.vz * dt;
+        const nextSample = track && track.maxZ ? AD.sampleTrack(track, v.x, v.y) : null;
+        const nextRoadZ = nextSample ? (nextSample.z || 0) : 0;
+        v.roadZ = nextRoadZ;
+        v.z = nextWorldZ - nextRoadZ;
 
         const cos = Math.cos(v.psi), sin = Math.sin(v.psi);
         v.vx = v.wx * cos + v.wy * sin;
@@ -285,8 +298,9 @@
         if (v.shield > 0) v.shield = Math.max(0, v.shield - dt);
         v.impact = Math.max(0, v.impact - dt * 2.2);
 
+        const roadRate = nextSample ? (nextSample.slope || 0) * (v.wx * nextSample.tx + v.wy * nextSample.ty) : 0;
         detectTricks(race, actor, st, v);
-        if ((v.z <= 0 && v.vz <= 0) || v.airTime > 12) land(race, actor);
+        if ((v.z <= 0 && v.vz <= roadRate) || v.airTime > 12) land(race, actor, nextSample);
     };
 
     AD.aiAirInput = function (race, car, input) {
@@ -412,14 +426,35 @@
     AD.updateVehicleTricks = function (race, actor, input, dt) {
         const v = actor.v, st = actor.tricks;
         if (v.out || !st) return;
+        if (st.hillCooldown > 0) st.hillCooldown = Math.max(0, st.hillCooldown - dt);
         if (v.airborne) return;
         driftStep(race, actor, st, dt);
         slingshotStep(race, actor, st, dt);
         reverseStep(race, actor, st, dt);
-        /* After touchdown the body settles flat; ramps drive pitch themselves. */
-        if (v.onRamp < 0 && (v.roll !== 0 || v.pitch !== 0)) {
+        const track = race && race.track;
+        const sm = track && track.maxZ ? AD.sampleTrack(track, v.x, v.y) : null;
+        v.roadZ = sm ? (sm.z || 0) : 0;
+        const cos = Math.cos(v.psi), sin = Math.sin(v.psi);
+        const slopeAlongHeading = sm && sm.slope ? sm.slope * (cos * sm.tx + sin * sm.ty) : 0;
+        const targetPitch = Math.atan(slopeAlongHeading);
+        /* After touchdown the body settles onto the road slope; ramps drive pitch themselves. */
+        if (v.onRamp < 0 && (v.roll !== 0 || v.pitch !== targetPitch)) {
             v.roll = Math.abs(v.roll) < 1e-3 ? 0 : AD.smooth(v.roll, 0, 10, dt);
-            v.pitch = Math.abs(v.pitch) < 1e-3 ? 0 : AD.smooth(v.pitch, 0, 10, dt);
+            v.pitch = Math.abs(v.pitch - targetPitch) < 1e-3 ? targetPitch : AD.smooth(v.pitch, targetPitch, sm ? 14 : 10, dt);
+        }
+        /* Steep hill crest launch: when convex road curvature exceeds gravity at high speed
+           just as the crest turns downhill, the car catches air over the drop. */
+        if (v.onRamp < 0 && st.hillCooldown <= 0 && sm && sm.curveZ < -0.0045) {
+            const wx = v.vx * cos - v.vy * sin, wy = v.vx * sin + v.vy * cos;
+            const vAlong = wx * sm.tx + wy * sm.ty;
+            const absAlong = Math.abs(vAlong);
+            const slopeAlong = sm.slope * (vAlong >= 0 ? 1 : -1);
+            const downAccel = absAlong * absAlong * (-sm.curveZ);
+            if (absAlong >= 34 && downAccel > K.GRAVITY && slopeAlong >= -0.08 && slopeAlong <= 0.055) {
+                const launchVz = Math.max(0.5, absAlong * slopeAlong + 0.15);
+                v.pitch = Math.atan(clamp(slopeAlong, -0.35, 0.35));
+                AD.launch(race, actor, launchVz, 'hill');
+            }
         }
     };
 })();

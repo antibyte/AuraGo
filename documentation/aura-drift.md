@@ -417,8 +417,13 @@ complaints without giving the rivals a different solver:
 - **Tracks:** eight authored radial-harmonic layouts with different widths, grip profiles,
   weather, lighting and checkpoint orders, plus a seeded daily generator. Closed Catmull-Rom
   splines are arc-length parameterised into roughly 4 m samples with a 64 m spatial grid.
-  Ground and props are generated per 320 m chunk with an LRU cache capped by quality tier.
-  `AD.validateTrack` checks length, width, spacing, corner radius and overlapping sections.
+  `alpenpass`, `wuesten-canyon`, `wald-rallye`, `gletscherpass`, `industrie-ring` and hilly
+  Daily routes include smooth raised-cosine hill sections (`hills` with steep crests and
+  scenic rollers, keeping start/finish straights flat); fast cars driving over steep convex
+  crests catch air (`source: 'hill'`) as the road falls away downhill and land cleanly down
+  the slope. Ground and props are generated per 320 m chunk with an LRU cache capped by quality tier.
+  `AD.validateTrack` checks length, width, spacing, corner radius, elevation bounds and
+  overlapping sections.
   Each layout has three timing sectors and drift zones at its sharpest corners.
   On longer approaches, groups of three, two and one violet-and-white stripes count down
   to the zone. Paired slashes mark the scoring section. The speedometer shows the

@@ -119,6 +119,24 @@ check('harbour uses a low-grip wet surface', wet.grip < 0.8, 'grip=' + wet.grip)
 const runoff = AD.surfaceAt(built[0], 0, 40, { halfWidth: 11 });
 check('runoff swaps to the biome surface', runoff.type === 'gravel', 'type=' + runoff.type);
 
+/* Hilly tracks and steep crests */
+const hillyIds = new Set(['alpenpass', 'wuesten-canyon', 'wald-rallye', 'gletscherpass', 'industrie-ring']);
+for (const track of built) {
+    const startZ = track.samples[0] ? (track.samples[0].z || 0) : 0;
+    check(track.id + ' keeps the start/finish line flat', Math.abs(startZ) < 1e-3, 'z0=' + startZ);
+    if (hillyIds.has(track.id)) {
+        const pt = AD.pointAt(track, track.hills[0].center);
+        const sm = AD.sampleTrack(track, pt.x, pt.y);
+        check(track.id + ' has hilly elevation with at least one steep jump crest',
+            track.hills.length >= 2 && track.maxZ >= 8 && track.hills.some(h => h.steep) && track.samples.some(s => (s.curveZ || 0) < -0.0045),
+            'maxZ=' + (track.maxZ || 0).toFixed(2));
+        check(track.id + ' pointAt and sampleTrack agree on hill elevation',
+            Math.abs((pt.z || 0) - (sm.z || 0)) < 0.25, 'pt=' + (pt.z || 0).toFixed(2) + ' sm=' + (sm.z || 0).toFixed(2));
+    } else {
+        check(track.id + ' stays flat', track.hills.length === 0 && track.maxZ === 0, 'maxZ=' + track.maxZ);
+    }
+}
+
 if (failures.length) {
     console.error('\n' + failures.length + ' track check(s) failed');
     process.exit(1);

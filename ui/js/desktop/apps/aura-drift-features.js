@@ -80,11 +80,19 @@
         if (rules.ramps !== false && windows.length) {
             const count = clamp(1 + Math.floor(length / 1400), 2, 5);
             const rng = AD.rng(AD.hashString(base + '/ramps'));
+            const rampFlat = s => {
+                if (!track.maxZ || !AD.roadProfileAt) return true;
+                for (let d = -20; d <= 40; d += 10) {
+                    const prof = AD.roadProfileAt(track, s + d);
+                    if (Math.abs(prof.curveZ) > 0.004 || Math.abs(prof.slope) > 0.08) return false;
+                }
+                return true;
+            };
             const slots = [];
-            for (let k = 0; k < 4 && slots.length < count * 3; k++) {
+            for (let k = 0; k < 8 && slots.length < count * 3; k++) {
                 for (const w of windows) {
                     const s = w.to - 150 - k * 75;
-                    if (s >= w.from + 24 && s >= 48 && s + RAMP.length <= length - 48) slots.push(s);
+                    if (s >= w.from + 24 && s >= 48 && s + RAMP.length <= length - 48 && rampFlat(s)) slots.push(s);
                 }
             }
             for (let i = 0; i < count && i < slots.length; i++) {
@@ -310,28 +318,34 @@
         return { along: along, lateral: lateral, inside: (centred ? Math.abs(along) <= halfLength : along >= 0 && along <= halfLength) && Math.abs(lateral) <= halfWidth };
     }
 
-    function clearRamp(v) { v.onRamp = -1; v.pitch = 0; if (!v.airborne) v.z = 0; }
+    function clearRamp(race, v) {
+        const p = race && race.track && race.track.maxZ ? AD.sampleTrack(race.track, v.x, v.y) : null;
+        const slope = p && p.slope ? p.slope * (Math.cos(v.psi) * p.tx + Math.sin(v.psi) * p.ty) : 0;
+        v.onRamp = -1; v.pitch = Math.atan(slope); if (!v.airborne) v.z = 0;
+    }
 
     function rampStep(race, actor, ramp) {
         const v = actor.v;
         const r = inRect(ramp, v, ramp.length, ramp.width / 2, false);
         const aligned = Math.cos(AD.wrapAngle(v.psi - ramp.psi)) > 0.35 && v.vx > 1;
+        const rp = race && race.track && race.track.maxZ ? AD.roadProfileAt(race.track, ramp.s + clamp(r.along, 0, ramp.length)) : null;
+        const roadPitch = rp ? Math.atan(rp.slope) : 0;
         if (v.onRamp === ramp.id) {
             if (r.inside && aligned) {
                 v.z = ramp.height * r.along / ramp.length;
-                v.pitch = Math.atan2(ramp.height, ramp.length);
+                v.pitch = roadPitch + Math.atan2(ramp.height, ramp.length);
             } else if (r.along >= ramp.length && Math.abs(r.lateral) <= ramp.width / 2 + 0.5 && aligned) {
                 const vz = v.vx < 12 ? 2 : clamp(0.2 * Math.max(v.vx, 0), 6, 14);
                 v.onRamp = -1;
                 AD.launch(race, actor, vz, 'ramp');
-                if (!v.airborne) { v.z = 0; v.pitch = 0; }
+                if (!v.airborne) { v.z = 0; v.pitch = roadPitch; }
             } else {
-                clearRamp(v);      /* left over the side, stopped short or reversed off */
+                clearRamp(race, v);      /* left over the side, stopped short or reversed off */
             }
         } else if (r.inside && aligned && r.along <= ramp.length * 0.6 && !v.airborne) {
             v.onRamp = ramp.id;
             v.z = ramp.height * r.along / ramp.length;
-            v.pitch = Math.atan2(ramp.height, ramp.length);
+            v.pitch = roadPitch + Math.atan2(ramp.height, ramp.length);
         }
     }
 

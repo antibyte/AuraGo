@@ -598,7 +598,7 @@
                 }
                 if (road && road.setWetness) road.setWetness(wetness, surfaceWetness);
                 road?.updateSurfacePrints?.(r, reduced);
-                followSun(v.x, v.z, v.y);
+                followSun(v.x, (v.roadZ || 0) + v.z, v.y);
                 renderer.toneMappingExposure = look.exposure;
                 /* The programs of a new tier are compiled while the canvas still holds
                    the old picture. The drawing buffer is reallocated after that, in the

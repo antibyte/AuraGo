@@ -269,6 +269,49 @@
             }
         }
 
+        function drawHillMarkers(track, cam) {
+            if (!track.maxZ || !track.hills || !track.hills.length) return;
+            const k = cam.scale, step = 12;
+            const count = Math.floor(track.length / step);
+            for (let i = 0; i < count; i++) {
+                const s0 = i * step, s1 = (i + 1) * step;
+                const p0 = AD.pointAt(track, s0), p1 = AD.pointAt(track, s1);
+                if (!p0.z && !p1.z) continue;
+                const q = worldToScreen((p0.x + p1.x) * 0.5, (p0.y + p1.y) * 0.5, cam);
+                if (!onScreen(q[0], q[1], p0.halfWidth * k + 30)) continue;
+                const slope = (p0.slope + p1.slope) * 0.5;
+                if (Math.abs(slope) > 0.015) {
+                    c.fillStyle = slope > 0
+                        ? 'rgba(255,215,130,' + Math.min(0.14, slope * 0.6).toFixed(3) + ')'
+                        : 'rgba(10,18,32,' + Math.min(0.22, -slope * 0.9).toFixed(3) + ')';
+                    const w0 = p0.halfWidth - 0.6, w1 = p1.halfWidth - 0.6;
+                    c.beginPath();
+                    c.moveTo(...worldToScreen(p0.x - p0.nx * w0, p0.y - p0.ny * w0, cam));
+                    c.lineTo(...worldToScreen(p0.x + p0.nx * w0, p0.y + p0.ny * w0, cam));
+                    c.lineTo(...worldToScreen(p1.x + p1.nx * w1, p1.y + p1.ny * w1, cam));
+                    c.lineTo(...worldToScreen(p1.x - p1.nx * w1, p1.y - p1.ny * w1, cam));
+                    c.closePath(); c.fill();
+                }
+            }
+            /* Chevron markers before and across steep jump crests so jumps read cleanly in 2D. */
+            c.strokeStyle = 'rgba(255,209,102,0.72)';
+            c.lineWidth = Math.max(1.4, 0.28 * k);
+            for (const h of track.hills) {
+                if (!h.steep) continue;
+                for (const ds of [-14, -5, 4]) {
+                    const p = AD.pointAt(track, h.center + ds);
+                    const center = worldToScreen(p.x, p.y, cam);
+                    if (!onScreen(center[0], center[1], 40 * k)) continue;
+                    c.save(); c.translate(center[0], center[1]); c.rotate(Math.atan2(p.ty, p.tx));
+                    c.beginPath();
+                    c.moveTo(-1.2 * k, -p.halfWidth * 0.38 * k);
+                    c.lineTo(1.2 * k, 0);
+                    c.lineTo(-1.2 * k, p.halfWidth * 0.38 * k);
+                    c.stroke(); c.restore();
+                }
+            }
+        }
+
         function drawCurbs(track, cam) {
             const scale = cam.scale;
             const dash = worldDash(track, 11, 0.5);
@@ -978,6 +1021,7 @@
                 drawRoadSurface(track, cam, race);
                 if (quality.body !== 0) drawSeams(track, cam);
                 drawRoadPatches(track, cam);
+                drawHillMarkers(track, cam);
                 drawDecals(cam);
                 drawCurbs(track, cam);
                 drawRoadMarkings(track, cam);
