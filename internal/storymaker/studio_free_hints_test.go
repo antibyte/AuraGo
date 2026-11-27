@@ -103,3 +103,29 @@ func TestSceneDataExampleFollowsTheMode(t *testing.T) {
 		}
 	}
 }
+
+func TestFreePutSceneKeepsTheOutlineBoard(t *testing.T) {
+	ctx := context.Background()
+	s, ps, id := newFreeStudioRig(t)
+	s.SetPhase(PhaseOutline, "")
+	if res, _ := callOutline(t, s, "concept_explainer", "Eins zwei drei", "Vier fuenf"); res.Status != "ok" {
+		t.Fatalf("outline: %s", res.JSON)
+	}
+	s.SetPhase(PhaseFill, "s1")
+	read := codeCall(t, s, "get_code", "s1", nil, "")
+	if w := codeCall(t, s, "put_code", "s1", map[string]any{"source": freeMotionExample}, read["rev"].(string)); w["status"] != "ok" {
+		t.Fatalf("put_code = %v", w)
+	}
+	if got := codeCall(t, s, "put_scene", "s1", map[string]any{"kind": "code"}, ""); got["status"] != "ok" {
+		t.Fatalf("put_scene = %v", got)
+	}
+	data, _, err := ps.LoadStory(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, sc := range mustDecode(t, string(data)).Scenes {
+		if sc.Environment != BoardEnvironmentID {
+			t.Errorf("scene %s environment = %q, want %s", sc.ID, sc.Environment, BoardEnvironmentID)
+		}
+	}
+}

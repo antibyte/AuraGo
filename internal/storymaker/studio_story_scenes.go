@@ -306,7 +306,7 @@ func (s *Studio) loadSceneStory(ctx context.Context, op, sceneID string, args ma
 }
 
 // sceneWriteFields builds the JSON fields of the candidate scene. put_scene replaces the scene
-// but keeps narration, kind and silent when data leaves them out. patch_scene merges into the
+// but keeps narration, kind and silent (and, in a free job, the environment) when data leaves them out. patch_scene merges into the
 // draft, else into the saved scene: top-level fields replace and null removes.
 func (s *Studio) sceneWriteFields(answerOp, mode, sceneID string, data map[string]any, story *Story) (map[string]any, *StudioResult) {
 	if refused := s.freeSceneRefusal(answerOp, sceneID, data); refused != nil {
@@ -333,6 +333,14 @@ func (s *Studio) sceneWriteFields(answerOp, mode, sceneID string, data map[strin
 				fields[key] = kept
 			} else {
 				delete(fields, key)
+			}
+		}
+		// A free outline puts every scene on the drawn board; put_scene {"kind":"code"} must not drop it.
+		if s.job.Mode == ModeFree {
+			if v, present := fields["environment"]; !present || v == nil {
+				if kept, has := saved["environment"]; has && kept != nil {
+					fields["environment"] = kept
+				}
 			}
 		}
 	} else {
