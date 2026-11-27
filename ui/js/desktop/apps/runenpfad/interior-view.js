@@ -9,9 +9,9 @@
     const TOP_INSET = 62; // the window's DOM top bar covers the first css pixels of the canvas
     const RIM = '#f4c874';
     const HERO_FALLBACK = { knight: '#5b8def', ranger: '#4fbf6a' };
-    const MOB_COLOR = { rat: '#8b7a6a', slime: '#5ed06a', bat: '#6b4f8a', spider: '#3b3144', mummy: '#cdb98a', icewisp: '#8ad8ff', clockbug: '#c08a3a' };
-    const MOB_R = { rat: 14, slime: 18, bat: 14, spider: 17, mummy: 20, icewisp: 16, clockbug: 16 };
-    const FLYERS = { bat: 1, icewisp: 1 };
+    const MOB_COLOR = { rat: '#8b7a6a', slime: '#5ed06a', bat: '#6b4f8a', spider: '#3b3144', mummy: '#cdb98a', icewisp: '#8ad8ff', clockbug: '#c08a3a', emberling: '#ff7a2a', drakeling: '#c2410c' };
+    const MOB_R = { rat: 14, slime: 18, bat: 14, spider: 17, mummy: 20, icewisp: 16, clockbug: 16, emberling: 14, drakeling: 15 };
+    const FLYERS = { bat: 1, icewisp: 1, drakeling: 1 };
     const SHOT_COLOR = { venom: '#8df08a', spit: '#8df08a', shard: '#bfe9ff', ice: '#bfe9ff', ember: '#ffb060' };
     const ICON_FOR = { talk: 'talk', quest: 'quest', trade: 'trade', heart: 'heart', duel: 'duel', ask: 'ask' };
     const PROMPT_ICON = { talk: 'talk', open: 'coins', rest: 'heart', locked: null };
@@ -37,6 +37,11 @@
         let insetAge = 99;
         let TV = null; // things, guardians and prompt icons (interior-things-view.js), optional
         try { const TM = root.RunenpfadInteriorThingsView; TV = TM && typeof TM.create === 'function' ? TM.create(h) : null; } catch (err) { TV = null; }
+        let DV = null; // Brandur, the lair and lava glow (brandur-view.js), optional
+        try { const DM = root.RunenpfadBrandurView; DV = DM && typeof DM.create === 'function' ? DM.create(h) : null; } catch (err) { DV = null; }
+        let MV = null; // the deeps map panel (deeps-map-view.js), optional
+        try { const MM = root.RunenpfadDeepsMapView; MV = MM && typeof MM.create === 'function' ? MM.create(h) : null; } catch (err) { MV = null; }
+        function viewScale(room, vh) { return clamp(vh / (((room && room.def && room.def.view > 0) ? room.def.view : 11) * CELL), 1, 2.5); }
         function mobSheet(kind) { return TV ? TV.mobSheet(kind) : 'td-' + kind; }
 
         // ---- loading ----
@@ -80,6 +85,7 @@
             if (iv.room && iv.room.def) askRoomDef(iv.room.def);
             list(iv.room && iv.room.props).forEach(function (p) { ask(String(p.clip).split('.')[0]); });
             list(iv.mobs).forEach(function (m) { ask(mobSheet(m.kind)); });
+            if (DV) DV.sheets(iv).forEach(ask);
             list(iv.npcs).forEach(function (n) { const f = folkSheet(n.npcId); if (f) ask(f.sheet); });
             // The other rooms of this place, so doors between rooms never show a bare floor.
             const R = root.RunenpfadPlaceRooms;
@@ -259,6 +265,14 @@
             return s;
         }
 
+        // Chest with its own prop clip (c.look); the dragon scale lies on the floor and vanishes once taken.
+        function drawLook(c, iv, f) {
+            const B = Bake();
+            if (!B || !hasClip(c.look)) return false;
+            if (c.opened && c.look === 'tdp-lair.p15') return true;
+            return !!B.drawProp(ctx, h.art, { clip: c.look, x: c.x, y: c.y, wCells: 1, hCells: 1, layer: 'obj' }, { screen: f.s, alpha: c.opened ? 0.7 : 1 });
+        }
+
         function drawChest(c, iv, f) {
             const s = chestState(c, iv);
             const A = Art();
@@ -266,7 +280,7 @@
             shadow(c.x, c.y, 26, 0.34);
             const bob = f.reduced ? 0.7 : 0.55 + 0.45 * Math.sin(f.t * 3 + c.x);
             if (!c.opened && !c.locked) glow(c.x, c.y - 22, 54, 'rgba(255, 214, 120, 0.8)', 0.4 * bob);
-            if (art && A && A.has(art, 'prop-chest.closed')) {
+            if (c.look && drawLook(c, iv, f)) { /* a themed chest (trunk, scale) replaces the stock one */ } else if (art && A && A.has(art, 'prop-chest.closed')) {
                 if (c.opened) A.draw(ctx, art, 'prop-chest.open', Math.max(0, iv.t - s.t0), c.x, c.y, { scale: 0.27 });
                 else A.draw(ctx, art, 'prop-chest.closed', 0, c.x, c.y, { scale: 0.27, tint: c.locked ? '#1a1a2e' : '', tintAmount: 0.25 });
             } else {
@@ -656,8 +670,12 @@
         function lightsOf(room, iv) {
             const base = list(room.lights);
             const T = root.RunenpfadInteriorThings;
-            if (!T || typeof T.lights !== 'function' || !iv) return base;
-            try { const dyn = T.lights(iv); return Array.isArray(dyn) && dyn.length ? base.concat(dyn) : base; } catch (err) { return base; }
+            if (!T || typeof T.lights !== 'function' || !iv) return DV && iv ? base.concat(DV.lights(iv)) : base;
+            try {
+                let dyn = T.lights(iv);
+                if (DV) dyn = (Array.isArray(dyn) ? dyn : []).concat(DV.lights(iv));
+                return Array.isArray(dyn) && dyn.length ? base.concat(dyn) : base;
+            } catch (err) { return base; }
         }
 
         // Darkness over the screen, punched by the room lights and the hero light (screen space).
@@ -745,7 +763,7 @@
             const vh = frame.viewH;
             const room = iv.room;
             const dpr = Math.min(2, root.devicePixelRatio || 1);
-            const s = clamp(vh / (11 * CELL), 1, 2.5);
+            const s = viewScale(room, vh);
             const f = { s: s, t: frame.nowSec, reduced: !!frame.reducedMotion, oy: topInset(vh) };
             resetRequests();
             askLive(sim);
@@ -763,15 +781,17 @@
 
             // Floor markers first: tell rings sit under everything.
             const mobs = list(iv.mobs);
-            for (let i = 0; i < mobs.length; i++) drawTell(mobs[i], f);
+            for (let i = 0; i < mobs.length; i++) if (!(DV && DV.owns(mobs[i]))) drawTell(mobs[i], f);
             if (TV) TV.drawFloor(iv, sim, f);
+            if (DV) DV.drawFloor(iv, sim, f);
 
             const objs = [];
             list(room.props).forEach(function (p) { if (p.layer !== 'floor') objs.push({ y: p.y, k: 0, o: p }); });
             list(iv.chests).forEach(function (c) { objs.push({ y: c.y, k: 1, o: c }); });
             list(iv.pickups).forEach(function (p) { if (!p.taken) objs.push({ y: p.y, k: 2, o: p }); });
             list(iv.npcs).forEach(function (n) { if (n.state !== 'gone') objs.push({ y: n.y, k: 3, o: n }); });
-            mobs.forEach(function (m) { objs.push({ y: m.y - (m.state === 'dead' ? 4 : 0), k: 4, o: m }); });
+            mobs.forEach(function (m) { if (!(DV && DV.owns(m))) objs.push({ y: m.y - (m.state === 'dead' ? 4 : 0), k: 4, o: m }); });
+            if (DV) DV.sorted(iv).forEach(function (e) { objs.push({ y: e.y, k: 7, o: e.o }); });
             if (TV) TV.sorted(iv).forEach(function (e) { objs.push({ y: e.y, k: 6, o: e.o }); });
             objs.push({ y: iv.hero.y, k: 5, o: iv.hero });
             objs.sort(function (a, b) { return a.y - b.y; });
@@ -784,10 +804,12 @@
                     else if (e.k === 3) drawNpc(e.o, sim, f);
                     else if (e.k === 4) drawMob(e.o, f);
                     else if (e.k === 6) TV.drawObject(e.o, iv, sim, f);
+                    else if (e.k === 7) DV.drawObject(e.o, iv, sim, f);
                     else { drawHero(iv, sim, f); drawSwing(iv, sim); }
                 } catch (err) { /* a bad sprite must not stop the room */ }
             }
             list(iv.shots).forEach(function (sh) { drawShot(sh, f); });
+            if (DV) DV.drawTop(iv, sim, f);
             ctx.restore();
 
             darkPass(room, iv, f, vw, vh);
@@ -801,7 +823,8 @@
             drawPrompt(iv, f);
             ctx.restore();
 
-            if (TV) TV.drawBossBar(iv, f, vw, f.oy);
+            if (!(DV && DV.drawBossBar(iv, f, vw, f.oy)) && TV) TV.drawBossBar(iv, f, vw, f.oy);
+            if (MV) MV.draw(sim, f, vw, f.oy);
             drawWipe(sim, vw, vh, frame);
         }
 
@@ -823,7 +846,7 @@
                 ctx.fillRect(0, 0, vw, vh);
                 return;
             }
-            const s = clamp(vh / (11 * CELL), 1, 2.5);
+            const s = viewScale(iv && iv.room, vh);
             const fx = clamp((iv.hero.x - cam.x) * s, 0, vw);
             const fy = clamp((iv.hero.y - 30 - cam.y) * s + insetCache, 0, vh);
             const maxR = Math.hypot(Math.max(fx, vw - fx), Math.max(fy, vh - fy)) + 8;
@@ -854,6 +877,8 @@
             lightCtx = null;
             cam.ready = false;
             if (TV) TV.dispose();
+            if (DV) DV.dispose();
+            if (MV) MV.dispose();
         }
 
         return { wants: wants, prime: prime, render: render, drawWipe: drawWipe, dispose: dispose };

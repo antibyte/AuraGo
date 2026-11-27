@@ -5,7 +5,7 @@
     // ---- tuning (sizes, offsets, colours: adjust here) ----
     const CELL = 48;
     const FOOT = 7; // things stand at the cell centre + 7 px, like chests
-    const PROP_SHEETS = ['tdp-mech', 'tdp-lore', 'tdp-stars'];
+    const PROP_SHEETS = ['tdp-mech', 'tdp-lore', 'tdp-stars', 'tdp-lair', 'tdp-home', 'tdp-house'];
     const BOSS_IDS = ['brood', 'weaver', 'tombward', 'frostheart', 'boilerward', 'counter'];
     const BOSS_SCALE = 1.5; // guardian height = normal mob height (34..84) times this
     const BOSS_COLOR = { brood: '#7bbf5a', weaver: '#7a4fa0', tombward: '#c9a85a', frostheart: '#8ad8ff', boilerward: '#c06a30', counter: '#d8b24a' };
@@ -20,7 +20,11 @@
     const POT_CLIP = { pot: 'tdp-mech.p0', crate: 'tdp-mech.p1', barrel: 'tdp-mech.p2' };
     const BLOCK_CLIP = { crate: 'tdp-mech.p1', stone: 'tdp-mech.p4', crystal: 'tdp-mech.p5', ice: 'tdp-stars.p13' };
     const BLOCK_COLOR = { crate: '#9a6a30', stone: '#8a8f99', crystal: '#7fd0e8', ice: '#b8e4f4' };
-    const USE_SIZE = { board: [2, 1], dice: [2, 1], core: [2, 2] };
+    const USE_SIZE = { board: [2, 1], dice: [2, 1], core: [2, 2], cook: [2, 1], forge: [2, 1], bell: [2, 2], map: [2, 1], brandur: [1, 1] };
+    const COL_PILLAR = '126, 200, 255';
+    const COL_SHELF = '255, 210, 120';
+    const COL_TABLET = '159, 232, 255';
+    const PILLAR_SCALE = 1.3; // lair pillars stand taller than lamps
     const PUSH_TIME = 0.18;
     const LAMP_SCALE = 0.8; // storm lamps (brazier in wood rooms) read as table-height
 
@@ -143,6 +147,8 @@
         function blockPos(th) { return posOf(th); }
 
         function brazierClip(th, iv) {
+            if (th.look === 'pillar') return th.lit ? 'tdp-lair.p5' : 'tdp-lair.p4';
+            if (th.look === 'shelf') return 'tdp-home.p12';
             const wood = themeOf(iv) === 'wood';
             return th.lit ? (wood ? 'tdp-lore.p14' : 'tdp-mech.p15') : (wood ? 'tdp-lore.p13' : 'tdp-mech.p14');
         }
@@ -490,7 +496,8 @@
             if (e.group) {
                 const g = e.group;
                 const done = g.use === 'core' && flagOf(sim, 'obs.done');
-                const clip = g.use === 'board' ? 'tdp-lore.p9' : g.use === 'dice' ? 'tdp-lore.p10' : g.use === 'core' ? (done ? 'tdp-stars.p7' : 'tdp-stars.p6') : '';
+                if (g.use === 'brandur') return; // the use cell only offers the talk prompt
+                const clip = g.use === 'board' ? 'tdp-lore.p9' : g.use === 'dice' ? 'tdp-lore.p10' : g.use === 'core' ? (done ? 'tdp-stars.p7' : 'tdp-stars.p6') : useClip(g.use, sim);
                 shadow(g.x, g.y, g.w * CELL * 0.42, 0.3);
                 if (!clip || !sprite(clip, g.x, g.y, g.w, g.h, f)) fbUse(g, f, sim);
                 if (g.use === 'core' && !done) glow(g.x, g.y - g.h * CELL * 0.5, 80, '255, 179, 71', 0.22 * pulse(f, 3, 0.6));
@@ -506,10 +513,10 @@
             else if (kind === 'lever') clip = th.on ? 'tdp-mech.p9' : 'tdp-mech.p8';
             else if (kind === 'spikes') clip = th.look === 'vent' ? 'tdp-lore.p8' : 'tdp-mech.p13';
             else if (kind === 'dart') { clip = 'tdp-lore.p6'; if (th.phase === 'warn') flash = 0.25 + 0.4 * pulse(f, 34, 0.1); }
-            else if (kind === 'brazier') { clip = brazierClip(th, iv); if (themeOf(iv) === 'wood') wc = LAMP_SCALE; }
+            else if (kind === 'brazier') { clip = brazierClip(th, iv); if (th.look === 'pillar') wc = PILLAR_SCALE; else if (themeOf(iv) === 'wood') wc = LAMP_SCALE; }
             else if (kind === 'crack') clip = 'tdp-lore.p4';
             else if (kind === 'page') clip = pageRead(th, sim) ? 'tdp-lore.p1' : 'tdp-lore.p0';
-            else if (kind === 'sign') { if (th.look === 'scroll') { clip = 'tdp-lore.p2'; wc = 0.9; } else clip = 'tdp-lore.p12'; }
+            else if (kind === 'sign') { if (th.look === 'scroll') { clip = 'tdp-lore.p2'; wc = 0.9; } else clip = th.look === 'tablet' ? 'tdp-lair.p11' : th.look === 'stand' ? 'tdp-home.p13' : 'tdp-lore.p12'; }
             else return;
             const flat = kind === 'sign' && th.look === 'scroll';
             if (kind !== 'spikes' && !flat) shadow(x, y, 20 * wc, 0.3);
@@ -518,8 +525,28 @@
             if (!art) fbThing(th, x, y, f, iv);
             if (kind === 'dart' && th.phase === 'warn') drawDartWarn(th, x, y, f);
             if (kind === 'brazier' && th.lit) drawFlame(th, x, y, f, art, wc);
+            if (kind === 'sign' && th.tablet > 0 && !tabletRead(th, sim)) glow(x, y - 34, 46, COL_TABLET, 0.34 * pulse(f, 3, 0.6));
             if (kind === 'page' && !pageRead(th, sim)) glow(x, y - 30, 40, '255, 233, 168', 0.3 * pulse(f, 3, 0.6));
             if (kind === 'spikes' && th.phase === 'up' && th.look !== 'vent') glow(x, y - 8, 22, COL_WARN, 0.12);
+        }
+
+        // Props of the round-11 uses: kitchen hearth, forge, the bell (cracked until it is mended) and Edda's map table.
+        function useClip(use, sim) {
+            if (use === 'cook') return 'tdp-home.p0';
+            if (use === 'forge') return 'tdp-home.p5';
+            if (use === 'map') return 'tdp-house.p11';
+            if (use === 'bell') {
+                const E = root.RunenpfadEmber;
+                let step = 0;
+                try { step = E && typeof E.step === 'function' ? E.step(sim && sim.profile) : 0; } catch (err) { step = 0; }
+                return flagOf(sim, 'dr.bell') || step < 2 ? 'tdp-home.p9' : 'tdp-home.p10';
+            }
+            return '';
+        }
+
+        function tabletRead(th, sim) {
+            const C = root.RunenpfadChronicle;
+            try { return !!(C && typeof C.hasTablet === 'function' && C.hasTablet(sim && sim.profile, th.tablet)); } catch (err) { return false; }
         }
 
         function pageRead(th, sim) {
@@ -552,10 +579,12 @@
             const left = num(th.left, 0);
             const low = num(th.timed, 0) > 0 && left > 0 && left < 2 ? left / 2 : 1; // a timed brazier shrinks before it goes out
             const sway = f.reduced ? 0 : Math.sin(f.t * 11 + x * 0.1) * 2;
-            glow(x, y - 38 * sc, 44 * low * sc, '255, 176, 96', 0.42 * low * pulse(f, 9, 0.75));
-            if (art) return;
+            const pillar = th.look === 'pillar';
+            const shelf = th.look === 'shelf';
+            glow(x, y - 38 * sc, 44 * low * sc, pillar ? COL_PILLAR : shelf ? COL_SHELF : '255, 176, 96', 0.42 * low * pulse(f, 9, 0.75));
+            if (art || shelf) return;
             ctx.save();
-            ctx.fillStyle = COL_FLAME;
+            ctx.fillStyle = pillar ? 'rgba(150, 215, 255, 0.92)' : COL_FLAME;
             ctx.beginPath();
             ctx.moveTo(x - 7, y - 24);
             ctx.quadraticCurveTo(x - 3 + sway, y - 36 * low - 6, x + sway, y - 44 * low);
@@ -689,7 +718,7 @@
             return true;
         }
 
-        const PROMPT_KINDS = { pull: 1, light: 1, read: 1, unlock: 1, board: 1, play: 1, shut: 1 };
+        const PROMPT_KINDS = { pull: 1, light: 1, read: 1, unlock: 1, board: 1, play: 1, shut: 1, cook: 1, forge: 1, ring: 1 };
 
         // Small drawn icon above the key cap for the new prompt kinds; false for the old ones.
         function promptIcon(kind, x, y) {
@@ -756,6 +785,44 @@
                 ctx.strokeStyle = '#ffd36a';
                 ctx.lineWidth = 2.5;
                 ctx.stroke();
+            } else if (kind === 'cook') {
+                rbox(-11, -2, 22, 11, 3, '#6a6a72', '#09111a');
+                ctx.fillStyle = '#c9ced8';
+                ctx.fillRect(-9, -7, 18, 5);
+                ctx.fillStyle = '#ffb060';
+                ctx.beginPath();
+                ctx.arc(-4, -11, 2.6, 0, Math.PI * 2);
+                ctx.arc(4, -12, 2.2, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (kind === 'forge') {
+                ctx.fillStyle = '#8a8f99';
+                ctx.beginPath();
+                ctx.moveTo(-12, -6);
+                ctx.lineTo(8, -6);
+                ctx.lineTo(12, -1);
+                ctx.lineTo(4, 1);
+                ctx.lineTo(4, 9);
+                ctx.lineTo(-6, 9);
+                ctx.lineTo(-6, 1);
+                ctx.lineTo(-12, 1);
+                ctx.closePath();
+                ctx.stroke();
+                ctx.fill();
+                ctx.fillStyle = '#ff9a40';
+                ctx.fillRect(-2, -12, 3, 4);
+            } else if (kind === 'ring') {
+                ctx.fillStyle = '#e0b84a';
+                ctx.beginPath();
+                ctx.moveTo(-10, 8);
+                ctx.quadraticCurveTo(-10, -9, 0, -10);
+                ctx.quadraticCurveTo(10, -9, 10, 8);
+                ctx.closePath();
+                ctx.stroke();
+                ctx.fill();
+                ctx.fillStyle = '#7a5a30';
+                ctx.beginPath();
+                ctx.arc(0, 10, 3, 0, Math.PI * 2);
+                ctx.fill();
             } else if (kind === 'board') {
                 rbox(-11, -11, 22, 22, 3, '#f2e6c0', '#09111a');
                 ctx.fillStyle = '#7a5a30';
