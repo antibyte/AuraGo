@@ -118,7 +118,8 @@ func (s *Studio) Packet(ctx context.Context, compact bool) (map[string]any, erro
 // packetFillExample is the worked example of a fill scene. It is built from the scene's own direction (environment,
 // framing, actor, spots, pose, gesture, entry), so it can never contradict it and every scene gets a different one. It
 // names the direction's actor, or the first cast member, and leaves the actor and the gesture out when there is no cast.
-func packetFillExample(cast []CastMember, dir SceneDirection) map[string]any {
+// With a suggested block (see SuggestedBlock) the show beat is that block at the board and the gesture points at it.
+func packetFillExample(cast []CastMember, dir SceneDirection, block string) map[string]any {
 	environment := dir.Environment
 	if environment == "" {
 		environment = "env.office"
@@ -143,6 +144,10 @@ func packetFillExample(cast []CastMember, dir SceneDirection) map[string]any {
 		example["camera"] = map[string]any{"framing": dir.Framing}
 	}
 	beats := []any{map[string]any{"do": "show", "item": prop, "at": propAt, "entry": entry, "cue_phrase": "Firewall"}}
+	blockBeat := packetBlockBeat(block)
+	if blockBeat != nil {
+		beats[0] = blockBeat
+	}
 	if len(cast) > 0 {
 		who := cast[0].ID
 		if dir.Actor != "" {
@@ -160,10 +165,36 @@ func packetFillExample(cast []CastMember, dir SceneDirection) map[string]any {
 		}
 		example["speaker"] = who
 		example["actors"] = []any{map[string]any{"cast": who, "at": actorAt, "pose": pose, "expression": "neutral"}}
-		beats = append(beats, map[string]any{"do": "gesture", "who": who, "gesture": gesture, "with": "prev"})
+		gestureBeat := map[string]any{"do": "gesture", "who": who, "gesture": gesture, "with": "prev"}
+		if blockBeat != nil {
+			gestureBeat["gesture"], gestureBeat["target"] = "point", "board"
+		}
+		beats = append(beats, gestureBeat)
 	}
 	example["beats"] = beats
 	return example
+}
+
+// packetBlockBeat is the show beat of the worked example for a suggested block, nil for none. Nodes carry a label only: the
+// compact story schema has no compare points and no chart title.
+func packetBlockBeat(block string) map[string]any {
+	node := func(id, label string) map[string]any { return map[string]any{"id": id, "label": label} }
+	diagram := func(layout string, nodes ...map[string]any) map[string]any {
+		return map[string]any{"do": "show", "diagram": map[string]any{"layout": layout, "nodes": nodes}, "at": "board", "entry": "draw", "cue_phrase": "Firewall"}
+	}
+	switch block {
+	case "flow":
+		return diagram("flow", node("in", "Paket"), node("fw", "Firewall"), node("net", "Netz"))
+	case "cycle":
+		return diagram("cycle", node("scan", "Prüfen"), node("learn", "Lernen"), node("block", "Sperren"))
+	case "stack":
+		return diagram("stack", node("app", "Anwendung"), node("fw", "Firewall"), node("net", "Netz"))
+	case "compare":
+		return diagram("compare", node("old", "Ohne"), node("new", "Mit Firewall"))
+	case "chart":
+		return map[string]any{"do": "show", "chart": "bar", "data": map[string]any{"labels": []string{"Erlaubt", "Blockiert"}, "values": []int{70, 30}, "unit": "%"}, "at": "board", "entry": "fade", "cue_phrase": "Firewall"}
+	}
+	return nil
 }
 
 // packetFill adds the fields of one scene's fill loop.
@@ -217,7 +248,7 @@ func packetFill(ctx context.Context, packet map[string]any, story *Story, sceneI
 		dirPacket["suggested_block"] = block
 	}
 	packet["direction"] = dirPacket
-	packet["example"] = packetFillExample(story.Cast, direction)
+	packet["example"] = packetFillExample(story.Cast, direction, SuggestedBlock(sc.Narration, job.Language))
 	if !job.VoiceAvailable {
 		packet["note"] = packetNoVoiceNote
 	}

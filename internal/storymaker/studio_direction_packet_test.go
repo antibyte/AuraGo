@@ -12,7 +12,7 @@ func TestFillExamplesValidate(t *testing.T) {
 	cat := loadReal(t)
 	s := loadAgentFixture(t, "agent-varied")
 	for i, d := range DirectionPlan(&s, "", cat) {
-		example := packetFillExample(s.Cast, d)
+		example := packetFillExample(s.Cast, d, "")
 		// The example teaches cue_phrase, never a numbered cue, and its phrase must resolve like a model's would.
 		beat := example["beats"].([]any)[0].(map[string]any)
 		if beat["cue_phrase"] == nil || beat["cue"] != nil || strings.Contains(example["narration"].(string), "{") {
@@ -89,6 +89,48 @@ func TestOutlineAndCastPacketsCarryTheEnvironmentGuide(t *testing.T) {
 		}
 		if guide, _ := packet["environment_guide"].([]map[string]any); len(guide) < 12 {
 			t.Errorf("%s: environment_guide = %v", phase, packet["environment_guide"])
+		}
+	}
+}
+
+// With a suggested block the example shows that block at the board and the actor points at it; every such example validates.
+func TestFillPacketExampleUsesTheSuggestedBlock(t *testing.T) {
+	cat := loadReal(t)
+	s := loadAgentFixture(t, "agent-varied")
+	dir := DirectionPlan(&s, "", cat)[2]
+	plainExample := packetFillExample(s.Cast, dir, "")
+	if beat := plainExample["beats"].([]any)[0].(map[string]any); beat["item"] == nil || beat["diagram"] != nil {
+		t.Fatalf("without a block the example shows its prop: %v", beat)
+	}
+	for block, want := range map[string]string{"flow": "diagram", "cycle": "diagram", "stack": "diagram", "compare": "diagram", "chart": "chart"} {
+		example := packetFillExample(s.Cast, dir, block)
+		beats := example["beats"].([]any)
+		show := beats[0].(map[string]any)
+		if show["do"] != "show" || show["item"] != nil || show[want] == nil || show["at"] != "board" || show["cue_phrase"] == nil {
+			t.Errorf("%s: show beat = %v", block, show)
+		}
+		if d, ok := show["diagram"].(map[string]any); ok && d["layout"] != block {
+			t.Errorf("%s: diagram layout = %v", block, d["layout"])
+		}
+		if gesture := beats[1].(map[string]any); gesture["gesture"] != "point" || gesture["target"] != "board" || gesture["with"] != "prev" {
+			t.Errorf("%s: gesture beat = %v", block, gesture)
+		}
+		if _, refusal := resolveCuePhrases(example); refusal != nil {
+			t.Fatalf("%s: %+v", block, refusal)
+		}
+		raw, err := json.Marshal(example)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var sc Scene
+		if err := json.Unmarshal(raw, &sc); err != nil {
+			t.Fatalf("%s: %v: %s", block, err, raw)
+		}
+		sc.ID = "s1"
+		one := s
+		one.Scenes = []Scene{sc}
+		if issues := Validate(&one, cat, DefaultLimits()); HasErrors(issues) {
+			t.Errorf("%s: %s\n%s", block, dump(issues), raw)
 		}
 	}
 }
