@@ -119,12 +119,19 @@ func storymakerStoryTool(mode, phase string, compact bool, names StorymakerNames
 
 func storymakerCatalogTool(mode, phase string, compact bool) openai.Tool {
 	if storymaker.EffectiveMode(mode) == storymaker.ModeFree {
-		return tool(storymaker.ToolCatalog,
-			"Read the code reference with operation reference and topic code. A free project has no catalog assets.",
-			schema(map[string]interface{}{
-				"operation": storymakerEnum(storymaker.PhaseOperationsFor(mode, phase, storymaker.ToolCatalog)...),
-				"topic":     storymakerEnum("code"),
-			}, "operation"))
+		operations := storymaker.PhaseOperationsFor(mode, phase, storymaker.ToolCatalog)
+		properties := map[string]interface{}{
+			"operation": storymakerEnum(operations...),
+			"topic":     storymakerEnum("code"),
+		}
+		description := "Read the code reference with operation reference and topic code. A free project has no catalog assets."
+		if slices.Contains(operations, "search") {
+			properties["query"] = storymakerTyped("string")
+			properties["kind"] = storymakerEnum("icon")
+			properties["limit"] = map[string]interface{}{"type": "integer", "minimum": 1, "maximum": 12}
+			description = "Search icons (kind icon, English query) or read the code reference with operation reference and topic code. A free project has no other catalog assets."
+		}
+		return tool(storymaker.ToolCatalog, description, schema(properties, "operation"))
 	}
 	kinds := []string{"character", "prop", "environment", "pose", "gesture", "expression", "transition", "text_style", "sfx", "icon"}
 	if !compact || phase != storymaker.PhaseCast {

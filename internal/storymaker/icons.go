@@ -54,6 +54,16 @@ func iconEntry(ic Icon) Entry {
 	return Entry{ID: ic.ID, Kind: "icon", Name: ic.ID, Tags: ic.Tags}
 }
 
+// iconTermScore is termScore, but an exact name counts like an exact tag: the term "lock" finds icon.lock before
+// icon.lock-open. A catalog entry with an exact tag (prop.lock) still comes first, because it sorts first on a tie.
+func iconTermScore(e Entry, term string) int {
+	score := termScore(e, term)
+	if term == strings.TrimPrefix(e.ID, "icon.") {
+		score = max(score, 4)
+	}
+	return score
+}
+
 // IconIDs returns every icon ID, sorted.
 func (c *Catalog) IconIDs() []string {
 	if c == nil {
@@ -151,5 +161,13 @@ func iconUsageExample(id string) json.RawMessage {
 		At    string `json:"at"`
 		Entry string `json:"entry"`
 	}{"show", id, "card", iconLabel(id), "board", "draw"})
+	return data
+}
+
+// iconFreeUsageExample is the example a free project gets: a line of scene code.
+func iconFreeUsageExample(id string) json.RawMessage {
+	data, _ := json.Marshal(struct {
+		Code string `json:"code"`
+	}{"api.icon('" + id + "', {style: 'card', label: '" + iconLabel(id) + "', at: 'right'})"})
 	return data
 }

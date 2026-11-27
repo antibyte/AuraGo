@@ -44,13 +44,17 @@ func newFreeStudioRig(t *testing.T) (*Studio, *ProjectStore, string) {
 	return studio, ps, proj.ID
 }
 
-func TestFreePhaseTablesDropTheCatalogSearchAndTheCast(t *testing.T) {
+func TestFreePhaseTablesOfferOnlyIconSearchAndNoCast(t *testing.T) {
 	if got := PhaseToolsFor(ModeFree, PhaseCast); len(got) != 0 {
 		t.Fatalf("free cast tools = %v, want none", got)
 	}
 	for _, phase := range []string{PhaseFill, PhaseCheck, PhaseRevise} {
-		if got := PhaseOperationsFor(ModeFree, phase, ToolCatalog); !slices.Equal(got, []string{"reference"}) {
-			t.Errorf("free %s catalog operations = %v, want [reference]", phase, got)
+		want := []string{"search", "reference"}
+		if phase == PhaseCheck {
+			want = []string{"reference"}
+		}
+		if got := PhaseOperationsFor(ModeFree, phase, ToolCatalog); !slices.Equal(got, want) {
+			t.Errorf("free %s catalog operations = %v, want %v", phase, got, want)
 		}
 	}
 	if slices.Contains(PhaseOperationsFor(ModeFree, PhaseFill, ToolStory), "set_meta") {
@@ -65,10 +69,10 @@ func TestFreePhaseTablesDropTheCatalogSearchAndTheCast(t *testing.T) {
 	}
 }
 
-func TestFreeStudioRefusesCatalogSearchAndTheCastPhase(t *testing.T) {
+func TestFreeStudioRefusesCatalogSearchInCheckAndTheCastPhase(t *testing.T) {
 	ctx := context.Background()
 	s, _, _ := newFreeStudioRig(t)
-	s.SetPhase(PhaseFill, "s1")
+	s.SetPhase(PhaseCheck, "")
 	res := s.Call(ctx, StudioCall{Tool: ToolCatalog, Operation: "search", Args: map[string]any{"kind": "prop", "query": "lock"}})
 	if got := answerOf(t, res); got["code"] != "operation_not_in_phase" {
 		t.Fatalf("catalog search in a free project: %s", res.JSON)

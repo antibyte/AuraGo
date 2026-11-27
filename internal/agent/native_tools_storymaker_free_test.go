@@ -35,11 +35,16 @@ func TestStorymakerFreeSchemasOfferNoCatalogSearchNoCastAndCodeScenesOnly(t *tes
 		schemas := StorymakerPhaseToolSchemasFor(storymaker.ModeFree, phase, false, names)
 		catalog := storymakerToolParams(schemas, storymaker.ToolCatalog)
 		operations, _ := storymakerSchemaAt(catalog, "operation")["enum"].([]string)
-		if !slices.Equal(operations, []string{"reference"}) {
-			t.Errorf("%s catalog operations = %v, want [reference]", phase, operations)
+		want := []string{"reference", "search"}
+		if phase == storymaker.PhaseCheck {
+			want = []string{"reference"}
 		}
-		if storymakerSchemaAt(catalog, "query") != nil || storymakerSchemaAt(catalog, "kind") != nil {
-			t.Errorf("%s: the free catalog tool must not offer query or kind", phase)
+		if got := slices.Sorted(slices.Values(operations)); !slices.Equal(got, want) {
+			t.Errorf("%s catalog operations = %v, want %v", phase, operations, want)
+		}
+		kindEnum, _ := storymakerSchemaAt(catalog, "kind")["enum"].([]string)
+		if searches := slices.Contains(operations, "search"); searches != (storymakerSchemaAt(catalog, "query") != nil) || searches != slices.Equal(kindEnum, []string{"icon"}) {
+			t.Errorf("%s: the free catalog tool offers query and kind icon exactly when it searches, kind enum = %v", phase, kindEnum)
 		}
 		if phase == storymaker.PhaseCheck {
 			continue

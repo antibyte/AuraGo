@@ -102,7 +102,7 @@ var studioFreePhaseOperations = map[string]map[string][]string{
 		ToolStory: {"outline", "get"},
 	},
 	PhaseFill: {
-		ToolCatalog: {"reference"},
+		ToolCatalog: {"search", "reference"},
 		ToolStory:   {"put_scene", "patch_scene", "dry_run", "get", "get_code", "put_code"},
 	},
 	PhaseCheck: {
@@ -111,7 +111,7 @@ var studioFreePhaseOperations = map[string]map[string][]string{
 		ToolCatalog: {"reference"},
 	},
 	PhaseRevise: {
-		ToolCatalog: {"reference"},
+		ToolCatalog: {"search", "reference"},
 		ToolStory:   {"get", "put_scene", "patch_scene", "remove_scene", "move_scene", "set_meta", "dry_run", "get_code", "put_code"},
 		ToolCheck:   {"validate"},
 	},

@@ -11,6 +11,7 @@ const (
 	catalogVoiceKind          = "voice"
 	catalogMissNextAction     = "Search a concrete English concept or synonym in the appropriate kind. Use an alternative only when its meaning fits; never invent an ID."
 	catalogPropMissNextAction = "Search one concrete English synonym with kind prop. If no asset fits, read storymaker_catalog reference topic code, then create the missing motif as SVG paths with g.path and combine it with fitting catalog props. Use get_code, put_code and put_scene kind code as documented. Keep speaking-actor scenes and their lip-sync; use off-screen narration for custom illustration scenes. Alternatives are spelling suggestions, not semantic matches."
+	catalogFreeMissNextAction = "No icon matches. Search one concrete English word with kind icon, or draw the motif with g.path."
 	catalogKindList           = "character, prop, environment, pose, gesture, expression, transition, text_style, sfx, icon or voice"
 )
 
@@ -57,6 +58,9 @@ func (s *Studio) runCatalog(ctx context.Context, op string, args map[string]any)
 	query := catalogOpArg(args, "query")
 	id := catalogOpArg(args, "id")
 	rawKind := catalogOpArg(args, "kind")
+	if s.freeMode() {
+		rawKind = "icon" // a free project has no other catalog assets
+	}
 	if strings.EqualFold(rawKind, catalogVoiceKind) {
 		return s.catalogVoiceSearch(ctx, op, query, id, catalogOpLimit(args))
 	}
@@ -85,6 +89,9 @@ func (s *Studio) runCatalog(ctx context.Context, op string, args map[string]any)
 	return catalogOpAnswer(op, "ok", map[string]any{"results": results})
 }
 
+// freeMode reports whether the job is a free project.
+func (s *Studio) freeMode() bool { return EffectiveMode(s.job.Mode) == ModeFree }
+
 func (s *Studio) catalogDescribe(target, kind string) StudioResult {
 	const op = "describe"
 	if ic, ok := s.deps.Catalog.Icon(target); ok && (kind == "" || kind == "icon") {
@@ -107,6 +114,9 @@ func (s *Studio) catalogHitOf(e Entry) catalogHit {
 	hit := catalogHit{ID: e.ID, Kind: e.Kind, Tags: e.Tags, UsageExample: e.UsageExample}
 	if e.Kind == "icon" {
 		hit.UsageExample = iconUsageExample(e.ID)
+		if s.freeMode() {
+			hit.UsageExample = iconFreeUsageExample(e.ID)
+		}
 	}
 	if hit.Tags == nil {
 		hit.Tags = []string{}
@@ -122,6 +132,9 @@ func (s *Studio) catalogMiss(op, query, kind string) StudioResult {
 	nextAction := catalogMissNextAction
 	if kind == "prop" || (kind == "" && strings.HasPrefix(query, "prop.")) {
 		nextAction = catalogPropMissNextAction
+	}
+	if s.freeMode() {
+		nextAction = catalogFreeMissNextAction
 	}
 	var pool []string
 	if s.deps.Catalog != nil {

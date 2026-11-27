@@ -746,17 +746,20 @@ func (c *Catalog) Search(query, kind string, limit int) []Entry {
 	if kind == "" || kind == "icon" {
 		for i, ic := range c.icons {
 			e := iconEntry(ic)
-			score := 1
+			score, order := 1, len(c.entries)+len(c.icons)+i
 			if len(terms) > 0 {
 				score = 0
 				for _, t := range terms {
-					score += termScore(e, t)
+					score += iconTermScore(e, t)
+					if t == strings.TrimPrefix(e.ID, "icon.") {
+						order = len(c.entries) + i // an exact name leads the icons of its score
+					}
 				}
 				if score == 0 {
 					continue
 				}
 			}
-			hits = append(hits, scored{e, score, len(c.entries) + i})
+			hits = append(hits, scored{e, score, order})
 		}
 	}
 	sort.SliceStable(hits, func(i, j int) bool {
