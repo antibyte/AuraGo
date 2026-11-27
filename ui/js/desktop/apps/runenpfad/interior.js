@@ -18,6 +18,8 @@
     function N() { return root.RunenpfadNpcs; }
     function D() { return root.RunenpfadDialogue || null; }
     function T() { return root.RunenpfadInteriorThings || null; }
+    function E() { return root.RunenpfadEmber || null; }
+    function hooks() { return root.RunenpfadRoomHooks || []; }
     function pushEvent(sim, type, detail) { P().pushEvent(sim, type, detail); }
 
     function placeState(sim, placeId) {
@@ -54,7 +56,7 @@
         const loot = (sim.profile && sim.profile.loot) || [];
         const room = {
             id: roomId, def: d, cols: lay.cols, rows: lay.rows, w: lay.cols * CELL, h: lay.rows * CELL,
-            solid: lay.solid, walls: lay.walls, props: lay.props, lights: lay.lights, exits: [], rests: []
+            solid: lay.solid, walls: lay.walls, lava: lay.lava || null, props: lay.props, lights: lay.lights, exits: [], rests: []
         };
         it.room = room;
         it.roomId = roomId;
@@ -107,7 +109,7 @@
                     const lootDef = endless ? { coins: 15 } : (t.loot || {});
                     const opened = !!ps.opened[t.chest] || (!repeat && loot.indexOf(t.chest) >= 0);
                     room.solid[c.cy * room.cols + c.cx] = 1;
-                    it.chests.push({ id: t.chest, x: p.x, y: p.y, lootId: t.chest, loot: lootDef, locked: t.locked === 'clear' && !cleared, opened: opened, repeat: repeat });
+                    it.chests.push({ id: t.chest, x: p.x, y: p.y, lootId: t.chest, loot: lootDef, locked: t.locked === 'clear' && !cleared, opened: opened, repeat: repeat, look: t.look || null, key: t.key || null });
                 });
             } else if (t.pickup) {
                 cells(t.at).forEach(function (c) {
@@ -137,6 +139,7 @@
         h.moving = false;
         it.wipe = { t: 0, dir: 1 };
         if (T()) T().setup(sim, it, lay);
+        hooks().forEach(function (hk) { if (typeof hk.setup === 'function') hk.setup(sim, it, lay); });
         if (it.guardian && it.guardian.state !== 'dead') sim.notice = 'runenpfad.notice.boss_room';
         pushEvent(sim, 'place_room', { roomId: roomId });
     }
@@ -157,10 +160,11 @@
     // ---- hero damage and healing ----
 
     // Returns true when the hit landed (not while invulnerable, dashing or leaving).
-    function hurtHero(sim, it, kind, fromX, fromY) {
+    function hurtHero(sim, it, kind, fromX, fromY, dmg) {
         const h = it.hero;
         if (h.invuln > 0 || h.dashT > 0 || it.leaving) return false;
-        sim.player.hp -= 1;
+        sim.player.hp -= Math.max(1, Math.floor(dmg || 1));
+        if (sim.player.hp <= 0 && E() && E().spareLethal(sim)) sim.player.hp = 1;
         h.invuln = 1;
         h.hurtT = 0.3;
         const dx = h.x - fromX;
@@ -224,7 +228,7 @@
         h.moving = len > 0;
         if ((input.dashPressed || input.jumpPressed) && h.dashCool <= 0 && h.dashT <= 0) {
             h.dashT = cfg.dashT;
-            h.dashCool = cfg.dashCool;
+            h.dashCool = cfg.dashCool * (E() && E().mealOf(sim) === 'broth' ? 0.6 : 1);
             h.dx = len > 0 ? mx : h.ax;
             h.dy = len > 0 ? my : h.ay;
             pushEvent(sim, 'in_dash');
@@ -278,6 +282,11 @@
         if (chest.opened) {
             pushEvent(sim, 'in_chest', { lootId: chest.lootId, empty: true });
             sim.notice = 'runenpfad.notice.place_empty';
+            return;
+        }
+        if (chest.key && N().itemCount(sim, chest.key) < 1) {
+            pushEvent(sim, 'in_locked');
+            sim.notice = 'runenpfad.notice.need_item';
             return;
         }
         if (chest.locked) {
@@ -335,7 +344,7 @@
             n.near = Math.hypot(n.x - hx, (n.y - 7) - hy) <= TALK_R;
             if (n.near && D() && D().startNode(sim, n)) consider(n.x, n.y, 'talk', n);
         });
-        it.chests.forEach(function (c) { if (!c.opened) consider(c.x, c.y, c.locked ? 'locked' : 'open', c); });
+        it.chests.forEach(function (c) { if (!c.opened) consider(c.x, c.y, (c.locked || (c.key && N().itemCount(sim, c.key) < 1)) ? 'locked' : 'open', c); });
         it.room.rests.forEach(function (r) { if (!ps.used[r.key]) consider(r.x, r.y, 'rest', r); });
         if (T()) T().consider(sim, it, consider);
         it.prompt = best ? { kind: best.kind, x: best.x, y: best.y } : null;
@@ -399,6 +408,7 @@
         if (it.guardian && it.mobs.indexOf(it.guardian) < 0) it.guardian = null;
         M().stepShots(sim, it, dt);
         if (T()) T().step(sim, it, input, dt);
+        hooks().forEach(function (hk) { if (typeof hk.step === 'function') hk.step(sim, it, input, dt); });
         if (it.hadMobs && !it.cleared && !it.mobs.some(function (m) { return m.state !== 'dead'; })) {
             it.cleared = true;
             placeState(sim, it.placeId).cleared[it.roomId] = true;

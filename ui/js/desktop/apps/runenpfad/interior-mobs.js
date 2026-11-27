@@ -220,6 +220,10 @@
             m.deadT += dt;
             return;
         }
+        if (d && d.ext && typeof d.ext.step === 'function') {
+            d.ext.step(sim, it, m, dt);
+            return;
+        }
         if (m.boss && root.RunenpfadInteriorBosses) {
             root.RunenpfadInteriorBosses.step(sim, it, m, dt);
             if (m.aggro && m.state !== 'stun' && m.state !== 'dead' && Math.hypot(it.hero.x - m.x, it.hero.y - m.y) < m.r + HERO_R) I().hurtHero(sim, it, m.kind, m.x, m.y);
@@ -259,6 +263,8 @@
 
     // Damage from the hero. Returns true when the mob died.
     function hit(sim, it, m, dmg, ax, ay) {
+        const dd = DEFS[m.kind];
+        if (dd && dd.ext && typeof dd.ext.hit === 'function') return dd.ext.hit(sim, it, m, dmg, ax, ay);
         if (m.state === 'dead') return false;
         m.hp -= dmg;
         if (!m.boss) m.aggro = true;
@@ -311,9 +317,9 @@
             if (s.life <= 0) return;
             const cx = Math.floor(s.x / CELL);
             const cy = Math.floor(s.y / CELL);
-            if (cx < 0 || cy < 0 || cx >= it.room.cols || cy >= it.room.rows || it.room.solid[cy * it.room.cols + cx]) return;
+            if (cx < 0 || cy < 0 || cx >= it.room.cols || cy >= it.room.rows || (it.room.solid[cy * it.room.cols + cx] && !(it.room.lava && it.room.lava[cy * it.room.cols + cx]))) return;
             if (Math.hypot(s.x - h.x, s.y - h.y) < s.r + HERO_R) {
-                if (I().hurtHero(sim, it, s.kind, s.x, s.y)) return;
+                if (I().hurtHero(sim, it, s.kind, s.x, s.y, s.dmg)) return;
             }
             keep.push(s);
         });
