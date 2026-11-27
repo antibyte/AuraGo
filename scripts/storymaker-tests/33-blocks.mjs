@@ -510,3 +510,35 @@ check('blocks: a compare diagram with two-line headers and three two-line points
         }
     }
 });
+
+// ---- C13: untrusted block payloads and icon lookups are bounded
+
+check('blocks: revive refuses a segment with t1 < t0, unsorted segments, log ease from 0, and a __proto__ key; it keeps only known block fields', () => {
+    const def = diagramDef(2, { area: { x: 0, y: 0, w: 400, h: 300, surface: 'panel' }, t0: 0, dur: 1 });
+    const wire = () => JSON.parse(JSON.stringify(B.serialize([B.create(def)], null)));
+    const seg = (t0, t1, from, to, log = false) => ({ t0, t1, from, to, ease: 'linear', log });
+    const withSegs = segs => { const w = wire(); w.blocks[0].alpha.segs = segs; return B.revive(w, cat); };
+    assert.notEqual(withSegs([seg(0, 1, 0, 1), seg(1, 2, 1, 0)]), null, 'sorted segments pass');
+    assert.equal(withSegs([seg(2, 1, 0, 1)]), null, 't1 < t0');
+    assert.equal(withSegs([seg(1, 2, 0, 1), seg(0, 1, 1, 0)]), null, 'segments out of order');
+    assert.equal(withSegs([seg(0, 1, 0, 1, true)]), null, 'log ease from 0');
+    assert.equal(withSegs([seg(0, 1, 1, -2, true)]), null, 'log ease to a negative value');
+    assert.notEqual(withSegs([seg(0, 1, 1, 2, true)]), null, 'log ease between positive values passes');
+    const proto = wire();
+    proto.blocks[0].block = JSON.parse(JSON.stringify(proto.blocks[0].block).slice(0, -1) + ',"__proto__":{"x":1}}');
+    assert.ok(Object.keys(proto.blocks[0].block).includes('__proto__'), 'the payload really has an own __proto__ key');
+    assert.equal(B.revive(proto, cat), null, 'a __proto__ key');
+    const extra = wire();
+    extra.blocks[0].block.secret = { deep: 1 };
+    extra.blocks[0].block.diagram.nodes[0].extra = 5;
+    const back = B.revive(extra, cat);
+    assert.notEqual(back, null);
+    assert.deepEqual(Object.keys(back.entities[0].block).sort(), ['diagram', 'id', 'kind'], 'unknown block fields are dropped');
+    assert.deepEqual(Object.keys(back.entities[0].block.diagram.nodes[0]).sort(), ['id', 'label'], 'unknown node fields are dropped');
+});
+
+check('blocks: an icon path named like an Object property draws as a path', () => {
+    const odd = SM.scene.indexCatalog({ ...t.catalog, icon_data: { schema: 'storymaker-icons/1', icons: [{ id: 'icon.odd', paths: ['constructor', 'toString'], tags: [] }] } });
+    const log = paint({ id: 'i', kind: 'icon', icon: 'icon.odd', style: 'line' }, 5, { cat: odd });
+    assert.deepEqual(log.filter(l => l.startsWith('stroke(')), ['stroke(path(constructor))', 'stroke(path(toString))']);
+});

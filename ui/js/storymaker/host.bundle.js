@@ -502,7 +502,7 @@
     var CAPS = {
         maxFallbackFontBytes: 18 * 1048576,
         maxScenes: 400, maxEntries: 6000, maxAssetKeys: 2000, maxFonts: 16, maxFontBytes: 8 * 1048576, maxFontTotal: 32 * 1048576,
-        maxAudioScenes: 400, maxAudioBlocks: 61, maxAudioPieces: 800, maxLevels: 27000, maxTotalLevels: 200000, maxGlyphFaces: 16, maxGlyphRanges: 60000, maxIcons: 1000, maxIconPaths: 40, maxIconPathChars: 2000,
+        maxAudioScenes: 400, maxAudioBlocks: 61, maxAudioPieces: 800, maxLevels: 27000, maxTotalLevels: 200000, maxGlyphFaces: 16, maxGlyphRanges: 60000, maxIcons: 1000, maxIconPaths: 40, maxIconPathChars: 2000, maxIconTotalChars: 1048576,
         maxBundles: 400, maxBundleChars: 262144, maxFrame: 100000000, thumbMin: 16, thumbMax: 1920, maxKey: 240, maxReq: 64
     };
     var TYPES = ['load', 'assets', 'seek', 'play', 'pause', 'thumb', 'reset'];
@@ -559,13 +559,16 @@
     function checkIconData(data) {
         if (!isObject(data) || data.schema !== 'storymaker-icons/1') return 'load.catalog.icon_data needs the schema string';
         if (!Array.isArray(data.icons) || data.icons.length > CAPS.maxIcons) return 'load.catalog.icon_data has bad icons or too many icons';
+        var chars = 0;   // the paths of all icons together stay under maxIconTotalChars, like Go's maxIconsBytes
         for (var i = 0; i < data.icons.length; i++) {
             var icon = data.icons[i];
             if (!isObject(icon) || typeof icon.id !== 'string' || !/^icon\.[a-z0-9-]{1,60}$/.test(icon.id)) return 'load.catalog.icon_data has a bad icon id';
             if (!Array.isArray(icon.paths) || icon.paths.length > CAPS.maxIconPaths) return 'load.catalog.icon_data has bad or too many paths';
             for (var k = 0; k < icon.paths.length; k++) {
                 if (typeof icon.paths[k] !== 'string' || icon.paths[k].length > CAPS.maxIconPathChars) return 'load.catalog.icon_data has a bad path';
+                chars += icon.paths[k].length;
             }
+            if (chars > CAPS.maxIconTotalChars) return 'load.catalog.icon_data has too many path characters';
             if (icon.fills !== undefined && (!Array.isArray(icon.fills) || icon.fills.length > CAPS.maxIconPaths)) return 'load.catalog.icon_data has bad fills';
         }
         return null;

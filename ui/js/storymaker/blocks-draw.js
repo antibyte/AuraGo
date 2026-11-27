@@ -10,7 +10,7 @@
 
     var DASH = 96;   // the dash that reveals a stroke: a dash of DASH * p and a gap of DASH, in 24-grid units for icons
     var PANEL_ALPHA = 0.94, PANEL_RADIUS = 0.02;
-    var pathCache = {}, pathCount = 0;
+    var pathCache = Object.create(null), pathCount = 0;
 
     function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
     function r3(v) { return Math.round(v * 1000) / 1000; }
@@ -18,11 +18,17 @@
     function pathOf(d) {
         var p = pathCache[d];
         if (!p) {
-            if (pathCount > 2000) { pathCache = {}; pathCount = 0; }
+            if (pathCount > 2000) { pathCache = Object.create(null); pathCount = 0; }
             p = pathCache[d] = new Path2D(d);
             pathCount++;
         }
         return p;
+    }
+
+    // iconOf(c, id): the icon of the catalog under that id, an own entry only, so an id like "constructor" finds nothing.
+    function iconOf(c, id) {
+        var icons = c.rc.cat && c.rc.cat.icons;
+        return icons && typeof id === 'string' && Object.prototype.hasOwnProperty.call(icons, id) ? icons[id] : null;
     }
 
     // ---- colours: ink, accent, soft and the colour of a line on an accent fill, by surface (see the seams document)
@@ -100,7 +106,7 @@
     }
 
     function iconPlan(c) {
-        var st = c.st, b = st.block, ctx = c.ctx, icon = c.rc.cat && c.rc.cat.icons ? c.rc.cat.icons[b.icon] : null;
+        var st = c.st, b = st.block, ctx = c.ctx, icon = iconOf(c, b.icon);
         var m = Math.min(st.w, st.h), style = B.ICON_STYLES.indexOf(b.style) >= 0 ? b.style : (b.label ? 'card' : 'badge');
         var p = st.entry === 'draw' ? B.itemProgress(st, 0) : 1;
         if (style === 'line') {
@@ -189,7 +195,7 @@
 
     // nodeLayout(c, node, box, px, compare): where the icon and the text of one node go; the label is fitted at px or smaller.
     function nodeLayout(c, node, box, px, compare) {
-        var icons = c.rc.cat && c.rc.cat.icons, icon = node.icon && icons ? icons[node.icon] : null, m = Math.min(box.w, box.h), pad = 0.1 * m, o = { box: box, icon: icon, pad: pad, gs: 0 };
+        var icon = iconOf(c, node.icon), m = Math.min(box.w, box.h), pad = 0.1 * m, o = { box: box, icon: icon, pad: pad, gs: 0 };
         if (compare) { o.mode = 'compare'; o.gs = icon ? 0.12 * box.h : 0; return compareLayout(c, node, o, px); }
         else if (icon && box.w >= box.h * 1.5) { o.mode = 'side'; o.gs = 0.56 * box.h; o.fit = fit(c, node.label, 600, box.w - pad * 3 - o.gs, 2, px); }
         else if (icon) {

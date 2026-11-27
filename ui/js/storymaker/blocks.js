@@ -358,15 +358,35 @@
         if (typeof value === 'string') return value.length <= MAX_STRING;
         if (value === null || typeof value === 'boolean' || value === undefined) return true;
         if (depth > 8 || typeof value !== 'object') return false;
-        return Object.keys(value).every(function (k) { return k.length <= MAX_STRING && sane(value[k], depth + 1); });
+        return Object.keys(value).every(function (k) { return k.length <= MAX_STRING && k !== '__proto__' && k !== 'constructor' && k !== 'prototype' && sane(value[k], depth + 1); });
+    }
+
+    // cleanBlock(b): a copy of a checked block with the known fields of its kind only, so a payload cannot smuggle other keys in.
+    var KIND_KEYS = { icon: ['icon', 'style', 'label'], diagram: [], chart: [], headline: ['text'], list: ['text'] };
+    function pick(src, keys) {
+        var o = {};
+        keys.forEach(function (k) { if (Object.prototype.hasOwnProperty.call(src, k) && src[k] !== undefined) o[k] = JSON.parse(JSON.stringify(src[k])); });
+        return o;
+    }
+    function cleanBlock(b) {
+        var o = pick(b, ['id', 'kind'].concat(KIND_KEYS[b.kind]));
+        if (b.kind === 'diagram') {
+            o.diagram = pick(b.diagram, ['layout', 'flow']);
+            o.diagram.nodes = b.diagram.nodes.map(function (n) { return pick(n, ['id', 'label', 'icon', 'points']); });
+        }
+        if (b.kind === 'chart') o.chart = pick(b.chart, ['type', 'labels', 'values', 'unit', 'title']);
+        return o;
     }
 
     function trackIn(plain, T) {
         if (!isObject(plain) || !finite(plain.init) || !Array.isArray(plain.segs) || plain.segs.length > MAX_SEGS) return null;
-        var track = new T.Track(plain.init);
+        var track = new T.Track(plain.init), last = -Infinity;
         for (var i = 0; i < plain.segs.length; i++) {
             var s = plain.segs[i];
             if (!isObject(s) || !finite(s.t0) || !finite(s.t1) || !finite(s.from) || !finite(s.to) || EASES.indexOf(s.ease) < 0) return null;
+            // the rules of Track.add: t1 >= t0, sorted by t0, and a log ease only between positive values
+            if (s.t1 < s.t0 || s.t0 < last || (s.log === true && !(s.from > 0 && s.to > 0))) return null;
+            last = s.t0;
             track.segs.push({ t0: s.t0, t1: s.t1, from: s.from, to: s.to, ease: s.ease, log: s.log === true, order: i });
         }
         return track;
@@ -396,7 +416,7 @@
             tracks[name] = trackIn(p[name], T);
             if (!tracks[name]) return null;
         }
-        var e = make(p.block, { x: tracks.x.init, y: tracks.y.init, w: p.w, h: p.h, surface: p.surface, t0: p.t0, dur: p.dur, entry: p.entry, reveals: p.reveals, hidden: false });
+        var e = make(cleanBlock(p.block), { x: tracks.x.init, y: tracks.y.init, w: p.w, h: p.h, surface: p.surface, t0: p.t0, dur: p.dur, entry: p.entry, reveals: p.reveals, hidden: false });
         Object.keys(tracks).forEach(function (name) { e[name] = tracks[name]; });
         return listIn(p.marks, ['node', 'style'], e.marks) && listIn(p.highlights, ['style'], e.highlights) ? e : null;
     }
