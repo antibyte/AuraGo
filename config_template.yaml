@@ -2444,6 +2444,11 @@ chibi_sensei:
     training:
         machine_shape: "NvidiaTeslaT4"  # Kaggle GPU for training runs: NvidiaTeslaT4 or NvidiaL4; must also be in kaggle.allowed_machine_shapes
         delete_remote_after_run: true   # delete the uploaded dataset and the notebook on Kaggle after a run (needs kaggle.allow_delete)
+    runtime:
+        enabled: true               # local llama.cpp chat in the Test step; nothing is downloaded until an administrator confirms
+        backend: "auto"             # auto, cpu, vulkan or cuda; auto tries CUDA, then Vulkan, then CPU
+        idle_minutes: 10            # a test model nobody used for this long is stopped (1-120)
+        context_size: 4096          # tokens one test chat can hold (1024-32768)
 
 # HomeDash: dashboards for lights, switches, sensors and cameras from every connected source (desktop app and wall displays).
 homedash:

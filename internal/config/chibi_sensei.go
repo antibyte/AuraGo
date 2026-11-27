@@ -2,13 +2,13 @@ package config
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 )
 
-// ChibiSenseiConfig configures the Chibi Sensei desktop app (small-model training studio). Enabled
-// and Training.DeleteRemoteAfterRun default to true in the loader, because a YAML bool cannot tell
-// "absent" from false. Later phases add Agent and Runtime as sibling fields; none of the fields
-// below is renamed then.
+// ChibiSenseiConfig configures the Chibi Sensei desktop app (small-model training studio). Enabled,
+// Training.DeleteRemoteAfterRun and Runtime.Enabled default to true in the loader, because a YAML bool cannot
+// tell "absent" from false. A later phase adds Agent as a sibling field; none of the fields below is renamed then.
 type ChibiSenseiConfig struct {
 	Enabled   bool                       `yaml:"enabled" json:"enabled"`
 	Storage   ChibiSenseiStorageConfig   `yaml:"storage" json:"storage"`
@@ -16,6 +16,18 @@ type ChibiSenseiConfig struct {
 	Import    ChibiSenseiImportConfig    `yaml:"import" json:"import"`
 	Generator ChibiSenseiGeneratorConfig `yaml:"generator" json:"generator"`
 	Training  ChibiSenseiTrainingConfig  `yaml:"training" json:"training"`
+	Runtime   ChibiSenseiRuntimeConfig   `yaml:"runtime" json:"runtime"`
+}
+
+// ChibiSenseiRuntimeBackends lists the accepted runtime.backend values.
+var ChibiSenseiRuntimeBackends = []string{"auto", "cpu", "vulkan", "cuda"}
+
+// ChibiSenseiRuntimeConfig controls the local llama.cpp chat of the Test step.
+type ChibiSenseiRuntimeConfig struct {
+	Enabled     bool   `yaml:"enabled" json:"enabled"`           // default true (set by the loader); nothing downloads until an administrator confirms
+	Backend     string `yaml:"backend" json:"backend"`           // one of ChibiSenseiRuntimeBackends; default auto
+	IdleMinutes int    `yaml:"idle_minutes" json:"idle_minutes"` // 1..120, default 10
+	ContextSize int    `yaml:"context_size" json:"context_size"` // 1024..32768, default 4096
 }
 
 // ChibiSenseiStorageConfig caps everything Chibi Sensei stores under the data directory.
@@ -64,6 +76,13 @@ func NormalizeChibiSenseiConfig(c *ChibiSenseiConfig) error {
 	} else {
 		return fmt.Errorf("chibi_sensei: training.machine_shape must be one of %s", strings.Join(KaggleMachineShapes, ", "))
 	}
+	c.Runtime.Backend = strings.ToLower(strings.TrimSpace(c.Runtime.Backend))
+	if c.Runtime.Backend == "" {
+		c.Runtime.Backend = "auto"
+	}
+	if !slices.Contains(ChibiSenseiRuntimeBackends, c.Runtime.Backend) {
+		return fmt.Errorf("chibi_sensei: runtime.backend must be one of %s", strings.Join(ChibiSenseiRuntimeBackends, ", "))
+	}
 	for _, f := range []struct {
 		p           *int
 		def, lo, hi int
@@ -75,6 +94,8 @@ func NormalizeChibiSenseiConfig(c *ChibiSenseiConfig) error {
 		{&c.Import.MaxFileMB, 50, 1, 500, "import.max_file_mb"},
 		{&c.Generator.MaxRowsPerJob, 500, 10, 5000, "generator.max_rows_per_job"},
 		{&c.Generator.MaxDailyRows, 5000, 100, 100000, "generator.max_daily_rows"},
+		{&c.Runtime.IdleMinutes, 10, 1, 120, "runtime.idle_minutes"},
+		{&c.Runtime.ContextSize, 4096, 1024, 32768, "runtime.context_size"},
 	} {
 		if *f.p == 0 {
 			*f.p = f.def

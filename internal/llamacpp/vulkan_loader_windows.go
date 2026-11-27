@@ -1,6 +1,6 @@
 //go:build windows
 
-package embeddings
+package llamacpp
 
 import (
 	"fmt"

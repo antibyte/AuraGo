@@ -606,6 +606,8 @@ func load(path string, diagnosticBackup bool) (*Config, error) {
 	cfg.ChibiSensei.Enabled = true
 	cfg.ChibiSensei.Training.MachineShape = DefaultChibiSenseiMachineShape
 	cfg.ChibiSensei.Training.DeleteRemoteAfterRun = true
+	// The local chat runtime is on, but downloads nothing until an administrator confirms.
+	cfg.ChibiSensei.Runtime.Enabled = true
 
 	// HomeDash is on by default: nothing connects until a dashboard is open; the kiosk stays off.
 	cfg.HomeDash.Enabled = true

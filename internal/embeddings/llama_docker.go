@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"aurago/internal/dockerutil"
+	"aurago/internal/llamacpp"
 )
 
 const (
@@ -337,18 +338,7 @@ func runtimeIsLinuxContainer(operatingSystem string) bool {
 	return strings.TrimSpace(operatingSystem) != ""
 }
 
-func llamaDockerImage(backend string) (string, bool) {
-	switch backend {
-	case "cpu":
-		return llamaDockerCPUImage, true
-	case "cuda":
-		return llamaDockerCUDAImage, true
-	case "vulkan":
-		return llamaDockerVulkanImage, true
-	default:
-		return "", false
-	}
-}
+func llamaDockerImage(backend string) (string, bool) { return llamacpp.DockerImage(backend) }
 
 func removeDockerLlamaImage(ctx context.Context, dockerHost, backend string) error {
 	image, ok := llamaDockerImage(backend)

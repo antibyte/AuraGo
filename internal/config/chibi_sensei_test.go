@@ -27,11 +27,13 @@ func TestChibiSenseiDefaults(t *testing.T) {
 		Import:    ChibiSenseiImportConfig{MaxRows: 20000, MaxFileMB: 50},
 		Generator: ChibiSenseiGeneratorConfig{MaxRowsPerJob: 500, MaxDailyRows: 5000},
 		Training:  ChibiSenseiTrainingConfig{MachineShape: "NvidiaTeslaT4", DeleteRemoteAfterRun: true},
+		Runtime:   ChibiSenseiRuntimeConfig{Enabled: true, Backend: "auto", IdleMinutes: 10, ContextSize: 4096},
 	}
 	for name, content := range map[string]string{
 		"empty file":    "{}\n",
 		"null section":  "chibi_sensei:\n",
 		"null training": "chibi_sensei:\n  training:\n",
+		"null runtime":  "chibi_sensei:\n  runtime:\n",
 	} {
 		cfg, err := loadChibiSenseiYAML(t, content)
 		if err != nil {
@@ -166,5 +168,54 @@ func TestChibiSenseiTrainingConfig(t *testing.T) {
 	var c ChibiSenseiConfig
 	if err := NormalizeChibiSenseiConfig(&c); err != nil || c.Training.MachineShape != "NvidiaTeslaT4" || c.Training.DeleteRemoteAfterRun {
 		t.Fatalf("normalize must default the shape and leave the bool alone: %+v %v", c.Training, err)
+	}
+}
+
+func TestChibiSenseiRuntimeConfig(t *testing.T) {
+	cfg, err := loadChibiSenseiYAML(t, "chibi_sensei:\n  runtime:\n    enabled: false\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.ChibiSensei.Runtime.Enabled {
+		t.Fatal("an explicit runtime.enabled: false was overridden")
+	}
+
+	c := ChibiSenseiConfig{Runtime: ChibiSenseiRuntimeConfig{Backend: " CUDA "}}
+	if err := NormalizeChibiSenseiConfig(&c); err != nil || c.Runtime.Backend != "cuda" {
+		t.Fatalf("backend = %q, err = %v, want cuda", c.Runtime.Backend, err)
+	}
+	for _, backend := range []string{"metal", "rocm"} {
+		c := ChibiSenseiConfig{Runtime: ChibiSenseiRuntimeConfig{Backend: backend}}
+		err := NormalizeChibiSenseiConfig(&c)
+		if err == nil || !strings.Contains(err.Error(), "chibi_sensei: runtime.backend must be one of auto, cpu, vulkan, cuda") {
+			t.Fatalf("backend %q: err = %v", backend, err)
+		}
+	}
+	for _, tc := range []struct {
+		name    string
+		rt      ChibiSenseiRuntimeConfig
+		wantErr bool
+		idle    int
+		context int
+	}{
+		{"idle low", ChibiSenseiRuntimeConfig{IdleMinutes: 1}, false, 1, 4096},
+		{"idle high", ChibiSenseiRuntimeConfig{IdleMinutes: 120}, false, 120, 4096},
+		{"idle zero", ChibiSenseiRuntimeConfig{}, false, 10, 4096},
+		{"idle over", ChibiSenseiRuntimeConfig{IdleMinutes: 121}, true, 0, 0},
+		{"context low", ChibiSenseiRuntimeConfig{ContextSize: 1024}, false, 10, 1024},
+		{"context high", ChibiSenseiRuntimeConfig{ContextSize: 32768}, false, 10, 32768},
+		{"context under", ChibiSenseiRuntimeConfig{ContextSize: 1023}, true, 0, 0},
+	} {
+		c := ChibiSenseiConfig{Runtime: tc.rt}
+		err := NormalizeChibiSenseiConfig(&c)
+		if tc.wantErr {
+			if err == nil {
+				t.Fatalf("%s: expected an error", tc.name)
+			}
+			continue
+		}
+		if err != nil || c.Runtime.IdleMinutes != tc.idle || c.Runtime.ContextSize != tc.context {
+			t.Fatalf("%s: got %+v, err %v", tc.name, c.Runtime, err)
+		}
 	}
 }
