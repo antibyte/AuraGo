@@ -26,6 +26,11 @@ func TestFallbackHeadline(t *testing.T) {
 			t.Errorf("FallbackHeadline(%q, %q) = %q, want %q", tc.narration, tc.title, got, tc.want)
 		}
 	}
+	// Astral characters count two UTF-16 units each, as the validator and the player count them.
+	emoji := strings.TrimSpace(strings.Repeat(strings.Repeat("🔥", 12)+" ", 6))
+	if got := FallbackHeadline(emoji, ""); got == "" || jsLen(got) > blockHeadlineMax {
+		t.Errorf("an emoji headline %q has %d units, want 1 to %d", got, jsLen(got), blockHeadlineMax)
+	}
 	// 8 words of 40 characters must still fit the 80 characters of a headline.
 	words := strings.TrimSpace(strings.Repeat(strings.Repeat("w", 40)+" ", 8))
 	if got := FallbackHeadline(words, ""); len([]rune(got)) > blockHeadlineMax {

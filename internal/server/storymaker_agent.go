@@ -1230,7 +1230,11 @@ func (j *storymakerAgentJob) finish(runCtx, jobCtx context.Context) (render.Outp
 	if story := j.readStory(final); story != nil && storymaker.StoryIsBlank(story) {
 		return j.publishOutcome(final, storymaker.OutcomeInput{Progress: open, TimedOut: jobCtx.Err() == context.DeadlineExceeded, ModelError: j.modelError})
 	}
-	fallback := j.applyFallbackBoards(final, open.Unfilled)
+	// A job the user stopped (runCtx) gets no boards. One that ran into its own deadline (only jobCtx) still gets them.
+	var fallback []string
+	if runCtx.Err() == nil {
+		fallback = j.applyFallbackBoards(final, open.Unfilled)
+	}
 	narration := j.narrate(runCtx, jobCtx)
 	report, err := j.finalCheck(final)
 	if err == nil && jobCtx.Err() == nil && storymaker.HasBlockingIssue(report.Issues) && report.RoundsLeft > 0 {

@@ -1,9 +1,12 @@
 package server
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	"aurago/internal/storymaker"
+	"aurago/internal/storymaker/render"
 )
 
 // A scene the model never fills ends as a board with its key sentence, and the job lists it as an open check.
@@ -36,5 +39,42 @@ func TestStorymakerAgentFallbackBoardAtJobEnd(t *testing.T) {
 	}
 	if job.Agent.ScenesDone != 2 {
 		t.Errorf("scenes done = %d, want 2", job.Agent.ScenesDone)
+	}
+}
+
+// A job the user stopped (its run context is cancelled) must not get fallback boards, even when it reaches finish.
+// A job that only ran into its own deadline still does (TestStorymakerAgentFallbackBoardAtJobEnd).
+func TestStorymakerAgentFallbackSkippedAfterUserStop(t *testing.T) {
+	turns := smScriptHappyTurns()
+	turns[storymaker.PhaseFill] = []smScriptTurn{smScriptStoryCall("put_scene", "s1", smScriptSceneOne())}
+	client := &smScriptClient{turns: turns}
+	env := newSMScriptEnv(t, smScriptNativeModel, client)
+	m, err := render.NewManager(render.ManagerOptions{
+		Dir:     t.TempDir(),
+		Kinds:   []string{render.KindAgent},
+		Workers: 1,
+		Run: func(ctx context.Context, job render.Job, payload any, h *render.Handle) (render.Output, error) {
+			j, err := env.s.newStorymakerAgentJob(ctx, env.rt, job, payload.(storymakerAgentPayload), h)
+			if err != nil {
+				return render.Output{}, err
+			}
+			defer j.mem.Close()
+			jobCtx, cancelJob := context.WithTimeout(ctx, time.Minute)
+			defer cancelJob()
+			j.runCreate(jobCtx)
+			// The user stops the job after its loops, before the closing steps.
+			runCtx, stop := context.WithCancel(ctx)
+			stop()
+			return j.finish(runCtx, jobCtx)
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(m.Close)
+	smScriptWait(t, m, smScriptEnqueue(t, m, env).ID)
+	s2 := smScriptStory(t, env).Scenes[1]
+	if s2.Environment == storymaker.BoardEnvironmentID || len(s2.Beats) != 0 {
+		t.Fatalf("s2 = %+v, a stopped job must leave the unfilled scene untouched", s2)
 	}
 }
