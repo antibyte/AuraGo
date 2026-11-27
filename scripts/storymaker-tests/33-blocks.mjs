@@ -1,6 +1,6 @@
 // Batch C: SM.blocks, the player's icon, diagram, chart, headline and list blocks and the env.board backdrop.
 import assert from 'node:assert/strict';
-import { plain } from '../storymaker-test-support.mjs';
+import { plain, FakeCanvas, digest, readJSON } from '../storymaker-test-support.mjs';
 import { t } from '../storymaker-test-context.mjs';
 
 const { check, near } = t;
@@ -131,4 +131,58 @@ check('blocks: revive refuses 33 blocks, another version, an unknown ease, a lon
     nan.blocks[0].t0 = null;
     assert.equal(B.revive(nan, cat), null);
     assert.equal(B.revive(null, cat), null);
+});
+
+// ---- C3: icon painting
+
+const PALETTE = Object.fromEntries(Object.entries(t.catalog.palettes[0].tokens));
+const ICONS = readJSON('ui/img/storymaker/icons/lucide.json');
+const realCat = SM.scene.indexCatalog({ ...t.catalog, icon_data: ICONS });
+const rcOf = (W, H, aspect = '16:9', c = cat) => SM.render.makeContext({ aspect, fps: 30, palette: PALETTE, cat: c, fontFamilies: { default: 'Geist' }, style: { font: 'default' } }, {}, W, H);
+// paint(def, time, {W, H, aspect, cat, area}): the call log of one block at one time
+function paint(def, time, o = {}) {
+    const W = o.W || 1920, H = o.H || 1080, aspect = o.aspect || '16:9';
+    const stage = SM.stage.create({ aspect, width: W, height: H }), rc = rcOf(W, H, aspect, o.cat || cat);
+    const area = o.area || B.area(stage, null, 'day', 'full');
+    const e = B.create({ t0: 0, dur: 1, ...def, area });
+    if (o.setup) o.setup(e);
+    const st = SM.scene.evalEntity(e, time), cv = new FakeCanvas(W, H);
+    B.draw(cv.ctx, st, rc, stage, stage.baseWindow());
+    return cv.ctx.log;
+}
+// the time at which the eased progress of a 1 s block that starts at 0 is p (ease-out, see itemProgress)
+const timeFor = p => 1 - Math.cbrt(1 - p);
+
+check('blocks: every icon draws, one stroke per path and one fill per fill, and the same time gives the same digest', () => {
+    for (const icon of ICONS.icons) {
+        const log = paint({ id: 'i', kind: 'icon', icon: icon.id, style: 'line' }, 5, { cat: realCat });
+        assert.equal(log.filter(l => l.startsWith('stroke(path(')).length, icon.paths.length, icon.id);
+        assert.equal(log.filter(l => l.startsWith('fill(path(')).length, (icon.fills || []).length, icon.id);
+        assert.ok(log.includes('set lineCap=round') && log.includes('set lineJoin=round'));
+    }
+    const log = paint({ id: 'i', kind: 'icon', icon: 'icon.cpu', style: 'line' }, 5);
+    assert.ok(log.includes('set lineWidth=2'), 'the line width is 2 on the 24 grid, scaled by size / 24');
+    assert.ok(log.some(l => l.startsWith('scale(')), 'the grid is scaled to the icon size');
+    assert.equal(digest(paint({ id: 'i', kind: 'icon', icon: 'icon.cpu' }, 0.4)), digest(paint({ id: 'i', kind: 'icon', icon: 'icon.cpu' }, 0.4)));
+});
+
+check('blocks: entry draw reveals the strokes with a dash and ends without one', () => {
+    const def = { id: 'i', kind: 'icon', icon: 'icon.cpu', style: 'line', entry: 'draw' };
+    assert.ok(paint(def, timeFor(0.5)).includes('setLineDash([48,96])'));
+    assert.ok(paint(def, 5).includes('setLineDash([])'));
+    assert.ok(!paint(def, 5).some(l => l.startsWith('setLineDash([') && l !== 'setLineDash([])'));
+    assert.equal(paint(def, 0).filter(l => l.startsWith('stroke(')).length, 0, 'nothing is drawn before the reveal starts');
+});
+
+check('blocks: the icon styles line, badge and card draw differently, the card prints its label', () => {
+    const logs = ['line', 'badge', 'card'].map(style => paint({ id: 'i', kind: 'icon', icon: 'icon.cpu', style, label: 'CPU' }, 5));
+    assert.equal(new Set(logs.map(digest)).size, 3);
+    assert.ok(logs[2].some(l => l.startsWith('fillText(CPU,0,')), 'the card label is centred');
+    assert.ok(!logs[0].some(l => l.startsWith('fillText')), 'the line style prints no label');
+    assert.ok(logs[1].some(l => l.startsWith('arc(')), 'the badge is a circle');
+    assert.ok(logs[2].some(l => l.startsWith('arcTo(')), 'the card has rounded corners');
+    const panel = paint({ id: 'i', kind: 'icon', icon: 'icon.cpu', style: 'line' }, 5);
+    assert.ok(panel.some(l => l.includes('set fillStyle=' + PALETTE.bg)), 'a panel surface draws the palette background behind the block');
+    const light = paint({ id: 'i', kind: 'icon', icon: 'icon.cpu', style: 'line' }, 5, { area: { ...B.area(SM.stage.create({ aspect: '16:9' }), null, 'day', 'full'), surface: 'light' } });
+    assert.ok(!light.some(l => l.includes('set fillStyle=' + PALETTE.bg)), 'a board surface draws no panel');
 });
