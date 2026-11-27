@@ -49,7 +49,27 @@
         'tdp-stars.p3': def(1, 1, false, 'floor'), 'tdp-stars.p4': def(1, 1, false, 'floor'), 'tdp-stars.p5': def(2, 2, true),
         'tdp-stars.p6': def(2, 2, true, 'obj', lamp(160, '#ffb347', false)), 'tdp-stars.p7': def(2, 2, true), 'tdp-stars.p8': def(2, 1, true),
         'tdp-stars.p9': def(1, 1, true, 'obj', lamp(100, '#9ad8ff', false)), 'tdp-stars.p10': def(2, 1, true), 'tdp-stars.p11': def(2, 1, true),
-        'tdp-stars.p12': def(1, 1, true), 'tdp-stars.p13': def(1, 1, true), 'tdp-stars.p14': def(1, 1, false), 'tdp-stars.p15': def(1, 1, false, 'floor')
+        'tdp-stars.p12': def(1, 1, true), 'tdp-stars.p13': def(1, 1, true), 'tdp-stars.p14': def(1, 1, false), 'tdp-stars.p15': def(1, 1, false, 'floor'),
+        // Round 11: the old galleries (tdp-mine), Brandur's lair (tdp-lair), Edda's workshops (tdp-home) and the cottage (tdp-house).
+        'tdp-mine.p0': def(1, 1, true), 'tdp-mine.p1': def(1, 1, true), 'tdp-mine.p2': def(1, 1, false, 'floor'), 'tdp-mine.p3': def(1, 1, true),
+        'tdp-mine.p4': def(1, 1, true), 'tdp-mine.p5': def(1, 1, true), 'tdp-mine.p6': def(1, 1, true), 'tdp-mine.p7': def(1, 1, true, 'obj', lamp(150, '#6fe8ff', false)),
+        'tdp-mine.p8': def(1, 1, true, 'obj', lamp(190, '#ffb060', true)), 'tdp-mine.p9': def(1, 1, false), 'tdp-mine.p10': def(1, 1, true), 'tdp-mine.p11': def(1, 1, true),
+        'tdp-mine.p12': def(1, 1, false, 'floor'), 'tdp-mine.p13': def(1, 1, true, 'obj', lamp(170, '#ff9a40', true)), 'tdp-mine.p14': def(1, 1, true),
+        'tdp-mine.p15': def(1, 1, false, 'floor', lamp(90, '#6fb8ff', false)),
+        'tdp-lair.p0': def(2, 1, true, 'obj', lamp(120, '#ffd27a', false)), 'tdp-lair.p1': def(1, 1, false, 'floor'), 'tdp-lair.p2': def(1, 1, false, 'floor'),
+        'tdp-lair.p3': def(2, 1, true), 'tdp-lair.p4': def(1, 1, true), 'tdp-lair.p5': def(1, 1, true, 'obj', lamp(180, '#7ec8ff', false)),
+        'tdp-lair.p6': def(1, 1, true), 'tdp-lair.p7': def(1, 1, true), 'tdp-lair.p8': def(1, 1, true), 'tdp-lair.p9': def(1, 1, true),
+        'tdp-lair.p10': def(1, 1, true, 'obj', lamp(140, '#ff7a2a', true)), 'tdp-lair.p11': def(1, 1, true), 'tdp-lair.p12': def(1, 1, false, 'floor'),
+        'tdp-lair.p13': def(1, 1, true), 'tdp-lair.p14': def(1, 1, false, 'floor'), 'tdp-lair.p15': def(1, 1, false, 'floor'),
+        'tdp-home.p0': def(2, 1, true, 'obj', lamp(220, '#ff9a40', true)), 'tdp-home.p1': def(2, 1, true), 'tdp-home.p2': def(1, 1, true), 'tdp-home.p3': def(1, 1, true),
+        'tdp-home.p4': def(1, 1, true), 'tdp-home.p5': def(2, 1, true, 'obj', lamp(230, '#ff7a2a', true)), 'tdp-home.p6': def(1, 1, true), 'tdp-home.p7': def(1, 1, true),
+        'tdp-home.p8': def(1, 1, true), 'tdp-home.p9': def(2, 2, true), 'tdp-home.p10': def(2, 2, true), 'tdp-home.p11': def(1, 1, false, 'floor'),
+        'tdp-home.p12': def(1, 1, true), 'tdp-home.p13': def(1, 1, true), 'tdp-home.p14': def(2, 1, true, 'obj', lamp(110, '#ffd27a', true)),
+        'tdp-home.p15': def(1, 1, false, 'floor'),
+        'tdp-house.p0': def(1, 2, true), 'tdp-house.p1': def(1, 1, true), 'tdp-house.p2': def(2, 1, true), 'tdp-house.p3': def(2, 2, false, 'floor'),
+        'tdp-house.p4': def(1, 1, true), 'tdp-house.p5': def(1, 1, true), 'tdp-house.p6': def(1, 1, true), 'tdp-house.p7': def(1, 1, true),
+        'tdp-house.p8': def(1, 1, true), 'tdp-house.p9': def(1, 1, true), 'tdp-house.p10': def(1, 1, false), 'tdp-house.p11': def(2, 1, true, 'obj', lamp(110, '#ffd27a', true)),
+        'tdp-house.p12': def(1, 1, true), 'tdp-house.p13': def(1, 1, true), 'tdp-house.p14': def(2, 1, true), 'tdp-house.p15': def(1, 1, false)
     };
 
     function padMap(rows) {
@@ -364,15 +384,18 @@
         const cols = rows ? d.map[0].length : 0;
         const walls = new Uint8Array(cols * rows);
         const solid = new Uint8Array(cols * rows);
+        const lava = new Uint8Array(cols * rows);
         const markers = {};
         for (let y = 0; y < rows; y++) {
             for (let x = 0; x < cols; x++) {
                 const ch = d.map[y].charAt(x) || ' ';
                 if (ch === '#' || ch === ' ') walls[y * cols + x] = 1;
+                else if (ch === '~') lava[y * cols + x] = 1;
                 else if (ch !== '.' && ch !== ',') (markers[ch] || (markers[ch] = [])).push({ cx: x, cy: y });
             }
         }
         solid.set(walls);
+        solid.set(lava.map(function (v, i) { return v || solid[i]; }));
         const props = [];
         const lights = [];
         const bad = [];
@@ -390,7 +413,7 @@
                 cells.forEach(function (c) {
                     for (let yy = c.cy - h + 1; yy <= c.cy; yy++) {
                         for (let xx = c.cx; xx < c.cx + w; xx++) {
-                            if (xx < 0 || yy < 0 || xx >= cols || yy >= rows || walls[yy * cols + xx]) { bad.push(t.prop + ' footprint at ' + c.cx + ',' + c.cy); continue; }
+                            if (xx < 0 || yy < 0 || xx >= cols || yy >= rows || walls[yy * cols + xx] || lava[yy * cols + xx]) { bad.push(t.prop + ' footprint at ' + c.cx + ',' + c.cy); continue; }
                             if (isSolid) solid[yy * cols + xx] = 1;
                         }
                     }
@@ -403,7 +426,7 @@
                 });
             }
         });
-        return { id: roomId, def: d, cols: cols, rows: rows, walls: walls, solid: solid, markers: markers, props: props, lights: lights, bad: bad };
+        return { id: roomId, def: d, cols: cols, rows: rows, walls: walls, solid: solid, markers: markers, props: props, lights: lights, bad: bad, lava: lava };
     }
 
     function cellCentre(c) { return { x: (c.cx + 0.5) * CELL, y: (c.cy + 0.5) * CELL + 7 }; }
@@ -422,7 +445,7 @@
     }
 
     // Rules for the round 10 things: ids, orders, pages, traps, guardians and the free cells around a block.
-    function validateThings(id, d, lay, where, probs, pages) {
+    function validateThings(id, d, lay, where, probs, pages, tablets) {
         const things = d.things;
         const ids = { plate: {}, lever: {}, brazier: {}, set: {} };
         things.forEach(function (t) {
@@ -442,6 +465,8 @@
             if (c.order != null && !(d.orders && d.orders[c.order])) probs.push(where + ': ' + what + ' refers to unknown order ' + c.order);
             if (c.clear && !hasMob) probs.push(where + ': ' + what + ' needs clear but the room has no mob');
             if (c.pages != null && !(c.pages >= 1 && c.pages <= 10)) probs.push(where + ': ' + what + ' has bad pages ' + c.pages);
+            if (c.step != null && !(c.step >= 0 && c.step <= 5 && Math.floor(c.step) === c.step)) probs.push(where + ': ' + what + ' has bad step ' + c.step);
+            if (c.item != null && !(profileApi() && profileApi().STORY_ITEMS && profileApi().STORY_ITEMS[c.item])) probs.push(where + ': ' + what + ' names unknown item ' + c.item);
         };
         const free = function (cx, cy) { return cx >= 0 && cy >= 0 && cx < lay.cols && cy < lay.rows && !lay.solid[cy * lay.cols + cx]; };
         things.forEach(function (t) {
@@ -474,8 +499,14 @@
                 else pages[t.page] = id;
             }
             if (t.sign != null && !/^[a-z][a-z0-9_]*$/.test(String(t.sign))) probs.push(where + ': bad sign node ' + t.sign);
-            if (t.sign != null && t.look != null && ['plaque', 'scroll'].indexOf(t.look) < 0) probs.push(where + ': bad sign look ' + t.look);
-            if (t.use != null && !/^(board|core|dice:[a-z_]+)$/.test(String(t.use))) probs.push(where + ': bad use ' + t.use);
+            if (t.sign != null && t.look != null && ['plaque', 'scroll', 'tablet', 'stand'].indexOf(t.look) < 0) probs.push(where + ': bad sign look ' + t.look);
+            if (t.sign != null && t.tablet != null) {
+                if (!(t.tablet >= 1 && t.tablet <= 6 && Math.floor(t.tablet) === t.tablet)) probs.push(where + ': bad tablet number ' + t.tablet);
+                else if (tablets[t.tablet]) probs.push(where + ': tablet ' + t.tablet + ' is already placed in ' + tablets[t.tablet]);
+                else tablets[t.tablet] = id;
+            }
+            if (t.brazier != null && t.look != null && ['pillar', 'shelf'].indexOf(t.look) < 0) probs.push(where + ': bad brazier look ' + t.look);
+            if (t.use != null && !/^(board|core|cook|forge|bell|map|brandur|dice:[a-z_]+)$/.test(String(t.use))) probs.push(where + ': bad use ' + t.use);
         });
         Object.keys(d.orders || {}).forEach(function (set) {
             if (!ids.set[set]) probs.push(where + ': order ' + set + ' names a set without braziers');
@@ -483,6 +514,7 @@
                 if (!things.some(function (t) { return t.brazier === b && t.set === set; })) probs.push(where + ': order ' + set + ' names unknown brazier ' + b);
             });
         });
+        if (d.guardian === 'brandur' && !d.big) probs.push(where + ': guardian brandur needs a big room');
         if (d.guardian != null) {
             if (mobIds().indexOf(d.guardian) < 0) probs.push(where + ': unknown guardian ' + d.guardian);
             if (!things.some(function (t) { return t.mob === d.guardian; })) probs.push(where + ': guardian ' + d.guardian + ' has no mob thing');
@@ -519,6 +551,7 @@
         const folk = root.RunenpfadFolk || null;
         const arrivals = {};
         const pages = {};
+        const tablets = {};
         Object.keys(ROOMS).forEach(function (id) {
             Object.keys(ROOMS[id].exits || {}).forEach(function (m) {
                 const ex = ROOMS[id].exits[m];
@@ -531,7 +564,9 @@
             if (!d.map || !d.map.length) { probs.push(where + ': empty map'); return; }
             const w = d.map[0].length;
             if (d.map.some(function (r) { return r.length !== w; })) { probs.push(where + ': unequal row lengths'); return; }
-            if (w < 10 || w > 22 || d.map.length < 8 || d.map.length > 14) probs.push(where + ': size ' + w + 'x' + d.map.length + ' outside 10-22 x 8-14');
+            const maxW = d.big ? 30 : 22;
+            const maxH = d.big ? 20 : 14;
+            if (w < 10 || w > maxW || d.map.length < 8 || d.map.length > maxH) probs.push(where + ': size ' + w + 'x' + d.map.length + ' outside 10-' + maxW + ' x 8-' + maxH);
             const lay = layout(id);
             lay.bad.forEach(function (b) { probs.push(where + ': ' + b + ' out of bounds or in a wall'); });
             const hasMarker = function (m, what) { if (!lay.markers[m]) probs.push(where + ': ' + what + ' marker ' + m + ' missing in the map'); };
@@ -563,11 +598,13 @@
                     const loot = t.loot || {};
                     if (loot.give && !/^(potion|heart|meal|rune_(fire|frost|storm|magnet))$/.test(loot.give)) probs.push(where + ': bad loot give ' + loot.give);
                     if (loot.item && P && Object.keys(loot.item).some(function (k) { return !P.STORY_ITEMS[k]; })) probs.push(where + ': bad loot item');
+                    if (t.look != null && !PROP_DEFS[t.look]) probs.push(where + ': chest look ' + t.look + ' is not a prop');
+                    if (t.key != null && !(P && P.STORY_ITEMS && P.STORY_ITEMS[t.key])) probs.push(where + ': chest key ' + t.key + ' is not a story item');
                     if (t.locked === 'clear' && !d.things.some(function (o) { return o.mob; })) probs.push(where + ': chest locked by clear but no mobs');
                 }
                 if ((t.npc || t.chest || SOLID_NEW.some(function (k) { return t[k] != null; })) && t.at) (lay.markers[t.at] || []).forEach(function (c) { blocked[c.cy * lay.cols + c.cx] = 1; });
             });
-            validateThings(id, d, lay, where, probs, pages);
+            validateThings(id, d, lay, where, probs, pages, tablets);
             const seeds = [];
             const seedMarkers = (arrivals[id] || []).concat(d.spawn ? [d.spawn] : []);
             seedMarkers.forEach(function (m) { (lay.markers[m] || []).forEach(function (c) { seeds.push(c); }); });

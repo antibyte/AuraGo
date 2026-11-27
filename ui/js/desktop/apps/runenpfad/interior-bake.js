@@ -13,9 +13,13 @@
         cave: { floor: '#4b3d34', alt: '#3e3a44', top: '#22202a', face: '#2e2b34' },
         tomb: { floor: '#b99a5e', alt: '#a98a52', top: '#3f301b', face: '#8f7545' },
         ice: { floor: '#9ec7df', alt: '#cfe6f2', top: '#1f3c52', face: '#4d7894' },
-        works: { floor: '#3d3f47', alt: '#6b5a2a', top: '#1a1a1f', face: '#57331f' }
+        works: { floor: '#3d3f47', alt: '#6b5a2a', top: '#1a1a1f', face: '#57331f' },
+        mine: { floor: '#5a4632', alt: '#4a3a2c', top: '#1d1712', face: '#3e3024' },
+        glut: { floor: '#3a2622', alt: '#4a2a1e', top: '#150c0a', face: '#2c1814' }
     };
-    const PROP_FALLBACK = { 'tdp-tavern': '#8a5a2b', 'tdp-trade': '#7a6a50', 'tdp-cave': '#6b6458', 'tdp-ruin': '#a08a5a' };
+    const LAVA = { fill: '#c2410c', hot: '#fb923c', rim: '#2a0d06' };
+    const PROP_FALLBACK = { 'tdp-tavern': '#8a5a2b', 'tdp-trade': '#7a6a50', 'tdp-cave': '#6b6458', 'tdp-ruin': '#a08a5a',
+        'tdp-mine': '#6b5640', 'tdp-lair': '#4a3430', 'tdp-home': '#8a6a48', 'tdp-house': '#8a6a48' };
 
     function Art() { return root.RunenpfadArt || null; }
 
@@ -38,13 +42,14 @@
         return f && f[2] > 0 ? { img: c.sheet.img, f: f, clip: c } : null;
     }
 
-    // 0 void, 1 wall, 2 floor, 3 alternate floor (markers count as floor).
+    // 0 void, 1 wall, 2 floor, 3 alternate floor, 4 lava (markers count as floor).
     function kindAt(map, cx, cy) {
         const row = map[cy];
         if (!row || cx < 0 || cx >= row.length) return 0;
         const ch = row.charAt(cx);
         if (ch === '#') return 1;
         if (ch === ' ') return 0;
+        if (ch === '~') return 4;
         return ch === ',' ? 3 : 2;
     }
     function isFloor(k) { return k >= 2; }
@@ -52,6 +57,8 @@
     // Ids of the sheets a room draws, used to re-bake once more of them have loaded.
     function sheetsOf(room) {
         const ids = ['tex-' + themeOf(room)];
+        const rows = room && room.def && room.def.map ? room.def.map : [];
+        if (rows.some(function (r) { return String(r).indexOf('~') >= 0; }) && ids.indexOf('tex-glut') < 0) ids.push('tex-glut');
         const props = room && room.props ? room.props : [];
         for (let i = 0; i < props.length; i++) {
             if (props[i].layer !== 'floor') continue;
@@ -122,7 +129,7 @@
         for (let cy = 0; cy < rows; cy++) {
             for (let cx = 0; cx < cols; cx++) {
                 const k = kindAt(map, cx, cy);
-                if (isFloor(k) && (k === 3 ? 1 : 0) === variant) {
+                if (k !== 4 && isFloor(k) && (k === 3 ? 1 : 0) === variant) {
                     g.rect(cx * CELL, cy * CELL, CELL, CELL);
                     any = true;
                 }
@@ -149,7 +156,7 @@
             for (let cy = 0; cy < rows; cy++) {
                 for (let cx = 0; cx < cols; cx++) {
                     const k = kindAt(map, cx, cy);
-                    if (!isFloor(k) || (k === 3 ? 1 : 0) !== variant) continue;
+                    if (k === 4 || !isFloor(k) || (k === 3 ? 1 : 0) !== variant) continue;
                     const v = hash2(cx, cy, 5);
                     g.fillStyle = v < 0.5 ? 'rgba(0,0,0,' + (0.01 + v * 0.05).toFixed(3) + ')' : 'rgba(255,255,255,' + ((v - 0.5) * 0.05).toFixed(3) + ')';
                     g.fillRect(cx * CELL, cy * CELL, CELL, CELL);
@@ -179,7 +186,7 @@
         g.clip();
         g.fillStyle = th.top;
         g.fillRect(0, 0, cols * CELL, rows * CELL);
-        const rocky = theme === 'cave' || theme === 'ice' || theme === 'tomb';
+        const rocky = theme === 'cave' || theme === 'ice' || theme === 'tomb' || theme === 'glut';
         for (let cy = 0; cy < rows; cy++) {
             for (let cx = 0; cx < cols; cx++) {
                 if (kindAt(map, cx, cy) !== 1 || isFloor(kindAt(map, cx, cy + 1))) continue;
@@ -254,6 +261,68 @@
                 if (!isFloor(kindAt(map, cx + 1, cy)) && kindAt(map, cx + 1, cy) !== 1) { g.fillStyle = 'rgba(0,0,0,0.55)'; g.fillRect(x + CELL - 3, y, 3, CELL); }
             }
         }
+    }
+
+    // Lava cells: the mirrored molten texture (or a flat orange with hot blobs) and a dark basalt rim where it meets the floor.
+    function lavaLayer(g, map, cols, rows, atlas) {
+        let any = false;
+        g.save();
+        g.beginPath();
+        for (let cy = 0; cy < rows; cy++) {
+            for (let cx = 0; cx < cols; cx++) {
+                if (kindAt(map, cx, cy) === 4) { g.rect(cx * CELL, cy * CELL, CELL, CELL); any = true; }
+            }
+        }
+        if (!any) { g.restore(); return; }
+        g.clip();
+        g.fillStyle = LAVA.fill;
+        g.fillRect(0, 0, cols * CELL, rows * CELL);
+        const tex = clipFrame(atlas, 'tex-glut.t1');
+        if (tex) {
+            const span = BLOCK * CELL;
+            g.imageSmoothingEnabled = true;
+            for (let by = 0; by * span < rows * CELL; by++) {
+                for (let bx = 0; bx * span < cols * CELL; bx++) {
+                    g.save();
+                    g.translate(bx * span + (bx & 1 ? span : 0), by * span + (by & 1 ? span : 0));
+                    g.scale(bx & 1 ? -1 : 1, by & 1 ? -1 : 1);
+                    g.drawImage(tex.img, tex.f[0], tex.f[1], tex.f[2], tex.f[3], 0, 0, span, span);
+                    g.restore();
+                }
+            }
+        } else {
+            for (let cy = 0; cy < rows; cy++) {
+                for (let cx = 0; cx < cols; cx++) {
+                    if (kindAt(map, cx, cy) !== 4) continue;
+                    const v = hash2(cx, cy, 17);
+                    g.fillStyle = v < 0.5 ? 'rgba(80,10,0,' + (0.1 + v * 0.3).toFixed(3) + ')' : 'rgba(251,146,60,' + ((v - 0.5) * 0.5).toFixed(3) + ')';
+                    g.beginPath();
+                    g.ellipse(cx * CELL + CELL * (0.3 + v * 0.4), cy * CELL + CELL * (0.3 + hash2(cx, cy, 19) * 0.4), 10 + v * 14, 7 + v * 9, v * 3, 0, Math.PI * 2);
+                    g.fill();
+                }
+            }
+        }
+        // Dark rim along every edge that meets non-lava, strongest where a wall stands north of the lava.
+        for (let cy = 0; cy < rows; cy++) {
+            for (let cx = 0; cx < cols; cx++) {
+                if (kindAt(map, cx, cy) !== 4) continue;
+                const x = cx * CELL;
+                const y = cy * CELL;
+                const edge = function (nx, ny, gx, gy, rx, ry, rw, rh) {
+                    if (kindAt(map, nx, ny) === 4) return;
+                    const gr = g.createLinearGradient(x + gx[0], y + gy[0], x + gx[1], y + gy[1]);
+                    gr.addColorStop(0, 'rgba(26,8,4,0.78)');
+                    gr.addColorStop(1, 'rgba(26,8,4,0)');
+                    g.fillStyle = gr;
+                    g.fillRect(x + rx, y + ry, rw, rh);
+                };
+                edge(cx, cy - 1, [0, 0], [0, 14], 0, 0, CELL, 14);
+                edge(cx, cy + 1, [0, 0], [CELL, CELL - 10], 0, CELL - 10, CELL, 10);
+                edge(cx - 1, cy, [0, 10], [0, 0], 0, 0, 10, CELL);
+                edge(cx + 1, cy, [CELL, CELL - 10], [0, 0], CELL - 10, 0, 10, CELL);
+            }
+        }
+        g.restore();
     }
 
     // Faint icy sheen on the plain floor cells of a slippery room (rough ',' cells stay matte).
@@ -335,10 +404,12 @@
             g.scale(SCALE, SCALE);
             g.fillStyle = '#000';
             g.fillRect(0, 0, cols * CELL, rows * CELL);
-            const floorIdx = def.floor === 1 ? 1 : 0;
-            const altIdx = def.floorAlt === 1 ? 1 : (def.floorAlt === 0 ? 0 : 1);
+            // The glut floors use t0 only: tex-glut.t1 is the molten lava.
+            const floorIdx = theme !== 'glut' && def.floor === 1 ? 1 : 0;
+            const altIdx = theme === 'glut' ? 0 : (def.floorAlt === 1 ? 1 : (def.floorAlt === 0 ? 0 : 1));
             floorLayer(g, map, cols, rows, 0, clipFrame(atlas, 'tex-' + theme + '.t' + floorIdx), th.floor, theme);
             floorLayer(g, map, cols, rows, 1, clipFrame(atlas, 'tex-' + theme + '.t' + altIdx), th.alt, theme);
+            lavaLayer(g, map, cols, rows, atlas);
             if (def.slippery) slipperySheen(g, map, cols, rows);
             wallTops(g, map, cols, rows, th, theme);
             wallFaces(g, map, cols, rows, th, atlas, theme, def.wall === 3 ? 3 : 2);

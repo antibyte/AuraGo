@@ -14,6 +14,8 @@
     // Kinds that occupy their cell in room.solid while they are intact.
     const SOLID_KINDS = ['pot', 'block', 'lever', 'dart', 'brazier', 'crack', 'page', 'sign', 'use'];
     const DIRS = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1] };
+    // Custom uses registered by other modules: { name: { prompt, offer?(sim, it, t) -> bool, use(sim, it, t) } }.
+    const USES = {};
 
     function P() { return root.RunenpfadPhysics; }
     function M() { return root.RunenpfadInteriorMobs; }
@@ -21,6 +23,7 @@
     function D() { return root.RunenpfadDialogue || null; }
     function N() { return root.RunenpfadNpcs || null; }
     function C() { return root.RunenpfadChronicle || null; }
+    function E() { return root.RunenpfadEmber || null; }
     function ev(sim, type, detail) { P().pushEvent(sim, type, detail); }
     function cc(cx, cy) { return { x: (cx + 0.5) * CELL, y: (cy + 0.5) * CELL + 7 }; }
     function heroCell(h) { return { cx: Math.floor(h.x / CELL), cy: Math.floor((h.y - 7) / CELL) }; }
@@ -42,6 +45,11 @@
         let n = 0;
         for (let i = 1; i <= 10; i++) if (pageHave(sim, i)) n++;
         return n;
+    }
+
+    function tabletHave(sim, n) {
+        const c = C();
+        return !!(c && c.hasTablet && c.hasTablet(sim.profile, n));
     }
 
     function flagSet(sim, f) { return !!(N() && N().hasFlag(sim, f)); }
@@ -106,6 +114,8 @@
         if (c.clear && it.mobs.some(alive)) return false;
         if (c.pages != null && pageCount(sim) < c.pages) return false;
         if (c.flag != null && !flagSet(sim, c.flag)) return false;
+        if (c.step != null && !((E() ? E().step(sim.profile) : 0) >= c.step)) return false;
+        if (c.item != null && !(N() && N().itemCount(sim, c.item) > 0)) return false;
         if (c.key && !(g && roomSt(sim, it).keysUsed[g.gid])) return false;
         return true;
     }
@@ -156,6 +166,7 @@
             e.lit = false;
             e.left = 0;
             e.timed = t.timed || 0;
+            e.look = t.look || null;
         } else if (kind === 'crack') {
             e.broken = !!rs.cracks[id];
             e.hp = e.broken ? 0 : 2;
@@ -165,9 +176,11 @@
         } else if (kind === 'sign') {
             e.node = t.sign;
             e.look = t.look || 'plaque';
+            e.tablet = t.tablet || 0;
+            e.have = e.tablet ? tabletHave(sim, e.tablet) : true;
         } else if (kind === 'use') {
             e.request = t.use;
-            e.prompt = t.prompt || (t.use === 'board' ? 'board' : (t.use === 'core' ? 'read' : 'play'));
+            e.prompt = t.prompt || (USES[t.use] && USES[t.use].prompt) || (t.use === 'board' ? 'board' : (t.use === 'core' ? 'read' : 'play'));
         }
         return e;
     }
@@ -463,6 +476,7 @@
         it.things.forEach(function (t) {
             if (t.kind === 'block') stepBlock(sim, it, t, dt);
             else if (t.kind === 'page') t.have = pageHave(sim, t.n);
+            else if (t.kind === 'sign' && t.tablet) t.have = tabletHave(sim, t.tablet);
         });
         stepPlates(sim, it);
         stepBraziers(sim, it, dt);
@@ -512,6 +526,7 @@
         if (!it.things) return;
         it.things.slice().forEach(function (t) {
             if (t.kind !== 'pot' && t.kind !== 'crack' && t.kind !== 'brazier') return;
+            if (t.kind === 'brazier' && t.look === 'shelf') return;
             if ((t.kind === 'pot' || t.kind === 'crack') && t.broken) return;
             if (!inArc(cx, cy, ax, ay, cfg, t.x, t.y - 7)) return;
             if (t.kind === 'pot') {
@@ -539,9 +554,13 @@
         const keys = placeSt(sim, it).keys || 0;
         it.things.forEach(function (t) {
             if (t.kind === 'lever') offer(t.x, t.y, 'pull', t);
-            else if (t.kind === 'brazier') { if (!t.lit) offer(t.x, t.y, 'light', t); }
+            else if (t.kind === 'brazier') { if (!t.lit) offer(t.x, t.y, t.look === 'shelf' ? 'pull' : 'light', t); }
             else if (t.kind === 'page' || t.kind === 'sign') offer(t.x, t.y, 'read', t);
-            else if (t.kind === 'use') { if (!(t.request === 'core' && flagSet(sim, 'obs.done'))) offer(t.x, t.y, t.prompt, t); }
+            else if (t.kind === 'use') {
+                const u = USES[t.request];
+                if (u) { if (!u.offer || u.offer(sim, it, t)) offer(t.x, t.y, t.prompt, t); }
+                else if (!(t.request === 'core' && flagSet(sim, 'obs.done'))) offer(t.x, t.y, t.prompt, t);
+            }
             else if (t.kind === 'gate' && !t.open) offer(t.x, t.y, t.cond.key && keys > 0 ? 'unlock' : 'shut', t);
         });
     }
@@ -552,7 +571,7 @@
     }
 
     function shutNotice(sim, it, g) {
-        sim.notice = g.cond.key ? 'runenpfad.notice.smallkey_need' : (g.cond.pages != null && pageCount(sim) < g.cond.pages ? 'runenpfad.notice.need_pages' : 'runenpfad.notice.gate_shut');
+        sim.notice = g.cond.item ? 'runenpfad.notice.need_item' : g.cond.key ? 'runenpfad.notice.smallkey_need' : (g.cond.pages != null && pageCount(sim) < g.cond.pages ? 'runenpfad.notice.need_pages' : 'runenpfad.notice.gate_shut');
         ev(sim, 'in_locked');
     }
 
@@ -589,10 +608,17 @@
             if (!first) ev(sim, 'in_read');
             openVirtual(sim, 'journal', 'p' + t.n + 'a');
         } else if (t.kind === 'sign') {
-            ev(sim, 'in_read');
+            if (t.tablet) {
+                const first = C() && C().giveTablet ? C().giveTablet(sim, t.tablet) : false;
+                t.have = tabletHave(sim, t.tablet);
+                if (!first) ev(sim, 'in_read');
+            } else {
+                ev(sim, 'in_read');
+            }
             openVirtual(sim, 'lore', t.node);
         } else if (t.kind === 'use') {
-            if (t.request === 'core') openVirtual(sim, 'core', 'query');
+            if (USES[t.request]) USES[t.request].use(sim, it, t);
+            else if (t.request === 'core') openVirtual(sim, 'core', 'query');
             else sim.uiRequest = t.request;
         } else if (t.kind === 'gate') {
             useGate(sim, it, t);
@@ -608,14 +634,18 @@
         if (!it || !it.things) return out;
         const wood = it.room && it.room.def && it.room.def.theme === 'wood';
         it.things.forEach(function (t) {
-            if (t.kind === 'brazier' && t.lit) out.push({ x: t.x, y: t.y - 7, r: wood ? 150 : 170, color: wood ? '#ffd27a' : '#ffb060', flicker: true });
-            else if (t.kind === 'page' && !t.have) out.push({ x: t.x, y: t.y - 7, r: 90, color: '#ffe9a8', flicker: false });
+            if (t.kind === 'brazier' && t.lit) {
+                if (t.look === 'pillar') out.push({ x: t.x, y: t.y - 7, r: 180, color: '#7ec8ff', flicker: false });
+                else if (t.look !== 'shelf') out.push({ x: t.x, y: t.y - 7, r: wood ? 150 : 170, color: wood ? '#ffd27a' : '#ffb060', flicker: true });
+            } else if (t.kind === 'page' && !t.have) out.push({ x: t.x, y: t.y - 7, r: 90, color: '#ffe9a8', flicker: false });
+            else if (t.kind === 'sign' && t.tablet && !t.have) out.push({ x: t.x, y: t.y - 7, r: 80, color: '#9fe8ff', flicker: false });
         });
         return out;
     }
 
     root.RunenpfadInteriorThings = {
         KINDS: KINDS,
+        USES: USES,
         setup: setup,
         heroMove: heroMove,
         afterMove: afterMove,
