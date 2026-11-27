@@ -177,13 +177,17 @@
                 if (h.onClose) h.onClose(result);
             };
             const take = events => events.forEach(ev => {
+                if (ended) return;
                 let data = null;
                 try { data = JSON.parse(ev.data); } catch (_) { data = null; }
                 if (!data || typeof data !== 'object') return;
                 if (ev.event === 'end') { ended = true; return; }
                 if (CHAT_EVENTS.indexOf(ev.event) < 0 || targets.indexOf(data.target) < 0) return;
-                if (h.onEvent) h.onEvent(Object.assign({}, data, { type: ev.event }));
+                if (h.onEvent) {
+                    try { h.onEvent(Object.assign({}, data, { type: ev.event })); } catch (err) { throw P.errors.normalize({ code: 'bad_response', message: String(err && err.message || err) }); }
+                }
             });
+            let reader = null;
             (async () => {
                 try {
                     const response = await request('POST', '/runtime/chat', { headers: Object.assign(jsonHeaders(), { Accept: 'text/event-stream' }), body: JSON.stringify(body || {}), signal: ctrl.signal });
@@ -191,7 +195,7 @@
                     if (type.indexOf('text/event-stream') !== 0 || !response.body || typeof response.body.getReader !== 'function') {
                         throw P.errors.normalize({ code: 'bad_response', status: response.status });
                     }
-                    const reader = response.body.getReader();
+                    reader = response.body.getReader();
                     const parser = createSseParser(new TextDecoder('utf-8'));
                     while (!ended) {
                         const step = await reader.read();
@@ -201,6 +205,7 @@
                     if (ended) reader.cancel().catch(() => {});
                     close({ ended, aborted: false, error: ended ? null : P.errors.normalize({ code: 'connection_lost', status: 200 }) });
                 } catch (err) {
+                    if (reader) reader.cancel().catch(() => {});
                     const aborted = ctrl.signal.aborted || !!(err && (err.aborted || err.name === 'AbortError'));
                     close({ ended, aborted, error: aborted ? null : (err && err.csn ? err : P.errors.normalize({ code: err && err.code, message: String(err && err.message || err) })) });
                 }

@@ -342,6 +342,17 @@ chat = await runChat(async () => streamResponse([sseBody('event: delta\ndata: {"
 ok(chat.result.error && chat.result.error.code === 'connection_lost' && chat.events.length === 1, 'chat: (d) a stream that ends without end');
 chat = await runChat(async () => streamResponse([sseBody('event: delta\ndata: {"target":"provider","text":"x"}\n\nevent: end\ndata: {}\n\n')], 'text/event-stream'));
 eq(chat.events, [], 'chat: (e) an unknown target is not forwarded');
+chat = await runChat(async () => streamResponse([sseBody('event: done\ndata: {"target":"tuned"}\n\nevent: end\ndata: {}\n\nevent: delta\ndata: {"target":"tuned","text":"late"}\n\n')], 'text/event-stream'));
+eq(chat.events.map(x => x.type), ['done'], 'chat: (f) events after end in the same chunk are dropped');
+eq(chat.result, { ended: true, aborted: false, error: null }, 'chat: (f) closes once after end');
+const throwing = await new Promise(resolve => {
+    let closes = 0, cancelled = false;
+    const res = streamResponse([sseBody('event: delta\ndata: {"target":"tuned","text":"x"}\n\n')], 'text/event-stream');
+    const inner = res.body.getReader;
+    res.body.getReader = () => Object.assign(inner(), { cancel: async () => { cancelled = true; } });
+    P.createApi({ fetch: async () => res }).chatStream({ run_id: 'r' }, { onEvent: () => { throw new Error('boom'); }, onClose: result => { closes++; setTimeout(() => resolve({ closes, cancelled, result: plain(result) }), 20); } });
+});
+ok(throwing.closes === 1 && throwing.cancelled && throwing.result.error && throwing.result.error.code === 'bad_response', 'chat: (g) a throwing onEvent cancels the reader and closes once with bad_response');
 
 // ---- chat reducer, conversation, limits (P3) ------------------------------------------------------------------------------
 const K = P.chat;
@@ -379,7 +390,9 @@ ok(aborted.turns[0].answers.tuned.state === 'stopped' && !aborted.streaming, 'ch
 const early = act(K.initialState(), { type: 'send', text: 'first' }, { type: 'close', ended: false, aborted: false, error: { code: 'runtime_busy', status: 409 } });
 ok(early.turns.length === 0 && early.draft === 'first' && early.notice.code === 'runtime_busy' && !early.streaming, 'chat: an error before the stream removes the turn, restores the draft and sets the notice');
 const typed = act(K.initialState(), { type: 'send', text: 'first' }, { type: 'draft', text: 'second' }, { type: 'close', ended: false, aborted: false, error: { code: 'x' } });
-eq(typed.draft, 'second', 'chat: a restored draft never overwrites what the user typed meanwhile');
+eq(typed.draft, 'first\nsecond', 'chat: a refused text and what the user typed meanwhile are both kept');
+const preset = act(K.initialState(), { type: 'system', text: 'S' }, { type: 'draft', text: 'U' });
+ok(preset.system === 'S' && preset.draft === 'U' && !preset.streaming, 'chat: a prompt set while no composer is shown stays in the draft state');
 const busyChat = act(K.initialState(), { type: 'send', text: 'x' });
 ok(K.reduce(busyChat, { type: 'new_chat' }) === busyChat, 'chat: new_chat is ignored while streaming');
 const midChat = act(K.initialState(), { type: 'send', text: 'x' }, ev('delta', 'tuned', { text: 'a' }), ev('done', 'tuned', {}), { type: 'close', ended: true, aborted: false, error: null }, { type: 'compare', on: true });

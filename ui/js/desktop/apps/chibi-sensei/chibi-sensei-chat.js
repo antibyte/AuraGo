@@ -76,7 +76,7 @@
         if (!state.streaming) return state;
         const last = state.turns[state.turns.length - 1];
         if (last && !last.started && action.error) {
-            return Object.assign({}, state, { streaming: false, turns: state.turns.slice(0, -1), draft: state.draft || last.user, notice: action.error });
+            return Object.assign({}, state, { streaming: false, turns: state.turns.slice(0, -1), draft: last.user + (state.draft ? '\n' + state.draft : ''), notice: action.error });
         }
         if (!last) return Object.assign({}, state, { streaming: false });
         const answers = {};
@@ -537,6 +537,7 @@
             const rt = runtime;
             if (installBusy || !rt || !rt.admin || readonly()) return;
             installBusy = true;
+            rtSeq++;
             paintRuntime();
             const dl = rt.download || {};
             const b = rt.backend && (rt.backend.selected || rt.backend.requested);
@@ -559,6 +560,7 @@
         async function stopRuntimeModels() {
             if (stopping) return;
             stopping = true;
+            rtSeq++;
             if (stream) stream.abort();
             paintRuntime();
             try {
@@ -624,7 +626,8 @@
                         else if (list.some(a => a.state === 'error')) announce(t('chibi_sensei.chat.announce_error'));
                         else announce(t(list.length > 1 ? 'chibi_sensei.chat.announce_done_both' : 'chibi_sensei.chat.announce_done'));
                     }
-                    if (state.draft && !input.value) input.value = state.draft;
+                    if (!now || !last || now.id !== last.id) input.value = state.draft;
+                    else if (state.draft && !input.value) input.value = state.draft;
                     paintComposer();
                     refreshRuntime();
                     if (!disposed && composerShown() && (document.activeElement === document.body || !document.activeElement)) input.focus();
@@ -668,7 +671,8 @@
                 if (disposed) return;
                 visible = !!on;
                 if (!visible) { clearTimeout(timer); timer = 0; return; }
-                if (!shown) { shown = true; refreshRuntime(); } else syncTimer();
+                if (!shown) shown = true;
+                refreshRuntime();
             },
             // True when the message box took the focus; false when this window cannot chat (the caller focuses the panel).
             focus() {
@@ -676,9 +680,9 @@
                 input.focus();
                 return true;
             },
-            // Puts an example into the message box; false when this window cannot chat right now.
+            // Stores an example as system text and draft; the message box shows it as soon as it appears. False only after dispose.
             setPrompt(prompt) {
-                if (disposed || !composerShown()) return false;
+                if (disposed) return false;
                 const p = prompt || {};
                 const system = String(p.system || '');
                 if (system) { systemInput.value = system; dispatch({ type: 'system', text: system }); }

@@ -237,7 +237,7 @@
         if (rep.small_sample) line(t('chibi_sensei.run.small_sample', { n: P.format.number(rep.samples) }));
         if (res.gpu) line(t('chibi_sensei.run.gpu_used', { name: String(res.gpu).slice(0, 80) }));
         if (run.warning_code) {
-            const key = WARNING_KEYS[run.warning_code] || WARNING_KEYS.unknown;
+            const key = (Object.prototype.hasOwnProperty.call(WARNING_KEYS, run.warning_code) ? WARNING_KEYS[run.warning_code] : WARNING_KEYS.unknown);
             box.appendChild(el('div', { class: 'csn-note', dataset: { csn: 'run-warning', tone: 'warn' } }, el('strong', { text: t('chibi_sensei.run.warning_title') }), el('p', { text: t(key) })));
         }
     }

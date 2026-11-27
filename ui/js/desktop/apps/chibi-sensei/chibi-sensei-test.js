@@ -102,6 +102,7 @@
             P.mascot ? P.mascot.create({ size: 88, mood: 'idle' }).el : null,
             el('h3', { text: t('chibi_sensei.test.empty_title') }), el('p', { text: t('chibi_sensei.test.empty_text') }), gotoTraining);
         const loading = el('p', { class: 'csn-muted', role: 'status', text: t('chibi_sensei.test.loading') });
+        runSelect.addEventListener('change', () => { if (runSelect.value && runSelect.value !== selectedId) selectRun(runSelect.value); });
         const retry = el('button', { type: 'button', class: 'csn-btn', dataset: { csn: 'test-retry' }, text: t('chibi_sensei.retry'), onClick: () => { if (selectedId) selectRun(selectedId); } });
         const errorLine = el('p', { class: 'csn-error', role: 'alert', dataset: { csn: 'test-error' } });
 
@@ -260,7 +261,7 @@
                 showError('');
             } catch (err) {
                 if (disposed || mine !== samples.seq || run !== dataSeq || (err && err.aborted)) return;
-                samples.loading = false;
+                samples.loading = false; samples.loaded = false;
                 const e = P.errors.normalize(err);
                 if (e.code === 'samples_missing') { samples.missing = true; samples.page = null; } else showError(inst.handleError(err));
             }

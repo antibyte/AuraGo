@@ -52,6 +52,8 @@ func TestChibiSenseiTranslationsAreTranslated(t *testing.T) {
 		// Tokens and symbols that read the same in every language.
 		"chibi_sensei.export.filter": true, "chibi_sensei.training.lora": true, "chibi_sensei.rail.step_label": true,
 		"chibi_sensei.source.sensei": true, "chibi_sensei.checks.level_ok": true,
+		// "Chat" is the loan word in most languages.
+		"chibi_sensei.test.view_chat": true,
 	}
 	// Words that really are the same in one language: German shares Text, Training, Format, Name and more with English, and
 	// the loan word Prompt stays Prompt in Polish, Portuguese and Swedish. The list is exact per language.
@@ -63,18 +65,22 @@ func TestChibiSenseiTranslationsAreTranslated(t *testing.T) {
 			"chibi_sensei.training.batch": true, "chibi_sensei.footer.train": true, "chibi_sensei.step.test": true,
 			"chibi_sensei.editor.role_system": true, "chibi_sensei.table.col_text": true, "chibi_sensei.editor.tags_label": true,
 		},
-		// Danish uses the English words for a download and an upload.
-		"da": {"chibi_sensei.run.download": true, "chibi_sensei.phase.upload": true},
-		// "Error" is the Spanish word too.
-		"es": {"chibi_sensei.event.error": true},
-		// "Preset" is the established word in Italian and Dutch; Dutch also says "epochs".
-		"it": {"chibi_sensei.training.preset_title": true},
-		"nl": {"chibi_sensei.training.preset_title": true, "chibi_sensei.overrides.epochs": true},
+		// Danish uses the English words for a download and an upload, Send, Stop, Prompt and Processor.
+		"da": {"chibi_sensei.run.download": true, "chibi_sensei.phase.upload": true, "chibi_sensei.test.prompt": true, "chibi_sensei.chat.send": true, "chibi_sensei.chat.stop": true, "chibi_sensei.runtime.backend_cpu": true},
+		// "Error" and "Prompt" are the Spanish words too.
+		"es": {"chibi_sensei.event.error": true, "chibi_sensei.test.prompt": true},
+		// "Prompt" and "Conversation" are French words.
+		"fr": {"chibi_sensei.test.prompt": true, "chibi_sensei.chat.history": true},
+		// "Preset" is the established word in Italian and Dutch; Dutch also says "epochs" and "Processor".
+		"it": {"chibi_sensei.training.preset_title": true, "chibi_sensei.test.prompt": true},
+		"nl": {"chibi_sensei.training.preset_title": true, "chibi_sensei.overrides.epochs": true, "chibi_sensei.test.prompt": true, "chibi_sensei.runtime.backend_cpu": true},
+		// Norwegian shares Send and Prompt.
+		"no": {"chibi_sensei.test.prompt": true, "chibi_sensei.chat.send": true},
 		// Chinese keeps Kaggle's own product term.
 		"zh": {"chibi_sensei.leftover.notebook": true},
-		"pl": {"chibi_sensei.table.col_prompt": true},
-		"pt": {"chibi_sensei.table.col_prompt": true},
-		"sv": {"chibi_sensei.table.col_prompt": true},
+		"pl": {"chibi_sensei.table.col_prompt": true, "chibi_sensei.test.prompt": true},
+		"pt": {"chibi_sensei.table.col_prompt": true, "chibi_sensei.test.prompt": true},
+		"sv": {"chibi_sensei.table.col_prompt": true, "chibi_sensei.test.prompt": true, "chibi_sensei.runtime.backend_cpu": true},
 	}
 	for _, lang := range storymakerLanguages {
 		if lang == "en" {
