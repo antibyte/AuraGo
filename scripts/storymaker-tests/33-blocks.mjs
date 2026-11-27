@@ -447,3 +447,12 @@ check('blocks: a storyboard scene on env.board draws the board over the backdrop
     const plan = SM.planTiming({ scenes: [{ id: 'a' }, { id: 'b', environment: 'env.board', variant: 'night' }, { id: 'c', kind: 'code' }, { id: 'd', environment: 'env.office' }] }, {}, t.catalog).scenes;
     assert.deepEqual(['a', 'b', 'c', 'd'].map(id => [plan[id].environment, plan[id].variant]), [['env.plain-stage', 'day'], ['env.board', 'night'], ['env.board', 'day'], ['env.office', 'day']], 'a scene keeps the environment of the one before it');
 });
+
+// ---- C11: text fitting splits at whitespace
+
+check('blocks: a long card label shrinks instead of breaking mid-word', () => {
+    const area = { x: 0, y: 0, w: 400, h: 400, surface: 'panel' };
+    const log = paint({ id: 'i', kind: 'icon', icon: 'icon.cpu', style: 'card', label: 'Warteschlangen' }, 5, { area });
+    const texts = log.filter(l => l.startsWith('fillText(')).map(l => l.slice(9).split(',')[0]);
+    assert.deepEqual(texts, ['Warteschlangen'], 'the whole word is on one line: ' + texts.join('|'));
+});

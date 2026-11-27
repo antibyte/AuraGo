@@ -3269,7 +3269,7 @@
     // fit(c, text, weight, maxW, maxLines, px0) = {px, lines}: the largest font size up to px0, not below the label floor, whose
     // wrapped lines fit the width.
     function fit(c, text, weight, maxW, maxLines, px0) {
-        var px = px0, out, words = String(text).split(/s+/);
+        var px = px0, out, words = String(text).split(/\s+/);
         for (;;) {
             setFont(c, weight, px);
             out = SM.text.wrap(function (s) { return c.ctx.measureText(s).width; }, text, maxW, maxLines);

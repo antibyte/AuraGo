@@ -166,6 +166,7 @@ check('host app: audio_info and glyph_data stay inside their caps', () => {
     assert.match(ok(icons({ schema: 'storymaker-icons/1', icons: [icon('icon.cpu', new Array(41).fill('M0 0'))] })), /icon_data/, 'at most 40 paths');
     assert.match(ok(icons({ schema: 'storymaker-icons/1', icons: [icon('icon.cpu', ['M' + '0'.repeat(2000)])] })), /icon_data/, 'at most 2000 characters per path');
     assert.match(ok(icons({ schema: 'storymaker-icons/1', icons: new Array(1001).fill(icon('icon.cpu')) })), /icon_data/, 'at most 1000 icons');
+    assert.match(ok(icons({ schema: 'storymaker-icons/1', icons: [icon('iconXcpu')] })), /icon_data/, 'the dot of the icon. prefix is literal');
     assert.equal(ok(icons(readRepoJSON('ui/img/storymaker/icons/lucide.json'))), null, 'the shipped icon file fits the caps');
 });
 

@@ -561,7 +561,7 @@
         if (!Array.isArray(data.icons) || data.icons.length > CAPS.maxIcons) return 'load.catalog.icon_data has bad icons or too many icons';
         for (var i = 0; i < data.icons.length; i++) {
             var icon = data.icons[i];
-            if (!isObject(icon) || typeof icon.id !== 'string' || !/^icon.[a-z0-9-]{1,60}$/.test(icon.id)) return 'load.catalog.icon_data has a bad icon id';
+            if (!isObject(icon) || typeof icon.id !== 'string' || !/^icon\.[a-z0-9-]{1,60}$/.test(icon.id)) return 'load.catalog.icon_data has a bad icon id';
             if (!Array.isArray(icon.paths) || icon.paths.length > CAPS.maxIconPaths) return 'load.catalog.icon_data has bad or too many paths';
             for (var k = 0; k < icon.paths.length; k++) {
                 if (typeof icon.paths[k] !== 'string' || icon.paths[k].length > CAPS.maxIconPathChars) return 'load.catalog.icon_data has a bad path';
