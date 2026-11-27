@@ -85,3 +85,26 @@ check('api.chart: a counter chart is a block; bad values name the fix', () => {
     assert.match(fail("export default function scene(api) { api.chart({ type: 'donut', labels: [], values: [] }); }"), /"donut".*bar, line, pie, counter/);
     assert.match(fail("export default function scene(api) { api.chart('bar', { labels: ['a'], values: [1] }); }"), /chart \{type, labels, values\}/);
 });
+
+const frameLog = (built, C, time, extra = {}) => {
+    const cv = new FakeCanvas(1920, 1080);
+    const tl = { aspect: '16:9', fps: 30, palette: { bg: '#fff', bg2: '#eee', fg: '#123456', accent: '#f00', accent2: '#0f0', text: '#000' }, cat: C.scene.indexCatalog(fullCatalog), fontFamilies: { default: 'F' }, style: { font: 'default' }, safe: catalog.stage.safe };
+    C.codescene.drawFrame(built, time, cv.ctx, C.render.makeContext(tl, { rig: files.rig, props: files.props, envs: files.envs }, 1920, 1080));
+    return cv.ctx.log;
+};
+
+check('api.headline and api.list: blocks in the full area; lists take at most 4 lines; drawing is the same at the same time', () => {
+    const { C, build: run } = runScene(`export default function scene(api) {
+      api.headline('Kleine Modelle sind *schnell*');
+      api.list(['eins', 'zwei', 'drei'], { at: 'right', reveals: [api.cue(1), api.cue(2), 3] });
+    }`);
+    const built = run(), [h, l] = built.entities, full = SM.blocks.area(built.stage, null, 'day', 'full');
+    assert.equal(h.block.kind, 'headline'); assert.equal(h.block.text, 'Kleine Modelle sind *schnell*'); near(h.w, full.w, 1e-9);
+    assert.equal(h.entry, 'fade'); near(h.dur, 0.4 + 0.15 * 4, 1e-9);
+    assert.equal(l.block.kind, 'list'); assert.equal(l.block.text, 'eins\nzwei\ndrei'); assert.equal(l.reveals.length, 3);
+    assert.match(fail("export default function scene(api) { api.list(['a', 'b', 'c', 'd', 'e']); }"), /1 to 4 lines, got 5/);
+    assert.match(fail("export default function scene(api) { api.list('a'); }"), /api\.list needs an array/);
+    assert.match(fail("export default function scene(api) { api.headline(''); }"), /headline has 1 to 80/);
+    const a = frameLog(built, C, 1.0), b = frameLog(built, C, 1.0);
+    assert.ok(a.length > 20 && a.join('\n') === b.join('\n'));
+});

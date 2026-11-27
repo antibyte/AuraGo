@@ -240,6 +240,12 @@
             if (d && d.layout === undefined) d.layout = 'flow';
             return addBlock({ kind: 'diagram', diagram: d }, o, 'full', 'draw');
         };
+        api.headline = function (text, o) { return addBlock({ kind: 'headline', text: text }, o, 'full', 'fade'); };
+        // api.list(items, {at, entry, start, dur, reveals}): items is an array of 1 to 4 strings.
+        api.list = function (items, o) {
+            if (!Array.isArray(items)) throw new TypeError('api.list needs an array of 1 to ' + SM.blocks.LIST_MAX + ' strings, for example api.list(["first", "second"]).');
+            return addBlock({ kind: 'list', text: items.map(String).join('\n') }, o, 'full', 'fade');
+        };
         api.tween = function (target, props, o) {
             var e = target && target.__entity;
             if (!e) throw new TypeError('api.tween needs a handle returned by api.add, api.text or api.shape.');
