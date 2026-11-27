@@ -1,9 +1,9 @@
 // Storymaker player: storyboard scenes. buildStoryboard turns one scene (actors, props, camera, beats) into entities
 // with tracks. The scheduler: a beat on another target starts at 0.4 of the anchor, a beat on the same target follows it,
 // "with": "prev" runs together with the previous beat, and a cued arrival lands on its marker. Timing defaults and role
-// eases live in motion.js and are scaled by style.rhythm. Beats: enter exit walk move pose gesture emote look show (item
-// and text) hide camera wait; sfx lands by its take's impact; the other beats are reported as minor not_supported_yet and
-// ignored. Classic script; publishes StorymakerCore.beats.
+// eases live in motion.js and are scaled by style.rhythm. Beats: enter exit walk move pose gesture emote look show (item,
+// text and blocks: beats-blocks.js) chart (the legacy show of a chart) hide highlight camera wait; sfx lands by its take's
+// impact; the other beats are reported as minor not_supported_yet and ignored. Classic script; publishes StorymakerCore.beats.
 (function (root) {
     'use strict';
     var SM = root.StorymakerCore || (root.StorymakerCore = {});
@@ -186,7 +186,7 @@
 
         function entryAnim(e, b, t0, dur, pos) {
             var entry = b.entry || 'fade', fade = SM.motion.fadeEase(b);
-            if (entry === 'none' || dur <= 0) { e.alpha.add(t0, t0, 1, 'linear'); return; }
+            if (entry === 'none' || dur <= 0 || (entry === 'draw' && e.type === 'block')) { e.alpha.add(t0, t0, 1, 'linear'); return; }
             if (entry === 'pop' && e.type !== 'text') {
                 e.alpha.add(t0, t0 + dur, 1, fade);
                 e.scale.add(t0, t0 + dur, 1, easeOf(b), 0.6);
@@ -338,8 +338,15 @@
                 }
             },
             show: {
-                dur: function (b) { return (b.entry || 'fade') === 'none' ? 0 : DEF.show * f; },
-                run: function (b, j, t0, dur, tgt) { if (tgt) entryAnim(tgt, b, t0, dur, { x: tgt.x.init }); }
+                dur: function (b, floor, tgt) {
+                    if ((b.entry || 'fade') === 'none') return 0;
+                    return tgt && tgt.type === 'block' ? SM.blocks.revealSeconds(tgt.block) * f : DEF.show * f;
+                },
+                run: function (b, j, t0, dur, tgt) {
+                    if (!tgt) return;
+                    if (tgt.type === 'block') { tgt.t0 = t0; tgt.dur = dur; tgt.reveals = SM.beatBlocks.reveals(c, b, tgt.block, t0, dur); }
+                    entryAnim(tgt, b, t0, dur, { x: tgt.x.init });
+                }
             },
             hide: {
                 dur: function () { return DEF.hide * f; },
@@ -353,6 +360,7 @@
                 dur: function () { return SM.motion.DEFAULTS.highlight * SM.motion.factor(c.story.style); },
                 run: function (b, j, t0, dur) {
                     var e = find(b.target);
+                    if (!e && SM.beatBlocks.highlightNode(c, b, j, t0, dur, find)) return;
                     if (!e) { warn('warning', beatPath(j, 'target'), 'unknown_name', 'Nothing named "' + b.target + '" to highlight.'); return; }
                     e.highlights.add(t0, t0 + dur, { style: b.style === 'outline' || b.style === 'arrow' ? b.style : 'pulse' });
                 }
@@ -396,6 +404,8 @@
             }
         };
 
+        kinds.chart = kinds.show;
+
         var typingBeats = [];
 
         kinds.sfx = {
@@ -427,6 +437,7 @@
         // showTarget(b, j): the instance a show beat creates. It must exist before the beat is placed, because the scheduler
         // compares instances. Returns null when the beat names nothing it can show.
         function showTarget(b, j) {
+            if (SM.beatBlocks.isBlockBeat(b)) return SM.beatBlocks.target(c, b, j, { warn: warn, beatPath: beatPath, instanceId: instanceId, register: register });
             if (b.text !== undefined && b.text !== null && b.item === undefined) {
                 var pos = textPosition(b.at, beatPath(j, 'at'));
                 var style = b.style && cat.textStyles[b.style] ? b.style : 'title';
@@ -469,7 +480,7 @@
         // targetOf(b, j): the instance a beat acts on, compared by identity. A show's target is the instance it creates. A
         // string that resolves to no instance (a camera on a spot) has none.
         function targetOf(b, j) {
-            if (b.do === 'show') return showTarget(b, j);
+            if (b.do === 'show' || b.do === 'chart') return showTarget(b, j);
             return b.do === 'wait' || b.do === 'sfx' ? null : find(b.who || b.target);
         }
 
@@ -481,14 +492,11 @@
                 warn('minor', beatPath(j), 'not_supported_yet', 'Beat "' + b.do + '" is not supported yet; it is ignored.');
                 return;
             }
-            if (b.do === 'show' && (b.chart || b.icon)) {
-                warn('minor', beatPath(j), 'not_supported_yet', 'Show with ' + (b.chart ? 'a chart' : 'an icon') + ' is not supported yet; the beat is ignored.');
-                return;
-            }
             var tgt = targetOf(b, j);
+            if (!tgt && SM.beatBlocks.isBlockBeat(b)) return;   // a block that failed its check is skipped like an unsupported beat
             var floor = tgt ? (lastEnd.get(tgt) || 0) : 0;
             // a walk measures its distance from the target's position at floor: only same-target beats move that track
-            var dur = typeof b.duration === 'number' && b.duration >= 0 ? b.duration : spec.dur(b, floor);
+            var dur = typeof b.duration === 'number' && b.duration >= 0 ? b.duration : spec.dur(b, floor, tgt);
             // impact: the chosen take's impact for an sfx, 0 for a sound the catalog lacks and for every other beat
             var delay = b.delay > 0 ? b.delay : 0, lead = SM.motion.leadOf(b, dur), impact = b.do === 'sfx' ? sfxImpact(b, j) : 0, cueT, byPrev = false, t;
             if (b.cue !== undefined && b.cue !== null) {

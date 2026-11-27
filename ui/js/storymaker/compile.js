@@ -105,7 +105,7 @@
                     issues.push(P.issue('minor', sc.id, '/scenes/' + i + '/beats/' + j, 'not_supported_yet', 'Beats of a code scene are ignored; the code scene draws everything.'));
                 });
             } else {
-                built = SM.beats.buildStoryboard({ story: story, scene: sc, index: i, plan: plan, cat: cat, fmt: fmt, stage: stage, issues: issues, needs: needs, castMap: castMap, lastTake: lastTake });
+                built = SM.beats.buildStoryboard({ story: story, scene: sc, index: i, plan: plan, cat: cat, fmt: fmt, stage: stage, issues: issues, needs: needs, castMap: castMap, lastTake: lastTake, env: envEntry, variant: variant });
             }
 
             // duration (scene-local seconds, origin = start of the entry transition)
@@ -184,6 +184,11 @@
 
             // fonts in use
             scene.entities.forEach(function (e) {
+                if (e.type === 'block') {
+                    // blocks draw in the film font at 600 and 700; their texts need the fallback faces like any text
+                    [600, 700].forEach(function (w) { var k = fontKey(cat, styleFont, w) || fontKey(cat, 'default', w); if (k) needs[k] = true; });
+                    SM.beatBlocks.texts(e).forEach(needGlyphs);
+                }
                 if (e.type === 'actor') {
                     var character = cat.byId[e.character];
                     if (character && character.file) needs['catalog:' + character.file] = true;

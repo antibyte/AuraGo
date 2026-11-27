@@ -114,10 +114,13 @@ check('compile: the phase-1 support matrix reports not_supported_yet and falls b
     const codes = (path, code) => issues.filter(i => i.path === path && i.code === code);
     assert.equal(codes('/scenes/0/beats/0', 'not_supported_yet').length, 0, 'highlight is played');
     assert.equal(codes('/scenes/0/beats/2', 'not_supported_yet').length, 0, 'the sfx beat plays');
-    assert.equal(codes('/scenes/0/beats/3', 'not_supported_yet').length, 1, 'the chart beat');
+    assert.equal(codes('/scenes/0/beats/3', 'not_supported_yet').length, 0, 'the chart beat plays');
+    assert.equal(codes('/scenes/0/beats/3/data', 'invalid_value').length, 1, 'but its data is empty');
     assert.equal(codes('/scenes/0/beats/1/text', 'narration_missing').length, 1, 'a say without audio is estimated');
-    assert.equal(codes('/scenes/0/beats/4', 'not_supported_yet').length, 1, 'show with an icon');
-    assert.equal(codes('/scenes/0/beats/5', 'not_supported_yet').length, 1, 'show with a chart');
+    assert.equal(codes('/scenes/0/beats/4', 'not_supported_yet').length, 0, 'show with an icon plays');
+    assert.equal(codes('/scenes/0/beats/4/icon', 'unknown_asset').length, 1, 'but icon.x is unknown');
+    assert.equal(codes('/scenes/0/beats/5', 'not_supported_yet').length, 0, 'show with a chart plays');
+    assert.equal(codes('/scenes/0/beats/5/data', 'missing_field').length, 1, 'but it has no data');
     assert.ok(issues.every(i => i.code !== 'not_supported_yet' || i.severity === 'minor'));
     assert.equal(codes('/scenes/0/actors/0/pose', 'not_supported_yet').length, 1, 'a known pose that the catalog lacks');
     assert.equal(codes('/scenes/0/actors/0/expression', 'not_supported_yet').length, 1);
