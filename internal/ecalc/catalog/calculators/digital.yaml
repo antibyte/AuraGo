@@ -257,3 +257,100 @@
     net: {dim: datarate, label: R_net, name: {en: "Net data rate (payload)", de: "Nettodatenrate (Nutzdaten)"}, expr: "rate/fr"}
     eff: {dim: ratio, label: η, name: {en: "Efficiency (payload / line bits)", de: "Wirkungsgrad (Nutzbits / Leitungsbits)"}, expr: "1/fr", unit: pct, units: [pct, ""]}
   formula: ["t = size * fr / rate", "net = rate / fr", "eff = 1 / fr"]
+
+- id: logic_level_check
+  kind: calculator
+  category: digital
+  name: {cs: "Slučitelnost logických úrovní", da: "Kompatibilitet mellem logikniveauer", de: "Logikpegel-Verträglichkeit", el: "Συμβατότητα λογικών επιπέδων", en: "Logic level compatibility", es: "Compatibilidad de niveles lógicos", fr: "Compatibilité des niveaux logiques", hi: "लॉजिक स्तर संगतता", it: "Compatibilità dei livelli logici", ja: "ロジックレベルの適合性", nl: "Compatibiliteit van logicaniveaus", no: "Kompatibilitet mellom logikknivåer", pl: "Zgodność poziomów logicznych", pt: "Compatibilidade de níveis lógicos", sv: "Kompatibilitet mellan logiknivåer", zh: "逻辑电平兼容性"}
+  doc:
+    en: "Checks whether a logic output (driver) can drive a logic input (receiver). Noise margin HIGH NM_H = V_OH(min, driver) − V_IH(min, receiver), noise margin LOW NM_L = V_IL(max, receiver) − V_OL(max, driver); both must be at least 0 V. Each family is taken at its nominal supply. V_OH and V_OL are the data-sheet limits at light load (CMOS inputs: 20 µA for 74HC and 74HCT, 100 µA for 74LVC); the TTL, 74LS and RP2040 data sheets give them only at their rated output current, so those margins are conservative. 74HC at 5 V uses V_IH = 0.7 × V_CC = 3.5 V and V_IL = 0.3 × V_CC = 1.5 V; its data sheets list 4.5 V and 6 V only. The over-voltage check compares the driver's supply, the highest level its HIGH output can reach, with the highest input voltage the receiver allows in operation. The table logic_levels has the full data of the families. Example: 3.3 V LVCMOS (V_OH 3.2 V) does not reliably drive 74HC at 5 V (V_IH 3.5 V) but does drive 74HCT (V_IH 2.0 V)."
+    de: "Prüft, ob ein Logikausgang (Treiber) einen Logikeingang (Empfänger) sicher ansteuert. Störabstand HIGH NM_H = V_OH(min, Treiber) − V_IH(min, Empfänger), Störabstand LOW NM_L = V_IL(max, Empfänger) − V_OL(max, Treiber); beide müssen mindestens 0 V betragen. Jede Familie wird bei ihrer Nennversorgung betrachtet. V_OH und V_OL sind die Datenblattgrenzen bei kleiner Last (CMOS-Eingänge: 20 µA bei 74HC und 74HCT, 100 µA bei 74LVC); für TTL, 74LS und den RP2040 nennen die Datenblätter sie nur beim Nennausgangsstrom, dort sind die Störabstände daher vorsichtig gerechnet. 74HC an 5 V verwendet V_IH = 0,7 · V_CC = 3,5 V und V_IL = 0,3 · V_CC = 1,5 V; die Datenblätter nennen nur 4,5 V und 6 V. Die Überspannungsprüfung vergleicht die Versorgung des Treibers, also den höchsten Pegel, den sein HIGH-Ausgang erreichen kann, mit der höchsten Eingangsspannung, die der Empfänger im Betrieb zulässt. Die Tabelle logic_levels enthält die vollständigen Daten der Familien. Beispiel: 3,3-V-LVCMOS (V_OH 3,2 V) steuert 74HC an 5 V (V_IH 3,5 V) nicht sicher an, 74HCT (V_IH 2,0 V) dagegen schon."
+  tags: [logic level, logic compatibility, noise margin, interfacing, level shifting, 3.3 V to 5 V, 5 V tolerant, voh, vol, vih, vil, ttl, 74ls, 74hc, 74hct, 74lvc, lvcmos, rp2040, raspberry pi pico, atmega328p, arduino, logikpegel, pegelverträglichkeit, störabstand, pegelanpassung, pegelwandler, 5-v-tolerant, überspannung, cmos, mikrocontroller]
+  source: "Maker data sheets of the parts named in the options: Texas Instruments SDLS025D (SN7400, SN74LS00), SCLS181H (SN74HC00), SCLS062F (SN74HCT00), SCES212AC (SN74LVC1G00), SCES115G (SN74ALVC00) and the Logic Guide SDYU001AC; Fairchild DM74LS00 (DS006439); Diodes Incorporated 74HC00 (DS35319), 74HCT00 (DS35329), 74LVC1G00 (DS32196); Raspberry Pi RP2040 Datasheet (DC characteristics of the GPIO); Microchip ATmega48A/PA/88A/PA/168A/PA/328/P (DS40002061A, common DC characteristics)"
+  vars:
+    nmh: {dim: voltage, label: NM_H, name: {en: "Noise margin HIGH", de: "Störabstand HIGH"}, input: false}
+    nml: {dim: voltage, label: NM_L, name: {en: "Noise margin LOW", de: "Störabstand LOW"}, input: false}
+  choices:
+    drv:
+      name: {cs: "Budič (výstup)", da: "Driver (udgang)", de: "Treiber (Ausgang)", el: "Οδηγός (έξοδος)", en: "Driver (output)", es: "Excitador (salida)", fr: "Émetteur (sortie)", hi: "ड्राइवर (आउटपुट)", it: "Driver (uscita)", ja: "ドライバ（出力）", nl: "Driver (uitgang)", no: "Driver (utgang)", pl: "Nadajnik (wyjście)", pt: "Emissor (saída)", sv: "Drivsteg (utgång)", zh: "驱动端（输出）"}
+      default: lvc33
+      options:
+        ttl:
+          name: {cs: "TTL 74xx (SN7400)", da: "TTL 74xx (SN7400)", de: "TTL 74xx (SN7400)", el: "TTL 74xx (SN7400)", en: "TTL 74xx (SN7400)", es: "TTL 74xx (SN7400)", fr: "TTL 74xx (SN7400)", hi: "TTL 74xx (SN7400)", it: "TTL 74xx (SN7400)", ja: "TTL 74xx (SN7400)", nl: "TTL 74xx (SN7400)", no: "TTL 74xx (SN7400)", pl: "TTL 74xx (SN7400)", pt: "TTL 74xx (SN7400)", sv: "TTL 74xx (SN7400)", zh: "TTL 74xx (SN7400)"}
+          consts: {voh: 2.4, vol: 0.4, vdd: 5}
+        ls:
+          name: {cs: "74LS (SN74LS00)", da: "74LS (SN74LS00)", de: "74LS (SN74LS00)", el: "74LS (SN74LS00)", en: "74LS (SN74LS00)", es: "74LS (SN74LS00)", fr: "74LS (SN74LS00)", hi: "74LS (SN74LS00)", it: "74LS (SN74LS00)", ja: "74LS (SN74LS00)", nl: "74LS (SN74LS00)", no: "74LS (SN74LS00)", pl: "74LS (SN74LS00)", pt: "74LS (SN74LS00)", sv: "74LS (SN74LS00)", zh: "74LS (SN74LS00)"}
+          consts: {voh: 2.5, vol: 0.4, vdd: 5}
+        hc:
+          name: {cs: "74HC (5 V)", da: "74HC (5 V)", de: "74HC (5 V)", el: "74HC (5 V)", en: "74HC (5 V)", es: "74HC (5 V)", fr: "74HC (5 V)", hi: "74HC (5 V)", it: "74HC (5 V)", ja: "74HC (5 V)", nl: "74HC (5 V)", no: "74HC (5 V)", pl: "74HC (5 V)", pt: "74HC (5 V)", sv: "74HC (5 V)", zh: "74HC (5 V)"}
+          consts: {voh: 4.4, vol: 0.1, vdd: 5}
+        hct:
+          name: {cs: "74HCT (5 V)", da: "74HCT (5 V)", de: "74HCT (5 V)", el: "74HCT (5 V)", en: "74HCT (5 V)", es: "74HCT (5 V)", fr: "74HCT (5 V)", hi: "74HCT (5 V)", it: "74HCT (5 V)", ja: "74HCT (5 V)", nl: "74HCT (5 V)", no: "74HCT (5 V)", pl: "74HCT (5 V)", pt: "74HCT (5 V)", sv: "74HCT (5 V)", zh: "74HCT (5 V)"}
+          consts: {voh: 4.4, vol: 0.1, vdd: 5}
+        lvc5:
+          name: {cs: "74LVC (5 V)", da: "74LVC (5 V)", de: "74LVC (5 V)", el: "74LVC (5 V)", en: "74LVC (5 V)", es: "74LVC (5 V)", fr: "74LVC (5 V)", hi: "74LVC (5 V)", it: "74LVC (5 V)", ja: "74LVC (5 V)", nl: "74LVC (5 V)", no: "74LVC (5 V)", pl: "74LVC (5 V)", pt: "74LVC (5 V)", sv: "74LVC (5 V)", zh: "74LVC (5 V)"}
+          consts: {voh: 4.9, vol: 0.1, vdd: 5}
+        lvc33:
+          name: {cs: "74LVC / LVCMOS (3,3 V)", da: "74LVC / LVCMOS (3,3 V)", de: "74LVC / LVCMOS (3,3 V)", el: "74LVC / LVCMOS (3,3 V)", en: "74LVC / LVCMOS (3.3 V)", es: "74LVC / LVCMOS (3,3 V)", fr: "74LVC / LVCMOS (3,3 V)", hi: "74LVC / LVCMOS (3.3 V)", it: "74LVC / LVCMOS (3,3 V)", ja: "74LVC / LVCMOS (3.3 V)", nl: "74LVC / LVCMOS (3,3 V)", no: "74LVC / LVCMOS (3,3 V)", pl: "74LVC / LVCMOS (3,3 V)", pt: "74LVC / LVCMOS (3,3 V)", sv: "74LVC / LVCMOS (3,3 V)", zh: "74LVC / LVCMOS (3.3 V)"}
+          consts: {voh: 3.2, vol: 0.1, vdd: 3.3}
+        lvc25:
+          name: {cs: "74LVC / LVCMOS (2,5 V)", da: "74LVC / LVCMOS (2,5 V)", de: "74LVC / LVCMOS (2,5 V)", el: "74LVC / LVCMOS (2,5 V)", en: "74LVC / LVCMOS (2.5 V)", es: "74LVC / LVCMOS (2,5 V)", fr: "74LVC / LVCMOS (2,5 V)", hi: "74LVC / LVCMOS (2.5 V)", it: "74LVC / LVCMOS (2,5 V)", ja: "74LVC / LVCMOS (2.5 V)", nl: "74LVC / LVCMOS (2,5 V)", no: "74LVC / LVCMOS (2,5 V)", pl: "74LVC / LVCMOS (2,5 V)", pt: "74LVC / LVCMOS (2,5 V)", sv: "74LVC / LVCMOS (2,5 V)", zh: "74LVC / LVCMOS (2.5 V)"}
+          consts: {voh: 2.4, vol: 0.1, vdd: 2.5}
+        lvc18:
+          name: {cs: "74LVC / LVCMOS (1,8 V)", da: "74LVC / LVCMOS (1,8 V)", de: "74LVC / LVCMOS (1,8 V)", el: "74LVC / LVCMOS (1,8 V)", en: "74LVC / LVCMOS (1.8 V)", es: "74LVC / LVCMOS (1,8 V)", fr: "74LVC / LVCMOS (1,8 V)", hi: "74LVC / LVCMOS (1.8 V)", it: "74LVC / LVCMOS (1,8 V)", ja: "74LVC / LVCMOS (1.8 V)", nl: "74LVC / LVCMOS (1,8 V)", no: "74LVC / LVCMOS (1,8 V)", pl: "74LVC / LVCMOS (1,8 V)", pt: "74LVC / LVCMOS (1,8 V)", sv: "74LVC / LVCMOS (1,8 V)", zh: "74LVC / LVCMOS (1.8 V)"}
+          consts: {voh: 1.7, vol: 0.1, vdd: 1.8}
+        rp2040:
+          name: {cs: "RP2040 GPIO (3,3 V)", da: "RP2040 GPIO (3,3 V)", de: "RP2040 GPIO (3,3 V)", el: "RP2040 GPIO (3,3 V)", en: "RP2040 GPIO (3.3 V)", es: "RP2040 GPIO (3,3 V)", fr: "RP2040 GPIO (3,3 V)", hi: "RP2040 GPIO (3.3 V)", it: "RP2040 GPIO (3,3 V)", ja: "RP2040 GPIO (3.3 V)", nl: "RP2040 GPIO (3,3 V)", no: "RP2040 GPIO (3,3 V)", pl: "RP2040 GPIO (3,3 V)", pt: "RP2040 GPIO (3,3 V)", sv: "RP2040 GPIO (3,3 V)", zh: "RP2040 GPIO (3.3 V)"}
+          consts: {voh: 2.62, vol: 0.5, vdd: 3.3}
+    rcv:
+      name: {cs: "Přijímač (vstup)", da: "Modtager (indgang)", de: "Empfänger (Eingang)", el: "Δέκτης (είσοδος)", en: "Receiver (input)", es: "Receptor (entrada)", fr: "Récepteur (entrée)", hi: "रिसीवर (इनपुट)", it: "Ricevitore (ingresso)", ja: "レシーバ（入力）", nl: "Ontvanger (ingang)", no: "Mottaker (inngang)", pl: "Odbiornik (wejście)", pt: "Receptor (entrada)", sv: "Mottagare (ingång)", zh: "接收端（输入）"}
+      default: hc
+      options:
+        ttl:
+          name: {cs: "TTL 74xx (SN7400)", da: "TTL 74xx (SN7400)", de: "TTL 74xx (SN7400)", el: "TTL 74xx (SN7400)", en: "TTL 74xx (SN7400)", es: "TTL 74xx (SN7400)", fr: "TTL 74xx (SN7400)", hi: "TTL 74xx (SN7400)", it: "TTL 74xx (SN7400)", ja: "TTL 74xx (SN7400)", nl: "TTL 74xx (SN7400)", no: "TTL 74xx (SN7400)", pl: "TTL 74xx (SN7400)", pt: "TTL 74xx (SN7400)", sv: "TTL 74xx (SN7400)", zh: "TTL 74xx (SN7400)"}
+          consts: {vih: 2, vil: 0.8, vimax: 5.5}
+        ls:
+          name: {cs: "74LS (SN74LS00)", da: "74LS (SN74LS00)", de: "74LS (SN74LS00)", el: "74LS (SN74LS00)", en: "74LS (SN74LS00)", es: "74LS (SN74LS00)", fr: "74LS (SN74LS00)", hi: "74LS (SN74LS00)", it: "74LS (SN74LS00)", ja: "74LS (SN74LS00)", nl: "74LS (SN74LS00)", no: "74LS (SN74LS00)", pl: "74LS (SN74LS00)", pt: "74LS (SN74LS00)", sv: "74LS (SN74LS00)", zh: "74LS (SN74LS00)"}
+          consts: {vih: 2, vil: 0.8, vimax: 7}
+        hc:
+          name: {cs: "74HC (5 V)", da: "74HC (5 V)", de: "74HC (5 V)", el: "74HC (5 V)", en: "74HC (5 V)", es: "74HC (5 V)", fr: "74HC (5 V)", hi: "74HC (5 V)", it: "74HC (5 V)", ja: "74HC (5 V)", nl: "74HC (5 V)", no: "74HC (5 V)", pl: "74HC (5 V)", pt: "74HC (5 V)", sv: "74HC (5 V)", zh: "74HC (5 V)"}
+          consts: {vih: 3.5, vil: 1.5, vimax: 5}
+        hct:
+          name: {cs: "74HCT (5 V)", da: "74HCT (5 V)", de: "74HCT (5 V)", el: "74HCT (5 V)", en: "74HCT (5 V)", es: "74HCT (5 V)", fr: "74HCT (5 V)", hi: "74HCT (5 V)", it: "74HCT (5 V)", ja: "74HCT (5 V)", nl: "74HCT (5 V)", no: "74HCT (5 V)", pl: "74HCT (5 V)", pt: "74HCT (5 V)", sv: "74HCT (5 V)", zh: "74HCT (5 V)"}
+          consts: {vih: 2, vil: 0.8, vimax: 5}
+        lvc5:
+          name: {cs: "74LVC (5 V)", da: "74LVC (5 V)", de: "74LVC (5 V)", el: "74LVC (5 V)", en: "74LVC (5 V)", es: "74LVC (5 V)", fr: "74LVC (5 V)", hi: "74LVC (5 V)", it: "74LVC (5 V)", ja: "74LVC (5 V)", nl: "74LVC (5 V)", no: "74LVC (5 V)", pl: "74LVC (5 V)", pt: "74LVC (5 V)", sv: "74LVC (5 V)", zh: "74LVC (5 V)"}
+          consts: {vih: 3.5, vil: 1.5, vimax: 5.5}
+        lvc33:
+          name: {cs: "74LVC (3,3 V, odolný proti 5 V)", da: "74LVC (3,3 V, 5 V-tolerant)", de: "74LVC (3,3 V, 5-V-tolerant)", el: "74LVC (3,3 V, ανθεκτικό στα 5 V)", en: "74LVC (3.3 V, 5-V-tolerant)", es: "74LVC (3,3 V, tolerante a 5 V)", fr: "74LVC (3,3 V, tolérant 5 V)", hi: "74LVC (3.3 V, 5 V सहनशील)", it: "74LVC (3,3 V, tollerante a 5 V)", ja: "74LVC (3.3 V, 5 V トレラント)", nl: "74LVC (3,3 V, 5 V-tolerant)", no: "74LVC (3,3 V, 5 V-tolerant)", pl: "74LVC (3,3 V, odporne na 5 V)", pt: "74LVC (3,3 V, tolerante a 5 V)", sv: "74LVC (3,3 V, 5 V-tolerant)", zh: "74LVC (3.3 V, 耐5 V)"}
+          consts: {vih: 2, vil: 0.8, vimax: 5.5}
+        alvc33:
+          name: {cs: "LVCMOS 3,3 V, neodolný proti 5 V (74ALVC)", da: "LVCMOS 3,3 V, ikke 5 V-tolerant (74ALVC)", de: "LVCMOS 3,3 V, nicht 5-V-tolerant (74ALVC)", el: "LVCMOS 3,3 V, όχι ανθεκτικό στα 5 V (74ALVC)", en: "LVCMOS 3.3 V, not 5-V-tolerant (74ALVC)", es: "LVCMOS 3,3 V, no tolerante a 5 V (74ALVC)", fr: "LVCMOS 3,3 V, non tolérant 5 V (74ALVC)", hi: "LVCMOS 3.3 V, 5 V सहनशील नहीं (74ALVC)", it: "LVCMOS 3,3 V, non tollerante a 5 V (74ALVC)", ja: "LVCMOS 3.3 V, 5 V トレラントではない (74ALVC)", nl: "LVCMOS 3,3 V, niet 5 V-tolerant (74ALVC)", no: "LVCMOS 3,3 V, ikke 5 V-tolerant (74ALVC)", pl: "LVCMOS 3,3 V, nieodporne na 5 V (74ALVC)", pt: "LVCMOS 3,3 V, não tolerante a 5 V (74ALVC)", sv: "LVCMOS 3,3 V, inte 5 V-tolerant (74ALVC)", zh: "LVCMOS 3.3 V, 不耐5 V (74ALVC)"}
+          consts: {vih: 2, vil: 0.8, vimax: 3.6}
+        lvc25:
+          name: {cs: "74LVC / LVCMOS (2,5 V)", da: "74LVC / LVCMOS (2,5 V)", de: "74LVC / LVCMOS (2,5 V)", el: "74LVC / LVCMOS (2,5 V)", en: "74LVC / LVCMOS (2.5 V)", es: "74LVC / LVCMOS (2,5 V)", fr: "74LVC / LVCMOS (2,5 V)", hi: "74LVC / LVCMOS (2.5 V)", it: "74LVC / LVCMOS (2,5 V)", ja: "74LVC / LVCMOS (2.5 V)", nl: "74LVC / LVCMOS (2,5 V)", no: "74LVC / LVCMOS (2,5 V)", pl: "74LVC / LVCMOS (2,5 V)", pt: "74LVC / LVCMOS (2,5 V)", sv: "74LVC / LVCMOS (2,5 V)", zh: "74LVC / LVCMOS (2.5 V)"}
+          consts: {vih: 1.7, vil: 0.7, vimax: 5.5}
+        lvc18:
+          name: {cs: "74LVC / LVCMOS (1,8 V)", da: "74LVC / LVCMOS (1,8 V)", de: "74LVC / LVCMOS (1,8 V)", el: "74LVC / LVCMOS (1,8 V)", en: "74LVC / LVCMOS (1.8 V)", es: "74LVC / LVCMOS (1,8 V)", fr: "74LVC / LVCMOS (1,8 V)", hi: "74LVC / LVCMOS (1.8 V)", it: "74LVC / LVCMOS (1,8 V)", ja: "74LVC / LVCMOS (1.8 V)", nl: "74LVC / LVCMOS (1,8 V)", no: "74LVC / LVCMOS (1,8 V)", pl: "74LVC / LVCMOS (1,8 V)", pt: "74LVC / LVCMOS (1,8 V)", sv: "74LVC / LVCMOS (1,8 V)", zh: "74LVC / LVCMOS (1.8 V)"}
+          consts: {vih: 1.17, vil: 0.63, vimax: 5.5}
+        rp2040:
+          name: {cs: "RP2040 GPIO (3,3 V, neodolný proti 5 V)", da: "RP2040 GPIO (3,3 V, ikke 5 V-tolerant)", de: "RP2040 GPIO (3,3 V, nicht 5-V-tolerant)", el: "RP2040 GPIO (3,3 V, όχι ανθεκτικό στα 5 V)", en: "RP2040 GPIO (3.3 V, not 5-V-tolerant)", es: "RP2040 GPIO (3,3 V, no tolerante a 5 V)", fr: "RP2040 GPIO (3,3 V, non tolérant 5 V)", hi: "RP2040 GPIO (3.3 V, 5 V सहनशील नहीं)", it: "RP2040 GPIO (3,3 V, non tollerante a 5 V)", ja: "RP2040 GPIO (3.3 V, 5 V トレラントではない)", nl: "RP2040 GPIO (3,3 V, niet 5 V-tolerant)", no: "RP2040 GPIO (3,3 V, ikke 5 V-tolerant)", pl: "RP2040 GPIO (3,3 V, nieodporne na 5 V)", pt: "RP2040 GPIO (3,3 V, não tolerante a 5 V)", sv: "RP2040 GPIO (3,3 V, inte 5 V-tolerant)", zh: "RP2040 GPIO (3.3 V, 不耐5 V)"}
+          consts: {vih: 2, vil: 0.8, vimax: 3.6}
+        avr5:
+          name: {cs: "ATmega328P (5 V)", da: "ATmega328P (5 V)", de: "ATmega328P (5 V)", el: "ATmega328P (5 V)", en: "ATmega328P (5 V)", es: "ATmega328P (5 V)", fr: "ATmega328P (5 V)", hi: "ATmega328P (5 V)", it: "ATmega328P (5 V)", ja: "ATmega328P (5 V)", nl: "ATmega328P (5 V)", no: "ATmega328P (5 V)", pl: "ATmega328P (5 V)", pt: "ATmega328P (5 V)", sv: "ATmega328P (5 V)", zh: "ATmega328P (5 V)"}
+          consts: {vih: 3, vil: 1.5, vimax: 5.5}
+  dof: 0
+  rules:
+    nmh: ["voh-vih"]
+    nml: ["vil-vol"]
+  derived:
+    oh: {dim: voltage, label: V_OH, name: {en: "HIGH output level of the driver, V_OH(min)", de: "HIGH-Ausgangspegel des Treibers, V_OH(min)"}, expr: "voh"}
+    ol: {dim: voltage, label: V_OL, name: {en: "LOW output level of the driver, V_OL(max)", de: "LOW-Ausgangspegel des Treibers, V_OL(max)"}, expr: "vol"}
+    ih: {dim: voltage, label: V_IH, name: {en: "HIGH input threshold of the receiver, V_IH(min)", de: "HIGH-Eingangsschwelle des Empfängers, V_IH(min)"}, expr: "vih"}
+    il: {dim: voltage, label: V_IL, name: {en: "LOW input threshold of the receiver, V_IL(max)", de: "LOW-Eingangsschwelle des Empfängers, V_IL(max)"}, expr: "vil"}
+    imax: {dim: voltage, label: "V_I,max", name: {en: "Highest input voltage of the receiver", de: "Höchste Eingangsspannung des Empfängers"}, expr: "vimax"}
+  checks:
+    - {when: "nmh < 0", warn: {en: "HIGH is not reliably recognised: V_OH(min) of the driver is below V_IH(min) of the receiver. Use a receiver with TTL-level inputs (such as 74HCT) or a level shifter.", de: "HIGH wird nicht sicher erkannt: V_OH(min) des Treibers liegt unter V_IH(min) des Empfängers. Einen Empfänger mit TTL-Pegel-Eingängen (etwa 74HCT) oder einen Pegelwandler verwenden."}}
+    - {when: "nml < 0", warn: {en: "LOW is not reliably recognised: V_OL(max) of the driver is above V_IL(max) of the receiver.", de: "LOW wird nicht sicher erkannt: V_OL(max) des Treibers liegt über V_IL(max) des Empfängers."}}
+    - {when: "vdd > vimax", warn: {en: "Over-voltage: the driver's HIGH level can reach its supply, which is above the highest input voltage the receiver allows. Use a level shifter or a 5-V-tolerant input (such as 74LVC).", de: "Überspannung: Der HIGH-Pegel des Treibers kann seine Versorgungsspannung erreichen und liegt damit über der höchsten zulässigen Eingangsspannung des Empfängers. Einen Pegelwandler oder einen 5-V-toleranten Eingang (etwa 74LVC) verwenden."}}
+  formula: ["nmh = voh - vih", "nml = vil - vol"]
