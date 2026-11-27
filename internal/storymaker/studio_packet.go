@@ -212,7 +212,11 @@ func packetFill(ctx context.Context, packet map[string]any, story *Story, sceneI
 	packet["environments"] = packetEnvironments(deps.Catalog)
 	packet["open_issues"] = packetIssues(story, deps, sc.ID, job.Mode)
 	direction := DirectionPlan(story, project.Template, deps.Catalog)[index]
-	packet["direction"] = direction.packet()
+	dirPacket := direction.packet()
+	if block := SuggestedBlock(sc.Narration, job.Language); block != "" {
+		dirPacket["suggested_block"] = block
+	}
+	packet["direction"] = dirPacket
 	packet["example"] = packetFillExample(story.Cast, direction)
 	if !job.VoiceAvailable {
 		packet["note"] = packetNoVoiceNote
@@ -264,6 +268,9 @@ func packetFreeFill(ctx context.Context, packet map[string]any, story *Story, sc
 		}
 	}
 	packet["max_code_bytes"] = StudioCodeBytes
+	if block := SuggestedBlock(sc.Narration, job.Language); block != "" {
+		packet["suggested_block"] = block
+	}
 	packet["open_issues"] = packetIssues(story, deps, sc.ID, job.Mode)
 	codeRev := MustNotExist
 	if _, etag, err := deps.Projects.LoadCodeSource(ctx, job.ProjectID, sceneID); err == nil {
