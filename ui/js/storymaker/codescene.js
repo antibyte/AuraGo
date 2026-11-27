@@ -330,6 +330,9 @@
     // drawFrame(built, t, ctx, rc): draws the scene timeline at time t, then the onFrame hook in design coordinates.
     function drawFrame(built, t, ctx, rc) {
         var sceneLike = { id: rc.sceneId || 'code', env: built.env || null, variant: built.variant || 'day', camera: built.camera, entities: built.entities, stages: built.stages || (built.stages = {}) };
+        // A scene on a board reads the tokens of the board (text, bg, bg2) before the palette: $text is light on the night board.
+        var tokens = SM.render.envTokens(sceneLike, rc);
+        if (tokens) rc = Object.assign({}, rc, { palette: Object.assign({}, rc.palette, tokens) });
         SM.render.drawScene(ctx, sceneLike, t, rc);
         if (!built.onFrame) return;
         var stage = SM.render.stageFor(sceneLike, rc), win = stage.cameraWindow(SM.camera.at(built.camera, t)), m = stage.matrix(win);

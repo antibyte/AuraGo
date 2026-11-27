@@ -391,7 +391,7 @@
 
     SM.render = {
         renderFrame: renderFrame, drawScene: drawScene, rigState: rigState, makeContext: makeContext, familyOf: familyOf,
-        drawBackdrop: drawBackdrop, drawText: drawText, stageFor: stageFor, pulseOf: pulseOf,
+        drawBackdrop: drawBackdrop, drawText: drawText, stageFor: stageFor, pulseOf: pulseOf, envTokens: envTokens,
         entityBox: entityBox, textBox: textBox, captionBox: captionBox
         , drawShapeEntity: drawShapeEntity, drawBubble: drawBubble, drawHighlight: drawHighlight
     };

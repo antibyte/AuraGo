@@ -125,3 +125,19 @@ check('free-motion.js: the reference example builds in every aspect, its blocks 
         for (const time of [0.5, 3, 7]) assert.equal(frameLog(built, C, time).join('\n'), frameLog(run(), C, time).join('\n'));
     }
 });
+
+check('code scenes on env.board resolve $text and $bg from the board tokens, then from the palette', () => {
+    const source = "export default function scene(api) { api.duration(2); api.shape('rect', { at: 'center', w: 20, h: 20, fill: '$bg' }); api.onFrame((t, g) => { g.fill('$text'); g.rect(1, 1, 2, 2); g.text('x', 5, 5, { color: '$text' }); g.fill('$accent'); g.rect(3, 3, 2, 2); }); }";
+    const fills = (environment, variant) => {
+        const story = { ...firewall, scenes: [{ id: 's', kind: 'code', environment, variant }] };
+        const { C, build: run } = runScene(source, { story, id: 's' });
+        return frameLog(run(), C, 0.5).filter(l => l.startsWith('set fillStyle='));
+    };
+    const night = fills('env.board', 'night'), day = fills('env.board', 'day'), other = fills('env.office', 'night');
+    assert.ok(night.includes('set fillStyle=#f4f5eb'), 'night $text: ' + night.join());
+    assert.ok(night.includes('set fillStyle=#1f2a44'), 'night $bg of the shape: ' + night.join());
+    assert.ok(night.includes('set fillStyle=#f00'), 'a token the board does not carry comes from the palette');
+    assert.ok(day.includes('set fillStyle=#1f2a44') && !day.includes('set fillStyle=#f4f5eb'), 'day $text: ' + day.join());
+    assert.ok(day.includes('set fillStyle=#fff'), 'day $bg stays the palette bg: ' + day.join());
+    assert.ok(other.includes('set fillStyle=#000') && !other.includes('set fillStyle=#f4f5eb'), 'without env.board $text is the palette text: ' + other.join());
+});
