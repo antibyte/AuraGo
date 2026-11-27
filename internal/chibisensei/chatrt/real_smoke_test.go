@@ -319,10 +319,10 @@ func checkNoReasoning(t *testing.T, lines []string) {
 	}
 }
 
-// smokeThreads is half the cores, or CHIBI_SMOKE_THREADS (a busy machine needs fewer threads).
+// smokeThreads is the instance thread count (instanceThreads), or CHIBI_SMOKE_THREADS (a busy machine needs fewer threads).
 func smokeThreads() int {
 	if v, err := strconv.Atoi(os.Getenv("CHIBI_SMOKE_THREADS")); err == nil && v > 0 {
 		return v
 	}
-	return max(1, runtime.NumCPU()/2)
+	return instanceThreads(runtime.NumCPU())
 }

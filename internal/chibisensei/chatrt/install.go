@@ -182,7 +182,11 @@ func (m *Manager) precheck() error {
 
 func (m *Manager) runInstall(ctx context.Context, cfg Config, res resolution, op *installOp) error {
 	need := res.totalBytes()*diskHeadroomMul + diskHeadroom
-	if free, err := m.freeDisk(filepath.Dir(cfg.CacheDir)); err == nil && free < need {
+	free, err := m.freeDisk(filepath.Dir(cfg.CacheDir))
+	switch {
+	case err != nil: // a platform without a working probe still installs, without the check
+		m.log.Warn("Chibi Sensei chat runtime could not check the free disk space", "error", security.Scrub(err.Error()))
+	case free < need:
 		return syscall.ENOSPC
 	}
 	return m.launcher.Install(ctx, cfg.CacheDir, res.assets, func(assetID string, done int64) {

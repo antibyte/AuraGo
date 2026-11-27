@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 
 	"aurago/internal/llamacpp"
 	"aurago/internal/onnxrt"
@@ -15,18 +16,44 @@ import (
 
 const assetUserAgent = "AuraGo/chibi-sensei"
 
-type nativeLauncher struct{}
+// nativeLauncher gives every child it starts the same API key: security.RegisterSensitive keeps each value for the
+// life of the process, so a key per start would grow the registry with every idle stop and restart.
+type nativeLauncher struct {
+	register func(string) // security.RegisterSensitive in production; a field so a test can count the calls
+
+	keyMu sync.Mutex // guards key
+	key   string
+}
 
 // NativeLauncher is the real launcher: pinned llama.cpp archives in an onnxrt asset cache and loopback children.
-func NativeLauncher() Launcher { return nativeLauncher{} }
+func NativeLauncher() Launcher { return &nativeLauncher{register: security.RegisterSensitive} }
 
-func (nativeLauncher) Platform() (string, string) { return runtime.GOOS, runtime.GOARCH }
+// apiKey creates the launcher's key on first use and registers it before it is used anywhere (decision D15).
+// The lock covers only the random read, which does not block.
+func (n *nativeLauncher) apiKey() (string, error) {
+	n.keyMu.Lock()
+	defer n.keyMu.Unlock()
+	if n.key != "" {
+		return n.key, nil
+	}
+	key, err := llamacpp.RandomAPIKey()
+	if err != nil {
+		return "", err
+	}
+	if n.register != nil {
+		n.register(key)
+	}
+	n.key = key
+	return key, nil
+}
 
-func (nativeLauncher) Hardware(ctx context.Context) llamacpp.HardwareInfo {
+func (*nativeLauncher) Platform() (string, string) { return runtime.GOOS, runtime.GOARCH }
+
+func (*nativeLauncher) Hardware(ctx context.Context) llamacpp.HardwareInfo {
 	return llamacpp.DetectHardware(ctx)
 }
 
-func (nativeLauncher) Assets(backend string) ([]llamacpp.AssetSpec, bool) {
+func (*nativeLauncher) Assets(backend string) ([]llamacpp.AssetSpec, bool) {
 	return installSet(runtime.GOOS, runtime.GOARCH, backend)
 }
 
@@ -56,7 +83,7 @@ func installSet(goos, goarch, backend string) ([]llamacpp.AssetSpec, bool) {
 	return set, true
 }
 
-func (nativeLauncher) Verify(ctx context.Context, cacheDir string, assets []llamacpp.AssetSpec) bool {
+func (*nativeLauncher) Verify(ctx context.Context, cacheDir string, assets []llamacpp.AssetSpec) bool {
 	cache := onnxrt.NewAssetCache(cacheDir, assetUserAgent, nil)
 	for _, asset := range assets {
 		if _, err := cache.VerifyRuntime(ctx, asset); err != nil {
@@ -66,7 +93,7 @@ func (nativeLauncher) Verify(ctx context.Context, cacheDir string, assets []llam
 	return len(assets) > 0
 }
 
-func (nativeLauncher) Install(ctx context.Context, cacheDir string, assets []llamacpp.AssetSpec, progress func(string, int64)) error {
+func (*nativeLauncher) Install(ctx context.Context, cacheDir string, assets []llamacpp.AssetSpec, progress func(string, int64)) error {
 	cache := onnxrt.NewAssetCache(cacheDir, assetUserAgent, func(s onnxrt.DownloadStatus) {
 		if progress != nil {
 			progress(s.Asset, s.Downloaded)
@@ -80,7 +107,7 @@ func (nativeLauncher) Install(ctx context.Context, cacheDir string, assets []lla
 	return nil
 }
 
-func (nativeLauncher) Launch(ctx context.Context, spec LaunchSpec) (Process, error) {
+func (n *nativeLauncher) Launch(ctx context.Context, spec LaunchSpec) (Process, error) {
 	cache := onnxrt.NewAssetCache(spec.CacheDir, assetUserAgent, nil)
 	roots := make([]string, 0, len(spec.Assets))
 	for _, asset := range spec.Assets {
@@ -97,11 +124,10 @@ func (nativeLauncher) Launch(ctx context.Context, spec LaunchSpec) (Process, err
 	if err != nil {
 		return nil, err
 	}
-	key, err := llamacpp.RandomAPIKey()
+	key, err := n.apiKey()
 	if err != nil {
 		return nil, err
 	}
-	security.RegisterSensitive(key) // before the key is used anywhere (decision D15)
 	var lastErr error
 	for attempt := 0; attempt < 2; attempt++ {
 		proc, bindFailure, err := startServer(ctx, server, roots, key, spec)

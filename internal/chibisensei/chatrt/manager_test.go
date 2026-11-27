@@ -335,7 +335,7 @@ func TestManagerLaunchSpec(t *testing.T) {
 		t.Fatalf("launches %d", len(specs))
 	}
 	s := specs[0]
-	if s.Threads != max(1, runtime.NumCPU()/2) || s.ContextSize != 2048 || s.Key != "tuned:run1" || s.Backend != "cpu" ||
+	if s.Threads != instanceThreads(runtime.NumCPU()) || s.ContextSize != 2048 || s.Key != "tuned:run1" || s.Backend != "cpu" ||
 		s.CacheDir != fx.config().CacheDir || len(s.Assets) != 1 {
 		t.Fatalf("spec %+v", s)
 	}

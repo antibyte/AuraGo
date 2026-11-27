@@ -17,6 +17,10 @@ import (
 	"aurago/internal/security"
 )
 
+// chibiMaxChatRequests is how many POST /runtime/chat requests run at the same time; each can wait up to 30 s for
+// a busy instance, so the number is capped.
+const chibiMaxChatRequests = 4
+
 // chibiChatEvent is one event of the chat stream.
 type chibiChatEvent struct {
 	name string
@@ -87,6 +91,13 @@ func handleChibiChat(s *Server, w http.ResponseWriter, r *http.Request) {
 	}
 	if verr := validateChibiChat(&req); verr != nil {
 		chibiDomainError(w, verr)
+		return
+	}
+	select {
+	case acc.rt.chatSlots <- struct{}{}:
+		defer func() { <-acc.rt.chatSlots }() // every return path below, and the stream, ends before the slot is free
+	default:
+		writeChibiError(w, http.StatusConflict, "runtime_busy", "The local chat runtime is busy. Try again in a moment.", nil)
 		return
 	}
 	run, ok := chibiLoadRun(w, r, acc, req.RunID)

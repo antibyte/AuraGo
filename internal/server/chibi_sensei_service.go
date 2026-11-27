@@ -50,6 +50,9 @@ type chibiSenseiRuntime struct {
 	chatMu sync.Mutex
 	// chatRuns maps an instance key to the run that used it last (guarded by chatMu).
 	chatRuns map[string]string
+	// chatSlots limits the chat requests that run at the same time to cap(chatSlots); a handler takes a slot
+	// without waiting and gives it back when it returns. The channel itself is the guard.
+	chatSlots chan struct{}
 
 	retiring chan struct{} // closed when the runtime is retired; long streams end on it
 	drained  chan struct{} // closed after the store is closed
@@ -115,7 +118,7 @@ func (s *Server) openChibiRuntime(dataDir string) (*chibiSenseiRuntime, error) {
 	}
 	chat.Start(chatCtx)
 	rt := &chibiSenseiRuntime{
-		chat: chat, chatRuns: map[string]string{},
+		chat: chat, chatRuns: map[string]string{}, chatSlots: make(chan struct{}, chibiMaxChatRequests),
 		dataDir: dataDir, store: store, catalog: catalog, hub: hub, jobs: jobs,
 		deletes: chibisensei.NewDeleteTokens(nil),
 		driver:  driver, orch: orch, plans: chibisensei.NewPlanTokens(nil), kaggleReads: &chibiKaggleReads{},

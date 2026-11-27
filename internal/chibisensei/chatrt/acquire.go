@@ -84,7 +84,7 @@ func (m *Manager) Acquire(ctx context.Context, ref ModelRef) (*Instance, error) 
 	if err := m.state(ctx); err != nil {
 		return nil, err
 	}
-	if st, err := os.Stat(ref.Path); err != nil || !st.Mode().IsRegular() || st.Size() != ref.Bytes {
+	if !modelFileOK(ref) {
 		return nil, ErrModelMissing
 	}
 	var lastErr error
@@ -104,6 +104,20 @@ func (m *Manager) Acquire(ctx context.Context, ref ModelRef) (*Instance, error) 
 	}
 	return nil, fmt.Errorf("%w: %v", ErrStopped, lastErr)
 }
+
+// modelFileOK checks the model file right before a start without following a link: a regular file (no symbolic
+// link, directory or device) whose size equals ref.Bytes when ref.Bytes > 0.
+func modelFileOK(ref ModelRef) bool {
+	st, err := os.Lstat(ref.Path)
+	if err != nil || !st.Mode().IsRegular() {
+		return false
+	}
+	return ref.Bytes <= 0 || st.Size() == ref.Bytes
+}
+
+// instanceThreads is the thread count of one instance: a quarter of the logical processors, 1 to 8. Two instances
+// together use about half of the logical processors, which is the physical core count on SMT machines.
+func instanceThreads(logical int) int { return min(max(logical/4, 1), 8) }
 
 var errRetry = errors.New("instance gone")
 
@@ -188,7 +202,7 @@ func (m *Manager) startInstance(ctx context.Context, in *instance, ref ModelRef,
 func (m *Manager) launchWithFallback(ctx context.Context, ref ModelRef, cfg Config, res resolution) (Process, string, bool, error) {
 	spec := LaunchSpec{
 		Key: ref.Key, CacheDir: cfg.CacheDir, ModelPath: ref.Path, ContextSize: cfg.ContextSize,
-		Threads: max(1, runtime.NumCPU()/2),
+		Threads: instanceThreads(runtime.NumCPU()),
 	}
 	m.mu.Lock()
 	useCPU := m.gpuFailed && m.failedFor == res.selected

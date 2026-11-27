@@ -125,3 +125,33 @@ func TestLogBufferBounded(t *testing.T) {
 		t.Fatal("empty buffer not empty")
 	}
 }
+
+// TestNativeLauncherKeyIsCreatedAndRegisteredOnce covers S2: one key per launcher, registered once.
+func TestNativeLauncherKeyIsCreatedAndRegisteredOnce(t *testing.T) {
+	registered := 0
+	l := &nativeLauncher{register: func(string) { registered++ }}
+	var keys []string
+	for i := 0; i < 2; i++ {
+		key, err := l.apiKey()
+		if err != nil {
+			t.Fatal(err)
+		}
+		keys = append(keys, key)
+		cmd := newServerCommand("llama-server", nil, key, []string{"--version"})
+		found := false
+		for _, e := range cmd.Env {
+			if e == "LLAMA_API_KEY="+key {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatalf("launch %d: child environment lacks the key", i)
+		}
+	}
+	if keys[0] == "" || keys[0] != keys[1] {
+		t.Fatalf("keys differ or are empty: %q %q", keys[0], keys[1])
+	}
+	if registered != 1 {
+		t.Fatalf("register called %d times, want 1", registered)
+	}
+}
