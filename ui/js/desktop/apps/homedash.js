@@ -130,7 +130,7 @@
                 ...(ha ? [{ id: 'new-ha', label: t('homedash.menu.new_ha'), icon: 'home', disabled: blocked, action: () => inst.createHomeAssistant() }] : [])] };
             const reload = { id: 'reload', label: t('homedash.menu.reload'), icon: 'refresh', action: () => { const st = inst.state(); if (st.mode === 'dashboard' && st.dashboard) inst.open(st.dashboard.id, st.pageId); else inst.retry(); } };
             const open = { id: 'open', label: t('homedash.menu.open'), disabled: s.mode === 'disabled', action: () => inst.home() };
-            const pinItem = ps ? { id: 'desktop-shortcut', label: ps.endsWith('on') ? t('desktop.context_remove_from_desktop') : t('desktop.context_add_to_desktop'), icon: 'desktop', fallback: 'D', disabled: !!s.desktopReadonly || ps.startsWith('busy'), action: () => togglePin(s.dashboard) } : null;
+            const pinItem = ps ? { id: 'desktop-shortcut', label: ps.endsWith('on') ? t('desktop.context_remove_from_desktop') : t('desktop.context_add_to_desktop'), icon: 'desktop', fallback: 'D', disabled: !!s.desktopReadonly || ps.startsWith('busy'), action: () => togglePin(inst.state().dashboard) } : null;
             const menusOut = [{ id: 'homedash-dashboard', label: t('homedash.menu.dashboard'), items: tidy(dash
                 ? [newItem, open, pinItem, sep, act('rename', t('homedash.menu.rename')), act('duplicate_dashboard', t('homedash.menu.duplicate_dashboard')), act('delete_dashboard', t('homedash.menu.delete')), sep, act('import', t('homedash.menu.import')), act('export', t('homedash.menu.export')), sep, reload]
                 : [newItem, open, sep, act('import', t('homedash.menu.import')), sep, reload]) }];
