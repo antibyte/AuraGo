@@ -3221,7 +3221,7 @@
             ink: dark ? '#f4f5eb' : (p.text || '#1f2a44'), accent: dark ? (p.accent2 || '#36cfc9') : (p.accent || '#ff7a45'),
             accent2: dark ? (p.accent || '#ff7a45') : (p.accent2 || '#36cfc9'),
             soft: dark ? 'rgba(255,255,255,0.10)' : (p.bg2 || '#ffe0a3'), bg: p.bg || '#fff7e6', onAccent: dark ? (p.fg || '#1f2a44') : (p.bg || '#fff7e6'),
-            panel: p.bg || '#fff7e6'
+            panel: p.bg || '#fff7e6', base: dark ? (p.fg || '#1f2a44') : (p.bg || '#fff7e6')
         };
     }
 
@@ -3504,7 +3504,158 @@
         };
     }
 
-    var PLANS = { icon: iconPlan, diagram: diagramPlan };
+    // ---- charts
+
+    function numText(v) { return Math.abs(v - Math.round(v)) < 1e-9 ? String(Math.round(v)) : String(Math.round(v * 100) / 100); }
+    function unitText(u) { return u ? (u.charAt(0) === '%' || u.charCodeAt(0) === 176 ? u : ' ' + u) : ''; }
+    function decimals(v) { var s = String(Math.abs(v)), i = s.indexOf('.'); return i < 0 || s.indexOf('e') >= 0 ? 0 : Math.min(3, s.length - i - 1); }
+
+    // fitSet(c, texts, weight, maxW, maxLines, px0) = {px, lines: [[line]]}: one font size for all texts, so the labels of a chart match.
+    function fitSet(c, texts, weight, maxW, maxLines, px0) {
+        var px = px0;
+        texts.forEach(function (t) { px = Math.min(px, fit(c, t, weight, maxW, maxLines, px0).px); });
+        return { px: px, lines: texts.map(function (t) { return fit(c, t, weight, maxW, maxLines, px).lines; }) };
+    }
+
+    // axisPlan: bar and line charts on a zero baseline. The labels sit under the baseline, the values above the marks.
+    function axisPlan(c, f) {
+        var st = c.st, ch = st.block.chart, vals = ch.values, n = vals.length, p = B.itemProgress(st, 0), ctx = c.ctx, line = ch.type === 'line';
+        var step = Math.ceil(n / 8), cell = (f.x1 - f.x0) / n, shown = [], i;
+        for (i = 0; i < n; i += step) shown.push(i);
+        var lab = fitSet(c, shown.map(function (k) { return String(ch.labels[k]); }), 600, cell * step * 0.92, 2, c.base);
+        var maxLines = Math.max.apply(null, lab.lines.map(function (l) { return l.length; })), valPx = lab.px * 0.9;
+        var py0 = f.top + valPx * 1.8, py1 = f.y1 - maxLines * lab.px * 1.2 - lab.px * 0.6;
+        var lo = Math.min(0, Math.min.apply(null, vals)), hi = Math.max(0, Math.max.apply(null, vals));
+        if (hi === lo) hi = lo + 1;
+        var yOf = function (v) { return py0 + (hi - v) / (hi - lo) * (py1 - py0); }, yz = yOf(0), xOf = function (k) { return f.x0 + cell * (k + 0.5); };
+        var value = function (k, y, a) {
+            ctx.globalAlpha = c.alpha * a;
+            printLines(c, [numText(vals[k]) + f.unit], xOf(k), vals[k] >= 0 ? y - valPx * 0.8 : y + valPx * 0.8, valPx, 700, c.col.ink, 'center');
+        };
+        return {
+            box: f.box, labelPx: lab.px,
+            paint: function () {
+                f.title();
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.globalAlpha = c.alpha;
+                ctx.strokeStyle = c.col.ink;
+                ctx.lineWidth = f.lw;
+                ctx.beginPath();
+                ctx.moveTo(f.x0, yz);
+                ctx.lineTo(f.x1, yz);
+                ctx.stroke();
+                shown.forEach(function (k, j) { printLines(c, lab.lines[j], xOf(k), py1 + lab.px * 0.6 + lab.lines[j].length * lab.px * 0.6, lab.px, 600, c.col.ink, 'center'); });
+                if (!line) {
+                    var bw = Math.min(cell * 0.58, 0.2 * st.h);
+                    vals.forEach(function (v, k) {
+                        var hgt = Math.abs(yz - yOf(v)) * p;
+                        ctx.globalAlpha = c.alpha;
+                        ctx.fillStyle = c.col.accent;
+                        ctx.fillRect(xOf(k) - bw / 2, v >= 0 ? yz - hgt : yz, bw, hgt);
+                        value(k, v >= 0 ? yz - hgt : yz + hgt, clamp((p - 0.6) / 0.4, 0, 1));
+                    });
+                    return;
+                }
+                var total = 0;
+                for (var k = 1; k < n; k++) total += Math.hypot(xOf(k) - xOf(k - 1), yOf(vals[k]) - yOf(vals[k - 1]));
+                ctx.globalAlpha = c.alpha;
+                ctx.strokeStyle = c.col.accent;
+                ctx.lineWidth = f.lw * 1.6;
+                ctx.setLineDash(p < 1 ? [r3(total * p), r3(total)] : []);
+                ctx.beginPath();
+                vals.forEach(function (v, j) { if (j) ctx.lineTo(xOf(j), yOf(v)); else ctx.moveTo(xOf(0), yOf(v)); });
+                ctx.stroke();
+                ctx.setLineDash([]);
+                vals.forEach(function (v, j) {
+                    var a = clamp(p * (n - 1) - j + 1, 0, 1);
+                    if (!(a > 0) || n > 12) return;
+                    ctx.globalAlpha = c.alpha * a;
+                    ctx.fillStyle = c.col.accent;
+                    ctx.beginPath();
+                    ctx.arc(xOf(j), yOf(v), f.lw * 1.8, 0, Math.PI * 2);
+                    ctx.fill();
+                    if (n <= 6) value(j, yOf(v) - f.lw * 2, a);
+                });
+            }
+        };
+    }
+
+    // piePlan: a donut with a legend; the slices sweep clockwise from the top while p grows.
+    function piePlan(c, f) {
+        var st = c.st, ch = st.block.chart, vals = ch.values, n = vals.length, p = B.itemProgress(st, 0), ctx = c.ctx, sum = 0;
+        vals.forEach(function (v) { sum += v; });
+        var wide = f.x1 - f.x0 > (f.y1 - f.top) * 1.35, R = wide ? Math.min((f.y1 - f.top) / 2, (f.x1 - f.x0) * 0.3) : Math.min((f.x1 - f.x0) / 2, (f.y1 - f.top) * 0.36);
+        var rows = ch.labels.map(function (l, k) { return String(l) + ' ' + Math.round(100 * vals[k] / sum) + '%'; });
+        var lab = fitSet(c, rows, 600, wide ? f.x1 - f.x0 - R * 2.45 - c.base * 1.4 : f.x1 - f.x0 - c.base * 1.4, 1, c.base), rowH = lab.px * 1.9;
+        // the donut and its legend are centred as one group
+        var rowsW = Math.max.apply(null, rows.map(function (s) { return widthOf(c, s, 600, lab.px); })) + lab.px * 1.3;
+        var cx = wide ? f.x0 + (f.x1 - f.x0 - R * 2.45 - rowsW) / 2 + R : (f.x0 + f.x1) / 2, cy = wide ? (f.top + f.y1) / 2 : f.top + R, r = R * 0.58;
+        var legendX = wide ? cx + R * 1.45 : (f.x0 + f.x1 - rowsW) / 2, legendTop = wide ? 0 : cy + R + R * 0.2;
+        var top = wide ? cy - n * rowH / 2 : legendTop, tint = function (k) { return [c.col.accent, c.col.accent2, c.col.ink][k % 3]; };
+        return {
+            box: f.box, labelPx: lab.px,
+            paint: function () {
+                f.title();
+                var a0 = -Math.PI / 2, sweep = a0 + 2 * Math.PI * p;
+                vals.forEach(function (v, k) {
+                    var a1 = a0 + 2 * Math.PI * v / sum, end = Math.min(a1, sweep);
+                    if (end > a0) {
+                        ctx.globalAlpha = c.alpha * (k < 3 ? 1 : 0.55);
+                        ctx.fillStyle = tint(k);
+                        ctx.strokeStyle = c.col.base;
+                        ctx.lineWidth = f.lw * 0.8;
+                        ctx.lineJoin = 'round';
+                        ctx.beginPath();
+                        ctx.arc(cx, cy, R, a0, end);
+                        ctx.arc(cx, cy, r, end, a0, true);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.stroke();
+                    }
+                    var show = clamp((p - 0.3) / 0.7, 0, 1), y = top + rowH * (k + 0.5);
+                    ctx.globalAlpha = c.alpha * show * (k < 3 ? 1 : 0.55);
+                    ctx.fillStyle = tint(k);
+                    SM.text.roundRect(ctx, legendX, y - lab.px * 0.4, lab.px * 0.8, lab.px * 0.8, lab.px * 0.2);
+                    ctx.fill();
+                    ctx.globalAlpha = c.alpha * show;
+                    printLines(c, lab.lines[k], legendX + lab.px * 1.3, y, lab.px, 600, c.col.ink, 'left');
+                    a0 = a1;
+                });
+            }
+        };
+    }
+
+    // counterPlan: one big number that counts up to its value.
+    function counterPlan(c, f) {
+        var st = c.st, ch = st.block.chart, v = ch.values[0], p = B.itemProgress(st, 0), whole = v.toFixed(decimals(v)) + unitText(ch.unit);
+        var cap = ch.labels[0] ? fit(c, String(ch.labels[0]), 600, f.x1 - f.x0, 2, c.base * 1.2) : null, ctx = c.ctx;
+        var px = Math.min(0.42 * (f.y1 - f.top), 0.9 * (f.x1 - f.x0) / Math.max(1, whole.length * 0.62)), mid = (f.top + f.y1) / 2 - (cap ? cap.px * 0.7 : 0);
+        return {
+            box: f.box, labelPx: cap ? cap.px : 0,
+            paint: function () {
+                f.title();
+                ctx.globalAlpha = c.alpha;
+                printLines(c, [(v * p).toFixed(decimals(v)) + unitText(ch.unit)], 0, mid, px, 700, c.col.accent, 'center');
+                if (cap) printLines(c, cap.lines, 0, mid + px * 0.62 + cap.px * 1.1, cap.px, 600, c.col.ink, 'center');
+            }
+        };
+    }
+
+    function chartPlan(c) {
+        var st = c.st, ch = st.block.chart, pad = 0.06 * Math.min(st.w, st.h), f = { x0: -st.w / 2 + pad, x1: st.w / 2 - pad, y1: st.h / 2 - pad };
+        var title = ch.title ? fit(c, ch.title, 700, f.x1 - f.x0, 1, c.base * 1.25) : null;
+        f.top = -st.h / 2 + pad + (title ? title.px * 1.6 : 0);
+        f.box = { x: -st.w / 2, y: -st.h / 2, w: st.w, h: st.h };
+        f.lw = Math.max(3, Math.min(st.w, st.h) * 0.008);
+        f.unit = unitText(ch.unit);
+        f.title = function () { if (title) printLines(c, title.lines, 0, -st.h / 2 + pad + title.px * 0.6, title.px, 700, c.col.ink, 'center'); };
+        var plan = ch.type === 'pie' ? piePlan(c, f) : (ch.type === 'counter' ? counterPlan(c, f) : axisPlan(c, f));
+        if (title) plan.labelPx = Math.min(plan.labelPx || title.px, title.px);
+        return plan;
+    }
+
+    var PLANS = { icon: iconPlan, diagram: diagramPlan, chart: chartPlan };
 
     // plan(ctx, st, rc, stage) = {box, labelPx, paint} of an evaluated block state, box in design pixels around the block centre at
     // scale 1 and labelPx in design pixels, or null for a kind without a painter. It draws nothing until paint() runs.

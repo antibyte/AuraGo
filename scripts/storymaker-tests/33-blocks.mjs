@@ -256,3 +256,45 @@ check('blocks: an active mark changes only the marked node, and labels never shr
     const sizes = log.filter(l => l.startsWith('set font=')).map(l => parseFloat(/(\d+(?:\.\d+)?)px/.exec(l)[1]));
     assert.ok(sizes.length > 0 && sizes.every(s => s >= floor - 1e-6), 'no label below ' + floor + ', got ' + Math.min(...sizes));
 });
+
+// ---- C5: charts
+
+const chartDef = (type, values, extra = {}) => ({ id: 'c1', kind: 'chart', chart: { type, labels: values.map((_, i) => 'L' + i), values, ...extra } });
+
+check('blocks: bar heights are proportional to the values at the end and half as high at u = 0.5', () => {
+    const def = chartDef('bar', [2, 4, 8], { unit: '%' });
+    const heights = time => paint(def, time).filter(l => l.startsWith('fillRect(')).map(l => parseFloat(l.slice(9, -1).split(',')[3]));
+    const full = heights(5), half = heights(timeFor(0.5));
+    assert.equal(full.length, 3);
+    near(full[1] / full[0], 2, 1e-3);
+    near(full[2] / full[0], 4, 1e-3);
+    full.forEach((h, i) => near(half[i], h * 0.5, 0.01, 'bar ' + i));
+    assert.ok(paint(def, 5).some(l => l.startsWith('fillText(8%,')), 'the value is printed with its unit');
+    assert.equal(heights(0).reduce((a, b) => a + b, 0), 0, 'nothing has grown at u = 0');
+});
+
+check('blocks: a counter shows the eased value rounded to its decimals, plus the unit', () => {
+    const def = { ...chartDef('counter', [3.5], { unit: 'ms', title: 'Zeit' }) };
+    const area = B.area(SM.stage.create({ aspect: '16:9' }), null, 'day', 'full');
+    const st = SM.scene.evalEntity(B.create({ ...def, area, t0: 0, dur: 1 }), timeFor(0.5)), p = B.itemProgress(st, 0);
+    near(p, 0.5, 1e-9);
+    const texts = time => paint(def, time).filter(l => l.startsWith('fillText(')).map(l => l.slice(9).split(',')[0]);
+    assert.ok(texts(timeFor(0.5)).includes((3.5 * p).toFixed(1) + ' ms'), texts(timeFor(0.5)).join('|'));
+    assert.ok(texts(5).includes('3.5 ms'));
+    assert.ok(paint(chartDef('counter', [45], { unit: '%' }), 5).some(l => l.startsWith('fillText(45%,')), 'a percent sign follows without a space');
+});
+
+check('blocks: a pie is a donut of arcs with an inner radius, a line chart reveals with a dash', () => {
+    const arcs = paint(chartDef('pie', [3, 2, 1]), 5).filter(l => l.startsWith('arc(') && !l.includes(',0,6.283'));
+    const radii = new Set(arcs.map(l => l.slice(4, -1).split(',')[2]));
+    assert.equal(radii.size, 2, 'an outer and an inner radius');
+    const [a, b] = [...radii].map(Number).sort((x, y) => x - y);
+    assert.ok(a > 0 && a < b);
+    assert.equal(arcs.length, 6, 'two arcs per slice');
+    assert.ok(paint(chartDef('pie', [3, 2, 1]), 5).some(l => l.startsWith('fillText(L0 50%,')), 'the legend carries the share');
+    const line = time => paint(chartDef('line', [1, 3, 2, 5]), time).filter(l => l.startsWith('setLineDash('));
+    const mid = line(timeFor(0.5));
+    assert.ok(mid.some(l => l !== 'setLineDash([])'), 'a partial dash at u = 0.5');
+    assert.ok(line(5).every(l => l === 'setLineDash([])'), 'no dash at the end');
+    assert.ok(paint(chartDef('line', [1, 3, 2, 5]), 5).filter(l => l.startsWith('lineTo(')).length >= 3, 'the polyline is drawn');
+});
