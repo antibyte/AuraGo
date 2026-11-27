@@ -33,8 +33,9 @@ const storymakerFreeHouseStyle = `## House style (free drawing)
 - Banned: bullet lists, three equal cards in a row, glow and neon looks, a title that keeps moving after it has landed.`
 
 const storymakerFreeCodeGuide = `## Drawing and animation in code
-- Read storymaker_catalog operation reference, topic code before the first scene: it is the only reference you need.
-- get_code reads the bound scene's source and code rev. put_code takes expected_rev from that answer and data.source only, within 8 KiB. Invalid code keeps the saved source; a stale rev needs a fresh read.
+- The fill context has api_card (the code API in short), code_rev and safe_box. Read storymaker_catalog operation reference, topic code only when the card is not enough.
+- put_code takes expected_rev and data.source only, within 8 KiB. In a fill, expected_rev is code_rev from the context; get_code reads a saved source, and a fresh rev after rev_mismatch. Invalid code keeps the saved source.
+- Keep every drawing inside safe_box (api.safe()); the captions sit below it.
 - Code uses export default function scene(api), handles and tweens, and the restricted onFrame(t,g) drawing facade. Draw with shapes, text and g.path SVG path data. Use explicit scene time and fixed seeded constants, never counters or mutable state across frames, clocks, timers, imports, DOM, network, raw PixiJS or GSAP. Keep loops bounded. chart and diagram helpers are unsupported.
 - The {1}, {2} markers of the narration give api.cue times: start a shape's motion on its cue, so the picture lands on the word.
 - After changes run storymaker_check and repair its errors. A compile failure is fixed in the source; never bypass isolation or relax deadlines.`
@@ -49,11 +50,10 @@ const storymakerFreeOutlineWorkflow = `## Outline
 4. If the answer says the text is too long, shorten it and call outline again. An accepted outline ends this phase: stop.`
 
 const storymakerFreeFillWorkflow = `## Fill one scene
-The context names one scene, plus previous_scene, next_scene, the aspect and max_code_bytes. Draw this scene in code.
-1. Call storymaker_story with operation get_code and the scene_id. Its rev is the expected_rev of put_code.
-2. Call put_code with the scene_id, expected_rev and data.source: export default function scene(api) { ... } within max_code_bytes. Choose the one motif of this scene from its narration, draw it with shapes, text and g.path, and move it on the cue markers.
-3. If put_code refuses, fix the listed lines and call it again with the same rev.
-4. Activate the scene with put_scene, the scene_id and data {"kind":"code"}. The narration stays. An optional dry_run checks without saving.
+The context names one scene, plus previous_scene, next_scene, the aspect, code_rev, safe_box, api_card and max_code_bytes. Draw this scene in code.
+1. Call storymaker_story with operation put_code, the scene_id, expected_rev set to code_rev and data.source: export default function scene(api) { ... } within max_code_bytes. Choose the one motif of this scene from its narration, draw it inside safe_box and move it on the cue markers.
+2. If put_code refuses, fix the listed lines and call it again; after rev_mismatch call get_code for the fresh rev.
+3. Activate the scene with put_scene, the scene_id and data {"kind":"code"}. The narration stays. An optional dry_run checks without saving.
 A saved scene ends this phase: stop.`
 
 const storymakerFreeCheckWorkflow = `## Check and fix
@@ -86,9 +86,9 @@ var storymakerFreePhaseWorkflows = map[string]string{
 var storymakerFreeToolExamples = map[string][]string{
 	storymaker.PhaseOutline: storymakerToolExamples[storymaker.PhaseOutline],
 	storymaker.PhaseFill: {
-		`{"action":"storymaker_story","operation":"get_code","scene_id":"s1"}`,
-		`{"action":"storymaker_story","operation":"put_code","scene_id":"s1","expected_rev":"<rev of get_code>","data":{"source":"export default function scene(api) { api.duration(6); }"}}`,
+		`{"action":"storymaker_story","operation":"put_code","scene_id":"s1","expected_rev":"<code_rev of the context>","data":{"source":"export default function scene(api) { api.duration(6); }"}}`,
 		`{"action":"storymaker_story","operation":"put_scene","scene_id":"s1","data":{"kind":"code"}}`,
+		`{"action":"storymaker_story","operation":"get_code","scene_id":"s1"}`,
 	},
 	storymaker.PhaseCheck: {
 		`{"action":"storymaker_check","operation":"validate"}`,

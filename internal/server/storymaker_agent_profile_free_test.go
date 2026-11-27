@@ -36,15 +36,18 @@ func TestStorymakerFreeProfilesTellTheFreeStory(t *testing.T) {
 	if !strings.Contains(fill.SystemPrompt(), "## Fill one scene") || !strings.Contains(fill.SystemPrompt(), "put_code") {
 		t.Error("the free fill workflow must keep its heading and name put_code")
 	}
-	if !strings.Contains(fill.Name(), "storymaker/v5/free/fill/") {
+	if !strings.Contains(fill.Name(), "storymaker/v6/free/fill/") {
 		t.Errorf("profile name = %q", fill.Name())
+	}
+	if prompt := fill.SystemPrompt(); !strings.Contains(prompt, "code_rev") || !strings.Contains(prompt, "api_card") || strings.Contains(prompt, "before the first scene") {
+		t.Error("the free fill prompt must name code_rev and api_card and must not send the model to the reference first")
 	}
 	catalog, _ := storymakerAgentProfile(storymaker.PhaseFill, false, false, names)
 	if strings.Contains(catalog.SystemPrompt(), "no catalog") || strings.Contains(catalog.Name(), "/free/") {
 		t.Error("the catalog profile must not change")
 	}
 	nudge := storymakerRecoveryNudgeFor(storymaker.ModeFree, storymaker.PhaseFill)(false)
-	if !strings.Contains(nudge, "get_code") || strings.Contains(nudge, "search") {
+	if !strings.Contains(nudge, "put_code") || !strings.Contains(nudge, "code_rev") || strings.Contains(nudge, "search") {
 		t.Errorf("free fill nudge = %q", nudge)
 	}
 }

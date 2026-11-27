@@ -186,7 +186,7 @@ func storymakerDataProperties(mode, phase string, compact bool, names Storymaker
 func storymakerFreeSceneProperties() map[string]interface{} {
 	return map[string]interface{}{
 		"kind":       storymakerEnum("code"),
-		"source":     map[string]interface{}{"type": "string", "maxLength": storymaker.StudioCodeBytes, "description": "put_code only; first read get_code and the code reference"},
+		"source":     map[string]interface{}{"type": "string", "maxLength": storymaker.StudioCodeBytes, "description": "put_code only; expected_rev is code_rev from the context"},
 		"narration":  storymakerTyped("string"),
 		"transition": storymakerEnum("cut", "fade", "slide-left", "wipe"),
 		"duration":   prop("string", "auto or seconds"),

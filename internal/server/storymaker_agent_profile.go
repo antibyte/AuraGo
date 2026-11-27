@@ -215,7 +215,7 @@ func storymakerAgentProfileFor(mode, phase string, compact, text, vision bool, n
 	free := storymaker.EffectiveMode(mode) == storymaker.ModeFree
 	workflows, ground, rules, style, guide, name := storymakerPhaseWorkflows, storymakerGroundRules, storymakerHouseRules, storymakerHouseStyle, storymakerAnimationGuide, "storymaker/v5/"+phase
 	if free {
-		workflows, ground, rules, style, guide, name = storymakerFreePhaseWorkflows, storymakerFreeGroundRules, storymakerFreeHouseRules, storymakerFreeHouseStyle, storymakerFreeCodeGuide, "storymaker/v5/free/"+phase
+		workflows, ground, rules, style, guide, name = storymakerFreePhaseWorkflows, storymakerFreeGroundRules, storymakerFreeHouseRules, storymakerFreeHouseStyle, storymakerFreeCodeGuide, "storymaker/v6/free/"+phase
 	}
 	workflow, ok := workflows[phase]
 	if !ok {
