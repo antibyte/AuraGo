@@ -339,6 +339,47 @@
         }
     }
 
+    function dashboardShortcutId(id) {
+        return 'dashboard-' + id;
+    }
+
+    function hasDesktopDashboardShortcut(id) {
+        const shortcuts = (state.bootstrap && state.bootstrap.shortcuts) || [];
+        return shortcuts.some(s => s.target_type === 'dashboard' && s.target_id === id);
+    }
+
+    // Unlike addDesktopShortcut these throw, so the caller can toast the failure.
+    async function addDesktopDashboardShortcut(id) {
+        if (!id) throw new Error('dashboard id required');
+        if ((state.bootstrap || {}).readonly) throw new Error('desktop is read-only');
+        await api('/api/desktop/shortcuts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dashboard_id: id })
+        });
+        await loadBootstrap();
+    }
+
+    async function removeDesktopDashboardShortcut(id) {
+        if (!id) throw new Error('dashboard id required');
+        if ((state.bootstrap || {}).readonly) throw new Error('desktop is read-only');
+        const shortcutId = dashboardShortcutId(id);
+        await api('/api/desktop/shortcuts?id=' + encodeURIComponent(shortcutId), { method: 'DELETE' });
+        removeIconPosition(shortcutId);
+        await loadBootstrap();
+    }
+
+    function notifyDesktopShortcutsChanged() {
+        const shortcuts = (state.bootstrap && state.bootstrap.shortcuts) || [];
+        const dashboards = shortcuts
+            .filter(s => s.target_type === 'dashboard')
+            .map(s => ({ id: s.target_id, name: s.name || '' }));
+        const signature = JSON.stringify(dashboards);
+        if (state._dashboardShortcutSig === signature) return;
+        state._dashboardShortcutSig = signature;
+        document.dispatchEvent(new CustomEvent('aurago:desktop-shortcuts', { detail: { dashboards } }));
+    }
+
     async function deleteDesktopApps(appIds) {
         const ids = [...new Set((appIds || []).filter(appId => appId && !isBuiltinApp(appId)))];
         if (!ids.length) return;

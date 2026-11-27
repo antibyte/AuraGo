@@ -4772,6 +4772,7 @@
         applyDesktopSettings();
         renderStartButtonIcon();
         renderIcons();
+        notifyDesktopShortcutsChanged();
         renderWidgets();
         renderStartApps();
         renderTaskbar();
@@ -4920,7 +4921,7 @@
 
     function updateDesktopIconButton(btn, item, pos) {
         const iconKey = item.icon || (item.type === 'file' ? iconForFile(item.file) : item.type === 'directory' ? iconForDirectory(item.name) : iconForApp(item.app));
-        const fallback = item.type === 'app' ? iconGlyph(item.app) : item.name;
+        const fallback = item.app ? iconGlyph(item.app) : item.name;
         btn.className = 'vd-icon';
         btn.classList.toggle('selected', state.selectedIconIds.has(item.id));
         btn.type = 'button';
@@ -4929,7 +4930,8 @@
         btn.setAttribute('aria-selected', state.selectedIconIds.has(item.id) ? 'true' : 'false');
         btn.dataset.kind = item.type;
         btn.dataset.id = item.id;
-        btn.dataset.appId = item.app ? item.app.id : '';
+        btn.dataset.appId = item.type === 'dashboard' ? '' : (item.app ? item.app.id : '');
+        btn.dataset.dashboardId = item.dashboardId || '';
         btn.dataset.path = item.path || '';
         btn.dataset.webPath = item.file ? item.file.web_path || '' : '';
         btn.dataset.mediaKind = item.file ? item.file.media_kind || '' : '';
@@ -5002,6 +5004,20 @@
                     type: 'app',
                     app,
                     path: shortcut.path || '',
+                    icon: shortcutIconForApp(shortcut, app),
+                    shortcut
+                };
+            }
+            if (shortcut.target_type === 'dashboard') {
+                const app = appById('homedash');
+                const dashboardId = String(shortcut.target_id || '');
+                if (!app || !/^d_[a-z2-7]{12}$/.test(dashboardId)) return null;
+                return {
+                    id: shortcut.id,
+                    name: shortcut.name || appName(app),
+                    type: 'dashboard',
+                    app,
+                    dashboardId,
                     icon: shortcutIconForApp(shortcut, app),
                     shortcut
                 };
@@ -5258,6 +5274,10 @@
     }
 
     function activateDesktopItem(btn) {
+        if (btn.dataset.kind === 'dashboard') {
+            openApp('homedash', { dashboard_id: btn.dataset.dashboardId });
+            return;
+        }
         if (btn.dataset.kind === 'file') {
             openDesktopFileEntry(btn);
             return;
@@ -8374,6 +8394,47 @@
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message });
         }
+    }
+
+    function dashboardShortcutId(id) {
+        return 'dashboard-' + id;
+    }
+
+    function hasDesktopDashboardShortcut(id) {
+        const shortcuts = (state.bootstrap && state.bootstrap.shortcuts) || [];
+        return shortcuts.some(s => s.target_type === 'dashboard' && s.target_id === id);
+    }
+
+    // Unlike addDesktopShortcut these throw, so the caller can toast the failure.
+    async function addDesktopDashboardShortcut(id) {
+        if (!id) throw new Error('dashboard id required');
+        if ((state.bootstrap || {}).readonly) throw new Error('desktop is read-only');
+        await api('/api/desktop/shortcuts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dashboard_id: id })
+        });
+        await loadBootstrap();
+    }
+
+    async function removeDesktopDashboardShortcut(id) {
+        if (!id) throw new Error('dashboard id required');
+        if ((state.bootstrap || {}).readonly) throw new Error('desktop is read-only');
+        const shortcutId = dashboardShortcutId(id);
+        await api('/api/desktop/shortcuts?id=' + encodeURIComponent(shortcutId), { method: 'DELETE' });
+        removeIconPosition(shortcutId);
+        await loadBootstrap();
+    }
+
+    function notifyDesktopShortcutsChanged() {
+        const shortcuts = (state.bootstrap && state.bootstrap.shortcuts) || [];
+        const dashboards = shortcuts
+            .filter(s => s.target_type === 'dashboard')
+            .map(s => ({ id: s.target_id, name: s.name || '' }));
+        const signature = JSON.stringify(dashboards);
+        if (state._dashboardShortcutSig === signature) return;
+        state._dashboardShortcutSig = signature;
+        document.dispatchEvent(new CustomEvent('aurago:desktop-shortcuts', { detail: { dashboards } }));
     }
 
     async function deleteDesktopApps(appIds) {
@@ -14400,9 +14461,13 @@ function wireWindow(win, id) {
 ;
 /* ui/js/desktop/core/session-runtime.js */
     const SESSION_SKIP_APP_IDS = new Set(['sip-phone', 'live-speech', 'quick-connect', 'galaxa-deluxe', 'aura-drift', 'music-player']);
-    const SESSION_CONTEXT_KEYS = ['path', 'category', 'flowId'];
+    const SESSION_CONTEXT_KEYS = ['path', 'category', 'flowId', 'dashboard_id', 'page_id'];
     // Keys with a fixed id shape are only saved and restored when they match it.
-    const SESSION_CONTEXT_PATTERNS = { flowId: /^flow_[a-z0-9]{10}$/ };
+    const SESSION_CONTEXT_PATTERNS = {
+        flowId: /^flow_[a-z0-9]{10}$/,
+        dashboard_id: /^d_[a-z2-7]{12}$/,
+        page_id: /^[a-z0-9][a-z0-9_-]{0,31}$/
+    };
     let sessionPersistTimer = 0;
     let desktopSessionEnded = false;
 
@@ -24145,10 +24210,12 @@ function updateTaskbarSystemButtonsForMobile() {
             const appIsBuiltin = isBuiltinApp(appId);
             items.push({ id: 'delete-app', label: t('desktop.context_delete_app'), icon: 'trash', fallback: 'X', disabled: appIsBuiltin, danger: true, action: () => deleteDesktopApps(desktopBatchAppIds(btn)) });
         }
-        items.push(
-            { separator: true },
-            { label: t('desktop.context_properties'), icon: 'info', fallback: 'i', action: () => showProperties(fileEntry.name, fileEntry) }
-        );
+        if (kind !== 'dashboard') {
+            items.push(
+                { separator: true },
+                { label: t('desktop.context_properties'), icon: 'info', fallback: 'i', action: () => showProperties(fileEntry.name, fileEntry) }
+            );
+        }
         showContextMenu(event.clientX, event.clientY, contextMenuReadonlyGuard(items));
     }
 
@@ -25313,6 +25380,7 @@ function updateTaskbarSystemButtonsForMobile() {
         if (appId === 'homedash' && window.HomeDashApp) {
             return window.HomeDashApp.render(contentEl(id), id, Object.assign({}, context || {}, {
                 esc, t, api, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary, readonly: desktopReadonly(),
+                desktopShortcuts: { hasDashboard: hasDesktopDashboardShortcut, addDashboard: addDesktopDashboardShortcut, removeDashboard: removeDesktopDashboardShortcut },
                 updateWindowContext: (windowId, patch) => { updateWindowContext(windowId, patch); scheduleSessionPersist(); },
                 setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
                 focusWindow: winId => { if (state.windows.has(winId)) focusWindow(winId); }

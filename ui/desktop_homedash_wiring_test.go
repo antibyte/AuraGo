@@ -58,9 +58,22 @@ func TestHomeDashWiring(t *testing.T) {
 		if next := strings.Index(block[1:], "if (appId ==="); next >= 0 {
 			block = block[:next+1]
 		}
-		for _, marker := range []string{"setWindowBeforeClose", "showContextMenu", "wireContextMenuBoundary", "focusWindow"} {
+		for _, marker := range []string{"setWindowBeforeClose", "showContextMenu", "wireContextMenuBoundary", "focusWindow", "desktopShortcuts"} {
 			if !strings.Contains(block, marker) {
 				t.Errorf("%s: the homedash dispatch block is missing %q (run npm run build:ui after editing the core files)", file, marker)
+			}
+		}
+	}
+	// Dashboard desktop icons: the shortcut branch, the double-click route and the session keys survive in the core files and the bundle.
+	for file, markers := range map[string][]string{
+		"js/desktop/core/desktop-foundation.js": {"target_type === 'dashboard'", "openApp('homedash', { dashboard_id: btn.dataset.dashboardId })"},
+		"js/desktop/core/session-runtime.js":    {"['path', 'category', 'flowId', 'dashboard_id', 'page_id']", "dashboard_id: /^d_[a-z2-7]{12}$/"},
+		"js/desktop/bundles/main.bundle.js":     {"target_type === 'dashboard'", "openApp('homedash', { dashboard_id: btn.dataset.dashboardId })", "['path', 'category', 'flowId', 'dashboard_id', 'page_id']"},
+	} {
+		source := readDesktopAssetText(t, file)
+		for _, marker := range markers {
+			if !strings.Contains(source, marker) {
+				t.Errorf("%s is missing %q (run npm run build:ui after editing the core files)", file, marker)
 			}
 		}
 	}

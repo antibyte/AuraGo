@@ -1,7 +1,11 @@
     const SESSION_SKIP_APP_IDS = new Set(['sip-phone', 'live-speech', 'quick-connect', 'galaxa-deluxe', 'aura-drift', 'music-player']);
-    const SESSION_CONTEXT_KEYS = ['path', 'category', 'flowId'];
+    const SESSION_CONTEXT_KEYS = ['path', 'category', 'flowId', 'dashboard_id', 'page_id'];
     // Keys with a fixed id shape are only saved and restored when they match it.
-    const SESSION_CONTEXT_PATTERNS = { flowId: /^flow_[a-z0-9]{10}$/ };
+    const SESSION_CONTEXT_PATTERNS = {
+        flowId: /^flow_[a-z0-9]{10}$/,
+        dashboard_id: /^d_[a-z2-7]{12}$/,
+        page_id: /^[a-z0-9][a-z0-9_-]{0,31}$/
+    };
     let sessionPersistTimer = 0;
     let desktopSessionEnded = false;
 

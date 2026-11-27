@@ -534,10 +534,12 @@
             const appIsBuiltin = isBuiltinApp(appId);
             items.push({ id: 'delete-app', label: t('desktop.context_delete_app'), icon: 'trash', fallback: 'X', disabled: appIsBuiltin, danger: true, action: () => deleteDesktopApps(desktopBatchAppIds(btn)) });
         }
-        items.push(
-            { separator: true },
-            { label: t('desktop.context_properties'), icon: 'info', fallback: 'i', action: () => showProperties(fileEntry.name, fileEntry) }
-        );
+        if (kind !== 'dashboard') {
+            items.push(
+                { separator: true },
+                { label: t('desktop.context_properties'), icon: 'info', fallback: 'i', action: () => showProperties(fileEntry.name, fileEntry) }
+            );
+        }
         showContextMenu(event.clientX, event.clientY, contextMenuReadonlyGuard(items));
     }
 
@@ -1702,6 +1704,7 @@
         if (appId === 'homedash' && window.HomeDashApp) {
             return window.HomeDashApp.render(contentEl(id), id, Object.assign({}, context || {}, {
                 esc, t, api, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary, readonly: desktopReadonly(),
+                desktopShortcuts: { hasDashboard: hasDesktopDashboardShortcut, addDashboard: addDesktopDashboardShortcut, removeDashboard: removeDesktopDashboardShortcut },
                 updateWindowContext: (windowId, patch) => { updateWindowContext(windowId, patch); scheduleSessionPersist(); },
                 setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
                 focusWindow: winId => { if (state.windows.has(winId)) focusWindow(winId); }

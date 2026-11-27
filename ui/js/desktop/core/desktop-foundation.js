@@ -1317,6 +1317,7 @@
         applyDesktopSettings();
         renderStartButtonIcon();
         renderIcons();
+        notifyDesktopShortcutsChanged();
         renderWidgets();
         renderStartApps();
         renderTaskbar();
@@ -1465,7 +1466,7 @@
 
     function updateDesktopIconButton(btn, item, pos) {
         const iconKey = item.icon || (item.type === 'file' ? iconForFile(item.file) : item.type === 'directory' ? iconForDirectory(item.name) : iconForApp(item.app));
-        const fallback = item.type === 'app' ? iconGlyph(item.app) : item.name;
+        const fallback = item.app ? iconGlyph(item.app) : item.name;
         btn.className = 'vd-icon';
         btn.classList.toggle('selected', state.selectedIconIds.has(item.id));
         btn.type = 'button';
@@ -1474,7 +1475,8 @@
         btn.setAttribute('aria-selected', state.selectedIconIds.has(item.id) ? 'true' : 'false');
         btn.dataset.kind = item.type;
         btn.dataset.id = item.id;
-        btn.dataset.appId = item.app ? item.app.id : '';
+        btn.dataset.appId = item.type === 'dashboard' ? '' : (item.app ? item.app.id : '');
+        btn.dataset.dashboardId = item.dashboardId || '';
         btn.dataset.path = item.path || '';
         btn.dataset.webPath = item.file ? item.file.web_path || '' : '';
         btn.dataset.mediaKind = item.file ? item.file.media_kind || '' : '';
@@ -1547,6 +1549,20 @@
                     type: 'app',
                     app,
                     path: shortcut.path || '',
+                    icon: shortcutIconForApp(shortcut, app),
+                    shortcut
+                };
+            }
+            if (shortcut.target_type === 'dashboard') {
+                const app = appById('homedash');
+                const dashboardId = String(shortcut.target_id || '');
+                if (!app || !/^d_[a-z2-7]{12}$/.test(dashboardId)) return null;
+                return {
+                    id: shortcut.id,
+                    name: shortcut.name || appName(app),
+                    type: 'dashboard',
+                    app,
+                    dashboardId,
                     icon: shortcutIconForApp(shortcut, app),
                     shortcut
                 };
@@ -1803,6 +1819,10 @@
     }
 
     function activateDesktopItem(btn) {
+        if (btn.dataset.kind === 'dashboard') {
+            openApp('homedash', { dashboard_id: btn.dataset.dashboardId });
+            return;
+        }
         if (btn.dataset.kind === 'file') {
             openDesktopFileEntry(btn);
             return;

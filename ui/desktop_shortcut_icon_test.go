@@ -34,4 +34,19 @@ func TestDesktopShortcutsPreferCurrentAppLogosAndKeepPersistedThemeIcons(t *test
 			t.Fatalf("desktop shortcut items do not preserve marker %q", want)
 		}
 	}
+	for _, want := range []string{
+		"shortcut.target_type === 'dashboard'",
+		"appById('homedash')",
+		"/^d_[a-z2-7]{12}$/",
+		"type: 'dashboard'",
+	} {
+		if !strings.Contains(shortcutItemsBody, want) {
+			t.Fatalf("desktop shortcut items miss the dashboard marker %q", want)
+		}
+	}
+	for _, want := range []string{"btn.dataset.dashboardId = item.dashboardId || ''", "item.type === 'dashboard' ? ''"} {
+		if !strings.Contains(updateIconBody, want) {
+			t.Fatalf("desktop icon button misses the dashboard marker %q", want)
+		}
+	}
 }

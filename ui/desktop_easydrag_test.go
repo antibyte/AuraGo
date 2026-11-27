@@ -55,7 +55,7 @@ func TestEasyDragShellIntegration(t *testing.T) {
 		"window.EasyDragApp.open(existing.id, context)",
 		"new CustomEvent('aurago:flows-changed'",
 		"payload.appId === 'easydrag'",
-		"const SESSION_CONTEXT_KEYS = ['path', 'category', 'flowId'];",
+		"const SESSION_CONTEXT_KEYS = ['path', 'category', 'flowId', 'dashboard_id', 'page_id'];",
 		"'easydrag': { width: 1320, height: 840 }",
 	} {
 		if !strings.Contains(shell, marker) {
