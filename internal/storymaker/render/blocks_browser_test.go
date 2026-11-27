@@ -12,7 +12,7 @@ import (
 	"aurago/internal/storymaker"
 )
 
-// TestCompileCheckBlocksBrowser renders the fixture film blocks.json (every block kind, a board, an office pinboard and a code
+// TestCompileCheckBlocksBrowser renders the fixture film blocks.json (most block kinds, a board, an office pinboard and a code
 // scene) in 16:9 and 9:16 with stills and checks that no block is off screen, too small or under the caption. The contact sheets
 // go to AURAGO_STILLS_OUT when it is set, so they can be looked at.
 func TestCompileCheckBlocksBrowser(t *testing.T) {

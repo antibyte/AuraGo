@@ -405,7 +405,7 @@
   "storymaker.agent.check_corrections_exhausted": "Une scène a épuisé ses tentatives de correction. Demandez à l'auteur de la terminer.",
   "storymaker.agent.check_model_error": "Le modèle a cessé de répondre. Demandez à l'auteur de terminer l'histoire.",
   "storymaker.agent.check_scene_unfilled": "Cette scène demande encore du travail. Demandez à l'auteur de la terminer.",
-  "storymaker.agent.check_scene_fallback": "Cette scène a reçu un tableau simple avec un titre, car l'auteur n'a pas pu la terminer. Révisez l'histoire pour lui donner une vraie image.",
+  "storymaker.agent.check_scene_fallback": "L'agent n'a pas terminé cette scène de son plan, elle a donc reçu un tableau simple avec un titre. Les scènes que vous laissez vides vous-même ne sont jamais modifiées. Révisez l'histoire pour lui donner une vraie image.",
   "storymaker.agent.check_compile_failed": "L'aperçu n'a pas pu préparer ce film. Demandez une correction à l'auteur, ou consultez la liste des problèmes.",
   "storymaker.agent.check_over_target": "Le film est plus long que demandé. Demandez à l'auteur de le raccourcir.",
   "storymaker.agent.check_craft": "Le film paraît encore uniforme sur un point : décors, cadrage, gestes ou distribution. Regardez-le une fois et ajustez des scènes si vous le souhaitez.",

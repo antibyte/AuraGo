@@ -12,7 +12,7 @@ func TestFillExamplesValidate(t *testing.T) {
 	cat := loadReal(t)
 	s := loadAgentFixture(t, "agent-varied")
 	for i, d := range DirectionPlan(&s, "", cat) {
-		example := packetFillExample(s.Cast, d, "")
+		example := packetFillExample(s.Cast, d, "", "de")
 		// The example teaches cue_phrase, never a numbered cue, and its phrase must resolve like a model's would.
 		beat := example["beats"].([]any)[0].(map[string]any)
 		if beat["cue_phrase"] == nil || beat["cue"] != nil || strings.Contains(example["narration"].(string), "{") {
@@ -98,12 +98,12 @@ func TestFillPacketExampleUsesTheSuggestedBlock(t *testing.T) {
 	cat := loadReal(t)
 	s := loadAgentFixture(t, "agent-varied")
 	dir := DirectionPlan(&s, "", cat)[2]
-	plainExample := packetFillExample(s.Cast, dir, "")
+	plainExample := packetFillExample(s.Cast, dir, "", "de")
 	if beat := plainExample["beats"].([]any)[0].(map[string]any); beat["item"] == nil || beat["diagram"] != nil {
 		t.Fatalf("without a block the example shows its prop: %v", beat)
 	}
 	for block, want := range map[string]string{"flow": "diagram", "cycle": "diagram", "stack": "diagram", "compare": "diagram", "chart": "chart"} {
-		example := packetFillExample(s.Cast, dir, block)
+		example := packetFillExample(s.Cast, dir, block, "de")
 		beats := example["beats"].([]any)
 		show := beats[0].(map[string]any)
 		if show["do"] != "show" || show["item"] != nil || show[want] == nil || show["at"] != "board" || show["cue_phrase"] == nil {
@@ -132,5 +132,30 @@ func TestFillPacketExampleUsesTheSuggestedBlock(t *testing.T) {
 		if issues := Validate(&one, cat, DefaultLimits()); HasErrors(issues) {
 			t.Errorf("%s: %s\n%s", block, dump(issues), raw)
 		}
+	}
+}
+
+// The worked example speaks the job's language: German for a German job, English for every other one, and its cue phrase
+// still resolves.
+func TestFillPacketExampleLanguage(t *testing.T) {
+	cat := loadReal(t)
+	s := loadAgentFixture(t, "agent-varied")
+	dir := DirectionPlan(&s, "", cat)[2]
+	for language, want := range map[string]string{"de": "Paket", "de-AT": "Paket", "en": "Packet", "en-US": "Packet", "fr": "Packet", "": "Packet"} {
+		example := packetFillExample(s.Cast, dir, "flow", language)
+		raw, _ := json.Marshal(example)
+		if !strings.Contains(string(raw), `"label":"`+want+`"`) {
+			t.Errorf("language %q: example = %s, want the label %q", language, raw, want)
+		}
+		if (want == "Packet") != strings.HasPrefix(example["narration"].(string), "The ") {
+			t.Errorf("language %q: narration = %q", language, example["narration"])
+		}
+		if _, refusal := resolveCuePhrases(example); refusal != nil {
+			t.Errorf("language %q: %+v", language, refusal)
+		}
+	}
+	chart := packetFillExample(s.Cast, dir, "chart", "en")["beats"].([]any)[0].(map[string]any)["data"].(map[string]any)
+	if labels := chart["labels"].([]string); labels[0] != "Allowed" {
+		t.Errorf("chart labels = %v", labels)
 	}
 }

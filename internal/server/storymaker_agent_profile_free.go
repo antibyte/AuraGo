@@ -49,7 +49,8 @@ One visual idea per scene. Pick it from what the narration says; the context may
 - a thing or a concept: api.icon(id, {style:'card', label}) (find the id with storymaker_catalog kind icon and one English word), or shapes you draw.
 - the key sentence: api.headline('Small models are *fast*', {at:'top'}).
 Variety: never the same block type in three scenes in a row. In a film of 7 scenes make 1 to 3 scenes a full board (a diagram or chart at 'full'); draw the others yourself with shapes and text. Limits: a node label of 1 to 3 words, a headline of at most 8 words.
-Example: const d = api.diagram({layout:'flow', nodes:[{id:'in',label:'Paket'},{id:'fw',label:'Firewall'},{id:'net',label:'Netz'}]}, {at:'full', reveals:[api.cue(1), api.cue(2), 3]}); d.highlight('fw', {start: api.cue(2)});`
+Example: const d = api.diagram({layout:'flow', nodes:[{id:'in',label:'Paket'},{id:'fw',label:'Firewall'},{id:'net',label:'Netz'}]}, {at:'full', reveals:[0.8, 2.4, 4]}); d.highlight('fw', {start: 2.4});
+Use api.cue(n) only for markers {n} that exist in the narration.`
 
 const storymakerFreeOutlineWorkflow = `## Outline
 1. Choose one template: product_explainer, how_to, concept_explainer, dialogue_story, data_story or onboarding. You will draw every scene, so plan one picture for each idea.

@@ -163,6 +163,9 @@ func TestStorymakerProfilesNameOnlyValidEntriesAndTheDirection(t *testing.T) {
 						t.Errorf("the check prompt must name %s", code)
 					}
 				}
+				if !strings.Contains(system, "no_blocks names no scene") {
+					t.Errorf("the check prompt must say that no_blocks has no scene")
+				}
 			}
 		}
 	}

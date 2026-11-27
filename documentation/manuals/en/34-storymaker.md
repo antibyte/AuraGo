@@ -107,7 +107,7 @@ and never blocks the outcome.
 | Outcome | What it means |
 | --- | --- |
 | Your story is ready. Please watch it once. | Scenes, assets and timing were checked, and the layout too when the browser ran the compile check. |
-| Your story is partly done. | Some scenes still need work, and valid scenes are saved. The revise field is prefilled to finish them. A timeout or a model error ends here too. A scene the author never filled gets a board with its key sentence instead of an empty frame; the card lists it as `scene_fallback` and the film stays partly done. |
+| Your story is partly done. | Some scenes still need work, and valid scenes are saved. The revise field is prefilled to finish them. A timeout or a model error ends here too. A scene of this agent job's outline that the agent did not finish gets a board with its key sentence instead of an empty frame; a scene you left empty yourself in the app is never changed. The card lists it as `scene_fallback` and the film stays partly done. |
 | The agent could not write this story. | No outline was saved. The card names the kind of failure in one line. |
 
 Watch every film once: when the compile check runs, the layout run flags captions over an actor's feet, props that are too small, boxes outside the frame and an actor that hides a prop or a text. A film reads `ready` only when no check is left open. Scenes that look alike (three or more in a row) are flagged as `scenes_look_alike`. The job card links the contact sheet of the last check. A film may

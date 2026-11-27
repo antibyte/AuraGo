@@ -27,6 +27,10 @@ func TestStorymakerFreeProfilesTellTheFreeStory(t *testing.T) {
 							t.Errorf("%s compact=%v text=%v: the free prompt lacks %q", phase, compact, text, block)
 						}
 					}
+					// api.cue throws for a marker the narration lacks, so no example may call it unconditionally.
+					if strings.Contains(prompt, "api.cue(2)") || !strings.Contains(prompt, "only for markers {n} that exist in the narration") {
+						t.Errorf("%s: the free prompt must not call api.cue(n) unconditionally and must say when it is safe", phase)
+					}
 					if strings.Contains(prompt, "helpers are unsupported") {
 						t.Errorf("%s: the free prompt still says that chart and diagram helpers are unsupported", phase)
 					}

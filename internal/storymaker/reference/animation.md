@@ -74,4 +74,4 @@ Block beats (find an icon id with storymaker_catalog kind icon and one English w
 {"do":"show","text":"Paket lesen\nRegel prüfen\nWeiterleiten","style":"list","at":"right","entry":"fade"}
 ```
 
-Areas for at: full, left, right, top, center, board. Block ids are icon-<name>-1 (icon.cpu is icon-cpu-1), diagram-1, chart-1 and text-1; a node is highlighted as diagram-1.<node id>. Two worked 7-scene plans: actor and prop, flow at the board, actor and icon card, bar chart at full, actor and prop, compare at full, headline.
+Areas for at: full, left, right, top, center, board. Block ids are icon-<name>-1 (icon.cpu is icon-cpu-1), diagram-1, chart-1 and text-1; a node is highlighted as diagram-1.<node id>. One worked 7-scene plan: actor and prop, flow at the board, actor and icon card, bar chart at full, actor and prop, compare at full, headline.

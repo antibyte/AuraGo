@@ -219,6 +219,9 @@ func TestReferencesTeachChoosingThePicture(t *testing.T) {
 				t.Errorf("%s: the section lacks %q", name, want)
 			}
 		}
+		if strings.Contains(section, "api.cue(2)") || strings.Contains(text, "Two worked 7-scene plans") {
+			t.Errorf("%s: the picture example calls api.cue(2) without a marker, or the plan count is wrong", name)
+		}
 		if strings.Contains(text, "not_supported_yet") || strings.Contains(text, "helpers are unsupported") {
 			t.Errorf("%s still calls the blocks unsupported", name)
 		}

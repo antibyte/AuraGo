@@ -119,7 +119,7 @@ func (s *Studio) Packet(ctx context.Context, compact bool) (map[string]any, erro
 // framing, actor, spots, pose, gesture, entry), so it can never contradict it and every scene gets a different one. It
 // names the direction's actor, or the first cast member, and leaves the actor and the gesture out when there is no cast.
 // With a suggested block (see SuggestedBlock) the show beat is that block at the board and the gesture points at it.
-func packetFillExample(cast []CastMember, dir SceneDirection, block string) map[string]any {
+func packetFillExample(cast []CastMember, dir SceneDirection, block, language string) map[string]any {
 	environment := dir.Environment
 	if environment == "" {
 		environment = "env.office"
@@ -136,7 +136,7 @@ func packetFillExample(cast []CastMember, dir SceneDirection, block string) map[
 		entry = "pop"
 	}
 	example := map[string]any{
-		"narration":   "Eine Firewall prüft jedes Paket am Eingang.",
+		"narration":   exampleText(language, "Eine Firewall prüft jedes Paket am Eingang.", "The Firewall checks every packet at the entrance."),
 		"environment": environment,
 		"transition":  "wipe",
 	}
@@ -144,7 +144,7 @@ func packetFillExample(cast []CastMember, dir SceneDirection, block string) map[
 		example["camera"] = map[string]any{"framing": dir.Framing}
 	}
 	beats := []any{map[string]any{"do": "show", "item": prop, "at": propAt, "entry": entry, "cue_phrase": "Firewall"}}
-	blockBeat := packetBlockBeat(block)
+	blockBeat := packetBlockBeat(block, language)
 	if blockBeat != nil {
 		beats[0] = blockBeat
 	}
@@ -175,24 +175,33 @@ func packetFillExample(cast []CastMember, dir SceneDirection, block string) map[
 	return example
 }
 
+// exampleText picks the German text of a worked example for a German job and the English one for every other language.
+func exampleText(language, de, en string) string {
+	if LanguageBase(language) == "de" {
+		return de
+	}
+	return en
+}
+
 // packetBlockBeat is the show beat of the worked example for a suggested block, nil for none. Nodes carry a label only: the
 // compact story schema has no compare points and no chart title.
-func packetBlockBeat(block string) map[string]any {
+func packetBlockBeat(block, language string) map[string]any {
+	t := func(de, en string) string { return exampleText(language, de, en) }
 	node := func(id, label string) map[string]any { return map[string]any{"id": id, "label": label} }
 	diagram := func(layout string, nodes ...map[string]any) map[string]any {
 		return map[string]any{"do": "show", "diagram": map[string]any{"layout": layout, "nodes": nodes}, "at": "board", "entry": "draw", "cue_phrase": "Firewall"}
 	}
 	switch block {
 	case "flow":
-		return diagram("flow", node("in", "Paket"), node("fw", "Firewall"), node("net", "Netz"))
+		return diagram("flow", node("in", t("Paket", "Packet")), node("fw", "Firewall"), node("net", t("Netz", "Network")))
 	case "cycle":
-		return diagram("cycle", node("scan", "Prüfen"), node("learn", "Lernen"), node("block", "Sperren"))
+		return diagram("cycle", node("scan", t("Prüfen", "Check")), node("learn", t("Lernen", "Learn")), node("block", t("Sperren", "Block")))
 	case "stack":
-		return diagram("stack", node("app", "Anwendung"), node("fw", "Firewall"), node("net", "Netz"))
+		return diagram("stack", node("app", t("Anwendung", "Application")), node("fw", "Firewall"), node("net", t("Netz", "Network")))
 	case "compare":
-		return diagram("compare", node("old", "Ohne"), node("new", "Mit Firewall"))
+		return diagram("compare", node("old", t("Ohne", "Without")), node("new", t("Mit Firewall", "With a firewall")))
 	case "chart":
-		return map[string]any{"do": "show", "chart": "bar", "data": map[string]any{"labels": []string{"Erlaubt", "Blockiert"}, "values": []int{70, 30}, "unit": "%"}, "at": "board", "entry": "fade", "cue_phrase": "Firewall"}
+		return map[string]any{"do": "show", "chart": "bar", "data": map[string]any{"labels": []string{t("Erlaubt", "Allowed"), t("Blockiert", "Blocked")}, "values": []int{70, 30}, "unit": "%"}, "at": "board", "entry": "fade", "cue_phrase": "Firewall"}
 	}
 	return nil
 }
@@ -248,7 +257,7 @@ func packetFill(ctx context.Context, packet map[string]any, story *Story, sceneI
 		dirPacket["suggested_block"] = block
 	}
 	packet["direction"] = dirPacket
-	packet["example"] = packetFillExample(story.Cast, direction, SuggestedBlock(sc.Narration, job.Language))
+	packet["example"] = packetFillExample(story.Cast, direction, SuggestedBlock(sc.Narration, job.Language), job.Language)
 	if !job.VoiceAvailable {
 		packet["note"] = packetNoVoiceNote
 	}

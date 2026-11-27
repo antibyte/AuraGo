@@ -99,7 +99,7 @@ const storymakerCheckWorkflow = `## Check and fix
 2. Fix each issue with storymaker_story operation patch_scene. Each issue has a fix with an example.
 3. Items in advice are optional. Fix them only if it is one small patch.
    Film items (environment_monotony, framing_monotony, gesture_monotony, cast_unused) are about the whole film. Fix them with patch_scene on the scenes the fix text names. A patch replaces a list that you send (actors, beats), so send the whole list.
-   Picture items (no_blocks, block_repeat, label_long) are about the blocks: give the named scene another block type from Choosing the picture, or shorten the label. block_too_small and offscreen on a block: show it at "full", or use fewer nodes with shorter labels.
+   Picture items (no_blocks, block_repeat, label_long) are about the blocks. no_blocks names no scene: give two or three scenes of your choice a block from Choosing the picture. For block_repeat give the named scene another block type, and for label_long shorten the label. block_too_small and offscreen on a block: show it at "full", or use fewer nodes with shorter labels.
 4. Environment items are not yours to fix.
 When nothing is left to fix, answer with one short sentence for the user about the film, in the user's language, and stop.`
 

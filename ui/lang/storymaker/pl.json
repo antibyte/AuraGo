@@ -405,7 +405,7 @@
   "storymaker.agent.check_corrections_exhausted": "Scena wyczerpała próby poprawek. Poproś autora o jej dokończenie.",
   "storymaker.agent.check_model_error": "Model przestał odpowiadać. Poproś autora o dokończenie historii.",
   "storymaker.agent.check_scene_unfilled": "Ta scena wciąż wymaga pracy. Poproś autora o jej dokończenie.",
-  "storymaker.agent.check_scene_fallback": "Ta scena dostała prostą tablicę z nagłówkiem, bo autor nie zdołał jej dokończyć. Zmień historię, aby nadać jej prawdziwy obraz.",
+  "storymaker.agent.check_scene_fallback": "Agent nie dokończył tej sceny ze swojego zarysu, dlatego dostała prostą tablicę z nagłówkiem. Sceny, które sam zostawisz puste, nigdy nie są zmieniane. Zmień historię, aby nadać jej prawdziwy obraz.",
   "storymaker.agent.check_compile_failed": "Podgląd nie mógł przygotować tego filmu. Poproś autora o poprawkę albo sprawdź listę problemów.",
   "storymaker.agent.check_over_target": "Film jest dłuższy, niż prosiłeś. Poproś autora o skrócenie.",
   "storymaker.agent.check_craft": "Film nadal wygląda jednolicie pod jednym względem: otoczenie, kadr, gesty lub obsada. Obejrzyj go raz i w razie potrzeby popraw sceny.",

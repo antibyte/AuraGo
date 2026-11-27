@@ -59,11 +59,11 @@ One visual idea per scene. Pick it from what the narration says; the fill contex
 
 Variety: never the same block type in three scenes in a row. In a film of 7 scenes make 1 to 3 scenes a full board (a diagram or chart at full); the others pair a character with a prop or an icon card. Node labels have 1-3 words, a headline at most 8 words.
 
-Example, flow with a highlight on the second cue:
+Example, flow with a highlight on the second node (fixed seconds work without markers; use api.cue(n) only for markers {n} that exist in the narration):
 
 ```javascript
-const d = api.diagram({ layout: 'flow', nodes: [{ id: 'in', label: 'Paket' }, { id: 'fw', label: 'Firewall' }, { id: 'net', label: 'Netz' }] }, { at: 'full', reveals: [api.cue(1), api.cue(2), 3] });
-d.highlight('fw', { start: api.cue(2) });
+const d = api.diagram({ layout: 'flow', nodes: [{ id: 'in', label: 'Paket' }, { id: 'fw', label: 'Firewall' }, { id: 'net', label: 'Netz' }] }, { at: 'full', reveals: [0.8, 2.4, 4] });
+d.highlight('fw', { start: 2.4 });
 ```
 
 ## Create a missing SVG motif

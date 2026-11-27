@@ -405,7 +405,7 @@
   "storymaker.agent.check_corrections_exhausted": "En scene har brukt opp korrigeringsforsøkene. Be forfatteren om å fullføre den.",
   "storymaker.agent.check_model_error": "Modellen sluttet å svare. Be forfatteren om å fullføre historien.",
   "storymaker.agent.check_scene_unfilled": "Denne scenen trenger fortsatt arbeid. Be forfatteren om å fullføre den.",
-  "storymaker.agent.check_scene_fallback": "Denne scenen fikk en enkel tavle med en overskrift fordi forfatteren ikke fikk gjort den ferdig. Revider historien slik at den får et ekte bilde.",
+  "storymaker.agent.check_scene_fallback": "Agenten fikk ikke gjort ferdig denne scenen fra disposisjonen sin, så den fikk en enkel tavle med en overskrift. Scener du selv lar stå tomme, endres aldri. Revider historien slik at den får et ekte bilde.",
   "storymaker.agent.check_compile_failed": "Forhåndsvisningen kunne ikke forberede filmen. Be forfatteren om å rette den, eller se listen over problemer.",
   "storymaker.agent.check_over_target": "Filmen er lengre enn du ba om. Be forfatteren om å korte den ned.",
   "storymaker.agent.check_craft": "Filmen virker fortsatt ensartet på ett punkt: omgivelser, kamera, bevegelser eller rollebesetning. Se den én gang og juster scener om du vil.",
