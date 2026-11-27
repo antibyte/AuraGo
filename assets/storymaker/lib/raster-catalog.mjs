@@ -41,6 +41,21 @@ export const PROP_PACKS={
     nature:['sun','moon','tree','leaf','flower','water-drop','wind-turbine','solar-panel','battery','earth'],
     symbols:['check','cross','warning','idea','question','arrow-right','gear','chart-bar','chart-line','puzzle']
 };
+// boardThumbnail(bg, fg): the 256x144 thumbnail of env.board: the palette background with the grain of the player's drawBoard.
+// The grain is 900 dots from the seeded generator of seed.js (FNV-1a over the seed, then mulberry32) at 0.8 % alpha, so no pixel
+// moves by more than 2 of 255.
+function boardThumbnail(bg,fg){
+    const W=256,H=144,pixels=Buffer.alloc(W*H*4),rgb=hex=>[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16));
+    const back=rgb(bg),front=rgb(fg);
+    for(let i=0;i<W*H;i++)pixels.set([...back,255],i*4);
+    let a=2166136261;for(const ch of 'board-grain'){a^=ch.charCodeAt(0);a=Math.imul(a,16777619);}a>>>=0;
+    const random=()=>{a=(a+0x6D2B79F5)|0;let t=Math.imul(a^(a>>>15),1|a);t=(t+Math.imul(t^(t>>>7),61|t))^t;return((t^(t>>>14))>>>0)/4294967296;};
+    for(let i=0;i<900;i++){
+        const x=Math.floor(random()*W),y=Math.floor(random()*H);random();
+        for(let c=0;c<3;c++)pixels[(y*W+x)*4+c]=Math.round(back[c]+(front[c]-back[c])*0.008);
+    }
+    return{width:W,height:H,pixels};
+}
 export const CHARACTER_IDS=MODEL_CHARACTERS.map(c=>c.id);
 export const ENVIRONMENT_IDS=['plain-stage','office','home-office','abstract-tech','server-room','classroom','laboratory','workshop','medical-office','living-room','city-street','park'];
 export function buildRasterOutputs({prototype=false}={}){
@@ -113,6 +128,20 @@ export function buildRasterOutputs({prototype=false}={}){
         const spots={...old.spots,...(FOREGROUND_SPOTS[id]||{})};
         const file=`environments/${id}.json`;put(file,{viewbox:[0,0,1920,1080],variants,tokens});
         entries.push(entry('env.'+id,'environment',{file,resources,thumb:thumb('env.'+id,day,[0,0,day.width,day.height]),spots,floor:old.floor,variants:['day','night'],aspects:old.aspects,usage_example:{environment:'env.'+id}}));
+    }
+    // env.board is a drawn environment: it has no bitmap, the player paints a calm board (light paper by day, dark slate by night)
+    // behind full-frame blocks. It sits after the bitmap environments and is not part of ENVIRONMENT_IDS.
+    {
+        const sunny=legacy.manifest.palettes.find(p=>p.name==='sunny')?.tokens||{bg:'#fff7e6',fg:'#1f2a44'};
+        put('environments/board.json',{viewbox:[0,0,1920,1080],drawn:'board',variants:{day:[],night:[]},tokens:{day:{text:'#1f2a44'},night:{text:'#f4f5eb',bg:'#1f2a44',bg2:'#2c3a5a'}}});
+        put('thumbs/env.board.png',encodePNG(boardThumbnail(sunny.bg,sunny.fg)));
+        entries.push(entry('env.board','environment',{
+            tags:['board','paper','slate','diagram','chart','whiteboard',...NAMES['env.board']],thumb:'thumbs/env.board.png',usage_example:{environment:'env.board'},
+            file:'environments/board.json',resources:[],drawn:'board',
+            spots:{'far-left':{x:12,y:88},left:{x:30,y:88},center:{x:50,y:88},right:{x:70,y:88},'far-right':{x:88,y:88},full:{x:50,y:50},top:{x:50,y:25},board:{x:50,y:50}},
+            floor:{y_near:96,y_far:70,scale_near:1.05,scale_far:0.8},variants:['day','night'],
+            aspects:{'9:16':{focus_x:50,spots:{'far-left':{x:38,y:88},left:{x:42,y:88},right:{x:58,y:88},'far-right':{x:62,y:88}}},'1:1':{focus_x:50,spots:{'far-left':{x:25,y:88},'far-right':{x:75,y:88}}}}
+        }));
     }
     const reference=images.values().next().value;
     if(!reference)throw new Error('No completed character available');

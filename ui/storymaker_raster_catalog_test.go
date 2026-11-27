@@ -184,8 +184,16 @@ func smCheckRasterPropsAndEnvironments(t *testing.T) {
 				Tokens map[string]map[string]string
 			}
 			smReadJSON(t, smStr(e, "file"), &d)
+			drawn := smStr(e, "drawn")
 			for _, variant := range []string{"day", "night"} {
 				layers := d.Variants[variant]
+				if drawn == "board" {
+					// a drawn environment has no bitmap layers: the player paints it
+					if len(layers) != 0 || d.Tokens[variant]["text"] == "" || smStr(e, "id") != "env.board" {
+						t.Errorf("invalid drawn environment: %s/%s", smStr(e, "id"), variant)
+					}
+					continue
+				}
 				if len(layers) < 2 || d.Tokens[variant]["text"] == "" {
 					t.Errorf("missing depth or text tokens: %s/%s", smStr(e, "id"), variant)
 				}
@@ -213,7 +221,7 @@ func smCheckRasterPropsAndEnvironments(t *testing.T) {
 			}
 		}
 	}
-	if props != 80 || envs != 12 {
+	if props != 80 || envs != 13 {
 		t.Errorf("got %d props and %d environments", props, envs)
 	}
 }

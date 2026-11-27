@@ -67,6 +67,7 @@
   "storymaker.catalog.prop_chart-bar": "Grafico a barre",
   "storymaker.catalog.prop_chart-line": "Grafico a linee",
   "storymaker.catalog.prop_puzzle": "Tessera di puzzle",
+  "storymaker.catalog.env_board": "Lavagna",
   "storymaker.catalog.prop_laptop": "Portatile",
   "storymaker.catalog.prop_phone": "Telefono",
   "storymaker.catalog.prop_monitor": "Monitor",

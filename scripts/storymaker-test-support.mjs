@@ -22,7 +22,8 @@ export const miniFiles = () => ({
     envs: {
         'environments/plain-stage.json': readJSON(MINI + 'environments/plain-stage.json'),
         'environments/office.json': readJSON(MINI + 'environments/office.json'),
-        'environments/abstract-tech.json': readJSON(MINI + 'environments/abstract-tech.json')
+        'environments/abstract-tech.json': readJSON(MINI + 'environments/abstract-tech.json'),
+        'environments/board.json': readJSON(MINI + 'environments/board.json')
     }
 });
 export const story = name => readJSON('internal/storymaker/testdata/stories/' + name + '.json');

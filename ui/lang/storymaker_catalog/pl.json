@@ -67,6 +67,7 @@
   "storymaker.catalog.prop_chart-bar": "Wykres słupkowy",
   "storymaker.catalog.prop_chart-line": "Wykres liniowy",
   "storymaker.catalog.prop_puzzle": "Element układanki",
+  "storymaker.catalog.env_board": "Tablica",
   "storymaker.catalog.prop_laptop": "Laptop",
   "storymaker.catalog.prop_phone": "Telefon",
   "storymaker.catalog.prop_monitor": "Monitor",

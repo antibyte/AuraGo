@@ -26,7 +26,7 @@ check('fixtures: the shared stories, the code scene and the catalog manifest are
     assert.deepEqual(firewall.scenes.map(s => s.id), ['s1', 's2', 's3']);
     assert.equal(firewall.scenes[2].kind, 'code');
     assert.match(read('internal/storymaker/testdata/scenes/s3.js'), /^export default function scene\(api\) \{\r?\n  api\.duration\(5\);/);
-    assert.equal(catalog.schema, 'storymaker-catalog/1'); assert.equal(catalog.version, 'mini00000000'); assert.equal(catalog.entries.length, 26); // 23 with the speech styles, plus sfx.whoosh, sfx.pop, sfx.typing
+    assert.equal(catalog.schema, 'storymaker-catalog/1'); assert.equal(catalog.version, 'mini00000000'); assert.equal(catalog.entries.length, 27); // 23 with the speech styles, plus sfx.whoosh, sfx.pop, sfx.typing and env.board
     assert.deepEqual(catalog.stage, { width: 1920, height: 1080, safe: { x: 5, y: 5, w: 90, h: 90 } });
     for (const e of catalog.entries) if (e.file && !e.file.endsWith('.wav')) assert.ok(typeof readJSON(MINI + e.file) === 'object', e.file + ' exists and parses');
     assert.equal(readJSON(MINI + catalog.rig.file).id, catalog.rig.id);
@@ -91,6 +91,7 @@ check('catalog-mini props and environments: the vector part format with palette 
     }
     for (const [file, env] of Object.entries(files.envs)) {
         assert.deepEqual(env.viewbox, [0, 0, 1920, 1080], file);
+        if (env.drawn === 'board') { assert.deepEqual(env.variants, { day: [], night: [] }, file + ': a drawn environment has no layers'); assert.ok(env.tokens.day.text && env.tokens.night.text, file); continue; }
         assert.ok(env.layers.length >= 3 && env.layers[0].parallax === 0 && env.layers.at(-1).parallax === 1, file + ': sky at parallax 0, floor at 1');
         for (const l of env.layers) { assert.equal(typeof l.name, 'string'); checkShapes(l.shapes, file + '/' + l.name); }
         assert.deepEqual(Object.keys(env.tokens.day).sort(), Object.keys(env.tokens.night).sort(), file + ': day and night tokens match');

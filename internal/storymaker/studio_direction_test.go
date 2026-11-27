@@ -110,3 +110,16 @@ func TestTagMatchesWholeWordsAndLongPrefixes(t *testing.T) {
 		}
 	}
 }
+
+// The board is a drawn backdrop for blocks, not a place for a story: the direction never ranks it, while the catalog lists it.
+func TestRankEnvironmentsLeavesTheBoardOut(t *testing.T) {
+	cat := loadReal(t)
+	if !slices.Contains(cat.Names("environment"), BoardEnvironmentID) {
+		t.Fatalf("the catalog lists no %s", BoardEnvironmentID)
+	}
+	s := loadAgentFixture(t, "agent-firewall-run")
+	ranked := rankEnvironments(&s, cat)
+	if len(ranked) != len(cat.Names("environment"))-1 || slices.Contains(ranked, BoardEnvironmentID) {
+		t.Errorf("ranked = %v", ranked)
+	}
+}

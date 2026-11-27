@@ -12,6 +12,9 @@ var envDirectionJSON []byte
 // plainStageID is the neutral environment that the direction uses only when nothing else exists.
 const plainStageID = "env.plain-stage"
 
+// BoardEnvironmentID is the drawn board for full-frame blocks. The catalog lists it, but the direction never ranks it as a place.
+const BoardEnvironmentID = "env.board"
+
 // EnvDirection is the curated guide of one catalog environment. About is one line for the model, Tags are the words
 // (English and German, matched as whole words or as prefixes of at least 4 letters) that mean the environment fits a
 // topic, and Base marks an environment that fits many topics.

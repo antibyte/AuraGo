@@ -56,7 +56,7 @@ func TestLoadCatalogMini(t *testing.T) {
 		"transition":  {"cut", "fade", "slide-left", "wipe"},
 		"palette":     {"sunny"},
 		"font":        {"default"},
-		"environment": {"env.plain-stage", "env.office", "env.abstract-tech"},
+		"environment": {"env.plain-stage", "env.office", "env.abstract-tech", "env.board"},
 		"trans":       {"cut", "fade", "slide-left", "wipe"}, // alias for the id prefix
 	}
 	for kind, want := range cases {
@@ -332,8 +332,8 @@ func TestCatalogVerifyFiles(t *testing.T) {
 	}
 	err := c.VerifyFiles(fsys, "img/storymaker")
 	// Rig 1, font 1, 23 thumbs and 5 entry files give 30 (S5). The sfx entries have no thumb, and their
-	// other takes add whoosh 1, pop 1 and typing 2, so 34.
-	if err == nil || !strings.Contains(err.Error(), "img/storymaker/rig/human.json") || !strings.Contains(err.Error(), "34 missing files") {
+	// other takes add whoosh 1, pop 1 and typing 2, so 34. The drawn board adds its file and its thumb, so 36.
+	if err == nil || !strings.Contains(err.Error(), "img/storymaker/rig/human.json") || !strings.Contains(err.Error(), "36 missing files") {
 		t.Fatalf("missing files not reported: %v", err)
 	}
 	for _, e := range c.Entries() {

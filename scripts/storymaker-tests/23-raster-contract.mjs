@@ -20,7 +20,7 @@ t.check('app texture stream: invalid size metadata is refused before fetching an
 
 t.check('production catalog: all legacy IDs survive as aliases of three 3D pets, twelve places and eighty props',()=>{
     const catalog=realCatalog();assert.equal(catalog.schema,'storymaker-catalog/2');
-    for(const [kind,count]of Object.entries({character:3,environment:12,prop:80}))assert.equal(catalog.entries.filter(e=>e.kind===kind).length,count);
+    for(const [kind,count]of Object.entries({character:3,environment:13,prop:80}))assert.equal(catalog.entries.filter(e=>e.kind===kind).length,count);
     const ids=new Set(catalog.entries.flatMap(e=>[e.id,...(e.aliases||[])]));for(const e of legacyCatalog().entries)assert.ok(ids.has(e.id),'Missing legacy ID '+e.id);
     for(const language of ['cs','da','de','el','en','es','fr','hi','it','ja','nl','no','pl','pt','sv','zh']){
         const names=readJSON('ui/lang/storymaker_catalog/'+language+'.json');for(const e of catalog.entries)assert.ok(names[e.name_key],language+'/'+e.name_key);

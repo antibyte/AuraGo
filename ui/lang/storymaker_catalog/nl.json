@@ -67,6 +67,7 @@
   "storymaker.catalog.prop_chart-bar": "Staafdiagram",
   "storymaker.catalog.prop_chart-line": "Lijndiagram",
   "storymaker.catalog.prop_puzzle": "Puzzelstuk",
+  "storymaker.catalog.env_board": "Bord",
   "storymaker.catalog.prop_laptop": "Laptop",
   "storymaker.catalog.prop_phone": "Telefoon",
   "storymaker.catalog.prop_monitor": "Monitor",

@@ -6,7 +6,7 @@ export function validateRasterOutputs({files,manifest,entries,rig}){
  const errors=[],check=(ok,message)=>{if(!ok)errors.push(message);};
  check(manifest.schema==='storymaker-catalog/2','Wrong raster schema');
  check(manifest.version===versionOf(files),'Wrong catalog version');
- const expected={character:CHARACTER_IDS,environment:ENVIRONMENT_IDS,prop:Object.values(PROP_PACKS).flat()};
+ const expected={character:CHARACTER_IDS,environment:[...ENVIRONMENT_IDS,'board'],prop:Object.values(PROP_PACKS).flat()};
  for(const [kind,ids]of Object.entries(expected))check(entries.filter(e=>e.kind===kind).length===ids.length,`Wrong ${kind} count`);
  const delivery=new Map(manifest.files.map(f=>[f.path,f]));
  check(delivery.size===manifest.files.length,'Duplicate delivery file');
@@ -42,7 +42,10 @@ export function validateRasterOutputs({files,manifest,entries,rig}){
    for(const alias of e.aliases||[]){check(/^char\.[a-z0-9-]+$/.test(alias)&&!ids.has(alias),`Invalid character alias: ${alias}`);ids.add(alias);}
   }
   if(e.kind==='prop')region(json(e.file).image,e.id);
-  if(e.kind==='environment')for(const variant of ['day','night']){
+  if(e.kind==='environment'&&e.drawn==='board'){
+   const d=json(e.file);check(e.id==='env.board'&&d.drawn==='board','Unknown drawn environment: '+e.id);
+   for(const variant of ['day','night'])check(Array.isArray(d.variants?.[variant])&&d.variants[variant].length===0&&d.tokens?.[variant]?.text,'Bad drawn environment variant: '+e.id+'/'+variant);
+  }else if(e.kind==='environment')for(const variant of ['day','night']){
    const layers=json(e.file).variants[variant];check(layers?.length>=2,`Missing depth layers: ${e.id}/${variant}`);
    for(const layer of layers||[])region(layer.image,e.id+'/'+variant);
   }

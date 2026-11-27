@@ -1,4 +1,8 @@
 {
+  "env.board": {
+    "about": "A calm drawn board (light paper by day, dark slate by night) for full-frame diagrams, charts, icons and headlines.",
+    "tags": ["board", "tafel", "diagramm", "diagram", "chart"]
+  },
   "env.plain-stage": {
     "about": "Neutral empty stage. Use it only when nothing else fits.",
     "tags": []

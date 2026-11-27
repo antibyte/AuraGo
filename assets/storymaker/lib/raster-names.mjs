@@ -1313,5 +1313,23 @@ export const RASTER_NAMES={
     "Peça de quebra-cabeças",
     "Pusselbit",
     "拼图块"
+  ],
+  "env.board": [
+    "Tabule",
+    "Tavle",
+    "Tafel",
+    "Πίνακας",
+    "Board",
+    "Pizarra",
+    "Tableau",
+    "बोर्ड",
+    "Lavagna",
+    "ボード",
+    "Bord",
+    "Tavle",
+    "Tablica",
+    "Quadro",
+    "Tavla",
+    "展板"
   ]
 };

@@ -273,3 +273,22 @@ test('the actors of the left half of every stage keep their distance', () => {
     assert.ok(at('far-right') - at('right') >= 230, `${id}: the right and far-right actors overlap`);
   }
 });
+
+test('env.board is a drawn environment with a full, a top and a board spot, both token maps and a flat thumbnail', () => {
+  const built = buildRasterOutputs();
+  const entry = built.manifest.entries.find((e) => e.id === 'env.board');
+  assert.equal(entry.kind, 'environment');
+  assert.equal(entry.drawn, 'board');
+  assert.equal(entry.file, 'environments/board.json');
+  for (const spot of ['full', 'top', 'board', 'left', 'center', 'right']) assert.ok(entry.spots[spot], spot);
+  assert.deepEqual(entry.variants, ['day', 'night']);
+  assert.ok(entry.tags.includes('board') && entry.tags.includes('diagram'));
+  const data = JSON.parse(built.files.get('environments/board.json'));
+  assert.equal(data.drawn, 'board');
+  assert.deepEqual(data.variants, { day: [], night: [] });
+  assert.ok(data.tokens.day.text && data.tokens.night.text && data.tokens.night.bg);
+  const thumb = decodePNG(built.files.get('thumbs/env.board.png'));
+  assert.deepEqual([thumb.width, thumb.height], [256, 144]);
+  assert.equal(built.manifest.entries.filter((e) => e.kind === 'environment').length, ENVIRONMENT_IDS.length + 1);
+  assert.deepEqual(validateRasterOutputs(built), []);
+});

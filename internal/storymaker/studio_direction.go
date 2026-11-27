@@ -162,10 +162,15 @@ func actEnvironment(ranked []string, act int) string {
 }
 
 // rankEnvironments orders the catalog environments for this film: each tag that matches a word of the title or of the
-// narrations scores 2, a base environment scores 1 more, plain-stage comes last, and ties rotate by a hash of the title so
+// narrations scores 2, a base environment scores 1 more, plain-stage comes last, the drawn board is left out, and ties rotate by a hash of the title so
 // that two films about the same thing but with different titles do not both start on the same environment.
 func rankEnvironments(story *Story, cat *Catalog) []string {
-	ids := cat.Names("environment")
+	ids := make([]string, 0, 16)
+	for _, id := range cat.Names("environment") {
+		if id != BoardEnvironmentID {
+			ids = append(ids, id)
+		}
+	}
 	if len(ids) == 0 {
 		return nil
 	}
