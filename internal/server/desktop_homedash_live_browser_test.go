@@ -212,6 +212,55 @@ func TestDesktopHomeDashLiveHABrowser(t *testing.T) {
 	page.MustEval(`()=>document.querySelector('.hd-eb-done').click()`)
 	until(10*time.Second, "view mode", `()=>document.querySelector('.hdx-view .hd-root').dataset.hdMode==='view'`)
 
+	// Climate: the template offers no thermostat, so a dashboard with one dial is saved through the API (a pre-saved document). ArrowUp on the dial
+	// sends set_temperature with the stepped target; the server's expected state confirms it from the fake's state frame, and the shown target never
+	// falls back to the old value on the way (a recorder watches every aria-valuenow of the dial).
+	const climateID = "ha:climate.living_room"
+	climateAction := map[string]any{"tap": map[string]any{"do": "default"}, "hold": map[string]any{"do": "more_info"}}
+	var made struct {
+		Dashboard struct {
+			ID string `json:"id"`
+		} `json:"dashboard"`
+	}
+	hdDecode(t, env.do(t, env.admin, http.MethodPost, "dashboards", map[string]any{"document": map[string]any{
+		"name": "Climate",
+		"pages": []any{map[string]any{"id": "main", "name": "Main",
+			"widgets": []any{map[string]any{"id": "w1", "type": "climate", "variant": "dial", "bindings": map[string]any{"primary": climateID},
+				"options": map[string]any{}, "actions": climateAction, "confirm": false}},
+			"layouts": map[string]any{"lg": []any{map[string]any{"id": "w1", "x": 0, "y": 0, "w": 3, "h": 3}}}}},
+	}}), &made)
+	if made.Dashboard.ID == "" {
+		t.Fatal("the climate dashboard was not saved")
+	}
+	var climateStart, climateStep float64
+	for _, st := range demo.States {
+		if st.EntityID == "climate.living_room" {
+			climateStart, climateStep = st.Attributes["temperature"].(float64), st.Attributes["target_temp_step"].(float64)
+		}
+	}
+	climateWant := climateStart + climateStep
+	page.MustEval(`()=>document.querySelector('.hdx-back').click()`)
+	until(15*time.Second, "the dashboard list with the climate dashboard", `(id)=>!!document.querySelector('.hdx-home .hdx-card-open[data-id="'+id+'"]')`, made.Dashboard.ID)
+	page.MustEval(`(id)=>document.querySelector('.hdx-home .hdx-card-open[data-id="'+id+'"]').click()`, made.Dashboard.ID)
+	until(20*time.Second, "the climate dial with live values", `(v)=>{const r=document.querySelector('.hdx-view .hd-root'),d=document.querySelector('.hdx-view [data-hd-wid="w1"] .hd-dial');
+		return !!r&&r.dataset.hdConn==='live'&&!!d&&d.getAttribute('aria-valuenow')===String(v);}`, climateStart)
+	page.MustEval(`()=>{const d=document.querySelector('.hdx-view [data-hd-wid="w1"] .hd-dial');window.hdDialSeen=[d.getAttribute('aria-valuenow')];
+		new MutationObserver(()=>{const v=d.getAttribute('aria-valuenow');if(window.hdDialSeen[window.hdDialSeen.length-1]!==v)window.hdDialSeen.push(v);}).observe(d,{attributes:true,attributeFilter:['aria-valuenow']});}`)
+	page.MustElement(`.hdx-view [data-hd-wid="w1"] .hd-dial`).MustFocus()
+	page.Keyboard.MustType(input.ArrowUp)
+	waitCall("climate", "set_temperature", func(d map[string]any) bool { return d["entity_id"] == "climate.living_room" && d["temperature"] == climateWant })
+	until(15*time.Second, "the thermostat target confirmed", `(v)=>{const w=document.querySelector('.hdx-view [data-hd-wid="w1"]');return w.querySelector('.hd-dial').getAttribute('aria-valuenow')===String(v)&&!w.hasAttribute('data-hd-pending')&&w.dataset.hdStatus==='ok';}`, climateWant)
+	time.Sleep(600 * time.Millisecond) // a late frame with the old target would flash the dial back
+	if seen := page.MustEval(`()=>JSON.stringify(window.hdDialSeen)`).Str(); seen != fmt.Sprintf(`["%v","%v"]`, climateStart, climateWant) {
+		t.Fatalf("dial targets seen = %s, want the old target and then %v only", seen, climateWant)
+	}
+	if got := page.MustEval(`()=>document.querySelector('.hdx-view [data-hd-wid="w1"] .hd-dial').getAttribute('aria-valuenow')`).Str(); got != fmt.Sprint(climateWant) {
+		t.Fatalf("dial target after the confirmation = %s, want %v", got, climateWant)
+	}
+	if st, ok := ha.State("climate.living_room"); !ok || st.Attributes["temperature"] != climateWant || st.State != "heat" {
+		t.Fatalf("fake Home Assistant thermostat = %+v", st)
+	}
+
 	if strings.Contains(page.MustEval(`()=>document.body.textContent`).Str(), hasstest.UpstreamSecret) {
 		t.Fatal("Home Assistant text reached the page")
 	}

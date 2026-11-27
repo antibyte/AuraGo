@@ -39,7 +39,7 @@ func TestHAWSFetchFailedRegistriesLeavesThemEmpty(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	states, reg, err := c.Fetch(ctx)
-	if err != nil || len(states) != 15 {
+	if err != nil || len(states) != 16 {
 		t.Fatalf("Fetch = %d states, %v", len(states), err)
 	}
 	if len(reg.Areas) != 0 || len(reg.Devices) != 0 || len(reg.Entities) != 0 {

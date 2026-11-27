@@ -232,7 +232,7 @@ func TestHAAdapterCatalogWithoutRun(t *testing.T) {
 	a := newTestAdapter(t, ha, tools.HAConfig{})
 	ctx := context.Background()
 	list, err := a.Catalog(ctx)
-	if err != nil || len(list) != 13 || ha.WebsocketConnects() != 1 {
+	if err != nil || len(list) != 14 || ha.WebsocketConnects() != 1 {
 		t.Fatalf("catalog = %d entities, %v, %d websocket sessions", len(list), err, ha.WebsocketConnects())
 	}
 	area := func(list []homedash.Entity, id homedash.EntityID) string {
@@ -252,7 +252,7 @@ func TestHAAdapterCatalogWithoutRun(t *testing.T) {
 		t.Fatalf("REST catalog keeps the last registries: %v rest=%d area=%q", err, ha.RESTStateRequests(), area(list, "ha:light.kitchen"))
 	}
 	b := newTestAdapter(t, ha, tools.HAConfig{})
-	if list, err = b.Catalog(ctx); err != nil || area(list, "ha:light.kitchen") != "" || len(list) != 14 {
+	if list, err = b.Catalog(ctx); err != nil || area(list, "ha:light.kitchen") != "" || len(list) != 15 {
 		t.Fatalf("REST catalog without registries: %v area=%q n=%d", err, area(list, "ha:light.kitchen"), len(list))
 	}
 }

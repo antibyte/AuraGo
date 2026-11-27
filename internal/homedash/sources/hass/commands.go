@@ -181,6 +181,25 @@ func expectedState(domain string, c homedash.Capability, args map[string]any, cu
 	case homedash.CapSetValue:
 		v, _ := argNum(args, "value")
 		return &homedash.State{Value: v, Text: strconv.FormatFloat(v, 'f', -1, 64), Available: true, UpdatedAt: now}
+	case homedash.CapSetTemperature, homedash.CapSetTemperatureRange:
+		// The climate state value is the hvac mode, which a target change leaves as it is. The value
+		// stays out of the prediction when the mode is not known (a null would never match).
+		if !have || cur.State == "" || cur.State == "unavailable" || cur.State == "unknown" {
+			return nil
+		}
+		attrs := map[string]any{}
+		if c == homedash.CapSetTemperature {
+			v, _ := argNum(args, "value")
+			attrs["temperature"] = v
+		} else {
+			lo, _ := argNum(args, "low")
+			hi, _ := argNum(args, "high")
+			attrs["target_temp_low"], attrs["target_temp_high"] = lo, hi
+		}
+		return &homedash.State{Value: cur.State, Text: cur.State, Attributes: attrs, Available: true, UpdatedAt: now}
+	case homedash.CapHVACMode:
+		o, _ := argStr(args, "option")
+		return &homedash.State{Value: o, Text: o, Available: true, UpdatedAt: now}
 	}
 	return nil
 }

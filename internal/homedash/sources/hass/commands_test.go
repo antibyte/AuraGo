@@ -103,7 +103,12 @@ func TestHAExpectedState(t *testing.T) {
 		{"set_value", "number", homedash.CapSetValue, map[string]any{"value": 60.0}, HAState{State: "55.0"}, true, &want{60.0, "60", nil}},
 		{"activate", "scene", homedash.CapActivate, nil, HAState{}, true, nil},
 		{"press", "button", homedash.CapPress, nil, HAState{}, true, nil},
-		{"non-W1", "climate", homedash.CapSetTemperature, map[string]any{"value": 21.0}, HAState{State: "heat"}, true, nil},
+		{"set_temperature", "climate", homedash.CapSetTemperature, map[string]any{"value": 21.5}, HAState{State: "heat"}, true, &want{"heat", "heat", map[string]any{"temperature": 21.5}}},
+		{"set_temperature range", "climate", homedash.CapSetTemperatureRange, map[string]any{"low": 19.0, "high": 24.0}, HAState{State: "heat_cool"}, true, &want{"heat_cool", "heat_cool", map[string]any{"target_temp_low": 19.0, "target_temp_high": 24.0}}},
+		{"set_temperature unknown mode", "climate", homedash.CapSetTemperature, map[string]any{"value": 21.0}, HAState{State: "unavailable"}, true, nil},
+		{"set_temperature without state", "climate", homedash.CapSetTemperature, map[string]any{"value": 21.0}, HAState{}, false, nil},
+		{"hvac_mode", "climate", homedash.CapHVACMode, map[string]any{"option": "cool"}, HAState{State: "heat"}, true, &want{"cool", "cool", nil}},
+		{"non-W1", "cover", homedash.CapSetPosition, map[string]any{"value": 21.0}, HAState{State: "open"}, true, nil},
 	} {
 		got := expectedState(tc.domain, tc.c, tc.args, tc.cur, tc.have, now)
 		if tc.want == nil {

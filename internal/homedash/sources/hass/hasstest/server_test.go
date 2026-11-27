@@ -47,7 +47,7 @@ func TestFakeServesRESTAndRecordsServiceCalls(t *testing.T) {
 		t.Fatalf("no token = %d", r.StatusCode)
 	}
 	var states []State
-	if err := json.NewDecoder(get(t, s, "/api/states", s.Token).Body).Decode(&states); err != nil || len(states) != 15 || s.RESTStateRequests() != 1 {
+	if err := json.NewDecoder(get(t, s, "/api/states", s.Token).Body).Decode(&states); err != nil || len(states) != 16 || s.RESTStateRequests() != 1 {
 		t.Fatalf("states = %d %v", len(states), err)
 	}
 	r, changed := post(t, s, "/api/services/switch/toggle", map[string]any{"entity_id": "switch.coffee"})
@@ -105,7 +105,7 @@ func TestFakeWebsocketAuthStatesAndEvents(t *testing.T) {
 		ID     int64   `json:"id"`
 		Result []State `json:"result"`
 	}
-	if err := c.ReadJSON(&res); err != nil || res.ID != 1 || len(res.Result) != 15 {
+	if err := c.ReadJSON(&res); err != nil || res.ID != 1 || len(res.Result) != 16 {
 		t.Fatalf("get_states = %+v %v", res, err)
 	}
 	_ = c.WriteJSON(map[string]any{"id": 2, "type": "subscribe_events", "event_type": "state_changed"})
@@ -170,7 +170,7 @@ func TestFakeWebsocketRegistriesPingAndRegistryEvents(t *testing.T) {
 		t.Fatalf("devices = %+v", r)
 	}
 	r := ask(3, "config/entity_registry/list")
-	if !r.Success || len(r.Result) != 8 {
+	if !r.Success || len(r.Result) != 9 {
 		t.Fatalf("entities = %+v", r)
 	}
 	for _, e := range r.Result {
@@ -276,7 +276,7 @@ func TestFakeFailRegistriesLeavesStatesWorking(t *testing.T) {
 		Success bool             `json:"success"`
 		Result  []map[string]any `json:"result"`
 	}
-	if err := c.ReadJSON(&r); err != nil || !r.Success || len(r.Result) != 15 {
+	if err := c.ReadJSON(&r); err != nil || !r.Success || len(r.Result) != 16 {
 		t.Fatalf("get_states = %+v %v", r, err)
 	}
 }

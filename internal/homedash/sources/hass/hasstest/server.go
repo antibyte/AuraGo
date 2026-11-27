@@ -503,6 +503,25 @@ func (s *Server) applyLocked(domain, service string, data map[string]any, now ti
 			return nil, http.StatusBadRequest
 		}
 		st.State = strconv.FormatFloat(v, 'f', 1, 64)
+	case "set_temperature":
+		if domain != "climate" {
+			return nil, http.StatusBadRequest
+		}
+		if v, ok := number(data["temperature"]); ok {
+			st.Attributes["temperature"] = v
+		}
+		if v, ok := number(data["target_temp_low"]); ok {
+			st.Attributes["target_temp_low"] = v
+		}
+		if v, ok := number(data["target_temp_high"]); ok {
+			st.Attributes["target_temp_high"] = v
+		}
+	case "set_hvac_mode":
+		mode, _ := data["hvac_mode"].(string)
+		if domain != "climate" || !slices.Contains(stringsOf(st.Attributes["hvac_modes"]), mode) {
+			return nil, http.StatusBadRequest
+		}
+		st.State = mode
 	case "press":
 		st.State = now.Format(time.RFC3339Nano)
 	default:

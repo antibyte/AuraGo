@@ -72,8 +72,8 @@ func TestHAAreasFromEntityThenDeviceRegistry(t *testing.T) {
 
 func TestHACatalogExcludesHiddenDisabledAndAlarm(t *testing.T) {
 	c := demoCatalog(tools.HAConfig{})
-	if len(c) != 13 {
-		t.Fatalf("catalog has %d entities, want 13 (15 states - hidden guest_mode - alarm panel)", len(c))
+	if len(c) != 14 {
+		t.Fatalf("catalog has %d entities, want 14 (16 states - hidden guest_mode - alarm panel)", len(c))
 	}
 	for _, id := range []homedash.EntityID{"ha:input_boolean.guest_mode", "ha:alarm_control_panel.home"} {
 		if _, ok := c[id]; ok {
@@ -306,7 +306,7 @@ func TestHAWebsocketFetchOnce(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	states, reg, err := c.Fetch(ctx)
-	if err != nil || len(states) != 15 || len(reg.Areas) != 3 || len(reg.Devices) != 2 || len(reg.Entities) != 8 {
+	if err != nil || len(states) != 16 || len(reg.Areas) != 3 || len(reg.Devices) != 2 || len(reg.Entities) != 9 {
 		t.Fatalf("fetch = %d states, %+v, %v", len(states), reg, err)
 	}
 	sourcetest.WaitFor(t, time.Second, func() bool { return ha.OpenWebsockets() == 0 }, "the one-shot session closes")

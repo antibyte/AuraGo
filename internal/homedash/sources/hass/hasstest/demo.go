@@ -35,6 +35,9 @@ func DemoOptions() Options {
 			st("number.boiler_target", "55.0", map[string]any{"friendly_name": "Boiler target", "min": 30.0, "max": 70.0, "step": 1.0, "mode": "box", "unit_of_measurement": "°C"}),
 			st("script.goodnight", "off", map[string]any{"friendly_name": "Good night"}),
 			st("alarm_control_panel.home", "disarmed", map[string]any{"friendly_name": "Alarm"}),
+			st("climate.living_room", "heat", map[string]any{"friendly_name": "Living room thermostat", "min_temp": 10.0, "max_temp": 30.0,
+				"target_temp_step": 0.5, "hvac_modes": []any{"off", "heat", "cool", "auto"}, "current_temperature": 20.5, "temperature": 21.0,
+				"hvac_action": "heating", "unit_of_measurement": "°C"}),
 			st("camera.door", "idle", map[string]any{"friendly_name": "Door", "entity_picture": "/api/camera_proxy/camera.door?token=demo-secret", "access_token": "demo-secret"}),
 		},
 		Areas:   []Area{{AreaID: "kitchen", Name: "Kitchen"}, {AreaID: "living_room", Name: "Living room"}, {AreaID: "garage", Name: "Garage"}},
@@ -47,6 +50,7 @@ func DemoOptions() Options {
 			{EntityID: "scene.movie", AreaID: "living_room"},
 			{EntityID: "input_number.volume", AreaID: "living_room"},
 			{EntityID: "sensor.outdoor_temperature", AreaID: "living_room"},
+			{EntityID: "climate.living_room", AreaID: "living_room"},
 			{EntityID: "input_boolean.guest_mode", HiddenBy: "user"},
 		},
 		History: map[string][]HistoryPoint{
