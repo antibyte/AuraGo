@@ -153,6 +153,8 @@ type storymakerAgentLoop struct {
 	advice bool
 	// visual marks the one check round in which nothing is open and a model that can see looks at the film.
 	visual bool
+	// pass is the fill pass (1..storymakerFillPasses) of a scene loop. 0 means this is not a fill pass.
+	pass int
 }
 
 // storymakerAgentJob is the state of one running agent job.
@@ -488,6 +490,9 @@ const storymakerAgentVisualNote = "Nothing is open in the check. Look at the fil
 // storymakerAgentAttempts bounds one loop: it is restarted at most once, after a model error or an empty end.
 const storymakerAgentAttempts = 2
 
+// storymakerFillPasses is the number of turns a scene gets in the fill order: one in pass 1, one in pass 2 if still unfilled.
+const storymakerFillPasses = 2
+
 // storymakerAgentStopped is the error of a run that lost its context. The manager turns a requested
 // cancel or a shutdown into its own end state, whatever this returns.
 func storymakerAgentStopped() *render.JobError {
@@ -769,8 +774,16 @@ func (j *storymakerAgentJob) loopEnded(loop storymakerAgentLoop, answer string) 
 // counts as a model error, because advice never blocks the outcome.
 func (j *storymakerAgentJob) runPhase(ctx context.Context, loop storymakerAgentLoop) (string, bool) {
 	j.enterPhase(loop.phase, loop.sceneID)
-	for attempt := 1; attempt <= storymakerAgentAttempts; attempt++ {
-		fields := map[string]any{"phase": loop.phase, "attempt": attempt}
+	attempts := storymakerAgentAttempts
+	if loop.pass > 0 {
+		attempts = 1
+	}
+	for attempt := 1; attempt <= attempts; attempt++ {
+		number := attempt
+		if loop.pass > 0 {
+			number = loop.pass
+		}
+		fields := map[string]any{"phase": loop.phase, "attempt": number}
 		if loop.sceneID != "" {
 			fields["scene_id"] = loop.sceneID
 		}
@@ -783,8 +796,12 @@ func (j *storymakerAgentJob) runPhase(ctx context.Context, loop storymakerAgentL
 			return answer, true
 		}
 		if err != nil {
-			j.logger.Warn("[Storymaker] An agent loop failed", "job_id", j.job.ID, "phase", loop.phase, "attempt", attempt, "error", err)
-			if attempt == storymakerAgentAttempts && !loop.advice {
+			j.logger.Warn("[Storymaker] An agent loop failed", "job_id", j.job.ID, "phase", loop.phase, "attempt", number, "error", err)
+			last := attempt == storymakerAgentAttempts
+			if loop.pass > 0 {
+				last = loop.pass == storymakerFillPasses
+			}
+			if last && !loop.advice {
 				j.noteModelError(err)
 			}
 		}
@@ -921,14 +938,38 @@ func (j *storymakerAgentJob) runCreate(ctx context.Context) {
 		j.noteModelError(err)
 		return
 	}
-	for _, sceneID := range progress.Unfilled {
-		if ctx.Err() != nil {
+	j.runFillPasses(ctx, progress.Unfilled)
+	j.runCheckRound(ctx)
+}
+
+// runFillPasses fills the scenes of first in order, once each (pass 1). The scenes that are still unfilled
+// then get one more turn in the same order (pass 2), after every other scene had its own.
+func (j *storymakerAgentJob) runFillPasses(ctx context.Context, first []string) {
+	ids := first
+	for pass := 1; pass <= storymakerFillPasses; pass++ {
+		for _, sceneID := range ids {
+			if ctx.Err() != nil {
+				return
+			}
+			j.runPhase(ctx, storymakerAgentLoop{phase: storymaker.PhaseFill, sceneID: sceneID, pass: pass})
+			j.refreshProgress(ctx)
+		}
+		if pass == storymakerFillPasses {
 			return
 		}
-		j.runPhase(ctx, storymakerAgentLoop{phase: storymaker.PhaseFill, sceneID: sceneID})
-		j.refreshProgress(ctx)
+		progress, err := j.studio.Progress(ctx)
+		if err != nil {
+			j.logger.Warn("[Storymaker] The agent progress could not be read", "job_id", j.job.ID, "error", err)
+			j.noteModelError(err)
+			return
+		}
+		ids = nil
+		for _, sceneID := range first {
+			if slices.Contains(progress.Unfilled, sceneID) {
+				ids = append(ids, sceneID)
+			}
+		}
 	}
-	j.runCheckRound(ctx)
 }
 
 // publishOutcome decides the outcome and writes it to the job. A story that never got an outline
