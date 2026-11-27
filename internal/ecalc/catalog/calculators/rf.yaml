@@ -368,3 +368,34 @@
   checks:
     - {when: "(nf1 < 0) + (nf2 < 0) + (nf3 < 0) > 0", warn: {en: "A noise figure cannot be below 0 dB.", de: "Ein Rauschmaß kann nicht unter 0 dB liegen."}}
   formula: ["nft = 10 * log10(10^(nf1 / 10) + (10^(nf2 / 10) - 1) / 10^(g1 / 10) + (10^(nf3 / 10) - 1) / 10^((g1 + g2) / 10))", "te = 290 * (10^(nft / 10) - 1)"]
+
+- id: stripline_impedance
+  kind: calculator
+  category: rf
+  name: {cs: "Impedance symetrického stripline", da: "Stripline-impedans (symmetrisk)", de: "Stripline-Wellenwiderstand (symmetrisch)", el: "Χαρακτηριστική αντίσταση συμμετρικής γραμμής stripline", en: "Stripline impedance (symmetric)", es: "Impedancia de stripline (simétrica)", fr: "Impédance d'une ligne triplaque (symétrique)", hi: "स्ट्रिपलाइन प्रतिबाधा (सममित)", it: "Impedenza della stripline (simmetrica)", ja: "ストリップ線路の特性インピーダンス（対称）", nl: "Stripline-impedantie (symmetrisch)", no: "Stripline-impedans (symmetrisk)", pl: "Impedancja linii paskowej (symetrycznej)", pt: "Impedância de stripline (simétrica)", sv: "Stripline-impedans (symmetrisk)", zh: "对称带状线特性阻抗"}
+  doc:
+    en: "Characteristic impedance of a symmetric stripline: a trace of width w and copper thickness t centred in a dielectric of relative permittivity ε_r between two ground planes that are b apart (b is measured from plane to plane and includes the copper): Z_0 = 60 / √ε_r × ln(4 b / (0.67 π (0.8 w + t))). The formula is printed in the Motorola MECL System Design Handbook and in National Semiconductor AN-905. Best accuracy is quoted for b − t > 2 w and b > 4 t (AN-905); the MECL handbook quotes about ±5 % for w/(b − t) < 0.35 and t/b < 0.25. The calculator warns at the AN-905 ratios (w/(b − t) of 0.5 or more, t/b of 0.25 or more), because the stricter 0.35 would already flag the usual 50 Ω FR-4 design; above 0.35 expect the error to grow. Any one of Z_0, ε_r, b, w and t follows from the other four; w or t come out negative when Z_0 is too high for the given b. It is a closed-form approximation: use a field solver and the stackup of the board maker for controlled-impedance work. Example: ε_r 4.3, b = 0.5 mm, w = 0.15 mm and 1 oz copper give 52.46 Ω."
+    de: "Wellenwiderstand einer symmetrischen Stripline: eine Leiterbahn der Breite w und Kupferdicke t mittig im Dielektrikum (relative Permittivität ε_r) zwischen zwei Masseflächen im Abstand b (von Fläche zu Fläche gemessen, einschließlich des Kupfers): Z_0 = 60 / √ε_r · ln(4 b / (0,67 π (0,8 w + t))). Die Formel steht im Motorola MECL System Design Handbook und in National Semiconductor AN-905. Die beste Genauigkeit wird für b − t > 2 w und b > 4 t angegeben (AN-905); das MECL-Handbuch nennt etwa ±5 % für w/(b − t) < 0,35 und t/b < 0,25. Der Rechner warnt bei den Verhältnissen der AN-905 (w/(b − t) ab 0,5, t/b ab 0,25), weil die strengeren 0,35 schon den üblichen 50-Ω-Entwurf auf FR-4 markieren würden; oberhalb von 0,35 wächst der Fehler. Jede der Größen Z_0, ε_r, b, w und t ergibt sich aus den übrigen vier; w oder t werden negativ, wenn Z_0 für das gegebene b zu hoch ist. Es ist eine geschlossene Näherung: Für impedanzkontrollierte Leiterplatten einen Feldlöser und den Lagenaufbau des Herstellers verwenden. Beispiel: ε_r 4,3, b = 0,5 mm, w = 0,15 mm und 1 oz Kupfer ergeben 52,46 Ω."
+  tags: [stripline, symmetric stripline, pcb, impedance, transmission line, trace width, 50 ohm, controlled impedance, inner layer, rf, symmetrische stripline, leiterplatte, impedanz, wellenwiderstand, leiterbahnbreite, leitung, innenlage, impedanzkontrolliert, hf]
+  source: "Motorola, MECL System Design Handbook (W. R. Blood Jr., 4th ed., 1988), chapter 3, strip line, and National Semiconductor AN-905 Transmission Line RAPIDESIGNER Operation and Applications Guide (appendix A, microstrip and stripline Z0): Z0 = 60/√εr·ln(4b/(0.67π(0.8w+t)))"
+  vars:
+    er: {dim: number, label: ε_r, name: {en: "Relative permittivity", de: "Relative Permittivität"}, default: 4.3}
+    b: {dim: length, label: b, name: {en: "Dielectric thickness between the planes", de: "Dicke des Dielektrikums zwischen den Flächen"}, default: "0.5 mm", units: ["", "mil", "in"]}
+    w: {dim: length, label: w, name: {en: "Trace width", de: "Leiterbahnbreite"}, default: "0.15 mm", units: ["", "mil", "in"]}
+    t: {dim: length, label: t, name: {en: "Copper thickness", de: "Kupferdicke"}, default: "1 oz", unit: oz, units: ["", "oz", "mil"]}
+    z0: {dim: resistance, label: Z_0, name: {en: "Characteristic impedance", de: "Wellenwiderstand"}}
+  dof: 4
+  rules:
+    z0: ["60/sqrt(er)*ln(4*b/(0.67*pi*(0.8*w+t)))"]
+    er: ["(60*ln(4*b/(0.67*pi*(0.8*w+t)))/z0)^2"]
+    b: ["0.67*pi*(0.8*w+t)*exp(z0*sqrt(er)/60)/4"]
+    w: ["(4*b*exp(-z0*sqrt(er)/60)/(0.67*pi)-t)/0.8"]
+    t: ["4*b*exp(-z0*sqrt(er)/60)/(0.67*pi)-0.8*w"]
+  derived:
+    wbt: {dim: number, label: w/(b − t), name: {en: "Width relative to the dielectric thickness without copper", de: "Breite bezogen auf die Dielektrikumsdicke ohne Kupfer"}, expr: "w/(b-t)"}
+    tb: {dim: number, label: t/b, name: {en: "Copper thickness relative to the plane spacing", de: "Kupferdicke bezogen auf den Flächenabstand"}, expr: "t/b"}
+  checks:
+    - {when: "wbt >= 0.5", warn: {en: "w/(b − t) is 0.5 or more: outside the guiding ratio b − t > 2w of AN-905, expect a larger error (best accuracy is quoted below 0.35).", de: "w/(b − t) beträgt 0,5 oder mehr: außerhalb des Richtverhältnisses b − t > 2w der AN-905, ist mit einem größeren Fehler zu rechnen (die beste Genauigkeit wird unter 0,35 angegeben)."}}
+    - {when: "tb >= 0.25", warn: {en: "t/b is 0.25 or more: the copper is too thick relative to the plane spacing for the formula (b > 4t).", de: "t/b beträgt 0,25 oder mehr: Das Kupfer ist im Verhältnis zum Flächenabstand zu dick für die Formel (b > 4t)."}}
+    - {when: "er < 1", warn: {en: "ε_r below 1 is not physical.", de: "ε_r unter 1 ist physikalisch nicht möglich."}}
+  formula: ["z0 = 60 / sqrt(er) * ln(4 * b / (0.67 * pi * (0.8 * w + t)))"]
