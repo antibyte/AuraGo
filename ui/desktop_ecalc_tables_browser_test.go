@@ -192,8 +192,8 @@ func TestDesktopECalcTablesBrowser(t *testing.T) {
 	if got := page.MustEval(`()=>!!document.querySelector('.ec-rail-btn[data-rail="pinouts"]')`).Bool(); got != (len(f.Catalog.Pinouts) > 0) {
 		t.Fatalf("the Pinouts rail entry is shown = %v with %d real pinouts", got, len(f.Catalog.Pinouts))
 	}
-	if got := page.MustEval(`()=>document.querySelector('.ec-rail-btn[data-rail="tables"] .ec-count').textContent`).Str(); got != "8" {
-		t.Fatalf("the Tables rail entry counts %s tables, want the 8 of the fixture", got)
+	if got := page.MustEval(`()=>document.querySelector('.ec-rail-btn[data-rail="tables"] .ec-count').textContent`).Str(); got != "9" {
+		t.Fatalf("the Tables rail entry counts %s tables, want the 9 of the fixture", got)
 	}
 	// The shell handed the tables to the registry of the table functions.
 	if !page.MustEval(`()=>!!window.ECalcCore.tables&&typeof window.ECalcCore.tables.register==='function'&&!!window.ECalcCore.tables.get('fx_awg')`).Bool() {
