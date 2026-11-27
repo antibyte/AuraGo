@@ -120,3 +120,4 @@ internal/virtualcomputers/patches/*.patch text eol=lf whitespace=-blank-at-eol,-
 # Chibi Sensei: the trainer's bytes are hashed into every run; golden files and proof data are compared byte for byte.
 internal/chibisensei/trainer/** text eol=lf
 internal/chibisensei/testdata/** text eol=lf
+internal/chibisensei/chatrt/testdata/** text eol=lf

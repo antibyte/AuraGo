@@ -19,4 +19,3 @@ data: {"choices":[{"finish_reason":"stop","index":0,"delta":{}}],"created":17958
 data: {"choices":[],"created":1795801389,"id":"chatcmpl-JGWCPLt9a2BqDC5d4egBiubTbaPRELuN","model":"chibi","system_fingerprint":"b9994-14d3ba45f","object":"chat.completion.chunk","usage":{"completion_tokens":8,"prompt_tokens":18,"total_tokens":26,"prompt_tokens_details":{"cached_tokens":0}},"timings":{"cache_n":0,"prompt_n":18,"prompt_ms":1491.407,"prompt_per_token_ms":82.85594444444445,"prompt_per_second":12.069140080474345,"predicted_n":8,"predicted_ms":2777.145,"predicted_per_token_ms":347.143125,"predicted_per_second":2.880656213485432}}
 
 data: [DONE]
-
