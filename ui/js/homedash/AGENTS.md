@@ -135,9 +135,10 @@ review process are in `documentation/homedash-visual-system.md`. Desktop chrome 
 
 - `hd-w-switch.js`: `switch` (pill = H1, rocker = H2; push and tile have empty bodies).
 - `hd-w-light.js`: `light` (dial = H3; slider, fader and tile empty).
-- `hd-w-climate.js`: `climate` (dial = H4; stepper and scale empty).
-- `hd-w-sensor.js`: `gauge` (needle = H5, arc = H6; bar and tank empty), `temperature` (numeral = H7; thermometer and comfort empty)
-  and `sensor` (sparkline = H8; numeral without degree; icon empty).
+- `hd-w-climate.js`: `climate` (dial = H4; stepper and scale built in M4, see "Climate commands (M4)" below).
+- `hd-w-sensor.js`: `gauge` (needle = H5, arc = H6, bar and tank), `temperature` (numeral = H7, thermometer and comfort) and
+  `sensor` (sparkline = H8, numeral without degree, icon). The bar, tank, thermometer, comfort and icon variants were built in M4
+  (they were empty placeholders before).
 - `hd-w-misc.js`: `entity` (the M2 entity tile, see below).
 - Each module is an IIFE that registers its types with `E.widgets.register`. Its `create(api)` builds the DOM only with `api.prim.*`,
   `api.icons` and `E.el`/`E.svg`. It never reads layout and never uses `innerHTML`. Family-dependent options come from `api.family`.
@@ -492,6 +493,16 @@ code differ, the code is the truth and the difference is listed under "Plan diff
 
 The part-2 `model` objects are pure helpers for the Node tests. No part-1 code reads them.
 
+### Localized names (`E.names`, `hd-core.js`)
+
+- `E.names.display(entity, t)` is the name every surface shows (palette, entity picker, inspector, designer announcements).
+  `E.names.system(id, t)` gives the localized name of the six built-in system entities (`system:cpu`, `system:memory`,
+  `system:disk`, `system:net_rx`, `system:net_tx`, `system:uptime`) through `homedash.system.<native>`. The render host uses it
+  for a widget's title fallback.
+- `E.names.extraIds(q, t)` lists the system ids whose localized name matches a search. The palette and the entity picker ask for
+  those ids too, so a search finds a system entity by its localized name and by its raw name.
+- Presentation only. The server, saved documents and the agent tool keep the raw English name and id.
+
 ### Mount surface (C2, `hd-app.js`)
 
 - Options: `canEdit` (default true), `ui: {menu, focusWindow, sheetHost}` (the host functions; `sheetHost()` returns the element that
@@ -505,7 +516,7 @@ The part-2 `model` objects are pure helpers for the Node tests. No part-1 code r
   start unlocks, detaches and returns `false`.
 - `run` action owners (C2): the designer owns `undo redo cut copy paste duplicate delete select_all select_none reset_layout
   retry_save resolve_conflict show_draft add_widget focus_inspector toggle_palette toggle_inspector layout_lg layout_md layout_sm
-  page_prev page_next` (`E.designer.ACTIONS`); `E.ddialogs` owns `new rename import export look add_page` (`E.ddialogs.ACTIONS`);
+  page_prev page_next zoom_fit zoom_actual toggle_zoom` (`E.designer.ACTIONS`); `E.ddialogs` owns `new rename import export look add_page` (`E.ddialogs.ACTIONS`);
   the app owns `new_starter new_empty new_ha open duplicate_dashboard delete_dashboard edit exit_edit show_editor layout_auto fit present`.
   `rename`, `look` and `add_page` in view mode enter edit first, then run again (part-2 reading 8).
 - `delete_dashboard` uses the engine confirm sheet and is for the open dashboard only. Home-list delete stays on the host's own
@@ -540,6 +551,11 @@ The part-2 `model` objects are pure helpers for the Node tests. No part-1 code r
 - Focus: the designer never leaves focus on `body`. Every command, undo, redo and run ends in `settleFocus()` (`hd-designer.js`),
   which restores focus inside the root (the focused frame, else the page). Roving tabindex: one frame has `tabindex=0`.
 - Announcements go to one polite region (`.hd-live`). Repeated text gets a trailing NBSP so it is spoken again.
+- Zoom (G2, G14): `D.state().zoom` is `{fit, actual, available}`. `fit` is the zoom that fits the stage (1 when the page fits; the
+  view reports it after each layout). `actual` is this window's own choice: it is not in the document and it survives
+  breakpoint changes. `available` is `fit < 1`. `zoom_fit`, `zoom_actual` and `toggle_zoom` (the edit bar button) set `actual`;
+  a running gesture is cancelled first. The edit bar button is shown only while `available`; the View menu items are always
+  listed and enabled only while `available` (the host's `A(true, enabled, checked)` rule).
 
 ### Save lane (C8, `hd-save.js`)
 
@@ -551,7 +567,8 @@ The part-2 `model` objects are pure helpers for the Node tests. No part-1 code r
   debounce. A failed PUT drops it. Residual window: a change made while a PUT is open is lost if the whole tab unloads before the
   open PUT answers.
 - Generation counter: `conflict`, `overwrite` and `reset` start a new generation. A late answer of an older PUT changes nothing.
-- Error mapping: retry for status 0, 401, 408, 429 and 5xx (`retryAfter` wins); 409 goes to `conflict`; 404 to `gone`; 403 to
+- Error mapping: retry for status 0, 401, 408, 429 and 5xx (`Retry-After` wins, clamped to 1 to 30 s; a 401 keeps retrying because
+  the session may come back); 409 goes to `conflict`; 404 to `gone`; 403 to
   `readonly` until `retryNow()`; other 4xx (400, 413, 422 incl. `bad_json`, `limit_exceeded`) to `invalid` until the next `set`.
 - `atRisk()` tells the window whether a close could lose changes (a dirty body over `KEEPALIVE_MAX`, or an open PUT that is not
   keepalive or has a queued follow-up). `hd-app.js` uses it for the `beforeunload` prompt.
@@ -590,19 +607,63 @@ The part-2 `model` objects are pure helpers for the Node tests. No part-1 code r
 - `E.input.track` drives every drag: primary pointer and main button only, thresholds 4 px (canvas) and 5 px (palette), touch
   long-press 300 ms for an unselected frame. Commit kinds: `move`, `resize`, `marquee`, `add`, `rebind`. Cancel (Escape, pointer
   cancel, blur, page switch, reconcile, exit) restores the start layout.
+- Click eater (`hd-input.js`, `E.input.track`): after a drag that ended with a pointer up, the next click within 400 ms is
+  swallowed. A one-shot capture listener on the window removes itself after that click, on the next pointer down, or after
+  450 ms. A cancelled gesture (`cancel`, `lost`) is followed by no click and arms nothing. `press`, `gesture` and `repeat` use the
+  same 400 ms rule on their own elements, so a drag never opens what it dropped on (a tap on a widget or a list row).
 - Auto-scroll within 48 px of the stage edge. Metrics are frozen at gesture start. The page is laid out at the preview width and
-  scaled with CSS zoom to the stage (`page.metrics().zoom`); gestures divide client coordinates by the zoom in `local()`.
+  scaled with CSS zoom to the stage (`page.metrics().zoom`, 1 when not scaled). Gestures turn every viewport length into a page
+  length in one place (`hd-gestures.js`, `math.toPage`, divided by the zoom; the page-local point is `local()`).
 - `E.render.page({mode, bp, fit, describe, emptyAction})`: design mode uses `role=listbox` with `aria-multiselectable` on the page and
   `role=option` on frames. Forced widths: lg `max(W, 960)`, md `clamp(W, 600, 768)`, sm `390` (`--hd-e-pw`).
+- Zoom to fit (G2, `hd-render.js`): in design mode a forced lg or md page keeps its preview width, so the metrics stay WYSIWYG,
+  and the CSS `zoom` property scales it to the stage's inner width. `E.render.zoomFor(avail, width)` is
+  `max(ZOOM_MIN, avail / width)` floored to 3 decimals, and 1 when the page fits. `ZOOM_MIN` is 0.5: below it the page stays at
+  0.5 and the stage scrolls. The zoom is written to the page as the runtime variable `--hd-e-zoom` and the attribute
+  `data-hd-zoomed` (through the CSSOM). `metrics()` reports `zoom` and `fitZoom`.
+- Actual size (G14): `setZoomActual(true)` forces zoom 1 and the stage scrolls. The choice is the window's (`zoomActual` option),
+  not a document field, and it is not restored after a reload.
+- `E.render.contentBox(node, cs)` is the stage's inner box (padding removed; the design stage has a 16 px inset). Metrics and zoom
+  use it, so the page never overflows the stage sideways. The inset keeps the outline, the handles and the chip of a widget in the
+  first or last column and row whole.
+- Chrome 128 and later (standardised CSS zoom; the measurement is in the comment at the top of `hd-render.js`): the bounding
+  rect and the pointer client coordinates are in viewport pixels, and layout sizes inside the page are unzoomed. The page-local
+  point is `(client - rect.left) / zoom`.
+- The edit layer is sized in one visual pixel (`--hdx-u` on the design page, divided by the zoom in the host CSS), so outlines,
+  handles and the chip keep their size on screen. Coarse handles keep 44 px hit areas at any zoom.
+
+### Performance rules (D11)
+
+- Budget: a drag or resize on a page with 60 widgets keeps one `requestAnimationFrame` per frame and writes only the items that
+  changed. The browser test step `20-drag-budget` (`TestDesktopHomeDashDesignerBrowser`) fails on any long task (over 50 ms, from a
+  `longtask` observer) while the pointer is down or at the release, and needs at least 90 frames in its 2 s drag.
+  `HOMEDASH_M4_PERF=log` only logs the misses, for a host that other processes overload (a long task is a wall-clock measure).
+  The default enforces the budget.
+- Per-widget variables are registered as non-inherited (`CSS.registerProperty`, syntax `*`, `inherits: false`) in `hd-render.js`:
+  `--hd-x`, `--hd-y`, `--hd-w`, `--hd-h`, `--hd-rows`, `--hd-e-fx`, `--hd-e-fy`, `--hd-e-dx`, `--hd-e-dy`. Writing one of them
+  then restyles only its element, not its subtree. Without the API they stay plain inherited properties (slower, not wrong).
+- A frame reads the pointer and the metrics before it writes any variable (`hd-gestures.js`: no read after a write in the same frame).
+- The page height of a gesture only grows. A shorter layout during the gesture does not shrink the page, so the next frame does not
+  grow it again; the commit or the cancel restores the exact height of the document. `--hd-rows` is written only when it changes.
+- No container query on the app root. The size containers are `.hdx-bar` and `.hdx-home` (`container: hdx / inline-size`); the
+  app and the dashboard inside it are not containers (`desktop-app-homedash.css`, "The size containers are the bar and the home
+  view, never the app"). A widget card carries its own `hd-widget` size container.
 
 ### Keyboard, DOM and CSS contract (C14, C15)
 
 - The DOM contract table is C15 in the plan. The styled selectors are in `ui/css/desktop-app-homedash.css` (editor chrome) and the
-  bundle parts (widgets and frames). Editor geometry is written as `--hd-e-*` (`fx`, `fy`, `dx`, `dy`, `pw`, `g`, `mx`, `my`, `mw`,
+  bundle parts (widgets and frames). Editor geometry is written as `--hd-e-*` (`fx`, `fy`, `dx`, `dy`, `pw`, `zoom`, `g`, `mx`, `my`, `mw`,
   `mh`, `ax`, `ay`, `tw`, `th`, `ts`). Those are runtime variables, not design tokens. Host-local chrome variables are
   `--hdx-e-*` (see the visual system page).
 - The designer root carries `data-hd-mode`, `data-hd-drawers`, `data-hd-panel`, `data-hd-gesture`, `data-hd-has-palette`,
   `data-hd-has-inspector`. Drawers are used below 900 px root width.
+- The design page carries `data-hd-zoomed` while it is scaled (`data-hd-preview` for a forced width). State hooks for the tests and
+  the hosts are `data-hd-has-palette` and `data-hd-has-inspector`; the other editor classes are styled through descendant rules.
+- Hover never replaces the background of a selected, expanded, pressed or checked control (the hover rules in
+  `desktop-app-homedash.css` carry `:not([aria-selected="true"])`, `[aria-expanded="true"]` or `[aria-pressed="true"]`).
+- Home-mode sheets: the engine root is hidden on the home screen, so the sheets opened there live in `.hdx-app`. The `.hd-sheet`,
+  `.hd-btn` and `.hd-f-*` rules are scoped to `:is(.hd-root, .hdx-app)`, so those sheets paint from the same tokens.
+  Host-local editor variables (`--hdx-e-*`) are declared on `:is(.hd-root[data-hd-host], .hdx-app)`.
 
 ### Part 2 rules (C17 to C20)
 
@@ -612,11 +673,20 @@ The part-2 `model` objects are pure helpers for the Node tests. No part-1 code r
 - **Forms.** `E.form` controls build the shared chrome (`hd-f-*` classes). A form dialog opens on `E.sheet` with no built-in
   actions and its own `.hd-dlg-btn` buttons, so it can refuse to close while invalid. Text that the server refuses
   (`E.form.textIssue`, the copy of the `ContainsControl` and `ContainsURL` rules) is flagged inline and never sent.
-- **Thumbs.** Palette thumbs render at their thumb size, capped at 2×2 (Q11), in 56 px cells with an 8 px gap.
+- **Thumbs.** A palette thumb is drawn at its real size (`E.samples.pxOf`: the default size capped at 2×2, Q11, with the 80 px
+  cell and 12 px gap of `E.samples.CELL` and `GAP`) and scaled to fit the card's preview box (`--hd-e-tw`, `--hd-e-th`,
+  `--hd-e-ts`; centred, never cropped, 4 px margin). Thumbs use the dashboard's own family (`look.family`) and are rebuilt when it
+  changes (`hd-palette.js`).
 - **Entity browser.** Pages of 200 rows; area options come from the loaded rows (Q13); at most 20 visible rows have live state
   through their own watch owner. The picker sends one request per allowed kind and filters with `catalog.accepts`.
 - **Look editor.** An end-docked modal sheet with no scrim (Q3). The canvas stays visible and updates live but is inert while the
-  sheet is open. The sheet is built on `ui.sheetHost()` when the engine root is hidden.
+  sheet is open. The sheet is built on `ui.sheetHost()` when the engine root is hidden. Its sections are **Surface** (Background,
+  Corner rounding) and **Grid** (Spacing, Size on screen, Row height, and the page compaction switch). Each section has one heading;
+  the switch's label is "Close gaps on this page" (`homedash.look.compaction`), the same wording as the inspector's page switch
+  (`homedash.inspector.page_compact`).
+- **Import.** A file over 512 KiB is refused before it is read. It is parsed as untrusted JSON and checked against the count limits
+  (more than 12 pages, more than 120 widgets on a page, more than 400 widgets, or too many layout rows on a page) before
+  `normalise` places anything; such a file fails with `limit_exceeded` and creates nothing (`hd-designer-dialogs.js`, review S1).
 - **Icons.** `E.icons.choices()` lists the icon names. Each has a translated label `homedash.icon.<name>`; the search matches the
   label and the id, with accents folded (`E.form.fold`).
 
@@ -638,13 +708,16 @@ The part-2 `model` objects are pure helpers for the Node tests. No part-1 code r
 ### Tests and commands (M4)
 
 - Node (`npm run test:homedash`, all suites): `clipboard.test.mjs`, `commands.test.mjs`, `save.test.mjs`, `designer.test.mjs`,
-  `palette.test.mjs`, `inspector.test.mjs`, `dialogs.test.mjs`, plus `wiring.test.mjs` (APP_ORDER) and `i18n.test.mjs` (the
+  `palette.test.mjs`, `inspector.test.mjs`, `dialogs.test.mjs`, `zoom.test.mjs` (the G14 design zoom and its view state),
+  `names.test.mjs` (`E.names`, search by both names), `climate.test.mjs` (the climate dial commands), `g13b.test.mjs` (the state
+  mark, the seven variants that were placeholders, and the select list fallback), plus `wiring.test.mjs` (APP_ORDER) and `i18n.test.mjs` (the
   locale key sets and the allowlist of English-equal values; each allowlist entry needs a reason).
 - Go, no browser: `go test ./ui -run '(?i)^(TestHomeDashWiring|TestHomeDashFixture.*|TestTranslations_.*|TestFrontend_StaticI18nKeysExistInEnglishBundle|TestFrontend_JS_NoLiteralTranslationFallbacks|TestDesktopDynamicI18nPrefixKeysExistInAllLanguages|TestDesktopAppMaterialsAdoptedByApps)$' -count=1`
-  and `go vet ./ui`. The Go tests that read embedded files need a real build, not `-overlay`.
+  and `go vet ./ui`. The Go tests that read embedded files need a real build, not `-overlay`. The package tests of `internal/homedash`
+  (`go test ./internal/homedash -count=1`) include `TestWidgetCatalogDefaults` (`internal/homedash/catalog_test.go`, D2).
 - Gates (browser, Chrome, shell sandbox off, outside the repository): `HOMEDASH_M4_SHOTS=1` runs gates E-S and E-F; `HOMEDASH_M4_SHOTS=all`
   adds E-T (16 variants at 1x and 2x). `HOMEDASH_M4_DIR` is required and receives the sheets, never the repository.
-  `HOMEDASH_M4_LANG` (default `en`; `de` for the German pass) and `HOMEDASH_M4_STATES` (a regexp for development) are optional.
+  `HOMEDASH_M4_LANG` (default `en`; `de` for the German pass) and `HOMEDASH_M4_STATES` (a regexp for development) are optional; the full list is under "Gate probes and the widget fit survey (M4)".
   The test is `TestDesktopHomeDashDesignerGatesBrowser` in `ui/desktop_homedash_designer_gates_test.go`; CI skips it.
 
   ```powershell
@@ -656,12 +729,105 @@ The part-2 `model` objects are pure helpers for the Node tests. No part-1 code r
 
 - After adding or renaming a browser test, run `go test ./internal/audit -run '^TestUIBrowserCIShardsCoverEveryTest$' -count=1`.
 
+### Widget small sizes (G13, M3 widget CSS)
+
+These rules live in `homedash-widgets.css` and the family files. The designer, the view, the kiosk page and the palette thumbs all get them.
+
+- The title keeps its row. Under 100 px card width the head icon is hidden; under 90 px the frame padding is 6 px; under 80 px it is
+  4 px and the title tracking is a fifth. From 140 to 159 px the head icon is hidden and the tracking grows. The head icon and the
+  status badge give way before the title does.
+- Compact stack: under 96 px card height the head is one 14 px line above the 44 px control, and the state line leaves the layout
+  (visually hidden; it stays in the accessibility tree, and the control already shows the value). The vertical padding takes what
+  is left.
+- State mark: `span.hd-mark` (written by `hd-widgets.js`; `data-kind` is `alert`, `readonly` or `stale`; the fact is its accessible
+  name and its tooltip). From 100 px card width it is a 12 px glyph after the title. Under 100 px it is an 8 px dot in the top-right
+  corner (solid for stale and alert, a 2 px ring for read-only), and the title row keeps 5 px free for it.
+- Segmented to list: a segmented select renders the list control when its options do not fit. The capacity is 3 options at width 1
+  to 2 and 5 from width 3 (A2), and the labels must show in full on the laid-out card (`hd-w-select.js`, Q10).
+- Picker chevron: under 140 px the picker trims its padding and gap; under 90 px (1x1) the chevron leaves, the value is centred and
+  the whole tile is the button (the listbox still opens from it).
+
+### Climate commands (M4)
+
+- Variants: `dial` (knob with steppers and a mode bar), `stepper` (plus and minus keys) and `scale` (a vertical scale). All three send
+  through `api.command` with the phases of the W1 controls (`hd-w-climate.js`).
+- Target: `set_temperature {value}`. The knob and the scale send `input` frames while they move and one `commit` on release. A tap on
+  the ring commits. The plus and minus keys and the arrow keys send `key` phases, which trail 400 ms and coalesce.
+  `set_temperature` is in the continuous list of `hd-command.js` (`CONTINUOUS`). Range and step come from the capability and from the
+  attributes (`min_temp`, `max_temp`, `target_temp_step`); the Home Assistant defaults apply until the entity reports them.
+- Mode: the dial's mode bar sends `hvac_mode {option}` (the capability name is `hvac_mode`; the Home Assistant source maps it to the
+  service `set_hvac_mode`). A click is discrete and the arrow keys send `key`. The modes offered are the capability's options, else the
+  `hvac_modes` attribute, else all four (`off`, `heat`, `cool`, `auto`).
+- Off mode: when the entity's mode is `off`, the target controls send nothing and announce the off mode. Read-only, blocked and design
+  mode widgets send nothing either.
+- Expected states (server, `internal/homedash/sources/hass/commands.go`, `expectedState`): `set_temperature` keeps the current mode as
+  the state value and sets the `temperature` attribute (or `target_temp_low` and `target_temp_high` for a range). `hvac_mode` predicts
+  the chosen mode as the state value. When the mode is empty, `unavailable` or `unknown`, no expected state is given, so the overlay
+  waits for the stream.
+
+### Gate probes and the widget fit survey (M4)
+
+- Gate probes (`ui/desktop_homedash_designer_gates_test.go`). Contrast is pixel truth: the page reads the colour of each visible chrome
+  text, and Go takes one screenshot with all text transparent and passes a text at 4.5:1 against the median background pixel (the
+  10th-percentile pixel is reported too). A text that another element covers completely is recorded as skip `occluded`, which is not
+  a pass; one outside the screen is skip `offscreen`. Screen-reader-only text is not measured. UI parts are checked at 3:1 (selection,
+  handles, guides, ghost and marquee on the canvas; switch tracks; field, select, device, segmented and swatch borders against the
+  pixels inside them; the focus ring, at least 2 px on screen, zoom included). Hit sizes are 24 px (fine) and 44 px (coarse); handles
+  are 12 px and 44 px. Chrome text that is cut, ellipsised or spills out of its box fails. A running infinite animation fails.
+- An infrastructure failure is not a pass. A state that cannot be staged (a panic, or the per-state deadline) is listed under
+  "Infrastructure failures (not measured, not passed)" in `index.html`, and a variant with repeated failures in a row is skipped and
+  listed. `probes.json` and `index.html` are written however the run ends.
+- Gate environment: `HOMEDASH_M4_SHOTS` (`1` runs E-S and E-F; `all` adds E-T), `HOMEDASH_M4_DIR` (required), `HOMEDASH_M4_LANG`
+  (`en` by default; `de` for the German pass; the desktop shell bundle of the same language is loaded too, so the window menu follows
+  the pass), `HOMEDASH_M4_STATES` (regexp over the state names; development only), `HOMEDASH_M4_VARIANTS` (regexp over the theme
+  variant names), `HOMEDASH_M4_DPRS` (for example `1` or `1,2`) and `HOMEDASH_M4_DEADLINE` (a Go duration, for example `2s`, to exercise
+  the infrastructure path).
+- Repository guard: `hdSafeOutDir` makes an output path absolute (relative to the test's working directory) and refuses a path at or
+  under the directory that holds `go.mod`. The gate and `TestDesktopHomeDashDesignerBrowser` (its `flow` sheets under
+  `HOMEDASH_M4_DIR`) both use it.
+- Designer browser test environment: `HOMEDASH_M4_SHOTS`, `HOMEDASH_M4_DIR`, `HOMEDASH_M4_LANG`, `HOMEDASH_M4_F1_STEPS` (regexp over the
+  step names) and `HOMEDASH_M4_PERF=log` (step `20-drag-budget` logs the misses only).
+- Widget fit survey: `TestDesktopHomeDashWidgetFitBrowser` (`ui/desktop_homedash_widget_fit_test.go`; needs
+  `AURAGO_RUN_BROWSER_SMOKE=1`). Every widget type and variant in every family, at the default and the minimum size, on the cells of a
+  lg (960 px), md (768 px) and sm (390 px) page, with realistic long names; plus the palette thumbs at 80 px cells and, unless
+  disabled, every allowed size up to 6x4. It checks that the title shows its full name or at least 8 characters, that no header text
+  is cut to 2 characters or fewer, that no control value or label is cut under 4 characters, that no text box meets a control or
+  another text box, that stale, read-only and alert tiles show a visible mark, and that no body is empty. Output: `probes.json` and one
+  contact sheet per family and page, written to `HOMEDASH_WF_DIR` (default `C:\disposable\homedash-m4\g13\before`; a directory in
+  the repository is refused).
+  - `HOMEDASH_WF_DIR` output directory. `HOMEDASH_WF_FAMILIES` (comma list, default all four). `HOMEDASH_WF_PALETTE` (`dark` by
+    default, or `light`). `HOMEDASH_WF_EXTENDED=0` drops the sizes up to 6x4. `HOMEDASH_WF_BPS` (`lg`, `md`, `sm`, `c96`, `thumb`; a
+    comma list renders only those pages). `HOMEDASH_WF_REPORT_ONLY=1` writes the report without failing.
+  - `HOMEDASH_WF_SHOW_EXT=1` also puts the extended sizes on the sheet image. `HOMEDASH_WF_ONLY` (`type/variant,...`) renders only those
+    widgets. `HOMEDASH_WF_LAB=1` renders the lab sheets instead (default size and 96 and 67 px cells, six states; it defaults to the
+    climate dial and the G13 variants; measured, never failing). `HOMEDASH_WF_EXTRA_CSS` (a file) is injected after the bundle to try
+    rules before they go into the bundle. `HOMEDASH_WF_DUMP=type/variant/WxH[/stale]` with `HOMEDASH_WF_DUMP_BP=lg` logs the element
+    boxes of one tile.
+- Browser commands (M4; build from the repository root, run from `ui` with the shell sandbox off, flags quoted; the output directories
+  must be outside the repository):
+
+```powershell
+go test -c -o D:\tmp\go-build\hd-m4-ui.test.exe ./ui
+Set-Location ui
+$env:AURAGO_RUN_BROWSER_SMOKE='1'; & D:\tmp\go-build\hd-m4-ui.test.exe '-test.run=^TestDesktopHomeDashDesignerBrowser$' '-test.v' '-test.timeout=30m'
+$env:AURAGO_RUN_BROWSER_SMOKE='1'; & D:\tmp\go-build\hd-m4-ui.test.exe '-test.run=^TestDesktopHomeDashWidgetFitBrowser$' '-test.v' '-test.timeout=30m'
+```
+
+- The other M4 browser tests are `TestDesktopHomeDashControlsBrowser` and `TestDesktopHomeDashBrowser` (M3 and M2, run commands above),
+  `TestDesktopHomeDashControlLabBrowser`, and `TestDesktopHomeDashLiveHABrowser` in `internal/server` (the live step: the server
+  accepts what the designer saves, against the real handlers; it also needs `AURAGO_RUN_BROWSER_SMOKE=1` and Chrome).
+
 ### Plan differences (M4 code against the plan text)
 
 - The test files `form`, `look`, `samples` and `entity-picker` have no Node suite in `scripts/homedash-tests/` (the palette, inspector,
   dialogs, clipboard, commands, save and designer suites exist). Their behaviour is covered by the designer and the browser gates.
 - `hd-app.js` listens for `pagehide` and `beforeunload` on the window; the host `homedash.js` does not. The plan places both in the
   mount, and the code agrees.
+- Zoom is not in the plan's contract text. The code adds `D.state().zoom`, `E.render.zoomFor` and `ZOOM_MIN`, the `zoom` and
+  `fitZoom` fields of `page.metrics()`, and the View menu pair (G2, G14).
+- `E.names` (G20) lives in `hd-core.js`, which is not a designer file. It is a presentation helper only.
+- Part-2 reading 10 gives palette thumbs 56 px cells and an 8 px gap. The code uses `E.samples.CELL` 80 and `GAP` 12 (the thumb is
+  scaled into its card box). This guide follows the code.
 
 ## Work Guidance
 

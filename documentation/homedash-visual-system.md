@@ -1360,7 +1360,8 @@ The gate records are local (git-ignored); the rules here are the versioned part.
 
 - The plan adds no `--hd-*` design token. The token freeze (`m1.test.mjs`) covers only the `--hd-*` rules of the six token and family
   parts, and the M4 chrome lives outside them.
-- Host-local editor variables are declared on `.hd-root[data-hd-host]` in `desktop-app-homedash.css`:
+- Host-local editor variables are declared on `:is(.hd-root[data-hd-host], .hdx-app)` in `desktop-app-homedash.css` (the
+  `.hdx-app` part covers the sheets of the home screen):
   - `--hdx-e-line`: `--vd-mat-divider`, fallback `--vd-theme-border`.
   - `--hdx-e-muted`: `--vd-theme-muted`.
   - `--hdx-e-sel`: `--hd-focus`, fallback `--vd-accent` (the selection colour).
@@ -1390,6 +1391,10 @@ The gate records are local (git-ignored); the rules here are the versioned part.
 - Canvas handles are drawn 8 × 8 with a 12 px hit area. With a coarse pointer they are 44 px, and only the `se`, `e` and `s` handles
   get that size.
 - Selection, focus and drag never change the layout: the outline, the ring and the handles are drawn over the frame.
+- Design zoom (G2, G14): a design page wider than the stage is scaled with CSS zoom to fit it (never below half size; then the
+  stage scrolls). "Actual size" puts the page at 100 %. The edit bar toggle is shown only while the fit is below 100 %.
+- Edit-layer geometry (outline, handles, chip, guides) is drawn in one visual pixel (`--hdx-u`, host-local) divided by the zoom, so
+  those parts keep their size on screen at any zoom. Coarse pointers keep 44 px handle areas at any zoom.
 
 ### Fields and borders
 
@@ -1405,6 +1410,8 @@ The gate records are local (git-ignored); the rules here are the versioned part.
   engine announces the transitions.
 - Focus ring on bar controls: `--hdx-e-ring` (the theme focus outline). On the canvas: the `--hd-focus` ring, drawn as a box-shadow so
   the layout does not move.
+- Widget focus in design mode: a focused widget frame shows a 2 px ring (`:focus-visible`, a box-shadow, so no layout moves). It
+  differs from the selection outline, which is a dashed accent line, so focus and selection are both visible.
 - Disabled: `aria-disabled="true"` for an unavailable control only. Read-only never sets `aria-disabled` (M3 rule, unchanged in M4).
 
 ### Motion
@@ -1416,7 +1423,8 @@ The gate records are local (git-ignored); the rules here are the versioned part.
 
 ### Gates
 
-- E-S (Q1: Fruity light and Fruity dark, placeholder theme), E-F (the focus gate; its states are staged by the gate test) and E-T
+- E-S (Q1: Fruity light and Fruity dark, placeholder theme), E-F (the designer on each of the four family canvases in Fruity light and
+  dark, each with a selected widget, its handles and a ghost) and E-T
   (the 16 variants of `parseDesktopThemeRegistry`, 1x and 2x, only with `HOMEDASH_M4_SHOTS=all`, Q15).
 - Run: `ui/desktop_homedash_designer_gates_test.go` with `HOMEDASH_M4_SHOTS` (`1` or `all`), `HOMEDASH_M4_DIR` (required; the sheets
   go there, never into the repository), and `HOMEDASH_M4_LANG` (`en` default, `de` for the German pass). `HOMEDASH_M4_STATES` is a
@@ -1424,6 +1432,9 @@ The gate records are local (git-ignored); the rules here are the versioned part.
 - The probe definitions are in the gate test file. This section states the thresholds that apply: 3:1 for field borders and for
   `--hd-focus` on cards and canvas, 44 px coarse targets, and the muted text pairs on the bar and side panels. A threshold is never
   lowered to pass a sheet.
+- Pixel truth for text contrast: the probe reads each text's colour and measures it against the pixels behind it in a screenshot
+  with all text transparent (the median pixel, the 10th-percentile pixel is reported too). A text that another element covers
+  completely is recorded as skipped ("occluded"), never as a pass. Screen-reader-only text is not measured.
 - The gate runs are not recorded in this file. The hand-over (F5) lists the directories and dates.
 
 ### Sheet locations
@@ -1431,7 +1442,7 @@ The gate records are local (git-ignored); the rules here are the versioned part.
 - Engine sheets (`E.sheet`, `.hd-sheet-layer > .hd-sheet[data-kind=confirm|conflict|leave|form]`) sit in the `.hd-root` of the open dashboard.
   The conflict and leave sheets reuse the confirm paint.
 - Home-mode sheets (the import sheets, reached from the home screen) are built on the host's `.hdx-app`, because the engine root is hidden
-  there. The host passes `ui.sheetHost()`.
+  there. The host passes `ui.sheetHost()`. They take the same sheet and form paint as the engine root.
 - The look editor is a modal form docked at the end edge with no scrim (Q3, `data-kind=form`). The canvas stays visible and live.
 
 ## M4 lead rulings
@@ -1453,3 +1464,11 @@ One line each. These bind the designer controls of M4 and later editor work. The
 - **Q17 borders:** field and segmented borders are probed at 3:1 in all 16 variants; the editor CSS draws them from `--vd-*`.
 - **Reading 4 accent:** only Done and the empty page's primary action use an accent fill.
 - **Reading 5 muted text:** on the bar and the side panels, muted text is `--vd-theme-muted`.
+- **G2 and G14 zoom:** a design page is scaled to fit the stage and never shown below half size. "Actual size" is a choice of one
+  window and is not saved. The toggle and the View menu pair follow the fit.
+- **G8 focus:** a focused widget in design mode has a 2 px ring; it is never the same mark as the selection outline.
+- **G13 small sizes:** the title keeps its row and the head icon gives way first; under 96 px card height the state line leaves the layout
+  (the compact stack, the control shows the value); the state mark becomes an 8 px dot under 100 px card width.
+- **G17 and G18 Look and the page switch:** the Look sheet groups fields under Surface and Grid; the page compaction switch reads
+  "Close gaps on this page" everywhere.
+- **G20 names:** a system entity shows its localized name on every surface; the search matches the localized and the raw name.

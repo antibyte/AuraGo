@@ -80,7 +80,9 @@
     `ui.sheetHost` returns the host's `.hdx-app` element.
   - Window menus (`ctx.setWindowMenus`), item sets as in contract C3 of the engine guide: the Dashboard menu (home mode: New, Open,
     Import, Reload; with a dashboard: Rename, Duplicate, Delete, Export and Import added), the Edit menu (undo, redo, cut, copy,
-    paste, duplicate, delete, select all) and the View menu (Edit mode, Layout, Fit to screen, Present). Items come from
+    paste, duplicate, delete, select all, Look) and the View menu (Edit mode, Layout, Zoom to fit, Actual size, Fit to screen, Present).
+    Zoom to fit and Actual size are checked items of one pair (`zoom_fit` is checked while the page is scaled, `zoom_actual` while it
+    shows at 100 %); both are enabled only while the designer can scale the page (fit zoom below 1). Items come from
     `edit.actions`, so `disabled` and `checked` follow the engine. Keyboard shortcuts are display only: items carry `shortcutHint` and never `shortcut`, because
     `handleWindowMenuShortcut` only matches `shortcut`. The desktop shell keys stay in the engine's own root listener.
   - Context menus: `wireContextMenuBoundary(root, {onContextMenu})` asks `inst.contextMenu(ev)` and shows its items. `toDesktopItems`
@@ -99,12 +101,18 @@
   - Home-list delete keeps the host's own `sheet.confirm` and then removes the card (Q6). The open dashboard uses the engine confirm.
   - Sheets: the engine's `E.sheet` layer sits in `.hd-root` while a dashboard is open. On the home screen the engine root is hidden,
     so the import and other home-mode sheets are built on `.hdx-app` (`sheetHost`). The plan text says "inside `.hd-root`" only; the
-    home-mode case is the code's behaviour (see "Plan differences" in the engine guide).
+    home-mode case is the code's behaviour (see "Plan differences" in the engine guide). Those sheets are styled under `.hdx-app`:
+    the `.hd-sheet`, `.hd-btn` and `.hd-f-*` rules are scoped to `:is(.hd-root, .hdx-app)`, so the import sheets paint from the tokens
+    on the host too.
   - Gate harness: the browser gates in `ui/desktop_homedash_designer_gates_test.go` are skipped unless `HOMEDASH_M4_SHOTS` is `1`
     or `all`; they need `HOMEDASH_M4_DIR` (the sheets go there, never into the repository), and `HOMEDASH_M4_LANG` and
-    `HOMEDASH_M4_STATES` are optional. The engine guide has the run command.
+    `HOMEDASH_M4_STATES` are optional. `HOMEDASH_M4_LANG` loads the desktop shell words of the same language as well as the HomeDash
+    words, so one pass is one language end to end (the window menu follows it). The environment list and the run commands are in the
+    engine guide, "Gate probes and the widget fit survey (M4)".
   - Tests: `npm run test:homedash` (the `host`, `home` and `app` suites), `TestHomeDashWiring`, `TestDesktopAppMaterialsAdoptedByApps`
-    and the gate test above.
+    and the gate test above. The M4 browser tests are `TestDesktopHomeDashDesignerBrowser` (`ui/desktop_homedash_designer_browser_test.go`,
+    the designer flow with the 60-widget drag budget and the zoom step), `TestDesktopHomeDashWidgetFitBrowser`
+    (`ui/desktop_homedash_widget_fit_test.go`, the widget fit survey) and `TestDesktopHomeDashLiveHABrowser` (`internal/server`).
 
 ## ECalc
 
