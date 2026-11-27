@@ -110,3 +110,31 @@ func TestStudioOutlineBudgetsAndLock(t *testing.T) {
 		t.Error("the accepted third attempt must end the phase")
 	}
 }
+
+func TestFreeOutlineSeedsTheBoard(t *testing.T) {
+	ctx := context.Background()
+	envsOf := func(s *Studio, ps *ProjectStore, id string) []string {
+		t.Helper()
+		s.SetPhase(PhaseOutline, "")
+		if res, _ := callOutline(t, s, "concept_explainer", "Eins zwei drei", "Vier fuenf"); res.Status != "ok" {
+			t.Fatalf("outline: %s", res.JSON)
+		}
+		data, _, err := ps.LoadStory(ctx, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out []string
+		for _, sc := range mustDecode(t, string(data)).Scenes {
+			out = append(out, sc.Environment)
+		}
+		return out
+	}
+	free, ps, id := newFreeStudioRig(t)
+	if got := envsOf(free, ps, id); len(got) != 2 || got[0] != BoardEnvironmentID || got[1] != BoardEnvironmentID {
+		t.Errorf("free outline environments = %v, want env.board twice", got)
+	}
+	catalog, ps2, id2 := fixtureStudio(t, nil)
+	if got := envsOf(catalog, ps2, id2); len(got) != 2 || got[0] != DefaultEnvironment || got[1] != DefaultEnvironment {
+		t.Errorf("catalog outline environments = %v, want %s twice", got, DefaultEnvironment)
+	}
+}

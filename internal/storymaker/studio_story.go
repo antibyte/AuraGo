@@ -220,7 +220,12 @@ func studioOutline(ctx context.Context, s *Studio, args map[string]any) StudioRe
 			return studioRefused("invalid_data", fmt.Sprintf("The scene %q has no narration in letters or digits.", id), "Write the narration of every scene in real words, not dots or placeholders.")
 		}
 		seen[id] = true
-		scenes = append(scenes, Scene{ID: id, Narration: s.repairText(strings.TrimSpace(row.Narration))})
+		sc := Scene{ID: id, Narration: s.repairText(strings.TrimSpace(row.Narration))}
+		if s.job.Mode == ModeFree {
+			// A free film starts on the drawn board; ApplyDefaults passes it on to scenes that name no environment.
+			sc.Environment = BoardEnvironmentID
+		}
+		scenes = append(scenes, sc)
 	}
 
 	st, etag, err := s.loadStory(ctx)
