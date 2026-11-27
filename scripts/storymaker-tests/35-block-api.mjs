@@ -141,3 +141,34 @@ check('code scenes on env.board resolve $text and $bg from the board tokens, the
     assert.ok(day.includes('set fillStyle=#fff'), 'day $bg stays the palette bg: ' + day.join());
     assert.ok(other.includes('set fillStyle=#000') && !other.includes('set fillStyle=#f4f5eb'), 'without env.board $text is the palette text: ' + other.join());
 });
+
+// A code-scene block behaves like a storyboard block: nothing of it draws before start, then its entry plays.
+function blockDrawOps(source, time) {
+    const { C, build: run } = runScene(source), built = run(), e = built.entities[0], st = C.scene.evalEntity(e, time);
+    const cv = new FakeCanvas(1920, 1080);
+    const rc = C.render.makeContext({ width: 1920, height: 1080, aspect: '16:9', palette: { bg: '#fff', bg2: '#eee', fg: '#111', text: '#111', accent: '#f60', accent2: '#0cc' }, fontFamilies: { default: 'x' }, styleFont: 'default', style: {} }, {}, 1920, 1080);
+    C.blocks.draw(cv.ctx, st, Object.assign({}, rc, { cat: C.scene.indexCatalog(fullCatalog) }), built.stage, built.stage.baseWindow());
+    return { ops: (cv.ctx.log || []).filter(l => /^(fill|stroke|fillText|fillRect|arc)/.test(l)).length, alpha: st.alpha, entity: e };
+}
+
+check('code-scene blocks are hidden before start and play their entry from start', () => {
+    const sources = {
+        'icon fade': "export default function scene(api) { api.duration(8); api.icon('icon.cpu', { start: 5, entry: 'fade' }); }",
+        'icon none': "export default function scene(api) { api.duration(8); api.icon('icon.cpu', { start: 5, entry: 'none' }); }",
+        'icon pop': "export default function scene(api) { api.duration(8); api.icon('icon.cpu', { start: 5, entry: 'pop' }); }",
+        'icon slide': "export default function scene(api) { api.duration(8); api.icon('icon.cpu', { start: 5, entry: 'slide' }); }",
+        'icon draw': "export default function scene(api) { api.duration(8); api.icon('icon.cpu', { start: 5, entry: 'draw' }); }",
+        'chart title': "export default function scene(api) { api.duration(8); api.chart({ type: 'bar', labels: ['a', 'b'], values: [1, 2], title: 'T' }, { start: 5 }); }",
+        'counter': "export default function scene(api) { api.duration(8); api.chart({ type: 'counter', labels: ['users'], values: [42], unit: '%' }, { start: 5 }); }"
+    };
+    for (const [name, source] of Object.entries(sources)) {
+        const before = blockDrawOps(source, 1);
+        assert.equal(before.ops, 0, name + ' draws ' + before.ops + ' ops before start');
+        assert.equal(before.alpha, 0, name + ' alpha before start');
+        const e = before.entity, end = blockDrawOps(source, e.t0 + e.dur + 0.01);
+        near(end.alpha, 1, 1e-9);
+        assert.ok(end.ops > 0, name + ' draws nothing after its entry');
+    }
+    const mid = blockDrawOps(sources['icon fade'], 5.4);
+    assert.ok(mid.alpha > 0 && mid.alpha < 1, 'the fade is in progress: ' + mid.alpha);
+});

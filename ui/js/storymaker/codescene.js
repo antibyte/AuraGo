@@ -151,6 +151,14 @@
             var font = opts.styleFont || 'default';
             (cat.fonts || []).forEach(function (f) { if (f.name === font && (f.weight === 600 || f.weight === 700)) state.needs['font:' + f.name + '/' + f.weight] = true; });
         }
+        // blockEntry(e, how, t0, dur): the entry of a block from its start, as the storyboard plays it. A draw reveals by itself, so
+        // its block only appears at start; none shows at once; pop, fade and slide run over dur. A function of the time only.
+        function blockEntry(e, how, t0, dur) {
+            if (how === 'none' || how === 'draw' || !(dur > 0)) { e.alpha.add(t0, t0, 1, 'linear'); return; }
+            e.alpha.add(t0, t0 + dur, 1, 'quart-out');
+            if (how === 'pop') e.scale.add(t0, t0 + dur, 1, 'back-out', 0.6);
+            else if (how === 'slide') e.x.add(t0, t0 + dur, e.x.init, 'quart-out', e.x.init - 140);
+        }
         // addBlock(def, o, at, entry): o = {at, entry, start, dur, reveals}; the defaults are the area and the entry of the kind.
         function addBlock(def, o, at, entry) {
             o = o || {};
@@ -167,12 +175,14 @@
             def.t0 = t.start;
             def.dur = t.dur;
             def.entry = how;
+            def.hidden = true;   // like a storyboard block: nothing draws before start
             if (o.reveals !== undefined) def.reveals = o.reveals;
             var bad = SM.blocks.check(def, cat);
             if (bad) throw new RangeError(bad.message + ' (' + bad.field + ')');
             blockCount++;
             fontNeeds();
             var e = addEntity(SM.blocks.create(def)), h = common(e);
+            blockEntry(e, how, t.start, t.dur);
             // highlight(nodeId, timing): pulses one node of a diagram for 1.2 s (the default)
             h.highlight = function (node, ho) {
                 if (e.block.kind !== 'diagram') throw new RangeError('highlight works on a diagram block; this one is a ' + e.block.kind + '.');
