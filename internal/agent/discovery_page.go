@@ -119,14 +119,24 @@ func discoveryJSONWithinBudget(response DiscoverToolsResponse, budget int) strin
 	return boundedToolResult(output, budget, classifyLegacyToolResult(output))
 }
 
-func discoverySummaryResults(entries []*ToolCatalogEntry, session string) []DiscoverToolResult {
+// discoverySummaryResults lists entries without their parameters. reinjects
+// tells whether the run re-injects schemas, which decides how a hidden native
+// tool is reached.
+func discoverySummaryResults(entries []*ToolCatalogEntry, session string, reinjects bool) []DiscoverToolResult {
 	results := discoverResultsFromEntries(entries, session, false)
 	for i := range results {
 		results[i].Parameters = nil
 		results[i].Description = fenceDiscoveryText(truncateUTF8ToLimit(results[i].Description, 240, "…"))
 		// A disabled or unconfigured tool keeps the reason it cannot be called;
 		// "get_tool_info before the first call" would promise a call that fails.
-		if method := results[i].CallMethod; method != "disabled" && method != "needs_setup" {
+		method := results[i].CallMethod
+		switch {
+		case method == "disabled" || method == "needs_setup":
+		case method == "invoke_tool" && results[i].Kind == string(ToolKindNative) && reinjects:
+			results[i].Instruction = fmt.Sprintf("Call discover_tools get_tool_info with tool_name=%s: it returns the parameters and queues the %s schema, so you can then call %s directly. Fallback: invoke_tool with tool_name=%s and the arguments.", results[i].Name, results[i].Name, results[i].Name, results[i].Name)
+		case method == "invoke_tool" && results[i].Kind == string(ToolKindNative):
+			results[i].Instruction = fmt.Sprintf("Call invoke_tool with tool_name=%s and arguments matching its parameters; discover_tools get_tool_info with tool_name=%s returns them.", results[i].Name, results[i].Name)
+		default:
 			results[i].Instruction = "Use get_tool_info before the first call."
 		}
 	}

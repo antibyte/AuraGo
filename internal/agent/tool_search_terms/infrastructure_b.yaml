@@ -89,11 +89,11 @@ virtual_computer_ui:
   de: ["native Anwendung steuern", "Desktopfenster", "Speicherdialog", "Mousepad bedienen", "PCManFM öffnen", "Bedienelemente erkennen", "Anwendungsfenster anklicken", "Agent Workspace Bildschirm"]
 
 node_red:
-  en: ["Node-RED flows", "Node-RED Inject", "list Node-RED workflows", "trigger Node-RED flow", "allowed Node-RED nodes", "Node-RED automation", "start existing Node-RED flow", "Node-RED flow names"]
-  de: ["Node-RED Abläufe finden", "Node-RED auslösen", "Node-RED Abläufe auflisten", "Node-RED Inject starten", "freigegebene Node-RED Knoten", "Node-RED Automatisierung", "bestehenden Node-RED Flow starten", "Node-RED Flownamen"]
+  en: ["Node-RED flows", "Node-RED Inject", "list Node-RED workflows", "trigger Node-RED flow", "allowed Node-RED nodes", "Node-RED automation", "start existing Node-RED flow", "Node-RED flow names", "automation flow", "trigger a flow"]
+  de: ["Node-RED Abläufe finden", "Node-RED auslösen", "Node-RED Abläufe auflisten", "Node-RED Inject starten", "freigegebene Node-RED Knoten", "Node-RED Automatisierung", "bestehenden Node-RED Flow starten", "Node-RED Flownamen", "Automatisierung", "Ablauf auslösen"]
 olivetin:
-  en: ["OliveTin actions", "run OliveTin action", "OliveTin execution status", "allowed OliveTin actions", "OliveTin argument validation", "predefined OliveTin command", "OliveTin automation", "OliveTin action result"]
-  de: ["OliveTin Aktionen", "OliveTin Aktion ausführen", "OliveTin Ausführungsstatus", "freigegebene OliveTin Aktionen", "OliveTin Argumente prüfen", "vordefinierte OliveTin Aktion", "OliveTin Automatisierung", "OliveTin Aktionsergebnis"]
+  en: ["OliveTin actions", "run OliveTin action", "OliveTin execution status", "allowed OliveTin actions", "OliveTin argument validation", "predefined OliveTin command", "OliveTin automation", "OliveTin action result", "one-click action", "predefined script"]
+  de: ["OliveTin Aktionen", "OliveTin Aktion ausführen", "OliveTin Ausführungsstatus", "freigegebene OliveTin Aktionen", "OliveTin Argumente prüfen", "vordefinierte OliveTin Aktion", "OliveTin Automatisierung", "OliveTin Aktionsergebnis", "vordefiniertes Skript", "Knopf drücken"]
 
 beszel:
   en: ["Beszel systems", "Beszel host metrics", "Beszel container load", "Beszel CPU usage", "Beszel memory use", "Beszel stale measurements", "Beszel system list", "Beszel latest sample"]

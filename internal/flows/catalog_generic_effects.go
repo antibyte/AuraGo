@@ -72,7 +72,7 @@ var (
 	// fileWritingTools write a file with every call that is not a read: a transfer, a
 	// capture, a conversion, a rendering, a generated medium or certificate.
 	fileWritingTools = map[string]bool{"transfer_remote_file": true, "web_capture": true, "media_conversion": true,
-		"tts": true, "generate_image": true, "generate_music": true, "generate_video": true, "openscad_render": true,
+		"tts": true, "generate_image": true, "generate_music": true, "generate_video": true, "openscad_render": true, "ziro_export": true,
 		"certificate_manager": true}
 	// deviceTools control devices outside the smart_home category.
 	deviceTools = map[string]bool{"bluetooth": true, "chromecast": true, "three_d_printer": true,

@@ -307,3 +307,37 @@ func TestQueuedCodeRevalidatesCurrentPolicyAndKeepsOriginalScope(t *testing.T) {
 		t.Fatal("queued validation created a human approval request")
 	}
 }
+
+func TestInvokeToolResultTellsTheModelToCallTheToolDirectly(t *testing.T) {
+	dispatch := func(dc *DispatchContext, call ToolCall) string {
+		t.Helper()
+		return DispatchToolCallResult(context.Background(), &call, dc, "fixture").Output
+	}
+	invoke := func() ToolCall {
+		return ToolCall{Action: "invoke_tool", Params: map[string]interface{}{"tool_name": "docker", "arguments": map[string]interface{}{"operation": "list"}}}
+	}
+	setup := func(reinjects bool) *DispatchContext {
+		dc := actionSecurityFixture(t, func(context.Context, ToolCall) (string, bool) { return `Tool Output: {"status":"success"}`, true })
+		dc.Cfg.Agent.ActionPolicy.Enabled = false
+		dc.discoveryReinjects = reinjects
+		setRunDiscoverToolsState(dc, dispatchCatalogSchemas(dc), nil)
+		t.Cleanup(func() { ClearDiscoverToolsState(dc.discoveryKey()) })
+		return dc
+	}
+	dc := setup(true)
+	out := dispatch(dc, invoke())
+	if !strings.Contains(out, "call docker directly") || strings.LastIndex(out, "call docker directly") < strings.LastIndex(out, "</external_data>") {
+		t.Fatalf("no notice after the fenced result: %s", out)
+	}
+	if out := dispatch(setup(false), invoke()); strings.Contains(out, "invoke_tool notice") {
+		t.Fatalf("a fixed tool list got a notice: %s", out)
+	}
+	if out := dispatch(dc, ToolCall{Action: "docker", Operation: "list", Params: map[string]interface{}{"operation": "list"}}); strings.Contains(out, "invoke_tool notice") {
+		t.Fatalf("a direct call got a notice: %s", out)
+	}
+	active := setup(true)
+	setRunDiscoverToolsState(active, dispatchCatalogSchemas(active), dispatchCatalogSchemas(active))
+	if out := dispatch(active, invoke()); !strings.Contains(out, "is in your tool list") {
+		t.Fatalf("an active tool got no notice: %s", out)
+	}
+}

@@ -39,7 +39,7 @@ Browse tool categories. Returns category names with their counts and a short pur
 Categories, e.g.: `system`, `memory`, `files`, `network`, `media`, `smart_home`, `infrastructure`, `data_apis`, `communication`, plus the runtime categories `skills`, `custom`, `mcp`, `agent_skills`. Call `list_categories` for the categories this run actually has.
 
 ### search
-Find tools by keyword or short task phrase across all categories. Keywords and task phrases work in English and German. Matches tool names, aliases, operations, search terms and descriptions; exact name, alias and operation matches come first, then enabled tools, tools that need setup and disabled ones.
+Find tools by keyword or short task phrase across all categories. Keywords and task phrases work in English and German. Matches tool names, aliases, operations, search terms and descriptions; exact name, alias and operation matches come first, then enabled tools, tools that need setup and disabled ones. In a run that re-injects schemas, a clear first hit for a hidden native tool comes back with `call_method` `direct` and its schema queued; the other results say in `instruction` what to do.
 
 ```json
 {"action": "discover_tools", "operation": "search", "query": "docker"}
@@ -47,7 +47,7 @@ Find tools by keyword or short task phrase across all categories. Keywords and t
 ```
 
 ### get_tool_info and get_manual
-`get_tool_info` returns the full parameter schema, status, and call method for a specific tool. **Use this before calling a hidden tool** — it shows the exact parameters and whether to use `invoke_tool`, `execute_skill`, `run_tool`, or a direct native call. `get_manual` returns the tool's guide text in pages (`manual`, `next_cursor`); keep passing `next_cursor` until it is absent.
+`get_tool_info` returns the full parameter schema, status, and call method for a specific tool, and it also queues the schema of a hidden native tool (`direct`). **Use this before calling a hidden tool** — it shows the exact parameters and whether to use `invoke_tool`, `execute_skill`, `run_tool`, or a direct native call. `get_manual` returns the tool's guide text in pages (`manual`, `next_cursor`); keep passing `next_cursor` until it is absent.
 
 ```json
 {"action": "discover_tools", "operation": "get_tool_info", "tool_name": "docker"}
@@ -59,7 +59,7 @@ Find tools by keyword or short task phrase across all categories. Keywords and t
 2. Use `get_tool_info` to see its full parameter schema; use `get_manual` for workflow guidance
 3. Follow the returned `call_method`:
    - `direct`: call the tool itself with its own arguments. This includes a hidden tool whose schema is queued for your next request; if it is not in your tool list then, call `invoke_tool` with the same `tool_name` and arguments
-   - `invoke_tool`: call `invoke_tool` with `tool_name` and `arguments`; the system will re-inject the real native schema for follow-up calls
+   - `invoke_tool`: call `invoke_tool` with `tool_name` and `arguments`; the system will re-inject the real native schema for follow-up calls; after one `invoke_tool`, call the tool directly from the next step on
    - `execute_skill`: use `execute_skill` with `skill` and `skill_args`
    - `run_tool`: use `run_tool`
    - `activate_agent_skill`: load the package with `activate_agent_skill`

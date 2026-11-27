@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"testing"
 
@@ -79,5 +80,51 @@ func TestDirectHiddenNativeCallRequestsReinjection(t *testing.T) {
 				t.Fatalf("requested = %v, want %v", got, test.want)
 			}
 		})
+	}
+}
+
+func TestSearchQueuesOnlyAClearHiddenTopHit(t *testing.T) {
+	search := func(sid string, dc *DispatchContext, params map[string]interface{}) DiscoverToolResult {
+		t.Helper()
+		ConsumeDiscoverRequestedTools(sid)
+		out := handleDiscoverToolsContext(context.Background(), ToolCall{Params: params}, &config.Config{}, nil, sid, dc)
+		var response DiscoverToolsResponse
+		decodeToolOutputJSON(t, out, &response)
+		if len(response.Results) == 0 {
+			t.Fatalf("no results in %s", out)
+		}
+		return response.Results[0]
+	}
+	params := map[string]interface{}{"operation": "search", "query": "docker"}
+
+	sid, _ := reinjectionFixture(t)
+	top := search(sid, &DispatchContext{SessionID: sid, discoveryReinjects: true}, params)
+	if top.Name != "docker" || top.CallMethod != "direct" || !top.CallableNow ||
+		!strings.Contains(top.Instruction, "queued for your next request") || !strings.Contains(top.Instruction, "invoke_tool with tool_name=docker") {
+		t.Fatalf("clear hidden top hit not queued: %+v", top)
+	}
+	if !slices.Contains(GetDiscoverRequestedTools(sid), "docker") {
+		t.Fatalf("docker not queued: %v", GetDiscoverRequestedTools(sid))
+	}
+
+	sid, _ = reinjectionFixture(t)
+	if top := search(sid, &DispatchContext{SessionID: sid}, params); top.CallMethod != "invoke_tool" || len(GetDiscoverRequestedTools(sid)) != 0 {
+		t.Fatalf("a fixed tool list queued a schema: %+v", top)
+	}
+
+	sid, _ = reinjectionFixture(t)
+	paged := map[string]interface{}{"operation": "search", "query": "docker", "cursor": "garbage"}
+	search(sid, &DispatchContext{SessionID: sid, discoveryReinjects: true}, paged)
+	if len(GetDiscoverRequestedTools(sid)) != 0 {
+		t.Fatalf("a cursor search queued %v", GetDiscoverRequestedTools(sid))
+	}
+
+	sid = t.Name() + "/tie"
+	schemas := []openai.Tool{testToolSchema("alpha_widgets", "Frobnicate widgets"), testToolSchema("beta_widgets", "Frobnicate widgets"), testToolSchema("filesystem", "Files")}
+	SetDiscoverToolsState(sid, schemas, schemas[2:], "")
+	t.Cleanup(func() { ClearDiscoverToolsState(sid) })
+	search(sid, &DispatchContext{SessionID: sid, discoveryReinjects: true}, map[string]interface{}{"operation": "search", "query": "frobnicate widgets"})
+	if len(GetDiscoverRequestedTools(sid)) != 0 {
+		t.Fatalf("an unclear search queued %v", GetDiscoverRequestedTools(sid))
 	}
 }

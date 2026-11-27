@@ -111,8 +111,8 @@ send_youtube_video:
   en: ["send YouTube video", "play YouTube in chat", "YouTube link", "embed YouTube", "share YouTube video", "YouTube player", "show YouTube Short", "YouTube start at timestamp"]
   de: ["YouTube Video senden", "YouTube im Chat abspielen", "YouTube Link teilen", "YouTube einbetten", "YouTube Short zeigen", "YouTube ab Minute", "Video von YouTube zeigen"]
 storymaker:
-  en: ["explainer video", "make an explainer video", "animated explainer film", "Storymaker project", "export explainer video", "revise explainer video"]
-  de: ["Erklärvideo", "Erklärvideo erstellen", "Erklärfilm", "Storymaker Projekt", "Erklärvideo exportieren", "Erklärvideo überarbeiten"]
+  en: ["explainer video", "make an explainer video", "animated explainer film", "Storymaker project", "export explainer video", "revise explainer video", "educational video"]
+  de: ["Erklärvideo", "Erklärvideo erstellen", "Erklärfilm", "Storymaker Projekt", "Erklärvideo exportieren", "Erklärvideo überarbeiten", "Lernvideo", "Lehrvideo"]
 telnyx_call:
   en: ["phone call", "make a call", "Telnyx call", "call a number", "voice call with TTS", "hang up call", "transfer call", "record phone call"]
   de: ["anrufen", "Telefonanruf", "Telnyx Anruf", "Nummer anrufen", "Anruf mit Sprachausgabe", "Anruf weiterleiten", "Anruf aufzeichnen", "auflegen"]
@@ -126,8 +126,8 @@ transcribe_audio:
   en: ["transcribe audio", "speech to text", "audio to text", "transcribe voice message", "Whisper", "transcribe recording", "STT", "meeting recording to text"]
   de: ["Audio transkribieren", "Sprache zu Text", "Sprachnachricht abschreiben", "Aufnahme abtippen", "Audio in Text umwandeln", "Besprechung transkribieren"]
 tts:
-  en: ["text to speech", "TTS", "read aloud", "speak this text", "voice reply", "generate speech audio", "ElevenLabs", "voice mode"]
-  de: ["Text vorlesen", "Sprachausgabe", "Text in Sprache", "vorlesen lassen", "Sprachantwort", "Audio aus Text", "Stimme erzeugen"]
+  en: ["text to speech", "TTS", "read aloud", "speak this text", "voice reply", "generate speech audio", "ElevenLabs", "voice mode", "out loud", "read out loud"]
+  de: ["Text vorlesen", "Sprachausgabe", "Text in Sprache", "vorlesen lassen", "Sprachantwort", "Audio aus Text", "Stimme erzeugen", "laut vorlesen"]
 video_download:
   en: ["download video", "yt-dlp", "search videos", "video subtitles", "video captions", "extract audio from video URL", "transcribe online video", "video info"]
   de: ["Video herunterladen", "Videos suchen", "Untertitel holen", "Video Metadaten", "Audio aus Video-URL", "Online-Video transkribieren", "YouTube herunterladen"]

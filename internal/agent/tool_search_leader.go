@@ -10,6 +10,32 @@ import "slices"
 // distance, which is what the guard adds back.
 const toolSearchLeaderMargin = toolSearchPhraseBoost
 
+// discoverySearchLeader names the tool a search clearly points at, "" if none:
+// the only hit of the highest exact tier, or a lexical leader that is
+// toolSearchLeaderMargin ahead of the next lexical hit. A search that has no
+// clear answer must not queue a schema the model may not need.
+func discoverySearchLeader(hits []toolSearchHit) string {
+	if len(hits) == 0 || hits[0].Entry == nil {
+		return ""
+	}
+	if hits[0].Tier > toolSearchTierLexical {
+		if len(hits) > 1 && hits[1].Tier == hits[0].Tier {
+			return ""
+		}
+		return hits[0].Entry.Name
+	}
+	runnerUp := 0.0
+	for _, h := range hits[1:] {
+		if h.Tier == toolSearchTierLexical {
+			runnerUp = max(runnerUp, h.Score)
+		}
+	}
+	if hits[0].Score < toolSearchLeaderMargin*runnerUp {
+		return ""
+	}
+	return hits[0].Entry.Name
+}
+
 // holdClearLexicalLeader gives a clear lexical leader the first place after the
 // pinned names. fused is the result of fuseToolRanking, pinnedCount the number
 // of exact-tier names at its head and hits the ranking rankedSearch returned.

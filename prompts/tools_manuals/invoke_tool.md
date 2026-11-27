@@ -29,7 +29,7 @@ Use the `invoke_tool` tool with:
 
 For example, after discovering `yepapi_instagram`, invoke `invoke_tool` with `tool_name` set to `yepapi_instagram` and put Instagram parameters such as `operation`, `username`, or `username_or_url` inside `arguments`.
 
-After a hidden native tool is discovered or invoked, AuraGo marks it for schema re-injection so follow-up calls can use the real native tool schema directly. Active tools are routed immediately without requiring re-injection.
+After a hidden native tool is discovered or invoked, AuraGo marks it for schema re-injection so follow-up calls can use the real native tool schema directly. From the next step on call the tool directly; the result of `invoke_tool` ends with a notice when that applies. Active tools are routed immediately without requiring re-injection.
 
 ## Important
 

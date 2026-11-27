@@ -20,12 +20,15 @@ func TestDiscoverySummaryResultsKeepRealInstructionForUncallableTools(t *testing
 	hidden, _ := catalog.Get("yepapi_instagram")
 	setup, _ := catalog.Get("fixture_needs_setup")
 
-	results := discoverySummaryResults([]*ToolCatalogEntry{hidden, disabled, setup}, "sess-summary-instruction")
+	results := discoverySummaryResults([]*ToolCatalogEntry{hidden, disabled, setup}, "sess-summary-instruction", false)
 	if len(results) != 3 {
 		t.Fatalf("results = %d, want 3", len(results))
 	}
-	if got := results[0].Instruction; got != "Use get_tool_info before the first call." {
-		t.Fatalf("callable result instruction = %q, want the get_tool_info hint", got)
+	if got := results[0].Instruction; !strings.Contains(got, "invoke_tool with tool_name=yepapi_instagram") {
+		t.Fatalf("callable result instruction = %q, want the invoke_tool hint", got)
+	}
+	if got := discoverySummaryResults([]*ToolCatalogEntry{hidden}, "sess-summary-instruction", true)[0].Instruction; !strings.Contains(got, "get_tool_info") || !strings.Contains(got, "queues") {
+		t.Fatalf("re-injecting run instruction = %q, want get_tool_info that queues the schema", got)
 	}
 	if got := results[1].Instruction; !strings.Contains(got, "disabled in config") || strings.Contains(got, "get_tool_info") {
 		t.Fatalf("disabled result instruction = %q, want the disabled explanation", got)

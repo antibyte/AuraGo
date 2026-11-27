@@ -16,10 +16,11 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   operations mutate through isolated export/publication and are denied to A2A
   peers. Preserve captured Docker/file/network gates and untrusted result handling;
   keep schemas, discovery/cache, manual and training operation coverage aligned.
+  It is in the `infrastructure` category (`toolCategoryDef`), and Living Flows derives its effects from that category, so it is listed in `fileWritingTools` (`internal/flows/catalog_generic_effects.go`).
 
-- `beszel` is read-only telemetry. `filebrowser` results are untrusted and its binary imports obey captured/live file-write gates. Every `stirling_pdf` operation writes a new file; signing requires its separate server grant and is unavailable to A2A peers. Keep all three tools in schema/cache, discovery, manuals and training contracts.
+- `beszel` is read-only telemetry. `filebrowser` results are untrusted and its binary imports obey captured/live file-write gates. Every `stirling_pdf` operation writes a new file; signing requires its separate server grant and is unavailable to A2A peers. Keep all three tools in schema/cache, discovery, manuals and training contracts. `toolCategoryDef` puts `beszel` in `infrastructure` and `filebrowser` and `stirling_pdf` in `files`.
 
-- Store `node_red` and `olivetin` tools require both captured Desktop/network grants and the current verified server binding. Inject/start operations are high-risk mutations; all returned app text is external data. Keep schema/cache, discovery, manuals and training operation contracts aligned.
+- Store `node_red` and `olivetin` tools require both captured Desktop/network grants and the current verified server binding. Inject/start operations are high-risk mutations; all returned app text is external data. Keep schema/cache, discovery, manuals and training operation contracts aligned. In `toolCategoryDef`, `olivetin` is in `infrastructure` and `node_red` stays in `smart_home`.
 
 - A2A system tools are read-only: `service_manager` permits only `status`; `package_manager` permits only `detect`, `search`, `list_installed` and `info`; `install_package` is denied. Empty/unknown operations fail closed before action approvals. Discovery uses the same role policy, and package reads are neither mutating nor high risk. Main/local co-agent permissions are unchanged. Verify `TestA2ASystemToolsReadOnly`.
 
@@ -504,7 +505,13 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   semantic-only tools); non-displacing tools and their manuals take no slot
   there. A manual that documents more than 3 tools adds no tools of its own.
   The same fusion carries the request-side signals described below; neighbours
-  and the rest of the usage list follow that head in order.
+  and the rest of the usage list follow that head in order. In a run that
+  re-injects schemas, an unpaged `discover_tools` search also queues the schema of
+  its clear first hit when that hit is a hidden native tool the run may call
+  (`queueDiscoverySearchLeader`, leader test `discoverySearchLeader`: the only
+  exact-tier hit, or a lexical leader `toolSearchLeaderMargin` ahead of the next
+  lexical hit); that result says `call_method: direct`, and queued requests stay
+  for the whole run.
 
 - The adaptive first selection is one pure planner, `planAdaptiveFirstSelection`
   (`adaptive_selection.go`), shared by `initAgentLoopState`, the V2 first-turn
@@ -527,7 +534,14 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   family by importance, `adaptiveSeedsForQuery` takes the first four that are
   offered and not already held (hard or soft) and puts the tools of specific
   cues (resource usage, container, PDF, camera, MCP, Composio, Manus) in front.
-  They never are soft tools and count against `MaxAdaptiveTools`.
+  They never are soft tools and count against `MaxAdaptiveTools`. The first
+  selection ranks on `adaptiveRankingQuery` (`adaptive_query.go`, set in
+  `initAgentLoopState`): the message without its `<external_data>` blocks when at
+  least 4 distinct search terms remain outside them, else the whole message; the
+  fenced text is passed as `External`, and additive tools and swaps use only the
+  trusted text. Outside co-agent runs the `adaptiveHabitSlots` (2) most used tools
+  that are offered, not held and not intent-only become soft habit tools
+  (`adaptiveHabitTools`, `adaptiveSelectionPlan.Habit`).
 
 - `rankAdaptiveTools` (`buildAdaptiveToolPriority` is its short form) fuses the
   lexical ranking (weight 1) and the semantic manual ranking (0.8) with three
@@ -544,7 +558,10 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   matches however the signals add up. `SearchContext` passes no signals, so
   discover_tools order is unchanged. Verify `TestFuseToolRankingSignals`,
   `TestSingleSignalNeverOutranksTheLexicalLeader` and
-  `TestBuildAdaptiveToolPriorityKeepsTheLexicalLeaderUpFront`.
+  `TestBuildAdaptiveToolPriorityKeepsTheLexicalLeaderUpFront`. The fenced
+  external text (`External`) adds its own exact and lexical hits as a fourth
+  signal, weight 0.5 and at most `adaptiveExternalMaxAdded` (3) tools that no
+  other signal found.
 
 - The media generators `generate_image`, `generate_music` and `generate_video`
   are soft in the adaptive first selection only when the feature is on and the
@@ -578,7 +595,10 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   one comes. A refresh without a new request or tool use returns the first
   selection. One request displaces the lowest ranked adaptive tool under the
   count caps; under the schema token cap a larger requested schema can displace
-  more of them, but never a soft or hard tool. Without a plan (adaptive tools
+  more of them, but never a soft or hard tool. With a plan, `read_tool_output`
+  is soft once a message of the run carries an output reference
+  (`adaptiveRefreshInput.OutputRef`; `outputRefCandidateSchemas` puts its schema
+  back among the candidates), and the habit tools stay soft. Without a plan (adaptive tools
   off, no short-term memory, the managed local kernel; runs that do not
   re-inject schemas, prepared prompts included, never refresh) the refresh
   ranks the requests, newest first, and then the schemas by position. Verify
@@ -763,7 +783,12 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   drop it), so the `direct` instruction names `invoke_tool` as the fallback
   when the tool is missing from the tool list. A direct call to a hidden
   native tool marks it for re-injection (`markDirectHiddenNativeCall`) exactly
-  like an `invoke_tool` call; this changes presentation only. Verify
+  like an `invoke_tool` call; this changes presentation only. Search summaries
+  carry the same per-method rule (`discoverySummaryResults(..., reinjects)`): a
+  hidden native tool is pointed to `discover_tools` get_tool_info, which queues its schema, with `invoke_tool`
+  as the fallback. `invokeToolDirectNotice` appends a trusted notice after the
+  output of an `invoke_tool` call whose native target is in the tool list or
+  queued (`DispatchToolCallResult`). Verify
   `TestGetToolInfoDirectOnlyWhenRunReinjects` and
   `TestDirectHiddenNativeCallRequestsReinjection`.
 - Execution status is captured before scrubbing/compression and kept separately
@@ -807,7 +832,7 @@ Tools are defined in `internal/tools/`:
 - Build error envelopes with `toolErrorJSON`/`toolErrorf` (or `tools.ErrorJSON`/`ErrorJSONf`), never `fmt.Sprintf` with `%v`/`%s` inside a JSON string. `classifyLegacyToolResult` honours the first occurrence of a duplicated outcome key. The `internal/audit` ratchet `TestToolErrorJSONIsNotHandFormatted` may only go down.
 - TTS success envelopes use `json.Marshal` for filenames, URLs and local paths. Keep error fixtures platform-independent and provider fixtures local; verify `TestDispatchTTSErrorWithQuoteStaysJSON` and `TestDispatchTTSSuccessStaysJSON`.
 - The `tts` action scrubs its text with `security.Scrub` before `tools.TTSSynthesize` (`dispatch_platform.go`). The audio leaves AuraGo (to a cloud provider, as a WhatsApp voice note or as an audio file), so a registered secret is never spoken. Verify `TestDispatchTTSScrubsRegisteredSecretsBeforeSynthesis`.
-- The `call_method` returned by `discover_tools` is binding. Use `invoke_tool` immediately when requested; `activate_tools` must reject any tool for which discovery did not explicitly return `activate_tools`.
+- The `call_method` returned by `discover_tools` is binding. Use `invoke_tool` immediately when requested; `activate_tools` must reject any tool for which discovery did not explicitly return `activate_tools`. The `[NATIVE_TOOLS]` prompt (`internal/prompts/builder.go`) says the same for get_tool_info and for search results marked `direct`, and that a tool already in the tool list is called directly, not through `invoke_tool`.
 - Generated Virtual Desktop apps use the advertised `virtual_desktop_app_install` tool with one complete manifest-and-files payload; `virtual_desktop_apps(operation=install_app)` remains dispatch-compatible but is not advertised. Existing workspace files are never implicit install inputs.
 
 ### Prompt and Runtime Drift Contract

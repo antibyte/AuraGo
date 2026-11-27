@@ -3,6 +3,8 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"slices"
 	"strings"
 
 	"aurago/internal/security"
@@ -195,6 +197,38 @@ func markDirectHiddenNativeCall(tc ToolCall, dc *DispatchContext) {
 		return
 	}
 	MarkDiscoverRequestedTool(dc.discoveryKey(), entry.Name)
+}
+
+// invokeToolDirectNotice is the line appended to the result of an invoke_tool
+// call that a direct call could have made: the tool is in the run's tool list,
+// or its schema is queued. It tells the model to call the tool directly from
+// the next step on. Only a run that re-injects schemas gets it.
+func invokeToolDirectNotice(tc ToolCall, dc *DispatchContext) string {
+	if dc == nil || !dc.discoveryReinjects || tc.TransportAction != "invoke_tool" || tc.PreparationError != "" {
+		return ""
+	}
+	switch tc.Action {
+	case "", "mcp_call", "activate_agent_skill", "execute_skill", "run_tool":
+		return ""
+	}
+	catalog := GetToolCatalogState(dc.discoveryKey())
+	if catalog == nil {
+		return ""
+	}
+	e, ok := catalog.Get(tc.Action)
+	if !ok || e.Name != tc.Action || e.Kind != ToolKindNative || !e.Enabled || e.Schema.Function == nil || !catalogEntryAllowed(dc, e) {
+		return ""
+	}
+	switch e.Status {
+	case ToolStatusHidden:
+		if !slices.Contains(GetDiscoverRequestedTools(dc.discoveryKey()), e.Name) {
+			return ""
+		}
+		return fmt.Sprintf("[invoke_tool notice: the %[1]s schema is queued for your next request. From the next step on, call %[1]s directly; use invoke_tool only if %[1]s is not in your tool list.]", e.Name)
+	case ToolStatusActive:
+		return fmt.Sprintf("[invoke_tool notice: %[1]s is in your tool list; call %[1]s directly instead of through invoke_tool.]", e.Name)
+	}
+	return ""
 }
 
 type legacyOutcomeEnvelope struct {

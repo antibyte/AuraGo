@@ -173,3 +173,24 @@ func TestToolSearchTermsCoverEveryBuiltinTool(t *testing.T) {
 		t.Logf("phrase shared between tools: %s", line)
 	}
 }
+
+func TestCuratedSynonymsReachTheirTool(t *testing.T) {
+	schemas := BuildNativeToolSchemas("", nil, allBuiltinToolFeatureFlags(), nil)
+	catalog := BuildToolCatalog(schemas, schemas, "")
+	for query, tool := range map[string]string{
+		"laut vorlesen":          "tts",
+		"Lernvideo":              "storymaker",
+		"Ablauf auslösen":        "node_red",
+		"vordefiniertes Skript":  "olivetin",
+		"Modell veröffentlichen": "kaggle_models",
+	} {
+		hits := catalog.Search(query)
+		found := false
+		for i := 0; i < len(hits) && i < 3; i++ {
+			found = found || hits[i].Name == tool
+		}
+		if !found {
+			t.Errorf("%q: %s is not among the first 3 results", query, tool)
+		}
+	}
+}

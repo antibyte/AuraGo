@@ -152,6 +152,8 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"manage_journal", "Search and manage journal entries"},
 	},
 	"files": {
+		{"filebrowser", "List, search and read the connected FileBrowser source"},
+		{"stirling_pdf", "OCR, split, merge and certificate-sign saved PDFs"},
 		{"filesystem", "Read, write, move, copy, delete files and directories"},
 		{"file_editor", "Edit files with find-and-replace, insert, delete operations"},
 		{"json_editor", "Query and modify JSON files using JSONPath"},
@@ -246,15 +248,13 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"adguard", "Manage AdGuard Home DNS: filtering, rewrites, DHCP, clients"},
 		{"uptime_kuma", "Read monitor health and outages from Uptime Kuma"},
 		{"node_red", "List Node-RED flows and trigger allowed Inject nodes"},
-		{"olivetin", "List and execute allowed OliveTin actions and read execution status"},
-		{"beszel", "Read Beszel host and container metrics"},
-		{"filebrowser", "List, search and read the connected FileBrowser source"},
-		{"stirling_pdf", "OCR, split, merge and certificate-sign saved PDFs"},
-		{"ziro_export", "Export saved Shared KiCad projects as netlists or manufacturing archives"},
 
 		{"grafana", "Read Grafana dashboards, data sources, alerts, health, and org info"},
 	},
 	"infrastructure": {
+		{"beszel", "Read Beszel host and container metrics"},
+		{"olivetin", "List and execute allowed OliveTin actions and read execution status"},
+		{"ziro_export", "Export saved Shared KiCad projects as netlists or manufacturing archives"},
 		{"docker", "Manage Docker containers (list, start, stop, logs, exec, compose)"},
 		{"findit", "Read physical inventory, locations, templates, stock availability, project BOMs, and shortages"},
 		{"proxmox", "Manage Proxmox VMs and containers (list, start, stop, snapshots)"},

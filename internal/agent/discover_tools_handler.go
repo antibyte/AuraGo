@@ -112,7 +112,7 @@ func handleDiscoverToolsContext(ctx context.Context, tc ToolCall, cfg *config.Co
 				return discoveryJSONWithinBudget(DiscoverToolsResponse{Status: "error", Error: "unknown_category", ValidCategories: discoveryValidCategories(catalog), Summary: "Use list_categories or one of valid_categories."}, budget)
 			}
 			query = category
-			results = discoverySummaryResults(catalog.ByCategory(category), sessionID)
+			results = discoverySummaryResults(catalog.ByCategory(category), sessionID, dc != nil && dc.discoveryReinjects)
 		} else {
 			if query == "" {
 				return discoverToolsJSON(DiscoverToolsResponse{Status: "error", Error: "query_required"})
@@ -123,7 +123,8 @@ func handleDiscoverToolsContext(ctx context.Context, tc ToolCall, cfg *config.Co
 			} else {
 				entries = catalog.Search(query)
 			}
-			results = discoverySummaryResults(entries, sessionID)
+			results = discoverySummaryResults(entries, sessionID, dc != nil && dc.discoveryReinjects)
+			queueDiscoverySearchLeader(dc, catalog, tc, query, sessionID, entries, results)
 			if entry, ok := catalog.Get("composio_call"); ok && entry.Enabled {
 				results = append(results, discoverComposioServiceSearchResults(cfg, query)...)
 			}
@@ -161,7 +162,7 @@ func handleDiscoverToolsContext(ctx context.Context, tc ToolCall, cfg *config.Co
 				// budget shedding or a finalizing step can drop the schema), so
 				// the instruction names invoke_tool as the fallback.
 				result.CallMethod, result.CallableNow = "direct", true
-				result.Instruction = fmt.Sprintf("The %s schema is queued for your next request: call %s directly. If it is not in your tool list then, call invoke_tool with tool_name=%s.", entry.Name, entry.Name, entry.Name)
+				result.Instruction = queuedSchemaInstruction(entry.Name)
 			}
 			response := DiscoverToolsResponse{Status: "success", Revision: revision, Tool: &result, Summary: "Use get_manual to retrieve workflow guidance separately."}
 			budget = 50000
@@ -245,6 +246,34 @@ func discoverySearchEntries(ctx context.Context, catalog *ToolCatalog, tc ToolCa
 	}
 	rememberDiscoverSearchOrder(key, names)
 	return entries
+}
+
+// queuedSchemaInstruction tells the model that the schema of a hidden native
+// tool is queued. The queue is not a guarantee (caps, budget shedding or a
+// finalizing step can drop the schema), so it names invoke_tool as the fallback.
+func queuedSchemaInstruction(name string) string {
+	return fmt.Sprintf("The %s schema is queued for your next request: call %s directly. If it is not in your tool list then, call invoke_tool with tool_name=%s.", name, name, name)
+}
+
+// queueDiscoverySearchLeader queues the schema of the clear top hit of a search
+// when it is a hidden native tool, so the model can call it directly on its
+// next request. It does nothing for a paged search, an unclear result or a run
+// that does not re-inject schemas.
+func queueDiscoverySearchLeader(dc *DispatchContext, catalog *ToolCatalog, tc ToolCall, query, sessionID string, entries []*ToolCatalogEntry, results []DiscoverToolResult) {
+	if dc == nil || !dc.discoveryReinjects || discoveryCursorParam(tc) != "" || len(entries) == 0 || len(results) == 0 {
+		return
+	}
+	entry := entries[0]
+	if entry == nil || results[0].Name != entry.Name || entry.Kind != ToolKindNative || !entry.Enabled || entry.Status != ToolStatusHidden ||
+		entry.Schema.Function == nil || !catalogEntryAllowed(dc, entry) {
+		return
+	}
+	if discoverySearchLeader(catalog.rankedSearch(query)) != entry.Name {
+		return
+	}
+	MarkDiscoverRequestedTool(sessionID, entry.Name)
+	results[0].CallMethod, results[0].CallableNow = "direct", true
+	results[0].Instruction = queuedSchemaInstruction(entry.Name)
 }
 
 // discoveryToolNameLimit bounds a tool name a request carries and the query of

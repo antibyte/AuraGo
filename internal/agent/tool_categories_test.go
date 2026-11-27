@@ -49,6 +49,12 @@ func TestGetToolCategory(t *testing.T) {
 		{"execute_shell", "system"},
 		{"send_email", "communication"},
 		{"yepapi_instagram", "data_apis"},
+		{"beszel", "infrastructure"},
+		{"filebrowser", "files"},
+		{"stirling_pdf", "files"},
+		{"olivetin", "infrastructure"},
+		{"ziro_export", "infrastructure"},
+		{"node_red", "smart_home"},
 		{"nonexistent_tool", ""},
 	}
 	for _, tt := range tests {

@@ -114,6 +114,10 @@ func TestGenericEffects(t *testing.T) {
 		{"wikipedia_search", "network", "", nil},
 		{"local_wikipedia", "network", "search", nil},
 		{"local_wikipedia", "network", "read", nil},
+		{"ziro_export", "infrastructure", "manufacturing", []Effect{EffectWritesFiles}},
+		{"stirling_pdf", "files", "merge", []Effect{EffectWritesFiles}},
+		{"beszel", "infrastructure", "host_metrics", nil},
+		{"olivetin", "infrastructure", "execute", []Effect{EffectRunsCode}},
 	}
 	for _, tc := range cases {
 		if got := genericEffects(tc.tool, tc.category, tc.op); !reflect.DeepEqual(got, tc.want) {

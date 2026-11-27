@@ -262,6 +262,9 @@ func DispatchToolCallResult(ctx context.Context, tc *ToolCall, dc *DispatchConte
 	if checked.Datamarked {
 		sanitized += "\n" + security.DatamarkNotice
 	}
+	if n := invokeToolDirectNotice(*tc, dc); n != "" && !status.IsError() {
+		sanitized += "\n" + n
+	}
 
 	// Make sure errors from execute_python are preserved for context
 	if tc.Action == "execute_python" {

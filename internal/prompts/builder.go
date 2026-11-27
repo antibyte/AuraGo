@@ -803,7 +803,7 @@ func buildSystemPromptInnerContext(ctx context.Context, promptsDir string, flags
 	writeActionLedgerReminder(&finalPrompt)
 	if flags.NativeToolsEnabled {
 		finalPrompt.WriteString("## TOOL CALLING MODE\n")
-		finalPrompt.WriteString("[NATIVE_TOOLS] Use native function calls only. No raw JSON/XML/tool tags, markdown code fences, manual-preload tags, or prose in a message that includes tool_calls. Start single-step tool actions with the tool call; explain after results. Treat discover_tools call_method as binding: when it returns invoke_tool, call invoke_tool immediately. Guardian or policy blocks are final: never search credentials or secret environment variables and never experiment with _guardian_justification.\n\n")
+		finalPrompt.WriteString("[NATIVE_TOOLS] Use native function calls only. No raw JSON/XML/tool tags, markdown code fences, manual-preload tags, or prose in a message that includes tool_calls. Start single-step tool actions with the tool call; explain after results. The call_method of discover_tools get_tool_info, and of a search result marked direct, is binding; follow the instruction of other search results. Once a tool is in your tool list, call it directly, not through invoke_tool. Guardian or policy blocks are final: never search credentials or secret environment variables and never experiment with _guardian_justification.\n\n")
 	} else if flags.IsTextModeModel {
 		// Text-mode models (MiniMax, GLM, etc.) emit tool calls as text content.
 		// They need explicit JSON format instructions since they cannot use the
