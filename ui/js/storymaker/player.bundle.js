@@ -4320,12 +4320,13 @@
 // its last cue arrival and its last motion, plus half a second), and reports where the actors, the shown props, the texts and
 // the burned caption are, as boxes in fractions of the output frame. Go turns the boxes into findings. It reads the compiled
 // timeline and the loaded art and draws nothing; the one canvas it uses only measures text. Classic script; publishes
-// StorymakerCore.layout.
+// StorymakerCore.layout. A code scene gets a block with code true and no boxes of its own.
 (function (root) {
     'use strict';
     var SM = root.StorymakerCore || (root.StorymakerCore = {});
 
     var HOLD_AFTER = 0.5;       // seconds after the last arrival or motion
+    var CODE_HOLD_SHARE = 0.7;  // a code scene is sampled at this share of its length (compileshots.go codeHoldShare)
     var VISIBLE = 0.05;         // an entity with less alpha is not on the stage
     var EPS = 0.5;              // design pixels: a smaller move is no move
 
@@ -4333,13 +4334,17 @@
 
     // holdSeconds(timeline, index): the scene-local time of the sample, clamped to the last frame in which the scene is the
     // one on screen (the next scene's entry transition overlaps its end).
+    // A code scene has no stage entities of the storyboard: it is sampled at the larger of 70 % of its length and half a second
+    // after its last cue, and never after its last frame.
     function holdSeconds(timeline, index) {
         var sc = timeline.scenes[index], next = timeline.scenes[index + 1], fps = timeline.fps, last = 0;
         var cues = sc.narration && sc.narration.cueList || [];
         for (var i = 0; i < cues.length; i++) if (cues[i].at_ms / 1000 > last) last = cues[i].at_ms / 1000;
-        for (var k = 0; k < sc.entities.length; k++) { var end = SM.scene.entityEnd(sc.entities[k]); if (end > last) last = end; }
         var lastFrame = Math.min(sc.end_frame, next ? next.start_frame : sc.end_frame) - 1;
-        return Math.min(last + HOLD_AFTER, Math.max(0, (lastFrame - sc.start_frame) / fps));
+        var limit = Math.max(0, (lastFrame - sc.start_frame) / fps);
+        if (sc.kind === 'code') return Math.min(Math.max(CODE_HOLD_SHARE * (sc.end_frame - sc.start_frame) / fps, last + HOLD_AFTER), limit);
+        for (var k = 0; k < sc.entities.length; k++) { var end = SM.scene.entityEnd(sc.entities[k]); if (end > last) last = end; }
+        return Math.min(last + HOLD_AFTER, limit);
     }
 
     // frameBox(box, win, stage, W, H): a design box under a camera window as [x, y, w, h] in fractions of the canvas.
@@ -4370,8 +4375,9 @@
         var sc = timeline.scenes[index], W = timeline.width, H = timeline.height, fps = timeline.fps;
         var t = holdSeconds(timeline, index), stage = SM.render.stageFor(sc, rc);
         var win = stage.cameraWindow(SM.camera.at(sc.camera, t)), base = stage.baseWindow();
-        var block = { id: sc.id, index: sc.index, hold_s: round4(t), actors: [], props: [], texts: [], caption: null, missing: 0, static: false };
-        for (var i = 0; i < sc.entities.length; i++) {
+        var code = sc.kind === 'code';
+        var block = { id: sc.id, index: sc.index, hold_s: round4(t), code: code, actors: [], props: [], texts: [], caption: null, missing: 0, static: false };
+        for (var i = 0; i < sc.entities.length && !code; i++) {
             var e = sc.entities[i], st = SM.scene.evalEntity(e, t);
             if (!(st.alpha > VISIBLE)) continue;
             if (e.type === 'actor' || e.type === 'prop') {
@@ -4389,18 +4395,17 @@
             var cap = SM.captions.at(timeline.captions, sc.start_frame * 1000 / fps + t * 1000);
             if (cap) block.caption = pixelBox(SM.render.captionBox(ctx, cap, rc), W, H);
         }
-        block.static = snapshot(sc, 0) === snapshot(sc, t);
+        if (!code) block.static = snapshot(sc, 0) === snapshot(sc, t);
         return block;
     }
 
-    // measure(timeline, assets): one block per storyboard scene, in story order. assets is what the renderer gets (rig, props,
+    // measure(timeline, assets): one block per scene, in story order. assets is what the renderer gets (rig, props,
     // envs, canvas(name, w, h)). A scene with missing art still reports; its missing count says how many boxes are absent.
     function measure(timeline, assets) {
         var W = timeline.width, H = timeline.height, rc = SM.render.makeContext(timeline, assets, W, H);
         var holder = assets && typeof assets.canvas === 'function' ? assets.canvas('layout', W, H) : null, ctx = holder && holder.ctx || null;
         var out = [];
         for (var i = 0; i < timeline.scenes.length; i++) {
-            if (timeline.scenes[i].kind === 'code') continue;
             out.push(measureScene(timeline, i, rc, ctx));
         }
         return out;

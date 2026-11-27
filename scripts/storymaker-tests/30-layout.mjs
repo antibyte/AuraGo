@@ -51,15 +51,26 @@ check('layout: the feet of the v1 floor stand in the caption band, the feet of c
     assert.ok(hero.scale > 1, 'and carries the scale that makes it so');
 });
 
-check('layout: no captions, no caption box; a scene without motion is static; code scenes are left out', () => {
+check('layout: no captions, no caption box; a scene without motion is static', () => {
     assert.equal(measure(film({ captions: false }))[0].caption, null);
     const quiet = measure(film({}, { beats: [] }))[0];
     assert.equal(quiet.static, true, 'an actor that only stands there');
+});
+
+check('layout: code scenes get a block with code true', () => {
     const two = film();
     two.scenes.push({ id: 's2', kind: 'code', narration: 'Ein Code.' });
     const tl = SM.compile(two, {}, t.catalog, { codeScenes: { s2: { duration: 3 } } }).timeline;
     const blocks = SM.layout.measure(tl, renderAssets());
-    assert.deepEqual(plain(blocks.map(b => b.id)), ['s1']);
+    assert.equal(blocks.length, 2);
+    const [story, code] = blocks;
+    assert.equal(story.code, false);
+    assert.equal(code.id, 's2');
+    assert.equal(code.code, true);
+    assert.equal(code.static, false);
+    assert.deepEqual(plain([code.actors, code.props, code.texts]), [[], [], []]);
+    const sc = tl.scenes[1], D = (sc.end_frame - sc.start_frame) / tl.fps;
+    near(code.hold_s, 0.7 * D, 0.05, 'the code hold frame is 70 % of the scene');
 });
 
 check('layout: the compile report is unchanged by the layout run (the golden stays valid)', () => {

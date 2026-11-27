@@ -187,3 +187,14 @@ func TestLayoutIssuesStaticSceneAndMissingArt(t *testing.T) {
 		t.Fatal("no layout, no findings")
 	}
 }
+
+func TestLayoutIssuesSkipStaticForCodeScenes(t *testing.T) {
+	code := LayoutScene{ID: "c", Index: 1, HoldS: 2, Code: true, Static: true, Actors: []LayoutActor{}, Props: []LayoutProp{}, Texts: []LayoutText{}}
+	if got := LayoutIssues([]LayoutScene{code}, LayoutOptions{}); len(got) != 0 {
+		t.Fatalf("a code scene reported %v", layoutCodes(got))
+	}
+	code.Code = false
+	if got := layoutCodes(LayoutIssues([]LayoutScene{code}, LayoutOptions{})); !slices.Equal(got, []string{CodeSceneStatic}) {
+		t.Fatalf("a storyboard scene that is static reported %v", got)
+	}
+}

@@ -32,7 +32,8 @@ type LayoutText struct {
 	Box LayoutBox `json:"box"`
 }
 
-// LayoutScene is the measured layout of one storyboard scene at its hold frame. Caption is the burned caption of that
+// LayoutScene is the measured layout of one scene at its hold frame. A code scene (Code) has no boxes of its own, because its
+// raw drawing is never measured; it is listed so that stills, the contact sheet and the checks see its hold frame. Caption is the burned caption of that
 // moment, nil when none is on screen. Missing counts boxes the player could not measure for lack of art. Static says that
 // nothing on the stage changed between the first frame and the hold frame, apart from the idle cycle.
 type LayoutScene struct {
@@ -45,6 +46,7 @@ type LayoutScene struct {
 	Caption *LayoutBox    `json:"caption"`
 	Missing int           `json:"missing"`
 	Static  bool          `json:"static"`
+	Code    bool          `json:"code"`
 }
 
 // The thresholds of the layout findings, in fractions of the frame. They come from the geometry measured on 2026-11-09 and
@@ -171,7 +173,7 @@ func LayoutIssues(scenes []LayoutScene, opts LayoutOptions) []Issue {
 				}
 			}
 		}
-		if sc.Static {
+		if sc.Static && !sc.Code {
 			add(CodeSceneStatic, fmt.Sprintf("Nothing shows, moves or changes in scene %s.", sc.ID),
 				`Add a show beat with a prop and a gesture beat with "with":"prev" using patch_scene and the whole beats list.`)
 		}

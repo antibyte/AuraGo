@@ -36,7 +36,7 @@ type CheckReport struct {
 	CompileReason               string // the closed code of why the compile check was unavailable, "" otherwise
 	StoryboardScenes            int    // storyboard scenes of the film, from the compile run
 	CodeScenes                  int    // code scenes of the film (their layout is never measured)
-	LayoutScenes                int    // storyboard scenes whose layout the player measured
+	LayoutScenes                int    // scenes (storyboard and code) whose layout block the player reported
 	RoundsLeft                  int
 }
 
