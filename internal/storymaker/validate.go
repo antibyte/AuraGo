@@ -1019,15 +1019,12 @@ func (v *validator) beat(bb string, j int, b *Beat, sc *Scene, env string, refs 
 			v.errorf(CodeInvalidValue, bb+"/amount", "The camera amount must not be negative.", `Use "amount": 1.2.`)
 		}
 	case "chart":
-		switch b.Chart {
-		case "bar", "line", "pie", "counter":
-		case "":
-			v.missing(bb, b, "chart", " (bar, line, pie or counter)")
-		default:
-			v.errorf(CodeInvalidValue, bb+"/chart", fmt.Sprintf("A chart is bar, line, pie or counter, not %q.", clip(b.Chart, 20)), `Use "chart": "bar".`)
+		v.chartBlock(bb, b)
+		if b.At.IsZero() {
+			v.missing(bb, b, "at", " (an area name or {x, y})")
+		} else {
+			v.blockAt(bb+"/at", b.At, env)
 		}
-		v.chartData(bb, b)
-		needPos("at", b.At)
 	case "sfx":
 		if b.Sound == "" {
 			v.missing(bb, b, "sound", " (an sfx id)")
@@ -1085,38 +1082,39 @@ func (v *validator) cueFix(refs *sceneRefs, got int) string {
 }
 
 func (v *validator) show(bb string, b *Beat, refs *sceneRefs, explicit map[string]bool, env string) {
-	kinds := 0
-	for _, set := range []bool{b.Item != "", b.Text != "", b.Icon != "", b.Chart != ""} {
-		if set {
-			kinds++
-		}
-	}
-	switch {
+	switch kinds := showKinds(b); {
 	case kinds == 0:
-		v.errorf(CodeMissingField, bb+"/item", `A "show" beat needs one of "item", "text", "icon" or "chart".`, "Add \"item\". Example: "+beatExamples["show"])
+		v.errorf(CodeMissingField, bb+"/item", `A "show" beat needs one of "item", "text", "icon", "chart" or "diagram".`, "Add \"item\". Example: "+beatExamples["show"])
 	case kinds > 1:
-		v.errorf(CodeInvalidValue, bb+"/item", `A "show" beat shows one thing: use only one of "item", "text", "icon" or "chart".`, "Split it into two show beats.")
+		v.errorf(CodeInvalidValue, bb+"/item", `A "show" beat shows one thing: use only one of "item", "text", "icon", "chart" or "diagram".`, "Split it into two show beats.")
 	}
+	kind := blockKind(b)
 	if b.Item != "" {
 		v.checkAsset(bb+"/item", "item", b.Item, roleProp)
 	}
-	if b.Text != "" && b.Style != "" {
+	if kind != "" {
+		v.block(bb, b, kind, refs)
+	} else if b.Text != "" && b.Style != "" && b.Icon == "" {
 		v.bareName(bb+"/style", &b.Style, specTextStyle)
 	}
-	if b.Icon != "" || b.Chart != "" {
-		v.notYet(bb, "A show beat with an icon or a chart is accepted but not shown yet.")
-	}
-	if b.At.IsZero() {
+	switch {
+	case b.At.IsZero():
 		v.missing(bb, b, "at", " (a spot name or {x, y})")
-	} else {
+	case kind != "":
+		v.blockAt(bb+"/at", b.At, env)
+	default:
 		v.position(bb+"/at", b.At, env)
 	}
 	switch b.Entry {
 	case "pop", "fade", "slide", "none":
+	case "draw":
+		if kind != "icon" && kind != "diagram" {
+			v.warnf(CodeInvalidValue, bb+"/entry", "draw applies to icons and diagrams; the player fades it in.", `Use "entry": "fade".`)
+		}
 	case "":
-		v.missing(bb, b, "entry", " (pop, fade, slide or none)")
+		v.missing(bb, b, "entry", " (pop, fade, slide, none or draw)")
 	default:
-		v.errorf(CodeInvalidValue, bb+"/entry", fmt.Sprintf("An entry is pop, fade, slide or none, not %q.", clip(b.Entry, 20)), `Use "entry": "pop".`)
+		v.errorf(CodeInvalidValue, bb+"/entry", fmt.Sprintf("An entry is pop, fade, slide, none or draw, not %q.", clip(b.Entry, 20)), `Use "entry": "pop".`)
 	}
 	if b.ID != "" {
 		switch {
@@ -1127,18 +1125,6 @@ func (v *validator) show(bb string, b *Beat, refs *sceneRefs, explicit map[strin
 		default:
 			explicit[b.ID] = true
 		}
-	}
-}
-
-func (v *validator) chartData(bb string, b *Beat) {
-	d := b.Data
-	switch {
-	case d == nil:
-		v.missing(bb, b, "data", " ({labels, values})")
-	case len(d.Labels) == 0 || len(d.Labels) != len(d.Values):
-		v.errorf(CodeInvalidValue, bb+"/data", "Chart data needs the same number (at least one) of labels and values.", `Use "data": {"labels":["Mo","Di"],"values":[2,5]}.`)
-	case len(d.Labels) > 24:
-		v.errorf(CodeLimitExceeded, bb+"/data", fmt.Sprintf("The chart has %d entries; the limit is 24.", len(d.Labels)), "Show fewer values.")
 	}
 }
 

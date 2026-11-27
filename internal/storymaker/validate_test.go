@@ -183,13 +183,16 @@ func TestValidateNames(t *testing.T) {
 		// The phase 1 support matrix.
 		{"transition not played yet", `{"id":"s1","transition":"slide-right"}`, CodeNotSupportedYet, SeverityMinor, "/scenes/0/transition"},
 		{"transition zoom", `{"id":"s1","transition":"zoom"}`, CodeNotSupportedYet, SeverityMinor, "/scenes/0/transition"},
-		{"chart beat", `{"id":"s1","beats":[{"do":"chart","chart":"bar","data":{"labels":["a"],"values":[1]},"at":"right"}]}`, CodeNotSupportedYet, SeverityMinor, "/scenes/0/beats/0"},
-		{"show with icon", `{"id":"s1","beats":[{"do":"show","icon":"warning","at":"center","entry":"pop"}]}`, CodeNotSupportedYet, SeverityMinor, "/scenes/0/beats/0"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			expectIssue(t, validateScenes(t, tc.scenes), tc.code, tc.severity, tc.path)
 		})
+	}
+	// The chart beat plays now; an unknown icon is an error.
+	expectIssue(t, validateScenes(t, `{"id":"s1","beats":[{"do":"show","icon":"warning","at":"center","entry":"pop"}]}`), CodeUnknownAsset, SeverityError, "/scenes/0/beats/0/icon")
+	if issues := validateScenes(t, `{"id":"s1","beats":[{"do":"chart","chart":"bar","data":{"labels":["a"],"values":[1]},"at":"right"}]}`); len(issues) != 0 {
+		t.Errorf("chart beat: %s", dump(issues))
 	}
 	// Supported names raise nothing.
 	clean := `{"id":"s1","transition":"wipe","actors":[{"cast":"anna","pose":"typing","expression":"happy"}],"beats":[` +
