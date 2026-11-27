@@ -951,10 +951,22 @@ func (j *storymakerAgentJob) runFillPasses(ctx context.Context, first []string) 
 			if ctx.Err() != nil {
 				return
 			}
+			if pass > 1 {
+				// Another loop may have filled this scene since the list was made.
+				current, err := j.studio.Progress(ctx)
+				if err != nil {
+					j.logger.Warn("[Storymaker] The agent progress could not be read", "job_id", j.job.ID, "error", err)
+					j.noteModelError(err)
+					return
+				}
+				if !slices.Contains(current.Unfilled, sceneID) {
+					continue
+				}
+			}
 			j.runPhase(ctx, storymakerAgentLoop{phase: storymaker.PhaseFill, sceneID: sceneID, pass: pass})
 			j.refreshProgress(ctx)
 		}
-		if pass == storymakerFillPasses {
+		if pass == storymakerFillPasses || ctx.Err() != nil {
 			return
 		}
 		progress, err := j.studio.Progress(ctx)

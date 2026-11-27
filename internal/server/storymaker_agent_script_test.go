@@ -52,6 +52,8 @@ type smScriptTurn struct {
 type smScriptClient struct {
 	textMode bool
 	onBlock  func()
+	// beforeReply runs before each reply is chosen, without the client lock held.
+	beforeReply func(req openai.ChatCompletionRequest)
 
 	mu       sync.Mutex
 	turns    map[string][]smScriptTurn
@@ -82,6 +84,9 @@ func smScriptPhase(req openai.ChatCompletionRequest) string {
 func (c *smScriptClient) reply(ctx context.Context, req openai.ChatCompletionRequest) (openai.ChatCompletionMessage, openai.FinishReason, error) {
 	if err := ctx.Err(); err != nil {
 		return openai.ChatCompletionMessage{}, "", err
+	}
+	if c.beforeReply != nil {
+		c.beforeReply(req)
 	}
 	c.mu.Lock()
 	req.Messages = slices.Clone(req.Messages)
