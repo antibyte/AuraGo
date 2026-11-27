@@ -1883,7 +1883,7 @@
     function indexCatalog(catalog) {
         var idx = {
             version: (catalog && catalog.version) || '', byId: {}, poses: {}, gestures: {}, expressions: {}, cycles: {},
-            textStyles: {}, transitions: {}, mouths: {}, palettes: {}, fonts: (catalog && catalog.fonts) || [],
+            textStyles: {}, transitions: {}, mouths: {}, palettes: {}, icons: {}, fonts: (catalog && catalog.fonts) || [],
             stage: (catalog && catalog.stage) || null, rig: (catalog && catalog.rig) || null
         };
         var entries = (catalog && catalog.entries) || [];
@@ -1900,6 +1900,11 @@
             else if (e.kind === 'text_style') idx.textStyles[bare] = e;
             else if (e.kind === 'transition') idx.transitions[bare] = e;
             else if (e.kind === 'mouth') idx.mouths[bare] = e;
+        }
+        // icons: id -> {paths, fills, tags} from catalog.icon_data (in memory only, like glyph_data)
+        var icons = catalog && catalog.icon_data && Array.isArray(catalog.icon_data.icons) ? catalog.icon_data.icons : [];
+        for (var n = 0; n < icons.length; n++) {
+            if (icons[n] && icons[n].id) idx.icons[icons[n].id] = { paths: icons[n].paths || [], fills: icons[n].fills || [], tags: icons[n].tags || [] };
         }
         var pals = (catalog && catalog.palettes) || [];
         for (var p = 0; p < pals.length; p++) idx.palettes[pals[p].name || String(pals[p].id).replace(/^palette\./, '')] = pals[p];

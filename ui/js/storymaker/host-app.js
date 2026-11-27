@@ -10,7 +10,7 @@
     var CAPS = {
         maxFallbackFontBytes: 18 * 1048576,
         maxScenes: 400, maxEntries: 6000, maxAssetKeys: 2000, maxFonts: 16, maxFontBytes: 8 * 1048576, maxFontTotal: 32 * 1048576,
-        maxAudioScenes: 400, maxAudioBlocks: 61, maxAudioPieces: 800, maxLevels: 27000, maxTotalLevels: 200000, maxGlyphFaces: 16, maxGlyphRanges: 60000,
+        maxAudioScenes: 400, maxAudioBlocks: 61, maxAudioPieces: 800, maxLevels: 27000, maxTotalLevels: 200000, maxGlyphFaces: 16, maxGlyphRanges: 60000, maxIcons: 1000, maxIconPaths: 40, maxIconPathChars: 2000,
         maxBundles: 400, maxBundleChars: 262144, maxFrame: 100000000, thumbMin: 16, thumbMax: 1920, maxKey: 240, maxReq: 64
     };
     var TYPES = ['load', 'assets', 'seek', 'play', 'pause', 'thumb', 'reset'];
@@ -63,6 +63,22 @@
         return null;
     }
 
+    // checkIconData(data) = null when catalog.icon_data has the schema string and fits its caps, else a short reason.
+    function checkIconData(data) {
+        if (!isObject(data) || data.schema !== 'storymaker-icons/1') return 'load.catalog.icon_data needs the schema string';
+        if (!Array.isArray(data.icons) || data.icons.length > CAPS.maxIcons) return 'load.catalog.icon_data has bad icons or too many icons';
+        for (var i = 0; i < data.icons.length; i++) {
+            var icon = data.icons[i];
+            if (!isObject(icon) || typeof icon.id !== 'string' || !/^icon.[a-z0-9-]{1,60}$/.test(icon.id)) return 'load.catalog.icon_data has a bad icon id';
+            if (!Array.isArray(icon.paths) || icon.paths.length > CAPS.maxIconPaths) return 'load.catalog.icon_data has bad or too many paths';
+            for (var k = 0; k < icon.paths.length; k++) {
+                if (typeof icon.paths[k] !== 'string' || icon.paths[k].length > CAPS.maxIconPathChars) return 'load.catalog.icon_data has a bad path';
+            }
+            if (icon.fills !== undefined && (!Array.isArray(icon.fills) || icon.fills.length > CAPS.maxIconPaths)) return 'load.catalog.icon_data has bad fills';
+        }
+        return null;
+    }
+
     // facesOf(catalog): the fallback faces of a catalog's glyph data. Only these may name a font over maxFontBytes.
     function facesOf(catalog) {
         var data = isObject(catalog) ? catalog.glyph_data : null;
@@ -92,6 +108,10 @@
                 if (msg.catalog.glyph_data !== undefined) {
                     var badGlyphs = checkGlyphData(msg.catalog.glyph_data);
                     if (badGlyphs) return badGlyphs;
+                }
+                if (msg.catalog.icon_data !== undefined) {
+                    var badIcons = checkIconData(msg.catalog.icon_data);
+                    if (badIcons) return badIcons;
                 }
                 if (msg.audio_info !== undefined) {
                     var badAudio = checkAudioInfo(msg.audio_info);

@@ -157,6 +157,16 @@ check('host app: audio_info and glyph_data stay inside their caps', () => {
     // Each range is two values in d, so 120002 values are 60001 ranges, one over maxGlyphRanges.
     assert.match(ok(glyphs({ schema, faces: [face(new Array(120002).fill(1))] })), /ranges/, 'maxGlyphRanges is 60000');
     assert.equal(ok(glyphs(readRepoJSON('ui/img/storymaker/glyphs.json'))), null, 'the shipped coverage file fits the caps');
+
+    const icons = data => load({ catalog: { ...catalog, icon_data: data } });
+    const icon = (id, paths = ['M0 0']) => ({ id, paths, tags: [] });
+    assert.match(ok(icons({ schema: 'x', icons: [] })), /icon_data/, 'another icon schema is refused');
+    assert.equal(ok(icons({ schema: 'storymaker-icons/1', icons: [icon('icon.cpu')] })), null, 'a valid icon passes');
+    assert.match(ok(icons({ schema: 'storymaker-icons/1', icons: [icon('cpu')] })), /icon_data/, 'an id without the icon. prefix is refused');
+    assert.match(ok(icons({ schema: 'storymaker-icons/1', icons: [icon('icon.cpu', new Array(41).fill('M0 0'))] })), /icon_data/, 'at most 40 paths');
+    assert.match(ok(icons({ schema: 'storymaker-icons/1', icons: [icon('icon.cpu', ['M' + '0'.repeat(2000)])] })), /icon_data/, 'at most 2000 characters per path');
+    assert.match(ok(icons({ schema: 'storymaker-icons/1', icons: new Array(1001).fill(icon('icon.cpu')) })), /icon_data/, 'at most 1000 icons');
+    assert.equal(ok(icons(readRepoJSON('ui/img/storymaker/icons/lucide.json'))), null, 'the shipped icon file fits the caps');
 });
 
 check('host app: seek, play with frame dropping, pause and the end of the video', async () => {

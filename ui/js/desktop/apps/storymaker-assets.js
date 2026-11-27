@@ -29,6 +29,7 @@
                 catalogPromise = api.catalogJSON('catalog.json').then(async raw => {
                     // the coverage file travels on the catalog as glyph_data: in memory only, never in catalog.json
                     if (raw && raw.glyphs && typeof raw.glyphs.file === 'string') raw.glyph_data = await api.catalogJSON(raw.glyphs.file);
+                    if (raw && raw.icons && typeof raw.icons.file === 'string') raw.icon_data = await api.catalogJSON(raw.icons.file);
                     return raw;
                 }).then(raw => {
                     if (!raw || !['storymaker-catalog/1', 'storymaker-catalog/2'].includes(raw.schema) || !Array.isArray(raw.entries)) throw S.errors.normalize({ message: 'The catalog has an unknown format.' });

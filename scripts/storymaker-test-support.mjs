@@ -14,7 +14,8 @@ export const readJSON = file => JSON.parse(read(file));
 export const plain = value => JSON.parse(JSON.stringify(value));
 
 export const MINI = 'internal/storymaker/testdata/catalog-mini/';
-export const miniCatalog = () => readJSON(MINI + 'catalog.json');
+// icon_data travels on the catalog in memory only, like glyph_data (the host loads it from the catalog's icons file)
+export const miniCatalog = () => ({ ...readJSON(MINI + 'catalog.json'), icon_data: readJSON(MINI + 'icons.json') });
 export const miniFiles = () => ({
     rig: readJSON(MINI + 'rig/human.json'),
     props: { 'props/lock.json': readJSON(MINI + 'props/lock.json'), 'props/shield.json': readJSON(MINI + 'props/shield.json') },

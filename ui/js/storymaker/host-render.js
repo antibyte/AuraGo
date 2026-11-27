@@ -154,6 +154,11 @@
                 if (glyphFile.indexOf('..') >= 0 || glyphFile.charAt(0) === '/') throw H.fail('readiness', 'Bad asset path ' + glyphFile);
                 catalog.glyph_data = await getJSON('glyphs', assetsBase + glyphFile);
             }
+            if (catalog && catalog.icons && catalog.icons.file) {
+                var iconFile = String(catalog.icons.file);
+                if (iconFile.indexOf('..') >= 0 || iconFile.charAt(0) === '/') throw H.fail('readiness', 'Bad asset path ' + iconFile);
+                catalog.icon_data = await getJSON('icons', assetsBase + iconFile);
+            }
             // Fonts are lazy: load.fonts stays empty and requestAssets fetches a face when compile needs it. URLs come from boot.fonts
             // only (the catalog's file paths are AuraGo paths), and each buffer is fetched once.
             var fontByKey = {}, fontFetches = {};
