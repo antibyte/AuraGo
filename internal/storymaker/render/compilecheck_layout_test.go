@@ -151,3 +151,28 @@ func TestSummarizeCompileReportCleansAndBoundsTheLayoutBlocks(t *testing.T) {
 		t.Fatalf("the first 64 are kept: %+v", second.Actors[63])
 	}
 }
+
+func TestSummarizeCompileReportBoundsBlocks(t *testing.T) {
+	want := reportExpectation()
+	want.Prefix, want.Token = "/r/job-7f3a/", "tok9d2c"
+	box := []float64{0.1, 0.1, 0.4, 0.4}
+	blocks := make([]any, 0, 70)
+	for i := 0; i < 70; i++ {
+		blocks = append(blocks, map[string]any{"id": fmt.Sprintf("diagram-%d", i), "kind": "diagram", "layout": "flow", "label": 0.03, "box": box})
+	}
+	blocks[0] = map[string]any{"id": "d" + want.Token + "1" + strings.Repeat("x", 80), "kind": "chart" + want.Token, "layout": "bar", "label": 0.03, "box": box}
+	m := goodReport()
+	m["layout"] = []any{map[string]any{"id": "s1", "index": 0, "hold_s": 1, "actors": []any{}, "props": []any{}, "texts": []any{}, "blocks": blocks}}
+	body, err := json.Marshal(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := summarizeCompileReport(body, want, 0)
+	if !got.Available || len(got.Layout) != 1 || len(got.Layout[0].Blocks) != 64 {
+		t.Fatalf("70 blocks are cut to 64: %+v", got.Layout)
+	}
+	first := got.Layout[0].Blocks[0]
+	if strings.Contains(first.ID, want.Token) || len(first.ID) > 64 || first.Kind != "chart" || first.Layout != "bar" || first.Label != 0.03 || first.Box != [4]float64{0.1, 0.1, 0.4, 0.4} {
+		t.Fatalf("the first block is cleaned and keeps its geometry: %+v", first)
+	}
+}

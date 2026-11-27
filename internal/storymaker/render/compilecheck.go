@@ -299,7 +299,7 @@ func summarizeCompileReport(body []byte, want reportExpect, frameLimit int) stor
 	}
 }
 
-// layoutMaxBoxes bounds the actors, props and texts the page may report for one scene. A story holds far fewer.
+// layoutMaxBoxes bounds the actors, props, texts and blocks the page may report for one scene. A story holds far fewer.
 const layoutMaxBoxes = 64
 
 // cleanLayoutScene removes the render secrets from the ids the page wrote into a layout block and bounds their length and
@@ -318,6 +318,12 @@ func cleanLayoutScene(block storymaker.LayoutScene, want reportExpect) storymake
 	block.Texts = slices.Clone(block.Texts[:min(len(block.Texts), layoutMaxBoxes)])
 	for i := range block.Texts {
 		block.Texts[i].ID = want.clean(block.Texts[i].ID, 60)
+	}
+	block.Blocks = slices.Clone(block.Blocks[:min(len(block.Blocks), layoutMaxBoxes)])
+	for i := range block.Blocks {
+		block.Blocks[i].ID = want.clean(block.Blocks[i].ID, 60)
+		block.Blocks[i].Kind = want.clean(block.Blocks[i].Kind, 20)
+		block.Blocks[i].Layout = want.clean(block.Blocks[i].Layout, 20)
 	}
 	return block
 }

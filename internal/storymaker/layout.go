@@ -32,8 +32,20 @@ type LayoutText struct {
 	Box LayoutBox `json:"box"`
 }
 
-// LayoutScene is the measured layout of one scene at its hold frame. A code scene (Code) has no boxes of its own, because its
-// raw drawing is never measured; it is listed so that stills, the contact sheet and the checks see its hold frame. Caption is the burned caption of that
+// LayoutBlock is the box of one explainer block (icon, diagram, chart, headline or list). Layout is the diagram layout, the chart
+// type or the icon style, "" for a headline and a list. Label is the smallest label of the block as a share of the short side
+// of the frame, 0 when it has no label.
+type LayoutBlock struct {
+	ID     string    `json:"id"`
+	Kind   string    `json:"kind"`
+	Layout string    `json:"layout"`
+	Label  float64   `json:"label"`
+	Box    LayoutBox `json:"box"`
+}
+
+// LayoutScene is the measured layout of one scene at its hold frame. A code scene (Code) has no actor, prop or text boxes,
+// because its raw drawing is never measured; it carries the boxes of its explainer blocks and is listed so that stills, the
+// contact sheet and the checks see its hold frame. Caption is the burned caption of that
 // moment, nil when none is on screen. Missing counts boxes the player could not measure for lack of art. Static says that
 // nothing on the stage changed between the first frame and the hold frame, apart from the idle cycle.
 type LayoutScene struct {
@@ -43,6 +55,7 @@ type LayoutScene struct {
 	Actors  []LayoutActor `json:"actors"`
 	Props   []LayoutProp  `json:"props"`
 	Texts   []LayoutText  `json:"texts"`
+	Blocks  []LayoutBlock `json:"blocks"`
 	Caption *LayoutBox    `json:"caption"`
 	Missing int           `json:"missing"`
 	Static  bool          `json:"static"`
@@ -61,6 +74,10 @@ const (
 	layoutZoneShare     = 0.02 // texts and the caption: this share of the box inside the safe zone is too much
 	layoutOverlapShare  = 0.35 // of the smaller box
 	layoutScaleMax      = 2.0  // the validated range of a beat scale
+
+	layoutBlockMinHeight    = 0.10  // a block box below this share of the frame height is too small
+	layoutBlockMinLabel     = 0.025 // a label below this share of the short side is too small
+	layoutBlockCaptionShare = 0.02  // this share of a block box under the caption counts as covered
 )
 
 // LayoutOptions say which rules apply. CaptionRule is true for a composition v2 film with captions on in 16:9 or 1:1: the
@@ -92,7 +109,7 @@ func SafeZone(aspect string) LayoutZone {
 // block an outcome.
 func IssueLayout(code string) bool {
 	switch code {
-	case CodeCaptionOverlap, CodePropTooSmall, CodeOffscreen, CodeActorPropOverlap, CodeSceneStatic, CodeScenesLookAlike:
+	case CodeCaptionOverlap, CodePropTooSmall, CodeOffscreen, CodeActorPropOverlap, CodeSceneStatic, CodeScenesLookAlike, CodeBlockTooSmall:
 		return true
 	}
 	return false
@@ -160,6 +177,30 @@ func LayoutIssues(scenes []LayoutScene, opts LayoutOptions) []Issue {
 		if sc.Caption != nil && !sc.Code && zoneShare(*sc.Caption, zone) > layoutZoneShare {
 			add(CodeTextUnsafe, fmt.Sprintf("The caption lies in the margin that platform overlays cover in scene %s.", sc.ID),
 				`Shorten the narration of the scene so the caption has fewer lines.`)
+		}
+		blockFix := func(storyboard string) string {
+			if sc.Code {
+				return "Keep it inside api.safe(): change at in the source with put_code."
+			}
+			return storyboard
+		}
+		const blockAreas = `Show it at "full", "left", "right", "top" or "board" with patch_scene and the whole beats list.`
+		for _, b := range sc.Blocks {
+			if sc.Caption != nil && area(b.Box) > 0 && intersection(b.Box, *sc.Caption)/area(b.Box) > layoutBlockCaptionShare {
+				add(CodeCaptionOverlap, fmt.Sprintf("The caption covers the block %s in scene %s.", b.ID, sc.ID), blockFix(blockAreas))
+			}
+			if outsideShare(b.Box) > layoutTextOutside {
+				add(CodeOffscreen, fmt.Sprintf("The block %s is partly outside the frame in scene %s.", b.ID, sc.ID), blockFix(blockAreas))
+			}
+			if b.Box[3] < layoutBlockMinHeight || (b.Label > 0 && b.Label < layoutBlockMinLabel) {
+				add(CodeBlockTooSmall, fmt.Sprintf("The block %s is too small to read in scene %s.", b.ID, sc.ID),
+					blockFix(`Show it at "full" or on a bigger area, or give it fewer nodes or shorter labels.`))
+			}
+			for _, a := range sc.Actors {
+				if overlapShare(a.Box, b.Box) > layoutOverlapShare {
+					add(CodeActorPropOverlap, fmt.Sprintf("%s hides the block %s in scene %s.", a.ID, b.ID, sc.ID), blockFix(blockAreas))
+				}
+			}
 		}
 		for _, a := range sc.Actors {
 			for _, p := range sc.Props {

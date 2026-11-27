@@ -212,3 +212,43 @@ func TestLayoutIssuesCodeSceneGetsNoCaptionFindings(t *testing.T) {
 		t.Fatalf("a storyboard scene reported %v", got)
 	}
 }
+
+func TestLayoutIssuesForBlocks(t *testing.T) {
+	caption := LayoutBox{0.2, 0.794, 0.6, 0.126}
+	sc := layoutScene("s1", 0)
+	sc.Caption = &caption
+	sc.Actors = []LayoutActor{{ID: "anna", Box: LayoutBox{0.5, 0.2, 0.1, 0.4}}}
+	sc.Blocks = []LayoutBlock{
+		{ID: "covered", Kind: "chart", Layout: "bar", Label: 0.03, Box: LayoutBox{0.3, 0.5, 0.3, 0.4}},
+		{ID: "outside", Kind: "list", Label: 0.03, Box: LayoutBox{0.8, 0.1, 0.4, 0.3}},
+		{ID: "tiny", Kind: "headline", Label: 0.03, Box: LayoutBox{0.1, 0.1, 0.3, 0.05}},
+		{ID: "hidden", Kind: "diagram", Layout: "flow", Label: 0.03, Box: LayoutBox{0.45, 0.2, 0.2, 0.3}},
+		{ID: "label", Kind: "diagram", Layout: "flow", Label: 0.02, Box: LayoutBox{0.05, 0.55, 0.3, 0.2}},
+		{ID: "fine", Kind: "diagram", Layout: "flow", Label: 0.03, Box: LayoutBox{0.05, 0.05, 0.3, 0.4}},
+	}
+	got := LayoutIssues([]LayoutScene{sc}, LayoutOptions{})
+	want := []string{CodeCaptionOverlap, CodeOffscreen, CodeBlockTooSmall, CodeActorPropOverlap, CodeBlockTooSmall}
+	if !slices.Equal(layoutCodes(got), want) {
+		t.Fatalf("issues = %v, want %v", layoutCodes(got), want)
+	}
+	for _, is := range got {
+		if is.Severity != SeverityWarning || is.Fix == "" || !IssueLayout(is.Code) || !IssueModelFixable(is) || strings.Contains(is.Fix, "api.safe()") {
+			t.Errorf("a storyboard block finding is a warning with a patch_scene fix: %+v", is)
+		}
+	}
+	if !strings.Contains(got[0].Message, "covered") || !strings.Contains(got[2].Fix, `"full"`) {
+		t.Errorf("messages: %+v", got)
+	}
+	// The caption rule holds without composition v2, and a code scene names api.safe().
+	sc.Code = true
+	for _, is := range LayoutIssues([]LayoutScene{sc}, LayoutOptions{}) {
+		if !strings.Contains(is.Fix, "api.safe()") || !strings.Contains(is.Fix, "put_code") {
+			t.Errorf("a code scene fix names api.safe(): %+v", is)
+		}
+	}
+	sc.Blocks = []LayoutBlock{{ID: "ok", Kind: "chart", Label: 0.03, Box: LayoutBox{0.1, 0.1, 0.5, 0.5}}}
+	sc.Actors = nil
+	if got := LayoutIssues([]LayoutScene{sc}, LayoutOptions{}); len(got) != 0 {
+		t.Fatalf("a block inside the safe area with label 0.03: %v", layoutCodes(got))
+	}
+}
