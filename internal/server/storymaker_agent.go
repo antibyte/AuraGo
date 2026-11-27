@@ -1269,9 +1269,16 @@ func (j *storymakerAgentJob) applyFallbackBoards(ctx context.Context, unfilled [
 	if j.payload.Kind != storymaker.AgentKindCreate {
 		return nil
 	}
+	// runCreate sets the outline scenes only after the cast phase. A job that ended earlier (a failed cast phase, the deadline,
+	// a failed progress read) still has its saved outline: a create job starts on a blank story (the routes refuse any other),
+	// so every scene that is unfilled now came from its outline.
+	outline := j.outlineScenes
+	if len(outline) == 0 {
+		outline = unfilled
+	}
 	var ids []string
 	for _, id := range unfilled {
-		if slices.Contains(j.outlineScenes, id) {
+		if slices.Contains(outline, id) {
 			ids = append(ids, id)
 		}
 	}

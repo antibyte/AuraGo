@@ -78,3 +78,34 @@ func TestStorymakerAgentFallbackSkippedAfterUserStop(t *testing.T) {
 		t.Fatalf("s2 = %+v, a stopped job must leave the unfilled scene untouched", s2)
 	}
 }
+
+// A cast phase that never ends keeps the job from the fill passes, so outlineScenes stays empty. The scenes of the saved
+// outline still end as boards.
+func TestStorymakerAgentFallbackBoardWhenTheCastPhaseFails(t *testing.T) {
+	turns := smScriptHappyTurns()
+	delete(turns, storymaker.PhaseCast)
+	delete(turns, storymaker.PhaseFill)
+	client := &smScriptClient{turns: turns}
+	env := newSMScriptEnv(t, smScriptNativeModel, client)
+	job := smScriptWait(t, env.rt.agent, smScriptEnqueue(t, env.rt.agent, env).ID)
+	if job.Agent == nil || job.Agent.Outcome != storymaker.OutcomeIncomplete {
+		t.Fatalf("job = %+v, agent = %+v, want an incomplete outcome", job, job.Agent)
+	}
+	fallback := map[string]bool{}
+	for _, c := range job.Agent.OpenChecks {
+		if c.Code == storymaker.CodeSceneUnfilled {
+			t.Errorf("a scene stayed unfilled: %+v", job.Agent.OpenChecks)
+		}
+		if c.Code == storymaker.CodeSceneFallback {
+			fallback[c.SceneID] = true
+		}
+	}
+	if !fallback["s1"] || !fallback["s2"] {
+		t.Fatalf("open checks = %+v, want scene_fallback for s1 and s2", job.Agent.OpenChecks)
+	}
+	for _, sc := range smScriptStory(t, env).Scenes {
+		if sc.Environment != storymaker.BoardEnvironmentID || len(sc.Beats) != 1 || sc.Beats[0].Style != "headline" {
+			t.Errorf("scene %s = %+v, want a headline on env.board", sc.ID, sc)
+		}
+	}
+}
