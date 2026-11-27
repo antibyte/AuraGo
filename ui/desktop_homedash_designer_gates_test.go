@@ -92,9 +92,27 @@ const homeDashGateProbeJS = `(WIN)=>{
  const zoomOf=el=>{let z=1;for(let n=el;n&&n.nodeType===1;n=n.parentElement){const v=parseFloat(getComputedStyle(n).zoom);if(v>0)z*=v;}return z;};
  // a row the Go side measures on the text-less screenshot: fg is the colour the control draws, box its on-screen rect, [from,to] the distance range (screen px, > 0 outside the box, < 0 inside) of the pixels it is read against
  const pxui=(el,what,fg,box,from,to,extra)=>{if(!el||!shown(el))return;const c=fg.slice();if(!extra||extra.op===undefined)c[3]*=effOp(el);res.ui.push(Object.assign({el:path(el),what,px:true,fg:c,box:[box.left,box.top,box.width,box.height],from,to,pass:false},extra||{}));};
+ // Visual occlusion, not hit testing: a text counts as covered only when something that paints at the sample point lies over it. A control that takes no
+ // pointer events (pointer-events:none chip, drag avatar) is made hit-testable for the check (inline, restored to the exact previous inline value); the hit stack is
+ // walked from the top, an element that paints nothing there (a transparent hit layer: the dock scroller, a sheet footer, an input shield) is looked through, and the
+ // walk ends free at the element itself or a relative of it, occluded at the first painting element (a scrim and a sheet paint, so a text under them stays a skip).
+ const paintsAt=(n,x,y)=>{const s=getComputedStyle(n);if(Number(s.opacity)<=.05)return false;
+  if(/^(img|canvas|video|svg|input|select|textarea|iframe)$/i.test(n.tagName))return true;
+  if(rgba(s.backgroundColor)[3]>0||s.backgroundImage!=='none')return true;
+  if((s.backdropFilter&&s.backdropFilter!=='none')||(s.webkitBackdropFilter&&s.webkitBackdropFilter!=='none'))return true;
+  const r=n.getBoundingClientRect();
+  for(const [side,d] of [['Top',y-r.top],['Bottom',r.bottom-y],['Left',x-r.left],['Right',r.right-x]])if(s['border'+side+'Style']!=='none'&&parseFloat(s['border'+side+'Width'])>0&&rgba(s['border'+side+'Color'])[3]>0&&d<=parseFloat(s['border'+side+'Width']))return true;
+  if(s.boxShadow!=='none'){const dist=Math.min(y-r.top,r.bottom-y,x-r.left,r.right-x);for(const m of s.boxShadow.matchAll(/((?:rgba?|color)\((?:[^()]|\([^)]*\))*\))\s+(-?[\d.]+)px\s+(-?[\d.]+)px\s+([\d.]+)px(?:\s+(-?[\d.]+)px)?\s+inset|inset\s+((?:rgba?|color)\((?:[^()]|\([^)]*\))*\))\s+(-?[\d.]+)px\s+(-?[\d.]+)px\s+([\d.]+)px(?:\s+(-?[\d.]+)px)?/g)){
+    const col=rgba(m[1]||m[6]);if(col[3]<=0)continue;const ox=parseFloat(m[2]||m[7]),oy=parseFloat(m[3]||m[8]),bl=parseFloat(m[4]||m[9]),sp=parseFloat(m[5]||m[10]||0);if(dist<=Math.max(Math.abs(ox),Math.abs(oy))+bl+Math.max(sp,0))return true;}}
+  if(rgba(s.webkitTextFillColor)[3]>0){for(const q of textRects(n))if(x>=q.left-.5&&x<=q.right+.5&&y>=q.top-.5&&y<=q.bottom+.5)return true;}
+  for(const ps of ['::before','::after']){const p=getComputedStyle(n,ps);if(p.content!=='none'&&p.content!=='normal'&&p.display!=='none'&&(rgba(p.backgroundColor)[3]>0||p.backgroundImage!=='none'))return true;}
+  return false;};
  const covered=el=>{const rs=textRects(el);
   if(!rs.length)return false;const L=Math.min(...rs.map(r=>r.left)),R=Math.max(...rs.map(r=>r.right)),T=Math.min(...rs.map(r=>r.top)),B=Math.max(...rs.map(r=>r.bottom)),cy=(T+B)/2;let seen=0,free=0;
-  for(const [x,y] of [[(L+R)/2,cy],[L+(R-L)*.15,cy],[L+(R-L)*.85,cy],[(L+R)/2,T+(B-T)*.3],[(L+R)/2,T+(B-T)*.7]]){const hit=document.elementFromPoint(x,y);if(!hit)continue;seen++;if(hit===el||el.contains(hit)||hit.contains(el))free++;}
+  const touched=[];for(let n=el;n&&n.nodeType===1&&getComputedStyle(n).pointerEvents==='none';n=n.parentElement){touched.push([n,n.style.getPropertyValue('pointer-events'),n.style.getPropertyPriority('pointer-events')]);n.style.setProperty('pointer-events','auto','important');}
+  try{for(const [x,y] of [[(L+R)/2,cy],[L+(R-L)*.15,cy],[L+(R-L)*.85,cy],[(L+R)/2,T+(B-T)*.3],[(L+R)/2,T+(B-T)*.7]]){const stack=document.elementsFromPoint(x,y);if(!stack.length)continue;seen++;
+   for(const hit of stack){if(hit===el||el.contains(hit)||hit.contains(el)){free++;break;}if(paintsAt(hit,x,y))break;}}}
+  finally{for(const [n,v,pr] of touched.reverse()){if(v)n.style.setProperty('pointer-events',v,pr);else n.style.removeProperty('pointer-events');}}
   return seen>0&&free===0;};
  const path=el=>{const own=[...el.classList].slice(0,2).join('.'),up=el.closest('[class*="hd-"]:not(span)');return el.tagName.toLowerCase()+'.'+(own||(up&&up!==el?'in '+[...up.classList][0]:''))+(el.dataset.hdWid?'#'+el.dataset.hdWid:'');};
  const snip=el=>[...el.childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent.trim()).join(' ').slice(0,32);
