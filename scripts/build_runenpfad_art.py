@@ -35,7 +35,7 @@ WEBP_QUALITY_NPC = 82
 LAZY_KINDS = ("portrait", "duel")
 # new sheets (places / village / story round); the pre-existing bg-* sheets stay eager in the atlas
 LAZY_ID_RE = re.compile(r"^(tdp|td|tex|fac|cutfg|cut|vil)-")
-TD_CHAR_KINDS = ("td-hero", "td-mob", "td-folk")   # top-down characters, treated like npc sheets
+TD_CHAR_KINDS = ("td-hero", "td-mob", "td-folk", "td-dragon")   # top-down characters, treated like npc sheets
 MAX_CELL_TD_PROPS = 256
 MAX_CELL_FACADE = 512
 TEX_CELL = 320        # tex sheets: opaque 2x2, every cell exactly 320x320
@@ -161,6 +161,27 @@ SHEETS["fac-observatory"] = (2, 2, "self", "facade")
 for _c in ("obs-1", "trueend-1", "trueend-2", "trueend-3"):
     SHEETS["cut-%s" % _c] = (1, 1, "corner", "cut")
 
+# dragon round: Brandur (top-down boss in three sheets), breath/hazard fx, the deep-mine folk, props, textures, facades, cuts
+for _id, _piv in (("td-boss-brandur", "feet"), ("td-brandur-b", "feet"), ("td-brandur-air", "center")):
+    SHEETS[_id] = (4, 2, _piv, "td-dragon")
+    MAX_CELL_BY_ID[_id] = 512   # drawn about 300 px tall
+SHEETS["td-fx-breath"] = (2, 4, "left", "fx")
+MAX_CELL_BY_ID["td-fx-breath"] = 512   # cells are 2:1, the limit applies to the cell width
+SHEETS["td-fx-hazards"] = (4, 2, "center", "fx")
+for _m in ("drakeling", "emberling"):
+    SHEETS["td-%s" % _m] = (4, 2, "feet", "td-mob")
+SHEETS["td-folk-deep"] = (4, 4, "feet", "td-folk")
+for _n in ("mira", "nokk", "bram", "brandur"):
+    SHEETS["portrait-%s" % _n] = (3, 1, "bottom", "portrait")
+for _t in ("mine", "glut"):
+    SHEETS["tex-%s" % _t] = (2, 2, "corner", "tex")
+for _p in ("mine", "lair", "home", "house"):
+    SHEETS["tdp-%s" % _p] = (4, 4, "self", "td-props")
+ALPHA_CUT_BY_ID = {"tdp-lair": 48}   # this sheet came with a grey haze up to alpha ~39 over the whole background
+SHEETS["fac-deep"] = (2, 2, "self", "facade")
+for _c in range(1, 8):
+    SHEETS["cut-dragon-%d" % _c] = (1, 1, "corner", "cut")
+
 
 def is_npc_sheet(sheet_id, kind):
     return kind in ("npc", "portrait", "duel", "ui") + TD_CHAR_KINDS or sheet_id == "fx-duel-spells"
@@ -172,6 +193,26 @@ def is_lazy(sheet_id, kind):
 
 
 def clips_for(sheet_id, kind, count):
+    if kind == "td-dragon":
+        one = lambda i: {"frames": [i], "ms": 200, "loop": False}
+        if sheet_id == "td-boss-brandur":
+            return "walk", {"walk": {"frames": [0, 1, 2, 3], "ms": 140, "loop": True}, "breath_tell": one(4),
+                            "breath": one(5), "hurt": one(6), "down": one(7)}
+        if sheet_id == "td-brandur-b":
+            return "drowsy", {n: one(i) for i, n in enumerate(("tail_tell", "tail", "roar", "buffet", "stomp_tell",
+                                                                "stomp", "drowsy", "asleep"))}
+        return "fly", {"fly": {"frames": [0, 1, 2, 3], "ms": 110, "loop": True}, "takeoff": one(4), "dive": one(5),
+                       "land": one(6), "glide": one(7)}
+    if sheet_id == "td-fx-breath":
+        return "loop", {
+            "ignite": {"frames": [0, 1], "ms": 60, "loop": False},
+            "loop": {"frames": [2, 3, 4, 5], "ms": 70, "loop": True},
+            "fade": {"frames": [6, 7], "ms": 80, "loop": False},
+        }
+    if sheet_id == "td-fx-hazards":
+        clips = {n: {"frames": [i], "ms": 200, "loop": False} for i, n in enumerate(("stalactite", "shards", "ring", "vent"))}
+        clips["flames"] = {"frames": [4, 5, 6, 7], "ms": 110, "loop": True}
+        return "flames", clips
     if kind == "td-hero":
         clips = {
             "down": {"frames": [0, 1, 2, 3], "ms": 110, "loop": True},
@@ -507,6 +548,7 @@ def do_import(raw_dir, prompt_dir, only=None):
         cut = ALPHA_CUT_NPC if (is_npc_sheet(sheet_id, kind) or kind in ("td-props", "facade")) else ALPHA_CUT
         if kind == "portrait":
             cut = ALPHA_CUT_PORTRAIT
+        cut = ALPHA_CUT_BY_ID.get(sheet_id, cut)
         im = clean_alpha(im, cut)
         limit = MAX_CELL_DRAGON if kind == "dragon" else (MAX_CELL_BOSS if kind == "boss" else MAX_CELL)
         if kind in ("duel", "portrait"):
