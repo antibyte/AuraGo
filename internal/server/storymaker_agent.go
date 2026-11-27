@@ -132,6 +132,18 @@ func storymakerAgentNeedsToolCall(phase string) bool {
 	return phase == storymaker.PhaseOutline || phase == storymaker.PhaseCast || phase == storymaker.PhaseFill
 }
 
+// storymakerAgentOutputTokens is max_tokens of one loop. The free mode's fill, check and revise phases write code and get
+// Game Maker's build reserve; every other phase keeps the general reserve.
+func storymakerAgentOutputTokens(limits llm.ModelLimits, mode, phase string) int {
+	if storymaker.EffectiveMode(mode) == storymaker.ModeFree {
+		switch phase {
+		case storymaker.PhaseFill, storymaker.PhaseCheck, storymaker.PhaseRevise:
+			return gameMakerOutputTokens(limits, gameMakerBuildAnswerTokens)
+		}
+	}
+	return gameMakerOutputTokens(limits, llm.ConservativeOutputTokens)
+}
+
 // storymakerAgentLoop is one model loop of a job.
 type storymakerAgentLoop struct {
 	phase   string
@@ -407,7 +419,7 @@ func (j *storymakerAgentJob) runLoop(ctx context.Context, loop storymakerAgentLo
 	if !j.route.text && storymakerAgentNeedsToolCall(loop.phase) {
 		req.ToolChoice = "required"
 	}
-	if tokens := gameMakerOutputTokens(gameMakerRouteLimits(&cfg), llm.ConservativeOutputTokens); tokens > 0 {
+	if tokens := storymakerAgentOutputTokens(gameMakerRouteLimits(&cfg), j.studioJob.Mode, loop.phase); tokens > 0 {
 		req.MaxTokens = tokens
 	}
 	callCtx := llm.WithStreamAttemptTimeout(ctx, time.Duration(cfg.CircuitBreaker.LLMTimeoutSeconds)*time.Second)
