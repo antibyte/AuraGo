@@ -22,6 +22,7 @@ writer and parsed back. Helper scripts in a helper script that is not part of th
 | wire_colours.md | IEC/DE + US NEC | transcribed | 13 | 6 | yes |
 | ethernet_categories.md | Cat 5 to Cat 8 twisted-pair categories + BASE-T reach | transcribed (task-force objectives, maker documents) | 8 | 17 | yes |
 | usb_versions.md | USB 1.x to USB4 data modes and names | transcribed (USB-IF specifications and guidelines) | 11 | 13 | yes |
+| schematic_symbols.md | 25 schematic symbols, IEC vs ANSI | transcribed (IEC 617 via IS 12032, NEETS) | 25 | 14 | yes |
 
 ## Open problems
 
