@@ -1115,8 +1115,27 @@
         return stage;
     }
 
+    // Safe zone and top of the caption box per aspect; repeat internal/storymaker/safebox.go and layout.go SafeZone, change both together.
+    var SAFE_ZONES = { '9:16': { top: 0.115, right: 0.130, bottom: 0.219, left: 0.056 } };
+    var SAFE_ZONE_DEFAULT = { top: 0.05, right: 0.05, bottom: 0.05, left: 0.05 };
+    var CAPTION_TOP = { '9:16': 0.654, 'default': 0.794 };
+
+    // safeBox(aspect) = {x, y, w, h}: the drawing area of a code scene in design pixels, inside the visible cover-fit slice and
+    // the safe zone and above the captions. An unknown aspect is 16:9. Same numbers and rounding as Go SafeBoxFor.
+    function safeBox(aspect) {
+        var key = SIZES[aspect] ? aspect : '16:9', size = SIZES[key];
+        var scale = Math.max(size[0] / DESIGN_W, size[1] / DESIGN_H);
+        var visW = Math.min(DESIGN_W, size[0] / scale), visH = Math.min(DESIGN_H, size[1] / scale);
+        var visX = DESIGN_W / 2 - visW / 2, visY = (DESIGN_H - visH) / 2;
+        var z = SAFE_ZONES[key] || SAFE_ZONE_DEFAULT, capTop = CAPTION_TOP[key] || CAPTION_TOP['default'];
+        var left = visX + z.left * visW, right = visX + (1 - z.right) * visW, top = visY + z.top * visH;
+        var bottom = Math.min(visY + (1 - z.bottom) * visH, visY + capTop * visH);
+        var x = Math.ceil(left - 1e-6), y = Math.ceil(top - 1e-6);
+        return { x: x, y: y, w: Math.floor(right + 1e-6) - x, h: Math.floor(bottom + 1e-6) - y };
+    }
+
     SM.stage = {
-        create: create, sizeFor: sizeFor, DESIGN_W: DESIGN_W, DESIGN_H: DESIGN_H, SIZES: SIZES,
+        create: create, sizeFor: sizeFor, safeBox: safeBox, DESIGN_W: DESIGN_W, DESIGN_H: DESIGN_H, SIZES: SIZES,
         DEFAULT_SAFE: DEFAULT_SAFE, DEFAULT_FLOOR: DEFAULT_FLOOR, DEFAULT_SPOTS: DEFAULT_SPOTS, V2_FEET_Y: V2_FEET_Y
     };
 })(typeof globalThis !== 'undefined' ? globalThis : self);

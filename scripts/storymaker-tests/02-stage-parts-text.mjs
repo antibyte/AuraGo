@@ -53,6 +53,13 @@ check('stage: mapping for 16:9, 9:16 and 1:1 with cover fit, focus and spot over
     assert.deepEqual(plain(wide.matrix(win)), [2, 0, 0, 2, 0, 0]);
 });
 
+check('stage: safeBox pins 16:9, 9:16, 1:1 like Go', () => {
+    assert.deepEqual(plain(SM.stage.safeBox('16:9')), { x: 96, y: 54, w: 1728, h: 803 });
+    assert.deepEqual(plain(SM.stage.safeBox('9:16')), { x: 691, y: 125, w: 493, h: 581 });
+    assert.deepEqual(plain(SM.stage.safeBox('1:1')), { x: 474, y: 54, w: 972, h: 803 });
+    assert.deepEqual(plain(SM.stage.safeBox('4:3')), { x: 96, y: 54, w: 1728, h: 803 });
+});
+
 check('parts: shapes become paths with fills, strokes, gradients and token resolution', () => {
     SM.parts.resetUnresolved();
     const ctx = makeContext(null);
