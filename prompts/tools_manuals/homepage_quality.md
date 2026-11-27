@@ -4,6 +4,10 @@ Run homepage quality checks: Lighthouse, screenshots, JavaScript console checks,
 
 Use this after file or project changes before deployment.
 
+## Lighthouse score attribution
+
+`lighthouse` stores its score on a site only when `managed_site_id` is given, or when the audited URL exactly matches the URL of exactly one site or deploy target (trailing slash and scheme/host case ignored). Otherwise the result carries the note `lighthouse_score not stored: pass managed_site_id to attribute the score`.
+
 
 ## Managed website identity and change reasons
 

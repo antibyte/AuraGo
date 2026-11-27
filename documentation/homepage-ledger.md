@@ -23,7 +23,7 @@ The homepage_registry tool provides:
 The internal numeric ID remains stable. Project paths are workspace-relative;
 the workspace root is pinned when the project is first managed. Configuration
 changes cannot silently reinterpret an existing project in a different folder.
-The longest registered directory boundary wins for nested paths. Metadata updates
+For nested paths the longest registered directory boundary wins. This applies to nested registrations that already exist; new nested registrations are rejected. Metadata updates
 cannot move a bound project; use relocate, serialized with workspace mutations.
 Provider site_id/project_id fields are distinct from managed_site_id.
 The workspace root itself is intentionally not a new project.
@@ -32,6 +32,25 @@ Provenance distinguishes agent_created, adopted and unknown. Legacy dates,
 actors and reasons are not invented. Missing local directories and archived
 entries retain their known locations and history. Registry delete archives a
 record rather than cascading its history.
+
+## Site boundaries and identity
+
+A new `project_dir` that is an ancestor or a descendant of another active local
+site is rejected, and the error names that site's `managed_site_id`. Sibling
+folders are fine. `adopt` and `relocate` apply the same check. On Windows and
+macOS, a case variant of a registered `project_dir` resolves to that site and the
+registry spelling is used; Linux matches exactly. Auto-derived site names that
+collide receive a `-2`, `-3` ... suffix.
+
+An operation that auto-registers a new site (for example `write_file` into a
+folder no site owns) returns `"site_created": true` with a warning. Operation
+results can carry a `warnings` array. Agents check these and retry with the
+intended `managed_site_id` when the path was a typo.
+
+An unknown `managed_site_id` returns `managed site N not found; list sites with
+homepage_registry overview`. A remote-only site has no local folder, so combining
+its `managed_site_id` with a file path is an error; attach a local folder with
+`relocate` first, or omit `managed_site_id`.
 
 ## Change recording
 
@@ -64,12 +83,14 @@ The common execution boundary writes intent before filesystem/provider effects
 and then records actual changes, revision and final outcome. It covers file
 editors, scaffold, dependency install, build, workspace commands, Git, restore
 and publication. Exec requires project_dir and starts there; other known sites
-and newly discovered projects are observed after workspace commands too.
+and newly discovered projects are observed after workspace commands too. Discovery
+skips folders that would break site boundaries and reports a warning.
 
 Related events share operation_id. Outcomes distinguish success, failure,
 partial effects and uncertainty. Failed commands can still create revisions.
 Uncertain results carry retry_safe:false and must not be blindly replayed.
-Unfinished intents become explicit unknown outcomes after restart.
+Unfinished intents become explicit unknown outcomes after restart. Deployed events
+recorded inside an operation carry that operation's operation_id and actor.
 
 `ledger_updated: true` confirms that the attempt was recorded, including a failed
 attempt. It does not report a successful file edit or deployment; use `status`
@@ -93,7 +114,10 @@ or end with whitespace. This does not change the separate project ID rules.
 
 Ordinary changes do not require duplicate log_edit/add_history calls. History
 notes remain useful for decisions, questions and additional explanations.
-Externally observed changes retain unknown original reasons.
+Externally observed changes retain unknown original reasons. Deleting a history
+note requires a reason and records a `history_deleted` event (history id, entry
+type, a 120-character excerpt, reason and actor); add and update record no such
+event.
 
 The agent inventory is a required request-local prompt addendum independent of
 reuse hints, including stable/prepared prompts and minimal loops with the
@@ -103,6 +127,14 @@ The required preview is bounded after external-data escaping. Names, paths and
 reasons may be shortened in the preview; get_site/list_events retain full values.
 Preexisting scaffold files are snapshotted with unknown original provenance
 before initialization; they never become newly agent-created history.
+
+### Studio chat and design selection
+
+Homepage Studio chat sends the selected site's `managed_site_id`. The agent is
+told to work on that site and to pass `managed_site_id` on its calls. Selecting a
+design for a project in Studio runs as the journaled operation `apply_design`
+(actor `user`, source `homepage_studio`) with a known reason and a revision. The
+agent cannot call `apply_design`; it writes `DESIGN.md` with `write_file` instead.
 
 ## Deployment and observation
 
@@ -144,7 +176,10 @@ Draft/failed/unverified attempts never become verified live sites.
 Native here.now mutations share the operation journal. A duplicated website gets
 its own managed ID, agent_created provenance and a link to the source ID; remote-only
 sites retain provider locators without an invented local folder.
-Temporary Cloudflare targets become inactive when their publication closes.
+Temporary Cloudflare targets become inactive when their publication closes. A quick
+tunnel with `project_dir` requires `reason` and is journaled as the Homepage
+operation `tunnel` (source `cloudflare_tunnel`); its `quick_publication_requested`
+and `deployed` events share the operation_id.
 Stopping development does not imply stopping a separate Caddy deployment.
 
 The reconciler starts with the server even if Homepage is initially disabled.
@@ -160,7 +195,7 @@ Missing project directories and legacy entries that name individual files remain
 in inventory as unavailable, with `local_changed` and a location explanation.
 Reconciliation preserves their revisions and last known file state, records each
 state transition once, and resumes when the directory returns. Managed project
-creation rejects existing files. Remote-only sites are excluded from local
+creation (`init_project`) refuses a target directory that already exists and is not empty, or that exists as a file; empty or missing directories are accepted. The error suggests a new name or editing the existing site and names its `managed_site_id` when registered. Remote-only sites are excluded from local
 directory reconciliation.
 Remote availability describes the last observation, not permanent liveness.
 Public observations use strict DNS-pinned SSRF protection. Explicitly configured

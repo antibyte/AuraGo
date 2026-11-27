@@ -10,7 +10,7 @@ Manage administrative named/token tunnels and temporary publication of registere
 | `stop` | Stop the tunnel | — |
 | `restart` | Restart the tunnel | — |
 | `status` | Get tunnel status | — |
-| `quick_tunnel` | Publish a registered Homepage static snapshot | `project_dir` |
+| `quick_tunnel` | Publish a registered Homepage static snapshot | `project_dir`, `reason` |
 | `logs` | View tunnel logs | — |
 | `list_routes` | List configured routes | — |
 | `install` | Install cloudflared binary | — |
@@ -22,7 +22,7 @@ Manage administrative named/token tunnels and temporary publication of registere
 ```
 
 ```json
-{"action": "cloudflare_tunnel", "operation": "quick_tunnel", "project_dir": "my-site"}
+{"action": "cloudflare_tunnel", "operation": "quick_tunnel", "project_dir": "my-site", "reason": "Share the preview with the client"}
 ```
 
 ```json
@@ -46,6 +46,6 @@ Manage administrative named/token tunnels and temporary publication of registere
 - Token, named tunnel, and quick tunnel authentication
 - Token tunnels use the Cloudflare dashboard-managed connector token from the Vault key `cloudflared_token`; AuraGo starts `cloudflared tunnel run` and does not add a local `--url` for token mode
 - Quick tunnels are temporary and get a random subdomain
-- Quick tunnels require an active registered Homepage project. Build it first; AuraGo snapshots its static output (up to 64 MiB), allocates the origin port, and publishes only those files. Explicit ports and Web UI fallbacks are rejected.
+- Quick tunnels require an active registered Homepage project. Build it first; AuraGo snapshots its static output (up to 64 MiB), allocates the origin port, and publishes only those files. Explicit ports and Web UI fallbacks are rejected. A `quick_tunnel` with `project_dir` requires `reason` and runs as the journaled Homepage operation `tunnel` (source `cloudflare_tunnel`), like `homepage_project` `tunnel`; its `quick_publication_requested` and `deployed` events share the operation_id.
 - `project_dir` also selects the project for quick `start` and `restart`; when omitted, the administrator-selected `cloudflare_tunnel.quick_project_dir` is used. All quick entry points use the same boundary.
 - Both integrations must be enabled and Cloudflare must be writable. Archiving a project revokes serving immediately; stopping the tunnel or shutting down cleans up the snapshot. Administrative named/token ingress remains separate.

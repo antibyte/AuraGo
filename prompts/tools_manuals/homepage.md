@@ -141,6 +141,8 @@ Only use this when the user explicitly asks to destroy/reset the homepage enviro
 | `framework` | string | yes | `next`, `vite`, `astro`, `svelte`, `vue`, or `html` |
 | `name` | string | no | Project name (default: "my-site") |
 
+`init_project` refuses a target directory that already exists and is not empty, or that exists as a file. Empty or missing directories are fine. The error suggests a new name or editing the existing site, and names its `managed_site_id` when the folder is registered.
+
 ```json
 {"action": "homepage", "operation": "init_project", "framework": "next", "name": "my-portfolio"}
 ```
@@ -166,7 +168,7 @@ If an existing project directory is owned by root or otherwise not writable by t
 Use `exec` for diagnostics such as reading package metadata, checking logs, or running one-off inspection commands. Do not use it as the normal build/deploy path, and do not use shell redirects, `cp`, `mv`, `rm`, or similar commands to write directly into generated output directories like `/workspace/my-site/dist`, `/workspace/my-site/build`, or `/workspace/my-site/out`. Edit source files with `write_file`/`edit_file`, run `build`, then deploy through `deploy_netlify` or `deploy_vercel`.
 
 ### write_file — Write/create a file
-Complete files up to 2 MiB use bounded archive transfers in Docker and atomic local writes. Oversized, empty or incomplete transfers fail before replacement. Parent directories are created automatically. Use targeted `edit_file` insertions for small additions; never reconstruct a large document from a shortened tool result.
+Complete files up to 2 MiB use bounded archive transfers in Docker and atomic local writes. Oversized, empty or incomplete transfers fail before replacement. Parent directories are created automatically. A write into a folder that no registered site owns registers a new site: the result has `"site_created": true` and a warning, so check it and retry with the intended `managed_site_id` if the path was a typo. Use targeted `edit_file` insertions for small additions; never reconstruct a large document from a shortened tool result.
 ```json
 {"action": "homepage", "operation": "write_file", "path": "my-site/src/components/Hero.tsx", "content": "export default function Hero() { return <section>...</section> }"}
 ```
@@ -240,6 +242,7 @@ Optimizes **SVG files only** (not PNG/JPEG). Uses SVGO with multipass optimizati
 
 ### lighthouse — Run Lighthouse performance audit
 Returns compact scores for performance, accessibility, best practices and SEO.
+The score is stored on a site only when `managed_site_id` is given, or when the audited URL exactly matches the URL of one site or deploy target (trailing slash and scheme/host case ignored). Otherwise the result carries the note `lighthouse_score not stored: pass managed_site_id to attribute the score`.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|

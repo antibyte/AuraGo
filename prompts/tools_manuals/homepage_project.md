@@ -16,6 +16,8 @@ Keep current references until the new version is installed. Verify a fresh previ
 
 Project-scoped operations must use workspace-relative `project_dir` or `name` values, for example `my-site`. Use the actual project directory from the homepage workspace or registry; do not use guessed folder names, absolute host folders, or `/workspace/...` paths.
 
+A `project_dir` that is an ancestor or descendant of another active site is rejected; the error names that site's `managed_site_id`. Sibling folders are fine. On Windows and macOS a case variant of a registered `project_dir` resolves to that site. An unknown `managed_site_id` returns `managed site N not found; list sites with homepage_registry overview`; a remote-only site cannot be combined with a file path.
+
 For `status`, inspect `local_preview.available`, `http_status`, and `project_dir`
 as well as container state. `running: true` does not prove that the website is
 available; an empty HTTP 404 or invalid document is a failed preview. A successful

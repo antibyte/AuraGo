@@ -26,6 +26,8 @@ Prefer targeted edits for existing large files. `write_file` requires the comple
 
 Query homepage_registry overview/get_site before changing an existing page. Every mutation requires reason, a short statement of purpose. managed_site_id is the internal identity, distinct from provider IDs. Exec requires project_dir and starts there. Changes and outcomes are recorded automatically; avoid duplicate routine notes. Use list_events for what changed and why, and discover_workspace/adopt for unregistered projects. Historical unknown reasons remain unknown.
 
+A write into a folder that no registered site owns registers a new site. Its result has `"site_created": true` and a warning. Check it; if the path was a typo, retry with the intended `managed_site_id`. Operation results can carry a `warnings` array: read it before continuing. An unknown `managed_site_id` returns `managed site N not found; list sites with homepage_registry overview`, and a remote-only site cannot be combined with a file path.
+
 `ledger_updated: true` means the attempt was recorded, including failed attempts. Check `status` for execution success and verify the changed file; the ledger flag never overrides an error. Do not deploy after a failed edit.
 
 ## File data and review
