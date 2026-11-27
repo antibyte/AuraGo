@@ -118,7 +118,7 @@ New app-scoped prefixes must contain no `ad` substring; verify
 
 - Aura Drift (`aura-drift`, category `games`) is a first-party offline Virtual Desktop racer
   with a three.js 3D view (default) and a Canvas 2D fallback. Its three.js runtime
-  (`js/vendor/aura-drift/`, three.js 0.186.1), 41 lazy-loaded app modules, stylesheet, icon and
+  (`js/vendor/aura-drift/`, three.js 0.186.1), 42 lazy-loaded app modules, stylesheet, icon and
   `aura_drift.*` keys in all sixteen `lang/desktop/*.json` bundles are owned by
   `js/desktop/apps/AGENTS.md`. The 3D models and sound pack are owned by
   `../ui/3d/aura-drift/` (payload) and `../assets/aura-drift/` (model kit and audio sources).

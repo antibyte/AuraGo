@@ -34,9 +34,9 @@
             terrain: { low: '#c58d4e', mid: '#d9a661', high: '#b9703f', rock: '#9a5a36' }
         }),
         harbour: look({
-            time: 'blue hour neon', sunEl: 6, sunAz: 250, sun: '#8fb4ff', skyTop: '#141c44', skyHorizon: '#d36a7a', fog: '#2a3050', fogFar: 650,
-            exposure: 1.0, bloom: 0.8, grade: 'teal-magenta', hemiSky: '#4a5a9c', hemiGround: '#2a2438', hemi: 1.3, sunPower: 2.4, env: 1.1,
-            ground: '#252d3d', night: true, headlights: 1.6, wet: 0.7, roadCoat: 0.3,
+            time: 'blue hour neon', sunEl: 6, sunAz: 250, sun: '#94b8ff', skyTop: '#111a40', skyHorizon: '#cf5d7a', fog: '#1d2844', fogFar: 820, fogNear: 0.22,
+            exposure: 1.0, bloom: 0.52, grade: 'teal-magenta', hemiSky: '#4f62a8', hemiGround: '#242238', hemi: 1.25, sunPower: 2.5, env: 1.1,
+            ground: '#222b3b', night: true, headlights: 1.6, wet: 0.7, roadCoat: 0.28,
             terrain: { low: '#222c3c', mid: '#2c3a50', high: '#3d4c62', rock: '#4a5568' }
         }),
         salt: look({
@@ -62,9 +62,9 @@
             terrain: { low: '#48607a', mid: '#8fb0cc', high: '#dcecf8', rock: '#5c6f86' }
         }),
         metro: look({
-            time: 'midnight neon', sunEl: 4, sunAz: 270, sun: '#7f8cff', skyTop: '#0c0a22', skyHorizon: '#5a2a7a', fog: '#1a1436', fogFar: 520,
-            exposure: 1.0, bloom: 0.95, grade: 'magenta', hemiSky: '#4a3a8a', hemiGround: '#241a38', hemi: 1.4, sunPower: 2.2, env: 1.1, ground: '#2a2d36',
-            night: true, headlights: 1.8, wet: 0.6, roadLift: 1.45, glow: 0.72,
+            time: 'midnight neon', sunEl: 4, sunAz: 270, sun: '#8896ff', skyTop: '#0b0a22', skyHorizon: '#643088', fog: '#171433', fogFar: 620, fogNear: 0.2,
+            exposure: 1.02, bloom: 0.72, grade: 'magenta', hemiSky: '#4f4094', hemiGround: '#2c2448', hemi: 1.35, sunPower: 2.3, env: 1.1, ground: '#2a2d36',
+            night: true, headlights: 1.8, wet: 0.6, roadLift: 1.55, glow: 0.76,
             terrain: { low: '#262a32', mid: '#31353f', high: '#444956', rock: '#3a3a48' }
         })
     };
@@ -85,14 +85,14 @@
     AD.SCATTER = {
         alpine: { pine_a: band(10, 160, 3), pine_b: band(14, 180, 2), rock_a: band(8, 120, 1.2), rock_b: band(20, 200, 0.8), flower_meadow: band(8, 95, 1.4), chalet: band(40, 180, 0.08), hay_barn: band(28, 160, 0.09), cablecar_pylon: band(80, 260, 0.05), trail_marker: band(10, 70, 0.6), snow_gauge: band(14, 110, 0.35) },
         desert: { cactus_a: band(8, 140, 1.6), cactus_b: band(12, 160, 1), mesa_rock: band(60, 400, 0.2), rock_arch: band(45, 320, 0.14), palm_oasis: band(26, 170, 0.1), water_tower: band(40, 200, 0.05), windmill_pump: band(30, 200, 0.08), sunshade: band(30, 160, 0.16), anemometer: band(16, 120, 0.22) },
-        harbour: { container_stack: band(12, 140, 0.8), crane: band(60, 240, 0.08), lighthouse: band(200, 300, 0.02), fishing_boat: band(40, 200, 0.15), tugboat: band(36, 190, 0.12), buoy_cluster: band(18, 140, 0.35), neon_sign: band(8, 60, 0.2), signal_mast: band(32, 200, 0.2), storm_lantern: band(10, 70, 0.4) },
+        harbour: { container_stack: band(12, 130, 0.95), crane: band(52, 220, 0.1), lighthouse: band(200, 300, 0.02), fishing_boat: band(42, 200, 0.16), tugboat: band(40, 190, 0.14), buoy_cluster: band(22, 140, 0.35), neon_sign: band(8, 52, 0.28), signal_mast: band(28, 180, 0.22), storm_lantern: band(9, 55, 0.45) },
         salt: { salt_crystal: band(8, 200, 1.2), geyser_pool: band(22, 160, 0.12), radar_dome: band(45, 240, 0.06), rover: band(30, 200, 0.03), flag: band(15, 100, 0.1) },
         forest: { oak: band(8, 120, 3), birch: band(10, 150, 2.5), fern_glade: band(7, 85, 1.6), mushroom_cluster: band(6, 40, 1), log_pile: band(10, 70, 0.2), hunting_hide: band(20, 80, 0.06), watermill: band(26, 130, 0.08) },
         industry: { silo: band(20, 200, 0.2), smokestack: band(60, 300, 0.1), cooling_tower: band(55, 280, 0.09), chem_tank: band(18, 130, 0.16), pipes: band(10, 80, 0.4), forklift: band(12, 60, 0.1), pylon: band(40, 260, 0.1) },
         glacier: { ice_block: band(8, 120, 1), ice_spire: band(12, 150, 0.85), ice_arch: band(30, 160, 0.1), snow_pine: band(10, 150, 1.8), igloo: band(20, 120, 0.06), snow_cat: band(16, 95, 0.09), research_station: band(80, 260, 0.03), snow_fence: band(12, 46, 0.5) },
         metro: {
-            skyscraper_a: band(16, 90, 1.2), skyscraper_b: band(16, 90, 1), skyscraper_c: band(30, 160, 1), billboard: band(8, 30, 0.2),
-            street_lamp: band(6, 8, 1), food_truck: band(8, 30, 0.1), taxi: band(8, 30, 0.2), metro_entrance: band(10, 42, 0.14), arcade_kiosk: band(9, 36, 0.16), holo_arrow: band(32, 90, 0.35)
+            skyscraper_a: band(20, 95, 1.15), skyscraper_b: band(20, 95, 1.05), skyscraper_c: band(38, 170, 1.0), billboard: band(8, 30, 0.2),
+            street_lamp: band(6.5, 7.5, 1), food_truck: band(9, 28, 0.12), taxi: band(8, 28, 0.2), metro_entrance: band(10, 38, 0.16), arcade_kiosk: band(9, 34, 0.18), holo_arrow: band(30, 90, 0.35)
         }
     };
 

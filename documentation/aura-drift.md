@@ -570,6 +570,10 @@ Fruity chrome, and app-owned icon artwork.
 The Desktop module loader loads the game modules and the three.js runtime (`ui/js/desktop/core/module-loader.js`).
 FX atlas and shader definitions live in `aura-drift-fx-resources.js`; each FX instance
 creates and disposes its own atlas. The particle update and event mapping stay in `aura-drift-fx.js`.
+`aura-drift-env-fx.js` adds instanced ground contact shadows and biome optical highlights
+(sunbeams, animated alpine cable-cars, harbour lighthouse beam and water wakes, salt UFO tractor beam
+and geysers, industry power lines and plumes, glacier floodlights, and metro street-lamp cones and
+sky searchlights), scaled by quality tier and frozen under reduced motion.
 `window.AuraDriftApp.stats()` is a read-only per-window diagnostic: race state, time, speed,
 pause, quality, renderer kind and caches, post status and audio status.
 

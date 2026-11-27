@@ -292,14 +292,53 @@ check('filter stays inside the tier radius (scaled by reach)', radiusBad.length 
     check('a medium window selects a few hundred props, not thousands', sel.length > 40 && sel.length <= 700, String(sel.length));
 }
 
-/* Source hygiene for the two 3D modules. */
-for (const name of ['sky', 'props']) {
+/* Source hygiene for the three 3D environment modules. */
+for (const name of ['sky', 'props', 'env-fx']) {
     const file = 'ui/js/desktop/apps/aura-drift-' + name + '.js';
     const text = readFileSync(path.join(root, file), 'utf8');
     check(name + '.js stays below 1000 lines', text.split('\n').length < 1000, String(text.split('\n').length));
     check(name + '.js has no network or dynamic import', !/https?:\/\/|XMLHttpRequest|\bimport\(|\bfetch\(/.test(text));
     check(name + '.js avoids ad-filter words', !/banner|sponsor|billboard|promo|advert|\/ads\//i.test(text));
     check(name + '.js has no integer hash noise in GLSL', !/floatBitsToUint|uint\s+\w+\s*=|<<\s*\d+u/.test(text));
+}
+
+/* Zero-floating & paddock-levelness checks across all 8 tracks. */
+{
+    const tiltedStands = [];
+    const airGapBad = [];
+    for (const track of tracks) {
+        const meta = metaFor(track.biomeId);
+        const list = AD.scatterProps(track, track.biomeId, meta).concat(AD.furnitureProps(track));
+        for (const p of list) {
+            const gy = AD.propHeight(track, track.biomeId, p);
+            if (gy === null) continue;
+            p.gy = gy;
+            if (p.name === 'grandstand') {
+                const span = AD.terrainSlopeAt(track, track.biomeId, p.x, p.y, 7).span;
+                if (span > 0.55) tiltedStands.push(track.id + ':' + span.toFixed(2));
+            }
+            if (track.biomeId === 'harbour' && (p.name === 'tugboat' || p.name === 'fishing_boat' || p.name === 'buoy_cluster')) {
+                const off = AD.propGroundOffset(track, track.biomeId, p, 8, 16);
+                if (off > 0.001) airGapBad.push(track.id + ':' + p.name + ' off=' + off.toFixed(2));
+                continue;
+            }
+            if (p.name === 'gantry' || p.name === 'inflatable_arch') continue;
+            const off = AD.propGroundOffset(track, track.biomeId, p, 8, 16);
+            const footY = gy + off;
+            const r = Math.min(Math.max((p.r || 2) * 0.65, 0.8), 7.5);
+            const triC = AD.terrainMeshHeight(track, track.biomeId, p.x, p.y, 8);
+            const triE = Math.min(
+                AD.terrainMeshHeight(track, track.biomeId, p.x + r, p.y, 8),
+                AD.terrainMeshHeight(track, track.biomeId, p.x - r, p.y, 8),
+                AD.terrainMeshHeight(track, track.biomeId, p.x, p.y + r, 8),
+                AD.terrainMeshHeight(track, track.biomeId, p.x, p.y - r, 8)
+            );
+            const gap = footY - Math.min(triC, triE);
+            if (gap > 0.05) airGapBad.push(track.id + ':' + p.name + ' gap=' + gap.toFixed(2));
+        }
+    }
+    check('start-straight grandstands sit on level paddock terrain (span <= 0.55 m)', tiltedStands.length === 0, tiltedStands.join(' | '));
+    check('land props have zero ungrounded air gaps against rendered triangles', airGapBad.length === 0, airGapBad.slice(0, 5).join(' | '));
 }
 
 /* The renderer has to place the props with the shared height rule. A local clamp

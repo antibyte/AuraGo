@@ -297,10 +297,11 @@
             for (let j = 0; j < count; j++) {
                 const p = AD.pointAt(track, s + j * 2.6), offset = side * (p.halfWidth + 5 + rng() * 7);
                 const x = p.x + p.nx * offset, y = p.y + p.ny * offset;
+                if (track.biomeId === 'harbour' && typeof AD.propSide === 'function' && AD.propSide(track, 'harbour', x, y) === 'water') continue;
                 const near = AD.sampleTrack(track, x, y), dist = Math.hypot(x - near.x, y - near.y);
                 if (dist < near.halfWidth + 4 || occupied.some(o => Math.hypot(x - o.x, y - o.y) < o.r + 2)) continue;
                 const z = AD.groundHeight?.(track, track.biomeId, x, y) || 0;
-                if (z < -1) continue;
+                if (z < -1 || (AD.terrainSlopeAt && AD.terrainSlopeAt(track, track.biomeId, x, y, 2.5).slope > 0.65)) continue;
                 const shrub = rng() < 0.28, size = 0.9 + rng() * 0.85, angle = rng() * Math.PI * 2;
                 const bloom = !shrub && Math.floor(s / 33) % 3 !== 0 && j % 3 !== 2 ? flowerType : null;
                 plants.push({ x, y, z, palette, shrub, size, angle, bloom });
@@ -316,15 +317,15 @@
             for (let clump = 0; clump < 3; clump++) {
                 const dir = p.angle + clump * 2.2, r = 0.78 - clump * 0.13;
                 const x = Math.cos(dir) * clump * 0.31, y = Math.sin(dir) * clump * 0.31;
-                const crown = point(x - 0.1, r * 1.45, y + 0.06);
-                const rim = a => point(x + Math.cos(a) * r, 0.12, y + Math.sin(a) * r);
+                const crown = point(x - 0.1, r * 0.96, y + 0.06);
+                const rim = a => point(x + Math.cos(a) * r, -0.06, y + Math.sin(a) * r);
                 for (let i = 0; i < 6; i++) face(crown, rim(dir + (i + 1) * Math.PI / 3), rim(dir + i * Math.PI / 3), i % 3);
             }
         } else {
             for (let i = 0; i < 8; i++) {
                 const a = p.angle + i * 2.4, dx = Math.cos(a), dy = Math.sin(a), reach = 0.32 + (i % 4) * 0.17;
-                const tip = point(dx * reach + .17, .53 + ((i * 3) % 5) * .14, dy * reach);
-                const foot = point(dx * .12, 0, dy * .12);
+                const tip = point(dx * reach + .17, .48 + ((i * 3) % 5) * .12, dy * reach);
+                const foot = point(dx * .12, -0.05, dy * .12);
                 const left = point(dx * .34 - dy * .13, .38, dy * .34 + dx * .13);
                 const right = point(dx * .34 + dy * .13, .38, dy * .34 - dx * .13);
                 face(foot, left, right, i % 2); face(left, tip, right, 1 + i % 2);

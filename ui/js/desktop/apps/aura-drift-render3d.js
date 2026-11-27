@@ -114,7 +114,7 @@
         let look = AD.LOOK.alpine, track = null, race = null, lost = false, disposed = false, held = true, needsPresent = false;
         let sizeDirty = false, tierDirty = false, lastPose = null, inShowcase = false;
         let env = null, envKey = '', wetness = 0, time = 0, gen = 0;
-        let actors = null, carLights = null, terrain = null, road = null, sky = null, props = null, fx = null, fallback = null;
+        let actors = null, carLights = null, terrain = null, road = null, sky = null, props = null, envFx = null, fx = null, fallback = null;
         let post = null, realPost = null, petDecor = null, roadside = null, shows = [];
         let shadowMode = '', discoCount = 0;
 
@@ -279,9 +279,9 @@
         /* ---- per-track objects ------------------------------------------- */
         function stop(mod) { if (mod && typeof mod.dispose === 'function') { try { mod.dispose(); } catch (_) { /* partial module */ } } }
         function disposeTrack() {
-            stop(actors); stop(carLights); stop(terrain); stop(road); stop(sky); stop(props); stop(fx); stop(fallback); stop(petDecor); stop(roadside);
+            stop(actors); stop(carLights); stop(terrain); stop(road); stop(sky); stop(props); stop(envFx); stop(fx); stop(fallback); stop(petDecor); stop(roadside);
             for (const m of [terrain, road]) if (m && m.group) m.group.removeFromParent();
-            actors = carLights = terrain = road = sky = props = fx = fallback = petDecor = roadside = null;
+            actors = carLights = terrain = road = sky = props = envFx = fx = fallback = petDecor = roadside = null;
             wetness = 0; discoCount = 0;
         }
         function buildTrack() {
@@ -300,6 +300,7 @@
             }
             if (typeof AD.createSky === 'function') sky = AD.createSky(T, scene, look, glq, track);
             if (typeof AD.createProps === 'function') props = AD.createProps(T, scene, track, id, glq, t || (k => k));
+            if (typeof AD.createEnvFx === 'function') envFx = AD.createEnvFx(T, scene, track, look, glq, props && props.placements);
             if (typeof AD.createPetDecor === 'function') petDecor = AD.createPetDecor(T, scene, track, glq, terrain && terrain.group);
             if (AD.createRoadsideShow) roadside = AD.createRoadsideShow(T, scene, shows, terrain?.group);
             if (!terrain && !sky) fallback = makeFallback();
@@ -308,7 +309,12 @@
             if (typeof AD.createCarLights === 'function') carLights = AD.createCarLights(T, scene, glq, camera, look);
             if (typeof AD.createFx === 'function') fx = AD.createFx(T, scene, glq);
             const mine = ++gen;
-            AD.assets.loadBiome(id).then(() => { if (mine === gen && props && typeof props.rebuild === 'function') props.rebuild(); });
+            AD.assets.loadBiome(id).then(() => {
+                if (mine === gen && props && typeof props.rebuild === 'function') {
+                    props.rebuild();
+                    if (envFx && typeof envFx.rebuild === 'function') envFx.rebuild(props.placements);
+                }
+            });
         }
 
         /* ---- camera and sun ----------------------------------------------- */
@@ -535,6 +541,7 @@
                 if (actors) actors.setQuality(glq);
                 if (fx && fx.setQuality) fx.setQuality(glq);
                 if (props && props.setQuality) props.setQuality(glq);
+                if (envFx && envFx.setQuality) envFx.setQuality(glq);
                 if (petDecor) petDecor.setQuality(glq);
                 if (carLights) carLights.setQuality(glq);
                 if (show) show.rig && show.rig.setGl(glq);
@@ -584,6 +591,10 @@
                 if (props && props.update) {
                     props.setReduced?.(reduced);
                     props.update(pose, r);
+                }
+                if (envFx && envFx.update) {
+                    envFx.setReduced?.(reduced);
+                    envFx.update(dt, pose, r, wetness);
                 }
                 if (petDecor) petDecor.update(pose, r, dt, reduced);
                 if (roadside) roadside.update(pose.eye, reduced ? 0 : r.time);

@@ -187,25 +187,26 @@
         '  vec3 refl = skyColor(normalize(R));',
         '  float sd = max(dot(normalize(R), uSunDir), 0.0);',
         '  float sparkle = smoothstep(0.55, 0.95, texture2D(uNoise, p * 0.31 + uTime * 0.02).a);',
-        '  refl += uSun * (pow(sd, 380.0) * 22.0 * (0.4 + sparkle) + pow(sd, 40.0) * 0.5) * uSunBoost;',
-        '  vec3 col = mix(mix(uDeep, uShallow, w1.z * 0.5), refl, F);',
+        '  refl += uSun * (pow(sd, 380.0) * 20.0 * (0.4 + sparkle) + pow(sd, 36.0) * 0.55) * uSunBoost;',
+        '  vec3 col = mix(mix(uDeep, uShallow, w1.z * 0.55), refl, F);',
         '  vec2 toP = vWorld.xz - cameraPosition.xz; float dP = length(toP);',
         '  for (int i = 0; i < 12; i++) {',
         '    vec4 e = uEmit[i]; if (e.w <= 0.0) continue;',
         '    vec2 toE = e.xz - cameraPosition.xz; float dE = length(toE);',
         '    float cs = dot(toP, toE) / max(dP * dE, 1e-3);',
         '    float lat = sqrt(max(1.0 - cs * cs, 0.0)) * dP;',
-        '    float spread = 0.35 + 0.7 * (g.x + g.y) * 0.5 + e.w * 0.05;',
+        '    float spread = 1.05 + dE * 0.015 + abs(g.x + g.y) * 1.5 + e.w * 0.12;',
         '    float cam = max(cameraPosition.y - uWaterY, 1.0);',
         '    float near = dE * cam / (cam + e.y);',
-        '    float along = smoothstep(near - 6.0, near + 4.0, dP) * (1.0 - smoothstep(dE - 2.0, dE + 8.0, dP));',
-        '    float ripple = 0.55 + 0.45 * texture2D(uNoise, vec2(p.x * 0.02 + p.y * 0.17, uTime * 0.05 + float(i))).r;',
-        '    col += uEmitCol[i] * exp(-lat * lat / (spread * spread + 0.0001)) * along * ripple * step(0.0, cs) * 1.7;',
+        '    float along = smoothstep(near - 10.0, near + 8.0, dP) * (1.0 - smoothstep(dE - 4.0, dE + 14.0, dP));',
+        '    float ripple = 0.48 + 0.52 * texture2D(uNoise, vec2(p.x * 0.025 + p.y * 0.14, uTime * 0.045 + float(i))).r;',
+        '    col += uEmitCol[i] * exp(-lat * lat / (spread * spread + 0.0001)) * along * ripple * step(0.0, cs) * 0.85;',
         '  }',
         '  float fogK = smoothstep(uFogNear, uFogFar, dist);',
         '  float alpha = 1.0;',
         '  if (uCrack > 0.0) {',
         '    float cell = texture2D(uNoise, p * 0.012).b; float cr = smoothstep(0.78, 0.9, cell);',
+        '    col += uSun * pow(sd, 180.0) * sparkle * 0.55;',
         '    col = mix(col, col * 0.78 + uShallow * 0.3, cr * 0.5 * (1.0 - fogK));',
         '    alpha = clamp(F * 1.1 + 0.28 + uGloss, 0.0, 0.96);',
         '  }',
@@ -269,16 +270,18 @@
         };
     }
     function drawRing(biomeId, look) {
-        const W = 2048, H = 256;
+        const W = 2048, H = 384;
         const c = document.createElement('canvas');
         c.width = W; c.height = H;
         const g = c.getContext('2d');
         const rnd = seeded(AD.hashString('ring/' + biomeId));
         const night = !!look.night;
-        const farC = night ? mixHex(look.fog, '#000000', 0.2) : mixHex(look.fog, look.skyTop, 0.22);
-        const midC = night ? mixHex(look.fog, '#000000', 0.45) : mixHex(look.fog, look.skyTop, 0.1);
-        const nearC = night ? mixHex(look.fog, '#000000', 0.62) : shade(look.fog, 0.62);
-        const baseY = H - 18;
+        /* Aerial perspective layers melt cleanly into the fog/horizon instead of a harsh dark strip. */
+        const mistC = mixHex(look.fog, look.skyHorizon, 0.48);
+        const farC = night ? mixHex(look.fog, look.skyTop, 0.35) : mixHex(look.fog, look.skyTop, 0.26);
+        const midC = night ? mixHex(look.fog, '#0d1526', 0.42) : mixHex(look.fog, '#35404f', 0.16);
+        const nearC = night ? mixHex(look.fog, '#070b18', 0.55) : mixHex(look.fog, '#222830', 0.30);
+        const baseY = H - 34;
         const poly = (fn, color, snow) => {
             g.beginPath(); g.moveTo(0, H);
             for (let x = 0; x <= W; x += 4) g.lineTo(x, fn(x));
@@ -286,26 +289,29 @@
             g.fillStyle = color; g.fill();
             if (snow) {
                 g.save(); g.globalCompositeOperation = 'source-atop';
-                const gr = g.createLinearGradient(0, 0, 0, H);
-                gr.addColorStop(0, snow); gr.addColorStop(0.5, 'rgba(255,255,255,0)');
+                const gr = g.createLinearGradient(0, 40, 0, H);
+                gr.addColorStop(0, snow); gr.addColorStop(0.55, 'rgba(255,255,255,0)');
                 g.fillStyle = gr; g.fillRect(0, 0, W, H); g.restore();
             }
         };
         const mountains = (color, amp, base, periods, ridged, snow) => {
             const f = ridge1D(rnd, W, periods, ridged);
-            poly(x => base - amp * Math.pow(f(x), 1.25), color, snow);
+            poly(x => base - amp * Math.pow(f(x), 1.2), color, snow);
         };
         const skyline = (color, minH, maxH, wMin, wMax, lights, density) => {
             let x = 0;
             while (x < W) {
                 const w = wMin + rnd() * (wMax - wMin);
-                const h = minH + Math.pow(rnd(), 1.6) * (maxH - minH);
+                const h = minH + Math.pow(rnd(), 1.55) * (maxH - minH);
                 for (const ox of [0, -W]) {
-                    g.fillStyle = color; g.fillRect(x + ox, baseY - h, w, h + 20);
-                    if (rnd() < 0.3) g.fillRect(x + ox + w * 0.3, baseY - h - 5 - rnd() * 14, w * 0.4, 14);
+                    g.fillStyle = color; g.fillRect(x + ox, baseY - h, w, h + 40);
+                    if (rnd() < 0.35) {
+                        g.fillRect(x + ox + w * 0.25, baseY - h - 6 - rnd() * 18, w * 0.5, 18);
+                        if (rnd() < 0.45) g.fillRect(x + ox + w * 0.46, baseY - h - 22 - rnd() * 14, 2, 22);
+                    }
                     if (lights && w > 6) {
-                        for (let yy = baseY - h + 4; yy < baseY - 3; yy += 5) {
-                            for (let xx = x + 2; xx < x + w - 2; xx += 4) {
+                        for (let yy = baseY - h + 6; yy < baseY - 12; yy += 6) {
+                            for (let xx = x + 3; xx < x + w - 3; xx += 5) {
                                 if (rnd() > density) continue;
                                 g.fillStyle = lights[Math.floor(rnd() * lights.length)];
                                 g.fillRect(xx + ox, yy, 2, 3);
@@ -313,66 +319,71 @@
                         }
                     }
                 }
-                x += w + rnd() * 3;
+                x += w + 1 + rnd() * 3;
             }
         };
-        const win = ['#ffd9a0', '#ffc070', '#9fe8ff', '#ff8ad0', '#fff2cc'];
+        const win = ['#ffd9a0', '#ffc070', '#8fe8ff', '#ff7ad0', '#fff2cc'];
         if (biomeId === 'alpine') {
-            mountains(farC, 150, baseY - 20, [3, 7, 14, 28], true, 'rgba(255,244,230,0.92)');
-            mountains(midC, 105, baseY, [4, 9, 19, 38], true, 'rgba(235,240,255,0.7)');
-            mountains(nearC, 55, baseY + 6, [6, 13, 29], false, null);
+            mountains(mistC, 230, baseY - 36, [3, 6, 13, 26], true, 'rgba(255,244,228,0.92)');
+            mountains(farC, 180, baseY - 18, [4, 8, 17, 34], true, 'rgba(242,240,252,0.75)');
+            mountains(midC, 118, baseY, [5, 11, 22, 41], true, 'rgba(225,232,245,0.45)');
+            mountains(nearC, 56, baseY + 8, [7, 15, 31], false, null);
         } else if (biomeId === 'glacier') {
-            mountains(farC, 170, baseY - 20, [3, 8, 16, 32], true, 'rgba(190,225,255,0.95)');
-            mountains(midC, 120, baseY, [5, 11, 21, 41], true, 'rgba(160,210,255,0.8)');
-            mountains(nearC, 60, baseY + 6, [7, 15, 31], true, 'rgba(120,180,240,0.4)');
+            mountains(mistC, 250, baseY - 34, [3, 7, 15, 30], true, 'rgba(205,235,255,0.95)');
+            mountains(farC, 190, baseY - 16, [4, 9, 19, 36], true, 'rgba(170,220,255,0.85)');
+            mountains(midC, 125, baseY + 2, [6, 13, 25], true, 'rgba(130,195,245,0.48)');
+            mountains(nearC, 58, baseY + 10, [8, 17, 33], true, null);
         } else if (biomeId === 'desert') {
             const mesa = (color, amp, base, n, q) => {
                 const f = ridge1D(rnd, W, [n, n * 2, n * 5], false);
-                poly(x => base - Math.round(amp * Math.pow(f(x), 1.2) / q) * q, color, null);
+                poly(x => base - Math.round(amp * Math.pow(f(x), 1.18) / q) * q, color, 'rgba(255,200,138,0.35)');
             };
-            mesa(farC, 120, baseY - 10, 3, 24);
-            mesa(midC, 90, baseY, 5, 18);
-            mesa(nearC, 40, baseY + 8, 8, 10);
+            mesa(mistC, 185, baseY - 22, 3, 28);
+            mesa(farC, 145, baseY - 10, 4, 22);
+            mesa(midC, 96, baseY + 2, 6, 16);
+            mesa(nearC, 42, baseY + 12, 9, 10);
         } else if (biomeId === 'salt') {
-            mountains(mixHex(look.fog, '#9a8ab8', 0.35), 85, baseY - 6, [4, 9, 18], true, 'rgba(255,255,255,0.35)');
-            mountains(mixHex(look.fog, '#7a6a9a', 0.3), 45, baseY + 4, [6, 14, 30], true, null);
+            mountains(mixHex(look.fog, '#afa0c8', 0.35), 115, baseY - 12, [4, 9, 18], true, 'rgba(255,255,255,0.45)');
+            mountains(mixHex(look.fog, '#887aa4', 0.32), 62, baseY + 4, [6, 14, 30], true, null);
         } else if (biomeId === 'forest') {
-            mountains(farC, 70, baseY - 6, [3, 7, 15], false, null);
-            mountains(midC, 40, baseY + 2, [5, 12, 26], false, null);
+            mountains(mistC, 130, baseY - 16, [3, 7, 15], false, 'rgba(255,236,188,0.3)');
+            mountains(farC, 82, baseY - 4, [4, 9, 19], false, null);
             const f = ridge1D(rnd, W, [40, 90], false);
-            poly(x => baseY + 6 - 26 * f(x) - 12 * Math.abs(Math.sin(x * 0.55 + f(x) * 9)), nearC, null);
+            poly(x => baseY + 8 - 34 * f(x) - 16 * Math.abs(Math.sin(x * 0.55 + f(x) * 9)), nearC, null);
         } else if (biomeId === 'harbour') {
-            mountains(farC, 60, baseY - 6, [3, 8, 17], false, null);
-            skyline(midC, 14, 55, 6, 20, win, 0.35);
-            skyline(nearC, 8, 28, 5, 14, win, 0.5);
+            mountains(mistC, 96, baseY - 14, [3, 8, 17], false, null);
+            skyline(farC, 34, 96, 10, 26, win, 0.25);
+            skyline(midC, 22, 66, 9, 24, win, 0.38);
+            skyline(nearC, 12, 36, 7, 18, win, 0.48);
             g.fillStyle = nearC;
-            for (let x = 60; x < W; x += 300 + rnd() * 380) { g.fillRect(x, baseY - 70, 3, 70); g.fillRect(x - 14, baseY - 70, 30, 3); g.fillRect(x + 14, baseY - 70, 2, 24); }
+            for (let x = 80; x < W; x += 280 + rnd() * 340) { g.fillRect(x, baseY - 92, 4, 92); g.fillRect(x - 18, baseY - 92, 38, 4); g.fillRect(x + 18, baseY - 92, 2, 30); }
         } else if (biomeId === 'metro') {
-            skyline(farC, 40, 150, 10, 26, win, 0.3);
-            skyline(midC, 30, 120, 12, 30, win, 0.42);
-            skyline(nearC, 14, 70, 14, 34, win, 0.5);
-            for (let i = 0; i < 26; i++) { g.fillStyle = '#ff2a1a'; g.fillRect(rnd() * W, baseY - 140 - rnd() * 40, 2, 2); }
+            skyline(mistC, 80, 225, 14, 34, win, 0.18);
+            skyline(farC, 54, 175, 12, 28, win, 0.3);
+            skyline(midC, 34, 125, 12, 30, win, 0.42);
+            skyline(nearC, 16, 70, 14, 34, win, 0.52);
+            for (let i = 0; i < 32; i++) { g.fillStyle = '#ff3624'; g.fillRect(rnd() * W, baseY - 185 - rnd() * 48, 3, 3); }
         } else if (biomeId === 'industry') {
-            skyline(midC, 10, 40, 14, 38, ['#ffb060', '#ffd9a0'], 0.12);
+            skyline(farC, 24, 72, 16, 44, ['#ffb060', '#ffd9a0'], 0.10);
             const smoke = (x, h, w) => {
-                g.fillStyle = farC; g.fillRect(x, baseY - h, w, h + 20);
-                g.fillStyle = nearC; g.fillRect(x, baseY - h, w, 4);
+                g.fillStyle = midC; g.fillRect(x, baseY - h, w, h + 30);
+                g.fillStyle = nearC; g.fillRect(x, baseY - h, w, 6);
             };
-            for (let x = 80; x < W; x += 140 + rnd() * 260) smoke(x, 70 + rnd() * 90, 7 + rnd() * 6);
-            skyline(nearC, 8, 30, 20, 50, ['#ffb060'], 0.06);
+            for (let x = 80; x < W; x += 140 + rnd() * 240) smoke(x, 105 + rnd() * 115, 9 + rnd() * 8);
+            skyline(nearC, 12, 40, 20, 50, ['#ffb060'], 0.08);
             for (let k = 0; k < 6; k++) {
-                const x = 160 + k * 340 + rnd() * 100, y = baseY - 100 - rnd() * 40;
-                const gr = g.createRadialGradient(x, y, 1, x, y, 38);
-                gr.addColorStop(0, 'rgba(255,200,100,0.95)'); gr.addColorStop(0.3, 'rgba(255,110,30,0.5)'); gr.addColorStop(1, 'rgba(255,60,0,0)');
-                g.fillStyle = gr; g.fillRect(x - 38, y - 38, 76, 76);
-                g.fillStyle = nearC; g.fillRect(x - 1, y + 4, 3, baseY - y);
+                const x = 160 + k * 340 + rnd() * 100, y = baseY - 135 - rnd() * 45;
+                const gr = g.createRadialGradient(x, y, 2, x, y, 52);
+                gr.addColorStop(0, 'rgba(255,205,110,0.92)'); gr.addColorStop(0.32, 'rgba(255,110,30,0.45)'); gr.addColorStop(1, 'rgba(255,60,0,0)');
+                g.fillStyle = gr; g.fillRect(x - 52, y - 52, 104, 104);
+                g.fillStyle = nearC; g.fillRect(x - 2, y + 6, 4, baseY - y);
             }
         }
-        /* The foot dissolves into the horizon haze. */
+        /* The foot dissolves seamlessly into horizon mist so no black seam appears against water or ground. */
         g.save(); g.globalCompositeOperation = 'destination-out';
-        const fade = g.createLinearGradient(0, H - 52, 0, H);
-        fade.addColorStop(0, 'rgba(0,0,0,0)'); fade.addColorStop(1, 'rgba(0,0,0,0.92)');
-        g.fillStyle = fade; g.fillRect(0, H - 52, W, 52);
+        const fade = g.createLinearGradient(0, H - 108, 0, H);
+        fade.addColorStop(0, 'rgba(0,0,0,0)'); fade.addColorStop(0.6, 'rgba(0,0,0,0.55)'); fade.addColorStop(1, 'rgba(0,0,0,1)');
+        g.fillStyle = fade; g.fillRect(0, H - 108, W, 108);
         g.restore();
         return c;
     }
@@ -427,9 +438,9 @@
         if (['alpine', 'glacier', 'desert', 'salt', 'forest', 'harbour', 'metro', 'industry'].indexOf(biomeId) >= 0) {
             const tex = own(new T.CanvasTexture(drawRing(biomeId, look)));
             tex.colorSpace = T.SRGBColorSpace; tex.wrapS = T.RepeatWrapping; tex.repeat.set(2, 1); tex.anisotropy = 4;
-            ring = new T.Mesh(own(new T.CylinderGeometry(2300, 2300, 520, 64, 1, true)),
+            ring = new T.Mesh(own(new T.CylinderGeometry(2300, 2300, 560, 64, 1, true)),
                 own(new T.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, side: T.BackSide, fog: false })));
-            ring.position.y = 190; ring.frustumCulled = false; ring.renderOrder = -9; ring.name = 'sky-ring';
+            ring.position.y = 175; ring.frustumCulled = false; ring.renderOrder = -9; ring.name = 'sky-ring';
             root.add(ring);
         }
 
@@ -613,8 +624,9 @@
             fogWant = clamp(fogWant + veil, 0, 1);
             fogLevel += (fogWant - fogLevel) * rate;
             if (fog) {
-                fog.far = fogFar0 * (1 - 0.58 * fogLevel); fog.near = fogNear0 * (1 - 0.7 * fogLevel);
-                fog.color.copy(baseFog).lerp(U.uHorizon.value, fogLevel * 0.25);
+                fog.far = fogFar0 * (1 - (night ? 0.36 : 0.50) * fogLevel);
+                fog.near = fogNear0 * (1 - (night ? 0.45 : 0.65) * fogLevel);
+                fog.color.copy(baseFog).lerp(U.uHorizon.value, fogLevel * (night ? 0.08 : 0.22));
                 U.uFog.value.copy(fog.color);
             }
             U.uCover.value = clamp(baseCover - 0.2 * lerpWx('bad'), 0.2, 0.9);
@@ -631,7 +643,7 @@
                 U.uTime.value = time;
                 const e = pose && pose.eye ? pose.eye : [0, 2, 0];
                 dome.position.set(e[0], e[1], e[2]);
-                if (ring) ring.position.set(e[0], 190, e[2]);
+                if (ring) ring.position.set(e[0], 175, e[2]);
                 if (stars) stars.position.set(e[0], e[1], e[2]);
                 if (mirror) mirror.position.set(e[0], mirror.position.y, e[2]);
                 updateWeather(dt, cond, e);

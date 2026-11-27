@@ -263,17 +263,46 @@
     }
     function tyreTexture(T) {
         const c = canvas(256), g = c.getContext('2d'), r = AD.rng(91);
-        g.fillStyle = '#0c0c0e'; g.fillRect(0, 0, 256, 256);
-        for (let row = 0; row < 3; row++) {
-            for (let col = 0; col < 3; col++) {
-                const cx = (col + (row & 1 ? 0.5 : 0)) * 85.3 + 6, cy = row * 85.3 + 42, rad = 40;
-                g.fillStyle = '#1d1d21'; g.beginPath(); g.arc(cx, cy, rad, 0, 6.283); g.fill();
-                g.strokeStyle = '#36363c'; g.lineWidth = 7; g.beginPath(); g.arc(cx, cy, rad - 6, 0, 6.283); g.stroke();
-                g.fillStyle = '#050506'; g.beginPath(); g.arc(cx, cy, 15, 0, 6.283); g.fill();
-                const paint = r();
-                if (paint < 0.3) { g.strokeStyle = '#f2f1ea'; g.lineWidth = 9; g.beginPath(); g.arc(cx, cy, rad - 7, 3.6, 5.8); g.stroke(); }
-                else if (paint < 0.45) { g.strokeStyle = '#d93a2b'; g.lineWidth = 9; g.beginPath(); g.arc(cx, cy, rad - 7, 0.4, 2.7); g.stroke(); }
+        g.fillStyle = '#151619'; g.fillRect(0, 0, 256, 256);
+        /* Three stacked tyre courses with moulded tread ribs and alternating rally paint blocks. */
+        const rows = 3, rh = 256 / rows;
+        for (let row = 0; row < rows; row++) {
+            const y0 = row * rh;
+            for (let col = 0; col < 4; col++) {
+                const x0 = col * 64, painted = ((col + row) & 1) === 0 && r() < 0.72;
+                const red = (Math.floor((col + row) / 2) & 1) === 0;
+                const gr = g.createLinearGradient(0, y0, 0, y0 + rh);
+                if (painted) {
+                    const c1 = red ? '#cf3428' : '#ecebe4', c2 = red ? '#93211a' : '#b7b5ad';
+                    gr.addColorStop(0, c2); gr.addColorStop(0.45, c1); gr.addColorStop(1, c2);
+                } else {
+                    gr.addColorStop(0, '#0f1013'); gr.addColorStop(0.5, '#2b2d33'); gr.addColorStop(1, '#0c0d10');
+                }
+                g.fillStyle = gr; g.fillRect(x0 + 2, y0 + 4, 60, rh - 8);
+                g.fillStyle = 'rgba(0,0,0,0.42)';
+                for (let tx = x0 + 8; tx < x0 + 58; tx += 10) g.fillRect(tx, y0 + 10, 4, rh - 20);
+                g.fillStyle = 'rgba(255,255,255,0.08)';
+                g.fillRect(x0 + 3, y0 + 6, 58, 4);
             }
+            g.fillStyle = '#070709'; g.fillRect(0, y0, 256, 4);
+        }
+        return texFrom(T, c, true, true);
+    }
+    function sandstoneTexture(T) {
+        const c = canvas(256), g = c.getContext('2d'), r = AD.rng(143);
+        const bands = ['#c8834b', '#b56e3a', '#d79b60', '#9f5932', '#c37d46'];
+        for (let y = 0; y < 256; y += 16) {
+            g.fillStyle = bands[(y / 16) % bands.length]; g.fillRect(0, y, 256, 16);
+        }
+        for (let i = 0; i < 1600; i++) {
+            g.fillStyle = r() < 0.5 ? 'rgba(40,18,6,0.09)' : 'rgba(255,220,175,0.08)';
+            g.fillRect(r() * 256, r() * 256, 1 + r() * 4, 1 + r() * 2);
+        }
+        g.fillStyle = 'rgba(48,24,10,0.28)';
+        for (let y = 0; y < 256; y += 64) {
+            g.fillRect(0, y, 256, 3);
+            const off = (y & 64) ? 64 : 0;
+            for (let x = off; x < 256; x += 128) g.fillRect(x, y, 3, 64);
         }
         return texFrom(T, c, true, true);
     }
@@ -294,9 +323,9 @@
     const PROFILES = {
         armco: [P(0, 0.30), P(-0.09, 0.38), P(0, 0.46), P(-0.09, 0.55), P(0, 0.64), P(-0.09, 0.73), P(0, 0.82), P(-0.04, 0.92)],
         concrete: [P(-0.38, 0, 0), P(-0.31, 0.1, 0.09), P(-0.17, 0.42, 0.38), P(-0.12, 0.88, 0.8), P(-0.12, 1.1, 1), P(0.12, 1.1, 1), P(0.12, 0, 0)],
-        tyres: [P(-0.34, 0, 0), P(-0.41, 0.3, 0.27), P(-0.35, 0.56, 0.5), P(-0.41, 0.84, 0.76), P(-0.3, 1.1, 1), P(0.05, 1.15, 1), P(0.3, 0.9, 0.8), P(0.3, 0, 0)],
+        tyres: [P(-0.34, 0, 0), P(-0.42, 0.32, 0.3), P(-0.36, 0.62, 0.62), P(-0.40, 0.92, 0.9), P(-0.22, 1.12, 1), P(0.14, 1.12, 1), P(0.32, 0.82, 0.72), P(0.32, 0, 0)],
         snow: [P(-0.95, 0), P(-0.62, 0.38), P(-0.3, 0.68), P(0.1, 0.82), P(0.55, 0.62), P(1.1, 0)],
-        rock: [P(-0.55, 0), P(-0.64, 0.45), P(-0.36, 1.0), P(0.1, 1.0), P(0.5, 0.7), P(0.72, 0)]
+        rock: [P(-0.44, 0, 0), P(-0.54, 0.24, 0.25), P(-0.42, 0.74, 0.72), P(-0.2, 0.98, 0.96), P(0.22, 0.98, 1), P(0.5, 0.64, 0.65), P(0.7, 0, 0)]
     };
     PROFILES.hazard = PROFILES.armco;
 
@@ -307,11 +336,11 @@
         const jag = new Float32Array(Nn + 1), hv = new Float32Array(Nn + 1);
         for (let k = 0; k <= Nn; k++) {
             const kk = k % Nn;
-            jag[k] = rr(); hv[k] = style === 'snow' ? 0.8 + 0.55 * W.noise2(kk / 9, 3.3) : (style === 'rock' ? 0.85 + 0.6 * jag[kk] : 1);
+            jag[k] = rr(); hv[k] = style === 'snow' ? 0.84 + 0.48 * W.noise2(kk / 9, 3.3) : (style === 'rock' ? 0.88 + 0.24 * W.noise2(kk / 7, 1.9) : 1);
         }
         hv[Nn] = hv[0]; jag[Nn] = jag[0];
         const lin = { silver: tint('#b4c0ce'), silver2: tint('#8d99a8'), yellow: tint('#f2b51a'), black: tint('#1c1c1e'), white: tint('#f4f4f6'), red: tint('#e0392e') };
-        const rock = [tint('#d08a4e'), tint('#a96a3b'), tint('#e0a56a'), tint('#8f5632')];
+        const rock = [tint('#d49056'), tint('#bc7642'), tint('#dfb078'), tint('#a46238')];
         const tiles = Math.max(1, Math.round(R.L / 4));
         const col = [1, 1, 1];
         function colour(k, pi, y) {
@@ -320,7 +349,7 @@
                 case 'armco': { const c = (Math.floor(k / 2) & 1) ? lin.silver : lin.silver2; return c; }
                 case 'hazard': return (Math.floor(k / 1) % 2) ? lin.yellow : lin.black;
                 case 'snow': { const t = clamp(y / 0.8, 0, 1); col[0] = lerp(0.58, 0.93, t); col[1] = lerp(0.68, 0.97, t); col[2] = lerp(0.85, 1, t); return col; }
-                case 'rock': { const c = rock[(kk + pi) % 4], t = 0.55 + 0.45 * clamp(y / 1.3, 0, 1); col[0] = c[0] * t; col[1] = c[1] * t; col[2] = c[2] * t; return col; }
+                case 'rock': { const c = rock[(Math.floor(kk / 4) + pi) % 4], t = 0.72 + 0.28 * clamp(y / 1.0, 0, 1); col[0] = c[0] * t; col[1] = c[1] * t; col[2] = c[2] * t; return col; }
                 default: return [1, 1, 1];
             }
         }
@@ -332,11 +361,10 @@
                     const pt = prof[pi];
                     let lat = edge + pt.l, y = pt.y * hv[k];
                     if (style === 'rock' && pi > 0 && pi < prof.length - 1) {
-                        const jr = jag[(k * 7 + pi * 13) % Nn], jr2 = jag[(k * 5 + pi * 29 + 3) % Nn];
-                        lat += (jr - 0.5) * 0.9;
-                        y *= 0.55 + 1.0 * jr2;
+                        lat += (W.noise2(kk / 5, pi * 2.1) - 0.5) * 0.28;
+                        y *= 0.92 + 0.16 * W.noise2(kk / 4 + 9, pi * 1.3);
                     }
-                    if (style === 'snow') lat += (W.noise2(kk / 6, pi * 1.7) - 0.5) * 0.5 * (pi > 0 && pi < prof.length - 1 ? 1 : 0);
+                    if (style === 'snow') lat += (W.noise2(kk / 6, pi * 1.7) - 0.5) * 0.42 * (pi > 0 && pi < prof.length - 1 ? 1 : 0);
                     const c = colour(k, pi, y);
                     vert(b, R.x[k] + R.nx[k] * side * lat, ry + y, R.z[k] + R.nz[k] * side * lat, c, R.s[k] / R.L * tiles, pt.u);
                 }
@@ -347,7 +375,7 @@
                 quad(b, a, a2, a2 + 1, a + 1);
             }
         }
-        const geo = own(makeGeo(T, { pos: b.pos, col: b.col, uv: b.uv, idx: b.idx, normals: style !== 'rock' }));
+        const geo = own(makeGeo(T, { pos: b.pos, col: b.col, uv: b.uv, idx: b.idx, normals: true }));
         let mat, tex = null;
         if (style === 'concrete') {
             tex = own(concreteTexture(T, biomeId === 'harbour' ? '#7d8794' : '#8e8d93', '#' + new T.Color().setRGB(accent[0], accent[1], accent[2]).getHexString()));
@@ -358,7 +386,8 @@
         } else if (style === 'armco' || style === 'hazard') {
             mat = new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.4, metalness: 0.65, side: T.DoubleSide });
         } else if (style === 'rock') {
-            mat = new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, flatShading: true, side: T.DoubleSide });
+            tex = own(sandstoneTexture(T));
+            mat = new T.MeshStandardMaterial({ map: tex, vertexColors: true, roughness: 0.9, side: T.DoubleSide });
         } else if (style === 'snow') {
             mat = new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.7, side: T.DoubleSide });
         } else mat = new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.7, side: T.DoubleSide });
@@ -387,22 +416,33 @@
         if (style === 'armco' || style === 'hazard') {
             const g = own(new T.BoxGeometry(0.12, 1.0, 0.12)), m = own(new T.MeshStandardMaterial({ color: style === 'hazard' ? 0x2a2a2d : 0x8d949c, roughness: 0.5, metalness: 0.6 }));
             out.push(posts(1, g, m, 1.0));
+            const rg = own(new T.BoxGeometry(0.14, 0.12, 0.14)), rm = own(new T.MeshStandardMaterial({ color: 0xffa82a, emissive: 0xff7a12, emissiveIntensity: style === 'hazard' ? 1.4 : 0.7, roughness: 0.3 }));
+            out.push(posts(3, rg, rm, 1.95));
+        }
+        if (style === 'tyres') {
+            const g = own(new T.CylinderGeometry(0.08, 0.09, 1.25, 6)), m = own(new T.MeshStandardMaterial({ color: 0x3b2c1e, roughness: 0.88 }));
+            out.push(posts(3, g, m, 1.25));
+        }
+        if (style === 'snow') {
+            const g = own(new T.CylinderGeometry(0.04, 0.04, 1.45, 6)), m = own(new T.MeshStandardMaterial({ color: 0x45d6ff, emissive: 0x2ec4ff, emissiveIntensity: 1.1, roughness: 0.3 }));
+            out.push(posts(3, g, m, 1.45));
         }
         if (style === 'rope') {
-            const g = own(new T.CylinderGeometry(0.06, 0.08, 1.0, 6)), m = own(new T.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 }));
+            const g = own(new T.CylinderGeometry(0.06, 0.08, 1.05, 8)), m = own(new T.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55 }));
             const cc = new T.Color();
-            out.push(posts(2, g, m, 1.0, (n, k) => cc.setRGB(...((Math.floor(k / 2) & 1) ? lin.white : lin.red))));
-            /* the rope itself: a thin hexagonal tube that sags between the posts */
-            const rb = bag(), seg = 6, rad = 0.035;
-            for (let side = -1; side <= 1; side += 2) {
+            out.push(posts(2, g, m, 1.05, (n, k) => cc.setRGB(...((Math.floor(k / 2) & 1) ? lin.white : lin.red))));
+            const tg = own(new T.CylinderGeometry(0.07, 0.07, 0.12, 8)), tm = own(new T.MeshStandardMaterial({ color: 0xffcf7a, emissive: 0xff9a3a, emissiveIntensity: 0.9 }));
+            out.push(posts(2, tg, tm, 2.08));
+            /* dual cables: upper safety wire + lower guide wire */
+            const rb = bag(), seg = 6, rad = 0.036;
+            for (const baseH of [0.88, 0.48]) for (let side = -1; side <= 1; side += 2) {
                 const base = rb.n;
                 for (let k = 0; k <= Nn; k++) {
-                    const sag = (k & 1) ? 0.7 : 0.92, c = (Math.floor(k / 2) & 1) ? lin.red : lin.white;
+                    const sag = (k & 1) ? baseH - 0.16 : baseH, c = (Math.floor(k / 2) & 1) ? lin.red : lin.white;
                     const lat = R.hw[k] + 0.08;
                     for (let a = 0; a < seg; a++) {
                         const an = a / seg * 6.283, dl = Math.cos(an) * rad, dy = Math.sin(an) * rad;
-                        const l2 = lat + dl;
-                        vert(rb, R.x[k] + R.nx[k] * side * l2, R.y[k] + sag + dy, R.z[k] + R.nz[k] * side * l2, c, 0, 0);
+                        vert(rb, R.x[k] + R.nx[k] * side * (lat + dl), R.y[k] + sag + dy, R.z[k] + R.nz[k] * side * (lat + dl), c, 0, 0);
                     }
                 }
                 for (let k = 0; k < Nn; k++) for (let a = 0; a < seg; a++) {
@@ -430,8 +470,9 @@
                 }
                 for (let k = 0; k < Nn; k++) quad(nb, base + k * 2, base + k * 2 + 1, base + k * 2 + 3, base + k * 2 + 2);
             }
+            const glowK = biomeId === 'harbour' ? 1.45 : 1.9;
             const ng = own(makeGeo(T, { pos: nb.pos, col: nb.col, idx: nb.idx }));
-            const nm = own(new T.MeshBasicMaterial({ vertexColors: true, color: new T.Color(2.4, 2.4, 2.4), toneMapped: false, side: T.DoubleSide }));
+            const nm = own(new T.MeshBasicMaterial({ vertexColors: true, color: new T.Color(glowK, glowK, glowK), toneMapped: false, side: T.DoubleSide }));
             out.push(new T.Mesh(ng, nm));
         }
         return { meshes: out, style: style, triangles: geo.index.count / 3 };

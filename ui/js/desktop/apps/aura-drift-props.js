@@ -13,6 +13,11 @@
     const CELL = 128;
     const DEF_META = { radius: 3, height: 6, tags: [] };
     const NATURAL = /^(pine|snow_pine|oak|birch|rock|cactus|salt_crystal|ice_block|ice_spire|mushroom|log_pile|mesa|flower_meadow|fern_glade|palm_oasis|geyser_pool)/;
+    const STRUCT_SET = new Set(['chalet', 'hay_barn', 'water_tower', 'windmill_pump', 'sunshade', 'container_stack', 'crane', 'radar_dome', 'rover', 'watermill', 'hunting_hide', 'silo', 'smokestack', 'cooling_tower', 'chem_tank', 'pipes', 'forklift', 'igloo', 'snow_cat', 'research_station', 'snow_fence', 'skyscraper_a', 'skyscraper_b', 'skyscraper_c', 'food_truck', 'taxi', 'metro_entrance', 'arcade_kiosk', 'neon_sign', 'storm_lantern', 'signal_mast', 'holo_arrow']);
+    const FULL_SEP = new Set(['mesa_rock', 'rock_arch', 'ice_arch', 'chalet', 'hay_barn', 'palm_oasis', 'water_tower', 'windmill_pump', 'container_stack', 'crane', 'silo', 'cooling_tower', 'smokestack', 'research_station', 'igloo', 'skyscraper_a', 'skyscraper_b', 'skyscraper_c', 'radar_dome', 'watermill', 'lighthouse']);
+    const HUG_SET = new Set(['flower_meadow', 'fern_glade', 'mushroom_cluster', 'log_pile', 'salt_crystal', 'rock_a', 'ice_block', 'geyser_pool']);
+    const ARCH_ROCK = new Set(['rock_arch', 'ice_arch', 'mesa_rock', 'palm_oasis', 'geyser_pool', 'cablecar_pylon', 'pylon']);
+    const WATER_DRAFT = { tugboat: -0.26, fishing_boat: -0.88, buoy_cluster: -0.06, lighthouse: -0.35 };
 
     function band(min, max, rate, scale) { return { min: min, max: max, rate: rate, scale: scale || 1 }; }
     /* Extra far silhouettes beyond the SCATTER bands: tall heroes on the horizon (drawn out to 1.8 x propRadius). */
@@ -75,6 +80,15 @@
         return Math.sign((c.x - x) * smp.nx + (c.y - y) * smp.ny) || 1;
     }
     function yawToward(dx, dy) { return Math.atan2(-dy, dx); }
+    function slopeOk(track, biomeId, x, y, radius, name, back) {
+        if (!AD.terrainSlopeAt) return true;
+        const s = AD.terrainSlopeAt(track, biomeId, x, y, Math.max(2.5, radius * 0.65));
+        if (back) return s.slope <= 0.50;
+        if (STRUCT_SET.has(name)) return s.slope <= 0.24 && s.span <= 2.4;
+        if (ARCH_ROCK.has(name)) return s.slope <= 0.36;
+        if (/^(pine|snow_pine|oak|birch|cactus)/.test(name)) return s.slope <= 0.55;
+        return s.slope <= 0.60 && s.span <= 4.5;
+    }
 
     /* ---- scatter ---------------------------------------------------------------------- */
     AD.scatterProps = function (track, biomeId, meta) {
@@ -92,62 +106,80 @@
         const cells = new Map();
         const cellKey = (x, y) => Math.floor(x / 16) + ',' + Math.floor(y / 16);
         for (const f of furniture) { const k = cellKey(f.x, f.y); (cells.get(k) || cells.set(k, []).get(k)).push(f); }
-        const out = [];
-        const n = track.samples.length;
-        const segs = Math.ceil(track.length / SEG);
-        for (let k = 0; k < segs; k++) {
-            for (const side of [-1, 1]) {
-                for (const e of entries) {
-                    const m = meta[e.name] || DEF_META;
-                    const tags = m.tags || [];
-                    const natural = NATURAL.test(e.name) || tags.indexOf('scatter') >= 0 && !e.back && e.name !== 'street_lamp' && e.name !== 'road_sign';
-                    /* Groves and clearings: the local rate wobbles along the road. */
-                    const grove = 0.35 + 1.3 * vnoise((k * SEG) / 240 + (side > 0 ? 17 : 0), AD.hashString(e.name));
-                    const count = Math.floor(e.rate * (DENSITY[biomeId] || 1) * (natural ? grove : 1) + rng());
-                    for (let i = 0; i < count; i++) {
-                        const s = k * SEG + rng() * SEG;
-                        const dist = e.min + (e.max - e.min) * Math.pow(rng(), e.back ? 1 : 1.45);
-                        const yawR = rng(), scR = rng(), tint = rng();
-                        const p = AD.pointAt(track, s);
-                        const off = side * (p.halfWidth + dist);
-                        const x = p.x + p.nx * off, y = p.y + p.ny * off;
-                        const smp = AD.sampleTrack(track, x, y);
-                        const clear = clamp(e.min, 6, 8);
-                        if (Math.hypot(x - smp.x, y - smp.y) < smp.halfWidth + clear) continue;
-                        const height = (m.height || 6) * e.scale, radius = (m.radius || 3) * e.scale;
-                        if (!e.back && height > 3 && Math.hypot(x - smp.x, y - smp.y) < smp.halfWidth + 18 && track.curvature[smp.index] > 0.02) {
-                            const a = track.samples[smp.index], b = track.samples[(smp.index + 4) % n];
-                            const cross = a.tx * b.ty - a.ty * b.tx;
-                            if ((cross > 0 ? 1 : -1) === innerSign(track, x, y, smp)) continue;
-                        }
-                        const sep = natural ? 0.45 : 0.85;
-                        let blocked = false;
-                        const cx = Math.floor(x / 16), cy = Math.floor(y / 16), reachCells = Math.ceil((radius + 16) / 16);
-                        for (let ox = -reachCells; ox <= reachCells && !blocked; ox++) {
-                            for (let oy = -reachCells; oy <= reachCells && !blocked; oy++) {
-                                const list = cells.get((cx + ox) + ',' + (cy + oy));
-                                if (!list) continue;
-                                for (const o of list) {
-                                    const lim = o.furniture ? o.r + radius * 0.6 + 3 : (o.r + radius) * sep;
-                                    if (Math.hypot(o.x - x, o.y - y) < lim) { blocked = true; break; }
-                                }
-                            }
-                        }
-                        if (blocked) continue;
-                        const toRoad = [-side * smp.nx, -side * smp.ny];
-                        const yaw = natural ? yawR * Math.PI * 2 : yawToward(toRoad[0], toRoad[1]) + (yawR - 0.5) * 0.5;
-                        const sc = natural ? (0.8 + scR * 0.75) * e.scale : (0.92 + scR * 0.26) * e.scale;
-                        const pl = {
-                            kind: 'scatter', name: e.name, biome: biomeId, s: s, side: side, dist: dist, x: x, y: y, yaw: yaw, sx: sc, sy: sc, sz: sc,
-                            tint: tint, r: (m.radius || 3) * sc, h: (m.height || 6) * sc, back: e.back,
-                            reach: e.back || tags.indexOf('far') >= 0 ? 1.8 : (tags.indexOf('scatter') >= 0 ? 0.7 : 1),
-                            tags: tags.indexOf('hero') >= 0 ? 'hero' : ''
-                        };
-                        if (reservedSpaces.some(p => Math.hypot(p.x - pl.x, p.y - pl.y) < p.r + pl.r + 2)) continue;
-                        out.push(pl);
-                        (cells.get(cellKey(x, y)) || cells.set(cellKey(x, y), []).get(cellKey(x, y))).push(pl);
+        const out = [], n = track.samples.length, segs = Math.ceil(track.length / SEG);
+
+        function tryPlace(name, s, side, dist, x, y, opts) {
+            const o = opts || {};
+            const m = meta[name] || DEF_META, tags = m.tags || [];
+            const backFlag = !!o.back, sc0 = o.scale || 1;
+            const smp = AD.sampleTrack(track, x, y);
+            const clear = clamp(o.minDist || (table[name] ? table[name].min : 8), 6, 8);
+            const dRoad = Math.hypot(x - smp.x, y - smp.y);
+            if (dRoad < smp.halfWidth + clear) return null;
+            if (biomeId === 'harbour') {
+                const hSide = AD.propSide(track, biomeId, x, y);
+                const wantWater = !!(WATER_ONLY[name] || name === 'lighthouse');
+                if (wantWater !== (hSide === 'water')) return null;
+            }
+            const height = (m.height || 6) * sc0, radius = (m.radius || 3) * sc0;
+            if (!backFlag && height > 3 && dRoad < smp.halfWidth + 18 && track.curvature[smp.index] > 0.02) {
+                const a = track.samples[smp.index], b = track.samples[(smp.index + 4) % n];
+                const cross = a.tx * b.ty - a.ty * b.tx;
+                if ((cross > 0 ? 1 : -1) === innerSign(track, x, y, smp)) return null;
+            }
+            if (!slopeOk(track, biomeId, x, y, radius, name, backFlag)) return null;
+            const natural = NATURAL.test(name) || (tags.indexOf('scatter') >= 0 && !backFlag && name !== 'street_lamp' && name !== 'road_sign');
+            const sep = FULL_SEP.has(name) ? 0.96 : (natural ? 0.52 : 0.85);
+            const cx = Math.floor(x / 16), cy = Math.floor(y / 16), reachCells = Math.ceil((radius + 18) / 16);
+            for (let ox = -reachCells; ox <= reachCells; ox++) {
+                for (let oy = -reachCells; oy <= reachCells; oy++) {
+                    const list = cells.get((cx + ox) + ',' + (cy + oy));
+                    if (!list) continue;
+                    for (const prev of list) {
+                        const lim = prev.furniture ? prev.r + radius * 0.6 + 3 : (prev.r + radius) * (FULL_SEP.has(prev.name) ? Math.max(sep, 0.95) : sep);
+                        if (Math.hypot(prev.x - x, prev.y - y) < lim) return null;
                     }
                 }
+            }
+            const sc = o.fixedScale || (natural ? (0.8 + (o.scR ?? 0.4) * 0.7) * sc0 : (0.94 + (o.scR ?? 0.3) * 0.22) * sc0);
+            const rFinal = (m.radius || 3) * sc;
+            if (reservedSpaces.some(rp => Math.hypot(rp.x - x, rp.y - y) < rp.r + rFinal + 2)) return null;
+            const toRoad = [-side * smp.nx, -side * smp.ny];
+            const aligned = !natural && (biomeId === 'metro' || biomeId === 'harbour' || biomeId === 'industry');
+            const yaw = o.yaw !== undefined ? o.yaw : (natural ? (o.yawR ?? 0.5) * Math.PI * 2 : yawToward(toRoad[0], toRoad[1]) + ((o.yawR ?? 0.5) - 0.5) * (aligned ? 0.08 : 0.44));
+            const pl = {
+                kind: 'scatter', name: name, biome: biomeId, s: s, side: side, dist: dist, x: x, y: y, yaw: yaw, sx: sc, sy: sc, sz: sc,
+                tint: o.tint ?? 0.5, r: rFinal, h: (m.height || 6) * sc, back: backFlag,
+                reach: backFlag || tags.indexOf('far') >= 0 ? 1.8 : (tags.indexOf('scatter') >= 0 ? 0.7 : 1),
+                tags: tags.indexOf('hero') >= 0 ? 'hero' : ''
+            };
+            if (o.chain !== undefined) { pl.chain = o.chain; pl.chainIdx = o.chainIdx; }
+            out.push(pl);
+            (cells.get(cellKey(x, y)) || cells.set(cellKey(x, y), []).get(cellKey(x, y))).push(pl);
+            return pl;
+        }
+
+        /* Curated architectural colonnades & landmark chains before filling natural scatter. */
+        if (biomeId === 'metro') {
+            for (let s = 26; s < track.length - 16; s += 34) { const p = AD.pointAt(track, s); for (const sd of [-1, 1]) tryPlace('street_lamp', s, sd, 6.8, p.x + p.nx * sd * (p.halfWidth + 6.8), p.y + p.ny * sd * (p.halfWidth + 6.8), { yaw: yawToward(-sd * p.nx, -sd * p.ny), fixedScale: 1, tint: rng(), minDist: 6.2 }); }
+            for (let s = 55; s < track.length - 40; s += 56) { const p = AD.pointAt(track, s); for (const sd of [-1, 1]) { const d = 24 + rng() * 14, off = sd * (p.halfWidth + d); tryPlace(rng() < 0.5 ? 'skyscraper_a' : 'skyscraper_b', s, sd, d, p.x + p.nx * off, p.y + p.ny * off, { yaw: yawToward(-sd * p.nx, -sd * p.ny) + (rng() - 0.5) * 0.06, scR: rng(), tint: rng(), minDist: 16 }); } }
+        } else if (biomeId === 'harbour') {
+            for (let s = 30; s < track.length - 20; s += 42) { const p = AD.pointAt(track, s); for (const sd of [-1, 1]) { const off = sd * (p.halfWidth + 7.4), x = p.x + p.nx * off, y = p.y + p.ny * off; if (AD.propSide(track, biomeId, x, y) === 'quay') tryPlace('storm_lantern', s, sd, 7.4, x, y, { yaw: yawToward(-sd * p.nx, -sd * p.ny), fixedScale: 1, tint: rng(), minDist: 6.5 }); } }
+        } else if (biomeId === 'alpine' || biomeId === 'industry') {
+            const pName = biomeId === 'alpine' ? 'cablecar_pylon' : 'pylon', d0 = biomeId === 'alpine' ? 95 : 72, step = biomeId === 'alpine' ? 115 : 122, cnt = biomeId === 'alpine' ? 3 : 4;
+            [0.2, 0.65].forEach((frac, ci) => {
+                const p0 = AD.pointAt(track, track.length * frac), sd = ci % 2 ? 1 : -1, bx = p0.x + p0.nx * sd * (p0.halfWidth + d0), by = p0.y + p0.ny * sd * (p0.halfWidth + d0), cy = yawToward(p0.tx, p0.ty);
+                for (let idx = 0; idx < cnt; idx++) { const px = bx + p0.tx * (idx - 1) * step, py = by + p0.ty * (idx - 1) * step, smp = AD.sampleTrack(track, px, py); tryPlace(pName, smp.s, sd, Math.hypot(px - smp.x, py - smp.y) - smp.halfWidth, px, py, { yaw: cy, fixedScale: 1, tint: 0.5, minDist: 28, chain: ci, chainIdx: idx }); }
+            });
+        }
+        for (let k = 0; k < segs; k++) for (const side of [-1, 1]) for (const e of entries) {
+            const m = meta[e.name] || DEF_META, tags = m.tags || [];
+            const natural = NATURAL.test(e.name) || (tags.indexOf('scatter') >= 0 && !e.back && e.name !== 'street_lamp' && e.name !== 'road_sign');
+            const grove = 0.32 + 1.35 * vnoise((k * SEG) / 240 + (side > 0 ? 17 : 0), AD.hashString(e.name));
+            const count = Math.floor(e.rate * (DENSITY[biomeId] || 1) * (natural ? grove : 1) + rng());
+            for (let i = 0; i < count; i++) {
+                const s = k * SEG + rng() * SEG, dist = e.min + (e.max - e.min) * Math.pow(rng(), e.back ? 1 : 1.45), p = AD.pointAt(track, s), off = side * (p.halfWidth + dist);
+                tryPlace(e.name, s, side, dist, p.x + p.nx * off, p.y + p.ny * off, { scale: e.scale, back: e.back, minDist: e.min, yawR: rng(), scR: rng(), tint: rng() });
             }
         }
         return out;
@@ -185,7 +217,28 @@
             }, o.extra || {}));
         };
         const hw = s => AD.pointAt(track, s).halfWidth;
-        /* Start straight: gantry over the line, grandstands both sides, inflatable arches at the sector lines. */
+        const biomeId = track.biomeId;
+        const quaySide = (p) => biomeId !== 'harbour' ? 1 : (AD.propSide(track, 'harbour', p.x + p.nx * (p.halfWidth + 10), p.y + p.ny * (p.halfWidth + 10)) === 'quay' ? 1 : -1);
+        const flatS = (baseS, preferSide, baseOff, maxSlope, rad) => {
+            let best = { s: ((baseS % length) + length) % length, side: preferSide, score: 1e9 };
+            for (const ds of [0, 12, -12, 24, -24, 38, -38]) {
+                const s = (((baseS + ds) % length) + length) % length;
+                const p = AD.pointAt(track, s);
+                for (const side of [preferSide, -preferSide]) {
+                    const x = p.x + p.nx * side * (p.halfWidth + baseOff), y = p.y + p.ny * side * (p.halfWidth + baseOff);
+                    if (biomeId === 'harbour' && AD.propSide(track, 'harbour', x, y) !== 'quay') continue;
+                    const near = AD.sampleTrack(track, x, y);
+                    if (Math.hypot(x - near.x, y - near.y) < near.halfWidth + Math.min(baseOff, 4)) continue;
+                    if (out.some(o => Math.hypot(o.x - x, o.y - y) < o.r + rad + 2.5)) continue;
+                    const sl = AD.terrainSlopeAt ? AD.terrainSlopeAt(track, biomeId, x, y, rad).slope : 0;
+                    const score = sl + (side !== preferSide ? 0.08 : 0) + Math.abs(ds) * 0.002;
+                    if (sl <= maxSlope) return { s, side };
+                    if (score < best.score) best = { s, side, score };
+                }
+            }
+            return best;
+        };
+        /* Start straight: gantry over the line, grandstands on paddock terrace, inflatable arches at sector lines. */
         out.push(Object.assign({}, (() => {
             const p = AD.pointAt(track, 0);
             return {
@@ -193,39 +246,34 @@
                 sx: 1, sy: 1, sz: (2 * (p.halfWidth + 2.6)) / 16, tint: 0, r: 9, h: 7.3, reach: 1, furniture: true, tags: 'hero'
             };
         })()));
-        for (const s of [length - 52, 52]) for (const side of [-1, 1]) add('grandstand', s, side * (hw(s) + 12.8), { extra: { tint: 0.5 } });
+        if (biomeId === 'harbour') {
+            for (const s of [length - 54, 54, length - 104, 104]) { const p = AD.pointAt(track, s); add('grandstand', s, quaySide(p) * (p.halfWidth + 12.8), { extra: { tint: 0.5 } }); }
+        } else {
+            for (const s of [length - 52, 52]) for (const side of [-1, 1]) add('grandstand', s, side * (hw(s) + 12.8), { extra: { tint: 0.5 } });
+        }
         track.sectors.forEach((s, i) => add('inflatable_arch', s, 0, { across: true, span: 15.4, extra: { special: 'arch', tint: i } }));
-        /* Polish kit: balloon bunches near the stands, camera towers beside the sector arches. */
-        for (const s of [length - 92, 92]) for (const side of [-1, 1]) add('balloon_bunch', s, side * (hw(s) + 7.2), { angle: 0.5 });
-        track.sectors.forEach((s, i) => { const ts = s + 14; add('photo_tower', ts, (i % 2 ? 1 : -1) * (hw(ts) + 10.5), { angle: 0.6 }); });
-        /* Hoardings every 200 m on straights, angled at the oncoming driver, each with its own brand. */
+        for (const s of [length - 92, 92]) for (const side of [-1, 1]) add('balloon_bunch', s, (biomeId === 'harbour' ? quaySide(AD.pointAt(track, s)) : side) * (hw(s) + (biomeId === 'harbour' ? 7.2 + (side > 0 ? 3.5 : 0) : 7.2)), { angle: 0.5 });
+        track.sectors.forEach((s, i) => { const ts = s + 14; add('photo_tower', ts, (biomeId === 'harbour' ? quaySide(AD.pointAt(track, ts)) : (i % 2 ? 1 : -1)) * (hw(ts) + 10.5), { angle: 0.6 }); });
         let slot = 0;
         for (let s = 130; s < length - 110; s += 200) {
-            const smp = AD.pointAt(track, s);
-            const idx = AD.sampleTrack(track, smp.x, smp.y).index;
+            const smp = AD.pointAt(track, s), idx = AD.sampleTrack(track, smp.x, smp.y).index;
             if (track.curvature[idx] > 0.009 || wrapDist(s, 0, length) < 110) continue;
-            const side = slot % 2 ? 1 : -1;
-            add('hoarding', s, side * (hw(s) + 9.5), { angle: 0.75, extra: { brand: Math.floor(ihash(Math.round(s), 7) * AD.BRAND_COUNT) } });
-            slot++;
+            add('hoarding', s, (biomeId === 'harbour' ? quaySide(smp) : (slot++ % 2 ? 1 : -1)) * (hw(s) + 9.5), { angle: 0.75, extra: { brand: Math.floor(ihash(Math.round(s), 7) * AD.BRAND_COUNT) } });
         }
-        /* Marshals: one per animal crossing plus four per lap. */
         const marshal = (s, side) => add('marshal_post', s, side * (hw(s) + 3.4), { angle: 0.3 });
-        if (fs) fs.crossings.forEach((c, i) => marshal(c.s - 6, i % 2 ? 1 : -1));
-        for (let k = 0; k < 4; k++) marshal(length * (k + 0.5) / 4 + 30, k % 2 ? -1 : 1);
-        for (let s = 250; s < length - 150; s += 500) add('gnome_statue', s, ((s / 500) % 2 ? 1 : -1) * (hw(s) + 5.5), { angle: 0.4 });
-        [0.18, 0.62].forEach((f, i) => add('hotdog_stand', length * f, (i ? 1 : -1) * (hw(length * f) + 7), { angle: 0.3 }));
-        [0.09, 0.33, 0.57, 0.8].forEach((f, i) => add('camper_van', length * f, (i % 2 ? 1 : -1) * (hw(length * f) + 16 + (i % 3) * 4), { jitter: 0.4 * (i - 1.5) }));
-        [0.24, 0.48, 0.74].forEach((f, i) => add('fan_camp', length * f, (i % 2 ? -1 : 1) * (hw(length * f) + 8.5), { angle: 0.2 }));
-        /* Weather furniture: a wind sock at each sector's braking zone, shelters where marshals stand. */
-        track.sectors.forEach((s, i) => { const ws = s - 70; add('windsock', ((ws % length) + length) % length, (i % 2 ? -1 : 1) * (hw(s) + 6.4), { angle: 0.35 }); });
-        [0.15, 0.42, 0.68, 0.91].forEach((f, i) => add('rain_shelter', length * f, (i % 2 ? 1 : -1) * (hw(length * f) + 5.2), { angle: 0.25 }));
-        /* Silly signs 120 m before every crossing and every ramp. */
-        const signSpots = [];
-        if (fs) { for (const c of fs.crossings) signSpots.push(c.signS !== undefined ? c.signS : c.s - 120); for (const r of fs.ramps) signSpots.push(r.s - 120); }
+        if (fs) fs.crossings.forEach((c, i) => marshal(c.s - 6, biomeId === 'harbour' ? quaySide(AD.pointAt(track, c.s - 6)) : (i % 2 ? 1 : -1)));
+        for (let k = 0; k < 4; k++) { const ms = length * (k + 0.5) / 4 + 30; marshal(ms, biomeId === 'harbour' ? quaySide(AD.pointAt(track, ms)) : (k % 2 ? -1 : 1)); }
+        for (let s = 250; s < length - 150; s += 500) add('gnome_statue', s, (biomeId === 'harbour' ? quaySide(AD.pointAt(track, s)) : ((s / 500) % 2 ? 1 : -1)) * (hw(s) + 5.5), { angle: 0.4 });
+        /* Cohesive Fan Zones & Festival Camps: group fan_camp, hotdog_stand & camper_van on flat pockets. */
+        const campSpots = [0.24, 0.48, 0.74].map((f, i) => { const h = flatS(length * f, i % 2 ? -1 : 1, 8.5, 0.25, 4); add('fan_camp', h.s, h.side * (hw(h.s) + 8.5), { angle: 0.15 }); return h; });
+        [campSpots[0].s + 13, campSpots[1].s + 13].forEach((s0, i) => { const h = flatS(s0, campSpots[i].side, 7.2, 0.25, 3); add('hotdog_stand', h.s, h.side * (hw(h.s) + 7.2), { angle: 0.25 }); });
+        [campSpots[0].s - 15, 0.36 * length, campSpots[1].s - 15, campSpots[2].s + 15].forEach((s0, i) => { const h = flatS(s0, i < 3 ? campSpots[i % 3].side : (i % 2 ? 1 : -1), 15 + (i % 2) * 3, 0.24, 3.2); add('camper_van', h.s, h.side * (hw(h.s) + 15 + (i % 2) * 3), { jitter: 0.22 * (i - 1.5) }); });
+        track.sectors.forEach((s, i) => { const ws = ((s - 70) % length + length) % length; add('windsock', ws, (biomeId === 'harbour' ? quaySide(AD.pointAt(track, ws)) : (i % 2 ? -1 : 1)) * (hw(ws) + 6.4), { angle: 0.35 }); });
+        [0.15, 0.42, 0.68, 0.91].forEach((f, i) => { const h = flatS(length * f, i % 2 ? 1 : -1, 5.4, 0.3, 3); add('rain_shelter', h.s, h.side * (hw(h.s) + 5.4), { angle: 0.2 }); });
+        const signSpots = fs ? fs.crossings.map(c => c.signS !== undefined ? c.signS : c.s - 120).concat(fs.ramps.map(r => r.s - 120)) : [];
         signSpots.forEach((s0, i) => {
             const s = ((s0 % length) + length) % length;
-            if (wrapDist(s, 0, length) < 60) return;
-            add('road_sign', s, (i % 2 ? 1 : -1) * (hw(s) + 4.6), { angle: 1.05, extra: { sign: Math.floor(ihash(i + 3, AD.hashString(track.id)) * AD.SIGN_COUNT) } });
+            if (wrapDist(s, 0, length) >= 60) add('road_sign', s, (biomeId === 'harbour' ? quaySide(AD.pointAt(track, s)) : (i % 2 ? 1 : -1)) * (hw(s) + 4.6), { angle: 1.05, extra: { sign: Math.floor(ihash(i + 3, AD.hashString(track.id)) * AD.SIGN_COUNT) } });
         });
         return out;
     };
@@ -324,6 +372,31 @@
             return null;                            /* no grandstand on the sea */
         }
         return gy;
+    };
+
+    /* Exact downward grounding offset (<= 0) so every corner touches the rendered terrain triangle. */
+    AD.propGroundOffset = function (track, biomeId, p, nearCell, farCell) {
+        if (!p || !track || typeof AD.terrainMeshHeight !== 'function') return 0;
+        if (biomeId === 'harbour' && WATER_ONLY[p.name]) return 0;
+        const nc = nearCell || 8, fc = farCell || 16, gy = p.gy !== undefined ? p.gy : AD.propGroundAt(track, biomeId, p.x, p.y);
+        if (p.name === 'gantry' || p.name === 'inflatable_arch') {
+            const smp = AD.pointAt(track, p.s || 0), span = (smp.halfWidth || 12) + 2.6;
+            const lh = AD.terrainMeshHeight(track, biomeId, p.x + smp.nx * span, p.y + smp.ny * span, nc);
+            const rh = AD.terrainMeshHeight(track, biomeId, p.x - smp.nx * span, p.y - smp.ny * span, nc);
+            return Math.max(-2.4, Math.min(0, Math.min(lh, rh) - gy) - 0.18);
+        }
+        const useFar = p.back || (p.dist || 0) > 140;
+        let low = Math.min(gy, AD.terrainMeshHeight(track, biomeId, p.x, p.y, nc));
+        if (useFar) low = Math.min(low, AD.terrainMeshHeight(track, biomeId, p.x, p.y, fc));
+        const footR = clamp((p.r || 2) * 0.65, 0.8, 7.5), steps = (p.r || 2) >= 3.5 ? 8 : 4;
+        for (let i = 0; i < steps; i++) {
+            const a = (i / steps) * Math.PI * 2, sx = p.x + Math.cos(a) * footR, sy = p.y + Math.sin(a) * footR;
+            low = Math.min(low, AD.terrainMeshHeight(track, biomeId, sx, sy, nc));
+            if (useFar) low = Math.min(low, AD.terrainMeshHeight(track, biomeId, sx, sy, fc));
+        }
+        const embed = NATURAL.test(p.name) ? 0.18 : 0.10;
+        const maxSink = Math.max(2.6, (p.h || 6) * 0.48);
+        return Math.max(-maxSink, Math.min(0, low - gy) - embed);
     };
 
     /* ---- brand and sign canvases ------------------------------------------------------------------- */
@@ -537,6 +610,7 @@
             const parts = [];
             tpl.updateWorldMatrix(true, true);
             const inv = tpl.matrixWorld.clone().invert();
+            let minY = Infinity;
             tpl.traverse(o => {
                 if (!o.isMesh) return;
                 /* GLTFLoader numbers repeated node names (face, face_1), so match the prefix. */
@@ -549,9 +623,17 @@
                 if (nm === 'crowd' || nm === 'crowd_arms') cheered(m, nm === 'crowd_arms');
                 else if (nm === '' && /^(pine|snow_pine|oak|birch|flag)/.test(name)) swayed(m, name === 'flag' ? 0.0022 : 0.0012);
                 owned.push(m);
-                parts.push({ geo: o.geometry, mat: m, local: inv.clone().multiply(o.matrixWorld), role: nm, count: 0, mesh: null, faces: null, tris: o.geometry.index ? o.geometry.index.count / 3 : o.geometry.attributes.position.count / 3 });
+                const loc = inv.clone().multiply(o.matrixWorld);
+                if (o.geometry && o.geometry.computeBoundingBox) {
+                    if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+                    if (o.geometry.boundingBox) {
+                        const b = o.geometry.boundingBox.clone().applyMatrix4(loc);
+                        if (isFinite(b.min.y)) minY = Math.min(minY, b.min.y);
+                    }
+                }
+                parts.push({ geo: o.geometry, mat: m, local: loc, role: nm, count: 0, mesh: null, faces: null, tris: o.geometry.index ? o.geometry.index.count / 3 : o.geometry.attributes.position.count / 3 });
             });
-            return parts;
+            return { parts, minY: isFinite(minY) ? minY : 0 };
         }
 
         function build() {
@@ -562,12 +644,19 @@
             const furn = AD.furnitureProps(track);
             placements = [];
             const sharedMeta = meta.shared || {};
+            const rule = (AD.TERRAIN && AD.TERRAIN[biomeId]) || {};
+            const nearCell = (glq.terrainCell || 8) * (rule.kind === 'flat' && !rule.water ? 2 : 1), farCell = Math.min(32, nearCell * 2);
             for (const p of scatter.concat(furn)) {
                 /* The height rules live in the pure part, so the node checks and the
                    renderer agree on where a prop stands. */
                 const gy = AD.propHeight(track, biomeId, p);
                 if (gy === null) continue;
                 p.gy = gy;
+                p.footSink = AD.propGroundOffset(track, biomeId, p, nearCell, farCell);
+                if (HUG_SET.has(p.name) && AD.terrainSlopeAt) {
+                    const sl = AD.terrainSlopeAt(track, biomeId, p.x, p.y, Math.max(2, p.r * 0.6));
+                    p.tiltX = clamp(-Math.atan(sl.hz), -0.26, 0.26); p.tiltZ = clamp(Math.atan(sl.hx), -0.26, 0.26);
+                }
                 if (p.kind === 'furniture' && p.name !== 'gantry' && sharedMeta[p.name]) { p.r = Math.max(p.r, sharedMeta[p.name].radius * 0.5); }
                 p.id = placements.length;
                 placements.push(p);
@@ -587,7 +676,7 @@
                 const tpl = AD.assets.prop(biome, name);
                 if (!tpl) continue;
                 const cap = Math.min(total, glq.props) + 2;
-                const parts = partsOf(tpl, name);
+                const info = partsOf(tpl, name), parts = info.parts;
                 const tallish = (meta[biome] && meta[biome][name] ? meta[biome][name].height : 6) >= 5;
                 let kt = 0;
                 for (const part of parts) {
@@ -617,7 +706,12 @@
                         part.mesh = mesh;
                     }
                 }
-                kinds.set(key, { key: key, name: name, biome: biome, parts: parts, tris: kt, cast: shadows && tallish, spin: parts.some(p => p.role === 'rotor') });
+                kinds.set(key, { key: key, name: name, biome: biome, parts: parts, minY: info.minY, tris: kt, cast: shadows && tallish, spin: parts.some(p => p.role === 'rotor') });
+            }
+            for (const p of placements) {
+                const k = kinds.get(p.biome + '/' + p.name);
+                const draft = biomeId === 'harbour' ? (WATER_DRAFT[p.name] || 0) : 0;
+                p.groundOffset = -(k ? k.minY : 0) * p.sy + (p.footSink || 0) + draft * p.sy;
             }
             /* Sign pool: sixteen meshes with their own material and a clone of the atlas texture. */
             const signKind = kinds.get('shared/road_sign');
@@ -651,7 +745,7 @@
             const tpl = AD.assets.trackPiece('gantry');
             if (!p || !tpl) return;
             const g = tpl.clone(true);
-            g.position.set(p.x, p.gy, p.y); g.rotation.y = p.yaw; g.scale.set(1, 1, p.sz);
+            g.position.set(p.x, p.gy + (p.groundOffset || 0), p.y); g.rotation.y = p.yaw; g.scale.set(1, 1, p.sz);
             const lights = [];
             g.traverse(o => {
                 if (o.isMesh) {
@@ -709,9 +803,11 @@
         }
 
         /* ---- streaming ------------------------------------------------------------------------- */
+        const tmpE = new T.Euler(0, 0, 0, 'YXZ');
         function compose(p, extraY) {
             tmpP.set(p.x, p.gy + (extraY || 0), p.y);
-            tmpQ.setFromAxisAngle(UP, p.yaw);
+            if (p.tiltX || p.tiltZ) { tmpE.set(p.tiltX || 0, p.yaw, p.tiltZ || 0, 'YXZ'); tmpQ.setFromEuler(tmpE); }
+            else tmpQ.setFromAxisAngle(UP, p.yaw);
             tmpS.set(p.sx, p.sy, p.sz);
             return place.compose(tmpP, tmpQ, tmpS);
         }
@@ -737,7 +833,7 @@
                 const cost = k.tris * (k.cast ? 2 : 1);
                 if (used + cost > budget) break;
                 used += cost; n++;
-                compose(p, WATER_ONLY[p.name] ? 0.15 : 0);
+                compose(p, p.groundOffset || 0);
                 const tint = tintFor(p);
                 for (const part of k.parts) {
                     M.multiplyMatrices(place, part.local);
@@ -806,6 +902,7 @@
 
         const api = {
             get grandstands() { return stands; },
+            get placements() { return placements; },
             update(pose, race) {
                 const now = typeof performance !== 'undefined' ? performance.now() : 0;
                 const dt = prevNow ? clamp((now - prevNow) / 1000, 0, 0.1) : 0;

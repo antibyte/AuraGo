@@ -35,6 +35,7 @@ var auraDriftModules = []string{
 	"aura-drift-road.js",
 	"aura-drift-sky.js",
 	"aura-drift-props.js",
+	"aura-drift-env-fx.js",
 	"aura-drift-pet-decor.js",
 	"aura-drift-actors.js",
 	"aura-drift-carlight.js",

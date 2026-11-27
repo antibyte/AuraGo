@@ -12,6 +12,7 @@
     const floor = Math.floor, sqrt = Math.sqrt, abs = Math.abs, min = Math.min, max = Math.max, pow = Math.pow, round = Math.round, hypot = Math.hypot;
     const lerp = (a, b, t) => a + (b - a) * t;
     const sstep = (a, b, x) => { const t = x <= a ? 0 : (x >= b ? 1 : (x - a) / (b - a)); return t * t * (3 - 2 * t); };
+    const wrapDist = (a, b, len) => { const d = abs(a - b) % len; return min(d, len - d); };
 
     /* ---- value noise (non tiling, 2D) ------------------------------------------- */
     const PERM = new Uint8Array(512), VAL = new Float32Array(256);
@@ -162,7 +163,7 @@
             return a + (bb - a) * tx + (cc - a) * ty + (a - bb - cc + dd) * tx * ty;
         }
         const field = {
-            cell: cell, radius: R, orient: orient, width: nx, height: ny,
+            cell: cell, radius: R, orient: orient, width: nx, height: ny, length: track.length,
             at(x, y) {
                 const fx = (x - minX) / cell, fy = (y - minY) / cell;
                 let d = R;
@@ -206,7 +207,7 @@
     };
 
     /* ---- height rules ------------------------------------------------------------------ */
-    const RAMP_END = { alpine: 85, desert: 46, forest: 56, glacier: 72 };
+    const RAMP_END = { alpine: 95, desert: 68, forest: 64, glacier: 84 };
     function terrace(h, q, k) { const t = h / q, f = floor(t); return (f + sstep(0, k, t - f)) * q; }
 
     AD.terrainHeight = function (biomeId, dist, x, y, sample) {
@@ -216,9 +217,14 @@
         const base = rule.base !== undefined ? rule.base : -0.4;
         const roadZ = (sample && sample.roadZ) || 0;
         if (e <= 10) return roadZ + base;
-        const r = sstep(10, RAMP_END[biomeId] || 60, e);
+        const r = sstep(10, RAMP_END[biomeId] || 68, e);
         const roadLift = roadZ ? roadZ * (1 - r) : 0;
-        const fine = ((noise2(x / 9, y / 9) - 0.5) + (noise2(x / 27 + 11, y / 27) - 0.5) * 6.5) * sstep(12, 50, e);
+        /* Keep near-verge micro-noise calm so trackside props sit flush on gentle slopes. */
+        const fine = ((noise2(x / 14, y / 14) - 0.5) * 0.7 + (noise2(x / 42 + 11, y / 42) - 0.5) * 2.2) * sstep(22, 78, e);
+        /* Grade a level Start/Finish paddock terrace beside s = 0 so grandstands never bury into hills. */
+        const len = sample && sample.field && sample.field.length;
+        const paddock = len ? (1 - sstep(78, 128, wrapDist(sample.s || 0, 0, len))) * (1 - sstep(22, 46, e)) : 0;
+        let off = 0;
         switch (rule.kind) {
             case 'hills': {
                 const n = fbm(x / rule.wave, y / rule.wave, 4);
@@ -226,7 +232,8 @@
                 h += (noise2(x / 52, y / 52) - 0.5) * 9 + (noise2(x / 17, y / 17) - 0.5) * 2.5;
                 let peaks = 0;
                 if (rule.ridged) peaks = rule.ridged.amp * pow(ridged(x / 620, y / 620, 4), 1.7) * sstep(rule.ridged.from * 0.4, rule.ridged.from * 1.1, dist);
-                return base + roadLift + r * h + fine + peaks;
+                off = r * h + fine + peaks;
+                break;
             }
             case 'dunes': {
                 const wx = x + 70 * (noise2(x / 190 + 7, y / 190) - 0.5), wy = y + 70 * (noise2(x / 190, y / 190 + 3) - 0.5);
@@ -234,48 +241,50 @@
                 let h = rule.amp * pow(crest, 1.5) + rule.amp * 0.3 * noise2(x / 60, y / 60);
                 let mesa = 0;
                 if (rule.mesas) {
-                    const m = sstep(rule.mesas.from * 0.7, rule.mesas.from * 1.3, dist);
+                    const m = sstep(rule.mesas.from * 0.85, rule.mesas.from * 1.45, dist);
                     if (m > 0) {
                         const v = clamp((fbm(x / 540 + 3.3, y / 540, 3) - 0.47) * 5, 0, 1);
                         const levels = rule.mesas.amp / rule.mesas.quant, t = v * levels, f = floor(t);
-                        mesa = m * (f + sstep(0, 0.16, t - f)) * rule.mesas.quant;
+                        mesa = m * (f + sstep(0, 0.42, t - f)) * rule.mesas.quant;
                     }
                 }
-                return base + roadLift + r * h + fine + mesa;
+                off = r * h + fine + mesa;
+                break;
             }
             case 'flat': {
-                let h = base + roadLift;
                 if (rule.water) {
                     const inner = sample && sample.inner !== null && sample.inner !== undefined ? sample.inner : (sample && sample.field ? sample.field.inside(x, y) : true);
-                    /* The quay: `from` and `to` are the distances from the road edge
-                       where the ground starts to drop into the water and where it
-                       reaches the bottom of the basin. */
                     const wFrom = rule.water.from !== undefined ? rule.water.from : 14;
                     const wTo = rule.water.to !== undefined ? rule.water.to : 26;
-                    if (!inner) h = lerp(base, rule.water.depth, sstep(wFrom, wTo, e));
-                    else h += 55 * pow(clamp((fbm(x / 800 + 1.7, y / 800, 3) - 0.5) * 3, 0, 1), 1.5) * sstep(500, 800, dist);
+                    if (!inner) return base + roadLift + (rule.water.depth - base) * sstep(wFrom, wTo, e);
+                    off = 55 * pow(clamp((fbm(x / 800 + 1.7, y / 800, 3) - 0.5) * 3, 0, 1), 1.5) * sstep(500, 800, dist);
+                } else if (rule.ring) {
+                    off = rule.ring.amp * pow(ridged(x / 700, y / 700, 4), 1.3) * sstep(rule.ring.from * 0.78, rule.ring.from * 1.25, dist);
                 }
-                if (rule.ring) h += rule.ring.amp * pow(ridged(x / 700, y / 700, 4), 1.3) * sstep(rule.ring.from * 0.78, rule.ring.from * 1.25, dist);
-                return h;
+                break;
             }
             case 'rolling': {
                 const n = fbm(x / rule.wave, y / rule.wave, 4);
                 const h = rule.amp * pow(clamp((n - 0.2) * 1.55, 0, 1), 1.15) + (noise2(x / 34, y / 34) - 0.5) * 5;
-                return base + roadLift + r * h + fine;
+                off = r * h + fine;
+                break;
             }
             case 'embankments': {
-                const bank = rule.amp * sstep(10, 28, e) * (1 - 0.8 * sstep(70, 140, e)) * (0.65 + 0.7 * noise2(x / 90, y / 90));
+                const bank = rule.amp * sstep(14, 42, e) * (1 - 0.8 * sstep(75, 145, e)) * (0.65 + 0.7 * noise2(x / 90, y / 90));
                 const lumps = (fbm(x / 160, y / 160, 3) - 0.5) * 5 * sstep(30, 90, e);
                 const cone = clamp((fbm(x / 260 + 9, y / 260, 3) - 0.5) * 5, 0, 1);
                 const heap = rule.heaps ? rule.heaps.amp * pow(cone, 1.3) * sstep(rule.heaps.from * 0.7, rule.heaps.from * 1.3, dist) : 0;
-                return base + roadLift + bank + lumps + fine + heap;
+                off = bank + lumps + fine + heap;
+                break;
             }
             case 'ridged': {
-                const h = terrace(rule.amp * pow(ridged(x / rule.wave, y / rule.wave, 3), 1.45), 14, 0.34) + 24 * fbm(x / 1500, y / 1500, 2);
-                return base + roadLift + r * h + fine;
+                const h = terrace(rule.amp * pow(ridged(x / rule.wave, y / rule.wave, 3), 1.45), 16, 0.62) + 24 * fbm(x / 1500, y / 1500, 2);
+                off = r * h + fine;
+                break;
             }
-            default: return base + roadLift;
+            default: break;
         }
+        return base + roadLift + off * (1 - paddock);
     };
 
     /* ---- colour ---------------------------------------------------------------------------- */
@@ -318,41 +327,58 @@
             mix3(out, out, pal.snow, s);
         }
         mix3(out, out, pal.edge, (1 - sstep(10, 36, e)) * 0.7);
-        const v = 0.8 + 0.4 * n3 + 0.12 * (n5 - 0.5);
+        const ao = 0.84 + 0.16 * sstep(0, 14, e);
+        const city = (p.hs <= 6) ? (0.9 + 0.2 * noise2(x / 64, y / 64)) : 1;
+        const v = (0.88 + 0.24 * n3 + 0.08 * (n5 - 0.5)) * ao * city;
         out[0] *= v; out[1] *= v; out[2] *= v;
+        if (h < -0.55 && p.hs === 6) {
+            const wet = sstep(-0.55, -5.0, h);
+            out[0] = lerp(out[0], 0.05, wet); out[1] = lerp(out[1], 0.10, wet); out[2] = lerp(out[2], 0.17, wet);
+        }
         return out;
     };
 
-    /* ---- detail texture (neutral grey, multiplies the vertex colours) ------------------------- */
-    AD.makeTerrainDetail = function (T, biomeId, look) {
-        const tn = tileNoise(), N = tn.N;
-        const c = document.createElement('canvas');
-        c.width = c.height = N;
-        const g = c.getContext('2d');
-        const img = g.createImageData(N, N), d = img.data;
+    /* ---- detail & bump textures (neutral grey, multiplies vertex colours + surface relief) ------ */
+    function terrainSurfaceData(biomeId, look) {
+        const tn = tileNoise(), N = tn.N, h = new Float32Array(N * N);
         const dark = look.night;
         const voro = biomeId === 'salt' ? voronoi(N, 18, 7) : null;
+        const rgba = new Uint8Array(N * N * 4), nrm = new Uint8Array(N * N * 4);
         for (let j = 0; j < N; j++) {
             for (let i = 0; i < N; i++) {
                 const o = j * N + i, lo = tn.lo[o], hi = tn.hi[o];
-                let v = 0.8 + 0.5 * (lo - 0.5) + 0.26 * (hi - 0.5);
-                if (biomeId === 'desert') v += 0.035 * Math.sin((i / N * 24 + lo * 9) * 6.283);
+                let v = 0.84 + 0.42 * (lo - 0.5) + 0.22 * (hi - 0.5);
+                if (biomeId === 'desert') v += 0.045 * Math.sin((i / N * 24 + lo * 9) * 6.283);
                 else if (biomeId === 'salt') v += voro[o];
                 else if (biomeId === 'metro' || biomeId === 'harbour') {
-                    const gx = (i % 64) < 1.5 || (j % 64) < 1.5;
-                    if (gx) v *= 0.7;
-                } else if (biomeId === 'glacier') v += 0.12 * (lo - 0.5);
-                v = clamp(v, 0, 1.1) * (dark ? 1 : 1.05);
-                const k = round(clamp(v, 0, 1) * 255);
-                const tint = (tn.lo[(o + 197123) % (N * N)] - 0.5) * 0.14;
-                d[o * 4] = clamp(k * (1 + tint), 0, 255); d[o * 4 + 1] = k; d[o * 4 + 2] = clamp(k * (1 - tint), 0, 255); d[o * 4 + 3] = 255;
+                    const seam = (i % 64) < 2 || (j % 64) < 2, block = (floor(i / 64) * 13 + floor(j / 64) * 7) % 5;
+                    v *= 0.92 + block * 0.03;
+                    if (seam) v *= 0.68;
+                } else if (biomeId === 'glacier') v += 0.06 * Math.sin((i / N * 12 + j / N * 6 + lo * 5) * 6.283) + 0.1 * (lo - 0.5);
+                h[o] = clamp(v, 0, 1.2);
+                const k = round(clamp(h[o] * (dark ? 1 : 1.05), 0, 1) * 255);
+                const tint = (tn.lo[(o + 197123) % (N * N)] - 0.5) * 0.1;
+                rgba[o * 4] = clamp(k * (1 + tint), 0, 255); rgba[o * 4 + 1] = k; rgba[o * 4 + 2] = clamp(k * (1 - tint), 0, 255); rgba[o * 4 + 3] = 255;
+                const bVal = round(clamp(h[o], 0, 1) * 255);
+                nrm[o * 4] = nrm[o * 4 + 1] = nrm[o * 4 + 2] = bVal; nrm[o * 4 + 3] = 255;
             }
         }
-        g.putImageData(img, 0, 0);
-        const tex = new T.CanvasTexture(c);
-        tex.colorSpace = T.SRGBColorSpace;
-        tex.wrapS = tex.wrapT = T.RepeatWrapping;
-        tex.anisotropy = 8;
+        return { N, rgba, nrm };
+    }
+    AD.makeTerrainDetail = function (T, biomeId, look) {
+        const s = terrainSurfaceData(biomeId, look);
+        const tex = new T.DataTexture(s.rgba, s.N, s.N, T.RGBAFormat);
+        tex.colorSpace = T.SRGBColorSpace; tex.wrapS = tex.wrapT = T.RepeatWrapping; tex.anisotropy = 8;
+        tex.generateMipmaps = true; tex.magFilter = T.LinearFilter; tex.minFilter = T.LinearMipmapLinearFilter;
+        tex.needsUpdate = true;
+        return tex;
+    };
+    AD.makeTerrainBump = function (T, biomeId, look) {
+        const s = terrainSurfaceData(biomeId, look);
+        const tex = new T.DataTexture(s.nrm, s.N, s.N, T.RGBAFormat);
+        tex.wrapS = tex.wrapT = T.RepeatWrapping; tex.anisotropy = 4;
+        tex.generateMipmaps = true; tex.magFilter = T.LinearFilter; tex.minFilter = T.LinearMipmapLinearFilter;
+        tex.needsUpdate = true;
         return tex;
     };
     /* Cracked crust: darker lines where two jittered cell centres are equally near. Periodic. */
@@ -377,15 +403,7 @@
     AD.world.voronoi = voronoi;
 
     /* ---- chunk geometry ----------------------------------------------------------------------- */
-    const imul = Math.imul;
-    function faceHash(i, j, t, seed) {
-        let h = (imul(i + 1, 73856093) ^ imul(j + 7, 19349663) ^ imul(t + 3, 83492791) ^ seed) >>> 0;
-        h = imul(h ^ (h >>> 15), 2246822519) >>> 0;
-        return ((h ^ (h >>> 13)) >>> 0) / 4294967296;
-    }
-
-    /* A (n+1)^2 height grid expanded to separate triangles (a faceted low-poly look: every face gets
-       its own small brightness and hue jitter) plus a skirt that hides LOD cracks between chunks. */
+    /* A (n+1)^2 height grid expanded to smooth-normal triangles plus a skirt that hides LOD cracks. */
     function gridGeometry(T, ctx, x0, z0, size, cell, skirt) {
         const n = round(size / cell), m = n + 1, pm = n + 3;
         const hs = new Float32Array(pm * pm), es = new Float32Array(pm * pm);
@@ -397,14 +415,16 @@
             hs[j * pm + i] = AD.terrainHeight(ctx.biomeId, dist, x, z, smp);
             es[j * pm + i] = dist - smp.halfWidth;
         }
-        const vp = new Float32Array(m * m * 3), vc = new Float32Array(m * m * 3), c3 = [0, 0, 0];
+        const vp = new Float32Array(m * m * 3), vc = new Float32Array(m * m * 3), vn = new Float32Array(m * m * 3), c3 = [0, 0, 0];
         for (let j = 0; j < m; j++) for (let i = 0; i < m; i++) {
             const o = j * m + i, po = (j + 1) * pm + i + 1;
             const x = x0 + i * cell, z = z0 + j * cell, h = hs[po];
             const hx = (hs[po + 1] - hs[po - 1]) / (2 * cell), hz = (hs[po + pm] - hs[po - pm]) / (2 * cell);
+            const nLen = sqrt(hx * hx + 1 + hz * hz) || 1;
             AD.terrainColor(ctx.pal, h, sqrt(hx * hx + hz * hz), x, z, es[po], c3);
             vp[o * 3] = x; vp[o * 3 + 1] = h; vp[o * 3 + 2] = z;
             vc[o * 3] = c3[0]; vc[o * 3 + 1] = c3[1]; vc[o * 3 + 2] = c3[2];
+            vn[o * 3] = -hx / nLen; vn[o * 3 + 1] = 1 / nLen; vn[o * 3 + 2] = -hz / nLen;
         }
         const foliage = [];
         for (const plant of ctx.plants) {
@@ -419,34 +439,27 @@
             AD.vergeTriangles({ ...plant, z }, (a, b, c, shade) => foliage.push({ vertices: [a, b, c], colour: shades[shade] }));
         }
         const tris = n * n * 2 + n * 4 * 2 + foliage.length, total = tris * 3;
-        const pos = new Float32Array(total * 3), col = new Float32Array(total * 3), uv = new Float32Array(total * 2);
+        const pos = new Float32Array(total * 3), col = new Float32Array(total * 3), nrm = new Float32Array(total * 3), uv = new Float32Array(total * 2);
         let w = 0;
-        const seed = (round(x0) * 31 + round(z0)) | 0;
-        function put(v, f, dark) {
+        function put(v, dark) {
             pos[w * 3] = vp[v * 3]; pos[w * 3 + 1] = vp[v * 3 + 1]; pos[w * 3 + 2] = vp[v * 3 + 2];
-            col[w * 3] = vc[v * 3] * f[0] * dark; col[w * 3 + 1] = vc[v * 3 + 1] * f[1] * dark; col[w * 3 + 2] = vc[v * 3 + 2] * f[2] * dark;
+            col[w * 3] = vc[v * 3] * dark; col[w * 3 + 1] = vc[v * 3 + 1] * dark; col[w * 3 + 2] = vc[v * 3 + 2] * dark;
+            nrm[w * 3] = vn[v * 3]; nrm[w * 3 + 1] = vn[v * 3 + 1]; nrm[w * 3 + 2] = vn[v * 3 + 2];
             uv[w * 2] = vp[v * 3] / 32; uv[w * 2 + 1] = vp[v * 3 + 2] / 32;
             w++;
         }
-        function putLow(v, f, dark) {
-            put(v, f, dark);
+        function putLow(v, dark) {
+            put(v, dark);
             pos[(w - 1) * 3 + 1] -= skirt;
-        }
-        const fj = [1, 1, 1];
-        function jitter(i, j, t) {
-            const a = faceHash(i, j, t, seed), b = faceHash(i, j, t + 5, seed);
-            const br = 0.88 + 0.24 * a, hue = (b - 0.5) * 0.08;
-            fj[0] = br * (1 + hue); fj[1] = br; fj[2] = br * (1 - hue);
-            return fj;
         }
         for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
             const a = j * m + i, b = a + 1, c = a + m, d = c + 1;
             if ((i + j) & 1) {
-                put(a, jitter(i, j, 0), 1); put(c, fj, 1); put(d, fj, 1);
-                put(a, jitter(i, j, 1), 1); put(d, fj, 1); put(b, fj, 1);
+                put(a, 1); put(c, 1); put(d, 1);
+                put(a, 1); put(d, 1); put(b, 1);
             } else {
-                put(a, jitter(i, j, 0), 1); put(c, fj, 1); put(b, fj, 1);
-                put(b, jitter(i, j, 1), 1); put(c, fj, 1); put(d, fj, 1);
+                put(a, 1); put(c, 1); put(b, 1);
+                put(b, 1); put(c, 1); put(d, 1);
             }
         }
         /* skirt around the perimeter */
@@ -455,21 +468,28 @@
         for (let j = 1; j <= n; j++) ring.push(j * m + n);
         for (let i = n - 1; i >= 0; i--) ring.push(n * m + i);
         for (let j = n - 1; j >= 1; j--) ring.push(j * m);
-        const unit = [1, 1, 1];
         for (let k = 0; k < ring.length; k++) {
             const a = ring[k], b = ring[(k + 1) % ring.length];
-            put(a, unit, 0.6); put(b, unit, 0.6); putLow(a, unit, 0.5);
-            put(b, unit, 0.6); putLow(b, unit, 0.5); putLow(a, unit, 0.5);
+            put(a, 0.72); put(b, 0.72); putLow(a, 0.58);
+            put(b, 0.72); putLow(b, 0.58); putLow(a, 0.58);
         }
         for (const face of foliage) {
+            const A = face.vertices[0], B = face.vertices[1], C = face.vertices[2];
+            const ux = B[0] - A[0], uy = B[1] - A[1], uz = B[2] - A[2];
+            const vx = C[0] - A[0], vy = C[1] - A[1], vz = C[2] - A[2];
+            let fx = uy * vz - uz * vy, fy = uz * vx - ux * vz + 0.65, fz = ux * vy - uy * vx;
+            const fl = sqrt(fx * fx + fy * fy + fz * fz) || 1;
+            fx /= fl; fy /= fl; fz /= fl;
             for (const v of face.vertices) {
                 pos.set(v, w * 3); col.set(face.colour, w * 3);
+                nrm[w * 3] = fx; nrm[w * 3 + 1] = fy; nrm[w * 3 + 2] = fz;
                 uv[w * 2] = v[0] / 32; uv[w * 2 + 1] = v[2] / 32; w++;
             }
         }
         const geo = new T.BufferGeometry();
         geo.setAttribute('position', new T.BufferAttribute(pos, 3));
         geo.setAttribute('color', new T.BufferAttribute(col, 3));
+        geo.setAttribute('normal', new T.BufferAttribute(nrm, 3));
         geo.setAttribute('uv', new T.BufferAttribute(uv, 2));
         geo.computeBoundingSphere();
         return geo;
@@ -512,17 +532,19 @@
         geo.setAttribute('color', new T.BufferAttribute(col, 3));
         geo.setAttribute('uv', new T.BufferAttribute(uv, 2));
         geo.setIndex(new T.BufferAttribute(new Uint32Array(idx), 1));
+        geo.computeVertexNormals();
         geo.computeBoundingSphere();
         void pm;
         return geo;
     }
 
-    /* ---- ground height for world objects ------------------------------------------------------------ */
+    /* ---- ground height & rendered mesh query for world objects ----------------------------------- */
     /* One distance field per track: the terrain mesh, the props, the roadside scenery and the pet
        decor all have to stand on the same ground. The field also knows which side of the loop a
        point lies on, and the harbour needs that side: its ground sinks into the sea outside the
        quay. Without it every object there hovers a metre above the water. */
     const fieldCache = new WeakMap();
+    const _msmp = {};
     AD.trackField = function (track, cell) {
         cell = cell || 8;
         let field = fieldCache.get(track);
@@ -537,11 +559,42 @@
     AD.groundHeight = function (track, biomeId, x, y) {
         if (!track) return 0;
         const field = AD.trackField(track, 8);
-        const sample = {};
         const dist = field.at(x, y);
-        field.info(x, y, sample);
-        const h = AD.terrainHeight(biomeId || track.biomeId, dist, x, y, sample);
+        field.info(x, y, _msmp);
+        const h = AD.terrainHeight(biomeId || track.biomeId, dist, x, y, _msmp);
         return isFinite(h) ? h : 0;
+    };
+
+    /* Exact height on the rendered terrain triangle at (x, y) for grid cell size `cell`. */
+    AD.terrainMeshHeight = function (track, biomeId, x, y, cell) {
+        if (!track) return 0;
+        cell = cell || 8;
+        const id = biomeId || track.biomeId;
+        const field = AD.trackField(track, 8);
+        const gi = floor(x / cell), gj = floor(y / cell);
+        const u = x / cell - gi, v = y / cell - gj;
+        const x0 = gi * cell, z0 = gj * cell;
+        const at = (px, py) => {
+            const dist = field.at(px, py);
+            field.info(px, py, _msmp);
+            return AD.terrainHeight(id, dist, px, py, _msmp);
+        };
+        const a = at(x0, z0), b = at(x0 + cell, z0), c = at(x0, z0 + cell), d = at(x0 + cell, z0 + cell);
+        const diag = ((gi + gj) & 1) ? min(u, v) : max(0, u + v - 1);
+        const h = a + (b - a) * u + (c - a) * v + (a - b - c + d) * diag;
+        return isFinite(h) ? h : 0;
+    };
+
+    /* Terrain slope & height span over a footprint radius for slope-safe prop filtering. */
+    AD.terrainSlopeAt = function (track, biomeId, x, y, radius) {
+        const d = max(2, radius || 4);
+        const id = biomeId || track.biomeId;
+        const hl = AD.groundHeight(track, id, x - d, y), hr = AD.groundHeight(track, id, x + d, y);
+        const hd = AD.groundHeight(track, id, x, y - d), hu = AD.groundHeight(track, id, x, y + d);
+        const hc = AD.groundHeight(track, id, x, y);
+        const hx = (hr - hl) / (2 * d), hz = (hu - hd) / (2 * d);
+        const lo = min(hc, hl, hr, hd, hu), hi = max(hc, hl, hr, hd, hu);
+        return { slope: hypot(hx, hz), hx: hx, hz: hz, minH: lo, maxH: hi, span: hi - lo };
     };
 
     /* ---- the terrain object ---------------------------------------------------------------------- */
@@ -551,14 +604,17 @@
         const field = AD.trackField(track, 8);
         const ctx = { field: field, biomeId: biomeId, pal: AD.terrainPalette(biomeId, look), plants: AD.vergePlants?.(track) || [] };
         const detail = AD.makeTerrainDetail(T, biomeId, look);
+        const bump = AD.makeTerrainBump(T, biomeId, look);
+        const rule = AD.TERRAIN[biomeId] || {};
         const mat = new T.MeshStandardMaterial({
-            vertexColors: true, map: detail, flatShading: true, roughness: 0.93, metalness: 0, side: T.DoubleSide,
+            vertexColors: true, map: detail, bumpMap: bump,
+            bumpScale: rule.kind === 'flat' && !rule.water ? 0.14 : (biomeId === 'harbour' ? 0.18 : 0.34),
+            roughness: 0.9, metalness: 0, side: T.DoubleSide,
             polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 2
         });
         const group = new T.Group();
         group.name = 'terrain';
         const geos = [];
-        const rule = AD.TERRAIN[biomeId] || {};
         /* flat ground has no relief to resolve: half the resolution is enough */
         const nearCell = (q && q.terrainCell ? q.terrainCell : 8) * (rule.kind === 'flat' && !rule.water ? 2 : 1);
         const farCell = min(32, nearCell * 2);
@@ -608,7 +664,7 @@
             stats() { return stats; },
             dispose() {
                 for (const g of geos) g.dispose();
-                mat.dispose(); detail.dispose();
+                mat.dispose(); detail.dispose(); bump.dispose();
                 group.removeFromParent();
                 geos.length = 0;
             }
