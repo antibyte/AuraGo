@@ -26,3 +26,21 @@ func TestPutSceneRemovesClosingMarkers(t *testing.T) {
 		t.Fatalf("stored outline narration %q", got)
 	}
 }
+
+func TestRepairTextClosingMarkerSpacing(t *testing.T) {
+	studio, _, _ := newStudioWriteRig(t, nil)
+	studio.job.Language = "en"
+	for in, want := range map[string]string{
+		"Daten {/1}.":            "Daten.",
+		"Daten{/1}. Mehr":        "Daten. Mehr",
+		"Mehr {1}Text {/1}hier":  "Mehr {1}Text hier",
+		"a {/2} b":               "a b",
+		"Pakete{/2} durchlassen": "Pakete durchlassen",
+		"Ende {/3}":              "Ende",
+		"Wort{/1}Wort":           "WortWort",
+	} {
+		if got := studio.repairText(in); got != want {
+			t.Errorf("repairText(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

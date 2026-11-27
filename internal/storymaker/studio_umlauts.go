@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"unicode"
+	"unicode/utf8"
 )
 
 //go:embed data/de_umlauts.json
@@ -106,11 +107,29 @@ func addUmlautFix(list []UmlautFix, fix UmlautFix) []UmlautFix {
 }
 
 // closingMarker is the {/n} that a model sometimes writes after a cue phrase; the format has no such marker, so no text keeps it.
-var closingMarker = regexp.MustCompile(`\{/\d+\}`)
+var closingMarker = regexp.MustCompile(`([ 	]*)\{/\d+\}([ 	]*)`)
+
+// removeClosingMarkers cuts every {/n} with the blanks around it. Where the marker sat between two words, one space stays;
+// before the end of the text or a closing punctuation mark, and where no blank touched it, nothing stays.
+func removeClosingMarkers(text string) string {
+	var out strings.Builder
+	last := 0
+	for _, m := range closingMarker.FindAllStringSubmatchIndex(text, -1) {
+		out.WriteString(text[last:m[0]])
+		last = m[1]
+		blanks := m[3] > m[2] || m[5] > m[4]
+		next, _ := utf8.DecodeRuneInString(text[m[1]:])
+		if blanks && m[0] > 0 && m[1] < len(text) && !strings.ContainsRune(".,!?;:\u2026)", next) {
+			out.WriteByte(' ')
+		}
+	}
+	out.WriteString(text[last:])
+	return out.String()
+}
 
 // repairText removes closing markers in every language, then restores the umlauts of one text in the job's language and remembers what it repaired for the call's answer.
 func (s *Studio) repairText(text string) string {
-	text = closingMarker.ReplaceAllString(text, "")
+	text = removeClosingMarkers(text)
 	fixed, fixes := RepairUmlauts(text, s.job.Language)
 	for _, f := range fixes {
 		s.pendingRepairs = addUmlautFix(s.pendingRepairs, f)
