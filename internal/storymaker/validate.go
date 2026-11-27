@@ -416,6 +416,7 @@ type sceneRefs struct {
 	spots      map[string]Spot
 	spotsKnown bool
 	markers    map[int]bool
+	diagrams   map[string][]string // diagram instance id -> node ids
 }
 
 func (v *validator) scene(i int, sc *Scene, env string, seen map[string]int) {
@@ -488,7 +489,7 @@ func (v *validator) scene(i int, sc *Scene, env string, seen map[string]int) {
 
 // refsOf collects the instance ids, items, spots and cue markers of a scene.
 func (v *validator) refsOf(sc *Scene, env string) *sceneRefs {
-	r := &sceneRefs{instances: map[string]bool{}, items: map[string][]string{}, markers: map[int]bool{}}
+	r := &sceneRefs{instances: map[string]bool{}, items: map[string][]string{}, markers: map[int]bool{}, diagrams: map[string][]string{}}
 	for _, p := range sc.Props {
 		if p.ID != "" {
 			r.instances[p.ID] = true
@@ -511,6 +512,11 @@ func (v *validator) refsOf(sc *Scene, env string) *sceneRefs {
 		}
 		if b.Item != "" {
 			r.items[b.Item] = append(r.items[b.Item], id)
+		}
+		if b.Diagram != nil && id != "" {
+			for _, n := range b.Diagram.Nodes {
+				r.diagrams[id] = append(r.diagrams[id], n.ID)
+			}
 		}
 	}
 	if v.cat != nil {
@@ -1149,6 +1155,16 @@ func (v *validator) checkTarget(path, target string, refs *sceneRefs) {
 		}
 	} else if v.cat == nil && validSlug(target) {
 		return // spots cannot be checked without a catalog
+	}
+	if i := strings.LastIndex(target, "."); i > 0 {
+		if nodes, ok := refs.diagrams[target[:i]]; ok {
+			if containsName(nodes, target[i+1:]) {
+				return
+			}
+			v.errorf(CodeUnknownName, path, fmt.Sprintf("The diagram %s has no node %q.", target[:i], clip(target[i+1:], 40)),
+				"Use one of its nodes: "+listOf(nodes)+". Example: "+exampleJSON("target", target[:i]+"."+nodes[0]))
+			return
+		}
 	}
 	pool := append([]string{"camera"}, v.castIDs...)
 	for id := range refs.instances {

@@ -1,6 +1,9 @@
 package storymaker
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func blockScene(beat string) string {
 	return `{"id":"s1","narration":"Anfrage {1} Server {2}","beats":[` + beat + `]}`
@@ -81,4 +84,21 @@ func TestValidateBlocks(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestValidateNodeHighlight(t *testing.T) {
+	diagram := `{"do":"show","diagram":{"layout":"flow","nodes":[{"id":"req","label":"A"},{"id":"srv","label":"B"}]},"at":"full","entry":"fade"}`
+	scene := func(target string) string {
+		return `{"id":"s1","props":[{"item":"prop.lock"}],"beats":[` + diagram + `,{"do":"highlight","target":"` + target + `","style":"pulse"}]}`
+	}
+	for _, target := range []string{"diagram-1.srv", "diagram-1", "prop.lock"} {
+		if issues := validateScenes(t, scene(target)); len(issues) != 0 {
+			t.Errorf("%s:%s", target, dump(issues))
+		}
+	}
+	is := expectIssue(t, validateScenes(t, scene("diagram-1.zzz")), CodeUnknownName, SeverityError, "/scenes/0/beats/1/target")
+	if !strings.Contains(is.Message, "zzz") || !strings.Contains(is.Message, "diagram-1") {
+		t.Errorf("message: %s", is.Message)
+	}
+	expectIssue(t, validateScenes(t, scene("nodiagram.srv")), CodeUnknownName, SeverityError, "/scenes/0/beats/1/target")
 }
