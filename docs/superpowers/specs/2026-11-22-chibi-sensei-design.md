@@ -1,6 +1,6 @@
 # Chibi Sensei: small-model training studio
 
-Status: design approved by the user on 2026-11-22 and checked against the code that day. P1 (dataset studio) and P2 (training on Kaggle) are implemented; the plans under `docs/superpowers/plans/` record what was built and where it differs from this design. Each phase gets its own implementation plan; the user asked for the P1 plan and its implementation to follow without a further gate. Values marked UNVERIFIED stay unproven until the run named under "Risks" passes.
+Status: design approved by the user on 2026-11-22 and checked against the code that day. P1 (dataset studio), P2 (training on Kaggle) and P3 (test and compare, native runtime only; the Docker sidecar, the provider column and the LLM judge are follow-ups) are implemented; the plans under `docs/superpowers/plans/` record what was built and where it differs from this design. Each phase gets its own implementation plan; the user asked for the P1 plan and its implementation to follow without a further gate. Values marked UNVERIFIED stay unproven until the run named under "Risks" passes.
 
 ## Goal
 

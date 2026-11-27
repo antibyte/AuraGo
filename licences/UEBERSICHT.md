@@ -236,7 +236,7 @@ Quelle: `internal/desktopstore/catalog.go`.
 | RTL-SDR-Image | SDRangel, welle.io, rtl-sdr-blog | GPL-3.0, GPL-2.0, GPL-2.0 |
 | Caddy | Security-Proxy | Apache-2.0 |
 | cloudflared 2026.10.0 | Optionaler Tunnel | Apache-2.0 |
-| llama.cpp | Embedding- und lokale Modell-Sidecars | MIT |
+| llama.cpp | Embedding- und lokale Modell-Sidecars; Chibi-Sensei-Testchat (nativer Laufzeitprozess) | MIT |
 | ONNX Runtime 1.26.0 | Native Embeddings | MIT |
 | Granite Embedding 97M R2 | Modell, bei Bedarf geladen | Apache-2.0 |
 | Playwright 1.64.1 | Browser-Sidecar, Image `mcr.microsoft.com/playwright:v1.64.1-noble` | Apache-2.0. Das enthaltene Chromium steht unter der BSD-Lizenz des Chromium-Projekts. |

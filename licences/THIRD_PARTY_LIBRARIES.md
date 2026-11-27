@@ -359,7 +359,7 @@ Documented in `THIRD_PARTY_NOTICES.md`. **Not** embedded in the default source t
 | D-FINE-S ONNX (onnx-community conversion of `ustc-community/dfine-small-coco`, revision a3cf03147a9b) | Person detection, "accurate" model | Apache-2.0 (original weights; the conversion repository declares no license) | https://huggingface.co/onnx-community/dfine_s_coco-ONNX |
 | ISNet general-use ONNX (`isnet-general-use.onnx`, rembg release `v0.0.0`) | Pixel background removal, "AI standard" engine (on demand) | Apache-2.0 | https://github.com/xuebinqin/DIS (files: https://github.com/danielgatis/rembg/releases/tag/v0.0.0) |
 | BiRefNet general lite ONNX (`BiRefNet-general-bb_swin_v1_tiny-epoch_232.onnx`, rembg release `v0.0.0`) | Pixel background removal, "AI precise" engine (on demand) | MIT | https://github.com/ZhengPeng7/BiRefNet (files: https://github.com/danielgatis/rembg/releases/tag/v0.0.0) |
-| llama.cpp (pinned build) | GGUF embedding server / sidecars | MIT | https://github.com/ggml-org/llama.cpp |
+| llama.cpp (pinned build) | GGUF embedding server / sidecars; Chibi Sensei test chat (native runtime) | MIT | https://github.com/ggml-org/llama.cpp |
 | Ebitengine PureGo | CGO-free native calls | Apache-2.0 | https://github.com/ebitengine/purego |
 | dlclark/regexp2 | Tokenizer regex | MIT | https://github.com/dlclark/regexp2 |
 | Kiwix Wikipedia ZIM edition (one, administrator-selected) | Local Wikipedia content | CC BY-SA 4.0 (text); media under individual licenses | https://library.kiwix.org |

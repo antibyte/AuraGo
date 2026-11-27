@@ -8,6 +8,7 @@ Own managed local Granite transports and backend health/fallback decisions.
 
 Native llama.cpp, managed Docker llama.cpp and ONNX workers belong here.
 `../onnxrt/AGENTS.md` owns shared ONNX runtime provisioning; memory owns indexes.
+The llama.cpp build pins, release asset table, server discovery, loopback port, API key, GPU evidence check and hardware detection live in `../llamacpp/AGENTS.md`; this package keeps unexported wrappers over them, so its tests stay unchanged. The Docker sidecar and `selectDockerModelMount` stay here.
 
 ## Local Contracts
 
@@ -17,6 +18,9 @@ Native llama.cpp, managed Docker llama.cpp and ONNX workers belong here.
   retain backend handling. Do not silently truncate input or mix fingerprints.
 - Cross-format fallback still requires the existing controlled reindex/restart.
   Preserve caller-cancellation and unresponsive-backend distinctions.
+- The hardware fingerprint that keys the cached backend selection comes from
+  `llamacpp.DetectHardwareWith` with the Docker probe as its augment; its evidence
+  order is a contract of `../llamacpp/AGENTS.md`.
 
 ## Work Guidance
 

@@ -608,7 +608,7 @@ The Storymaker video studio and its AI author. See the [Storymaker guide](storym
 
 ## `chibi_sensei`
 
-The Chibi Sensei training studio: dataset studio and training runs on Kaggle. Generation and cleaning call the configured generator route; training needs the Kaggle integration and the `training` settings; see [Chibi Sensei](chibi-sensei.md#training-on-kaggle).
+The Chibi Sensei training studio: dataset studio, training runs on Kaggle and a local test chat for the trained models. Generation and cleaning call the configured generator route; training needs the Kaggle integration and the `training` settings; the test chat runs llama.cpp on this server (`runtime`). See [Chibi Sensei](chibi-sensei.md#training-on-kaggle) and [The local test runtime](chibi-sensei.md#the-local-test-runtime).
 
 | Key | Default | Description |
 |---|---|---|
@@ -623,6 +623,10 @@ The Chibi Sensei training studio: dataset studio and training runs on Kaggle. Ge
 | `generator.max_daily_rows` | `5000` | 100–100000; cleaning counts its rows too. |
 | `training.machine_shape` | `NvidiaTeslaT4` | Kaggle GPU for training runs: `NvidiaTeslaT4` or `NvidiaL4`. It must also be listed in `kaggle.allowed_machine_shapes`. Any other value is rejected when you save. |
 | `training.delete_remote_after_run` | `true` | After a run, delete the uploaded dataset and the notebook on Kaggle. Needs `kaggle.allow_delete`; without it they stay on Kaggle and the run lists them. |
+| `runtime.enabled` | `true` | Local test chat on or off. Nothing is downloaded until an administrator confirms the install in the Test step; see [The local test runtime](chibi-sensei.md#the-local-test-runtime). |
+| `runtime.backend` | `auto` | `auto`, `cpu`, `vulkan` or `cuda`. `auto` takes Metal on Apple silicon, else CUDA, else Vulkan, else the processor. |
+| `runtime.idle_minutes` | `10` | 1–120. A test model that nobody used for this long is stopped. |
+| `runtime.context_size` | `4096` | 1024–32768. Tokens one test chat can hold. |
 
 ---
 

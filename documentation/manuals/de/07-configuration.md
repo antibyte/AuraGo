@@ -903,7 +903,7 @@ Cloud-Stimmen kosten Geld; lokale Provider sind von den Zeich limits ausgenommen
 
 ### Chibi Sensei — Trainingsstudio für kleine Modelle
 
-`chibi_sensei` steuert die Desktop-App **Chibi Sensei**, ein geführtes Studio zum Feintuning kleiner Modelle: Projekte, Zeilen, Importe, Prüfungen, JSONL-Export und Trainingsläufe auf Kaggle. Generieren und Bereinigen rufen die konfigurierte Generator-Route auf; das Training nutzt die Kaggle-Integration (`kaggle.*`, auch `allowed_machine_shapes`); siehe das [Chibi-Sensei-Handbuch](../../chibi-sensei.md#training-on-kaggle).
+`chibi_sensei` steuert die Desktop-App **Chibi Sensei**, ein geführtes Studio zum Feintuning kleiner Modelle: Projekte, Zeilen, Importe, Prüfungen, JSONL-Export, Trainingsläufe auf Kaggle und einen lokalen Testchat für die trainierten Modelle. Generieren und Bereinigen rufen die konfigurierte Generator-Route auf; das Training nutzt die Kaggle-Integration (`kaggle.*`, auch `allowed_machine_shapes`); der Testchat führt llama.cpp auf diesem Server aus, und nichts wird heruntergeladen, bevor ein Administrator im Schritt Test bestätigt. Siehe das [Chibi-Sensei-Handbuch](../../chibi-sensei.md#training-on-kaggle) und [Die lokale Testlaufzeit](../../chibi-sensei.md#the-local-test-runtime).
 
 ```yaml
 chibi_sensei:
@@ -923,6 +923,11 @@ chibi_sensei:
     training:
         machine_shape: "NvidiaTeslaT4"  # Kaggle-GPU für Trainingsläufe: NvidiaTeslaT4 oder NvidiaL4; muss auch in kaggle.allowed_machine_shapes stehen
         delete_remote_after_run: true   # löscht nach einem Lauf den hochgeladenen Datensatz und das Notebook auf Kaggle (braucht kaggle.allow_delete)
+    runtime:
+        enabled: true               # lokaler Testchat im Schritt Test; nichts wird geladen, bevor ein Administrator bestätigt
+        backend: "auto"             # auto, cpu, vulkan oder cuda; auto nimmt je nach Hardware Metal, CUDA, Vulkan oder den Prozessor
+        idle_minutes: 10            # ein Testmodell, das so lange niemand benutzt hat, wird gestoppt (1-120)
+        context_size: 4096          # Tokens, die ein Testchat aufnehmen kann (1024-32768)
 ```
 
 ### FindIt – Inventar und Lagerorte

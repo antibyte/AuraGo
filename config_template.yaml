@@ -2446,7 +2446,7 @@ chibi_sensei:
         delete_remote_after_run: true   # delete the uploaded dataset and the notebook on Kaggle after a run (needs kaggle.allow_delete)
     runtime:
         enabled: true               # local llama.cpp chat in the Test step; nothing is downloaded until an administrator confirms
-        backend: "auto"             # auto, cpu, vulkan or cuda; auto tries CUDA, then Vulkan, then CPU
+        backend: "auto"             # auto, cpu, vulkan or cuda; auto takes Metal on Apple silicon, else CUDA, then Vulkan, then CPU
         idle_minutes: 10            # a test model nobody used for this long is stopped (1-120)
         context_size: 4096          # tokens one test chat can hold (1024-32768)
 

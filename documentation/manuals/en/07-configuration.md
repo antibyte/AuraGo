@@ -1341,7 +1341,7 @@ Cloud voices cost money; local providers are exempt from the character limits. A
 
 ### Chibi Sensei — Small-Model Training Studio
 
-`chibi_sensei` controls the **Chibi Sensei** desktop app, a guided studio for fine-tuning small models: projects, rows, imports, checks, JSONL export and training runs on Kaggle. Generation and cleaning call the configured generator route; training uses the Kaggle integration (`kaggle.*`, including `allowed_machine_shapes`); see the [Chibi Sensei guide](../../chibi-sensei.md#training-on-kaggle).
+`chibi_sensei` controls the **Chibi Sensei** desktop app, a guided studio for fine-tuning small models: projects, rows, imports, checks, JSONL export, training runs on Kaggle and a local test chat for the trained models. Generation and cleaning call the configured generator route; training uses the Kaggle integration (`kaggle.*`, including `allowed_machine_shapes`); the test chat runs llama.cpp on this server, and nothing is downloaded until an administrator confirms it in the Test step. See the [Chibi Sensei guide](../../chibi-sensei.md#training-on-kaggle) and [The local test runtime](../../chibi-sensei.md#the-local-test-runtime).
 
 ```yaml
 chibi_sensei:
@@ -1361,6 +1361,11 @@ chibi_sensei:
     training:
         machine_shape: "NvidiaTeslaT4"  # Kaggle GPU for training runs: NvidiaTeslaT4 or NvidiaL4; must also be in kaggle.allowed_machine_shapes
         delete_remote_after_run: true   # delete the uploaded dataset and the notebook on Kaggle after a run (needs kaggle.allow_delete)
+    runtime:
+        enabled: true               # local test chat in the Test step; nothing is downloaded until an administrator confirms
+        backend: "auto"             # auto, cpu, vulkan or cuda; auto picks Metal, CUDA, Vulkan or the processor, whichever the hardware offers
+        idle_minutes: 10            # a test model nobody used for this long is stopped (1-120)
+        context_size: 4096          # tokens one test chat can hold (1024-32768)
 ```
 
 ### FindIt — Inventory and Storage Locations

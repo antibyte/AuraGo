@@ -188,7 +188,7 @@ AuraGo links the listed Go modules or retrieves the listed optional model/runtim
 | ISNet general-use (DIS), ONNX file `isnet-general-use.onnx` from the rembg release `v0.0.0` (178,648,008 bytes) | Pixel background removal, "AI standard" engine; downloaded only when a user clicks "Download model" | Apache License 2.0 (upstream project: DIS, https://github.com/xuebinqin/DIS) |
 | BiRefNet general lite (Swin-tiny backbone), ONNX file `BiRefNet-general-bb_swin_v1_tiny-epoch_232.onnx` from the rembg release `v0.0.0` (224,005,088 bytes) | Pixel background removal, "AI precise" engine; downloaded only when a user clicks "Download model" | MIT License (upstream project: BiRefNet, https://github.com/ZhengPeng7/BiRefNet) |
 | "Pedestrians using crosswalk (Unsplash)" by Peter Miranda | Embedded self-test photo of the person detector (`internal/persondetect/selftest_reference.jpg`) | CC0 1.0 Universal |
-| llama.cpp b9994 | GGUF embedding server and published Docker sidecars | MIT License |
+| llama.cpp b9994 | GGUF embedding server and published Docker sidecars; Chibi Sensei test chat (native runtime) | MIT License |
 | Ebitengine PureGo | CGO-free dynamic calls from Go into ONNX Runtime | Apache License 2.0 |
 | dlclark/regexp2 | Go tokenizer regular-expression compatibility | MIT License |
 | emiago/diago v0.31.0 | Native SIP endpoint and RTP media handling | Mozilla Public License 2.0 |

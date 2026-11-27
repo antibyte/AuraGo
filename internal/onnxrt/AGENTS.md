@@ -73,6 +73,7 @@ adapts D-FINE). The audit `NetworkClientInventory` lists `internal/onnxrt/` as t
   `<root>/downloads/<id>{.zip,.tar.gz,.whl,.bin}` (`ArchivePath`), `<root>/runtimes/<id>/` with
   `.complete.json` (version 1). Both features use `<data>/embeddings` as the runtime root; embeddings'
   GPU cleanup removes only its own candidates' asset IDs (`TestCleanupUnusedGPURuntimesKeepsForeignRuntimes`).
+  Chibi Sensei's chat runtime uses its own root `<data>/chibi_sensei/runtime` (no shared GPU cleanup), so a running test chat never loses its runtime.
 - One process lock per root (`flock`, waits honour the context) serializes every download and extraction,
   across AuraGo processes and features; a long embeddings download therefore delays a detector start-up.
   `EnsureRuntime` re-hashes the cached archive each call.
