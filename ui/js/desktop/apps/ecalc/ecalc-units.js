@@ -245,6 +245,8 @@
                 const id = unitId.slice(PREFIX_UNIT.length);
                 if (prefixFactor.has(id)) return (fmtSig(value / prefixFactor.get(id), digits) + ' ' + id + d.symbol).trim();
             }
+            // A whole number that a double holds exactly keeps all its digits (65535, not 65540).
+            if (!d.prefixes.length && Number.isInteger(value) && Math.abs(value) <= MAX_SAFE) return fmtNum(value) + (d.symbol ? ' ' + d.symbol : '');
             if (!d.prefixes.length) return fmtSig(value, digits) + (d.symbol ? ' ' + d.symbol : '');
             if (value === 0) return '0' + (d.symbol ? ' ' + d.symbol : '');
             let index = -1;

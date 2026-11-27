@@ -109,3 +109,18 @@ func TestCalculateWithoutValues(t *testing.T) {
 		t.Errorf("basis %v warnings %v", res.Basis, res.Warnings)
 	}
 }
+
+// A dimension without prefixes writes whole numbers with all their digits.
+func TestCalculateBitsRangeKeepsAllDigits(t *testing.T) {
+	cat := queryCatalog(t)
+	res, err := cat.Calculate("bits_range", CalcRequest{Values: []NamedValue{{Name: "n", Value: "16"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{"vmax": "65535", "smin": "-32768", "smax": "32767", "count": "65536"}
+	for _, q := range res.Quantities {
+		if w, ok := want[q.ID]; ok && q.Formatted != w {
+			t.Errorf("%s formatted %q, want %q", q.ID, q.Formatted, w)
+		}
+	}
+}

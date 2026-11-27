@@ -689,6 +689,10 @@ func (u *Units) Format(v float64, dimID, unitID string, sig int) string {
 		}
 	}
 	if len(d.pfx) == 0 {
+		// A whole number that a double holds exactly keeps all its digits (65535, not 65540).
+		if v == math.Trunc(v) && math.Abs(v) <= maxSafeInt {
+			return withUnit(fmtNum(v), d.Symbol)
+		}
 		return withUnit(fmtSig(v, sig), d.Symbol)
 	}
 	if v == 0 {
