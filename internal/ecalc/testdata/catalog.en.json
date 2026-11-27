@@ -4340,7 +4340,7 @@
       "category": "digital",
       "name": "Logic level compatibility",
       "name_en": "Logic level compatibility",
-      "doc": "Checks whether a logic output (driver) can drive a logic input (receiver). Noise margin HIGH NM_H = V_OH(min, driver) − V_IH(min, receiver), noise margin LOW NM_L = V_IL(max, receiver) − V_OL(max, driver); both must be at least 0 V. Each family is taken at its nominal supply. V_OH and V_OL are the data-sheet limits at light load (CMOS inputs: 20 µA for 74HC and 74HCT, 100 µA for 74LVC); the TTL, 74LS and RP2040 data sheets give them only at their rated output current, so those margins are conservative. 74HC at 5 V uses V_IH = 0.7 × V_CC = 3.5 V and V_IL = 0.3 × V_CC = 1.5 V; its data sheets list 4.5 V and 6 V only. The over-voltage check compares the driver's supply, the highest level its HIGH output can reach, with the highest input voltage the receiver allows in operation. The table logic_levels has the full data of the families. Example: 3.3 V LVCMOS (V_OH 3.2 V) does not reliably drive 74HC at 5 V (V_IH 3.5 V) but does drive 74HCT (V_IH 2.0 V).",
+      "doc": "Checks whether a logic output (driver) can drive a logic input (receiver). Noise margin HIGH NM_H = V_OH(min, driver) − V_IH(min, receiver), noise margin LOW NM_L = V_IL(max, receiver) − V_OL(max, driver); both must be at least 0 V. Each family is taken at its nominal supply. V_OH and V_OL are the data-sheet limits at light load (CMOS inputs: 20 µA for 74HC and 74HCT, 100 µA for 74LVC); the TTL, 74LS and RP2040 data sheets give them only at their rated output current, so those margins are conservative. 74HC at 5 V uses V_IH = 0.7 × V_CC = 3.5 V and V_IL = 0.3 × V_CC = 1.5 V; its data sheets list 4.5 V and 6 V only. The over-voltage check compares the driver's supply, the highest level its HIGH output can reach, with the highest input voltage the receiver allows in operation. The V_OH and V_OL of the 74HC and 74HCT drivers are the datasheet values printed at V_CC = 4.5 V (no 5 V row exists), which is conservative; the 74HC receiver thresholds are the 0.7 / 0.3 × V_CC values at 5 V. The table logic_levels has the full data of the families. Example: 3.3 V LVCMOS (V_OH 3.2 V) does not reliably drive 74HC at 5 V (V_IH 3.5 V) but does drive 74HCT (V_IH 2.0 V).",
       "tags": [
         "logic level",
         "logic compatibility",
@@ -4741,7 +4741,7 @@
       "category": "digital",
       "name": "Bits and value range",
       "name_en": "Bits and value range",
-      "doc": "The value range of an n-bit binary number: the largest unsigned value is 2^n − 1, there are 2^n distinct values, and the signed two's complement range is −2^(n−1) … 2^(n−1) − 1. Enter the number of bits n to get the ranges, or the largest value to get n; 'Bits needed' is the whole number of bits that holds that value (for a value that is not 2^k − 1, n itself is not whole). Example: 8 bits give 0 … 255 or −128 … 127, 16 bits 0 … 65 535, 32 bits 0 … 4 294 967 295. ECalc computes with IEEE 754 double-precision numbers, which hold every integer exactly only up to 2^53 − 1 (9 007 199 254 740 991): above 53 bits the results are rounded (a 64-bit unsigned maximum shows as 18 446 744 073 709 551 616 instead of …615), although 2^n and −2^(n−1) stay exact. The variable n is not restricted to whole numbers so that a value such as 1000 can show that it needs 9.97 bits.",
+      "doc": "The value range of an n-bit binary number: the largest unsigned value is 2^n − 1, there are 2^n distinct values, and the signed two's complement range is −2^(n−1) … 2^(n−1) − 1. Enter the number of bits n to get the ranges, or the largest value to get n; 'Bits needed' is the whole number of bits that holds that value (for a value that is not 2^k − 1, n itself is not whole). Example: 8 bits give 0 … 255 or −128 … 127, 16 bits 0 … 65 535, 32 bits 0 … 4 294 967 295. ECalc computes with IEEE 754 double-precision numbers: the values are exact up to 53 bits (2^53 − 1 = 9 007 199 254 740 991), above 53 bits the shown values are rounded (2^n and −2^(n−1) stay exact). The exact 64-bit ranges are 0 … 18 446 744 073 709 551 615 unsigned and −9 223 372 036 854 775 808 … 9 223 372 036 854 775 807 signed. The variable n is not restricted to whole numbers so that a value such as 1000 can show that it needs 9.97 bits.",
       "tags": [
         "bits",
         "bit width",
@@ -4858,7 +4858,7 @@
       "checks": [
         {
           "when": "n > 53",
-          "warn": "Above 53 bits the values are no longer exact: ECalc computes with IEEE 754 double-precision numbers, which hold every integer only up to 2^53 − 1 (9 007 199 254 740 991)."
+          "warn": "Above 53 bits the values are no longer exact and are rounded from here on: ECalc computes with IEEE 754 double-precision numbers, which hold every integer only up to 2^53 − 1 (9 007 199 254 740 991)."
         },
         {
           "when": "2^round(n)-1 != vmax",
@@ -26376,6 +26376,570 @@
     },
     {
       "kind": "table",
+      "id": "blade_fuses",
+      "category": "tables",
+      "group": "components",
+      "name": "Automotive blade fuses: ratings and colours",
+      "name_en": "Automotive blade fuses: ratings and colours",
+      "doc": "Rated current and housing colour of automotive blade fuses: 13 ratings from 1 to 40 A of the colour code shared by the Micro2, Micro3, low-profile Mini, Mini and regular (ATO, ATC, ATOF) formats, and 10 ratings from 20 to 100 A of the MAXI format, whose colours differ. The formats column shows where at least two makers offer the rating.",
+      "notes": "The colour only helps to identify the rating; what counts is the rating marked on the fuse. Always replace a fuse with one of the same rating and type and never fit a higher rating, because the fuse protects the wiring. MAXI fuses use a different colour code: a green MAXI is 30 A like a green Mini, but a brown MAXI is 35 A while a brown Mini is 7.5 A. The formats differ mechanically (Micro2 has two blades, Micro3 three blades with two fuse elements, the low-profile Mini a lower body than the Mini); the same colour does not make them interchangeable. The colours rest on five maker catalogues (Littelfuse, Bussmann, OptiFuse, HELLA, MTA); ISO 8820-3 itself was not read, only the makers state conformity to it. Colour names vary by maker (tan or beige, natural, clear or white); the English cell shows the majority name and the variants in brackets, and the German names are translations. Ratings that only one maker lists are left out: 12 A (light pink, OptiFuse APR only) and 120 A MAXI (pink, OptiFuse APX only). A rating offered in a format by only one maker is not listed under formats and is named in the remark instead (1 A Mini, 3 A Micro2 and Micro3). The MAXI time characteristic is not part of this table.",
+      "tags": [
+        "fuse",
+        "blade fuse",
+        "automotive",
+        "car",
+        "colour code",
+        "ato",
+        "atc",
+        "atof",
+        "mini",
+        "maxi",
+        "micro2",
+        "micro3",
+        "low profile",
+        "iso 8820-3",
+        "sae j1284",
+        "sicherung",
+        "flachsicherung",
+        "kfz",
+        "kfz-sicherung",
+        "farbcode",
+        "nennstrom",
+        "steckersicherung"
+      ],
+      "source": "Littelfuse catalogue section Blade Terminal & Special Purpose Fuses (2005) and aftermarket catalogue page FUSES 5, and the current ATOF, MINI, LP-MINI, MICRO2, MICRO3 and MAXI datasheets (2024/2025, colours as swatches only); Eaton Bussmann full line catalog 1007 (2018); OptiFuse datasheets APR, APM, APS, APT, ANK and APX; HELLA Brief information Blade fuses (2026); MTA Automotive Fuses 2018 (ISO 8820-3 itself was not read)",
+      "guide": true,
+      "mains": false,
+      "key": "id",
+      "columns": [
+        {
+          "id": "id",
+          "name": "Row",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "family",
+          "name": "Colour-code family",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "rating",
+          "name": "Rated current",
+          "dim": "current",
+          "unit": "",
+          "units": [
+            ""
+          ],
+          "label": ""
+        },
+        {
+          "id": "colour",
+          "name": "Housing colour",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "formats",
+          "name": "Formats offered by at least two makers",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "remark",
+          "name": "Remark",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          "std_1",
+          "standard code",
+          1,
+          "black",
+          "regular",
+          "Bussmann also lists a 1 A Mini (ATM-1); only one maker, so not listed as Mini"
+        ],
+        [
+          "std_2",
+          "standard code",
+          2,
+          "grey",
+          "LP mini, mini, regular",
+          null
+        ],
+        [
+          "std_3",
+          "standard code",
+          3,
+          "violet",
+          "LP mini, mini, regular",
+          "Littelfuse also offers 3 A as Micro2 (327) and Micro3 (337); only one maker, so not listed"
+        ],
+        [
+          "std_4",
+          "standard code",
+          4,
+          "pink",
+          "LP mini, mini, regular",
+          null
+        ],
+        [
+          "std_5",
+          "standard code",
+          5,
+          "tan (beige)",
+          "micro2, micro3, LP mini, mini, regular",
+          "HELLA and MTA name the colour beige"
+        ],
+        [
+          "std_7_5",
+          "standard code",
+          7.5,
+          "brown",
+          "micro2, micro3, LP mini, mini, regular",
+          null
+        ],
+        [
+          "std_10",
+          "standard code",
+          10,
+          "red",
+          "micro2, micro3, LP mini, mini, regular",
+          null
+        ],
+        [
+          "std_15",
+          "standard code",
+          15,
+          "blue",
+          "micro2, micro3, LP mini, mini, regular",
+          null
+        ],
+        [
+          "std_20",
+          "standard code",
+          20,
+          "yellow",
+          "micro2, LP mini, mini, regular",
+          null
+        ],
+        [
+          "std_25",
+          "standard code",
+          25,
+          "natural (clear/white)",
+          "micro2, LP mini, mini, regular",
+          "Makers name it natural (Littelfuse, MTA), clear (Bussmann, OptiFuse) or white (HELLA)"
+        ],
+        [
+          "std_30",
+          "standard code",
+          30,
+          "green",
+          "micro2, LP mini, mini, regular",
+          null
+        ],
+        [
+          "std_35",
+          "standard code",
+          35,
+          "blue-green",
+          "mini, regular",
+          "HELLA calls it dark green; not in the MTA standard range"
+        ],
+        [
+          "std_40",
+          "standard code",
+          40,
+          "orange",
+          "regular",
+          null
+        ],
+        [
+          "maxi_20",
+          "MAXI",
+          20,
+          "yellow",
+          "MAXI",
+          null
+        ],
+        [
+          "maxi_25",
+          "MAXI",
+          25,
+          "grey",
+          "MAXI",
+          null
+        ],
+        [
+          "maxi_30",
+          "MAXI",
+          30,
+          "green",
+          "MAXI",
+          null
+        ],
+        [
+          "maxi_35",
+          "MAXI",
+          35,
+          "brown",
+          "MAXI",
+          "Not 70 A: brown is 35 A in the MAXI code"
+        ],
+        [
+          "maxi_40",
+          "MAXI",
+          40,
+          "orange",
+          "MAXI",
+          null
+        ],
+        [
+          "maxi_50",
+          "MAXI",
+          50,
+          "red",
+          "MAXI",
+          null
+        ],
+        [
+          "maxi_60",
+          "MAXI",
+          60,
+          "blue",
+          "MAXI",
+          null
+        ],
+        [
+          "maxi_70",
+          "MAXI",
+          70,
+          "tan (beige)",
+          "MAXI",
+          "HELLA lists brown for 70 A; four other makers give tan/beige"
+        ],
+        [
+          "maxi_80",
+          "MAXI",
+          80,
+          "natural (clear)",
+          "MAXI",
+          "HELLA names it white"
+        ],
+        [
+          "maxi_100",
+          "MAXI",
+          100,
+          "violet",
+          "MAXI",
+          "Not offered by Littelfuse (299 ends at 80 A) or HELLA; Bussmann only as indicating type MAX-100ID"
+        ]
+      ],
+      "finder": null,
+      "generate": ""
+    },
+    {
+      "kind": "table",
+      "id": "level_shifters",
+      "category": "tables",
+      "group": "components",
+      "name": "Logic level shifting: methods and parts",
+      "name_en": "Logic level shifting: methods and parts",
+      "doc": "Ten ways to connect logic signals of two different voltages (for example 3.3 V and 5 V, or 1.8 V and 3.3 V): resistor divider, series resistor, discrete MOSFET, pass-gate and auto-direction translators, direction-controlled dual-supply buffers and single-supply buffers. For each: the direction it supports, whether it suits open-drain and push-pull signals, the maximum data rate as the maker states it, the supply ranges and the control pin.",
+      "notes": "Guide values: the rates are the best-case figures the makers print, for the supply pair named in the condition column; they depend on supply pair, load and driver, so always check the data sheet of the actual part. Check both directions of every signal: an output's VOH/VOL must meet the receiver's VIH/VIL (see the logic levels table), and no input may see more than its absolute maximum unless the data sheet calls it tolerant. Auto-direction translators (TXS, TXB) are sensitive to load, trace length and external resistors; TXB parts must not be used on I²C. A one-way or direction-controlled translator cannot by design pass a bidirectional open-drain bus such as I²C, because such a bus needs both directions without a direction signal; for these rows the open-drain cell is empty, because no maker document states it (it is our own reasoning, not a source). Empty rate cells mean no cross-checked figure: no maker states a rate for the divider, the series resistor, the 74AHCT/HCT and the 74LVC125A, the makers disagree on the PCA9306 (more than 2 MHz at NXP, more than 100 MHz at TI) and on the LVC8T245 (420 Mbit/s at Nexperia, 320 Mbit/s in the TI buying guide), and the discrete MOSFET is described by its maker document for open-drain I²C only, so its push-pull cell is empty. Where the makers print different supply ranges (PCA9306, LVC1T45, LVC8T245, LVC125A) both are shown. BSS138 and 2N7002 are examples of the discrete MOSFET with the threshold voltages of the onsemi data sheets (BSS138 0.8 to 1.5 V, 2N7002 1 to 2.5 V); the application note AN10441 itself names only \"a discrete N-channel enhancement MOSFET\". The divider and series-resistor methods rest on a single maker document (Microchip DS41285A). Supply columns name the lower- and the higher-voltage side; for single-supply methods they name the receiving and the driving logic.",
+      "tags": [
+        "level shifter",
+        "level translator",
+        "voltage translation",
+        "logic level",
+        "3.3v",
+        "5v",
+        "1.8v",
+        "i2c",
+        "open-drain",
+        "push-pull",
+        "mosfet",
+        "bss138",
+        "2n7002",
+        "pca9306",
+        "txs0108e",
+        "txb0108",
+        "sn74lvc1t45",
+        "sn74lvc8t245",
+        "74ahct125",
+        "74lvc125a",
+        "an10441",
+        "pegelwandler",
+        "pegelwandlung",
+        "pegelanpassung",
+        "logikpegel",
+        "spannungsteiler",
+        "bidirektional",
+        "richtungspin"
+      ],
+      "source": "TI data sheets TXS0108E, TXB0108, PCA9306, SN74LVC1T45, SN74LVC8T245, SN74AHCT125, SN74HCT125 and SN74LVC125A; NXP PCA9306; Nexperia 74LVC1T45, 74LVC8T245, 74AHC125/74AHCT125 and 74LVC125A; TI application notes SCEA035A, SCEA043, SCEA044, SLVA787 and the Voltage Translation Buying Guide SLYY165A; NXP/Nexperia AN10441; onsemi BSS138 and 2N7002 data sheets; Microchip DS41285A 3V Tips 'n Tricks",
+      "guide": true,
+      "mains": false,
+      "key": "id",
+      "columns": [
+        {
+          "id": "id",
+          "name": "Row",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "method",
+          "name": "Method or part family",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "direction",
+          "name": "Direction",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "open_drain",
+          "name": "Usable on open-drain buses such as I²C",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "push_pull",
+          "name": "Usable with push-pull signals",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "rate_pp",
+          "name": "Max. data rate, push-pull (maker, best case)",
+          "dim": "datarate",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "rate_od",
+          "name": "Max. data rate, open-drain (maker)",
+          "dim": "datarate",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "rate_cond",
+          "name": "Condition of the data rate",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "supply_a",
+          "name": "Supply, lower-voltage side (A port)",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "supply_b",
+          "name": "Supply, higher-voltage side (B port)",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "dir_pin",
+          "name": "Direction or control pin",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "remark",
+          "name": "Remark",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          "divider",
+          "Resistor divider",
+          "one-way down",
+          null,
+          "yes",
+          null,
+          null,
+          "limited by RC: Thevenin resistance (0.66·R1 for 5 V → 3.3 V) times load capacitance; no number given",
+          "receiver supply (e.g. 3.3 V)",
+          "driver supply (e.g. 5 V)",
+          "none",
+          "5 V → 3.3 V: R1 = 0.515·R2; large resistors save power but slow the edges; driver source resistance (< 10 Ω) and receiver input resistance (> 500 kΩ) neglected"
+        ],
+        [
+          "series_r",
+          "Series resistor into an input with clamp diodes",
+          "one-way down",
+          null,
+          "yes",
+          null,
+          null,
+          "limited by the RC of the series resistor and the input capacitance; no number given",
+          "receiver supply (e.g. 3.3 V)",
+          "driver supply (e.g. 5 V)",
+          "none",
+          "Only if the receiver has clamp diodes to VDD; keep the clamp current small (microampere range), otherwise latch-up risk; the current flows into the lower supply and can lift a lightly loaded rail"
+        ],
+        [
+          "mosfet",
+          "Discrete N-MOSFET per line (e.g. BSS138, 2N7002)",
+          "auto-bidirectional",
+          "yes",
+          null,
+          null,
+          400000,
+          "Standard-mode (100 kbit/s) and Fast-mode (400 kbit/s) I²C; not for Hs-mode",
+          "VDD1 (lower; gate and source side; e.g. 3.3 V)",
+          "VDD2 ≥ VDD1 (drain side; e.g. 5 V)",
+          "none",
+          "Gate to the lower supply, source to the low side, drain to the high side; pull-up resistors on both sides; also isolates a powered-down section. The FET threshold must lie well below VDD1: BSS138 VGS(th) 0.8–1.5 V, 2N7002 1–2.5 V (onsemi); AN10441 names only a discrete N-channel enhancement MOSFET"
+        ],
+        [
+          "pca9306",
+          "PCA9306 (pass-gate I²C translator)",
+          "auto-bidirectional",
+          "yes",
+          "one-way only",
+          null,
+          null,
+          "RC-dependent; NXP: generally > 2 MHz; TI: > 100 MHz clock possible with strong push-pull drive",
+          "VREF1: TI 1.2 V … VREF2 − 0.6 V; NXP 1.0–3.6 V",
+          "VREF2: TI VREF1 + 0.6 V … 5.5 V; NXP 1.8–5.5 V",
+          "EN (enable, no direction pin)",
+          "Pull-up resistors needed on both sides; with a push-pull output the data must be unidirectional or direction-controlled; no drive of its own (not a buffer)"
+        ],
+        [
+          "txs0108e",
+          "TXS0108E (TI, switch type with one-shots)",
+          "auto-bidirectional",
+          "yes",
+          "yes",
+          110000000,
+          1200000,
+          "both at VCCA = 3.3 V, VCCB = 5 V; lower at lower supplies, e.g. 40 Mbit/s and 0.8 Mbit/s at 1.5 V ↔ 1.8 V",
+          "1.4–3.6 V (VCCA ≤ VCCB)",
+          "1.65–5.5 V",
+          "OE (output enable, no direction pin)",
+          "Integrated smart pull-ups (4 kΩ while high, 40 kΩ while low), no external pull-ups needed; keep traces short (one-shot ≈ 30 ns); for pure push-pull TI suggests the TXB type"
+        ],
+        [
+          "txb0108",
+          "TXB0108 (TI, buffer type with one-shots)",
+          "auto-bidirectional",
+          "no",
+          "yes",
+          100000000,
+          null,
+          "at VCCA = 2.5 V with VCCB = 3.3 or 5 V, and at VCCA = 3.3 V; 20 Mbit/s typ. at VCCA = 1.2 V",
+          "1.2–3.6 V (VCCA ≤ VCCB)",
+          "1.65–5.5 V",
+          "OE (output enable, no direction pin)",
+          "Push-pull only: not for I²C or 1-Wire; external pull-ups or pull-downs only above 50 kΩ (weak output drivers); loads up to 70 pF"
+        ],
+        [
+          "lvc1t45",
+          "SN74LVC1T45 / 74LVC1T45 (1 bit, dual supply)",
+          "bidirectional with DIR pin",
+          null,
+          "yes",
+          420000000,
+          null,
+          "3.3 V → 5 V; 210 Mbit/s to 3.3 V, 140 Mbit/s to 2.5 V, 75 Mbit/s to 1.8 V",
+          "TI 1.65–5.5 V; Nexperia 1.2–5.5 V",
+          "TI 1.65–5.5 V; Nexperia 1.2–5.5 V",
+          "DIR (direction)",
+          "Either port can be the higher voltage; inputs must not float; DIR is referenced to VCCA"
+        ],
+        [
+          "lvc8t245",
+          "SN74LVC8T245 / 74LVC8T245 (8 bit, dual supply)",
+          "bidirectional with DIR pin",
+          null,
+          "yes",
+          null,
+          null,
+          "Nexperia data sheet: 420 Mbit/s (3.3 V → 5 V); TI buying guide: 320 Mbit/s; TI data sheet: no figure",
+          "TI 1.65–5.5 V; Nexperia 1.2–5.5 V",
+          "TI 1.65–5.5 V; Nexperia 1.2–5.5 V",
+          "DIR and OE",
+          "Whole 8-bit port changes direction together; inputs must not float"
+        ],
+        [
+          "ttl_in",
+          "74AHCT125 / 74HCT (TTL-level inputs at 5 V)",
+          "one-way up",
+          null,
+          "yes",
+          null,
+          null,
+          "no data rate stated in the data sheets",
+          "3.3 V LVTTL/LVCMOS input (VIH 2.0 V)",
+          "VCC 4.5–5.5 V",
+          "none (OE per buffer on '125)",
+          "3.3 V → 5 V: the TTL input threshold (VIH 2.0 V, VIL 0.8 V) accepts 3.3 V logic; a 3.3 V high level makes each input draw extra supply current (TI: about 290 µA for SN74HCT541)"
+        ],
+        [
+          "lvc_5vt",
+          "74LVC with 5-V-tolerant inputs (e.g. 74LVC125A)",
+          "one-way down",
+          null,
+          "yes",
+          null,
+          null,
+          "no data rate stated in the data sheets",
+          "VCC: TI 1.65–3.6 V; Nexperia 1.2–3.6 V (e.g. 3.3 V)",
+          "driving logic up to 5.5 V (input limit)",
+          "none (OE per buffer on '125)",
+          "5 V → 3.3 V: input has no clamp diode to VCC; slow input edges shift the output duty cycle because the device switches at its own (3.3 V) thresholds"
+        ]
+      ],
+      "finder": null,
+      "generate": ""
+    },
+    {
+      "kind": "table",
       "id": "cable_ampacity_cu_pvc",
       "category": "tables",
       "group": "conductors",
@@ -35812,6 +36376,837 @@
     },
     {
       "kind": "table",
+      "id": "ethernet_categories",
+      "category": "tables",
+      "group": "general",
+      "name": "Twisted-pair cable categories (Cat 5 … Cat 8)",
+      "name_en": "Twisted-pair cable categories (Cat 5 … Cat 8)",
+      "doc": "Twisted-pair cable categories Cat 5 to Cat 8 with the matching ISO/IEC 11801 class, the frequency the category is specified to, the usual construction and connector, the specified channel length and the channel length over which the BASE-T Ethernet variants (100BASE-TX to 40GBASE-T) run.",
+      "notes": "A category describes components (cable, connector), a class describes the installed channel or link. TIA uses categories for both; ISO/IEC 11801 uses classes for links and channels. A channel is only as good as its weakest part: Cat 7/7A cable with RJ45 jacks or Cat 6A patch cords performs as Cat 6A, and higher classes support all applications of lower classes. The reach columns are channel lengths: a 100 m channel is 90 m of solid installation cable, 10 m of cords and up to four connections (ISO/IEC 11801:2002 text quoted in ISO/IEC JTC 1/SC 25/WG 3 N 638); a Category 8 channel is 30 m with 2 connectors. In the reach columns \"–\" means not specified for this category (checked), an empty cell means not verified, and \"(limited)\" means the reach depends on alien crosstalk and must be tested in the field (Cat 6 at 10GBASE-T: about 37 m expected, up to 55 m depending on alien crosstalk, longer needs mitigation; Cat 5e at 5GBASE-T only in defined use cases). Cat 7, 7A and 8.2 are not RJ45 connectors (TERA, GG45); with RJ45 parts the channel only reaches the level of those parts. IEEE 802.3 itself was not readable: the reaches rest on the IEEE task-force objectives (802.3an, 802.3bz, 802.3bq), the TIA liaison tutorial and maker documents; 1000BASE-T and 100BASE-TX on Cat 5 follow the maker and test-equipment documents. The construction column gives the usual construction, not a rule (U/UTP unshielded, F/UTP overall foil, S/FTP overall braid and a foil around each pair). PoE (IEEE 802.3af/at/bt) is not limited per category here: the read sources give no such limits, but higher categories heat less in bundles, so Cat 6A or better is recommended for 4-pair PoE. The limits of the standards themselves are not listed: the full texts of TIA-568.2-E and ISO/IEC 11801-1 are paywalled and were not read.",
+      "tags": [
+        "ethernet",
+        "cat5",
+        "cat5e",
+        "cat6",
+        "cat6a",
+        "cat7",
+        "cat7a",
+        "cat8",
+        "cat 5e",
+        "cat 6a",
+        "twisted pair",
+        "utp",
+        "ftp",
+        "stp",
+        "s/ftp",
+        "rj45",
+        "100base-tx",
+        "1000base-t",
+        "2.5gbase-t",
+        "5gbase-t",
+        "10gbase-t",
+        "25gbase-t",
+        "40gbase-t",
+        "iso/ec 11801",
+        "tia-568",
+        "network cable",
+        "lan cable",
+        "patch cable",
+        "kabelkategorie",
+        "netzwerkkabel",
+        "patchkabel",
+        "verkabelung",
+        "kanallänge",
+        "reichweite",
+        "klasse ea",
+        "gigabit"
+      ],
+      "source": "ISO/IEC JTC 1/SC 25/WG 3 N 638 (liaison report to IEEE 802.3, 2003, with excerpts of ISO/IEC 11801:1995 and :2002); ISO/IEC 11801-1:2017 (VDE preview); IEEE 802.3an, 802.3bz and 802.3bq task-force objectives; TIA TR-42 liaison tutorial (May 2005); Panduit COTB01 Category 7 and 7A tech brief; CommScope WP-110474 Category 8 white paper; Fluke Networks knowledge base and blog; Siemon, Leviton, Prysmian, Cisco and Texas Instruments documents; IEEE 802.3, TIA-568.2-E and ISO/IEC 11801-1 themselves were not read",
+      "guide": true,
+      "mains": false,
+      "key": "category",
+      "columns": [
+        {
+          "id": "category",
+          "name": "Category",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "bandwidth",
+          "name": "Specified up to (frequency)",
+          "dim": "frequency",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "iso_class",
+          "name": "ISO/IEC 11801 class",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "tia",
+          "name": "TIA status",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "construction",
+          "name": "Usual construction",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "interface",
+          "name": "Outlet connector",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "channel",
+          "name": "Specified channel length",
+          "dim": "length",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "e100",
+          "name": "100BASE-TX reach",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "e1000",
+          "name": "1000BASE-T reach",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "e2g5",
+          "name": "2.5GBASE-T reach",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "e5g",
+          "name": "5GBASE-T reach",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "e10g",
+          "name": "10GBASE-T reach",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "e25g40g",
+          "name": "25GBASE-T and 40GBASE-T reach",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "note",
+          "name": "Remark",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          "Category 5 (Cat 5)",
+          100000000,
+          "D (ISO/IEC 11801:1995)",
+          "superseded by Category 5e, no longer recognized for new installations",
+          null,
+          "RJ45 (8P8C)",
+          100,
+          "100 m",
+          "100 m",
+          "–",
+          "–",
+          "–",
+          "–",
+          "defined in TIA-568-A; 1000BASE-T was designed for Cat 5 cabling meeting the additional TSB-95 parameters; ISO's 'Category 5' since the 2002 edition equals TIA Cat 5e"
+        ],
+        [
+          "Category 5e (Cat 5e)",
+          100000000,
+          "D",
+          "specified (TIA-568.2-E)",
+          "U/UTP, also F/UTP",
+          "RJ45 (8P8C)",
+          100,
+          "100 m",
+          "100 m",
+          "100 m",
+          "100 m (limited)",
+          "–",
+          "–",
+          "5GBASE-T on Cat 5e only in defined use cases (alien crosstalk; assess with TIA TSB-5021 or ISO/IEC TR 11801-9904); ISO Class D since 2002 equals TIA Cat 5e"
+        ],
+        [
+          "Category 6 (Cat 6)",
+          250000000,
+          "E",
+          "specified (TIA-568.2-E)",
+          "U/UTP or F/UTP",
+          "RJ45 (8P8C)",
+          100,
+          "100 m",
+          "100 m",
+          "100 m",
+          "100 m",
+          "55 m (limited)",
+          "–",
+          "10GBASE-T: about 37 m expected, 37–55 m depending on alien crosstalk, longer needs mitigation (TIA TSB-155); not recommended for new 10G installations"
+        ],
+        [
+          "Category 6A (Cat 6A)",
+          500000000,
+          "EA",
+          "specified (TIA-568.2-E; Category 6A published 2008)",
+          "U/UTP or shielded (e.g. F/UTP)",
+          "RJ45 (8P8C)",
+          100,
+          "100 m",
+          "100 m",
+          "100 m",
+          "100 m",
+          "100 m",
+          "–",
+          "recommended minimum for new installations; 10GBASE-T over 100 m, 4-connector channels"
+        ],
+        [
+          "Category 7 (Cat 7)",
+          600000000,
+          "F",
+          "not in TIA (ISO/IEC only)",
+          "S/FTP",
+          "not RJ45 (IEC 61076-3-104 or IEC 61076-3-110), e.g. TERA or GG45",
+          100,
+          "100 m",
+          "100 m",
+          "100 m",
+          "100 m",
+          "100 m",
+          "–",
+          "with RJ45 jacks or hybrid cords the channel only reaches the level of the RJ45 parts (Cat 6/6A); no application advantage over Cat 6A"
+        ],
+        [
+          "Category 7A (Cat 7A)",
+          1000000000,
+          "FA",
+          "not in TIA (ISO/IEC only)",
+          "S/FTP",
+          "not RJ45 (IEC 61076-3-104 or IEC 61076-3-110), e.g. TERA or GG45",
+          100,
+          "100 m",
+          "100 m",
+          "100 m",
+          "100 m",
+          "100 m",
+          "–",
+          "bandwidth too low and channel too long for 25/40GBASE-T; with RJ45 parts only Cat 6A level"
+        ],
+        [
+          "Category 8 (TIA) / Category 8.1 (ISO/IEC)",
+          2000000000,
+          "I",
+          "specified (TIA-568.2-E; Category 8 since 2016)",
+          "shielded",
+          "RJ45 (IEC 60603-7-81)",
+          30,
+          "100 m",
+          "100 m",
+          "100 m",
+          "100 m",
+          "100 m",
+          "30 m",
+          "a Category 8 channel is specified to 30 m with 2 connectors; Cat 8 parts also meet Cat 6A, so 10GBASE-T and slower run over 100 m, 4-connector channels"
+        ],
+        [
+          "Category 8.2 (ISO/IEC)",
+          2000000000,
+          "II",
+          "not in TIA (ISO/IEC only)",
+          "shielded",
+          "not RJ45: TERA or GG45/ARJ45; TERA-to-RJ45 cords to the equipment",
+          30,
+          null,
+          null,
+          null,
+          null,
+          null,
+          "30 m",
+          "25/40GBASE-T use an RJ45 equipment port, so a Class II channel needs TERA- or GG45-to-RJ45 cords; Class II parts are backwards compatible with Category 7A/Class FA"
+        ]
+      ],
+      "finder": null,
+      "generate": ""
+    },
+    {
+      "kind": "table",
+      "id": "usb_versions",
+      "category": "tables",
+      "group": "general",
+      "name": "USB versions and speeds",
+      "name_en": "USB versions and speeds",
+      "doc": "USB data modes from Low Speed (1.5 Mbit/s) to USB4 Version 2.0 (80 and 120 Gbit/s): the specification and its earlier names, the current USB-IF consumer name, signalling rate in total and per lane, lanes, line coding, connectors and the year of the first specification release.",
+      "notes": "The marketing name tells the signalling rate only. \"USB4\", \"USB 3.2\", \"SuperSpeed Plus\", \"Enhanced SuperSpeed\" and \"SuperSpeed+\" are specification terms that USB-IF does not want in product names (Data Performance Guidelines, January 2024); the \"SuperSpeed USB …\" names shown as former names are from the superseded 2018/2019 USB-IF guidelines. USB-IF has no consumer name for the 120 Gbit/s asymmetric mode of USB4 Version 2.0; the current guidelines end at USB 80Gbps. \"USB 10Gbps\" covers both Gen 2x1 and Gen 1x2. The rate columns are signalling (line) rates of one direction, not throughput: Gen 1x1 delivers at most about 450 MB/s and Gen 2x1 about 1.1 GB/s to an application (USB 3.2 specification, section 4.4.11); for the asymmetric mode the table shows the fast direction (120 Gbit/s, 40 Gbit/s back). USB Type-C is a connector, not a speed: a Type-C port may carry only USB 2.0 (480 Mbit/s), and modes with two lanes (Gen 1x2, Gen 2x2, USB4) need a full-featured Type-C to Type-C cable. USB 3.x and USB4 always keep the USB 2.0 pair (D+/D−) in parallel; a link falls back to the best speed both ends and the cable support. Power is a separate feature and not part of the data mode: USB Power Delivery up to 100 W (20 V, 5 A) and, since USB PD 3.1 (2021), up to 240 W with 28, 36 or 48 V over a full-featured Type-C cable rated for it. Not listed: single-lane USB4 fallback links, Thunderbolt 4/5, Type-C cable length limits and the effective throughput of USB4.",
+      "tags": [
+        "usb",
+        "usb4",
+        "usb 3.2",
+        "usb 3.1",
+        "usb 3.0",
+        "usb 2.0",
+        "usb 1.1",
+        "superspeed",
+        "hi-speed",
+        "full speed",
+        "low speed",
+        "gen 1",
+        "gen 2",
+        "gen 2x2",
+        "usb type-c",
+        "type-c",
+        "usb-c",
+        "thunderbolt",
+        "5gbps",
+        "10gbps",
+        "20gbps",
+        "40gbps",
+        "80gbps",
+        "usb-if",
+        "data rate",
+        "bandwidth",
+        "usb-version",
+        "usb-geschwindigkeit",
+        "datenrate",
+        "übertragungsrate",
+        "anschluss",
+        "steckverbinder",
+        "marketingname"
+      ],
+      "source": "USB-IF: Universal Serial Bus Specification Revision 2.0 (with the Mini-B ECN and the Micro-USB Cables and Connectors Specification 1.01), Universal Serial Bus 3.2 Specification Revision 1.1, USB4 Specification Version 2.0, USB Data Performance Language Usage Guidelines (January 2024), USB Performance Logo Usage Guidelines (January 2026), USB Logo Usage Guidelines, Integrators List Marketing Name Guidance (January 2023), USB Type-C and USB 2.0 Type-C language guidelines and the older USB 3.2 language guidelines (2018/2019); Texas Instruments application note SLVAF82B",
+      "guide": true,
+      "mains": false,
+      "key": "mode",
+      "columns": [
+        {
+          "id": "mode",
+          "name": "Specification and mode",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "earlier_names",
+          "name": "Earlier names",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "marketing",
+          "name": "USB-IF consumer name (former name in brackets)",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "rate",
+          "name": "Signalling rate (one direction)",
+          "dim": "datarate",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "lane_rate",
+          "name": "Signalling rate per lane",
+          "dim": "datarate",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "lanes",
+          "name": "Lanes / pairs",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "coding",
+          "name": "Line coding",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "connectors",
+          "name": "Connectors",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "year",
+          "name": "First specification release (year)",
+          "dim": "number",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "note",
+          "name": "Remark",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          "USB Low Speed (USB 1.x and USB 2.0)",
+          "USB 1.0/1.1 Low Speed",
+          "Basic-Speed USB",
+          1500000,
+          1500000,
+          "1 pair (D+/D−), half-duplex",
+          "NRZI with bit stuffing",
+          "Standard-A plug; the device must have a captive cable",
+          1996,
+          "limited-capability mode for few low-bandwidth devices such as mice; USB 1.0 January 1996, USB 1.1 September 1998"
+        ],
+        [
+          "USB Full Speed (USB 1.x and USB 2.0)",
+          "USB 1.0/1.1 Full Speed",
+          "Basic-Speed USB",
+          12000000,
+          12000000,
+          "1 pair (D+/D−), half-duplex",
+          "NRZI with bit stuffing",
+          "Standard-A, Standard-B; with USB 2.0 also Mini-B, Micro-B, USB Type-C",
+          1996,
+          "USB 1.0 January 1996, USB 1.1 September 1998"
+        ],
+        [
+          "USB 2.0 High Speed",
+          "USB 2.0",
+          "Hi-Speed USB",
+          480000000,
+          480000000,
+          "1 pair (D+/D−), half-duplex",
+          "NRZI with bit stuffing",
+          "Standard-A, Standard-B, Mini-B, Micro-B/Micro-AB, USB Type-C",
+          2000,
+          "USB 2.0 hubs carry full- and low-speed traffic to the host at high speed"
+        ],
+        [
+          "USB 3.2 Gen 1 (Gen 1x1)",
+          "USB 3.0, USB 3.1 Gen 1",
+          "USB 5Gbps (formerly SuperSpeed USB)",
+          5000000000,
+          5000000000,
+          "1 lane (one transmit and one receive pair, dual-simplex) plus the USB 2.0 pair",
+          "8b/10b",
+          "USB 3 Standard-A, Standard-B, Micro-B, Micro-AB, USB Type-C",
+          2008,
+          "raw throughput 500 MB/s, at most about 450 MB/s for the application"
+        ],
+        [
+          "USB 3.2 Gen 1x2",
+          "– (new in USB 3.2)",
+          "USB 10Gbps",
+          10000000000,
+          5000000000,
+          "2 lanes",
+          "8b/10b",
+          "USB Type-C only",
+          2017,
+          "two Gen 1 lanes; only a Type-C to Type-C cable carries two lanes"
+        ],
+        [
+          "USB 3.2 Gen 2 (Gen 2x1)",
+          "USB 3.1 Gen 2",
+          "USB 10Gbps (formerly SuperSpeed USB 10Gbps)",
+          10000000000,
+          10000000000,
+          "1 lane (one transmit and one receive pair, dual-simplex) plus the USB 2.0 pair",
+          "128b/132b",
+          "USB 3 Standard-A, Standard-B, Micro-B, Micro-AB, USB Type-C",
+          2013,
+          "raw throughput about 1.2 GB/s, about 1.1 GB/s for the application"
+        ],
+        [
+          "USB 3.2 Gen 2x2",
+          "– (new in USB 3.2)",
+          "USB 20Gbps (formerly SuperSpeed USB 20Gbps)",
+          20000000000,
+          10000000000,
+          "2 lanes",
+          "128b/132b",
+          "USB Type-C only",
+          2017,
+          "two Gen 2 lanes over the two SuperSpeed pin sets of the Type-C connector"
+        ],
+        [
+          "USB4 20 Gbit/s (Gen 2x2)",
+          "USB4 Gen 2x2 (USB4 Version 1.0)",
+          "USB 20Gbps",
+          20000000000,
+          10000000000,
+          "2 lanes (bonded)",
+          "64b/66b (Reed-Solomon FEC can be switched on)",
+          "USB Type-C only",
+          2019,
+          "every USB4 router supports Gen 2; optional Thunderbolt 3 rate 10.3125 Gbit/s per lane"
+        ],
+        [
+          "USB4 40 Gbit/s (Gen 3x2)",
+          "USB4 Gen 3x2 (USB4 Version 1.0)",
+          "USB 40Gbps",
+          40000000000,
+          20000000000,
+          "2 lanes (bonded)",
+          "128b/132b (Reed-Solomon FEC can be switched on)",
+          "USB Type-C only",
+          2019,
+          "mandatory for USB4 hubs, optional for hosts and devices; optional Thunderbolt 3 rate 20.625 Gbit/s per lane"
+        ],
+        [
+          "USB4 Version 2.0, 80 Gbit/s (Gen 4, symmetric)",
+          "USB4 Gen 4 (USB4 Version 2.0)",
+          "USB 80Gbps",
+          80000000000,
+          40000000000,
+          "2 lanes (bonded)",
+          "PAM3, 11 bits → 7 trits, with Reed-Solomon FEC",
+          "USB Type-C only",
+          2022,
+          "PAM3 at 25.6 GBd per lane; needs a cable certified for 80 Gbps"
+        ],
+        [
+          "USB4 Version 2.0, asymmetric 120/40 Gbit/s (Gen 4)",
+          "USB4 Gen 4 asymmetric link (USB4 Version 2.0)",
+          "– (no name of its own; the guidelines end at USB 80Gbps)",
+          120000000000,
+          40000000000,
+          "3 lanes one way, 1 lane the other way",
+          "PAM3, 11 bits → 7 trits, with Reed-Solomon FEC",
+          "USB Type-C only",
+          2022,
+          "120 Gbit/s in the direction with three transmitters, 40 Gbit/s back; only Gen 4 links can be asymmetric"
+        ]
+      ],
+      "finder": null,
+      "generate": ""
+    },
+    {
+      "kind": "table",
+      "id": "schematic_symbols",
+      "category": "tables",
+      "group": "general",
+      "name": "Schematic symbols (IEC and ANSI)",
+      "name_en": "Schematic symbols (IEC and ANSI)",
+      "doc": "The 25 schematic symbols of ECalc's own library, drawn in the IEC style and in the ANSI style side by side, with the name, what the part does, the IEC 617 item number where it was read and where the two standards differ.",
+      "notes": "IEC 60617 is the international standard (in Germany DIN EN 60617); IEEE 315 / ANSI Y32.2 was the US standard and has been inactive since 2019 without replacement. The IEC side was read in the IEC 617 parts of 1978 to 1983 through their identical Indian adoptions IS 12032 (parts 2, 4, 5, 6, 7, 8 and 13); the item numbers (for example 04-01-01) are those of that edition, the IEC 60617 database itself was not reachable, so current database numbers and any later changes are not covered. The ANSI side was read in the US Navy NEETS modules 3, 7 and 8, which reproduce pages laid out as IEEE 315; IEEE 315 itself was not read, so no IEEE clause numbers are given. Both standards accept several forms for some parts: never mix two forms of the same part in one diagram, and expect datasheets to mix styles. ECalc draws one form per standard; where the standards agree it draws the same symbol. Differences that ECalc does not draw are named in the last column: the op-amp is a rectangle with the amplifier sign and ∞ in IEC 60617, but ECalc shows the triangle in both modes; the US fuse is usually an S-shaped curve, the IEC switch has no circles at its contacts, and US drawings often put an envelope circle around transistors. The antenna and the AC source have no IEC form that was read.",
+      "tags": [
+        "schematic",
+        "symbol",
+        "symbols",
+        "iec 60617",
+        "iec 617",
+        "ansi",
+        "ieee 315",
+        "ansi y32.2",
+        "resistor",
+        "capacitor",
+        "diode",
+        "transistor",
+        "op-amp",
+        "opamp",
+        "zener",
+        "fuse",
+        "ground",
+        "transformer",
+        "schaltzeichen",
+        "schaltplan",
+        "schaltsymbol",
+        "symbole",
+        "widerstand",
+        "kondensator",
+        "spule",
+        "sicherung",
+        "masse",
+        "operationsverstärker",
+        "din en 60617"
+      ],
+      "source": "IEC 617 (1978 to 1983) as the identical Indian adoptions IS 12032 parts 2, 4, 5, 6, 7, 8 and 13 and IS 2032 part XVI (aerials), Public.Resource.Org on archive.org; US Navy NEETS modules 3, 7 and 8 (the IEEE 315 appendix of module 3); the IEC 60617 database and IEEE 315 / ANSI Y32.2 themselves were not read; en.wikipedia \"Electronic symbol\" and de.wikipedia articles as secondary checks",
+      "guide": true,
+      "mains": false,
+      "key": "symbol",
+      "columns": [
+        {
+          "id": "symbol",
+          "name": "Symbol (IEC | ANSI)",
+          "dim": "symbol",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "name",
+          "name": "Name",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "function",
+          "name": "Function",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "iec_ref",
+          "name": "IEC 617 item (1978–1983)",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        },
+        {
+          "id": "difference",
+          "name": "IEC versus ANSI",
+          "dim": "text",
+          "unit": "",
+          "units": [],
+          "label": ""
+        }
+      ],
+      "rows": [
+        [
+          "resistor",
+          "Resistor",
+          "Limits current; U = R·I",
+          "04-01-01 (preferred: rectangle), 04-01-02 (other form: zigzag)",
+          "IEC: rectangle. ANSI: zigzag (IEEE 315 also has a rectangle form that must carry an identification)"
+        ],
+        [
+          "capacitor",
+          "Capacitor",
+          "Stores charge; blocks DC, passes AC",
+          "04-02-01 (preferred: two straight plates), 04-02-02 (other form: one plate curved)",
+          "Same in both: two parallel plates. Both also allow one curved plate (outer or low-potential electrode)"
+        ],
+        [
+          "polarized",
+          "Polarised (electrolytic) capacitor",
+          "Large capacitance; must be connected with the right polarity",
+          "04-02-05 (preferred: two straight plates + \"+\"), 04-02-06 (other form: negative plate curved + \"+\")",
+          "IEC: two straight plates, \"+\" at the positive plate. ANSI: usually the negative plate curved towards the straight plate, \"+\" at the straight plate (IEEE 315 also allows the IEC form)"
+        ],
+        [
+          "inductor",
+          "Inductor (coil)",
+          "Stores energy in a magnetic field; opposes changes of current",
+          "04-03-01 (preferred: half-circles), 04-03-02 (other form: filled rectangle); core line 04-03-03",
+          "Same in both: a row of half-circles (US drawings also use loops). IEC also allows a filled rectangle"
+        ],
+        [
+          "diode",
+          "Diode",
+          "Conducts in one direction only (anode → cathode)",
+          "05-03-01",
+          "Same in both: triangle pointing to a bar (cathode). US drawings often fill the triangle"
+        ],
+        [
+          "led",
+          "Light-emitting diode (LED)",
+          "Diode that emits light when forward-biased",
+          "05-03-02",
+          "Same in both: diode with two arrows pointing away"
+        ],
+        [
+          "zener",
+          "Zener diode",
+          "Conducts in reverse above its breakdown voltage; voltage reference/regulator",
+          "05-03-06 (cathode bar with one short stub; qualifier 05-02-03)",
+          "IEC: cathode bar with one short stub at one end, bent back towards the anode. ANSI: bar bent at both ends in opposite directions (Z shape); US documents also show other variants"
+        ],
+        [
+          "crystal",
+          "Quartz crystal",
+          "Resonator with a very stable frequency",
+          "04-07-01",
+          "Same in both: rectangle between two electrode plates"
+        ],
+        [
+          "fuse",
+          "Fuse",
+          "Melts and opens the circuit on overcurrent",
+          "07-21-01 (rectangle, line through it lengthwise)",
+          "IEC: rectangle with a line through it. ANSI: the same symbol is allowed (ECalc draws it in both modes); typical US drawings use an S-shaped curve"
+        ],
+        [
+          "switch",
+          "Switch (make contact)",
+          "Opens or closes a circuit",
+          "07-02-01 (form 1, no circles), 07-02-02 (form 2, hinge circle)",
+          "Same symbol in both (inclined blade). IEC draws no circles (a hinge circle is allowed); US drawings often show open circles at both contacts (ECalc draws them in both modes)"
+        ],
+        [
+          "pot",
+          "Potentiometer",
+          "Adjustable voltage divider; the wiper taps the resistance",
+          "04-01-07 (rectangle, wiper arrow)",
+          "IEC: rectangle with the wiper arrow. ANSI: zigzag with the wiper arrow"
+        ],
+        [
+          "source",
+          "DC voltage source",
+          "Ideal source of constant voltage",
+          "02-16-02 (ideal voltage source: circle, line through it along the conductor)",
+          "IEC: circle crossed by the conductor (line along the leads); polarity added outside. US textbooks: circle with + and − inside (a textbook convention; IEEE 315 itself uses the battery as the general DC source)"
+        ],
+        [
+          "acsource",
+          "AC voltage source",
+          "Source of sinusoidal alternating voltage",
+          null,
+          "ECalc draws a circle with a sine wave in both modes; no IEC form was read"
+        ],
+        [
+          "isource",
+          "Current source",
+          "Ideal source of constant current",
+          "02-16-01 (ideal current source: circle, line across the conductor)",
+          "IEC: circle with a line across, perpendicular to the leads (ECalc adds the reference direction a → b as an arrow on the lead). US: circle with an arrow inside in the current direction"
+        ],
+        [
+          "battery",
+          "Battery",
+          "Chemical DC source; the long line is the positive pole",
+          "06-15-01 (cell), 06-15-02 (battery, form 1)",
+          "Same in both: long thin line = +, short line = − (IEC: the short line may be thicker)"
+        ],
+        [
+          "meter",
+          "Meter (voltmeter, ammeter)",
+          "Indicates a measured quantity; the letter names it (V, A, Ω …)",
+          "08-01-01 (indicating instrument), 08-02-01 (voltmeter)",
+          "Same in both: circle with the unit letter"
+        ],
+        [
+          "ground",
+          "Ground (earth)",
+          "Common reference potential, 0 V",
+          "02-15-01 (earth, general symbol)",
+          "Same in both: stem with three lines getting shorter"
+        ],
+        [
+          "antenna",
+          "Antenna",
+          "Radiates or receives radio waves",
+          null,
+          "Same in ECalc: a V on a stem (the US \"antenna – general\"); older IEC drawings (IS 2032-16 of 1972) show a trident, the current IEC form was not read"
+        ],
+        [
+          "npn",
+          "NPN transistor",
+          "Bipolar transistor; a small base current controls the collector current",
+          "05-05-02 (NPN, shown with envelope); base symbol 05-05-01 without circle",
+          "Same symbol: emitter arrow points outward. US drawings usually add the envelope circle (optional in ANSI Y32.2); IEC usually without"
+        ],
+        [
+          "pnp",
+          "PNP transistor",
+          "Bipolar transistor with reversed polarities; emitter arrow points in",
+          "05-05-01",
+          "Same symbol: emitter arrow points towards the base. Envelope circle as for NPN"
+        ],
+        [
+          "nmos",
+          "N-channel MOSFET (enhancement)",
+          "Voltage-controlled switch/amplifier; conducts when the gate is positive",
+          "05-05-12 / 05-05-14 (broken channel, substrate arrow inward, substrate tied to source)",
+          "Same in both: broken channel line, substrate arrow pointing to the channel"
+        ],
+        [
+          "pmos",
+          "P-channel MOSFET (enhancement)",
+          "As the N-channel type with reversed polarities; conducts when the gate is negative",
+          "05-05-11 / 05-05-13 (substrate arrow outward)",
+          "Same in both: as N-channel, substrate arrow pointing away from the channel"
+        ],
+        [
+          "opamp",
+          "Operational amplifier",
+          "Very high-gain differential amplifier; the circuit around it sets the function",
+          "13-04-02 (rectangle with ▷ and ∞, inputs − and +)",
+          "IEC 60617 draws a rectangle with the amplifier sign ▷ and ∞ inside, inputs marked − and +. ANSI/US: triangle pointing to the output. ECalc shows the triangle in both modes"
+        ],
+        [
+          "transformer",
+          "Transformer",
+          "Transfers AC energy between windings; turns ratio sets the voltage ratio",
+          "06-09-02 (form 2: windings as half-circles, core per 04-03-03), 06-09-01 (form 1: two circles)",
+          "Same in both: two windings with core lines between. IEC also allows two overlapping circles (single-line diagrams)"
+        ],
+        [
+          "ic",
+          "Integrated circuit (generic box)",
+          "Any IC drawn as a box with numbered/named pins",
+          null,
+          "Same in both: a rectangle with pin stubs and names (drawing convention, not a standardised symbol)"
+        ]
+      ],
+      "finder": null,
+      "generate": ""
+    },
+    {
+      "kind": "table",
       "id": "awg",
       "category": "tables",
       "group": "conductors",
@@ -40129,6 +41524,121 @@
           "X7R: −55 to +125 °C, ±15 %; Y5V: −30 to +85 °C, +22/−82 %.",
           "Y5V and Z5U are class 2 here; some manufacturers call them class 3.",
           "Letters and digits that only one source lists are not decoded; the decoder says so."
+        ]
+      }
+    },
+    {
+      "kind": "code",
+      "id": "date_code_code",
+      "category": "codes",
+      "code": "date_code",
+      "name": "Component date codes",
+      "name_en": "Component date codes",
+      "doc": "The date of manufacture that makers print on a component. Four digits are YYWW: the last two digits of the year and the ISO 8601 week, Monday to Sunday (2448 = week 48 of 2024, IEC 60062); week 53 exists only in some years. Two characters are the IEC 60062 year and month code: a year letter of the 20-year cycle (A B C D E F H J K L M N P R S T U V W X) and a month character (1 to 9, O = October, N = November, D = December). The letter code repeats every 20 years, so J5 is May 2017 but also May 1997, and the reader lists the candidate years. A date gives both codes. Makers count weeks in slightly different ways, so a week can be off by one.",
+      "tags": [
+        "date code",
+        "datumscode",
+        "datecode",
+        "yyww",
+        "jjww",
+        "week",
+        "woche",
+        "kalenderwoche",
+        "year",
+        "month",
+        "manufacture",
+        "herstellungsdatum",
+        "marking",
+        "aufdruck",
+        "iec 60062",
+        "iso 8601",
+        "j5",
+        "2448",
+        "lot"
+      ],
+      "source": "IEC 60062:2016 clause 8 (date code system) and IEC 60062:2004 clauses 6.1.1 and 6.2.1, read in the identical GOST IEC 60062-2014 (IDT); ISO 8601-1:2019 (week calendar); ECIA NIGP 117 date code marking guideline; Texas Instruments device marking conventions (SNOA039C); Microchip MCP6001 data sheet; onsemi 1N4001 data sheet; Vishay Dale product marking (document 30327); TDK film capacitor marking and ordering code system; Vishay SMF body marking (document 98534)",
+      "data": {
+        "first_year": 1970,
+        "last_year": 2049,
+        "year_letters": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "F",
+          "H",
+          "J",
+          "K",
+          "L",
+          "M",
+          "N",
+          "P",
+          "R",
+          "S",
+          "T",
+          "U",
+          "V",
+          "W",
+          "X"
+        ],
+        "months": [
+          {
+            "char": "1",
+            "month": 1
+          },
+          {
+            "char": "2",
+            "month": 2
+          },
+          {
+            "char": "3",
+            "month": 3
+          },
+          {
+            "char": "4",
+            "month": 4
+          },
+          {
+            "char": "5",
+            "month": 5
+          },
+          {
+            "char": "6",
+            "month": 6
+          },
+          {
+            "char": "7",
+            "month": 7
+          },
+          {
+            "char": "8",
+            "month": 8
+          },
+          {
+            "char": "9",
+            "month": 9
+          },
+          {
+            "char": "O",
+            "month": 10
+          },
+          {
+            "char": "N",
+            "month": 11
+          },
+          {
+            "char": "D",
+            "month": 12
+          }
+        ],
+        "notes": [
+          "Most makers print the date code as YYWW: 2448 = week 48 of 2024.",
+          "Weeks follow ISO 8601 (IEC 60062): Monday to Sunday; week 01 is the week with the first Thursday of the year, so it can start in December of the previous year. Week 53 exists only in some years (2020, 2026, 2032 ...).",
+          "Makers count weeks differently: ECIA (US) starts the week on Sunday, Microchip counts the week of 1 January as week 01 (not ISO when 1 January is a Friday, Saturday or Sunday), and Texas Instruments and National print the first week of a six-week period on commercial parts. A decoded week can therefore be off by one or more.",
+          "A two-digit year is read as 20xx; an old part can be from 19xx (Texas Instruments: week 48 of 1999 = 9948).",
+          "The IEC 60062 letter code repeats every 20 years: J5 is May 2017, but also May 1997 (and 1977, 2037). The letters G, I, O, Q, Y and Z are not year letters; O is the month October.",
+          "Not every four-digit number on a part is a date code (7805 is a part number). A reading with the week first (WWYY) is not read: no maker document prints it. The ten-year letter cycle is not read either, because its sources disagree."
         ]
       }
     },
@@ -54804,7 +56314,7 @@
       "name": "NE555 (DIP-8)",
       "name_en": "NE555 (DIP-8)",
       "doc": "Bipolar timer for monostable and astable circuits, drawn as the 8-pin PDIP from above.",
-      "notes": "The SOIC (D), SO (PS) and TSSOP (PW) versions of the NE555 have the same pin numbers as the PDIP (P).",
+      "notes": "The SOIC (D), SO (PS) and TSSOP (PW) versions of the NE555 have the same pin numbers as the PDIP (P). Texas Instruments states that the CMOS TLC555 has the same pinout as the NE555 in its 8-pin packages; its supply pin is called VDD, and it runs from 2 V to 15 V (TLC555C). Its 14-pin TSSOP is numbered differently.",
       "tags": [
         "ne555",
         "555",
@@ -54820,9 +56330,12 @@
         "dip-8",
         "trig",
         "thres",
-        "disch"
+        "disch",
+        "tlc555",
+        "cmos timer",
+        "cmos-timer"
       ],
-      "source": "Texas Instruments NA555, NE555, SA555, SE555 datasheet SLFS022K (March 2026), section 4, pin figure and Table 4-1",
+      "source": "Texas Instruments NA555, NE555, SA555, SE555 datasheet SLFS022K (March 2026), section 4, pin figure and Table 4-1; Texas Instruments TLC555 datasheet SLFS043K (January 2026), Figure 4-1 and Table 4-1",
       "views": null,
       "shape": {
         "type": "dip",
@@ -55070,7 +56583,7 @@
       "name": "LM358 (DIP-8)",
       "name_en": "LM358 (DIP-8)",
       "doc": "Dual operational amplifier that can run from one supply, drawn as the 8-pin PDIP from above.",
-      "notes": "The other 8-pin packages in TI's datasheet (SOIC, VSSOP, TSSOP and others) have the same pin numbers, and so do the LM158, LM258 and LM2904 it also covers.",
+      "notes": "The other 8-pin packages in TI's datasheet (SOIC, VSSOP, TSSOP and others) have the same pin numbers, and so do the LM158, LM258 and LM2904 it also covers. The TL072 (JFET input) and the NE5532 (low noise) have the same pins in their 8-pin packages, according to their own TI datasheets.",
       "tags": [
         "lm358",
         "op-amp",
@@ -55081,9 +56594,11 @@
         "lm2904",
         "lm258",
         "dip8",
-        "dip-8"
+        "dip-8",
+        "tl072",
+        "ne5532"
       ],
-      "source": "Texas Instruments LM158, LM258, LM2904, LM358 datasheet SLOS068AB (October 2024), section 4, Figure 4-1 and Table 4-1",
+      "source": "Texas Instruments LM158, LM258, LM2904, LM358 datasheet SLOS068AB (October 2024), section 4, Figure 4-1 and Table 4-1; Texas Instruments TL07xx datasheet SLOS080W (July 2025), Figure 4-5 and Table 4-3; Texas Instruments NE5532x datasheet SLOS075K (December 2025), Figure 4-1 and Pin Functions",
       "views": null,
       "shape": {
         "type": "dip",
@@ -55972,7 +57487,7 @@
       "name": "TO-92: examples",
       "name_en": "TO-92: examples",
       "doc": "The pin order of a TO-92 part depends on the part, not on the package: this page lists examples only, so check the datasheet of your exact part and maker. Each is drawn from the front, flat side towards you and leads pointing down, and the numbers are positions from left to right.",
-      "notes": "The PN2222A entry is the plastic TO-92 type from onsemi (formerly Fairchild). It does not apply to the round metal-can 2N2222 (TO-18), whose leads form a triangle, and the similarly named onsemi P2N2222A has collector and emitter swapped: collector left, emitter right. The 78L05 runs the opposite way to the L78xx in TO-220: its input is on the right. TI's table numbers the TL431 leads against the positions used here; see its pin notes. The BS170 runs the opposite way to the 2N7000: drain left, source right. The DS18B20 has ground on the left and the supply on the right, the reverse of the LM35. The BC337 and BC557 have the same order as the BC547 (collector left), the 2N3906 the same as the 2N3904 (emitter left).",
+      "notes": "The PN2222A entry is the plastic TO-92 type from onsemi (formerly Fairchild). It does not apply to the round metal-can 2N2222 (TO-18), whose leads form a triangle, and the similarly named onsemi P2N2222A has collector and emitter swapped: collector left, emitter right. The 78L05 runs the opposite way to the L78xx in TO-220: its input is on the right. TI's table numbers the TL431 leads against the positions used here; see its pin notes. The BS170 runs the opposite way to the 2N7000: drain left, source right. The DS18B20 has ground on the left and the supply on the right, the reverse of the LM35. The BC337 and BC557 have the same order as the BC547 (collector left), the 2N3906 the same as the 2N3904 (emitter left). The TMP36 has the same order as the LM35 (supply left, ground right), but its output reads 750 mV at 25 °C. Analog Devices draws one TO-92 figure for the TMP35, TMP36 and TMP37; the output of pin 2 is described for the TMP36 only.",
       "tags": [
         "to92",
         "to-92",
@@ -56011,9 +57526,12 @@
         "pnp",
         "1-wire",
         "onewire",
-        "thermometer"
+        "thermometer",
+        "tmp36",
+        "tmp35",
+        "tmp37"
       ],
-      "source": "onsemi BC546/D Rev. 8 (BC547); onsemi/Fairchild PN2222A Rev. 1.1.0 and onsemi P2N2222A/D Rev. 7; multicomp 2N2222 sheet V1.0 (TO-18); onsemi 2N3903/D Rev. 9 (2N3904); onsemi NDS7002A/D Rev. 11 (2N7000); TI LM35 SNIS159H; TI UA78L SLVS010X and onsemi MC78L00A/D Rev. 21 (78L05); TI TL431 SLVS543S and onsemi TL431/D Rev. 45; Diotec BC337 and BC556 to BC559 (version 2026-03-30); MCC BC337/BC338 Rev.3-3-04162021; onsemi BC556B/D Rev. 3 (BC557); onsemi 2N3906/D Rev. 4; onsemi BS170/D Rev. 7, MMBF170/D Rev. 9 and Vishay 70226 (BS170); Dallas DS18B20 preliminary datasheet (2000, footer 050400)",
+      "source": "onsemi BC546/D Rev. 8 (BC547); onsemi/Fairchild PN2222A Rev. 1.1.0 and onsemi P2N2222A/D Rev. 7; multicomp 2N2222 sheet V1.0 (TO-18); onsemi 2N3903/D Rev. 9 (2N3904); onsemi NDS7002A/D Rev. 11 (2N7000); TI LM35 SNIS159H; TI UA78L SLVS010X and onsemi MC78L00A/D Rev. 21 (78L05); TI TL431 SLVS543S and onsemi TL431/D Rev. 45; Diotec BC337 and BC556 to BC559 (version 2026-03-30); MCC BC337/BC338 Rev.3-3-04162021; onsemi BC556B/D Rev. 3 (BC557); onsemi 2N3906/D Rev. 4; onsemi BS170/D Rev. 7, MMBF170/D Rev. 9 and Vishay 70226 (BS170); Dallas DS18B20 preliminary datasheet (2000, footer 050400); Analog Devices TMP35/TMP36/TMP37 datasheet Rev. G (November 2013), Figure 4 T-3 (TO-92) and Table 4",
       "views": null,
       "shape": {
         "type": "to",
@@ -56395,6 +57913,36 @@
               "function": "Optional supply; tie to ground in parasite-power mode",
               "type": "power",
               "notes": "Supply on the right: the opposite of the LM35. Order from the maker's (Dallas) own datasheet; the current Analog Devices datasheet could not be opened.",
+              "wire": ""
+            }
+          ]
+        },
+        {
+          "id": "tmp36",
+          "name": "TMP36",
+          "pins": [
+            {
+              "number": "1",
+              "name": "+VS",
+              "function": "Positive supply, 2.7 V to 5.5 V",
+              "type": "power",
+              "notes": "",
+              "wire": ""
+            },
+            {
+              "number": "2",
+              "name": "VOUT",
+              "function": "Analogue temperature output: 10 mV/°C with a 0.5 V offset, 750 mV at 25 °C",
+              "type": "signal",
+              "notes": "The 0.5 V offset lets the output show temperatures below 0 °C from a single supply: 0 °C reads 500 mV.",
+              "wire": ""
+            },
+            {
+              "number": "3",
+              "name": "GND",
+              "function": "Ground",
+              "type": "ground",
+              "notes": "",
               "wire": ""
             }
           ]
@@ -56991,7 +58539,7 @@
       "name": "SOT-223: examples",
       "name_en": "SOT-223: examples",
       "doc": "The pin order of a SOT-223 part depends on the part, not on the package: this page lists examples only, so check the datasheet of your exact part and maker. Each is drawn from above with the marking side up: pins 1 to 3 along the bottom from left to right, the tab at the top as pin 4.",
-      "notes": "The tab is connected to the middle pin in both examples: to the output of the LM1117 and to the collector of the BCP56. A copper area or heat sink on the tab therefore carries that potential. This is a property of these parts, not of the package.",
+      "notes": "The tab is connected to the middle pin in both examples: to the output of the LM1117 and to the collector of the BCP56. A copper area or heat sink on the tab therefore carries that potential. This is a property of these parts, not of the package. The AMS1117 (Advanced Monolithic Systems) has the same leads 1 to 3 as the LM1117: 1 ground or adjust, 2 VOUT, 3 VIN. Its datasheet does not say what the SOT-223 tab is connected to; it marks the tab as output only on the TO-252 version, so check the tab on the part.",
       "tags": [
         "sot223",
         "sot-223",
@@ -57015,9 +58563,10 @@
         "basis",
         "collector",
         "kollektor",
-        "emitter"
+        "emitter",
+        "ams1117"
       ],
-      "source": "Texas Instruments LM1117 datasheet SNOS412Q (January 2023), section 6, Figure 6-1 (DCY package, SOT-223) and Table 6-1; onsemi BCP56T1/D Rev. 16 (August 2024), page 1; Diodes Incorporated BCP54/55/56 datasheet DS35367 Rev. 7-2 (January 2021), page 1",
+      "source": "Texas Instruments LM1117 datasheet SNOS412Q (January 2023), section 6, Figure 6-1 (DCY package, SOT-223) and Table 6-1; onsemi BCP56T1/D Rev. 16 (August 2024), page 1; Diodes Incorporated BCP54/55/56 datasheet DS35367 Rev. 7-2 (January 2021), page 1; Advanced Monolithic Systems AMS1117 datasheet (undated), page 1, Pin Connections (SOT-223 Top View)",
       "views": null,
       "shape": {
         "type": "to",
@@ -57507,7 +59056,7 @@
       "name": "MAX232 (DIP-16)",
       "name_en": "MAX232 (DIP-16)",
       "doc": "Dual RS-232 driver and receiver with charge pump, drawn as the 16-pin PDIP from above.",
-      "notes": "The chip needs four 1 uF capacitors: C1 between pins 1 and 3, C2 between pins 4 and 5, C3 from pin 2 to GND or VCC, C4 from pin 6 to GND, plus a 1 uF bypass on VCC. With polarized capacitors mind the polarity drawn in TI's Figure 8-1 (the plus side of C4 goes to GND). Pins 9 to 12 go to the UART or logic, pins 7, 8, 13 and 14 to the RS-232 connector, whose receiver inputs take up to 30 V. The signals are inverted: a high at TIN gives a negative RS-232 level, and an open receiver input reads as a high at ROUT. Pin 12 (R1OUT) is read from TI's Figure 4-1 and Figure 8-1, because TI's pin table leaves it out. The MAX232I shares this pinout.",
+      "notes": "The chip needs four 1 uF capacitors: C1 between pins 1 and 3, C2 between pins 4 and 5, C3 from pin 2 to GND or VCC, C4 from pin 6 to GND, plus a 1 uF bypass on VCC. With polarized capacitors mind the polarity drawn in TI's Figure 8-1 (the plus side of C4 goes to GND). Pins 9 to 12 go to the UART or logic, pins 7, 8, 13 and 14 to the RS-232 connector, whose receiver inputs take up to 30 V. The signals are inverted: a high at TIN gives a negative RS-232 level, and an open receiver input reads as a high at ROUT. Pin 12 (R1OUT) is read from TI's Figure 4-1 and Figure 8-1, because TI's pin table leaves it out. The MAX232I shares this pinout. Maxim states that the MAX3232 is pin-compatible with the MAX232; its DIP version (Maxim MAX3232CPE) has the same 16 pins and runs from 3.0 V to 5.5 V. Its charge pump needs smaller capacitors than the 1 uF above: at 3.3 V, 0.1 uF for C1 to C4; at 5 V, 0.047 uF for C1 and 0.33 uF for C2 to C4; for the whole 3 V to 5.5 V range, 0.1 uF for C1 and 0.47 uF for C2 to C4 (minimum values). Pins 2 and 6 are called V+ and V- there and carry about ±5.5 V, not the about +8.5 V and -8.5 V of the MAX232. TI's MAX3232 has the same pin numbers but no DIP version.",
       "tags": [
         "max232",
         "max232i",
@@ -57521,9 +59070,11 @@
         "charge-pump",
         "ladungspumpe",
         "dip16",
-        "dip-16"
+        "dip-16",
+        "max3232",
+        "3.3v rs232"
       ],
-      "source": "Texas Instruments MAX232, MAX232I datasheet SLLS047N (February 2024), section 4, Figure 4-1 and Table 4-1, section 8.1 and Figure 8-1",
+      "source": "Texas Instruments MAX232, MAX232I datasheet SLLS047N (February 2024), section 4, Figure 4-1 and Table 4-1, section 8.1 and Figure 8-1; Maxim MAX3222/MAX3232/MAX3237/MAX3241 datasheet 19-0273 Rev 7 (January 2007), page 1, Pin Description, Table 2 and Pin Configurations (DIP/SO/TSSOP); Texas Instruments MAX3232 datasheet SLLS410O (June 2021), Figure 5-1, Table 5-1 and Table 9-1",
       "views": null,
       "shape": {
         "type": "dip",
@@ -58406,6 +59957,819 @@
           "function": "Port A bit 7, output only (datasheet revision D)",
           "type": "io",
           "notes": "Output only on the MCP23017 (datasheet revision D, 2022): set bit 7 of IODIR to 0. Older revisions listed it as I/O.",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "ne556",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "NE556 (DIP-14)",
+      "name_en": "NE556 (DIP-14)",
+      "doc": "Dual precision timer, two NE555-type timers in one package, drawn as the 14-pin PDIP from above.",
+      "notes": "Two NE555 timers in one package; they share only VCC (pin 14) and GND (pin 7). Timer 1 has pins 1 to 6, timer 2 pins 8 to 13. Both sides run in the same order from the top, DISCH, THRES, CONT, RESET, OUT, TRIG, but timer 2 sits one row lower because VCC takes the top right pin. The pin numbers therefore differ from those of an NE555. Tie the inputs of an unused timer to a fixed level so that it cannot trigger by itself. The NA556, SA556 and SE556 share this drawing in their datasheets.",
+      "tags": [
+        "ne556",
+        "556",
+        "na556",
+        "sa556",
+        "se556",
+        "dual timer",
+        "doppeltimer",
+        "timer",
+        "zeitgeber",
+        "monostable",
+        "monostabil",
+        "astable",
+        "astabil",
+        "dip14",
+        "dip-14",
+        "trig",
+        "thres",
+        "disch"
+      ],
+      "source": "Texas Instruments NA556, NE556, SA556, SE556 datasheet SLFS023I (March 2025), section 4, Figure 4-1 and Table 4-1; cross-checked against STMicroelectronics NE556, SA556, SE556 datasheet Rev 2 (January 2009), page 1, pin connections",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 14,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "1DISCH",
+          "function": "Timer 1, open-collector output that discharges the timing capacitor",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "1THRES",
+          "function": "Timer 1, threshold input: ends the timing when it rises above 1CONT",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "1CONT",
+          "function": "Timer 1, control voltage: sets the comparator thresholds, 2/3 of VCC if not driven; place for a bypass capacitor",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "1RESET",
+          "function": "Timer 1, reset, active low: forces 1OUT and 1DISCH low",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "1OUT",
+          "function": "Timer 1, output, can carry a high current",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "1TRIG",
+          "function": "Timer 1, trigger input: starts the timing when it falls below half of 1CONT",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "GND",
+          "function": "Ground, shared by both timers",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "2TRIG",
+          "function": "Timer 2, trigger input: starts the timing when it falls below half of 2CONT",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "9",
+          "name": "2OUT",
+          "function": "Timer 2, output, can carry a high current",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "10",
+          "name": "2RESET",
+          "function": "Timer 2, reset, active low: forces 2OUT and 2DISCH low",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "11",
+          "name": "2CONT",
+          "function": "Timer 2, control voltage: sets the comparator thresholds, 2/3 of VCC if not driven; place for a bypass capacitor",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "12",
+          "name": "2THRES",
+          "function": "Timer 2, threshold input: ends the timing when it rises above 2CONT",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "13",
+          "name": "2DISCH",
+          "function": "Timer 2, open-collector output that discharges the timing capacitor",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "14",
+          "name": "VCC",
+          "function": "Supply, 4.5 V to 16 V, shared by both timers",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "lm741",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "LM741 (DIP-8)",
+      "name_en": "LM741 (DIP-8)",
+      "doc": "General-purpose operational amplifier with two offset-null pins, drawn as the 8-pin PDIP from above.",
+      "notes": "Pins 1 and 5 (offset null) are only for trimming the input offset voltage and may stay open when the offset does not matter. Pin 8 is not connected; TI says to leave it floating. The supply is split, typically ±15 V; TI recommends ±10 V to ±18 V for the LM741C (±22 V for the LM741 and LM741A). TI prints both offset pins as OFFSET NULL; they are numbered here as STMicroelectronics numbers them. The UA741 of ST shares this pinout in DIP8.",
+      "tags": [
+        "lm741",
+        "741",
+        "ua741",
+        "lm741c",
+        "op-amp",
+        "opamp",
+        "operational amplifier",
+        "operationsverstärker",
+        "offset null",
+        "offset",
+        "dip8",
+        "dip-8"
+      ],
+      "source": "Texas Instruments LM741 datasheet SNOSC25D (October 2015), section 5, NAB package figure and Pin Functions table; cross-checked against STMicroelectronics UA741 datasheet Doc ID 5304 Rev 2 (May 2009), page 1, pin connections",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 8,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "OFFSET NULL 1",
+          "function": "Offset null: with pin 5, cancels the input offset voltage",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "INVERTING INPUT",
+          "function": "Inverting input",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "NONINVERTING INPUT",
+          "function": "Non-inverting input",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "V-",
+          "function": "Negative supply",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "OFFSET NULL 2",
+          "function": "Offset null: with pin 1, cancels the input offset voltage",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "OUTPUT",
+          "function": "Output",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "V+",
+          "function": "Positive supply",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "NC",
+          "function": "Not connected; leave open",
+          "type": "nc",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "uln2803",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "ULN2803A (DIP-18)",
+      "name_en": "ULN2803A (DIP-18)",
+      "doc": "Eight Darlington sink drivers with clamp diodes, drawn as the 18-pin PDIP from above.",
+      "notes": "Each input nB drives the output nC straight across the package (pin 1 to 18 ... pin 8 to 11), and the outputs only sink current towards GND (pin 9). Pin 10 (COM) joins the cathodes of all eight clamp diodes: for relay or motor coils tie it to the coil supply; with resistive loads it may stay open. The inputs take TTL or CMOS levels at 5 V or 3.3 V; outputs withstand 50 V and sink up to 500 mA per channel. Unlike the ULN2003A (DIP-16), ground is pin 9 and COM pin 10. The ULN2801A, ULN2802A and ULN2804A of ST share this drawing and differ in the input stage. The Pin Functions table in TI's revision G lists the ULN2003A numbers; the pin figure was followed.",
+      "tags": [
+        "uln2803",
+        "uln2803a",
+        "uln2804",
+        "darlington",
+        "driver",
+        "treiber",
+        "relay",
+        "relais",
+        "stepper",
+        "schrittmotor",
+        "clamp diode",
+        "flyback",
+        "freilaufdiode",
+        "com",
+        "dip18",
+        "dip-18"
+      ],
+      "source": "Texas Instruments ULN2803A datasheet SLRS049G (January 2015), section 6, DW or N package figure, sections 9.4.1 and 9.4.2; cross-checked against TI SLRS049 (February 1997), page 1, and STMicroelectronics ULN2801A to ULN2804A datasheet Doc ID 1536 Rev 3 (November 2012), Figure 2",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 18,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "1B",
+          "function": "Input of channel 1 (Darlington base, through 2.7 kΩ); switches output 1C on pin 18",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "2B",
+          "function": "Input of channel 2; switches 2C on pin 17",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "3B",
+          "function": "Input of channel 3; switches 3C on pin 16",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "4B",
+          "function": "Input of channel 4; switches 4C on pin 15",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "5B",
+          "function": "Input of channel 5; switches 5C on pin 14",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "6B",
+          "function": "Input of channel 6; switches 6C on pin 13",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "7B",
+          "function": "Input of channel 7; switches 7C on pin 12",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "8B",
+          "function": "Input of channel 8; switches 8C on pin 11",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "9",
+          "name": "GND",
+          "function": "Common emitter of all channels, normally ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "10",
+          "name": "COM",
+          "function": "Common cathode of the clamp diodes",
+          "type": "power",
+          "notes": "Tie to the coil supply for inductive loads, so that the diodes catch the kickback; with resistive loads it may stay open.",
+          "wire": ""
+        },
+        {
+          "number": "11",
+          "name": "8C",
+          "function": "Output of channel 8 (Darlington collector, open collector, sinks current)",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "12",
+          "name": "7C",
+          "function": "Output of channel 7 (Darlington collector)",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "13",
+          "name": "6C",
+          "function": "Output of channel 6 (Darlington collector)",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "14",
+          "name": "5C",
+          "function": "Output of channel 5 (Darlington collector)",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "15",
+          "name": "4C",
+          "function": "Output of channel 4 (Darlington collector)",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "16",
+          "name": "3C",
+          "function": "Output of channel 3 (Darlington collector)",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "17",
+          "name": "2C",
+          "function": "Output of channel 2 (Darlington collector)",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "18",
+          "name": "1C",
+          "function": "Output of channel 1 (Darlington collector)",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "sn75176",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "SN75176B (DIP-8)",
+      "name_en": "SN75176B (DIP-8)",
+      "doc": "RS-485 and RS-422 differential bus transceiver, drawn as the 8-pin PDIP from above.",
+      "notes": "RE (pin 2) and DE (pin 3) have opposite polarity, so tying them together gives one direction pin: high sends, low receives. A is the non-inverting and B the inverting bus line. R (pin 1) and D (pin 4) go to the UART or microcontroller. The part runs from 5 V only (4.75 V to 5.25 V). The SN65176B and the SN75176A of TI have the same pins. The drawing rests on TI's documents only.",
+      "tags": [
+        "sn75176",
+        "sn75176b",
+        "sn65176b",
+        "75176",
+        "rs485",
+        "rs-485",
+        "rs422",
+        "rs-422",
+        "transceiver",
+        "bus",
+        "differential",
+        "differenziell",
+        "uart",
+        "de",
+        "re",
+        "dip8",
+        "dip-8"
+      ],
+      "source": "Texas Instruments SN65176B, SN75176B datasheet SLLS101I (August 2025), section 4, Figure 4-1 and Table 4-1, section 5.2; layout checked against TI SN75176A datasheet SLLS100C (October 2022), Table 5-1",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 8,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "R",
+          "function": "Receiver output: logic data from the bus, to the UART (RX)",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "RE",
+          "function": "Receiver enable, active low: low switches R on, high makes it high-impedance",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "DE",
+          "function": "Driver enable, active high: high puts the driver onto the bus",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "D",
+          "function": "Driver input: logic data to send, from the UART (TX)",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "A",
+          "function": "Bus line A, non-inverting (RS-485 or RS-422)",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "B",
+          "function": "Bus line B, inverting (RS-485 or RS-422)",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "VCC",
+          "function": "Supply, 4.75 V to 5.25 V",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "eeprom_24lc",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "24LC32A / 24LC64 / 24LC256 (DIP-8)",
+      "name_en": "24LC32A / 24LC64 / 24LC256 (DIP-8)",
+      "doc": "I2C serial EEPROM in sizes of 32, 64 and 256 Kbit, drawn as the 8-pin PDIP from above.",
+      "notes": "The three sizes have the same pins in DIP-8. The chip answers to the control code 1010 followed by the levels on A2, A1 and A0, so up to eight chips can share one I2C bus; with A0 to A2 low the 7-bit address is 0x50. SDA is open drain and needs a pull-up to VCC (Microchip: typically 10 kΩ at 100 kHz, 2 kΩ at 400 kHz). Tie WP to VSS to allow writing. Page buffer: 32 bytes (24LC32A, 24LC64), 64 bytes (24LC256). The 24AA and 24FC versions of the same sheets share this pinout and run from 1.7 V.",
+      "tags": [
+        "24lc256",
+        "24lc64",
+        "24lc32a",
+        "24lc32",
+        "24aa256",
+        "24c256",
+        "eeprom",
+        "i2c",
+        "twi",
+        "serial eeprom",
+        "speicher",
+        "sda",
+        "scl",
+        "wp",
+        "dip8",
+        "dip-8"
+      ],
+      "source": "Microchip 24AA32A/24LC32A datasheet DS20001713P, 24AA64/24FC64/24LC64 datasheet DS20001189V and 24AA256/24LC256/24FC256 datasheet DS20001203Y, Package Types and Table 2-1 (PDIP column), sections 2.1 to 2.4 and the control code in the device addressing section",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 8,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "A0",
+          "function": "Chip address input A0: with A1 and A2 selects one of eight chips on the bus; tie to VCC or VSS",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "A1",
+          "function": "Chip address input A1; tie to VCC or VSS",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "A2",
+          "function": "Chip address input A2; tie to VCC or VSS",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "VSS",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "SDA",
+          "function": "I2C data, bidirectional, open drain: needs a pull-up resistor to VCC",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "SCL",
+          "function": "I2C clock input",
+          "type": "data",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "WP",
+          "function": "Write protect: VSS allows writing, VCC blocks writing (reading still works); do not leave open",
+          "type": "signal",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "VCC",
+          "function": "Supply, 2.5 V to 5.5 V (24AA and 24FC versions from 1.7 V)",
+          "type": "power",
+          "notes": "",
+          "wire": ""
+        }
+      ],
+      "variants": []
+    },
+    {
+      "kind": "pinout",
+      "id": "attiny13a",
+      "category": "pinouts",
+      "group": "ics",
+      "name": "ATtiny13A (DIP-8)",
+      "name_en": "ATtiny13A (DIP-8)",
+      "doc": "8-bit AVR microcontroller in the 8-pin PDIP, seen from above. The name is the port bit; the function lists what else the pin can do.",
+      "notes": "In-system programming uses MOSI = PB0 (pin 5), MISO = PB1 (pin 6), SCK = PB2 (pin 7) and RESET (pin 1), as on the ATtiny85. The ATtiny13A has no crystal oscillator: it runs from its internal 9.6/4.8 MHz or 128 kHz oscillator or from an external clock on CLKI (pin 2). Speed grades: 0-4 MHz at 1.8-5.5 V, 0-10 MHz at 2.7-5.5 V, 0-20 MHz at 4.5-5.5 V. Same pin numbers as the ATtiny85, but fewer functions: no crystal pins, no USI (SDA, SCL), no timer 1, no AREF pin, and INT0 is on PB1 (pin 6), not on PB2. The SOIC and SOIJ versions share this drawing.",
+      "tags": [
+        "attiny13a",
+        "attiny13",
+        "avr",
+        "microcontroller",
+        "mikrocontroller",
+        "mcu",
+        "isp",
+        "dip8",
+        "dip-8",
+        "pb5",
+        "reset",
+        "clki"
+      ],
+      "source": "Microchip ATtiny13A datasheet DS40002307A (2021), Figure 1-1, section 1.1, Table 6-1, Table 10-3 and Table 17-7",
+      "views": null,
+      "shape": {
+        "type": "dip",
+        "outline": "",
+        "contact": "",
+        "drawn": "top",
+        "key": null,
+        "rows": [],
+        "pins": 8,
+        "package": "",
+        "positions": [],
+        "segments": [],
+        "left": [],
+        "right": [],
+        "top": [],
+        "bottom": [],
+        "connector": "",
+        "inner": []
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "PB5/RESET",
+          "function": "Reset input, active low; ADC0 (analogue input 0), PCINT5, dW (debugWIRE)",
+          "type": "signal",
+          "notes": "With the RSTDISBL fuse programmed the pin becomes the weak I/O bit PB5; after that the chip can only be programmed in high-voltage serial mode.",
+          "wire": ""
+        },
+        {
+          "number": "2",
+          "name": "PB3",
+          "function": "Port B bit 3; CLKI (external clock input), ADC3, PCINT3",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "3",
+          "name": "PB4",
+          "function": "Port B bit 4; ADC2, PCINT4",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "4",
+          "name": "GND",
+          "function": "Ground",
+          "type": "ground",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "5",
+          "name": "PB0",
+          "function": "Port B bit 0; MOSI (in-system programming), AIN0, OC0A, PCINT0",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "6",
+          "name": "PB1",
+          "function": "Port B bit 1; MISO (in-system programming), AIN1, OC0B, INT0, PCINT1",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "7",
+          "name": "PB2",
+          "function": "Port B bit 2; SCK (in-system programming), ADC1, T0, PCINT2",
+          "type": "io",
+          "notes": "",
+          "wire": ""
+        },
+        {
+          "number": "8",
+          "name": "VCC",
+          "function": "Supply, 1.8 V to 5.5 V",
+          "type": "power",
+          "notes": "",
           "wire": ""
         }
       ],
