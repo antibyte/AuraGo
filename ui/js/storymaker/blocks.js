@@ -301,6 +301,15 @@
         return make(block, { x: a.x + a.w / 2, y: a.y + a.h / 2, w: a.w, h: a.h, surface: a.surface, t0: t0, dur: dur < 0 ? 0 : dur, entry: def.entry, reveals: def.reveals, hidden: def.hidden === true });
     }
 
+    // measure(ctx, st, rc, stage, win) = {box, labelPx} of an evaluated block state: the box its drawing occupies in design pixels at
+    // the block's position and scale (the text bounds of a headline or a list, the nodes of a diagram, the area of a chart) and the
+    // smallest label in canvas pixels, 0 without a label. It draws nothing. It is null for an unknown kind.
+    function measure(ctx, st, rc, stage, win) {
+        var pl = SM.blocks.plan(ctx, st, rc, stage), k = st.scale;
+        if (!pl) return null;
+        return { box: { x: st.x + pl.box.x * k, y: st.y + pl.box.y * k, w: pl.box.w * k, h: pl.box.h * k }, labelPx: pl.labelPx * stage.scale * k };
+    }
+
     // ---- serialize and revive
 
     function trackOut(track) {
@@ -411,6 +420,6 @@
         POINTS_MAX: POINTS_MAX, MAX_BLOCKS: MAX_BLOCKS, LABEL_BASE: 0.034, LABEL_MIN: 0.026, ITEM_SPAN: ITEM_SPAN, WORD_SPAN: WORD_SPAN,
         FLOW_PERIOD: FLOW_PERIOD, BOARD_RECTS: BOARD_RECTS, isBoard: isBoard, area: area, check: check, create: create,
         revealSeconds: revealSeconds, itemProgress: itemProgress, serialize: serialize, revive: revive,
-        itemCount: itemCount, lines: lines, parseHeadline: parseHeadline, layout: layout, layoutNodes: layoutNodes
+        itemCount: itemCount, lines: lines, parseHeadline: parseHeadline, layout: layout, layoutNodes: layoutNodes, measure: measure
     };
 })(typeof globalThis !== 'undefined' ? globalThis : self);

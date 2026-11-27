@@ -337,3 +337,40 @@ check('blocks: a list reveals its lines in order', () => {
     assert.deepEqual(texts(0.3), ['Laden']);
     assert.equal(paint(def, 5).filter(l => l.startsWith('arc(')).length, 4, 'one bullet per line');
 });
+
+// ---- C7: measurement
+
+check('blocks: measure gives a box inside the area and a label of at least LABEL_MIN, halved at scale 0.5', () => {
+    const defs = [
+        { id: 'i', kind: 'icon', icon: 'icon.cpu', style: 'card', label: 'Prozessor' },
+        diagram('flow', 3), diagram('cycle', 4), diagram('hub', 5), diagram('stack', 3), diagram('compare', 2),
+        chartDef('bar', [2, 4, 8]), chartDef('pie', [3, 2, 1]), chartDef('line', [1, 3, 2]), chartDef('counter', [45], { unit: '%' }),
+        { id: 'h', kind: 'headline', text: 'Ein *wichtiges* Wort' }, { id: 'l', kind: 'list', text: 'Laden\nRechnen\nAntworten' }
+    ];
+    for (const [aspect, W, H] of [['16:9', 1920, 1080], ['9:16', 1080, 1920]]) {
+        const stage = SM.stage.create({ aspect, width: W, height: H }), rc = rcOf(W, H, aspect), win = stage.baseWindow();
+        for (const name of ['full', 'right']) {
+            const area = B.area(stage, null, 'day', name);
+            for (const def of defs) {
+                const label = def.kind + (def.diagram ? ' ' + def.diagram.layout : '') + ' ' + aspect + ' ' + name;
+                const measureAt = scale => {
+                    const e = B.create({ ...def, area, t0: 0, dur: 1 });
+                    e.scale.init = scale;
+                    return B.measure(new FakeCanvas(W, H).ctx, SM.scene.evalEntity(e, 5), rc, stage, win);
+                };
+                const m = measureAt(1), half = measureAt(0.5);
+                assert.ok(inside(m.box, area, 1e-6), label + ' box inside the area: ' + JSON.stringify(m.box));
+                assert.ok(m.box.w > 0 && m.box.h > 0, label);
+                if (m.labelPx > 0) {
+                    assert.ok(m.labelPx >= B.LABEL_MIN * Math.min(W, H) - 1e-6, label + ' label ' + m.labelPx);
+                    near(half.labelPx, m.labelPx / 2, 1e-6, label + ' halves');
+                    near(half.box.w, m.box.w / 2, 1e-6, label);
+                } else assert.ok(def.kind === 'icon' || def.kind === 'chart', label + ' has a label');
+            }
+        }
+    }
+    const stage = SM.stage.create({ aspect: '16:9' }), rc = rcOf(1920, 1080), area = B.area(stage, null, 'day', 'right');
+    const text = def => B.measure(new FakeCanvas(1920, 1080).ctx, SM.scene.evalEntity(B.create({ ...def, area, t0: 0, dur: 1 }), 5), rc, stage, stage.baseWindow()).box;
+    assert.ok(text({ id: 'h', kind: 'headline', text: 'Kurz' }).w < area.w * 0.5, 'a headline box is the text bounds, not the area');
+    assert.ok(text({ id: 'l', kind: 'list', text: 'Eins\nZwei' }).h < area.h * 0.5, 'a list box is the text bounds, not the area');
+});
