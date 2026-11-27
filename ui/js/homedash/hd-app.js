@@ -339,7 +339,7 @@
         boot();
         const self = Object.freeze({
             on: bus.on, off: bus.off, state: () => state, open: (id, p) => guarded(() => open(id, p)), home: () => guarded(() => home(null)), createStarter: () => create('starter'), createEmpty: () => create('empty'), createHomeAssistant: () => create('home_assistant'), remove, setReadonly,
-            refreshLook() { if (view) view.refreshLook(); }, retry: () => boot(), enterEdit, exitEdit, run, contextMenu, beforeClose,
+            refreshLook() { if (view) view.refreshLook(); }, toast: (text, to) => { if (view) { view.toast(text, to); return true; } return false; }, retry: () => boot(), enterEdit, exitEdit, run, contextMenu, beforeClose,
             reconnect() { const s = realm.stream.status(); if (s.phase === 'stopped') realm.stream.resume(); else realm.stream.retryNow(); },
             dispose() {
                 if (disposed) return; const l = designer ? laneOf() : null; if (l && l.state().dirty) l.flush({ keepalive: true });   // the realm keeps a dirty lane; its PUT survives the unload

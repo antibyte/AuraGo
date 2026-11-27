@@ -694,5 +694,12 @@
   "homedash.widget.select.desc": "Escolhe uma das opções de um dispositivo",
   "homedash.widget.sensor.desc": "Mostra um valor medido",
   "homedash.widget.switch.desc": "Liga e desliga um dispositivo",
-  "homedash.widget.temperature.desc": "Mostra uma temperatura"
+  "homedash.widget.temperature.desc": "Mostra uma temperatura",
+  "homedash.home.add_to_desktop": "Adicionar {{name}} ao ambiente de trabalho",
+  "homedash.home.remove_from_desktop": "Remover {{name}} do ambiente de trabalho",
+  "homedash.home.on_desktop": "no ambiente de trabalho",
+  "homedash.desktop.added": "“{{name}}” adicionado ao ambiente de trabalho",
+  "homedash.desktop.removed": "“{{name}}” removido do ambiente de trabalho",
+  "homedash.desktop.add_failed": "Não foi possível adicionar o painel ao ambiente de trabalho.",
+  "homedash.desktop.remove_failed": "Não foi possível remover o painel do ambiente de trabalho."
 }

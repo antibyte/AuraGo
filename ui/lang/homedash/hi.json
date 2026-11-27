@@ -694,5 +694,12 @@
   "homedash.widget.select.desc": "किसी डिवाइस के विकल्पों में से एक चुनता है",
   "homedash.widget.sensor.desc": "मापा गया मान दिखाता है",
   "homedash.widget.switch.desc": "किसी डिवाइस को चालू और बंद करता है",
-  "homedash.widget.temperature.desc": "तापमान दिखाता है"
+  "homedash.widget.temperature.desc": "तापमान दिखाता है",
+  "homedash.home.add_to_desktop": "{{name}} को डेस्कटॉप पर जोड़ें",
+  "homedash.home.remove_from_desktop": "{{name}} को डेस्कटॉप से हटाएँ",
+  "homedash.home.on_desktop": "डेस्कटॉप पर",
+  "homedash.desktop.added": "“{{name}}” डेस्कटॉप पर जोड़ा गया",
+  "homedash.desktop.removed": "“{{name}}” डेस्कटॉप से हटाया गया",
+  "homedash.desktop.add_failed": "डैशबोर्ड को डेस्कटॉप पर नहीं जोड़ा जा सका।",
+  "homedash.desktop.remove_failed": "डैशबोर्ड को डेस्कटॉप से नहीं हटाया जा सका।"
 }

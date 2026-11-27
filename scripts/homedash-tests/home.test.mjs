@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'; import { ENGINE_ORDER, loadFiles } from './harness.mjs';
 const FILES = ENGINE_ORDER.map(f => 'ui/js/homedash/' + f).concat(['ui/js/desktop/apps/homedash-home.js']);
-function setup() {
+function setup(extra) {
   const { window, document } = loadFiles(FILES, { dom: true }), calls = [];
-  const home = window.HomeDashHome.create({ onImport: () => calls.push('import'), t: (k, v) => (v && v.name ? k + ':' + v.name : v && v.source ? k + ':' + v.source : k), lang: 'en', onOpen: id => calls.push('open:' + id), onStarter: () => calls.push('starter'),
-    onEmpty: () => calls.push('empty'), onHa: () => calls.push('ha'), sourceName: x => 'src:' + x, onDelete: s => calls.push('delete:' + s.id) });
+  const home = window.HomeDashHome.create(Object.assign({ onImport: () => calls.push('import'), t: (k, v) => (v && v.name ? k + ':' + v.name : v && v.source ? k + ':' + v.source : k), lang: 'en', onOpen: id => calls.push('open:' + id), onStarter: () => calls.push('starter'),
+    onEmpty: () => calls.push('empty'), onHa: () => calls.push('ha'), sourceName: x => 'src:' + x, onDelete: s => calls.push('delete:' + s.id), onPin: s => calls.push('pin:' + s.id) }, extra));
   document.body.appendChild(home.el);
   return { home, calls, click: node => home.el.dispatchEvent({ type: 'click', target: node }) };
 }
@@ -56,5 +56,16 @@ export const tests = [
     const { home, calls, click } = setup(); home.render({ dashboards: [], desktopReadonly: false }); const imp = home.el.querySelector('.hdx-empty [data-action="import"]'); assert.ok(imp); assert.equal(imp.textContent, 'homedash.menu.import');
     assert.equal(imp.parentElement.getAttribute('class'), 'hdx-secondary'); click(imp); assert.deepEqual(calls, ['import']); home.render({ dashboards: [D], desktopReadonly: false }); assert.ok(home.el.querySelector('.hdx-home-head [data-action="import"]'));
     click(home.el.querySelector('.hdx-home-head [data-action="import"]')); assert.deepEqual(calls, ['import', 'import']); home.render({ dashboards: [], desktopReadonly: false, busy: true }); click(imp); assert.equal(calls.length, 2, 'the busy guard holds');
-    home.render({ dashboards: [], desktopReadonly: true }); assert.ok(imp.hasAttribute('hidden')); assert.ok(home.el.querySelector('.hdx-home-head [data-action="import"]').hasAttribute('hidden')); }]
+    home.render({ dashboards: [], desktopReadonly: true }); assert.ok(imp.hasAttribute('hidden')); assert.ok(home.el.querySelector('.hdx-home-head [data-action="import"]').hasAttribute('hidden')); }],
+  ['home: a card pin button follows pinState (pressed, busy, repaint on change), is hidden when read-only or without pinState, and the meta segment shows the shortcut even read-only', () => {
+    let ps = 'off'; const { home, calls, click } = setup({ pinState: () => ps }), q = s => home.el.querySelector(s), state = ro => ({ dashboards: [D], desktopReadonly: ro });
+    home.render(state(false)); const pin = q('.hdx-card-pin'); assert.ok(pin); assert.equal(pin.getAttribute('data-action'), 'pin'); assert.equal(pin.getAttribute('data-id'), D.id); assert.equal(pin.getAttribute('aria-pressed'), 'false');
+    assert.equal(pin.getAttribute('aria-label'), 'homedash.home.add_to_desktop:<b>System</b>'); assert.equal(pin.getAttribute('title'), pin.getAttribute('aria-label')); assert.equal(q('.hdx-card-pinned'), null);
+    const kids = Array.from(q('.hdx-card').children).map(n => n.getAttribute('class')); assert.deepEqual(kids, ['hdx-card-open', 'hdx-card-pin', 'hdx-card-delete']);
+    click(pin); assert.deepEqual(calls, ['pin:' + D.id]);
+    ps = 'busy-off'; home.render(state(false)); const busy = q('.hdx-card-pin'); assert.equal(busy.getAttribute('aria-busy'), 'true'); assert.equal(busy.getAttribute('aria-disabled'), 'true'); assert.equal(busy.getAttribute('aria-pressed'), 'false'); click(busy); assert.deepEqual(calls, ['pin:' + D.id]);
+    ps = 'on'; home.render(state(false)); const on = q('.hdx-card-pin'); assert.equal(on.getAttribute('aria-pressed'), 'true'); assert.equal(on.getAttribute('aria-label'), 'homedash.home.remove_from_desktop:<b>System</b>'); assert.equal(on.getAttribute('aria-busy'), null);
+    assert.equal(q('.hdx-card-pinned').textContent, 'homedash.home.on_desktop'); assert.ok(q('.hdx-card-meta').textContent.includes('homedash.home.by_agent')); assert.equal(q('.hdx-card-meta b'), null);
+    home.render(state(true)); assert.equal(q('.hdx-card-pin'), null); assert.equal(q('.hdx-card-delete'), null); assert.equal(q('.hdx-card-pinned').textContent, 'homedash.home.on_desktop');
+    const plain = setup(); plain.home.render(state(false)); assert.equal(plain.home.el.querySelector('.hdx-card-pin'), null); assert.equal(plain.home.el.querySelector('.hdx-card-pinned'), null); }]
 ];

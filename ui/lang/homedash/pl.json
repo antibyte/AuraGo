@@ -694,5 +694,12 @@
   "homedash.widget.select.desc": "Wybiera jedną z opcji urządzenia",
   "homedash.widget.sensor.desc": "Pokazuje zmierzoną wartość",
   "homedash.widget.switch.desc": "Włącza i wyłącza urządzenie",
-  "homedash.widget.temperature.desc": "Pokazuje temperaturę"
+  "homedash.widget.temperature.desc": "Pokazuje temperaturę",
+  "homedash.home.add_to_desktop": "Dodaj {{name}} do pulpitu",
+  "homedash.home.remove_from_desktop": "Usuń {{name}} z pulpitu",
+  "homedash.home.on_desktop": "na pulpicie",
+  "homedash.desktop.added": "Dodano „{{name}}” do pulpitu",
+  "homedash.desktop.removed": "Usunięto „{{name}}” z pulpitu",
+  "homedash.desktop.add_failed": "Nie udało się dodać pulpitu nawigacyjnego do pulpitu.",
+  "homedash.desktop.remove_failed": "Nie udało się usunąć pulpitu nawigacyjnego z pulpitu."
 }

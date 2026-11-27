@@ -694,5 +694,12 @@
   "homedash.widget.select.desc": "Velger ett av en enhets alternativer",
   "homedash.widget.sensor.desc": "Viser en målt verdi",
   "homedash.widget.switch.desc": "Slår en enhet på og av",
-  "homedash.widget.temperature.desc": "Viser en temperatur"
+  "homedash.widget.temperature.desc": "Viser en temperatur",
+  "homedash.home.add_to_desktop": "Legg til {{name}} på skrivebordet",
+  "homedash.home.remove_from_desktop": "Fjern {{name}} fra skrivebordet",
+  "homedash.home.on_desktop": "på skrivebordet",
+  "homedash.desktop.added": "«{{name}}» er lagt til på skrivebordet",
+  "homedash.desktop.removed": "«{{name}}» er fjernet fra skrivebordet",
+  "homedash.desktop.add_failed": "Dashbordet kunne ikke legges til på skrivebordet.",
+  "homedash.desktop.remove_failed": "Dashbordet kunne ikke fjernes fra skrivebordet."
 }

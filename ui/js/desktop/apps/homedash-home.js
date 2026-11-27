@@ -1,5 +1,6 @@
 /* HomeDash desktop home view (F2): the dashboard list and the first-run empty state, painted from the desktop theme (desktop-app-homedash.css).
-   window.HomeDashHome.create({t, lang, onOpen(id), onStarter(), onEmpty(), onHa(), onImport(), sourceName(src), onDelete(summary)}) returns {el, render(state), destroy()}.
+   window.HomeDashHome.create({t, lang, onOpen(id), onStarter(), onEmpty(), onHa(), onImport(), sourceName(src), onDelete(summary), pinState(id), onPin(summary)}) returns {el, render(state), destroy()}.
+   pinState(id) is 'on', 'off', 'busy-on' or 'busy-off' (a desktop shortcut for the dashboard, pending or not); without it the cards have no pin button.
    render(state) reads state.dashboards (null while loading), desktopReadonly, busy and notice (Task 12 state). Names and dates come from the
    server and reach the page only through textContent; the same list renders no new nodes and keeps the focus. */
 (function () {
@@ -58,13 +59,19 @@
                 choice('create-ha', 'home', t('homedash.home.create_ha'), t('homedash.home.create_ha_hint'), false)]),
             el('div', { class: 'hdx-secondary' }, button('import', 'upload', t('homedash.menu.import'), false))]);
         const root = el('section', { class: 'hdx-home', 'data-hdx-mode': 'loading', 'aria-label': t('homedash.home.title') }, el('div', { class: 'hdx-home-inner' }, [head, notice, roNote, skeleton, list, empty]));
+        const pinOf = id => (typeof o.pinState === 'function' ? String(o.pinState(id) || '') : '');
         function item(d, ro) {
-            const name = typeof d.name === 'string' && d.name ? d.name : d.id, when = Date.parse(d.updated_at);
+            const name = typeof d.name === 'string' && d.name ? d.name : d.id, when = Date.parse(d.updated_at), ps = pinOf(d.id), on = ps.endsWith('on'), busy = ps.startsWith('busy');
             const meta = [Number.isFinite(when) ? t('homedash.home.updated', { when: F.relTime(when, Date.now(), lang) }) : '', d.saved_by === 'agent' ? t('homedash.home.by_agent') : ''].filter(Boolean).join(DOT);
+            const pinLabel = on ? t('homedash.home.remove_from_desktop', { name }) : t('homedash.home.add_to_desktop', { name });
+            const pinAttrs = { type: 'button', class: 'hdx-card-pin', 'data-action': 'pin', 'data-id': d.id, 'aria-pressed': on ? 'true' : 'false', 'aria-label': pinLabel, title: pinLabel };
+            if (busy) { pinAttrs['aria-busy'] = 'true'; pinAttrs['aria-disabled'] = 'true'; }
+            const pinned = on ? el('span', { class: 'hdx-card-pinned' }, [E.icons.icon('device-desktop'), t('homedash.home.on_desktop')]) : null;
             return el('li', { class: 'hdx-item' }, el('div', { class: 'hdx-card' }, [
                 el('button', { type: 'button', class: 'hdx-card-open', 'data-action': 'open', 'data-id': d.id, 'aria-label': t('homedash.home.open', { name }) }, [
                     el('span', { class: 'hdx-card-icon', 'aria-hidden': 'true' }, E.icons.icon('dashboard')),
-                    el('span', { class: 'hdx-card-text' }, [el('span', { class: 'hdx-card-name', text: name }), el('span', { class: 'hdx-card-meta', text: meta })])]),
+                    el('span', { class: 'hdx-card-text' }, [el('span', { class: 'hdx-card-name', text: name }), el('span', { class: 'hdx-card-meta' }, [meta, meta && pinned ? DOT : '', pinned])])]),
+                ro || !ps ? null : el('button', pinAttrs, E.icons.icon('device-desktop')),
                 ro ? null : el('button', { type: 'button', class: 'hdx-card-delete', 'data-action': 'delete', 'data-id': d.id, 'aria-label': t('homedash.home.delete', { name }), title: t('homedash.home.delete', { name }) }, E.icons.icon('trash'))]));
         }
         function paintList(dashboards, ro) {
@@ -87,7 +94,7 @@
             const text = noticeText(st.notice, st.noticeSource); notice.textContent = text; setAttr(notice, 'data-tone', NOTICE_TONES[st.notice] || 'info');
             if (dashboards) {
                 current = dashboards;
-                const sig = JSON.stringify([ro, dashboards.map(d => [d.id, d.name, d.revision, d.updated_at, d.saved_by])]);
+                const sig = JSON.stringify([ro, dashboards.map(d => [d.id, d.name, d.revision, d.updated_at, d.saved_by, pinOf(d.id)])]);
                 if (sig !== lastSig) { lastSig = sig; paintList(dashboards, ro); }
             }
         }
@@ -100,6 +107,7 @@
             else if (action === 'create-ha') { pending = action; o.onHa(); }
             else if (action === 'import') { if (typeof o.onImport === 'function') o.onImport(); }
             else if (action === 'open' && id) o.onOpen(id);
+            else if (action === 'pin' && id) { const s = current.find(d => d.id === id); if (s && typeof o.onPin === 'function') o.onPin(s); }
             else if (action === 'delete' && id) { const s = current.find(d => d.id === id); if (s) o.onDelete(s); }
         });
         return Object.freeze({ el: root, render, destroy() { life.dispose(); root.remove(); } });

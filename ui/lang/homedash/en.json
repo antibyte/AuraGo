@@ -694,5 +694,12 @@
   "homedash.widget.select.desc": "Picks one of a device’s options",
   "homedash.widget.sensor.desc": "Shows a measured value",
   "homedash.widget.switch.desc": "Turns a device on and off",
-  "homedash.widget.temperature.desc": "Shows a temperature"
+  "homedash.widget.temperature.desc": "Shows a temperature",
+  "homedash.home.add_to_desktop": "Add {{name}} to desktop",
+  "homedash.home.remove_from_desktop": "Remove {{name}} from desktop",
+  "homedash.home.on_desktop": "on the desktop",
+  "homedash.desktop.added": "“{{name}}” added to the desktop",
+  "homedash.desktop.removed": "“{{name}}” removed from the desktop",
+  "homedash.desktop.add_failed": "The dashboard could not be added to the desktop.",
+  "homedash.desktop.remove_failed": "The dashboard could not be removed from the desktop."
 }

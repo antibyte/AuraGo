@@ -694,5 +694,12 @@
   "homedash.widget.select.desc": "Vybírá jednu z možností zařízení",
   "homedash.widget.sensor.desc": "Zobrazí naměřenou hodnotu",
   "homedash.widget.switch.desc": "Zapíná a vypíná zařízení",
-  "homedash.widget.temperature.desc": "Zobrazí teplotu"
+  "homedash.widget.temperature.desc": "Zobrazí teplotu",
+  "homedash.home.add_to_desktop": "Přidat {{name}} na plochu",
+  "homedash.home.remove_from_desktop": "Odebrat {{name}} z plochy",
+  "homedash.home.on_desktop": "na ploše",
+  "homedash.desktop.added": "„{{name}}“ bylo přidáno na plochu",
+  "homedash.desktop.removed": "„{{name}}“ bylo odebráno z plochy",
+  "homedash.desktop.add_failed": "Dashboard se nepodařilo přidat na plochu.",
+  "homedash.desktop.remove_failed": "Dashboard se nepodařilo odebrat z plochy."
 }

@@ -694,5 +694,12 @@
   "homedash.widget.select.desc": "デバイスの選択肢から 1 つを選びます",
   "homedash.widget.sensor.desc": "測定値を表示します",
   "homedash.widget.switch.desc": "デバイスをオン/オフします",
-  "homedash.widget.temperature.desc": "温度を表示します"
+  "homedash.widget.temperature.desc": "温度を表示します",
+  "homedash.home.add_to_desktop": "{{name}}をデスクトップに追加",
+  "homedash.home.remove_from_desktop": "{{name}}をデスクトップから削除",
+  "homedash.home.on_desktop": "デスクトップにあります",
+  "homedash.desktop.added": "「{{name}}」をデスクトップに追加しました",
+  "homedash.desktop.removed": "「{{name}}」をデスクトップから削除しました",
+  "homedash.desktop.add_failed": "ダッシュボードをデスクトップに追加できませんでした。",
+  "homedash.desktop.remove_failed": "ダッシュボードをデスクトップから削除できませんでした。"
 }

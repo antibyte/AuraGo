@@ -1,7 +1,7 @@
 /* HomeDash desktop host (F2; design-frontend 8). window.HomeDashApp = {render, dispose, visibilitySignal}. render(host, id, ctx) builds the
    window chrome (bar, banners, home view, dashboard view, state panel, confirm sheet), mounts the engine (HomeDashEngine.mount) with the
    desktop transport (ctx.api and EventSource), the visibility signal, the scheme and motion of the desktop body, the read-only policy event,
-   window menus and the window context (dashboard_id, page_id) for session restore. Chrome is painted from the desktop theme
+   window menus, the desktop shortcut of a dashboard (ctx.desktopShortcuts: window menu, card pin, card context menu, toasts) and the window context (dashboard_id, page_id) for session restore. Chrome is painted from the desktop theme
    (desktop-app-homedash.css); the dashboard canvas is the engine's .hd-root. Server text reaches the page only through textContent. */
 (function () {
     'use strict';
@@ -48,6 +48,9 @@
         const E = window.HomeDashEngine, Home = window.HomeDashHome, el = E.el, setAttr = E.core.setAttr, icon = name => E.icons.icon(name);
         const t = (key, vars) => ctx.t(key, vars), lifetime = new AbortController(), signal = lifetime.signal, lang = document.documentElement.lang || 'en';
         const BANNER_ICONS = { auth_lost: 'lock', offline: 'signal-off', source_unavailable: 'alert', source_degraded: 'clock', schema_too_new: 'info', readonly: 'lock', source_catalog_failed: 'alert', template_omitted: 'info' };
+        const pins = ctx.desktopShortcuts || null, pending = new Set(), toastTimers = new Map();
+        // 'on' / 'off' (a shortcut on the desktop), 'busy-' while an add or remove is running.
+        const pinState = dashId => (pending.has(dashId) ? 'busy-' : '') + (pins && pins.hasDashboard(dashId) ? 'on' : 'off');
         let inst = null, lastBanners = '', lastState = '', lastMenus = '', lastMenuBase = '', menuTimer = 0, lookFrame = 0, pressedAt = 0, releasing = false;
         const title = el('h1', { class: 'hdx-title', text: t('desktop.app_homedash') });
         const back = el('button', { type: 'button', class: 'hdx-back', 'data-action': 'home', hidden: 'true' }, [icon('arrow-left'), el('span', { text: t('homedash.view.back') })]);
@@ -59,13 +62,14 @@
         const saveText = el('span', { class: 'hdx-save-text' }), saveRetry = el('button', { type: 'button', class: 'hdx-btn', 'data-action': 'retry-save', text: t('homedash.save.retry_now'), hidden: 'true' });
         const saveChip = el('div', { class: 'hdx-save', 'aria-label': t('homedash.save.label'), hidden: 'true' }, [saveText, saveRetry]);
         const banners = el('div', { class: 'hdx-banners' });
+        const toasts = el('div', { class: 'hd-toasts hdx-toasts', 'aria-hidden': 'true' }), liveRegion = el('div', { class: 'hd-live hd-sr-only', 'aria-live': 'polite' });
         const viewHost = el('div', { class: 'hdx-view', hidden: 'true' }), statePanel = el('div', { class: 'hdx-state', hidden: 'true' });
         // "New empty dashboard" (home card and window menu): create it, open it and drop straight into the designer.
         const createEmptyAndEdit = () => inst.createEmpty().then(() => { const s = inst.state(); if (s.mode === 'dashboard' && s.edit && s.edit.canEdit && s.edit.mode === 'view') return inst.enterEdit(); });
-        const home = Home.create({ t, lang, onOpen: dashboardId => inst.open(dashboardId), onStarter: () => inst.createStarter(), onEmpty: () => createEmptyAndEdit(), onHa: () => inst.createHomeAssistant(), onImport: () => inst.run('import'), sourceName: src => sourceName(src), onDelete: summary => askDelete(summary) });
+        const home = Home.create({ t, lang, onOpen: dashboardId => inst.open(dashboardId), onStarter: () => inst.createStarter(), onEmpty: () => createEmptyAndEdit(), onHa: () => inst.createHomeAssistant(), onImport: () => inst.run('import'), sourceName: src => sourceName(src), onDelete: summary => askDelete(summary), pinState: pins ? pinState : undefined, onPin: summary => togglePin(summary) });
         setAttr(home.el, 'hidden', true);
         const root = el('div', { class: 'hdx-app', 'data-hdx-view': 'loading' }, [el('header', { class: 'hdx-bar' }, [back, el('div', { class: 'hdx-heading' }, title), conn, saveChip, elsewhere, editBtn]), banners,
-            el('main', { class: 'hdx-main' }, [home.el, viewHost, statePanel])]);
+            el('main', { class: 'hdx-main' }, [home.el, viewHost, statePanel, toasts, liveRegion])]);
         host.replaceChildren(root);
         const sheet = E.sheet.create(root), win = host.closest('.vd-window'), subtitleEl = win ? win.querySelector('.vd-window-subtitle') : null;
         const subtitle = text => { if (subtitleEl) subtitleEl.textContent = text; };
@@ -114,7 +118,8 @@
             if (!now && base === lastMenuBase && (pressed() || releasing)) { if (!menuTimer && !pressed()) menuTimer = setTimeout(() => { menuTimer = 0; menus(inst.state(), true); }, 0); return; }
             if (menuTimer) { clearTimeout(menuTimer); menuTimer = 0; } lastMenuBase = base;
             const ed = s.edit || null, acts = (ed && ed.actions) || {}, ha = Array.isArray(s.templates) && s.templates.includes('home_assistant'), dash = s.mode === 'dashboard' && !!s.dashboard;
-            const sig = [s.mode, !!s.desktopReadonly, !!s.busy, ha, ed && ed.mode, ed && ed.bp, ed && ed.fit, ed && ed.undoLabel, ed && ed.redoLabel, JSON.stringify(acts)].join('|'); if (sig === lastMenus) return; lastMenus = sig;
+            const ps = pins && dash ? pinState(s.dashboard.id) : '';
+            const sig = [s.mode, !!s.desktopReadonly, !!s.busy, ps, ha, ed && ed.mode, ed && ed.bp, ed && ed.fit, ed && ed.undoLabel, ed && ed.redoLabel, JSON.stringify(acts)].join('|'); if (sig === lastMenus) return; lastMenus = sig;
             const blocked = !!s.desktopReadonly || !!s.busy || s.mode === 'disabled' || s.mode === 'error', sep = { type: 'separator' };
             // An item of an engine action: left out when the engine reports it unavailable (no E.ddialogs yet), greyed unless it reports it enabled.
             const act = (name, label, extra) => { const a = acts[name] || {}; if (a.available === false) return null;
@@ -125,8 +130,9 @@
                 ...(ha ? [{ id: 'new-ha', label: t('homedash.menu.new_ha'), icon: 'home', disabled: blocked, action: () => inst.createHomeAssistant() }] : [])] };
             const reload = { id: 'reload', label: t('homedash.menu.reload'), icon: 'refresh', action: () => { const st = inst.state(); if (st.mode === 'dashboard' && st.dashboard) inst.open(st.dashboard.id, st.pageId); else inst.retry(); } };
             const open = { id: 'open', label: t('homedash.menu.open'), disabled: s.mode === 'disabled', action: () => inst.home() };
+            const pinItem = ps ? { id: 'desktop-shortcut', label: ps.endsWith('on') ? t('desktop.context_remove_from_desktop') : t('desktop.context_add_to_desktop'), icon: 'desktop', fallback: 'D', disabled: !!s.desktopReadonly || ps.startsWith('busy'), action: () => togglePin(s.dashboard) } : null;
             const menusOut = [{ id: 'homedash-dashboard', label: t('homedash.menu.dashboard'), items: tidy(dash
-                ? [newItem, open, sep, act('rename', t('homedash.menu.rename')), act('duplicate_dashboard', t('homedash.menu.duplicate_dashboard')), act('delete_dashboard', t('homedash.menu.delete')), sep, act('import', t('homedash.menu.import')), act('export', t('homedash.menu.export')), sep, reload]
+                ? [newItem, open, pinItem, sep, act('rename', t('homedash.menu.rename')), act('duplicate_dashboard', t('homedash.menu.duplicate_dashboard')), act('delete_dashboard', t('homedash.menu.delete')), sep, act('import', t('homedash.menu.import')), act('export', t('homedash.menu.export')), sep, reload]
                 : [newItem, open, sep, act('import', t('homedash.menu.import')), sep, reload]) }];
             if (dash && ed) {
                 menusOut.push({ id: 'homedash-edit', label: t('homedash.menu.edit'), items: tidy([
@@ -171,6 +177,31 @@
             if (unsaved) saveText.textContent = saveLabel(ed);
             setAttr(saveRetry, 'hidden', !(unsaved && ed.phase === 'retrying'));
         }
+        // The desktop shortcut of a dashboard: add or remove it, with a toast for the result (the engine's in a dashboard, the host's on the list).
+        function hostToast(text, tone) {
+            const n = el('div', { class: 'hd-toast', 'data-tone': tone || 'info', text: String(text) }); toasts.appendChild(n);
+            while (toasts.children.length > 3) { const old = toasts.firstElementChild; clearTimeout(toastTimers.get(old)); toastTimers.delete(old); old.remove(); }
+            toastTimers.set(n, setTimeout(() => { toastTimers.delete(n); n.remove(); }, 4000)); liveRegion.textContent = String(text);
+        }
+        const notify = (text, tone) => { if (typeof inst.toast === 'function' && inst.toast(text, { tone })) return; hostToast(text, tone); };
+        function togglePin(summary) {
+            const dashId = summary && summary.id; if (!pins || !dashId || pending.has(dashId) || inst.state().desktopReadonly) return Promise.resolve(false);
+            const name = summary.name || dashId, was = pins.hasDashboard(dashId); pending.add(dashId); paint(inst.state());
+            return Promise.resolve().then(() => (was ? pins.removeDashboard(dashId) : pins.addDashboard(dashId)))
+                .then(() => { if (was) notify(t('homedash.desktop.removed', { name }), 'info'); else notify(t('homedash.desktop.added', { name }), 'info'); return true; },
+                    () => { if (was) notify(t('homedash.desktop.remove_failed'), 'warn'); else notify(t('homedash.desktop.add_failed'), 'warn'); return false; })
+                .then(ok => { pending.delete(dashId); paint(inst.state()); return ok; });
+        }
+        // Context menu of a dashboard card (mouse, Shift+F10 and the menu key all arrive as the contextmenu event of the focused card).
+        function cardMenu(ev) {
+            const card = ev.target && ev.target.closest ? ev.target.closest('.hdx-card') : null, s = inst.state(); if (!card || !root.contains(card) || s.mode !== 'home') return null;
+            const openBtn = card.querySelector('.hdx-card-open'), summary = openBtn && (s.dashboards || []).find(d => d.id === openBtn.getAttribute('data-id')); if (!summary) return null;
+            let x = ev.clientX, y = ev.clientY; if (!x && !y) { const r = card.getBoundingClientRect(); x = r.left + 16; y = r.top + 16; }
+            const ps = pins ? pinState(summary.id) : '', ro = !!s.desktopReadonly;
+            return { x, y, items: [{ id: 'open', label: t('desktop.context_open'), icon: 'folder-open', fallback: 'O', action: () => inst.open(summary.id) },
+                ps ? { id: 'desktop-shortcut', label: ps.endsWith('on') ? t('desktop.context_remove_from_desktop') : t('desktop.context_add_to_desktop'), icon: 'desktop', fallback: 'D', disabled: ro || ps.startsWith('busy'), action: () => togglePin(summary) } : null,
+                { separator: true }, { id: 'delete', label: t('homedash.menu.delete'), icon: 'trash', fallback: 'X', danger: true, disabled: ro, action: () => askDelete(summary) }].filter(Boolean) };
+        }
         function askDelete(summary) {
             sheet.confirm({ title: t('homedash.delete.title'), text: [t('homedash.delete.body', { name: summary.name || summary.id })], confirmLabel: t('homedash.delete.confirm'), cancelLabel: t('homedash.delete.cancel'), tone: 'danger' })
                 .then(yes => { if (yes) inst.remove(summary); });
@@ -182,7 +213,8 @@
             canEdit: true, ui: { menu: (x, y, items) => ctx.showContextMenu?.(x, y, toDesktopItems(items)), focusWindow: () => ctx.focusWindow?.(id), sheetHost: () => root },
             onContext: patch => { if (typeof ctx.updateWindowContext === 'function') ctx.updateWindowContext(id, patch); } });
         ctx.wireContextMenuBoundary?.(root, { onContextMenu: ev => {
-            const m = inst.contextMenu ? inst.contextMenu(ev) : null; if (!m || !ctx.showContextMenu) return false;
+            if (!ctx.showContextMenu) return false; const card = cardMenu(ev); if (card) { ctx.showContextMenu(card.x, card.y, card.items); return true; }
+            const m = inst.contextMenu ? inst.contextMenu(ev) : null; if (!m) return false;
             ctx.showContextMenu(m.x, m.y, toDesktopItems(m.items)); return true; } });
         ctx.setWindowBeforeClose?.(id, () => (inst.beforeClose ? inst.beforeClose() : true));
         root.addEventListener('click', event => {
@@ -193,6 +225,7 @@
             else if (action === 'edit') inst.run?.('edit'); else if (action === 'show-editor') inst.run?.('show_editor'); else if (action === 'retry-save') inst.run?.('retry_save');
         }, { signal });
         root.addEventListener('pointerdown', event => { if (event.button === 0) pressedAt = Date.now(); }, { capture: true, signal });
+        document.addEventListener('aurago:desktop-shortcuts', () => paint(inst.state()), { signal });
         const released = () => { if (!pressedAt) return; pressedAt = 0; releasing = true; if (menuTimer) clearTimeout(menuTimer); menuTimer = setTimeout(() => { menuTimer = 0; releasing = false; menus(inst.state(), true); }, 0); };
         document.addEventListener('pointerup', released, { capture: true, signal }); document.addEventListener('pointercancel', released, { capture: true, signal });
         document.addEventListener('aurago:desktop-policy', event => {
@@ -209,7 +242,7 @@
         if (themeObserver) themeObserver.observe(document.body, { attributes: true, attributeFilter: ['data-theme', 'data-scheme', 'data-fruity-mode', 'data-accent', 'data-animations', 'style', 'class'] });
         inst.on('state', paint); paint(inst.state());
         instances.set(id, () => {
-            lifetime.abort(); if (themeObserver) themeObserver.disconnect(); if (lookFrame) cancelAnimationFrame(lookFrame); if (menuTimer) clearTimeout(menuTimer);
+            lifetime.abort(); if (themeObserver) themeObserver.disconnect(); if (lookFrame) cancelAnimationFrame(lookFrame); if (menuTimer) clearTimeout(menuTimer); for (const h of toastTimers.values()) clearTimeout(h); toastTimers.clear();
             ctx.setWindowBeforeClose?.(id, null); inst.dispose(); sheet.destroy(); home.destroy(); ctx.setWindowMenus?.(id, []); subtitle(''); root.replaceChildren(); root.remove();
         });
     }

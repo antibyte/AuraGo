@@ -694,5 +694,12 @@
   "homedash.widget.select.desc": "Kiest een van de opties van een apparaat",
   "homedash.widget.sensor.desc": "Toont een gemeten waarde",
   "homedash.widget.switch.desc": "Schakelt een apparaat in en uit",
-  "homedash.widget.temperature.desc": "Toont een temperatuur"
+  "homedash.widget.temperature.desc": "Toont een temperatuur",
+  "homedash.home.add_to_desktop": "{{name}} aan het bureaublad toevoegen",
+  "homedash.home.remove_from_desktop": "{{name}} van het bureaublad verwijderen",
+  "homedash.home.on_desktop": "op het bureaublad",
+  "homedash.desktop.added": "“{{name}}” aan het bureaublad toegevoegd",
+  "homedash.desktop.removed": "“{{name}}” van het bureaublad verwijderd",
+  "homedash.desktop.add_failed": "Het dashboard kon niet aan het bureaublad worden toegevoegd.",
+  "homedash.desktop.remove_failed": "Het dashboard kon niet van het bureaublad worden verwijderd."
 }

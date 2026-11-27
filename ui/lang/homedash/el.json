@@ -694,5 +694,12 @@
   "homedash.widget.select.desc": "Επιλέγει μία από τις επιλογές μιας συσκευής",
   "homedash.widget.sensor.desc": "Εμφανίζει μια μετρημένη τιμή",
   "homedash.widget.switch.desc": "Ενεργοποιεί και απενεργοποιεί μια συσκευή",
-  "homedash.widget.temperature.desc": "Εμφανίζει μια θερμοκρασία"
+  "homedash.widget.temperature.desc": "Εμφανίζει μια θερμοκρασία",
+  "homedash.home.add_to_desktop": "Προσθήκη του {{name}} στην επιφάνεια εργασίας",
+  "homedash.home.remove_from_desktop": "Αφαίρεση του {{name}} από την επιφάνεια εργασίας",
+  "homedash.home.on_desktop": "στην επιφάνεια εργασίας",
+  "homedash.desktop.added": "Το «{{name}}» προστέθηκε στην επιφάνεια εργασίας",
+  "homedash.desktop.removed": "Το «{{name}}» αφαιρέθηκε από την επιφάνεια εργασίας",
+  "homedash.desktop.add_failed": "Δεν ήταν δυνατή η προσθήκη του πίνακα ελέγχου στην επιφάνεια εργασίας.",
+  "homedash.desktop.remove_failed": "Δεν ήταν δυνατή η αφαίρεση του πίνακα ελέγχου από την επιφάνεια εργασίας."
 }

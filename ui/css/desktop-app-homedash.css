@@ -53,7 +53,7 @@
 .hdx-note > .hd-ico { flex: none; color: color-mix(in srgb, var(--ds-color-info-fg) 78%, var(--vd-text)); }
 .hdx-note[data-tone="warn"] { border-color: color-mix(in srgb, var(--ds-color-warning-fg) 40%, var(--hdx-line)); background: color-mix(in srgb, var(--ds-color-warning-fg) 12%, var(--hdx-card)); }
 .hdx-notice:empty { margin: 0; padding: 0; border: 0; background: none; min-height: 0; } /* the live region stays rendered (and in the accessibility tree) while it has nothing to say */
-.hdx-list, .hdx-skeleton { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; margin: 0; padding: 0; list-style: none; }
+.hdx-list, .hdx-skeleton { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; margin: 0; padding: 0; list-style: none; }
 .hdx-item { display: flex; min-inline-size: 0; }
 .hdx-item > .hdx-card { flex: 1 1 auto; min-inline-size: 0; }
 .hdx-card { position: relative; display: flex; min-block-size: 92px; border: 1px solid var(--vd-mat-card-border, var(--hdx-line)); border-radius: var(--hdx-radius); background: var(--vd-mat-card, var(--hdx-card)); box-shadow: var(--vd-mat-card-shadow, none); overflow: hidden; }
@@ -64,7 +64,15 @@
 .hdx-card-text { display: grid; gap: 2px; min-inline-size: 0; }
 .hdx-card-name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 15px; font-weight: 650; }
 .hdx-card-meta { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--hdx-muted); font-size: 12.5px; }
-.hdx-card-delete { position: absolute; inset-block-start: 10px; inset-inline-end: 10px; display: grid; place-items: center; inline-size: 34px; block-size: 34px; padding: 0; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--hdx-muted); cursor: pointer; }
+.hdx-card :is(.hdx-card-pin, .hdx-card-delete) { position: absolute; inset-block-start: 10px; inset-inline-end: 10px; display: grid; place-items: center; inline-size: 34px; block-size: 34px; padding: 0; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--hdx-muted); cursor: pointer; }
+.hdx-card .hdx-card-pin { inset-inline-end: 48px; }
+.hdx-card-pin:hover:not([aria-disabled="true"]) { border-color: color-mix(in srgb, var(--vd-accent) 45%, var(--hdx-line)); color: color-mix(in srgb, var(--vd-accent) 75%, var(--vd-text)); }
+.hdx-card-pin[aria-pressed="true"] { border-color: color-mix(in srgb, var(--vd-accent) 38%, var(--hdx-line)); background: color-mix(in srgb, var(--vd-accent) 14%, transparent); color: color-mix(in srgb, var(--vd-accent) 78%, var(--vd-text)); }
+.hdx-app .hdx-card-pin[aria-busy="true"] { cursor: progress; opacity: .7; }
+.hdx-card:has(.hdx-card-pin) .hdx-card-open { padding-inline-end: 92px; }
+.hdx-card:has(.hdx-card-pin) .hdx-card-meta { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.hdx-card-pinned { display: inline-flex; align-items: center; gap: 4px; vertical-align: bottom; }
+.hdx-app .hdx-card-pinned .hd-ico { inline-size: 13px; block-size: 13px; color: color-mix(in srgb, var(--vd-accent) 78%, var(--vd-text)); }
 .hdx-card-delete:hover { border-color: color-mix(in srgb, var(--ds-color-danger-fg) 40%, var(--hdx-line)); color: color-mix(in srgb, var(--ds-color-danger-fg) 80%, var(--vd-text)); }
 .hdx-skel-card { block-size: 92px; border-radius: var(--hdx-radius); background: color-mix(in srgb, var(--vd-text) 6%, var(--hdx-card)); }
 /* First run */
@@ -116,7 +124,7 @@
 .hdx-app .hd-sheet[data-kind="form"]:has(.hd-look) > .hd-sheet-head { padding: 16px 20px 4px; }
 .hdx-app .hd-sheet[data-kind="form"]:has(.hd-look) > .hd-sheet-body { flex: 1 1 auto; min-block-size: 0; overflow: auto; padding: 8px 20px 20px; }
 .hdx-app .hd-sheet[data-kind="form"]:has(.hd-look) > .hd-sheet-foot { margin: 0; padding: 12px 20px; border-block-start: 1px solid var(--hdx-line); }
-@media (pointer: coarse) { .hdx-btn, .hdx-back, .hdx-app .hd-sheet-btn { min-block-size: 44px; } .hdx-card-delete { inline-size: 44px; block-size: 44px; } }
+@media (pointer: coarse) { .hdx-btn, .hdx-back, .hdx-app .hd-sheet-btn { min-block-size: 44px; } .hdx-card :is(.hdx-card-pin, .hdx-card-delete) { inline-size: 44px; block-size: 44px; } .hdx-card .hdx-card-pin { inset-inline-end: 58px; } .hdx-card:has(.hdx-card-pin) .hdx-card-open { padding-inline-end: 112px; } }
 @container hdx (max-width: 520px) {
   .hdx-home-actions { inline-size: 100%; } .hdx-home-actions .hdx-btn { flex: 1 1 0; }
   .hdx-conn-text { position: absolute; inline-size: 1px; block-size: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } }
@@ -396,6 +404,8 @@
   body:not([data-animations="false"]) .hdx-choice { transition: transform 140ms ease, border-color 140ms ease; }
   body:not([data-animations="false"]) .hdx-choice:hover:not(:is(:disabled, [aria-disabled="true"])) { transform: translateY(-1px); }
   body:not([data-animations="false"]) .hdx-card { transition: border-color 140ms ease; }
+  body:not([data-animations="false"]) .hdx-card-pin { transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease; }
+  body:not([data-animations="false"]) .hdx-toasts > .hd-toast { animation: hdx-rise 160ms ease-out; }
   body:not([data-animations="false"]) .hdx-conn[data-conn="connecting"] .hdx-conn-dot, body:not([data-animations="false"]) .hdx-skel-card { animation: hdx-pulse 1.3s ease-in-out infinite; }
   body:not([data-animations="false"]) .hdx-spinner, body:not([data-animations="false"]) .hdx-choice[aria-busy="true"] .hdx-choice-icon::after { animation: hdx-spin .9s linear infinite; }
 }

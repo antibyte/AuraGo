@@ -109,23 +109,63 @@ export const tests = [
   ['host: window menu New > Empty dashboard behaves like the home card: create, open and enter the designer (only when editing is possible)', async () => {
     const gone = { new: { available: false, enabled: false } }, actions = Object.assign({}, ACTIONS, gone), h = setup({ edit: { mode: 'view', canEdit: true, editElsewhere: false, phase: 'saved', actions } });
     const nw = h.menus.at(-1)[0].items.find(i => i.id === 'new'); nw.items.find(i => i.id === 'new-empty').action(); await Promise.resolve(); await Promise.resolve(); eq(h.calls, ['createEmpty', 'enterEdit']);
-    const ro = setup({ edit: { mode: 'view', canEdit: false, editElsewhere: false, phase: 'saved', actions } }), r = ro.menus.at(-1)[0].items.find(i => i.id === 'new'); r.items.find(i => i.id === 'new-empty').action(); await Promise.resolve(); await Promise.resolve(); eq(ro.calls, ['createEmpty']); }]
+    const ro = setup({ edit: { mode: 'view', canEdit: false, editElsewhere: false, phase: 'saved', actions } }), r = ro.menus.at(-1)[0].items.find(i => i.id === 'new'); r.items.find(i => i.id === 'new-empty').action(); await Promise.resolve(); await Promise.resolve(); eq(ro.calls, ['createEmpty']); }],
+  ['host: the window menu toggles the desktop shortcut of the shown dashboard: label flip, action, toast, read-only grey, absent without the API', async () => {
+    const pins = pinsStub(), h = setup({}, { desktopShortcuts: pins }), item = () => h.menus.at(-1)[0].items.find(i => i.id === 'desktop-shortcut'), tick = async () => { for (let i = 0; i < 4; i++) await Promise.resolve(); };
+    const ids = h.menus.at(-1)[0].items.filter(i => i.type !== 'separator').map(i => i.id); assert.equal(ids[ids.indexOf('open') + 1], 'desktop-shortcut');
+    assert.equal(item().label, 'desktop.context_add_to_desktop'); assert.equal(item().disabled, false); item().action(); assert.equal(item().disabled, true, 'busy while the add is pending'); await tick();
+    eq(pins.log, ['add:d_aaaaaaaaaaab']); assert.equal(item().label, 'desktop.context_remove_from_desktop'); assert.equal(item().disabled, false); eq(h.toasts.at(-1), ['homedash.desktop.added', 'info']);
+    pins.on.delete('d_aaaaaaaaaaab'); h.window.document.dispatchEvent({ type: 'aurago:desktop-shortcuts' }); assert.equal(item().label, 'desktop.context_add_to_desktop', 'the shell event repaints the label');
+    pins.on.add('d_aaaaaaaaaaab'); h.window.document.dispatchEvent({ type: 'aurago:desktop-shortcuts' }); item().action(); await tick(); eq(pins.log.at(-1), 'remove:d_aaaaaaaaaaab'); eq(h.toasts.at(-1), ['homedash.desktop.removed', 'info']);
+    pins.fail = true; item().action(); await tick(); eq(h.toasts.at(-1), ['homedash.desktop.add_failed', 'warn']); assert.equal(item().disabled, false, 'idle again after a failure');
+    assert.equal(setup({ desktopReadonly: true }, { desktopShortcuts: pinsStub() }).menus.at(-1)[0].items.find(i => i.id === 'desktop-shortcut').disabled, true);
+    assert.equal(setup().menus.at(-1)[0].items.some(i => i.id === 'desktop-shortcut'), false); }],
+  ['host: a home card pin toggles through the shortcut API, is busy while pending (no double submit), toasts in the host layer and keeps the card text', async () => {
+    const pins = pinsStub(), gate = new Promise(r => { pins.release = r; }), h = setup({ mode: 'home', dashboard: null, dashboards: [{ id: 'd_aaaaaaaaaaab', name: 'One', revision: 1 }] }, { desktopShortcuts: pins }); h.noView = true;
+    const q = s => h.root.querySelector(s), tick = async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); }, press = () => q('.hdx-home').dispatchEvent({ type: 'click', target: q('.hdx-card-pin') });
+    assert.equal(q('.hdx-card-pin').getAttribute('aria-pressed'), 'false'); assert.equal(q('.hdx-card-pin').getAttribute('aria-label'), 'homedash.home.add_to_desktop'); assert.equal(q('.hdx-card-pinned'), null);
+    pins.gate = gate; press(); press(); await tick(); assert.equal(q('.hdx-card-pin').getAttribute('aria-busy'), 'true'); assert.equal(q('.hdx-card-pin').getAttribute('aria-disabled'), 'true'); eq(pins.log, ['add:d_aaaaaaaaaaab']);
+    pins.release(); pins.gate = null; await tick();
+    assert.equal(q('.hdx-card-pin').getAttribute('aria-pressed'), 'true'); assert.equal(q('.hdx-card-pin').getAttribute('aria-busy'), null); assert.equal(q('.hdx-card-pinned').textContent, 'homedash.home.on_desktop');
+    assert.equal(q('.hdx-toasts .hd-toast').textContent, 'homedash.desktop.added'); assert.equal(q('.hdx-toasts .hd-toast').getAttribute('data-tone'), 'info'); assert.equal(q('.hd-live').textContent, 'homedash.desktop.added'); eq(h.toasts, []);
+    pins.fail = true; press(); await tick(); const last = h.root.querySelectorAll('.hdx-toasts .hd-toast'); assert.equal(last[last.length - 1].getAttribute('data-tone'), 'warn');
+    for (let i = 0; i < 4; i++) { press(); await tick(); } assert.ok(h.root.querySelectorAll('.hdx-toasts .hd-toast').length <= 3, 'at most three toasts'); }],
+  ['host: with a dashboard open the toast goes through the engine (inst.toast), not the host layer', async () => {
+    const pins = pinsStub(), h = setup({}, { desktopShortcuts: pins }); h.menus.at(-1)[0].items.find(i => i.id === 'desktop-shortcut').action(); for (let i = 0; i < 4; i++) await Promise.resolve();
+    eq(h.toasts, [['homedash.desktop.added', 'info']]); assert.equal(h.root.querySelector('.hdx-toasts .hd-toast'), null); }],
+  ['host: the home card context menu offers Open, the desktop shortcut and Delete; read-only greys the shortcut and Delete; no API leaves no shortcut item', async () => {
+    const mk = (patch, extra) => setup(Object.assign({ mode: 'home', dashboard: null, dashboards: [{ id: 'd_aaaaaaaaaaab', name: 'One', revision: 1 }] }, patch), extra), pins = pinsStub();
+    const h = mk({}, { desktopShortcuts: pins }), card = h.root.querySelector('.hdx-card-open');
+    assert.equal(h.boundary.options.onContextMenu({ target: card, clientX: 5, clientY: 6 }), true); const [x, y, items] = h.shown.at(-1); eq([x, y], [5, 6]);
+    eq(items.map(i => i.id || 'sep'), ['open', 'desktop-shortcut', 'sep', 'delete']); assert.equal(items[0].label, 'desktop.context_open'); assert.equal(items[1].label, 'desktop.context_add_to_desktop'); assert.equal(items[3].danger, true);
+    items[1].action(); await Promise.resolve(); eq(pins.log, ['add:d_aaaaaaaaaaab']); items[3].action(); assert.deepEqual(h.confirms, ['homedash.delete.title']);
+    const keyboard = h.boundary.options.onContextMenu({ target: h.root.querySelector('.hdx-card-open'), clientX: 0, clientY: 0 }); assert.equal(keyboard, true, 'the context menu key has no pointer position and still opens');
+    const ro = mk({ desktopReadonly: true }, { desktopShortcuts: pinsStub() }); ro.boundary.options.onContextMenu({ target: ro.root.querySelector('.hdx-card-open'), clientX: 1, clientY: 1 }); const r = ro.shown.at(-1)[2];
+    assert.equal(r[1].disabled, true); assert.equal(r[3].disabled, true);
+    const no = mk({}); no.boundary.options.onContextMenu({ target: no.root.querySelector('.hdx-card-open'), clientX: 1, clientY: 1 }); eq(no.shown.at(-1)[2].map(i => i.id || 'sep'), ['open', 'sep', 'delete']); }],
 ];
+function pinsStub() {
+  const on = new Set(), log = [], api = { on, log, fail: false, gate: null, hasDashboard: id => on.has(id),
+    addDashboard: async id => { log.push('add:' + id); if (api.gate) await api.gate; if (api.fail) throw new Error('add failed'); on.add(id); },
+    removeDashboard: async id => { log.push('remove:' + id); if (api.gate) await api.gate; if (api.fail) throw new Error('remove failed'); on.delete(id); } };
+  return api;
+}
 const ACTIONS = Object.fromEntries(['new', 'open', 'rename', 'look', 'add_page', 'export', 'import', 'duplicate_dashboard', 'delete_dashboard', 'edit', 'layout_auto', 'layout_lg', 'layout_md', 'layout_sm', 'fit', 'present'].map(n => [n, { available: true, enabled: true, checked: false }])
   .concat(['undo', 'redo', 'cut', 'copy', 'paste', 'duplicate', 'delete', 'select_all'].map(n => [n, { available: true, enabled: false, checked: false }])));
 const HOST_FILES = ENGINE_ORDER.map(f => 'ui/js/homedash/' + f).concat(['ui/js/homedash/hd-tone.js', 'ui/js/homedash/hd-api.js', 'ui/js/homedash/hd-sheet.js', 'ui/js/homedash/hd-save.js', 'ui/js/desktop/apps/homedash-home.js', 'ui/js/desktop/apps/homedash.js']);
 function h2() { return loadFiles(HOST_FILES, { dom: true }).window.HomeDashApp; }
 // Renders the real host against the real engine helpers (el, icons, sheet, save) with a scripted HomeDashEngine.mount (the minimal stub of plan B7).
-function setup(patch) {
-  const { window, document } = loadFiles(HOST_FILES, { dom: true }), real = window.HomeDashEngine, listeners = [], calls = [], menus = [], shown = [], confirms = [], mounted = {}, h = { window, calls, menus, shown, confirms, mounted, boundary: null, before: null };
+function setup(patch, extra) {
+  const { window, document } = loadFiles(HOST_FILES, { dom: true }), real = window.HomeDashEngine, listeners = [], calls = [], menus = [], shown = [], confirms = [], mounted = {}, h = { window, calls, menus, shown, confirms, mounted, boundary: null, before: null, toasts: [], noView: false };
   let st = Object.freeze(Object.assign({ mode: 'dashboard', dashboard: { id: 'd_aaaaaaaaaaab', name: 'Home' }, dashboards: [], pageId: 'p', desktopReadonly: false, busy: false, templates: [], banners: [], connection: { phase: 'live' },
     edit: { mode: 'view', canEdit: true, editElsewhere: false, phase: 'saved', nextRetryAt: 0, undoLabel: '', redoLabel: '', bp: null, fit: null, actions: ACTIONS } }, patch || {}));
   const inst = { state: () => st, on: (type, fn) => { listeners.push(fn); return () => {}; }, dispose: () => calls.push('dispose'), run: a => { calls.push('run:' + a); return Promise.resolve(true); }, remove: s => { calls.push('remove:' + s.id); return Promise.resolve(true); },
-    contextMenu: ev => ev.menu, beforeClose: () => Promise.resolve(true), home: () => {}, open: () => {}, retry: () => {}, reconnect: () => {}, refreshLook: () => {}, setReadonly: () => {}, createStarter: () => {}, createEmpty: () => { calls.push('createEmpty'); return Promise.resolve(); }, enterEdit: () => { calls.push('enterEdit'); return Promise.resolve(true); }, createHomeAssistant: () => {} };
+    contextMenu: ev => ev.menu, beforeClose: () => Promise.resolve(true), home: () => {}, open: () => {}, retry: () => {}, reconnect: () => {}, refreshLook: () => {}, toast: (text, to) => { if (h.noView) return false; h.toasts.push([text, to && to.tone]); return true; }, setReadonly: () => {}, createStarter: () => {}, createEmpty: () => { calls.push('createEmpty'); return Promise.resolve(); }, enterEdit: () => { calls.push('enterEdit'); return Promise.resolve(true); }, createHomeAssistant: () => {} };
   window.HomeDashEngine = Object.assign({}, real, { mount: (host, o) => { Object.assign(mounted, o); return inst; }, sheet: { create: () => ({ confirm: o => { confirms.push(o.title); return Promise.resolve(true); }, destroy: () => {} }) } });
   const focusWindow = Object.assign(id => focusWindow.calls.push(id), { calls: [] });
   const ctx = { t: (k, v) => (v && v.label ? k + ':' + v.label : k), api: () => Promise.resolve({}), readonly: false, setWindowMenus: (id, m) => menus.push(m), showContextMenu: (x, y, items) => shown.push([x, y, items]), focusWindow,
     wireContextMenuBoundary: (root, options) => { h.boundary = { root, options }; }, setWindowBeforeClose: (id, fn) => { h.before = { id, fn }; } };
+  Object.assign(ctx, extra || {});
   const host = document.createElement('div'); window.HomeDashApp.render(host, 'w1', ctx);
   Object.assign(h, { ctx, root: host.children[0], state: () => st, push: next => { st = Object.freeze(next); for (const fn of listeners) fn(st); } });
   return h;

@@ -694,5 +694,12 @@
   "homedash.widget.select.desc": "Elige una de las opciones de un dispositivo",
   "homedash.widget.sensor.desc": "Muestra un valor medido",
   "homedash.widget.switch.desc": "Enciende y apaga un dispositivo",
-  "homedash.widget.temperature.desc": "Muestra una temperatura"
+  "homedash.widget.temperature.desc": "Muestra una temperatura",
+  "homedash.home.add_to_desktop": "Añadir {{name}} al escritorio",
+  "homedash.home.remove_from_desktop": "Quitar {{name}} del escritorio",
+  "homedash.home.on_desktop": "en el escritorio",
+  "homedash.desktop.added": "«{{name}}» añadido al escritorio",
+  "homedash.desktop.removed": "«{{name}}» quitado del escritorio",
+  "homedash.desktop.add_failed": "No se pudo añadir el panel al escritorio.",
+  "homedash.desktop.remove_failed": "No se pudo quitar el panel del escritorio."
 }

@@ -694,5 +694,12 @@
   "homedash.widget.select.desc": "Väljer ett av en enhets alternativ",
   "homedash.widget.sensor.desc": "Visar ett uppmätt värde",
   "homedash.widget.switch.desc": "Slår på och stänger av en enhet",
-  "homedash.widget.temperature.desc": "Visar en temperatur"
+  "homedash.widget.temperature.desc": "Visar en temperatur",
+  "homedash.home.add_to_desktop": "Lägg till {{name}} på skrivbordet",
+  "homedash.home.remove_from_desktop": "Ta bort {{name}} från skrivbordet",
+  "homedash.home.on_desktop": "på skrivbordet",
+  "homedash.desktop.added": "“{{name}}” har lagts till på skrivbordet",
+  "homedash.desktop.removed": "“{{name}}” har tagits bort från skrivbordet",
+  "homedash.desktop.add_failed": "Instrumentpanelen kunde inte läggas till på skrivbordet.",
+  "homedash.desktop.remove_failed": "Instrumentpanelen kunde inte tas bort från skrivbordet."
 }
