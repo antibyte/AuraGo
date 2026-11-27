@@ -1,0 +1,63 @@
+{
+  "pinout": "sn74hc139",
+  "variants": [
+    {
+      "variant": "",
+      "counts": {
+        "signal": 14,
+        "ground": 1,
+        "power": 1
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "1G",
+          "type": "signal",
+          "ref": "TI SCLS108E, section 4 DIP pin figure (top view), page 3"
+        },
+        {
+          "number": "2",
+          "name": "1A",
+          "type": "signal",
+          "ref": "TI SCLS108E, section 4 DIP pin figure (top view), page 3"
+        },
+        {
+          "number": "4",
+          "name": "1Y0",
+          "type": "signal",
+          "ref": "TI SCLS108E, section 4 DIP pin figure (top view), page 3"
+        },
+        {
+          "number": "8",
+          "name": "GND",
+          "type": "ground",
+          "ref": "TI SCLS108E, section 4 DIP pin figure (top view), page 3"
+        },
+        {
+          "number": "9",
+          "name": "2Y3",
+          "type": "signal",
+          "ref": "TI SCLS108E, section 4 DIP pin figure (top view), page 3"
+        },
+        {
+          "number": "14",
+          "name": "2A",
+          "type": "signal",
+          "ref": "TI SCLS108E, section 4 DIP pin figure (top view), page 3"
+        },
+        {
+          "number": "15",
+          "name": "2G",
+          "type": "signal",
+          "ref": "TI SCLS108E, section 4 DIP pin figure (top view), page 3"
+        },
+        {
+          "number": "16",
+          "name": "VCC",
+          "type": "power",
+          "ref": "TI SCLS108E, section 4 DIP pin figure (top view), page 3"
+        }
+      ]
+    }
+  ]
+}

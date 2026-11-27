@@ -1,0 +1,51 @@
+{
+  "pinout": "sn74hc86",
+  "variants": [
+    {
+      "variant": "",
+      "counts": {
+        "signal": 12,
+        "ground": 1,
+        "power": 1
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "1A",
+          "type": "signal",
+          "ref": "TI SCLS100F, table Pin Functions, column D/N/NS/PW/J/W (page 3)"
+        },
+        {
+          "number": "3",
+          "name": "1Y",
+          "type": "signal",
+          "ref": "TI SCLS100F, table Pin Functions, column D/N/NS/PW/J/W (page 3)"
+        },
+        {
+          "number": "7",
+          "name": "GND",
+          "type": "ground",
+          "ref": "TI SCLS100F, table Pin Functions, column D/N/NS/PW/J/W (page 3)"
+        },
+        {
+          "number": "8",
+          "name": "3Y",
+          "type": "signal",
+          "ref": "TI SCLS100F, table Pin Functions, column D/N/NS/PW/J/W (page 3)"
+        },
+        {
+          "number": "11",
+          "name": "4Y",
+          "type": "signal",
+          "ref": "TI SCLS100F, table Pin Functions, column D/N/NS/PW/J/W (page 3)"
+        },
+        {
+          "number": "14",
+          "name": "VCC",
+          "type": "power",
+          "ref": "TI SCLS100F, table Pin Functions, column D/N/NS/PW/J/W (page 3)"
+        }
+      ]
+    }
+  ]
+}

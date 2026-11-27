@@ -1,0 +1,64 @@
+{
+  "pinout": "sn74hc74",
+  "variants": [
+    {
+      "variant": "",
+      "counts": {
+        "signal": 4,
+        "data": 8,
+        "ground": 1,
+        "power": 1
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "1CLR",
+          "type": "signal",
+          "ref": "TI SCLS094F, table Pin Functions, column D/DB/N/NS/PW/J/W (page 3)"
+        },
+        {
+          "number": "3",
+          "name": "1CLK",
+          "type": "data",
+          "ref": "TI SCLS094F, table Pin Functions, column D/DB/N/NS/PW/J/W (page 3)"
+        },
+        {
+          "number": "4",
+          "name": "1PRE",
+          "type": "signal",
+          "ref": "TI SCLS094F, table Pin Functions, column D/DB/N/NS/PW/J/W (page 3)"
+        },
+        {
+          "number": "6",
+          "name": "~1Q",
+          "type": "data",
+          "ref": "TI SCLS094F, table Pin Functions, column D/DB/N/NS/PW/J/W (page 3)"
+        },
+        {
+          "number": "7",
+          "name": "GND",
+          "type": "ground",
+          "ref": "TI SCLS094F, table Pin Functions, column D/DB/N/NS/PW/J/W (page 3)"
+        },
+        {
+          "number": "8",
+          "name": "~2Q",
+          "type": "data",
+          "ref": "TI SCLS094F, table Pin Functions, column D/DB/N/NS/PW/J/W (page 3)"
+        },
+        {
+          "number": "13",
+          "name": "2CLR",
+          "type": "signal",
+          "ref": "TI SCLS094F, table Pin Functions, column D/DB/N/NS/PW/J/W (page 3)"
+        },
+        {
+          "number": "14",
+          "name": "VCC",
+          "type": "power",
+          "ref": "TI SCLS094F, table Pin Functions, column D/DB/N/NS/PW/J/W (page 3)"
+        }
+      ]
+    }
+  ]
+}

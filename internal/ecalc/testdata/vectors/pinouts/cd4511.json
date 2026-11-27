@@ -1,0 +1,76 @@
+{
+  "pinout": "cd4511",
+  "variants": [
+    {
+      "variant": "",
+      "counts": {
+        "data": 4,
+        "signal": 10,
+        "ground": 1,
+        "power": 1
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "B",
+          "type": "data",
+          "ref": "TI SCHS072B, \"CD4511B TERMINAL ASSIGNMENT\" (top view), PDF page 1"
+        },
+        {
+          "number": "3",
+          "name": "LT",
+          "type": "signal",
+          "ref": "TI SCHS072B, \"CD4511B TERMINAL ASSIGNMENT\" (top view), PDF page 1"
+        },
+        {
+          "number": "4",
+          "name": "BL",
+          "type": "signal",
+          "ref": "TI SCHS072B, \"CD4511B TERMINAL ASSIGNMENT\" (top view), PDF page 1"
+        },
+        {
+          "number": "5",
+          "name": "LE/STROBE",
+          "type": "signal",
+          "ref": "TI SCHS072B, \"CD4511B TERMINAL ASSIGNMENT\" (top view), PDF page 1"
+        },
+        {
+          "number": "7",
+          "name": "A",
+          "type": "data",
+          "ref": "TI SCHS072B, \"CD4511B TERMINAL ASSIGNMENT\" (top view), PDF page 1"
+        },
+        {
+          "number": "8",
+          "name": "VSS",
+          "type": "ground",
+          "ref": "TI SCHS072B, \"CD4511B TERMINAL ASSIGNMENT\" (top view), PDF page 1"
+        },
+        {
+          "number": "9",
+          "name": "e",
+          "type": "signal",
+          "ref": "TI SCHS072B, \"CD4511B TERMINAL ASSIGNMENT\" (top view), PDF page 1"
+        },
+        {
+          "number": "13",
+          "name": "a",
+          "type": "signal",
+          "ref": "TI SCHS072B, \"CD4511B TERMINAL ASSIGNMENT\" (top view), PDF page 1"
+        },
+        {
+          "number": "14",
+          "name": "g",
+          "type": "signal",
+          "ref": "TI SCHS072B, \"CD4511B TERMINAL ASSIGNMENT\" (top view), PDF page 1"
+        },
+        {
+          "number": "16",
+          "name": "VDD",
+          "type": "power",
+          "ref": "TI SCHS072B, \"CD4511B TERMINAL ASSIGNMENT\" (top view), PDF page 1"
+        }
+      ]
+    }
+  ]
+}

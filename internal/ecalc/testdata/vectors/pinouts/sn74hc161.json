@@ -1,0 +1,70 @@
+{
+  "pinout": "sn74hc161",
+  "variants": [
+    {
+      "variant": "",
+      "counts": {
+        "signal": 6,
+        "data": 8,
+        "ground": 1,
+        "power": 1
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "CLR",
+          "type": "signal",
+          "ref": "TI SCLS297D, DIP pin figure (top view), page 1; same in SCLS298D, page 1"
+        },
+        {
+          "number": "2",
+          "name": "CLK",
+          "type": "signal",
+          "ref": "TI SCLS297D, DIP pin figure (top view), page 1"
+        },
+        {
+          "number": "3",
+          "name": "A",
+          "type": "data",
+          "ref": "TI SCLS297D, DIP pin figure (top view), page 1"
+        },
+        {
+          "number": "8",
+          "name": "GND",
+          "type": "ground",
+          "ref": "TI SCLS297D, DIP pin figure (top view), page 1"
+        },
+        {
+          "number": "9",
+          "name": "LOAD",
+          "type": "signal",
+          "ref": "TI SCLS297D, DIP pin figure (top view), page 1; same in SCLS298D, page 1"
+        },
+        {
+          "number": "11",
+          "name": "QD",
+          "type": "data",
+          "ref": "TI SCLS297D, DIP pin figure (top view), page 1"
+        },
+        {
+          "number": "14",
+          "name": "QA",
+          "type": "data",
+          "ref": "TI SCLS297D, DIP pin figure (top view), page 1"
+        },
+        {
+          "number": "15",
+          "name": "RCO",
+          "type": "signal",
+          "ref": "TI SCLS297D, DIP pin figure (top view), page 1"
+        },
+        {
+          "number": "16",
+          "name": "VCC",
+          "type": "power",
+          "ref": "TI SCLS297D, DIP pin figure (top view), page 1"
+        }
+      ]
+    }
+  ]
+}

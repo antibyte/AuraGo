@@ -1,0 +1,64 @@
+{
+  "pinout": "cd4013",
+  "variants": [
+    {
+      "variant": "",
+      "counts": {
+        "data": 8,
+        "signal": 4,
+        "ground": 1,
+        "power": 1
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "Q1",
+          "type": "data",
+          "ref": "TI SCHS023E, table Pin Functions (page 3)"
+        },
+        {
+          "number": "2",
+          "name": "~Q1",
+          "type": "data",
+          "ref": "TI SCHS023E, table Pin Functions (page 3)"
+        },
+        {
+          "number": "3",
+          "name": "CLOCK1",
+          "type": "data",
+          "ref": "TI SCHS023E, table Pin Functions (page 3)"
+        },
+        {
+          "number": "4",
+          "name": "RESET1",
+          "type": "signal",
+          "ref": "TI SCHS023E, table Pin Functions (page 3)"
+        },
+        {
+          "number": "6",
+          "name": "SET1",
+          "type": "signal",
+          "ref": "TI SCHS023E, table Pin Functions (page 3)"
+        },
+        {
+          "number": "7",
+          "name": "VSS",
+          "type": "ground",
+          "ref": "TI SCHS023E, table Pin Functions (page 3)"
+        },
+        {
+          "number": "12",
+          "name": "~Q2",
+          "type": "data",
+          "ref": "TI SCHS023E, table Pin Functions (page 3)"
+        },
+        {
+          "number": "14",
+          "name": "VDD",
+          "type": "power",
+          "ref": "TI SCHS023E, table Pin Functions (page 3)"
+        }
+      ]
+    }
+  ]
+}
