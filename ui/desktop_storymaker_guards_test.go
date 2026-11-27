@@ -157,10 +157,10 @@ func TestStorymakerAppUsesOnlyKeysItHas(t *testing.T) {
 		"storymaker.export.phase_":  storymakerList(t, exporter, "PHASES"),
 		"storymaker.export.source_": {"config", "system", "pinned"},
 	}
-	// The list of issue codes is the contract's: thirty-four codes, no more, no less.
-	want := strings.Fields("invalid_json unknown_field schema_mismatch too_large limit_exceeded missing_field invalid_value duplicate_id unknown_name unknown_asset unknown_spot unknown_cast unknown_cue canonicalised not_supported_yet narration_missing code_error deadline layout_unverified line_unread dead_stretch first_frame_empty text_too_small fade_between_worlds entry_monotony transition_variety cue_late glyph_missing text_offframe text_unsafe text_contrast flash flash_unverified slow_hook")
+	// The list of issue codes is the contract's: thirty-eight codes, no more, no less.
+	want := strings.Fields("invalid_json unknown_field schema_mismatch too_large limit_exceeded missing_field invalid_value duplicate_id unknown_name unknown_asset unknown_spot unknown_cast unknown_cue canonicalised not_supported_yet narration_missing code_error deadline layout_unverified line_unread dead_stretch first_frame_empty text_too_small fade_between_worlds entry_monotony transition_variety cue_late glyph_missing text_offframe text_unsafe text_contrast flash flash_unverified slow_hook block_too_small label_long no_blocks block_repeat")
 	if strings.Join(families["storymaker.issue."], " ") != strings.Join(want, " ") {
-		t.Errorf("ISSUE_CODES = %v, want the 34 codes of the contract", families["storymaker.issue."])
+		t.Errorf("ISSUE_CODES = %v, want the 38 codes of the contract", families["storymaker.issue."])
 	}
 	// A narrate job ends with these codes, so the app needs a sentence for each. Batch 2C adds more, so this is no exact list.
 	jobCodes := " " + strings.Join(families["storymaker.job_error."], " ") + " "

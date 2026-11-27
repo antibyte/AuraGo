@@ -57,6 +57,8 @@
         offscreen: 'storymaker.agent.check_layout_found',
         actor_prop_overlap: 'storymaker.agent.check_layout_found',
         scene_static: 'storymaker.agent.check_layout_found',
+        block_too_small: 'storymaker.agent.check_layout_found',
+        scene_fallback: 'storymaker.agent.check_scene_fallback',
         environment_monotony: 'storymaker.agent.check_craft',
         framing_monotony: 'storymaker.agent.check_craft',
         gesture_monotony: 'storymaker.agent.check_craft',
