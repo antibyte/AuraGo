@@ -8,6 +8,9 @@
     const LOOT_CAP = 48;
     const TOTAL = 10;
     const NOTICE = 'runenpfad.notice.page_found';
+    const TABLET_TOTAL = 6;
+    const TABLET_NOTICE = 'runenpfad.notice.tablet_found';
+    const TABLET_FLAG = 'dr.tabs';
 
     // Place and campaign level where each page lies (contract section 3).
     const WHERE = [['hermit_hut', 1], ['beast_den', 3], ['kobold_den', 6], ['crystal_grotto', 9], ['nomad_tent', 11],
@@ -16,6 +19,11 @@
     const PAGES = WHERE.map(function (w, i) {
         const n = i + 1;
         return { n: n, loot: lootId(n), placeId: w[0], level: w[1], titleKey: 'runenpfad.page.' + n + '.title' };
+    });
+
+    // The six stone tablets of the ember chapter: hall (1, 2) and the deeps (3-6), kept as bits of the flag dr.tabs.
+    const TABLETS = [['hall'], ['hall'], ['deeps'], ['deeps'], ['deeps'], ['deeps']].map(function (w, i) {
+        return { n: i + 1, placeId: w[0], titleKey: 'runenpfad.tablet.' + (i + 1) + '.title' };
     });
 
     function lootId(n) { return 'page_' + (n < 10 ? '0' : '') + n; }
@@ -68,6 +76,46 @@
         });
     }
 
+    function validTablet(n) { return Number.isInteger(n) && n >= 1 && n <= TABLET_TOTAL; }
+
+    function tabBits(profile) {
+        const f = profile && profile.npcFlags;
+        return f && f[TABLET_FLAG] > 0 ? f[TABLET_FLAG] | 0 : 0;
+    }
+
+    function hasTablet(profile, n) {
+        return validTablet(n) && (tabBits(profile) & (1 << (n - 1))) !== 0;
+    }
+
+    function tabletCount(profile) {
+        let c = 0;
+        for (let n = 1; n <= TABLET_TOTAL; n++) if (hasTablet(profile, n)) c += 1;
+        return c;
+    }
+
+    function tabletList(profile, t) {
+        const tr = typeof t === 'function' ? t : function (k) { return k; };
+        return TABLETS.map(function (tb) {
+            const placeKey = 'runenpfad.place.' + tb.placeId;
+            return { n: tb.n, placeId: tb.placeId, titleKey: tb.titleKey, placeKey: placeKey, title: tr(tb.titleKey), place: tr(placeKey), have: hasTablet(profile, tb.n) };
+        });
+    }
+
+    // Returns true when the tablet was new (campaign only). The bit is stored through the NPC flag helper.
+    function giveTablet(sim, n) {
+        const N = root.RunenpfadNpcs;
+        if (!sim || !sim.profile || sim.mode === 'endless' || !validTablet(n) || !N) return false;
+        if (hasTablet(sim.profile, n)) return false;
+        if (!N.setFlag(sim, TABLET_FLAG, tabBits(sim.profile) | (1 << (n - 1)))) return false;
+        if (root.RunenpfadPhysics) root.RunenpfadPhysics.pushEvent(sim, 'in_tablet', { tablet: n, first: true });
+        sim.notice = TABLET_NOTICE;
+        const p = sim.player;
+        if (p && Array.isArray(sim.floatingTexts)) {
+            sim.floatingTexts.push({ x: p.x, y: p.y - 64, text: 'TABLET', key: TABLET_NOTICE, suffix: ' ' + tabletCount(sim.profile) + '/' + TABLET_TOTAL, color: '#9fe8ff', timer: 1.4 });
+        }
+        return true;
+    }
+
     function flagOf(profile, key) {
         const f = profile && profile.npcFlags;
         return f && f[key] > 0 ? f[key] : 0;
@@ -86,6 +134,12 @@
         count: count,
         give: give,
         list: list,
-        chapter: chapter
+        chapter: chapter,
+        TABLET_TOTAL: TABLET_TOTAL,
+        TABLETS: TABLETS,
+        hasTablet: hasTablet,
+        tabletCount: tabletCount,
+        tabletList: tabletList,
+        giveTablet: giveTablet
     };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -16,6 +16,7 @@
         const select = function () { if (typeof o.play === 'function') o.play('ui_select'); }; // enabled controls only
         let view = Math.max(0, Math.min(VIEW_CHRONICLE, Math.floor(Number(o.view) || 0)));
         let readPage = 0; // journal page open in the chronicle tab (0 = none)
+        let readTablet = 0; // stone tablet open below the journal (0 = none)
 
         const dialog = el('dialog', 'rp-dialog rp-levels-dialog');
         const head = el('div', 'rp-dialog-head');
@@ -92,6 +93,9 @@
             });
             grid.append(box);
             if (root.RunenpfadChronicle) renderJournal(profile);
+            const Chr = root.RunenpfadChronicle;
+            const Emb = root.RunenpfadEmber;
+            if (Chr && Chr.tabletList && (Chr.tabletCount(profile) > 0 || (Emb && Emb.step(profile) >= 1))) renderTablets(profile);
         }
 
         // Edda's journal: ten rows (title and a read button, or where to look), the open page's text below them.
@@ -131,6 +135,46 @@
                 const reader = el('article', 'rp-journal-reader');
                 reader.append(el('h4', 'rp-journal-page', open.title || t(open.titleKey || 'runenpfad.page.' + readPage + '.title')));
                 ['a', 'b'].forEach(function (part) { reader.append(el('p', 'rp-journal-text', t('runenpfad.npc.journal.p' + readPage + part))); });
+                box.append(reader);
+            }
+            grid.append(box);
+        }
+
+        // The stone tablets of the ember chapter: six rows (title and a read button, or where to look), the open text below.
+        function renderTablets(profile) {
+            const Chr = root.RunenpfadChronicle;
+            const tabs = Chr.tabletList(profile, t) || [];
+            const box = el('div', 'rp-journal rp-tablets');
+            const headRow = el('div', 'rp-journal-head');
+            headRow.append(el('h3', 'rp-journal-title', t('runenpfad.tablet.title')), el('span', 'rp-journal-count rp-num', fill('runenpfad.tablet.count', { count: Chr.tabletCount(profile) })));
+            box.append(headRow);
+            tabs.forEach(function (tb) {
+                const n = tb.n;
+                const row = el('div', 'rp-chron-row rp-journal-row' + (tb.have ? ' is-seen' : '') + (readTablet === n ? ' is-open' : ''));
+                row.dataset.rpTablet = String(n);
+                row.append(el('span', 'rp-chron-no', String(n)));
+                if (tb.have) {
+                    row.append(el('strong', 'rp-chron-title', tb.title));
+                    const btn = el('button', 'rp-btn', t('runenpfad.tablet.read'));
+                    btn.type = 'button';
+                    btn.dataset.rpReadTablet = String(n);
+                    btn.addEventListener('click', function () {
+                        if (typeof o.play === 'function') o.play('ui_page');
+                        readTablet = readTablet === n ? 0 : n;
+                        render();
+                        const again = grid.querySelector('[data-rp-read-tablet="' + n + '"]');
+                        if (again) again.focus({ preventScroll: true });
+                    });
+                    row.append(btn);
+                } else {
+                    row.append(el('span', 'rp-chron-title is-locked', fill('runenpfad.tablet.missing', { place: t(tb.placeKey) })));
+                }
+                box.append(row);
+            });
+            const open = tabs.filter(function (tb) { return tb.have && tb.n === readTablet; })[0];
+            if (open) {
+                const reader = el('article', 'rp-journal-reader');
+                reader.append(el('h4', 'rp-journal-page', open.title), el('p', 'rp-journal-text', t('runenpfad.npc.lore.tab_' + open.n)));
                 box.append(reader);
             }
             grid.append(box);
@@ -187,7 +231,7 @@
             if (cutscenes()) addTab(VIEW_CHRONICLE, t('runenpfad.cut.chronicle'), '');
 
             grid.replaceChildren();
-            if (view !== VIEW_CHRONICLE) readPage = 0;
+            if (view !== VIEW_CHRONICLE) { readPage = 0; readTablet = 0; }
             if (view === VIEW_ENDLESS) renderEndless(profile);
             else if (view === VIEW_CHRONICLE && cutscenes()) renderChronicle(profile);
             else renderTiles(profile);

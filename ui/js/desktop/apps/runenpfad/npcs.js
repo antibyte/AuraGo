@@ -257,6 +257,7 @@
         applySabotage(sim);
         spawnQuestItems(sim);
         if (trade()) trade().applyStageStart(sim);
+        if (root.RunenpfadEmber) root.RunenpfadEmber.onStageStart(sim);
         refreshAll(sim);
     }
 

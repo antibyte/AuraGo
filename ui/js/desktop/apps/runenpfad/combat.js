@@ -47,6 +47,7 @@
         const runes = runesApi();
         if (runes && amount < p.maxHp && runes.absorb(sim)) return;
         p.hp = Math.max(0, p.hp - amount);
+        if (p.hp <= 0 && amount < p.maxHp && root.RunenpfadEmber && root.RunenpfadEmber.spareLethal(sim)) p.hp = 1;
         if (p.swing) {
             p.swing = null;
             p.swingCool = 0.3;

@@ -619,7 +619,7 @@
         // Dash roll (Ranger)
         if (!swung && stats.def.dashEnabled && input.dashPressed && p.dashCooldown <= 0 && p.dashTimer <= 0) {
             p.dashTimer = 0.18;
-            p.dashCooldown = 0.72;
+            p.dashCooldown = sim.meal === 'broth' ? 0.45 : 0.72;
             p.invulnTimer = Math.max(p.invulnTimer, 0.24);
             p.vx = p.facing * 520;
             p.vy = 0;

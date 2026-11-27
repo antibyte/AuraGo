@@ -3,8 +3,8 @@
     'use strict';
 
     const SHARED_CHOICES = ['farewell', 'thanks', 'trade', 'leave', 'fight', 'back'];
-    const EFFECT_OPS = ['rep', 'coins', 'item', 'give', 'flag', 'unflag', 'quest', 'questDone', 'trade', 'duel', 'provoke', 'gate', 'leave', 'confront', 'ui', 'page', 'notice'];
-    const COND_KEYS = ['repMin', 'repMax', 'coinsMin', 'flag', 'notFlag', 'flagMin', 'item', 'hero', 'quest', 'questDone', 'notQuest', 'world', 'feature', 'any', 'not', 'progress', 'loot', 'pages'];
+    const EFFECT_OPS = ['rep', 'coins', 'item', 'give', 'flag', 'unflag', 'quest', 'questDone', 'trade', 'duel', 'provoke', 'gate', 'leave', 'confront', 'ui', 'page', 'notice', 'ember'];
+    const COND_KEYS = ['repMin', 'repMax', 'coinsMin', 'flag', 'notFlag', 'flagMin', 'item', 'hero', 'quest', 'questDone', 'notQuest', 'world', 'feature', 'any', 'not', 'progress', 'loot', 'pages', 'step', 'tablets', 'seen', 'fate'];
     const TIP_KINDS = ['key_dir', 'gems_left', 'secret_wall', 'chest_dir', 'puzzle_hint', 'boss_weakness'];
     const MOODS = ['neutral', 'happy', 'angry'];
     const MARKERS = ['talk', 'quest', 'duel', 'trade', 'heart'];
@@ -61,6 +61,10 @@
             else if (key === 'progress') ok = pr.unlockedLevel >= v;
             else if (key === 'loot') ok = (pr.loot || []).indexOf(v) >= 0;
             else if (key === 'pages') ok = pageCount(pr) >= v;
+            else if (key === 'step') ok = (root.RunenpfadEmber ? root.RunenpfadEmber.step(pr) : 0) >= v;
+            else if (key === 'tablets') ok = (root.RunenpfadChronicle && root.RunenpfadChronicle.tabletCount ? root.RunenpfadChronicle.tabletCount(pr) : 0) >= v;
+            else if (key === 'seen') ok = (pr.seen || []).indexOf(v) >= 0;
+            else if (key === 'fate') ok = (root.RunenpfadEmber ? root.RunenpfadEmber.fate(pr) : null) === v;
             if (!ok) return false;
         }
         return true;
@@ -126,6 +130,7 @@
                 } else if (op === 'page') {
                     if (root.RunenpfadChronicle) root.RunenpfadChronicle.give(sim, v);
                 } else if (op === 'notice') sim.notice = v;
+                else if (op === 'ember') { if (root.RunenpfadEmber) root.RunenpfadEmber.effect(sim, v); }
                 else if (op === 'gate') openGate(sim, npc);
                 else if (op === 'leave') {
                     npc.state = 'gone';
@@ -422,6 +427,7 @@
                 if (op === 'ui' && v !== 'workshop' && v !== 'chronicle' && !(typeof v === 'string' && UI_RE.test(v))) probs.push(where + ': bad ui ' + v);
                 if (op === 'page' && !(Number.isInteger(v) && v >= 1 && v <= 10)) probs.push(where + ': bad page ' + v);
                 if (op === 'notice' && !(typeof v === 'string' && NOTICE_RE.test(v))) probs.push(where + ': bad notice ' + v);
+                if (op === 'ember' && v !== 'slay' && v !== 'seal') probs.push(where + ': bad ember ' + v);
                 if (op === 'gate' && v !== 'open') probs.push(where + ': bad gate');
             });
         });
@@ -440,6 +446,10 @@
             if (k === 'progress' && !(Number.isInteger(v) && v >= 1 && v <= 25)) probs.push(where + ': bad progress ' + v);
             if (k === 'loot' && !prof().LOOT_RE.test(v)) probs.push(where + ': bad loot ' + v);
             if (k === 'pages' && !(Number.isInteger(v) && v >= 1 && v <= 10)) probs.push(where + ': bad pages ' + v);
+            if (k === 'step' && !(Number.isInteger(v) && v >= 0 && v <= 5)) probs.push(where + ': bad step ' + v);
+            if (k === 'tablets' && !(Number.isInteger(v) && v >= 1 && v <= 6)) probs.push(where + ': bad tablets ' + v);
+            if (k === 'seen' && !prof().SEEN_RE.test(v)) probs.push(where + ': bad seen ' + v);
+            if (k === 'fate' && ['beaten', 'slain', 'sealed'].indexOf(v) < 0) probs.push(where + ': bad fate ' + v);
             if (k === 'any') v.forEach(function (x) { checkCond(x, where, probs); });
             if (k === 'not') checkCond(v, where, probs);
         });

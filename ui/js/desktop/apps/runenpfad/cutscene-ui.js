@@ -249,7 +249,7 @@
             if (open) finish(true);
             const cut = C();
             const cb = typeof onDone === 'function' ? onDone : opt.onDone;
-            st = cut ? cut.create(sceneIds) : null;
+            st = cut ? cut.create(sceneIds, typeof opt.profile === 'function' ? opt.profile() : null) : null;
             if (!st || st.done || !host) {
                 st = null;
                 if (typeof cb === 'function') { try { cb([], { skipped: false }); } catch (err) { /* ignore */ } }

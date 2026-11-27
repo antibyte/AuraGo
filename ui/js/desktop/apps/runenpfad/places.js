@@ -8,6 +8,7 @@
     const HINT = 'runenpfad.notice.place_hint';
     const SEALED = 'runenpfad.notice.sealed';
     const STEP = 1 / 60;
+    const QUEST_ITEMS = ['bell_bronze', 'dragon_scale', 'desk_key', 'room_key', 'clan_charm'];
 
     function P() { return root.RunenpfadPhysics; }
     function R() { return root.RunenpfadPlaceRooms; }
@@ -90,6 +91,7 @@
         const p = sim.player;
         let target = null;
         doors.forEach(function (door) {
+            if (door.off) { door.near = false; return; }
             if (door.cool > 0) door.cool = Math.max(0, door.cool - STEP);
             const near = Math.abs(p.x - door.x) <= NEAR_DX && !!p.onGround && Math.abs(p.y - door.y) <= 8;
             if (near && !door.near) pushEvent(sim, 'place_near', { placeId: door.placeId, kind: door.kind });
@@ -170,7 +172,12 @@
             sim.floatingTexts.push({ x: p.x, y: p.y - 44, text: '+' + loot.coins, icon: 'coin', color: '#fcd34d', timer: 1.2 });
         }
         if (loot.give && D) D.applyEffects(sim, null, [{ give: loot.give }]);
-        if (loot.item) Object.keys(loot.item).forEach(function (id) { N.addItem(sim, id, loot.item[id]); });
+        if (loot.item) {
+            Object.keys(loot.item).forEach(function (id) {
+                N.addItem(sim, id, loot.item[id]);
+                if (loot.item[id] > 0 && QUEST_ITEMS.indexOf(id) >= 0) sim.notice = 'runenpfad.notice.got_' + id;
+            });
+        }
         if (!chest.repeat && sim.profile) {
             const list = sim.profile.loot || (sim.profile.loot = []);
             if (list.indexOf(chest.lootId) < 0 && list.length < 48) {

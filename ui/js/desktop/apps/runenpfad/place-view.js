@@ -43,6 +43,7 @@
                 ask('vil-props');
                 ask('npc-villager');
                 ask('npc-guard');
+                ask('fx-steam');
                 list(st.hubProps).concat(list(st.decor)).forEach(function (p) { if (p && p.clip) ask(sheetOf(p.clip)); });
             }
         }
@@ -204,14 +205,38 @@
             if (sealed) drawSeal(door.x, door.y - Math.min(70, fc.h * 0.2), frame);
         }
 
+        // Three rising steam puffs above (x, y) for a well that breathes; static under reduced motion, grey circles without art.
+        function drawSteam(x, y, hh, frame) {
+            const A = Art();
+            const art = h.art;
+            const still = !!(frame && frame.reducedMotion);
+            const t = frame && frame.nowSec ? frame.nowSec : 0;
+            const rise = Math.max(40, hh * 0.45);
+            for (let k = 0; k < 3; k++) {
+                const ph = still ? (k + 0.5) / 3 : (t * 0.32 + k / 3) % 1;
+                const py = y - ph * rise;
+                const alpha = Math.sin(Math.PI * ph) * 0.8;
+                const px = x + (k - 1) * 9 + (still ? 0 : Math.sin(t * 1.3 + k * 2.1) * 4);
+                if (art && A && A.has(art, 'fx-steam.play') && A.draw(ctx, art, 'fx-steam.play', 0, px, py, { height: 70, alpha: alpha, frame: Math.min(5, Math.floor(ph * 6)) })) continue;
+                ctx.save();
+                ctx.globalAlpha = alpha * 0.6;
+                ctx.fillStyle = '#c9ccd6';
+                ctx.beginPath();
+                ctx.arc(px, py, 6 + ph * 8, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
         // Plain props of the hub (and decor without a door): { clip, x, y, h, flip? }.
         function drawProps(st, frame) {
             const props = list(st.hubProps).concat(list(st.decor));
             for (let i = 0; i < props.length; i++) {
                 const p = props[i];
-                if (!p || !p.clip || p.x + 200 < frame.sx || p.x - 200 > frame.sx + frame.viewW) continue;
+                if (!p || !p.clip || p.hidden || p.x + 200 < frame.sx || p.x - 200 > frame.sx + frame.viewW) continue;
                 groundStrip(p.x, p.y, (p.h || 80) * 0.6);
                 drawFramed(p.clip, p.x, p.y, p.h || 80, !!p.flip);
+                if (p.steam) drawSteam(p.x, p.y - (p.h || 80) * 0.6, p.h || 80, frame);
             }
         }
 
@@ -339,8 +364,9 @@
                 if (st.hub) drawProps(st, frame);
                 for (let i = 0; i < doors.length; i++) {
                     const d = doors[i];
-                    if (d.x < x0 || d.x > x1) continue;
+                    if (d.off || d.x < x0 || d.x > x1) continue;
                     drawFacade(d, sim, frame);
+                    if (d.steam && d.facade) drawSteam(d.x + (d.facade.dx || 0), d.y - d.facade.h * 0.6, d.facade.h, frame);
                 }
                 if (st.hub) list(st.barks).forEach(function (b) { if (b.x > x0 && b.x < x1) drawBarkSprite(b, frame); });
             } catch (err) { /* art problems must never stop the frame */ }
@@ -352,7 +378,7 @@
                 if (!st || !frame) return;
                 if (sim.interior || sim.encounter) return;
                 const doors = list(st.doors);
-                for (let i = 0; i < doors.length; i++) if (doors[i].near) drawDoorPrompt(doors[i], frame);
+                for (let i = 0; i < doors.length; i++) if (doors[i].near && !doors[i].off) drawDoorPrompt(doors[i], frame);
                 if (st.hub) list(st.barks).forEach(function (b) { drawBubble(b, frame); });
             } catch (err) { /* ignore */ }
         }

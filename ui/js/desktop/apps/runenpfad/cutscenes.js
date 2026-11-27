@@ -12,7 +12,7 @@
     const FX_KINDS = ['motes', 'embers', 'snow', 'mist', 'sand', 'sparks', 'rain'];
     const END_PREFIX = 'end_';
     // Chapter scenes: not level-triggered (app.js plays them for the ui request scene:<id>); the chronicle lists them once seen.
-    const CHAPTER_IDS = ['obs_intro', 'true_end'];
+    const CHAPTER_IDS = ['obs_intro', 'true_end', 'dr_tremor', 'dr_night', 'dr_legend', 'dr_wake', 'dr_slain', 'dr_sealed'];
 
     const SCENES = Object.create(null);
     const IDS = [];
@@ -128,6 +128,43 @@
         panel('cut-trueend-3', null, [[0.5, 0.6, 1.14], [0.5, 0.48, 1]], ['motes'], [light(0.5, 0.3, 0.2, '#ffe9a8', true), light(0.2, 0.55, 0.1, AMBER, true), light(0.8, 0.55, 0.1, AMBER, true)], [])
     ]);
 
+    // Round 11 chapter: the ember wyrm under Pathrest.
+    scene('dr_tremor', 'story_dark', [
+        panel('cut-dragon-1', null, [[0.5, 0.55, 1.1], [0.5, 0.45, 1]], ['mist', 'embers'], [light(0.5, 0.5, 0.2, FIRE, true), light(0.2, 0.6, 0.1, AMBER, false)], [])
+    ]);
+
+    scene('dr_night', 'story_dark', [
+        panel('cut-dragon-3', null, [[0.35, 0.55, 1.08], [0.6, 0.5, 1.1]], ['mist', 'sparks'], [light(0.5, 0.45, 0.2, AMBER, true), light(0.8, 0.5, 0.08, FIRE, false)], []),
+        panel('cut-dragon-4', null, [[0.5, 0.6, 1], [0.5, 0.42, 1.16]], ['embers'], [light(0.5, 0.5, 0.24, FIRE, true), light(0.15, 0.4, 0.08, AMBER, false)], [])
+    ]);
+
+    scene('dr_legend', 'story_dawn', [
+        panel('cut-dragon-2', null, [[0.65, 0.5, 1.1], [0.35, 0.5, 1]], ['motes'], [light(0.5, 0.4, 0.2, GOLD, true), light(0.25, 0.55, 0.1, AMBER, false)], [])
+    ]);
+
+    scene('dr_wake', 'story_dark', [
+        panel('cut-dragon-5', null, [[0.5, 0.62, 1], [0.5, 0.4, 1.18]], ['embers', 'sparks'], [light(0.5, 0.4, 0.3, FIRE, true), light(0.5, 0.45, 0.12, GOLD, true)], [])
+    ]);
+
+    scene('dr_slain', 'story_dark', [
+        panel('cut-dragon-6', null, [[0.45, 0.55, 1.12], [0.55, 0.5, 1]], ['embers', 'mist'], [light(0.5, 0.55, 0.16, FIRE, true), light(0.3, 0.4, 0.08, AMBER, false)], [])
+    ]);
+
+    scene('dr_sealed', 'story_dawn', [
+        panel('cut-dragon-7', null, [[0.5, 0.58, 1.12], [0.5, 0.48, 1]], ['motes'], [light(0.5, 0.45, 0.24, ICE, true), light(0.5, 0.6, 0.1, GOLD, true)], [])
+    ]);
+
+    // Variant lines: a panel may carry one extra line per ending fate (profile npcFlags dr.fate 2 slain, 3 sealed).
+    function variant(sceneId, panelNo, fates) {
+        SCENES[sceneId].panels[panelNo - 1].variants = fates.map(function (f) {
+            return { fate: f, key: 'runenpfad.cut.' + sceneId + '.' + panelNo + f };
+        });
+    }
+    variant('end_friend', 1, ['slain', 'sealed']);
+    variant('end_neutral', 1, ['slain', 'sealed']);
+    variant('end_feared', 1, ['slain', 'sealed']);
+    variant('true_end', 3, ['slain', 'sealed']);
+
     // ---- triggers ----
     const START_TRIGGERS = { 1: 'prologue', 6: 'intro_2', 11: 'intro_3', 16: 'intro_4', 21: 'intro_5' };
     const WON_TRIGGERS = { 5: 'after_1', 10: 'after_2', 15: 'after_3', 20: 'after_4', 25: 'finale' };
@@ -197,12 +234,25 @@
     }
 
     // ---- player state ----
-    function create(sceneIds) {
+    function fateOf(profile) {
+        const v = profile && profile.npcFlags ? profile.npcFlags['dr.fate'] : 0;
+        return v === 2 ? 'slain' : (v === 3 ? 'sealed' : null);
+    }
+
+    function create(sceneIds, profile) {
         const ids = [];
         (Array.isArray(sceneIds) ? sceneIds : []).forEach(function (id) {
             if (SCENES[id] && ids.indexOf(id) < 0) ids.push(id);
         });
-        return { ids: ids, sceneIndex: 0, panelIndex: 0, lineIndex: 0, t: 0, panelT: 0, chars: 0, lineDone: false, done: ids.length === 0, lineLen: 0, lenSet: false };
+        const fate = fateOf(profile);
+        const extra = {};
+        ids.forEach(function (id, si) {
+            SCENES[id].panels.forEach(function (pn, pi) {
+                const v = fate && (pn.variants || []).filter(function (x) { return x.fate === fate; })[0];
+                if (v) extra[si + ':' + pi] = [v.key];
+            });
+        });
+        return { ids: ids, extra: extra, sceneIndex: 0, panelIndex: 0, lineIndex: 0, t: 0, panelT: 0, chars: 0, lineDone: false, done: ids.length === 0, lineLen: 0, lenSet: false };
     }
 
     function current(state) {
@@ -210,7 +260,8 @@
         const s = SCENES[state.ids[state.sceneIndex]];
         const p = s && s.panels[state.panelIndex];
         if (!p) return null;
-        return { scene: s, panel: p, lineKey: p.lines[state.lineIndex] || '' };
+        const lines = p.lines.concat((state.extra && state.extra[state.sceneIndex + ':' + state.panelIndex]) || []);
+        return { scene: s, panel: p, lines: lines, lineKey: lines[state.lineIndex] || '' };
     }
 
     // The UI reports the translated length of the current line; the typewriter ends there.
@@ -265,7 +316,7 @@
             state.done = true;
             return 'done';
         }
-        if (state.lineIndex + 1 < cur.panel.lines.length) {
+        if (state.lineIndex + 1 < cur.lines.length) {
             state.lineIndex += 1;
             resetLine(state);
             return 'line';

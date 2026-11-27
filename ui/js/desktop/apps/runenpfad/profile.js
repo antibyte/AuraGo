@@ -6,7 +6,7 @@
     const SAVE_VERSION = 1;
 
     const FACTIONS = ['coven', 'circle', 'kobolds'];
-    const STORY_ITEMS = { glow_mushroom: 9, sun_shard: 9, gear_part: 9, hex_charm: 1, lucky_amulet: 3, discount_token: 3, rune_attune: 2 };
+    const STORY_ITEMS = { glow_mushroom: 9, sun_shard: 9, gear_part: 9, hex_charm: 1, lucky_amulet: 3, discount_token: 3, rune_attune: 2, bell_bronze: 1, dragon_scale: 1, desk_key: 1, room_key: 1, clan_charm: 1, turnip: 3, ham: 3, frostberry: 3, honey: 3 };
     const QUEST_IDS = ['witch_mushrooms', 'seer_shards', 'alchemist_gears'];
     const LOOT_RE = /^[a-z][a-z0-9_]{1,23}$/;
     const SEEN_RE = /^[a-z][a-z0-9_]{1,15}$/;
@@ -214,7 +214,7 @@
         const alchemy = clampInt(upg.alchemy, 1, 5, 1);
         return {
             def: def,
-            maxHp: def.baseHp + (vit - 1),
+            maxHp: def.baseHp + (vit - 1) + ((profile && profile.npcFlags && profile.npcFlags['dr.fate'] === 2) ? 1 : 0),
             damage: def.baseDamage + Math.floor(might / 2),
             speed: def.speed + (boots - 1) * 14,
             jumpVel: def.jumpVel + (boots - 1) * 16,

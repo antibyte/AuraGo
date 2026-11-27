@@ -990,7 +990,7 @@
                     if (music && typeof music.setEnabled === 'function') music.setEnabled(profile.music !== false);
                 } catch (err) { music = null; }
                 if (cut) cut.dispose();
-                cut = root.RunenpfadCutsceneUi ? root.RunenpfadCutsceneUi.create({ host: shell, t: t, audio: audio, music: music }) : null;
+                cut = root.RunenpfadCutsceneUi ? root.RunenpfadCutsceneUi.create({ host: shell, t: t, audio: audio, music: music, profile: function () { return profile; } }) : null;
                 initPostfx(renderer, ticket);
                 paintStaticCopy();
                 loadingCard.hidden = true;
