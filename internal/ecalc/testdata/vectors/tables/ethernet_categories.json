@@ -1,0 +1,26 @@
+{
+  "table": "ethernet_categories",
+  "cells": [
+    {"key": "Category 5e (Cat 5e)", "column": "bandwidth", "want": 100000000, "ref": "Fluke Networks knowledge base (Category 5E measured 1–100 MHz) = Siemon Premium 5e spec sheet (values above 100 MHz informational): 100 MHz"},
+    {"key": "Category 6 (Cat 6)", "column": "bandwidth", "want": 250000000, "ref": "Panduit COTB01 Table 1 = Fluke KB Class F article = ISO/IEC JTC 1/SC 25/WG 3 N 638 (Category 6/Class E to 250 MHz): 250 MHz"},
+    {"key": "Category 6A (Cat 6A)", "column": "bandwidth", "want": 500000000, "ref": "Panduit COTB01 Table 1 = Fluke KB Class F article (Class EA 500 MHz): 500 MHz"},
+    {"key": "Category 7A (Cat 7A)", "column": "bandwidth", "want": 1000000000, "ref": "Panduit COTB01 = Fluke KB Class F article (Class FA 1000 MHz) = Siemon TERA E10 spec sheet: 1000 MHz"},
+    {"key": "Category 8 (TIA) / Category 8.1 (ISO/IEC)", "column": "bandwidth", "want": 2000000000, "ref": "Panduit COTB01 = CommScope WP-110474 = Fluke blog ANSI/TIA-568.2-D (1–2000 MHz): 2000 MHz"},
+    {"key": "Category 6 (Cat 6)", "column": "iso_class", "want": "E", "ref": "Panduit COTB01 Table 1 = Fluke KB Class F article = WG3 N 638: Category 6 is Class E"},
+    {"key": "Category 8 (TIA) / Category 8.1 (ISO/IEC)", "column": "iso_class", "want": "I", "ref": "CommScope WP-110474 (802.3bq link segment = ISO Class I + TIA Category 8) = ISO/IEC 11801-1:2017 preview (Classes I and II added)"},
+    {"key": "Category 8 (TIA) / Category 8.1 (ISO/IEC)", "column": "channel", "want": 30, "ref": "IEEE 802.3bq objectives (up to 2 connectors, at least 30 m) = CommScope WP-110474 = Panduit COTB01 = Fluke Category 8 page: 30 m"},
+    {"key": "Category 5e (Cat 5e)", "column": "channel", "want": 100, "ref": "Siemon Premium 5e (performance based on 100 m) = Prysmian UC300 data sheet (100 m channel): 100 m"},
+    {"key": "Category 5 (Cat 5)", "column": "e1000", "want": "100 m", "ref": "Fluke KB 1000BASE-T over Category 5 (IEEE 802.3ab: Category 5 link segment of up to at least 100 m) = OCC white paper WP-10: 100 m"},
+    {"key": "Category 5 (Cat 5)", "column": "e2g5", "want": "–", "ref": "IEEE 802.3bz objectives start at Class D / Cat 5e = Fluke blog (2018): not specified for Cat 5"},
+    {"key": "Category 5e (Cat 5e)", "column": "e2g5", "want": "100 m", "ref": "IEEE 802.3bz NGEABT objectives (2.5 Gb/s at least 100 m on Class D/Cat5e) = Fluke blog (2018) = Cisco multigigabit white paper: 100 m"},
+    {"key": "Category 5e (Cat 5e)", "column": "e5g", "want": "100 m (limited)", "ref": "IEEE 802.3bz objectives (5 Gb/s up to 100 m on Class D/Cat5e in defined use cases) = Fluke blog (2018); CommScope infographic rates Cat 5e higher risk"},
+    {"key": "Category 6 (Cat 6)", "column": "e10g", "want": "55 m (limited)", "ref": "IEEE 802.3an objectives (at least 55 m on Class E) = TIA TR-42 tutorial 2005 (TSB-155, 55 m) = Cisco white paper; Fluke KB 10GBASE-T: 37 m expected, 37–55 m depending on alien crosstalk"},
+    {"key": "Category 6A (Cat 6A)", "column": "e10g", "want": "100 m", "ref": "TIA TR-42 tutorial 2005 (Augmented category 6, 100 m, 4-connector channels) = Fluke KB 10GBASE-T = Panduit COTB01 = Cisco white paper: 100 m"},
+    {"key": "Category 6A (Cat 6A)", "column": "e25g40g", "want": "–", "ref": "Panduit COTB01 (25/40GBASE-T not supported on 6A) = IEEE 802.3bq objectives (4-pair balanced cabling, 30 m): not specified"},
+    {"key": "Category 8 (TIA) / Category 8.1 (ISO/IEC)", "column": "e25g40g", "want": "30 m", "ref": "IEEE 802.3bq objectives (at least 30 m, up to 2 connectors) = CommScope WP-110474 = Panduit COTB01 = Fluke Category 8 page: 30 m"},
+    {"key": "Category 7 (Cat 7)", "column": "tia", "want": "not in TIA (ISO/IEC only)", "ref": "Panduit COTB01 (TIA does not recognize Category 7 or 7A) = Fluke KB Class F article (Class F has no TIA-568-C equivalent)"},
+    {"key": "Category 5 (Cat 5)", "column": "construction", "want": null, "ref": "only the 1995 Spurgeon quick reference says Cat 5 is unshielded and no maker document for plain Cat 5 was found (UNVERIFIED, empty)"},
+    {"key": "Category 8.2 (ISO/IEC)", "column": "e10g", "want": null, "ref": "only Siemon states Category 8.2 cords support 10BASE-T to 40GBASE-T; no second document gives the reach of the lower PHYs (UNVERIFIED, empty)"},
+    {"key": "Category 8.2 (ISO/IEC)", "column": "e25g40g", "want": "30 m", "ref": "Siemon TERA Category 8.2 patch cord spec sheet (2-connector 30 m channel) = Fluke Category 8 page (Class II, 25/40GBASE-T)"}
+  ]
+}

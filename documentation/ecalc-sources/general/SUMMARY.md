@@ -20,6 +20,7 @@ writer and parsed back. Helper scripts in a helper script that is not part of th
 | line_interface_levels.md | RS-232/RS-485/LVDS | transcribed | 18 | 9 | no |
 | ascii.md | ASCII 0–127 | definitional | 128 | 2 | no |
 | wire_colours.md | IEC/DE + US NEC | transcribed | 13 | 6 | yes |
+| ethernet_categories.md | Cat 5 to Cat 8 twisted-pair categories + BASE-T reach | transcribed (task-force objectives, maker documents) | 8 | 17 | yes |
 
 ## Open problems
 
