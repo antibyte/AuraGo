@@ -44,6 +44,7 @@
     --vd-mat-field-color: #FFFEF8;
     --vd-mat-field: var(--vd-mat-field-color);
     --vd-mat-field-border: #555555;
+    --vd-mat-field-edge-mix: 80%;
     --vd-mat-field-radius: 0;
     --vd-mat-field-shadow: inset 2px 2px 0 rgba(85, 85, 85, 0.35);
 

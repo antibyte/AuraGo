@@ -74,6 +74,21 @@ const homeDashGateProbeJS = `(WIN)=>{
  // the text rects that are on screen: cut by the viewport and by every clipping ancestor up to the window
  const clipRects=(el,rs)=>{let L=0,T=0,R=innerWidth,B=innerHeight;for(let n=el;n&&n!==win.parentElement;n=n.parentElement){const s=getComputedStyle(n);if(n===win||s.overflowX!=='visible'||s.overflowY!=='visible'){const p=n.getBoundingClientRect();L=Math.max(L,p.left);T=Math.max(T,p.top);R=Math.min(R,p.right);B=Math.min(B,p.bottom);}}
   return rs.map(r=>({x:Math.max(r.left,L),y:Math.max(r.top,T),r:Math.min(r.right,R),b:Math.min(r.bottom,B)})).filter(r=>r.r-r.x>.5&&r.b-r.y>.5).map(r=>[r.x,r.y,r.r-r.x,r.b-r.y]);};
+ // the rects of the open overlays (desktop context menu, window menu popover, sheet, entity popover, toast) that do not hold el: what they paint lies over el, not behind it
+ const OVL='.vd-context-menu,.vd-window-menu-popover,.hd-sheet-layer .hd-sheet,.hd-ep-pop,.hd-toast';
+ const overlays=el=>[...document.querySelectorAll(OVL)].filter(o=>!o.contains(el)&&!el.contains(o)&&getComputedStyle(o).visibility!=='hidden'&&Number(getComputedStyle(o).opacity)>.05&&!o.closest('[hidden],[inert]')).map(o=>o.getBoundingClientRect()).filter(r=>r.width>0&&r.height>0);
+ // rects [x,y,w,h] minus the overlay rects: what is left of each text rect outside every overlay
+ const outside=(rects,ovs)=>{let cur=rects.map(r=>({x:r[0],y:r[1],r:r[0]+r[2],b:r[1]+r[3]}));
+  for(const o of ovs){const nx=[];for(const q of cur){if(o.right<=q.x||o.left>=q.r||o.bottom<=q.y||o.top>=q.b){nx.push(q);continue;}
+    if(o.top>q.y)nx.push({x:q.x,y:q.y,r:q.r,b:o.top});if(o.bottom<q.b)nx.push({x:q.x,y:o.bottom,r:q.r,b:q.b});
+    const t=Math.max(q.y,o.top),b=Math.min(q.b,o.bottom);if(o.left>q.x)nx.push({x:q.x,y:t,r:o.left,b});if(o.right<q.r)nx.push({x:o.right,y:t,r:q.r,b});}
+   cur=nx.filter(q=>q.r-q.x>.5&&q.b-q.y>.5);}
+  return cur.map(q=>[q.x,q.y,q.r-q.x,q.b-q.y]);};
+ // the text rect as its scrolling ancestors below the window leave it (the window itself does not cut: that is what outside-window asks about)
+ const scrollClip=(el,r)=>{let L=-1e9,T=-1e9,R=1e9,B=1e9;for(let n=el;n&&n!==win;n=n.parentElement){const s=getComputedStyle(n);if(s.overflowX!=='visible'||s.overflowY!=='visible'){const p=n.getBoundingClientRect();L=Math.max(L,p.left);T=Math.max(T,p.top);R=Math.min(R,p.right);B=Math.min(B,p.bottom);}}
+  const q={left:Math.max(r.left,L),top:Math.max(r.top,T),right:Math.min(r.right,R),bottom:Math.min(r.bottom,B)};return q.right-q.left>.5&&q.bottom-q.top>.5?q:null;};
+ // a scrolling box below the window that ends under the window's bottom edge cannot scroll its last items fully into view
+ const scrollerBelow=el=>{for(let n=el.parentElement;n&&n!==win;n=n.parentElement){const s=getComputedStyle(n);if((s.overflowY==='auto'||s.overflowY==='scroll')&&n.getBoundingClientRect().bottom>wr.bottom+1)return true;}return false;};
  const zoomOf=el=>{let z=1;for(let n=el;n&&n.nodeType===1;n=n.parentElement){const v=parseFloat(getComputedStyle(n).zoom);if(v>0)z*=v;}return z;};
  // a row the Go side measures on the text-less screenshot: fg is the colour the control draws, box its on-screen rect, [from,to] the distance range (screen px, > 0 outside the box, < 0 inside) of the pixels it is read against
  const pxui=(el,what,fg,box,from,to,extra)=>{if(!el||!shown(el))return;const c=fg.slice();if(!extra||extra.op===undefined)c[3]*=effOp(el);res.ui.push(Object.assign({el:path(el),what,px:true,fg:c,box:[box.left,box.top,box.width,box.height],from,to,pass:false},extra||{}));};
@@ -88,12 +103,12 @@ const homeDashGateProbeJS = `(WIN)=>{
  for(const host of hosts)for(const el of [host,...host.querySelectorAll('*')]){
   if(!shown(el)||el.closest('[aria-disabled="true"],:disabled'))continue;const txt=snip(el);if(!txt||vhidden(el))continue;
   if(covered(el)){res.contrast.push({el:path(el),name:txt,skip:'occluded',pass:false});continue;}
-  const rects=clipRects(el,textRects(el)),fg=rgba(getComputedStyle(el).webkitTextFillColor);fg[3]*=effOp(el);
-  if(!rects.length)res.contrast.push({el:path(el),name:txt,skip:'offscreen',pass:false});else res.contrast.push({el:path(el),name:txt,px:true,fg,rects,pass:false});
+  const all=clipRects(el,textRects(el)),rects=outside(all,overlays(el)),fg=rgba(getComputedStyle(el).webkitTextFillColor);fg[3]*=effOp(el);
+  if(!all.length)res.contrast.push({el:path(el),name:txt,skip:'offscreen',pass:false});else if(!rects.length)res.contrast.push({el:path(el),name:txt,skip:'occluded',pass:false});else res.contrast.push({el:path(el),name:txt,px:true,fg,rects,pass:false});
   if(el.closest('[data-entity],.hd-sr-only'))continue;
   const cs=getComputedStyle(el),box=el.getBoundingClientRect(),rg=document.createRange();rg.selectNodeContents(el);const tr=rg.getBoundingClientRect();
   const cx=el.scrollWidth>el.clientWidth+1&&cs.overflowX!=='visible',cy=el.scrollHeight>el.clientHeight+1&&cs.overflowY!=='visible',ell=cs.textOverflow==='ellipsis'&&el.scrollWidth>el.clientWidth+1;
-  const spill=tr.width>0&&(tr.right>box.right+1.5||tr.left<box.left-1.5),out=tr.width>0&&(tr.right>wr.right+1||tr.left<wr.left-1||tr.bottom>wr.bottom+1);
+  const spill=tr.width>0&&(tr.right>box.right+1.5||tr.left<box.left-1.5),vt=tr.width>0?scrollClip(el,tr):null,out=!!vt&&(vt.right>wr.right+1||vt.left<wr.left-1||vt.bottom>wr.bottom+1||scrollerBelow(el));
   res.clip.push({el:path(el),name:txt,what:cx?'cut-x':cy?'cut-y':ell?'ellipsis':spill?'spill':out?'outside-window':'',w:cy&&!cx?el.scrollHeight:el.scrollWidth,h:cy&&!cx?el.clientHeight:el.clientWidth,pass:!(cx||cy||ell||spill||out)});}
  const page=root.querySelector('.hd-page'),canvas=page?cands(page):null;
  const ui=(el,what,col,against)=>{if(!el||!shown(el)||!against)return;const r=worst(rgba(col),against);res.ui.push({el:path(el),what,ratio:r,pass:r>=3});};
@@ -178,6 +193,10 @@ func (p hdProbe) failures() []string {
 			case "contrast":
 				out = append(out, fmt.Sprintf("contrast %s %q ratio=%v p10=%v (needs 4.5)", r.El, r.Name, r.Ratio, r.P10))
 			case "ui":
+				if r.What == "field-border" {
+					out = append(out, fmt.Sprintf("ui %s field-border ratio=%v p10=%v (border vs field surface, needs 3)", r.El, r.Ratio, r.P10))
+					continue
+				}
 				out = append(out, fmt.Sprintf("ui %s %s ratio=%v p10=%v width=%v zoom=%v (needs 3, a focus ring 2 px on screen)", r.El, r.What, r.Ratio, r.P10, r.W, r.Zoom))
 			case "hits":
 				out = append(out, fmt.Sprintf("hits %s %q %vx%v", r.El, r.Name, r.W, r.H))
