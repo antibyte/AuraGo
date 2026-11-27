@@ -2054,7 +2054,7 @@
     // the position in the plain text where it stood.
     function parse(text) {
         var src = String(text === undefined || text === null ? '' : text);
-        var plain = '', cues = {}, re = /\{(\d+)\}/g, last = 0, m;
+        var plain = '', cues = {}, re = /\{(\/?)(\d+)\}/g, last = 0, m;
         function append(chunk) {
             chunk = chunk.replace(/\s+/g, ' ');
             if (!plain || plain.charAt(plain.length - 1) === ' ') chunk = chunk.replace(/^ /, '');
@@ -2062,8 +2062,11 @@
         }
         while ((m = re.exec(src)) !== null) {
             append(src.slice(last, m.index));
-            var n = parseInt(m[1], 10);
-            if (cues[n] === undefined) cues[n] = plain.length;
+            // A closing marker {/n} is dropped like an opening one but records no cue.
+            if (m[1] === '') {
+                var n = parseInt(m[2], 10);
+                if (cues[n] === undefined) cues[n] = plain.length;
+            }
             last = m.index + m[0].length;
         }
         append(src.slice(last));
