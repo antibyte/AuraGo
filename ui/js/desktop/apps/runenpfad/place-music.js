@@ -238,7 +238,8 @@
         if (sim.interior) {
             const room = sim.interior.room;
             const id = room && room.def && room.def.music;
-            return IDS.indexOf(id) >= 0 ? id : 'in_cozy';
+            const DM = root.RunenpfadDeepsMusic;
+            return (IDS.indexOf(id) >= 0 || (DM && DM.THEME_IDS.indexOf(id) >= 0)) ? id : 'in_cozy';
         }
         return sim.stage && sim.stage.hub ? 'village' : null;
     }

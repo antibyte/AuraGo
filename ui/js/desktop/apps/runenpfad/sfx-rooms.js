@@ -511,4 +511,6 @@
 
     // Exported for the audio test and for tuning: the guardian table (pitch, signature move class, known moves).
     Sfx.ROOM_GUARDIANS = GUARDIANS;
+    // Shared helpers for sfx-deeps.js (recipe wrapper, grit scatter, seeded jitter).
+    Sfx.ROOM_TOOLS = { wrap: wrap, scatter: scatter, jit: jit };
 })(typeof window !== 'undefined' ? window : globalThis);

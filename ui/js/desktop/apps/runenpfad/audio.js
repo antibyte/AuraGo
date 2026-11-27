@@ -151,6 +151,12 @@
     const MOB_PITCH = { rat: 1, slime: 0.6, bat: 1.8, spider: 1.3, mummy: 0.5, icewisp: 2, clockbug: 1.5 };
     const MOB_TELLS = { '*': { synth: 'chirp', sg: 0.3, sr: 1 } };
     Object.keys(MOB_PITCH).forEach(function (k) { MOB_TELLS[k] = { synth: 'chirp', sg: 0.3, sr: MOB_PITCH[k] }; });
+    const MOB_ATTACKS = { rat: { synth: 'whoosh', sg: 0.45, sr: 1.3 }, slime: { synth: 'puff', sg: 0.4, sr: 0.9 }, bat: { synth: 'screech', sg: 0.4 }, spider: { synth: 'whoosh', sg: 0.45, sr: 1.8 }, mummy: { synth: 'impact', sg: 0.5, sr: 0.6 }, icewisp: { synth: 'magicping', sg: 0.4, sr: 1.3 }, clockbug: { synth: 'clank', sg: 0.35, sr: 1.2 }, '*': { synth: 'whoosh', sg: 0.4 } };
+    // Voices of the deeps mobs (sfx-deeps.js) join the kind tables when that module is loaded.
+    if (root.RunenpfadSfx && root.RunenpfadSfx.MOB_VOICES) {
+        Object.assign(MOB_TELLS, root.RunenpfadSfx.MOB_VOICES.tell);
+        Object.assign(MOB_ATTACKS, root.RunenpfadSfx.MOB_VOICES.attack);
+    }
 
     const CUE_MAP = {
         step: { sound: null, gain: 0.38, cooldown: 220, vary: 0.14 },
@@ -323,7 +329,7 @@
         in_dash: { sound: false, gain: 0.36, cooldown: 140, synth: 'whoosh', sg: 0.4, sr: 1.3 },
         in_hit: { sound: false, gain: 0.6, cooldown: 70, vary: 0.14, by: { key: 'target', map: { hero: { sound: 'impact-flesh', gain: 0.66, synth: 'impact', sg: 0.35, sr: 1.3 }, '*': { synth: 'squelch', sg: 0.5, also: [{ synth: 'impact', sg: 0.3, sr: 0.9 }] } } } },
         in_mob_tell: { sound: false, gain: 0.4, cooldown: 250, by: { key: 'kind', map: MOB_TELLS } },
-        in_mob_attack: { sound: false, gain: 0.5, cooldown: 120, by: { key: 'kind', map: { rat: { synth: 'whoosh', sg: 0.45, sr: 1.3 }, slime: { synth: 'puff', sg: 0.4, sr: 0.9 }, bat: { synth: 'screech', sg: 0.4 }, spider: { synth: 'whoosh', sg: 0.45, sr: 1.8 }, mummy: { synth: 'impact', sg: 0.5, sr: 0.6 }, icewisp: { synth: 'magicping', sg: 0.4, sr: 1.3 }, clockbug: { synth: 'clank', sg: 0.35, sr: 1.2 }, '*': { synth: 'whoosh', sg: 0.4 } } } },
+        in_mob_attack: { sound: false, gain: 0.5, cooldown: 120, by: { key: 'kind', map: MOB_ATTACKS } },
         in_mob_die: { sound: false, gain: 0.5, cooldown: 80, synth: 'popspark', sg: 0.5, also: [{ synth: 'poof', sg: 0.4 }] },
         in_chest: { sound: false, gain: 0.5, cooldown: 200, synth: 'creak', sg: 1.6, also: [{ synth: 'shimmer', sg: 0.4, sr: 1.1, delay: 0.55 }], by: { key: 'empty', map: { true: { synth: 'dryclick', sg: 0.5, also: [] } } } },
         in_pickup: { sound: false, gain: 0.5, cooldown: 40, by: { key: 'kind', map: { coin: { sound: 'pickup', gain: 0.24, ladder: true, synth: 'chime', sg: 0.5 }, heart: { sound: 'pickup', gain: 0.56, rate: 0.88 }, potion: { sound: 'electric-spark', gain: 0.56, rate: 0.86 }, key: { sound: 'electric-spark', gain: 0.68, rate: 0.94, also: [{ synth: 'shimmer', sg: 0.35, sr: 1.1 }] }, '*': { sound: 'pickup', gain: 0.5 } } } },
