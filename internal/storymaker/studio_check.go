@@ -360,6 +360,7 @@ func (s *Studio) runCheck(ctx context.Context) (CheckReport, string, error) {
 	found = append(found, ContrastIssues(summary.Stills)...)
 	found = append(found, LintForJobMode(&story, s.job.Mode)...)
 	found = append(found, s.craftIssues(ctx, &story)...)
+	found = append(found, s.blockIssues(ctx, &story)...)
 	found = append(found, LintWords(&story, s.job.Language)...)
 	found = dedupeCheckIssues(found)
 	scenes, total := checkTiming(&story, summary)

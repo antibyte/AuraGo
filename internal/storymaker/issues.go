@@ -112,7 +112,7 @@ func IssueAdvisory(code string) bool {
 	switch code {
 	case CodeFirstFrameEmpty, CodeDeadStretch, CodeFadeBetweenWorlds, CodeCueLate, CodeWordsTell,
 		CodeLineUnread, CodeTextTooSmall, CodeEntryMonotony, CodeOverBudget, CodeSpotOverlap,
-		CodeTextContrast, CodeTextUnsafe, CodeSlowHook:
+		CodeTextContrast, CodeTextUnsafe, CodeSlowHook, CodeNoBlocks, CodeBlockRepeat, CodeLabelLong:
 		return true
 	}
 	return false
