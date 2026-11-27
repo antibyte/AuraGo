@@ -234,13 +234,13 @@
 .hd-widget[data-hd-family="glass"] .hd-ltile:is(:focus-visible, [data-hd-focus="ring"]) { outline: none; box-shadow: 0 0 0 2px var(--hd-focus-gap), 0 0 0 4px var(--hd-focus), var(--hd-edge-hi), var(--hd-g-surface-edge); }
 
 /* Slider (h and v), the fader cap, the colour temperature strip and the wheel. The thumb is the near-white Glass thumb; the fill ends under its centre (structure). */
-.hd-widget[data-hd-family="glass"] .hd-slider-track { background: var(--hd-track); box-shadow: var(--hd-track-inset); }
-.hd-widget[data-hd-family="glass"] .hd-slider-fill { background: var(--hd-value-colour); }
+.hd-widget[data-hd-family="glass"] :is(.hd-slider-track, .hd-bar-track) { background: var(--hd-track); box-shadow: var(--hd-track-inset); }
+.hd-widget[data-hd-family="glass"] :is(.hd-slider-fill, .hd-bar-fill, .hd-bar-bulb) { background: var(--hd-value-colour); }
 .hd-widget[data-hd-family="glass"][data-hd-type="light"] .hd-slider-fill { background: var(--hd-light-on); }
-.hd-root[data-hd-scheme="light"] .hd-widget[data-hd-family="glass"] .hd-slider-track { background: var(--hd-g-wash); } /* a pale slot on a light card, so the deepened fill keeps 3:1 against it */
-.hd-root[data-hd-scheme="light"] .hd-widget[data-hd-family="glass"] .hd-slider-fill { background: color-mix(in srgb, var(--hd-value-colour) 80%, var(--hd-ink)); }
+.hd-root[data-hd-scheme="light"] .hd-widget[data-hd-family="glass"] :is(.hd-slider-track, .hd-bar-track) { background: var(--hd-g-wash); } /* a pale slot on a light card, so the deepened fill keeps 3:1 against it */
+.hd-root[data-hd-scheme="light"] .hd-widget[data-hd-family="glass"] :is(.hd-slider-fill, .hd-bar-fill, .hd-bar-bulb) { background: color-mix(in srgb, var(--hd-value-colour) 80%, var(--hd-ink)); }
 .hd-root[data-hd-scheme="light"] .hd-widget[data-hd-family="glass"][data-hd-type="light"] .hd-slider-fill { background: color-mix(in srgb, var(--hd-light-on) 90%, var(--hd-ink)); }
-.hd-root[data-hd-scheme="dark"] .hd-widget[data-hd-family="glass"] .hd-slider-fill { background: color-mix(in srgb, var(--hd-value-colour) 75%, var(--hd-ink)); } /* a deep accent (violet) stays 3:1 against the dark track */
+.hd-root[data-hd-scheme="dark"] .hd-widget[data-hd-family="glass"] :is(.hd-slider-fill, .hd-bar-fill, .hd-bar-bulb) { background: color-mix(in srgb, var(--hd-value-colour) 75%, var(--hd-ink)); } /* a deep accent (violet) stays 3:1 against the dark track */
 .hd-root[data-hd-scheme="dark"] .hd-widget[data-hd-family="glass"][data-hd-type="light"] .hd-slider-fill { background: var(--hd-light-on); }
 .hd-widget[data-hd-family="glass"] :is(.hd-slider-thumb, .hd-ct-thumb) { background: var(--hd-thumb); box-shadow: var(--hd-thumb-shadow); }
 .hd-widget[data-hd-family="glass"] .hd-slider[data-hd-variant="v"] .hd-slider-thumb { background: linear-gradient(var(--hd-ink-faint), var(--hd-ink-faint)) 50% calc(50% - 3px) / 14px 2px no-repeat, linear-gradient(var(--hd-ink-faint), var(--hd-ink-faint)) 50% calc(50% + 3px) / 14px 2px no-repeat, var(--hd-thumb); }
@@ -311,7 +311,7 @@
 /* Unavailable: hollow controls, no fill, dashed card (widgets.css). */
 .hd-widget[data-hd-family="glass"][data-hd-status="unavailable"][data-hd-status] :is(.hd-push, .hd-pick, .hd-step, .hd-ltile) { background: transparent; box-shadow: inset 0 0 0 var(--hd-stroke-1) var(--hd-ink-faint); }
 .hd-widget[data-hd-family="glass"][data-hd-status="unavailable"] .hd-ltile-wash { display: none; }
-.hd-widget[data-hd-family="glass"][data-hd-status="unavailable"] .hd-slider-fill { display: none; }
+.hd-widget[data-hd-family="glass"][data-hd-status="unavailable"] :is(.hd-slider-fill, .hd-bar-fill, .hd-bar-bulb) { display: none; }
 .hd-widget[data-hd-family="glass"][data-hd-status="unavailable"] :is(.hd-slider-thumb, .hd-ct-thumb, .hd-wheel-thumb) { background: transparent; border-color: transparent; box-shadow: inset 0 0 0 var(--hd-stroke-1) var(--hd-ink-faint); }
 .hd-widget[data-hd-family="glass"][data-hd-status="unavailable"] .hd-push[data-hd-variant="tile"] .hd-ico { background: transparent; box-shadow: none; }
 /* Read-only: full strength, no lift shadows (the lock badge is structure). */

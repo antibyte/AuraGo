@@ -125,6 +125,27 @@
 .hd-pick-label { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hd-pick > .hd-ico { inline-size: 16px; block-size: 16px; }
 .hd-pick[aria-expanded="true"] > .hd-ico { transform: rotate(180deg); }
+/* Bar (gauge/bar, gauge/tank, temperature/thermometer): the track is the measured box and the fill grows from its start by --hd-value (a scale, like the slider fill); zones are 3px
+   threshold strips on the track edge (--hd-from, --hd-to); the readout is the numeral. Vertical (v) runs bottom to top with the readout on top. Families paint track and fill (the slider rules). */
+.hd-bar { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 10px; box-sizing: border-box; inline-size: 100%; min-inline-size: 0; min-block-size: 0; }
+.hd-bar-track { position: relative; display: block; box-sizing: border-box; inline-size: 100%; block-size: clamp(8px, 7cqmin, 16px); overflow: hidden; border-radius: var(--hd-radius-pill); }
+.hd-bar-fill { position: absolute; inset: 0; border-radius: inherit; transform-origin: 0 50%; transform: scaleX(var(--hd-value, 0)); }
+.hd-bar-zone { position: absolute; z-index: 1; inset-block: auto 0; block-size: 3px; inset-inline-start: calc(var(--hd-from, 0) * 100%); inline-size: calc((var(--hd-to, 0) - var(--hd-from, 0)) * 100%); }
+.hd-bar-zone[data-tone="warn"] { background: var(--hd-warn); } .hd-bar-zone[data-tone="crit"] { background: var(--hd-alert); }
+.hd-bar-readout { display: block; white-space: nowrap; font: 500 var(--hd-text-l) / 1 var(--hd-font-num); color: var(--hd-ink); }
+.hd-bar[data-hd-variant="v"] { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); justify-items: center; align-items: stretch; row-gap: 6px; block-size: 100%; }
+.hd-bar[data-hd-variant="v"] > .hd-bar-readout { grid-row: 1; } .hd-bar[data-hd-variant="v"] > .hd-bar-track { grid-row: 2; inline-size: clamp(26px, 24cqw, 72px); block-size: 100%; border-radius: var(--hd-radius-control); }
+.hd-bar[data-hd-variant="v"] .hd-bar-fill { transform-origin: 50% 100%; transform: scaleY(var(--hd-value, 0)); }
+.hd-bar[data-hd-variant="v"] .hd-bar-zone { inset-block: auto; inset-inline: auto 0; inline-size: 3px; inset-block-end: calc(var(--hd-from, 0) * 100%); block-size: calc((var(--hd-to, 0) - var(--hd-from, 0)) * 100%); }
+.hd-bar[data-hd-shape="tank"] .hd-bar-track::after { content: ""; position: absolute; z-index: 1; inset: 0; background: linear-gradient(0deg, var(--hd-ink-faint) 0 1px, transparent 1px) 0 0 / 100% 25% repeat-y; opacity: 0.7; pointer-events: none; }
+/* Thermometer: a narrow tube (the marks of the 24h minimum and maximum stand out of it) over a round bulb that always holds the liquid. */
+.hd-bar[data-hd-shape="thermo"] { grid-template-rows: auto minmax(0, 1fr) 22px; row-gap: 0; }
+.hd-bar[data-hd-shape="thermo"] > .hd-bar-readout { margin-block-end: 6px; }
+.hd-bar[data-hd-shape="thermo"] > .hd-bar-track { inline-size: 12px; overflow: visible; border-radius: 6px 6px 0 0; }
+.hd-bar[data-hd-shape="thermo"] .hd-bar-fill { border-radius: 6px 6px 0 0; }
+.hd-bar[data-hd-shape="thermo"] > .hd-bar-bulb { grid-row: 3; inline-size: 22px; block-size: 22px; margin-block-start: -6px; border-radius: var(--hd-radius-pill); }
+.hd-bar-mark { position: absolute; inset-inline: -4px; inset-block-end: calc(var(--hd-at, 0) * 100%); block-size: 2px; margin-block-end: -1px; background: var(--hd-ink); }
+.hd-bar-mark[data-end="lo"] { background: var(--hd-ink-muted); }
 /* Arm marker (SCR-M3-7): a bar along the body bottom while the widget is armed (data-hd-armed on the wrapper). Families recolour it or hide it. */
 .hd-arm { display: none; position: absolute; z-index: 2; inset-inline: 0; inset-block-end: 0; block-size: 3px; border-radius: var(--hd-radius-pill); background: var(--hd-accent); transform-origin: 0 50%; pointer-events: none; }
 .hd-widget[data-hd-armed="true"] .hd-arm { display: block; }

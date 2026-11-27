@@ -1,4 +1,4 @@
-// HomeDash display primitives (static builders): numeral, segReadout, arcGauge, needleGauge, bar, lamp, badge, iconBadge,
+// HomeDash display primitives (static builders): numeral, segReadout, arcGauge, needleGauge, bar (h, v; shape thermo adds the glass bulb), lamp, badge, iconBadge,
 // sparkline, frame and sheet, plus E.prim.util shared with the control builders. Each builder returns {el, set(state), destroy()}
 // and writes only attributes, text content and custom properties; all painting is CSS (markup contract C2).
 (function () {
@@ -170,20 +170,21 @@
 
     function bar(opts) {
         const o = opts || {}, lang = langOf(o), min0 = finite(o.min) ? o.min : 0, max0 = finite(o.max) ? o.max : 100, zones = validZones(o.zones);
-        const node = root('div', 'hd-bar', Object.assign({}, o, { variant: o.variant || 'h' }), { role: 'meter', 'aria-label': o.label });
+        const node = root('div', 'hd-bar', Object.assign({}, o, { variant: o.variant || 'h' }), { role: 'meter', 'aria-label': o.label, 'data-hd-shape': o.shape || null });
         const track = el('span', { class: 'hd-bar-track', 'aria-hidden': 'true' });
         for (const z of zones) { const fa = G.fraction(z.from, min0, max0), fb = G.fraction(z.to, min0, max0);
             track.appendChild(el('span', { class: 'hd-bar-zone', 'data-tone': z.tone, vars: { '--hd-from': fa.toFixed(4), '--hd-to': fb.toFixed(4) } })); }
         track.appendChild(el('span', { class: 'hd-bar-fill' })); node.appendChild(track);
-        const num = o.readout ? numeral({ chars: o.chars || 4, unit: o.unit, decimals: o.decimals, lang }) : null;
+        if (o.shape === 'thermo') node.appendChild(el('span', { class: 'hd-bar-bulb', 'aria-hidden': 'true' })); // the glass bulb under the tube; the shape paints it
+        const num = o.readout ? numeral({ chars: o.chars || 4, unit: o.unit, decimals: o.decimals, degree: !!o.degree, lang }) : null;
         if (num) node.appendChild(el('span', { class: 'hd-bar-readout' }, num.el));
         function set(state) {
             const s = state || {}; applyState(node, s);
             const w = writeValue(node, s, { min: o.min, max: o.max, decimals: o.decimals, lang, unit: s.unit ?? o.unit });
             setAttr(node, 'data-hd-tone', toneOf(s, zones, w.v));
-            if (num) num.set({ value: w.v, unit: s.unit ?? o.unit, decimals: s.decimals ?? o.decimals });
+            if (num) num.set({ value: w.v, unit: s.unit ?? o.unit, decimals: s.decimals ?? o.decimals, degree: !!(s.degree ?? o.degree) });
         }
-        return finish(node, set);
+        return finish(node, set, { track });
     }
 
     function lamp(opts) {

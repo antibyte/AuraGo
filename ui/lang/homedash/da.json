@@ -8,6 +8,8 @@
   "homedash.state.updated_ago": "Opdateret for {{age}} siden",
   "homedash.state.readonly": "Skrivebeskyttet",
   "homedash.state.blocked": "Blokeret af indstillinger",
+  "homedash.state.alert": "Alarm",
+  "homedash.state.stale": "Forældet",
   "homedash.state.no_data": "Ingen data",
   "homedash.state.armed": "Tryk igen for at bekræfte · {{seconds}} s",
   "homedash.state.done": "Færdig",

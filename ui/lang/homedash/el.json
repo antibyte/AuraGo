@@ -8,6 +8,8 @@
   "homedash.state.updated_ago": "Ενημερώθηκε πριν από {{age}}",
   "homedash.state.readonly": "Μόνο ανάγνωση",
   "homedash.state.blocked": "Αποκλείστηκε από τις ρυθμίσεις",
+  "homedash.state.alert": "Συναγερμός",
+  "homedash.state.stale": "Παρωχημένο",
   "homedash.state.no_data": "Χωρίς δεδομένα",
   "homedash.state.armed": "Πατήστε ξανά για επιβεβαίωση · {{seconds}} δ",
   "homedash.state.done": "Έτοιμο",

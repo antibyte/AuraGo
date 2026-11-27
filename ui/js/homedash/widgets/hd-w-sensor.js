@@ -1,5 +1,6 @@
 // HomeDash gauge, temperature and sensor widgets. Heroes: gauge/needle (H5), gauge/arc (H6, Tactile substitutes the needle gauge),
-// temperature/numeral (H7), sensor/sparkline (H8) and sensor/numeral (the H7 builder without degree and trend). The other variants are placeholders.
+// temperature/numeral (H7), sensor/sparkline (H8) and sensor/numeral (the H7 builder without degree and trend). G13 adds the level displays gauge/bar and gauge/tank,
+// temperature/thermometer (glass tube with 24 h min/max marks) and temperature/comfort (temperature and humidity on a comfort zone), and sensor/icon (icon and value).
 // These widgets are read-only displays: they check no capability, so the state line never shows the "blocked" text.
 (function () {
     'use strict';
@@ -172,20 +173,123 @@
         };
     }
 
+    // ---- G13 variants: gauge/bar, gauge/tank, temperature/thermometer, temperature/comfort, sensor/icon ----
+    const finiteN = v => typeof v === 'number' && Number.isFinite(v), unit01 = (v, lo, hi) => Math.min(1, Math.max(0, (v - lo) / (hi - lo)));
+    // Zones: options.zones when given, else the catalog options warn and alert: the warning zone runs from warn to the alert value, the alert zone to max.
+    function zonesFor(api, max) {
+        const o = api.widget.options || {}, own = zonesOf(api);
+        if (own.length) return own;
+        const warn = finiteN(o.warn) ? o.warn : null, alert = finiteN(o.alert) ? o.alert : null, out = [];
+        if (warn !== null) out.push({ from: warn, to: alert !== null && alert > warn ? alert : max, tone: 'warn' });
+        if (alert !== null) out.push({ from: alert, to: max, tone: 'crit' });
+        return out;
+    }
+    const flagsOf = e => ({ status: e ? e.status : 'unavailable', pending: !!(e && e.pending), stale: !!(e && e.stale), readonly: !!(e && e.readonly) });
+    // gauge/bar (horizontal) and gauge/tank (vertical): the level of a numeric entity between options.min and options.max, with its readout.
+    function level(api, vertical) {
+        const o = api.widget.options || {}, min = finiteN(o.min) ? o.min : 0, max = finiteN(o.max) && o.max > min ? o.max : min + 100, zones = zonesFor(api, max);
+        const prim = api.prim.bar({ label: api.widget.title, variant: vertical ? 'v' : 'h', shape: vertical ? 'tank' : null, min, max, unit: o.unit, decimals: decimalsOf(api, 0), zones, readout: true, chars: 5, lang: api.lang });
+        api.body.appendChild(prim.el);
+        setAttr(api.body, 'data-hd-nodata', api.t('homedash.state.no_data'));
+        const toneAt = v => { const z = v === null ? [] : zones.filter(x => v >= x.from && v <= x.to); return (z.find(x => x.tone === 'crit') || z[0] || {}).tone || null; };
+        return {
+            update(view) {
+                const e = view.entities.primary, v = e ? numberOf(e.value) : null, shown = hostWord(e) ? null : v;
+                api.setTone(e && e.tone ? e.tone : toneAt(shown));
+                prim.set(Object.assign({ value: shown, unit: (e && e.unit) || o.unit, tone: e && e.tone ? e.tone : null }, flagsOf(e)));
+                api.setStatus(statusText(api, e, null));
+            },
+            destroy() { prim.destroy(); }
+        };
+    }
+
+    // temperature/thermometer: a glass tube with a bulb, -10..40 C (14..104 F), the reading on top and the 24 h minimum and maximum as marks (options.show_minmax).
+    function thermometer(api) {
+        const o = api.widget.options || {}, dec = Number.isInteger(o.decimals) && o.decimals >= 0 && o.decimals <= 2 ? o.decimals : 1, marks = o.show_minmax !== false;
+        const prim = api.prim.bar({ label: api.widget.title, variant: 'v', shape: 'thermo', min: -10, max: 40, unit: 'C', degree: true, decimals: dec, readout: true, chars: 4, lang: api.lang });
+        const lo = el('span', { class: 'hd-bar-mark', 'data-end': 'lo', 'aria-hidden': 'true', hidden: '' }), hi = el('span', { class: 'hd-bar-mark', 'data-end': 'hi', 'aria-hidden': 'true', hidden: '' });
+        if (marks) { prim.track.appendChild(lo); prim.track.appendChild(hi); }
+        api.body.appendChild(prim.el);
+        setAttr(api.body, 'data-hd-nodata', api.t('homedash.state.no_data'));
+        let lastView = null, range = null;
+        function render() {
+            const e = lastView && lastView.entities.primary, v = e && !hostWord(e) ? numberOf(e.value) : null, raw = e && typeof e.unit === 'string' ? e.unit : '', fahrenheit = /F/i.test(raw);
+            const unit = (raw.replace(DEG, '') || 'C'), a = fahrenheit ? 14 : -10, b = fahrenheit ? 104 : 40;
+            api.setTone(e && e.tone ? e.tone : null);
+            prim.set(Object.assign({ value: v, min: a, max: b, unit, degree: true }, flagsOf(e)));
+            const known = marks && range && v !== null;
+            for (const [node, val] of [[lo, range && range.min], [hi, range && range.max]]) { setAttr(node, 'hidden', known ? null : ''); if (known) E.core.setVars(node, { '--hd-at': unit01(val, a, b).toFixed(4) }); }
+            const text = F.valueText(v, { decimals: dec, lang: api.lang, unit: DEG + unit }), rangeText = range ? api.t('homedash.temperature.range', { min: F.valueText(range.min, { decimals: 1, lang: api.lang }), max: F.valueText(range.max, { decimals: 1, lang: api.lang, unit: DEG + unit }) }) : null;
+            setAttr(prim.el, 'aria-valuetext', text);
+            api.setStatus(statusText(api, e, rangeText));
+        }
+        if (marks) history(api, s => { range = extent(s.points); if (lastView) render(); });
+        return { update(view) { lastView = view; render(); }, destroy() { prim.destroy(); } };
+    }
+
+    // temperature/comfort: the reading and the humidity, and a plot of both with the comfort zone (20-26 C, 40-60 %; 68-79 F). Without a humidity sensor the plot is the temperature band alone.
+    function comfort(api) {
+        const o = api.widget.options || {}, dec = Number.isInteger(o.decimals) && o.decimals >= 0 && o.decimals <= 2 ? o.decimals : 1;
+        const plot = el('div', { class: 'hd-cf-plot', 'aria-hidden': 'true' }, [el('span', { class: 'hd-cf-zone' }), el('span', { class: 'hd-cf-dot' })]);
+        const temp = api.prim.numeral({ chars: 4, decimals: dec, unit: 'C', degree: true, lang: api.lang }), hum = api.prim.numeral({ chars: 3, decimals: 0, unit: '%', lang: api.lang });
+        const sr = el('span', { class: 'hd-sr-only' }), node = el('div', { class: 'hd-comfort' }, [plot, el('div', { class: 'hd-cf-read' }, [temp.el, hum.el]), sr]);
+        setAttr(temp.el, 'aria-hidden', 'true'); setAttr(hum.el, 'aria-hidden', 'true');
+        api.body.appendChild(node);
+        setAttr(api.body, 'data-hd-nodata', api.t('homedash.state.no_data'));
+        return {
+            update(view) {
+                const e = view.entities.primary, h = view.entities.humidity || null, v = e && !hostWord(e) ? numberOf(e.value) : null, hv = h && !hostWord(h) ? numberOf(h.value) : null;
+                const raw = e && typeof e.unit === 'string' ? e.unit : '', fahrenheit = /F/i.test(raw), unit = raw.replace(DEG, '') || 'C';
+                const a = fahrenheit ? 50 : 10, b = fahrenheit ? 95 : 35, z0 = fahrenheit ? 68 : 20, z1 = fahrenheit ? 79 : 26;
+                api.setTone(e && e.tone ? e.tone : null);
+                temp.set(Object.assign({ value: v, unit }, flagsOf(e))); hum.set(Object.assign({ value: hv, unit: '%' }, flagsOf(h)));
+                setAttr(node, 'data-hd-nohum', hv === null ? 'true' : null);
+                setAttr(node, 'data-hd-empty', v === null ? 'true' : null);
+                setAttr(node, 'data-hd-zone', v === null ? null : v >= z0 && v <= z1 && (hv === null || (hv >= 40 && hv <= 60)) ? 'in' : 'out');
+                E.core.setVars(plot, { '--hd-zx0': unit01(z0, a, b).toFixed(4), '--hd-zx1': unit01(z1, a, b).toFixed(4), '--hd-zy0': '0.4', '--hd-zy1': '0.6',
+                    '--hd-cx': (v === null ? 0 : unit01(v, a, b)).toFixed(4), '--hd-cy': (hv === null ? 0.5 : unit01(hv, 0, 100)).toFixed(4) });
+                sr.textContent = F.valueText(v, { decimals: dec, lang: api.lang, unit: DEG + unit }) + (hv === null ? '' : ', ' + F.valueText(hv, { decimals: 0, lang: api.lang, unit: '%' }));
+                api.setStatus(statusText(api, e, null));
+            },
+            destroy() { temp.destroy(); hum.destroy(); node.remove(); }
+        };
+    }
+
+    // sensor/icon: the entity's icon in a badge and its value; the icon takes the size of the card.
+    function iconValue(api) {
+        const cfg = { chars: 5, decimals: decimalsOf(api, 0), degree: false, trend: false }, { prim, inst } = readoutOf(api, cfg), badge = api.prim.iconBadge({ icon: 'gauge', size: 'l' });
+        const sr = inst ? null : el('span', { class: 'hd-sr-only' });
+        if (sr) setAttr(prim.el, 'aria-hidden', 'true');
+        const node = el('div', { class: 'hd-sicon' }, sr ? [badge.el, prim.el, sr] : [badge.el, prim.el]);
+        api.body.appendChild(node);
+        setAttr(api.body, 'data-hd-nodata', api.t('homedash.state.no_data'));
+        return {
+            update(view) {
+                const e = view.entities.primary, v = e && !hostWord(e) ? numberOf(e.value) : null, unit = (e && e.unit) || '';
+                api.setTone(e && e.tone ? e.tone : null);
+                badge.set(Object.assign({ icon: E.widgets.iconFor(api.widget, e) || 'gauge' }, flagsOf(e)));
+                prim.set(Object.assign({ value: v, unit }, flagsOf(e)));
+                if (sr) sr.textContent = readoutText(api, cfg, unit, v, null);
+                api.setStatus(statusText(api, e, null));
+            },
+            destroy() { prim.destroy(); badge.destroy(); node.remove(); }
+        };
+    }
+
     E.widgets.register('gauge', {
         bindings: ['primary'],
         variants: ['arc', 'needle', 'bar', 'tank'],
         create(api) {
             if (api.variant === 'needle' || api.variant === 'arc') return gauge(api, api.variant);
-            return { update() { api.setStatus(null); } };
+            return level(api, api.variant === 'tank');
         }
     });
     E.widgets.register('temperature', {
-        bindings: ['primary'],
+        bindings: ['primary', 'humidity'],
         variants: ['numeral', 'thermometer', 'comfort'],
         create(api) {
             if (api.variant === 'numeral') return tread(api, true);
-            return { update() { api.setStatus(null); } };
+            return api.variant === 'thermometer' ? thermometer(api) : comfort(api);
         }
     });
     E.widgets.register('sensor', {
@@ -194,7 +298,7 @@
         create(api) {
             if (api.variant === 'numeral') return tread(api, false);
             if (api.variant === 'sparkline') return sparkline(api);
-            return { update() { api.setStatus(null); } };
+            return iconValue(api);
         }
     });
 })();

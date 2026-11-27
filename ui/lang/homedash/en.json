@@ -8,6 +8,8 @@
   "homedash.state.updated_ago": "Updated {{age}} ago",
   "homedash.state.readonly": "Read-only",
   "homedash.state.blocked": "Blocked by settings",
+  "homedash.state.alert": "Alert",
+  "homedash.state.stale": "Outdated",
   "homedash.state.no_data": "No data",
   "homedash.state.armed": "Tap again to confirm · {{seconds}} s",
   "homedash.state.done": "Done",

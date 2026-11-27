@@ -8,6 +8,8 @@
   "homedash.state.updated_ago": "{{age}}前更新",
   "homedash.state.readonly": "只读",
   "homedash.state.blocked": "已被设置阻止",
+  "homedash.state.alert": "警报",
+  "homedash.state.stale": "已过时",
   "homedash.state.no_data": "无数据",
   "homedash.state.armed": "再次点按以确认 · {{seconds}} 秒",
   "homedash.state.done": "已完成",

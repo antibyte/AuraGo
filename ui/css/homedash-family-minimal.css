@@ -187,10 +187,10 @@
 
 /* Slider (h and v), the fader cap, the colour temperature strip and the wheel. The track is a 2 px ink line, the fill is the 6 px value bar (the value colour pulled toward the ink, 3:1 on the card in every
    scheme and accent), the thumb is an ink dot with a ring of the card colour; the fader cap is an outlined rectangle with one grip line. */
-.hd-widget[data-hd-family="minimal"] .hd-slider-track { background: transparent; border-radius: 0; }
-.hd-widget[data-hd-family="minimal"] .hd-slider-track::before { content: ""; position: absolute; inset-inline: 0; inset-block-start: 50%; block-size: var(--hd-stroke-2); margin-block-start: calc(var(--hd-stroke-2) / -2); background: color-mix(in srgb, var(--hd-track-line) 30%, transparent); }
-.hd-widget[data-hd-family="minimal"] .hd-slider[data-hd-variant="v"] .hd-slider-track::before { inset-inline: auto; inset-block: 0; inset-inline-start: 50%; inline-size: var(--hd-stroke-2); block-size: auto; margin-block-start: 0; margin-inline-start: calc(var(--hd-stroke-2) / -2); }
-.hd-widget[data-hd-family="minimal"] .hd-slider-fill { border-radius: 0; background: color-mix(in srgb, var(--hd-value-colour) 45%, var(--hd-ink)); }
+.hd-widget[data-hd-family="minimal"] :is(.hd-slider-track, .hd-bar-track) { background: transparent; border-radius: 0; }
+.hd-widget[data-hd-family="minimal"] :is(.hd-slider-track, .hd-bar-track)::before { content: ""; position: absolute; inset-inline: 0; inset-block-start: 50%; block-size: var(--hd-stroke-2); margin-block-start: calc(var(--hd-stroke-2) / -2); background: color-mix(in srgb, var(--hd-track-line) 30%, transparent); }
+.hd-widget[data-hd-family="minimal"] :is(.hd-slider[data-hd-variant="v"] .hd-slider-track, .hd-bar[data-hd-variant="v"] .hd-bar-track)::before { inset-inline: auto; inset-block: 0; inset-inline-start: 50%; inline-size: var(--hd-stroke-2); block-size: auto; margin-block-start: 0; margin-inline-start: calc(var(--hd-stroke-2) / -2); }
+.hd-widget[data-hd-family="minimal"] :is(.hd-slider-fill, .hd-bar-fill, .hd-bar-bulb) { border-radius: 0; background: color-mix(in srgb, var(--hd-value-colour) 45%, var(--hd-ink)); }
 .hd-widget[data-hd-family="minimal"] :is(.hd-slider-thumb, .hd-ct-thumb)::before { content: ""; position: absolute; box-sizing: border-box; inset: 0; margin: auto; inline-size: calc(var(--hd-m-dot-r) * 2px); block-size: calc(var(--hd-m-dot-r) * 2px); border-radius: var(--hd-radius-pill); background: var(--hd-thumb); box-shadow: 0 0 0 3px var(--hd-surface-solid); }
 .hd-widget[data-hd-family="minimal"] :is(.hd-slider, .hd-ct)[data-hd-dragging] :is(.hd-slider-thumb, .hd-ct-thumb)::before { scale: 1.25; }
 .hd-widget[data-hd-family="minimal"] .hd-slider[data-hd-variant="v"] .hd-slider-thumb { background: var(--hd-surface-solid); border: var(--hd-stroke-1) solid var(--hd-track-line); border-radius: var(--hd-m-rect-r); }
@@ -259,7 +259,7 @@
 .hd-widget[data-hd-family="minimal"]:not([data-hd-type="climate"])[data-hd-status="unavailable"] .hd-push[data-hd-variant="tile"][aria-checked] { background: transparent; }
 .hd-widget[data-hd-family="minimal"]:not([data-hd-type="climate"])[data-hd-status="unavailable"] .hd-push[data-hd-variant="tile"][aria-checked] .hd-ico { color: var(--hd-ink); background: transparent; box-shadow: 0 0 0 6px var(--hd-surface-solid), 0 0 0 calc(6px + var(--hd-stroke-1)) var(--hd-ink-muted); }
 .hd-widget[data-hd-family="minimal"][data-hd-status="unavailable"] .hd-ltile { border-style: dashed; }
-.hd-widget[data-hd-family="minimal"][data-hd-status="unavailable"] :is(.hd-ltile-wash, .hd-slider-fill) { display: none; }
+.hd-widget[data-hd-family="minimal"][data-hd-status="unavailable"] :is(.hd-ltile-wash, .hd-slider-fill, .hd-bar-fill, .hd-bar-bulb) { display: none; }
 .hd-widget[data-hd-family="minimal"][data-hd-status="unavailable"] .hd-ltile > .hd-iconbadge { color: var(--hd-ink); background: transparent; }
 .hd-widget[data-hd-family="minimal"][data-hd-status="unavailable"] :is(.hd-slider-thumb, .hd-ct-thumb)::before { background: var(--hd-surface-solid); border: var(--hd-stroke-1) solid var(--hd-ink); }
 .hd-widget[data-hd-family="minimal"][data-hd-status="unavailable"] .hd-wheel-thumb { background: var(--hd-surface-solid); }

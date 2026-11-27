@@ -263,6 +263,27 @@
 .hd-pick-label { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hd-pick > .hd-ico { inline-size: 16px; block-size: 16px; }
 .hd-pick[aria-expanded="true"] > .hd-ico { transform: rotate(180deg); }
+/* Bar (gauge/bar, gauge/tank, temperature/thermometer): the track is the measured box and the fill grows from its start by --hd-value (a scale, like the slider fill); zones are 3px
+   threshold strips on the track edge (--hd-from, --hd-to); the readout is the numeral. Vertical (v) runs bottom to top with the readout on top. Families paint track and fill (the slider rules). */
+.hd-bar { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 10px; box-sizing: border-box; inline-size: 100%; min-inline-size: 0; min-block-size: 0; }
+.hd-bar-track { position: relative; display: block; box-sizing: border-box; inline-size: 100%; block-size: clamp(8px, 7cqmin, 16px); overflow: hidden; border-radius: var(--hd-radius-pill); }
+.hd-bar-fill { position: absolute; inset: 0; border-radius: inherit; transform-origin: 0 50%; transform: scaleX(var(--hd-value, 0)); }
+.hd-bar-zone { position: absolute; z-index: 1; inset-block: auto 0; block-size: 3px; inset-inline-start: calc(var(--hd-from, 0) * 100%); inline-size: calc((var(--hd-to, 0) - var(--hd-from, 0)) * 100%); }
+.hd-bar-zone[data-tone="warn"] { background: var(--hd-warn); } .hd-bar-zone[data-tone="crit"] { background: var(--hd-alert); }
+.hd-bar-readout { display: block; white-space: nowrap; font: 500 var(--hd-text-l) / 1 var(--hd-font-num); color: var(--hd-ink); }
+.hd-bar[data-hd-variant="v"] { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); justify-items: center; align-items: stretch; row-gap: 6px; block-size: 100%; }
+.hd-bar[data-hd-variant="v"] > .hd-bar-readout { grid-row: 1; } .hd-bar[data-hd-variant="v"] > .hd-bar-track { grid-row: 2; inline-size: clamp(26px, 24cqw, 72px); block-size: 100%; border-radius: var(--hd-radius-control); }
+.hd-bar[data-hd-variant="v"] .hd-bar-fill { transform-origin: 50% 100%; transform: scaleY(var(--hd-value, 0)); }
+.hd-bar[data-hd-variant="v"] .hd-bar-zone { inset-block: auto; inset-inline: auto 0; inline-size: 3px; inset-block-end: calc(var(--hd-from, 0) * 100%); block-size: calc((var(--hd-to, 0) - var(--hd-from, 0)) * 100%); }
+.hd-bar[data-hd-shape="tank"] .hd-bar-track::after { content: ""; position: absolute; z-index: 1; inset: 0; background: linear-gradient(0deg, var(--hd-ink-faint) 0 1px, transparent 1px) 0 0 / 100% 25% repeat-y; opacity: 0.7; pointer-events: none; }
+/* Thermometer: a narrow tube (the marks of the 24h minimum and maximum stand out of it) over a round bulb that always holds the liquid. */
+.hd-bar[data-hd-shape="thermo"] { grid-template-rows: auto minmax(0, 1fr) 22px; row-gap: 0; }
+.hd-bar[data-hd-shape="thermo"] > .hd-bar-readout { margin-block-end: 6px; }
+.hd-bar[data-hd-shape="thermo"] > .hd-bar-track { inline-size: 12px; overflow: visible; border-radius: 6px 6px 0 0; }
+.hd-bar[data-hd-shape="thermo"] .hd-bar-fill { border-radius: 6px 6px 0 0; }
+.hd-bar[data-hd-shape="thermo"] > .hd-bar-bulb { grid-row: 3; inline-size: 22px; block-size: 22px; margin-block-start: -6px; border-radius: var(--hd-radius-pill); }
+.hd-bar-mark { position: absolute; inset-inline: -4px; inset-block-end: calc(var(--hd-at, 0) * 100%); block-size: 2px; margin-block-end: -1px; background: var(--hd-ink); }
+.hd-bar-mark[data-end="lo"] { background: var(--hd-ink-muted); }
 /* Arm marker (SCR-M3-7): a bar along the body bottom while the widget is armed (data-hd-armed on the wrapper). Families recolour it or hide it. */
 .hd-arm { display: none; position: absolute; z-index: 2; inset-inline: 0; inset-block-end: 0; block-size: 3px; border-radius: var(--hd-radius-pill); background: var(--hd-accent); transform-origin: 0 50%; pointer-events: none; }
 .hd-widget[data-hd-armed="true"] .hd-arm { display: block; }
@@ -519,13 +540,13 @@
 .hd-widget[data-hd-family="glass"] .hd-ltile:is(:focus-visible, [data-hd-focus="ring"]) { outline: none; box-shadow: 0 0 0 2px var(--hd-focus-gap), 0 0 0 4px var(--hd-focus), var(--hd-edge-hi), var(--hd-g-surface-edge); }
 
 /* Slider (h and v), the fader cap, the colour temperature strip and the wheel. The thumb is the near-white Glass thumb; the fill ends under its centre (structure). */
-.hd-widget[data-hd-family="glass"] .hd-slider-track { background: var(--hd-track); box-shadow: var(--hd-track-inset); }
-.hd-widget[data-hd-family="glass"] .hd-slider-fill { background: var(--hd-value-colour); }
+.hd-widget[data-hd-family="glass"] :is(.hd-slider-track, .hd-bar-track) { background: var(--hd-track); box-shadow: var(--hd-track-inset); }
+.hd-widget[data-hd-family="glass"] :is(.hd-slider-fill, .hd-bar-fill, .hd-bar-bulb) { background: var(--hd-value-colour); }
 .hd-widget[data-hd-family="glass"][data-hd-type="light"] .hd-slider-fill { background: var(--hd-light-on); }
-.hd-root[data-hd-scheme="light"] .hd-widget[data-hd-family="glass"] .hd-slider-track { background: var(--hd-g-wash); } /* a pale slot on a light card, so the deepened fill keeps 3:1 against it */
-.hd-root[data-hd-scheme="light"] .hd-widget[data-hd-family="glass"] .hd-slider-fill { background: color-mix(in srgb, var(--hd-value-colour) 80%, var(--hd-ink)); }
+.hd-root[data-hd-scheme="light"] .hd-widget[data-hd-family="glass"] :is(.hd-slider-track, .hd-bar-track) { background: var(--hd-g-wash); } /* a pale slot on a light card, so the deepened fill keeps 3:1 against it */
+.hd-root[data-hd-scheme="light"] .hd-widget[data-hd-family="glass"] :is(.hd-slider-fill, .hd-bar-fill, .hd-bar-bulb) { background: color-mix(in srgb, var(--hd-value-colour) 80%, var(--hd-ink)); }
 .hd-root[data-hd-scheme="light"] .hd-widget[data-hd-family="glass"][data-hd-type="light"] .hd-slider-fill { background: color-mix(in srgb, var(--hd-light-on) 90%, var(--hd-ink)); }
-.hd-root[data-hd-scheme="dark"] .hd-widget[data-hd-family="glass"] .hd-slider-fill { background: color-mix(in srgb, var(--hd-value-colour) 75%, var(--hd-ink)); } /* a deep accent (violet) stays 3:1 against the dark track */
+.hd-root[data-hd-scheme="dark"] .hd-widget[data-hd-family="glass"] :is(.hd-slider-fill, .hd-bar-fill, .hd-bar-bulb) { background: color-mix(in srgb, var(--hd-value-colour) 75%, var(--hd-ink)); } /* a deep accent (violet) stays 3:1 against the dark track */
 .hd-root[data-hd-scheme="dark"] .hd-widget[data-hd-family="glass"][data-hd-type="light"] .hd-slider-fill { background: var(--hd-light-on); }
 .hd-widget[data-hd-family="glass"] :is(.hd-slider-thumb, .hd-ct-thumb) { background: var(--hd-thumb); box-shadow: var(--hd-thumb-shadow); }
 .hd-widget[data-hd-family="glass"] .hd-slider[data-hd-variant="v"] .hd-slider-thumb { background: linear-gradient(var(--hd-ink-faint), var(--hd-ink-faint)) 50% calc(50% - 3px) / 14px 2px no-repeat, linear-gradient(var(--hd-ink-faint), var(--hd-ink-faint)) 50% calc(50% + 3px) / 14px 2px no-repeat, var(--hd-thumb); }
@@ -596,7 +617,7 @@
 /* Unavailable: hollow controls, no fill, dashed card (widgets.css). */
 .hd-widget[data-hd-family="glass"][data-hd-status="unavailable"][data-hd-status] :is(.hd-push, .hd-pick, .hd-step, .hd-ltile) { background: transparent; box-shadow: inset 0 0 0 var(--hd-stroke-1) var(--hd-ink-faint); }
 .hd-widget[data-hd-family="glass"][data-hd-status="unavailable"] .hd-ltile-wash { display: none; }
-.hd-widget[data-hd-family="glass"][data-hd-status="unavailable"] .hd-slider-fill { display: none; }
+.hd-widget[data-hd-family="glass"][data-hd-status="unavailable"] :is(.hd-slider-fill, .hd-bar-fill, .hd-bar-bulb) { display: none; }
 .hd-widget[data-hd-family="glass"][data-hd-status="unavailable"] :is(.hd-slider-thumb, .hd-ct-thumb, .hd-wheel-thumb) { background: transparent; border-color: transparent; box-shadow: inset 0 0 0 var(--hd-stroke-1) var(--hd-ink-faint); }
 .hd-widget[data-hd-family="glass"][data-hd-status="unavailable"] .hd-push[data-hd-variant="tile"] .hd-ico { background: transparent; box-shadow: none; }
 /* Read-only: full strength, no lift shadows (the lock badge is structure). */
@@ -797,10 +818,13 @@
 .hd-widget[data-hd-family="tactile"][data-hd-type="climate"] .hd-dial-pointer { inset: 2% 46.5% 50% 46.5%; }
 .hd-widget[data-hd-family="tactile"][data-hd-type="climate"] .hd-dial-knurl { inset: 21%; -webkit-mask: var(--hd-t-ring-92); mask: var(--hd-t-ring-92); box-shadow: none; }
 .hd-widget[data-hd-family="tactile"][data-hd-type="climate"] .hd-dial::before { inset: 21%; }
-.hd-widget[data-hd-family="tactile"] .hd-lamp { position: absolute; inset-inline-start: 50%; inset-block-start: calc(var(--hd-th-d) * 0.705); translate: -50% -50%; inline-size: 10px; block-size: 10px; border-radius: var(--hd-radius-pill); background: var(--hd-t-steel-lin); box-shadow: var(--hd-lip); } /* a steel collar: the unlit dome is dark glass on light metal */
+.hd-widget[data-hd-family="tactile"][data-hd-type="climate"] .hd-lamp { position: absolute; inset-inline-start: 50%; inset-block-start: calc(var(--hd-th-d) * 0.705); translate: -50% -50%; inline-size: 10px; block-size: 10px; border-radius: var(--hd-radius-pill); background: var(--hd-t-steel-lin); box-shadow: var(--hd-lip); } /* a steel collar: the unlit dome is dark glass on light metal */
 .hd-widget[data-hd-family="tactile"] .hd-lamp-dot { position: absolute; inset: 2px; border-radius: var(--hd-radius-pill); background: var(--hd-t-led-off); }
 .hd-widget[data-hd-family="tactile"] .hd-lamp-dot::after { content: ""; position: absolute; inset: 0; border-radius: var(--hd-radius-pill); background: var(--hd-t-led); box-shadow: var(--hd-t-led-halo); opacity: 0; }
 .hd-widget[data-hd-family="tactile"] .hd-lamp[data-hd-on="true"] .hd-lamp-dot::after, .hd-widget[data-hd-family="tactile"]:is([data-hd-pending="true"], [data-hd-tone="crit"], [data-hd-status="error"]) .hd-lamp-dot::after { opacity: 1; }
+.hd-widget[data-hd-family="tactile"]:not([data-hd-type="climate"]) .hd-lamp { border-radius: var(--hd-radius-pill); background: var(--hd-t-steel-lin); box-shadow: var(--hd-lip); } /* any other lamp (the entity tile): the same steel collar, in flow */
+.hd-widget[data-hd-family="tactile"] .hd-lamp-dot { border: 0; box-shadow: none; }
+.hd-widget[data-hd-family="tactile"] .hd-lamp[data-hd-on="true"] .hd-lamp-dot { background: var(--hd-t-led-off); border: 0; box-shadow: none; } /* the lit LED is the ::after, never the shared accent fill */
 .hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] .hd-lamp-dot { background: transparent; box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-t-muted); }
 .hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] .hd-lamp-dot::after { opacity: 0; }
 .hd-widget[data-hd-family="tactile"] .hd-climate-steps .hd-push { color: var(--hd-t-legend); background: var(--hd-t-bakelite); box-shadow: var(--hd-lip), var(--hd-shadow-cast); border-radius: var(--hd-radius-control); }
@@ -938,8 +962,8 @@
 .hd-widget[data-hd-family="tactile"] .hd-ltile:is(:focus-visible, [data-hd-focus="ring"]) { outline: none; translate: 0 -1px; box-shadow: 0 0 0 2px var(--hd-focus-gap), 0 0 0 4px var(--hd-focus), var(--hd-window-shadow), var(--hd-shadow-cast); }
 
 /* Slider (h and v), fader cap, colour temperature strip, wheel. The slot is a black recess with an amber fill (3:1 against the slot in every scheme and accent); caps are steel (h) and bakelite with grip lines (fader). */
-.hd-widget[data-hd-family="tactile"] .hd-slider-track { background: var(--hd-sunken); box-shadow: var(--hd-recess), 0 0 0 1px var(--hd-t-hairline); }
-.hd-widget[data-hd-family="tactile"] .hd-slider-fill { background: var(--hd-t-amber); }
+.hd-widget[data-hd-family="tactile"] :is(.hd-slider-track, .hd-bar-track) { background: var(--hd-sunken); box-shadow: var(--hd-recess), 0 0 0 1px var(--hd-t-hairline); }
+.hd-widget[data-hd-family="tactile"] :is(.hd-slider-fill, .hd-bar-fill, .hd-bar-bulb) { background: var(--hd-t-amber); }
 .hd-widget[data-hd-family="tactile"] :is(.hd-slider-thumb, .hd-ct-thumb) { background: var(--hd-t-steel); box-shadow: var(--hd-lip), var(--hd-shadow-contact); }
 .hd-widget[data-hd-family="tactile"] .hd-slider[data-hd-variant="v"] .hd-slider-thumb { border-radius: var(--hd-radius-control); background: var(--hd-t-grip), var(--hd-t-bakelite); box-shadow: var(--hd-lip), var(--hd-t-edge-low), var(--hd-shadow-cast); }
 .hd-widget[data-hd-family="tactile"] :is(.hd-slider, .hd-ct, .hd-wheel)[data-hd-dragging] :is(.hd-slider-thumb, .hd-ct-thumb, .hd-wheel-thumb) { translate: 0 1px; box-shadow: var(--hd-lip), var(--hd-shadow-contact); }
@@ -987,11 +1011,11 @@
 .hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] :is(.hd-push[data-hd-variant], .hd-pick, .hd-step, .hd-ltile, .hd-sheet-close) { color: var(--hd-t-legend); background: transparent; text-shadow: none; box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-t-muted); }
 .hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] .hd-pick > .hd-ico { color: var(--hd-t-legend); }
 .hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] :is(.hd-push[data-hd-variant], .hd-ltile)::before { background: transparent; box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-t-muted); }
-.hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] .hd-ltile-wash, .hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] .hd-slider-fill { display: none; }
+.hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] .hd-ltile-wash, .hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] :is(.hd-slider-fill, .hd-bar-fill, .hd-bar-bulb) { display: none; }
 .hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] .hd-ltile > .hd-iconbadge { color: var(--hd-t-legend); background: transparent; box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-t-muted); }
 .hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] .hd-push[data-hd-variant="tile"] .hd-ico { color: var(--hd-t-legend); background: transparent; box-shadow: none; }
 .hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] :is(.hd-slider-thumb, .hd-ct-thumb, .hd-wheel-thumb) { background: transparent; border-color: transparent; box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-t-muted); }
-.hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] .hd-slider-track { background: transparent; box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-t-muted); }
+.hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] :is(.hd-slider-track, .hd-bar-track) { background: transparent; box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-t-muted); }
 .hd-widget[data-hd-family="tactile"][data-hd-status="unavailable"] :is(.hd-push[data-hd-variant], .hd-pick, .hd-ltile, .hd-step-value, .hd-slider-thumb, .hd-ct-thumb, .hd-wheel-thumb)::after { opacity: 0; }
 
 /* Motion (gate selector only; transform and opacity only): pending and armed blink the LED at 2 Hz, an error blinks it three times; a confirmed LED stays lit. */
@@ -1207,10 +1231,10 @@
 
 /* Slider (h and v), the fader cap, the colour temperature strip and the wheel. The track is a 2 px ink line, the fill is the 6 px value bar (the value colour pulled toward the ink, 3:1 on the card in every
    scheme and accent), the thumb is an ink dot with a ring of the card colour; the fader cap is an outlined rectangle with one grip line. */
-.hd-widget[data-hd-family="minimal"] .hd-slider-track { background: transparent; border-radius: 0; }
-.hd-widget[data-hd-family="minimal"] .hd-slider-track::before { content: ""; position: absolute; inset-inline: 0; inset-block-start: 50%; block-size: var(--hd-stroke-2); margin-block-start: calc(var(--hd-stroke-2) / -2); background: color-mix(in srgb, var(--hd-track-line) 30%, transparent); }
-.hd-widget[data-hd-family="minimal"] .hd-slider[data-hd-variant="v"] .hd-slider-track::before { inset-inline: auto; inset-block: 0; inset-inline-start: 50%; inline-size: var(--hd-stroke-2); block-size: auto; margin-block-start: 0; margin-inline-start: calc(var(--hd-stroke-2) / -2); }
-.hd-widget[data-hd-family="minimal"] .hd-slider-fill { border-radius: 0; background: color-mix(in srgb, var(--hd-value-colour) 45%, var(--hd-ink)); }
+.hd-widget[data-hd-family="minimal"] :is(.hd-slider-track, .hd-bar-track) { background: transparent; border-radius: 0; }
+.hd-widget[data-hd-family="minimal"] :is(.hd-slider-track, .hd-bar-track)::before { content: ""; position: absolute; inset-inline: 0; inset-block-start: 50%; block-size: var(--hd-stroke-2); margin-block-start: calc(var(--hd-stroke-2) / -2); background: color-mix(in srgb, var(--hd-track-line) 30%, transparent); }
+.hd-widget[data-hd-family="minimal"] :is(.hd-slider[data-hd-variant="v"] .hd-slider-track, .hd-bar[data-hd-variant="v"] .hd-bar-track)::before { inset-inline: auto; inset-block: 0; inset-inline-start: 50%; inline-size: var(--hd-stroke-2); block-size: auto; margin-block-start: 0; margin-inline-start: calc(var(--hd-stroke-2) / -2); }
+.hd-widget[data-hd-family="minimal"] :is(.hd-slider-fill, .hd-bar-fill, .hd-bar-bulb) { border-radius: 0; background: color-mix(in srgb, var(--hd-value-colour) 45%, var(--hd-ink)); }
 .hd-widget[data-hd-family="minimal"] :is(.hd-slider-thumb, .hd-ct-thumb)::before { content: ""; position: absolute; box-sizing: border-box; inset: 0; margin: auto; inline-size: calc(var(--hd-m-dot-r) * 2px); block-size: calc(var(--hd-m-dot-r) * 2px); border-radius: var(--hd-radius-pill); background: var(--hd-thumb); box-shadow: 0 0 0 3px var(--hd-surface-solid); }
 .hd-widget[data-hd-family="minimal"] :is(.hd-slider, .hd-ct)[data-hd-dragging] :is(.hd-slider-thumb, .hd-ct-thumb)::before { scale: 1.25; }
 .hd-widget[data-hd-family="minimal"] .hd-slider[data-hd-variant="v"] .hd-slider-thumb { background: var(--hd-surface-solid); border: var(--hd-stroke-1) solid var(--hd-track-line); border-radius: var(--hd-m-rect-r); }
@@ -1279,7 +1303,7 @@
 .hd-widget[data-hd-family="minimal"]:not([data-hd-type="climate"])[data-hd-status="unavailable"] .hd-push[data-hd-variant="tile"][aria-checked] { background: transparent; }
 .hd-widget[data-hd-family="minimal"]:not([data-hd-type="climate"])[data-hd-status="unavailable"] .hd-push[data-hd-variant="tile"][aria-checked] .hd-ico { color: var(--hd-ink); background: transparent; box-shadow: 0 0 0 6px var(--hd-surface-solid), 0 0 0 calc(6px + var(--hd-stroke-1)) var(--hd-ink-muted); }
 .hd-widget[data-hd-family="minimal"][data-hd-status="unavailable"] .hd-ltile { border-style: dashed; }
-.hd-widget[data-hd-family="minimal"][data-hd-status="unavailable"] :is(.hd-ltile-wash, .hd-slider-fill) { display: none; }
+.hd-widget[data-hd-family="minimal"][data-hd-status="unavailable"] :is(.hd-ltile-wash, .hd-slider-fill, .hd-bar-fill, .hd-bar-bulb) { display: none; }
 .hd-widget[data-hd-family="minimal"][data-hd-status="unavailable"] .hd-ltile > .hd-iconbadge { color: var(--hd-ink); background: transparent; }
 .hd-widget[data-hd-family="minimal"][data-hd-status="unavailable"] :is(.hd-slider-thumb, .hd-ct-thumb)::before { background: var(--hd-surface-solid); border: var(--hd-stroke-1) solid var(--hd-ink); }
 .hd-widget[data-hd-family="minimal"][data-hd-status="unavailable"] .hd-wheel-thumb { background: var(--hd-surface-solid); }
@@ -1543,7 +1567,7 @@
    Rules that are probed as text backdrops (gradients, filling pseudo-elements) stay under 20 % of --hd-i-val; the bright bars and brackets are masked or sit outside the text. ===== */
 /* Error: the control wears the alert colour as a whole (one glow colour); the head keeps the HUD. */
 .hd-widget[data-hd-family="instrument"][data-hd-status="error"] :is(.hd-lrow, .hd-lcol, .hd-nrow) > .hd-numeral, .hd-widget[data-hd-family="instrument"][data-hd-status="error"] .hd-step-value .hd-numeral, .hd-widget[data-hd-family="instrument"][data-hd-status="error"] .hd-ltile[data-hd-on="true"] > .hd-numeral, .hd-widget[data-hd-family="instrument"][data-hd-status="error"] .hd-pick, .hd-widget[data-hd-family="instrument"][data-hd-status="error"] .hd-stepper .hd-step, .hd-widget[data-hd-family="instrument"][data-hd-status="error"] .hd-ltile[data-hd-on="true"] > .hd-iconbadge, .hd-widget[data-hd-family="instrument"][data-hd-status="error"] .hd-push[data-hd-variant]:is([aria-checked="true"], [data-hd-on="true"]) { color: var(--hd-alert); }
-.hd-widget[data-hd-family="instrument"][data-hd-status="error"] :is(.hd-slider-fill) { background: var(--hd-alert); }
+.hd-widget[data-hd-family="instrument"][data-hd-status="error"] :is(.hd-slider-fill, .hd-bar-fill, .hd-bar-bulb) { background: var(--hd-alert); }
 .hd-widget[data-hd-family="instrument"][data-hd-status="error"] :is(.hd-slider-thumb, .hd-ct-thumb)::before, .hd-widget[data-hd-family="instrument"][data-hd-status="error"] .hd-push[data-hd-variant="chip"]::after, .hd-widget[data-hd-family="instrument"][data-hd-status="error"] .hd-push[data-hd-variant="tile"]::before, .hd-widget[data-hd-family="instrument"][data-hd-status="error"] .hd-ltile .hd-ltile-wash::after { background: var(--hd-alert); box-shadow: 0 0 0 1px var(--hd-i-mid), 0 0 10px color-mix(in srgb, var(--hd-alert) 55%, transparent); }
 .hd-widget[data-hd-family="instrument"][data-hd-status="error"] .hd-ltile .hd-ltile-wash { background: linear-gradient(0deg, color-mix(in srgb, var(--hd-alert) 20%, transparent), color-mix(in srgb, var(--hd-alert) 6%, transparent)); }
 .hd-widget[data-hd-family="instrument"] .hd-arm { border-radius: 0; background: var(--hd-i-val); box-shadow: var(--hd-glow); }
@@ -1588,10 +1612,10 @@
 
 /* Slider (h and v), the fader cap, the colour temperature strip and the wheel. The track is a dim ladder, the fill is the lit ladder (same colour as the readout), the gaps are 20 cuts in the panel
    colour over both; the thumb is a lead bar in the glow colour (the fader cap is a bracketed key with a lit grip). */
-.hd-widget[data-hd-family="instrument"] .hd-slider-track { background: color-mix(in srgb, var(--hd-i-hud) 14%, transparent); border-radius: 0; }
-.hd-widget[data-hd-family="instrument"] .hd-slider-fill { background: var(--hd-i-val); border-radius: 0; }
-.hd-widget[data-hd-family="instrument"] .hd-slider-track::after { content: ""; position: absolute; inset: 0; z-index: 1; background: linear-gradient(90deg, transparent calc(100% - 2px), var(--hd-i-mid) 0) 0 0 / 5% 100% repeat-x; pointer-events: none; }
-.hd-widget[data-hd-family="instrument"] .hd-slider[data-hd-variant="v"] .hd-slider-track::after { background: linear-gradient(180deg, transparent calc(100% - 2px), var(--hd-i-mid) 0) 0 0 / 100% 5% repeat-y; }
+.hd-widget[data-hd-family="instrument"] :is(.hd-slider-track, .hd-bar-track) { background: color-mix(in srgb, var(--hd-i-hud) 14%, transparent); border-radius: 0; }
+.hd-widget[data-hd-family="instrument"] :is(.hd-slider-fill, .hd-bar-fill, .hd-bar-bulb) { background: var(--hd-i-val); border-radius: 0; }
+.hd-widget[data-hd-family="instrument"] :is(.hd-slider-track, .hd-bar-track)::after { content: ""; position: absolute; inset: 0; z-index: 1; background: linear-gradient(90deg, transparent calc(100% - 2px), var(--hd-i-mid) 0) 0 0 / 5% 100% repeat-x; pointer-events: none; }
+.hd-widget[data-hd-family="instrument"] :is(.hd-slider[data-hd-variant="v"] .hd-slider-track, .hd-bar[data-hd-variant="v"] .hd-bar-track)::after { background: linear-gradient(180deg, transparent calc(100% - 2px), var(--hd-i-mid) 0) 0 0 / 100% 5% repeat-y; }
 .hd-widget[data-hd-family="instrument"] .hd-slider-thumb, .hd-widget[data-hd-family="instrument"] .hd-ct-thumb { z-index: 2; border-radius: 0; }
 .hd-widget[data-hd-family="instrument"] :is(.hd-slider-thumb, .hd-ct-thumb)::before { content: ""; position: absolute; inset-block: 0; inset-inline: 0; margin-inline: auto; inline-size: 3px; background: var(--hd-i-val); box-shadow: 0 0 0 1px var(--hd-i-mid), var(--hd-glow); }
 .hd-widget[data-hd-family="instrument"] .hd-ct-thumb::before { inset-block: -3px; }
@@ -1713,21 +1737,26 @@
 }
 /* G13 head economy: the title is the one text that must read, so it gets the row before the icon, the status badge and the state text. One column under 90px (the 83px cells
    of 768 and 390, the 67px cells of a 960px page) drops the head icon and the status badge (stale, read-only and alert facts stay in the state line, the tone ring and the
-   accessible name) and takes 6px padding and 11px labels; under 80px the padding is 4px and the family's label tracking a fifth, so "Coffee m..." keeps 8 characters.
+   accessible name; the state mark keeps a corner dot, see the state mark block) and takes 6px padding and 11px labels; under 80px the padding is 4px and the family's label tracking a fifth, so "Coffee m..." keeps 8 characters.
    Two columns of a 960px page (140-159px) drop the head icon and take in the tracking. 96px cells keep icon and badge. */
-@container hd-widget (max-width: 89px) { .hd-widget > .hd-frame { --hd-pad-i: 6px; } .hd-widget .hd-title, .hd-widget .hd-state { font-size: 11px; } .hd-widget .hd-head > .hd-icon { display: none; }
-  .hd-widget[data-hd-type][data-hd-family] .hd-head::after { display: none; } }
+@container hd-widget (max-width: 89px) { .hd-widget > .hd-frame { --hd-pad-i: 6px; } .hd-widget .hd-title, .hd-widget .hd-state { font-size: 11px; } .hd-widget .hd-head > .hd-icon { display: none; } }
 @container hd-widget (min-width: 140px) and (max-width: 159px) { .hd-widget .hd-head > .hd-icon { display: none; } .hd-widget .hd-title { letter-spacing: calc(var(--hd-label-tracking) * 0.4); } }
 @container hd-widget (max-width: 79px) { .hd-widget > .hd-frame { --hd-pad-i: 4px; } .hd-widget .hd-title { letter-spacing: calc(var(--hd-label-tracking) * 0.2 - 0.01em); } }
 /* T5 shared painting from card tokens */
 .hd-widget > .hd-frame { background: var(--hd-card-bg); border: var(--hd-card-border); border-radius: var(--hd-radius-card); box-shadow: var(--hd-shadow-card); overflow: hidden; }
 .hd-widget[data-hd-status="unavailable"] > .hd-frame { border: var(--hd-dash-unavail); }
 .hd-widget[data-hd-tone="crit"] > .hd-frame::before { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: var(--hd-ring-alert); pointer-events: none; z-index: 2; }
-.hd-head::after { content: ""; display: none; flex: none; inline-size: 12px; block-size: 12px; background: var(--hd-ink-muted);
-  -webkit-mask: var(--hd-badge-mask) center / contain no-repeat; mask: var(--hd-badge-mask) center / contain no-repeat; }
-.hd-widget[data-hd-stale="true"] .hd-head::after { display: block; --hd-badge-mask: var(--hd-mask-clock); }
-.hd-widget[data-hd-readonly="true"] .hd-head::after { display: block; --hd-badge-mask: var(--hd-mask-lock); }
-.hd-widget[data-hd-tone="crit"] .hd-head::after { display: block; --hd-badge-mask: var(--hd-mask-alert); background: var(--hd-alert); }
+/* State mark (hd-widgets.js writes span.hd-mark in the head: data-kind alert, readonly or stale, with the fact as accessible name and tooltip). From 90px wide it is the 12px glyph after the title;
+   in a card under 90px wide (the head icon is gone there) it is an 8px dot in the top-right corner: solid for stale and alert, a ring for read-only. The dot sits above the ink of the title row
+   (rows 1-9 of the card; the ink starts at row 6 in a compact frame), so the title keeps its room: where a title is cut the ellipsis sits on the baseline, under the dot. */
+.hd-mark { display: block; flex: none; box-sizing: border-box; inline-size: 12px; block-size: 12px; background: var(--hd-ink-muted); -webkit-mask: var(--hd-badge-mask) center / contain no-repeat; mask: var(--hd-badge-mask) center / contain no-repeat; }
+.hd-mark[data-kind="stale"] { --hd-badge-mask: var(--hd-mask-clock); }
+.hd-mark[data-kind="readonly"] { --hd-badge-mask: var(--hd-mask-lock); }
+.hd-mark[data-kind="alert"] { --hd-badge-mask: var(--hd-mask-alert); background: var(--hd-alert); }
+@container hd-widget (max-width: 89px) {
+  .hd-mark { position: absolute; z-index: 3; inset-block-start: 1px; inset-inline-end: 4px; inline-size: 8px; block-size: 8px; border-radius: var(--hd-radius-pill); -webkit-mask: none; mask: none; pointer-events: none; }
+  .hd-mark[data-kind="readonly"] { background: transparent; border: 2px solid var(--hd-ink-muted); }
+}
 .hd-widget[data-hd-status="error"] .hd-state { color: var(--hd-alert-ink); }
 .hd-widget[data-hd-status="error"] .hd-state::before { content: ""; display: inline-block; inline-size: 12px; block-size: 12px; margin-inline-end: 4px; vertical-align: -1px;
   background: var(--hd-alert-ink); -webkit-mask: var(--hd-mask-error) center / contain no-repeat; mask: var(--hd-mask-error) center / contain no-repeat; }
@@ -1741,27 +1770,27 @@
    = (100 + 88 * cos 45 + 11) / 200 = 0.866 D (the 12-unit stroke caps alone reach 0.841 D). The steppers hang below that, top edge = 0.866 D + 4px, so the
    dialbox is 0.866 D + 4px clearance + 44px button high. It must fit the body row above the 8px gap to the mode bar:
    D = min(0.86 * min(w, h - 52px), (h - 52px - 48px) / 0.866); at 3x3 (body 278 x 232) the second term wins: D = 132 / 0.866 = 152.4 (was 154.8). */
-.hd-widget[data-hd-type="climate"] .hd-body { grid-template-rows: minmax(0, 1fr) 44px; row-gap: 8px;
+.hd-widget[data-hd-type="climate"]:where([data-hd-variant="dial"]) .hd-body { grid-template-rows: minmax(0, 1fr) 44px; row-gap: 8px;
   --hd-th-d: min(calc(min(var(--hd-body-w), var(--hd-body-h) - 52px) * 0.86), calc((var(--hd-body-h) - 100px) / 0.866)); }
-@container hd-widget (max-height: 259px) { .hd-widget[data-hd-type="climate"] .hd-body { grid-template-rows: minmax(0, 1fr); --hd-th-d: calc(min(var(--hd-body-w), var(--hd-body-h)) * 0.86); }
-  .hd-widget[data-hd-type="climate"] :is(.hd-seg, .hd-climate-steps) { display: none; }
-  .hd-widget[data-hd-type="climate"] .hd-climate-dialbox { block-size: var(--hd-th-d); }
-  .hd-widget[data-hd-type="climate"] .hd-dial-action { display: none; } } /* 2x2: the stack is target + current only, centred on the ring */
-.hd-widget[data-hd-type="climate"] .hd-dial-action { font: var(--hd-label-weight) var(--hd-label-size) / 1.2 var(--hd-font-label); letter-spacing: var(--hd-label-tracking); }
+@container hd-widget (max-height: 259px) { .hd-widget[data-hd-type="climate"]:where([data-hd-variant="dial"]) .hd-body { grid-template-rows: minmax(0, 1fr); --hd-th-d: calc(min(var(--hd-body-w), var(--hd-body-h)) * 0.86); }
+  .hd-widget[data-hd-type="climate"]:where([data-hd-variant="dial"]) :is(.hd-seg, .hd-climate-steps) { display: none; }
+  .hd-widget[data-hd-type="climate"]:where([data-hd-variant="dial"]) .hd-climate-dialbox { block-size: var(--hd-th-d); }
+  .hd-widget[data-hd-type="climate"]:where([data-hd-variant="dial"]) .hd-dial-action { display: none; } } /* 2x2: the stack is target + current only, centred on the ring */
+.hd-widget[data-hd-type="climate"]:where([data-hd-variant="dial"]) .hd-dial-action { font: var(--hd-label-weight) var(--hd-label-size) / 1.2 var(--hd-font-label); letter-spacing: var(--hd-label-tracking); }
 /* The current temperature is 0.32 of the target numeral, which is 8px at 2x2 (D 107): floor it at 11px, the smallest size the label scale allows. */
-.hd-widget[data-hd-type="climate"] .hd-dial-sub { display: inline-flex; align-items: center; gap: 2px; font-size: max(11px, calc(var(--hd-th-d) * var(--hd-thermo-num-k) * 0.32)); }
-.hd-widget[data-hd-type="climate"] .hd-dial-sub .hd-ico { inline-size: 1.25em; block-size: 1.25em; }
+.hd-widget[data-hd-type="climate"]:where([data-hd-variant="dial"]) .hd-dial-sub { display: inline-flex; align-items: center; gap: 2px; font-size: max(11px, calc(var(--hd-th-d) * var(--hd-thermo-num-k) * 0.32)); }
+.hd-widget[data-hd-type="climate"]:where([data-hd-variant="dial"]) .hd-dial-sub .hd-ico { inline-size: 1.25em; block-size: 1.25em; }
 .hd-climate-dialbox { position: relative; inline-size: var(--hd-th-d); block-size: calc(var(--hd-th-d) * 0.866 + 48px); }
 .hd-climate-dialbox .hd-dial { inline-size: 100%; }
 .hd-climate-steps .hd-push { position: absolute; inline-size: 44px; block-size: 44px; translate: -50% -50%; inset-block-start: calc(var(--hd-th-d) * 0.866 + 26px); }
 .hd-climate-steps .hd-push[data-dir="-1"] { inset-inline-start: 33.5%; } .hd-climate-steps .hd-push[data-dir="1"] { inset-inline-start: 66.5%; }
-.hd-widget[data-hd-type="climate"] .hd-climate-steps .hd-push[data-dir] { position: absolute; } /* a family's relative key (Tactile) must not push the steps out of the card */
+.hd-widget[data-hd-type="climate"]:where([data-hd-variant="dial"]) .hd-climate-steps .hd-push[data-dir] { position: absolute; } /* a family's relative key (Tactile) must not push the steps out of the card */
 .hd-climate-steps .hd-push-label { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-.hd-widget[data-hd-type="climate"] .hd-dial-readout > .hd-numeral { font-size: calc(var(--hd-th-d) * var(--hd-thermo-num-k)); }
-.hd-widget[data-hd-type="climate"] .hd-dial-marker { translate: 0 -5px; }
+.hd-widget[data-hd-type="climate"]:where([data-hd-variant="dial"]) .hd-dial-readout > .hd-numeral { font-size: calc(var(--hd-th-d) * var(--hd-thermo-num-k)); }
+.hd-widget[data-hd-type="climate"]:where([data-hd-variant="dial"]) .hd-dial-marker { translate: 0 -5px; }
 /* The thermometer glyph and the main readout carry the unit; at 0.42 of the small current-temperature numeral it would be an unreadable 5-7 px. */
-.hd-widget[data-hd-type="climate"] .hd-dial-sub :is(.hd-num-unit, .hd-num-deg, .hd-seg7-unit) { display: none; }
-.hd-widget[data-hd-type="climate"] .hd-dial:not([data-buf]) .hd-dial-current { display: none; } /* no value or no current temperature: no marker, no needle */
+.hd-widget[data-hd-type="climate"]:where([data-hd-variant="dial"]) .hd-dial-sub :is(.hd-num-unit, .hd-num-deg, .hd-seg7-unit) { display: none; }
+.hd-widget[data-hd-type="climate"]:where([data-hd-variant="dial"]) .hd-dial:not([data-buf]) .hd-dial-current { display: none; } /* no value or no current temperature: no marker, no needle */
 .hd-body[data-hd-action="heating"] { --hd-act: var(--hd-heat); } .hd-body[data-hd-action="cooling"] { --hd-act: var(--hd-cool); }
 .hd-body[data-hd-action="idle"] { --hd-act: color-mix(in srgb, var(--hd-ink) 35%, transparent); } .hd-body[data-hd-action="off"] .hd-dial-active { display: none; }
 /* H5 and H6 gauge boxes */
@@ -1807,20 +1836,20 @@
 @container hd-widget (max-height: 95px) and (min-width: 140px) { .hd-widget[data-hd-type="entity"] .hd-state { padding-inline-start: 0; } }
 /* M3 W1 controls (SCR-M3-1/2/5/6/7). Cell 96px, gap 12px. "W1 types" = switch push and tile, light slider, fader and tile, action, select and number: their body is one
    definite grid cell the control fills, and at height 1 with two or more columns the frame is one row (title and state share the head row; the body is 50px at 2x1). */
-.hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"]) .hd-body { grid-template: minmax(0, 1fr) / minmax(0, 1fr); }
+.hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"], [data-hd-type="climate"]:is([data-hd-variant="stepper"], [data-hd-variant="scale"])) .hd-body { grid-template: minmax(0, 1fr) / minmax(0, 1fr); }
 @container hd-widget (max-height: 139px) and (min-width: 140px) {
-  .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"]) > .hd-frame {
+  .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"], [data-hd-type="climate"]:is([data-hd-variant="stepper"], [data-hd-variant="scale"])) > .hd-frame {
     grid-template: "head state" var(--hd-head-h) "body body" minmax(0, 1fr) / minmax(calc(var(--hd-head-h) + 8px + var(--hd-title-min) + 20px), 1fr) minmax(calc(var(--hd-more-pad, 0px) + 24px), auto);
     --hd-title-min: calc(var(--hd-label-size) * 4.2); /* WS-1: icon, 7 title characters and the status icon are reserved; the head takes its full text above that, the state line truncates first */
     --hd-body-h: calc(100cqh - 2 * var(--hd-pad-b) - 2px - var(--hd-head-h) - var(--hd-gap-in)); }
-  .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"]) .hd-head { padding-inline-end: 0; }
-  .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"]) .hd-title { min-inline-size: var(--hd-title-min); }
+  .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"], [data-hd-type="climate"]:is([data-hd-variant="stepper"], [data-hd-variant="scale"])) .hd-head { padding-inline-end: 0; }
+  .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"], [data-hd-type="climate"]:is([data-hd-variant="stepper"], [data-hd-variant="scale"])) .hd-title { min-inline-size: var(--hd-title-min); }
   .hd-widget > .hd-frame:has(> .hd-more:not([hidden])) > .hd-head { padding-inline-end: 0; }
-  .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"]) .hd-state { align-self: center; justify-self: end; max-inline-size: 100%; padding-inline-end: var(--hd-more-pad, 0px); text-align: end; }
+  .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"], [data-hd-type="climate"]:is([data-hd-variant="stepper"], [data-hd-variant="scale"])) .hd-state { align-self: center; justify-self: end; max-inline-size: 100%; padding-inline-end: var(--hd-more-pad, 0px); text-align: end; }
 }
 /* WS-1 at width 3 and more: the head takes its full text and the state line truncates first. */
 @container hd-widget (max-height: 139px) and (min-width: 250px) {
-  .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"]) > .hd-frame {
+  .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"], [data-hd-type="climate"]:is([data-hd-variant="stepper"], [data-hd-variant="scale"])) > .hd-frame {
     grid-template-columns: minmax(calc(var(--hd-head-h) + 8px + var(--hd-title-min) + 20px), max-content) minmax(calc(var(--hd-more-pad, 0px) + 24px), 1fr); } }
 /* More button (SCR-M3-2): 44x44 at the top-right frame corner, hidden at 1x1 (and by the hidden attribute, which the base rule keeps winning); the head leaves room for it. */
 .hd-widget > .hd-frame > .hd-more { position: absolute; inset-block-start: 0; inset-inline-end: 0; z-index: 3; display: grid; place-items: center; box-sizing: border-box; inline-size: 44px; block-size: 44px;
@@ -1833,23 +1862,23 @@
 @container hd-widget (max-width: 139px) { .hd-widget > .hd-frame > .hd-more { display: none; }
   .hd-widget > .hd-frame:has(> .hd-more:not([hidden])) { --hd-more-pad: 0px; }
   .hd-widget > .hd-frame:has(> .hd-more:not([hidden])) > .hd-head { padding-inline-end: 0; }
-  .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"]) .hd-head > .hd-icon { display: none; } }
+  .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"], [data-hd-type="climate"]:is([data-hd-variant="stepper"], [data-hd-variant="scale"])) .hd-head > .hd-icon { display: none; } }
 /* WS-6: the armed bar of a W1 widget sits in the card's bottom inset, below the body, so it never crosses a control. */
-.hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"]) .hd-body { position: static; }
-.hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"]) .hd-arm { inset-inline: var(--hd-pad-i); inset-block-end: calc((var(--hd-pad-b) - 3px) / 2); }
+.hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"], [data-hd-type="climate"]:is([data-hd-variant="stepper"], [data-hd-variant="scale"])) .hd-body { position: static; }
+.hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"], [data-hd-type="climate"]:is([data-hd-variant="stepper"], [data-hd-variant="scale"])) .hd-arm { inset-inline: var(--hd-pad-i); inset-block-end: calc((var(--hd-pad-b) - 3px) / 2); }
 .hd-widget[tabindex="-1"]:focus { outline: none; } /* a focus-return target: no UA outline, no layout change */
 /* G13 compact stack. A frame under 96px high (the 67px rows of a 960px page, the 83px rows of 768 and 390) has no room for head, 44px control and state line, so the
    controls keep their 44px, the head is one 14px line above them and the state line leaves the layout. It stays in the accessibility tree (visually hidden), and the
    control already shows the value. The vertical padding takes what is left (2px at 67px rows, 8px at most). One selector: W1 types plus the pill. */
 @container hd-widget (max-height: 95px) {
-  .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"], [data-hd-variant="pill"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"])[data-hd-type] > .hd-frame {
+  .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"], [data-hd-variant="pill"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"], [data-hd-type="climate"]:is([data-hd-variant="stepper"], [data-hd-variant="scale"]))[data-hd-type] > .hd-frame {
     --hd-head-h: 14px; --hd-state-h: 0px; --hd-gap-in: 2px; --hd-pad-b: clamp(2px, calc((100cqh - 2px - 14px - 2px - 44px) / 2), 8px);
     grid-template: "head" 14px "body" minmax(0, 1fr) / minmax(0, 1fr); }
-  .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"], [data-hd-variant="pill"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"])[data-hd-type] .hd-head { padding-inline-end: var(--hd-more-pad, 0px); }
+  .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"], [data-hd-variant="pill"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"], [data-hd-type="climate"]:is([data-hd-variant="stepper"], [data-hd-variant="scale"]))[data-hd-type] .hd-head { padding-inline-end: var(--hd-more-pad, 0px); }
   .hd-widget[data-hd-type="switch"] .hd-toggle { max-inline-size: 100%; } /* 1x1 of a 960px page: the 64px toggle gives way to the 55px body */
   .hd-widget[data-hd-type="light"] .hd-body { padding-inline-end: var(--hd-more-pad, 0px); } /* the sheet button (44x44 at the corner) keeps the body row clear */
   .hd-widget:is([data-hd-type="temperature"][data-hd-variant="numeral"], [data-hd-type="sensor"]:is([data-hd-variant="numeral"], [data-hd-variant="sparkline"])) > .hd-frame { --hd-state-h: 0px; } /* the numeral takes the row of the state line */
-  .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"], [data-hd-variant="pill"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"], [data-hd-type="temperature"][data-hd-variant="numeral"], [data-hd-type="sensor"]:is([data-hd-variant="numeral"], [data-hd-variant="sparkline"]))[data-hd-type] > .hd-frame > .hd-state {
+  .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"], [data-hd-variant="pill"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"], [data-hd-type="climate"]:is([data-hd-variant="stepper"], [data-hd-variant="scale"]), [data-hd-type="temperature"][data-hd-variant="numeral"], [data-hd-type="sensor"]:is([data-hd-variant="numeral"], [data-hd-variant="sparkline"]))[data-hd-type] > .hd-frame > .hd-state {
     position: absolute; inline-size: 1px; block-size: 1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); }
 }
 /* Two columns of a 960px page in one row (146px wide): chip 44 + slider cannot share the row with the 44px sheet button (the slider track would be 12px), so the button gives way
@@ -1918,8 +1947,14 @@
 .hd-widget:is([data-hd-type="number"], [data-hd-type="light"]) .hd-numeral .hd-num-unit { font-size: max(11px, 0.5em); vertical-align: baseline; margin-inline-start: 0.15em; }
 /* Select: the segmented bar takes the full body width (overrides the H4 260px cap); the picker is full width (primitives). */
 .hd-widget[data-hd-type="select"] .hd-seg { inline-size: 100%; }
+/* G13 picker economy: the value is the one thing the picker shows, so it takes the room before the chevron. One column (under 140px) trims the padding and the gap; under 90px (1x1) the chevron
+   leaves and the value is centred, the whole tile stays the button (the listbox still opens from it). */
+@container hd-widget (max-width: 139px) { .hd-widget[data-hd-type="select"] .hd-pick { padding-inline: 8px; column-gap: 4px; } }
+@container hd-widget (max-width: 89px) { .hd-widget[data-hd-type="select"] .hd-pick { grid-template-columns: minmax(0, 1fr); padding-inline: 2px; text-align: center; font-size: 12px; } .hd-widget[data-hd-type="select"] .hd-pick > .hd-ico { display: none; } }
+/* The climate mode bar keeps its four icons and drops the words below 300px (four labels need 260px): the words stay as the accessible names. */
+@container hd-widget (max-width: 299px) { .hd-widget[data-hd-type="climate"] .hd-seg-label { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); } }
 /* Number: stepper centred; slider row = slider and a 5ch numeral with its unit. */
-.hd-widget[data-hd-type="number"] .hd-stepper { justify-self: center; }
+.hd-widget:is([data-hd-type="number"], [data-hd-type="climate"]) .hd-stepper { justify-self: center; }
 .hd-nrow { display: flex; align-items: center; gap: 8px; inline-size: 100%; min-inline-size: 0; }
 .hd-nrow > .hd-slider { flex: 1 1 0; min-inline-size: 0; }
 .hd-nrow > .hd-numeral { flex: none; inline-size: 5ch; font-size: var(--hd-text-m); text-align: end; white-space: nowrap; }
@@ -1954,6 +1989,90 @@
   .hd-widget[data-kind="moreinfo"] .hd-mi-row { grid-column: 1; }
   .hd-widget[data-kind="moreinfo"] .hd-mi-row[data-row="wheel"] { grid-column: 2; grid-row: 1 / 5; }
 }
+/* G13 level, thermometer, comfort and icon displays, and the climate stepper and scale. Structure only: the bar rules are in primitives (the families paint track and fill with the slider rules).
+   Card geometry: a row display (gauge bar, sensor icon) under 96px high and a column display (tank, thermometer, comfort, climate scale) under 180px high give the state line up (it stays
+   in the accessibility tree, the state mark names the facts) so the body keeps room; the head takes the 14px line. */
+.hd-widget:is([data-hd-type="gauge"]:is([data-hd-variant="bar"], [data-hd-variant="tank"]), [data-hd-type="temperature"]:is([data-hd-variant="thermometer"], [data-hd-variant="comfort"]), [data-hd-type="sensor"][data-hd-variant="icon"]) > .hd-frame { --hd-gap-in: 4px; }
+@container hd-widget (max-height: 95px) {
+  .hd-widget:is([data-hd-type="gauge"][data-hd-variant="bar"], [data-hd-type="sensor"][data-hd-variant="icon"]) > .hd-frame { --hd-state-h: 0px; --hd-gap-in: 2px; }
+  .hd-widget:is([data-hd-type="gauge"][data-hd-variant="bar"], [data-hd-type="sensor"][data-hd-variant="icon"]) > .hd-frame > .hd-state { position: absolute; inline-size: 1px; block-size: 1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); }
+}
+@container hd-widget (max-height: 179px) {
+  .hd-widget:is([data-hd-type="gauge"][data-hd-variant="tank"], [data-hd-type="temperature"]:is([data-hd-variant="thermometer"], [data-hd-variant="comfort"]), [data-hd-type="climate"][data-hd-variant="scale"]) > .hd-frame {
+    --hd-head-h: 14px; --hd-state-h: 0px; --hd-gap-in: 2px; --hd-pad-b: 10px; grid-template: "head" 14px "body" minmax(0, 1fr) / minmax(0, 1fr); }
+  .hd-widget:is([data-hd-type="gauge"][data-hd-variant="tank"], [data-hd-type="temperature"]:is([data-hd-variant="thermometer"], [data-hd-variant="comfort"]), [data-hd-type="climate"][data-hd-variant="scale"]) > .hd-frame > .hd-state {
+    position: absolute; inline-size: 1px; block-size: 1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); }
+}
+.hd-widget:is([data-hd-type="gauge"], [data-hd-type="temperature"], [data-hd-type="sensor"]) .hd-bar-readout { font-size: min(var(--hd-text-l), calc(var(--hd-body-w) / 3.6)); }
+.hd-widget[data-hd-type="gauge"] .hd-bar[data-hd-variant="h"] { max-inline-size: 100%; }
+@container hd-widget (min-height: 140px) {
+  .hd-widget[data-hd-type="gauge"] .hd-bar[data-hd-variant="h"] { grid-template-columns: minmax(0, 1fr); row-gap: 10px; justify-items: stretch; align-content: center; }
+  .hd-widget[data-hd-type="gauge"] .hd-bar[data-hd-variant="h"] > .hd-bar-readout { grid-row: 1; justify-self: center; font-size: min(22cqmin, calc(var(--hd-body-w) / 3.6), 56px); }
+  .hd-widget[data-hd-type="gauge"] .hd-bar[data-hd-variant="h"] > .hd-bar-track { grid-row: 2; block-size: clamp(10px, 6cqmin, 20px); }
+}
+.hd-widget[data-hd-type="gauge"] .hd-bar[data-hd-variant="v"] > .hd-bar-readout, .hd-widget[data-hd-type="temperature"] .hd-bar > .hd-bar-readout { justify-self: center; }
+@container hd-widget (min-height: 200px) { .hd-widget[data-hd-type="gauge"] .hd-bar[data-hd-variant="v"] > .hd-bar-readout, .hd-widget[data-hd-type="temperature"] .hd-bar > .hd-bar-readout { font-size: min(14cqmin, calc(var(--hd-body-w) / 3.4), 48px); } }
+.hd-bar .hd-numeral .hd-num-unit { font-size: max(11px, 0.5em); }
+/* Comfort: the readings on top (temperature left, humidity right), the plot below. The zone is the rectangle of comfortable values (x: temperature, y: humidity); the dot is the reading, in
+   the ok colour inside the zone and the warning colour outside. Without a humidity sensor the zone is the full-height temperature band and the dot rides its middle. */
+.hd-comfort { display: grid; grid-template-rows: auto minmax(0, 1fr); row-gap: 6px; box-sizing: border-box; inline-size: 100%; block-size: 100%; min-block-size: 0; }
+.hd-cf-read { grid-row: 1; display: flex; align-items: baseline; justify-content: space-between; column-gap: 8px; min-inline-size: 0; font-size: clamp(14px, 11cqmin, 40px); line-height: 1; white-space: nowrap; }
+.hd-cf-read > .hd-numeral:last-child { color: var(--hd-ink-muted); font-size: 0.8em; }
+.hd-cf-plot { --hd-cf-dot: 10px; grid-row: 2; position: relative; min-block-size: 24px; border-radius: calc(var(--hd-radius-card) * 0.6); overflow: hidden;
+  background: linear-gradient(90deg, transparent calc(50% - 0.5px), var(--hd-ink-faint) 0 calc(50% + 0.5px), transparent 0) 0 0 / 100% 100% no-repeat, linear-gradient(0deg, transparent calc(50% - 0.5px), var(--hd-ink-faint) 0 calc(50% + 0.5px), transparent 0) 0 0 / 100% 100% no-repeat, var(--hd-track); }
+.hd-cf-zone { position: absolute; box-sizing: border-box; inset-inline-start: calc(var(--hd-zx0, 0.3) * 100%); inline-size: calc((var(--hd-zx1, 0.7) - var(--hd-zx0, 0.3)) * 100%);
+  inset-block-end: calc(var(--hd-zy0, 0.4) * 100%); block-size: calc((var(--hd-zy1, 0.6) - var(--hd-zy0, 0.4)) * 100%); border: var(--hd-stroke-hair) solid var(--hd-ok); border-radius: calc(var(--hd-radius-control) / 2);
+  background: color-mix(in srgb, var(--hd-ok) 28%, transparent); }
+.hd-comfort[data-hd-nohum] .hd-cf-zone { inset-block: 0; block-size: auto; }
+.hd-cf-dot { position: absolute; box-sizing: border-box; inline-size: var(--hd-cf-dot); block-size: var(--hd-cf-dot); inset-inline-start: calc(var(--hd-cx, 0) * (100% - var(--hd-cf-dot))); inset-block-end: calc(var(--hd-cy, 0.5) * (100% - var(--hd-cf-dot)));
+  border-radius: var(--hd-radius-pill); background: var(--hd-ink); box-shadow: 0 0 0 2px var(--hd-surface-solid); }
+.hd-comfort[data-hd-zone="in"] .hd-cf-dot { background: var(--hd-ok); } .hd-comfort[data-hd-zone="out"] .hd-cf-dot { background: var(--hd-warn); }
+.hd-comfort[data-hd-nohum] .hd-cf-dot { inset-block-end: calc(50% - var(--hd-cf-dot) / 2); }
+.hd-comfort[data-hd-empty="true"] .hd-cf-dot { display: none; }
+/* Sensor icon: the entity's icon and its value; the icon scales with the body (12px at 1x1, up to 72px), a wide short card puts them side by side. */
+.hd-sicon { display: grid; grid-auto-flow: row; grid-template-columns: minmax(0, 1fr); justify-items: center; align-content: center; row-gap: 2px; box-sizing: border-box; inline-size: 100%; min-inline-size: 0; }
+.hd-sicon > .hd-iconbadge { display: inline-grid; place-items: center; inline-size: clamp(12px, min(calc(var(--hd-body-h) * 0.4), var(--hd-body-w)), 72px); block-size: clamp(12px, min(calc(var(--hd-body-h) * 0.4), var(--hd-body-w)), 72px); color: var(--hd-value-colour, var(--hd-accent)); }
+.hd-sicon > .hd-iconbadge .hd-ico { inline-size: 100%; block-size: 100%; }
+.hd-sicon > :is(.hd-numeral, .hd-seg7) { max-inline-size: 100%; font-size: min(calc(var(--hd-body-h) * 0.5), calc(var(--hd-body-w) / 3.4), 56px); line-height: 1; white-space: nowrap; }
+@container hd-widget (aspect-ratio >= 1.6) and (max-height: 139px) {
+  .hd-sicon { grid-auto-flow: column; grid-template-columns: none; justify-content: center; align-items: center; column-gap: 8px; row-gap: 0; }
+  .hd-sicon > .hd-iconbadge { inline-size: min(28px, calc(var(--hd-body-h) * 0.95)); block-size: min(28px, calc(var(--hd-body-h) * 0.95)); }
+  .hd-sicon > :is(.hd-numeral, .hd-seg7) { font-size: min(calc(var(--hd-body-h) * 0.9), 40px); }
+}
+.hd-widget[data-hd-stale="true"] .hd-sicon > .hd-iconbadge { color: var(--hd-ink-muted); }
+.hd-sicon > .hd-seg7 { font-size: min(calc(var(--hd-body-h) * 0.5), calc((var(--hd-body-w) - 12px) / 5.6), 56px); }
+/* Climate stepper (keys with the target, the current temperature under them from 140px high) and scale (the lcol column: target, vertical slider, current at 260px high; the marker on the
+   scale is the current temperature). Both lose the unit at one column. */
+.hd-cstep { display: grid; justify-items: center; align-content: center; row-gap: 6px; inline-size: 100%; min-inline-size: 0; }
+.hd-widget[data-hd-type="climate"] .hd-stepper { font-size: var(--hd-text-m); }
+@container hd-widget (max-width: 199px) { .hd-widget[data-hd-type="climate"] .hd-stepper .hd-num-unit { display: none; } }
+@container hd-widget (min-height: 140px) and (min-width: 200px) { .hd-widget[data-hd-type="climate"] .hd-stepper { font-size: var(--hd-text-xl); } }
+.hd-cnow { display: inline-flex; align-items: center; column-gap: 4px; color: var(--hd-ink-muted); font-size: var(--hd-text-s); line-height: 1; white-space: nowrap; }
+.hd-cnow .hd-ico { inline-size: 16px; block-size: 16px; color: var(--hd-act, var(--hd-ink-muted)); }
+.hd-cnow .hd-numeral { font-size: inherit; }
+@container hd-widget (max-height: 139px) { .hd-widget[data-hd-variant="stepper"] .hd-cnow { display: none; } }
+.hd-widget[data-hd-type="climate"] .hd-cscale > .hd-numeral { display: block; font-size: var(--hd-text-l); }
+@container hd-widget (max-height: 259px) { .hd-widget[data-hd-type="climate"] .hd-cscale > .hd-cnow { display: none; } }
+@container hd-widget (min-height: 260px) { .hd-widget[data-hd-type="climate"] .hd-cscale > .hd-numeral { font-size: var(--hd-text-xl); } }
+@container hd-widget (max-width: 99px) { .hd-widget[data-hd-type="climate"] .hd-cscale > .hd-numeral .hd-num-unit { display: none; } }
+.hd-cscale-now { position: absolute; inset-inline-start: calc(50% + 14px); inset-block-end: calc(12px + (100% - 24px) * var(--hd-cur, 0)); translate: 0 50%; inline-size: 7px; block-size: 9px; clip-path: polygon(0 50%, 100% 0, 100% 100%);
+  background: var(--hd-act, var(--hd-ink-muted)); pointer-events: none; }
+/* Lamp (entity tile, binary state): a round indicator; on = the accent, off = a ring. The tactile family paints its own. */
+.hd-lamp { position: relative; display: inline-block; inline-size: 14px; block-size: 14px; flex: none; }
+.hd-lamp-dot { position: absolute; inset: 1px; box-sizing: border-box; border-radius: var(--hd-radius-pill); border: var(--hd-stroke-2) solid var(--hd-ink-faint); }
+.hd-lamp[data-hd-on="true"] .hd-lamp-dot { border-color: var(--hd-accent); background: var(--hd-accent); box-shadow: 0 0 8px color-mix(in srgb, var(--hd-accent) 55%, transparent); }
+.hd-lamp-halo { display: none; }
+.hd-widget[data-hd-type="entity"] .hd-tile > .hd-lamp { inline-size: clamp(14px, 18cqmin, 40px); block-size: clamp(14px, 18cqmin, 40px); }
+/* One row (a 2x1 under 96px high): the lamp stands bottom-left in front of the state text, which makes room for it. */
+@container hd-widget (max-height: 95px) and (min-width: 140px) {
+  .hd-widget[data-hd-type="entity"] .hd-tile > .hd-lamp { grid-column: 1; align-self: end; }
+  .hd-widget[data-hd-type="entity"] > .hd-frame:has(.hd-lamp:not([hidden])) > .hd-state { padding-inline-start: 22px; }
+}
+/* A zone or entity tone turns the fill (and the thermometer bulb) to the warning or alert colour; specificity above the family fill rules. */
+.hd-root .hd-widget .hd-bar[data-hd-tone="warn"] :is(.hd-bar-fill, .hd-bar-bulb) { background: var(--hd-warn); }
+.hd-root .hd-widget .hd-bar[data-hd-tone="crit"] :is(.hd-bar-fill, .hd-bar-bulb) { background: var(--hd-alert); }
+.hd-widget[data-hd-family="minimal"] .hd-bar[data-hd-shape="thermo"] { grid-template-rows: auto minmax(0, 1fr); }
+.hd-widget[data-hd-family="minimal"] .hd-bar-bulb { display: none; }
 /* Motion (gate selector only; transform and opacity only; never under reduced motion). Error cue: the control shakes 3 cycles in 320ms (--hd-shake sets the distance, 6px by default).
    Confirmed: the check fades over the 600ms. The light wash follows a remote change; during a drag it follows the pointer. */
 @media (prefers-reduced-motion: no-preference) {

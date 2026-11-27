@@ -74,7 +74,16 @@
         }, { mode: { get: () => mode, enumerable: true } }));
 
         const currentPrimary = () => (def.bindings.length ? fns.entity(def.bindings[0]) || null : null);
-        function writeTone(p) { setAttr(wrapper, 'data-hd-tone', toneOverride ?? (p && p.tone)); }
+        // The state mark (G13): a stale, read-only or alert widget shows a mark at every size, the 12 px glyph in the head or, in a card under 90 px wide, an 8 px dot in the corner.
+        // It names the fact (accessible name and tooltip); the head icon and the state line may be gone at small sizes. Alert wins over read-only, read-only over stale.
+        const mark = el('span', { class: 'hd-mark', role: 'img', hidden: '' });
+        frame.head.appendChild(mark);
+        function writeMark(p) {
+            const kind = !p ? null : (toneOverride ?? p.tone) === 'crit' ? 'alert' : p.readonly ? 'readonly' : p.stale ? 'stale' : null;
+            const label = kind === 'alert' ? t('homedash.state.alert') : kind === 'readonly' ? t('homedash.state.readonly') : kind === 'stale' ? (heroStatus.staleText({ t, lang }, p) || t('homedash.state.stale')) : '';
+            setAttr(mark, 'data-kind', kind); setAttr(mark, 'hidden', kind ? null : ''); setAttr(mark, 'aria-label', label || null); setAttr(mark, 'title', label || null);
+        }
+        function writeTone(p) { setAttr(wrapper, 'data-hd-tone', toneOverride ?? (p && p.tone)); writeMark(p); }
         function writeState(p) {
             const w = p ? F.stateWord(p) : '';
             const stateText = w === 'error' && p.error && p.error.text ? String(p.error.text) : ['unavailable', 'unknown', 'error', 'pending'].includes(w) ? t(F.STATE_PREFIX + w) : statusText !== null ? statusText : (p ? F.stateText(p, t) : '');

@@ -8,6 +8,8 @@
   "homedash.state.updated_ago": "Oppdatert for {{age}} siden",
   "homedash.state.readonly": "Skrivebeskyttet",
   "homedash.state.blocked": "Blokkert av innstillinger",
+  "homedash.state.alert": "Varsel",
+  "homedash.state.stale": "Utdatert",
   "homedash.state.no_data": "Ingen data",
   "homedash.state.armed": "Trykk igjen for å bekrefte · {{seconds}} s",
   "homedash.state.done": "Ferdig",

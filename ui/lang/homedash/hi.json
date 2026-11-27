@@ -8,6 +8,8 @@
   "homedash.state.updated_ago": "{{age}} पहले अपडेट किया गया",
   "homedash.state.readonly": "केवल पढ़ने के लिए",
   "homedash.state.blocked": "सेटिंग्स द्वारा अवरुद्ध",
+  "homedash.state.alert": "चेतावनी",
+  "homedash.state.stale": "पुराना",
   "homedash.state.no_data": "कोई डेटा नहीं",
   "homedash.state.armed": "पुष्टि के लिए फिर से टैप करें · {{seconds}} सेकंड",
   "homedash.state.done": "हो गया",

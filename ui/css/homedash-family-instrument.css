@@ -250,7 +250,7 @@
    Rules that are probed as text backdrops (gradients, filling pseudo-elements) stay under 20 % of --hd-i-val; the bright bars and brackets are masked or sit outside the text. ===== */
 /* Error: the control wears the alert colour as a whole (one glow colour); the head keeps the HUD. */
 .hd-widget[data-hd-family="instrument"][data-hd-status="error"] :is(.hd-lrow, .hd-lcol, .hd-nrow) > .hd-numeral, .hd-widget[data-hd-family="instrument"][data-hd-status="error"] .hd-step-value .hd-numeral, .hd-widget[data-hd-family="instrument"][data-hd-status="error"] .hd-ltile[data-hd-on="true"] > .hd-numeral, .hd-widget[data-hd-family="instrument"][data-hd-status="error"] .hd-pick, .hd-widget[data-hd-family="instrument"][data-hd-status="error"] .hd-stepper .hd-step, .hd-widget[data-hd-family="instrument"][data-hd-status="error"] .hd-ltile[data-hd-on="true"] > .hd-iconbadge, .hd-widget[data-hd-family="instrument"][data-hd-status="error"] .hd-push[data-hd-variant]:is([aria-checked="true"], [data-hd-on="true"]) { color: var(--hd-alert); }
-.hd-widget[data-hd-family="instrument"][data-hd-status="error"] :is(.hd-slider-fill) { background: var(--hd-alert); }
+.hd-widget[data-hd-family="instrument"][data-hd-status="error"] :is(.hd-slider-fill, .hd-bar-fill, .hd-bar-bulb) { background: var(--hd-alert); }
 .hd-widget[data-hd-family="instrument"][data-hd-status="error"] :is(.hd-slider-thumb, .hd-ct-thumb)::before, .hd-widget[data-hd-family="instrument"][data-hd-status="error"] .hd-push[data-hd-variant="chip"]::after, .hd-widget[data-hd-family="instrument"][data-hd-status="error"] .hd-push[data-hd-variant="tile"]::before, .hd-widget[data-hd-family="instrument"][data-hd-status="error"] .hd-ltile .hd-ltile-wash::after { background: var(--hd-alert); box-shadow: 0 0 0 1px var(--hd-i-mid), 0 0 10px color-mix(in srgb, var(--hd-alert) 55%, transparent); }
 .hd-widget[data-hd-family="instrument"][data-hd-status="error"] .hd-ltile .hd-ltile-wash { background: linear-gradient(0deg, color-mix(in srgb, var(--hd-alert) 20%, transparent), color-mix(in srgb, var(--hd-alert) 6%, transparent)); }
 .hd-widget[data-hd-family="instrument"] .hd-arm { border-radius: 0; background: var(--hd-i-val); box-shadow: var(--hd-glow); }
@@ -295,10 +295,10 @@
 
 /* Slider (h and v), the fader cap, the colour temperature strip and the wheel. The track is a dim ladder, the fill is the lit ladder (same colour as the readout), the gaps are 20 cuts in the panel
    colour over both; the thumb is a lead bar in the glow colour (the fader cap is a bracketed key with a lit grip). */
-.hd-widget[data-hd-family="instrument"] .hd-slider-track { background: color-mix(in srgb, var(--hd-i-hud) 14%, transparent); border-radius: 0; }
-.hd-widget[data-hd-family="instrument"] .hd-slider-fill { background: var(--hd-i-val); border-radius: 0; }
-.hd-widget[data-hd-family="instrument"] .hd-slider-track::after { content: ""; position: absolute; inset: 0; z-index: 1; background: linear-gradient(90deg, transparent calc(100% - 2px), var(--hd-i-mid) 0) 0 0 / 5% 100% repeat-x; pointer-events: none; }
-.hd-widget[data-hd-family="instrument"] .hd-slider[data-hd-variant="v"] .hd-slider-track::after { background: linear-gradient(180deg, transparent calc(100% - 2px), var(--hd-i-mid) 0) 0 0 / 100% 5% repeat-y; }
+.hd-widget[data-hd-family="instrument"] :is(.hd-slider-track, .hd-bar-track) { background: color-mix(in srgb, var(--hd-i-hud) 14%, transparent); border-radius: 0; }
+.hd-widget[data-hd-family="instrument"] :is(.hd-slider-fill, .hd-bar-fill, .hd-bar-bulb) { background: var(--hd-i-val); border-radius: 0; }
+.hd-widget[data-hd-family="instrument"] :is(.hd-slider-track, .hd-bar-track)::after { content: ""; position: absolute; inset: 0; z-index: 1; background: linear-gradient(90deg, transparent calc(100% - 2px), var(--hd-i-mid) 0) 0 0 / 5% 100% repeat-x; pointer-events: none; }
+.hd-widget[data-hd-family="instrument"] :is(.hd-slider[data-hd-variant="v"] .hd-slider-track, .hd-bar[data-hd-variant="v"] .hd-bar-track)::after { background: linear-gradient(180deg, transparent calc(100% - 2px), var(--hd-i-mid) 0) 0 0 / 100% 5% repeat-y; }
 .hd-widget[data-hd-family="instrument"] .hd-slider-thumb, .hd-widget[data-hd-family="instrument"] .hd-ct-thumb { z-index: 2; border-radius: 0; }
 .hd-widget[data-hd-family="instrument"] :is(.hd-slider-thumb, .hd-ct-thumb)::before { content: ""; position: absolute; inset-block: 0; inset-inline: 0; margin-inline: auto; inline-size: 3px; background: var(--hd-i-val); box-shadow: 0 0 0 1px var(--hd-i-mid), var(--hd-glow); }
 .hd-widget[data-hd-family="instrument"] .hd-ct-thumb::before { inset-block: -3px; }

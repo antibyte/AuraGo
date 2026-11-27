@@ -8,6 +8,8 @@
   "homedash.state.updated_ago": "Aktualizováno před {{age}}",
   "homedash.state.readonly": "Pouze pro čtení",
   "homedash.state.blocked": "Zablokováno nastavením",
+  "homedash.state.alert": "Poplach",
+  "homedash.state.stale": "Zastaralé",
   "homedash.state.no_data": "Žádná data",
   "homedash.state.armed": "Potvrďte opětovným klepnutím · {{seconds}} s",
   "homedash.state.done": "Hotovo",

@@ -1,7 +1,8 @@
 // HomeDash select widget (W1): segmented (2-3 columns, up to 5 options) and list (picker + listbox popover). Options come from the select_option
 // capability, never from the widget; a segmented widget with more options than its width holds (3 at width 1-2, 5 from width 3) renders the list control (Q10). Option and value text is untrusted
 // and only ever reaches the DOM through textContent. A click or a listbox pick sends select_option at once (phase discrete); arrow keys on the
-// segmented group send phase key (the command client trails 400 ms). Picking the value that is already current sends nothing.
+// segmented group send phase key (the command client trails 400 ms). Picking the value that is already current sends nothing. A segmented widget whose options cannot all show their full
+// labels at the width it really has (G13: "Low | M... | High") renders the same list control instead; the check runs on a laid-out card and again at every size or option change.
 (function () {
     'use strict';
     const E = window.HomeDashEngine;
@@ -25,6 +26,7 @@
                 prim.set(Object.assign({ value: valueOf(e) }, flags(e, ctx.off(e))));
                 setAttr(prim.el, 'aria-label', label || null);
             },
+            focus() { const b = prim && prim.el.querySelector('[tabindex="0"]'); if (b) b.focus(); },
             destroy() { if (prim) prim.destroy(); prim = null; }
         };
     }
@@ -49,12 +51,13 @@
                 last = Object.assign({ text, label: C.label(api, e) }, flags(e, ctx.off(e) || !opts.length));
                 paint();
             },
+            focus() { prim.el.focus(); },
             destroy() { if (pop) pop.close(false); pop = null; prim.destroy(); }
         };
     }
 
     function create(api) {
-        let cur = null, kind = null, part = null, lastView = null;
+        let cur = null, kind = null, part = null, lastView = null, squeezed = false, pxKey = null, optSig = '';
         const sizeNow = () => { const h = api.body.closest ? api.body.closest('.hd-widget') : null, m = /^(\d+)x/.exec(h ? h.getAttribute('data-hd-size') || '' : ''); return m ? Number(m[1]) : 1; };
         let width = sizeNow();
         const marker = C.armMarker(), ctx = { marker, cur: () => cur,
@@ -65,19 +68,34 @@
         setAttr(api.body, 'data-hd-nodata', api.t('homedash.state.no_data'));
         // Segmented capacity (Q10): 3 options at width 1-2, 5 options from width 3; beyond that the list control renders (each option keeps its 44 px hit target).
         const capacity = () => (width >= 3 ? 5 : 3);
-        return {
-            resize(size) { const w = size && Number(size.w) > 0 ? Number(size.w) : 1; if (w !== width) { width = w; if (lastView) this.update(lastView); } },
+        // A segmented option whose label is cut (ellipsis) does not fit; an unlaid-out card (width 0) is not judged.
+        const cramped = () => Array.from(api.body.querySelectorAll('.hd-seg-label')).some(l => l.clientWidth > 0 && l.scrollWidth > l.clientWidth + 0.5);
+        const self = {
+            resize(size) {
+                const w = size && Number(size.w) > 0 ? Number(size.w) : 1, px = size && size.px && Number.isFinite(size.px.width) ? Math.round(size.px.width) : null;
+                if (w === width && px === pxKey) return;
+                width = w; pxKey = px; squeezed = false; if (lastView) this.update(lastView);
+            },
             update(view) {
                 lastView = view; const e = view.entities.primary; cur = e || null;
-                const options = C.options(e, CAP), want = api.variant === 'list' || options.length > capacity() ? 'list' : 'segmented';
-                if (want !== kind) { if (part) part.destroy(); part = want === 'list' ? list(api, ctx) : segmented(api, ctx); kind = want; }
+                const options = C.options(e, CAP), sig = JSON.stringify(options), natural = api.variant === 'list' || options.length > capacity() ? 'list' : 'segmented';
+                if (sig !== optSig) { optSig = sig; squeezed = false; }
+                const want = natural === 'segmented' && squeezed ? 'list' : natural;
+                if (want !== kind) { const doc = api.body.ownerDocument, had = !!part && !!doc && typeof api.body.contains === 'function' && !!doc.activeElement && doc.activeElement !== api.body && api.body.contains(doc.activeElement); if (part) part.destroy(); part = want === 'list' ? list(api, ctx) : segmented(api, ctx); kind = want; if (had) part.focus(); }
                 api.setTone(e && e.tone ? e.tone : null);
                 part.update(e, options);
+                if (kind === 'segmented' && !squeezed && cramped()) { squeezed = true; this.update(view); return; }
                 const v = valueOf(e);
                 api.setStatus(C.statusText(api, e, v !== null ? v : e && e.text && e.text !== 'unknown' ? e.text : F.DASH, { cap: CAP }));
             },
             destroy() { if (part) part.destroy(); part = null; marker.remove(); }
         };
+        // The labels are measured with the face that is loaded now: when the fonts settle later the widths change, so the check runs once more.
+        const fonts = api.body.ownerDocument && api.body.ownerDocument.fonts, again = () => { if (!api.signal.aborted && lastView && kind === 'segmented' && !squeezed && cramped()) self.update(lastView); };
+        if (fonts && typeof fonts.addEventListener === 'function' && api.signal && typeof api.signal.addEventListener === 'function') {
+            fonts.addEventListener('loadingdone', again); api.signal.addEventListener('abort', () => fonts.removeEventListener('loadingdone', again));
+        }
+        return self;
     }
 
     E.widgets.register('select', { bindings: ['primary'], variants: ['segmented', 'list'], create });

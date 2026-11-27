@@ -8,6 +8,8 @@
   "homedash.state.updated_ago": "Uppdaterad för {{age}} sedan",
   "homedash.state.readonly": "Skrivskyddad",
   "homedash.state.blocked": "Blockerad av inställningar",
+  "homedash.state.alert": "Larm",
+  "homedash.state.stale": "Föråldrad",
   "homedash.state.no_data": "Inga data",
   "homedash.state.armed": "Tryck igen för att bekräfta · {{seconds}} s",
   "homedash.state.done": "Klart",

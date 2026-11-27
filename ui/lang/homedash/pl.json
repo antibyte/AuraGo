@@ -8,6 +8,8 @@
   "homedash.state.updated_ago": "Zaktualizowano {{age}} temu",
   "homedash.state.readonly": "Tylko do odczytu",
   "homedash.state.blocked": "Zablokowane przez ustawienia",
+  "homedash.state.alert": "Alarm",
+  "homedash.state.stale": "Nieaktualne",
   "homedash.state.no_data": "Brak danych",
   "homedash.state.armed": "Dotknij ponownie, aby potwierdzić · {{seconds}} s",
   "homedash.state.done": "Gotowe",

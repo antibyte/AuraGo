@@ -53,7 +53,7 @@ func (t hdFitTile) label() string {
 	return fmt.Sprintf("%s/%s %dx%d %s %s %s (%.0fx%.0f px) [%s]", t.Type, t.Variant, t.Size.W, t.Size.H, t.Bp, t.Family, t.State, t.Px.Width, t.Px.Height, strings.Join(t.Tags, "+"))
 }
 
-// failKind groups a failure text into title, tiny, overlap, outside or render.
+// hdFitKind groups a failure text into title, tiny, overlap, outside, ctl (a control value or label cut under 4 characters), mark (a stale, read-only or alert tile without a visible mark) or empty (a body that paints nothing); anything else is render.
 func hdFitKind(f string) string {
 	switch {
 	case strings.HasPrefix(f, "title"):
@@ -64,18 +64,35 @@ func hdFitKind(f string) string {
 		return "overlap"
 	case strings.HasPrefix(f, "outside"):
 		return "outside"
+	case strings.HasPrefix(f, "ctl"):
+		return "ctl"
+	case strings.HasPrefix(f, "mark"):
+		return "mark"
+	case strings.HasPrefix(f, "empty"):
+		return "empty"
 	}
 	return "render"
+}
+
+// hdFitOnly reads HOMEDASH_WF_ONLY (a comma list of type/variant, empty for all) to render a few widgets only.
+func hdFitOnly() []string {
+	var out []string
+	for _, v := range strings.Split(os.Getenv("HOMEDASH_WF_ONLY"), ",") {
+		if v = strings.TrimSpace(v); v != "" {
+			out = append(out, v)
+		}
+	}
+	return out
 }
 
 // TestDesktopHomeDashWidgetFitBrowser is the G13 survey: every registered widget type x variant in every family at the default and the minimum size on
 // the cells of a lg (960 px), md (768 px) and sm (390 px) page, with realistic long names, plus the palette thumbs at 80 px cells and (extended) every
 // allowed size up to 6x4. It measures that the title shows its full name or at least 8 characters, that no header text is cut to 2 characters or fewer,
-// and that no text box meets a control or another text box. It writes probes.json and one contact sheet per family and page into HOMEDASH_WF_DIR.
+// and that no control value or label is cut under 4 characters, that no text box meets a control or another text box, that a stale, read-only or alert tile shows a visible mark (8 px, 3:1 on the card, with a name and a tooltip) and that no body is empty. It writes probes.json and one contact sheet per family and page into HOMEDASH_WF_DIR.
 //
 //	set AURAGO_RUN_BROWSER_SMOKE=1 and HOMEDASH_WF_DIR (default C:\disposable\homedash-m4\g13\before; a directory inside the repository is refused);
 //	HOMEDASH_WF_FAMILIES (comma list, default all four), HOMEDASH_WF_PALETTE (dark or light), HOMEDASH_WF_EXTENDED=0 drops the extended sizes,
-//	HOMEDASH_WF_REPORT_ONLY=1 writes the report without failing, HOMEDASH_WF_EXTRA_CSS=file.css injects a stylesheet after the bundle (to try rules before they go into the bundle), HOMEDASH_WF_DUMP=type/variant/WxH[/stale] with HOMEDASH_WF_DUMP_BP=lg logs the element boxes of that tile.
+//	HOMEDASH_WF_REPORT_ONLY=1 writes the report without failing, HOMEDASH_WF_SHOW_EXT=1 also puts the extended sizes on the sheet image, HOMEDASH_WF_ONLY=type/variant,... renders only those widgets, HOMEDASH_WF_EXTRA_CSS=file.css injects a stylesheet after the bundle (to try rules before they go into the bundle), HOMEDASH_WF_DUMP=type/variant/WxH[/stale] with HOMEDASH_WF_DUMP_BP=lg logs the element boxes of that tile.
 func TestDesktopHomeDashWidgetFitBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	dirRaw := os.Getenv("HOMEDASH_WF_DIR")
@@ -147,7 +164,7 @@ func TestDesktopHomeDashWidgetFitBrowser(t *testing.T) {
 	var all []hdFitTile
 	for _, family := range families {
 		for _, bp := range []string{"lg", "md", "sm", "thumb"} {
-			spec, _ := json.Marshal(map[string]interface{}{"family": family, "palette": palette, "bp": bp, "extended": extended && bp != "thumb"})
+			spec, _ := json.Marshal(map[string]interface{}{"family": family, "palette": palette, "bp": bp, "extended": extended && bp != "thumb", "showExt": os.Getenv("HOMEDASH_WF_SHOW_EXT") == "1", "only": hdFitOnly()})
 			obj, err := page.Timeout(120*time.Second).Eval(`async(spec)=>JSON.stringify(await hdFit.render(JSON.parse(spec)))`, string(spec))
 			if err != nil {
 				t.Fatalf("render %s %s: %v", family, bp, err)

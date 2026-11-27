@@ -6,10 +6,10 @@
     const fit = window.hdFit = { ready: false, error: '', errors: [] };
     for (const m of (window.hdFitEarlyErrors || [])) fit.errors.push(String(m));
     window.addEventListener('error', e => { fit.errors.push(String(e.message)); });
-    const GAP = 12, BPS = { lg: { width: 960, cols: 12 }, md: { width: 768, cols: 8 }, sm: { width: 390, cols: 4 } };
+    const OFF = ['stale', 'readonly', 'alert'], GAP = 12, BPS = { lg: { width: 960, cols: 12 }, md: { width: 768, cols: 8 }, sm: { width: 390, cols: 4 } };
     const NAMES = { switch: 'Coffee machine', light: 'Reading light', action: 'Movie night', select: 'Living room heater mode', number: 'Living room volume', climate: 'Living room temperature',
         gauge: 'Living room humidity', temperature: 'Living room temperature', sensor: 'Kitchen power consumption', entity: 'Living room temperature' };
-    const TEXT = [['title', '.hd-title'], ['sub', '.hd-sub'], ['state', '.hd-state-text'], ['numeral', '.hd-numeral'], ['label', '.hd-push-label']];
+    const TEXT = [['title', '.hd-title'], ['sub', '.hd-sub'], ['state', '.hd-state-text'], ['numeral', '.hd-numeral'], ['label', '.hd-push-label'], ['ctl', '.hd-pick-label, .hd-seg-label, .hd-step-value']];
     const CONTROLS = '.hd-toggle, .hd-rocker, .hd-push, .hd-slider-thumb, .hd-slider-track, .hd-ct-thumb, .hd-step, .hd-seg-opt, .hd-pick, .hd-more, .hd-ltile, .hd-iconbadge, .hd-spark, .hd-lamp-dot';
     let E = null, catalog = null, t = null, root = null, family = 'glass';
     const frames = n => new Promise(resolve => { const step = k => (k ? requestAnimationFrame(() => step(k - 1)) : resolve()); step(n); });
@@ -19,6 +19,8 @@
     function realView(type, state) {
         const base = E.samples.entities(type, t).primary, view = Object.assign({}, base, { name: NAMES[type] || base.name, area: 'Kitchen' });
         if (state === 'switch') { Object.assign(view, { kind: 'switch', name: NAMES.switch, value: 'on', unit: '', device_class: '', icon_hint: 'power' }); } // the entity tile takes any entity: a switch brings a state text ("On") the sensor does not
+        if (state === 'readonly') { view.readonly = true; view.readonlyReason = 'fixture'; }
+        if (state === 'alert') view.tone = 'crit';
         if (state === 'stale') { view.stale = true; view.attributes = Object.assign({}, base.attributes, { updated_at: new Date(Date.now() - 14 * 60000).toISOString() }); }
         return view;
     }
@@ -84,7 +86,49 @@
         }
         return out;
     }
-    function measure(host) {
+    // ---- state mark and empty body --------------------------------------------------------------------------------------------------
+    let probeCanvas = null;
+    function rgbaOf(css) { // any computed colour string (rgb, color(srgb ...), oklch ...) as [r, g, b, a] through a 1x1 canvas
+        if (!probeCanvas) { probeCanvas = document.createElement('canvas'); probeCanvas.width = probeCanvas.height = 1; }
+        const g = probeCanvas.getContext('2d', { willReadFrequently: true });
+        g.clearRect(0, 0, 1, 1); g.fillStyle = 'rgba(0, 0, 0, 0)'; g.fillStyle = css; g.fillRect(0, 0, 1, 1);
+        const d = g.getImageData(0, 0, 1, 1).data; return [d[0], d[1], d[2], d[3] / 255];
+    }
+    const tokenColour = (host, name) => { const p = document.createElement('span'); p.style.setProperty('color', 'var(' + name + ')'); host.appendChild(p); const c = rgbaOf(getComputedStyle(p).color); p.remove(); return c; };
+    const hexOf = c => '#' + c.slice(0, 3).map(v => Math.round(v).toString(16).padStart(2, '0')).join('');
+    // The mark of a stale, read-only or alert widget: a visible .hd-mark of at least 8 px with an accessible name and a tooltip, 3:1 on the card (the solid surface and its glass blend over the canvas).
+    function markFail(widgetEl) {
+        const mark = widgetEl.querySelector('.hd-mark');
+        if (!mark) return 'no mark element';
+        const cs = getComputedStyle(mark), r = mark.getBoundingClientRect(), wr = widgetEl.getBoundingClientRect();
+        if (!mark.getClientRects().length || cs.visibility === 'hidden' || Number(cs.opacity) === 0) return 'the mark is not shown';
+        if (r.width < 7.5 || r.height < 7.5) return 'the mark is ' + Math.round(r.width * 10) / 10 + 'x' + Math.round(r.height * 10) / 10 + ' px (under 8)';
+        if (r.left < wr.left - 0.5 || r.right > wr.right + 0.5 || r.top < wr.top - 0.5 || r.bottom > wr.bottom + 0.5) return 'the mark leaves the widget box';
+        if (!(mark.getAttribute('aria-label') || '').trim() || !(mark.getAttribute('title') || '').trim()) return 'the mark has no accessible name or tooltip';
+        const surface = tokenColour(widgetEl, '--hd-surface-solid'), canvasC = tokenColour(widgetEl, '--hd-canvas'), root = widgetEl.closest('.hd-root');
+        const alpha = Math.min(1, Math.max(0, (parseFloat(getComputedStyle(root).getPropertyValue('--hd-glass-alpha-s')) || 100) / 100));
+        const cards = [surface.slice(0, 3)]; if (alpha < 1) cards.push(surface.slice(0, 3).map((v, i) => alpha * v + (1 - alpha) * canvasC[i]));
+        let ink = rgbaOf(cs.backgroundColor); if (ink[3] < 0.5) ink = rgbaOf(cs.borderTopColor);
+        if (ink[3] < 0.5) return 'the mark paints no colour';
+        const low = Math.min(...cards.map(c => E.colour.contrast(hexOf(ink.slice(0, 3).map((v, i) => ink[3] * v + (1 - ink[3]) * c[i])), hexOf(c))));
+        return low >= 3 ? '' : 'the mark has ' + low.toFixed(2) + ':1 on the card (under 3:1)';
+    }
+    const live = c => !!c && c !== 'transparent' && !/^rgba\([^)]*,\s*0\)$/.test(c) && !/\/\s*0(\.0+)?\)$/.test(c);
+    // Does the body paint anything (a text, an svg shape, a filled, bordered or shadowed box)? An empty body shows the title only.
+    function bodyPainted(body) {
+        for (const n of body.querySelectorAll('*')) {
+            if (n.closest('[hidden]')) continue;
+            const r = n.getBoundingClientRect(); if (r.width < 1 || r.height < 1) continue;
+            const cs = getComputedStyle(n); if (cs.display === 'none' || cs.visibility === 'hidden' || Number(cs.opacity) === 0) continue;
+            if (n instanceof SVGElement) { if (/^(path|circle|rect|line|polyline|polygon|ellipse|text)$/.test(n.tagName) && ((cs.fill !== 'none' && live(cs.fill)) || (cs.stroke !== 'none' && live(cs.stroke) && parseFloat(cs.strokeWidth) > 0))) return true; continue; }
+            if (n.tagName === 'CANVAS') return true;
+            if (live(cs.backgroundColor) || cs.backgroundImage !== 'none' || (cs.boxShadow !== 'none' && cs.boxShadow !== '')) return true;
+            if (['Top', 'Right', 'Bottom', 'Left'].some(k => parseFloat(cs['border' + k + 'Width']) > 0 && cs['border' + k + 'Style'] !== 'none' && live(cs['border' + k + 'Color']))) return true;
+            for (const c of n.childNodes) if (c.nodeType === 3 && c.nodeValue.trim() && live(cs.color) && !(cs.position === 'absolute' && r.width <= 1.5)) return true;
+        }
+        return false;
+    }
+    function measure(host, state) {
         const widgetEl = host.el, texts = [], fails = [], wr = widgetEl.getBoundingClientRect(), rel = b => '[' + [b.l - wr.left, b.t - wr.top, b.r - wr.left, b.b - wr.top].map(v => Math.round(v)).join(',') + ']';
         for (const [kind, sel] of TEXT) for (const node of widgetEl.querySelectorAll(sel)) { const info = textInfo(kind, node, widgetEl); if (info) texts.push(info); }
         const controls = controlsOf(widgetEl);
@@ -96,6 +140,9 @@
             for (const c of controls) if (!c.node.contains(x.node) && !x.node.contains(c.node) && overlap(x.box, c.box, c.k === 'hd-spark' ? 3 : 0)) fails.push('overlap ' + x.kind + ' ' + rel(x.box) + ' with ' + c.k + ' ' + rel(c.box));
         }
         for (let i = 0; i < texts.length; i++) for (let j = i + 1; j < texts.length; j++) { const a = texts[i], b = texts[j]; if (!a.node.contains(b.node) && !b.node.contains(a.node) && overlap(a.box, b.box)) fails.push('overlap ' + a.kind + ' ' + rel(a.box) + ' with ' + b.kind + ' ' + rel(b.box)); }
+        for (const x of texts) if (x.kind === 'ctl' && x.truncated && x.total > x.shown && x.shown < Math.min(x.total, 4)) fails.push('ctl text: ' + x.shown + ' of ' + x.total + ' characters of a control value or label before the ellipsis');
+        if (OFF.includes(state)) { const m = markFail(widgetEl); if (m) fails.push('mark: ' + m); }
+        if (!bodyPainted(host.body)) fails.push('empty body: nothing paints inside the body');
         const warns = texts.filter(x => x.kind === 'state' && x.truncated && x.shown > 2).map(x => 'state truncated: ' + x.shown + ' of ' + x.total);
         const rnd = v => Math.round(v * 10) / 10;
         return { texts: texts.map(x => ({ kind: x.kind, text: x.text, total: x.total, shown: x.shown, truncated: x.truncated, w: rnd(x.box.r - x.box.l) })), controls: controls.map(c => ({ k: c.k, w: c.w, h: c.h })), fails, warns };
@@ -126,28 +173,32 @@
         const jobs = [], hosts = [];
         for (const type of E.widgets.types()) for (const variant of E.widgets.get(type).variants) {
             const info = variantInfo(type, variant);
-            if (o.bp === 'thumb') { const size = E.samples.thumbSize(catalog, type, variant); jobs.push({ type, variant, size, px: E.samples.pxOf(size), state: 'on', tags: ['thumb'], mode: 'thumb' }); continue; }
-            for (const s of sizesFor(info, BPS[o.bp].cols, o.extended)) for (const state of type === 'entity' ? ['on', 'switch', 'stale'] : ['on', 'stale']) { if (state === 'stale' && s.tags.includes('ext') && s.tags.length === 1) continue; jobs.push({ type, variant, size: s.size, px: pxFor(o.bp, s.size), state, tags: s.tags, mode: 'view' }); }
+            if (o.only && o.only.length && !o.only.includes(type + '/' + variant)) continue;
+            if (o.bp === 'thumb') { const size = E.samples.thumbSize(catalog, type, variant); jobs.push({ type, variant, size, px: E.samples.pxOf(size), state: 'on', tags: ['thumb'], mode: 'thumb', sheetState: true }); continue; }
+            // sheetState: the state marks of the narrow minimum sizes show on the sheet image
+            for (const s of sizesFor(info, BPS[o.bp].cols, o.extended)) for (const state of type === 'entity' ? ['on', 'switch', 'stale', 'readonly', 'alert'] : ['on', 'stale', 'readonly', 'alert']) { if (OFF.includes(state) && s.tags.includes('ext') && s.tags.length === 1) continue; jobs.push({ type, variant, size: s.size, px: pxFor(o.bp, s.size), state, tags: s.tags, mode: 'view', sheetState: !OFF.includes(state) || (s.tags.includes('min') && pxFor(o.bp, s.size).width < 100) }); }
         }
         for (const j of jobs) {
             const onSheet = !j.tags.includes('ext') || j.tags.length > 1, tile = el('div', 'fit-tile'), label = el('div', 'fit-label'), stage = el('div', 'fit-stage');
             const lead = j.type + '/' + j.variant + (j.state === 'on' ? '' : ' (' + j.state + ')') + ' ' + j.size.w + 'x' + j.size.h + ' ' + j.tags.filter(x => x !== 'ext').join('+');
             label.textContent = lead + ' ' + Math.round(j.px.width) + 'x' + Math.round(j.px.height);
             stage.style.width = j.px.width + 'px'; stage.style.height = j.px.height + 'px';
-            tile.appendChild(label); tile.appendChild(stage); (onSheet && j.state !== 'stale' ? sheet : ext).appendChild(tile);
-            if (j.state === 'stale') tile.style.display = 'none';
+            tile.appendChild(label); tile.appendChild(stage); ((onSheet || o.showExt) && j.sheetState ? sheet : ext).appendChild(tile);
+            if (!j.sheetState) tile.style.display = 'none';
             hosts.push({ j, tile, label, stage });
         }
         for (const h of hosts) { try { h.host = build(h.stage, h.j.type, h.j.variant, h.j.size, h.j.px, h.j.state, h.j.mode); } catch (err) { h.error = String((err && err.message) || err); } }
         await document.fonts.ready; await frames(3);
         // the stale twins are measured in an off-sheet strip so they never show on the image
         const strip = el('div', 'fit-tiles fit-ext'); strip.setAttribute('data-fit-strip', 'true'); root.appendChild(strip);
-        for (const h of hosts) if (h.j.state === 'stale') { h.tile.style.display = ''; strip.appendChild(h.tile); }
+        for (const h of hosts) if (!h.j.sheetState) { h.tile.style.display = ''; strip.appendChild(h.tile); }
+        await frames(2);
+        for (const h of hosts) if (!h.j.sheetState && h.host) h.host.update(); // laid out now: what a dashboard does on the next entity update
         await frames(2);
         const tiles = [];
         for (const h of hosts) {
             const rep = { type: h.j.type, variant: h.j.variant, family, bp: o.bp, state: h.j.state, size: h.j.size, px: { width: h.j.px.width, height: h.j.px.height }, tags: h.j.tags, mode: h.j.mode, fails: [], warns: [], texts: [], controls: [] };
-            if (h.error) rep.fails.push('render: ' + h.error); else Object.assign(rep, measure(h.host));
+            if (h.error) rep.fails.push('render: ' + h.error); else Object.assign(rep, measure(h.host, h.j.state));
             h.tile.setAttribute('data-fit-fail', String(rep.fails.length > 0));
             if (rep.fails.length) h.label.textContent += ' | ' + rep.fails.map(f => f.split(':')[0].replace('overlap ', 'ov ')).join(', ');
             tiles.push(rep);
