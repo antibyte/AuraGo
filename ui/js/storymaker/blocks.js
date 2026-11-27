@@ -204,6 +204,62 @@
         return SM.ease('ease-out', clamp(p, 0, 1));
     }
 
+    // ---- diagram layouts
+
+    // ring(n, W, H, size, from): n boxes of size x size * 1.1 on the ellipse that fills the area, from the top, clockwise.
+    function ring(n, W, H, s, first, step, into) {
+        var bw = s * 1.1, rx = (W - bw) / 2, ry = (H - s) / 2;
+        for (var i = 0; i < n; i++) {
+            var a = -Math.PI / 2 + (first + i) * step;
+            into.push({ x: rx * Math.cos(a) - bw / 2, y: ry * Math.sin(a) - s / 2, w: bw, h: s });
+        }
+    }
+
+    // layout(layout, n, W, H) = {boxes: [{x, y, w, h}], links: [[from, to]]}: the node boxes around the centre of a W x H area at scale
+    // 1 (x and y are the top left corner), and the arrows between them. The boxes never overlap and never leave the area.
+    function layout(kind, n, W, H) {
+        var pad = 0.04 * Math.min(W, H), boxes = [], links = [], m, i, nw, nh, s;
+        W -= 2 * pad;   // the layout keeps a margin to the area, so outlines and highlights stay inside it
+        H -= 2 * pad;
+        m = Math.min(W, H);
+        if (kind === 'flow' && W >= H) {
+            nw = Math.min(0.665 * H, W / (n + 0.45 * (n - 1)));
+            nh = Math.min(0.7 * H, nw * 1.1);
+            var left = -(n * nw + 0.45 * nw * (n - 1)) / 2;
+            for (i = 0; i < n; i++) { boxes.push({ x: left + i * 1.45 * nw, y: -nh / 2, w: nw, h: nh }); if (i) links.push([i - 1, i]); }
+        } else if (kind === 'flow') {
+            nh = Math.min(H / (n + 0.45 * (n - 1)), 0.5 * W);
+            nw = Math.min(0.92 * W, nh * 2.6);
+            var top = -(n * nh + 0.45 * nh * (n - 1)) / 2;
+            for (i = 0; i < n; i++) { boxes.push({ x: -nw / 2, y: top + i * 1.45 * nh, w: nw, h: nh }); if (i) links.push([i - 1, i]); }
+        } else if (kind === 'stack') {
+            nh = Math.min(H / (n + 0.12 * (n - 1)), 0.26 * H);
+            nw = Math.min(0.92 * W, nh * 5.5);
+            var total = n * nh + 0.12 * nh * (n - 1);
+            for (i = 0; i < n; i++) boxes.push({ x: -nw / 2, y: total / 2 - nh - i * 1.12 * nh, w: nw, h: nh });
+        } else if (kind === 'cycle') {
+            ring(n, W, H, m * ({ 3: 0.28, 4: 0.26, 5: 0.24 }[n] || 0.21), 0, 2 * Math.PI / n, boxes);
+            for (i = 0; i < n; i++) links.push([i, (i + 1) % n]);
+        } else if (kind === 'hub') {
+            s = m * 0.26;
+            boxes.push({ x: -s * 0.55, y: -s / 2, w: s * 1.1, h: s });
+            ring(n - 1, W, H, m * ({ 2: 0.24, 3: 0.24, 4: 0.22, 5: 0.22 }[n - 1] || 0.2), 0, 2 * Math.PI / (n - 1), boxes);
+            for (i = 1; i < n; i++) links.push([0, i]);
+        } else {
+            var gap = Math.max(24, 0.05 * W);
+            nw = Math.min((W - gap) / 2, 1.25 * H);
+            nh = Math.min(H, nw * 1.3);
+            boxes.push({ x: -gap / 2 - nw, y: -nh / 2, w: nw, h: nh }, { x: gap / 2, y: -nh / 2, w: nw, h: nh });
+        }
+        return { boxes: boxes, links: links };
+    }
+
+    // layoutNodes(st) = [{id, x, y, w, h}]: the node boxes of an evaluated diagram state in design pixels at scale 1.
+    function layoutNodes(st) {
+        var d = st.block.diagram, l = layout(d.layout, d.nodes.length, st.w, st.h);
+        return d.nodes.map(function (n, i) { var b = l.boxes[i]; return { id: n.id, x: st.x + b.x, y: st.y + b.y, w: b.w, h: b.h }; });
+    }
+
     // ---- create
 
     var DEF_ONLY = { area: 1, t0: 1, dur: 1, entry: 1, reveals: 1, hidden: 1 };
@@ -345,6 +401,6 @@
         POINTS_MAX: POINTS_MAX, MAX_BLOCKS: MAX_BLOCKS, LABEL_BASE: 0.034, LABEL_MIN: 0.026, ITEM_SPAN: ITEM_SPAN, WORD_SPAN: WORD_SPAN,
         FLOW_PERIOD: FLOW_PERIOD, BOARD_RECTS: BOARD_RECTS, isBoard: isBoard, area: area, check: check, create: create,
         revealSeconds: revealSeconds, itemProgress: itemProgress, serialize: serialize, revive: revive,
-        itemCount: itemCount, lines: lines
+        itemCount: itemCount, lines: lines, layout: layout, layoutNodes: layoutNodes
     };
 })(typeof globalThis !== 'undefined' ? globalThis : self);

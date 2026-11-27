@@ -186,3 +186,73 @@ check('blocks: the icon styles line, badge and card draw differently, the card p
     const light = paint({ id: 'i', kind: 'icon', icon: 'icon.cpu', style: 'line' }, 5, { area: { ...B.area(SM.stage.create({ aspect: '16:9' }), null, 'day', 'full'), surface: 'light' } });
     assert.ok(!light.some(l => l.includes('set fillStyle=' + PALETTE.bg)), 'a board surface draws no panel');
 });
+
+// ---- C4: diagram layouts, arrows, flow dots, node highlight
+
+const overlap = (a, b) => a.x < b.x + b.w - 1e-6 && b.x < a.x + a.w - 1e-6 && a.y < b.y + b.h - 1e-6 && b.y < a.y + a.h - 1e-6;
+const flowNodes = n => Array.from({ length: n }, (_, i) => ({ id: 'n' + i, label: 'Node ' + i, icon: i % 2 ? 'icon.server' : 'icon.cpu' }));
+const diagram = (layout, n, extra = {}) => ({ id: 'd1', kind: 'diagram', diagram: { layout, nodes: flowNodes(n), flow: false }, ...extra });
+
+check('blocks: layoutNodes keeps the boxes inside the area and apart, hub 0 in the centre, stack 0 lowest', () => {
+    const cases = [['flow', 5], ['cycle', 6], ['hub', 7], ['stack', 5], ['compare', 2], ['flow', 2], ['cycle', 3], ['hub', 3]];
+    const areas = [['16:9', 'full'], ['16:9', 'right'], ['9:16', 'full'], ['9:16', 'top'], ['1:1', 'center']];
+    for (const [aspect, name] of areas) {
+        const stage = SM.stage.create({ aspect }), area = B.area(stage, null, 'day', name);
+        for (const [layout, n] of cases) {
+            const e = B.create({ ...diagram(layout, n), area }), boxes = B.layoutNodes(SM.scene.evalEntity(e, 0)), label = layout + n + ' in ' + aspect + ' ' + name;
+            assert.equal(boxes.length, n, label);
+            boxes.forEach((b, i) => {
+                assert.ok(inside(b, area, 1e-6), label + ' box ' + i + ' inside');
+                assert.ok(b.w > 0 && b.h > 0);
+                for (let j = 0; j < i; j++) assert.ok(!overlap(b, boxes[j]), label + ' boxes ' + i + ' and ' + j + ' apart');
+            });
+            if (layout === 'hub') near(boxes[0].x + boxes[0].w / 2, area.x + area.w / 2, 1e-6, label), near(boxes[0].y + boxes[0].h / 2, area.y + area.h / 2, 1e-6, label);
+            if (layout === 'stack') assert.ok(boxes.slice(1).every(b => b.y < boxes[0].y), label + ' node 0 is the lowest');
+        }
+    }
+});
+
+check('blocks: itemProgress of a node is 0 before its reveal and 1 after reveal + ITEM_SPAN', () => {
+    const area = { x: 0, y: 0, w: 800, h: 400, surface: 'panel' };
+    const e = B.create({ ...diagram('flow', 3), area, t0: 1, dur: 3, reveals: [1, 2, 3.5] });
+    const p = (k, time) => B.itemProgress(SM.scene.evalEntity(e, time), k);
+    [1, 2, 3.5].forEach((r, k) => {
+        assert.equal(p(k, r - 0.01), 0);
+        assert.equal(p(k, r), 0);
+        assert.ok(p(k, r + B.ITEM_SPAN / 2) > 0 && p(k, r + B.ITEM_SPAN / 2) < 1);
+        assert.equal(p(k, r + B.ITEM_SPAN), 1);
+    });
+    const spread = B.create({ ...diagram('flow', 3), area, t0: 1, dur: 3 });
+    const q = (k, time) => B.itemProgress(SM.scene.evalEntity(spread, time), k);
+    assert.equal(q(1, 1.99), 0, 'without reveals node k starts at t0 + k * dur / n');
+    assert.ok(q(1, 2.2) > 0);
+    assert.equal(q(2, 3.5), 1);
+});
+
+check('blocks: flow dots are periodic, move with time and stop being drawn once the diagram is not flowing', () => {
+    const run = (time, flow = true, setup) => digest(paint(diagram('flow', 3, { diagram: { layout: 'flow', flow, nodes: flowNodes(3) } }), time, { setup }));
+    assert.equal(run(4), run(4));
+    assert.notEqual(run(4), run(4.4));
+    assert.equal(run(4), run(4 + B.FLOW_PERIOD));
+    assert.notEqual(run(4), run(4, false));
+    assert.equal(run(4, false), run(4.4, false), 'a still diagram does not change with time');
+});
+
+check('blocks: an active mark changes only the marked node, and labels never shrink below the floor', () => {
+    const base = paint(diagram('flow', 3), 9), mark = style => paint(diagram('flow', 3), 9, { setup: e => e.marks.add(0, 20, { node: 'n1', style }) });
+    for (const style of ['pulse', 'outline', 'arrow']) {
+        const marked = mark(style);
+        assert.notEqual(digest(marked), digest(base), style);
+        assert.equal(marked.filter(l => l.startsWith('fillText')).join('\n'), base.filter(l => l.startsWith('fillText')).join('\n'), style + ' prints the same labels');
+    }
+    const outline = mark('outline');
+    let at = 0;
+    for (const line of base) { at = outline.indexOf(line, at); assert.ok(at >= 0, 'the unmarked drawing is a subsequence of the marked one'); at++; }
+    assert.ok(outline.length > base.length);
+    // 5 nodes with 40-character labels in the narrow left area of a 9:16 frame: the font shrinks to the floor and stops there
+    const stage = SM.stage.create({ aspect: '9:16', width: 1080, height: 1920 }), floor = B.LABEL_MIN * 1080 / stage.scale;
+    const long = Array.from({ length: 5 }, (_, i) => ({ id: 'n' + i, label: 'Ein sehr langer Knotenname Nummer ' + i + ' hier' }));
+    const log = paint({ id: 'd', kind: 'diagram', diagram: { layout: 'flow', nodes: long } }, 9, { W: 1080, H: 1920, aspect: '9:16', area: { ...B.area(stage, null, 'day', 'left') } });
+    const sizes = log.filter(l => l.startsWith('set font=')).map(l => parseFloat(/(\d+(?:\.\d+)?)px/.exec(l)[1]));
+    assert.ok(sizes.length > 0 && sizes.every(s => s >= floor - 1e-6), 'no label below ' + floor + ', got ' + Math.min(...sizes));
+});
