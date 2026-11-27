@@ -37,6 +37,9 @@ type NarrationBlock struct {
 // narrationMarker is the marker regex of narration.js. cuePattern in validate.go is narrower, so it cannot be reused.
 var narrationMarker = regexp.MustCompile(`\{(\d+)\}`)
 
+// narrationAnyMarker also matches the closing marker {/n}. The parsers drop both; only an opening marker records a cue.
+var narrationAnyMarker = regexp.MustCompile(`\{(/?)(\d+)\}`)
+
 // Blocks lists the spoken blocks of a story in scene order, inside a scene the narration first and the say blocks in
 // beat order. silent silences only the scene narration. A say whose actor is off stage still makes a block.
 func Blocks(s *Story) []NarrationBlock {
@@ -121,11 +124,13 @@ func parseMarkers(text string) (string, map[int]int) {
 		b.WriteString(chunk)
 	}
 	last := 0
-	for _, m := range narrationMarker.FindAllStringSubmatchIndex(text, -1) {
+	for _, m := range narrationAnyMarker.FindAllStringSubmatchIndex(text, -1) {
 		appendChunk(text[last:m[0]])
-		if n, err := strconv.Atoi(text[m[2]:m[3]]); err == nil {
-			if _, seen := cues[n]; !seen {
-				cues[n] = UTF16Len(b.String())
+		if m[3] == m[2] { // group 1 empty: an opening marker
+			if n, err := strconv.Atoi(text[m[4]:m[5]]); err == nil {
+				if _, seen := cues[n]; !seen {
+					cues[n] = UTF16Len(b.String())
+				}
 			}
 		}
 		last = m[1]

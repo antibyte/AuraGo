@@ -23,7 +23,7 @@ type cueToken struct {
 // without spaces (ucdCJKWord) is a unit of its own, so a phrase may start or end inside such a run.
 func cueTokens(text string) []cueToken {
 	skip := map[int]int{} // start of a marker -> its end
-	for _, m := range narrationMarker.FindAllStringIndex(text, -1) {
+	for _, m := range narrationAnyMarker.FindAllStringIndex(text, -1) {
 		skip[m[0]] = m[1]
 	}
 	var out []cueToken

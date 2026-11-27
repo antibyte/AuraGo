@@ -296,3 +296,20 @@ func TestBlocksWithoutAVoice(t *testing.T) {
 		t.Fatalf("got %+v", got)
 	}
 }
+
+func TestStripMarkersDropsClosingMarkers(t *testing.T) {
+	plain, cues := parseMarkers("Daten{/1}. Mehr {1}Text {/1}hier")
+	if plain != "Daten. Mehr Text hier" || len(cues) != 1 || cues[1] != 12 {
+		t.Fatalf("plain = %q, cues = %v", plain, cues)
+	}
+	if _, cues := parseMarkers("a {/2} b"); len(cues) != 0 {
+		t.Fatalf("a closing marker set a cue: %v", cues)
+	}
+	var words []string
+	for _, tok := range cueTokens("Daten{/1} hier") {
+		words = append(words, tok.text)
+	}
+	if !strings.EqualFold(strings.Join(words, ","), "daten,hier") {
+		t.Fatalf("tokens = %v, want daten and hier only", words)
+	}
+}
