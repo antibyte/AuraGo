@@ -159,6 +159,19 @@
             s.style = e.style;
             var cap = e.captions ? SM.captions.at(e.captions, t * 1000) : null;
             s.lines = e.captions ? (cap ? cap.lines : null) : e.lines;
+        } else if (e.type === 'block') {
+            // a drawn explainer block (SM.blocks): the definition, its box, its timing and the node mark running now
+            s.block = e.block;
+            s.w = e.w;
+            s.h = e.h;
+            s.surface = e.surface;
+            s.t0 = e.t0;
+            s.dur = e.dur;
+            s.entry = e.entry;
+            s.reveals = e.reveals;
+            s.time = t;
+            var mk = e.marks ? e.marks.active(t) : null;
+            s.mark = mk ? { node: mk.data.node, style: mk.data.style, u: mk.t1 > mk.t0 ? (t - mk.t0) / (mk.t1 - mk.t0) : 1 } : null;
         } else if (e.type === 'shape') {
             s.kind = e.kind;
             s.w = e.w.at(t);
@@ -177,13 +190,17 @@
             var lists = [e.gestures.list, e.walks.list];
             for (var k = 0; k < lists.length; k++) for (var i = 0; i < lists[k].length; i++) if (lists[k][i].t1 > end) end = lists[k][i].t1;
         }
-        var marks = e.highlights ? e.highlights.list : [];
+        var marks = (e.highlights ? e.highlights.list : []).concat(e.marks ? e.marks.list : []);
         for (var m = 0; m < marks.length; m++) if (marks[m].t1 > end) end = marks[m].t1;
+        if (e.type === 'block') {
+            if (e.t0 + e.dur > end) end = e.t0 + e.dur;
+            for (var r = 0; e.reveals && r < e.reveals.length; r++) if (e.reveals[r] + SM.blocks.ITEM_SPAN > end) end = e.reveals[r] + SM.blocks.ITEM_SPAN;
+        }
         return end;
     }
 
     SM.scene = {
-        indexCatalog: indexCatalog, sfxEntry: sfxEntry, createActor: createActor, createProp: createProp, createText: createText,
+        indexCatalog: indexCatalog, sfxEntry: sfxEntry, base: base, createActor: createActor, createProp: createProp, createText: createText,
         createShape: createShape, createBubble: createBubble, evalEntity: evalEntity, entityEnd: entityEnd
     };
 })(typeof globalThis !== 'undefined' ? globalThis : self);
