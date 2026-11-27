@@ -126,6 +126,10 @@ func TestHandleHomepageHistoryListAndDelete(t *testing.T) {
 		t.Fatalf("expected status 200 for delete, got %d: %s", delRec.Code, delRec.Body.String())
 	}
 
+	var deletedPayload string
+	if err := db.QueryRow("SELECT payload_json FROM homepage_site_events WHERE project_id=? AND event_type='history_deleted'", projectID).Scan(&deletedPayload); err != nil || !strings.Contains(deletedPayload, "Use dark hero") || !strings.Contains(deletedPayload, `"actor":"user"`) {
+		t.Fatalf("history_deleted event missing or incomplete: %q %v", deletedPayload, err)
+	}
 	// Verify deletion
 	req2 := httptest.NewRequest(http.MethodGet, "/api/homepage/history?project_id="+strconv.FormatInt(projectID, 10), nil)
 	rec2 := httptest.NewRecorder()

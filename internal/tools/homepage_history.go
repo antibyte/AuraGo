@@ -247,8 +247,46 @@ func DeleteHomepageHistoryEntry(db *sql.DB, id int64) error {
 	return nil
 }
 
+// DeleteHomepageHistoryEntryRecorded deletes a history entry and leaves a
+// history_deleted event on its project (history_id, entry_type, excerpt, reason,
+// actor). Entries without a project get no event.
+func DeleteHomepageHistoryEntryRecorded(db *sql.DB, id int64, actor, reason string) error {
+	entry, err := GetHomepageHistoryEntry(db, id)
+	if err != nil {
+		return err
+	}
+	if err := DeleteHomepageHistoryEntry(db, id); err != nil {
+		return err
+	}
+	if entry.ProjectID <= 0 {
+		return nil
+	}
+	excerpt := []rune(strings.TrimSpace(entry.Content))
+	if len(excerpt) > 120 {
+		excerpt = append(excerpt[:120], '…')
+	}
+	if actor == "" {
+		actor = "agent"
+	}
+	if strings.TrimSpace(reason) == "" {
+		reason = "unknown"
+	}
+	if _, err := RecordHomepageEvent(db, entry.ProjectID, "history_deleted", "homepage_history", "History entry deleted", map[string]interface{}{
+		"history_id": id, "entry_type": entry.EntryType, "excerpt": string(excerpt), "reason": reason, "actor": actor,
+	}); err != nil {
+		return fmt.Errorf("history entry deleted but event recording failed: %w", err)
+	}
+	return nil
+}
+
 // DispatchHomepageHistory handles homepage_registry history operations.
 func DispatchHomepageHistory(db *sql.DB, operation string, id, projectID int64, entryType, content, query, source string, tags []string, limit, offset int) string {
+	return DispatchHomepageHistoryWithReason(db, operation, id, projectID, entryType, content, query, source, "", tags, limit, offset)
+}
+
+// DispatchHomepageHistoryWithReason is DispatchHomepageHistory with the agent's reason,
+// which delete_history records in its event.
+func DispatchHomepageHistoryWithReason(db *sql.DB, operation string, id, projectID int64, entryType, content, query, source, reason string, tags []string, limit, offset int) string {
 	switch operation {
 	case "add_history":
 		if projectID <= 0 {
@@ -309,7 +347,7 @@ func DispatchHomepageHistory(db *sql.DB, operation string, id, projectID int64, 
 		if id <= 0 {
 			return `{"status":"error","message":"'history_id' is required for delete_history."}`
 		}
-		if err := DeleteHomepageHistoryEntry(db, id); err != nil {
+		if err := DeleteHomepageHistoryEntryRecorded(db, id, "agent", reason); err != nil {
 			return fmt.Sprintf(`{"status":"error","message":"%s"}`, err.Error())
 		}
 		return `{"status":"success","message":"History entry deleted."}`

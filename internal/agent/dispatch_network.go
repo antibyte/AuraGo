@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"path/filepath"
 	"strings"
 
 	"aurago/internal/fritzbox"
@@ -162,7 +163,7 @@ func dispatchNetwork(ctx context.Context, tc ToolCall, dc *DispatchContext) (str
 			case "quick_tunnel":
 				port := req.Port
 				logger.Info("LLM requested Cloudflare quick tunnel", "port", port)
-				return "Tool Output: " + tools.CloudflareTunnelQuickTunnel(tunnelCfg, registry, logger, port)
+				return "Tool Output: " + runCloudflareQuickTunnel(ctx, dc, tunnelCfg, req, logger)
 			case "logs":
 				logger.Info("LLM requested Cloudflare Tunnel logs")
 				return "Tool Output: " + tools.CloudflareTunnelLogs(registry, logger)
@@ -623,4 +624,22 @@ func mdnsCleanName(name string) string {
 		return name[:idx]
 	}
 	return strings.TrimSuffix(name, ".")
+}
+
+// runCloudflareQuickTunnel publishes a registered Homepage project snapshot through the
+// homepage operation journal, so the publication has a reason, an actor and an operation id.
+// Without any project_dir the tunnel code reports its own error as before.
+func runCloudflareQuickTunnel(ctx context.Context, dc *DispatchContext, tunnelCfg tools.CloudflareTunnelConfig, req cloudflareTunnelArgs, logger *slog.Logger) string {
+	if strings.TrimSpace(tunnelCfg.QuickProjectDir) == "" {
+		return tools.CloudflareTunnelQuickTunnel(tunnelCfg, dc.Registry, logger, req.Port)
+	}
+	workspace := dc.Cfg.Homepage.WorkspacePath
+	if workspace == "" {
+		workspace = filepath.Join(dc.Cfg.Directories.DataDir, "homepage")
+	}
+	homepageCfg := tools.HomepageConfig{Context: ctx, WorkspacePath: workspace, DataDir: dc.Cfg.Directories.DataDir}
+	op := tools.HomepageOperation{Name: "tunnel", ProjectDir: tunnelCfg.QuickProjectDir, Reason: req.Reason, Actor: "agent", Source: "cloudflare_tunnel", SessionID: dc.SessionID, RunID: dc.RunID}
+	return tools.ExecuteHomepageOperation(homepageCfg, dc.HomepageRegistryDB, op, logger, func(c tools.HomepageConfig) string {
+		return tools.CloudflareTunnelQuickTunnel(tunnelCfg.WithHomepageOperation(c), dc.Registry, logger, req.Port)
+	})
 }

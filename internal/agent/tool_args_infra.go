@@ -163,6 +163,7 @@ type cloudflareTunnelArgs struct {
 	ProjectDir string
 	Operation  string
 	Port       int
+	Reason     string
 }
 
 type ansibleArgs struct {
@@ -902,6 +903,7 @@ func decodeCloudflareTunnelArgs(tc ToolCall) cloudflareTunnelArgs {
 		ProjectDir: firstNonEmptyToolString(tc.ProjectDir, toolArgString(tc.Params, "project_dir")),
 		Operation:  firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
 		Port:       firstNonEmptyInt(tc.Port, toolArgInt(tc.Params, 0, "port")),
+		Reason:     firstNonEmptyToolString(tc.Reason, toolArgString(tc.Params, "reason")),
 	}
 }
 

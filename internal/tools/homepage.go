@@ -829,6 +829,9 @@ func HomepageInitProject(cfg HomepageConfig, framework, name, template string, l
 	if err := validateHomepageProjectName(name); err != nil {
 		return errJSON("Invalid project name: %v", err)
 	}
+	if err := homepageInitTargetError(cfg, name); err != nil {
+		return errJSON("%v", err)
+	}
 	var cmd string
 	switch strings.ToLower(framework) {
 	case "next", "nextjs", "next.js":

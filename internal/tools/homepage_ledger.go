@@ -64,6 +64,9 @@ type HomepageDeploymentRecord struct {
 	Status           string                 `json:"status,omitempty"`
 	VerificationJSON string                 `json:"verification_json,omitempty"`
 	Metadata         map[string]interface{} `json:"metadata,omitempty"`
+	// OperationID and Actor tie the "deployed" event to the running homepage operation.
+	OperationID string `json:"-"`
+	Actor       string `json:"-"`
 }
 
 // HomepageArtifactManifest links a build artifact to a source revision.
@@ -492,12 +495,19 @@ func RecordHomepageDeployment(db *sql.DB, rec HomepageDeploymentRecord) error {
 		rec.ProjectID, targetIDValue, revisionID, rec.GitSHA, rec.Provider, rec.ProviderDeployID, rec.URL, rec.BuildDir, rec.ArtifactHash, rec.Status, rec.VerificationJSON, metadataJSON); err != nil {
 		return fmt.Errorf("failed to insert deployment: %w", err)
 	}
-	if _, err := RecordHomepageEvent(db, rec.ProjectID, "deployed", "homepage_deploy", fmt.Sprintf("Deployed to %s", rec.Provider), map[string]interface{}{
+	deployedPayload := map[string]interface{}{
 		"provider_deploy_id": rec.ProviderDeployID,
 		"url":                rec.URL,
 		"build_dir":          rec.BuildDir,
 		"artifact_hash":      rec.ArtifactHash,
-	}); err != nil {
+	}
+	if rec.OperationID != "" {
+		deployedPayload["operation_id"] = rec.OperationID
+	}
+	if rec.Actor != "" {
+		deployedPayload["actor"] = rec.Actor
+	}
+	if _, err := RecordHomepageEvent(db, rec.ProjectID, "deployed", "homepage_deploy", fmt.Sprintf("Deployed to %s", rec.Provider), deployedPayload); err != nil {
 		return err
 	}
 	if _, err := db.Exec("UPDATE homepage_projects SET last_deploy_url=?,last_deployed_at=?,updated_at=? WHERE id=?", rec.URL, now, now, rec.ProjectID); err != nil {
@@ -626,7 +636,10 @@ func recordHomepageDeploymentFromResult(cfg HomepageConfig, db *sql.DB, projectD
 		b, _ := json.Marshal(verification)
 		verificationJSON = string(b)
 	}
+	currentOp := homepageCurrentOperation(cfg)
 	if err := RecordHomepageDeployment(db, HomepageDeploymentRecord{
+		OperationID:      currentOp.ID,
+		Actor:            currentOp.Actor,
 		ProjectID:        proj.ID,
 		RevisionID:       revisionID,
 		GitSHA:           gitSHA,

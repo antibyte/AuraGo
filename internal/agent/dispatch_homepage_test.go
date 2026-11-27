@@ -629,3 +629,30 @@ func TestHomepageDesignArgumentKeepsGameMakerDesignObjectIntact(t *testing.T) {
 		t.Fatalf("a design object must not become a design id, got %q", got)
 	}
 }
+
+func TestDispatchHomepageInitProjectRefusesExistingDirectory(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Homepage.Enabled = true
+	cfg.Homepage.AllowContainerManagement = true
+	cfg.Docker.Host = "tcp://127.0.0.1:1"
+	workspace := t.TempDir()
+	cfg.Homepage.WorkspacePath = workspace
+	if err := os.MkdirAll(filepath.Join(workspace, "site-a"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(workspace, "site-a", "index.html"), []byte("keep"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	db, err := tools.InitHomepageRegistryDB(t.TempDir() + "/homepage.db")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	output, _ := dispatchServices(context.Background(), ToolCall{Reason: "fixture", Action: "homepage", Operation: "init_project", Framework: "html", Name: "site-a"}, &DispatchContext{Cfg: cfg, Logger: testLogger, HomepageRegistryDB: db})
+	if !strings.Contains(output, "already exists and is not empty") {
+		t.Fatalf("expected refusal, got %s", output)
+	}
+	if b, _ := os.ReadFile(filepath.Join(workspace, "site-a", "index.html")); string(b) != "keep" {
+		t.Fatal("index.html was overwritten")
+	}
+}

@@ -1014,6 +1014,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 						operationDir = "my-site"
 						req.Name = operationDir
 					}
+					if err := tools.HomepageInitTargetCheck(homepageCfg, homepageRegistryDB, operationDir); err != nil {
+						return "Tool Output: " + tools.ErrorJSON(err.Error())
+					}
 				case "write_file", "edit_file", "json_edit", "yaml_edit", "xml_edit":
 					if req.Path == "" {
 						return homepagePathRequired(req.Operation)
@@ -1129,19 +1132,20 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					result := tools.HomepageLighthouse(homepageCfg, req.URL, logger)
 					// Auto-log lighthouse score in homepage registry
 					if homepageRegistryDB != nil && req.URL != "" {
-						projects, _, _ := tools.SearchProjects(homepageRegistryDB, req.URL, "", nil, 1, 0)
-						if len(projects) > 0 {
-							var scoreMap map[string]interface{}
-							var perfScore float64
-							if err := json.Unmarshal([]byte(result), &scoreMap); err == nil {
-								if perf, ok := scoreMap["performance"].(float64); ok {
-									perfScore = perf
-								}
+						var scoreMap map[string]interface{}
+						var perfScore float64
+						if err := json.Unmarshal([]byte(result), &scoreMap); err == nil {
+							if perf, ok := scoreMap["performance"].(float64); ok {
+								perfScore = perf
 							}
-							if perfScore > 0 {
-								tools.UpdateProject(homepageRegistryDB, projects[0].ID, map[string]interface{}{
+						}
+						if perfScore > 0 {
+							if siteID, ok := tools.HomepageLighthouseSite(homepageRegistryDB, req.ManagedSiteID, req.URL); ok {
+								tools.UpdateProject(homepageRegistryDB, siteID, map[string]interface{}{
 									"lighthouse_score": perfScore,
 								})
+							} else {
+								result = withHomepageResultFields(result, map[string]interface{}{"note": "lighthouse_score not stored: pass managed_site_id to attribute the score"})
 							}
 						}
 					}
@@ -1286,6 +1290,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				case "tunnel":
 					tunnelCfg := tools.CloudflareTunnelConfigFromConfig(cfg)
 					tunnelCfg.QuickProjectDir = req.ProjectDir
+					tunnelCfg = tunnelCfg.WithHomepageOperation(homepageCfg)
 					return "Tool Output: " + tools.CloudflareTunnelQuickTunnel(tunnelCfg, dc.Registry, logger, req.Port)
 				case "publish_local":
 					if validation := homepageProjectDirRequired(req.Operation, req.ProjectDir); validation != "" {
@@ -1686,7 +1691,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				op = "list"
 			}
 			switch op {
-			case "register", "update", "delete", "log_edit", "log_deploy", "log_problem", "resolve_problem", "adopt", "relocate":
+			case "register", "update", "delete", "log_edit", "log_deploy", "log_problem", "resolve_problem", "adopt", "relocate", "delete_history":
 				if strings.TrimSpace(req.Reason) == "" {
 					return "Tool Output: " + tools.ErrorJSON("reason is required for a homepage registry mutation")
 				}
@@ -1705,7 +1710,16 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				"search_history": true, "update_history": true, "delete_history": true,
 			}
 			if historyOps[op] {
-				return "Tool Output: " + tools.DispatchHomepageHistory(homepageRegistryDB, op, req.HistoryID, req.ID, req.EntryType, req.Content, req.HistoryQuery, req.Source, req.Tags, req.Limit, req.Offset)
+				return "Tool Output: " + tools.DispatchHomepageHistoryWithReason(homepageRegistryDB, op, req.HistoryID, req.ID, req.EntryType, req.Content, req.HistoryQuery, req.Source, req.Reason, req.Tags, req.Limit, req.Offset)
+			}
+			if op == "register" && strings.TrimSpace(req.Name) != "" {
+				duplicateID, err := tools.HomepageRegisterPrecheck(homepageRegistryDB, tools.HomepageConfig{Context: ctx, WorkspacePath: workspace}, req.ProjectDir)
+				if err != nil {
+					return "Tool Output: " + tools.ErrorJSON(err.Error())
+				}
+				if duplicateID > 0 {
+					return "Tool Output: " + fmt.Sprintf(`{"status":"duplicate","id":%d,"message":"Project already exists."}`, duplicateID)
+				}
 			}
 			return "Tool Output: " + tools.DispatchHomepageRegistry(homepageRegistryDB, op, req.Query, req.Name, req.Description, req.Framework, req.ProjectDir, req.URL, req.Status, req.Reason, req.Problem, req.Notes, req.Tags, req.ID, "", req.Limit, req.Offset)
 

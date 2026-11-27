@@ -58,6 +58,7 @@ type CloudflareTunnelConfig struct {
 	HomepageRegistryPath string
 	QuickProjectDir      string
 	quickOrigin          *homepageQuickOrigin
+	quickOperation       HomepageOperation // running homepage operation, for ledger correlation
 
 	configuredQuickProjectDir string // Saved selection, even when a tool explicitly chooses another project.
 	// HTTPS fields: when HTTPS is enabled AuraGo no longer listens on WebUIPort.
@@ -891,7 +892,14 @@ func startQuickTunnel(cfg CloudflareTunnelConfig, registry *ProcessRegistry, log
 		return errJSON("%v", err)
 	}
 	cfg.quickOrigin = origin
-	if _, err := RecordHomepageEvent(origin.db, origin.projectID, "quick_publication_requested", "cloudflare_tunnel", "Publish immutable static snapshot", map[string]interface{}{"publication_id": origin.publicationID, "artifact_hash": origin.artifactHash, "build_dir": origin.buildDir}); err != nil {
+	origin.operation = cfg.quickOperation
+	requestedPayload := map[string]interface{}{"publication_id": origin.publicationID, "artifact_hash": origin.artifactHash, "build_dir": origin.buildDir}
+	if cfg.quickOperation.ID != "" {
+		requestedPayload["operation_id"] = cfg.quickOperation.ID
+		requestedPayload["actor"] = cfg.quickOperation.Actor
+		requestedPayload["reason"] = cfg.quickOperation.Reason
+	}
+	if _, err := RecordHomepageEvent(origin.db, origin.projectID, "quick_publication_requested", "cloudflare_tunnel", "Publish immutable static snapshot", requestedPayload); err != nil {
 		origin.Close()
 		return errJSON("Cannot record Homepage publication: %v", err)
 	}

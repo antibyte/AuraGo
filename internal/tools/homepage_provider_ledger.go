@@ -131,7 +131,7 @@ func ExecuteHomepageProviderOperation(cfg HomepageConfig, db *sql.DB, provider, 
 			if url == "" {
 				locator = provider + ":" + account + ":" + newTarget
 			}
-			if err := RecordHomepageDeployment(db, HomepageDeploymentRecord{ProjectID: deploymentProjectID, Provider: provider, ProviderTargetID: newTarget, ProviderDeployID: firstLedgerString(detail, "current_version_id", "version_id"), URL: url, RemotePath: locator, Status: "published_unverified", Metadata: map[string]interface{}{"account": account, "created_by": "agent", "reason": op.Reason}}); err != nil {
+			if err := RecordHomepageDeployment(db, HomepageDeploymentRecord{OperationID: op.ID, Actor: op.Actor, ProjectID: deploymentProjectID, Provider: provider, ProviderTargetID: newTarget, ProviderDeployID: firstLedgerString(detail, "current_version_id", "version_id"), URL: url, RemotePath: locator, Status: "published_unverified", Metadata: map[string]interface{}{"account": account, "created_by": "agent", "reason": op.Reason}}); err != nil {
 				return homepageOperationPersistenceError(parsed, op, err)
 			}
 			if operation == "duplicate" {

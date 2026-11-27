@@ -418,7 +418,7 @@ func handleHomepageHistory(s *Server) http.HandlerFunc {
 				jsonError(w, "id is required", http.StatusBadRequest)
 				return
 			}
-			if err := tools.DeleteHomepageHistoryEntry(s.HomepageRegistryDB, id); err != nil {
+			if err := tools.DeleteHomepageHistoryEntryRecorded(s.HomepageRegistryDB, id, "user", "Deleted in Homepage Studio history panel"); err != nil {
 				jsonError(w, err.Error(), http.StatusInternalServerError)
 				return
 			}

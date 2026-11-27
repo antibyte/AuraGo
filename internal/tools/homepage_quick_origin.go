@@ -34,6 +34,7 @@ type homepageQuickOrigin struct {
 	buildDir      string
 	artifactHash  string
 	publicationID string
+	operation     HomepageOperation
 	closed        sync.Once
 	disabled      atomic.Bool
 }
@@ -181,7 +182,7 @@ func (o *homepageQuickOrigin) URL(host string) string {
 
 func (o *homepageQuickOrigin) recordPublication(publicURL string) error {
 	return RecordHomepageDeployment(o.db, HomepageDeploymentRecord{
-		ProjectID: o.projectID, Provider: "cloudflare", ProviderTargetID: o.publicationID,
+		OperationID: o.operation.ID, Actor: o.operation.Actor, ProjectID: o.projectID, Provider: "cloudflare", ProviderTargetID: o.publicationID,
 		ProviderDeployID: o.publicationID, URL: publicURL, BuildDir: o.buildDir,
 		ArtifactHash: o.artifactHash, Status: "published_unverified",
 		Metadata: map[string]interface{}{"ephemeral": true, "immutable_snapshot": true},

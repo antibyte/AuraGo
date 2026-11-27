@@ -1244,6 +1244,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 					"enum":        []string{"start", "stop", "restart", "status", "quick_tunnel", "logs", "list_routes", "install"},
 				},
 				"project_dir": prop("string", "Registered Homepage project for quick_tunnel or quick start/restart; defaults to the administrator-selected quick_project_dir. Build static output first."),
+				"reason":      prop("string", "Required for quick_tunnel: short purpose of publishing this project snapshot."),
 			}, "operation"),
 		))
 	}
