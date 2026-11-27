@@ -76,17 +76,30 @@ const storymakerAnimationGuide = `## Animation and custom effects
 - Explain through motion: walk for people, move for props; pair a gesture with a fitting expression and look. Use cue_phrase to align reveals with words; with prev overlaps actions. Control delay, duration, ease and count deliberately. A camera move should direct attention, not decorate every scene.
 - Characters, environments and props are illustrated fixed identities. Rig articulation, breathing, blinking, planted walking and storyboard lip-sync are automatic. Environment layers supply parallax during camera movement. No unsupported view, clothing, shader or filter parameters.
 - In cast/revise, set_meta supports style.rhythm calm/standard/lively and style.auto_sfx. Keep text short and check portrait/square composition. The check measures the layout of every storyboard scene: fix the layout findings it reports.
-- Prefer storyboard for dialogue. For a missing visual motif, custom diagram or repeated drawing effect, read reference topic code: it includes an executable SVG asset example combining catalog props with g.path SVG path data (not raw SVG markup or an imported .svg file). Use coherent colours, readable silhouettes, layered detail and cue-bound motion. Keep labels as real text. Do not replace a speaking-actor scene merely to add decoration; code scenes support off-screen narration but have no dialogue/lip-sync binding.
+- Prefer storyboard for dialogue. Diagrams, charts, icon cards and headlines are show beats (see Choosing the picture). For a missing visual motif or a repeated drawing effect, read reference topic code: it includes an executable SVG asset example combining catalog props with g.path SVG path data (not raw SVG markup or an imported .svg file). Use coherent colours, readable silhouettes, layered detail and cue-bound motion. Keep labels as real text. Do not replace a speaking-actor scene merely to add decoration; code scenes support off-screen narration but have no dialogue/lip-sync binding.
 - get_code reads the bound scene's source and code rev. put_code takes expected_rev from that answer and data.source only, within 8 KiB. Invalid code keeps the saved source/bundle; stale revisions require a fresh read.
 - To create a code scene, bundle its source with put_code first, then activate it with put_scene and data.kind code. Omit actors/props/beats/environment and keep the narration. Use the story rev from get for scene writes; it is different from the code rev. Existing code scenes need only a source update.
-- Code uses export default function scene(api), handles/tweens and the restricted onFrame(t,g) drawing facade. Use explicit scene time and fixed seeded constants, never counters or mutable state across frames, clocks, timers, imports, DOM/network, raw PixiJS or GSAP. Keep loops bounded. chart/diagram helpers are unsupported; use shapes/text/drawing. See the reference for the executable example and speech limitations.
+- Code uses export default function scene(api), handles/tweens and the restricted onFrame(t,g) drawing facade. Use explicit scene time and fixed seeded constants, never counters or mutable state across frames, clocks, timers, imports, DOM/network, raw PixiJS or GSAP. Keep loops bounded. Prefer the block helpers (api.icon, api.diagram, api.chart, api.headline, api.list) to hand-drawn diagrams. See the reference for the executable example and speech limitations.
 - After changes run storymaker_check and repair its errors. A compile failure is fixed in source; never bypass isolation or relax deadlines. Preserve unrelated scenes and user code.`
+
+// storymakerBlockGuide teaches the choice of the picture: the decision table, the variety rules and one worked example each.
+const storymakerBlockGuide = `## Choosing the picture
+One visual idea per scene. Pick it from what the narration says; the context may name one in direction.suggested_block.
+- steps or a process: a diagram with layout flow. A loop: cycle. Parts of a system: hub (one centre) or stack (layers). A versus B, or before and after: compare.
+- numbers: a chart (bar, line or pie), or counter for one number.
+- a thing or a concept: an icon card ("icon" with "style":"card"; find the id with storymaker_catalog kind icon and one English word) or a prop.
+- the key sentence: a headline ("text" with "style":"headline", one word between * marks is accented).
+Variety: never the same block type in three scenes in a row. In a film of 7 scenes make 1 to 3 scenes a full board (environment env.board, "at":"full", no actor); the other scenes pair the actor with a prop or an icon card. When a block sits at "board", the actor points at the board: a gesture point with "target":"board" and "with":"prev".
+Limits: a node label of 1 to 3 words, a headline of at most 8 words, a list of at most 4 lines.
+A film of 7 scenes, for example: actor and prop, flow at the board, actor and icon card, bar chart at full, actor and prop, compare at full, headline.
+Example: {"do":"show","diagram":{"layout":"flow","nodes":[{"id":"in","label":"Paket"},{"id":"fw","label":"Firewall"},{"id":"net","label":"Netz"}]},"at":"board","entry":"draw","cue_phrase":"Firewall"}`
 
 const storymakerCheckWorkflow = `## Check and fix
 1. The context lists issues; storymaker_check gives the current list after a change.
 2. Fix each issue with storymaker_story operation patch_scene. Each issue has a fix with an example.
 3. Items in advice are optional. Fix them only if it is one small patch.
    Film items (environment_monotony, framing_monotony, gesture_monotony, cast_unused) are about the whole film. Fix them with patch_scene on the scenes the fix text names. A patch replaces a list that you send (actors, beats), so send the whole list.
+   Picture items (no_blocks, block_repeat, label_long) are about the blocks: give the named scene another block type from Choosing the picture, or shorten the label. block_too_small and offscreen on a block: show it at "full", or use fewer nodes with shorter labels.
 4. Environment items are not yours to fix.
 When nothing is left to fix, answer with one short sentence for the user about the film, in the user's language, and stop.`
 
@@ -136,6 +149,7 @@ var storymakerToolExamples = map[string][]string{
 	storymaker.PhaseFill: {
 		`{"action":"storymaker_catalog","operation":"search","kind":"prop","query":"lock"}`,
 		`{"action":"storymaker_story","operation":"put_scene","scene_id":"s1","data":{"narration":"Eine Firewall prüft jedes Paket.","speaker":"anna","environment":"env.server-room","actors":[{"cast":"anna","at":"left","pose":"stand","expression":"neutral"}],"beats":[{"do":"show","item":"prop.lock","at":"center","entry":"fade","cue_phrase":"Firewall"},{"do":"gesture","who":"anna","gesture":"wave","with":"prev"}]}}`,
+		`{"action":"storymaker_story","operation":"put_scene","scene_id":"s2","data":{"narration":"Zuerst kommt das Paket, dann die Firewall.","speaker":"anna","environment":"env.office","actors":[{"cast":"anna","at":"left","pose":"present","expression":"neutral"}],"beats":[{"do":"show","diagram":{"layout":"flow","nodes":[{"id":"in","label":"Paket"},{"id":"fw","label":"Firewall"}]},"at":"board","entry":"draw","cue_phrase":"Firewall"},{"do":"gesture","who":"anna","gesture":"point","target":"board","with":"prev"}]}}`,
 	},
 	storymaker.PhaseCheck: {
 		`{"action":"storymaker_check","operation":"validate"}`,
@@ -213,9 +227,9 @@ func storymakerAgentProfile(phase string, compact, text bool, names agent.Storym
 // (vision) gets the screenshot tool and its guide in the check and revise phases.
 func storymakerAgentProfileFor(mode, phase string, compact, text, vision bool, names agent.StorymakerNames) (*agent.PreparedPromptProfile, error) {
 	free := storymaker.EffectiveMode(mode) == storymaker.ModeFree
-	workflows, ground, rules, style, guide, name := storymakerPhaseWorkflows, storymakerGroundRules, storymakerHouseRules, storymakerHouseStyle, storymakerAnimationGuide, "storymaker/v5/"+phase
+	workflows, ground, rules, style, guide, blocks, name := storymakerPhaseWorkflows, storymakerGroundRules, storymakerHouseRules, storymakerHouseStyle, storymakerAnimationGuide, storymakerBlockGuide, "storymaker/v7/"+phase
 	if free {
-		workflows, ground, rules, style, guide, name = storymakerFreePhaseWorkflows, storymakerFreeGroundRules, storymakerFreeHouseRules, storymakerFreeHouseStyle, storymakerFreeCodeGuide, "storymaker/v6/free/"+phase
+		workflows, ground, rules, style, guide, blocks, name = storymakerFreePhaseWorkflows, storymakerFreeGroundRules, storymakerFreeHouseRules, storymakerFreeHouseStyle, storymakerFreeCodeGuide, storymakerFreeBlockGuide, "storymaker/v7/free/"+phase
 	}
 	workflow, ok := workflows[phase]
 	if !ok {
@@ -228,7 +242,7 @@ func storymakerAgentProfileFor(mode, phase string, compact, text, vision bool, n
 	name += "/" + variant
 	sections := []string{ground, house}
 	if phase == storymaker.PhaseFill || phase == storymaker.PhaseCheck || phase == storymaker.PhaseRevise {
-		sections = append(sections, guide)
+		sections = append(sections, guide, blocks)
 	}
 	sections = append(sections, workflow)
 	vision = vision && storymaker.ViewPhase(phase)

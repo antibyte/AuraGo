@@ -204,3 +204,23 @@ func TestFreeReferenceTeachesTheBlocks(t *testing.T) {
 		t.Error("free-motion.js has not exactly one onFrame accent")
 	}
 }
+
+// Every code reference and the animation reference teach how to choose the picture: the table, the variety rules and a worked example.
+func TestReferencesTeachChoosingThePicture(t *testing.T) {
+	for name, text := range map[string]string{"code.md": codeReference, "code-free.md": codeReferenceFree, "animation.md": animationReference} {
+		at := strings.Index(text, "## Choosing the picture")
+		if at < 0 {
+			t.Errorf("%s has no section Choosing the picture", name)
+			continue
+		}
+		section := text[at:]
+		for _, want := range []string{"flow", "cycle", "hub", "stack", "compare", "chart", "headline", "three scenes in a row"} {
+			if !strings.Contains(section, want) {
+				t.Errorf("%s: the section lacks %q", name, want)
+			}
+		}
+		if strings.Contains(text, "not_supported_yet") || strings.Contains(text, "helpers are unsupported") {
+			t.Errorf("%s still calls the blocks unsupported", name)
+		}
+	}
+}

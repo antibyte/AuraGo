@@ -31,9 +31,9 @@ func TestStorymakerProfilesNamesToolsAndTextGuide(t *testing.T) {
 				if err != nil {
 					t.Fatalf("%s compact=%v text=%v: %v", phase, compact, text, err)
 				}
-				wantName, house, otherHouse := "storymaker/v5/"+phase+"/normal", "## House style", "## House rules"
+				wantName, house, otherHouse := "storymaker/v7/"+phase+"/normal", "## House style", "## House rules"
 				if compact {
-					wantName, house, otherHouse = "storymaker/v5/"+phase+"/compact", "## House rules", "## House style"
+					wantName, house, otherHouse = "storymaker/v7/"+phase+"/compact", "## House rules", "## House style"
 				}
 				if text {
 					wantName += "/text"
@@ -63,6 +63,14 @@ func TestStorymakerProfilesNamesToolsAndTextGuide(t *testing.T) {
 					}
 					if !strings.Contains(system, "cue_phrase") || strings.Contains(system, `"cue":1`) || strings.Contains(system, "write {1}") {
 						t.Errorf("%s must teach cue_phrase and never the numbered marker", wantName)
+					}
+					for _, block := range []string{"## Choosing the picture", `"diagram"`, "flow", "cycle", "compare", "headline", "counter", "three scenes in a row", "at the board"} {
+						if !strings.Contains(system, block) {
+							t.Errorf("%s lacks the block guidance %q", wantName, block)
+						}
+					}
+					if strings.Contains(system, "helpers are unsupported") {
+						t.Errorf("%s still says that chart and diagram helpers are unsupported", wantName)
 					}
 				}
 				if !strings.Contains(system, "Plan a meaningful visual for each idea") || strings.Contains(system, "use the nearest alternative, or a show beat") {
@@ -149,6 +157,24 @@ func TestStorymakerProfilesNameOnlyValidEntriesAndTheDirection(t *testing.T) {
 			if phase == storymaker.PhaseCheck && !strings.Contains(system, "cast_unused") {
 				t.Errorf("the check prompt must mention the film items")
 			}
+			if phase == storymaker.PhaseCheck {
+				for _, code := range []string{"block_repeat", "no_blocks", "label_long"} {
+					if !strings.Contains(system, code) {
+						t.Errorf("the check prompt must name %s", code)
+					}
+				}
+			}
 		}
+	}
+}
+
+// The text-mode fill examples show a diagram scene, and every example is a call the phase allows.
+func TestStorymakerFillExamplesShowADiagram(t *testing.T) {
+	var diagram bool
+	for _, example := range storymakerToolExamples[storymaker.PhaseFill] {
+		diagram = diagram || (strings.Contains(example, `"diagram":{"layout":"flow"`) && strings.Contains(example, `"gesture":"point","target":"board"`))
+	}
+	if !diagram {
+		t.Errorf("the fill examples have no diagram show beat with a pointing actor: %v", storymakerToolExamples[storymaker.PhaseFill])
 	}
 }

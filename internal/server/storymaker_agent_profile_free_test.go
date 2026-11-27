@@ -21,6 +21,19 @@ func TestStorymakerFreeProfilesTellTheFreeStory(t *testing.T) {
 				if !strings.Contains(prompt, "storymaker_story") || !strings.Contains(prompt, "no catalog") {
 					t.Errorf("%s: the free prompt lacks its ground rules", phase)
 				}
+				if phase != storymaker.PhaseOutline {
+					for _, block := range []string{"## Choosing the picture", "api.diagram", "flow", "cycle", "compare", "api.headline", "counter", "three scenes in a row", "kind icon"} {
+						if !strings.Contains(prompt, block) {
+							t.Errorf("%s compact=%v text=%v: the free prompt lacks %q", phase, compact, text, block)
+						}
+					}
+					if strings.Contains(prompt, "helpers are unsupported") {
+						t.Errorf("%s: the free prompt still says that chart and diagram helpers are unsupported", phase)
+					}
+				}
+				if phase == storymaker.PhaseCheck && !strings.Contains(prompt, "block_repeat") {
+					t.Errorf("the free check prompt must name block_repeat")
+				}
 				for _, banned := range []string{"## Cast", "char.", "prop.", "env.", "Poses:", "Gestures:", "environment_guide"} {
 					if strings.Contains(prompt, banned) {
 						t.Errorf("%s compact=%v text=%v: the free prompt contains %q", phase, compact, text, banned)
@@ -36,7 +49,7 @@ func TestStorymakerFreeProfilesTellTheFreeStory(t *testing.T) {
 	if !strings.Contains(fill.SystemPrompt(), "## Fill one scene") || !strings.Contains(fill.SystemPrompt(), "put_code") {
 		t.Error("the free fill workflow must keep its heading and name put_code")
 	}
-	if !strings.Contains(fill.Name(), "storymaker/v6/free/fill/") {
+	if !strings.Contains(fill.Name(), "storymaker/v7/free/fill/") {
 		t.Errorf("profile name = %q", fill.Name())
 	}
 	if prompt := fill.SystemPrompt(); !strings.Contains(prompt, "code_rev") || !strings.Contains(prompt, "api_card") || strings.Contains(prompt, "before the first scene") {

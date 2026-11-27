@@ -51,4 +51,27 @@ Example scene payload (cast member anna must exist):
 {"environment":"env.office","speaker":"anna","actors":[{"cast":"anna","at":"left","pose":"present","expression":"neutral"}],"narration":"Eine Verschlüsselung schützt Deine Daten.","beats":[{"do":"show","id":"lock","item":"prop.lock","at":"right","entry":"pop","cue_phrase":"Verschlüsselung"},{"do":"gesture","who":"anna","gesture":"point","with":"prev"},{"do":"emote","who":"anna","expression":"happy","with":"prev"},{"do":"highlight","target":"lock","style":"pulse","duration":0.8},{"do":"camera","op":"focus","target":"anna","duration":0.8,"ease":"ease-in-out"}]}
 ```
 
-Use custom code when storyboard controls or catalog assets cannot express the explanation, for example a missing visual motif, repeated data-flow particles or a bespoke diagram. Read topic code before writing it. Charts/icons/diagrams that report not_supported_yet are not rendered: use actual props/text/shapes or a code scene instead. Validate with storymaker_check and fix errors; do not claim unsupported effects or verified layout.
+Use custom code when storyboard controls or catalog assets cannot express the explanation, for example a missing visual motif, repeated data-flow particles or a bespoke diagram. Read topic code before writing it. Diagrams, charts, icon cards, headlines and lists are show beats, not custom code: see Choosing the picture. Validate with storymaker_check and fix errors; do not claim unsupported effects or verified layout.
+
+## Choosing the picture
+
+One visual idea per scene. Pick it from what the narration says; the fill context may name one in direction.suggested_block.
+
+- steps or a process: diagram flow. A loop: cycle. Parts of a system: hub (the first node is the centre) or stack (the first node is the bottom layer). A versus B, or before and after: compare (two nodes).
+- numbers: chart bar (1-8 values), line (2-24), pie (2-6) or counter (one number).
+- a thing or a concept: icon card, or a prop. The key sentence: headline. Up to 4 short lines: list.
+
+Variety: never the same block type in three scenes in a row. In a film of 7 scenes make 1 to 3 scenes a full board (environment env.board, at full, no actor); the other scenes pair the actor with a prop or an icon card. When a block sits at board, the actor points at it: gesture point, target board, with prev. In 9:16 two blocks side by side are too narrow: show one at full or top.
+
+Block beats (find an icon id with storymaker_catalog kind icon and one English word; node labels 1-3 words, headline at most 8 words):
+
+```json
+{"do":"show","diagram":{"layout":"flow","nodes":[{"id":"in","label":"Paket","icon":"icon.send"},{"id":"fw","label":"Firewall","icon":"icon.shield"},{"id":"net","label":"Netz"}]},"at":"board","entry":"draw","cue_phrase":"Firewall"}
+{"do":"highlight","target":"diagram-1.fw","style":"pulse","cue_phrase":"Firewall"}
+{"do":"show","chart":"bar","data":{"labels":["Alt","Neu"],"values":[40,90],"unit":"%"},"at":"full","entry":"fade"}
+{"do":"show","icon":"icon.cpu","style":"card","text":"Prozessor","at":"board","entry":"draw"}
+{"do":"show","text":"Regeln statt *Zufall*","style":"headline","at":"top","entry":"fade"}
+{"do":"show","text":"Paket lesen\nRegel prüfen\nWeiterleiten","style":"list","at":"right","entry":"fade"}
+```
+
+Areas for at: full, left, right, top, center, board. Block ids are icon-<name>-1 (icon.cpu is icon-cpu-1), diagram-1, chart-1 and text-1; a node is highlighted as diagram-1.<node id>. Two worked 7-scene plans: actor and prop, flow at the board, actor and icon card, bar chart at full, actor and prop, compare at full, headline.

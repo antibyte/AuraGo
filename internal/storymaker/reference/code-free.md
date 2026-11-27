@@ -47,6 +47,23 @@ Calls:
 
 Put a headline in top and a diagram or chart below it instead of one crowded block, and keep onFrame drawing for small accents on top of the blocks.
 
+## Choosing the picture
+
+One visual idea per scene. Pick it from what the narration says; the fill context may name one in suggested_block.
+
+- steps or a process: api.diagram layout flow. A loop: cycle. Parts of a system: hub or stack. A versus B, or before and after: compare.
+- numbers: api.chart bar, line or pie; counter for one number.
+- a thing or a concept: api.icon with style card, or shapes you draw. The key sentence: api.headline.
+
+Variety: never the same block type in three scenes in a row. In a film of 7 scenes make 1 to 3 scenes a full board (a diagram or chart at full); draw the others yourself. Node labels have 1-3 words, a headline at most 8 words.
+
+Example, flow with a highlight on the second cue:
+
+```javascript
+const d = api.diagram({ layout: 'flow', nodes: [{ id: 'in', label: 'Paket' }, { id: 'fw', label: 'Firewall' }, { id: 'net', label: 'Netz' }] }, { at: 'full', reveals: [api.cue(1), api.cue(2), 3] });
+d.highlight('fw', { start: api.cue(2) });
+```
+
 ## Draw every motif yourself with g.path and shapes
 
 1. Pick the one concrete motif of the scene from its narration and design that specific object, organism or process element, not a generic card with its name.
