@@ -188,7 +188,7 @@ func TestFreeReferenceTeachesTheBlocks(t *testing.T) {
 		if strings.Contains(text, "placeholders") {
 			t.Errorf("%s still calls the blocks placeholders", name)
 		}
-		for _, want := range []string{"## Explainer blocks", "api.icon(", "api.chart(", "api.headline(", "api.list(", "highlight(nodeId, timing)"} {
+		for _, want := range []string{"## Explainer blocks", "api.icon(", "api.chart(", "api.headline(", "api.list(", "highlight(nodeId, timing)", "on env.board it is the full frame", "to the top in 9:16 and 1:1", "only env.board draws a board"} {
 			if !strings.Contains(text, want) {
 				t.Errorf("%s lacks %q", name, want)
 			}

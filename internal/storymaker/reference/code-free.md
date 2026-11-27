@@ -33,7 +33,7 @@ Advanced filters, shader/bloom/blur calls and raw sprite/rig attachments are not
 
 Blocks are drawn by the same renderer as the storyboard beats. Prefer them to hand-drawn diagrams, charts, lists and headlines. Every call returns a handle with the handle methods above plus highlight(nodeId, timing), and takes the options {at, entry, start, dur}.
 
-- at is full (center for an icon), left, right, top, center, board or {x, y} in safe-area percent. An unknown area throws a RangeError that lists the valid ones. board is the board of the scene's environment, or the right half of the frame when it has none.
+- at is full (center for an icon), left, right, top, center, board or {x, y} in safe-area percent. An unknown area throws a RangeError that lists the valid ones. board is the board area of the environment; on env.board it is the full frame. Elsewhere it falls back to the right half of the safe area in 16:9 and to the top in 9:16 and 1:1. In code scenes only env.board draws a board.
 - entry is draw (icons and diagrams), pop, fade or none. start is a second or api.cue(n), default 0. dur defaults to the natural length of the block.
 - A block that fails its limits throws a RangeError whose message names the fix. A scene has at most 32 blocks.
 
