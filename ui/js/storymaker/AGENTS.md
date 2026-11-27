@@ -65,3 +65,11 @@ catalog index are `../../../internal/storymaker/AGENTS.md`, the generated catalo
 - Browser (`AURAGO_RUN_BROWSER_SMOKE=1`, installed Chrome): `go test ./ui -run 'TestStorymaker(PlayerGate|RenderMode|FirewallRender|RenderScreenshot)Browser' -count=1`
   for the opaque-origin gate (workers, OffscreenCanvas, FontFace, ImageBitmap transfer, blocked fetch and importScripts) and the render
   page; `TestStorymakerApp*` for the app tour against the real player.
+
+## Explainer blocks
+
+- `blocks.js` (model, areas, check, create, serialize and revive), `blocks-draw.js` (drawing) and `blocks-plans.js` (layout plans) hold the icon, diagram, chart, headline and list blocks; `beats-blocks.js` turns a storyboard show beat into one, and `codescene.js` offers them as `api.icon`, `api.diagram`, `api.chart`, `api.headline` and `api.list`. Each part stays under 600 lines.
+- `SM.blocks.area(stage, env, variant, at)` gives the area in design pixels. The safe box follows `stage.focusX`, so an environment that moves the 9:16 slice (the office pinboard) moves the areas with it. `board` is the drawn rectangle of the environment (`BOARD_RECTS`), the whole safe box on `env.board`, else the right half of the frame.
+- `env.board` is a drawn environment (`drawn: "board"`, paper by day, slate at night): the player paints it, there are no layer files. Code scenes on it read the board colour tokens.
+- Icon data comes from the catalog (`icons`, delivered as `icon_data` to the worker); a block whose icon is unknown is refused with the closest ids. The layout run reports every block box (`layout.blocks`).
+- Tests: `scripts/storymaker-tests/33-blocks.mjs`, `34-block-beats.mjs`, `35-block-api.mjs`; the real-browser acceptance is `TestCompileCheckBlocksBrowser` in `internal/storymaker/render`.

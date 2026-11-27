@@ -41,3 +41,8 @@ Offline production of three articulated Desktop-pet characters, illustrated envi
 ## Child DOX Index
 
 - ASSET-CONTRACT.md: model/image inventory, bounds, provenance and production verification.
+
+## Icons and the board
+
+- `icons/lucide.json` (the Lucide icons of `icons/allow-list.json`, with `LICENSE.txt` and `NOTICE.txt`; ISC, Feather-derived icons MIT) is built by `node scripts/build-storymaker-icons.mjs --package <lucide-static dir>` and delivered to `ui/img/storymaker/icons/`. The package itself stays outside the repository; only the generated files are committed. Icons are drawn locally, nothing is loaded from the Internet. Check with `--check --package <dir>` and `node --test assets/storymaker/test/icons.test.mjs`.
+- `env.board` is a drawn environment without layer files (`drawn: "board"`): the catalog build lists it but the direction never ranks it as a place. The spots `full`, `top` and `board` exist only for blocks.

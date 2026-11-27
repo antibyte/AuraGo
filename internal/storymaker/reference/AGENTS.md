@@ -36,3 +36,8 @@ Update these references with the player API, schemas and agent profile together.
 ## Child DOX Index
 
 None.
+
+## Choosing the picture
+
+- `animation.md`, `code.md` and `code-free.md` each end their block part with a section `## Choosing the picture`: the decision table (process flow, loop cycle, parts hub or stack, A versus B compare, numbers chart or counter, thing icon card, key sentence headline), the variety rules (no block type three scenes in a row, 1 to 3 full boards in 7 scenes) and one worked example. The profile texts in `../../server/storymaker_agent_profile*.go` carry the same table in short form; change them together and bump the profile version. A test checks the section in all three files.
+- Keep the block examples inside the compact story schema: no chart title, no compare points, no diagram flow switch. `code-free.md` stays shorter than `code.md` and never names `api.add` or catalog people and props.

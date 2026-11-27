@@ -128,3 +128,12 @@ JavaScript (`ui/js/storymaker/`); Go never recomputes the timeline.
 - `render/AGENTS.md`: the render pipeline contract (job manager, listener, ingest, browser, egress guard, FFmpeg).
 - `reference/AGENTS.md`: embedded agent animation/code instructions and executable examples.
 - `../../assets/storymaker/AGENTS.md` and `ASSET-CONTRACT.md`: ImageGen masters, catalog v2 schema, resource limits and deterministic production.
+
+## Explainer blocks, advice and fallback
+
+- Blocks are show beats (`icon`, `chart` + `data`, `diagram`, or `text` with `style` headline or list; `validate_blocks.go`) at an area of `BlockAreas`. The compile layout carries their boxes (`LayoutBlock`, code scenes carry `Code`), and `LayoutIssues` turns them into `block_too_small`, `offscreen`, `caption_overlap` and `actor_prop_overlap`. Limits in `validate_blocks.go` repeat `ui/js/storymaker/blocks.js`; change both together.
+- `LintBlocks` (`blocks_lint.go`) gives the advice `no_blocks`, `block_repeat` and `label_long` (all in `IssueAdvisory`); `runCheck` runs it for create jobs only, reading the code sources through `LoadCodeSource`. The code-scene patterns use character classes, so no backslash can get lost.
+- `SuggestedBlock` (`studio_blocks_hint.go`, de and en only) puts `suggested_block` into the catalog direction and the free fill packet; `packetFillExample` shows that block with a pointing actor.
+- A free outline seeds `env.board` into every scene (`studioOutline`); `ApplyDefaults` stays mode-free and inherits it.
+- Fallback (`fallback.go`): at the end of a create job the server calls `Studio.FallbackBoards` for the outline scenes the model never filled. A catalog scene gets a headline show beat on `env.board`, a free scene a one-line code scene. `DecideOutcome` lists `scene_fallback` per scene (`OutcomeInput.Fallback`) and the job stays `incomplete`; revise jobs never fall back. Everything else in `DecideOutcome` is unchanged, and `layout_unverified` stays on every film with a code scene.
+- The real-browser acceptance of all blocks is `render/blocks_browser_test.go` with `testdata/stories/blocks.json` and `testdata/scenes/blocks.js`: `AURAGO_RUN_BROWSER_SMOKE=1 go test ./internal/storymaker/render -run TestCompileCheckBlocksBrowser`; `AURAGO_STILLS_OUT=<dir>` keeps the contact sheets.
