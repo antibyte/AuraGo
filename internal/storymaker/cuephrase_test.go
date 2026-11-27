@@ -153,3 +153,41 @@ func TestResolveCuePhrasesRefusals(t *testing.T) {
 		}
 	}
 }
+
+func TestCuePhraseOnDiagramNodes(t *testing.T) {
+	diagram := func(nodes ...map[string]any) map[string]any {
+		list := make([]any, len(nodes))
+		for i, n := range nodes {
+			list[i] = n
+		}
+		return map[string]any{"layout": "flow", "nodes": list}
+	}
+	fields := cueFields("Die Anfrage geht zum Server und zurueck.",
+		map[string]any{"do": "show", "diagram": diagram(
+			map[string]any{"id": "req", "label": "Anfrage", "cue_phrase": "Anfrage"},
+			map[string]any{"id": "srv", "label": "Server", "cue_phrase": "Server"})})
+	if notes, refusal := resolveCuePhrases(fields); refusal != nil || len(notes) != 0 {
+		t.Fatalf("notes %v, refusal %+v", notes, refusal)
+	}
+	if got, want := fields["narration"], "Die {1}Anfrage geht zum {2}Server und zurueck."; got != want {
+		t.Fatalf("narration = %q, want %q", got, want)
+	}
+	nodes := cueNodes(fields["beats"].([]any)[0].(map[string]any))
+	for k, want := range []int{1, 2} {
+		if n := nodes[k].(map[string]any); n["cue"] != want || n["cue_phrase"] != nil || n["label"] == nil {
+			t.Fatalf("node %d = %v", k, n)
+		}
+	}
+	bad := cueFields("Die Anfrage geht.", map[string]any{"do": "show", "diagram": diagram(
+		map[string]any{"id": "req", "label": "A", "cue_phrase": "Anfrage"},
+		map[string]any{"id": "srv", "label": "S", "cue_phrase": "Nirgends"})})
+	_, refusal := resolveCuePhrases(bad)
+	if refusal == nil || refusal.Code != "cue_phrase_not_found" || !strings.Contains(refusal.Message, "beats[0].diagram.nodes[1]") {
+		t.Fatalf("refusal = %+v", refusal)
+	}
+	conflict := cueFields("Die Anfrage geht.", map[string]any{"do": "show", "diagram": diagram(
+		map[string]any{"id": "req", "label": "A", "cue": float64(1), "cue_phrase": "Anfrage"})})
+	if _, refusal := resolveCuePhrases(conflict); refusal == nil || refusal.Code != "cue_phrase_conflict" || !strings.Contains(refusal.Message, "beats[0].diagram.nodes[0]") {
+		t.Fatalf("conflict refusal = %+v", refusal)
+	}
+}

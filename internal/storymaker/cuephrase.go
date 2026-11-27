@@ -101,45 +101,58 @@ type cuePhraseRefusal struct{ Code, Message, Next string }
 // cueTrailingMarker finds a marker that ends a text.
 var cueTrailingMarker = regexp.MustCompile(`\{(\d{1,3})\}$`)
 
-// resolveCuePhrases rewrites fields in place: every beat with cue_phrase gets a {n} marker in fields["narration"] and
-// cue: n, and loses cue_phrase. notes say when a phrase occurred more than once.
+// resolveCuePhrases rewrites fields in place: every beat and every diagram node with cue_phrase gets a {n} marker in
+// fields["narration"] and cue: n, and loses cue_phrase. notes say when a phrase occurred more than once.
 func resolveCuePhrases(fields map[string]any) (notes []string, refusal *cuePhraseRefusal) {
 	beats, _ := fields["beats"].([]any)
-	if !slices.ContainsFunc(beats, func(b any) bool { m, ok := b.(map[string]any); return ok && m["cue_phrase"] != nil }) {
+	if !slices.ContainsFunc(beats, func(b any) bool {
+		m, ok := b.(map[string]any)
+		return ok && (m["cue_phrase"] != nil || slices.ContainsFunc(cueNodes(m), func(n any) bool { nm, ok := n.(map[string]any); return ok && nm["cue_phrase"] != nil }))
+	}) {
 		return nil, nil
 	}
+	taken := map[int]bool{}
 	for i, b := range beats {
-		if m, ok := b.(map[string]any); ok && m["cue_phrase"] != nil {
-			if refusal := checkCuePhraseBeat(i, m); refusal != nil {
+		m, ok := b.(map[string]any)
+		if !ok {
+			continue
+		}
+		taken[cueNumber(m["cue"])] = true
+		if m["cue_phrase"] != nil {
+			if refusal := checkCuePhraseBeat(fmt.Sprintf("beats[%d]", i), m); refusal != nil {
 				return nil, refusal
+			}
+		}
+		for k, n := range cueNodes(m) {
+			if nm, ok := n.(map[string]any); ok {
+				taken[cueNumber(nm["cue"])] = true
+				if nm["cue_phrase"] != nil {
+					if refusal := checkCuePhraseBeat(fmt.Sprintf("beats[%d].diagram.nodes[%d]", i, k), nm); refusal != nil {
+						return nil, refusal
+					}
+				}
 			}
 		}
 	}
 	narration, _ := fields["narration"].(string)
-	taken := map[int]bool{}
 	for _, m := range narrationMarker.FindAllStringSubmatch(narration, -1) {
 		if n, err := strconv.Atoi(m[1]); err == nil {
 			taken[n] = true
 		}
 	}
-	for _, b := range beats {
-		if m, ok := b.(map[string]any); ok {
-			taken[cueNumber(m["cue"])] = true
-		}
-	}
-	out := make([]any, len(beats))
-	for i, b := range beats {
-		m, ok := b.(map[string]any)
-		if !ok || m["cue_phrase"] == nil {
-			out[i] = b
-			continue
+	// resolve gives m its marker: a clone without cue_phrase, or m itself when it has none.
+	resolve := func(m map[string]any, where string) (map[string]any, *cuePhraseRefusal) {
+		if m["cue_phrase"] == nil {
+			return m, nil
 		}
 		phrase := strings.TrimSpace(m["cue_phrase"].(string))
 		tokens := cueTokens(narration)
 		phraseTokens := cueTokens(phrase)
 		hits := cuePhraseMatches(tokens, phraseTokens)
 		if len(hits) == 0 {
-			return nil, cuePhraseNotFound(phrase, narration, tokens, phraseTokens)
+			refusal := cuePhraseNotFound(phrase, narration, tokens, phraseTokens)
+			refusal.Message = where + ": " + refusal.Message
+			return nil, refusal
 		}
 		if len(hits) > 1 {
 			notes = append(notes, fmt.Sprintf("The phrase %q occurs %d times in the narration; the first one is cued.", phrase, len(hits)))
@@ -162,11 +175,48 @@ func resolveCuePhrases(fields map[string]any) (notes []string, refusal *cuePhras
 		clone := maps.Clone(m)
 		delete(clone, "cue_phrase")
 		clone["cue"] = n
-		out[i] = clone
+		return clone, nil
+	}
+	out := make([]any, len(beats))
+	for i, b := range beats {
+		m, ok := b.(map[string]any)
+		if !ok {
+			out[i] = b
+			continue
+		}
+		m, refusal := resolve(m, fmt.Sprintf("beats[%d]", i))
+		if refusal != nil {
+			return nil, refusal
+		}
+		if nodes := cueNodes(m); slices.ContainsFunc(nodes, func(n any) bool { nm, ok := n.(map[string]any); return ok && nm["cue_phrase"] != nil }) {
+			next := make([]any, len(nodes))
+			for k, n := range nodes {
+				nm, ok := n.(map[string]any)
+				if !ok {
+					next[k] = n
+					continue
+				}
+				if next[k], refusal = resolve(nm, fmt.Sprintf("beats[%d].diagram.nodes[%d]", i, k)); refusal != nil {
+					return nil, refusal
+				}
+			}
+			diagram := maps.Clone(m["diagram"].(map[string]any))
+			diagram["nodes"] = next
+			m = maps.Clone(m)
+			m["diagram"] = diagram
+		}
+		out[i] = m
 	}
 	fields["narration"] = narration
 	fields["beats"] = out
 	return notes, nil
+}
+
+// cueNodes returns the nodes of the diagram of a decoded beat, or nil.
+func cueNodes(beat map[string]any) []any {
+	d, _ := beat["diagram"].(map[string]any)
+	nodes, _ := d["nodes"].([]any)
+	return nodes
 }
 
 // cueNumber reads a decoded JSON number; anything else is 0.
@@ -180,10 +230,9 @@ func cueNumber(v any) int {
 	return 0
 }
 
-// checkCuePhraseBeat refuses a beat whose cue_phrase cannot be used: not text, empty, too long, without a word, or next
-// to a cue. beat is the index of the beat in the scene.
-func checkCuePhraseBeat(beat int, m map[string]any) *cuePhraseRefusal {
-	where := fmt.Sprintf("beats[%d]", beat)
+// checkCuePhraseBeat refuses a beat or diagram node whose cue_phrase cannot be used: not text, empty, too long, without a
+// word, or next to a cue. where names it, for example beats[0] or beats[0].diagram.nodes[1].
+func checkCuePhraseBeat(where string, m map[string]any) *cuePhraseRefusal {
 	phrase, isText := m["cue_phrase"].(string)
 	phrase = strings.TrimSpace(phrase)
 	switch {
