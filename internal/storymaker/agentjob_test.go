@@ -151,3 +151,18 @@ func TestMakeSilentPassesTheAudioGate(t *testing.T) {
 		t.Fatalf("has backup = %v, error %v", has, err)
 	}
 }
+
+func TestDecideOutcomeListsSceneFallback(t *testing.T) {
+	// The server fills the scene with a board before it decides, so the progress has nothing unfilled any more.
+	outcome, checks := DecideOutcome(OutcomeInput{
+		Progress: StudioProgress{ScenesTotal: 2, ScenesDone: 2},
+		Check:    CheckReport{Compile: "ok", StoryboardScenes: 2, LayoutScenes: 2},
+		Fallback: []string{"s2"},
+	})
+	if outcome != OutcomeIncomplete {
+		t.Errorf("outcome = %q, want %q", outcome, OutcomeIncomplete)
+	}
+	if want := []AgentCheck{{Code: CodeSceneFallback, SceneID: "s2"}}; !reflect.DeepEqual(checks, want) {
+		t.Errorf("checks = %+v, want %+v", checks, want)
+	}
+}

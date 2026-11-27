@@ -113,5 +113,6 @@ func (s *Studio) FallbackBoards(ctx context.Context, sceneIDs []string) ([]strin
 	if _, err := s.saveStory(ctx, st, etag); err != nil {
 		return nil, err
 	}
+	s.checkClean, s.compileETag = false, ""
 	return done, nil
 }

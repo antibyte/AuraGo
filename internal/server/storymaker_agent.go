@@ -169,6 +169,9 @@ type storymakerAgentJob struct {
 	mem     *memory.SQLiteMemory
 	logger  *slog.Logger
 
+	// outlineScenes are the scene ids of the outline of a create job: the scenes that may end as a fallback board.
+	outlineScenes []string
+
 	studio         *storymaker.Studio
 	deps           storymaker.StudioDeps
 	studioJob      storymaker.StudioJob
@@ -938,6 +941,7 @@ func (j *storymakerAgentJob) runCreate(ctx context.Context) {
 		j.noteModelError(err)
 		return
 	}
+	j.outlineScenes = slices.Clone(progress.Unfilled)
 	j.runFillPasses(ctx, progress.Unfilled)
 	j.runCheckRound(ctx)
 }
@@ -1226,6 +1230,7 @@ func (j *storymakerAgentJob) finish(runCtx, jobCtx context.Context) (render.Outp
 	if story := j.readStory(final); story != nil && storymaker.StoryIsBlank(story) {
 		return j.publishOutcome(final, storymaker.OutcomeInput{Progress: open, TimedOut: jobCtx.Err() == context.DeadlineExceeded, ModelError: j.modelError})
 	}
+	fallback := j.applyFallbackBoards(final, open.Unfilled)
 	narration := j.narrate(runCtx, jobCtx)
 	report, err := j.finalCheck(final)
 	if err == nil && jobCtx.Err() == nil && storymaker.HasBlockingIssue(report.Issues) && report.RoundsLeft > 0 {
@@ -1250,7 +1255,30 @@ func (j *storymakerAgentJob) finish(runCtx, jobCtx context.Context) (render.Outp
 		TimedOut:   jobCtx.Err() == context.DeadlineExceeded,
 		ModelError: j.modelError,
 		Narration:  narration,
+		Fallback:   fallback,
 	})
+}
+
+// applyFallbackBoards gives the scenes of the outline that the model never filled a board with their key sentence, so the film
+// has no empty frame, and returns their ids. A revise job never falls back: it changes only what its instruction names.
+func (j *storymakerAgentJob) applyFallbackBoards(ctx context.Context, unfilled []string) []string {
+	if j.payload.Kind != storymaker.AgentKindCreate {
+		return nil
+	}
+	var ids []string
+	for _, id := range unfilled {
+		if slices.Contains(j.outlineScenes, id) {
+			ids = append(ids, id)
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	done, err := j.studio.FallbackBoards(ctx, ids)
+	if err != nil {
+		j.logger.Warn("[Storymaker] The fallback boards could not be saved", "job_id", j.job.ID, "error", err)
+	}
+	return done
 }
 
 // storymakerAgentRun runs one job of the agent queue. It gets rt directly, because

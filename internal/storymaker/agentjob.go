@@ -70,6 +70,8 @@ type OutcomeInput struct {
 	TimedOut   bool
 	ModelError bool
 	Narration  string
+	// Fallback lists the scenes the server gave a board at the end of the job because the model never filled them.
+	Fallback []string
 }
 
 // DecideOutcome applies the outcome rule. failed: no outline was saved. incomplete: a timeout, a model error, or an
@@ -107,11 +109,15 @@ func DecideOutcome(in OutcomeInput) (outcome string, checks []AgentCheck) {
 	for _, sceneID := range in.Progress.Unfilled {
 		add(CodeSceneUnfilled, sceneID)
 	}
+	// The board of a fallback scene is saved, but it is not what the model made: the job stays incomplete.
+	for _, sceneID := range in.Fallback {
+		add(CodeSceneFallback, sceneID)
+	}
 	// A draft was never saved, so the story keeps an older version of that scene.
 	for _, sceneID := range in.Progress.Drafts {
 		add(outcomeCheckCorrectionsExhausted, sceneID)
 	}
-	blocked := in.TimedOut || in.ModelError || len(in.Progress.Unfilled) > 0 || len(in.Progress.Drafts) > 0
+	blocked := in.TimedOut || in.ModelError || len(in.Progress.Unfilled) > 0 || len(in.Progress.Drafts) > 0 || len(in.Fallback) > 0
 	compileFailed := false
 	listed := append(append([]Issue(nil), in.Check.Issues...), in.Check.Environment...)
 	for _, is := range listed {
