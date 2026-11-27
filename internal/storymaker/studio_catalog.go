@@ -11,7 +11,7 @@ const (
 	catalogVoiceKind          = "voice"
 	catalogMissNextAction     = "Search a concrete English concept or synonym in the appropriate kind. Use an alternative only when its meaning fits; never invent an ID."
 	catalogPropMissNextAction = "Search one concrete English synonym with kind prop. If no asset fits, read storymaker_catalog reference topic code, then create the missing motif as SVG paths with g.path and combine it with fitting catalog props. Use get_code, put_code and put_scene kind code as documented. Keep speaking-actor scenes and their lip-sync; use off-screen narration for custom illustration scenes. Alternatives are spelling suggestions, not semantic matches."
-	catalogKindList           = "character, prop, environment, pose, gesture, expression, transition, text_style, sfx or voice"
+	catalogKindList           = "character, prop, environment, pose, gesture, expression, transition, text_style, sfx, icon or voice"
 )
 
 // catalogModelKinds are the kinds a miss may suggest when the call named no kind.
@@ -87,6 +87,12 @@ func (s *Studio) runCatalog(ctx context.Context, op string, args map[string]any)
 
 func (s *Studio) catalogDescribe(target, kind string) StudioResult {
 	const op = "describe"
+	if ic, ok := s.deps.Catalog.Icon(target); ok && (kind == "" || kind == "icon") {
+		return catalogOpAnswer(op, "ok", map[string]any{"entry": s.catalogHitOf(iconEntry(ic))})
+	}
+	if ic, ok := s.deps.Catalog.Icon("icon." + target); ok && kind == "icon" {
+		return catalogOpAnswer(op, "ok", map[string]any{"entry": s.catalogHitOf(iconEntry(ic))})
+	}
 	entry, found := s.deps.Catalog.Lookup(target)
 	if !found && kind != "" {
 		entry, found = s.deps.Catalog.Lookup(kindPrefixes[kind] + target)
@@ -99,6 +105,9 @@ func (s *Studio) catalogDescribe(target, kind string) StudioResult {
 
 func (s *Studio) catalogHitOf(e Entry) catalogHit {
 	hit := catalogHit{ID: e.ID, Kind: e.Kind, Tags: e.Tags, UsageExample: e.UsageExample}
+	if e.Kind == "icon" {
+		hit.UsageExample = iconUsageExample(e.ID)
+	}
 	if hit.Tags == nil {
 		hit.Tags = []string{}
 	}
@@ -120,6 +129,9 @@ func (s *Studio) catalogMiss(op, query, kind string) StudioResult {
 			if e.Kind == kind || (kind == "" && catalogModelKinds[e.Kind]) {
 				pool = append(pool, e.ID)
 			}
+		}
+		if kind == "icon" {
+			pool = s.deps.Catalog.IconIDs()
 		}
 	}
 	return catalogOpAnswer(op, "ok", map[string]any{

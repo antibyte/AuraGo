@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"path"
 	"regexp"
+	"strings"
 )
 
 // IconsSchema is the schema of the icon data file (Lucide icons converted to path data on the 24 grid).
@@ -38,6 +39,9 @@ type iconsDoc struct {
 
 // Icon returns the icon with the ID, for example "icon.cpu".
 func (c *Catalog) Icon(id string) (Icon, bool) {
+	if c == nil {
+		return Icon{}, false
+	}
 	i, ok := c.iconIdx[id]
 	if !ok {
 		return Icon{}, false
@@ -45,8 +49,16 @@ func (c *Catalog) Icon(id string) (Icon, bool) {
 	return c.icons[i], true
 }
 
+// iconEntry is the search view of an icon: the name is the ID, so a tie keeps catalog entries first.
+func iconEntry(ic Icon) Entry {
+	return Entry{ID: ic.ID, Kind: "icon", Name: ic.ID, Tags: ic.Tags}
+}
+
 // IconIDs returns every icon ID, sorted.
 func (c *Catalog) IconIDs() []string {
+	if c == nil {
+		return nil
+	}
 	ids := make([]string, len(c.icons))
 	for i, ic := range c.icons {
 		ids[i] = ic.ID
@@ -55,7 +67,12 @@ func (c *Catalog) IconIDs() []string {
 }
 
 // IconsFile returns the icon data file name, relative to the folder of catalog.json, or "".
-func (c *Catalog) IconsFile() string { return c.iconsFile }
+func (c *Catalog) IconsFile() string {
+	if c == nil {
+		return ""
+	}
+	return c.iconsFile
+}
 
 func (c *Catalog) loadIcons(fsys fs.FS, catalogPath, file string, bad func(string, ...any)) {
 	if !safeRelPath(file) {
@@ -113,4 +130,26 @@ func (c *Catalog) loadIcons(fsys fs.FS, catalogPath, file string, bad func(strin
 	for i, ic := range doc.Icons {
 		c.iconIdx[ic.ID] = i
 	}
+}
+
+// iconLabel turns the Lucide name of an icon ID into a label: "server-cog" becomes "Server cog".
+func iconLabel(id string) string {
+	name := strings.ReplaceAll(strings.TrimPrefix(id, "icon."), "-", " ")
+	if name == "" {
+		return ""
+	}
+	return strings.ToUpper(name[:1]) + name[1:]
+}
+
+// iconUsageExample is the example a catalog search hit carries for an icon.
+func iconUsageExample(id string) json.RawMessage {
+	data, _ := json.Marshal(struct {
+		Do    string `json:"do"`
+		Icon  string `json:"icon"`
+		Style string `json:"style"`
+		Text  string `json:"text"`
+		At    string `json:"at"`
+		Entry string `json:"entry"`
+	}{"show", id, "card", iconLabel(id), "board", "draw"})
+	return data
 }

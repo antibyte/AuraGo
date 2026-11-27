@@ -86,7 +86,7 @@ func TestCatalogSearch(t *testing.T) {
 		limit       int
 		want        []string
 	}{
-		{"padlock", "", 0, []string{"prop.lock"}},                              // tag
+		{"padlock", "", 0, []string{"prop.lock", "icon.lock"}},                 // tag; icons follow the entries
 		{"lock", "prop", 0, []string{"prop.lock"}},                             // id and tag, kind filter
 		{"security", "prop", 0, []string{"prop.lock", "prop.shield"}},          // tie keeps catalog order
 		{"prop.shield", "", 0, []string{"prop.shield"}},                        // exact id first

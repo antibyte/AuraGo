@@ -42,6 +42,7 @@ var kindAliases = map[string]string{
 	"poses": "pose", "gestures": "gesture", "expr": "expression", "expressions": "expression",
 	"mouths": "mouth", "cycles": "cycle", "text": "text_style", "text_styles": "text_style",
 	"trans": "transition", "transitions": "transition", "palettes": "palette", "fonts": "font",
+	"icon": "icon", "icons": "icon",
 }
 
 // NormalizeKind returns the canonical catalog kind for a kind, alias or ID prefix, or "".
@@ -703,7 +704,7 @@ const (
 )
 
 // Search finds entries by terms over their id, name and tags. kind restricts the result (a kind,
-// alias or ID prefix; an unknown kind finds nothing). limit defaults to 6 and is capped at 12.
+// alias or ID prefix; an unknown kind finds nothing). Icons answer to kind icon or no kind, after all entries. limit defaults to 6 and is capped at 12.
 // Without terms it lists the entries of the kind in catalog order. Results are sorted by score,
 // then by catalog order.
 func (c *Catalog) Search(query, kind string, limit int) []Entry {
@@ -741,6 +742,22 @@ func (c *Catalog) Search(query, kind string, limit int) []Entry {
 			}
 		}
 		hits = append(hits, scored{e, score, i})
+	}
+	if kind == "" || kind == "icon" {
+		for i, ic := range c.icons {
+			e := iconEntry(ic)
+			score := 1
+			if len(terms) > 0 {
+				score = 0
+				for _, t := range terms {
+					score += termScore(e, t)
+				}
+				if score == 0 {
+					continue
+				}
+			}
+			hits = append(hits, scored{e, score, len(c.entries) + i})
+		}
 	}
 	sort.SliceStable(hits, func(i, j int) bool {
 		if hits[i].score != hits[j].score {

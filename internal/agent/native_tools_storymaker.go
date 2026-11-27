@@ -126,7 +126,7 @@ func storymakerCatalogTool(mode, phase string, compact bool) openai.Tool {
 				"topic":     storymakerEnum("code"),
 			}, "operation"))
 	}
-	kinds := []string{"character", "prop", "environment", "pose", "gesture", "expression", "transition", "text_style", "sfx"}
+	kinds := []string{"character", "prop", "environment", "pose", "gesture", "expression", "transition", "text_style", "sfx", "icon"}
 	if !compact || phase != storymaker.PhaseCast {
 		kinds = append(kinds, "voice")
 	}
