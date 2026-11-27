@@ -24,6 +24,12 @@ const (
 	// adaptiveUsageMaxAdded bounds the tools that usage alone puts in the
 	// fused head; the rest of the usage list only fills slots that stay free.
 	adaptiveUsageMaxAdded = 4
+	// adaptiveExternalWeight and adaptiveExternalMaxAdded keep the fenced
+	// external text of a message (a mail body, say) a weak signal: the sender's
+	// text may suggest a few tools but never decides the selection, so it
+	// weighs like a seed and at most this many tools owe their place to it.
+	adaptiveExternalWeight   = 0.5
+	adaptiveExternalMaxAdded = 3
 	// adaptiveLeaderPlaces is how far down the signals may push the best
 	// lexical hit: it stays among the first this many tools behind the exact
 	// matches. A tool that only one signal ranks never passes it (every signal
@@ -40,9 +46,12 @@ type adaptivePriorityInput struct {
 	// Usage lists the tools the user relies on, most relied-on first.
 	Usage []string
 	// Query is the user message.
-	Query  string
-	Guides toolGuideSearcher
-	Logger *slog.Logger
+	Query string
+	// External is the fenced external text of the message; it only feeds a
+	// weak, capped signal.
+	External string
+	Guides   toolGuideSearcher
+	Logger   *slog.Logger
 	// Held are tools the selection includes anyway (hard and soft ones). They
 	// still rank, but a family seed does not spend one of its places on them.
 	Held []string
@@ -61,7 +70,8 @@ func buildAdaptiveToolPriority(schemas []openai.Tool, weightedUsage []string, us
 //     semantic manual search and three weighted signals: the tools whose name
 //     the request spells out, the seeds of its family and cues, and the
 //     tools the user relies on (at most adaptiveUsageMaxAdded of them that no
-//     other signal found);
+//     other signal found), and the search hits of the fenced external text
+//     (at most adaptiveExternalMaxAdded of them that no other signal found);
 //   - then the curated neighbours of everything ranked so far;
 //   - then the rest of the usage list, which fills the slots that stay free.
 //
@@ -144,11 +154,30 @@ func rankAdaptiveTools(in adaptivePriorityInput) []string {
 		}
 	}
 
+	// The fenced external text ranks like the request: exact matches first,
+	// then the lexical hits, the intent-only tools left out.
+	var externalRanked []string
+	if in.External != "" {
+		var exact, other []string
+		for _, hit := range catalog.rankedSearch(boundToolSearchQuery(in.External)) {
+			if slices.Contains(adaptiveIntentOnlyTools, hit.Entry.Name) {
+				continue
+			}
+			if hit.Tier > toolSearchTierLexical {
+				exact = append(exact, hit.Entry.Name)
+			} else {
+				other = append(other, hit.Entry.Name)
+			}
+		}
+		externalRanked = slices.Concat(exact, other)
+	}
+
 	held := stringSet(in.Held)
 	signals := []toolRankSignal{
 		{Names: extractIntentMatchedTools(userQuery, rankable), Weight: adaptiveIntentWeight},
 		{Names: adaptiveSeedsForQuery(userQuery, func(name string) bool { return rankableSet[name] && !held[name] }), Weight: adaptiveSeedWeight},
 		{Names: rankableNames(in.Usage, rankableSet), Weight: adaptiveUsageWeight, MaxAdded: adaptiveUsageMaxAdded},
+		{Names: externalRanked, Weight: adaptiveExternalWeight, MaxAdded: adaptiveExternalMaxAdded},
 	}
 	fused := fuseToolRanking(pinned, lexical, manuals, members, prompts.IsNonDisplacingManual, adaptiveToolFusion, signals...)
 	if len(lexical) > 0 {

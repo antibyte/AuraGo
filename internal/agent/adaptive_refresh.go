@@ -19,6 +19,8 @@ type adaptiveRefreshInput struct {
 	// Runs that never re-inject schemas (a prepared prompt among them) never
 	// refresh.
 	Plan *adaptiveSelectionPlan
+	// OutputRef reports that a message of the run carries an output reference.
+	OutputRef bool
 	// Tools are the candidate schemas: the previous list with swapped-out
 	// partners back in and the requested tools added.
 	Tools []openai.Tool
@@ -59,9 +61,10 @@ func recordRequestOrder(order, names []string) []string {
 // runs before every model call.
 //
 // The order of precedence, with a plan: hard tools; the plan's soft tools
-// (configured, voice, channel, read_tool_output, the media generators the
-// request asked for, the session's tools at the first selection, the requests
-// of the first selection); the discover_tools requests, this call's first and
+// (configured, voice, channel, read_tool_output, the user's most used tools,
+// the media generators the request asked for, the session's tools at the
+// first selection, the requests of the first selection, and read_tool_output
+// once a result carries an output reference); the discover_tools requests, this call's first and
 // then the earlier ones, newest first; the tools the run used since; the
 // plan's ranking; every other candidate. Only the soft classes are reserved:
 // requests, used tools and ranked tools share MaxAdaptiveTools and the caps in
@@ -92,6 +95,9 @@ func adaptiveRefreshFilterOptions(in adaptiveRefreshInput) toolSchemaFilterOptio
 	}
 	if in.Plan != nil {
 		opts.SoftAlwaysTools = slices.Clone(in.Plan.Options.SoftAlwaysTools)
+		if in.OutputRef && !slices.Contains(opts.SoftAlwaysTools, "read_tool_output") {
+			opts.SoftAlwaysTools = append(opts.SoftAlwaysTools, "read_tool_output")
+		}
 		held := stringSet(slices.Concat(opts.SoftAlwaysTools, opts.HardAlwaysTools))
 		used := toolsUsedThisRun(in.SessionUsed, in.Recent, held, present)
 		opts.PreferredTools = slices.Concat(requests, used, in.Plan.Priority, names)

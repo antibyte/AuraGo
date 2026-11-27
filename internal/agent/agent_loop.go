@@ -753,6 +753,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					req.Tools = append(req.Tools, schema)
 				}
 			}
+			outputRef := s.adaptivePlan != nil && messagesCarryOutputRef(req.Messages)
+			req.Tools = outputRefCandidateSchemas(req.Tools, all, outputRef)
 			if toolingPolicy.StructuredOutputsEnabled {
 				req.Tools = strictSchemasForActiveTools(s.nativeSchemaSnapshot, req.Tools)
 			}
@@ -771,6 +773,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				RunConfig:       runCfg,
 				Features:        ff,
 				Plan:            s.adaptivePlan,
+				OutputRef:       outputRef,
 				Tools:           req.Tools,
 				Requested:       requested,
 				RequestOrder:    s.discoverRequestOrder,

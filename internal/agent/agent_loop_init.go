@@ -140,7 +140,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 			}
 		}
 	}
-	adaptiveUserContext := initialUserMsg
+	adaptiveUserContext, adaptiveExternalContext := adaptiveRankingQuery(initialUserMsg)
 	isFirstTurn := isFirstUserMessageInSession(req.Messages)
 	plannerContext := plannerPromptContextText(runCfg, initialUserMsg, time.Now(), isFirstTurn, logger)
 	dailyTodoReminder := dailyTodoReminderText(runCfg, initialUserMsg, time.Now(), logger)
@@ -427,6 +427,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 				Features:  ff,
 				Schemas:   allSchemas,
 				Query:     adaptiveUserContext,
+				External:  adaptiveExternalContext,
 				Messages:  req.Messages,
 				Usage:     frequent,
 				Guides:    guideSearcher,

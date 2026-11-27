@@ -20,8 +20,12 @@ type adaptiveSelectionInput struct {
 	Features  ToolFeatureFlags
 	// Schemas are all native tools the run could offer.
 	Schemas []openai.Tool
-	// Query is the user message the selection serves.
+	// Query is the trusted ranking text of the user message
+	// (adaptiveRankingQuery) the selection serves.
 	Query string
+	// External is the fenced external text of the message, ranked as a weak
+	// signal; empty when the ranking query kept the whole message.
+	External string
 	// Messages are the request messages: a tool output reference in them keeps
 	// read_tool_output.
 	Messages []openai.ChatCompletionMessage
@@ -59,6 +63,9 @@ type adaptiveSelectionPlan struct {
 	Requested []string
 	// Seeds are the tools the family and cues of the request make likely.
 	Seeds []string
+	// Habit are the user's most used tools, held as soft tools so the first
+	// selection keeps them whatever the request says.
+	Habit []string
 	// Priority is the full ranking the adaptive slots were filled from.
 	Priority []string
 }
@@ -89,11 +96,18 @@ func planAdaptiveFirstSelection(in adaptiveSelectionInput) adaptiveSelectionPlan
 
 	// A tool the selection holds anyway needs no place among the seeds.
 	held := stringSet(append(slices.Clone(hard), soft...))
+	offered := stringSet(toolSchemaNames(in.Schemas))
+	if !in.RunConfig.IsCoAgent { // a delegated task is not the user's habit
+		plan.Habit = adaptiveHabitTools(in.Usage, offered, held)
+	}
+	soft = append(soft, plan.Habit...)
+	for _, name := range plan.Habit {
+		held[name] = true
+	}
 	plan.Priority = rankAdaptiveTools(adaptivePriorityInput{
-		Schemas: in.Schemas, Usage: in.Usage, Query: in.Query, Guides: in.Guides, Logger: in.Logger,
+		Schemas: in.Schemas, Usage: in.Usage, Query: in.Query, External: in.External, Guides: in.Guides, Logger: in.Logger,
 		Held: sortedKeys(held),
 	})
-	offered := stringSet(toolSchemaNames(in.Schemas))
 	plan.Seeds = adaptiveSeedsForQuery(boundToolSearchQuery(in.Query), func(name string) bool {
 		return offered[name] && !held[name] && !slices.Contains(adaptiveIntentOnlyTools, name)
 	})
@@ -112,6 +126,25 @@ func planAdaptiveFirstSelection(in adaptiveSelectionInput) adaptiveSelectionPlan
 		AdditiveSwaps:         adaptiveSwapsForQuery(in.Query),
 	}
 	return plan
+}
+
+// adaptiveHabitSlots is how many of the user's most used tools the first
+// selection keeps whatever the request says.
+const adaptiveHabitSlots = 2
+
+// adaptiveHabitTools picks the most used tools that are offered, not held yet
+// and not intent-only (those never belong to a habit).
+func adaptiveHabitTools(usage []string, offered, held map[string]bool) []string {
+	var out []string
+	for _, name := range usage {
+		if len(out) == adaptiveHabitSlots {
+			break
+		}
+		if offered[name] && !held[name] && !slices.Contains(adaptiveIntentOnlyTools, name) && !slices.Contains(out, name) {
+			out = append(out, name)
+		}
+	}
+	return out
 }
 
 // sortedKeys lists the true keys of a set in a stable order.

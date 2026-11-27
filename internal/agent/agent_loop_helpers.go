@@ -785,6 +785,26 @@ func outputRefAdaptiveAlwaysInclude(messages []openai.ChatCompletionMessage, alw
 	return alwaysInclude
 }
 
+// messagesCarryOutputRef reports whether a message holds a tool output reference.
+func messagesCarryOutputRef(messages []openai.ChatCompletionMessage) bool {
+	return len(outputRefAdaptiveAlwaysInclude(messages, nil)) > 0
+}
+
+// outputRefCandidateSchemas re-adds read_tool_output from the run's full set
+// when a result carries an output reference, so the refresh can offer it even
+// if the first selection left it out.
+func outputRefCandidateSchemas(tools, all []openai.Tool, carries bool) []openai.Tool {
+	if !carries || toolSchemaExists("read_tool_output", tools) {
+		return tools
+	}
+	for _, s := range all {
+		if s.Function != nil && s.Function.Name == "read_tool_output" {
+			return append(slices.Clip(tools), s)
+		}
+	}
+	return tools
+}
+
 func expandAdaptiveAlwaysInclude(cfg *config.Config, alwaysInclude []string) []string {
 	if cfg == nil {
 		return alwaysInclude

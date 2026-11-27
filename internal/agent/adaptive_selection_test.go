@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"aurago/internal/security"
 	"fmt"
 	"slices"
 	"testing"
@@ -415,5 +416,127 @@ func TestRefreshWithoutAPlanRanksByPosition(t *testing.T) {
 	opts = adaptiveRefreshFilterOptions(adaptiveRefreshInput{Config: cfg, Tools: tools, SessionUsed: map[string]bool{"a": true}, InitFiltered: true})
 	if !slices.Equal(opts.SwapProtectedTools, []string{"a"}) {
 		t.Errorf("protected = %v", opts.SwapProtectedTools)
+	}
+}
+
+func TestPlanAdaptiveFirstSelectionKeepsTheTopUsageTools(t *testing.T) {
+	ff := allBuiltinToolFeatureFlags()
+	ff.LocalWikipediaEnabled = true
+	cfg := &config.Config{}
+	cfg.Agent.AdaptiveTools.AlwaysInclude = []string{"filesystem"}
+	schemas := BuildNativeToolSchemas(t.TempDir(), nil, ff, nil)
+	in := adaptiveSelectionInput{
+		Config: cfg, RunConfig: RunConfig{Config: cfg}, Features: ff, Schemas: schemas,
+		Query:       "play some music and make a short video game clip",
+		Usage:       []string{"local_wikipedia", "discover_tools", "filesystem", "manage_journal", "read_tool_output", "docker"},
+		MaxAdaptive: 12, MaxTotal: 24,
+	}
+	plan := planAdaptiveFirstSelection(in)
+	habit := []string{"manage_journal", "read_tool_output"}
+	if !slices.Equal(plan.Habit, habit) {
+		t.Fatalf("habit = %v, want %v", plan.Habit, habit)
+	}
+	got := toolSchemaNames(filterToolSchemasWithReport(schemas, plan.Options, nil).Tools)
+	for _, name := range habit {
+		if !slices.Contains(plan.Options.SoftAlwaysTools, name) || !slices.Contains(got, name) {
+			t.Errorf("%s is not held: soft %v, offered %v", name, plan.Options.SoftAlwaysTools, got)
+		}
+		if slices.Contains(plan.Seeds, name) {
+			t.Errorf("%s is a seed as well: %v", name, plan.Seeds)
+		}
+	}
+	refreshed := adaptiveRefreshFilterOptions(adaptiveRefreshInput{
+		Config: cfg, RunConfig: in.RunConfig, Features: ff, Plan: &plan, Tools: schemas,
+		MaxAdaptive: 12, MaxTotal: 24,
+	})
+	for _, name := range habit {
+		if !slices.Contains(refreshed.SoftAlwaysTools, name) {
+			t.Errorf("the refresh dropped the habit tool %s: %v", name, refreshed.SoftAlwaysTools)
+		}
+	}
+	delegated := in
+	delegated.RunConfig.IsCoAgent = true
+	if plan := planAdaptiveFirstSelection(delegated); plan.Habit != nil {
+		t.Errorf("a delegated run got habit tools: %v", plan.Habit)
+	}
+	noUsage := in
+	noUsage.Usage = nil
+	if plan := planAdaptiveFirstSelection(noUsage); plan.Habit != nil {
+		t.Errorf("no usage got habit tools: %v", plan.Habit)
+	}
+}
+
+func TestRefreshOffersReadToolOutputForAnOutputRef(t *testing.T) {
+	ff := allBuiltinToolFeatureFlags()
+	b := selectionBudget{name: "stability 12/24/6500", adaptive: 12, total: 24, token: 6500}
+	run := startSelectionRun(t, "restart the docker container and check the cpu usage", ff, b, nil)
+	if slices.Contains(toolSchemaNames(run.first.Tools), "read_tool_output") {
+		t.Fatal("the fixture needs a first selection without read_tool_output")
+	}
+	messages := []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleTool, Content: `{"output_ref":"toolout_abc"}`}}
+	carries := messagesCarryOutputRef(messages)
+	if !carries || messagesCarryOutputRef(nil) {
+		t.Fatalf("messagesCarryOutputRef = %v", carries)
+	}
+	candidates := outputRefCandidateSchemas(restoreAdaptiveSwapPartners(run.first.Tools, run.schemas, run.swapped), run.schemas, carries)
+	opts := adaptiveRefreshFilterOptions(adaptiveRefreshInput{
+		Config: run.cfg, RunConfig: run.runCfg, Features: ff, Plan: &run.plan, OutputRef: carries, Tools: candidates,
+		InitFiltered: true, MaxAdaptive: b.adaptive, MaxTotal: b.total, MaxSchemaTokens: b.token,
+		AdditiveTools: adaptiveAdditiveToolsForQuery(run.query), AdditiveSwaps: adaptiveSwapsForQuery(run.query),
+	})
+	got := toolSchemaNames(filterToolSchemasWithReport(candidates, opts, nil).Tools)
+	if !slices.Contains(got, "read_tool_output") {
+		t.Errorf("the refresh lacks read_tool_output: %v", got)
+	}
+	held := stringSet(slices.Concat(run.plan.Options.HardAlwaysTools, run.plan.Options.SoftAlwaysTools))
+	for _, name := range toolSchemaNames(run.first.Tools) {
+		if held[name] && !slices.Contains(got, name) {
+			t.Errorf("the refresh dropped the held tool %s", name)
+		}
+	}
+	scoped := filterSchemasByAllowedTools(run.schemas, []string{"docker"})
+	if out := outputRefCandidateSchemas(run.first.Tools, scoped, true); len(out) != len(run.first.Tools) {
+		t.Errorf("a run that may not use read_tool_output got it: %v", toolSchemaNames(out))
+	}
+	if out := outputRefCandidateSchemas(run.first.Tools, run.schemas, false); len(out) != len(run.first.Tools) {
+		t.Errorf("no output reference still changed the tools: %v", toolSchemaNames(out))
+	}
+}
+
+func TestPlanAdaptiveFirstSelectionLetsTheFencedTextSuggestAFewTools(t *testing.T) {
+	ff := allBuiltinToolFeatureFlags()
+	cfg := &config.Config{}
+	cfg.Agent.AdaptiveTools.AlwaysInclude = []string{"filesystem"}
+	schemas := BuildNativeToolSchemas(t.TempDir(), nil, ff, nil)
+	selectedFor := func(message string, withExternal bool) []string {
+		query, external := adaptiveRankingQuery(message)
+		if !withExternal {
+			external = ""
+		}
+		plan := planAdaptiveFirstSelection(adaptiveSelectionInput{
+			Config: cfg, RunConfig: RunConfig{Config: cfg}, Features: ff, Schemas: schemas,
+			Query: query, External: external, MaxAdaptive: 12, MaxTotal: 24,
+		})
+		return toolSchemaNames(filterToolSchemasWithReport(schemas, plan.Options, nil).Tools)
+	}
+	wrap := func(body string) string {
+		return "[EMAIL NOTIFICATION] Account: Work (me@example.com) - 1 new email(s) in INBOX.\n\nEmail summary:\n" +
+			security.IsolateExternalData(body) +
+			"\n\nYou can use fetch_email with account \"work\" for full content or send_email to reply."
+	}
+	ci := wrap("GitHub Actions: the workflow run failed on a pull request in repository x")
+	if got := selectedFor(ci, true); !slices.Contains(got, "github") {
+		t.Errorf("the fenced GitHub text did not suggest github: %v", got)
+	}
+	news := wrap("newsletter: music, pixel art, game assets, movie streaming, smart lights, 3D printing, podcasts, photo editing")
+	base := stringSet(selectedFor(news, false))
+	extra := 0
+	for _, name := range selectedFor(news, true) {
+		if !base[name] {
+			extra++
+		}
+	}
+	if extra > adaptiveExternalMaxAdded {
+		t.Errorf("the fenced text brought %d new tools, want at most %d", extra, adaptiveExternalMaxAdded)
 	}
 }
