@@ -161,34 +161,67 @@ type HomepageManagedRemoteObservation struct {
 // EnsureHomepageProjectForDir returns a project for projectDir, creating or repairing
 // registry/project-state rows as needed. projectDir is stored relative to WorkspacePath.
 func EnsureHomepageProjectForDir(db *sql.DB, cfg HomepageConfig, projectDir, name, framework string) (*HomepageProject, error) {
+	proj, _, err := ensureHomepageProjectForDir(db, cfg, projectDir, name, framework)
+	return proj, err
+}
+
+// ensureHomepageProjectForDir is EnsureHomepageProjectForDir that also reports whether a new row was created.
+func ensureHomepageProjectForDir(db *sql.DB, cfg HomepageConfig, projectDir, name, framework string) (*HomepageProject, bool, error) {
 	if db == nil {
-		return nil, fmt.Errorf("homepage registry DB not initialized")
+		return nil, false, fmt.Errorf("homepage registry DB not initialized")
 	}
 	canonical, err := canonicalHomepageProjectDir(cfg, projectDir)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if canonical, err = NormalizeHomepageProjectIdentity(canonical, false); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if proj, err := GetProjectByDir(db, canonical); err == nil {
 		if err := bindHomepageProjectWorkspace(db, cfg, proj.ID, canonical); err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		if err := ensureHomepageProjectState(db, cfg, proj.ID, canonical, 0, "", "", ""); err != nil {
-			return nil, err
+			return nil, false, err
 		}
-		return proj, nil
+		return proj, false, nil
+	}
+	sites, err := ListHomepageManagedSites(db)
+	if err != nil {
+		return nil, false, err
+	}
+	if homepageFoldsCase {
+		// A case variant names the same directory: the registry spelling wins.
+		for _, site := range sites {
+			if site.ProjectDir != "" && homepageSiteInWorkspace(site, cfg) && homepageFoldDir(site.ProjectDir) == homepageFoldDir(canonical) {
+				proj, err := GetProject(db, site.ID)
+				if err != nil {
+					return nil, false, err
+				}
+				if err := bindHomepageProjectWorkspace(db, cfg, proj.ID, proj.ProjectDir); err != nil {
+					return nil, false, err
+				}
+				if err := ensureHomepageProjectState(db, cfg, proj.ID, proj.ProjectDir, 0, "", "", ""); err != nil {
+					return nil, false, err
+				}
+				return proj, false, nil
+			}
+		}
+	}
+	if err := homepageCheckProjectOverlap(sites, cfg, canonical, 0); err != nil {
+		return nil, false, err
 	}
 
 	if info, err := os.Stat(homepageLocalRoot(cfg, canonical)); err == nil && !info.IsDir() {
-		return nil, fmt.Errorf("project_dir must name a directory, not a file")
+		return nil, false, fmt.Errorf("project_dir must name a directory, not a file")
 	} else if err != nil && !os.IsNotExist(err) {
-		return nil, fmt.Errorf("inspect homepage project directory: %w", err)
+		return nil, false, fmt.Errorf("inspect homepage project directory: %w", err)
 	}
 
 	if strings.TrimSpace(name) == "" {
-		name = homepageProjectNameFromDir(canonical)
+		if name, err = homepageFreeProjectName(db, homepageProjectNameFromDir(canonical)); err != nil {
+			return nil, false, err
+		}
 	}
 	id, existed, err := RegisterProject(db, HomepageProject{
 		Name:       name,
@@ -198,29 +231,30 @@ func EnsureHomepageProjectForDir(db *sql.DB, cfg HomepageConfig, projectDir, nam
 		Tags:       []string{"auto-registered"},
 	})
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if existed {
 		current, getErr := GetProject(db, id)
 		if getErr != nil {
-			return nil, getErr
+			return nil, false, getErr
 		}
 		if current.ProjectDir != canonical {
-			return nil, fmt.Errorf("homepage project identity mismatch: existing project %d has project_dir %q, requested %q", id, current.ProjectDir, canonical)
+			return nil, false, fmt.Errorf("homepage project identity mismatch: existing project %d has project_dir %q, requested %q", id, current.ProjectDir, canonical)
 		}
 		if framework != "" && current.Framework == "" {
 			if updateErr := UpdateProject(db, id, map[string]interface{}{"framework": framework}); updateErr != nil {
-				return nil, updateErr
+				return nil, false, updateErr
 			}
 		}
 	}
 	if err := bindHomepageProjectWorkspace(db, cfg, id, canonical); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if err := ensureHomepageProjectState(db, cfg, id, canonical, 0, "", "", ""); err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	return GetProject(db, id)
+	proj, err := GetProject(db, id)
+	return proj, !existed, err
 }
 
 // RecordHomepageEvent appends one structured ledger event.

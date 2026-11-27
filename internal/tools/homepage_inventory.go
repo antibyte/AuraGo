@@ -88,12 +88,15 @@ func ResolveHomepageProjectDir(db *sql.DB, cfg HomepageConfig, path, explicit st
 	if managedID > 0 {
 		site, err := GetHomepageManagedSite(db, managedID)
 		if err != nil {
-			return "", err
+			return "", homepageSiteLookupError(err, managedID)
 		}
 		if !homepageSiteInWorkspace(site, cfg) {
 			return "", fmt.Errorf("site belongs to a different workspace")
 		}
-		if explicit != "" && explicit != site.ProjectDir {
+		if site.ProjectDir == "" && strings.TrimSpace(path) != "" {
+			return "", fmt.Errorf("managed site %d is remote-only and has no local project directory; attach one with homepage_registry relocate first, or omit managed_site_id", managedID)
+		}
+		if explicit != "" && homepageFoldDir(explicit) != homepageFoldDir(site.ProjectDir) {
 			return "", fmt.Errorf("managed_site_id and project_dir disagree")
 		}
 		explicit = site.ProjectDir
@@ -107,8 +110,17 @@ func ResolveHomepageProjectDir(db *sql.DB, cfg HomepageConfig, path, explicit st
 		if err != nil {
 			return "", err
 		}
-		if path != "" && path != dir && !strings.HasPrefix(path, dir+"/") {
+		if path != "" && !homepageDirInside(path, dir) {
 			return "", fmt.Errorf("path does not belong to project_dir")
+		}
+		if homepageFoldsCase && db != nil {
+			if sites, err := ListHomepageManagedSites(db); err == nil {
+				for _, site := range sites {
+					if site.ProjectDir != "" && homepageSiteInWorkspace(site, cfg) && homepageFoldDir(site.ProjectDir) == homepageFoldDir(dir) {
+						return site.ProjectDir, nil
+					}
+				}
+			}
 		}
 		return dir, nil
 	}
@@ -121,7 +133,7 @@ func ResolveHomepageProjectDir(db *sql.DB, cfg HomepageConfig, path, explicit st
 	}
 	best := ""
 	for _, site := range sites {
-		if homepageSiteInWorkspace(site, cfg) && (path == site.ProjectDir || strings.HasPrefix(path, site.ProjectDir+"/")) && len(site.ProjectDir) > len(best) {
+		if homepageSiteInWorkspace(site, cfg) && site.ProjectDir != "" && homepageDirInside(path, site.ProjectDir) && len(site.ProjectDir) > len(best) {
 			best = site.ProjectDir
 		}
 	}
@@ -250,7 +262,7 @@ func DispatchHomepageInventory(cfg HomepageConfig, db *sql.DB, operation string,
 		}
 		site, err := GetHomepageManagedSite(db, id)
 		if err != nil {
-			return ErrorJSON(err.Error()), true
+			return ErrorJSON(homepageSiteLookupError(err, id).Error()), true
 		}
 		output["site"] = site
 	case "list_events":
@@ -278,7 +290,7 @@ func DispatchHomepageInventory(cfg HomepageConfig, db *sql.DB, operation string,
 		}
 		site, err := GetHomepageManagedSite(db, id)
 		if err != nil {
-			return ErrorJSON(err.Error()), true
+			return ErrorJSON(homepageSiteLookupError(err, id).Error()), true
 		}
 		dir, err := NormalizeHomepageProjectIdentity(projectDir, false)
 		if err != nil {
@@ -295,6 +307,11 @@ func DispatchHomepageInventory(cfg HomepageConfig, db *sql.DB, operation string,
 		}
 		if other, err := GetProjectByDir(db, dir); err == nil && other.ID != id {
 			return ErrorJSON("new project_dir belongs to another project"), true
+		}
+		if sites, err := ListHomepageManagedSites(db); err != nil {
+			return ErrorJSON(err.Error()), true
+		} else if err := homepageCheckProjectOverlap(sites, cfg, dir, id); err != nil {
+			return ErrorJSON(err.Error()), true
 		}
 		tx, err := db.Begin()
 		if err != nil {

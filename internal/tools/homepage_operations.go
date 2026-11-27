@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -167,13 +168,14 @@ func ExecuteHomepageOperation(cfg HomepageConfig, db *sql.DB, op HomepageOperati
 	}
 	var proj *HomepageProject
 	var err error
+	siteCreated := false
 	if op.ProjectID > 0 {
 		proj, err = GetProject(db, op.ProjectID)
 		if err == nil && proj.ProjectDir != "" {
-			proj, err = EnsureHomepageProjectForDir(db, cfg, proj.ProjectDir, "", "")
+			proj, _, err = ensureHomepageProjectForDir(db, cfg, proj.ProjectDir, "", "")
 		}
 	} else {
-		proj, err = EnsureHomepageProjectForDir(db, cfg, op.ProjectDir, "", "")
+		proj, siteCreated, err = ensureHomepageProjectForDir(db, cfg, op.ProjectDir, "", "")
 	}
 	if err != nil {
 		return ErrorJSON(err.Error())
@@ -182,6 +184,10 @@ func ExecuteHomepageOperation(cfg HomepageConfig, db *sql.DB, op HomepageOperati
 		return ErrorJSON("project is archived; explicitly adopt/reactivate it before changing files")
 	}
 	op.ProjectDir = proj.ProjectDir
+	warnings := []string{}
+	if siteCreated && op.Name != "init_project" {
+		warnings = append(warnings, fmt.Sprintf("registered new managed site %q (managed_site_id %d) because no registered site owns this path; if you meant an existing site, retry with its managed_site_id", proj.ProjectDir, proj.ID))
+	}
 	if _, err := recordHomepageOperationEvent(db, proj.ID, op, "operation_started", "pending", nil); err != nil {
 		return ErrorJSON(err.Error())
 	}
@@ -266,6 +272,10 @@ func ExecuteHomepageOperation(cfg HomepageConfig, db *sql.DB, op HomepageOperati
 					continue
 				}
 				created, err := EnsureHomepageProjectForDir(db, cfg, candidate.ProjectDir, "", "")
+				if errors.Is(err, errHomepageProjectOverlap) {
+					warnings = append(warnings, fmt.Sprintf("discovered directory %q was not registered as a site: %s", candidate.ProjectDir, err.Error()))
+					continue
+				}
 				if err != nil {
 					ledgerErr = err
 					continue
@@ -367,6 +377,28 @@ func ExecuteHomepageOperation(cfg HomepageConfig, db *sql.DB, op HomepageOperati
 	}
 	if ledgerErr != nil {
 		return homepageOperationPersistenceError(result, op, ledgerErr)
+	}
+	if siteCreated && op.Name != "init_project" {
+		result["site_created"] = true
+	}
+	if len(warnings) > 0 {
+		merged := []interface{}{}
+		switch existing := result["warnings"].(type) {
+		case []interface{}:
+			merged = append(merged, existing...)
+		case []string:
+			for _, w := range existing {
+				merged = append(merged, w)
+			}
+		case string:
+			if existing != "" {
+				merged = append(merged, existing)
+			}
+		}
+		for _, w := range warnings {
+			merged = append(merged, w)
+		}
+		result["warnings"] = merged
 	}
 	return homepageOperationResult(result, op, proj.ID, revisionID)
 }
