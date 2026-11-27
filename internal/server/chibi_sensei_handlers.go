@@ -71,6 +71,19 @@ func handleChibiSensei(s *Server) http.HandlerFunc {
 				return
 			}
 			handleChibiRunRoute(s, w, r, parts[1], parts[2:])
+		case len(parts) == 1 && parts[0] == "runtime":
+			handleChibiRuntime(s, w, r)
+		case len(parts) == 2 && parts[0] == "runtime":
+			switch parts[1] {
+			case "chat":
+				handleChibiChat(s, w, r)
+			case "install":
+				handleChibiRuntimeInstall(s, w, r)
+			case "stop":
+				handleChibiRuntimeStop(s, w, r)
+			default:
+				chibiNotFound(w)
+			}
 		case len(parts) == 1 && parts[0] == "consents":
 			handleChibiConsents(s, w, r)
 		case len(parts) == 2 && parts[0] == "preflight" && parts[1] == "enable":
@@ -185,9 +198,15 @@ func handleChibiRunRoute(s *Server, w http.ResponseWriter, r *http.Request, runI
 			handleChibiRunReport(s, w, r, runID)
 		case "log":
 			handleChibiRunLog(s, w, r, runID)
+		case "test":
+			handleChibiRunTest(s, w, r, runID)
+		case "samples":
+			handleChibiRunSamples(s, w, r, runID)
 		default:
 			chibiNotFound(w)
 		}
+	case len(rest) == 2 && rest[0] == "report" && rest[1] == "seen":
+		handleChibiReportSeen(s, w, r, runID)
 	case len(rest) == 3 && rest[0] == "artifacts" && rest[2] == "file":
 		if !chibisensei.ValidID(rest[1]) {
 			chibiArtifactNotFound(w)

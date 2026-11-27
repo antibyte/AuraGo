@@ -28,6 +28,7 @@ func chibiAPIFixture(t *testing.T) (*Server, string, string) {
 	configureDesktopAppsHandlerTest(t, s)
 	s.Logger = slog.Default()
 	s.Cfg.ChibiSensei.Enabled = true
+	s.Cfg.ChibiSensei.Runtime.Enabled = true // the loader's default; a hand-built config has the zero value
 	if err := config.NormalizeChibiSenseiConfig(&s.Cfg.ChibiSensei); err != nil {
 		t.Fatal(err)
 	}

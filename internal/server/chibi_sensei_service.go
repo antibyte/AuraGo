@@ -15,9 +15,11 @@ import (
 
 	"aurago/internal/buildinfo"
 	"aurago/internal/chibisensei"
+	"aurago/internal/chibisensei/chatrt"
 	"aurago/internal/config"
 	"aurago/internal/desktop"
 	"aurago/internal/fileutil"
+	"aurago/internal/llamacpp"
 )
 
 const (
@@ -43,6 +45,11 @@ type chibiSenseiRuntime struct {
 	orch        *chibisensei.Orchestrator
 	plans       *chibisensei.PlanTokens
 	kaggleReads *chibiKaggleReads
+
+	chat   *chatrt.Manager // the local llama.cpp runtime of the Test step
+	chatMu sync.Mutex
+	// chatRuns maps an instance key to the run that used it last (guarded by chatMu).
+	chatRuns map[string]string
 
 	retiring chan struct{} // closed when the runtime is retired; long streams end on it
 	drained  chan struct{} // closed after the store is closed
@@ -96,7 +103,19 @@ func (s *Server) openChibiRuntime(dataDir string) (*chibiSenseiRuntime, error) {
 	if s.Logger != nil {
 		orch.SetLogger(s.Logger)
 	}
+	var launcher chatrt.Launcher = chatrt.NativeLauncher()
+	if s.chibiSenseiLauncherOverride != nil {
+		launcher = s.chibiSenseiLauncherOverride
+	}
+	chat := chatrt.NewManager(s.chibiChatConfig(dataDir), launcher, s.Logger)
+	orch.SetSmoker(chibiSmoker{chat: chat, log: s.Logger})
+	chatCtx := s.integrationCtx
+	if chatCtx == nil {
+		chatCtx = context.Background()
+	}
+	chat.Start(chatCtx)
 	rt := &chibiSenseiRuntime{
+		chat: chat, chatRuns: map[string]string{},
 		dataDir: dataDir, store: store, catalog: catalog, hub: hub, jobs: jobs,
 		deletes: chibisensei.NewDeleteTokens(nil),
 		driver:  driver, orch: orch, plans: chibisensei.NewPlanTokens(nil), kaggleReads: &chibiKaggleReads{},
@@ -233,7 +252,8 @@ func (s *Server) chibiLeaseRelease(rt *chibiSenseiRuntime) func() {
 // finishChibiRetire stops the run orchestrator and the job runner of a retired runtime (before its store goes) and closes the
 // store when no handler holds the runtime any more; otherwise the last release closes it.
 func (s *Server) finishChibiRetire(rt *chibiSenseiRuntime) {
-	rt.orch.Close()
+	rt.orch.Close() // first: it ends a running smoke generation
+	rt.chat.Close()
 	rt.jobs.Close()
 	s.chibiSenseiMu.Lock()
 	rt.jobsClosed = true
@@ -429,6 +449,7 @@ func chibiSenseiAuthorize(s *Server, w http.ResponseWriter, r *http.Request, sco
 //	ErrNotArchived → 409 not_archived; ErrAlreadyUndone → 409 already_undone; ErrUndoConflict → 409 undo_conflict; ErrJobActive → 409 job_active;
 //	ErrDataChanged → 409 data_changed; ErrFileTooLarge → 413 file_too_large;
 //	ErrRunActive → 409 run_active; ErrRunNotTerminal → 409 run_not_terminal;
+//	ErrRunNotSucceeded → 409 run_not_succeeded; ErrSamplesMissing → 404 samples_missing;
 //	other → 500 storage_failed (logged, never the error text).
 func chibiDomainError(w http.ResponseWriter, err error) {
 	var ve *chibisensei.ValidationError
@@ -461,6 +482,10 @@ func chibiDomainError(w http.ResponseWriter, err error) {
 		writeChibiError(w, http.StatusConflict, "run_active", "A training run is active.", nil)
 	case errors.Is(err, chibisensei.ErrRunNotTerminal):
 		writeChibiError(w, http.StatusConflict, "run_not_terminal", "The training run has not ended.", nil)
+	case errors.Is(err, chibisensei.ErrRunNotSucceeded):
+		writeChibiError(w, http.StatusConflict, "run_not_succeeded", "The training run did not succeed.", nil)
+	case errors.Is(err, chibisensei.ErrSamplesMissing):
+		writeChibiError(w, http.StatusNotFound, "samples_missing", "The run has no evaluation examples.", nil)
 	default:
 		if !errors.Is(err, context.Canceled) {
 			slog.Warn("[ChibiSensei] Request failed", "error", err)
@@ -555,5 +580,9 @@ func handleChibiMeta(s *Server, w http.ResponseWriter, r *http.Request) {
 		"training": map[string]any{"backend": chibisensei.BackendKaggle, "machine_shape": training.MachineShape,
 			"delete_remote_after_run": training.DeleteRemoteAfterRun},
 		"run_states": chibisensei.RunStates(),
+		"runtime": map[string]any{"enabled": acc.cfg.ChibiSensei.Runtime.Enabled, "backend": acc.cfg.ChibiSensei.Runtime.Backend,
+			"build": llamacpp.Build},
+		"chat": map[string]any{"max_targets": chibiChatMaxTargets, "max_turns": chibiChatMaxTurns, "max_chars": chibiChatMaxChars,
+			"max_tokens_cap": chibiChatMaxTokensCap},
 	})
 }

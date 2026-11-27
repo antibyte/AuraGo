@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"aurago/internal/chibisensei"
+	"aurago/internal/chibisensei/chatrt/chatrttest"
 	"aurago/internal/desktop"
 
 	"github.com/go-rod/rod"
@@ -161,6 +163,9 @@ func TestChibiSenseiAppRealServerBrowser(t *testing.T) {
 		t.Skip("set AURAGO_RUN_BROWSER_SMOKE=1 to run the Chibi Sensei real-server browser smoke")
 	}
 	s, _, _ := chibiAPIFixture(t)
+	fake := chatrttest.New(true) // the chat runtime of the test-and-compare path: no process, no network
+	fake.Replies["tuned:"], fake.Replies["base:"] = "Tuned answer.", "Base answer."
+	s.chibiSenseiLauncherOverride = fake
 	s.Cfg.Auth.Enabled = false
 	page, origin := csnbPage(t, s)
 
@@ -249,4 +254,91 @@ func TestChibiSenseiAppRealServerBrowser(t *testing.T) {
 	if res.StatusCode != http.StatusOK || !strings.Contains(string(body), `"runs":[]`) {
 		t.Fatalf("GET /runs = %d %s, want no run", res.StatusCode, body)
 	}
+
+	// 10. Test and compare: seed a project with a succeeded run (both model files, three examples and a report).
+	rt, release, err := s.acquireChibiSensei()
+	if err != nil {
+		t.Fatal(err)
+	}
+	project2, err := rt.store.CreateProject(context.Background(), chibisensei.ProjectInput{Name: "Test project", Recipe: chibisensei.RecipeAssistant,
+		GoalText: "Answer politely.", ProfileID: "qwen35-0p8b"})
+	if err != nil {
+		release()
+		t.Fatal(err)
+	}
+	runID := chibiSucceededTestRun(t, rt, project2.ID, "qwen35-0p8b", true, 3)
+	release()
+
+	// 11. Back to the project list and into the seeded project.
+	csnbClick(t, page, "the back button leads to the project list", `[data-csn="back"]`)
+	card := `[data-csn="project-card"][data-id="` + project2.ID + `"]`
+	csnbWait(t, page, "the seeded project is listed", `()=>!!document.querySelector(`+csnbJS(card)+`)`)
+	csnbClick(t, page, "the seeded project opens", card)
+	csnbWait(t, page, "the seeded project is open", `()=>document.querySelector('[data-csn="project-name"]')?.textContent==='Test project'`)
+
+	// 12. The Test step is ready; open it.
+	testStep := `[data-csn="step"][data-step="test"][data-state="ready"]`
+	csnbWait(t, page, "the Test step is ready", `()=>!!document.querySelector(`+csnbJS(testStep)+`)`)
+	csnbClick(t, page, "the Test step opens", testStep)
+	csnbWait(t, page, "the Test view shows", `()=>!!document.querySelector('[data-csn="test"]')`)
+
+	// 13. The report card.
+	csnbClick(t, page, "the report view opens", `[data-csn="test-view"][data-view="report"]`)
+	csnbWait(t, page, "the report card shows", `()=>!!document.querySelector('[data-csn="report-card"]')`)
+
+	// 14. The examples: exactly three.
+	csnbClick(t, page, "the examples view opens", `[data-csn="test-view"][data-view="samples"]`)
+	csnbWait(t, page, "three examples show", `()=>document.querySelectorAll('[data-csn="sample"]').length===3`)
+
+	// 15. The chat view: the runtime is installed (the fake), so the strip says ready and the comparison can be switched on.
+	csnbClick(t, page, "the chat view opens", `[data-csn="test-view"][data-view="chat"]`)
+	csnbWait(t, page, "the runtime strip says ready", `()=>!!document.querySelector('[data-csn="runtime-strip"][data-state="ready"]')`)
+	csnbWait(t, page, "the compare switch is enabled", `()=>{const e=document.querySelector('[data-csn="chat-compare"]');return !!e&&!e.disabled;}`)
+
+	// 16. Compare with the base model: two columns.
+	csnbClick(t, page, "the compare switch is turned on", `[data-csn="chat-compare"]`)
+	csnbWait(t, page, "the tuned column shows", `()=>!!document.querySelector('[data-csn="chat-column"][data-target="tuned"]')`)
+	csnbWait(t, page, "the base column shows", `()=>!!document.querySelector('[data-csn="chat-column"][data-target="base"]')`)
+
+	// 17. One message to both models.
+	csnbType(t, page, "the chat message is typed", `[data-csn="chat-input"]`, "Hello there")
+	csnbClick(t, page, "the send button sends the message", `[data-csn="chat-send"]`)
+
+	// 18. Both answers arrive.
+	csnbWait(t, page, "the tuned answer is done", `()=>(document.querySelector('[data-csn="chat-answer"][data-target="tuned"][data-state="done"]')?.textContent||'').includes('Tuned answer.')`)
+	csnbWait(t, page, "the base answer is done", `()=>(document.querySelector('[data-csn="chat-answer"][data-target="base"][data-state="done"]')?.textContent||'').includes('Base answer.')`)
+
+	// 19. Still no script error and no failed request to the app's API.
+	if got := page.MustEval(`()=>JSON.stringify(window.fixtureErrors)`).String(); got != "[]" {
+		t.Fatalf("script errors in the page after the chat: %s\nstate: %s", got, csnbDump(page))
+	}
+	if got := page.MustEval(`()=>JSON.stringify(window.failedChibi)`).String(); got != "[]" {
+		t.Fatalf("failed requests to /api/desktop/chibi-sensei/ after the chat: %s\nstate: %s", got, csnbDump(page))
+	}
+
+	// 20. Cross-check through the API: the report was marked as seen, the Test step is done, two models were launched.
+	if got := csnbGet(t, origin+chibiSenseiAPIBase+"/runs/"+runID); !strings.Contains(got, `"report_seen":true`) {
+		t.Fatalf("GET /runs/%s = %s, want report_seen true", runID, got)
+	}
+	if got := csnbGet(t, origin+chibiSenseiAPIBase+"/projects/"+project2.ID); !strings.Contains(got, `"test":"done"`) {
+		t.Fatalf("GET /projects/%s = %s, want steps.test done", project2.ID, got)
+	}
+	if n := len(fake.Launches()); n != 2 {
+		t.Fatalf("%d models launched, want 2", n)
+	}
+}
+
+// csnbGet reads one API answer as text and requires status 200.
+func csnbGet(t *testing.T, url string) string {
+	t.Helper()
+	res, err := http.Get(url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	body, _ := io.ReadAll(res.Body)
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("GET %s = %d %s", url, res.StatusCode, body)
+	}
+	return string(body)
 }

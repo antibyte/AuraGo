@@ -31,6 +31,7 @@ import (
 	"aurago/internal/bluetooth"
 	"aurago/internal/budget"
 	"aurago/internal/chibisensei"
+	"aurago/internal/chibisensei/chatrt"
 	"aurago/internal/config"
 	"aurago/internal/cyd"
 	"aurago/internal/cydcreator"
@@ -402,6 +403,8 @@ type Server struct {
 	chibiSenseiLLMOverride llm.ChatClient
 	// chibiSenseiKaggleOverride replaces the Kaggle driver of the next opened runtime in tests (read in openChibiRuntime).
 	chibiSenseiKaggleOverride chibisensei.KaggleDriver
+	// chibiSenseiLauncherOverride replaces the chat runtime launcher of the next opened runtime in tests (read in openChibiRuntime).
+	chibiSenseiLauncherOverride chatrt.Launcher
 	// chibiSenseiNoReconcile keeps the run orchestrator from starting in tests (read in chibiStartOrchestrator).
 	chibiSenseiNoReconcile bool
 	// chibiFreeDiskOverride replaces fileutil.FreeDiskBytes in the training preflight in tests (read in chibiFreeDisk).

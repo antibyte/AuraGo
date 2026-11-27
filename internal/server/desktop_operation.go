@@ -46,7 +46,7 @@ func desktopRequestOperation(r *http.Request) desktopOperation {
 			(len(parts) == 6 && parts[0] == "api" && parts[1] == "desktop" && parts[2] == "chibi-sensei" && parts[3] == "jobs" && parts[5] == "cancel") ||
 			(len(parts) == 6 && parts[0] == "api" && parts[1] == "desktop" && parts[2] == "chibi-sensei" && parts[3] == "runs" && parts[5] == "cancel") ||
 			(len(parts) == 6 && parts[0] == "api" && parts[1] == "desktop" && parts[2] == "personal-radio" && parts[3] == "stations" && (parts[5] == "stop" || parts[5] == "pause")) ||
-			path == "/api/desktop/rtl-sdr/stop" {
+			path == "/api/desktop/rtl-sdr/stop" || path == "/api/desktop/chibi-sensei/runtime/stop" {
 			return desktopStop
 		}
 	}
