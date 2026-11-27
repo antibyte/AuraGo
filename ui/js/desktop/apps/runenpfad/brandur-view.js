@@ -451,6 +451,7 @@
 
         function groundClip(m) {
             const dr = m.dr || {};
+            if ((m.state === 'tell' || m.state === 'attack') && dr.move === 'breath' && dr.pose === 'front') return m.state === 'tell' ? 'td-brandur-b.roar' : 'td-brandur-b.stomp';
             if (m.state === 'tell' || m.state === 'attack') {
                 const mv = MOVE_CLIP[dr.move];
                 if (mv) return mv[m.state === 'tell' ? 0 : 1];
@@ -698,9 +699,20 @@
             void f;
         }
 
+        // Camera focus: the body centre of a living Brandur (bar shown), or of the sleeper while the hero is near.
+        function focus(iv) {
+            try {
+                const m = list(iv && iv.mobs).filter(owns).filter(function (q) { return q.state !== 'dead'; })[0];
+                if (m) return { x: m.x, y: m.y + FOOT_DY - 140, bar: !!(iv.guardian && iv.guardian.kind === 'brandur') };
+                const l = iv && iv.lair;
+                if (l && l.fate && iv.hero && Math.hypot(l.x - iv.hero.x, l.y - iv.hero.y) < 8 * CELL) return { x: l.x, y: l.y + FOOT_DY - 140, bar: false };
+            } catch (err) { /* ignore */ }
+            return null;
+        }
+
         function dispose() { /* only a WeakMap of derived lava cells */ }
 
-        return { owns: owns, sheets: sheets, drawFloor: drawFloor, sorted: sorted, drawObject: drawObject, drawTop: drawTop, lights: lights, drawBossBar: drawBossBar, dispose: dispose };
+        return { owns: owns, sheets: sheets, drawFloor: drawFloor, sorted: sorted, drawObject: drawObject, drawTop: drawTop, lights: lights, drawBossBar: drawBossBar, focus: focus, dispose: dispose };
     }
 
     root.RunenpfadBrandurView = { create: create, owns: owns };

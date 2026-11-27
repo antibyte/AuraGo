@@ -112,7 +112,7 @@
             '#######D######'
         ],
         things: [
-            { at: 'P', prop: HOM + 'p2' }, { at: 'H', prop: HOM + 'p0' }, { at: 'h', prop: HSE + 'p15' }, { at: 'W', prop: HOM + 'p3' },
+            { at: 'P', prop: HOM + 'p2' }, { at: 'H', prop: HOM + 'p2' }, { at: 'h', prop: HSE + 'p15' }, { at: 'W', prop: HOM + 'p3' },
             { at: 'g', prop: TAV + 'p11' }, { at: 'z', prop: TAV + 'p2' }, { at: 'O', prop: TAV + 'p1' }, { at: 'T', prop: HOM + 'p1' },
             { at: 'l', light: LAMP }, { at: 'o', pot: 'pot' },
             // The cook station: the table above, the two use cells in front of it.
@@ -254,7 +254,7 @@
             '##############'
         ],
         things: [
-            { at: 'R', prop: HOM + 'p8' }, { at: 'b', prop: TRD + 'p6' }, { at: 'F', prop: HOM + 'p5' }, { at: 'c', prop: HOM + 'p7' },
+            { at: 'R', prop: HOM + 'p8' }, { at: 'b', prop: TRD + 'p6' }, { at: 'F', prop: HOM + 'p7' }, { at: 'c', prop: HOM + 'p7' },
             { at: 'Q', prop: HOM + 'p6' }, { at: 'A', prop: HOM + 'p4' }, { at: 'k', prop: TRD + 'p8' }, { at: 'T', prop: HOM + 'p15' },
             { at: 'l', light: COAL },
             { at: 'Y', use: 'forge', prompt: 'forge' }
@@ -359,7 +359,7 @@
             '####D#####'
         ],
         things: [
-            { at: 'B', prop: HOM + 'p9' }, { at: 'a', prop: HOM + 'p8' }, { at: 'R', prop: HOM + 'p11' }, { at: 'x', prop: TAV + 'p10' },
+            { at: 'a', prop: HOM + 'p8' }, { at: 'R', prop: HOM + 'p11' }, { at: 'x', prop: TAV + 'p10' },
             { at: 'o', prop: TAV + 'p5' }, { at: 'l', light: WARM },
             { at: 'Y', use: 'bell', prompt: 'ring' }
         ]
@@ -405,7 +405,7 @@
             '############'
         ],
         things: [
-            { at: 'k', prop: HOM + 'p12' }, { at: 'c', prop: HSE + 'p13' }, { at: 'M', prop: HSE + 'p11' }, { at: 'D', prop: HOM + 'p14' },
+            { at: 'k', prop: HOM + 'p12' }, { at: 'c', prop: HSE + 'p13' }, { at: 'M', prop: HSE + 'p7' }, { at: 'D', prop: HOM + 'p14' },
             { at: 'l', light: LAMP }, { at: 'n', sign: 'edda_notes', look: 'scroll' },
             { at: 'C', chest: 'edda_desk', loot: { coins: 50, give: 'potion' }, look: HSE + 'p12', key: 'desk_key' },
             { at: 'Y', use: 'map', prompt: 'read' }

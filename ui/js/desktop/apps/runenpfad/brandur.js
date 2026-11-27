@@ -168,6 +168,19 @@
 
     // ---- moves: tell previews ----
 
+    // Drawn mouth relative to the feet (m.x, m.y + 30) in room px, measured from the breath frames at the drawn scale
+    // (side: td-boss-brandur.breath at 300/272; front: td-brandur-b.stomp at 0.9x that). dx is mirrored by m.face.
+    const FOOT_DY = 30;
+    const MOUTH = { side: { dx: 155, dy: -129 }, front: { dx: 21, dy: -48 } };
+    // Aim within 60 degrees of horizontal, or behind him: side pose facing the aim; downward: front pose.
+    function poseOf(m) {
+        if (Math.abs(m.ax) >= 0.5 || m.ay <= 0) {
+            if (Math.abs(m.ax) > 0.15) m.face = m.ax > 0 ? 1 : -1;
+            return 'side';
+        }
+        return 'front';
+    }
+
     function lockAt(m) { return 0.6 * m.dr.tellDur; }
 
     function preview(sim, it, m, id) {
@@ -177,8 +190,10 @@
         const a = Math.atan2(m.ay, m.ax);
         if (id === 'breath') {
             const dir = m.sweep;
+            dr.pose = poseOf(m);
+            const mo = MOUTH[dr.pose];
             dr.breath = {
-                x: cx + m.ax * 60, y: cy + m.ay * 60, a: a - dir * 0.349, a0: a - dir * 0.349, a1: a + dir * 0.349,
+                x: m.x + mo.dx * m.face, y: m.y + FOOT_DY + mo.dy, a: a - dir * 0.349, a0: a - dir * 0.349, a1: a + dir * 0.349,
                 len: 260, half: 0.436, t: 0, dur: m.phase >= 3 ? MOVES.breath.atk3 : MOVES.breath.atk, live: false
             };
         } else if (id === 'tail') {
@@ -355,15 +370,19 @@
         if (id === 'breath' && dr.breath) {
             const b = dr.breath;
             [0.45, 0.7, 0.95].forEach(function (f) {
-                const x = b.x + Math.cos(b.a) * b.len * f;
-                const y = b.y + Math.sin(b.a) * b.len * f;
-                if (floorCell(it, x, y)) dr.patches.push({ x: x, y: y, r: 30, left: 4, life: 4 });
+                // On a blocked cell the patch slides back along the cone axis towards the mouth.
+                for (let k = 0; k < 4; k++) {
+                    const x = b.x + Math.cos(b.a) * b.len * (f - k * 0.06);
+                    const y = b.y + Math.sin(b.a) * b.len * (f - k * 0.06);
+                    if (floorCell(it, x, y)) { dr.patches.push({ x: x, y: y, r: 30, left: 4, life: 4 }); break; }
+                }
             });
         }
         dr.move = null;
         dr.breath = null;
         dr.tail = null;
         dr.vents = null;
+        dr.pose = null;
         m.move = null;
         m.state = 'move';
         m.t = 0;
@@ -728,6 +747,7 @@
     root.RunenpfadBrandur = {
         DEF: DEF,
         MOVES: MOVES,
+        MOUTH: MOUTH,
         MUL_AWAKE: MUL_AWAKE,
         MUL_DROWSY: MUL_DROWSY,
         DROWSY_T: DROWSY_T,

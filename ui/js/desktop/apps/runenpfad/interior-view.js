@@ -742,8 +742,13 @@
         function updateCamera(iv, room, f, vw, vh, dt) {
             const visW = vw / f.s;
             const visH = (vh - f.oy) / f.s;
-            const tx = room.w <= visW ? (room.w - visW) / 2 : clamp(iv.hero.x - visW / 2, 0, room.w - visW);
-            const ty = room.h <= visH ? (room.h - visH) / 2 : clamp(iv.hero.y - 20 - visH / 2, 0, room.h - visH);
+            // Boss framing: lean towards the dragon and keep the arena's top rows below the boss bar.
+            const fo = DV && DV.focus ? DV.focus(iv) : null;
+            const barPx = fo && fo.bar ? 64 : 0;
+            const fx = fo ? iv.hero.x + (fo.x - iv.hero.x) * 0.3 : iv.hero.x;
+            const fy = fo ? iv.hero.y - 20 + (fo.y - (iv.hero.y - 20)) * 0.4 : iv.hero.y - 20;
+            const tx = room.w <= visW ? (room.w - visW) / 2 : clamp(fx - visW / 2, 0, room.w - visW);
+            const ty = room.h <= visH ? (room.h - visH) / 2 : clamp(fy - visH / 2, -barPx / f.s, room.h - visH);
             if (!cam.ready || cam.for !== room) {
                 cam.x = tx;
                 cam.y = ty;
