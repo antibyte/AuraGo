@@ -109,7 +109,7 @@ func LayoutIssues(scenes []LayoutScene, opts LayoutOptions) []Issue {
 		add := func(code, message, fix string) {
 			out = append(out, Issue{Severity: SeverityWarning, SceneID: sc.ID, Path: path, Code: code, Message: message, Fix: fix})
 		}
-		if opts.CaptionRule && sc.Caption != nil && !opts.CaptionExempt[sc.ID] {
+		if opts.CaptionRule && sc.Caption != nil && !sc.Code && !opts.CaptionExempt[sc.ID] {
 			for _, a := range sc.Actors {
 				if footInCaption(a.Box, *sc.Caption) {
 					add(CodeCaptionOverlap, fmt.Sprintf("The caption covers the feet of %s in scene %s.", a.ID, sc.ID),
@@ -157,7 +157,7 @@ func LayoutIssues(scenes []LayoutScene, opts LayoutOptions) []Issue {
 				add(CodeTextOffframe, fmt.Sprintf("The text %s sticks out of the frame in scene %s.", tx.ID, sc.ID), `Shorten the text to five words or fewer, or show it at "center".`)
 			}
 		}
-		if sc.Caption != nil && zoneShare(*sc.Caption, zone) > layoutZoneShare {
+		if sc.Caption != nil && !sc.Code && zoneShare(*sc.Caption, zone) > layoutZoneShare {
 			add(CodeTextUnsafe, fmt.Sprintf("The caption lies in the margin that platform overlays cover in scene %s.", sc.ID),
 				`Shorten the narration of the scene so the caption has fewer lines.`)
 		}

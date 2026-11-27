@@ -42,12 +42,13 @@ const (
 )
 
 // StillInfo is one captured still: the scene, its index in the story, the difference hash of the picture and the measured
-// contrast of its text boxes (empty when none was measured).
+// contrast of its text boxes (empty when none was measured). Code marks the still of a code scene.
 type StillInfo struct {
 	SceneID string
 	Index   int
 	Hash    uint64
 	Texts   []TextContrast
+	Code    bool
 }
 
 // ErrSheetTooLarge says that a contact sheet would exceed the pixel budget even with the narrowest thumbnails.
@@ -204,14 +205,21 @@ func LookAlikeIssues(stills []StillInfo) []Issue {
 			ids[i] = s.SceneID
 		}
 		var change []string
+		codeScene := false
 		for i := 2; i < len(run); i += 2 {
 			change = append(change, run[i].SceneID)
+			codeScene = codeScene || run[i].Code || run[i-1].Code
+		}
+		fix := fmt.Sprintf(`Change scene %s so it differs from its neighbours: another environment with "transition":"wipe", a framing such as {"camera":{"framing":"medium"}}, and the actor on the other side ("at":"right" or "left") with the whole actors list.`,
+			strings.Join(change, " and "))
+		if codeScene {
+			// A code scene has no environment, camera or actors: only its own source changes the picture.
+			fix = "Give this scene its own picture: another block layout, motif or position in its source (put_code)."
 		}
 		out = append(out, Issue{
 			Severity: SeverityWarning, SceneID: run[2].SceneID, Path: jp("scenes", run[2].Index), Code: CodeScenesLookAlike,
 			Message: fmt.Sprintf("Scenes %s look alike: the same stage and nearly the same picture.", strings.Join(ids, ", ")),
-			Fix: fmt.Sprintf(`Change scene %s so it differs from its neighbours: another environment with "transition":"wipe", a framing such as {"camera":{"framing":"medium"}}, and the actor on the other side ("at":"right" or "left") with the whole actors list.`,
-				strings.Join(change, " and ")),
+			Fix:     fix,
 		})
 	}
 	for i := 1; i <= len(stills); i++ {

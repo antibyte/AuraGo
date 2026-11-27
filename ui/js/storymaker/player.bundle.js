@@ -4326,7 +4326,7 @@
     var SM = root.StorymakerCore || (root.StorymakerCore = {});
 
     var HOLD_AFTER = 0.5;       // seconds after the last arrival or motion
-    var CODE_HOLD_SHARE = 0.7;  // a code scene is sampled at this share of its length (compileshots.go codeHoldShare)
+    var CODE_HOLD_SHARE = 0.7;  // a code scene is sampled at this share of its length (render/compileshots.go shotDefaultFraction)
     var VISIBLE = 0.05;         // an entity with less alpha is not on the stage
     var EPS = 0.5;              // design pixels: a smaller move is no move
 

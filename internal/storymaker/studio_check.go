@@ -325,6 +325,19 @@ func studioValidateOp(ctx context.Context, s *Studio, _ map[string]any) StudioRe
 	})
 }
 
+// markCodeStills copies the code flag of the measured layout onto the stills, so the look-alike finding can tell a code scene.
+func markCodeStills(stills []StillInfo, layout []LayoutScene) []StillInfo {
+	code := map[string]bool{}
+	for _, sc := range layout {
+		code[sc.ID] = sc.Code
+	}
+	out := slices.Clone(stills)
+	for i := range out {
+		out[i].Code = code[out[i].SceneID]
+	}
+	return out
+}
+
 func (s *Studio) runCheck(ctx context.Context) (CheckReport, string, error) {
 	raw, etag, err := s.deps.Projects.LoadStory(ctx, s.job.ProjectID)
 	if err != nil {
@@ -343,7 +356,7 @@ func (s *Studio) runCheck(ctx context.Context) (CheckReport, string, error) {
 	summary, state, environment := s.compileForCheck(ctx, etag)
 	found = append(found, checkCompileIssues(summary.Issues)...)
 	found = append(found, LayoutIssues(summary.Layout, StoryLayoutOptions(&story))...)
-	found = append(found, LookAlikeIssues(summary.Stills)...)
+	found = append(found, LookAlikeIssues(markCodeStills(summary.Stills, summary.Layout))...)
 	found = append(found, ContrastIssues(summary.Stills)...)
 	found = append(found, LintForJobMode(&story, s.job.Mode)...)
 	found = append(found, s.craftIssues(ctx, &story)...)

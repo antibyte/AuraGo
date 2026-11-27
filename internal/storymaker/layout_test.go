@@ -198,3 +198,17 @@ func TestLayoutIssuesSkipStaticForCodeScenes(t *testing.T) {
 		t.Fatalf("a storyboard scene that is static reported %v", got)
 	}
 }
+
+func TestLayoutIssuesCodeSceneGetsNoCaptionFindings(t *testing.T) {
+	caption := LayoutBox{0.2, 0.8, 0.6, 0.1} // inside the bottom margin of 9:16
+	sc := layoutScene("c", 0)
+	sc.Caption, sc.Code = &caption, true
+	opts := LayoutOptions{CaptionRule: true, Aspect: "9:16"}
+	if got := LayoutIssues([]LayoutScene{sc}, opts); len(got) != 0 {
+		t.Fatalf("a code scene reported %v", layoutCodes(got))
+	}
+	sc.Code = false
+	if got := layoutCodes(LayoutIssues([]LayoutScene{sc}, opts)); !slices.Equal(got, []string{CodeTextUnsafe}) {
+		t.Fatalf("a storyboard scene reported %v", got)
+	}
+}

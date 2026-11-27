@@ -302,3 +302,36 @@ func TestStillsRefuseOversizedPNGs(t *testing.T) {
 		t.Errorf("16 million pixels exactly: %v", err)
 	}
 }
+
+func TestLookAlikeIssuesCodeSceneGetsTheCodeFix(t *testing.T) {
+	run := func(code ...bool) []StillInfo {
+		var out []StillInfo
+		for i, c := range code {
+			out = append(out, StillInfo{SceneID: fmt.Sprintf("s%d", i+1), Index: i, Hash: 0, Code: c})
+		}
+		return out
+	}
+	got := LookAlikeIssues(run(false, false, true))
+	if len(got) != 1 || !strings.Contains(got[0].Fix, "put_code") || strings.Contains(got[0].Fix, "environment") || strings.Contains(got[0].Fix, "framing") {
+		t.Fatalf("a run with a code scene: %+v", got)
+	}
+	got = LookAlikeIssues(run(false, false, false))
+	if len(got) != 1 || !strings.Contains(got[0].Fix, "framing") || strings.Contains(got[0].Fix, "put_code") {
+		t.Fatalf("a storyboard run keeps the camera advice: %+v", got)
+	}
+	// The pair is the changed scene and its predecessor: a code scene farther away leaves the camera advice alone.
+	if got = LookAlikeIssues(run(true, false, false)); len(got) != 1 || strings.Contains(got[0].Fix, "put_code") {
+		t.Fatalf("a code scene outside the pair: %+v", got)
+	}
+	if got = LookAlikeIssues(run(false, true, false)); len(got) != 1 || !strings.Contains(got[0].Fix, "put_code") {
+		t.Fatalf("a code scene as the predecessor: %+v", got)
+	}
+}
+
+func TestMarkCodeStillsCopiesTheLayoutFlag(t *testing.T) {
+	stills := []StillInfo{{SceneID: "a"}, {SceneID: "b"}}
+	got := markCodeStills(stills, []LayoutScene{{ID: "b", Code: true}})
+	if got[0].Code || !got[1].Code || stills[1].Code {
+		t.Fatalf("stills = %+v, input = %+v", got, stills)
+	}
+}
