@@ -1422,6 +1422,10 @@
 }
 
 .desktop-body[data-shell="dock"] .vd-taskbar-apps {
+    /* The bar's padding above and below the icons; the scroll region and its icon track reach over it
+       (see .vd-dock-scroll and .vd-dock-track). */
+    --vd-dock-bar-pad-top: 15px;
+    --vd-dock-bar-pad-bottom: 13px;
     position: relative;
     flex: 0 1 auto;
     width: fit-content;
@@ -1430,7 +1434,7 @@
     align-items: end;
     justify-content: center;
     gap: 7px;
-    padding: 15px 17px 13px;
+    padding: var(--vd-dock-bar-pad-top) 17px var(--vd-dock-bar-pad-bottom);
     border: 1px solid rgba(255, 255, 255, 0.36);
     border-radius: 22px;
     background:
@@ -1476,15 +1480,19 @@
 .desktop-body[data-shell="dock"] .vd-dock-scroll {
     min-width: 0;
     max-width: 100%;
-    /* Leave room inside the scroll clip for the lifted icon and its label above, and for the running/active
-       dot below (.vd-dock-button::after sits 7 px under the button); the buttons themselves do not move. */
+    /* Leave room inside the scroll clip for the lifted icon and its label above, and down to the bar's
+       bottom edge for the running/active dot (.vd-dock-button::after sits 7 px under the button); the
+       buttons themselves do not move. */
     margin-top: -64px;
     padding-top: 64px;
-    margin-bottom: -10px;
-    padding-bottom: 10px;
+    margin-bottom: calc(-1 * var(--vd-dock-bar-pad-bottom, 10px));
+    padding-bottom: var(--vd-dock-bar-pad-bottom, 10px);
     overflow: auto hidden;
     scrollbar-width: none;
     scroll-behavior: smooth;
+    /* The headroom above the bar is transparent: clicks, hover and wheel there belong to the window
+       behind it. The icon track takes the pointer for the visible bar instead. */
+    pointer-events: none;
 }
 
 .desktop-body[data-shell="dock"] .vd-dock-scroll::-webkit-scrollbar {
@@ -1496,14 +1504,6 @@
 .desktop-body[data-shell="dock"] .vd-taskbar-apps.vd-dock-overflowing:not(.vd-dock-at-start) .vd-dock-scroll { -webkit-mask-image: linear-gradient(90deg, transparent, #000 20px); mask-image: linear-gradient(90deg, transparent, #000 20px); }
 .desktop-body[data-shell="dock"] .vd-taskbar-apps.vd-dock-overflowing:not(.vd-dock-at-start):not(.vd-dock-at-end) .vd-dock-scroll { -webkit-mask-image: linear-gradient(90deg, transparent, #000 20px, #000 calc(100% - 20px), transparent); mask-image: linear-gradient(90deg, transparent, #000 20px, #000 calc(100% - 20px), transparent); }
 
-@media (hover: none), (pointer: coarse) {
-    .desktop-body[data-shell="dock"] .vd-dock-scroll {
-        /* Hover headroom must not intercept touches in the app above the dock. */
-        margin-top: 0;
-        padding-top: 0;
-    }
-}
-
 .desktop-body[data-shell="dock"] .vd-dock-track {
     width: max-content;
     min-width: 100%;
@@ -1511,7 +1511,24 @@
     align-items: end;
     justify-content: center;
     gap: 10px;
-    padding: 0 2px;
+    /* The track's box covers the visible bar from its top to its bottom padding, so wheel and trackpad
+       scroll the dock anywhere on the bar; the icons stay where they are. */
+    margin-block: calc(-1 * var(--vd-dock-bar-pad-top, 0px)) calc(-1 * var(--vd-dock-bar-pad-bottom, 10px));
+    padding: var(--vd-dock-bar-pad-top, 0px) 2px var(--vd-dock-bar-pad-bottom, 10px);
+    pointer-events: auto;
+}
+
+@media (hover: none), (pointer: coarse) {
+    /* Touch has no hover lift, so the dock needs no headroom above the bar. */
+    .desktop-body[data-shell="dock"] .vd-dock-scroll {
+        margin-top: 0;
+        padding-top: 0;
+    }
+
+    .desktop-body[data-shell="dock"] .vd-dock-track {
+        margin-top: 0;
+        padding-top: 0;
+    }
 }
 
 .desktop-body[data-shell="dock"] .vd-taskbar-apps.vd-dock-overflowing .vd-dock-track {
@@ -2114,11 +2131,13 @@
     }
 
     .desktop-body[data-shell="dock"] .vd-taskbar-apps {
+        --vd-dock-bar-pad-top: 8px;
+        --vd-dock-bar-pad-bottom: 10px;
         flex: 0 0 auto;
         max-width: calc(100vw - 24px);
         justify-content: flex-start;
         min-height: 58px;
-        padding: 8px 10px 10px;
+        padding: var(--vd-dock-bar-pad-top) 10px var(--vd-dock-bar-pad-bottom);
         border-radius: 18px;
     }
 

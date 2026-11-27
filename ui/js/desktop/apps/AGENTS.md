@@ -2682,6 +2682,12 @@ buttons and menu popovers remain excluded from those gestures.
   first and no fixed item limit. Hidden apps appear temporarily only while
   running on the active space. Keep hover-label headroom inside `.vd-dock-scroll`
   so its vertical overflow clip cannot leave label fragments above the dock.
+  The headroom is transparent to the pointer (`pointer-events: none` on
+  `.vd-dock-scroll`): clicks, hover and wheel above the bar reach the window
+  behind it. `.vd-dock-track` takes the pointer instead and reaches over the
+  bar's `--vd-dock-bar-pad-top`/`--vd-dock-bar-pad-bottom`, so wheel scrolls the
+  dock anywhere on the bar; keep those properties equal to the bar's padding.
+  Verify `TestDesktopDockHeadroomPassesThePointerToWindowsBrowser`.
 - `findExistingAppWindow` prefers the current space; a match in another space
   triggers `switchSpace` then focus (no duplicate window).
 - Compact viewport (`isCompactViewport()`) keeps single-space behavior and hides

@@ -359,7 +359,8 @@ New app-scoped prefixes must contain no `ad` substring; verify
   desktop mode, including minimized windows; explicit maximization stays intact.
   Preserve touch scrolling, reachable filters/actions and existing app state;
   the mobile dock keeps its app-menu launcher and app-switching buttons visible.
-  Dock hover headroom must not intercept touches above its visible controls.
+  Dock hover headroom never takes the pointer, for touch or mouse (dock contract
+  in `js/desktop/apps/AGENTS.md`).
   Verify `TestDesktopMobile` with `AURAGO_RUN_BROWSER_SMOKE=1` in Standard and
   Fruity at phone, tablet and desktop widths.
 
