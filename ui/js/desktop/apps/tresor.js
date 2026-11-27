@@ -21,12 +21,23 @@
             method, credentials: 'same-origin', cache: 'no-store',
             headers, body: body === undefined ? undefined : JSON.stringify(body)
         });
-        if (!response.ok) {
-            const error = new Error(response.status === 412 ? 'conflict' : response.status === 403 ? 'https_required' : response.status === 401 ? 'admin_required' : 'request_failed');
-            error.status = response.status;
-            throw error;
-        }
+        if (!response.ok) throw await requestError(response);
         return response.status === 204 ? null : response.json();
+    }
+
+    // The server answers with a typed code, so a read-only desktop never reads
+    // like a TLS problem and an expired session never reads like a conflict.
+    async function requestError(response) {
+        let code = '';
+        try { const payload = await response.json(); code = String(payload?.code || ''); } catch (_) { /* a body is optional */ }
+        const error = new Error(response.status === 412 ? 'conflict'
+            : response.status === 401 ? 'admin_required'
+                : code === 'desktop_readonly' ? 'desktop_readonly'
+                    : code === 'desktop_disabled' ? 'desktop_disabled'
+                        : code === 'https_required' ? 'https_required'
+                            : 'request_failed');
+        error.status = response.status;
+        return error;
     }
 
     function render(host, windowId, context = {}) {
@@ -108,7 +119,10 @@
             const query = state.search.toLocaleLowerCase();
             const visible = state.items.filter(item => (item.title || '').toLocaleLowerCase().includes(query));
             if (!visible.length) return `<p class="tresor-empty">${label(state.items.length ? 'no_results' : 'empty')}</p>`;
-            return visible.map(item => `<button type="button" class="tresor-item ${state.selected?.id === item.id ? 'is-selected' : ''}" data-action="select" data-id="${esc(item.id)}"><span class="tresor-item-glyph">${item.type === 'file' ? '▣' : '✎'}</span><span><strong>${esc(item.title)}</strong><small>${label(item.type === 'file' ? 'file' : 'note')}</small></span></button>`).join('');
+            return visible.map(item => {
+                const current = state.selected?.id === item.id;
+                return `<button type="button" class="tresor-item ${current ? 'is-selected' : ''}"${current ? ' aria-current="true"' : ''} data-action="select" data-id="${esc(item.id)}"><span class="tresor-item-glyph">${item.type === 'file' ? '▣' : '✎'}</span><span><strong>${esc(item.title)}</strong><small>${label(item.type === 'file' ? 'file' : 'note')}</small></span></button>`;
+            }).join('');
         }
 
         function workspace() {
@@ -155,11 +169,17 @@
             if (!current()) return;
             state.items = items;
             state.items.sort((a, b) => a.title.localeCompare(b.title));
+            pruneDrafts();
             if (state.selected) state.selected = state.items.find(item => item.id === state.selected.id) || null;
             draw();
         }
 
-        function formatSize(bytes) { return bytes < 1024 ? `${bytes} B` : bytes < 1048576 ? `${Math.ceil(bytes / 1024)} KiB` : `${(bytes / 1048576).toFixed(1)} MiB`; }
+        function formatSize(bytes) {
+            const [key, fallback, value] = bytes < 1024 ? ['desktop.bytes', 'B', bytes]
+                : bytes < 1048576 ? ['desktop.kib', 'KiB', Math.ceil(bytes / 1024)]
+                    : ['desktop.mib', 'MiB', (bytes / 1048576).toFixed(1)];
+            return context.t ? context.t(key, { count: value }) : `${value} ${fallback}`;
+        }
         async function unlock(master, current) {
             if (!current()) { master.fill(0); return; }
             state.master = master;
@@ -242,14 +262,43 @@
             if (state.dirty) { announce(tr('draft_recovered')); scheduleSave(); }
         }
 
-        async function importFile(file) {
+        async function importFile(file, known) {
             const current = taskGuard();
             if (state.disposed) return;
-            if (file.size > maxFile) throw new Error('file_too_large');
-            const bytes = new Uint8Array(await file.arrayBuffer());
+            if (!known && file.size > maxFile) throw new Error('file_too_large');
+            const bytes = known || new Uint8Array(await file.arrayBuffer());
             if (!current()) { bytes.fill(0); return; }
             await saveRecord('file', file.name, bytes, file.type || 'application/octet-stream');
             if (current()) announce(tr('imported'));
+        }
+
+        // Content-Length is only a hint: a chunked response carries none, so the
+        // body is read in pieces and dropped past the limit instead of being
+        // buffered whole before anything compares the size.
+        async function readBounded(response, limit) {
+            if (Number(response.headers.get('Content-Length') || 0) > limit) throw new Error('file_too_large');
+            if (!response.body || typeof response.body.getReader !== 'function') {
+                const buffer = await response.arrayBuffer();
+                if (buffer.byteLength > limit) throw new Error('file_too_large');
+                return new Uint8Array(buffer);
+            }
+            const reader = response.body.getReader();
+            const chunks = [];
+            let total = 0;
+            for (;;) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                total += value.byteLength;
+                if (total > limit) {
+                    try { await reader.cancel(); } catch (_) { /* the stream is already gone */ }
+                    throw new Error('file_too_large');
+                }
+                chunks.push(value);
+            }
+            const bytes = new Uint8Array(total);
+            let offset = 0;
+            for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+            return bytes;
         }
 
         async function importDesktop() {
@@ -259,14 +308,27 @@
             if (!current() || !choice || choice.canceled || !choice.path) return;
             const response = await fetch('/api/desktop/download?path=' + encodeURIComponent(choice.path), { credentials: 'same-origin', cache: 'no-store' });
             if (!response.ok) throw new Error('request_failed');
-            if (Number(response.headers.get('Content-Length') || 0) > maxFile) throw new Error('file_too_large');
-            const blob = await response.blob();
-            if (!current()) return;
+            const bytes = await readBounded(response, maxFile);
+            if (!current()) { bytes.fill(0); return; }
             const name = choice.path.split(/[\\/]/).pop();
-            await importFile(new File([blob], name, { type: blob.type || 'application/octet-stream' }));
+            const type = response.headers.get('Content-Type') || 'application/octet-stream';
+            await importFile(new File([], name, { type }), bytes);
         }
 
-        const draftKey = id => 'aurago:tresor:draft:' + id;
+        const draftPrefix = 'aurago:tresor:draft:';
+        const draftKey = id => draftPrefix + id;
+
+        // Encrypted drafts belong to a record; a sweep after every list load
+        // keeps the ciphertext of deleted entries out of browser storage.
+        function pruneDrafts() {
+            try {
+                const live = new Set(state.items.map(item => item.id));
+                for (let i = localStorage.length - 1; i >= 0; i--) {
+                    const key = localStorage.key(i);
+                    if (key && key.startsWith(draftPrefix) && !live.has(key.slice(draftPrefix.length))) localStorage.removeItem(key);
+                }
+            } catch (_) { /* Storage may be disabled. */ }
+        }
 
         function encryptDraft() {
             const item = state.selected;
@@ -384,8 +446,10 @@
             if (name === 'save') { await saveNote(); return; }
             if (name === 'confirm-export') { await exportSelected(); return; }
             if (name === 'confirm-delete' && state.selected) {
-                await request('/items/' + state.selected.id, 'DELETE', undefined, state.selected.revision);
+                const removed = state.selected.id;
+                await request('/items/' + removed, 'DELETE', undefined, state.selected.revision);
                 if (!current()) return;
+                try { localStorage.removeItem(draftKey(removed)); } catch (_) { /* Storage may be disabled. */ }
                 state.selected = null; state.modal = ''; state.noteText = ''; await refresh();
             }
         }
@@ -444,17 +508,26 @@
             try { await fn(); if (current() && state.message === tr('working')) announce(''); }
             catch (error) {
                 if (!current()) return;
-                if (error.message === 'admin_required' || error.message === 'https_required') { forget(); state.phase = 'locked'; draw(); }
+                if (error.message === 'admin_required' || error.message === 'https_required') {
+                    // A revoked session ends the open vault. Clear the busy flag
+                    // first: forget() invalidates the guard below, so the redrawn
+                    // lock form would otherwise stay disabled for good.
+                    state.busy = false;
+                    forget();
+                    state.phase = state.header ? 'locked' : 'setup';
+                    draw();
+                }
                 host.querySelectorAll('input[type=password], input[name=recovery]').forEach(field => { field.value = ''; });
-                const key = ['invalid_recovery_key', 'invalid_password', 'conflict', 'https_required', 'admin_required', 'file_too_large', 'password_mismatch', 'desktop_unavailable', 'title_required'].includes(error.message)
-                    ? error.message : error.name === 'OperationError' ? 'wrong_key' : 'request_failed';
+                const key = ['invalid_recovery_key', 'invalid_password', 'conflict', 'https_required', 'admin_required', 'desktop_readonly', 'desktop_disabled', 'file_too_large', 'password_mismatch', 'desktop_unavailable', 'title_required'].includes(error.message)
+                    ? error.message : error.name === 'OperationError' || error.message === 'invalid_kdf' ? 'wrong_key' : 'request_failed';
                 announce(tr(key), true);
             } finally {
-                if (!current()) return;
                 state.busy = false;
-                setBusyControls(false);
-                const modal = host.querySelector('.tresor-modal');
-                if (modal && !modal.contains(document.activeElement)) modal.querySelector('button, input')?.focus();
+                if (current()) {
+                    setBusyControls(false);
+                    const modal = host.querySelector('.tresor-modal');
+                    if (modal && !modal.contains(document.activeElement)) modal.querySelector('button, input')?.focus();
+                }
             }
         }
 
@@ -484,7 +557,10 @@
             activity();
         });
         listen('change', event => {
-            if (event.target.matches('[data-file]') && event.target.files?.[0]) perform(() => importFile(event.target.files[0]));
+            if (!event.target.matches('[data-file]')) return;
+            const file = event.target.files?.[0];
+            event.target.value = '';
+            if (file) perform(() => importFile(file));
         });
         listen('pointerdown', activity);
         listen('wheel', activity, { passive: true });

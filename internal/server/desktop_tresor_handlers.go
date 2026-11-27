@@ -17,33 +17,53 @@ import (
 
 const tresorMaxBody = 50<<20 + 28 // AES-GCM nonce and tag are outside the 50 MiB plaintext.
 
+// tresorError keeps a machine-readable code next to the human message so the app
+// can tell a revoked session, a read-only desktop and a TLS problem apart.
+func tresorError(w http.ResponseWriter, code, message string, status int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": message, "code": code})
+}
+
+func tresorUnavailable(s *Server, w http.ResponseWriter, err error) {
+	if s != nil && s.Logger != nil {
+		s.Logger.Warn("Tresor request failed", "error", err)
+	}
+	tresorError(w, "tresor_unavailable", "Tresor unavailable", http.StatusServiceUnavailable)
+}
+
 func handleDesktopTresor(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("Content-Type", "application/json")
 		if s == nil || s.Cfg == nil {
-			jsonError(w, "Tresor unavailable", http.StatusServiceUnavailable)
+			tresorError(w, "tresor_unavailable", "Tresor unavailable", http.StatusServiceUnavailable)
 			return
 		}
 		s.CfgMu.RLock()
 		authEnabled := s.Cfg.Auth.Enabled
 		secret := s.Cfg.Auth.SessionSecret
 		dataDir := s.Cfg.Directories.DataDir
+		desktopEnabled := s.Cfg.VirtualDesktop.Enabled
 		s.CfgMu.RUnlock()
 		if !authEnabled || strings.TrimSpace(r.Header.Get("Authorization")) != "" || !IsAuthenticated(r, secret) {
-			jsonError(w, "Browser admin session required", http.StatusUnauthorized)
+			tresorError(w, "admin_required", "Browser admin session required", http.StatusUnauthorized)
 			return
 		}
 		if !IsSecureRequest(r) && !tresorLoopbackRequest(r) {
-			jsonError(w, "Use HTTPS to open the Tresor", http.StatusForbidden)
+			tresorError(w, "https_required", "Use HTTPS to open the Tresor", http.StatusForbidden)
 			return
 		}
 		if r.Method != http.MethodGet && !checkCSRFOriginWithPolicy(r, true) {
-			jsonError(w, "Invalid request origin", http.StatusForbidden)
+			tresorError(w, "invalid_origin", "Invalid request origin", http.StatusForbidden)
+			return
+		}
+		if !desktopEnabled {
+			tresorError(w, "desktop_disabled", "The Virtual Desktop is disabled in the configuration", http.StatusServiceUnavailable)
 			return
 		}
 		if dataDir == "" {
-			jsonError(w, "Tresor data directory unavailable", http.StatusServiceUnavailable)
+			tresorError(w, "tresor_unavailable", "Tresor data directory unavailable", http.StatusServiceUnavailable)
 			return
 		}
 		if !checkDesktopOperation(s, w, r, desktopMethodOperation(r.Method)) {
@@ -51,7 +71,7 @@ func handleDesktopTresor(s *Server) http.HandlerFunc {
 		}
 		store, err := tresor.Open(filepath.Join(dataDir, config.TresorDBFilename))
 		if err != nil {
-			jsonError(w, "Tresor unavailable", http.StatusServiceUnavailable)
+			tresorUnavailable(s, w, err)
 			return
 		}
 		defer store.Close()
@@ -63,14 +83,14 @@ func handleDesktopTresor(s *Server) http.HandlerFunc {
 			if errors.Is(err, sql.ErrNoRows) {
 				json.NewEncoder(w).Encode(map[string]any{"initialized": false})
 			} else if err != nil {
-				jsonError(w, "Tresor unavailable", http.StatusServiceUnavailable)
+				tresorUnavailable(s, w, err)
 			} else {
 				json.NewEncoder(w).Encode(map[string]any{"initialized": true, "header": h})
 			}
 		case path == "" && (r.Method == http.MethodPost || r.Method == http.MethodPut):
 			var h tresor.Header
 			if !decodeTresorJSON(w, r, &h, 4096) || !validTresorHeader(h) {
-				jsonError(w, "Invalid key envelopes", http.StatusBadRequest)
+				tresorError(w, "invalid_header", "Invalid key envelopes", http.StatusBadRequest)
 				return
 			}
 			if r.Method == http.MethodPost {
@@ -78,41 +98,41 @@ func handleDesktopTresor(s *Server) http.HandlerFunc {
 			} else {
 				var expected int64
 				if expected, err = tresorMatchRevision(r); err != nil {
-					jsonError(w, "If-Match revision required", http.StatusPreconditionRequired)
+					tresorError(w, "revision_required", "If-Match revision required", http.StatusPreconditionRequired)
 					return
 				}
 				err = publishDesktopResult(r.Context(), func() error { return store.Rewrap(r.Context(), h, expected) })
 			}
-			tresorMutationResult(w, err)
+			tresorMutationResult(s, w, err)
 		case path == "/items" && r.Method == http.MethodGet:
 			items, err := store.List(r.Context())
 			if err != nil {
-				jsonError(w, "Tresor unavailable", http.StatusServiceUnavailable)
+				tresorUnavailable(s, w, err)
 				return
 			}
 			json.NewEncoder(w).Encode(items)
 		case path == "/items" && r.Method == http.MethodPost:
 			var item tresor.Record
 			if !decodeTresorJSON(w, r, &item, 72<<20) || !validTresorRecord(item) {
-				jsonError(w, "Invalid encrypted record", http.StatusBadRequest)
+				tresorError(w, "invalid_record", "Invalid encrypted record", http.StatusBadRequest)
 				return
 			}
-			tresorMutationResult(w, publishDesktopResult(r.Context(), func() error { return store.Create(r.Context(), item) }))
+			tresorMutationResult(s, w, publishDesktopResult(r.Context(), func() error { return store.Create(r.Context(), item) }))
 		case strings.HasPrefix(path, "/items/"):
 			id := strings.TrimPrefix(path, "/items/")
 			if !validTresorID(id) {
-				jsonError(w, "Invalid record id", http.StatusBadRequest)
+				tresorError(w, "invalid_record_id", "Invalid record id", http.StatusBadRequest)
 				return
 			}
 			switch r.Method {
 			case http.MethodGet:
 				item, err := store.Get(r.Context(), id)
 				if errors.Is(err, sql.ErrNoRows) {
-					jsonError(w, "Record not found", http.StatusNotFound)
+					tresorError(w, "not_found", "Record not found", http.StatusNotFound)
 					return
 				}
 				if err != nil {
-					jsonError(w, "Tresor unavailable", http.StatusServiceUnavailable)
+					tresorUnavailable(s, w, err)
 					return
 				}
 				w.Header().Set("ETag", strconv.Quote(strconv.FormatInt(item.Revision, 10)))
@@ -120,7 +140,7 @@ func handleDesktopTresor(s *Server) http.HandlerFunc {
 			case http.MethodPut, http.MethodDelete:
 				expected, err := tresorMatchRevision(r)
 				if err != nil {
-					jsonError(w, "If-Match revision required", http.StatusPreconditionRequired)
+					tresorError(w, "revision_required", "If-Match revision required", http.StatusPreconditionRequired)
 					return
 				}
 				if r.Method == http.MethodDelete {
@@ -128,12 +148,12 @@ func handleDesktopTresor(s *Server) http.HandlerFunc {
 				} else {
 					var item tresor.Record
 					if !decodeTresorJSON(w, r, &item, 72<<20) || item.ID != id || !validTresorRecord(item) {
-						jsonError(w, "Invalid encrypted record", http.StatusBadRequest)
+						tresorError(w, "invalid_record", "Invalid encrypted record", http.StatusBadRequest)
 						return
 					}
 					err = publishDesktopResult(r.Context(), func() error { return store.Update(r.Context(), item, expected) })
 				}
-				tresorMutationResult(w, err)
+				tresorMutationResult(s, w, err)
 			default:
 				w.WriteHeader(http.StatusMethodNotAllowed)
 			}
@@ -169,7 +189,7 @@ func decodeTresorJSON(w http.ResponseWriter, r *http.Request, dst any, limit int
 }
 
 func validTresorHeader(h tresor.Header) bool {
-	return len(h.Salt) == 32 && len(h.PasswordEnvelope) == 60 && len(h.RecoveryEnvelope) == 60
+	return len(h.Salt) == 32 && len(h.PasswordEnvelope) == 60 && len(h.RecoveryEnvelope) == 60 && tresor.ValidKDFLabel(h.KDF)
 }
 
 func validTresorID(id string) bool {
@@ -203,13 +223,13 @@ func tresorMatchRevision(r *http.Request) (int64, error) {
 	return n, nil
 }
 
-func tresorMutationResult(w http.ResponseWriter, err error) {
+func tresorMutationResult(s *Server, w http.ResponseWriter, err error) {
 	if errors.Is(err, tresor.ErrConflict) {
-		jsonError(w, "Tresor revision conflict", http.StatusPreconditionFailed)
+		tresorError(w, "conflict", "Tresor revision conflict", http.StatusPreconditionFailed)
 		return
 	}
 	if err != nil {
-		jsonError(w, "Tresor unavailable", http.StatusServiceUnavailable)
+		tresorUnavailable(s, w, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

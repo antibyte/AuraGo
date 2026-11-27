@@ -3,6 +3,7 @@ package ui
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -143,7 +144,11 @@ func TestDesktopTresorBrowser(t *testing.T) {
 		desktopReads++
 		mu.Unlock()
 		w.Header().Set("Content-Type", "application/octet-stream")
-		w.Write([]byte("desktop source bytes"))
+		// The first flush commits the headers without a Content-Length, so the
+		// app has to bound the body while it streams instead of trusting it.
+		io.WriteString(w, "desktop ")
+		w.(http.Flusher).Flush()
+		io.WriteString(w, "source bytes")
 	})
 	mux.HandleFunc("/tresor-fixture", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")

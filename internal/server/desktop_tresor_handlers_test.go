@@ -19,6 +19,7 @@ func TestTresorBrowserBoundaryAndRevisions(t *testing.T) {
 	cfg.Auth.Enabled = true
 	cfg.Auth.SessionSecret = strings.Repeat("s", 32)
 	cfg.Directories.DataDir = t.TempDir()
+	cfg.VirtualDesktop.Enabled = true
 	s := &Server{Cfg: cfg}
 	handler := handleDesktopTresor(s)
 	call := func(method, path string, body any, cookie, origin bool) *httptest.ResponseRecorder {
@@ -46,7 +47,7 @@ func TestTresorBrowserBoundaryAndRevisions(t *testing.T) {
 	if w := call("GET", "", nil, true, false); w.Code != 200 || !strings.Contains(w.Body.String(), `"initialized":false`) {
 		t.Fatalf("initial: %d %s", w.Code, w.Body.String())
 	}
-	header := tresor.Header{Salt: make([]byte, 32), PasswordEnvelope: make([]byte, 60), RecoveryEnvelope: make([]byte, 60)}
+	header := tresor.Header{Salt: make([]byte, 32), PasswordEnvelope: make([]byte, 60), RecoveryEnvelope: make([]byte, 60), KDF: "argon2id$v=19$m=65536,t=3,p=4"}
 	if w := call("POST", "", header, true, false); w.Code != 403 {
 		t.Fatalf("missing origin: %d", w.Code)
 	}
@@ -127,6 +128,39 @@ func TestTresorBrowserBoundaryAndRevisions(t *testing.T) {
 	if w.Code != 403 {
 		t.Fatalf("insecure proxy accepted: %d", w.Code)
 	}
+	// Every rejection carries a machine-readable code the app maps to its own text.
+	code := func(w *httptest.ResponseRecorder) string {
+		var payload struct {
+			Code string `json:"code"`
+		}
+		_ = json.Unmarshal(w.Body.Bytes(), &payload)
+		return payload.Code
+	}
+	r = httptest.NewRequest("GET", "http://example.com/api/desktop/tresor", nil)
+	r.AddCookie(&http.Cookie{Name: sessionCookieName, Value: createSessionValue(cfg.Auth.SessionSecret, time.Now().Add(time.Hour))})
+	w = httptest.NewRecorder()
+	handler(w, r)
+	if w.Code != 403 || code(w) != "https_required" {
+		t.Fatalf("https rejection code: %d %s", w.Code, w.Body.String())
+	}
+
+	// The key derivation label round-trips, and a shape no client produces is refused.
+	bad := header
+	bad.KDF = "argon2id$v=19$m=65536,t=3,p=4;drop"
+	if w := call("POST", "", bad, true, true); w.Code != 400 || code(w) != "invalid_header" {
+		t.Fatalf("malformed kdf accepted: %d %s", w.Code, w.Body.String())
+	}
+	if w := call("GET", "", nil, true, false); w.Code != 200 || !strings.Contains(w.Body.String(), `"kdf":"`+header.KDF+`"`) {
+		t.Fatalf("kdf not persisted: %d %s", w.Code, w.Body.String())
+	}
+
+	// A disabled virtual desktop closes the vault API like every other desktop feature.
+	cfg.VirtualDesktop.Enabled = false
+	if w := call("GET", "", nil, true, false); w.Code != 503 || code(w) != "desktop_disabled" {
+		t.Fatalf("disabled desktop served the vault: %d %s", w.Code, w.Body.String())
+	}
+	cfg.VirtualDesktop.Enabled = true
+
 	cfg.Auth.Enabled = false
 	w = httptest.NewRecorder()
 	handler(w, r)

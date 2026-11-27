@@ -8,18 +8,38 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 
 	_ "modernc.org/sqlite"
 )
 
 var ErrConflict = errors.New("tresor revision conflict")
 
+// kdfLabelPattern bounds the Argon2id parameter label the browser writes. The
+// client owns the values; the server only rejects a shape no client could have
+// produced. An empty label means "format default" and stays valid for headers
+// written before the field existed.
+var kdfLabelPattern = regexp.MustCompile(`^argon2id\$v=[0-9]{1,2}\$m=[0-9]{1,7},t=[0-9]{1,2},p=[0-9]{1,2}$`)
+
+// ValidKDFLabel reports whether label is an acceptable key derivation label.
+func ValidKDFLabel(label string) bool {
+	return label == "" || (len(label) <= 96 && kdfLabelPattern.MatchString(label))
+}
+
 type Header struct {
 	Salt             []byte `json:"salt"`
 	PasswordEnvelope []byte `json:"password_envelope"`
 	RecoveryEnvelope []byte `json:"recovery_envelope"`
-	Revision         int64  `json:"revision"`
+	// KDF names the Argon2id parameters of PasswordEnvelope so a later client
+	// version can still open this vault. Empty selects the format default.
+	KDF      string `json:"kdf,omitempty"`
+	Revision int64  `json:"revision"`
 }
+
+// kdfMetaKey stores the key derivation label beside the single header row. A
+// separate key/value table keeps an existing tresor.db readable without an
+// ALTER TABLE in the one database that must never be migrated in place.
+const kdfMetaKey = "kdf"
 
 type Record struct {
 	ID       string `json:"id"`
@@ -57,7 +77,8 @@ func Open(path string) (*Store, error) {
 		CREATE TABLE IF NOT EXISTS header (id INTEGER PRIMARY KEY CHECK (id=1), salt BLOB NOT NULL,
 			password_envelope BLOB NOT NULL, recovery_envelope BLOB NOT NULL, revision INTEGER NOT NULL);
 		CREATE TABLE IF NOT EXISTS records (id TEXT PRIMARY KEY, meta BLOB NOT NULL,
-			body BLOB NOT NULL, revision INTEGER NOT NULL);`); err != nil {
+			body BLOB NOT NULL, revision INTEGER NOT NULL);
+		CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);`); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("initialize tresor database: %w", err)
 	}
@@ -85,21 +106,63 @@ func (s *Store) Close() error {
 
 func (s *Store) Header(ctx context.Context) (Header, error) {
 	var h Header
-	err := s.db.QueryRowContext(ctx, `SELECT salt,password_envelope,recovery_envelope,revision FROM header WHERE id=1`).Scan(&h.Salt, &h.PasswordEnvelope, &h.RecoveryEnvelope, &h.Revision)
+	err := s.db.QueryRowContext(ctx, `SELECT h.salt,h.password_envelope,h.recovery_envelope,h.revision,COALESCE(m.value,'')
+		FROM header h LEFT JOIN meta m ON m.key=? WHERE h.id=1`, kdfMetaKey).
+		Scan(&h.Salt, &h.PasswordEnvelope, &h.RecoveryEnvelope, &h.Revision, &h.KDF)
 	if err != nil {
 		return Header{}, fmt.Errorf("read tresor header: %w", err)
 	}
 	return h, nil
 }
 
+// Setup writes the single header row and its key derivation label atomically.
 func (s *Store) Setup(ctx context.Context, h Header) error {
-	r, err := s.db.ExecContext(ctx, `INSERT OR IGNORE INTO header(id,salt,password_envelope,recovery_envelope,revision) VALUES(1,?,?,?,1)`, h.Salt, h.PasswordEnvelope, h.RecoveryEnvelope)
-	return changed(r, err)
+	return s.mutate(ctx, "setup", func(tx *sql.Tx) error {
+		r, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO header(id,salt,password_envelope,recovery_envelope,revision) VALUES(1,?,?,?,1)`, h.Salt, h.PasswordEnvelope, h.RecoveryEnvelope)
+		if err = changed(r, err); err != nil {
+			return err
+		}
+		return writeKDF(ctx, tx, h.KDF)
+	})
 }
 
+// Rewrap replaces both envelopes and the label in one revision step.
 func (s *Store) Rewrap(ctx context.Context, h Header, expected int64) error {
-	r, err := s.db.ExecContext(ctx, `UPDATE header SET salt=?,password_envelope=?,recovery_envelope=?,revision=revision+1 WHERE id=1 AND revision=?`, h.Salt, h.PasswordEnvelope, h.RecoveryEnvelope, expected)
-	return changed(r, err)
+	return s.mutate(ctx, "rewrap", func(tx *sql.Tx) error {
+		r, err := tx.ExecContext(ctx, `UPDATE header SET salt=?,password_envelope=?,recovery_envelope=?,revision=revision+1 WHERE id=1 AND revision=?`, h.Salt, h.PasswordEnvelope, h.RecoveryEnvelope, expected)
+		if err = changed(r, err); err != nil {
+			return err
+		}
+		return writeKDF(ctx, tx, h.KDF)
+	})
+}
+
+// mutate runs one header change together with its key derivation label so a
+// failed label write can never leave an envelope without its parameters.
+func (s *Store) mutate(ctx context.Context, action string, fn func(*sql.Tx) error) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tresor %s: %w", action, err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	if err = fn(tx); err != nil {
+		return err
+	}
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("commit tresor %s: %w", action, err)
+	}
+	return nil
+}
+
+type sqlExecer interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+}
+
+func writeKDF(ctx context.Context, db sqlExecer, label string) error {
+	if _, err := db.ExecContext(ctx, `INSERT INTO meta(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`, kdfMetaKey, label); err != nil {
+		return fmt.Errorf("store tresor key derivation parameters: %w", err)
+	}
+	return nil
 }
 
 func (s *Store) List(ctx context.Context) ([]Record, error) {

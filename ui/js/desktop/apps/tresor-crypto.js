@@ -1,8 +1,26 @@
 import setupWasm from '../../vendor/tresor-argon2/setup.js';
 
 const enc = new TextEncoder();
-const KDF = Object.freeze({ parallelism: 4, passes: 3, memorySize: 65536, tagLength: 32 });
+// Frozen for the envelope version in the record context (tresor:v1:…). Raising
+// these values locks every existing vault, so a new parameter set needs a new
+// envelope version that keeps KDF_V1 for headers without a label.
+const KDF_V1 = Object.freeze({ parallelism: 4, passes: 3, memorySize: 65536, tagLength: 32 });
+const KDF_LABEL = 'argon2id$v=19$m=65536,t=3,p=4';
+// A tampered header cannot be authenticated, so its label is untrusted input:
+// keep the work a hostile value could ask for inside the sane range.
+const KDF_BOUNDS = Object.freeze({ memorySize: [8192, 1048576], passes: [1, 16], parallelism: [1, 64] });
+const KDF_PATTERN = /^argon2id\$v=19\$m=(\d{1,7}),t=(\d{1,2}),p=(\d{1,2})$/;
 let argon2Promise;
+
+export function parseKdf(label) {
+    if (label === undefined || label === null || label === '') return { ...KDF_V1 };
+    const match = KDF_PATTERN.exec(String(label));
+    if (!match) throw new Error('invalid_kdf');
+    const params = { memorySize: Number(match[1]), passes: Number(match[2]), parallelism: Number(match[3]), tagLength: 32 };
+    const within = (value, [min, max]) => Number.isInteger(value) && value >= min && value <= max;
+    if (!within(params.memorySize, KDF_BOUNDS.memorySize) || !within(params.passes, KDF_BOUNDS.passes) || !within(params.parallelism, KDF_BOUNDS.parallelism)) throw new Error('invalid_kdf');
+    return params;
+}
 
 const random = n => crypto.getRandomValues(new Uint8Array(n));
 const text = value => enc.encode(value);
@@ -43,11 +61,11 @@ async function loadArgon2() {
     return argon2Promise;
 }
 
-export async function derivePasswordKey(password, salt, loader = loadArgon2) {
+export async function derivePasswordKey(password, salt, params = KDF_V1, loader = loadArgon2) {
     if (typeof password !== 'string' || password.length < 16 || salt.length !== 32) throw new Error('invalid_password');
     const bytes = text(password);
     try {
-        return (await loader())({ password: bytes, salt, ...KDF });
+        return (await loader())({ password: bytes, salt, ...params });
     } finally {
         bytes.fill(0);
     }
@@ -84,6 +102,7 @@ export async function createHeader(password) {
     try {
         passwordKey = await derivePasswordKey(password, salt);
         const header = {
+            kdf: KDF_LABEL,
             salt: toBase64(salt),
             password_envelope: toBase64(await seal(passwordKey, master, 'tresor:v1:password')),
             recovery_envelope: toBase64(await seal(recovery, master, 'tresor:v1:recovery'))
@@ -97,7 +116,7 @@ export async function createHeader(password) {
 }
 
 export async function unlockWithPassword(header, password) {
-    const key = await derivePasswordKey(password, fromBase64(header.salt));
+    const key = await derivePasswordKey(password, fromBase64(header.salt), parseKdf(header.kdf));
     try {
         return await open(key, fromBase64(header.password_envelope), 'tresor:v1:password');
     } finally { key.fill(0); }
@@ -115,6 +134,7 @@ export async function changePassword(header, master, password) {
     const key = await derivePasswordKey(password, salt);
     try {
         return {
+            kdf: KDF_LABEL,
             salt: toBase64(salt),
             password_envelope: toBase64(await seal(key, master, 'tresor:v1:password')),
             recovery_envelope: header.recovery_envelope

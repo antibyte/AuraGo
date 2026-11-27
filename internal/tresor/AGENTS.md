@@ -14,6 +14,7 @@ This package owns the dedicated `data/tresor.db` SQLite store for opaque, browse
 
 - Store only random IDs, revisions, ciphertext and password/recovery key envelopes. Entry names, types, MIME types and content stay encrypted as metadata or body.
 - Keep the single-header setup atomic and reject stale record/header changes. Preserve existing data on schema changes; back up before migration.
+- The Argon2id parameter label is stored as the `meta` row `kdf` beside the single header row (`Header()` reads it through a `LEFT JOIN`), not as a column of `header`: `tresor.db` must open without an in-place `ALTER TABLE`. `Setup` and `Rewrap` write header and label in one transaction. `ValidKDFLabel` accepts an empty label (headers written before the field, meaning the v1 defaults) or `argon2id$v=…$m=…,t=…,p=…` up to 96 bytes; the browser decides which parameters it derives with, and raising them needs a new envelope version rather than a different label in place.
 - Browser notes autosave encrypted records. Desktop close awaits writes and reports failures; explicit/idle/pagehide locks clear decrypted state immediately regardless of pending or failed writes. Only completed encrypted drafts survive locking. Late operations cannot change a newer unlocked session. Note selection changes only after successful loading/decryption; draft titles survive redraws. Reload the header before unlock/password change and clear keys/plaintext after an unlock failure.
 - `Open` creates or tightens `tresor.db` to 0600 before SQLite opens it, so the database is never left under the umask (even when initialization fails) and its `-wal`/`-shm` sidecars inherit 0600; existing sidecars are tightened too (Unix tests in `store_unix_test.go`).
 - Keep `config.TresorDBFilename` in `SQLiteDatabasePaths` and `SQLiteProtectedPaths`, including sidecars.
@@ -25,7 +26,7 @@ Keep the database independently restorable and avoid coupling it to the ordinary
 
 ## Verification
 
-Run `go test ./internal/tresor ./internal/config ./internal/server -run 'TestStoreRevisionsAndRestore|TestSQLiteDatabasePathsIncludesConfiguredAndDataDirDatabases|TestTresor|TestHandleBackupCreateIncludesRuntimeFilesAndConsistentSQLiteSnapshots'`.
+Run `go test ./internal/tresor ./internal/config ./internal/server -run 'TestStoreRevisionsAndRestore|TestHeaderWithoutKeyDerivationLabelStaysEmpty|TestValidKDFLabel|TestSQLiteDatabasePathsIncludesConfiguredAndDataDirDatabases|TestTresor|TestHandleBackupCreateIncludesRuntimeFilesAndConsistentSQLiteSnapshots'`.
 
 ## Child DOX Index
 
