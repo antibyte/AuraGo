@@ -3173,26 +3173,32 @@
 
     function trackOut(track) {
         track.finalize();
-        return { init: track.init, segs: track.segs.map(function (s) { return { t0: s.t0, t1: s.t1, from: s.from, to: s.to, ease: s.ease, log: !!s.log }; }) };
+        return { init: track.init, segs: track.segs.slice(0, MAX_SEGS).map(function (s) { return { t0: s.t0, t1: s.t1, from: s.from, to: s.to, ease: s.ease, log: !!s.log }; }) };
+    }
+
+    // earliest(items): the first MAX_MARKS items in time order; revive refuses more, and that would drop every block box of the scene.
+    function earliest(items) {
+        return items.map(function (it, i) { return { it: it, i: i }; }).sort(function (a, b) { return a.it.t0 - b.it.t0 || a.i - b.i; }).slice(0, MAX_MARKS).map(function (w) { return w.it; });
     }
 
     function listOut(list, keys) {
-        return list.list.map(function (it) {
+        return earliest(list.list).map(function (it) {
             var o = { t0: it.t0, t1: it.t1 };
             keys.forEach(function (k) { o[k] = it.data[k]; });
             return o;
         });
     }
 
-    // serialize(entities, camera) = a plain payload of the block entities and the camera, or null without blocks.
+    // serialize(entities, camera) = a plain payload of the block entities and the camera, or null without blocks. The payload only
+    // measures code-scene blocks, so it keeps at most the counts that revive accepts (first in time order).
     function serialize(entities, camera) {
         var list = (entities || []).filter(function (e) { return e && e.type === 'block'; });
         if (!list.length) return null;
         var cam = null;
-        if (camera) cam = { zoom: trackOut(camera.zoom), cx: trackOut(camera.cx), cy: trackOut(camera.cy), shakes: (camera.shakes || []).map(function (s) { return { t0: s.t0, t1: s.t1, amp: s.amp }; }) };
+        if (camera) cam = { zoom: trackOut(camera.zoom), cx: trackOut(camera.cx), cy: trackOut(camera.cy), shakes: earliest(camera.shakes || []).map(function (s) { return { t0: s.t0, t1: s.t1, amp: s.amp }; }) };
         return {
             v: 1, camera: cam,
-            blocks: list.map(function (e) {
+            blocks: list.slice(0, MAX_BLOCKS).map(function (e) {
                 return {
                     id: e.id, block: e.block, w: e.w, h: e.h, surface: e.surface, t0: e.t0, dur: e.dur, entry: e.entry, reveals: e.reveals,
                     x: trackOut(e.x), y: trackOut(e.y), alpha: trackOut(e.alpha), scale: trackOut(e.scale), rot: trackOut(e.rot),

@@ -582,3 +582,20 @@ check('blocks: list items slide in from the left', () => {
     const xOf = (time, s) => parseFloat(paint(def, time).find(l => l.startsWith('fillText(' + s + ',')).slice(10 + s.length).split(',')[0]);
     assert.ok(xOf(timeFor(0.3), 'Laden') < xOf(5, 'Laden'), 'the first line is left of its final place while it slides');
 });
+
+check('blocks: serialize keeps what revive accepts, 70 camera shakes and 70 marks do not drop the blocks', () => {
+    const e = B.create({ id: 'text-1', kind: 'headline', text: 'Hi', area: { x: 0, y: 0, w: 800, h: 200, surface: 'panel' } });
+    const cam = SM.camera.create(1, 960, 540);
+    for (let k = 69; k >= 0; k--) SM.camera.addShake(cam, k, k + 0.5, 5);
+    for (let k = 0; k < 70; k++) { e.marks.add(k, k + 1, { node: 'a', style: 'pulse' }); e.x.add(k, k + 0.5, 100 + k, 'linear'); }
+    const wire = JSON.parse(JSON.stringify(B.serialize([e], cam)));
+    assert.equal(wire.camera.shakes.length, 64);
+    assert.equal(wire.camera.shakes[0].t0, 0, 'the first in time order, not in call order');
+    assert.equal(wire.blocks[0].marks.length, 64);
+    assert.equal(wire.blocks[0].x.segs.length, 64);
+    const back = B.revive(wire, cat);
+    assert.notEqual(back, null);
+    assert.equal(back.entities.length, 1);
+    const many = Array.from({ length: 40 }, (_, k) => B.create({ id: 'text-' + k, kind: 'headline', text: 'Hi', area: { x: 0, y: 0, w: 800, h: 200, surface: 'panel' } }));
+    assert.equal(B.revive(JSON.parse(JSON.stringify(B.serialize(many, null))), cat).entities.length, 32);
+});
