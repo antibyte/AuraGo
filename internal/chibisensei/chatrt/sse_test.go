@@ -1,10 +1,16 @@
 package chatrt
 
 import (
+	"context"
 	"errors"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
+
+	"aurago/internal/security"
 )
 
 func readTestdata(t *testing.T, name string) string {
@@ -126,6 +132,29 @@ func TestClassifyUpstream(t *testing.T) {
 		err := classifyUpstream(400, tc.e)
 		if errors.Is(err, ErrContext) != tc.context {
 			t.Errorf("%s: got %v", tc.name, err)
+		}
+	}
+}
+
+func TestUpstreamErrorTextIsScrubbed(t *testing.T) {
+	const secret = "sk-chibi-test-secret-4f8a2c91d7e3b650"
+	security.RegisterSensitive(secret)
+	body := `{"error":{"code":500,"type":"server_error","message":"bad key ` + secret + ` in request"}}`
+
+	_, streamErr := parseStream(strings.NewReader("data: "+body+"\n\n"), nil)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = io.WriteString(w, body)
+	}))
+	defer srv.Close()
+	_, answerErr := streamChat(context.Background(), newLoopbackClient(), srv.URL, "k", testRequest, nil)
+
+	for name, err := range map[string]error{"stream chunk": streamErr, "error answer": answerErr} {
+		if err == nil || !errors.Is(err, errUpstream) {
+			t.Fatalf("%s: error %v", name, err)
+		}
+		if strings.Contains(err.Error(), secret) {
+			t.Fatalf("%s leaks the secret: %v", name, err)
 		}
 	}
 }

@@ -38,6 +38,10 @@ func (o *Orchestrator) SetSmoker(s Smoker) {
 	o.smokeMu.Unlock()
 }
 
+// smokeBeforeRegister is a test seam: it runs at the start of runSmoke, after the step has read the run and
+// before the smoke is registered. It is nil in production.
+var smokeBeforeRegister func(runID string)
+
 // abortSmoke ends the running smoke of runID; Cancel calls it after its commit.
 func (o *Orchestrator) abortSmoke(runID string) {
 	o.smokeMu.Lock()
@@ -51,6 +55,9 @@ func (o *Orchestrator) abortSmoke(runID string) {
 // runSmoke asks the smoker once. res is nil without a smoker, aborted reports a Cancel during the smoke (nothing
 // is recorded) and err is the loop context's error when the shutdown interrupted it.
 func (o *Orchestrator) runSmoke(ctx context.Context, r Run, prof *Profile, rel string, bytes int64) (res *SmokeResult, aborted bool, err error) {
+	if hook := smokeBeforeRegister; hook != nil {
+		hook(r.ID)
+	}
 	o.smokeMu.Lock()
 	sm := o.smoker
 	if sm == nil {
@@ -61,6 +68,18 @@ func (o *Orchestrator) runSmoke(ctx context.Context, r Run, prof *Profile, rel s
 	defer cancel()
 	o.smokeRun, o.smokeCancel, o.smokeAborted = r.ID, cancel, false
 	o.smokeMu.Unlock()
+
+	// A Cancel that committed before the registration found nothing to abort (abortSmoke saw no smoke): read the
+	// run again now that a later Cancel would find the registration, and give up before the smoker runs.
+	if cur, gerr := o.st.GetRun(ctx, r.ID); gerr != nil || cur.CancelRequested {
+		o.smokeMu.Lock()
+		o.smokeRun, o.smokeCancel, o.smokeAborted = "", nil, false
+		o.smokeMu.Unlock()
+		if gerr != nil {
+			return nil, false, gerr
+		}
+		return nil, true, nil
+	}
 
 	out := sm.Smoke(sctx, SmokeInput{RunID: r.ID, ModelPath: filepath.Join(ChibiDir(o.dataDir), filepath.FromSlash(rel)),
 		ModelKey: "tuned:" + r.ID, ModelBytes: bytes, Profile: prof})

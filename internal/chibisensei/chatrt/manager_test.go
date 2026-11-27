@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"runtime"
+	"sync"
 	"testing"
 	"time"
 )
@@ -337,5 +338,95 @@ func TestManagerLaunchSpec(t *testing.T) {
 	if s.Threads != max(1, runtime.NumCPU()/2) || s.ContextSize != 2048 || s.Key != "tuned:run1" || s.Backend != "cpu" ||
 		s.CacheDir != fx.config().CacheDir || len(s.Assets) != 1 {
 		t.Fatalf("spec %+v", s)
+	}
+}
+
+// liveProc counts live processes of a launcher; Stop blocks on gate until it is closed.
+type liveProc struct {
+	*fakeProc
+	live *liveCount
+	gate chan struct{}
+}
+
+type liveCount struct {
+	mu       sync.Mutex
+	now, max int
+}
+
+func (c *liveCount) add(d int) {
+	c.mu.Lock()
+	c.now += d
+	c.max = max(c.max, c.now)
+	c.mu.Unlock()
+}
+
+func (c *liveCount) peak() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.max
+}
+
+func (p *liveProc) Stop() error {
+	<-p.gate
+	p.once.Do(func() { p.live.add(-1) })
+	return p.fakeProc.Stop()
+}
+
+func TestManagerCountsStoppingInstancesAgainstTheLimit(t *testing.T) {
+	l := newFakeLauncher(true)
+	live, gate := &liveCount{}, make(chan struct{})
+	var gateOnce sync.Once
+	open := func() { gateOnce.Do(func() { close(gate) }) }
+	defer open()
+	l.launchFn = func(context.Context, LaunchSpec) (Process, error) {
+		live.add(1)
+		return &liveProc{fakeProc: l.newProc(false), live: live, gate: gate}, nil
+	}
+	fx := newFixture(t, l)
+	fx.acquire("a").Release()
+	fx.acquire("b").Release()
+	fx.advance(time.Hour)
+
+	reaped := make(chan struct{})
+	go func() { fx.m.reapOnce(); close(reaped) }() // both Stop calls block on the gate
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		fx.m.mu.Lock()
+		n := fx.m.draining
+		fx.m.mu.Unlock()
+		if n == 2 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("draining %d, want 2", n)
+		}
+		runtime.Gosched()
+	}
+	for _, key := range []string{"c", "d"} {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		_, err := fx.m.Acquire(ctx, fx.model(key))
+		cancel()
+		if !errors.Is(err, ErrBusy) {
+			t.Fatalf("Acquire(%s) while two children are stopping: %v", key, err)
+		}
+	}
+	if p := live.peak(); p > MaxInstances {
+		t.Fatalf("%d children alive at once", p)
+	}
+	open()
+	waitClosed(t, reaped, "reapOnce")
+	fx.acquire("c").Release()
+	if p := live.peak(); p > MaxInstances {
+		t.Fatalf("%d children alive at once after the stop", p)
+	}
+}
+
+func TestInstanceBackendNilReceiver(t *testing.T) {
+	var lease *Instance
+	if got := lease.Backend(); got != "" {
+		t.Fatalf("nil lease backend %q", got)
+	}
+	if got := (&Instance{}).Backend(); got != "" {
+		t.Fatalf("zero lease backend %q", got)
 	}
 }

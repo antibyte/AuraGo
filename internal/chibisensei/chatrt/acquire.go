@@ -67,7 +67,7 @@ func (m *Manager) Admit(keys ...string) error {
 			freeable++
 		}
 	}
-	if len(m.instances)-freeable+need > MaxInstances {
+	if len(m.instances)+m.draining-freeable+need > MaxInstances {
 		return ErrBusy
 	}
 	return nil
@@ -122,7 +122,7 @@ func (m *Manager) attach(ref ModelRef) (*instance, error) {
 		return in, nil
 	}
 	var evict *instance
-	if len(m.instances) >= MaxInstances {
+	if len(m.instances)+m.draining >= MaxInstances { // instances being stopped still hold a process
 		for _, in := range m.instances {
 			if evictable(in) && (evict == nil || in.lastUsed.Before(evict.lastUsed)) {
 				evict = in
@@ -156,6 +156,7 @@ func (m *Manager) startInstance(ctx context.Context, in *instance, ref ModelRef,
 		_ = evict.proc.Stop()
 	}
 	proc, backend, verified, err := m.launchWithFallback(ctx, ref, cfg, res)
+	var late Process // started after the instance was taken out: stopped here, then the drain ends
 	m.mu.Lock()
 	switch {
 	case err != nil:
@@ -165,12 +166,21 @@ func (m *Manager) startInstance(ctx context.Context, in *instance, ref ModelRef,
 		}
 	case in.stopping:
 		in.startErr = ErrStopped
-		defer func() { _ = proc.Stop() }()
+		late = proc
 	default:
 		in.proc, in.backend, in.gpuVerified = proc, backend, verified
 	}
 	m.mu.Unlock()
 	close(in.ready)
+	if late != nil {
+		_ = late.Stop()
+	}
+	m.mu.Lock()
+	if in.drainStart {
+		in.drainStart = false
+		m.draining--
+	}
+	m.mu.Unlock()
 }
 
 // launchWithFallback starts the model on the selected backend. A GPU start that fails or shows no GPU evidence
@@ -255,6 +265,9 @@ func (m *Manager) lease(ctx context.Context, in *instance) (*Instance, error) {
 
 // Backend names the backend that answers: cpu, vulkan, cuda or metal.
 func (i *Instance) Backend() string {
+	if i == nil || i.m == nil || i.in == nil {
+		return ""
+	}
 	i.m.mu.Lock()
 	defer i.m.mu.Unlock()
 	return i.in.backend

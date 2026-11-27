@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	"aurago/internal/security"
@@ -17,6 +18,23 @@ const (
 	chatModelAlias = "chibi" // the --alias of every instance
 	maxErrorBody   = 16 << 10
 )
+
+// streamIdleTimeout ends an answer that sends no byte for this long (a variable so tests can shorten it).
+var streamIdleTimeout = 2 * time.Minute
+
+// idleReader resets the idle timer on every read that returns bytes.
+type idleReader struct {
+	r io.Reader
+	t *time.Timer
+}
+
+func (r *idleReader) Read(p []byte) (int, error) {
+	n, err := r.r.Read(p)
+	if n > 0 {
+		r.t.Reset(streamIdleTimeout)
+	}
+	return n, err
+}
 
 // newLoopbackClient builds the client for one loopback child. Redirects are never followed, so the bearer key
 // cannot leave the loopback origin, and no proxy is used. Keep-alive is off: llama-server closes idle
@@ -84,7 +102,9 @@ func streamChat(ctx context.Context, c *http.Client, baseURL, key string, req Ch
 	if err != nil {
 		return ChatStats{}, fmt.Errorf("encode chat request: %w", err)
 	}
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/v1/chat/completions", bytes.NewReader(raw))
+	reqCtx, cancelReq := context.WithCancel(ctx)
+	defer cancelReq()
+	httpReq, err := http.NewRequestWithContext(reqCtx, http.MethodPost, baseURL+"/v1/chat/completions", bytes.NewReader(raw))
 	if err != nil {
 		return ChatStats{}, fmt.Errorf("build chat request: %w", err)
 	}
@@ -103,8 +123,13 @@ func streamChat(ctx context.Context, c *http.Client, baseURL, key string, req Ch
 	if resp.StatusCode != http.StatusOK {
 		return ChatStats{}, decodeErrorAnswer(resp)
 	}
+	// Idle watchdog: the header wait has its own timeout; from here on silence for streamIdleTimeout cancels the
+	// upstream request. The timer is stopped on every return, so it cannot fire after the call.
+	var stalled atomic.Bool
+	idle := time.AfterFunc(streamIdleTimeout, func() { stalled.Store(true); cancelReq() })
+	defer idle.Stop()
 	var firstDelta time.Time
-	res, err := parseStream(resp.Body, func(text string) {
+	res, err := parseStream(&idleReader{r: resp.Body, t: idle}, func(text string) {
 		if firstDelta.IsZero() {
 			firstDelta = time.Now()
 		}
@@ -115,6 +140,9 @@ func streamChat(ctx context.Context, c *http.Client, baseURL, key string, req Ch
 	if err != nil {
 		if ctx.Err() != nil {
 			return ChatStats{}, ctx.Err()
+		}
+		if stalled.Load() {
+			return ChatStats{}, fmt.Errorf("%w: no data for %s", ErrStalled, streamIdleTimeout)
 		}
 		return ChatStats{}, err
 	}

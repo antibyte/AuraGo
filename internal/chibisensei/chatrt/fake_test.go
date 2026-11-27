@@ -37,10 +37,13 @@ func newFakeLauncher(verified bool) *fakeLauncher {
 
 func (f *fakeLauncher) Platform() (string, string) { return f.goos, f.goarch }
 
-func (f *fakeLauncher) Hardware(context.Context) llamacpp.HardwareInfo {
+func (f *fakeLauncher) Hardware(ctx context.Context) llamacpp.HardwareInfo {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.hardwareCalls++
+	if ctx.Err() != nil { // like the real probe: a cancelled context finds nothing
+		return llamacpp.HardwareInfo{}
+	}
 	return f.hw
 }
 

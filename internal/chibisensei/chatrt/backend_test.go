@@ -215,3 +215,19 @@ func TestManagerGPUFallback(t *testing.T) {
 		}
 	})
 }
+
+func TestManagerBackendProbeIgnoresACancelledRequest(t *testing.T) {
+	l := newFakeLauncher(true)
+	l.hw = llamacpp.HardwareInfo{NVIDIA: true}
+	fx := newFixture(t, l)
+	fx.setConfig(func(c *Config) { c.Backend = "auto" })
+
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	if st := fx.m.Status(cancelled); st.Selected != "cuda" {
+		t.Fatalf("a cancelled first request pinned %q, want cuda", st.Selected)
+	}
+	if st := fx.m.Status(context.Background()); st.Selected != "cuda" {
+		t.Fatalf("later status %q, want cuda", st.Selected)
+	}
+}

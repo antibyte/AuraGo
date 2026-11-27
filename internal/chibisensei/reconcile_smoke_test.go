@@ -250,3 +250,40 @@ func TestOrchestratorRestartDuringSmoke(t *testing.T) {
 		t.Errorf("smoker ran %d times, want 2", sm.calls())
 	}
 }
+
+func TestOrchestratorCancelBeforeSmokeRegistration(t *testing.T) {
+	sm := &fakeSmoker{res: SmokeResult{State: "ok", MS: 5, Text: "Hi"}}
+	fx := smokeFixture(t, sm, fixtureOpts{})
+	fx.drive(fx.untilState(RunVerifying))
+	ctx := context.Background()
+
+	// The stop commits after the step has read the run and before the smoke is registered: abortSmoke finds
+	// nothing to end, so only the read after the registration can stop the smoke.
+	var hookErr error
+	smokeBeforeRegister = func(runID string) {
+		smokeBeforeRegister = nil
+		_, hookErr = fx.o.Cancel(ctx, runID)
+	}
+	t.Cleanup(func() { smokeBeforeRegister = nil })
+
+	progressed, err := fx.o.Step(ctx, fx.run.ID)
+	if hookErr != nil {
+		t.Fatal(hookErr)
+	}
+	if err != nil || !progressed {
+		t.Fatalf("step = %v %v", progressed, err)
+	}
+	if sm.calls() != 0 {
+		t.Fatalf("smoker ran %d times after the stop", sm.calls())
+	}
+	if got := fx.get(); got.State != RunVerifying || got.Remote.Smoke != nil {
+		t.Fatalf("after the aborted step: %s smoke %+v", got.State, got.Remote.Smoke)
+	}
+	r := fx.drive(nil)
+	if r.State != RunCancelled || r.ErrorCode != codeCancelled || r.Remote.Smoke != nil {
+		t.Fatalf("run = %s %s smoke %+v", r.State, r.ErrorCode, r.Remote.Smoke)
+	}
+	if sm.calls() != 0 {
+		t.Errorf("smoker ran %d times", sm.calls())
+	}
+}

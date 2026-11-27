@@ -214,3 +214,41 @@ func TestStreamChatUsesFreshConnections(t *testing.T) {
 		t.Fatalf("%d connections for 3 requests", conns)
 	}
 }
+
+func TestStreamChatStalledAnswerIsCancelled(t *testing.T) {
+	old := streamIdleTimeout
+	streamIdleTimeout = 200 * time.Millisecond
+	defer func() { streamIdleTimeout = old }()
+	handlerCtxDone := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body) // the server notices a closed connection only after the body was read
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = io.WriteString(w, `data: {"choices":[{"delta":{"content":"Hi"}}]}`+"\n\n")
+		w.(http.Flusher).Flush()
+		select {
+		case <-r.Context().Done():
+			close(handlerCtxDone)
+		case <-time.After(30 * time.Second):
+		}
+	}))
+	defer srv.Close()
+
+	var got []string
+	done := make(chan error, 1)
+	go func() {
+		_, err := streamChat(context.Background(), newLoopbackClient(), srv.URL, "k", testRequest, func(s string) { got = append(got, s) })
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		if !errors.Is(err, ErrStalled) {
+			t.Fatalf("error %v, want ErrStalled", err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("a stalled answer did not end")
+	}
+	waitClosed(t, handlerCtxDone, "the upstream request cancel")
+	if len(got) != 1 || got[0] != "Hi" {
+		t.Fatalf("deltas %v", got)
+	}
+}

@@ -38,6 +38,7 @@ type Manager struct {
 	gpuFailed     bool
 	failedFor     string // backend the sticky fallback belongs to
 	instances     map[string]*instance
+	draining      int // instances taken out of the map whose process is not yet stopped; guarded by mu, counted against MaxInstances
 	closed        bool
 	reaperStarted bool
 	reaperDone    chan struct{}
@@ -56,6 +57,7 @@ type instance struct {
 	slot        chan struct{} // capacity 1: held by the lease that runs a request
 	waiters     int
 	stopping    bool
+	drainStart  bool // removed while still starting: startInstance ends the drain after its process is stopped
 	cancelStart context.CancelFunc
 }
 
@@ -121,17 +123,37 @@ func (m *Manager) reapOnce() {
 			reap = true
 		}
 		if reap {
-			in.stopping = true
-			in.cancelStart()
-			delete(m.instances, key)
-			if in.proc != nil {
-				stop = append(stop, in.proc)
+			if p := m.takeOutLocked(key, in); p != nil {
+				stop = append(stop, p)
 			}
 		}
 	}
 	m.mu.Unlock()
-	for _, p := range stop {
+	m.stopDraining(stop)
+}
+
+// takeOutLocked removes an instance from the map for stopping and keeps it counted (draining) until its process
+// has stopped. It returns the process to stop, or nil while the instance still starts: startInstance then stops
+// the new process itself and ends the drain. Called with m.mu held.
+func (m *Manager) takeOutLocked(key string, in *instance) Process {
+	in.stopping = true
+	in.cancelStart()
+	delete(m.instances, key)
+	m.draining++
+	if in.proc == nil {
+		in.drainStart = true
+		return nil
+	}
+	return in.proc
+}
+
+// stopDraining stops processes taken out by takeOutLocked, without holding m.mu, and ends their drain.
+func (m *Manager) stopDraining(procs []Process) {
+	for _, p := range procs {
 		_ = p.Stop()
+		m.mu.Lock()
+		m.draining--
+		m.mu.Unlock()
 	}
 }
 
@@ -223,17 +245,12 @@ func (m *Manager) StopAll(ctx context.Context) {
 	var stop []Process
 	m.mu.Lock()
 	for key, in := range m.instances {
-		in.stopping = true
-		in.cancelStart()
-		delete(m.instances, key)
-		if in.proc != nil {
-			stop = append(stop, in.proc)
+		if p := m.takeOutLocked(key, in); p != nil {
+			stop = append(stop, p)
 		}
 	}
 	m.mu.Unlock()
-	for _, p := range stop {
-		_ = p.Stop()
-	}
+	m.stopDraining(stop)
 }
 
 // Close ends installs, starts and children and waits for the reaper. Afterwards every call answers ErrClosed.

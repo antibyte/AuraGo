@@ -7,6 +7,8 @@ import (
 	"io"
 	"regexp"
 	"strings"
+
+	"aurago/internal/security"
 )
 
 const (
@@ -64,7 +66,14 @@ func classifyUpstream(status int, e upstreamError) error {
 	if code == 0 {
 		code = e.Code
 	}
-	return fmt.Errorf("%w: status %d, type %q, %s", errUpstream, code, truncateText(e.Type, 60), truncateText(e.Message, 200))
+	return fmt.Errorf("%w: status %d, type %q, %s", errUpstream, code, scrubUpstreamText(e.Type), scrubUpstreamText(e.Message))
+}
+
+// scrubUpstreamText is the one path of untrusted upstream text into an error: scrubbed first, then cut to 200
+// characters (a secret cannot straddle the cut). decodeErrorAnswer and the stream parser both reach it through
+// classifyUpstream.
+func scrubUpstreamText(s string) string {
+	return truncateText(security.Scrub(s), 200)
 }
 
 func truncateText(s string, limit int) string {

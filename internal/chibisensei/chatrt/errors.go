@@ -13,6 +13,8 @@ var (
 	ErrContext      = errors.New("conversation exceeds the context size")
 	// ErrStopped ends a generation or a start that StopAll or Close interrupted.
 	ErrStopped = errors.New("chat runtime stopped")
+	// ErrStalled ends a generation whose answer stream went silent for streamIdleTimeout.
+	ErrStalled = errors.New("chat runtime answer stalled")
 	// ErrClosed answers every call after Close.
 	ErrClosed = errors.New("chat runtime closed")
 )

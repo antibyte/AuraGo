@@ -4,9 +4,13 @@ import (
 	"context"
 	"net/url"
 	"strings"
+	"time"
 
 	"aurago/internal/llamacpp"
 )
+
+// hardwareProbeTimeout bounds one hardware probe.
+const hardwareProbeTimeout = 20 * time.Second
 
 // resolution is the backend choice for one configured backend value.
 type resolution struct {
@@ -107,7 +111,11 @@ func (r resolution) host() string {
 
 // resolve returns the cached resolution of the configured backend. A changed configured backend drops the
 // cache, the install check and the sticky GPU fallback.
-func (m *Manager) resolve(ctx context.Context) resolution {
+//
+// The hardware probe runs on the manager's lifetime context with its own timeout, never on the caller's request
+// context: a request that ended early must not pin "no GPU" for the lifetime of the manager. A result produced
+// while the manager is closing is returned but not cached.
+func (m *Manager) resolve(_ context.Context) resolution {
 	requested := normalizeBackend(m.cfg().Backend)
 	m.mu.Lock()
 	if m.res != nil && m.res.requested != requested {
@@ -122,10 +130,15 @@ func (m *Manager) resolve(ctx context.Context) resolution {
 		return res
 	}
 	m.mu.Unlock()
-	res := resolveBackend(ctx, m.launcher, requested)
+	probeCtx, cancel := context.WithTimeout(m.life, hardwareProbeTimeout)
+	res := resolveBackend(probeCtx, m.launcher, requested)
+	cancel()
+	cacheable := m.life.Err() == nil
 	m.mu.Lock()
 	if m.res == nil {
-		m.res = &res
+		if cacheable {
+			m.res = &res
+		}
 	} else {
 		res = *m.res
 	}
