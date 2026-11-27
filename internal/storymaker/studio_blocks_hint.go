@@ -8,9 +8,12 @@ import (
 // blockHintRule is one rule of SuggestedBlock: the first rule with a matching word or phrase decides.
 type blockHintRule struct {
 	block   string
-	words   map[string][]string // by language base; a word of 5 letters or more also matches as a prefix
+	words   map[string][]string // by language base; a word matches exactly unless it is listed in blockHintStems
 	phrases map[string][]string // by language base; matched on whole words
 }
+
+// blockHintStems are the rule words that also match as a prefix (inflections and compounds); every other word is exact.
+var blockHintStems = map[string]bool{"prozent": true, "percent": true, "kreislauf": true, "schichten": true}
 
 var blockHintRules = []blockHintRule{
 	{block: "chart", words: map[string][]string{"de": {"prozent"}, "en": {"percent"}}},
@@ -29,11 +32,18 @@ func SuggestedBlock(narration, language string) string {
 		return ""
 	}
 	text := strings.ToLower(StripMarkers(narration))
-	words := strings.FieldsFunc(text, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) })
+	// A hyphen inside a word keeps it one word, so "first-hand" is not "first".
+	words := strings.FieldsFunc(text, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '-' })
+	for i, w := range words {
+		words[i] = strings.Trim(w, "-")
+	}
 	joined := " " + strings.Join(words, " ") + " "
 	hasWord := func(rule string) bool {
+		if rule == "statt" {
+			return hasCompareStatt(text)
+		}
 		for _, w := range words {
-			if w == rule || (len([]rune(rule)) >= 5 && strings.HasPrefix(w, rule)) {
+			if w == rule || (blockHintStems[rule] && strings.HasPrefix(w, rule)) {
 				return true
 			}
 		}
@@ -54,10 +64,36 @@ func SuggestedBlock(narration, language string) string {
 			}
 		}
 	}
-	for _, w := range words {
-		if len(w) >= 2 && strings.Trim(w, "0123456789") == "" {
+	for _, w := range strings.FieldsFunc(text, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) }) {
+		if len(w) >= 2 && strings.Trim(w, "0123456789") == "" && !isYearLike(w) {
 			return "chart"
 		}
 	}
 	return ""
+}
+
+// isYearLike reports a four-digit number from 1900 to 2099, which names a year and not a quantity.
+func isYearLike(w string) bool {
+	return len(w) == 4 && (strings.HasPrefix(w, "19") || strings.HasPrefix(w, "20"))
+}
+
+// hasCompareStatt reports the German "statt" as a comparison: in a clause that does not end with it and has no form of
+// "finden" ("Das Treffen findet am Freitag statt" is an event, "Züge statt Autos" a comparison).
+func hasCompareStatt(text string) bool {
+	clauses := strings.FieldsFunc(text, func(r rune) bool { return strings.ContainsRune(".!?;:,\n()", r) })
+	for _, clause := range clauses {
+		ws := strings.FieldsFunc(clause, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '-' })
+		finden := false
+		for _, w := range ws {
+			if strings.HasPrefix(w, "find") || strings.HasPrefix(w, "fand") || strings.HasPrefix(w, "gefund") {
+				finden = true
+			}
+		}
+		for i, w := range ws {
+			if w == "statt" && i < len(ws)-1 && !finden {
+				return true
+			}
+		}
+	}
+	return false
 }
