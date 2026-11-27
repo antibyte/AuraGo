@@ -9,6 +9,8 @@
   "homedash.state.readonly": "Schreibgeschützt",
   "homedash.state.blocked": "Durch Einstellungen gesperrt",
   "homedash.state.alert": "Alarm",
+  "homedash.comfort.inside": "In der Komfortzone",
+  "homedash.comfort.outside": "Außerhalb der Komfortzone",
   "homedash.state.stale": "Veraltet",
   "homedash.state.no_data": "Keine Daten",
   "homedash.state.armed": "Zum Bestätigen erneut tippen · {{seconds}} s",

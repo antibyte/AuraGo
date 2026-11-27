@@ -4,8 +4,9 @@ const LIGHT = { id: 'ha:light.kitchen', kind: 'light', value: true, available: t
 const SW = { id: 'ha:switch.coffee', kind: 'switch', value: false, available: true, status: 'ok', attributes: {}, capabilities: [cap('toggle'), cap('turn_on'), cap('turn_off')] };
 const SCRIPT = { id: 'ha:script.goodnight', kind: 'script', value: false, available: true, status: 'ok', attributes: {}, capabilities: [cap('activate', { sensitive: true })] };
 const NUM = { id: 'ha:number.boiler_target', kind: 'number', value: 55, available: true, status: 'ok', attributes: {}, capabilities: [cap('set_value', { min: 30, max: 70, step: 1 })] };
+const CLIM = { id: 'ha:climate.living', kind: 'climate', value: 'heat', available: true, status: 'ok', attributes: { temperature: 21, min_temp: 5, max_temp: 30 }, capabilities: [cap('set_temperature', { min: 5, max: 30, step: 0.5 }), cap('hvac_mode', { options: ['off', 'heat', 'cool'] })] };
 function setup(over, copts) {
-  const { E } = loadEngine(['hd-core.js', 'hd-format.js', 'hd-api.js', 'hd-command.js']), clock = fakeClock(), stream = E.core.emitter(), views = new Map([LIGHT, SW, SCRIPT, NUM].map(v => [v.id, v])), calls = []; let n = 0;
+  const { E } = loadEngine(['hd-core.js', 'hd-format.js', 'hd-api.js', 'hd-command.js']), clock = fakeClock(), stream = E.core.emitter(), views = new Map([LIGHT, SW, SCRIPT, NUM, CLIM].map(v => [v.id, v])), calls = []; let n = 0;
   const api = Object.assign({ base: '/b', command(body) { let ok, no; const p = new Promise((a, b) => { ok = a; no = b; }); calls.push({ body, at: clock.now(), ok, no }); return p; } }, over);
   const cmd = E.command.create(Object.assign({ api, stream, store: { view: id => views.get(id) || null }, setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout, now: clock.now, requestId: () => 'r' + (++n) }, copts));
   const fail = (status, body) => Object.assign(new Error('HTTP ' + status), { status, body });
@@ -23,6 +24,13 @@ export const tests = [
     assert.ok(M(st({ color_temp_kelvin: 3060 }), { value: true, attributes: { color_temp_kelvin: 3000 } })); assert.ok(!M(st({ color_temp_kelvin: 3070 }), { value: true, attributes: { color_temp_kelvin: 3000 } }));
     assert.ok(M(st({ hs_color: [358, 52] }), { value: true, attributes: { hs_color: [2, 49] } })); assert.ok(!M(st({ hs_color: [8, 50] }), { value: true, attributes: { hs_color: [2, 50] } }));
     assert.ok(M({ value: 55.4, available: true }, { value: 55 }, 1)); assert.ok(!M({ value: 55.6, available: true }, { value: 55 }, 1)); assert.ok(!M({ value: true, available: false }, { value: true })); }],
+  ['command: climate - set_temperature is continuous (throttled input, final commit) and predicts the target; hvac_mode is discrete and predicts the mode', async () => { const { E, clock, calls, cmd, d } = setup(), P = E.command.predict, M = E.command.matches;
+    eq(P(CLIM, 'set_temperature', { value: 22.5 }), { attributes: { temperature: 22.5 } }); eq(P(CLIM, 'hvac_mode', { option: 'cool' }), { value: 'cool' });
+    assert.ok(M({ value: 'heat', available: true, attributes: { temperature: 22.5 } }, { attributes: { temperature: 22.5 } })); assert.ok(!M({ value: 'heat', available: true, attributes: { temperature: 23 } }, { attributes: { temperature: 22.5 } }));
+    for (let i = 0; i < 120; i++) { cmd.send({ entity: CLIM.id, command: 'set_temperature', args: { value: 20 + i / 10 }, phase: 'input' }); await clock.advance(1000 / 60); }
+    assert.equal(calls.length, 2, 'a leading send and one every 1250 ms, not one per move'); assert.equal(d(CLIM.id).attributes.temperature, 31.9, 'the overlay follows the drag');
+    cmd.send({ entity: CLIM.id, command: 'set_temperature', args: { value: 24 }, phase: 'commit' }); assert.equal(calls.length, 3); assert.equal(calls[2].body.command, 'set_temperature'); assert.equal(d(CLIM.id).attributes.temperature, 24);
+    cmd.send({ entity: CLIM.id, command: 'hvac_mode', args: { option: 'cool' } }); assert.equal(calls.length, 4); assert.equal(calls[3].body.args.option, 'cool'); assert.equal(d(CLIM.id).value, 'cool'); }],
   ['command: the overlay applies at once, pending appears after 250 ms (not before), a matching frame confirms and flashes 600 ms', async () => { const { clock, calls, cmd, frame, d, views } = setup();
     cmd.send({ entity: SW.id, command: 'turn_on', args: {}, widgetKey: 'w1' }); assert.equal(d(SW.id).value, true); assert.equal(d(SW.id).pending, false);
     await clock.advance(249); assert.equal(d(SW.id).pending, false); await clock.advance(2); assert.equal(d(SW.id).pending, true);
@@ -31,7 +39,7 @@ export const tests = [
   // after the 600 ms flash decorate() returns the store view itself (same reference), so the strict equal holds
   ['command: a frame before the 202 confirms when expected arrives; the server state already equal at the 202 confirms; duplicates are harmless', async () => { const { clock, calls, cmd, frame, d, views } = setup();
     cmd.send({ entity: SW.id, command: 'turn_on', args: {} }); frame(SW.id, { value: true }); calls[0].ok(exp(true)); await clock.advance(0); frame(SW.id, { value: true }); assert.equal(d(SW.id).pending, false); assert.equal(d(SW.id).confirmed, true);
-    cmd.send({ entity: LIGHT.id, command: 'turn_on', args: {} }); calls[1].ok(exp(true)); await clock.advance(0); assert.equal(d(LIGHT.id).confirmed, true); assert.equal(views.size, 4); }],
+    cmd.send({ entity: LIGHT.id, command: 'turn_on', args: {} }); calls[1].ok(exp(true)); await clock.advance(0); assert.equal(d(LIGHT.id).confirmed, true); assert.equal(views.size, 5); }],
   ['command: superseded ends silently; momentary commands confirm on the 202', async () => { const { clock, calls, cmd, d, views } = setup();
     cmd.send({ entity: NUM.id, command: 'set_value', args: { value: 60 }, phase: 'commit' }); calls[0].ok({ status: 'ok', accepted: true, superseded: true }); await clock.advance(0); assert.equal(d(NUM.id), views.get(NUM.id));
     cmd.send({ entity: SCRIPT.id, command: 'activate', args: {}, confirmed: true, widgetKey: 'w' }); }],

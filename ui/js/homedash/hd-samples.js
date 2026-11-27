@@ -35,9 +35,11 @@
     function history(type, now) { const p = SERIES[type], end = Number.isFinite(now) ? now : Date.now(); if (!p) return { points: [], source: 'none' }; const points = [];
         for (let i = 0; i < 48; i++) points.push([end - (47 - i) * 1800000, Math.round((p[0] + p[1] * Math.sin(i / 48 * Math.PI * 2 - 1.9) + p[2] * Math.sin(i * 0.9)) * 10) / 10]);
         return { points, source: 'ring' }; }
-    // Thumb size: the variant's default size capped to 2x2 for legibility, never below its minimum.
-    function thumbSize(catalog, type, variant) { const v = catalog.variant(type, variant) || {}, d = v.default_size || { w: 2, h: 1 }, m = v.min_size || { w: 1, h: 1 };
-        return { w: clamp(d.w, m.w, Math.max(m.w, 2)), h: clamp(d.h, m.h, Math.max(m.h, 2)) }; }
+    // Thumb size: the variant's default size capped to 2x2 for legibility, never below its minimum. A segmented select is 3 wide: at 2 wide its labels no longer fit and the widget
+    // shows the list picker instead of the bar the thumb is meant to show.
+    const WIDE = Object.freeze({ 'select/segmented': 3 });
+    function thumbSize(catalog, type, variant) { const v = catalog.variant(type, variant) || {}, d = v.default_size || { w: 2, h: 1 }, m = v.min_size || { w: 1, h: 1 }, cap = WIDE[type + '/' + variant] || 2;
+        return { w: clamp(d.w, m.w, Math.max(m.w, cap)), h: clamp(d.h, m.h, Math.max(m.h, 2)) }; }
     const pxOf = s => ({ width: s.w * CELL + (s.w - 1) * GAP, height: s.h * CELL + (s.h - 1) * GAP });
     const scaleFor = (px, box) => Math.round(Math.min(1, box.width / px.width, box.height / px.height) * 1000) / 1000;
     function thumb(o) {

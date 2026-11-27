@@ -9,6 +9,8 @@
   "homedash.state.readonly": "Solo lectura",
   "homedash.state.blocked": "Bloqueado por los ajustes",
   "homedash.state.alert": "Alerta",
+  "homedash.comfort.inside": "En la zona de confort",
+  "homedash.comfort.outside": "Fuera de la zona de confort",
   "homedash.state.stale": "Desactualizado",
   "homedash.state.no_data": "Sin datos",
   "homedash.state.armed": "Toca de nuevo para confirmar · {{seconds}} s",

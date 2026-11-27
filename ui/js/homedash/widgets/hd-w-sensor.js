@@ -227,7 +227,8 @@
         return { update(view) { lastView = view; render(); }, destroy() { prim.destroy(); } };
     }
 
-    // temperature/comfort: the reading and the humidity, and a plot of both with the comfort zone (20-26 C, 40-60 %; 68-79 F). Without a humidity sensor the plot is the temperature band alone.
+    // temperature/comfort: the reading and the humidity, and a plot of both with the comfort zone (20-26 C, 40-60 %; 68-79 F). The plot spans 12-32 C (54-90 F) and 20-80 % so the zone is a third of
+    // each axis; a reading beyond an edge sits on the edge. Without a humidity sensor the plot is the temperature band alone.
     function comfort(api) {
         const o = api.widget.options || {}, dec = Number.isInteger(o.decimals) && o.decimals >= 0 && o.decimals <= 2 ? o.decimals : 1;
         const plot = el('div', { class: 'hd-cf-plot', 'aria-hidden': 'true' }, [el('span', { class: 'hd-cf-zone' }), el('span', { class: 'hd-cf-dot' })]);
@@ -240,15 +241,17 @@
             update(view) {
                 const e = view.entities.primary, h = view.entities.humidity || null, v = e && !hostWord(e) ? numberOf(e.value) : null, hv = h && !hostWord(h) ? numberOf(h.value) : null;
                 const raw = e && typeof e.unit === 'string' ? e.unit : '', fahrenheit = /F/i.test(raw), unit = raw.replace(DEG, '') || 'C';
-                const a = fahrenheit ? 50 : 10, b = fahrenheit ? 95 : 35, z0 = fahrenheit ? 68 : 20, z1 = fahrenheit ? 79 : 26;
+                const a = fahrenheit ? 54 : 12, b = fahrenheit ? 90 : 32, z0 = fahrenheit ? 68 : 20, z1 = fahrenheit ? 79 : 26;
                 api.setTone(e && e.tone ? e.tone : null);
                 temp.set(Object.assign({ value: v, unit }, flagsOf(e))); hum.set(Object.assign({ value: hv, unit: '%' }, flagsOf(h)));
                 setAttr(node, 'data-hd-nohum', hv === null ? 'true' : null);
                 setAttr(node, 'data-hd-empty', v === null ? 'true' : null);
-                setAttr(node, 'data-hd-zone', v === null ? null : v >= z0 && v <= z1 && (hv === null || (hv >= 40 && hv <= 60)) ? 'in' : 'out');
-                E.core.setVars(plot, { '--hd-zx0': unit01(z0, a, b).toFixed(4), '--hd-zx1': unit01(z1, a, b).toFixed(4), '--hd-zy0': '0.4', '--hd-zy1': '0.6',
-                    '--hd-cx': (v === null ? 0 : unit01(v, a, b)).toFixed(4), '--hd-cy': (hv === null ? 0.5 : unit01(hv, 0, 100)).toFixed(4) });
-                sr.textContent = F.valueText(v, { decimals: dec, lang: api.lang, unit: DEG + unit }) + (hv === null ? '' : ', ' + F.valueText(hv, { decimals: 0, lang: api.lang, unit: '%' }));
+                const zone = v === null ? null : v >= z0 && v <= z1 && (hv === null || (hv >= 40 && hv <= 60)) ? 'in' : 'out';
+                setAttr(node, 'data-hd-zone', zone);
+                E.core.setVars(plot, { '--hd-zx0': unit01(z0, a, b).toFixed(4), '--hd-zx1': unit01(z1, a, b).toFixed(4), '--hd-zy0': unit01(40, 20, 80).toFixed(4), '--hd-zy1': unit01(60, 20, 80).toFixed(4),
+                    '--hd-cx': (v === null ? 0 : unit01(v, a, b)).toFixed(4), '--hd-cy': (hv === null ? 0.5 : unit01(hv, 20, 80)).toFixed(4) });
+                sr.textContent = [F.valueText(v, { decimals: dec, lang: api.lang, unit: DEG + unit }), hv === null ? '' : F.valueText(hv, { decimals: 0, lang: api.lang, unit: '%' }),
+                    zone === null ? '' : api.t(zone === 'in' ? 'homedash.comfort.inside' : 'homedash.comfort.outside')].filter(Boolean).join(', ');
                 api.setStatus(statusText(api, e, null));
             },
             destroy() { temp.destroy(); hum.destroy(); node.remove(); }

@@ -9,6 +9,8 @@
   "homedash.state.readonly": "Alleen lezen",
   "homedash.state.blocked": "Geblokkeerd door instellingen",
   "homedash.state.alert": "Alarm",
+  "homedash.comfort.inside": "In de comfortzone",
+  "homedash.comfort.outside": "Buiten de comfortzone",
   "homedash.state.stale": "Verouderd",
   "homedash.state.no_data": "Geen gegevens",
   "homedash.state.armed": "Tik nogmaals om te bevestigen · {{seconds}} s",

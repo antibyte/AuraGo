@@ -10,7 +10,7 @@
     if (!E || !E.core || !E.api || !E.format) throw new Error('hd-command.js: load hd-core.js, hd-format.js and hd-api.js first');
     const TIMING = Object.freeze({ PENDING_MS: 250, CONFIRM_MS: 8000, CUE_MS: 6000, THROTTLE_MS: 1250, KEY_MS: 400, ARM_MS: 4000, FLASH_MS: 600, RETRY_MS: 1000 });
     const FRAMES_KEPT = 8;
-    const CONTINUOUS = Object.freeze(['brightness', 'color_temp', 'color', 'set_value']);
+    const CONTINUOUS = Object.freeze(['brightness', 'color_temp', 'color', 'set_value', 'set_temperature']);
     const ARMABLE = Object.freeze(['toggle', 'turn_on', 'turn_off', 'activate', 'press', 'select_option', 'effect']);
     const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v), finite = v => typeof v === 'number' && Number.isFinite(v);
     function capOf(view, name) { for (const c of view && Array.isArray(view.capabilities) ? view.capabilities : []) { if (c === name) return { name, allowed: true }; if (isObj(c) && c.name === name) return c; } return null; }
@@ -26,6 +26,8 @@
             case 'effect': return { value: true, attributes: { effect: String(a.option) } };
             case 'select_option': return { value: String(a.option) };
             case 'set_value': return { value: Number(a.value) };
+            case 'set_temperature': return { attributes: { temperature: Number(a.value) } };
+            case 'hvac_mode': return { value: String(a.option) };
             default: return null;
         }
     }
@@ -35,6 +37,7 @@
     }
     function attrMatches(key, actual, want) {
         if (key === 'brightness_pct') return finite(actual) && Math.abs(actual - want) <= 1;
+        if (key === 'temperature') return finite(actual) && Math.abs(actual - want) <= 0.05;
         if (key === 'color_temp_kelvin') return finite(actual) && Math.abs(actual - want) <= Math.abs(want) * 0.02;
         if (key === 'hs_color') { if (!Array.isArray(actual) || !Array.isArray(want) || !finite(actual[0]) || !finite(actual[1])) return false;
             return Math.abs(((actual[0] - want[0]) % 360 + 540) % 360 - 180) <= 4 && Math.abs(actual[1] - want[1]) <= 4; }

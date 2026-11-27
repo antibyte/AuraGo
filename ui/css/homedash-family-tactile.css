@@ -301,6 +301,8 @@
 .hd-widget[data-hd-family="tactile"] .hd-step-value { position: relative; }
 .hd-widget[data-hd-family="tactile"] .hd-step-value::after { inset-block-start: 4px; inset-inline-end: 3px; }
 .hd-widget[data-hd-family="tactile"] .hd-pick::after { content: ""; position: absolute; inset-block-start: 50%; inset-inline-end: 17px; inline-size: 6px; block-size: 6px; margin-block-start: -3px; border-radius: var(--hd-radius-pill); background: var(--hd-t-led); box-shadow: var(--hd-t-led-halo); opacity: 0; pointer-events: none; }
+/* A picker under 90 px wide has no chevron column: the label is centred over the whole key, so the LED leaves the middle for the top corner, above the text. */
+@container hd-widget (max-width: 89px) { .hd-widget[data-hd-family="tactile"] .hd-pick::after { inset-block-start: 5px; inset-inline-end: 5px; margin-block-start: 0; } }
 .hd-widget[data-hd-family="tactile"] :is(.hd-slider-thumb, .hd-ct-thumb, .hd-wheel-thumb)::after { content: ""; position: absolute; inset: 0; margin: auto; inline-size: 6px; block-size: 6px; border-radius: var(--hd-radius-pill); background: var(--hd-t-led); box-shadow: var(--hd-t-led-halo); opacity: 0; pointer-events: none; }
 .hd-widget[data-hd-family="tactile"] :is(.hd-push[data-hd-variant], .hd-ltile):is([aria-checked="true"], [data-hd-on="true"])::after { opacity: 1; }
 .hd-widget[data-hd-family="tactile"]:is([data-hd-pending="true"], [data-hd-armed="true"], [data-hd-confirmed="true"], [data-hd-status="error"], [data-hd-tone="crit"]) :is(.hd-push[data-hd-variant], .hd-pick, .hd-ltile, .hd-step-value, .hd-slider-thumb, .hd-ct-thumb, .hd-wheel-thumb)::after { opacity: 1; }

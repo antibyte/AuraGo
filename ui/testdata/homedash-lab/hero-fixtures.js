@@ -67,7 +67,7 @@
     scenarios: { remote: { from: merge(light, { attributes: { brightness_pct: 20 } }), to: merge(light, { attributes: { brightness_pct: 80 } }) },
       pending: { from: light, to: merge(light, { pending: true }) } } });
 
-  const clim = entity('ha:climate.living', 'climate', 'Living room', { value: 'heat', capabilities: ['set_temperature', 'set_hvac_mode'],
+  const clim = entity('ha:climate.living', 'climate', 'Living room', { value: 'heat', capabilities: ['set_temperature', 'hvac_mode'],
     attributes: { current_temperature: 19.5, temperature: 21.5, min_temp: 5, max_temp: 30, target_temp_step: 0.5, hvac_action: 'heating', hvac_modes: ['off', 'heat', 'cool', 'auto'] } });
   lab.fixtures.define('climate', 'dial', { widget: { title: 'Living room' },
     states: states(clim, merge(clim, { value: 'off', attributes: { hvac_action: 'off' } }), {

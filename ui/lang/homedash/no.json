@@ -9,6 +9,8 @@
   "homedash.state.readonly": "Skrivebeskyttet",
   "homedash.state.blocked": "Blokkert av innstillinger",
   "homedash.state.alert": "Varsel",
+  "homedash.comfort.inside": "I komfortsonen",
+  "homedash.comfort.outside": "Utenfor komfortsonen",
   "homedash.state.stale": "Utdatert",
   "homedash.state.no_data": "Ingen data",
   "homedash.state.armed": "Trykk igjen for å bekrefte · {{seconds}} s",

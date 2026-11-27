@@ -9,6 +9,8 @@
   "homedash.state.readonly": "Read-only",
   "homedash.state.blocked": "Blocked by settings",
   "homedash.state.alert": "Alert",
+  "homedash.comfort.inside": "In the comfort zone",
+  "homedash.comfort.outside": "Outside the comfort zone",
   "homedash.state.stale": "Outdated",
   "homedash.state.no_data": "No data",
   "homedash.state.armed": "Tap again to confirm · {{seconds}} s",

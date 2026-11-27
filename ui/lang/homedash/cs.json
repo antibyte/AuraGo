@@ -9,6 +9,8 @@
   "homedash.state.readonly": "Pouze pro čtení",
   "homedash.state.blocked": "Zablokováno nastavením",
   "homedash.state.alert": "Poplach",
+  "homedash.comfort.inside": "V komfortní zóně",
+  "homedash.comfort.outside": "Mimo komfortní zónu",
   "homedash.state.stale": "Zastaralé",
   "homedash.state.no_data": "Žádná data",
   "homedash.state.armed": "Potvrďte opětovným klepnutím · {{seconds}} s",

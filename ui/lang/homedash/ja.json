@@ -9,6 +9,8 @@
   "homedash.state.readonly": "読み取り専用",
   "homedash.state.blocked": "設定によりブロック中",
   "homedash.state.alert": "警告",
+  "homedash.comfort.inside": "快適ゾーン内",
+  "homedash.comfort.outside": "快適ゾーン外",
   "homedash.state.stale": "古い情報",
   "homedash.state.no_data": "データなし",
   "homedash.state.armed": "もう一度タップして確定 · {{seconds}} 秒",

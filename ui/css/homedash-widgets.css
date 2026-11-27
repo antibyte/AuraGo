@@ -36,15 +36,16 @@
 .hd-widget[data-hd-tone="crit"] > .hd-frame::before { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: var(--hd-ring-alert); pointer-events: none; z-index: 2; }
 /* State mark (hd-widgets.js writes span.hd-mark in the head: data-kind alert, readonly or stale, with the fact as accessible name and tooltip). From 90px wide it is the 12px glyph after the title;
    in a card under 90px wide (the head icon is gone there) it is an 8px dot in the top-right corner: solid for stale and alert, a ring for read-only. The dot sits above the ink of the title row
-   (rows 1-9 of the card; the ink starts at row 6 in a compact frame), so the title keeps its room: where a title is cut the ellipsis sits on the baseline, under the dot. */
+   (rows 1-9 of the card; the ink starts at row 6 in a compact frame): a cut title ends in the ellipsis on the baseline, under the dot, and a title that fits whole keeps 5px free so it ends before the dot. */
 .hd-mark { display: block; flex: none; box-sizing: border-box; inline-size: 12px; block-size: 12px; background: var(--hd-ink-muted); -webkit-mask: var(--hd-badge-mask) center / contain no-repeat; mask: var(--hd-badge-mask) center / contain no-repeat; }
 .hd-mark[data-kind="stale"] { --hd-badge-mask: var(--hd-mask-clock); }
 .hd-mark[data-kind="readonly"] { --hd-badge-mask: var(--hd-mask-lock); }
 .hd-mark[data-kind="alert"] { --hd-badge-mask: var(--hd-mask-alert); background: var(--hd-alert); }
 @container hd-widget (max-width: 89px) {
-  .hd-mark { position: absolute; z-index: 3; inset-block-start: 1px; inset-inline-end: 4px; inline-size: 8px; block-size: 8px; border-radius: var(--hd-radius-pill); -webkit-mask: none; mask: none; pointer-events: none; }
+  .hd-mark { position: absolute; z-index: 3; inset-block-start: 1px; inset-inline-end: 2px; inline-size: 8px; block-size: 8px; border-radius: var(--hd-radius-pill); -webkit-mask: none; mask: none; pointer-events: none; }
   .hd-mark[data-kind="readonly"] { background: transparent; border: 2px solid var(--hd-ink-muted); }
 }
+@container hd-widget (max-width: 89px) and (max-height: 139px) { .hd-widget .hd-head:has(> .hd-mark:not([hidden])) { padding-inline-end: max(var(--hd-more-pad, 0px), 5px); } } /* the compact card: the title row is the dot row, so a title that fits whole still ends before the dot; a taller card starts the title below it */
 .hd-widget[data-hd-status="error"] .hd-state { color: var(--hd-alert-ink); }
 .hd-widget[data-hd-status="error"] .hd-state::before { content: ""; display: inline-block; inline-size: 12px; block-size: 12px; margin-inline-end: 4px; vertical-align: -1px;
   background: var(--hd-alert-ink); -webkit-mask: var(--hd-mask-error) center / contain no-repeat; mask: var(--hd-mask-error) center / contain no-repeat; }
@@ -301,20 +302,26 @@
 .hd-widget[data-hd-type="gauge"] .hd-bar[data-hd-variant="v"] > .hd-bar-readout, .hd-widget[data-hd-type="temperature"] .hd-bar > .hd-bar-readout { justify-self: center; }
 @container hd-widget (min-height: 200px) { .hd-widget[data-hd-type="gauge"] .hd-bar[data-hd-variant="v"] > .hd-bar-readout, .hd-widget[data-hd-type="temperature"] .hd-bar > .hd-bar-readout { font-size: min(14cqmin, calc(var(--hd-body-w) / 3.4), 48px); } }
 .hd-bar .hd-numeral .hd-num-unit { font-size: max(11px, 0.5em); }
-/* Comfort: the readings on top (temperature left, humidity right), the plot below. The zone is the rectangle of comfortable values (x: temperature, y: humidity); the dot is the reading, in
-   the ok colour inside the zone and the warning colour outside. Without a humidity sensor the zone is the full-height temperature band and the dot rides its middle. */
+/* Comfort: the readings on top (temperature left, humidity right), the plot below. The zone is the rectangle of comfortable values (x: temperature, y: humidity); the dot is the reading, a round dot in
+   the ok colour inside the zone and a warning diamond outside. Without a humidity sensor the zone is the full-height temperature band and the dot rides its middle. */
 .hd-comfort { display: grid; grid-template-rows: auto minmax(0, 1fr); row-gap: 6px; box-sizing: border-box; inline-size: 100%; block-size: 100%; min-block-size: 0; }
 .hd-cf-read { grid-row: 1; display: flex; align-items: baseline; justify-content: space-between; column-gap: 8px; min-inline-size: 0; font-size: clamp(14px, 11cqmin, 40px); line-height: 1; white-space: nowrap; }
 .hd-cf-read > .hd-numeral:last-child { color: var(--hd-ink-muted); font-size: 0.8em; }
-.hd-cf-plot { --hd-cf-dot: 10px; grid-row: 2; position: relative; min-block-size: 24px; border-radius: calc(var(--hd-radius-card) * 0.6); overflow: hidden;
-  background: linear-gradient(90deg, transparent calc(50% - 0.5px), var(--hd-ink-faint) 0 calc(50% + 0.5px), transparent 0) 0 0 / 100% 100% no-repeat, linear-gradient(0deg, transparent calc(50% - 0.5px), var(--hd-ink-faint) 0 calc(50% + 0.5px), transparent 0) 0 0 / 100% 100% no-repeat, var(--hd-track); }
-.hd-cf-zone { position: absolute; box-sizing: border-box; inset-inline-start: calc(var(--hd-zx0, 0.3) * 100%); inline-size: calc((var(--hd-zx1, 0.7) - var(--hd-zx0, 0.3)) * 100%);
-  inset-block-end: calc(var(--hd-zy0, 0.4) * 100%); block-size: calc((var(--hd-zy1, 0.6) - var(--hd-zy0, 0.4)) * 100%); border: var(--hd-stroke-hair) solid var(--hd-ok); border-radius: calc(var(--hd-radius-control) / 2);
-  background: color-mix(in srgb, var(--hd-ok) 28%, transparent); }
-.hd-comfort[data-hd-nohum] .hd-cf-zone { inset-block: 0; block-size: auto; }
-.hd-cf-dot { position: absolute; box-sizing: border-box; inline-size: var(--hd-cf-dot); block-size: var(--hd-cf-dot); inset-inline-start: calc(var(--hd-cx, 0) * (100% - var(--hd-cf-dot))); inset-block-end: calc(var(--hd-cy, 0.5) * (100% - var(--hd-cf-dot)));
+.hd-cf-plot { --hd-cf-dot: 12px; --hd-cf-edge: color-mix(in srgb, var(--hd-ok) 78%, var(--hd-ink)); grid-row: 2; position: relative; min-block-size: 24px; border-radius: calc(var(--hd-radius-card) * 0.6); overflow: hidden; background: var(--hd-track); box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-ink-faint); }
+/* The zone: a tinted area with a solid outline, and a dashed guide along each of its edges across the whole plot (the axes of temperature and humidity, read against the zone). */
+.hd-cf-zone { position: absolute; box-sizing: border-box; inset-inline-start: calc(var(--hd-zx0, 0.4) * 100%); inline-size: calc((var(--hd-zx1, 0.7) - var(--hd-zx0, 0.4)) * 100%);
+  inset-block-end: calc(var(--hd-zy0, 0.3333) * 100%); block-size: calc((var(--hd-zy1, 0.6667) - var(--hd-zy0, 0.3333)) * 100%); border: 1.5px solid var(--hd-cf-edge); border-radius: calc(var(--hd-radius-control) / 2);
+  background: color-mix(in srgb, var(--hd-ok) 38%, transparent); }
+.hd-cf-zone::before, .hd-cf-zone::after { content: ""; position: absolute; box-sizing: border-box; pointer-events: none; }
+.hd-cf-zone::before { inset-block: -999px; inset-inline: -1.5px; border-inline: 1px dashed color-mix(in srgb, var(--hd-cf-edge) 55%, transparent); }
+.hd-cf-zone::after { inset-inline: -999px; inset-block: -1.5px; border-block: 1px dashed color-mix(in srgb, var(--hd-cf-edge) 55%, transparent); }
+.hd-comfort[data-hd-nohum] .hd-cf-zone { inset-block: 0; block-size: auto; border-radius: 0; }
+.hd-comfort[data-hd-nohum] .hd-cf-zone::after { display: none; }
+/* The dot is the reading: a round ok dot inside the zone, a warning diamond outside (the shape tells it too, not the colour alone), ringed in the card colour so it reads on the tint. */
+.hd-cf-dot { position: absolute; z-index: 1; box-sizing: border-box; inline-size: var(--hd-cf-dot); block-size: var(--hd-cf-dot); inset-inline-start: calc(var(--hd-cx, 0) * (100% - var(--hd-cf-dot))); inset-block-end: calc(var(--hd-cy, 0.5) * (100% - var(--hd-cf-dot)));
   border-radius: var(--hd-radius-pill); background: var(--hd-ink); box-shadow: 0 0 0 2px var(--hd-surface-solid); }
-.hd-comfort[data-hd-zone="in"] .hd-cf-dot { background: var(--hd-ok); } .hd-comfort[data-hd-zone="out"] .hd-cf-dot { background: var(--hd-warn); }
+.hd-comfort[data-hd-zone="in"] .hd-cf-dot { background: var(--hd-ok); }
+.hd-comfort[data-hd-zone="out"] .hd-cf-dot { background: var(--hd-warn); border-radius: 2px; rotate: 45deg; }
 .hd-comfort[data-hd-nohum] .hd-cf-dot { inset-block-end: calc(50% - var(--hd-cf-dot) / 2); }
 .hd-comfort[data-hd-empty="true"] .hd-cf-dot { display: none; }
 /* Sensor icon: the entity's icon and its value; the icon scales with the body (12px at 1x1, up to 72px), a wide short card puts them side by side. */

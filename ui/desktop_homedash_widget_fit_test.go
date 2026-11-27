@@ -53,7 +53,7 @@ func (t hdFitTile) label() string {
 	return fmt.Sprintf("%s/%s %dx%d %s %s %s (%.0fx%.0f px) [%s]", t.Type, t.Variant, t.Size.W, t.Size.H, t.Bp, t.Family, t.State, t.Px.Width, t.Px.Height, strings.Join(t.Tags, "+"))
 }
 
-// hdFitKind groups a failure text into title, tiny, overlap, outside, ctl (a control value or label cut under 4 characters), mark (a stale, read-only or alert tile without a visible mark) or empty (a body that paints nothing); anything else is render.
+// hdFitKind groups a failure text into title, tiny, overlap, outside, ctl (a control value or label cut under 4 characters), mark (a stale, read-only or alert tile without a visible mark) comfort (a comfort plot whose zone edge is under 3:1, too small or disagrees with the dot) or empty (a body that paints nothing); anything else is render.
 func hdFitKind(f string) string {
 	switch {
 	case strings.HasPrefix(f, "title"):
@@ -68,6 +68,8 @@ func hdFitKind(f string) string {
 		return "ctl"
 	case strings.HasPrefix(f, "mark"):
 		return "mark"
+	case strings.HasPrefix(f, "comfort"):
+		return "comfort"
 	case strings.HasPrefix(f, "empty"):
 		return "empty"
 	}
@@ -92,7 +94,7 @@ func hdFitOnly() []string {
 //
 //	set AURAGO_RUN_BROWSER_SMOKE=1 and HOMEDASH_WF_DIR (default C:\disposable\homedash-m4\g13\before; a directory inside the repository is refused);
 //	HOMEDASH_WF_FAMILIES (comma list, default all four), HOMEDASH_WF_PALETTE (dark or light), HOMEDASH_WF_EXTENDED=0 drops the extended sizes,
-//	HOMEDASH_WF_REPORT_ONLY=1 writes the report without failing, HOMEDASH_WF_SHOW_EXT=1 also puts the extended sizes on the sheet image, HOMEDASH_WF_ONLY=type/variant,... renders only those widgets, HOMEDASH_WF_EXTRA_CSS=file.css injects a stylesheet after the bundle (to try rules before they go into the bundle), HOMEDASH_WF_DUMP=type/variant/WxH[/stale] with HOMEDASH_WF_DUMP_BP=lg logs the element boxes of that tile.
+//	HOMEDASH_WF_REPORT_ONLY=1 writes the report without failing, HOMEDASH_WF_SHOW_EXT=1 also puts the extended sizes on the sheet image, HOMEDASH_WF_ONLY=type/variant,... renders only those widgets, HOMEDASH_WF_LAB=1 renders the lab sheets (default size, 96 and 67 px cells, six states; HOMEDASH_WF_ONLY defaults to the climate dial and the G13 variants), HOMEDASH_WF_EXTRA_CSS=file.css injects a stylesheet after the bundle (to try rules before they go into the bundle), HOMEDASH_WF_DUMP=type/variant/WxH[/stale] with HOMEDASH_WF_DUMP_BP=lg logs the element boxes of that tile.
 func TestDesktopHomeDashWidgetFitBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	dirRaw := os.Getenv("HOMEDASH_WF_DIR")
@@ -161,10 +163,17 @@ func TestDesktopHomeDashWidgetFitBrowser(t *testing.T) {
 			t.Fatalf("inject HOMEDASH_WF_EXTRA_CSS: %v", err)
 		}
 	}
+	bps, only := []string{"lg", "md", "sm", "thumb"}, hdFitOnly()
+	if os.Getenv("HOMEDASH_WF_LAB") == "1" { // lab sheets: the G13 variants at their default size, 96 px and 67 px cells, one sheet per family; measured but never failing
+		bps, reportOnly, extended = []string{"lab96", "lab67"}, true, false
+		if len(only) == 0 {
+			only = []string{"climate/dial", "climate/stepper", "climate/scale", "gauge/bar", "gauge/tank", "temperature/thermometer", "temperature/comfort", "sensor/icon"}
+		}
+	}
 	var all []hdFitTile
 	for _, family := range families {
-		for _, bp := range []string{"lg", "md", "sm", "thumb"} {
-			spec, _ := json.Marshal(map[string]interface{}{"family": family, "palette": palette, "bp": bp, "extended": extended && bp != "thumb", "showExt": os.Getenv("HOMEDASH_WF_SHOW_EXT") == "1", "only": hdFitOnly()})
+		for _, bp := range bps {
+			spec, _ := json.Marshal(map[string]interface{}{"family": family, "palette": palette, "bp": bp, "extended": extended && bp != "thumb", "showExt": os.Getenv("HOMEDASH_WF_SHOW_EXT") == "1", "only": only})
 			obj, err := page.Timeout(120*time.Second).Eval(`async(spec)=>JSON.stringify(await hdFit.render(JSON.parse(spec)))`, string(spec))
 			if err != nil {
 				t.Fatalf("render %s %s: %v", family, bp, err)
