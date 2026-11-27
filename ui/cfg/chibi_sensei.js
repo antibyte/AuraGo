@@ -1,8 +1,8 @@
-// cfg/chibi_sensei.js — Chibi Sensei configuration section (phases P1 and P2): the switch, the dataset limits
+// cfg/chibi_sensei.js — Chibi Sensei configuration section (phases P1 to P3): the switch, the dataset limits
 // and the model slot for generating and cleaning examples (its provider through the shared provider
 // dropdown, lang/meta.json help.chibi_sensei.generator.provider). Defaults and ranges match
-// internal/config/chibi_sensei.go; the server validates them. Agent and runtime keys stay
-// hidden until their phases ship.
+// internal/config/chibi_sensei.go; the server validates them. Agent keys stay
+// hidden until their phase ships.
 
 let _chibiSenseiSection = null;
 
@@ -12,10 +12,12 @@ const CHIBI_SENSEI_DEFAULTS = Object.freeze({
     dataset: Object.freeze({ max_rows: 50000 }),
     import: Object.freeze({ max_rows: 20000, max_file_mb: 50 }),
     generator: Object.freeze({ provider: '', model: '', max_rows_per_job: 500, max_daily_rows: 5000 }),
-    training: Object.freeze({ machine_shape: 'NvidiaTeslaT4', delete_remote_after_run: true })
+    training: Object.freeze({ machine_shape: 'NvidiaTeslaT4', delete_remote_after_run: true }),
+    runtime: Object.freeze({ enabled: true, backend: 'auto', idle_minutes: 10, context_size: 4096 })
 });
 
 const CHIBI_SENSEI_MACHINE_SHAPES = Object.freeze(['NvidiaTeslaT4', 'NvidiaL4']);
+const CHIBI_SENSEI_RUNTIME_BACKENDS = Object.freeze(['auto', 'cpu', 'vulkan', 'cuda']);
 
 function chibiCfgFill(target, defaults) {
     Object.keys(defaults).forEach(key => {
@@ -83,6 +85,15 @@ function renderChibiSenseiSection(section) {
                 options: CHIBI_SENSEI_MACHINE_SHAPES.map(value => ({ value, label: t('config.chibi_sensei.machine_shape_' + value) })) }),
             chibiCfgToggleRow('config.chibi_sensei.training_delete_remote_label', 'config.chibi_sensei.training_delete_remote_help',
                 data.training.delete_remote_after_run === true, 'chibi_sensei.training.delete_remote_after_run', 'toggleBool(this)')
+        ] });
+        groups.push({ title: t('config.chibi_sensei.runtime_title'), fields: [
+            chibiCfgToggleRow('config.chibi_sensei.runtime_enabled_label', 'config.chibi_sensei.runtime_enabled_help',
+                data.runtime.enabled === true, 'chibi_sensei.runtime.enabled', 'toggleBool(this)'),
+            form.select({ label: t('config.chibi_sensei.runtime_backend_label'), help: tOr('config.chibi_sensei.runtime_backend_help', ''),
+                path: 'chibi_sensei.runtime.backend', value: data.runtime.backend,
+                options: CHIBI_SENSEI_RUNTIME_BACKENDS.map(value => ({ value, label: t('config.chibi_sensei.runtime_backend_' + value) })) }),
+            chibiCfgNumber('config.chibi_sensei.runtime_idle_minutes_label', 'config.chibi_sensei.runtime_idle_minutes_help', 'chibi_sensei.runtime.idle_minutes', data.runtime.idle_minutes, 1, 120),
+            chibiCfgNumber('config.chibi_sensei.runtime_context_size_label', 'config.chibi_sensei.runtime_context_size_help', 'chibi_sensei.runtime.context_size', data.runtime.context_size, 1024, 32768)
         ] });
         after = '<div class="field-group"><div class="field-help">' + escapeHtml(t('config.chibi_sensei.later_note')) + '</div></div>'
             + '<div class="field-group"><a class="btn-save dc-test-btn" href="/desktop?app=chibi-sensei">' + escapeHtml(t('config.chibi_sensei.open_app')) + '</a></div>';

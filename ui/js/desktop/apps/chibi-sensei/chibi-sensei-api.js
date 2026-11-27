@@ -1,7 +1,7 @@
 // Chibi Sensei API client: /api/desktop/chibi-sensei, one method per contract route. Every failure is thrown as
 // {csn, status, code, message, issues, network} (P.errors.normalize); the server's answers are flat {error, code, message,
 // issues?}. Project and row writes carry If-Match. The project event stream is an EventSource that comes back after an error
-// answer closed it. One AbortController per window cancels whatever is in flight when the window closes. This is the only file of
+// answer closed it; the chat answer is a streamed POST read with a ReadableStream reader. One AbortController per window cancels whatever is in flight when the window closes. This is the only file of
 // the app that calls fetch or creates an EventSource. Classic script, publishes P.createApi.
 (function () {
     'use strict';
@@ -62,6 +62,58 @@
         return parts.length ? '?' + parts.join('&') : '';
     }
 
+    const SSE_MAX_BUFFER = 1 << 20;
+    // createSseParser(decoder) parses text/event-stream incrementally. push(chunk) takes a Uint8Array (decoded with
+    // decoder.decode(chunk, {stream: true}), so a multi-byte character split across chunks survives) or a string, and returns the
+    // events completed so far as [{event, data}]. end() flushes the decoder and returns what is left. Lines end with LF, CRLF or CR;
+    // a CR at the end of a chunk waits for the next chunk. Comment lines (":") are skipped; id, retry and unknown fields are ignored;
+    // several data lines join with LF; an event without data is not dispatched, and an event without its blank line at the end of
+    // the stream is dropped (as in the HTML standard). A line longer than 1 MiB throws {code: 'bad_response'}.
+    function createSseParser(decoder) {
+        let buffer = '', name = '', data = [];
+        const out = [];
+        function line(text) {
+            if (text === '') {
+                if (data.length) out.push({ event: name || 'message', data: data.join('\n') });
+                name = ''; data = [];
+                return;
+            }
+            if (text.charAt(0) === ':') return;
+            const colon = text.indexOf(':');
+            const field = colon < 0 ? text : text.slice(0, colon);
+            let value = colon < 0 ? '' : text.slice(colon + 1);
+            if (value.charAt(0) === ' ') value = value.slice(1);
+            if (field === 'event') name = value;
+            else if (field === 'data') data.push(value);
+        }
+        function drain(final) {
+            let start = 0;
+            for (let i = 0; i < buffer.length; i++) {
+                const ch = buffer.charAt(i);
+                if (ch !== '\n' && ch !== '\r') continue;
+                if (ch === '\r' && i === buffer.length - 1 && !final) break;
+                line(buffer.slice(start, i));
+                if (ch === '\r' && buffer.charAt(i + 1) === '\n') i++;
+                start = i + 1;
+            }
+            buffer = buffer.slice(start);
+            if (buffer.length > SSE_MAX_BUFFER) throw Object.assign(new Error('event stream line too long'), { code: 'bad_response' });
+        }
+        return {
+            push(chunk) {
+                buffer += typeof chunk === 'string' ? chunk : (decoder ? decoder.decode(chunk, { stream: true }) : '');
+                drain(false);
+                return out.splice(0);
+            },
+            end() {
+                if (decoder) buffer += decoder.decode();
+                drain(true);
+                buffer = ''; name = ''; data = [];
+                return out.splice(0);
+            }
+        };
+    }
+
     const enc = encodeURIComponent;
     const list = (body, name) => (body && Array.isArray(body[name]) ? body[name] : []);
 
@@ -105,6 +157,56 @@
         const jsonHeaders = () => ({ 'Content-Type': 'application/json' });
         const send = (method, path, payload, extra) => json(method, path, Object.assign({ headers: jsonHeaders(), body: JSON.stringify(payload === undefined ? {} : payload) }, extra || {}));
         const project = id => '/projects/' + enc(id);
+
+        const CHAT_EVENTS = ['status', 'delta', 'done', 'error'];
+        // chatStream(body, {onEvent, onClose}) -> {abort()}. POST /runtime/chat. onEvent({type, target, ...data}) for each status,
+        // delta, done or error event of a known target; onClose({ended, aborted, error}) exactly once: ended = the server sent "end";
+        // aborted = abort() or the window closed; error = the normal error shape (a JSON error answer before the stream, a 200 that
+        // is not an event stream: bad_response, a stream that broke off: network or connection_lost).
+        function chatStream(body, handlers) {
+            const h = handlers || {};
+            const targets = P.CHAT_TARGETS || ['tuned', 'base'];
+            const ctrl = new AbortController();
+            const relay = () => ctrl.abort();
+            if (lifetime.signal.aborted) ctrl.abort(); else lifetime.signal.addEventListener('abort', relay);
+            let closed = false, ended = false;
+            const close = result => {
+                if (closed) return;
+                closed = true;
+                lifetime.signal.removeEventListener('abort', relay);
+                if (h.onClose) h.onClose(result);
+            };
+            const take = events => events.forEach(ev => {
+                let data = null;
+                try { data = JSON.parse(ev.data); } catch (_) { data = null; }
+                if (!data || typeof data !== 'object') return;
+                if (ev.event === 'end') { ended = true; return; }
+                if (CHAT_EVENTS.indexOf(ev.event) < 0 || targets.indexOf(data.target) < 0) return;
+                if (h.onEvent) h.onEvent(Object.assign({}, data, { type: ev.event }));
+            });
+            (async () => {
+                try {
+                    const response = await request('POST', '/runtime/chat', { headers: Object.assign(jsonHeaders(), { Accept: 'text/event-stream' }), body: JSON.stringify(body || {}), signal: ctrl.signal });
+                    const type = String(response.headers.get('content-type') || '');
+                    if (type.indexOf('text/event-stream') !== 0 || !response.body || typeof response.body.getReader !== 'function') {
+                        throw P.errors.normalize({ code: 'bad_response', status: response.status });
+                    }
+                    const reader = response.body.getReader();
+                    const parser = createSseParser(new TextDecoder('utf-8'));
+                    while (!ended) {
+                        const step = await reader.read();
+                        if (step.done) { take(parser.end()); break; }
+                        take(parser.push(step.value));
+                    }
+                    if (ended) reader.cancel().catch(() => {});
+                    close({ ended, aborted: false, error: ended ? null : P.errors.normalize({ code: 'connection_lost', status: 200 }) });
+                } catch (err) {
+                    const aborted = ctrl.signal.aborted || !!(err && (err.aborted || err.name === 'AbortError'));
+                    close({ ended, aborted, error: aborted ? null : (err && err.csn ? err : P.errors.normalize({ code: err && err.code, message: String(err && err.message || err) })) });
+                }
+            })();
+            return { abort() { ctrl.abort(); } };
+        }
 
         const api = {
             abort() { lifetime.abort(); },
@@ -189,6 +291,17 @@
             runLog(runId) { return json('GET', '/runs/' + enc(runId) + '/log'); },
             deleteRun(runId) { return send('POST', '/runs/' + enc(runId) + '/delete', {}); },
 
+            // Runtime = {state, admin, build, backend:{requested,selected,fallback}, download:{bytes,done_bytes,host,error_code}, instances, limits, notice_code}
+            async runtime() { return (await json('GET', '/runtime')).runtime || null; },
+            async installRuntime() { return (await send('POST', '/runtime/install', {})).runtime || null; },
+            async stopRuntime() { return (await send('POST', '/runtime/stop', {})).runtime || null; },
+            // {run, report, report_seen, samples_total, models:{tuned,base}, chat:{system_role, sampling, max_tokens}}
+            runTest(runId) { return json('GET', '/runs/' + enc(runId) + '/test'); },
+            // {samples, total, offset, limit}; query {offset, limit, filter}
+            runSamples(runId, query) { return json('GET', '/runs/' + enc(runId) + '/samples' + qs(query)); },
+            reportSeen(runId) { return send('POST', '/runs/' + enc(runId) + '/report/seen', {}); },
+            chatStream(body, handlers) { return chatStream(body, handlers); },
+
             // events(projectId, {onJob, onRows, onChecks, onRun, onMetric, onStage, onState}) -> {close()}; onState('open' | 'error')
             events(projectId, handlers) {
                 const h = handlers || {};
@@ -233,5 +346,6 @@
     }
 
     P.createApi = createApi;
+    P.createSseParser = createSseParser;
     P.API_BASE = BASE;
 })();

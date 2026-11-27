@@ -58,7 +58,7 @@
 
     function firstOpen(steps) { return steps && steps.goal === 'done' ? 'data' : 'goal'; }
 
-    // opts: {readonly, goalValid, checksRunning, rows, runActive, preflight, starting}
+    // opts: {readonly, goalValid, checksRunning, rows, runActive, preflight, starting, hasSucceeded}
     function primaryFor(step, steps, opts) {
         const o = opts || {}, s = steps || {};
         const later = key => ({ labelKey: key, action: '', disabled: true, reasonKey: 'chibi_sensei.primary.later' });
@@ -81,7 +81,14 @@
             const label = o.starting ? 'chibi_sensei.primary.starting' : (s.training === 'done' ? 'chibi_sensei.primary.train_again' : 'chibi_sensei.primary.start_training');
             return { labelKey: label, action: 'start_training', disabled: !!reason || !!o.starting, reasonKey: reason };
         }
-        if (step === 'test') return later('chibi_sensei.primary.chat_model');
+        if (step === 'test') {
+            // A succeeded run makes the chat possible; the server's step state and the run list both count (the list holds 20 runs).
+            const has = s.test === 'ready' || s.test === 'done' || !!o.hasSucceeded;
+            let reason = '';
+            if (!has) reason = 'chibi_sensei.primary.no_succeeded_run';
+            else if (o.readonly) reason = 'chibi_sensei.readonly_banner';
+            return { labelKey: 'chibi_sensei.primary.chat_model', action: 'open_chat', disabled: !!reason, reasonKey: reason };
+        }
         return later('chibi_sensei.primary.export_model');
     }
 
@@ -90,7 +97,7 @@
         data_todo: 'chibi_sensei.tip.data_todo', data_in_progress: 'chibi_sensei.tip.data_in_progress', data_blocked: 'chibi_sensei.tip.data_blocked', data_ready: 'chibi_sensei.tip.data_ready',
         training_todo: 'chibi_sensei.tip.training_todo', training_ready: 'chibi_sensei.tip.training_ready',
         training_in_progress: 'chibi_sensei.tip.training_in_progress', training_done: 'chibi_sensei.tip.training_done', training_blocked: 'chibi_sensei.tip.training_blocked',
-        test_todo: 'chibi_sensei.tip.test_todo', use_todo: 'chibi_sensei.tip.use_todo'
+        test_todo: 'chibi_sensei.tip.test_todo', test_ready: 'chibi_sensei.tip.test_ready', test_done: 'chibi_sensei.tip.test_done', use_todo: 'chibi_sensei.tip.use_todo'
     };
     function tipFor(step, state) { return TIPS[step + '_' + state] || TIPS[step + '_todo'] || TIPS.goal_todo; }
 

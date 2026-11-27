@@ -147,7 +147,9 @@
         'chibi_sensei.import.max_rows': { type: 'number', min: 100, max: 50000, integer: true, changedOnly: true },
         'chibi_sensei.import.max_file_mb': { type: 'number', min: 1, max: 500, integer: true, changedOnly: true },
         'chibi_sensei.generator.max_rows_per_job': { type: 'number', min: 10, max: 5000, integer: true, changedOnly: true },
-        'chibi_sensei.generator.max_daily_rows': { type: 'number', min: 100, max: 100000, integer: true, changedOnly: true }
+        'chibi_sensei.generator.max_daily_rows': { type: 'number', min: 100, max: 100000, integer: true, changedOnly: true },
+        'chibi_sensei.runtime.idle_minutes': { type: 'number', min: 1, max: 120, integer: true, changedOnly: true },
+        'chibi_sensei.runtime.context_size': { type: 'number', min: 1024, max: 32768, integer: true, changedOnly: true }
     });
 
     // State of a Config section for the sidebar dot (js/config/section_state.js).

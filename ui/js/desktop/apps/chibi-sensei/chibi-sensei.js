@@ -374,14 +374,15 @@
         inst.derived = derive(inst);
         inst.primary = P.steps.primaryFor(inst.step, inst.derived, {
             readonly: inst.readonly, goalValid: goalValid(inst), checksRunning: inst.checksRunning, rows: inst.project ? inst.project.rows : 0,
-            runActive: !!P.activeRun(inst.runs), preflight: inst.preflight, starting: inst.trainingStarting
+            runActive: !!P.activeRun(inst.runs), preflight: inst.preflight, starting: inst.trainingStarting,
+            hasSucceeded: inst.runs.some(r => r && r.state === 'succeeded')
         });
         inst.parts.railView.paint(inst.derived, inst.step);
         inst.parts.panelView.paint({ step: inst.step, derived: inst.derived, primary: inst.primary });
         inst.bus.emit('steps', inst.derived);
     }
 
-    // The primary action of the step panel: save the goal and go on, run the checks, or go to training.
+    // The primary action of the step panel: save the goal and go on, run the checks, go to training, or open the chat of the Test step.
     async function runPrimary(inst, action) {
         const id = action || (inst.primary && inst.primary.action) || '';
         if (id === 'goal_continue') {
@@ -400,6 +401,10 @@
             if (inst.step !== 'training') { showStep(inst, 'training'); return; }
             if (id === 'start_training' && view && typeof view.startTraining === 'function') await view.startTraining();
             else if (id === 'show_run' && view && typeof view.showRun === 'function') view.showRun();
+        } else if (id === 'open_chat') {
+            if (inst.step !== 'test') { const pending = showStep(inst, 'test'); if (pending) await pending; }
+            const view = inst.parts.view;
+            if (!inst.disposed && inst.step === 'test' && view && typeof view.showView === 'function') view.showView('chat', { focus: true });
         }
     }
 

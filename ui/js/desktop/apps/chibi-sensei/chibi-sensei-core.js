@@ -274,7 +274,7 @@
         };
     }
 
-    const ERROR_CODES = ['network', 'unauthorized', 'desktop_scope_required', 'desktop_readonly', 'chibi_disabled', 'desktop_disabled', 'not_found', 'conflict', 'validation_failed', 'dataset_full', 'import_failed', 'job_active', 'not_archived', 'budget_exceeded', 'provider_unavailable', 'too_large', 'busy', 'precondition_required', 'confirmation_required', 'confirmation_invalid', 'generator_daily_limit', 'storage_full', 'data_changed', 'already_undone', 'file_too_large', 'unsupported_file', 'profile_unknown', 'job_not_found', 'undo_conflict', 'bad_response', 'prompt_withheld', 'output_cut', 'invalid_answer', 'model_error', 'interrupted', 'internal', 'too_many_rows', 'job_not_finished', 'timeout', 'too_many_streams', 'preflight_failed', 'plan_expired', 'run_active', 'run_not_terminal', 'run_not_found', 'artifact_not_found', 'admin_required', 'kaggle_unavailable', 'license_consent_required'];
+    const ERROR_CODES = ['network', 'unauthorized', 'desktop_scope_required', 'desktop_readonly', 'chibi_disabled', 'desktop_disabled', 'not_found', 'conflict', 'validation_failed', 'dataset_full', 'import_failed', 'job_active', 'not_archived', 'budget_exceeded', 'provider_unavailable', 'too_large', 'busy', 'precondition_required', 'confirmation_required', 'confirmation_invalid', 'generator_daily_limit', 'storage_full', 'data_changed', 'already_undone', 'file_too_large', 'unsupported_file', 'profile_unknown', 'job_not_found', 'undo_conflict', 'bad_response', 'prompt_withheld', 'output_cut', 'invalid_answer', 'model_error', 'interrupted', 'internal', 'too_many_rows', 'job_not_finished', 'timeout', 'too_many_streams', 'preflight_failed', 'plan_expired', 'run_active', 'run_not_terminal', 'run_not_found', 'artifact_not_found', 'admin_required', 'kaggle_unavailable', 'license_consent_required', 'runtime_unavailable', 'runtime_not_installed', 'runtime_busy', 'model_missing', 'run_not_succeeded', 'samples_missing'];
     const CHECK_IDS = ['count_min', 'structure', 'short_answer', 'duplicates', 'conflicts', 'too_long', 'label_balance', 'json_valid', 'split_sizes', 'language_fit'];
 
     function describeError(t, err) {
@@ -394,6 +394,20 @@
         return el('div', { class: 'csn-linkrow', dataset: { csn: name } }, input, copy, open, note);
     }
 
+    // ---- test and chat (P3) ------------------------------------------------------------------------------------------------------
+    const CHAT_TARGETS = ['tuned', 'base'];
+    const RUNTIME_STATES = ['disabled', 'unsupported', 'not_installed', 'installing', 'ready', 'failed'];
+    const SAMPLE_FILTERS = ['all', 'different', 'wrong'];
+    // Limits of POST /runtime/chat; GET /meta "chat" overrides them when present.
+    const CHAT_LIMITS = Object.freeze({ max_targets: 2, max_turns: 20, max_chars: 16000, max_tokens_cap: 1024 });
+    function chatLimits(meta) {
+        const m = meta && meta.chat && typeof meta.chat === 'object' ? meta.chat : {};
+        const pick = (name) => (Number.isInteger(m[name]) && m[name] > 0 ? m[name] : CHAT_LIMITS[name]);
+        return { max_targets: pick('max_targets'), max_turns: pick('max_turns'), max_chars: pick('max_chars'), max_tokens_cap: pick('max_tokens_cap') };
+    }
+    // Characters as the server counts them (Unicode code points, Go's utf8.RuneCountInString).
+    function charCount(text) { return Array.from(String(text || '')).length; }
+
     P.el = el;
     P.clear = clear;
     P.icon = icon;
@@ -423,4 +437,10 @@
     P.safeLink = safeLink;
     P.openLink = openLink;
     P.linkRow = linkRow;
+    P.CHAT_TARGETS = CHAT_TARGETS;
+    P.RUNTIME_STATES = RUNTIME_STATES;
+    P.SAMPLE_FILTERS = SAMPLE_FILTERS;
+    P.CHAT_LIMITS = CHAT_LIMITS;
+    P.chatLimits = chatLimits;
+    P.charCount = charCount;
 })();

@@ -6,7 +6,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 
 const root = path.resolve(import.meta.dirname, '..');
-const files = ['chibi-sensei-core.js', 'chibi-sensei-mascot.js', 'chibi-sensei-steps.js', 'chibi-sensei-table.js', 'chibi-sensei-projects.js', 'chibi-sensei-training.js', 'chibi-sensei-chart.js', 'chibi-sensei-run.js'];
+const files = ['chibi-sensei-core.js', 'chibi-sensei-api.js', 'chibi-sensei-mascot.js', 'chibi-sensei-steps.js', 'chibi-sensei-table.js', 'chibi-sensei-projects.js', 'chibi-sensei-training.js', 'chibi-sensei-chart.js', 'chibi-sensei-run.js'];
 const read = file => fs.readFileSync(path.join(root, 'ui/js/desktop/apps/chibi-sensei', file), 'utf8');
 const plain = value => JSON.parse(JSON.stringify(value));
 let checks = 0;
@@ -15,7 +15,7 @@ const eq = (actual, expected, message) => { checks++; assert.deepStrictEqual(pla
 const ok = (value, message) => { checks++; assert.ok(value, message); };
 
 const window = {};
-vm.runInNewContext(files.map(read).join('\n'), { window, console, Intl, Map, Set, JSON, Math, Date, URL });
+vm.runInNewContext(files.map(read).join('\n'), { window, console, Intl, Map, Set, JSON, Math, Date, URL, TextDecoder, TextEncoder, Uint8Array, AbortController, Promise });
 const P = window.ChibiSenseiParts;
 ok(P && P.steps && P.table && P.mascot, 'the modules publish their parts');
 
@@ -60,10 +60,15 @@ p = primary('data', { data: 'blocked' }, { rows: 3, readonly: true });
 ok(p.disabled && p.reasonKey === 'chibi_sensei.readonly_banner', 'read-only disables the check');
 p = primary('data', { data: 'blocked' }, { rows: 3, checksRunning: true });
 ok(p.disabled && p.labelKey === 'chibi_sensei.checks.running', 'a running check disables the button');
-for (const step of ['test', 'use']) {
-    p = primary(step, {}, {});
-    ok(p.disabled && p.reasonKey === 'chibi_sensei.primary.later', step + ' comes later');
-}
+p = primary('test', { test: 'todo' }, {});
+ok(p.disabled && p.action === 'open_chat' && p.reasonKey === 'chibi_sensei.primary.no_succeeded_run', 'test without a succeeded run is disabled');
+p = primary('test', { test: 'ready' }, {});
+ok(!p.disabled && p.action === 'open_chat' && p.labelKey === 'chibi_sensei.primary.chat_model', 'test ready opens the chat');
+ok(!primary('test', { test: 'todo' }, { hasSucceeded: true }).disabled, 'a succeeded run in the list enables the chat');
+p = primary('test', { test: 'done' }, { readonly: true });
+ok(p.disabled && p.reasonKey === 'chibi_sensei.readonly_banner', 'test is disabled on a read-only desktop');
+p = primary('use', {}, {});
+ok(p.disabled && p.reasonKey === 'chibi_sensei.primary.later', 'use comes later');
 p = primary('training', { training: 'ready' }, { preflight: null });
 ok(p.action === 'start_training' && p.disabled && p.reasonKey === 'chibi_sensei.primary.preflight_loading', 'training waits for the preflight');
 p = primary('training', { training: 'ready' }, { preflight: { ready: false } });
@@ -82,6 +87,9 @@ ok(p.disabled && p.labelKey === 'chibi_sensei.primary.starting', 'a start in fli
 eq(P.steps.tipFor('data', 'blocked'), 'chibi_sensei.tip.data_blocked', 'tip: data blocked');
 eq(P.steps.tipFor('training', 'ready'), 'chibi_sensei.tip.training_ready', 'tip: training ready');
 eq(P.steps.tipFor('training', 'weird'), 'chibi_sensei.tip.training_todo', 'tip: unknown training state');
+eq(P.steps.tipFor('test', 'ready'), 'chibi_sensei.tip.test_ready', 'tip: test ready');
+eq(P.steps.tipFor('test', 'done'), 'chibi_sensei.tip.test_done', 'tip: test done');
+eq(P.steps.tipFor('test', 'weird'), 'chibi_sensei.tip.test_todo', 'tip: unknown test state');
 
 // ---- table ----------------------------------------------------------------------------------------------------------------
 const T = P.table;
@@ -276,5 +284,63 @@ ok(!flat.empty && flat.yTicks[0].value < 1 && flat.yTicks[3].value > 1, 'chart: 
 ok(C.layout([{ step: 1, kind: 'train', loss: NaN }, { step: 'x', loss: 1 }]).empty, 'chart: non-numbers are dropped');
 ok(C.layout([{ step: 1, kind: 'eval', loss: null }]).empty, 'chart: a null loss is dropped');
 eq(plain(C.layout([{ step: 0, kind: 'train', loss: 1 }, { step: 2, kind: 'train', loss: 2 }], { maxSteps: 2 })).xTicks.map(x => x.value), [0, 1, 2], 'chart: small step counts dedupe ticks');
+
+// ---- stream parser and chatStream (P3) --------------------------------------------------------------------------------------
+const S = () => P.createSseParser(new TextDecoder());
+const bytes = text => new TextEncoder().encode(text);
+let sse = S();
+eq(sse.push('event: delta\ndata: {"text":').concat(sse.push('"hi"}\n\n')), [{ event: 'delta', data: '{"text":"hi"}' }], 'sse: a delta split inside its JSON is one event');
+const utf = bytes('event: delta\ndata: {"text":"ä€😀"}\n\n');
+let splitsOk = true;
+for (let i = 0; i <= utf.length; i++) {
+    const parser = S();
+    const got = parser.push(utf.slice(0, i)).concat(parser.push(utf.slice(i)));
+    if (got.length !== 1 || got[0].data !== '{"text":"ä€😀"}') splitsOk = false;
+}
+ok(splitsOk, 'sse: every split point of the UTF-8 bytes keeps the text byte-identical');
+eq(S().push(': ping\n\n'), [], 'sse: a comment gives no event');
+eq(S().push(': ping\nevent: end\ndata: {}\n\n'), [{ event: 'end', data: '{}' }], 'sse: a comment before an event');
+eq(S().push('event: done\r\ndata: {}\r\n\r\n'), [{ event: 'done', data: '{}' }], 'sse: CRLF line ends');
+sse = S();
+eq(sse.push('event: done\ndata: {}\r').concat(sse.push('\n\r\n')), [{ event: 'done', data: '{}' }], 'sse: a CR at the end of a push waits for the LF');
+eq(S().push('data: a\ndata: b\n\n'), [{ event: 'message', data: 'a\nb' }], 'sse: two data lines join with LF');
+eq(S().push('data:x\n\n'), [{ event: 'message', data: 'x' }], 'sse: no space after the colon');
+eq(S().push('event: x\n\n'), [], 'sse: an event without data is not dispatched');
+sse = S();
+eq(sse.push('event: done\ndata: {}\n'), [], 'sse: an unterminated event waits');
+eq(sse.end(), [], 'sse: end() drops an unterminated event');
+let tooLong = null;
+try { S().push('data: ' + 'x'.repeat((1 << 20) + 1)); } catch (err) { tooLong = err; }
+ok(tooLong && tooLong.code === 'bad_response', 'sse: a line over 1 MiB throws bad_response');
+
+const sseBody = text => new TextEncoder().encode(text);
+const streamResponse = (chunks, type) => {
+    let i = 0;
+    return {
+        ok: true, status: 200, headers: { get: name => (name.toLowerCase() === 'content-type' ? type : null) },
+        body: { getReader: () => ({ read: async () => (i < chunks.length ? { done: false, value: chunks[i++] } : { done: true, value: undefined }), cancel: async () => {} }) }
+    };
+};
+const runChat = fetchFn => new Promise(resolve => {
+    const events = [];
+    const api = P.createApi({ fetch: fetchFn });
+    api.chatStream({ run_id: 'r' }, { onEvent: ev => events.push(ev), onClose: result => resolve({ events, result: plain(result) }) });
+});
+let chat = await runChat(async () => streamResponse([
+    sseBody('event: status\ndata: {"target":"tuned","state":"generating"}\n\nevent: del'),
+    sseBody('ta\ndata: {"target":"tuned","text":"Hallo"}\n\n'),
+    sseBody('event: done\ndata: {"target":"tuned","finish_reason":"stop"}\n\nevent: end\ndata: {}\n\n')
+], 'text/event-stream'));
+eq(chat.events.map(ev => ev.type), ['status', 'delta', 'done'], 'chat: (a) event types');
+eq(chat.events[1].text, 'Hallo', 'chat: (a) the delta text');
+eq(chat.result, { ended: true, aborted: false, error: null }, 'chat: (a) closes after end');
+chat = await runChat(async () => ({ ok: false, status: 409, headers: { get: () => null }, json: async () => ({ code: 'runtime_busy', error: 'runtime_busy' }) }));
+ok(chat.events.length === 0 && chat.result.error && chat.result.error.code === 'runtime_busy' && chat.result.ended === false, 'chat: (b) a JSON error answer before the stream');
+chat = await runChat(async () => streamResponse([sseBody('{}')], 'application/json'));
+ok(chat.result.error && chat.result.error.code === 'bad_response', 'chat: (c) a 200 that is not an event stream');
+chat = await runChat(async () => streamResponse([sseBody('event: delta\ndata: {"target":"tuned","text":"x"}\n\n')], 'text/event-stream'));
+ok(chat.result.error && chat.result.error.code === 'connection_lost' && chat.events.length === 1, 'chat: (d) a stream that ends without end');
+chat = await runChat(async () => streamResponse([sseBody('event: delta\ndata: {"target":"provider","text":"x"}\n\nevent: end\ndata: {}\n\n')], 'text/event-stream'));
+eq(chat.events, [], 'chat: (e) an unknown target is not forwarded');
 
 console.log('chibi-sensei model: ok (' + checks + ' checks)');

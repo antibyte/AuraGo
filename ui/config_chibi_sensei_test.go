@@ -31,6 +31,7 @@ func TestConfigChibiSenseiSection(t *testing.T) {
 		"window.AuraConfigState.set('chibi_sensei.enabled', next)",
 		"/desktop?app=chibi-sensei",
 		"'chibi_sensei.training.machine_shape'", "'chibi_sensei.training.delete_remote_after_run'", "CHIBI_SENSEI_MACHINE_SHAPES",
+		"'chibi_sensei.runtime.enabled'", "'chibi_sensei.runtime.backend'", "CHIBI_SENSEI_RUNTIME_BACKENDS",
 	} {
 		if !strings.Contains(module, marker) {
 			t.Fatalf("cfg/chibi_sensei.js misses %q", marker)
@@ -44,6 +45,8 @@ func TestConfigChibiSenseiSection(t *testing.T) {
 		"'chibi_sensei.import.max_file_mb', data.import.max_file_mb, 1, 500",
 		"'chibi_sensei.generator.max_rows_per_job', data.generator.max_rows_per_job, 10, 5000",
 		"'chibi_sensei.generator.max_daily_rows', data.generator.max_daily_rows, 100, 100000",
+		"'chibi_sensei.runtime.idle_minutes', data.runtime.idle_minutes, 1, 120",
+		"'chibi_sensei.runtime.context_size', data.runtime.context_size, 1024, 32768",
 	} {
 		if !strings.Contains(module, marker) {
 			t.Fatalf("cfg/chibi_sensei.js misses the range %q", marker)
@@ -57,6 +60,8 @@ func TestConfigChibiSenseiSection(t *testing.T) {
 		"'chibi_sensei.import.max_file_mb': { type: 'number', min: 1, max: 500, integer: true, changedOnly: true }",
 		"'chibi_sensei.generator.max_rows_per_job': { type: 'number', min: 10, max: 5000, integer: true, changedOnly: true }",
 		"'chibi_sensei.generator.max_daily_rows': { type: 'number', min: 100, max: 100000, integer: true, changedOnly: true }",
+		"'chibi_sensei.runtime.idle_minutes': { type: 'number', min: 1, max: 120, integer: true, changedOnly: true }",
+		"'chibi_sensei.runtime.context_size': { type: 'number', min: 1024, max: 32768, integer: true, changedOnly: true }",
 	} {
 		if !strings.Contains(catalog, marker) {
 			t.Fatalf("config catalog.js misses %q", marker)
@@ -74,7 +79,7 @@ func TestConfigChibiSenseiSection(t *testing.T) {
 	if err := json.Unmarshal(mustReadUIFile(t, "lang/config/chibi_sensei/en.json"), &en); err != nil {
 		t.Fatal(err)
 	}
-	for _, key := range []string{"config.section.chibi_sensei.label", "config.section.chibi_sensei.desc", "config.chibi_sensei.generator_provider_main", "config.chibi_sensei.later_note", "config.chibi_sensei.training_title", "config.chibi_sensei.training_delete_remote_help"} {
+	for _, key := range []string{"config.section.chibi_sensei.label", "config.section.chibi_sensei.desc", "config.chibi_sensei.generator_provider_main", "config.chibi_sensei.later_note", "config.chibi_sensei.training_title", "config.chibi_sensei.training_delete_remote_help", "config.chibi_sensei.runtime_title", "config.chibi_sensei.runtime_backend_help"} {
 		if en[key] == "" {
 			t.Fatalf("lang/config/chibi_sensei/en.json misses %s", key)
 		}
