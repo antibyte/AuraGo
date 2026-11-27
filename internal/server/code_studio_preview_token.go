@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/url"
+	pathpkg "path"
 	"regexp"
 	"strings"
 	"sync"
@@ -141,6 +142,29 @@ func codeStudioPreviewVirtualPath(rel string) (string, error) {
 		}
 	}
 	return sanitizeCodeStudioPath(codeStudioWorkspaceRoot + "/" + rel)
+}
+
+// codeStudioPreviewBlocked reports paths the preview never serves. The token reaches the whole workspace and the
+// previewed page runs scripts that may fetch() anything under the token and send it out (an SSH workspace can be
+// rooted at ~ or /). A web page does not need dot files or private keys, so .env, .git, .ssh, .aws and friends are
+// refused, as are key and keystore files anywhere. /.well-known/ stays reachable.
+func codeStudioPreviewBlocked(vpath string) bool {
+	rel := strings.TrimPrefix(strings.TrimPrefix(vpath, codeStudioWorkspaceRoot), "/")
+	segments := strings.Split(rel, "/")
+	for _, segment := range segments {
+		if strings.HasPrefix(segment, ".") && segment != ".well-known" {
+			return true
+		}
+	}
+	base := strings.ToLower(segments[len(segments)-1])
+	if strings.HasPrefix(base, "id_rsa") || strings.HasPrefix(base, "id_dsa") || strings.HasPrefix(base, "id_ecdsa") || strings.HasPrefix(base, "id_ed25519") {
+		return true
+	}
+	switch pathpkg.Ext(base) {
+	case ".pem", ".key", ".p12", ".pfx", ".jks", ".keystore", ".kdbx", ".ppk", ".gpg", ".asc":
+		return true
+	}
+	return false
 }
 
 func codeStudioPreviewEscapePath(rel string) string {

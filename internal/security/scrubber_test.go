@@ -137,6 +137,27 @@ func TestScrubUsesVisiblePlaceholderForSensitiveValues(t *testing.T) {
 	})
 }
 
+func TestScrubReplacesContainingSecretsLongestFirst(t *testing.T) {
+	sensitiveMu.Lock()
+	sensitiveValues = make(map[string]sensitiveEntry)
+	scopedSensitiveValues = make(map[string]int)
+	scopedSensitiveForms = make(map[string]sensitiveEntry)
+	sensitiveMu.Unlock()
+	RegisterSensitive("hunter2025")
+	RegisterSensitive("hunter2025-tail-XYZQW")
+	release := RegisterScopedSensitiveExact("prefix-hunter2025-tail-XYZQW")
+	defer release()
+	// Map iteration order is random: repeat so a wrong order cannot pass by luck.
+	for i := 0; i < 50; i++ {
+		for _, input := range []string{"a hunter2025-tail-XYZQW b", "a prefix-hunter2025-tail-XYZQW b"} {
+			got := Scrub(input)
+			if strings.Contains(got, "XYZQW") || strings.Contains(got, "prefix") {
+				t.Fatalf("Scrub(%q) left part of the longer secret: %q", input, got)
+			}
+		}
+	}
+}
+
 func TestRegisterSensitiveDeduplicatesAndIgnoresShortLiterals(t *testing.T) {
 	sensitiveMu.Lock()
 	sensitiveValues = make(map[string]sensitiveEntry)

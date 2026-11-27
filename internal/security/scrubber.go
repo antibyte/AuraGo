@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"net/url"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -210,10 +211,16 @@ func scrubRegistered(text string, identities bool) string {
 	}
 	sensitiveMu.RUnlock()
 
+	// Longest value first, ties by value: when one secret contains another, replacing the shorter one first would
+	// break the longer match and leave its remainder in clear text. Map order is random, so sort explicitly.
+	entries = append(entries, scoped...)
+	sort.Slice(entries, func(i, j int) bool {
+		if len(entries[i].value) != len(entries[j].value) {
+			return len(entries[i].value) > len(entries[j].value)
+		}
+		return entries[i].value < entries[j].value
+	})
 	for _, entry := range entries {
-		text = scrubSensitiveEntry(text, entry)
-	}
-	for _, entry := range scoped {
 		text = scrubSensitiveEntry(text, entry)
 	}
 	return text

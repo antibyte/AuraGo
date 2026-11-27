@@ -109,12 +109,17 @@ func (p *codeStudioPreviewHandler) handleServe(w http.ResponseWriter, r *http.Re
 	if directory {
 		vpath = pathpkg.Join(vpath, "index.html")
 	}
+	display := strings.TrimPrefix(vpath, codeStudioWorkspaceRoot+"/")
+	if codeStudioPreviewBlocked(vpath) {
+		writeCodeStudioPreviewPage(w, r, http.StatusNotFound, "File not found", display+" does not exist in this workspace.")
+		return
+	}
 	source, err := p.source(r.Context(), claims.Workspace)
 	if err != nil {
 		if errors.Is(err, errCodeStudioPreviewWorkspaceNotFound) {
 			writeCodeStudioPreviewPage(w, r, http.StatusNotFound, "Workspace not found", "This workspace is no longer open in Code Studio.")
 		} else {
-			writeCodeStudioPreviewPage(w, r, http.StatusServiceUnavailable, "Preview unavailable", err.Error())
+			p.unavailable(w, r, "open workspace", err)
 		}
 		return
 	}
@@ -126,13 +131,17 @@ func (p *codeStudioPreviewHandler) handleServe(w http.ResponseWriter, r *http.Re
 			return
 		}
 	}
-	display := strings.TrimPrefix(vpath, codeStudioWorkspaceRoot+"/")
 	if err != nil {
 		if codeStudioPreviewMissing(err) {
 			writeCodeStudioPreviewPage(w, r, http.StatusNotFound, "File not found", display+" does not exist in this workspace.")
 		} else {
-			writeCodeStudioPreviewPage(w, r, http.StatusBadGateway, "Preview unavailable", err.Error())
+			p.unavailable(w, r, "probe "+display, err)
 		}
+		return
+	}
+	// probe.Path is the resolved target: a harmless-looking symlink must not lead into a blocked file.
+	if codeStudioPreviewBlocked(probe.Path) {
+		writeCodeStudioPreviewPage(w, r, http.StatusNotFound, "File not found", display+" does not exist in this workspace.")
 		return
 	}
 	if probe.Size > codeStudioPreviewMaxBytes {
@@ -152,7 +161,7 @@ func (p *codeStudioPreviewHandler) handleServe(w http.ResponseWriter, r *http.Re
 	version := p.versions.Current(claims.Workspace)
 	content, err := source.Read(r.Context(), probe.Path, codeStudioPreviewMaxBytes)
 	if err != nil {
-		writeCodeStudioPreviewPage(w, r, http.StatusBadGateway, "Preview unavailable", err.Error())
+		p.unavailable(w, r, "read "+display, err)
 		return
 	}
 	if contentType == "" {
@@ -177,6 +186,15 @@ func (p *codeStudioPreviewHandler) serveVersion(w http.ResponseWriter, r *http.R
 		paths = []string{}
 	}
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{"version": version, "paths": paths, "full": full})
+}
+
+// unavailable answers a backend failure without its text: the preview route needs no login, and Docker or SSH
+// errors can name hosts, users and paths. The detail goes to the server log.
+func (p *codeStudioPreviewHandler) unavailable(w http.ResponseWriter, r *http.Request, op string, err error) {
+	if p.studio.server != nil && p.studio.server.Logger != nil {
+		p.studio.server.Logger.Warn("[CodeStudio] preview backend error", "op", op, "error", err)
+	}
+	writeCodeStudioPreviewPage(w, r, http.StatusBadGateway, "Preview unavailable", "The workspace could not be read. Try again from Code Studio.")
 }
 
 func codeStudioPreviewMissing(err error) bool {

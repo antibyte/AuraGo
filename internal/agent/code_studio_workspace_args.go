@@ -42,16 +42,41 @@ func codeStudioWorkspaceOperationMismatch(tc ToolCall) bool {
 
 // isolateCodeStudioWorkspaceOutput fences the result of a remote workspace call
 // as external data: file contents, search hits and command output are written by
-// whoever controls the remote repository. The tool's own error envelopes stay
-// readable so the call is still classified as failed.
+// whoever controls the remote repository. An error envelope keeps its status
+// readable so the call is still classified as failed, but its other fields are
+// fenced too: they can carry remote stderr (grep naming files the repository
+// owner chose) or partial command output.
 func isolateCodeStudioWorkspaceOutput(output string) string {
-	var envelope struct {
-		Status string `json:"status"`
+	var envelope map[string]interface{}
+	if json.Unmarshal([]byte(strings.TrimSpace(output)), &envelope) != nil {
+		return security.IsolateExternalData(output)
 	}
-	if json.Unmarshal([]byte(strings.TrimSpace(output)), &envelope) == nil && strings.EqualFold(envelope.Status, "error") {
-		return output
+	if status, _ := envelope["status"].(string); !strings.EqualFold(status, "error") {
+		return security.IsolateExternalData(output)
 	}
-	return security.IsolateExternalData(output)
+	status := envelope["status"]
+	delete(envelope, "status")
+	for key, value := range envelope {
+		text, ok := value.(string)
+		if !ok {
+			raw, err := json.Marshal(value)
+			if err != nil {
+				continue
+			}
+			text = string(raw)
+		}
+		envelope[key] = security.IsolateExternalData(text)
+	}
+	statusJSON, _ := json.Marshal(status)
+	rest, err := json.Marshal(envelope)
+	if err != nil {
+		return security.IsolateExternalData(output)
+	}
+	// status first, as every tool envelope reads.
+	if len(envelope) == 0 {
+		return `{"status":` + string(statusJSON) + `}`
+	}
+	return `{"status":` + string(statusJSON) + `,` + string(rest[1:])
 }
 
 // codeStudioWorkspaceRefusal admits code_studio_workspace only for the desktop

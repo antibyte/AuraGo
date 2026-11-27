@@ -285,3 +285,62 @@ func TestCodeStudioPreviewVersionAndLiveScriptEndpoints(t *testing.T) {
 		t.Fatalf("idle poll = %s, want version 1 with an empty path list", rec.Body.String())
 	}
 }
+
+func TestCodeStudioPreviewRefusesDotFilesKeysAndSymlinksIntoThem(t *testing.T) {
+	p, source, token := newTestCodeStudioPreview(t, map[string]string{
+		"/workspace/.env":                     "API_KEY=secret",
+		"/workspace/.ssh/id_ed25519":          "PRIVATE",
+		"/workspace/site/.git/config":         "[core]",
+		"/workspace/certs/server.pem":         "PRIVATE",
+		"/workspace/keys/id_rsa":              "PRIVATE",
+		"/workspace/.well-known/security.txt": "Contact: x",
+		"/workspace/site/app.js":              "console.log(1)",
+	})
+	for _, rel := range []string{".env", ".ssh/id_ed25519", "site/.git/config", "certs/server.pem", "keys/id_rsa", "site/.git/"} {
+		rec := serveCodeStudioPreview(p, http.MethodGet, codeStudioPreviewPrefix+token+"/"+rel)
+		if rec.Code != http.StatusNotFound || strings.Contains(rec.Body.String(), "PRIVATE") || strings.Contains(rec.Body.String(), "secret") {
+			t.Errorf("%s: status %d, body %q; want a plain 404", rel, rec.Code, rec.Body.String())
+		}
+	}
+	for _, rel := range []string{".well-known/security.txt", "site/app.js"} {
+		if rec := serveCodeStudioPreview(p, http.MethodGet, codeStudioPreviewPrefix+token+"/"+rel); rec.Code != http.StatusOK {
+			t.Errorf("%s: status %d, want 200", rel, rec.Code)
+		}
+	}
+	// A symlink resolves to a blocked target: the probe reports the real path, the read must not happen.
+	source.files["/workspace/notes.txt"] = "x"
+	p.source = func(context.Context, string) (codeStudioPreviewSource, error) {
+		return codeStudioPreviewSymlinkSource{source}, nil
+	}
+	source.calls = nil
+	rec := serveCodeStudioPreview(p, http.MethodGet, codeStudioPreviewPrefix+token+"/notes.txt")
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("symlink into .ssh: status %d, want 404", rec.Code)
+	}
+	for _, call := range source.calls {
+		if strings.HasPrefix(call, "read ") {
+			t.Fatalf("blocked symlink target was read: %v", source.calls)
+		}
+	}
+}
+
+func TestCodeStudioPreviewHidesBackendErrorText(t *testing.T) {
+	p, _, token := newTestCodeStudioPreview(t, nil)
+	p.source = func(context.Context, string) (codeStudioPreviewSource, error) {
+		return nil, errors.New("ssh: handshake failed for admin@10.0.0.5:/home/admin")
+	}
+	rec := serveCodeStudioPreview(p, http.MethodGet, codeStudioPreviewPrefix+token+"/index.html")
+	if rec.Code != http.StatusBadGateway || strings.Contains(rec.Body.String(), "10.0.0.5") {
+		t.Fatalf("status %d, body %q; want 502 without backend detail", rec.Code, rec.Body.String())
+	}
+}
+
+type codeStudioPreviewSymlinkSource struct{ *fakeCodeStudioPreviewSource }
+
+func (s codeStudioPreviewSymlinkSource) Probe(ctx context.Context, vpath string) (codeStudioFileProbe, error) {
+	probe, err := s.fakeCodeStudioPreviewSource.Probe(ctx, vpath)
+	if err == nil && vpath == "/workspace/notes.txt" {
+		probe.Path = "/workspace/.ssh/id_ed25519"
+	}
+	return probe, err
+}
