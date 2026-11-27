@@ -1,0 +1,107 @@
+{
+  "schema": "storymaker/1",
+  "title": "Wie ein Server antwortet",
+  "format": { "aspect": "16:9", "fps": 30 },
+  "style": { "palette": "sunny", "font": "default", "captions": true, "rhythm": "standard", "compose": "v2" },
+  "cast": [
+    { "id": "anna", "name": "Anna", "character": "char.hoodie" }
+  ],
+  "scenes": [
+    {
+      "id": "s1", "environment": "env.office", "variant": "day",
+      "narration": "Im Kern jedes Servers arbeitet ein {1}Prozessor.",
+      "speaker": "anna",
+      "actors": [{ "cast": "anna", "at": "left", "pose": "stand", "facing": "auto", "expression": "neutral" }],
+      "beats": [
+        { "do": "show", "icon": "icon.cpu", "style": "card", "text": "Prozessor", "at": "board", "entry": "draw", "cue": 1 },
+        { "do": "gesture", "who": "anna", "gesture": "point", "target": "board", "with": "prev" }
+      ],
+      "transition": "cut", "duration": "auto", "camera": { "framing": "wide" }
+    },
+    {
+      "id": "s2", "environment": "env.board", "variant": "day",
+      "narration": "Zuerst kommt die {1}Anfrage, dann rechnet der {2}Server und am Ende steht die {3}Antwort.",
+      "speaker": "anna",
+      "actors": [],
+      "beats": [
+        { "do": "show", "diagram": { "layout": "flow", "flow": true, "nodes": [
+          { "id": "req", "label": "Anfrage", "icon": "icon.send", "cue": 1 },
+          { "id": "srv", "label": "Server", "icon": "icon.server", "cue": 2 },
+          { "id": "res", "label": "Antwort", "icon": "icon.mail", "cue": 3 }
+        ] }, "at": "full", "entry": "draw" },
+        { "do": "highlight", "target": "diagram-1.srv", "style": "pulse", "cue": 2 }
+      ],
+      "transition": "cut", "duration": "auto", "camera": { "framing": "wide" }
+    },
+    {
+      "id": "s3", "environment": "env.board", "variant": "night",
+      "narration": "Im Test beantwortet der Server {1}neunzig Prozent aller Anfragen sofort.",
+      "speaker": "anna",
+      "actors": [],
+      "beats": [
+        { "do": "show", "chart": "bar", "data": { "labels": ["Mo", "Di", "Mi", "Do"], "values": [60, 75, 90, 85], "unit": "%", "title": "Treffer" }, "at": "full", "entry": "fade", "cue": 1 }
+      ],
+      "transition": "fade", "duration": "auto", "camera": { "framing": "wide" }
+    },
+    {
+      "id": "s4", "environment": "env.board", "variant": "day",
+      "narration": "Jeder Durchlauf ist ein {1}Kreislauf, und der Anteil der Treffer {2}wächst.",
+      "speaker": "anna",
+      "actors": [],
+      "beats": [
+        { "do": "show", "diagram": { "layout": "cycle", "nodes": [
+          { "id": "ask", "label": "Fragen" },
+          { "id": "calc", "label": "Rechnen" },
+          { "id": "send", "label": "Senden" }
+        ] }, "at": "left", "entry": "draw", "cue": 1 },
+        { "do": "show", "chart": "pie", "data": { "labels": ["Cache", "Rest"], "values": [70, 30] }, "at": "right", "entry": "fade", "cue": 2 }
+      ],
+      "transition": "cut", "duration": "auto", "camera": { "framing": "wide" }
+    },
+    {
+      "id": "s5", "environment": "env.board", "variant": "day",
+      "narration": "Merke dir den {1}Kern: wenige Regeln, {2}klare Schritte.",
+      "speaker": "anna",
+      "actors": [],
+      "beats": [
+        { "do": "show", "text": "Wenige *Regeln* zählen", "style": "headline", "at": "left", "entry": "fade", "cue": 1 },
+        { "do": "show", "text": "Anfrage lesen\nAntwort bauen\nSenden", "style": "list", "at": "right", "entry": "fade", "cue": 2 }
+      ],
+      "transition": "cut", "duration": "auto", "camera": { "framing": "wide" }
+    },
+    {
+      "id": "s6", "environment": "env.board", "variant": "day",
+      "narration": "Im Zentrum steht der {1}Server, um ihn herum {2}Netz, {3}Speicher und {4}Prozessor.",
+      "speaker": "anna",
+      "actors": [],
+      "beats": [
+        { "do": "show", "diagram": { "layout": "hub", "nodes": [
+          { "id": "srv", "label": "Server", "icon": "icon.server", "cue": 1 },
+          { "id": "net", "label": "Netz", "icon": "icon.send", "cue": 2 },
+          { "id": "db", "label": "Speicher", "icon": "icon.database", "cue": 3 },
+          { "id": "cpu", "label": "Prozessor", "icon": "icon.cpu", "cue": 4 }
+        ] }, "at": "full", "entry": "draw" }
+      ],
+      "transition": "cut", "duration": "auto", "camera": { "framing": "wide" }
+    },
+    {
+      "id": "s7", "environment": "env.board", "variant": "day",
+      "narration": "Das System besteht aus {1}Schichten, und {2}statt Handarbeit gilt Automatik.",
+      "speaker": "anna",
+      "actors": [],
+      "beats": [
+        { "do": "show", "diagram": { "layout": "stack", "nodes": [
+          { "id": "hw", "label": "Hardware" },
+          { "id": "os", "label": "System" },
+          { "id": "app", "label": "Anwendung" }
+        ] }, "at": "left", "entry": "draw", "cue": 1 },
+        { "do": "show", "diagram": { "layout": "compare", "nodes": [
+          { "id": "hand", "label": "Handarbeit", "points": ["langsam", "fehlerhaft"] },
+          { "id": "auto", "label": "Automatik", "points": ["schnell", "sicher"] }
+        ] }, "at": "right", "entry": "draw", "cue": 2 }
+      ],
+      "transition": "cut", "duration": "auto", "camera": { "framing": "wide" }
+    },
+    { "id": "s8", "kind": "code", "narration": "Zum Schluss: {1}neunzig Prozent, dann der {2}Ablauf als Bild." }
+  ]
+}

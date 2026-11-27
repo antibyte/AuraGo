@@ -56,6 +56,17 @@ check('blocks: in 9:16 the areas lie inside the safe box, left before right, and
     assert.deepEqual(plain(B.area(sq, null, 'day', 'board')), plain(B.area(sq, null, 'day', 'top')));
 });
 
+check('blocks: an environment that moves the 9:16 slice moves the areas with it', () => {
+    const office = t.byId('env.office'), st = stageOf('9:16', office), S = SM.stage.safeBox('9:16');
+    const dx = st.focusX - SM.stage.DESIGN_W / 2;
+    assert.notEqual(dx, 0, 'the office does not centre the slice');
+    for (const name of B.AREAS) {
+        const a = B.area(st, office, 'day', name);
+        assert.ok(a.x >= st.vis.x - 1e-6 && a.x + a.w <= st.vis.x + st.vis.w + 1e-6, name + ' lies inside the visible slice');
+    }
+    near(B.area(st, office, 'day', 'full').x, S.x + dx, 1e-6);
+});
+
 check('blocks: check refuses a 6-node flow, a negative pie value and an unknown icon, and names the fix', () => {
     const flow = B.check(diagramDef(6), cat);
     assert.equal(flow.field, 'diagram.nodes');

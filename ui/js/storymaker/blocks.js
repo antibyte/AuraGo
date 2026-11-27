@@ -45,7 +45,9 @@
     // area(stage, env, variant, at) = {x, y, w, h, surface} in design pixels, or null for an unknown name. at is a name of
     // AREAS or {x, y} in percent of the safe area.
     function area(stage, env, variant, at) {
-        var S = SM.stage.safeBox(stage.aspect), v = variant === 'night' ? 'night' : 'day';
+        var S0 = SM.stage.safeBox(stage.aspect), v = variant === 'night' ? 'night' : 'day';
+        // safeBox is centred; an environment whose focus_x moves the cropped slice moves the safe box with it.
+        var S = { x: S0.x + (typeof stage.focusX === 'number' ? stage.focusX - SM.stage.DESIGN_W / 2 : 0), y: S0.y, w: S0.w, h: S0.h };
         var onBoard = !!(env && env.drawn === 'board'), panel = onBoard ? (v === 'night' ? 'dark' : 'light') : 'panel';
         function box(x, y, w, h, surface) { return { x: x, y: y, w: w, h: h, surface: surface || panel }; }
         if (at && typeof at === 'object') {
