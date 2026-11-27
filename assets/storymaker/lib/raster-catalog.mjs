@@ -3,11 +3,34 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { buildOutputs, versionOf } from './catalog.mjs';
-import { decodePNG, encodePNG, cropPNG, cellBounds, cellRect, cellSubjectBounds, thumbnailPNG } from './png.mjs';
+import { FOREGROUND_SPOTS } from './environments.mjs';
+import { decodePNG, encodePNG, cropPNG, cellBounds, cellContentBounds, cellRect, cellSubjectBounds, thumbnailPNG } from './png.mjs';
 import { NAMES } from './names.mjs';
 import { MODEL_CHARACTERS } from './model-characters.mjs';
 
 const root=path.resolve(import.meta.dirname,'../../..');
+const FRAME={w:1920,h:1080};
+// The foreground atlas holds one near-camera accent per environment, painted into a cell of the 16:9 picture. An accent
+// that reaches the cell edge belongs to that picture edge and has to bleed off it: the layer is anchored there, so its cut
+// edge falls outside the frame instead of floating inside it with a visible seam. An accent that reaches both ends of an
+// axis is scaled to cover the frame on that axis. 2.5 % of a cell counts as reaching its edge.
+const FOREGROUND_EDGE=0.025;
+
+// foregroundBox(cell, rect, content): the placement of a foreground accent in the design frame. The cell is mapped onto the
+// frame, the drawn pixels are anchored to the frame edge they reach and the crop keeps its own margin.
+function foregroundBox(cell,rect,content){
+    const [cx,cy,cw,ch]=cell;
+    const axis=(from,to,span,size)=>{
+        const atFrom=from<=span*FOREGROUND_EDGE,atTo=to>=span*(1-FOREGROUND_EDGE);
+        if(atFrom&&atTo){const scale=size/(to-from);return{scale,origin:-from*scale};}
+        const scale=size/span;
+        if(atFrom)return{scale,origin:-from*scale};
+        if(atTo)return{scale,origin:size-to*scale};
+        return{scale,origin:0};
+    };
+    const x=axis(content[0]-cx,content[2]-cx+1,cw,FRAME.w),y=axis(content[1]-cy,content[3]-cy+1,ch,FRAME.h);
+    return [(rect[0]-cx)*x.scale+x.origin,(rect[1]-cy)*y.scale+y.origin,rect[2]*x.scale,rect[3]*y.scale];
+}
 export const PROP_PACKS={
     tech:['laptop','phone','monitor','server','router','cloud','database','tablet','keyboard','mouse'],
     security:['lock','key','shield','firewall','usb-stick','hard-drive','backup-box','fingerprint','camera','security-token'],
@@ -77,15 +100,19 @@ export function buildRasterOutputs({prototype=false}={}){
             if(fs.existsSync(source(foreground))){
                 const nearFile=`textures/environments/foreground-${variant}.png`,near=image(foreground,nearFile);
                 const index=ENVIRONMENT_IDS.indexOf(id),cell=cellRect(near,index,3,4),rect=cellBounds(near,index,3,4);
-                variants[variant].push({image:{file:nearFile,rect},box:[(rect[0]-cell[0])/cell[2]*1920,(rect[1]-cell[1])/cell[3]*1080,rect[2]/cell[2]*1920,rect[3]/cell[3]*1080],parallax:1.1,foreground:true});
+                const content=cellContentBounds(near,index,3,4);
+                variants[variant].push({image:{file:nearFile,rect},box:foregroundBox(cell,rect,content),parallax:1.1,foreground:true});
                 resources.push(nearFile);
             }else if(!prototype)throw new Error('Missing foreground production layer');
         }
         const old=original('env.'+id)||original('env.plain-stage');
         const baseTokens=JSON.parse(legacy.files.get(old.file)).tokens;
         const tokens={day:{text:'#1f2a44',bg:'#fbf3e4',bg2:'#e8dcc4',...baseTokens.day},night:{text:'#f4f5eb',bg:'#152232',bg2:'#263749',...baseTokens.night}};
+        // The raster-only environments have no metadata of their own: they take the base spots and the board of the plain
+        // stage. The near-camera foreground layer of an environment moves its left pair of spots to the right of itself.
+        const spots={...old.spots,...(FOREGROUND_SPOTS[id]||{})};
         const file=`environments/${id}.json`;put(file,{viewbox:[0,0,1920,1080],variants,tokens});
-        entries.push(entry('env.'+id,'environment',{file,resources,thumb:thumb('env.'+id,day,[0,0,day.width,day.height]),spots:old.spots,floor:old.floor,variants:['day','night'],aspects:old.aspects,usage_example:{environment:'env.'+id}}));
+        entries.push(entry('env.'+id,'environment',{file,resources,thumb:thumb('env.'+id,day,[0,0,day.width,day.height]),spots,floor:old.floor,variants:['day','night'],aspects:old.aspects,usage_example:{environment:'env.'+id}}));
     }
     const reference=images.values().next().value;
     if(!reference)throw new Error('No completed character available');

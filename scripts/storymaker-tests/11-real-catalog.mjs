@@ -361,10 +361,12 @@ check('real catalog: pose view hints, the walk cycle and its speed, body types, 
     assert.equal(rigStateOf({ walkTime: 0 }).offsetY, 21);
     assert.equal(rigStateOf({ walkTime: 0.25 }).offsetY, 0);
     assert.equal(rigStateOf({ walkTime: 1 }).offsetY, 21, 'one period later: the same pose');
-    // walk.speed (16) is percent of the design width per second at depth 1: left (30 %) to centre (50 %) at 88 % height
+    // walk.speed (16) is percent of the design width per second at depth 1: from the left spot to the centre one of the
+    // default environment (the plain stage) at 88 % height
     const out = compileReal({ cast: [{ id: 'anna', character: 'char.office-woman-1' }], scenes: [{ id: 's', actors: [{ cast: 'anna', at: 'left' }], beats: [{ do: 'walk', who: 'anna', to: 'center' }] }] });
     const actor = out.timeline.scenes[0].entities[0], stage = SM.render.stageFor(out.timeline.scenes[0], SM.render.makeContext(out.timeline, realAssets(), 1920, 1080));
-    near(actor.x.end(), 0.2 * 1920 / (0.16 * 1920 * stage.depthScale(0.88 * 1080)), 1e-6, 'seconds of the walk');
+    const stageEntry = entry('env.plain-stage'), walk = (stageEntry.spots.center.x - stageEntry.spots.left.x) / 100 * 1920;
+    near(actor.x.end(), walk / (0.16 * 1920 * stage.depthScale(0.88 * 1080)), 1e-6, 'seconds of the walk');
     // body types: a rest override merges per coordinate, the scale multiplies the screen scale
     const R = SM.rig, rig = files.rig, broad = R.boneMatrices(rig, 'front', R.bodyOf(rig, 'broad'), {}), child = R.boneMatrices(rig, 'front', R.bodyOf(rig, 'child'), {});
     near(broad.upper_arm_r[4], 96, 1e-9); near(broad.upper_arm_r[5], -440 - 25 - 209, 1e-9);

@@ -15,6 +15,8 @@ Offline production of three articulated Desktop-pet characters, illustrated envi
 ## Local Contracts
 
 - Deliver Hoodie, Professor and Punk, twelve day/night environments and eighty props. Human bitmap sprites are retired. Never reintroduce them as a fallback or modify source Desktop pets.
+- The near-camera foreground atlas holds one accent per environment. An accent that reaches the edge of its atlas cell bleeds off that edge of the picture: the build anchors the drawn pixels to the frame edge, so an accent never floats inside the frame with a visible cut.
+- A foreground accent hangs in front of the stage, so the edge spot next to it stands clear of it and the next spot keeps its distance to it (FOREGROUND_SPOTS in lib/environments.mjs). An actor at an edge spot is never behind the accent.
 - Preserve storymaker/1, all twelve old character IDs through aliases, and pose/gesture/expression/mouth names. Aliases resolve saved stories but never add library entries.
 - Mouths are actual openings in the face mesh, with attached textured lips, recessed oral cavities, teeth and tongues. Keep matching skin weights at the cut boundary; never project a dark mouth plate onto closed skin. Speech deforms the lips/lower jaw; it never swaps heads or translates the skull. Review hands, proportions, sitting and walking in rendered motion at display size.
 - Model production is deterministic and offline. Keep source hashes, copied notices and generator hashes. Geometry and motion rights remain distinct. Builds never invoke providers.

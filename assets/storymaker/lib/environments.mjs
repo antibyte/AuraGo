@@ -10,12 +10,29 @@ import {
 const W = 1920;
 const H = 1080;
 
-const BASE_SPOTS = {
+// The five base spots of a stage (design frame percent; y is the feet line).
+export const BASE_SPOTS = {
   'far-left': { x: 12, y: 88 },
   left: { x: 30, y: 88 },
   center: { x: 50, y: 88 },
   right: { x: 70, y: 88 },
   'far-right': { x: 88, y: 88 },
+};
+
+// The raster environments carry a near-camera foreground layer over the edge of the picture: the stage curtain, the corner
+// of a desk, a server rack, a flask on a counter, a medical trolley, a street planter, a potted plant, glass panels, the arm
+// of a sofa. It hangs in front of the stage, so the edge spot next to it stands clear of it and the next spot keeps its
+// distance to it. The values are the design frame percent of the feet line.
+export const FOREGROUND_SPOTS = {
+  'plain-stage': { 'far-left': { x: 24, y: 88 }, left: { x: 37, y: 88 } },
+  'home-office': { 'far-left': { x: 20, y: 88 }, left: { x: 32, y: 88 } },
+  'server-room': { 'far-left': { x: 22, y: 88 }, left: { x: 34, y: 88 } },
+  laboratory: { 'far-left': { x: 21, y: 88 }, left: { x: 33, y: 88 } },
+  'medical-office': { 'far-left': { x: 26, y: 88 }, left: { x: 38, y: 88 } },
+  'city-street': { 'far-left': { x: 26, y: 88 }, left: { x: 38, y: 88 } },
+  office: { right: { x: 66, y: 88 }, 'far-right': { x: 78, y: 88 } },
+  'abstract-tech': { 'far-right': { x: 85, y: 88 } },
+  'living-room': { 'far-right': { x: 82, y: 88 } },
 };
 
 /** Spots, floor and aspect overrides per environment (design frame percent; y is the feet line). */

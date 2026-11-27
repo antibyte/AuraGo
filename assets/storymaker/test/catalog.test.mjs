@@ -13,8 +13,9 @@ import { buildOutputs, sameOutput, versionOf } from '../lib/catalog.mjs';
 import { validateOutputs } from '../lib/validate.mjs';
 import { NAMES, LANGS, localeTables, nameKey } from '../lib/names.mjs';
 import { RASTER_NAMES } from '../lib/raster-names.mjs';
-import { buildRasterOutputs } from '../lib/raster-catalog.mjs';
+import { buildRasterOutputs, ENVIRONMENT_IDS } from '../lib/raster-catalog.mjs';
 import { validateRasterOutputs } from '../lib/raster-validate.mjs';
+import { decodePNG, cellRect, cellContentBounds } from '../lib/png.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
@@ -151,4 +152,112 @@ test('the raster build validator refuses changed resources and invalid joint cal
 test('node scripts/build-storymaker-catalog.mjs --check is green on the committed outputs', () => {
   const r = spawnSync(process.execPath, [path.join(root, 'scripts', 'build-storymaker-catalog.mjs'), '--check'], { cwd: root, encoding: 'utf8' });
   assert.equal(r.status, 0, r.stdout + r.stderr);
+});
+
+test('every foreground accent bleeds off the frame edge it reaches in its cell', () => {
+  // A near-camera accent that reaches the edge of its atlas cell belongs to that edge of the picture: it has to bleed off
+  // it. An accent that stops short of the edge floats inside the frame with a visible cut, which is what the stage curtain
+  // of the plain stage did.
+  const built = buildRasterOutputs();
+  const edge = 0.025;
+  for (const id of ENVIRONMENT_IDS) {
+    const index = ENVIRONMENT_IDS.indexOf(id);
+    for (const variant of ['day', 'night']) {
+      const env = JSON.parse(built.files.get(`environments/${id}.json`));
+      const layer = env.variants[variant][1];
+      assert.ok(layer.foreground, `${id}/${variant}`);
+      const atlas = decodePNG(built.files.get(layer.image.file));
+      const [cx, cy, cw, ch] = cellRect(atlas, index, 3, 4);
+      const content = cellContentBounds(atlas, index, 3, 4);
+      const [x, y, w, h] = layer.box;
+      const rect = layer.image.rect;
+      const sx = w / rect[2], sy = h / rect[3];
+      const left = x + (content[0] - rect[0]) * sx, right = x + (content[2] + 1 - rect[0]) * sx;
+      const top = y + (content[1] - rect[1]) * sy, bottom = y + (content[3] + 1 - rect[1]) * sy;
+      const from = content[0] - cx, to = content[2] - cx + 1, up = content[1] - cy, down = content[3] - cy + 1;
+      if (from <= cw * edge) assert.ok(left <= 0.5, `${id}/${variant} reaches the left cell edge but starts at ${left}`);
+      if (to >= cw * (1 - edge)) assert.ok(right >= 1919.5, `${id}/${variant} reaches the right cell edge but ends at ${right}`);
+      if (up <= ch * edge) assert.ok(top <= 0.5, `${id}/${variant} reaches the top cell edge but starts at ${top}`);
+      if (down >= ch * (1 - edge)) assert.ok(bottom >= 1079.5, `${id}/${variant} reaches the bottom cell edge but ends at ${bottom}`);
+    }
+  }
+});
+
+test('the stage curtain of the plain stage hangs into the frame from the top left corner', () => {
+  const built = buildRasterOutputs();
+  for (const variant of ['day', 'night']) {
+    const env = JSON.parse(built.files.get('environments/plain-stage.json'));
+    const layer = env.variants[variant][1];
+    const atlas = decodePNG(built.files.get(layer.image.file));
+    const content = cellContentBounds(atlas, ENVIRONMENT_IDS.indexOf('plain-stage'), 3, 4);
+    const rect = layer.image.rect, [x, y, w, h] = layer.box;
+    const sx = w / rect[2], sy = h / rect[3];
+    const left = x + (content[0] - rect[0]) * sx, top = y + (content[1] - rect[1]) * sy;
+    const bottom = y + (content[3] + 1 - rect[1]) * sy;
+    assert.ok(left <= 0.5, `the curtain starts at ${left}`);
+    assert.ok(top <= 0.5, `the curtain starts at ${top}`);
+    assert.ok(bottom >= 1079.5, `the curtain ends at ${bottom}`);
+  }
+});
+
+test('the far-left spot of the plain stage stands clear of the stage curtain', () => {
+  // The curtain is a near-camera layer over the left edge of the picture, so the far-left spot has to stand clear of it and
+  // the actors of the left pair must not grow into each other.
+  const built = buildRasterOutputs();
+  const env = JSON.parse(built.files.get('environments/plain-stage.json'));
+  const entry = built.entries.find(e => e.id === 'env.plain-stage');
+  const layer = env.variants.day[1];
+  const atlas = decodePNG(built.files.get(layer.image.file));
+  const content = cellContentBounds(atlas, ENVIRONMENT_IDS.indexOf('plain-stage'), 3, 4);
+  const rect = layer.image.rect, [x, y, w] = layer.box;
+  const curtainRight = x + (content[2] + 1 - rect[0]) * (w / rect[2]);
+  const ACTOR_WIDTH = 230; // px on the 1920 wide frame: the widest actor is 225 px at the base spots
+  const farLeft = entry.spots['far-left'].x / 100 * 1920, left = entry.spots.left.x / 100 * 1920;
+  assert.ok(farLeft - ACTOR_WIDTH / 2 > curtainRight, `the curtain ends at ${curtainRight} and the actor starts at ${farLeft - ACTOR_WIDTH / 2}`);
+  assert.ok(left - farLeft > ACTOR_WIDTH, `the far-left and left actors stand ${left - farLeft} px apart`);
+});
+
+test('the edge spot of every environment stands clear of its near-camera foreground layer', () => {
+  // The foreground layer of an environment hangs in front of the stage. An actor at the edge spot next to it must not
+  // disappear behind it, so the head of the actor stays clear of the accent.
+  const built = buildRasterOutputs();
+  const HEAD_HALF = 45; // px on the 1920 wide frame: the head of an actor at the base spots
+  for (const id of ENVIRONMENT_IDS) {
+    const index = ENVIRONMENT_IDS.indexOf(id);
+    const entry = built.entries.find(e => e.id === 'env.' + id);
+    for (const variant of ['day', 'night']) {
+      const env = JSON.parse(built.files.get(`environments/${id}.json`));
+      const layer = env.variants[variant][1];
+      const atlas = decodePNG(built.files.get(layer.image.file));
+      const rect = layer.image.rect, [x, y, w, h] = layer.box;
+      const sx = w / rect[2], sy = h / rect[3];
+      for (const side of ['far-left', 'far-right']) {
+        const spot = entry.spots[side].x / 100 * 1920;
+        for (let row = 507; row <= 640; row++) { // the rows of the head
+          const cy = Math.round((row - y) / sy) + rect[1];
+          if (cy < 0 || cy >= atlas.height) continue;
+          let left = Infinity, right = -Infinity;
+          for (let col = rect[0]; col < rect[0] + rect[2]; col++) {
+            if (atlas.pixels[(cy * atlas.width + col) * 4 + 3] >= 192) { left = Math.min(left, col); right = Math.max(right, col); }
+          }
+          if (right < left) continue;
+          const from = x + (left - rect[0]) * sx, to = x + (right - rect[0]) * sx;
+          assert.ok(to < spot - HEAD_HALF || from > spot + HEAD_HALF, `${id}/${variant} ${side}: the accent covers the head (${from}..${to})`);
+        }
+      }
+    }
+  }
+});
+
+test('the actors of the left half of every stage keep their distance', () => {
+  // The widest actor is 225 px on the 1920 wide frame: two actors of a pair stand at least that far apart.
+  const built = buildRasterOutputs();
+  for (const id of ENVIRONMENT_IDS) {
+    const entry = built.entries.find(e => e.id === 'env.' + id);
+    const at = name => entry.spots[name].x / 100 * 1920;
+    assert.ok(at('left') - at('far-left') >= 230, `${id}: the far-left and left actors overlap`);
+    assert.ok(at('center') - at('left') >= 230, `${id}: the left and center actors overlap`);
+    assert.ok(at('right') - at('center') >= 230, `${id}: the center and right actors overlap`);
+    assert.ok(at('far-right') - at('right') >= 230, `${id}: the right and far-right actors overlap`);
+  }
 });

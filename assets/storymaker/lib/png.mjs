@@ -64,13 +64,18 @@ export function cellRect(image,index,columns,rows){
     const x1=Math.floor((index%columns+1)*image.width/columns),y1=Math.floor((Math.floor(index/columns)+1)*image.height/rows);
     return [x0,y0,x1-x0,y1-y0];
 }
-export function cellBounds(image,index,columns,rows){
+// The drawn pixels of a cell, without the margin cellBounds adds: [left, top, right, bottom] in atlas pixels.
+export function cellContentBounds(image,index,columns,rows){
     const [x0,y0,w,h]=cellRect(image,index,columns,rows),x1=x0+w,y1=y0+h;
     let left=x1,top=y1,right=x0,bottom=y0;
     for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++)if(image.pixels[(y*image.width+x)*4+3]>=192){left=Math.min(left,x);right=Math.max(right,x);top=Math.min(top,y);bottom=Math.max(bottom,y);}
     if(right<left||bottom<top)throw new Error(`Empty master cell ${index}`);
-    const pad=2;left=Math.max(x0,left-pad);top=Math.max(y0,top-pad);right=Math.min(x1-1,right+pad);bottom=Math.min(y1-1,bottom+pad);
-    return [left,top,right-left+1,bottom-top+1];
+    return [left,top,right,bottom];
+}
+export function cellBounds(image,index,columns,rows){
+    const [x0,y0,w,h]=cellRect(image,index,columns,rows),[left,top,right,bottom]=cellContentBounds(image,index,columns,rows);
+    const pad=2,l=Math.max(x0,left-pad),t=Math.max(y0,top-pad),r=Math.min(x0+w-1,right+pad),b=Math.min(y0+h-1,bottom+pad);
+    return [l,t,r-l+1,b-t+1];
 }
 export function cellSubjectBounds(image,index,columns,rows){
     // Generated heads can cross nominal column boundaries; include the gutter, then isolate the connected subject.
