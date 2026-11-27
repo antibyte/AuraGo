@@ -173,16 +173,16 @@ func TestDiscoveryTaskEvaluationV2(t *testing.T) {
 
 	// ratchet: floors may only go up
 	const (
-		floorAllAt1    = 80
-		floorAllAt5    = 91
-		floorAllAt10   = 95
-		floorEnAt1     = 41
-		floorEnAt5     = 47
-		floorEnAt10    = 49
-		floorDeAt1     = 39
-		floorDeAt5     = 44
-		floorDeAt10    = 46
-		floorFirstTurn = 97
+		floorAllAt1    = 82
+		floorAllAt5    = 94
+		floorAllAt10   = 97
+		floorEnAt1     = 42
+		floorEnAt5     = 49
+		floorEnAt10    = 50
+		floorDeAt1     = 40
+		floorDeAt5     = 45
+		floorDeAt10    = 47
+		floorFirstTurn = 99
 	)
 	for _, floor := range []struct {
 		name      string

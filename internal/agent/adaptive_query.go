@@ -9,7 +9,11 @@ const adaptiveMinTrustedTerms = 4
 // adaptiveRankingQuery is the text the adaptive selection ranks on: the message
 // without its <external_data> blocks (security.IsolateExternalData) when the
 // rest still has adaptiveMinTrustedTerms distinct search terms, else the
-// message unchanged. The removed text comes back as external (the blocks
+// message unchanged (fenced text included, nothing external). That fallback is
+// also what fully fenced chat channels (Telegram, Discord, Rocket.Chat,
+// WhatsApp fence the owner's own messages too) get, and they rank as they
+// always did; only a notification that carries its own instructions outside
+// the fence is protected. When it strips, the removed text comes back as external (the blocks
 // joined with a newline, tags left out) for a weak ranking signal; it is empty
 // when nothing was stripped. A notification such as a new-mail message carries the
 // trusted instructions outside the fence and the sender's text inside it; the

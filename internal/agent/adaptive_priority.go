@@ -173,10 +173,13 @@ func rankAdaptiveTools(in adaptivePriorityInput) []string {
 	}
 
 	held := stringSet(in.Held)
+	intentNames := extractIntentMatchedTools(userQuery, rankable)
+	seedNames := adaptiveSeedsForQuery(userQuery, func(name string) bool { return rankableSet[name] && !held[name] })
+	usageNames := rankableNames(in.Usage, rankableSet)
 	signals := []toolRankSignal{
-		{Names: extractIntentMatchedTools(userQuery, rankable), Weight: adaptiveIntentWeight},
-		{Names: adaptiveSeedsForQuery(userQuery, func(name string) bool { return rankableSet[name] && !held[name] }), Weight: adaptiveSeedWeight},
-		{Names: rankableNames(in.Usage, rankableSet), Weight: adaptiveUsageWeight, MaxAdded: adaptiveUsageMaxAdded},
+		{Names: intentNames, Weight: adaptiveIntentWeight},
+		{Names: seedNames, Weight: adaptiveSeedWeight},
+		{Names: usageNames, Weight: adaptiveUsageWeight, MaxAdded: adaptiveUsageMaxAdded},
 		{Names: externalRanked, Weight: adaptiveExternalWeight, MaxAdded: adaptiveExternalMaxAdded},
 	}
 	fused := fuseToolRanking(pinned, lexical, manuals, members, prompts.IsNonDisplacingManual, adaptiveToolFusion, signals...)
@@ -187,8 +190,26 @@ func rankAdaptiveTools(in adaptivePriorityInput) []string {
 		add(name)
 	}
 
+	// A tool that only the fenced external text ranks brings no neighbours: the
+	// cap on that signal must not be bypassed through the curated neighbours.
+	otherRanked := stringSet(slices.Concat(pinned, lexical, intentNames, seedNames, usageNames))
+	for _, family := range members {
+		for _, name := range family {
+			otherRanked[name] = true
+		}
+	}
+	onlyExternal := map[string]bool{}
+	for _, name := range externalRanked {
+		if !otherRanked[name] {
+			onlyExternal[name] = true
+		}
+	}
+
 	headCount := len(prioritized)
 	for i := 0; i < headCount; i++ {
+		if onlyExternal[prioritized[i]] {
+			continue
+		}
 		for _, neighbor := range adaptiveToolNeighbors[prioritized[i]] {
 			add(neighbor)
 		}

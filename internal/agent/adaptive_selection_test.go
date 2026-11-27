@@ -473,10 +473,16 @@ func TestRefreshOffersReadToolOutputForAnOutputRef(t *testing.T) {
 	if slices.Contains(toolSchemaNames(run.first.Tools), "read_tool_output") {
 		t.Fatal("the fixture needs a first selection without read_tool_output")
 	}
-	messages := []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleTool, Content: `{"output_ref":"toolout_abc"}`}}
+	messages := []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleTool, Content: `{"output_ref":"toolout_0123456789abcdef"}`}}
 	carries := messagesCarryOutputRef(messages)
 	if !carries || messagesCarryOutputRef(nil) {
 		t.Fatalf("messagesCarryOutputRef = %v", carries)
+	}
+	// Text of a user message, or a reference of the wrong shape, is no reference.
+	spoofed := []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: "see toolout_0123456789abcdef"}}
+	short := []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleTool, Content: `{"output_ref":"toolout_abc"}`}}
+	if messagesCarryOutputRef(spoofed) || messagesCarryOutputRef(short) {
+		t.Error("a user message or a malformed reference counted as an output reference")
 	}
 	candidates := outputRefCandidateSchemas(restoreAdaptiveSwapPartners(run.first.Tools, run.schemas, run.swapped), run.schemas, carries)
 	opts := adaptiveRefreshFilterOptions(adaptiveRefreshInput{
@@ -538,5 +544,23 @@ func TestPlanAdaptiveFirstSelectionLetsTheFencedTextSuggestAFewTools(t *testing.
 	}
 	if extra > adaptiveExternalMaxAdded {
 		t.Errorf("the fenced text brought %d new tools, want at most %d", extra, adaptiveExternalMaxAdded)
+	}
+}
+
+func TestRankAdaptiveToolsKeepsTheExternalSignalToItsCap(t *testing.T) {
+	ff := allBuiltinToolFeatureFlags()
+	schemas := BuildNativeToolSchemas(t.TempDir(), nil, ff, nil)
+	rank := func(external string) []string {
+		return rankAdaptiveTools(adaptivePriorityInput{Schemas: schemas, Query: "hello there my friend how are you today", External: external})
+	}
+	base := stringSet(rank(""))
+	var added []string
+	for _, name := range rank("run a shell command in the terminal and execute the script") {
+		if !base[name] {
+			added = append(added, name)
+		}
+	}
+	if len(added) > adaptiveExternalMaxAdded {
+		t.Errorf("the fenced text brought %d tools (%v), want at most %d: its neighbours must not follow", len(added), added, adaptiveExternalMaxAdded)
 	}
 }

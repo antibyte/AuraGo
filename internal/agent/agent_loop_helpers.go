@@ -785,9 +785,20 @@ func outputRefAdaptiveAlwaysInclude(messages []openai.ChatCompletionMessage, alw
 	return alwaysInclude
 }
 
-// messagesCarryOutputRef reports whether a message holds a tool output reference.
+// toolOutputRefPattern is a real tool output reference, as
+// memory.StableToolOutputRef writes it: "toolout_" and 16 lowercase hex digits.
+var toolOutputRefPattern = regexp.MustCompile(`\btoolout_[0-9a-f]{16}\b`)
+
+// messagesCarryOutputRef reports whether a tool result of the run holds a real
+// output reference. Only tool messages count: text of a mail or chat message
+// that merely mentions "toolout_" must not make read_tool_output soft.
 func messagesCarryOutputRef(messages []openai.ChatCompletionMessage) bool {
-	return len(outputRefAdaptiveAlwaysInclude(messages, nil)) > 0
+	for _, msg := range messages {
+		if msg.Role == openai.ChatMessageRoleTool && toolOutputRefPattern.MatchString(messageText(msg)) {
+			return true
+		}
+	}
+	return false
 }
 
 // outputRefCandidateSchemas re-adds read_tool_output from the run's full set
