@@ -461,6 +461,12 @@ func TestHomepageStudioNewTranslations(t *testing.T) {
 		"homepage_studio.agent_working",
 		"homepage_studio.sites_tab",
 		"homepage_studio.sites_reconcile",
+		"homepage_studio.sites_archive",
+		"homepage_studio.sites_archive_confirm",
+		"homepage_studio.sites_archive_error",
+		"homepage_studio.sites_archived",
+		"homepage_studio.sites_restore",
+		"homepage_studio.sites_restore_error",
 		"homepage_studio.sites_drift_clean",
 		"homepage_studio.sites_drift_not_deployed",
 		"homepage_studio.readonly_hint",
@@ -1026,6 +1032,23 @@ func TestHomepageStudioAnnotateWiring(t *testing.T) {
 	} {
 		if !strings.Contains(main, want) {
 			t.Fatalf("homepage studio misses annotate wiring %q", want)
+		}
+	}
+}
+
+func TestHomepageStudioSitesArchiveRestoreMarkers(t *testing.T) {
+	t.Parallel()
+	sites := readDesktopAssetText(t, "js/desktop/apps/homepage-studio-sites.js")
+	for _, marker := range []string{
+		"'/' + action, { method: 'POST' }",
+		"data-hp-site-status=\"restore\"",
+		"data-hp-site-status=\"archive\"",
+		"deps.confirmDialog(t('homepage_studio.sites_archive_confirm'))",
+		"homepage_studio.sites_archived",
+		"'homepage_studio.sites_' + action + '_error'",
+	} {
+		if !strings.Contains(sites, marker) {
+			t.Errorf("sites module missing marker %q", marker)
 		}
 	}
 }

@@ -355,3 +355,68 @@ func TestHandleHomepageSitesListDetailAndReconcile(t *testing.T) {
 		t.Fatalf("expected local_changed reconcile response, got %s", reconcileRec.Body.String())
 	}
 }
+
+func TestHandleHomepageSiteArchiveAndRestore(t *testing.T) {
+	db, err := tools.InitHomepageRegistryDB(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+	defer db.Close()
+	workspace := t.TempDir()
+	cfg := &config.Config{}
+	cfg.Homepage.WorkspacePath = workspace
+	homepageCfg := tools.HomepageConfig{WorkspacePath: workspace}
+	os.MkdirAll(filepath.Join(workspace, "site-a", "inner"), 0o755)
+	proj, err := tools.EnsureHomepageProjectForDir(db, homepageCfg, filepath.Join(workspace, "site-a"), "site-a", "html")
+	if err != nil {
+		t.Fatalf("ensure project: %v", err)
+	}
+	s := &Server{HomepageRegistryDB: db, Cfg: cfg, Logger: slog.Default()}
+	base := "/api/homepage/sites/" + strconv.FormatInt(proj.ID, 10)
+	call := func(method, suffix string) *httptest.ResponseRecorder {
+		rec := httptest.NewRecorder()
+		handleHomepageSiteByID(s)(rec, httptest.NewRequest(method, base+suffix, nil))
+		return rec
+	}
+	if rec := call(http.MethodGet, "/archive"); rec.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("GET archive = %d", rec.Code)
+	}
+	if rec := call(http.MethodGet, "/restore"); rec.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("GET restore = %d", rec.Code)
+	}
+	if rec := call(http.MethodPost, "/restore"); rec.Code != http.StatusConflict {
+		t.Fatalf("restore active = %d", rec.Code)
+	}
+	rec := call(http.MethodPost, "/archive")
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"status":"archived"`) {
+		t.Fatalf("archive = %d: %s", rec.Code, rec.Body.String())
+	}
+	if rec := call(http.MethodPost, "/archive"); rec.Code != http.StatusConflict {
+		t.Fatalf("double archive = %d", rec.Code)
+	}
+	// A nested active site blocks the restore with 409.
+	if _, err := tools.EnsureHomepageProjectForDir(db, homepageCfg, filepath.Join(workspace, "site-a", "inner"), "inner", "html"); err != nil {
+		t.Fatalf("ensure nested: %v", err)
+	}
+	if rec := call(http.MethodPost, "/restore"); rec.Code != http.StatusConflict || !strings.Contains(rec.Body.String(), "managed_site_id") {
+		t.Fatalf("restore overlap = %d: %s", rec.Code, rec.Body.String())
+	}
+	other := httptest.NewRecorder()
+	handleHomepageSiteByID(s)(other, httptest.NewRequest(http.MethodPost, "/api/homepage/sites/99999/archive", nil))
+	if other.Code != http.StatusNotFound {
+		t.Fatalf("unknown id = %d", other.Code)
+	}
+	events, err := tools.ListHomepageSiteEvents(db, proj.ID, 20, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, e := range events {
+		if e.EventType == "site_archived" {
+			found = e.Actor == "user" && e.Reason == "Archived in Homepage Studio"
+		}
+	}
+	if !found {
+		t.Fatalf("site_archived event with actor user missing: %+v", events)
+	}
+}

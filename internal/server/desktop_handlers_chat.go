@@ -1176,7 +1176,13 @@ func buildHomepageStudioAgentContext(chatContext desktopChatContext) string {
 	if site := chatContext.homepageSite; site != nil {
 		if site.ProjectDir != "" {
 			designDir = site.ProjectDir
-			b.WriteString(fmt.Sprintf("\nIn Homepage Studio the user has selected managed site %d (project_dir %q). Work on this site unless the user explicitly names another one, and pass managed_site_id=%d to homepage tools.", site.ID, site.ProjectDir, site.ID))
+			if site.Status == "archived" {
+				b.WriteString(fmt.Sprintf("\nIn Homepage Studio the user has selected managed site %d (project_dir %q), which is archived; do not change it unless the user restores it in Homepage Studio first. Pass managed_site_id=%d to homepage tools if you only need to read it.", site.ID, site.ProjectDir, site.ID))
+			} else {
+				b.WriteString(fmt.Sprintf("\nIn Homepage Studio the user has selected managed site %d (project_dir %q). Work on this site unless the user explicitly names another one, and pass managed_site_id=%d to homepage tools.", site.ID, site.ProjectDir, site.ID))
+			}
+		} else if site.Status == "archived" {
+			b.WriteString(fmt.Sprintf("\nIn Homepage Studio the user has selected managed site %d (remote-only, no local project directory), which is archived; do not change it unless the user restores it in Homepage Studio first. Pass managed_site_id=%d to homepage tools if you only need to read it.", site.ID, site.ID))
 		} else {
 			b.WriteString(fmt.Sprintf("\nIn Homepage Studio the user has selected managed site %d (remote-only, no local project directory). Work on this site unless the user explicitly names another one, and pass managed_site_id=%d to homepage tools.", site.ID, site.ID))
 		}

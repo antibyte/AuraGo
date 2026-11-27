@@ -3,6 +3,7 @@ package server
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"path/filepath"
@@ -132,17 +133,52 @@ func handleHomepageSiteByID(s *Server) http.HandlerFunc {
 			reconcile = true
 			path = strings.TrimSuffix(path, "/reconcile")
 		}
+		statusAction := ""
+		for _, suffix := range []string{"/archive", "/restore"} {
+			if strings.HasSuffix(path, suffix) {
+				statusAction = strings.TrimPrefix(suffix, "/")
+				path = strings.TrimSuffix(path, suffix)
+				break
+			}
+		}
 		id, err := strconv.ParseInt(strings.Trim(path, "/"), 10, 64)
 		if err != nil || id <= 0 {
 			jsonError(w, "invalid site id", http.StatusBadRequest)
 			return
 		}
 		switch {
-		case reconcile && r.Method != http.MethodPost:
+		case (reconcile || statusAction != "") && r.Method != http.MethodPost:
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
-		case !reconcile && r.Method != http.MethodGet:
+		case !reconcile && statusAction == "" && r.Method != http.MethodGet:
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if statusAction != "" {
+			var actionErr error
+			if statusAction == "archive" {
+				actionErr = tools.ArchiveHomepageSite(s.HomepageRegistryDB, id, "user", "Archived in Homepage Studio")
+			} else {
+				actionErr = tools.RestoreHomepageSite(s.HomepageRegistryDB, homepageConfigFromServer(s), id, "user", "Restored in Homepage Studio")
+			}
+			switch {
+			case actionErr == nil:
+			case errors.Is(actionErr, tools.ErrHomepageSiteNotFound):
+				jsonError(w, "site not found", http.StatusNotFound)
+				return
+			case errors.Is(actionErr, tools.ErrHomepageSiteArchived), errors.Is(actionErr, tools.ErrHomepageSiteNotArchived), tools.IsHomepageOverlapError(actionErr):
+				jsonError(w, actionErr.Error(), http.StatusConflict)
+				return
+			default:
+				jsonError(w, actionErr.Error(), http.StatusInternalServerError)
+				return
+			}
+			site, err := tools.GetHomepageManagedSite(s.HomepageRegistryDB, id)
+			if err != nil {
+				jsonError(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "success", "site": site})
 			return
 		}
 		site, err := tools.GetHomepageManagedSite(s.HomepageRegistryDB, id)

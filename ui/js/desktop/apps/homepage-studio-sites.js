@@ -243,6 +243,37 @@
             }
         }
 
+        /* Archive/restore: the registry keeps files and history; only the agent
+           and Studio treat an archived site as read-only until it is restored. */
+        async function setSiteStatus(id, action, btn) {
+            id = Number(id);
+            if (!Number.isFinite(id) || id <= 0 || state.reconciling === id || deps.readonly) return;
+            if (action === 'archive') {
+                const confirmed = typeof deps.confirmDialog === 'function'
+                    ? await deps.confirmDialog(t('homepage_studio.sites_archive_confirm'))
+                    : false;
+                if (!confirmed || isDisposed()) return;
+            }
+            state.reconciling = id;
+            if (btn) btn.disabled = true;
+            try {
+                const data = await deps.api('/api/desktop/integrations/homepage/sites/' + encodeURIComponent(String(id)) + '/' + action, { method: 'POST' });
+                if (isDisposed()) return;
+                if (data && data.site) {
+                    state.details.set(id, data.site);
+                    const idx = state.sites.findIndex(site => Number(site.id) === id);
+                    if (idx >= 0) state.sites[idx] = data.site;
+                }
+                render();
+                if (onSiteSelected && state.selectedId === id) onSiteSelected(id, state.details.get(id) || null);
+            } catch (err) {
+                if (!isDisposed()) notify((err && err.message) || t('homepage_studio.sites_' + action + '_error'));
+            } finally {
+                state.reconciling = 0;
+                if (!isDisposed()) render();
+            }
+        }
+
         function renderLink(url, label) {
             const safe = safeURL(url);
             const text = esc(label || url || '—');
@@ -338,6 +369,9 @@
                         <button type="button" class="vd-hp-btn" data-hp-reconcile="${esc(String(site.id))}">
                             <span>${esc(t('homepage_studio.sites_reconcile'))}</span>
                         </button>
+                        ${site.status === 'archived'
+                            ? `<button type="button" class="vd-hp-btn" data-hp-site-status="restore" data-hp-site-id="${esc(String(site.id))}"><span>${esc(t('homepage_studio.sites_restore'))}</span></button>`
+                            : `<button type="button" class="vd-hp-btn" data-hp-site-status="archive" data-hp-site-id="${esc(String(site.id))}"><span>${esc(t('homepage_studio.sites_archive'))}</span></button>`}
                     </div>`);
             }
             parts.push('</div>');
@@ -357,6 +391,7 @@
                     <div class="vd-hp-site-head">
                         <span class="vd-hp-site-name">${esc(name)}</span>
                         ${site.framework ? `<span class="vd-hp-site-framework">${esc(site.framework)}</span>` : ''}
+                        ${site.status === 'archived' ? `<span class="vd-hp-site-framework vd-hp-site-archived">${esc(t('homepage_studio.sites_archived'))}</span>` : ''}
                     </div>
                     <div class="vd-hp-site-meta">
                         <span class="vd-hp-drift${driftClass(site.drift_status)}">${esc(driftLabel(site.drift_status))}</span>
@@ -420,6 +455,9 @@
             });
             container.querySelectorAll('[data-hp-reconcile]').forEach(btn => {
                 btn.addEventListener('click', () => reconcile(Number(btn.getAttribute('data-hp-reconcile')), btn));
+            });
+            container.querySelectorAll('[data-hp-site-status]').forEach(btn => {
+                btn.addEventListener('click', () => setSiteStatus(Number(btn.getAttribute('data-hp-site-id')), btn.getAttribute('data-hp-site-status'), btn));
             });
             container.querySelectorAll('[data-hp-copy]').forEach(btn => {
                 btn.addEventListener('click', event => {

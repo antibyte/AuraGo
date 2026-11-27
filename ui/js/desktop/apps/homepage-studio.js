@@ -319,6 +319,7 @@
                 esc,
                 t,
                 notify,
+                confirmDialog,
                 iconMarkup,
                 readonly,
                 container: $(`hp-sites-list-${windowId}`),

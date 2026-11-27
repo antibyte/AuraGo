@@ -327,3 +327,24 @@ func TestBuildHomepageStudioAgentContextWithoutDesignStaysUnchanged(t *testing.T
 		t.Fatalf("homepage studio context must not invent a design:\n%s", prompt)
 	}
 }
+
+func TestHomepageStudioAgentContextFlagsArchivedSite(t *testing.T) {
+	t.Parallel()
+	s, _ := homepageDesignServer(t)
+	id, _, err := tools.RegisterProject(s.HomepageRegistryDB, tools.HomepageProject{Name: "Old", ProjectDir: "old/site", Framework: "html"})
+	if err != nil {
+		t.Fatalf("register project: %v", err)
+	}
+	if err := tools.ArchiveHomepageSite(s.HomepageRegistryDB, id, "user", "test"); err != nil {
+		t.Fatalf("archive: %v", err)
+	}
+	cc := desktopChatContext{Source: "homepage-studio", HomepageMode: true, ManagedSiteID: id}
+	resolveHomepageChatSite(s, &cc)
+	prompt := buildHomepageStudioAgentContext(cc)
+	if !strings.Contains(prompt, fmt.Sprintf(`selected managed site %d (project_dir "old/site"), which is archived; do not change it unless the user restores it in Homepage Studio first`, id)) {
+		t.Fatalf("archived note missing:\n%s", prompt)
+	}
+	if strings.Contains(prompt, "Work on this site unless") {
+		t.Fatalf("archived site must not be offered as work target:\n%s", prompt)
+	}
+}
