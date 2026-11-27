@@ -5,8 +5,8 @@ Ergebnisse nebeneinander und rechnet schon während du tippst. Du gibst die Wert
 Rest. Bei Widerständen schlägt es außerdem den nächsten Normwert aus einer E-Reihe vor, und der Rechner **Kombination von
 Normwerten** findet Normwerte, die in Reihe oder parallel einen Zielwiderstand erreichen.
 
-ECalc enthält 113 Rechner in zwölf Kategorien, 44 Nachschlagetabellen (siehe [Tabellen](#tabellen)), sechs Bauteilcode-Seiten (siehe
-[Bauteilcodes](#bauteilcodes)) und 111 Pinbelegungen von Steckverbindern, Stiftleisten und ICs (siehe [Pinbelegungen](#pinbelegungen)).
+ECalc enthält 118 Rechner in zwölf Kategorien, 49 Nachschlagetabellen (siehe [Tabellen](#tabellen)), sieben Bauteilcode-Seiten (siehe
+[Bauteilcodes](#bauteilcodes)) und 127 Pinbelegungen von Steckverbindern, Stiftleisten und ICs (siehe [Pinbelegungen](#pinbelegungen)).
 Der Agent kann mit denselben Formeln rechnen, Tabellen, Codes und Pinbelegungen lesen und für dich einen
 Rechner öffnen (siehe [ECalc mit dem Agenten nutzen](#ecalc-mit-dem-agenten-nutzen)). ECalc läuft in deinem Browser. Es braucht keinen Provider und hat keinen
 eigenen Schalter unter **Config**.
@@ -148,7 +148,7 @@ Browser-Speicher, vergisst dann aber alles, sobald du das Fenster schließt.
 
 ## Die Rechner
 
-ECalc enthält 113 Rechner in zwölf Kategorien. Jede Tabelle listet die Rechner einer Kategorie, in der Reihenfolge der
+ECalc enthält 118 Rechner in zwölf Kategorien. Jede Tabelle listet die Rechner einer Kategorie, in der Reihenfolge der
 Kategorieleiste. Die Quelle hinter jeder Formel, also die Norm, das Datenblatt oder das Lehrbuch, zeigt die Seite des Rechners
 unter **Erklärung**; deshalb steht sie nicht in den Tabellen.
 
@@ -217,11 +217,12 @@ unter **Erklärung**; deshalb steht sie nicht in den Tabellen.
 | Transistor als Schalter | Basiswiderstand eines NPN-Transistors als gesättigter Schalter, mit dem Basisstrom. |
 | Transistor-Arbeitspunkt mit Basisspannungsteiler | Gleichstrom-Arbeitspunkt einer Emitterschaltung mit Vier-Widerstands-Basisspannungsteiler. |
 | MOSFET-Verluste | Durchlass- und Schaltverlust eines hart schaltenden MOSFETs und ihre Summe. |
+| MOSFET als Logikpegel-Schalter | Spannungsabfall und Durchlassverlust eines MOSFETs, den ein Logikausgang schaltet, mit der Ansteuerreserve über der höchsten Gate-Schwelle. Warnt, wenn die Gate-Ansteuerung nicht über der Schwelle liegt oder unter der Gate-Spannung, bei der der Einschaltwiderstand angegeben ist. |
 | Kühlkörper | Wärmekette von der Sperrschicht bis zur Umgebung. Findet den fehlenden von sechs Werten, zum Beispiel den nötigen Kühlkörper. |
 | Optokoppler-Widerstände (CTR) | LED-Vorwiderstand und kleinster Pull-up-Widerstand eines Optokopplers mit Fototransistor, aus dem geminderten Stromübertragungsverhältnis. |
 | MOSFET-Gate-Ansteuerung | Ansteuerleistung und -strom sowie Schaltzeit oder Gate-Widerstand aus der Gate-Ladung und dem Miller-Plateau. |
 
-**Grenzen.** Bei den Optokoppler-Widerständen das Stromübertragungsverhältnis nach Abschlägen eintragen, nicht den typischen Wert aus dem Datenblatt. Die MOSFET-Gate-Ansteuerung rechnet mit der gesamten Gate-Ladung Q_g, nicht mit der Eingangskapazität C_iss. Ihre Schaltzeit ist eine Abschätzung erster Ordnung; gemessene Flanken können um 16 % bis über 100 % davon abweichen.
+**Grenzen.** Bei den Optokoppler-Widerständen das Stromübertragungsverhältnis nach Abschlägen eintragen, nicht den typischen Wert aus dem Datenblatt. Die MOSFET-Gate-Ansteuerung rechnet mit der gesamten Gate-Ladung Q_g, nicht mit der Eingangskapazität C_iss. Ihre Schaltzeit ist eine Abschätzung erster Ordnung; gemessene Flanken können um 16 % bis über 100 % davon abweichen. Der MOSFET als Logikpegel-Schalter rechnet mit den Höchstwerten der Datenblatttabelle: Unter der Gate-Spannung, bei der das Datenblatt den Einschaltwiderstand angibt, garantiert das Datenblatt keinen Widerstand, und der Rechner warnt.
 
 ### Stromversorgung
 
@@ -285,6 +286,8 @@ unter **Erklärung**; deshalb steht sie nicht in den Tabellen.
 | Wellenlänge | Rechnet zwischen Frequenz, Verkürzungsfaktor und Wellenlänge um, mit halber und viertel Wellenlänge. |
 | Länge des Halbwellendipols | Länge eines Halbwellendipols mit Verkürzungsfaktor, dazu die Viertelwellenlänge. |
 | Mikrostrip-Impedanz | Wellenwiderstand einer Mikrostrip-Leitung auf der Leiterplatte aus ihrer Geometrie und ε_r. |
+| Stripline-Impedanz (symmetrisch) | Wellenwiderstand einer symmetrischen Stripline, also einer Leiterbahn zwischen zwei Flächen, aus Breite, Flächenabstand, Kupferdicke und ε_r. Vier der fünf Werte ergeben den fünften. |
+| Differenzielle Mikrostrip-Impedanz | Differenzielle Impedanz zweier gekoppelter Mikrostrip-Leiterbahnen aus Breite, Abstand zwischen ihnen, Höhe über der Fläche, Kupferdicke und ε_r. Eine empirische Näherung mit etwa ±10 % Abweichung. |
 | Wellenwiderstand eines Koaxialkabels | Wellenwiderstand aus den Durchmessern und ε_r, dazu der Verkürzungsfaktor. |
 | SWR und Rückflussdämpfung | Rechnet zwischen SWR, Reflexionsfaktor und Rückflussdämpfung um, mit der reflektierten Leistung. |
 | HF-Leistung und -Spannung (dBm, dBµV) | Leistung, Spannung und Widerstand einer Sinusschwingung, mit den Pegeln in dBm und dBµV. |
@@ -296,7 +299,7 @@ unter **Erklärung**; deshalb steht sie nicht in den Tabellen.
 | Koax-Stichleitung / elektrische Länge | Mechanische Länge einer Koaxleitung für eine elektrische Länge bei einer Frequenz, aus dem Verkürzungsfaktor. |
 | Gesamtrauschzahl (Friis) | Gesamtrauschzahl und äquivalente Rauschtemperatur von drei hintereinandergeschalteten Stufen. |
 
-**Grenzen.** Das L-Anpassnetzwerk gilt für rein ohmsche Quelle und Last bei einer Frequenz. Ist R_S größer als R_L, muss das Netzwerk gespiegelt werden: Das Längselement liegt an R_L, das Querelement parallel zu R_S. Seine Bandbreite ist nicht f / Q. EIRP und ERP sind Rechtsgrößen, daher prüfen, auf welche der beiden sich ein Grenzwert bezieht. Der Verkürzungsfaktor eines Schaumkabels steht im Kabeldatenblatt, und die Länge der Koax-Stichleitung stimmt nur bei einer Frequenz. Das thermische Rauschen rechnet mit B als Rauschbandbreite, nicht mit der −3-dB-Frequenz.
+**Grenzen.** Das L-Anpassnetzwerk gilt für rein ohmsche Quelle und Last bei einer Frequenz. Ist R_S größer als R_L, muss das Netzwerk gespiegelt werden: Das Längselement liegt an R_L, das Querelement parallel zu R_S. Seine Bandbreite ist nicht f / Q. EIRP und ERP sind Rechtsgrößen, daher prüfen, auf welche der beiden sich ein Grenzwert bezieht. Der Verkürzungsfaktor eines Schaumkabels steht im Kabeldatenblatt, und die Länge der Koax-Stichleitung stimmt nur bei einer Frequenz. Das thermische Rauschen rechnet mit B als Rauschbandbreite, nicht mit der −3-dB-Frequenz. Die differenzielle Mikrostrip-Impedanz ist eine empirische Näherung mit Fehlern von bis zu etwa ±10 %. Der Stripline-Rechner warnt, wenn die Leiterbahn für den Flächenabstand zu breit ist (w/(b − t) von 0,5 oder mehr) oder das Kupfer dafür zu dick (t/b von 0,25 oder mehr).
 
 ### Digital
 
@@ -306,10 +309,14 @@ unter **Erklärung**; deshalb steht sie nicht in den Tabellen.
 | DAC (Code → Spannung) | Ausgangsspannung eines idealen DAC für einen Code, oder der nächste Code für eine gewünschte Spannung. |
 | I²C-Pull-up-Widerstände | Kleinster und größter Pull-up-Widerstand für einen Bus, mit den nächsten Normwerten. |
 | Pegelwandler (Spannungsteiler) | Teiler von 5 V auf 3,3 V für eine Übertragungsrichtung, geprüft gegen die High-Schwelle des Empfängers. |
+| Logikpegel-Verträglichkeit | Störabstand HIGH und LOW zwischen einer Treiber- und einer Empfängerfamilie, aus ihren Ausgangs- und Eingangspegeln. Wähle die beiden Familien; der Rechner hat keine Eingabefelder. |
 | UART-Baudratenfehler | Teiler und Baudratenfehler aus Takt und gewünschter Baudrate, bei 16- oder 8-facher Abtastung. |
 | Zahlensysteme (dec, hex, bin, oct) | Eine ganze Zahl, dezimal, hexadezimal, binär und oktal angezeigt. |
+| Bits und Wertebereich | Der größte vorzeichenlose Wert einer Bitzahl, ihr Bereich im Zweierkomplement und die Anzahl der verschiedenen Werte, oder die Bits, die für einen größten Wert nötig sind. |
 | RC-Entprellung | Verzögerung eines RC-Glieds vor einem Schmitt-Trigger-Eingang, aus Widerstand, Kondensator, Versorgungsspannung und Schwelle. |
 | Übertragungsdauer | Zeit für das Senden einer Datenmenge bei einer Leitungsrate, mit dem Rahmen einer UART-Leitung 8N1 oder 8E1/8N2, und die Nettorate. |
+
+**Keine Eingabefelder.** Der Rechner Logikpegel-Verträglichkeit hat keine Eingabefelder. Wähle die Familie des Treibers (Ausgang) und die des Empfängers (Eingang), und er zeigt die Störabstände. Die Werte stammen aus den Datenblättern der gewählten Familien; prüfe das Datenblatt deiner genauen Bauteile.
 
 **Grenzen.** Die RC-Entprellung braucht einen Eingang mit Hysterese, also einen Schmitt-Trigger; ein gewöhnlicher Logikeingang liefert bei einer langsamen RC-Flanke kein definiertes Ergebnis. Die Übertragungsdauer ist eine Untergrenze, denn Protokoll-Overhead, Pausen und Wiederholungen machen eine reale Übertragung langsamer. Binäre und dezimale Präfixe unterscheiden sich: 1 MiB sind 4,86 % mehr als 1 MB.
 
@@ -347,7 +354,7 @@ unter **Erklärung**; deshalb steht sie nicht in den Tabellen.
 
 ## Tabellen
 
-Die Kategorie **Tabellen** enthält 44 Nachschlagetabellen. 40 sind aus Normen und veröffentlichten Quellen übertragen. Die anderen 4 erzeugt ECalc aus Formeln: die AWG-Leitergrößen, die Leiterbahnbreite nach IPC-2221 und die beiden E-Reihen-Tabellen. Öffne eine Tabelle aus der Kategorie. Die Liste ist in die Gruppen **Leiter und Kabel**, **Bauteile**, **Werkstoffe** und **Allgemein** gegliedert.
+Die Kategorie **Tabellen** enthält 49 Nachschlagetabellen. 45 sind aus Normen und veröffentlichten Quellen übertragen. Die anderen 4 erzeugt ECalc aus Formeln: die AWG-Leitergrößen, die Leiterbahnbreite nach IPC-2221 und die beiden E-Reihen-Tabellen. Öffne eine Tabelle aus der Kategorie. Die Liste ist in die Gruppen **Leiter und Kabel**, **Bauteile**, **Werkstoffe** und **Allgemein** gegliedert.
 
 Auf der Tabellenseite:
 
@@ -358,6 +365,7 @@ Auf der Tabellenseite:
 - **Leere Spalten:** Eine Spalte ohne einen einzigen Wert ist ausgeblendet. Die Zeile unter der Tabelle nennt, wie viele Spalten ausgeblendet sind: „Ausgeblendete Spalten ohne geprüfte Daten: N“.
 - **Tabelle kopieren:** Kopiert die sichtbaren Zeilen in den angezeigten Einheiten als tabulatorgetrennten Text, den du in eine Tabellenkalkulation einfügen kannst.
 - **Banner und Hinweise:** Eine Tabelle mit Richtwerten zeigt ein Banner: Die Werte sind Richtwerte aus der genannten Quelle, maßgeblich ist die Norm selbst. Eine Tabelle mit Netzinstallationsdaten zeigt einen Netzhinweis: Die geltenden nationalen Vorschriften entscheiden, und die Installation gehört in die Hand einer Elektrofachkraft. Jede Tabelle nennt ihre Quelle und zeigt ihre Anmerkungen.
+- **Symbole:** Eine Spalte mit Schaltzeichen zeichnet jedes Zeichen zweimal, im IEC- und im ANSI-Stil, nebeneinander. Die Tabelle zeigt immer beide, unabhängig von der Einstellung **Schaltsymbole**; diese Einstellung ändert nur die Zeichnungen der Rechner.
 - **Finder:** Zwei Rechner wählen eine Zeile einer Tabelle aus: der **Kabelquerschnitt bestimmen** und der **Leiterabstand auf der Leiterplatte bestimmen (IPC-2221)**. Ihre Karte steht auf der Tabellenseite, zeigt die noch freien Eingaben und blendet die feste Auswahl des Finders aus. Die Zeile zum Ergebnis ist hervorgehoben und ins Blickfeld gescrollt; die Hervorhebung wandert, wenn du die Eingaben änderst. Liegen die Eingaben außerhalb der geprüften Daten, zeigt der Finder die Warnung „Not covered by the verified data“ und hebt keine Zeile hervor. Warnungen und Fehlermeldungen kommen aus dem Rechenkern und bleiben in jeder Sprache englisch.
 
 ### Leiter und Kabel
@@ -392,6 +400,8 @@ Auf der Tabellenseite:
 | Batteriechemien (Spannungen und Energiedichte) | Nenn- und Entladeschlussspannung je Zelle sowie die spezifische Energie gängiger Chemien. |
 | Batteriegrößen (AA, 18650, CR2032 …) | IEC- und ANSI-Bezeichnungen, Abmessungen und Nennspannung gängiger Zellen. |
 | Hohlstecker (DC-Koaxialstecker) | Außen- und Innendurchmesser, Mittelstift, Spannungsklasse und Bemessungsstrom gängiger Gleichstromstecker. |
+| Kfz-Flachsicherungen: Nennströme und Farben | Nennstrom und Gehäusefarbe von Kfz-Flachsicherungen: 13 Nennströme von 1 bis 40 A im Farbcode der Formate Micro2, Micro3, Mini mit niedriger Bauhöhe, Mini und Standard (ATO, ATC, ATOF), dazu 10 Nennströme von 20 bis 100 A im MAXI-Format, dessen Farben abweichen. |
+| Logikpegel umsetzen: Verfahren und Bausteine | Zehn Wege, Logiksignale zweier Spannungen zu verbinden, etwa 3,3 V und 5 V: Widerstandsteiler, Vorwiderstand, diskreter MOSFET, Pass-Gate- und Auto-Richtungs-Übersetzer, richtungsgesteuerte Puffer mit zwei Versorgungsspannungen und Puffer mit einer Versorgung, mit der jeweils unterstützten Richtung, der Eignung für Open-Drain- und Push-Pull-Signale und der vom Hersteller angegebenen höchsten Datenrate. |
 | Normwerte E3 bis E24 | Erzeugt: die Werte nach IEC 60063 mit der Reihe, zu der jeder Wert gehört. |
 | Normwerte E48 bis E192 | Erzeugt: dasselbe für E48 bis E192. |
 
@@ -423,6 +433,9 @@ Auf der Tabellenseite:
 | Signalpegel von RS-232, RS-485 und LVDS | Treiber- und Empfängerspannungen, Schwellen, Lasten und Abschlüsse. |
 | ASCII-Tabelle | Die Codes 0 bis 127 dezimal und hexadezimal, mit Zeichen oder Steuerzeichenname. |
 | Aderfarben (IEC/DE und US-NEC) | Leiterfarben für L1, L2, L3, N und PE in Deutschland und der EU sowie für die geerdeten und ungeerdeten Leiter in den USA. |
+| Twisted-Pair-Kabelkategorien (Cat 5 … Cat 8) | Die Kategorien mit ihrer Klasse nach ISO/IEC 11801, der Frequenz, bis zu der sie spezifiziert sind, der Kanallänge und den BASE-T-Ethernet-Varianten, die über jede laufen. |
+| USB-Versionen und Geschwindigkeiten | Die USB-Datenmodi von Low-Speed (1,5 Mbit/s) bis USB4 Version 2.0 (80 und 120 Gbit/s), mit ihren Namen, Signalisierungsraten, Lanes, Leitungscode, Steckverbindern und dem Jahr der ersten Spezifikation. |
+| Schaltzeichen (IEC und ANSI) | Die 25 Schaltzeichen der ECalc-eigenen Bibliothek, nebeneinander im IEC- und im ANSI-Stil, mit der IEC-617-Nummer, soweit gelesen, und den Unterschieden zwischen den beiden Normen. |
 
 ## Bauteilcodes
 
@@ -433,12 +446,13 @@ Die Kategorie **Bauteilcodes** liest Kennzeichnungen von Bauteilen und schreibt 
 - **SMD-Induktivitätscodes**: die dreistellige Wertkennzeichnung von Chip-Induktivitäten. Drei Ziffern sind Mikrohenry (101 ist 100 µH), R ist das Komma in Mikrohenry (4R7 ist 4,7 µH, R47 ist 0,47 µH) und N ist das Komma in Nanohenry (4N7 ist 4,7 nH, 47N ist 47 nH); N steht nie an erster Stelle. Ein vierter Buchstabe ist die Toleranz. ECalc liest die Toleranzbuchstaben C, G, H, J, K und M: C ist ±0,2 nH, die übrigen sind Prozentwerte (G ±2 %, H ±3 %, J ±5 %, K ±10 %, M ±20 %). Die Buchstaben B, D, F, N, P, S, W und Y meldet die Seite als nicht gegengeprüft, weil die Hersteller sich darin widersprechen oder nur ein Hersteller sie angibt. Jeder andere Buchstabe ist ein ungültiger Code. Viele Chip-Induktivitäten tragen gar keinen aufgedruckten Wert.
 - **Kondensatorcodes**: der Pikofarad-Code (104 ist 100 nF, 4p7 ist 4,7 pF), der Toleranzbuchstabe und der Spannungscode. Eine Kennzeichnung kann bis zu drei Teile haben, zum Beispiel `104K 1H`: 100 nF, ±10 % und 50 V. Für `3F` zeigt ECalc beide Herstellerwerte an. TDK verwendet 3 kV, Murata 3,15 kV. Beide Werte lassen sich als `3F` codieren.
 - **Temperaturcodes für Keramikkondensatoren**: Klasse 1 (temperaturkompensierend, zum Beispiel C0G oder NP0) mit Temperaturkoeffizient in ppm/K und Toleranz, Klasse 2 (hohe Permittivität, zum Beispiel X7R oder U2J) mit Temperaturbereich und zulässiger Kapazitätsänderung. Ein Code der Klasse 2 hat keinen eigenen Wert, deshalb zeigt die Seite dafür keine Zahl.
+- **Datumscodes auf Bauteilen**: das Herstellungsdatum, das Hersteller auf ein Bauteil drucken. Vier Ziffern sind JJWW: die letzten zwei Ziffern des Jahres und die ISO-8601-Kalenderwoche, Montag bis Sonntag (`2448` ist KW 48/2024; eine KW 53 gibt es nur in manchen Jahren). Zwei Zeichen sind der Jahr/Monat-Code nach IEC 60062: ein Jahresbuchstabe aus dem 20-Jahres-Zyklus und ein Monatszeichen (1 bis 9, O für Oktober, N für November, D für Dezember). Der Buchstabencode wiederholt sich alle 20 Jahre, `J5` ist also Mai 2017, aber auch Mai 1997, 1977 und 2037; die Seite nennt die möglichen Jahre von 1970 bis 2049. Ein Datum, etwa 2026-11-27, ergibt beide Codes. Hersteller zählen die Wochen leicht unterschiedlich, deshalb kann eine gelesene Woche um eins abweichen.
 
 Widerstandsfarben folgen IEC 60062:2016. Wo Hersteller noch eine ältere Toleranzangabe drucken, zeigt die Seite sie als Warnung. Spannungscodes sind eine Herstellerkonvention; die Seite sagt das, und das Datenblatt entscheidet. Warnungen und Fehlermeldungen kommen aus dem Rechenkern und bleiben in jeder Sprache englisch.
 
 ## Pinbelegungen
 
-Die Kategorie **Pinbelegungen** enthält 111 Pinbelegungen von Steckverbindern, Stiftleisten, IC-Gehäusen und anderen Bauteilen mit Anschlüssen. Öffne eine Pinbelegung aus der Kategorie. Die Liste ist in die sieben Gruppen **Daten und Video**, **Audio**, **PC-Netzteil und Lüfter**, **Boards**, **Debug und Schnittstellen**, **ICs** und **Fahrzeug und Netz** gegliedert; die Gruppen stehen am Ende dieses Abschnitts.
+Die Kategorie **Pinbelegungen** enthält 127 Pinbelegungen von Steckverbindern, Stiftleisten, IC-Gehäusen und anderen Bauteilen mit Anschlüssen. Öffne eine Pinbelegung aus der Kategorie. Die Liste ist in die sieben Gruppen **Daten und Video**, **Audio**, **PC-Netzteil und Lüfter**, **Boards**, **Debug und Schnittstellen**, **ICs** und **Fahrzeug und Netz** gegliedert; die Gruppen stehen am Ende dieses Abschnitts.
 
 Eine Pinbelegungsseite zeigt:
 
@@ -451,7 +465,7 @@ Eine Pinbelegungsseite zeigt:
 - **Pin-Tabelle:** die Spalten **Pin**, **Name**, **Funktion**, **Typ**, **Ader** und **Hinweise**. Die Spalte Ader erscheint nur, wenn ein Pin der Variante eine Aderfarbe hat.
 - **Hinweise und Quelle:** unten auf der Seite die Hinweise der Pinbelegung und die Quelle, aus der sie stammt.
 
-**Zwei Ansichten.** 61 der 111 Pinbelegungen haben die Auswahl **Ansicht**. Ihre beiden Ansichten tragen die Namen der Pinbelegung, zum Beispiel *Stecker (Kabelende)* und *Buchse (am Host oder Hub)*. Die Zeichnung zeigt die Kontakte so, wie man sie sieht, wenn man auf die Steckseite schaut, also die Seite, an der das Gegenstück ansteckt. Stecker und Buchse liegen sich beim Stecken gegenüber. Von ihren Steckseiten gesehen sind sie deshalb spiegelbildlich: links und rechts vertauschen sich. ECalc zeichnet die gezeichnete Ansicht der Pinbelegung unverändert und die andere als Spiegelbild. Zahlen und Namen bleiben lesbar, aber die Kontakte wechseln die Seite der Zeichnung. Boards und ICs haben eine feste Ansicht ohne Auswahl; einzige Ausnahme ist die 40-polige Stiftleiste des Raspberry Pi, die eine Auswahl hat.
+**Zwei Ansichten.** 61 der 127 Pinbelegungen haben die Auswahl **Ansicht**. Ihre beiden Ansichten tragen die Namen der Pinbelegung, zum Beispiel *Stecker (Kabelende)* und *Buchse (am Host oder Hub)*. Die Zeichnung zeigt die Kontakte so, wie man sie sieht, wenn man auf die Steckseite schaut, also die Seite, an der das Gegenstück ansteckt. Stecker und Buchse liegen sich beim Stecken gegenüber. Von ihren Steckseiten gesehen sind sie deshalb spiegelbildlich: links und rechts vertauschen sich. ECalc zeichnet die gezeichnete Ansicht der Pinbelegung unverändert und die andere als Spiegelbild. Zahlen und Namen bleiben lesbar, aber die Kontakte wechseln die Seite der Zeichnung. Boards und ICs haben eine feste Ansicht ohne Auswahl; einzige Ausnahme ist die 40-polige Stiftleiste des Raspberry Pi, die eine Auswahl hat.
 
 **SOT-Gehäuse.** Die beiden SOT-Beispiele sind von oben gezeichnet, mit der Beschriftung nach oben, wie die Datenblätter sie zeigen. Bei SOT-23 liegt Pin 1 unten links, Pin 2 unten rechts und Pin 3 allein oben. Bei SOT-223 laufen die Pins 1 bis 3 unten von links nach rechts, und die Fahne ist Pin 4 oben. Wie die TO-92-Seite listen die SOT-Seiten nur Beispiele. Sie haben eine feste Ansicht ohne Auswahl.
 
@@ -468,7 +482,9 @@ Eine Pinbelegungsseite zeigt:
 
 **Aderfarben.** Eine Aderfarbe steht nur dort, wo ein Standard oder eine Anleitung sie nennt, zum Beispiel bei USB Type-A, RJ45, ATX, FTDI, Qwiic, Grove und dem Servokabel. Manche Kabel weichen von diesen Farben ab. Die Hinweise zur ATX-Belegung sagen, dass man nach der Position geht, nicht nach der Farbe.
 
-**Varianten.** Zehn Pinbelegungen haben Varianten. RJ45 (8P8C) hat T568A und T568B, die sich nur in den Aderfarben des grünen und des orangen Paars unterscheiden. Die 3,5-mm-Headset-Klinke (TRRS) hat CTIA (AHJ) und OMTP. DisplayPort hat die Quellseite (Ausgang) und die Senkenseite (Monitoreingang), die die Pins 1 bis 12 anders nummerieren. Die 6,35-mm-Klinke hat die Varianten symmetrisch mono, unsymmetrisch Stereo und Insert. Die D-Sub-25-Buchse hat die Varianten paralleler Port (IEEE 1284, PC-Seite) und RS-232. RJ11 / RJ12 hat RJ11 (6P4C, Positionen 2 bis 5) und RJ12 (6P6C), und die microSD-Karte hat den SD-Modus und den SPI-Modus. TO-92: Beispiele hat zwölf Bauteilbeispiele: BC337, BC547, BC557, PN2222A, 2N3904, 2N3906, 2N7000, BS170, LM35, 78L05, TL431 und DS18B20. SOT-23: Beispiele hat vier (BC847, MMBT3904, 2N7002 und BSS84), SOT-223: Beispiele hat zwei (LM1117 und BCP56). Zwei dieser Beispiele sind Fallen. Der BS170 ist umgekehrt belegt wie der 2N7000: Drain links, Source rechts. Der DS18B20 hat Masse links und die Versorgung rechts, umgekehrt zum LM35.
+**Varianten.** Zehn Pinbelegungen haben Varianten. RJ45 (8P8C) hat T568A und T568B, die sich nur in den Aderfarben des grünen und des orangen Paars unterscheiden. Die 3,5-mm-Headset-Klinke (TRRS) hat CTIA (AHJ) und OMTP. DisplayPort hat die Quellseite (Ausgang) und die Senkenseite (Monitoreingang), die die Pins 1 bis 12 anders nummerieren. Die 6,35-mm-Klinke hat die Varianten symmetrisch mono, unsymmetrisch Stereo und Insert. Die D-Sub-25-Buchse hat die Varianten paralleler Port (IEEE 1284, PC-Seite) und RS-232. RJ11 / RJ12 hat RJ11 (6P4C, Positionen 2 bis 5) und RJ12 (6P6C), und die microSD-Karte hat den SD-Modus und den SPI-Modus. TO-92: Beispiele hat dreizehn Bauteilbeispiele: BC337, BC547, BC557, PN2222A, 2N3904, 2N3906, 2N7000, BS170, LM35, 78L05, TL431, DS18B20 und TMP36. SOT-23: Beispiele hat vier (BC847, MMBT3904, 2N7002 und BSS84), SOT-223: Beispiele hat zwei (LM1117 und BCP56). Zwei dieser Beispiele sind Fallen. Der BS170 ist umgekehrt belegt wie der 2N7000: Drain links, Source rechts. Der DS18B20 hat Masse links und die Versorgung rechts, umgekehrt zum LM35.
+
+**Pin-kompatible Bauteile.** Manche Bauteile haben dieselbe Belegung wie ein aufgeführter Eintrag. Sie stehen in den Hinweisen dieses Eintrags, nicht als eigener Eintrag, und die Suche findet sie über ihren Namen: der TLC555 am NE555 (in den 8-poligen Gehäusen), der TL072 und der NE5532 am LM358 (in den 8-poligen Gehäusen), der MAX3232 am MAX232 und der AMS1117 mit denselben Anschlüssen 1 bis 3 wie der LM1117 in SOT-223. Der TMP36 hat eine eigene Variante auf der Seite TO-92: Beispiele. Lies die Hinweise, bevor du ein Bauteil ersetzt: Das Datenblatt des AMS1117 sagt nicht, womit seine Fahne im SOT-223 verbunden ist; prüfe die Fahne am Bauteil.
 
 **Zeigen, anklicken, filtern.** Wenn du auf einen Kontakt in der Zeichnung oder auf eine Zeile der Tabelle zeigst, werden beide hervorgehoben, und ein Kontakt zeigt dabei seine Details im Detailfeld. Ein Klick wählt den Pin: seine Details bleiben im Detailfeld stehen, und seine Zeile wird ins Blickfeld gerollt. Ein zweiter Klick hebt die Auswahl auf. Die Zeichnung reagiert nur auf den Zeiger; mit der Tastatur nutzt du die Pin-Schaltfläche am Anfang jeder Zeile. Das Filterfeld über der Tabelle sucht in Pin-Nummer, Name, Funktion, Typname, Aderfarbe und Hinweisen. Nicht passende Pins werden in der Zeichnung abgeblendet, und ihre Zeilen werden ausgeblendet. `/` springt ins Filterfeld, Escape leert es.
 
@@ -478,7 +494,7 @@ Eine Pinbelegungsseite zeigt:
 
 **Näherungen.** Die Winkel der 13-poligen Anhängersteckdose liegen innerhalb von etwa 7 Grad der Zeichnung des Herstellers; die Kontaktnummern sind exakt. Die Winkel des Typ-2-Steckers sind aus einer kleinen Zeichnung gerundet (etwa 5 Grad). Die vier Sideband-Kontakte S1 bis S4 von 12VHPWR und 12V-2x6 sind in der Größe der Leistungskontakte gezeichnet; die echten sind kleiner.
 
-**Nicht aufgenommen.** Diese Teile fehlen, weil ihre Belegung nicht aus einer verlässlichen Quelle geprüft werden konnte: der CEE-Stecker 2P+E und 3P+N+E (Lage von Außen- und Neutralleiter), das Bluetooth-Modul HC-05, I2C-OLED-Module, der JST-XH-Balancerstecker, der speakON-Stecker NL4, die große SD-Karte und der Treiber ULN2803.
+**Nicht aufgenommen.** Diese Teile fehlen, weil ihre Belegung nicht aus einer verlässlichen Quelle geprüft werden konnte: der CEE-Stecker 2P+E und 3P+N+E (Lage von Außen- und Neutralleiter), das Bluetooth-Modul HC-05, I2C-OLED-Module, der JST-XH-Balancerstecker, der speakON-Stecker NL4, die große SD-Karte und der Treiber ULN2803 ohne A (der ULN2803A ist enthalten).
 
 ### Daten und Video
 
@@ -603,6 +619,22 @@ Eine Pinbelegungsseite zeigt:
 - SN74HC245 (DIP-20)
 - CD4017B (DIP-16)
 - CD4051B (DIP-16)
+- SN74HC02 (DIP-14)
+- SN74HC08 (DIP-14)
+- SN74HC32 (DIP-14)
+- SN74HC86 (DIP-14)
+- SN74HC74 (DIP-14)
+- SN74HC139 (DIP-16)
+- SN74HC161 / SN74HC163 (DIP-16)
+- CD4011B (DIP-14)
+- CD4013B (DIP-14)
+- CD4511B (DIP-16)
+- NE556 (DIP-14)
+- LM741 (DIP-8)
+- ULN2803A (DIP-18)
+- SN75176B (DIP-8)
+- 24LC32A / 24LC64 / 24LC256 (DIP-8)
+- ATtiny13A (DIP-8)
 
 ### Fahrzeug und Netz
 

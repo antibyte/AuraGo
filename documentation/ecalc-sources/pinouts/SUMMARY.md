@@ -1,6 +1,6 @@
 # pinouts — summary
 
-111 items in seven groups. Items whose pins could not be verified are not in the catalog: CEE 2P+E and 3P+N+E, HC-05, I2C OLED modules, JST-XH balance plug, speakON NL4, the full-size SD card and ULN2803. No pin number or name in the catalog is unverified. Each file names which view its drawing is
+127 items in seven groups. Items whose pins could not be verified are not in the catalog: CEE 2P+E and 3P+N+E, HC-05, I2C OLED modules, JST-XH balance plug, speakON NL4, the full-size SD card and the plain ULN2803 (the ULN2803A is in the catalog). No pin number or name in the catalog is unverified. Each file names which view its drawing is
 written for and on what that rests.
 
 | Folder | Items | Main sources |
@@ -10,7 +10,7 @@ written for and on what that rests.
 | `pc_power/` | 17 | PCI Express CEM figures, Intel's 4-wire fan specification, PSU and board makers; Intel's ATX 3 guide and front-panel and USB header specifications; ASRock and MSI manuals; Corsair for 12VHPWR |
 | `boards/` | 16 | Arduino, Espressif, the NodeMCU project and Raspberry Pi documents, including their figures; SparkFun for the Pro Mini; the micro:bit Educational Foundation; WEMOS/LOLIN; ST's STM32F103 datasheet for the Blue Pill (a clone board); the ESP32-CAM has no maker document |
 | `debug/` | 14 | ARM, SEGGER, Microchip, FTDI, SparkFun, Adafruit and Seeed documents; several independent sources for OBD-II and hobby servos; Ai-Thinker, Ebyte/Nordic, Aosong, MikroElektronika and Digilent for the module and bus connectors, vendor documents for the HC-SR04 |
-| `ics/` | 32 | The makers' datasheets for the package drawn |
+| `ics/` | 48 | The makers' datasheets for the package drawn; the 16 items added in phase 5 cite their datasheets in each file, and a second maker's datasheet only where the item's source names one |
 | `vehicle_mains/` | 5 | Erich Jaeger and M&K for the trailer sockets, TE Connectivity for Type 2, the ISO 10487-1 preview (complete normative text) for the car radio connector |
 
 ## Weakest points
@@ -40,6 +40,10 @@ written for and on what that rests.
 - **`lm386`:** the DIP assignment rests on TI's single pin table and the PDIP layout figure (Figure 11-1, which confirms pins 2 to 6) only; TI's pin figure is captioned for the MSOP and SOIC packages alone.
 - **`mcp23017`:** the figure was read from the PDF text layer, not from an image; Table 2-1 and the package drawing agree.
 - **`to92`, DS18B20 variant:** it rests on Dallas's 2000 preliminary datasheet. The current Analog Devices sheet could not be opened, so the order should be checked against it before the variant is relied on.
+- **`sn75176`:** the SN75176B rests on TI's datasheets alone; no second maker was read.
+- **`uln2803`:** TI's revision G pin table copies the ULN2003A numbers; the pin figure was followed, and the ST datasheet for the ULN2801A to ULN2804A shares its drawing.
+- **`sot223`, AMS1117 note:** the AMS1117 has the leads 1 to 3 of the LM1117; its datasheet marks the tab as output only on the TO-252 version, so the tab connection in SOT-223 is not stated and must be checked on the part.
+- **`to92`, TMP36 variant:** it rests on Analog Devices' datasheet alone, whose one TO-92 figure serves the TMP35, TMP36 and TMP37; the output of pin 2 is described for the TMP36 only.
 - **`sot23`, `sot223`:** the pin numbers of the onsemi parts come from onsemi alone. Diodes Incorporated prints the function letters at the leads but no pin numbers, so it confirms the positions only. The LM1117 in `sot223` rests on TI alone.
 - **`tip120`, `bt136`:** one maker each (onsemi for TIP120, WeEn for BT136), each for its own part; there is no second source.
 - **`to92`:** TI's table and its generic outline disagree on the TL431's pin numbers; the named figure and onsemi agree, so positions are used and the notes give TI's numbers.

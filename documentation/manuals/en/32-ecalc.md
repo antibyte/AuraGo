@@ -2,7 +2,7 @@
 
 ECalc is a formula collection for electronics in the Virtual Desktop. A calculator page shows the circuit, the formula and the results side by side, and it recalculates while you type. You enter the values you know and ECalc works out the rest. For resistors it also suggests the nearest standard value from an E series, and the standard-value combiner finds standard values that reach a target resistance, in series or in parallel.
 
-ECalc has 113 calculators in twelve categories, 44 reference tables (see [Tables](#tables)), six component code pages (see [Component Codes](#component-codes)) and 111 pinouts of connectors, board headers, ICs and other parts with pins (see [Pinouts](#pinouts)). The agent can calculate with the same formulas, read the tables, codes and pinouts, and open a calculator for you (see [Using ECalc from the Agent](#using-ecalc-from-the-agent)). ECalc runs in your browser. It needs no provider and has no switch of its own in **Config**.
+ECalc has 118 calculators in twelve categories, 49 reference tables (see [Tables](#tables)), seven component code pages (see [Component Codes](#component-codes)) and 127 pinouts of connectors, board headers, ICs and other parts with pins (see [Pinouts](#pinouts)). The agent can calculate with the same formulas, read the tables, codes and pinouts, and open a calculator for you (see [Using ECalc from the Agent](#using-ecalc-from-the-agent)). ECalc runs in your browser. It needs no provider and has no switch of its own in **Config**.
 
 ## Table of Contents
 1. [Opening ECalc](#opening-ecalc)
@@ -135,7 +135,7 @@ browser data resets them. ECalc works without browser storage too, it just forge
 
 ## The Calculators
 
-ECalc has 113 calculators in twelve categories. Each table lists the calculators of one category, in the order of the category rail.
+ECalc has 118 calculators in twelve categories. Each table lists the calculators of one category, in the order of the category rail.
 The source behind each formula, the standard, datasheet or textbook, is shown on the calculator's page under **Explanation**, so
 the tables leave it out.
 
@@ -204,11 +204,12 @@ the tables leave it out.
 | Transistor switch | Base resistor of an NPN transistor used as a saturated switch, with the base current. |
 | BJT divider bias | DC operating point of a common-emitter stage with a four-resistor voltage-divider bias. |
 | MOSFET losses | Conduction loss and switching loss of a hard-switched MOSFET, and their sum. |
+| MOSFET as a logic-level switch | Voltage drop and conduction loss of a MOSFET switched by a logic output, with its drive margin above the maximum gate threshold. Warns when the gate drive does not exceed the threshold, or lies below the gate voltage at which the on-resistance is specified. |
 | Heatsink | Thermal chain from junction to ambient. Finds the one missing value, for example the heatsink you need. |
 | Optocoupler resistors (CTR) | LED series resistor and the smallest pull-up resistor of a phototransistor optocoupler, from the derated current transfer ratio. |
 | MOSFET gate drive | Gate-drive power and current, and the switching time or gate resistor from the gate charge and the Miller plateau. |
 
-**Limits.** For the optocoupler resistors enter the minimum current transfer ratio after derating, not the typical value from the datasheet. The MOSFET gate drive uses the total gate charge Q_g, not the input capacitance C_iss. Its switching time is a first-order estimate, and measured edges can deviate from it by 16 % to more than 100 %.
+**Limits.** For the optocoupler resistors enter the minimum current transfer ratio after derating, not the typical value from the datasheet. The MOSFET gate drive uses the total gate charge Q_g, not the input capacitance C_iss. Its switching time is a first-order estimate, and measured edges can deviate from it by 16 % to more than 100 %. The MOSFET as a logic-level switch takes the maximum values from the datasheet table: below the gate voltage at which the datasheet specifies the on-resistance, the datasheet guarantees no resistance and the calculator warns.
 
 ### Power supply
 
@@ -272,6 +273,8 @@ the tables leave it out.
 | Wavelength | Converts between frequency, velocity factor and wavelength, with the half and quarter wavelength. |
 | Half-wave dipole length | Length of a half-wave dipole with its shortening factor, and the quarter-wave length. |
 | Microstrip impedance | Characteristic impedance of a PCB microstrip line from its geometry and permittivity. |
+| Stripline impedance (symmetric) | Characteristic impedance of a symmetric stripline, a trace between two planes, from its width, the plane spacing, the copper thickness and the relative permittivity. Four of the five values give the fifth. |
+| Differential microstrip impedance | Differential impedance of two coupled microstrip traces from the trace width, the gap between them, the height above the plane, the copper thickness and the relative permittivity. An empirical approximation, within about ±10 %. |
 | Coaxial cable impedance | Characteristic impedance of a coaxial cable from its diameters and permittivity, with the velocity factor. |
 | SWR and return loss | Converts between SWR, reflection coefficient and return loss, with the reflected power. |
 | RF power and voltage (dBm, dBµV) | Power, voltage and resistance of a sine wave, with the levels in dBm and dBµV. |
@@ -283,7 +286,7 @@ the tables leave it out.
 | Coax stub / electrical length | Physical length of a coaxial line for an electrical length at a frequency, from the velocity factor. |
 | Cascaded noise figure (Friis) | Overall noise figure and equivalent noise temperature of three cascaded stages. |
 
-**Limits.** The L-network matches resistive source and load at one frequency. When R_S is larger than R_L, mirror the network: the series element sits next to R_L and the shunt element across R_S. Its bandwidth is not f / Q. EIRP and ERP are regulatory quantities, so check which one a limit refers to. The velocity factor of a foam cable comes from its datasheet, and the coax stub length is exact at one frequency only. Thermal noise takes B as the noise bandwidth, not the −3 dB frequency.
+**Limits.** The L-network matches resistive source and load at one frequency. When R_S is larger than R_L, mirror the network: the series element sits next to R_L and the shunt element across R_S. Its bandwidth is not f / Q. EIRP and ERP are regulatory quantities, so check which one a limit refers to. The velocity factor of a foam cable comes from its datasheet, and the coax stub length is exact at one frequency only. Thermal noise takes B as the noise bandwidth, not the −3 dB frequency. The differential microstrip impedance is an empirical approximation with errors of up to about ±10 %. The stripline calculator warns when the trace is wide for the plane spacing (w/(b − t) of 0.5 or more) or the copper is thick for it (t/b of 0.25 or more).
 
 ### Digital
 
@@ -293,10 +296,14 @@ the tables leave it out.
 | DAC (code to voltage) | Output voltage of an ideal DAC for a code, or the nearest code for a wanted voltage. |
 | I²C pull-up resistors | Smallest and largest pull-up resistor for a bus, with the nearest standard values. |
 | Level shifter (resistor divider) | One-way divider from 5 V to 3.3 V, checked against the input-high threshold of the receiver. |
+| Logic level compatibility | Noise margins HIGH and LOW between a driver family and a receiver family, from their output and input levels. Pick the two families; the calculator has no input fields. |
 | UART baud rate error | Divisor and baud rate error from the clock and the wanted baud rate, at 16× or 8× oversampling. |
 | Number systems (dec, hex, bin, oct) | One whole number shown in decimal, hexadecimal, binary and octal. |
+| Bits and value range | The largest unsigned value of a number of bits, its signed (two's complement) range and the number of distinct values, or the bits needed for a largest value. |
 | RC debounce | Delay of an RC network in front of a Schmitt-trigger input, from the resistor, capacitor, supply voltage and threshold. |
 | Data transfer time | Time to send a data size at a line rate, with the framing of a UART 8N1 or 8E1/8N2 line, and the net rate. |
+
+**No input fields.** The logic level compatibility calculator has no input fields. Pick the driver (output) family and the receiver (input) family, and it shows the noise margins. The values come from the datasheets of the families named in the choices; check the datasheet of your exact parts.
 
 **Limits.** The RC debounce needs an input with hysteresis, a Schmitt trigger: a plain logic input gives no defined result from a slow RC edge. The data transfer time is a lower limit, because protocol overhead, pauses and retransmissions make a real transfer slower. Binary and decimal prefixes differ: 1 MiB is 4.86 % more than 1 MB.
 
@@ -334,7 +341,7 @@ the tables leave it out.
 
 ## Tables
 
-The **Tables** category holds 44 reference tables. 40 are transcribed from standards and published sources. The other 4 are generated by ECalc from formulas: the AWG wire gauges, the PCB trace width after IPC-2221 and the two E-series tables. Open a table from the category. The list is sorted into the groups **Conductors and Cables**, **Components**, **Materials** and **General**.
+The **Tables** category holds 49 reference tables. 45 are transcribed from standards and published sources. The other 4 are generated by ECalc from formulas: the AWG wire gauges, the PCB trace width after IPC-2221 and the two E-series tables. Open a table from the category. The list is sorted into the groups **Conductors and Cables**, **Components**, **Materials** and **General**.
 
 On the table page:
 
@@ -345,6 +352,7 @@ On the table page:
 - **Empty columns:** a column without any value is hidden. The line under the table says how many columns are hidden: "Columns without verified data are hidden: N".
 - **Copy table:** copies the visible rows, in the units shown, as tab-separated text that you can paste into a spreadsheet.
 - **Banners and notes:** a table marked as guide values shows a banner: the values are guide values from the cited source, and the standard itself is authoritative. A table with mains installation data shows a mains note: the applicable national rules decide, and the installation work is for qualified persons. Each table names its source and shows its notes.
+- **Symbols:** a column of schematic symbols draws each symbol twice, in the IEC style and in the ANSI style, side by side. The table always shows both, whatever the **Schematic symbols** setting says; that setting changes only the drawings of the calculators.
 - **Finders:** two calculators select a row of a table, the **Cable cross-section finder** and the **PCB conductor spacing finder (IPC-2221)**. Their card sits on the table page, shows the inputs that are still free and hides the fixed choice of the finder. The row that matches the result is highlighted and scrolled into view, and the highlight moves when you change the inputs. If the inputs lie outside the verified data, the finder shows the warning "Not covered by the verified data" and highlights no row.
 
 ### Conductors and Cables
@@ -379,6 +387,8 @@ On the table page:
 | Battery chemistries (voltages and energy density) | Nominal and cut-off voltages per cell and the specific energy of common chemistries. |
 | Battery sizes (AA, 18650, CR2032 …) | IEC and ANSI designations, dimensions and nominal voltage of common cells. |
 | DC barrel connectors (power plugs) | Outer and inner diameter, centre pin, voltage class and rated current of common DC plugs. |
+| Automotive blade fuses: ratings and colours | Rated current and housing colour of automotive blade fuses: 13 ratings from 1 to 40 A in the colour code shared by the Micro2, Micro3, low-profile Mini, Mini and regular (ATO, ATC, ATOF) formats, and 10 MAXI ratings from 20 to 100 A, whose colours differ. |
+| Logic level shifting: methods and parts | Ten ways to connect logic signals of two voltages, for example 3.3 V and 5 V: resistor divider, series resistor, discrete MOSFET, pass-gate and auto-direction translators, direction-controlled dual-supply buffers and single-supply buffers, with the direction each supports, its suitability for open-drain and push-pull signals and the maximum data rate the maker states. |
 | Preferred values E3 to E24 | Generated: the IEC 60063 values, with the series each value belongs to. |
 | Preferred values E48 to E192 | Generated: the same for E48 to E192. |
 
@@ -410,6 +420,9 @@ On the table page:
 | RS-232, RS-485 and LVDS signal levels | Driver and receiver voltages, thresholds, loads and terminations. |
 | ASCII table | The codes 0 to 127 in decimal and hexadecimal, with the character or control name. |
 | Wire colours (IEC/DE and US NEC) | Conductor colours for L1, L2, L3, N and PE in Germany and the EU, and for the grounded and ungrounded conductors in the USA. |
+| Twisted-pair cable categories (Cat 5 … Cat 8) | The categories with their ISO/IEC 11801 class, the frequency they are specified to, the channel length and the BASE-T Ethernet variants that run over each. |
+| USB versions and speeds | The USB data modes from Low Speed (1.5 Mbit/s) to USB4 Version 2.0 (80 and 120 Gbit/s), with their names, signalling rates, lanes, line coding, connectors and the year of the first specification. |
+| Schematic symbols (IEC and ANSI) | The 25 schematic symbols of ECalc's own library, drawn in the IEC and the ANSI style side by side, with the IEC 617 item number where it was read and the differences between the two standards. |
 
 ## Component Codes
 
@@ -420,12 +433,13 @@ The **Codes** category decodes component markings and writes them from a value. 
 - **SMD inductor codes**: the three-character value marking of chip inductors. Three digits are microhenry (101 is 100 µH), R is the decimal point in microhenry (4R7 is 4.7 µH, R47 is 0.47 µH) and N is the decimal point in nanohenry (4N7 is 4.7 nH, 47N is 47 nH); N never comes first. A fourth letter is the tolerance. ECalc decodes the tolerance letters C, G, H, J, K and M: C is ±0.2 nH, and the others are percentages (G ±2 %, H ±3 %, J ±5 %, K ±10 %, M ±20 %). The letters B, D, F, N, P, S, W and Y are reported as not cross-checked, because the makers disagree about them or only one maker states them. Any other letter is an invalid code. Many chip inductors carry no printed value at all.
 - **Capacitor codes**: the picofarad code (104 is 100 nF, 4p7 is 4.7 pF), the tolerance letter and the voltage code. A marking can have up to three parts, for example `104K 1H`: 100 nF, ±10 % and 50 V. For `3F`, ECalc shows both manufacturer ratings. TDK uses 3 kV and Murata uses 3.15 kV. Either rating encodes as `3F`.
 - **Ceramic capacitor temperature codes**: class 1 (temperature compensating, for example C0G or NP0) with its temperature coefficient in ppm/K and its tolerance, and class 2 (high permittivity, for example X7R or U2J) with its temperature range and the permitted capacitance change. A class 2 code has no value of its own, so the page shows no number for it.
+- **Component date codes**: the date of manufacture that makers print on a part. Four digits are YYWW: the last two digits of the year and the ISO 8601 week, Monday to Sunday (`2448` is week 48 of 2024; week 53 exists only in some years). Two characters are the IEC 60062 letter code: a year letter of a 20-year cycle and a month character (1 to 9, O for October, N for November, D for December). The letter code repeats every 20 years, so `J5` is May 2017, but also May 1997, 1977 and 2037; the page lists the candidate years from 1970 to 2049. A date, such as 2026-11-27, gives its YYWW code and its letter code. Makers count weeks in slightly different ways, so a decoded week can be off by one.
 
 Resistor colours follow IEC 60062:2016. Where makers still print an older tolerance reading, the page shows it as a warning. Voltage codes are a maker convention, so the page says so and the datasheet decides. Warnings and error messages come from the engine and are in English in every language.
 
 ## Pinouts
 
-The **Pinouts** category holds 111 pinouts of connectors, board headers, IC packages and other parts with pins. Open a pinout from the category. The list is sorted into the seven groups **Data and video**, **Audio**, **PC power and fans**, **Boards**, **Debug and interfaces**, **ICs** and **Vehicle and mains**; the groups are listed at the end of this section.
+The **Pinouts** category holds 127 pinouts of connectors, board headers, IC packages and other parts with pins. Open a pinout from the category. The list is sorted into the seven groups **Data and video**, **Audio**, **PC power and fans**, **Boards**, **Debug and interfaces**, **ICs** and **Vehicle and mains**; the groups are listed at the end of this section.
 
 A pinout page shows:
 
@@ -438,7 +452,7 @@ A pinout page shows:
 - **Pin table:** the columns **Pin**, **Name**, **Function**, **Type**, **Wire** and **Notes**. The Wire column appears only when a pin of the variant has a wire colour.
 - **Notes and source:** the notes of the pinout and the source it was taken from, at the foot of the page.
 
-**Two views.** 61 of the 111 pinouts have a **View** choice. Their two views carry the names of the item, for example *Plug (cable end)* and *Receptacle (on the host or hub)*. The drawing shows the contacts as you see them when you look at the mating face, the face that meets the other part. A plug and its socket face each other when they are mated, so seen from their mating faces they are mirror images: left and right swap. ECalc draws the view that the pinout stores as its drawn view as it is, and the other view as the mirror image. Numbers and names stay readable, but the contacts move to the other side of the drawing. Boards and ICs have one fixed view and no choice. The Raspberry Pi 40-pin header is the one board with a View choice.
+**Two views.** 61 of the 127 pinouts have a **View** choice. Their two views carry the names of the item, for example *Plug (cable end)* and *Receptacle (on the host or hub)*. The drawing shows the contacts as you see them when you look at the mating face, the face that meets the other part. A plug and its socket face each other when they are mated, so seen from their mating faces they are mirror images: left and right swap. ECalc draws the view that the pinout stores as its drawn view as it is, and the other view as the mirror image. Numbers and names stay readable, but the contacts move to the other side of the drawing. Boards and ICs have one fixed view and no choice. The Raspberry Pi 40-pin header is the one board with a View choice.
 
 **SOT packages.** The two SOT examples are drawn from above, with the marking side up, as the datasheets show them. On SOT-23, pin 1 is at the lower left, pin 2 at the lower right and pin 3 alone at the top. On SOT-223, pins 1 to 3 run along the bottom from left to right, and the tab is pin 4 at the top. Like the TO-92 page, the SOT pages list examples only. They have one fixed view and no **View** choice.
 
@@ -455,7 +469,9 @@ A pinout page shows:
 
 **Wire colours.** A wire colour is shown only where a standard or guide names one, for example for USB Type-A, RJ45, ATX, FTDI, Qwiic, Grove and the servo cable. Some cables differ from those colours. The ATX notes say to go by position, not by colour.
 
-**Variants.** Ten pinouts have variants. RJ45 (8P8C) has T568A and T568B, which differ only in the wire colours of the green and orange pairs. The 3.5 mm headset jack (TRRS) has CTIA (AHJ) and OMTP. DisplayPort has the Source side (output) and the Sink side (monitor input), which number pins 1 to 12 differently. The 6.35 mm jack has the balanced, stereo and insert variants. D-Sub 25 has the parallel port (IEEE 1284, PC side) and RS-232 variants. RJ11 / RJ12 has RJ11 (6P4C, positions 2 to 5) and RJ12 (6P6C), and the microSD card has SD mode and SPI mode. TO-92: examples has twelve part examples: BC337, BC547, BC557, PN2222A, 2N3904, 2N3906, 2N7000, BS170, LM35, 78L05, TL431 and DS18B20. SOT-23: examples has four (BC847, MMBT3904, 2N7002 and BSS84), and SOT-223: examples has two (LM1117 and BCP56). Two of these examples are traps. The BS170 is wired the other way round from the 2N7000: drain on the left, source on the right. The DS18B20 has ground on the left and the supply on the right, the reverse of the LM35.
+**Variants.** Ten pinouts have variants. RJ45 (8P8C) has T568A and T568B, which differ only in the wire colours of the green and orange pairs. The 3.5 mm headset jack (TRRS) has CTIA (AHJ) and OMTP. DisplayPort has the Source side (output) and the Sink side (monitor input), which number pins 1 to 12 differently. The 6.35 mm jack has the balanced, stereo and insert variants. D-Sub 25 has the parallel port (IEEE 1284, PC side) and RS-232 variants. RJ11 / RJ12 has RJ11 (6P4C, positions 2 to 5) and RJ12 (6P6C), and the microSD card has SD mode and SPI mode. TO-92: examples has thirteen part examples: BC337, BC547, BC557, PN2222A, 2N3904, 2N3906, 2N7000, BS170, LM35, 78L05, TL431, DS18B20 and TMP36. SOT-23: examples has four (BC847, MMBT3904, 2N7002 and BSS84), and SOT-223: examples has two (LM1117 and BCP56). Two of these examples are traps. The BS170 is wired the other way round from the 2N7000: drain on the left, source on the right. The DS18B20 has ground on the left and the supply on the right, the reverse of the LM35.
+
+**Pin-compatible parts.** Some parts share the pins of a listed item. They are named in that item's notes rather than listed on their own, and the search finds them by name: the TLC555 on the NE555 (in the 8-pin packages), the TL072 and the NE5532 on the LM358 (in the 8-pin packages), the MAX3232 on the MAX232, and the AMS1117 with the same leads 1 to 3 as the SOT-223 LM1117. The TMP36 has its own variant on the TO-92 examples page. Read the notes before you swap a part: the datasheet of the AMS1117 does not say what its SOT-223 tab is connected to, so check the tab on the part.
 
 **Hover, click and filter.** Hovering a contact in the drawing or a row in the table highlights both, and a hovered contact shows its details in the detail panel. A click selects the pin: its details stay in the detail panel and its row is scrolled into view. A second click clears the selection. The drawing reacts to the pointer only; with the keyboard, use the pin number button at the start of each row. The filter box above the table matches the pin number, name, function, type name, wire colour name and notes. Pins that do not match are dimmed in the drawing and their rows are hidden. Press `/` to jump to the filter box, and Escape to clear it.
 
@@ -465,7 +481,7 @@ A pinout page shows:
 
 **Approximations.** The angles of the 13-pin trailer socket are within about 7 degrees of the maker's drawing; the contact numbers are exact. The angles of the Type 2 connector are rounded from a small drawing (about 5 degrees). The four sideband contacts S1 to S4 of the 12VHPWR and 12V-2x6 connector are drawn at the size of the power contacts; the real ones are smaller.
 
-**Not included.** These are left out because their pins could not be verified from a reliable source: the CEE 2P+E and 3P+N+E plugs (the positions of line and neutral), the HC-05 Bluetooth module, I2C OLED modules, the JST-XH balance plug, the speakON NL4 connector, the full-size SD card and the ULN2803 driver.
+**Not included.** These are left out because their pins could not be verified from a reliable source: the CEE 2P+E and 3P+N+E plugs (the positions of line and neutral), the HC-05 Bluetooth module, I2C OLED modules, the JST-XH balance plug, the speakON NL4 connector, the full-size SD card and the plain ULN2803 driver (the ULN2803A is included).
 
 ### Data and video
 
@@ -590,6 +606,22 @@ A pinout page shows:
 - SN74HC245 (DIP-20)
 - CD4017B (DIP-16)
 - CD4051B (DIP-16)
+- SN74HC02 (DIP-14)
+- SN74HC08 (DIP-14)
+- SN74HC32 (DIP-14)
+- SN74HC86 (DIP-14)
+- SN74HC74 (DIP-14)
+- SN74HC139 (DIP-16)
+- SN74HC161 / SN74HC163 (DIP-16)
+- CD4011B (DIP-14)
+- CD4013B (DIP-14)
+- CD4511B (DIP-16)
+- NE556 (DIP-14)
+- LM741 (DIP-8)
+- ULN2803A (DIP-18)
+- SN75176B (DIP-8)
+- 24LC32A / 24LC64 / 24LC256 (DIP-8)
+- ATtiny13A (DIP-8)
 
 ### Vehicle and mains
 

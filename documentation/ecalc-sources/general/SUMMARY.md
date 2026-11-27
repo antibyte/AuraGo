@@ -3,6 +3,8 @@
 All 10 topics done as 15 files (topic 5 → ip_codes + protection_classes; topic 7 → ism_bands, lora_regional_plans,
 wifi_channels, amateur_bands_de; topic 8 → logic_levels + line_interface_levels). CSV blocks written with Python's csv
 writer and parsed back. Helper scripts in a helper script that is not part of the repository; a helper script that is not part of the repository runs 81 arithmetic checks, all pass.
+Phase 5 added `ethernet_categories`, `usb_versions` and `schematic_symbols` (rows below), so the group now holds 18 files.
+
 | file | topic | kind | rows | sources | guide note |
 |---|---|---|---|---|---|
 | si_prefixes.md | SI prefixes | definitional | 24 | 3 | no |
