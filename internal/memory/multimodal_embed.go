@@ -164,16 +164,15 @@ func (me *MultimodalEmbedder) embedVertex(ctx context.Context, mimeType, b64 str
 	}
 
 	endpoint := me.baseURL
-	if !strings.HasSuffix(endpoint, ":predict") {
-		// Append :predict to the URL path, not the host.
-		// Parse and rebuild to avoid breaking host:port.
-		u, parseErr := url.Parse(endpoint)
-		if parseErr == nil {
+	// Append :predict to the URL path, not the host (host:port) or the query (?key=...).
+	if u, parseErr := url.Parse(endpoint); parseErr == nil {
+		if !strings.HasSuffix(u.Path, ":predict") {
 			u.Path = strings.TrimRight(u.Path, "/") + ":predict"
+			u.RawPath = ""
 			endpoint = u.String()
-		} else {
-			endpoint = strings.TrimRight(endpoint, "/") + ":predict"
 		}
+	} else if !strings.HasSuffix(endpoint, ":predict") {
+		endpoint = strings.TrimRight(endpoint, "/") + ":predict"
 	}
 
 	return me.doHTTPEmbeddingWithRetry(ctx, func() (*http.Request, error) {

@@ -20,7 +20,7 @@ func (s *SQLiteMemory) initRememberOrigins() error {
 		return err
 	}
 	if exists != 0 {
-		return nil
+		return s.pruneRememberOrigins()
 	}
 	populated := 0
 	for _, table := range []string{"core_memory", "notes", "journal_entries"} {
@@ -47,7 +47,38 @@ func (s *SQLiteMemory) initRememberOrigins() error {
  store TEXT NOT NULL,record_id INTEGER NOT NULL,actor TEXT NOT NULL,origin TEXT NOT NULL,
  source_ref TEXT NOT NULL,content_hash TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
  PRIMARY KEY(store,record_id));`)
-	return err
+	if err != nil {
+		return err
+	}
+	return s.pruneRememberOrigins()
+}
+
+// rememberOriginStores maps an origin store to the table whose rows it labels.
+var rememberOriginStores = [][2]string{{"core", "core_memory"}, {"notes", "notes"}, {"journal", "journal_entries"}}
+
+// pruneRememberOrigins keeps origin rows tied to live records. A delete trigger per labelled table drops the row with
+// its record on every delete path (tool, UI, expiry, dedupe, corrections), so no content hash outlives the record and a
+// reused SQLite rowid never meets a stale row (insertRememberOrigin's ON CONFLICT DO NOTHING would keep the old one).
+// Rows orphaned before the triggers existed are removed once here.
+func (s *SQLiteMemory) pruneRememberOrigins() error {
+	for _, pair := range rememberOriginStores {
+		store, table := pair[0], pair[1]
+		var exists int
+		if err := s.db.QueryRow(`SELECT count(*) FROM sqlite_master WHERE type='table' AND name=?`, table).Scan(&exists); err != nil {
+			return err
+		}
+		if exists == 0 {
+			continue
+		}
+		if _, err := s.db.Exec(`CREATE TRIGGER IF NOT EXISTS memory_record_origins_` + table + `_ad AFTER DELETE ON ` + table +
+			` BEGIN DELETE FROM memory_record_origins WHERE store='` + store + `' AND record_id=OLD.id; END`); err != nil {
+			return fmt.Errorf("origin delete trigger for %s: %w", table, err)
+		}
+		if _, err := s.db.Exec(`DELETE FROM memory_record_origins WHERE store=? AND record_id NOT IN (SELECT id FROM `+table+`)`, store); err != nil {
+			return fmt.Errorf("prune origins of %s: %w", table, err)
+		}
+	}
+	return nil
 }
 
 func insertRememberOrigin(tx *sql.Tx, store string, id int64, content, sessionID string) error {

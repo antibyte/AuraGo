@@ -77,7 +77,10 @@ func (s *SQLiteMemory) InitNotesTables() error {
 	if _, err := s.db.Exec(`CREATE INDEX IF NOT EXISTS idx_notes_archived ON notes(archived, done, priority, updated_at)`); err != nil {
 		return fmt.Errorf("notes archived index: %w", err)
 	}
-	return s.migrateNotesFTS5()
+	if err := s.migrateNotesFTS5(); err != nil {
+		return err
+	}
+	return s.pruneRememberOrigins() // the notes delete trigger needs the table, created only here
 }
 
 // migrateNotesFTS5 creates and populates the FTS5 virtual table for notes.

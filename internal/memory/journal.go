@@ -248,7 +248,7 @@ func (s *SQLiteMemory) InitJournalTables() error {
 		return err
 	}
 
-	return nil
+	return s.pruneRememberOrigins() // the journal delete trigger needs the table, created only here
 }
 
 // UpsertDayAnchor stores a single-sentence day anchor used for lightweight recent recall.

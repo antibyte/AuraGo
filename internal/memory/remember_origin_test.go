@@ -109,3 +109,51 @@ func TestAddModelCoreFactRefusesStandingDirective(t *testing.T) {
 		t.Fatalf("origin rows=%d err=%v, want 0", origins, err)
 	}
 }
+
+func TestDeletingARecordDropsItsOriginRow(t *testing.T) {
+	s, err := NewSQLiteMemory(filepath.Join(t.TempDir(), "memory.db"), slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if err := s.InitNotesTables(); err != nil {
+		t.Fatal(err)
+	}
+	count := func() int {
+		var n int
+		if err := s.db.QueryRow(`SELECT count(*) FROM memory_record_origins`).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	factID, err := s.AddModelCoreFact("The user's favourite tea is genmaicha", "sess", 10, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	noteID, err := s.AddModelNote("general", "Tea", "Buy genmaicha", 1, "", "sess")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count() != 2 {
+		t.Fatalf("origin rows = %d, want 2", count())
+	}
+	if err := s.DeleteCoreMemoryFact(factID); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.DeleteNote(noteID); err != nil {
+		t.Fatal(err)
+	}
+	if n := count(); n != 0 {
+		t.Fatalf("origin rows after delete = %d, want 0", n)
+	}
+	// A row orphaned before the triggers existed is pruned at the next start.
+	if _, err := s.db.Exec(`INSERT INTO memory_record_origins(store,record_id,actor,origin,source_ref,content_hash) VALUES('core',999,'agent','model_remember','x','y')`); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.initRememberOrigins(); err != nil {
+		t.Fatal(err)
+	}
+	if n := count(); n != 0 {
+		t.Fatalf("orphan origin rows after init = %d, want 0", n)
+	}
+}
