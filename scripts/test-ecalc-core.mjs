@@ -219,7 +219,8 @@ for (const item of tableItems) {
         assert.ok(columnIndex >= 0, `${label}: unknown column ${cell.column}`);
         const column = item.columns[columnIndex];
         let row;
-        if (keyColumn.dim === 'text') row = item.rows.findIndex(entry => entry[keyIndex] === cell.key);
+        // Text and symbol key columns are matched by their text; numeric ones through the engine's findRow.
+        if (keyColumn.dim === 'text' || keyColumn.dim === 'symbol') row = item.rows.findIndex(entry => entry[keyIndex] === cell.key);
         else row = core.tables.findRow(item.id, keyColumn.id, columnUnit(keyColumn) ? columnUnit(keyColumn).toBase(cell.key) : cell.key);
         assert.ok(row >= 0, `${label}: no row has the key ${cell.key}`);
         const value = item.rows[row][columnIndex];
