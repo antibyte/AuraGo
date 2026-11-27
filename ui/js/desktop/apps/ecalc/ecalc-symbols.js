@@ -47,12 +47,12 @@
         polarized: {
             box: [0, -0.7, 3, 0.7],
             pins: twoPins,
-            draw: standard => path('M0 0H27M37 0H60') + path('M27 -12V12') + (standard === 'ansi' ? path('M33 -12Q41 0 33 12') : '<rect x="33" y="-12" width="4" height="24"/>') + plus(19, -9)
+            draw: standard => path('M0 0H27M33 0H60') + path('M27 -12V12') + (standard === 'ansi' ? path('M37 -12Q29 0 37 12') : path('M33 -12V12')) + plus(19, -9)
         },
         inductor: { box: [0, -0.5, 3, 0.1], pins: twoPins, draw: () => path('M0 0H10M50 0H60') + path('M10 0a5 5 0 0 1 10 0a5 5 0 0 1 10 0a5 5 0 0 1 10 0a5 5 0 0 1 10 0') },
         diode: { box: [0, -0.7, 3, 0.7], pins: twoPins, draw: diodeBase },
         led: { box: [0, -1.5, 3, 0.7], pins: twoPins, draw: () => diodeBase() + path('M26 -14L36 -26') + head(36, -26, 10, -12, 7, 3) + path('M35 -10L45 -22') + head(45, -22, 10, -12, 7, 3) },
-        zener: { box: [0, -0.9, 3, 0.9], pins: twoPins, draw: () => path('M0 0H22M38 0H60') + path('M22 -10L38 0L22 10Z') + path('M42 -14L38 -10V10L34 14') },
+        zener: { box: [0, -0.9, 3, 0.9], pins: twoPins, draw: standard => path('M0 0H22M38 0H60') + path('M22 -10L38 0L22 10Z') + (standard === 'ansi' ? path('M42 -14L38 -10V10L34 14') : path('M38 -10V10H33')) },
         crystal: { box: [0, -0.7, 3, 0.7], pins: twoPins, draw: () => path('M0 0H22M38 0H60') + path('M22 -12V12M38 -12V12') + '<rect x="26" y="-8" width="8" height="16"/>' },
         fuse: { box: [0, -0.5, 3, 0.5], pins: twoPins, draw: () => path('M0 0H10M50 0H60') + '<rect x="10" y="-7" width="40" height="14"/>' + path('M10 0H50') },
         // SPST switch, drawn open: pins a (0,0) and b (3,0); the blade lifts off the contact at b.
@@ -69,9 +69,15 @@
                 ? path('M0 0H10L16 -8L28 8L40 -8L52 8L64 -8L70 0H80')
                 : path('M0 0H10M70 0H80') + '<rect x="10" y="-7" width="60" height="14"/>') + path('M40 -40V-16') + head(40, -8, 0, 1, 8, 3.5)
         },
-        source: { box: [0, -0.8, 3, 0.8], pins: twoPins, draw: (standard, part) => path('M0 0H16M44 0H60') + '<circle cx="30" cy="0" r="14"/>' + upright(part, 22, 0, plus(0, 0)) + upright(part, 38, 0, path('M-3 0h6')) },
+        source: { box: [0, -0.8, 3, 0.8], pins: twoPins, draw: (standard, part) => (standard === 'ansi'
+            ? path('M0 0H16M44 0H60') + '<circle cx="30" cy="0" r="14"/>' + upright(part, 22, 0, plus(0, 0)) + upright(part, 38, 0, path('M-3 0h6'))
+            : path('M0 0H60') + '<circle cx="30" cy="0" r="14"/>' + upright(part, 8, -8, plus(0, 0))) },
         acsource: { box: [0, -0.8, 3, 0.8], pins: twoPins, draw: () => path('M0 0H16M44 0H60') + '<circle cx="30" cy="0" r="14"/>' + path('M21 0Q25.5 -9 30 0T39 0') },
-        isource: { box: [0, -0.8, 3, 0.8], pins: twoPins, draw: () => path('M0 0H16M44 0H60') + '<circle cx="30" cy="0" r="14"/>' + path('M21 0H38') + head(40, 0, 1, 0, 7, 4) },
+        isource: {
+            box: [0, -0.8, 3, 0.8],
+            pins: twoPins,
+            draw: standard => path('M0 0H16M44 0H60') + '<circle cx="30" cy="0" r="14"/>' + (standard === 'ansi' ? path('M21 0H38') + head(40, 0, 1, 0, 7, 4) : path('M30 -14V14') + head(54, 0, 1, 0, 7, 4))
+        },
         battery: { box: [0, -0.7, 3, 0.7], pins: twoPins, draw: () => path('M0 0H20M40 0H60') + path('M20 -12V12M26 -7V7M34 -12V12M40 -7V7') },
         meter: { box: [0, -0.8, 3, 0.8], pins: twoPins, draw: (standard, part) => path('M0 0H16M44 0H60') + '<circle cx="30" cy="0" r="14"/>' + upright(part, 30, 0, '<text x="0" y="4.5" text-anchor="middle" class="ec-sch-text" stroke="none" fill="currentColor">' + escape(part.text || 'V') + '</text>') },
         ground: { box: [-0.7, 0, 0.7, 1.1], pins: () => ({ g: [0, 0] }), draw: () => path('M0 0V10M-12 10H12M-8 15H8M-4 20H4') },
