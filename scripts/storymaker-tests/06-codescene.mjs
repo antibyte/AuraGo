@@ -15,7 +15,7 @@ function runScene(source, name, extra) {
     const C = ctx.StorymakerCore;
     const plan = C.planTiming(extra && extra.story || firewall, {}, catalog);
     const sceneId = extra && extra.id || 's3';
-    const opts = { sceneId, index: plan.scenes[sceneId].index, catalog, aspect: extra && extra.aspect || '16:9', width: 1920, height: 1080, fps: 30, cues: plan.scenes[sceneId].cues, palette: plan.palette, families: plan.fontFamilies, styleFont: 'default', safe: catalog.stage.safe };
+    const opts = { sceneId, index: plan.scenes[sceneId].index, catalog, aspect: extra && extra.aspect || '16:9', width: 1920, height: 1080, fps: 30, cues: plan.scenes[sceneId].cues, palette: plan.palette, families: plan.fontFamilies, styleFont: 'default', safe: catalog.stage.safe, environment: plan.scenes[sceneId].environment, variant: plan.scenes[sceneId].variant };
     return { ctx, C, build: () => C.codescene.build(ctx.self.__smScene, opts) };
 }
 
@@ -194,4 +194,28 @@ check('code scene frames (D26): each g.text sets the direction of its own text',
     C.codescene.drawFrame(build(), 0, cv.ctx, rc);
     const drawn = cv.ctx.log.filter(l => l.startsWith('set direction=') || l.startsWith('fillText('));
     assert.deepEqual(drawn, ['set direction=rtl', 'fillText(' + arabic + ',100,100)', 'set direction=ltr', 'fillText(Hello!,100,200)']);
+});
+
+check('code scene on env.board draws the board backdrop and asks for board.json; another environment keeps the palette backdrop', () => {
+    const source = 'export default function scene(api) { api.duration(2); api.onFrame((t, g) => { g.rect(1, 1, 2, 2); }); }';
+    const frame = (environment, variant) => {
+        const story = { ...firewall, scenes: [{ id: 's', kind: 'code', environment, variant }] };
+        const { C, build } = runScene(source, 'board', { story, id: 's' });
+        const built = build(), cv = new FakeCanvas(1920, 1080);
+        const tl = { aspect: '16:9', fps: 30, palette: { bg: '#fff', bg2: '#eee', fg: '#123456', accent: '#f00', text: '#000' }, cat: C.scene.indexCatalog(catalog), fontFamilies: { default: 'F' }, style: { font: 'default' }, safe: catalog.stage.safe };
+        C.codescene.drawFrame(built, 0.5, cv.ctx, C.render.makeContext(tl, { rig: files.rig, props: files.props, envs: files.envs }, 1920, 1080));
+        return { built, log: cv.ctx.log };
+    };
+    const night = frame('env.board', 'night');
+    assert.ok(plain(night.built.needs).includes('catalog:environments/board.json'));
+    assert.equal(night.built.variant, 'night');
+    assert.ok(night.log.includes('set fillStyle=#123456'), 'the night board is palette.fg');
+    assert.ok(night.log.includes('set globalAlpha=0.008'), 'with its grain');
+    assert.ok(night.log.indexOf('fillRect(1,1,2,2)') > night.log.indexOf('set globalAlpha=0.008'), 'the onFrame drawing comes over the board');
+    const day = frame('env.board', 'day');
+    assert.ok(day.log.includes('set fillStyle=#fff'), 'the day board is palette.bg');
+    const office = frame('env.office', 'day');
+    assert.ok(!office.log.includes('set globalAlpha=0.008'));
+    assert.equal(office.built.env, null);
+    assert.ok(!plain(office.built.needs).includes('catalog:environments/board.json'));
 });

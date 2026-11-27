@@ -263,12 +263,12 @@
             SM.text.roundRect(ctx, b.x - lw * 1.4, b.y - lw * 1.4, b.w + lw * 2.8, b.h + lw * 2.8, 0.1 * Math.min(b.w, b.h) + lw);
             ctx.stroke();
         } else if (mark && mark.style === 'arrow') {
-            var tip = b.y - lw * 3 - lw * 2 * Math.sin(4 * Math.PI * mark.u);
+            var tip = b.y - lw * 3 - lw * 2 * Math.sin(4 * Math.PI * mark.u);   // the arrow bobs like the one of drawHighlight
             ctx.fillStyle = c.col.accent;
             ctx.beginPath();
             ctx.moveTo(cx, tip);
-            ctx.lineTo(cx - lw * 3, tip - lw * 5);
-            ctx.lineTo(cx + lw * 3, tip - lw * 5);
+            ctx.lineTo(cx - lw * 4.5, tip - lw * 8);
+            ctx.lineTo(cx + lw * 4.5, tip - lw * 8);
             ctx.closePath();
             ctx.fill();
         }
@@ -568,6 +568,27 @@
         ctx.restore();
     }
 
+    // drawBoard(ctx, {variant, palette, W, H}): the board of env.board over the whole canvas: palette.bg by day, palette.fg by night,
+    // with 900 faint dots of the other colour. The dots come from a seeded generator and sit at alpha 0.008, so no pixel moves by more
+    // than 2 of 255 and an empty board still reads as one flat colour to the first-frame probe.
+    function drawBoard(ctx, o) {
+        var p = o.palette || {}, night = o.variant === 'night', W = o.W, H = o.H, random = SM.seed.random('board-grain');
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = night ? (p.fg || '#1f2a44') : (p.bg || '#fff7e6');
+        ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = night ? (p.bg || '#fff7e6') : (p.fg || '#1f2a44');
+        ctx.globalAlpha = 0.008;
+        for (var i = 0; i < 900; i++) {
+            var x = random() * W, y = random() * H, r = (0.6 + 1.0 * random()) * W / 1920;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+    }
+
     B.draw = draw;
+    B.drawBoard = drawBoard;
     B.plan = plan;
 })(typeof globalThis !== 'undefined' ? globalThis : self);

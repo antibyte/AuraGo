@@ -1,6 +1,6 @@
 // Batch C: SM.blocks, the player's icon, diagram, chart, headline and list blocks and the env.board backdrop.
 import assert from 'node:assert/strict';
-import { plain, FakeCanvas, digest, readJSON } from '../storymaker-test-support.mjs';
+import { plain, FakeCanvas, digest, readJSON, renderAssets } from '../storymaker-test-support.mjs';
 import { t } from '../storymaker-test-context.mjs';
 
 const { check, near } = t;
@@ -411,4 +411,39 @@ check('blocks: cacheKey only follows the scene time while the block animates', (
     e.marks.add(2, 6, { node: 'n1', style: 'pulse' });
     assert.notEqual(B.cacheKey(SM.scene.evalEntity(e, 3)), B.cacheKey(SM.scene.evalEntity(e, 4)), 'a running mark');
     assert.notEqual(key(icon, 3), key({ ...icon, icon: 'icon.server' }, 3));
+});
+
+// ---- C10: the board backdrop
+
+check('blocks: drawBoard fills the day board with palette.bg and the night board with palette.fg, with 900 grain dots at alpha 0.008', () => {
+    const run = (variant, W = 1920, H = 1080) => { const cv = new FakeCanvas(W, H); B.drawBoard(cv.ctx, { variant, palette: PALETTE, W, H }); return cv.ctx.log; };
+    const day = run('day'), night = run('night');
+    assert.equal(day[day.indexOf('fillRect(0,0,1920,1080)') - 1], 'set fillStyle=' + PALETTE.bg);
+    assert.equal(night[night.indexOf('fillRect(0,0,1920,1080)') - 1], 'set fillStyle=' + PALETTE.fg);
+    assert.ok(day.includes('set fillStyle=' + PALETTE.fg) && night.includes('set fillStyle=' + PALETTE.bg), 'the dots take the other colour');
+    for (const log of [day, night]) {
+        const grain = log.slice(log.indexOf('set globalAlpha=0.008'));
+        assert.equal(log.filter(l => l.startsWith('arc(')).length, 900);
+        assert.equal(grain.filter(l => l.startsWith('set globalAlpha=')).join(), 'set globalAlpha=0.008,set globalAlpha=1', 'every grain dot is drawn at alpha 0.008');
+        assert.equal(grain.filter(l => l === 'fill()').length, 900);
+    }
+    assert.equal(digest(run('day')), digest(run('day')));
+    assert.notEqual(digest(run('day')), digest(run('night')));
+    const radius = log => Math.max(...log.filter(l => l.startsWith('arc(')).map(l => parseFloat(l.slice(4, -1).split(',')[2])));
+    near(radius(run('day', 960, 540)), radius(day) / 2, 0.01, 'the dot radius follows the width');
+});
+
+check('blocks: a storyboard scene on env.board draws the board over the backdrop, one on env.office does not', () => {
+    const tl = (env, variant) => SM.compile({ scenes: [{ id: 'a', silent: true, environment: env, variant, beats: [{ do: 'show', text: 'Hallo', at: 'center', entry: 'none' }] }] }, {}, t.catalog).timeline;
+    const run = (env, variant) => { const cv = new FakeCanvas(1920, 1080); SM.renderFrame(tl(env, variant), 10, cv.ctx, renderAssets()); return cv.ctx.log; };
+    const board = run('env.board', 'day'), full = log => log.flatMap((l, i) => l === 'fillRect(0,0,1920,1080)' ? [i] : []);
+    assert.equal(full(board).length, 2, 'the backdrop and the board');
+    assert.equal(board[full(board)[1] - 1], 'set fillStyle=' + PALETTE.bg);
+    assert.ok(board.includes('set globalAlpha=0.008'));
+    assert.ok(board.some(l => l.startsWith('fillText(Hallo,')), 'the text is drawn over the board');
+    const night = run('env.board', 'night');
+    assert.equal(night[full(night)[1] - 1], 'set fillStyle=' + PALETTE.fg);
+    assert.ok(!run('env.office', 'day').includes('set globalAlpha=0.008'));
+    const plan = SM.planTiming({ scenes: [{ id: 'a' }, { id: 'b', environment: 'env.board', variant: 'night' }, { id: 'c', kind: 'code' }, { id: 'd', environment: 'env.office' }] }, {}, t.catalog).scenes;
+    assert.deepEqual(['a', 'b', 'c', 'd'].map(id => [plan[id].environment, plan[id].variant]), [['env.plain-stage', 'day'], ['env.board', 'night'], ['env.board', 'day'], ['env.office', 'day']], 'a scene keeps the environment of the one before it');
 });

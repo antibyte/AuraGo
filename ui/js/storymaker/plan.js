@@ -154,11 +154,12 @@
     function planTiming(story, audioInfo, catalog, opts) {
         var cat = SM.scene.indexCatalog(catalog), issues = [];
         var fmt = normaliseFormat(story, opts);
-        var plans = planAll(story, audioInfo || {}, cat, fmt, issues), scenes = {}, glyphIdx = glyphIndex(catalog);
+        var plans = planAll(story, audioInfo || {}, cat, fmt, issues), scenes = {}, glyphIdx = glyphIndex(catalog), envPrev = null;
         plans.forEach(function (p) {
             var s = story.scenes[p.index];
+            envPrev = s.environment || envPrev || 'env.plain-stage';   // the rule of compile.js: a scene keeps the environment before it
             scenes[s.id] = {
-                index: p.index, kind: s.kind === 'code' ? 'code' : 'storyboard', transition_frames: p.tf,
+                index: p.index, kind: s.kind === 'code' ? 'code' : 'storyboard', environment: envPrev, variant: s.variant === 'night' ? 'night' : 'day', transition_frames: p.tf,
                 narration_start: p.narration.start, narration_seconds: p.narration.seconds, cues: p.narration.cues
             };
         });

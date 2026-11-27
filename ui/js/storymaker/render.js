@@ -283,6 +283,7 @@
         var stage = stageFor(sc, rc);
         var cam = SM.camera.at(sc.camera, t), win = stage.cameraWindow(cam), bw = stage.baseWindow(), Mv = stage.matrix(win);
         drawBackdrop(ctx, rc);
+        if (SM.blocks.isBoard(sc)) SM.blocks.drawBoard(ctx, { variant: sc.variant, palette: rc.palette, W: rc.W, H: rc.H });
         drawEnvironment(ctx, sc, rc, win, bw, Mv);
         var states = sc.entities.map(function (e, k) { var s = SM.scene.evalEntity(e, t); s.k = k; s.scale *= pulseOf(s); return s; });
         var live = function (s) { return s.alpha > 0; };

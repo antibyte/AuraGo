@@ -93,6 +93,14 @@
         this.overlayTexture = new (V().Texture)({ source: new (V().CanvasSource)({ resource: this.overlay, autoGarbageCollect: false }) });
         this.overlaySprite = new (V().Sprite)(this.overlayTexture);
         this.root.addChild(this.overlaySprite);
+        // the board of env.board sits under every other node: a second canvas, drawn again only when its inputs change
+        this.underlay = owner.env.makeCanvas(canvas.width, canvas.height);
+        this.underlayContext = this.underlay.getContext('2d');
+        this.underlayTexture = new (V().Texture)({ source: new (V().CanvasSource)({ resource: this.underlay, autoGarbageCollect: false }) });
+        this.underlaySprite = new (V().Sprite)(this.underlayTexture);
+        this.underlaySprite.zIndex = -1;
+        this.underlaySprite.visible = false;
+        this.root.addChild(this.underlaySprite);
     }
     Drawer.prototype.texture = function (image) {
         var key = image.file + ':' + (image.rect || []).join(',');
@@ -152,6 +160,16 @@
         var self = this, stage = SM.render.stageFor(sc, rc), cam = SM.camera.at(sc.camera, time);
         var win = stage.cameraWindow(cam), base = stage.baseWindow(), camera = stage.matrix(win), z = 0;
         this.used.clear(); this.root.sortableChildren = true;
+        var board = SM.blocks.isBoard(sc);
+        this.underlaySprite.visible = board;
+        if (board) {
+            var boardKey = JSON.stringify([sc.variant, rc.palette.bg, rc.palette.fg, rc.W, rc.H]);
+            if (this.underlayKey !== boardKey) {
+                this.underlay.width = rc.W;
+                SM.blocks.drawBoard(this.underlayContext, { variant: sc.variant, palette: rc.palette, W: rc.W, H: rc.H });
+                this.underlayTexture.source.update(); this.underlayKey = boardKey;
+            }
+        }
         if (this.models) this.models.instances.forEach(function (v) { v.sprite.visible = false; });
         this.renderer.background.color = rc.palette.bg;
         var environment = sc.env && this.owner.files[sc.env.file];
@@ -216,8 +234,8 @@
         if (this.models) { this.models.dispose(); this.models = null; }
         this.root.destroy({ children: true });
         Array.from(this.textures.keys()).filter(function (k) { return k.endsWith(':source'); }).forEach(function (k) { this.dropTexture(k.slice(0,-7)); }, this);
-        this.overlayTexture.destroy(true); this.renderer.destroy(); this.nodes.clear();
-        this.overlay.width = this.overlay.height = this.canvas.width = this.canvas.height = 1;
+        this.overlayTexture.destroy(true); this.underlayTexture.destroy(true); this.renderer.destroy(); this.nodes.clear();
+        this.overlay.width = this.overlay.height = this.underlay.width = this.underlay.height = this.canvas.width = this.canvas.height = 1;
     };
     async function get(owner, width, height) {
         var generation = owner.graphicsGeneration;

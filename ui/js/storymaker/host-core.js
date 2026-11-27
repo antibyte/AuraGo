@@ -232,7 +232,8 @@
                 sceneId: id, index: p.plan.scenes[id].index, catalog: p.msg.catalog, aspect: p.plan.aspect, width: p.plan.width, height: p.plan.height,
                 fps: p.plan.fps, cues: p.plan.scenes[id].cues, palette: p.plan.palette, families: p.plan.fontFamilies, styleFont: p.plan.styleFont,
                 safe: p.msg.catalog && p.msg.catalog.stage && p.msg.catalog.stage.safe || null,
-                language: p.plan.language, fontChain: p.plan.fontChain
+                language: p.plan.language, fontChain: p.plan.fontChain,
+                environment: p.plan.scenes[id].environment, variant: p.plan.scenes[id].variant
             };
             var started = env.now();
             await channel.hello(env.limits.sceneBuildDeadlineMs);

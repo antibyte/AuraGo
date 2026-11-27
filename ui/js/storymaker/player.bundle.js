@@ -2510,11 +2510,12 @@
     function planTiming(story, audioInfo, catalog, opts) {
         var cat = SM.scene.indexCatalog(catalog), issues = [];
         var fmt = normaliseFormat(story, opts);
-        var plans = planAll(story, audioInfo || {}, cat, fmt, issues), scenes = {}, glyphIdx = glyphIndex(catalog);
+        var plans = planAll(story, audioInfo || {}, cat, fmt, issues), scenes = {}, glyphIdx = glyphIndex(catalog), envPrev = null;
         plans.forEach(function (p) {
             var s = story.scenes[p.index];
+            envPrev = s.environment || envPrev || 'env.plain-stage';   // the rule of compile.js: a scene keeps the environment before it
             scenes[s.id] = {
-                index: p.index, kind: s.kind === 'code' ? 'code' : 'storyboard', transition_frames: p.tf,
+                index: p.index, kind: s.kind === 'code' ? 'code' : 'storyboard', environment: envPrev, variant: s.variant === 'night' ? 'night' : 'day', transition_frames: p.tf,
                 narration_start: p.narration.start, narration_seconds: p.narration.seconds, cues: p.narration.cues
             };
         });
@@ -3480,12 +3481,12 @@
             SM.text.roundRect(ctx, b.x - lw * 1.4, b.y - lw * 1.4, b.w + lw * 2.8, b.h + lw * 2.8, 0.1 * Math.min(b.w, b.h) + lw);
             ctx.stroke();
         } else if (mark && mark.style === 'arrow') {
-            var tip = b.y - lw * 3 - lw * 2 * Math.sin(4 * Math.PI * mark.u);
+            var tip = b.y - lw * 3 - lw * 2 * Math.sin(4 * Math.PI * mark.u);   // the arrow bobs like the one of drawHighlight
             ctx.fillStyle = c.col.accent;
             ctx.beginPath();
             ctx.moveTo(cx, tip);
-            ctx.lineTo(cx - lw * 3, tip - lw * 5);
-            ctx.lineTo(cx + lw * 3, tip - lw * 5);
+            ctx.lineTo(cx - lw * 4.5, tip - lw * 8);
+            ctx.lineTo(cx + lw * 4.5, tip - lw * 8);
             ctx.closePath();
             ctx.fill();
         }
@@ -3785,7 +3786,28 @@
         ctx.restore();
     }
 
+    // drawBoard(ctx, {variant, palette, W, H}): the board of env.board over the whole canvas: palette.bg by day, palette.fg by night,
+    // with 900 faint dots of the other colour. The dots come from a seeded generator and sit at alpha 0.008, so no pixel moves by more
+    // than 2 of 255 and an empty board still reads as one flat colour to the first-frame probe.
+    function drawBoard(ctx, o) {
+        var p = o.palette || {}, night = o.variant === 'night', W = o.W, H = o.H, random = SM.seed.random('board-grain');
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = night ? (p.fg || '#1f2a44') : (p.bg || '#fff7e6');
+        ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = night ? (p.bg || '#fff7e6') : (p.fg || '#1f2a44');
+        ctx.globalAlpha = 0.008;
+        for (var i = 0; i < 900; i++) {
+            var x = random() * W, y = random() * H, r = (0.6 + 1.0 * random()) * W / 1920;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+    }
+
     B.draw = draw;
+    B.drawBoard = drawBoard;
     B.plan = plan;
 })(typeof globalThis !== 'undefined' ? globalThis : self);
 
@@ -5242,6 +5264,7 @@
         var stage = stageFor(sc, rc);
         var cam = SM.camera.at(sc.camera, t), win = stage.cameraWindow(cam), bw = stage.baseWindow(), Mv = stage.matrix(win);
         drawBackdrop(ctx, rc);
+        if (SM.blocks.isBoard(sc)) SM.blocks.drawBoard(ctx, { variant: sc.variant, palette: rc.palette, W: rc.W, H: rc.H });
         drawEnvironment(ctx, sc, rc, win, bw, Mv);
         var states = sc.entities.map(function (e, k) { var s = SM.scene.evalEntity(e, t); s.k = k; s.scale *= pulseOf(s); return s; });
         var live = function (s) { return s.alpha > 0; };
@@ -5553,6 +5576,14 @@
         this.overlayTexture = new (V().Texture)({ source: new (V().CanvasSource)({ resource: this.overlay, autoGarbageCollect: false }) });
         this.overlaySprite = new (V().Sprite)(this.overlayTexture);
         this.root.addChild(this.overlaySprite);
+        // the board of env.board sits under every other node: a second canvas, drawn again only when its inputs change
+        this.underlay = owner.env.makeCanvas(canvas.width, canvas.height);
+        this.underlayContext = this.underlay.getContext('2d');
+        this.underlayTexture = new (V().Texture)({ source: new (V().CanvasSource)({ resource: this.underlay, autoGarbageCollect: false }) });
+        this.underlaySprite = new (V().Sprite)(this.underlayTexture);
+        this.underlaySprite.zIndex = -1;
+        this.underlaySprite.visible = false;
+        this.root.addChild(this.underlaySprite);
     }
     Drawer.prototype.texture = function (image) {
         var key = image.file + ':' + (image.rect || []).join(',');
@@ -5612,6 +5643,16 @@
         var self = this, stage = SM.render.stageFor(sc, rc), cam = SM.camera.at(sc.camera, time);
         var win = stage.cameraWindow(cam), base = stage.baseWindow(), camera = stage.matrix(win), z = 0;
         this.used.clear(); this.root.sortableChildren = true;
+        var board = SM.blocks.isBoard(sc);
+        this.underlaySprite.visible = board;
+        if (board) {
+            var boardKey = JSON.stringify([sc.variant, rc.palette.bg, rc.palette.fg, rc.W, rc.H]);
+            if (this.underlayKey !== boardKey) {
+                this.underlay.width = rc.W;
+                SM.blocks.drawBoard(this.underlayContext, { variant: sc.variant, palette: rc.palette, W: rc.W, H: rc.H });
+                this.underlayTexture.source.update(); this.underlayKey = boardKey;
+            }
+        }
         if (this.models) this.models.instances.forEach(function (v) { v.sprite.visible = false; });
         this.renderer.background.color = rc.palette.bg;
         var environment = sc.env && this.owner.files[sc.env.file];
@@ -5676,8 +5717,8 @@
         if (this.models) { this.models.dispose(); this.models = null; }
         this.root.destroy({ children: true });
         Array.from(this.textures.keys()).filter(function (k) { return k.endsWith(':source'); }).forEach(function (k) { this.dropTexture(k.slice(0,-7)); }, this);
-        this.overlayTexture.destroy(true); this.renderer.destroy(); this.nodes.clear();
-        this.overlay.width = this.overlay.height = this.canvas.width = this.canvas.height = 1;
+        this.overlayTexture.destroy(true); this.underlayTexture.destroy(true); this.renderer.destroy(); this.nodes.clear();
+        this.overlay.width = this.overlay.height = this.underlay.width = this.underlay.height = this.canvas.width = this.canvas.height = 1;
     };
     async function get(owner, width, height) {
         var generation = owner.graphicsGeneration;
@@ -5753,6 +5794,9 @@
         var state = { duration: null, entities: [], onFrame: null, needs: {}, issues: [], counter: 0, unsupportedSeen: {} };
         var cues = opts.cues || {};
         var rigFile = opts.catalog && opts.catalog.rig && opts.catalog.rig.file || '';
+        // a code scene on env.board is drawn over the board; every other environment keeps the palette backdrop
+        var boardEnv = opts.environment === SM.blocks.BOARD_ID ? cat.byId[SM.blocks.BOARD_ID] || null : null;
+        if (boardEnv && boardEnv.file) state.needs['catalog:' + boardEnv.file] = true;
         var glyphIdx = opts.catalog && opts.catalog.glyph_data ? SM.glyphs.index(opts.catalog.glyph_data) : null;
         if (glyphIdx) SM.glyphs.facesForLanguage(glyphIdx, opts.language).forEach(function (face) { state.needs[SM.glyphs.key(face)] = true; });
 
@@ -5946,7 +5990,7 @@
         var motionEnd = SM.camera.end(cam);
         state.entities.forEach(function (e) { var end = S.entityEnd(e); if (end > motionEnd) motionEnd = end; });
         var duration = state.duration !== null ? state.duration : Math.min(MAX_DURATION, Math.max(1, motionEnd + 0.5));
-        return { duration: duration, explicit: state.duration !== null, entities: state.entities, camera: cam, onFrame: state.onFrame, needs: SM.textures.expand(opts.catalog, Object.keys(state.needs).sort()), issues: state.issues, stage: stage };
+        return { duration: duration, explicit: state.duration !== null, entities: state.entities, camera: cam, onFrame: state.onFrame, needs: SM.textures.expand(opts.catalog, Object.keys(state.needs).sort()), issues: state.issues, stage: stage, env: boardEnv, variant: opts.variant === 'night' ? 'night' : 'day' };
     }
 
     // ---- the restricted 2D facade passed to api.onFrame(fn)
@@ -5988,7 +6032,7 @@
 
     // drawFrame(built, t, ctx, rc): draws the scene timeline at time t, then the onFrame hook in design coordinates.
     function drawFrame(built, t, ctx, rc) {
-        var sceneLike = { id: rc.sceneId || 'code', env: null, variant: 'day', camera: built.camera, entities: built.entities, stages: built.stages || (built.stages = {}) };
+        var sceneLike = { id: rc.sceneId || 'code', env: built.env || null, variant: built.variant || 'day', camera: built.camera, entities: built.entities, stages: built.stages || (built.stages = {}) };
         SM.render.drawScene(ctx, sceneLike, t, rc);
         if (!built.onFrame) return;
         var stage = SM.render.stageFor(sceneLike, rc), win = stage.cameraWindow(SM.camera.at(built.camera, t)), m = stage.matrix(win);

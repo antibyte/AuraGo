@@ -40,6 +40,9 @@
         var state = { duration: null, entities: [], onFrame: null, needs: {}, issues: [], counter: 0, unsupportedSeen: {} };
         var cues = opts.cues || {};
         var rigFile = opts.catalog && opts.catalog.rig && opts.catalog.rig.file || '';
+        // a code scene on env.board is drawn over the board; every other environment keeps the palette backdrop
+        var boardEnv = opts.environment === SM.blocks.BOARD_ID ? cat.byId[SM.blocks.BOARD_ID] || null : null;
+        if (boardEnv && boardEnv.file) state.needs['catalog:' + boardEnv.file] = true;
         var glyphIdx = opts.catalog && opts.catalog.glyph_data ? SM.glyphs.index(opts.catalog.glyph_data) : null;
         if (glyphIdx) SM.glyphs.facesForLanguage(glyphIdx, opts.language).forEach(function (face) { state.needs[SM.glyphs.key(face)] = true; });
 
@@ -233,7 +236,7 @@
         var motionEnd = SM.camera.end(cam);
         state.entities.forEach(function (e) { var end = S.entityEnd(e); if (end > motionEnd) motionEnd = end; });
         var duration = state.duration !== null ? state.duration : Math.min(MAX_DURATION, Math.max(1, motionEnd + 0.5));
-        return { duration: duration, explicit: state.duration !== null, entities: state.entities, camera: cam, onFrame: state.onFrame, needs: SM.textures.expand(opts.catalog, Object.keys(state.needs).sort()), issues: state.issues, stage: stage };
+        return { duration: duration, explicit: state.duration !== null, entities: state.entities, camera: cam, onFrame: state.onFrame, needs: SM.textures.expand(opts.catalog, Object.keys(state.needs).sort()), issues: state.issues, stage: stage, env: boardEnv, variant: opts.variant === 'night' ? 'night' : 'day' };
     }
 
     // ---- the restricted 2D facade passed to api.onFrame(fn)
@@ -275,7 +278,7 @@
 
     // drawFrame(built, t, ctx, rc): draws the scene timeline at time t, then the onFrame hook in design coordinates.
     function drawFrame(built, t, ctx, rc) {
-        var sceneLike = { id: rc.sceneId || 'code', env: null, variant: 'day', camera: built.camera, entities: built.entities, stages: built.stages || (built.stages = {}) };
+        var sceneLike = { id: rc.sceneId || 'code', env: built.env || null, variant: built.variant || 'day', camera: built.camera, entities: built.entities, stages: built.stages || (built.stages = {}) };
         SM.render.drawScene(ctx, sceneLike, t, rc);
         if (!built.onFrame) return;
         var stage = SM.render.stageFor(sceneLike, rc), win = stage.cameraWindow(SM.camera.at(built.camera, t)), m = stage.matrix(win);
