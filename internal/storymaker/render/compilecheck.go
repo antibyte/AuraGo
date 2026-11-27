@@ -65,7 +65,7 @@ type compileCheckCue struct {
 // failure is an issue with code compile_failed. Cue times are scene-local, as the report gives them.
 func (r *Runner) CompileCheck(ctx context.Context, projectID string, st Settings) (storymaker.CompileSummary, error) {
 	limit := compileCheckLimit
-	if st.Stills {
+	if st.Stills || len(st.Shots) > 0 {
 		limit *= stillsLimitFactor
 	}
 	checkCtx, cancel := context.WithTimeout(ctx, limit)
@@ -133,7 +133,7 @@ func (r *Runner) compileInBrowser(ctx, checkCtx context.Context, plan *Plan, bin
 	}
 	// With stills the page stays open and Go drives its screenshots; without them the report ends the run.
 	compileTransport, reportAnswer := DefaultTransport, ReportAnswer{Error: compileOnlyAnswer, Message: "This page only compiles the story."}
-	if st.Stills {
+	if st.Stills || len(st.Shots) > 0 {
 		compileTransport, reportAnswer = TransportScreenshot, ReportAnswer{Start: true}
 	}
 	reports := make(chan []byte, 1)
@@ -214,6 +214,9 @@ func (r *Runner) compileInBrowser(ctx, checkCtx context.Context, plan *Plan, bin
 		// The stills are taken before the listener shuts down: the page still needs it while it renders a frame.
 		if st.Stills && summary.Available && !storymaker.HasErrors(summary.Issues) {
 			r.captureStills(checkCtx, page, &summary, fps, frameLimit, prefix, token)
+		}
+		if len(st.Shots) > 0 && summary.Available && !storymaker.HasErrors(summary.Issues) {
+			r.captureShots(checkCtx, page, &summary, st.Shots, st.ShotSheet, fps, frameLimit, prefix, token)
 		}
 		// Shutdown lets the handler finish, so the page reads its answer. Close would cut it.
 		shutdownCtx, stop := context.WithTimeout(context.Background(), compileShutdownWait)

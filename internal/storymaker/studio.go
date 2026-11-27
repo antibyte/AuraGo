@@ -14,6 +14,9 @@ const (
 	ToolStory   = "storymaker_story"
 	ToolCatalog = "storymaker_catalog"
 	ToolCheck   = "storymaker_check"
+	// ToolView shows pictures of the saved story. It is offered only to a model that can see, in ViewPhase phases, so it is in
+	// none of the phase tables.
+	ToolView = "storymaker_view"
 )
 
 // Phases of an agent job.
@@ -167,6 +170,8 @@ type StudioDeps struct {
 	Compile            func(ctx context.Context, projectID string) (CompileSummary, error)
 	ReadOnly           func() bool
 	MaxDurationSeconds int
+	// Screenshot takes pictures of the saved story in the real player. Nil means the model has no vision.
+	Screenshot func(ctx context.Context, projectID string, shots []ShotRequest, sheet bool) (CompileSummary, error)
 }
 
 // StudioJob is what the server binds to a job. The model never names any of it.
@@ -207,6 +212,10 @@ type CompileSummary struct {
 	// job saves it; the Studio does not keep it.
 	Stills []StillInfo
 	Sheet  []byte
+	// Shots are the pictures the model asked for (JPEG), or only their metadata when they are part of ShotSheet.
+	Shots                           []SceneShot
+	ShotSheet                       []byte // JPEG
+	ShotSheetWidth, ShotSheetHeight int
 }
 
 // CompileScene is the measured timing of one scene.
@@ -260,6 +269,10 @@ type Studio struct {
 	compileETag    string
 	compileSummary CompileSummary
 	codeChanges    map[string]studioCodeChange
+
+	// Screenshots: looks that reached the player, and the pictures not yet handed to the model.
+	screenshots   int
+	pendingImages []StudioImage
 }
 
 // NewStudio returns the session of one job.
@@ -328,6 +341,9 @@ func (s *Studio) Call(ctx context.Context, call StudioCall) StudioResult {
 	if operation == "" && tool == ToolCheck {
 		operation = "validate"
 	}
+	if operation == "" && tool == ToolView {
+		operation = shotOperation
+	}
 	res := s.route(ctx, tool, operation, call.Args)
 	if _, known := OperationOwners()[operation]; known {
 		res.Operation = operation
@@ -336,6 +352,9 @@ func (s *Studio) Call(ctx context.Context, call StudioCall) StudioResult {
 }
 
 func (s *Studio) route(ctx context.Context, tool, operation string, args map[string]any) StudioResult {
+	if tool == ToolView {
+		return s.routeView(ctx, operation, args)
+	}
 	allowed := PhaseOperationsFor(s.job.Mode, s.phase, tool)
 	if len(allowed) == 0 {
 		return studioRefused("operation_not_in_phase",

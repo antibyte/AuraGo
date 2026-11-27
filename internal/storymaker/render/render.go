@@ -77,6 +77,10 @@ type Settings struct {
 	FreeMemoryMB       int64 // available memory in MiB; 0 means unknown, no memory bound
 	// Stills makes a compile check take one still per measured scene in the same browser run (only CompileCheck reads it).
 	Stills bool
+	// Shots asks a compile check for pictures of these scenes in the same run (only CompileCheck reads it). With ShotSheet the
+	// pictures come as one contact sheet.
+	Shots     []storymaker.ShotRequest
+	ShotSheet bool
 }
 
 // Deps are the services a render needs.

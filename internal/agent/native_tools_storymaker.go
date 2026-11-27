@@ -50,6 +50,22 @@ func StorymakerPhaseToolSchemasFor(mode, phase string, compact bool, names Story
 	return out
 }
 
+// StorymakerViewToolSchema is the screenshot tool of a job whose model can see. It is offered in the check and revise
+// phases only, so it is not part of StorymakerPhaseToolSchemasFor. Like the phase tools it gets no strict schema.
+func StorymakerViewToolSchema() openai.Tool {
+	definition := tool(storymaker.ToolView,
+		"Look at the saved story as pictures from the real player: one to four scenes (scene_ids), or no scene_ids for one overview sheet of all scenes. at_s picks seconds into a single scene; default is the moment the scene has settled. Pictures arrive in the next message.",
+		schema(map[string]interface{}{
+			"operation": storymakerEnum("screenshot"),
+			"scene_ids": map[string]interface{}{"type": "array", "maxItems": 4, "items": storymakerTyped("string")},
+			"at_s":      map[string]interface{}{"type": "number", "minimum": 0},
+		}, "operation"))
+	params := definition.Function.Parameters.(map[string]interface{})
+	normalizeProviderFragileObjectSchemas(params)
+	injectAdditionalPropertiesRec(params)
+	return definition
+}
+
 // storymakerJobScope reports whether every tool the run may call is a Storymaker
 // job tool. The chat tool is named storymaker, without the underscore, and does
 // not count.

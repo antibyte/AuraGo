@@ -13,7 +13,7 @@ func TestStorymakerFreeProfilesTellTheFreeStory(t *testing.T) {
 	for _, compact := range []bool{false, true} {
 		for _, text := range []bool{false, true} {
 			for _, phase := range []string{storymaker.PhaseOutline, storymaker.PhaseFill, storymaker.PhaseCheck, storymaker.PhaseRevise} {
-				profile, err := storymakerAgentProfileFor(storymaker.ModeFree, phase, compact, text, names)
+				profile, err := storymakerAgentProfileFor(storymaker.ModeFree, phase, compact, text, false, names)
 				if err != nil {
 					t.Fatalf("%s compact=%v text=%v: %v", phase, compact, text, err)
 				}
@@ -29,10 +29,10 @@ func TestStorymakerFreeProfilesTellTheFreeStory(t *testing.T) {
 			}
 		}
 	}
-	if _, err := storymakerAgentProfileFor(storymaker.ModeFree, storymaker.PhaseCast, false, false, names); err == nil {
+	if _, err := storymakerAgentProfileFor(storymaker.ModeFree, storymaker.PhaseCast, false, false, false, names); err == nil {
 		t.Error("a free project has no cast phase")
 	}
-	fill, _ := storymakerAgentProfileFor(storymaker.ModeFree, storymaker.PhaseFill, false, false, names)
+	fill, _ := storymakerAgentProfileFor(storymaker.ModeFree, storymaker.PhaseFill, false, false, false, names)
 	if !strings.Contains(fill.SystemPrompt(), "## Fill one scene") || !strings.Contains(fill.SystemPrompt(), "put_code") {
 		t.Error("the free fill workflow must keep its heading and name put_code")
 	}
