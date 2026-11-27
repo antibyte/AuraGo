@@ -257,11 +257,56 @@ func TestStorymakerBeatSchemaOffersCuePhrase(t *testing.T) {
 	for _, compact := range []bool{false, true} {
 		story := storymakerToolParams(StorymakerPhaseToolSchemas(storymaker.PhaseFill, compact, names), storymaker.ToolStory)
 		phrase := storymakerSchemaAt(story, "data", "beats", "[]", "cue_phrase")
-		if phrase == nil || phrase["type"] != "string" || phrase["maxLength"] != 60 || phrase["description"] == "" {
+		if phrase == nil || phrase["type"] != "string" || phrase["maxLength"] != 60 || (phrase["description"] == nil) != compact {
 			t.Errorf("compact=%v cue_phrase = %v, want a described string of at most 60 characters", compact, phrase)
 		}
 		if storymakerSchemaAt(story, "data", "beats", "[]", "cue") == nil {
 			t.Errorf("compact=%v beat lost cue", compact)
+		}
+	}
+}
+
+func TestStorymakerBeatSchemaHasBlocks(t *testing.T) {
+	names := storymakerCatalogNames(t)
+	for _, compact := range []bool{false, true} {
+		story := storymakerToolParams(StorymakerPhaseToolSchemas(storymaker.PhaseFill, compact, names), storymaker.ToolStory)
+		beat := func(path ...string) map[string]interface{} {
+			return storymakerSchemaAt(story, append([]string{"data", "beats", "[]"}, path...)...)
+		}
+		paths := [][]string{
+			{"icon"}, {"chart"}, {"data", "labels"}, {"data", "values"}, {"data", "unit"},
+			{"diagram", "layout"}, {"diagram", "nodes", "[]", "id"}, {"diagram", "nodes", "[]", "label"},
+			{"diagram", "nodes", "[]", "icon"}, {"diagram", "nodes", "[]", "cue_phrase"},
+		}
+		if !compact {
+			// the compact schema stays at 900 tokens: no chart title, no compare points, no flow switch, no required lists
+			paths = append(paths, []string{"data", "title"}, []string{"diagram", "flow"}, []string{"diagram", "nodes", "[]", "points"})
+		}
+		for _, path := range paths {
+			if beat(path...) == nil {
+				t.Errorf("compact=%v beat lacks %s", compact, strings.Join(path, "."))
+			}
+		}
+		if got, _ := beat("chart")["enum"].([]string); !slices.Equal(got, []string{"bar", "line", "pie", "counter"}) {
+			t.Errorf("compact=%v chart enum = %v", compact, got)
+		}
+		if got, _ := beat("diagram", "layout")["enum"].([]string); !slices.Equal(got, []string{"flow", "cycle", "hub", "stack", "compare"}) {
+			t.Errorf("compact=%v layout enum = %v", compact, got)
+		}
+		if entry, _ := beat("entry")["enum"].([]string); !slices.Contains(entry, "draw") {
+			t.Errorf("compact=%v entry enum = %v", compact, entry)
+		}
+		if do, _ := beat("do")["enum"].([]string); slices.Contains(do, "chart") {
+			t.Errorf("compact=%v do must not offer the legacy chart beat", compact)
+		}
+		if req, _ := beat("diagram")["required"].([]string); !compact && !slices.Equal(req, []string{"layout", "nodes"}) {
+			t.Errorf("diagram required = %v", req)
+		}
+		if req, _ := beat("diagram", "nodes", "[]")["required"].([]string); !compact && !slices.Equal(req, []string{"id", "label"}) {
+			t.Errorf("node required = %v", req)
+		}
+		if beat("diagram", "nodes", "[]", "cue_phrase")["maxLength"] != 60 {
+			t.Errorf("compact=%v node cue_phrase maxLength = %v", compact, beat("diagram", "nodes", "[]", "cue_phrase")["maxLength"])
 		}
 	}
 }

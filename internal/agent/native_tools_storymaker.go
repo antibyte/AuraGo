@@ -223,11 +223,15 @@ func storymakerMetaProperties(compact bool, names StorymakerNames) map[string]in
 		"name":      storymakerTyped("string"),
 		"character": character,
 	}
+	rhythm := storymakerEnum("calm", "standard", "lively")
+	if compact {
+		rhythm = storymakerTyped("string")
+	}
 	properties := map[string]interface{}{
 		"title": storymakerTyped("string"),
 		"cast":  storymakerArray(schema(member)),
 		"style": schema(map[string]interface{}{
-			"rhythm":   storymakerEnum("calm", "standard", "lively"),
+			"rhythm":   rhythm,
 			"auto_sfx": storymakerTyped("boolean"),
 		}),
 	}
@@ -257,24 +261,36 @@ func storymakerSceneProperties(compact bool, names StorymakerNames) map[string]i
 		// Names remain in the phase packet and beat enums; avoid duplicating them.
 		pose, expression = storymakerTyped("string"), storymakerTyped("string")
 	}
+	source := map[string]interface{}{"type": "string", "maxLength": storymaker.StudioCodeBytes}
+	variant, transition, duration := storymakerEnum("day", "night"), storymakerEnum("cut", "fade", "slide-left", "wipe"), storymakerTyped("string")
+	framing, facing, layer := storymakerEnum("wide", "medium", "close"), storymakerEnum("left", "right", "auto"), storymakerEnum("back", "front")
+	kind := storymakerEnum("storyboard", "code")
+	if compact {
+		kind = storymakerTyped("string")
+		// The compact schema has no descriptions and leaves short closed names to the validator, which lists the valid ones.
+		variant, transition, framing, facing, layer = storymakerTyped("string"), storymakerTyped("string"), storymakerTyped("string"), storymakerTyped("string"), storymakerTyped("string")
+	} else {
+		source["description"] = "put_code only"
+		duration = prop("string", "auto or seconds")
+	}
 	return map[string]interface{}{
-		"kind":        storymakerEnum("storyboard", "code"),
-		"source":      map[string]interface{}{"type": "string", "maxLength": storymaker.StudioCodeBytes, "description": "put_code only"},
+		"kind":        kind,
+		"source":      source,
 		"environment": environment,
-		"variant":     storymakerEnum("day", "night"),
+		"variant":     variant,
 		"narration":   storymakerTyped("string"),
 		"speaker":     storymakerTyped("string"),
-		"transition":  storymakerEnum("cut", "fade", "slide-left", "wipe"),
-		"duration":    prop("string", "auto or seconds"),
+		"transition":  transition,
+		"duration":    duration,
 		"camera": schema(map[string]interface{}{
-			"framing": storymakerEnum("wide", "medium", "close"),
+			"framing": framing,
 			"target":  storymakerTyped("string"),
 		}),
 		"actors": storymakerArray(schema(map[string]interface{}{
 			"cast":       storymakerTyped("string"),
 			"at":         storymakerTyped("string"),
 			"pose":       pose,
-			"facing":     storymakerEnum("left", "right", "auto"),
+			"facing":     facing,
 			"expression": expression,
 			"scale":      storymakerTyped("number"),
 		})),
@@ -282,7 +298,7 @@ func storymakerSceneProperties(compact bool, names StorymakerNames) map[string]i
 			"id":    storymakerTyped("string"),
 			"item":  storymakerTyped("string"),
 			"at":    storymakerTyped("string"),
-			"layer": storymakerEnum("back", "front"),
+			"layer": layer,
 			"scale": storymakerTyped("number"),
 		})),
 		"beats": storymakerArray(storymakerBeatSchema(compact, names)),
@@ -290,6 +306,37 @@ func storymakerSceneProperties(compact bool, names StorymakerNames) map[string]i
 }
 
 func storymakerBeatSchema(compact bool, names StorymakerNames) map[string]interface{} {
+	gesture, expression, ease := storymakerNames(names.Gestures), storymakerNames(names.Expressions), storymakerEnum("linear", "ease-in", "ease-out", "ease-in-out", "back-out", "bounce-out")
+	if compact {
+		// The names travel in the phase packet and the validator lists the closest ones; the compact schema keeps its 900 tokens.
+		gesture, expression, ease = storymakerTyped("string"), storymakerTyped("string"), storymakerTyped("string")
+	}
+	op, with := storymakerEnum("zoom", "pan", "focus", "shake"), storymakerEnum("prev")
+	cuePhrase := map[string]interface{}{"type": "string", "maxLength": 60}
+	chartData := map[string]interface{}{
+		"labels": storymakerArray(storymakerTyped("string")),
+		"values": storymakerArray(storymakerTyped("number")),
+		"unit":   storymakerTyped("string"),
+	}
+	node := map[string]interface{}{
+		"id":         storymakerTyped("string"),
+		"label":      storymakerTyped("string"),
+		"icon":       storymakerTyped("string"),
+		"cue_phrase": map[string]interface{}{"type": "string", "maxLength": 60},
+	}
+	diagramFields := map[string]interface{}{"layout": storymakerEnum("flow", "cycle", "hub", "stack", "compare")}
+	var nodeRequired, diagramRequired []string
+	if compact {
+		op, with = storymakerTyped("string"), storymakerTyped("string")
+	} else {
+		cuePhrase["description"] = "narration words to cue on"
+		chartData["title"] = storymakerTyped("string")
+		node["points"] = storymakerArray(storymakerTyped("string"))
+		diagramFields["flow"] = storymakerTyped("boolean")
+		nodeRequired, diagramRequired = []string{"id", "label"}, []string{"layout", "nodes"}
+	}
+	diagramFields["nodes"] = storymakerArray(schema(node, nodeRequired...))
+	diagram := schema(diagramFields, diagramRequired...)
 	properties := map[string]interface{}{
 		"do":         storymakerEnum("enter", "exit", "walk", "move", "pose", "gesture", "emote", "look", "say", "show", "hide", "highlight", "camera", "sfx", "wait"),
 		"who":        storymakerTyped("string"),
@@ -298,25 +345,29 @@ func storymakerBeatSchema(compact bool, names StorymakerNames) map[string]interf
 		"to":         storymakerTyped("string"),
 		"at":         storymakerTyped("string"),
 		"pose":       storymakerNames(names.Poses),
-		"gesture":    storymakerNames(names.Gestures),
-		"expression": storymakerNames(names.Expressions),
+		"gesture":    gesture,
+		"expression": expression,
 		"text":       storymakerTyped("string"),
 		"style":      storymakerTyped("string"),
 		"item":       storymakerTyped("string"),
-		"entry":      storymakerEnum("pop", "fade", "slide", "none"),
-		"op":         storymakerEnum("zoom", "pan", "focus", "shake"),
+		"icon":       storymakerTyped("string"),
+		"chart":      storymakerEnum("bar", "line", "pie", "counter"),
+		"data":       schema(chartData),
+		"diagram":    diagram,
+		"entry":      storymakerEnum("pop", "fade", "slide", "none", "draw"),
+		"op":         op,
 		"amount":     storymakerTyped("number"),
 		"seconds":    storymakerTyped("number"),
-		"with":       storymakerEnum("prev"),
+		"with":       with,
 		"cue":        storymakerTyped("integer"),
-		"cue_phrase": map[string]interface{}{"type": "string", "maxLength": 60, "description": "narration words to cue on"},
+		"cue_phrase": cuePhrase,
 	}
 	properties["count"] = storymakerTyped("integer")
 	properties["id"] = storymakerTyped("string")
 	properties["sound"] = storymakerTyped("string")
 	properties["delay"] = storymakerTyped("number")
 	properties["duration"] = storymakerTyped("number")
-	properties["ease"] = storymakerEnum("linear", "ease-in", "ease-out", "ease-in-out", "back-out", "bounce-out")
+	properties["ease"] = ease
 	properties["scale"] = storymakerTyped("number")
 	return schema(properties, "do")
 }
