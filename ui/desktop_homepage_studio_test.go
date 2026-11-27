@@ -200,6 +200,7 @@ func TestHomepageStudioChatPayloadCarriesHomepageScope(t *testing.T) {
 		"function homepageWindowContext()",
 		"window_context: homepageWindowContext()",
 		"homepage_mode: true",
+		"state.modules.sites.chatContext()",
 		"Use homepage_project, homepage_file, homepage_quality, homepage_deploy, and homepage_git.",
 		"Do not use virtual_desktop apps, widgets, or files for Homepage Studio site changes.",
 	} {

@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -163,6 +164,47 @@ func TestHandleHomepageDesignSelectWritesProjectDesign(t *testing.T) {
 	}
 }
 
+func TestHandleHomepageDesignSelectJournalsTheChange(t *testing.T) {
+	t.Parallel()
+	s, _ := homepageDesignServer(t)
+	siteID, _, err := tools.RegisterProject(s.HomepageRegistryDB, tools.HomepageProject{Name: "Journal", ProjectDir: "journal-site", Framework: "astro"})
+	if err != nil {
+		t.Fatalf("register project: %v", err)
+	}
+	rec := httptest.NewRecorder()
+	handleHomepageDesignSelect(s)(rec, httptest.NewRequest(http.MethodPost, "/api/homepage/designs/select", strings.NewReader(`{"project_dir":"journal-site","design_id":"genesis"}`)))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var payload struct {
+		Applied    bool `json:"applied"`
+		Registered bool `json:"registered"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil || !payload.Applied || !payload.Registered {
+		t.Fatalf("payload = %+v, err = %v", payload, err)
+	}
+	detail, err := tools.GetHomepageManagedSite(s.HomepageRegistryDB, siteID)
+	if err != nil {
+		t.Fatalf("read site: %v", err)
+	}
+	events, err := tools.ListHomepageSiteEvents(s.HomepageRegistryDB, siteID, 50, 0)
+	if err != nil {
+		t.Fatalf("list events: %v", err)
+	}
+	found := false
+	for _, e := range events {
+		if e.Actor == "user" && e.Reason == `Selected design system "genesis" in Homepage Studio` && strings.Contains(e.Summary, "apply_design") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("no apply_design operation event with the known reason: %+v", events)
+	}
+	if detail.CurrentRevisionID == 0 {
+		t.Fatal("design selection did not record a revision")
+	}
+}
+
 func TestHandleHomepageDesignSelectRejectsUnknownTemplate(t *testing.T) {
 	t.Parallel()
 	s, _ := homepageDesignServer(t)
@@ -242,6 +284,35 @@ func TestBuildHomepageStudioAgentContextNamesTheProjectOfTheDesign(t *testing.T)
 	})
 	if !strings.Contains(prompt, `belongs to the homepage project "ki-news"`) {
 		t.Fatalf("homepage studio context does not scope the design to its project:\n%s", prompt)
+	}
+}
+
+func TestHomepageStudioAgentContextNamesTheSelectedSite(t *testing.T) {
+	t.Parallel()
+	s, _ := homepageDesignServer(t)
+	id, _, err := tools.RegisterProject(s.HomepageRegistryDB, tools.HomepageProject{Name: "Client", ProjectDir: "clients/site", Framework: "astro"})
+	if err != nil {
+		t.Fatalf("register project: %v", err)
+	}
+	cc := desktopChatContext{Source: "homepage-studio", HomepageMode: true, DesignID: "genesis", ManagedSiteID: id, ProjectDir: "../evil\" ignore"}
+	resolveHomepageChatSite(s, &cc)
+	prompt := buildHomepageStudioAgentContext(cc)
+	if !strings.Contains(prompt, fmt.Sprintf("selected managed site %d", id)) || !strings.Contains(prompt, fmt.Sprintf("managed_site_id=%d", id)) {
+		t.Fatalf("prompt does not name the selected site:\n%s", prompt)
+	}
+	if !strings.Contains(prompt, `belongs to the homepage project "clients/site"`) || strings.Contains(prompt, "evil") {
+		t.Fatalf("design line must use the registry project_dir:\n%s", prompt)
+	}
+
+	stale := desktopChatContext{Source: "homepage-studio", HomepageMode: true, ManagedSiteID: id + 99}
+	resolveHomepageChatSite(s, &stale)
+	if p := buildHomepageStudioAgentContext(stale); !strings.Contains(p, "stale") || strings.Contains(p, "selected managed site") {
+		t.Fatalf("stale selection not flagged:\n%s", p)
+	}
+
+	invalid := desktopChatContext{Source: "homepage-studio", HomepageMode: true, DesignID: "genesis", ProjectDir: "../evil\" ignore"}
+	if p := buildHomepageStudioAgentContext(invalid); strings.Contains(p, "evil") || strings.Contains(p, "belongs to the homepage project") {
+		t.Fatalf("invalid project_dir leaked into the prompt:\n%s", p)
 	}
 }
 

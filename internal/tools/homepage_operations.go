@@ -48,7 +48,7 @@ func HomepageOperationMutates(name string) bool {
 		return true
 	}
 	switch name {
-	case "init", "start", "stop", "rebuild", "destroy", "exec", "init_project", "build", "install_deps", "install_library", "compile_tailwind", "write_file", "edit_file", "json_edit", "yaml_edit", "xml_edit", "optimize_images", "dev", "deploy", "deploy_netlify", "deploy_here_now", "deploy_vercel", "publish_local", "webserver_start", "webserver_stop", "tunnel", "git_init", "git_commit", "git_rollback", "save_revision", "restore_revision":
+	case "init", "start", "stop", "rebuild", "destroy", "exec", "init_project", "build", "install_deps", "install_library", "compile_tailwind", "write_file", "edit_file", "json_edit", "yaml_edit", "xml_edit", "optimize_images", "dev", "deploy", "deploy_netlify", "deploy_here_now", "deploy_vercel", "publish_local", "webserver_start", "webserver_stop", "tunnel", "git_init", "git_commit", "git_rollback", "save_revision", "restore_revision", "apply_design":
 		return true
 	}
 	return false

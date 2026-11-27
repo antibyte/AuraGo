@@ -953,6 +953,8 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 
 			// Permission checks for restricted operations
 			switch req.Operation {
+			case "apply_design":
+				return "Tool Output: " + tools.ErrorJSON("apply_design is a Homepage Studio user action, not an agent operation; write DESIGN.md with write_file instead")
 			case "install_library", "compile_tailwind":
 				if perms, configured := tools.EffectiveRuntimePermissions(ctx); !cfg.Agent.AllowNetworkRequests || (configured && !perms.AllowNetworkRequests) {
 					return "Tool Output: " + tools.ErrorJSON("Homepage libraries require agent.allow_network_requests for downloads")

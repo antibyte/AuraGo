@@ -543,6 +543,7 @@ type desktopChatContext struct {
 	Target          string                  `json:"target,omitempty"`
 	DesignID        string                  `json:"design_id,omitempty"`
 	ProjectDir      string                  `json:"project_dir,omitempty"`
+	ManagedSiteID   int64                   `json:"managed_site_id,omitempty"`
 	CurrentFile     string                  `json:"current_file"`
 	CurrentLanguage string                  `json:"current_language"`
 	CurrentContent  string                  `json:"current_content"`
@@ -558,6 +559,10 @@ type desktopChatContext struct {
 	// codeStudioWorkspace is resolved by the server from WorkspaceID; it is
 	// never decoded from the request.
 	codeStudioWorkspace *codeStudioChatWorkspace
+	// homepageSite is the registry record behind ManagedSiteID, resolved by the
+	// server; homepageSiteStale marks an id the registry does not know.
+	homepageSite      *tools.HomepageManagedSite
+	homepageSiteStale bool
 }
 
 type desktopWindowContext struct {
@@ -744,6 +749,7 @@ func prepareDesktopAgentTurnWithOptions(ctx context.Context, s *Server, message 
 
 	// Label, host and folder of an SSH workspace come from the server, never from the request.
 	chatContext.codeStudioWorkspace = resolveCodeStudioChatWorkspace(ctx, s, chatContext)
+	resolveHomepageChatSite(s, &chatContext)
 	persistContext := chatContext
 	persistContext.ImageBase64 = ""
 	desktopPromptContext := strings.TrimSpace(opts.AdditionalPrompt)
@@ -1164,11 +1170,29 @@ func buildHomepageStudioAgentContext(chatContext desktopChatContext) string {
 	b.WriteString("\nBefore implementing or changing HTML, CSS, browser JavaScript, accessibility or performance, load the bundled modern-web-guidance Agent Skill via activate_agent_skill with skill=\"modern-web-guidance\" (use discover_tools if needed) and apply its relevant guides. Preserve the selected design and the project's browser targets.")
 	b.WriteString("\nRead the skill's local references with file_reader_advanced as directed by the skill; these are reference reads outside the homepage project, while project files still use homepage tools. If the skill is disabled, blocked or unavailable, report that limitation and continue the authorized work without re-enabling it or claiming to have applied it.")
 	b.WriteString("\nBefore editing, query homepage_registry get_site/overview for the exact managed site. Supply reason for every mutation. Afterwards verify the preview and automatic ledger event; use list_events for what changed and why.")
+	// Only server-validated values reach the prompt: the registry record, or a
+	// project identity that passes the same normalization the tools use.
+	designDir := ""
+	if site := chatContext.homepageSite; site != nil {
+		if site.ProjectDir != "" {
+			designDir = site.ProjectDir
+			b.WriteString(fmt.Sprintf("\nIn Homepage Studio the user has selected managed site %d (project_dir %q). Work on this site unless the user explicitly names another one, and pass managed_site_id=%d to homepage tools.", site.ID, site.ProjectDir, site.ID))
+		} else {
+			b.WriteString(fmt.Sprintf("\nIn Homepage Studio the user has selected managed site %d (remote-only, no local project directory). Work on this site unless the user explicitly names another one, and pass managed_site_id=%d to homepage tools.", site.ID, site.ID))
+		}
+	} else if chatContext.homepageSiteStale {
+		b.WriteString("\nThe site selection sent by Homepage Studio is stale (the managed site no longer exists); ask the user which site to work on or query homepage_registry overview.")
+	}
+	if designDir == "" {
+		if dir, err := tools.NormalizeHomepageProjectIdentity(strings.TrimSpace(chatContext.ProjectDir), false); err == nil && chatContext.homepageSite == nil {
+			designDir = dir
+		}
+	}
 	if design := homepageStudioDesignPrompt(chatContext.DesignID); design != "" {
 		b.WriteString("\n\n")
 		b.WriteString(design)
-		if dir := strings.TrimSpace(chatContext.ProjectDir); dir != "" {
-			b.WriteString("\nThis design belongs to the homepage project \"" + dir + "\"; apply it there and to no other project.")
+		if designDir != "" {
+			b.WriteString(fmt.Sprintf("\nThis design belongs to the homepage project %q; apply it there and to no other project.", designDir))
 		}
 		b.WriteString("\nIts colors, typography, spacing, radius and component rules replace the default homepage look. Keep the project DESIGN.md in sync with it.")
 	}

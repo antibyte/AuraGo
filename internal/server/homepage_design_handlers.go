@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -128,6 +129,33 @@ func handleHomepageDesignByID(s *Server) http.HandlerFunc {
 	}
 }
 
+// resolveHomepageChatSite looks up the managed site a Homepage Studio turn
+// names, so the prompt carries registry values and never client strings.
+func resolveHomepageChatSite(s *Server, chatContext *desktopChatContext) {
+	chatContext.homepageSite, chatContext.homepageSiteStale = nil, false
+	if chatContext.ManagedSiteID <= 0 || s == nil || s.HomepageRegistryDB == nil || !isHomepageStudioChatContext(*chatContext) {
+		return
+	}
+	site, err := tools.GetHomepageManagedSite(s.HomepageRegistryDB, chatContext.ManagedSiteID)
+	if err != nil {
+		chatContext.homepageSiteStale = true
+		return
+	}
+	chatContext.homepageSite = &site
+}
+
+// homepageDesignSelectStatus maps the error text of a failed journaled
+// operation to an HTTP status.
+func homepageDesignSelectStatus(message string) int {
+	switch {
+	case strings.Contains(message, "archived"):
+		return http.StatusConflict
+	case strings.Contains(message, "invalid"), strings.Contains(message, "project_dir"):
+		return http.StatusBadRequest
+	}
+	return http.StatusInternalServerError
+}
+
 // handleHomepageDesignSelect binds a design template to a homepage project.
 // The template is written into the project as DESIGN.md so the agent applies
 // it while working on that site, and the binding is stored in the registry.
@@ -158,18 +186,40 @@ func handleHomepageDesignSelect(s *Server) http.HandlerFunc {
 		registered := false
 		if projectDir != "" {
 			cfg := homepageConfigFromServer(s)
-			if err := tools.ApplyHomepageDesign(cfg, projectDir, design.ID); err != nil {
+			cfg.Context = r.Context()
+			if s.HomepageRegistryDB != nil {
+				// The journal records intent, a revision and the outcome, so the
+				// ledger shows who changed DESIGN.md and why.
+				op := tools.HomepageOperation{Name: "apply_design", ProjectDir: projectDir, Reason: fmt.Sprintf("Selected design system %q in Homepage Studio", design.ID), Actor: "user", Source: "homepage_studio", FilesMayChange: true}
+				raw := tools.ExecuteHomepageOperation(cfg, s.HomepageRegistryDB, op, s.Logger, func(managedCfg tools.HomepageConfig) string {
+					if err := tools.ApplyHomepageDesign(managedCfg, projectDir, design.ID); err != nil {
+						s.Logger.Warn("[HomepageDesigns] failed to write project design", "project_dir", projectDir, "design", design.ID, "error", err)
+						return tools.ErrorJSON("Failed to apply the design to the project")
+					}
+					if err := tools.SetHomepageProjectDesign(s.HomepageRegistryDB, projectDir, design.ID); err != nil {
+						s.Logger.Warn("[HomepageDesigns] failed to store project design", "project_dir", projectDir, "design", design.ID, "error", err)
+						return `{"status":"ok","registered":false}`
+					}
+					return `{"status":"ok","registered":true}`
+				})
+				var result map[string]interface{}
+				if err := json.Unmarshal([]byte(raw), &result); err != nil {
+					jsonError(w, "Failed to apply the design to the project", http.StatusInternalServerError)
+					return
+				}
+				if status, _ := result["status"].(string); status != "ok" && status != "success" {
+					message, _ := result["message"].(string)
+					jsonError(w, "Failed to apply the design to the project: "+message, homepageDesignSelectStatus(message))
+					return
+				}
+				applied = true
+				registered, _ = result["registered"].(bool)
+			} else if err := tools.ApplyHomepageDesign(cfg, projectDir, design.ID); err != nil {
 				s.Logger.Warn("[HomepageDesigns] failed to write project design", "project_dir", projectDir, "design", design.ID, "error", err)
 				jsonError(w, "Failed to apply the design to the project", http.StatusInternalServerError)
 				return
-			}
-			applied = true
-			if s.HomepageRegistryDB != nil {
-				if err := tools.SetHomepageProjectDesign(s.HomepageRegistryDB, projectDir, design.ID); err != nil {
-					s.Logger.Warn("[HomepageDesigns] failed to store project design", "project_dir", projectDir, "design", design.ID, "error", err)
-				} else {
-					registered = true
-				}
+			} else {
+				applied = true
 			}
 		}
 

@@ -914,6 +914,7 @@
                 homepage_mode: true,
                 window_context: homepageWindowContext(),
                 ...(state.modules.designs ? state.modules.designs.chatContext() : {}),
+                ...(state.modules.sites ? state.modules.sites.chatContext() : {}),
                 ...(marks ? marks.context : {})
             };
 

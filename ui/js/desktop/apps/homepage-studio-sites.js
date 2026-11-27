@@ -473,7 +473,12 @@
             state.details.clear();
         }
 
-        return { load, select, reconcile, render, getSelected, getSites, getDetail, setSelected, dispose };
+        /* The chat turn names the selected managed site so the agent does not guess. */
+        function chatContext() {
+            return state.selectedId ? { managed_site_id: state.selectedId } : {};
+        }
+
+        return { load, select, reconcile, render, getSelected, getSites, getDetail, setSelected, chatContext, dispose };
     }
 
     window.HomepageStudioSites = {
