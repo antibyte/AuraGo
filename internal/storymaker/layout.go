@@ -192,7 +192,9 @@ func LayoutIssues(scenes []LayoutScene, opts LayoutOptions) []Issue {
 			if outsideShare(b.Box) > layoutTextOutside {
 				add(CodeOffscreen, fmt.Sprintf("The block %s is partly outside the frame in scene %s.", b.ID, sc.ID), blockFix(blockAreas))
 			}
-			if b.Box[3] < layoutBlockMinHeight || (b.Label > 0 && b.Label < layoutBlockMinLabel) {
+			// A diagram or chart needs height to be read; a headline, list or icon is as short as its text, so only its label size counts.
+			tallKind := b.Kind == "diagram" || b.Kind == "chart"
+			if (tallKind && b.Box[3] < layoutBlockMinHeight) || (b.Label > 0 && b.Label < layoutBlockMinLabel) {
 				add(CodeBlockTooSmall, fmt.Sprintf("The block %s is too small to read in scene %s.", b.ID, sc.ID),
 					blockFix(`Show it at "full" or on a bigger area, or give it fewer nodes or shorter labels.`))
 			}

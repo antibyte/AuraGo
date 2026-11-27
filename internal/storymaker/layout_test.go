@@ -221,7 +221,8 @@ func TestLayoutIssuesForBlocks(t *testing.T) {
 	sc.Blocks = []LayoutBlock{
 		{ID: "covered", Kind: "chart", Layout: "bar", Label: 0.03, Box: LayoutBox{0.3, 0.5, 0.3, 0.4}},
 		{ID: "outside", Kind: "list", Label: 0.03, Box: LayoutBox{0.8, 0.1, 0.4, 0.3}},
-		{ID: "tiny", Kind: "headline", Label: 0.03, Box: LayoutBox{0.1, 0.1, 0.3, 0.05}},
+		{ID: "tiny", Kind: "diagram", Layout: "flow", Label: 0.03, Box: LayoutBox{0.1, 0.1, 0.3, 0.06}},
+		{ID: "one line", Kind: "headline", Label: 0.03, Box: LayoutBox{0.1, 0.02, 0.3, 0.06}},
 		{ID: "hidden", Kind: "diagram", Layout: "flow", Label: 0.03, Box: LayoutBox{0.45, 0.2, 0.2, 0.3}},
 		{ID: "label", Kind: "diagram", Layout: "flow", Label: 0.02, Box: LayoutBox{0.05, 0.55, 0.3, 0.2}},
 		{ID: "fine", Kind: "diagram", Layout: "flow", Label: 0.03, Box: LayoutBox{0.05, 0.05, 0.3, 0.4}},
