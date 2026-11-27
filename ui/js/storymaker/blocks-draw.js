@@ -466,7 +466,74 @@
         return plan;
     }
 
-    var PLANS = { icon: iconPlan, diagram: diagramPlan, chart: chartPlan };
+    // ---- headline and list
+
+    // headlinePlan: the words wrap into rows, centred; each word rises into place in its turn, the marked word gets a marker.
+    function headlinePlan(c) {
+        var st = c.st, hp = B.parseHeadline(st.block.text), words = hp.words, ctx = c.ctx, px = Math.min(c.base * 2.4, st.h * 0.4), rows, ww;
+        var rtl = SM.ranges.dirOf(st.block.text) === 'rtl', maxW = st.w * 0.94;
+        for (;;) {
+            ww = words.map(function (w) { return widthOf(c, w, 700, px); });
+            var space = widthOf(c, ' ', 700, px), row = null;
+            rows = [];
+            words.forEach(function (w, k) {
+                if (!row || row.w + space + ww[k] > maxW) rows.push(row = { ix: [], w: -space });
+                row.ix.push(k);
+                row.w += space + ww[k];
+            });
+            if ((rows.length <= 3 && rows.every(function (r) { return r.w <= maxW; }) && rows.length * px * 1.25 <= st.h) || px <= c.floor * 1.5) break;
+            px = Math.max(c.floor * 1.5, px * 0.94);
+        }
+        var lh = px * 1.25, width = Math.max.apply(null, rows.map(function (r) { return r.w; })), height = rows.length * lh;
+        return {
+            box: { x: -width / 2, y: -height / 2, w: width, h: height }, labelPx: px,
+            paint: function () {
+                var space = widthOf(c, ' ', 700, px);
+                rows.forEach(function (r, i) {
+                    var x = -r.w / 2, y = -height / 2 + lh * (i + 0.5), order = rtl ? r.ix.slice().reverse() : r.ix;
+                    order.forEach(function (k) {
+                        var p = B.itemProgress(st, k), cx = x + ww[k] / 2;
+                        x += ww[k] + space;
+                        if (!(p > 0)) return;
+                        if (k === hp.mark) {
+                            ctx.globalAlpha = c.alpha * 0.5 * p;
+                            ctx.fillStyle = c.col.accent;
+                            ctx.fillRect(cx - ww[k] / 2 - px * 0.1, y + px * 0.02, (ww[k] + px * 0.2) * p, px * 0.46);
+                        }
+                        ctx.globalAlpha = c.alpha * p;
+                        printLines(c, [words[k]], cx, y + (1 - p) * px * 0.35, px, 700, c.col.ink, 'center');
+                    });
+                });
+            }
+        };
+    }
+
+    // listPlan: up to four lines with an accent bullet, each sliding in from the left in order.
+    function listPlan(c) {
+        var st = c.st, rows = B.lines(st.block.text), n = rows.length, ctx = c.ctx;
+        var lab = fitSet(c, rows, 600, st.w * 0.9 - c.base, 2, clamp(st.h / (n * 2), c.base, c.base * 1.8)), px = lab.px;
+        var heights = lab.lines.map(function (l) { return l.length * px * 1.2 + px * 0.7; }), height = heights.reduce(function (a, b) { return a + b; }, 0);
+        var width = Math.max.apply(null, lab.lines.map(function (l) { return Math.max.apply(null, l.map(function (s) { return widthOf(c, s, 600, px); })); })) + px * 0.9;
+        return {
+            box: { x: -width / 2, y: -height / 2, w: width, h: height }, labelPx: px,
+            paint: function () {
+                var y = -height / 2;
+                lab.lines.forEach(function (lines, k) {
+                    var p = B.itemProgress(st, k), mid = y + heights[k] / 2, dx = (1 - p) * px * 1.2;
+                    y += heights[k];
+                    if (!(p > 0)) return;
+                    ctx.globalAlpha = c.alpha * p;
+                    ctx.fillStyle = c.col.accent;
+                    ctx.beginPath();
+                    ctx.arc(-width / 2 + px * 0.2 + dx, mid, px * 0.2, 0, Math.PI * 2);
+                    ctx.fill();
+                    printLines(c, lines, -width / 2 + px * 0.9 + dx, mid, px, 600, c.col.ink, 'left');
+                });
+            }
+        };
+    }
+
+    var PLANS = { icon: iconPlan, diagram: diagramPlan, chart: chartPlan, headline: headlinePlan, list: listPlan };
 
     // plan(ctx, st, rc, stage) = {box, labelPx, paint} of an evaluated block state, box in design pixels around the block centre at
     // scale 1 and labelPx in design pixels, or null for a kind without a painter. It draws nothing until paint() runs.

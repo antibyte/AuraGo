@@ -83,12 +83,22 @@
         return typeof text === 'string' ? text.split('\n').map(function (l) { return l.replace(/\s+$/, ''); }).filter(function (l) { return l.length > 0; }) : [];
     }
 
-    function wordCount(text) { return String(text || '').replace(/\*/g, ' ').split(/\s+/).filter(Boolean).length; }
+    // parseHeadline(text) = {words, mark}: the words of a headline; the word inside asterisks is the marked one (mark is its index, or -1).
+    function parseHeadline(text) {
+        var words = [], mark = -1;
+        String(text || '').split(/\s+/).filter(Boolean).forEach(function (token) {
+            var word = token.replace(/\*/g, '');
+            if (!word) return;
+            if (mark < 0 && token.indexOf('*') >= 0) mark = words.length;
+            words.push(word);
+        });
+        return { words: words, mark: mark };
+    }
 
     function itemCount(b) {
         if (b.kind === 'diagram') return b.diagram && Array.isArray(b.diagram.nodes) ? b.diagram.nodes.length : 0;
         if (b.kind === 'list') return lines(b.text).length;
-        if (b.kind === 'headline') return wordCount(b.text);
+        if (b.kind === 'headline') return parseHeadline(b.text).words.length;
         return 1;
     }
 
@@ -164,7 +174,7 @@
         } else if (def.kind === 'diagram') bad = checkDiagram(def.diagram, cat);
         else if (def.kind === 'chart') bad = checkChart(def.chart);
         else if (def.kind === 'headline') {
-            if (typeof def.text !== 'string' || !def.text.trim() || def.text.length > HEADLINE_MAX) bad = problem('text', 'A headline has 1 to ' + HEADLINE_MAX + ' characters. Shorten it.');
+            if (typeof def.text !== 'string' || !parseHeadline(def.text).words.length || def.text.length > HEADLINE_MAX) bad = problem('text', 'A headline has 1 to ' + HEADLINE_MAX + ' characters. Shorten it.');
         } else {
             var rows = lines(def.text);
             if (!rows.length || rows.length > LIST_MAX) bad = problem('text', 'A list has 1 to ' + LIST_MAX + ' lines, got ' + rows.length + '. Split the list.');
@@ -185,7 +195,7 @@
         switch (def.kind) {
             case 'diagram': return 0.5 + 0.6 * itemCount(def);
             case 'chart': return 1.2;
-            case 'headline': return 0.4 + 0.15 * wordCount(def.text);
+            case 'headline': return 0.4 + 0.15 * parseHeadline(def.text).words.length;
             case 'list': return 0.5 * itemCount(def);
             default: return 0.8;
         }
@@ -401,6 +411,6 @@
         POINTS_MAX: POINTS_MAX, MAX_BLOCKS: MAX_BLOCKS, LABEL_BASE: 0.034, LABEL_MIN: 0.026, ITEM_SPAN: ITEM_SPAN, WORD_SPAN: WORD_SPAN,
         FLOW_PERIOD: FLOW_PERIOD, BOARD_RECTS: BOARD_RECTS, isBoard: isBoard, area: area, check: check, create: create,
         revealSeconds: revealSeconds, itemProgress: itemProgress, serialize: serialize, revive: revive,
-        itemCount: itemCount, lines: lines, layout: layout, layoutNodes: layoutNodes
+        itemCount: itemCount, lines: lines, parseHeadline: parseHeadline, layout: layout, layoutNodes: layoutNodes
     };
 })(typeof globalThis !== 'undefined' ? globalThis : self);

@@ -298,3 +298,42 @@ check('blocks: a pie is a donut of arcs with an inner radius, a line chart revea
     assert.ok(line(5).every(l => l === 'setLineDash([])'), 'no dash at the end');
     assert.ok(paint(chartDef('line', [1, 3, 2, 5]), 5).filter(l => l.startsWith('lineTo(')).length >= 3, 'the polyline is drawn');
 });
+
+// ---- C6: headline and list
+
+check('blocks: parseHeadline finds the words and the marked word', () => {
+    assert.deepEqual(plain(B.parseHeadline('Ein *wichtiges* Wort')), { words: ['Ein', 'wichtiges', 'Wort'], mark: 1 });
+    assert.deepEqual(plain(B.parseHeadline('Ohne Markierung')), { words: ['Ohne', 'Markierung'], mark: -1 });
+    assert.equal(B.parseHeadline('  *Eins*  ').mark, 0);
+    assert.equal(B.check({ id: 'h', kind: 'headline', text: ' * ' }, cat).field, 'text', 'a headline without a word is refused');
+});
+
+check('blocks: headline words rise in order and the marked word has an accent marker behind it', () => {
+    const def = { id: 'h', kind: 'headline', text: 'Ein *wichtiges* Wort', dur: 1.5 };
+    const area = B.area(SM.stage.create({ aspect: '16:9' }), null, 'day', 'top'), e = B.create({ ...def, area, t0: 0 });
+    const prog = time => [0, 1, 2].map(k => B.itemProgress(SM.scene.evalEntity(e, time), k));
+    const mid = prog(0.6);
+    assert.ok(mid[0] >= mid[1] && mid[1] >= mid[2] && mid[0] > mid[2], 'in order: ' + mid.join(', '));
+    assert.deepEqual(prog(0), [0, 0, 0]);
+    assert.deepEqual(prog(5), [1, 1, 1]);
+    const log = paint(def, 5), at = text => log.findIndex(l => l.startsWith('fillText(' + text + ','));
+    assert.deepEqual(['Ein', 'wichtiges', 'Wort'].map(at).every(i => i >= 0), true);
+    assert.ok(at('Ein') < at('wichtiges') && at('wichtiges') < at('Wort'));
+    const rect = log.findIndex(l => l.startsWith('fillRect(')), fill = log.lastIndexOf('set fillStyle=' + PALETTE.accent, at('wichtiges'));
+    assert.ok(rect >= 0 && rect < at('wichtiges') && fill >= 0 && fill < rect, 'the accent rect comes before the marked word');
+    assert.equal(paint({ ...def, text: 'Ohne Marker' }, 5).filter(l => l.startsWith('fillRect(')).length, 0);
+    assert.equal(paint(def, 0).filter(l => l.startsWith('fillText(')).length, 0, 'no word is printed before its turn');
+});
+
+check('blocks: a list reveals its lines in order', () => {
+    const def = { id: 'l', kind: 'list', text: 'Laden\nRechnen\nAntworten\nSpeichern', dur: 2 };
+    const texts = time => paint(def, time).filter(l => l.startsWith('fillText(')).map(l => l.slice(9).split(',')[0]);
+    assert.deepEqual(texts(5), ['Laden', 'Rechnen', 'Antworten', 'Speichern']);
+    assert.deepEqual(texts(0), []);
+    const area = B.area(SM.stage.create({ aspect: '16:9' }), null, 'day', 'right'), e = B.create({ ...def, area, t0: 0 });
+    const prog = time => [0, 1, 2, 3].map(k => B.itemProgress(SM.scene.evalEntity(e, time), k));
+    const mid = prog(0.8);
+    assert.ok(mid[0] >= mid[1] && mid[1] >= mid[2] && mid[2] >= mid[3] && mid[0] > mid[3], mid.join(', '));
+    assert.deepEqual(texts(0.3), ['Laden']);
+    assert.equal(paint(def, 5).filter(l => l.startsWith('arc(')).length, 4, 'one bullet per line');
+});
