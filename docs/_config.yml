@@ -1,0 +1,5 @@
+# GitHub Pages (security-gates.yml "pages-build", actions/jekyll-build-pages, source ./docs).
+# docs/superpowers holds implementation plans with Go and JS snippets; their "{{" and "{%" break Liquid
+# (Jekyll 3.10 on Pages has no render_with_liquid switch). Plans are not site content, so they stay out.
+exclude:
+  - superpowers

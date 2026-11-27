@@ -12494,7 +12494,7 @@
     function buildPreviewPane(pane) {
         const preview = previewState();
         const consoleId = 'cs-hp-console-' + String(state.windowId).replace(/[^A-Za-z0-9_-]/g, '');
-        const t = (key, fallback) => esc(tr(key, fallback));
+        const trEsc = (key, fallback) => esc(tr(key, fallback));
         const viewportLabels = {
             responsive: tr('codeStudio.previewResponsive', 'Responsive'),
             tablet: tr('codeStudio.previewTablet', 'Tablet (768 px)'),
@@ -12502,48 +12502,48 @@
         };
         pane.setAttribute('aria-label', tr('codeStudio.previewTitle', 'Preview'));
         pane.innerHTML = `
-            <div class="cs-hp-resize" data-hp-resize role="separator" aria-orientation="vertical" tabindex="0" aria-label="${t('codeStudio.previewResize', 'Resize preview')}" title="${t('codeStudio.previewResize', 'Resize preview')}"></div>
-            <div class="cs-hp-toolbar" role="toolbar" aria-label="${t('codeStudio.previewTitle', 'Preview')}">
-                <button type="button" class="cs-hp-button" data-hp-action="reload" aria-label="${t('codeStudio.previewReload', 'Reload preview')}" title="${t('codeStudio.previewReload', 'Reload preview')}">${previewGlyph('reload')}</button>
+            <div class="cs-hp-resize" data-hp-resize role="separator" aria-orientation="vertical" tabindex="0" aria-label="${trEsc('codeStudio.previewResize', 'Resize preview')}" title="${trEsc('codeStudio.previewResize', 'Resize preview')}"></div>
+            <div class="cs-hp-toolbar" role="toolbar" aria-label="${trEsc('codeStudio.previewTitle', 'Preview')}">
+                <button type="button" class="cs-hp-button" data-hp-action="reload" aria-label="${trEsc('codeStudio.previewReload', 'Reload preview')}" title="${trEsc('codeStudio.previewReload', 'Reload preview')}">${previewGlyph('reload')}</button>
                 <form class="cs-hp-address" data-hp-address-form>
                     <span class="cs-hp-address-icon" aria-hidden="true">${previewGlyph('globe', 13)}</span>
-                    <input type="text" class="cs-hp-address-input" data-hp-address spellcheck="false" autocomplete="off" placeholder="index.html" aria-label="${t('codeStudio.previewAddress', 'Preview address (path inside the workspace)')}">
+                    <input type="text" class="cs-hp-address-input" data-hp-address spellcheck="false" autocomplete="off" placeholder="index.html" aria-label="${trEsc('codeStudio.previewAddress', 'Preview address (path inside the workspace)')}">
                 </form>
-                <div class="cs-hp-segmented" role="radiogroup" data-hp-viewports aria-label="${t('codeStudio.previewViewport', 'Viewport')}">
+                <div class="cs-hp-segmented" role="radiogroup" data-hp-viewports aria-label="${trEsc('codeStudio.previewViewport', 'Viewport')}">
                     ${PREVIEW_VIEWPORTS.map(id => `<button type="button" role="radio" class="cs-hp-segment" data-hp-viewport="${id}" aria-checked="false" tabindex="-1" aria-label="${esc(viewportLabels[id])}" title="${esc(viewportLabels[id])}">${previewGlyph(id)}</button>`).join('')}
                 </div>
-                <button type="button" class="cs-hp-button cs-hp-console-button" data-hp-action="console" aria-expanded="false" aria-controls="${consoleId}" title="${t('codeStudio.previewConsole', 'Console')}">${previewGlyph('alert')}<span class="cs-hp-badge" data-hp-console-count hidden>0</span></button>
-                <button type="button" class="cs-hp-button" data-hp-action="pin" aria-pressed="false" aria-label="${t('codeStudio.previewPin', 'Keep showing this file')}">${previewGlyph('pin')}</button>
-                <button type="button" class="cs-hp-button" data-hp-action="external" aria-label="${t('codeStudio.previewOpenExternal', 'Open in new browser tab')}" title="${t('codeStudio.previewOpenExternal', 'Open in new browser tab')}">${previewGlyph('external')}</button>
-                <button type="button" class="cs-hp-button" data-hp-action="close" aria-label="${t('codeStudio.previewClose', 'Close preview')}" title="${t('codeStudio.previewClose', 'Close preview')}">${previewGlyph('close')}</button>
+                <button type="button" class="cs-hp-button cs-hp-console-button" data-hp-action="console" aria-expanded="false" aria-controls="${consoleId}" title="${trEsc('codeStudio.previewConsole', 'Console')}">${previewGlyph('alert')}<span class="cs-hp-badge" data-hp-console-count hidden>0</span></button>
+                <button type="button" class="cs-hp-button" data-hp-action="pin" aria-pressed="false" aria-label="${trEsc('codeStudio.previewPin', 'Keep showing this file')}">${previewGlyph('pin')}</button>
+                <button type="button" class="cs-hp-button" data-hp-action="external" aria-label="${trEsc('codeStudio.previewOpenExternal', 'Open in new browser tab')}" title="${trEsc('codeStudio.previewOpenExternal', 'Open in new browser tab')}">${previewGlyph('external')}</button>
+                <button type="button" class="cs-hp-button" data-hp-action="close" aria-label="${trEsc('codeStudio.previewClose', 'Close preview')}" title="${trEsc('codeStudio.previewClose', 'Close preview')}">${previewGlyph('close')}</button>
             </div>
-            <div class="cs-hp-hint" data-hp-dirty role="status" hidden><span class="cs-hp-hint-dot" aria-hidden="true"></span><span>${t('codeStudio.previewDirty', 'Showing saved version. Save to update the preview.')}</span></div>
-            <section class="cs-hp-console" id="${consoleId}" data-hp-console hidden aria-label="${t('codeStudio.previewConsole', 'Console')}">
-                <header class="cs-hp-console-head"><span>${t('codeStudio.previewConsole', 'Console')}</span><button type="button" class="cs-hp-text-button" data-hp-action="clear-console">${t('codeStudio.previewConsoleClear', 'Clear console')}</button></header>
+            <div class="cs-hp-hint" data-hp-dirty role="status" hidden><span class="cs-hp-hint-dot" aria-hidden="true"></span><span>${trEsc('codeStudio.previewDirty', 'Showing saved version. Save to update the preview.')}</span></div>
+            <section class="cs-hp-console" id="${consoleId}" data-hp-console hidden aria-label="${trEsc('codeStudio.previewConsole', 'Console')}">
+                <header class="cs-hp-console-head"><span>${trEsc('codeStudio.previewConsole', 'Console')}</span><button type="button" class="cs-hp-text-button" data-hp-action="clear-console">${trEsc('codeStudio.previewConsoleClear', 'Clear console')}</button></header>
                 <ol class="cs-hp-console-list" data-hp-console-list></ol>
             </section>
             <div class="cs-hp-stage" data-hp-stage data-viewport="${esc(preview.viewport)}" aria-busy="false">
                 <div class="cs-hp-device" data-hp-device>
-                    <iframe class="cs-hp-frame" data-hp-frame sandbox="${PREVIEW_SANDBOX}" referrerpolicy="no-referrer" title="${t('codeStudio.previewTitle', 'Preview')}"></iframe>
+                    <iframe class="cs-hp-frame" data-hp-frame sandbox="${PREVIEW_SANDBOX}" referrerpolicy="no-referrer" title="${trEsc('codeStudio.previewTitle', 'Preview')}"></iframe>
                 </div>
                 <div class="cs-hp-device-label" data-hp-device-label hidden></div>
                 <div class="cs-hp-loading" data-hp-loading hidden>
                     <span class="cs-hp-shimmer"></span><span class="cs-hp-shimmer short"></span><span class="cs-hp-shimmer"></span><span class="cs-hp-shimmer short"></span>
-                    <span class="cs-hp-sr">${t('codeStudio.previewLoading', 'Loading preview...')}</span>
+                    <span class="cs-hp-sr">${trEsc('codeStudio.previewLoading', 'Loading preview...')}</span>
                 </div>
                 <div class="cs-hp-card" data-hp-empty hidden>
                     <span class="cs-hp-card-icon" aria-hidden="true">${previewGlyph('eye', 26)}</span>
-                    <strong>${t('codeStudio.previewEmptyTitle', 'Open an HTML file to preview it')}</strong>
-                    <p>${t('codeStudio.previewEmptyHint', 'HTML, HTM and SVG files open here and reload when you save.')}</p>
-                    <div class="cs-hp-card-actions"><button type="button" class="cs-button primary" data-hp-action="preview-active">${t('codeStudio.previewEmptyAction', 'Preview active file')}</button></div>
+                    <strong>${trEsc('codeStudio.previewEmptyTitle', 'Open an HTML file to preview it')}</strong>
+                    <p>${trEsc('codeStudio.previewEmptyHint', 'HTML, HTM and SVG files open here and reload when you save.')}</p>
+                    <div class="cs-hp-card-actions"><button type="button" class="cs-button primary" data-hp-action="preview-active">${trEsc('codeStudio.previewEmptyAction', 'Preview active file')}</button></div>
                 </div>
                 <div class="cs-hp-card cs-hp-error" data-hp-error role="alert" hidden>
                     <span class="cs-hp-card-icon" aria-hidden="true">${previewGlyph('alert', 24)}</span>
                     <strong data-hp-error-title></strong>
                     <p data-hp-error-detail></p>
                     <div class="cs-hp-card-actions">
-                        <button type="button" class="cs-button primary" data-hp-action="retry">${t('codeStudio.previewRetry', 'Try again')}</button>
-                        <button type="button" class="cs-button" data-hp-action="close">${t('codeStudio.previewClose', 'Close preview')}</button>
+                        <button type="button" class="cs-button primary" data-hp-action="retry">${trEsc('codeStudio.previewRetry', 'Try again')}</button>
+                        <button type="button" class="cs-button" data-hp-action="close">${trEsc('codeStudio.previewClose', 'Close preview')}</button>
                     </div>
                 </div>
             </div>`;
