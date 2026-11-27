@@ -218,12 +218,14 @@ func showSlug(b Beat) string {
 	switch {
 	case b.Item != "":
 		return assetSlug(b.Item)
-	case b.Text != "":
-		return "text"
+	case b.Diagram != nil:
+		return "diagram"
 	case b.Icon != "":
 		return cleanSlug(b.Icon, "icon")
 	case b.Chart != "":
 		return "chart"
+	case b.Text != "":
+		return "text"
 	}
 	return "show"
 }

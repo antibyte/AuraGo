@@ -89,7 +89,20 @@ const (
 	CodeOffscreen        = "offscreen"
 	CodeActorPropOverlap = "actor_prop_overlap"
 	CodeSceneStatic      = "scene_static"
+	CodeBlockTooSmall    = "block_too_small" // a block box is below the minimum height or its label below the minimum size
 )
+
+// Codes of the block advice and of the fallback board. The advice codes are warnings of the advice lint, scene_fallback is
+// an open check of the job.
+const (
+	CodeLabelLong     = "label_long"     // warning, advice: node label > 3 words or headline > 8 words
+	CodeNoBlocks      = "no_blocks"      // warning, advice: film of >= 5 scenes without a block
+	CodeBlockRepeat   = "block_repeat"   // warning, advice: the same block key in 3 scenes in a row
+	CodeSceneFallback = "scene_fallback" // open check of the job: the scene got the fallback board
+)
+
+// BlockAreas are the named areas a block can be shown at.
+var BlockAreas = []string{"full", "left", "right", "top", "center", "board"}
 
 // Issue codes of the measured picture checks (layout boxes, stills, frame probe, player lint). The check emits them, never
 // Validate. The two hard codes are model-fixable warnings that block an outcome while left; the others are advice or an open
@@ -263,6 +276,24 @@ type Prop struct {
 type ChartData struct {
 	Labels []string  `json:"labels"`
 	Values []float64 `json:"values"`
+	Unit   string    `json:"unit,omitempty"`
+	Title  string    `json:"title,omitempty"`
+}
+
+// Diagram is a diagram block of a show beat.
+type Diagram struct {
+	Layout string        `json:"layout"` // flow | cycle | hub | stack | compare
+	Nodes  []DiagramNode `json:"nodes"`
+	Flow   bool          `json:"flow,omitempty"`
+}
+
+// DiagramNode is one node of a Diagram.
+type DiagramNode struct {
+	ID     string   `json:"id"`
+	Label  string   `json:"label"`
+	Icon   string   `json:"icon,omitempty"`
+	Points []string `json:"points,omitempty"` // compare only
+	Cue    int      `json:"cue,omitempty"`    // narration marker; set by the Studio from cue_phrase
 }
 
 // Beat is one timed action of a storyboard scene. Per-kind required fields are checked by
@@ -283,6 +314,7 @@ type Beat struct {
 	Icon       string     `json:"icon,omitempty"`
 	Chart      string     `json:"chart,omitempty"`
 	Data       *ChartData `json:"data,omitempty"`
+	Diagram    *Diagram   `json:"diagram,omitempty"`
 	At         *Position  `json:"at,omitempty"`
 	Entry      string     `json:"entry,omitempty"`
 	Scale      float64    `json:"scale,omitempty"` // 0.5 to 2, a show beat with an item only; 0 = unset
