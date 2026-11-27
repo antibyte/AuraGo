@@ -65,3 +65,47 @@ func TestFreePacketsCarryNoCatalogOrCast(t *testing.T) {
 		t.Fatalf("next_scene = %v", packet["next_scene"])
 	}
 }
+
+func TestFreeFillPacketCarriesCodeRevCardAndSafeBox(t *testing.T) {
+	ctx := context.Background()
+	s, ps, projectID := newFreeStudioRig(t)
+	s.SetPhase(PhaseFill, "s1")
+	packet, err := s.Packet(ctx, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	story, _, err := ps.LoadStory(ctx, projectID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	st, _, err := DecodeStory(story, DefaultLimits())
+	if err != nil {
+		t.Fatal(err)
+	}
+	ApplyDefaults(&st)
+	if packet["code_rev"] != MustNotExist {
+		t.Fatalf("code_rev = %v, want %q", packet["code_rev"], MustNotExist)
+	}
+	if box, _ := packet["safe_box"].(SafeBox); box != SafeBoxFor(st.Format.Aspect) {
+		t.Fatalf("safe_box = %v, want %+v", packet["safe_box"], SafeBoxFor(st.Format.Aspect))
+	}
+	card, _ := packet["api_card"].(string)
+	if !strings.Contains(card, "api.safe()") || !strings.Contains(card, "Palette of this film: $bg #") || len(card) > 1800 {
+		t.Fatalf("api_card has %d bytes: %s", len(card), card)
+	}
+	if next, _ := packet["next"].(string); !strings.HasPrefix(next, "put_code with expected_rev = code_rev") {
+		t.Fatalf("next = %q", next)
+	}
+
+	put := studioWriteCall(t, s, ToolStory, "put_code", `{"scene_id":"s1","expected_rev":"`+MustNotExist+`","data":{"source":"export default function scene(api) { api.duration(5); }"}}`)
+	if put["status"] != "ok" || put["rev"] == nil {
+		t.Fatalf("put_code with code_rev and no get_code = %v", put)
+	}
+	again, err := s.Packet(ctx, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if again["code_rev"] != put["rev"] {
+		t.Fatalf("code_rev = %v, want the rev of the put_code answer %v", again["code_rev"], put["rev"])
+	}
+}

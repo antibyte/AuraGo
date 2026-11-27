@@ -2,7 +2,10 @@ package storymaker
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"math"
 	"time"
 )
@@ -262,7 +265,31 @@ func packetFreeFill(ctx context.Context, packet map[string]any, story *Story, sc
 	}
 	packet["max_code_bytes"] = StudioCodeBytes
 	packet["open_issues"] = packetIssues(story, deps, sc.ID, job.Mode)
-	packet["next"] = `get_code, then put_code with expected_rev and data.source, then put_scene with data {"kind":"code"}`
+	codeRev := MustNotExist
+	if _, etag, err := deps.Projects.LoadCodeSource(ctx, job.ProjectID, sceneID); err == nil {
+		codeRev = studioRev(etag)
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	box := SafeBoxFor(story.Format.Aspect)
+	var tokens map[string]string
+	paletteName := story.Style.Palette
+	if paletteName == "" {
+		paletteName = DefaultPalette // ApplyDefaults has not run on a story that never named one
+	}
+	if deps.Catalog != nil {
+		// Catalog.Palettes is not filled by LoadCatalog; the palette entry keeps its manifest row.
+		if e, ok := deps.Catalog.Lookup("palette." + paletteName); ok {
+			var p Palette
+			if json.Unmarshal(e.raw, &p) == nil {
+				tokens = p.Tokens
+			}
+		}
+	}
+	packet["code_rev"] = codeRev
+	packet["safe_box"] = box
+	packet["api_card"] = FreeAPICard(tokens, box)
+	packet["next"] = `put_code with expected_rev = code_rev and data.source (get_code only to read a saved source or after rev_mismatch), then put_scene with data {"kind":"code"}`
 	if !job.VoiceAvailable {
 		packet["note"] = packetFreeNoVoiceNote
 	}
