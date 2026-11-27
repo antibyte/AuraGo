@@ -1278,7 +1278,11 @@
         return state.bootstrap;
     }
 
-    async function loadBootstrap() {
+    // loadBootstrap({ fresh: true }) first waits for a reload already in flight, so the fetch starts after the caller's own write.
+    async function loadBootstrap(options) {
+        if (options && options.fresh === true && bootstrapReloadPromise) {
+            try { await bootstrapReloadPromise; } catch (_) { }
+        }
         if (bootstrapReloadPromise) return bootstrapReloadPromise;
         bootstrapReloadPromise = (async () => {
             await fetchBootstrapState();
@@ -1429,9 +1433,22 @@
         });
     }
 
+    // Positions of dashboard shortcuts that are gone (deleted dashboard, other browser) are dropped; other ids are never pruned.
+    function pruneDashboardIconPositions() {
+        if (!state.bootstrap || !Array.isArray(state.bootstrap.shortcuts)) return iconPositions();
+        const shortcuts = state.bootstrap.shortcuts;
+        const live = new Set(shortcuts.map(sc => sc && sc.id));
+        const positions = iconPositions();
+        const stale = Object.keys(positions).filter(key => key.startsWith('dashboard-') && !live.has(key));
+        if (!stale.length) return positions;
+        stale.forEach(key => { delete positions[key]; });
+        writeJSONStorage(ICON_POSITIONS_KEY, positions);
+        return positions;
+    }
+
     function renderIcons() {
         const items = desktopShortcutItems();
-        const positions = iconPositions();
+        const positions = pruneDashboardIconPositions();
         const visibleItems = filterVisibleIcons(items, positions);
         reconcileDesktopIcons(visibleItems, positions);
         syncDesktopIconSelection();

@@ -75,7 +75,7 @@ func TestDashboardShortcutAddRenameRemove(t *testing.T) {
 func TestUpsertDesktopShortcutRejectsBadDashboardTarget(t *testing.T) {
 	ctx := context.Background()
 	svc := testService(t)
-	for _, target := range []string{"", "has space", "UP/slash", "..", "a;b", "this-id-is-far-too-long-0123456789-0123456789-0123456789-0123456789-xx"} {
+	for _, target := range []string{"", "has space", "UP/slash", "..", "a;b", "d_abcdefghijk1", "d_abcdefghijklm", "this-id-is-far-too-long-0123456789-0123456789-0123456789-0123456789-xx"} {
 		sc := Shortcut{ID: "dashboard-x", TargetType: ShortcutTargetDashboard, TargetID: target, Name: "X"}
 		if err := svc.upsertDesktopShortcut(ctx, sc, SourceUser); err == nil {
 			t.Fatalf("target %q was accepted", target)
@@ -83,5 +83,38 @@ func TestUpsertDesktopShortcutRejectsBadDashboardTarget(t *testing.T) {
 	}
 	if len(dashboardRows(t, svc)) != 0 {
 		t.Fatal("a rejected target left a row")
+	}
+}
+
+func TestDashboardShortcutHooksDoNotReopenClosedService(t *testing.T) {
+	ctx := context.Background()
+	svc := testService(t)
+	const id = "d_abcdefghijkl"
+	if _, err := svc.AddDesktopDashboardShortcut(ctx, id, "A", SourceUser); err != nil {
+		t.Fatal(err)
+	}
+	_ = svc.Close() // the docker backend error is irrelevant here
+	if changed, err := svc.RenameTargetShortcuts(ctx, ShortcutTargetDashboard, id, "B", SourceSystem); err != nil || changed {
+		t.Fatalf("rename on a closed service = %v, %v", changed, err)
+	}
+	if removed, err := svc.RemoveTargetShortcuts(ctx, ShortcutTargetDashboard, id, SourceSystem); err != nil || removed {
+		t.Fatalf("remove on a closed service = %v, %v", removed, err)
+	}
+	if svc.isReady() {
+		t.Fatal("a hook reopened the closed service")
+	}
+}
+
+func TestDashboardShortcutHooksSkipUninitialisedService(t *testing.T) {
+	svc, err := NewService(Config{Enabled: true, WorkspaceDir: t.TempDir() + "/ws", DBPath: t.TempDir() + "/x.db", MaxFileSizeMB: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = svc.Close() })
+	if removed, err := svc.RemoveTargetShortcuts(context.Background(), ShortcutTargetDashboard, "d_abcdefghijkl", SourceSystem); err != nil || removed {
+		t.Fatalf("remove = %v, %v", removed, err)
+	}
+	if svc.isReady() {
+		t.Fatal("a hook initialised the service")
 	}
 }

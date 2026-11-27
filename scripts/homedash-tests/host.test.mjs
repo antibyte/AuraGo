@@ -123,7 +123,7 @@ export const tests = [
   ['host: a home card pin toggles through the shortcut API, is busy while pending (no double submit), toasts in the host layer and keeps the card text', async () => {
     const pins = pinsStub(), gate = new Promise(r => { pins.release = r; }), h = setup({ mode: 'home', dashboard: null, dashboards: [{ id: 'd_aaaaaaaaaaab', name: 'One', revision: 1 }] }, { desktopShortcuts: pins }); h.noView = true;
     const q = s => h.root.querySelector(s), tick = async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); }, press = () => q('.hdx-home').dispatchEvent({ type: 'click', target: q('.hdx-card-pin') });
-    assert.equal(q('.hdx-card-pin').getAttribute('aria-pressed'), 'false'); assert.equal(q('.hdx-card-pin').getAttribute('aria-label'), 'homedash.home.add_to_desktop'); assert.equal(q('.hdx-card-pinned'), null);
+    assert.equal(q('.hdx-card-pin').getAttribute('aria-pressed'), 'false'); assert.equal(q('.hdx-card-pin').getAttribute('aria-label'), 'homedash.home.show_on_desktop'); assert.equal(q('.hdx-card-pinned'), null);
     pins.gate = gate; press(); press(); await tick(); assert.equal(q('.hdx-card-pin').getAttribute('aria-busy'), 'true'); assert.equal(q('.hdx-card-pin').getAttribute('aria-disabled'), 'true'); eq(pins.log, ['add:d_aaaaaaaaaaab']);
     pins.release(); pins.gate = null; await tick();
     assert.equal(q('.hdx-card-pin').getAttribute('aria-pressed'), 'true'); assert.equal(q('.hdx-card-pin').getAttribute('aria-busy'), null); assert.equal(q('.hdx-card-pinned').textContent, 'homedash.home.on_desktop');
@@ -143,6 +143,16 @@ export const tests = [
     const ro = mk({ desktopReadonly: true }, { desktopShortcuts: pinsStub() }); ro.boundary.options.onContextMenu({ target: ro.root.querySelector('.hdx-card-open'), clientX: 1, clientY: 1 }); const r = ro.shown.at(-1)[2];
     assert.equal(r[1].disabled, true); assert.equal(r[3].disabled, true);
     const no = mk({}); no.boundary.options.onContextMenu({ target: no.root.querySelector('.hdx-card-open'), clientX: 1, clientY: 1 }); eq(no.shown.at(-1)[2].map(i => i.id || 'sep'), ['open', 'sep', 'delete']); }],
+  ['host: HomeDashApp.open navigates a live window to a dashboard and is a no-op for a missing window, an empty id or after dispose', () => {
+    const h = setup({ mode: 'home', dashboard: null, dashboards: [] }), app = h.window.HomeDashApp;
+    app.open('w1', 'd_aaaaaaaaaaab'); app.open('nope', 'd_aaaaaaaaaaac'); app.open('w1', ''); app.open('w1'); eq(h.opened, ['d_aaaaaaaaaaab']);
+    app.dispose('w1'); app.open('w1', 'd_aaaaaaaaaaad'); eq(h.opened, ['d_aaaaaaaaaaab']); }],
+  ['host: a pin request that settles after dispose paints no toast and starts no timer', async () => {
+    const pins = pinsStub(), gate = new Promise(r => { pins.release = r; }), h = setup({ mode: 'home', dashboard: null, dashboards: [{ id: 'd_aaaaaaaaaaab', name: 'One', revision: 1 }] }, { desktopShortcuts: pins });
+    const tick = async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); }, root = h.root; pins.gate = gate;
+    root.querySelector('.hdx-home').dispatchEvent({ type: 'click', target: root.querySelector('.hdx-card-pin') }); await tick(); eq(pins.log, ['add:d_aaaaaaaaaaab']);
+    h.window.HomeDashApp.dispose('w1'); pins.release(); await tick();
+    eq(h.toasts, []); assert.equal(root.querySelectorAll('.hd-toast').length, 0); }],
 ];
 function pinsStub() {
   const on = new Set(), log = [], api = { on, log, fail: false, gate: null, hasDashboard: id => on.has(id),
@@ -156,11 +166,11 @@ const HOST_FILES = ENGINE_ORDER.map(f => 'ui/js/homedash/' + f).concat(['ui/js/h
 function h2() { return loadFiles(HOST_FILES, { dom: true }).window.HomeDashApp; }
 // Renders the real host against the real engine helpers (el, icons, sheet, save) with a scripted HomeDashEngine.mount (the minimal stub of plan B7).
 function setup(patch, extra) {
-  const { window, document } = loadFiles(HOST_FILES, { dom: true }), real = window.HomeDashEngine, listeners = [], calls = [], menus = [], shown = [], confirms = [], mounted = {}, h = { window, calls, menus, shown, confirms, mounted, boundary: null, before: null, toasts: [], noView: false };
+  const { window, document } = loadFiles(HOST_FILES, { dom: true }), real = window.HomeDashEngine, listeners = [], calls = [], menus = [], shown = [], confirms = [], mounted = {}, h = { window, calls, menus, shown, confirms, mounted, boundary: null, before: null, toasts: [], opened: [], noView: false };
   let st = Object.freeze(Object.assign({ mode: 'dashboard', dashboard: { id: 'd_aaaaaaaaaaab', name: 'Home' }, dashboards: [], pageId: 'p', desktopReadonly: false, busy: false, templates: [], banners: [], connection: { phase: 'live' },
     edit: { mode: 'view', canEdit: true, editElsewhere: false, phase: 'saved', nextRetryAt: 0, undoLabel: '', redoLabel: '', bp: null, fit: null, actions: ACTIONS } }, patch || {}));
   const inst = { state: () => st, on: (type, fn) => { listeners.push(fn); return () => {}; }, dispose: () => calls.push('dispose'), run: a => { calls.push('run:' + a); return Promise.resolve(true); }, remove: s => { calls.push('remove:' + s.id); return Promise.resolve(true); },
-    contextMenu: ev => ev.menu, beforeClose: () => Promise.resolve(true), home: () => {}, open: () => {}, retry: () => {}, reconnect: () => {}, refreshLook: () => {}, toast: (text, to) => { if (h.noView) return false; h.toasts.push([text, to && to.tone]); return true; }, setReadonly: () => {}, createStarter: () => {}, createEmpty: () => { calls.push('createEmpty'); return Promise.resolve(); }, enterEdit: () => { calls.push('enterEdit'); return Promise.resolve(true); }, createHomeAssistant: () => {} };
+    contextMenu: ev => ev.menu, beforeClose: () => Promise.resolve(true), home: () => {}, open: d => { h.opened.push(d); }, retry: () => {}, reconnect: () => {}, refreshLook: () => {}, toast: (text, to) => { if (h.noView) return false; h.toasts.push([text, to && to.tone]); return true; }, setReadonly: () => {}, createStarter: () => {}, createEmpty: () => { calls.push('createEmpty'); return Promise.resolve(); }, enterEdit: () => { calls.push('enterEdit'); return Promise.resolve(true); }, createHomeAssistant: () => {} };
   window.HomeDashEngine = Object.assign({}, real, { mount: (host, o) => { Object.assign(mounted, o); return inst; }, sheet: { create: () => ({ confirm: o => { confirms.push(o.title); return Promise.resolve(true); }, destroy: () => {} }) } });
   const focusWindow = Object.assign(id => focusWindow.calls.push(id), { calls: [] });
   const ctx = { t: (k, v) => (v && v.label ? k + ':' + v.label : k), api: () => Promise.resolve({}), readonly: false, setWindowMenus: (id, m) => menus.push(m), showContextMenu: (x, y, items) => shown.push([x, y, items]), focusWindow,

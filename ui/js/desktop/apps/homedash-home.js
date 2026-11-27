@@ -63,7 +63,7 @@
         function item(d, ro) {
             const name = typeof d.name === 'string' && d.name ? d.name : d.id, when = Date.parse(d.updated_at), ps = pinOf(d.id), on = ps.endsWith('on'), busy = ps.startsWith('busy');
             const meta = [Number.isFinite(when) ? t('homedash.home.updated', { when: F.relTime(when, Date.now(), lang) }) : '', d.saved_by === 'agent' ? t('homedash.home.by_agent') : ''].filter(Boolean).join(DOT);
-            const pinLabel = on ? t('homedash.home.remove_from_desktop', { name }) : t('homedash.home.add_to_desktop', { name });
+            const pinLabel = t('homedash.home.show_on_desktop', { name }); // constant name, aria-pressed carries the state
             const pinAttrs = { type: 'button', class: 'hdx-card-pin', 'data-action': 'pin', 'data-id': d.id, 'aria-pressed': on ? 'true' : 'false', 'aria-label': pinLabel, title: pinLabel };
             if (busy) { pinAttrs['aria-busy'] = 'true'; pinAttrs['aria-disabled'] = 'true'; }
             const pinned = on ? el('span', { class: 'hdx-card-pinned' }, [E.icons.icon('device-desktop'), t('homedash.home.on_desktop')]) : null;

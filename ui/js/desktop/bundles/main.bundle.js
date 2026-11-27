@@ -4733,7 +4733,11 @@
         return state.bootstrap;
     }
 
-    async function loadBootstrap() {
+    // loadBootstrap({ fresh: true }) first waits for a reload already in flight, so the fetch starts after the caller's own write.
+    async function loadBootstrap(options) {
+        if (options && options.fresh === true && bootstrapReloadPromise) {
+            try { await bootstrapReloadPromise; } catch (_) { }
+        }
         if (bootstrapReloadPromise) return bootstrapReloadPromise;
         bootstrapReloadPromise = (async () => {
             await fetchBootstrapState();
@@ -4884,9 +4888,22 @@
         });
     }
 
+    // Positions of dashboard shortcuts that are gone (deleted dashboard, other browser) are dropped; other ids are never pruned.
+    function pruneDashboardIconPositions() {
+        if (!state.bootstrap || !Array.isArray(state.bootstrap.shortcuts)) return iconPositions();
+        const shortcuts = state.bootstrap.shortcuts;
+        const live = new Set(shortcuts.map(sc => sc && sc.id));
+        const positions = iconPositions();
+        const stale = Object.keys(positions).filter(key => key.startsWith('dashboard-') && !live.has(key));
+        if (!stale.length) return positions;
+        stale.forEach(key => { delete positions[key]; });
+        writeJSONStorage(ICON_POSITIONS_KEY, positions);
+        return positions;
+    }
+
     function renderIcons() {
         const items = desktopShortcutItems();
-        const positions = iconPositions();
+        const positions = pruneDashboardIconPositions();
         const visibleItems = filterVisibleIcons(items, positions);
         reconcileDesktopIcons(visibleItems, positions);
         syncDesktopIconSelection();
@@ -8405,25 +8422,42 @@
         return shortcuts.some(s => s.target_type === 'dashboard' && s.target_id === id);
     }
 
+    // The write decides success; the follow-up reload is a fresh fetch whose failure is only logged.
+    async function reloadAfterDashboardShortcut() {
+        try { await loadBootstrap({ fresh: true }); } catch (err) { console.warn('desktop reload after dashboard shortcut failed', err); }
+    }
+
+    // One request per dashboard at a time: a second call while one runs gets the same promise.
+    const dashboardShortcutInflight = new Map();
+    function dedupeDashboardShortcut(id, run) {
+        if (!id) return Promise.reject(new Error('dashboard id required'));
+        const running = dashboardShortcutInflight.get(id);
+        if (running) return running;
+        const promise = (async () => {
+            if ((state.bootstrap || {}).readonly) throw new Error('desktop is read-only');
+            await run();
+            await reloadAfterDashboardShortcut();
+        })();
+        const tracked = promise.finally(() => { if (dashboardShortcutInflight.get(id) === tracked) dashboardShortcutInflight.delete(id); });
+        dashboardShortcutInflight.set(id, tracked);
+        return tracked;
+    }
+
     // Unlike addDesktopShortcut these throw, so the caller can toast the failure.
-    async function addDesktopDashboardShortcut(id) {
-        if (!id) throw new Error('dashboard id required');
-        if ((state.bootstrap || {}).readonly) throw new Error('desktop is read-only');
-        await api('/api/desktop/shortcuts', {
+    function addDesktopDashboardShortcut(id) {
+        return dedupeDashboardShortcut(id, () => api('/api/desktop/shortcuts', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ dashboard_id: id })
-        });
-        await loadBootstrap();
+        }));
     }
 
-    async function removeDesktopDashboardShortcut(id) {
-        if (!id) throw new Error('dashboard id required');
-        if ((state.bootstrap || {}).readonly) throw new Error('desktop is read-only');
-        const shortcutId = dashboardShortcutId(id);
-        await api('/api/desktop/shortcuts?id=' + encodeURIComponent(shortcutId), { method: 'DELETE' });
-        removeIconPosition(shortcutId);
-        await loadBootstrap();
+    function removeDesktopDashboardShortcut(id) {
+        return dedupeDashboardShortcut(id, async () => {
+            const shortcutId = dashboardShortcutId(id);
+            await api('/api/desktop/shortcuts?id=' + encodeURIComponent(shortcutId), { method: 'DELETE' });
+            removeIconPosition(shortcutId);
+        });
     }
 
     function notifyDesktopShortcutsChanged() {
@@ -11175,14 +11209,20 @@
         if (win.context.path != null) win.context.path = normalizeDesktopPath(win.context.path);
     }
 
-    function matchesExistingAppWindow(win, appId, context) {
+    // mode 'home' (HomeDash only): the window shows the home list, so it can be navigated to context.dashboard_id.
+    function matchesExistingAppWindow(win, appId, context, mode) {
         if (win.appId !== appId) return false;
         if (appId === 'quick-connect') return !!(context && typeof context.device_id === 'string' && context.device_id.length > 0);
         if ((appId === 'editor' || appId === 'writer' || appId === 'sheets' || appId === 'notes' || appId === 'synth-studio' || appId === 'layerling' || appId === 'store-ziro-designer') && context && context.path != null) {
             const requestedPath = normalizeDesktopPath(context.path);
             return win.context && normalizeDesktopPath(win.context.path) === requestedPath;
         }
-        if (appId === 'homedash') return !(context && context.dashboard_id) || !!(win.context && win.context.dashboard_id === context.dashboard_id);
+        if (appId === 'homedash') {
+            const want = context && context.dashboard_id;
+            if (!want) return true;
+            const shown = win.context && win.context.dashboard_id;
+            return mode === 'home' ? !shown : shown === want;
+        }
         return !['editor', 'writer', 'sheets', 'synth-studio', 'layerling', 'chibi-sensei'].includes(appId);
     }
 
@@ -11201,12 +11241,16 @@
         });
         if (appId === 'virtual-computers') return undefined;
         const ctx = context || {};
-        const inActive = [...state.windows.values()].find(win => matchesExistingAppWindow(win, appId, ctx) && isWindowOnActiveSpace(win));
-        if (inActive) return inActive;
-        const inOther = [...state.windows.values()].find(win => matchesExistingAppWindow(win, appId, ctx) && !isWindowOnActiveSpace(win));
-        if (inOther) {
-            switchSpace(windowSpaceId(inOther));
-            return inOther;
+        // A dashboard shortcut prefers the window showing it, then one on the home list.
+        const modes = appId === 'homedash' && ctx.dashboard_id ? ['exact', 'home'] : ['exact'];
+        for (const mode of modes) {
+            const inActive = [...state.windows.values()].find(win => matchesExistingAppWindow(win, appId, ctx, mode) && isWindowOnActiveSpace(win));
+            if (inActive) return inActive;
+            const inOther = [...state.windows.values()].find(win => matchesExistingAppWindow(win, appId, ctx, mode) && !isWindowOnActiveSpace(win));
+            if (inOther) {
+                switchSpace(windowSpaceId(inOther));
+                return inOther;
+            }
         }
         return undefined;
     }
@@ -11352,6 +11396,7 @@
                 updateWindowContext(existing.id, { device_id: context.device_id });
                 applyQuickConnectLaunchContext(existing.id, context);
             }
+            if (appId === 'homedash' && context && context.dashboard_id && !(existing.context && existing.context.dashboard_id === context.dashboard_id)) window.HomeDashApp?.open?.(existing.id, context.dashboard_id);
             if (appId === 'agent-chat' && context && typeof applyChatLaunchContext === 'function') applyChatLaunchContext(existing.id, context);
             if (appId === 'settings' && context && context.category) renderAppContent(existing.id, appId, context);
             if (appId === 'calculator' && context && typeof context.expression === 'string') {

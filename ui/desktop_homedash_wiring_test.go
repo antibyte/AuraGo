@@ -36,8 +36,8 @@ func TestHomeDashWiring(t *testing.T) {
 	for file, markers := range map[string][]string{
 		"js/desktop/core/menus-and-routing.js":    {"appId === 'homedash' && window.HomeDashApp", "window.HomeDashApp.render(contentEl(id), id,"},
 		"js/desktop/core/desktop-foundation.js":   {"homedash: 'HomeDashApp'"},
-		"js/desktop/core/window-shell-runtime.js": {"homedash: { width: 1180, height: 780 }", "appId === 'homedash') return { width: 420, height: 360 }", "if (appId === 'homedash') return !(context && context.dashboard_id)"},
-		"js/desktop/bundles/main.bundle.js":       {"appId === 'homedash' && window.HomeDashApp", "homedash: 'HomeDashApp'", "homedash: { width: 1180, height: 780 }", "if (appId === 'homedash') return !(context && context.dashboard_id)"},
+		"js/desktop/core/window-shell-runtime.js": {"homedash: { width: 1180, height: 780 }", "appId === 'homedash') return { width: 420, height: 360 }", "return mode === 'home' ? !shown : shown === want;", "window.HomeDashApp?.open?.(existing.id, context.dashboard_id)"},
+		"js/desktop/bundles/main.bundle.js":       {"appId === 'homedash' && window.HomeDashApp", "homedash: 'HomeDashApp'", "homedash: { width: 1180, height: 780 }", "return mode === 'home' ? !shown : shown === want;", "window.HomeDashApp?.open?.(existing.id, context.dashboard_id)"},
 	} {
 		source := readDesktopAssetText(t, file)
 		for _, marker := range markers {
@@ -66,9 +66,10 @@ func TestHomeDashWiring(t *testing.T) {
 	}
 	// Dashboard desktop icons: the shortcut branch, the double-click route and the session keys survive in the core files and the bundle.
 	for file, markers := range map[string][]string{
-		"js/desktop/core/desktop-foundation.js": {"target_type === 'dashboard'", "openApp('homedash', { dashboard_id: btn.dataset.dashboardId })"},
+		"js/desktop/core/desktop-foundation.js": {"target_type === 'dashboard'", "openApp('homedash', { dashboard_id: btn.dataset.dashboardId })", "options.fresh === true", "pruneDashboardIconPositions()"},
+		"js/desktop/core/icon-selection-runtime.js": {"loadBootstrap({ fresh: true })", "dashboardShortcutInflight"},
 		"js/desktop/core/session-runtime.js":    {"['path', 'category', 'flowId', 'dashboard_id', 'page_id']", "dashboard_id: /^d_[a-z2-7]{12}$/"},
-		"js/desktop/bundles/main.bundle.js":     {"target_type === 'dashboard'", "openApp('homedash', { dashboard_id: btn.dataset.dashboardId })", "['path', 'category', 'flowId', 'dashboard_id', 'page_id']"},
+		"js/desktop/bundles/main.bundle.js":     {"target_type === 'dashboard'", "openApp('homedash', { dashboard_id: btn.dataset.dashboardId })", "['path', 'category', 'flowId', 'dashboard_id', 'page_id']", "options.fresh === true", "pruneDashboardIconPositions()", "loadBootstrap({ fresh: true })", "dashboardShortcutInflight"},
 	} {
 		source := readDesktopAssetText(t, file)
 		for _, marker := range markers {

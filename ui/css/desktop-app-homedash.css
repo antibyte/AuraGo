@@ -58,7 +58,7 @@
 .hdx-item > .hdx-card { flex: 1 1 auto; min-inline-size: 0; }
 .hdx-card { position: relative; display: flex; min-block-size: 92px; border: 1px solid var(--vd-mat-card-border, var(--hdx-line)); border-radius: var(--hdx-radius); background: var(--vd-mat-card, var(--hdx-card)); box-shadow: var(--vd-mat-card-shadow, none); overflow: hidden; }
 .hdx-card:hover { border-color: color-mix(in srgb, var(--vd-accent) 45%, var(--hdx-line)); }
-.hdx-card-open { display: grid; flex: 1 1 auto; grid-template-columns: 44px minmax(0, 1fr); align-items: center; gap: 14px; min-inline-size: 0; padding: 16px 56px 16px 16px; border: 0; background: transparent; text-align: start; cursor: pointer; }
+.hdx-card-open { display: grid; flex: 1 1 auto; grid-template-columns: 44px minmax(0, 1fr); align-items: center; gap: 14px; min-inline-size: 0; padding-block: 16px; padding-inline-start: 16px; padding-inline-end: 56px; border: 0; background: transparent; text-align: start; cursor: pointer; }
 .hdx-card-icon, .hdx-choice-icon { position: relative; display: grid; place-items: center; inline-size: 44px; block-size: 44px; border-radius: 12px; background: color-mix(in srgb, var(--vd-accent) 16%, var(--hdx-card)); color: color-mix(in srgb, var(--vd-accent) 78%, var(--vd-text)); }
 .hdx-app :is(.hdx-card-icon, .hdx-choice-icon) .hd-ico { inline-size: 22px; block-size: 22px; }
 .hdx-card-text { display: grid; gap: 2px; min-inline-size: 0; }

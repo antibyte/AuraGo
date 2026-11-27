@@ -148,23 +148,34 @@ func (s *Server) addDashboardShortcut(r *http.Request, svc *desktop.Service, id 
 	if !ok {
 		return desktop.Shortcut{}, http.StatusNotFound, errors.New("dashboard not found")
 	}
-	sc, err := svc.AddDesktopDashboardShortcut(r.Context(), id, name, desktop.SourceUser)
+	sc, err := svc.AddDesktopDashboardShortcut(ctx, id, name, desktop.SourceUser)
 	if err != nil {
 		return desktop.Shortcut{}, http.StatusInternalServerError, err
+	}
+	// The dashboard may have been deleted meanwhile; its delete hook ran before the row existed.
+	if again, err := hd.store.DashboardNames(ctx, []string{id}); err == nil {
+		if _, still := again[id]; !still {
+			_, _ = svc.RemoveTargetShortcuts(ctx, desktop.ShortcutTargetDashboard, id, desktop.SourceSystem)
+			return desktop.Shortcut{}, http.StatusNotFound, errors.New("dashboard not found")
+		}
 	}
 	return sc, http.StatusOK, nil
 }
 
 var errDesktopScopeRequired = errors.New("desktop_scope_required")
 
+func writeDesktopScopeRequired(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusForbidden)
+	_, _ = w.Write([]byte(`{"error":"desktop_scope_required","message":"Desktop API scope is required for this endpoint."}`))
+}
+
 // handleAddDashboardShortcut answers POST /api/desktop/shortcuts with a dashboard_id.
 func (s *Server) handleAddDashboardShortcut(w http.ResponseWriter, r *http.Request, svc *desktop.Service, hub *desktop.Hub, id string) {
 	sc, status, err := s.addDashboardShortcut(r, svc, id)
 	if err != nil {
 		if errors.Is(err, errDesktopScopeRequired) {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusForbidden)
-			_, _ = w.Write([]byte(`{"error":"desktop_scope_required","message":"Desktop API scope is required for this endpoint."}`))
+			writeDesktopScopeRequired(w)
 			return
 		}
 		jsonError(w, err.Error(), status)

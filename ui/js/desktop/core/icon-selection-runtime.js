@@ -348,25 +348,42 @@
         return shortcuts.some(s => s.target_type === 'dashboard' && s.target_id === id);
     }
 
+    // The write decides success; the follow-up reload is a fresh fetch whose failure is only logged.
+    async function reloadAfterDashboardShortcut() {
+        try { await loadBootstrap({ fresh: true }); } catch (err) { console.warn('desktop reload after dashboard shortcut failed', err); }
+    }
+
+    // One request per dashboard at a time: a second call while one runs gets the same promise.
+    const dashboardShortcutInflight = new Map();
+    function dedupeDashboardShortcut(id, run) {
+        if (!id) return Promise.reject(new Error('dashboard id required'));
+        const running = dashboardShortcutInflight.get(id);
+        if (running) return running;
+        const promise = (async () => {
+            if ((state.bootstrap || {}).readonly) throw new Error('desktop is read-only');
+            await run();
+            await reloadAfterDashboardShortcut();
+        })();
+        const tracked = promise.finally(() => { if (dashboardShortcutInflight.get(id) === tracked) dashboardShortcutInflight.delete(id); });
+        dashboardShortcutInflight.set(id, tracked);
+        return tracked;
+    }
+
     // Unlike addDesktopShortcut these throw, so the caller can toast the failure.
-    async function addDesktopDashboardShortcut(id) {
-        if (!id) throw new Error('dashboard id required');
-        if ((state.bootstrap || {}).readonly) throw new Error('desktop is read-only');
-        await api('/api/desktop/shortcuts', {
+    function addDesktopDashboardShortcut(id) {
+        return dedupeDashboardShortcut(id, () => api('/api/desktop/shortcuts', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ dashboard_id: id })
-        });
-        await loadBootstrap();
+        }));
     }
 
-    async function removeDesktopDashboardShortcut(id) {
-        if (!id) throw new Error('dashboard id required');
-        if ((state.bootstrap || {}).readonly) throw new Error('desktop is read-only');
-        const shortcutId = dashboardShortcutId(id);
-        await api('/api/desktop/shortcuts?id=' + encodeURIComponent(shortcutId), { method: 'DELETE' });
-        removeIconPosition(shortcutId);
-        await loadBootstrap();
+    function removeDesktopDashboardShortcut(id) {
+        return dedupeDashboardShortcut(id, async () => {
+            const shortcutId = dashboardShortcutId(id);
+            await api('/api/desktop/shortcuts?id=' + encodeURIComponent(shortcutId), { method: 'DELETE' });
+            removeIconPosition(shortcutId);
+        });
     }
 
     function notifyDesktopShortcutsChanged() {

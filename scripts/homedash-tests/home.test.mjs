@@ -60,11 +60,11 @@ export const tests = [
   ['home: a card pin button follows pinState (pressed, busy, repaint on change), is hidden when read-only or without pinState, and the meta segment shows the shortcut even read-only', () => {
     let ps = 'off'; const { home, calls, click } = setup({ pinState: () => ps }), q = s => home.el.querySelector(s), state = ro => ({ dashboards: [D], desktopReadonly: ro });
     home.render(state(false)); const pin = q('.hdx-card-pin'); assert.ok(pin); assert.equal(pin.getAttribute('data-action'), 'pin'); assert.equal(pin.getAttribute('data-id'), D.id); assert.equal(pin.getAttribute('aria-pressed'), 'false');
-    assert.equal(pin.getAttribute('aria-label'), 'homedash.home.add_to_desktop:<b>System</b>'); assert.equal(pin.getAttribute('title'), pin.getAttribute('aria-label')); assert.equal(q('.hdx-card-pinned'), null);
+    assert.equal(pin.getAttribute('aria-label'), 'homedash.home.show_on_desktop:<b>System</b>'); assert.equal(pin.getAttribute('title'), pin.getAttribute('aria-label')); assert.equal(q('.hdx-card-pinned'), null);
     const kids = Array.from(q('.hdx-card').children).map(n => n.getAttribute('class')); assert.deepEqual(kids, ['hdx-card-open', 'hdx-card-pin', 'hdx-card-delete']);
     click(pin); assert.deepEqual(calls, ['pin:' + D.id]);
     ps = 'busy-off'; home.render(state(false)); const busy = q('.hdx-card-pin'); assert.equal(busy.getAttribute('aria-busy'), 'true'); assert.equal(busy.getAttribute('aria-disabled'), 'true'); assert.equal(busy.getAttribute('aria-pressed'), 'false'); click(busy); assert.deepEqual(calls, ['pin:' + D.id]);
-    ps = 'on'; home.render(state(false)); const on = q('.hdx-card-pin'); assert.equal(on.getAttribute('aria-pressed'), 'true'); assert.equal(on.getAttribute('aria-label'), 'homedash.home.remove_from_desktop:<b>System</b>'); assert.equal(on.getAttribute('aria-busy'), null);
+    ps = 'on'; home.render(state(false)); const on = q('.hdx-card-pin'); assert.equal(on.getAttribute('aria-pressed'), 'true'); assert.equal(on.getAttribute('aria-label'), 'homedash.home.show_on_desktop:<b>System</b>'); assert.equal(on.getAttribute('aria-busy'), null);
     assert.equal(q('.hdx-card-pinned').textContent, 'homedash.home.on_desktop'); assert.ok(q('.hdx-card-meta').textContent.includes('homedash.home.by_agent')); assert.equal(q('.hdx-card-meta b'), null);
     home.render(state(true)); assert.equal(q('.hdx-card-pin'), null); assert.equal(q('.hdx-card-delete'), null); assert.equal(q('.hdx-card-pinned').textContent, 'homedash.home.on_desktop');
     const plain = setup(); plain.home.render(state(false)); assert.equal(plain.home.el.querySelector('.hdx-card-pin'), null); assert.equal(plain.home.el.querySelector('.hdx-card-pinned'), null); }]

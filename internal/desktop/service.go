@@ -380,6 +380,13 @@ func (s *Service) getDB() *sql.DB {
 	return s.db
 }
 
+// isReady reports whether the service is open, without ever initialising it.
+func (s *Service) isReady() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.db != nil && !s.closed
+}
+
 func (s *Service) ensureReady(ctx context.Context) error {
 	s.mu.Lock()
 	ready := s.db != nil && !s.closed

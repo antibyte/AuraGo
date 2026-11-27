@@ -237,6 +237,42 @@ func TestDesktopHomeDashShortcutLiveBrowser(t *testing.T) {
 	aside()
 	check(page.MustEval(`()=>(document.querySelector('.hdx-title')||{}).textContent`).Str() == "Wohnzimmer", "the window left the dashboard")
 
+	// 3b. Window reuse. A HomeDash window on the home list takes the dashboard (still one window); a window that shows another dashboard
+	// is never navigated away (a second window opens).
+	titles := func() string {
+		return page.MustEval(`()=>[...document.querySelectorAll('.vd-window[data-app-id="homedash"]')].map(w=>(w.querySelector('[data-hdx-view]')||{dataset:{}}).dataset.hdxView==='home'?'(home)':((w.querySelector('.hdx-title')||{}).textContent||'?')).join('|')`).Str()
+	}
+	page.MustElement(hdWin + ` .hdx-back`).MustClick()
+	until(15*time.Second, "the home list in the only window", `()=>!!document.querySelector('.vd-window[data-app-id="homedash"] [data-hdx-view="home"]')`)
+	check(titles() == "(home)", "windows before the reuse = %q", titles())
+	aside()
+	if err := page.MustElement(dashIcon(id)).Click(proto.InputMouseButtonLeft, 2); err != nil {
+		t.Fatal(err)
+	}
+	until(20*time.Second, "the home window navigated to the dashboard", `()=>{const w=document.querySelector('.vd-window[data-app-id="homedash"] [data-hdx-view="dashboard"]');return !!w&&(document.querySelector('.hdx-title')||{}).textContent==='Wohnzimmer'}`)
+	time.Sleep(300 * time.Millisecond)
+	check(titles() == "Wohnzimmer", "windows after the double-click on the home list = %q, want one Wohnzimmer window", titles())
+	// A second pinned dashboard while the window shows Wohnzimmer: its icon opens a new window.
+	idOther := createDashboard("Garten")
+	postShortcut(map[string]any{"dashboard_id": idOther})
+	until(15*time.Second, "the icon of Garten", `(s)=>!!document.querySelector(s)`, dashIcon(idOther))
+	aside()
+	if err := page.MustElement(dashIcon(idOther)).Click(proto.InputMouseButtonLeft, 2); err != nil {
+		t.Fatal(err)
+	}
+	until(20*time.Second, "a second window on Garten", `()=>document.querySelectorAll('.vd-window[data-app-id="homedash"]').length===2&&[...document.querySelectorAll('.vd-window[data-app-id="homedash"] .hdx-title')].some(x=>x.textContent==='Garten')`)
+	time.Sleep(300 * time.Millisecond)
+	check(count(v, hdWin) == 2, "windows with a dashboard open = %d, want 2", count(v, hdWin))
+	check(strings.Contains("|"+titles()+"|", "|Wohnzimmer|") && strings.Contains("|"+titles()+"|", "|Garten|"), "titles = %q, want Wohnzimmer and Garten", titles())
+	// Clean up: close the Garten window and delete its dashboard (and with it the shortcut).
+	page.MustEval(`()=>{const w=[...document.querySelectorAll('.vd-window[data-app-id="homedash"]')].find(x=>((x.querySelector('.hdx-title')||{}).textContent==='Garten'));w.querySelector('.vd-window-button[data-action="close"]').click()}`)
+	until(10*time.Second, "the Garten window closed", `()=>document.querySelectorAll('.vd-window[data-app-id="homedash"]').length===1`)
+	if w := env.do(t, env.admin, http.MethodDelete, fmt.Sprintf("dashboard?id=%s&revision=%d", idOther, revisionOf(idOther)), nil); w.Code != http.StatusOK {
+		t.Fatalf("delete Garten = %d %s", w.Code, w.Body.String())
+	}
+	until(15*time.Second, "the icon of Garten gone", `(s)=>!document.querySelector(s)`, dashIcon(idOther))
+	aside()
+
 	// 4. Context menu of the icon: Open, Remove from desktop, nothing else.
 	if err := page.MustElement(dashIcon(id)).Click(proto.InputMouseButtonRight, 1); err != nil {
 		t.Fatal(err)

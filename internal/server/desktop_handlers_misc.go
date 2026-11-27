@@ -47,6 +47,10 @@ func handleDesktopShortcuts(s *Server) http.HandlerFunc {
 			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok"})
 		case http.MethodDelete:
 			id := r.URL.Query().Get("id")
+			if strings.HasPrefix(id, desktop.DashboardShortcutID("")) && !desktopRequestIsAdmin(s, r) {
+				writeDesktopScopeRequired(w)
+				return
+			}
 			if err := svc.RemoveDesktopShortcut(r.Context(), id, desktop.SourceUser); err != nil {
 				jsonError(w, err.Error(), http.StatusBadRequest)
 				return

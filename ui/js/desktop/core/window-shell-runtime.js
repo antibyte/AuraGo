@@ -1490,14 +1490,20 @@
         if (win.context.path != null) win.context.path = normalizeDesktopPath(win.context.path);
     }
 
-    function matchesExistingAppWindow(win, appId, context) {
+    // mode 'home' (HomeDash only): the window shows the home list, so it can be navigated to context.dashboard_id.
+    function matchesExistingAppWindow(win, appId, context, mode) {
         if (win.appId !== appId) return false;
         if (appId === 'quick-connect') return !!(context && typeof context.device_id === 'string' && context.device_id.length > 0);
         if ((appId === 'editor' || appId === 'writer' || appId === 'sheets' || appId === 'notes' || appId === 'synth-studio' || appId === 'layerling' || appId === 'store-ziro-designer') && context && context.path != null) {
             const requestedPath = normalizeDesktopPath(context.path);
             return win.context && normalizeDesktopPath(win.context.path) === requestedPath;
         }
-        if (appId === 'homedash') return !(context && context.dashboard_id) || !!(win.context && win.context.dashboard_id === context.dashboard_id);
+        if (appId === 'homedash') {
+            const want = context && context.dashboard_id;
+            if (!want) return true;
+            const shown = win.context && win.context.dashboard_id;
+            return mode === 'home' ? !shown : shown === want;
+        }
         return !['editor', 'writer', 'sheets', 'synth-studio', 'layerling', 'chibi-sensei'].includes(appId);
     }
 
@@ -1516,12 +1522,16 @@
         });
         if (appId === 'virtual-computers') return undefined;
         const ctx = context || {};
-        const inActive = [...state.windows.values()].find(win => matchesExistingAppWindow(win, appId, ctx) && isWindowOnActiveSpace(win));
-        if (inActive) return inActive;
-        const inOther = [...state.windows.values()].find(win => matchesExistingAppWindow(win, appId, ctx) && !isWindowOnActiveSpace(win));
-        if (inOther) {
-            switchSpace(windowSpaceId(inOther));
-            return inOther;
+        // A dashboard shortcut prefers the window showing it, then one on the home list.
+        const modes = appId === 'homedash' && ctx.dashboard_id ? ['exact', 'home'] : ['exact'];
+        for (const mode of modes) {
+            const inActive = [...state.windows.values()].find(win => matchesExistingAppWindow(win, appId, ctx, mode) && isWindowOnActiveSpace(win));
+            if (inActive) return inActive;
+            const inOther = [...state.windows.values()].find(win => matchesExistingAppWindow(win, appId, ctx, mode) && !isWindowOnActiveSpace(win));
+            if (inOther) {
+                switchSpace(windowSpaceId(inOther));
+                return inOther;
+            }
         }
         return undefined;
     }
@@ -1667,6 +1677,7 @@
                 updateWindowContext(existing.id, { device_id: context.device_id });
                 applyQuickConnectLaunchContext(existing.id, context);
             }
+            if (appId === 'homedash' && context && context.dashboard_id && !(existing.context && existing.context.dashboard_id === context.dashboard_id)) window.HomeDashApp?.open?.(existing.id, context.dashboard_id);
             if (appId === 'agent-chat' && context && typeof applyChatLaunchContext === 'function') applyChatLaunchContext(existing.id, context);
             if (appId === 'settings' && context && context.category) renderAppContent(existing.id, appId, context);
             if (appId === 'calculator' && context && typeof context.expression === 'string') {

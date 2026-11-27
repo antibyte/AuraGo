@@ -9,8 +9,8 @@ import (
 	"time"
 )
 
-// dashboardTargetIDRe is the id shape of a dashboard shortcut target (checked again by the server).
-var dashboardTargetIDRe = regexp.MustCompile(`^[a-z0-9_-]{1,64}$`)
+// dashboardTargetIDRe is the HomeDash dashboard id form; keep in sync with internal/homedash/ids.go.
+var dashboardTargetIDRe = regexp.MustCompile(`^d_[a-z2-7]{12}$`)
 
 // DashboardShortcutID is the shortcut id of a HomeDash dashboard.
 func DashboardShortcutID(dashboardID string) string { return "dashboard-" + dashboardID }
@@ -50,8 +50,8 @@ func (s *Service) AddDesktopDashboardShortcut(ctx context.Context, dashboardID, 
 // RenameTargetShortcuts sets the label of every shortcut for the target. It reads first and
 // writes only when a name differs, so ordinary autosaves take no write lock.
 func (s *Service) RenameTargetShortcuts(ctx context.Context, targetType, targetID, name, source string) (bool, error) {
-	if err := s.ensureReady(ctx); err != nil {
-		return false, err
+	if !s.isReady() { // hooks never (re)open a service
+		return false, nil
 	}
 	if s.Config().ReadOnly {
 		return false, nil
@@ -86,8 +86,8 @@ func (s *Service) RenameTargetShortcuts(ctx context.Context, targetType, targetI
 
 // RemoveTargetShortcuts deletes every shortcut for the target and reports whether any existed.
 func (s *Service) RemoveTargetShortcuts(ctx context.Context, targetType, targetID, source string) (bool, error) {
-	if err := s.ensureReady(ctx); err != nil {
-		return false, err
+	if !s.isReady() { // hooks never (re)open a service
+		return false, nil
 	}
 	if s.Config().ReadOnly {
 		return false, nil

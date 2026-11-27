@@ -225,8 +225,14 @@ func TestDesktopBootstrapProjectsDashboardShortcuts(t *testing.T) {
 	if got := names(e.bootstrap(t, e.admin)); got[keep] != "Renamed" || got[gone] != "Gone" {
 		t.Fatalf("admin names = %v", got)
 	}
-	if stored := e.storedDashboardShortcuts(t); len(stored) != 2 || stored[0].Name == "Renamed" && stored[1].Name == "Renamed" {
-		t.Fatalf("stored rows were rewritten: %+v", stored)
+	stored := e.storedDashboardShortcuts(t)
+	if len(stored) != 2 {
+		t.Fatalf("stored rows = %+v", stored)
+	}
+	for _, sc := range stored {
+		if sc.Name == "Renamed" {
+			t.Fatalf("stored row was rewritten: %+v", sc)
+		}
 	}
 	// The cached slice is never written to, also under concurrent requests.
 	var wg sync.WaitGroup
@@ -371,5 +377,42 @@ func TestLiveDesktopServiceNeverCreates(t *testing.T) {
 	}
 	if _, err := os.Stat("virtual_desktop"); err == nil {
 		t.Fatal("a virtual_desktop directory appeared in the package directory")
+	}
+}
+
+func TestDesktopShortcutsDeleteDashboardNeedsAdmin(t *testing.T) {
+	e, ids := newDashShortcutEnv(t, false, "Wohnzimmer")
+	id := ids[0]
+	if w := e.post(t, e.admin, map[string]any{"dashboard_id": id}); w.Code != 200 {
+		t.Fatalf("add = %d", w.Code)
+	}
+	del := func(token, sid string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest(http.MethodDelete, "/api/desktop/shortcuts?id="+sid, nil)
+		r.Header.Set("Authorization", "Bearer "+token)
+		w := httptest.NewRecorder()
+		handleDesktopShortcuts(e.s).ServeHTTP(w, r)
+		return w
+	}
+	for name, tok := range map[string]string{"write": e.write, "read": e.read} {
+		w := del(tok, "dashboard-"+id)
+		if w.Code != http.StatusForbidden || !strings.Contains(w.Body.String(), "desktop_scope_required") {
+			t.Fatalf("%s token delete = %d %s", name, w.Code, w.Body.String())
+		}
+	}
+	if len(e.storedDashboardShortcuts(t)) != 1 {
+		t.Fatal("a non-admin token removed the dashboard shortcut")
+	}
+	if w := del(e.admin, "dashboard-"+id); w.Code != 200 {
+		t.Fatalf("admin delete = %d %s", w.Code, w.Body.String())
+	}
+	if len(e.storedDashboardShortcuts(t)) != 0 {
+		t.Fatal("admin delete left the row")
+	}
+	// An app shortcut is still removable with a write token.
+	if w := e.post(t, e.admin, map[string]any{"app_id": "files"}); w.Code != 200 {
+		t.Fatalf("add app = %d %s", w.Code, w.Body.String())
+	}
+	if w := del(e.write, "app-files"); w.Code == http.StatusForbidden {
+		t.Fatalf("write token app delete = %d %s", w.Code, w.Body.String())
 	}
 }

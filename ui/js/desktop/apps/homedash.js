@@ -5,8 +5,10 @@
    (desktop-app-homedash.css); the dashboard canvas is the engine's .hd-root. Server text reaches the page only through textContent. */
 (function () {
     'use strict';
-    const instances = new Map();
-    function dispose(id) { const fn = instances.get(id); instances.delete(id); if (fn) fn(); }
+    const instances = new Map(), openers = new Map();
+    function dispose(id) { const fn = instances.get(id); instances.delete(id); openers.delete(id); if (fn) fn(); }
+    // open navigates a live window to a dashboard (no-op when the window is gone).
+    function open(id, dashboardId) { const fn = openers.get(id); if (typeof fn === 'function' && typeof dashboardId === 'string' && dashboardId) fn(dashboardId); }
     // Visible while the tab is shown, the .vd-window is not hidden, minimised (no client rects) or on another space, and the app root
     // intersects the viewport (docker-manager-store.js attach()). Returns {visible(), subscribe(fn) -> unsubscribe}.
     function visibilitySignal(root, win, signal) {
@@ -179,18 +181,19 @@
         }
         // The desktop shortcut of a dashboard: add or remove it, with a toast for the result (the engine's in a dashboard, the host's on the list).
         function hostToast(text, tone) {
+            if (signal.aborted) return;
             const n = el('div', { class: 'hd-toast', 'data-tone': tone || 'info', text: String(text) }); toasts.appendChild(n);
             while (toasts.children.length > 3) { const old = toasts.firstElementChild; clearTimeout(toastTimers.get(old)); toastTimers.delete(old); old.remove(); }
             toastTimers.set(n, setTimeout(() => { toastTimers.delete(n); n.remove(); }, 4000)); liveRegion.textContent = String(text);
         }
-        const notify = (text, tone) => { if (typeof inst.toast === 'function' && inst.toast(text, { tone })) return; hostToast(text, tone); };
+        const notify = (text, tone) => { if (signal.aborted) return; if (typeof inst.toast === 'function' && inst.toast(text, { tone })) return; hostToast(text, tone); };
         function togglePin(summary) {
-            const dashId = summary && summary.id; if (!pins || !dashId || pending.has(dashId) || inst.state().desktopReadonly) return Promise.resolve(false);
+            const dashId = summary && summary.id; if (signal.aborted || !pins || !dashId || pending.has(dashId) || inst.state().desktopReadonly) return Promise.resolve(false);
             const name = summary.name || dashId, was = pins.hasDashboard(dashId); pending.add(dashId); paint(inst.state());
             return Promise.resolve().then(() => (was ? pins.removeDashboard(dashId) : pins.addDashboard(dashId)))
                 .then(() => { if (was) notify(t('homedash.desktop.removed', { name }), 'info'); else notify(t('homedash.desktop.added', { name }), 'info'); return true; },
                     () => { if (was) notify(t('homedash.desktop.remove_failed'), 'warn'); else notify(t('homedash.desktop.add_failed'), 'warn'); return false; })
-                .then(ok => { pending.delete(dashId); paint(inst.state()); return ok; });
+                .then(ok => { pending.delete(dashId); if (!signal.aborted) paint(inst.state()); return ok; });
         }
         // Context menu of a dashboard card (mouse, Shift+F10 and the menu key all arrive as the contextmenu event of the focused card).
         function cardMenu(ev) {
@@ -241,10 +244,11 @@
         }) : null;
         if (themeObserver) themeObserver.observe(document.body, { attributes: true, attributeFilter: ['data-theme', 'data-scheme', 'data-fruity-mode', 'data-accent', 'data-animations', 'style', 'class'] });
         inst.on('state', paint); paint(inst.state());
+        openers.set(id, dashboardId => inst.open(dashboardId));
         instances.set(id, () => {
             lifetime.abort(); if (themeObserver) themeObserver.disconnect(); if (lookFrame) cancelAnimationFrame(lookFrame); if (menuTimer) clearTimeout(menuTimer); for (const h of toastTimers.values()) clearTimeout(h); toastTimers.clear();
             ctx.setWindowBeforeClose?.(id, null); inst.dispose(); sheet.destroy(); home.destroy(); ctx.setWindowMenus?.(id, []); subtitle(''); root.replaceChildren(); root.remove();
         });
     }
-    window.HomeDashApp = { render, dispose, visibilitySignal, toDesktopItems };
+    window.HomeDashApp = { render, dispose, open, visibilitySignal, toDesktopItems };
 })();
