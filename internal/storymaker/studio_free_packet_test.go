@@ -90,7 +90,7 @@ func TestFreeFillPacketCarriesCodeRevCardAndSafeBox(t *testing.T) {
 		t.Fatalf("safe_box = %v, want %+v", packet["safe_box"], SafeBoxFor(st.Format.Aspect))
 	}
 	card, _ := packet["api_card"].(string)
-	if !strings.Contains(card, "api.safe()") || !strings.Contains(card, "Palette of this film: $bg #") || len(card) > 1800 {
+	if !strings.Contains(card, "api.safe()") || !strings.Contains(card, "Palette of this film: $bg #") || len(card) > 2400 {
 		t.Fatalf("api_card has %d bytes: %s", len(card), card)
 	}
 	if next, _ := packet["next"].(string); !strings.HasPrefix(next, "put_code with expected_rev = code_rev") {
@@ -108,4 +108,18 @@ func TestFreeFillPacketCarriesCodeRevCardAndSafeBox(t *testing.T) {
 	if again["code_rev"] != put["rev"] {
 		t.Fatalf("code_rev = %v, want the rev of the put_code answer %v", again["code_rev"], put["rev"])
 	}
+}
+
+func TestFreeAPICardNamesTheBlocks(t *testing.T) {
+	tokens := map[string]string{"bg": "#fff7e6", "bg2": "#ffe9c2", "fg": "#1f2a44", "accent": "#ff6b35", "accent2": "#2ec4b6", "text": "#1f2a44", "outline": "#1f2a44"}
+	card := FreeAPICard(tokens, SafeBox{X: 96, Y: 54, W: 1728, H: 803})
+	for _, want := range []string{"api.icon(", "api.diagram(", "api.chart(", "api.headline(", "api.list(", "highlight(nodeId, timing)", "kind icon", "api.safe()", "Palette of this film: $bg #"} {
+		if !strings.Contains(card, want) {
+			t.Errorf("the API card does not contain %q", want)
+		}
+	}
+	if len(card) > 2400 {
+		t.Errorf("the API card has %d bytes, the bound is 2400", len(card))
+	}
+	t.Logf("api card bytes: %d", len(card))
 }
