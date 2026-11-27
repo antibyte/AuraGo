@@ -94,3 +94,44 @@ check('layout: a two-line 9:16 caption lies inside the safe zone, centred in its
     near(wide[1] + wide[3], 0.92, 0.01, '16:9 bottom');
     near(wide[0] + wide[2] / 2, 0.5, 0.002, '16:9 stays centred');
 });
+
+// ---- Batch D6: block boxes, also in code scenes
+const flowBeat = { do: 'show', diagram: { layout: 'flow', nodes: [{ id: 'a', label: 'Anfrage' }, { id: 'b', label: 'Server' }] }, at: 'full', entry: 'draw' };
+const noActors = beats => film({}, { actors: [], beats });
+
+check('layout: a diagram at full gives a block with its kind, layout, label size and a box inside the frame', () => {
+    const b = measure(noActors([flowBeat]))[0];
+    assert.equal(b.blocks.length, 1);
+    const [d] = b.blocks;
+    assert.deepEqual(plain([d.id, d.kind, d.layout]), ['diagram-1', 'diagram', 'flow']);
+    assert.ok(d.label > 0 && d.label < 0.2, 'label ' + d.label);
+    assert.ok(d.box.every(v => v >= 0 && v <= 1) && d.box[2] > 0 && d.box[3] > 0 && d.box[0] + d.box[2] <= 1 && d.box[1] + d.box[3] <= 1, 'box ' + d.box);
+    assert.deepEqual(plain(measure(film())[0].blocks), [], 'a scene without blocks has an empty list');
+});
+
+check('layout: a scene whose only change is a block is not static', () => {
+    assert.equal(measure(noActors([flowBeat]))[0].static, false);
+    assert.equal(measure(noActors([]))[0].static, true);
+});
+
+check('layout: a code scene measures its blocks under the code camera, holds after the last one and survives a bad payload', () => {
+    const stage = SM.stage.create({ aspect: '16:9', env: null });
+    const head = SM.blocks.create({ id: 'headline-1', kind: 'headline', text: 'Hallo *Welt*', area: SM.blocks.area(stage, null, 'day', 'top'), t0: 2, dur: 1, entry: 'fade', hidden: true });
+    head.alpha.add(2, 3, 1, 'ease-out');
+    const wire = JSON.parse(JSON.stringify(SM.blocks.serialize([head], SM.camera.create(1, 960, 540))));
+    const run = blocks => {
+        const two = film();
+        two.scenes.push({ id: 's2', kind: 'code', narration: 'Ein Code.' });
+        const tl = SM.compile(two, {}, t.catalog, { codeScenes: { s2: { duration: 4, blocks } } }).timeline;
+        return { code: SM.layout.measure(tl, renderAssets())[1], sc: tl.scenes[1], tl };
+    };
+    const ok = run(wire), D = (ok.sc.end_frame - ok.sc.start_frame) / ok.tl.fps;
+    assert.equal(ok.code.code, true);
+    assert.equal(ok.code.blocks.length, 1);
+    assert.deepEqual(plain([ok.code.blocks[0].id, ok.code.blocks[0].kind, ok.code.blocks[0].layout]), ['headline-1', 'headline', '']);
+    assert.ok(ok.code.hold_s >= 3.5 - 1e-6 && ok.code.hold_s <= D, 'hold ' + ok.code.hold_s + ' of ' + D);
+    const bad = run({ ...wire, blocks: [{ ...wire.blocks[0], w: 'wide' }] });
+    assert.equal(bad.code.code, true);
+    assert.deepEqual(plain(bad.code.blocks), []);
+    assert.deepEqual(plain(run(null).code.blocks), []);
+});

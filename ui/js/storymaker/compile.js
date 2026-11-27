@@ -136,7 +136,8 @@
                 id: sc.id, index: i, kind: isCode ? 'code' : 'storyboard', start_frame: startFrame, end_frame: startFrame + dFrames,
                 tf: plan.tf, transition: plan.transition, requested_transition: plan.requested, env: envEntry, variant: variant,
                 narration: n, entities: built.entities, camera: built.camera, framing: built.framing,
-                code: codeInfo ? { error: codeInfo.error || null, duration: codeInfo.duration || null } : null, stages: {}
+                code: codeInfo ? { error: codeInfo.error || null, duration: codeInfo.duration || null } : null, stages: {},
+                codeLayout: codeInfo && codeInfo.blocks ? SM.blocks.revive(codeInfo.blocks, cat) : null
             };
             scenes.push(scene);
             if (i === 0) firstScene = { id: sc.id, narrated: n.words > 0, log: built.log || [] };

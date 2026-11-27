@@ -241,7 +241,7 @@
             var reply = await channel.call({ type: 'build', opts: opts }, left);
             if (generation !== this.loadId) { channel.kill(fail('cancelled', 'superseded')); return { error: fail('cancelled', 'superseded') }; }
             this.sceneChannels[id] = channel;
-            return { duration: reply.duration, explicit: reply.explicit === true, needs: reply.needs || [], issues: reply.issues || [] };
+            return { duration: reply.duration, explicit: reply.explicit === true, needs: reply.needs || [], issues: reply.issues || [], blocks: reply.blocks || null };
         } catch (err) {
             if (channel) channel.kill(err);
             var e = asError(err);
@@ -285,7 +285,7 @@
                 self.codeErrors[cid] = built.error.message;
                 env.onError({ code: built.error.code, message: built.error.message, scene_id: cid, line: built.error.line, column: built.error.column });
             } else {
-                codeScenes[cid] = { duration: built.duration, explicit: built.explicit };
+                codeScenes[cid] = { duration: built.duration, explicit: built.explicit, blocks: built.blocks };
                 sceneNeeds[cid] = built.needs;
                 built.issues.forEach(function (i) { sceneIssues.push(i); });
                 self.codeSources[cid] = { msg: msg, plan: plan };
