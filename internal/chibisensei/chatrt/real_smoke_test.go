@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -90,10 +89,14 @@ func TestRealLlamaServerChat(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	version := runServerOnce(t, server, root, "--version")
+	libs, err := (&nativeLauncher{}).libraryRoots(context.Background(), cache, cpu, []string{root})
+	if err != nil {
+		t.Fatalf("library roots: %v", err)
+	}
+	version := runServerOnce(t, server, libs, "--version")
 	t.Logf("phase 2: --version:\n%s", version)
 	record("version.txt", version)
-	help := runServerOnce(t, server, root, "--help")
+	help := runServerOnce(t, server, libs, "--help")
 	record("help.txt", help)
 	filter := regexp.MustCompile(`(?m)^.*(--reasoning|--jinja|--no-webui|--webui|--api-key|--threads|--ctx-size|--parallel|--n-gpu-layers|--no-slots|--slots).*$`)
 	t.Logf("phase 2: --help (filtered):\n%s", strings.Join(filter.FindAllString(help, -1), "\n"))
@@ -238,12 +241,15 @@ func firstEnv(names ...string) string {
 	return ""
 }
 
-func runServerOnce(t *testing.T, server, root string, args ...string) string {
+func runServerOnce(t *testing.T, server string, libs []string, args ...string) string {
 	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, server, args...)
-	onnxrt.ConfigureWorkerCommand(cmd, root)
+	cmd := newServerCommand(server, libs, "smoke-diagnostic", args)
+	timer := time.AfterFunc(30*time.Second, func() {
+		if cmd.Process != nil {
+			_ = cmd.Process.Kill()
+		}
+	})
+	defer timer.Stop()
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Logf("llama-server %v: %v", args, err)

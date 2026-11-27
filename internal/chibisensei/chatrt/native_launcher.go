@@ -20,6 +20,8 @@ const assetUserAgent = "AuraGo/chibi-sensei"
 // life of the process, so a key per start would grow the registry with every idle stop and restart.
 type nativeLauncher struct {
 	register func(string) // security.RegisterSensitive in production; a field so a test can count the calls
+	// ensureLinks recreates archive links (nil: ensureArchiveLinks); a field so a test can inject a result.
+	ensureLinks func(ctx context.Context, cacheDir string, spec llamacpp.AssetSpec, runtimeRoot string) (string, error)
 
 	keyMu sync.Mutex // guards key
 	key   string
@@ -124,13 +126,17 @@ func (n *nativeLauncher) Launch(ctx context.Context, spec LaunchSpec) (Process, 
 	if err != nil {
 		return nil, err
 	}
+	libs, err := n.libraryRoots(ctx, spec.CacheDir, spec.Assets, roots)
+	if err != nil {
+		return nil, err
+	}
 	key, err := n.apiKey()
 	if err != nil {
 		return nil, err
 	}
 	var lastErr error
 	for attempt := 0; attempt < 2; attempt++ {
-		proc, bindFailure, err := startServer(ctx, server, roots, key, spec)
+		proc, bindFailure, err := startServer(ctx, server, libs, key, spec)
 		if err == nil {
 			return proc, nil
 		}
@@ -140,6 +146,29 @@ func (n *nativeLauncher) Launch(ctx context.Context, spec LaunchSpec) (Process, 
 		}
 	}
 	return nil, lastErr
+}
+
+// libraryRoots is the runtime roots followed by the link root of every asset that has one (ensureArchiveLinks), so
+// the loader finds the short library names the shared extractor skipped. roots[i] belongs to assets[i].
+func (n *nativeLauncher) libraryRoots(ctx context.Context, cacheDir string, assets []llamacpp.AssetSpec, roots []string) ([]string, error) {
+	ensure := n.ensureLinks
+	if ensure == nil {
+		ensure = ensureArchiveLinks
+	}
+	out := append([]string(nil), roots...)
+	for i, asset := range assets {
+		if i >= len(roots) {
+			break
+		}
+		linkRoot, err := ensure(ctx, cacheDir, asset, roots[i])
+		if err != nil {
+			return nil, fmt.Errorf("launch llama-server: %w", err)
+		}
+		if linkRoot != "" {
+			out = append(out, linkRoot)
+		}
+	}
+	return out, nil
 }
 
 // serverArgs lists the argv of one server. The API key is never part of it: it travels in the environment.
