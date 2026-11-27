@@ -451,7 +451,11 @@ func runResult(s Status) RunResult {
 }
 
 // verifying: GGUF header of the tuned model (and of the base model when present) against profile.gguf.expected_arch.
-// A bad base GGUF is dropped with the warning base_gguf_invalid; a bad tuned model fails the run.
+// A bad base GGUF is dropped with the warning base_gguf_invalid; a bad tuned model fails the run. With a Smoker set
+// it then asks the tuned model for a short answer (a warning, never a failure). The result is committed only with
+// the transition to cleaning: a restart before that repeats the checks and the smoke (the instance key is the
+// same, so a warm instance is reused). A cancel during the smoke ends the smoke context (abortSmoke), nothing is
+// committed and the next Step ends the run cancelled; a cancel stored later is caught by cancelWins.
 func (o *Orchestrator) stepVerifying(ctx context.Context, r Run) (stepResult, error) {
 	prof, ok := o.cat.Get(r.ProfileID)
 	facts, err := parseJobFacts(r.JobJSON)
@@ -490,8 +494,31 @@ func (o *Orchestrator) stepVerifying(ctx context.Context, r Run) (stepResult, er
 			}
 		}
 	}
-	return o.transition(ctx, r, RunCleaning, map[string]any{"end_state": RunSucceeded, "gguf": info}, func(x *Run) {
-		x.Remote.EndState, x.Remote.GGUF, x.Remote.WarningCode = RunSucceeded, &info, warning
+	var tunedBytes int64
+	if out := findKind(r.Remote.Outputs, "gguf_tuned"); out != nil {
+		tunedBytes = out.Bytes
+	}
+	smoke, aborted, err := o.runSmoke(ctx, r, prof, rel, tunedBytes)
+	if err != nil {
+		return stepResult{}, err // the loop's context ended; verifying runs again after a restart
+	}
+	if aborted {
+		return stepResult{progressed: true}, nil // Cancel arrived during the smoke; the next Step ends the run cancelled
+	}
+	if smoke != nil && smoke.State == "failed" {
+		if err := o.st.AddRunEvent(ctx, r.ID, NewWarnRunEvent("smoke_failed", "The trained model did not answer a short test prompt.")); err != nil {
+			return o.localError(ctx, r, err)
+		}
+		if warning == "" {
+			warning = "smoke_failed"
+		}
+	}
+	data := map[string]any{"end_state": RunSucceeded, "gguf": info}
+	if smoke != nil {
+		data["smoke"] = smoke
+	}
+	return o.transition(ctx, r, RunCleaning, data, func(x *Run) {
+		x.Remote.EndState, x.Remote.GGUF, x.Remote.WarningCode, x.Remote.Smoke = RunSucceeded, &info, warning, smoke
 	})
 }
 

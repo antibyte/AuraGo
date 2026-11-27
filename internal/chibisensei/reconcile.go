@@ -97,6 +97,12 @@ type Orchestrator struct {
 	cancel context.CancelFunc
 	done   chan struct{}
 	closed bool
+
+	smokeMu      sync.Mutex
+	smoker       Smoker
+	smokeRun     string
+	smokeCancel  context.CancelFunc
+	smokeAborted bool
 }
 
 func NewOrchestrator(st *Store, hub *Hub, cat *Catalog, drv KaggleDriver, dataDir string, cfg func() OrchestratorConfig) *Orchestrator {
@@ -253,6 +259,7 @@ func (o *Orchestrator) Cancel(ctx context.Context, runID string) (Run, error) {
 	if err != nil {
 		return Run{}, err
 	}
+	o.abortSmoke(runID)
 	o.publishRun(next)
 	o.poke()
 	return next, nil

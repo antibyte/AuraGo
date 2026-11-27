@@ -164,9 +164,9 @@ func scanProject(sc rowScanner) (Project, error) {
 	var checkRev sql.NullInt64
 	var ready sql.NullInt64
 	var latest sql.NullString
-	var succeeded int
+	var succeeded, seen int
 	err := sc.Scan(&p.ID, &p.Name, &p.Recipe, &p.TaskKind, &labels, &p.GoalText, &p.ProfileID, &p.Preset, &overrides,
-		&p.SplitSeed, &p.DataRev, &p.Rev, &p.Created, &p.Updated, &archived, &rows, &checkRev, &ready, &latest, &succeeded)
+		&p.SplitSeed, &p.DataRev, &p.Rev, &p.Created, &p.Updated, &archived, &rows, &checkRev, &ready, &latest, &succeeded, &seen)
 	if err != nil {
 		return Project{}, err
 	}
@@ -179,13 +179,14 @@ func scanProject(sc rowScanner) (Project, error) {
 	p.Archived = archived != 0
 	p.Rows = rows
 	p.Steps = computeSteps(p, rows, checkRev, ready.Valid && ready.Int64 != 0,
-		projectRuns{Latest: latest.String, Succeeded: succeeded != 0})
+		projectRuns{Latest: latest.String, Succeeded: succeeded != 0, ReportSeen: seen != 0})
 	return p, nil
 }
 
 const projectSelect = `SELECT ` + projectCols + `, (SELECT COUNT(*) FROM dataset_rows r WHERE r.project_id=p.id), c.data_rev, c.ready,
 	(SELECT x.state FROM runs x WHERE x.project_id=p.id ORDER BY x.created DESC, x.rowid DESC LIMIT 1),
-	EXISTS(SELECT 1 FROM runs x WHERE x.project_id=p.id AND x.state='succeeded')
+	EXISTS(SELECT 1 FROM runs x WHERE x.project_id=p.id AND x.state='succeeded'),
+	EXISTS(SELECT 1 FROM runs x WHERE x.project_id=p.id AND x.state='succeeded' AND json_extract(x.remote_json,'$.report_seen')=1)
 	FROM projects p LEFT JOIN checks c ON c.project_id=p.id`
 
 func loadProject(ctx context.Context, q queryer, id string) (Project, error) {
@@ -225,8 +226,9 @@ func (s *Store) ListProjects(ctx context.Context, archived bool) ([]ProjectSumma
 
 // projectRuns are the run facts the training step needs: the state of the newest run and whether any succeeded.
 type projectRuns struct {
-	Latest    string
-	Succeeded bool
+	Latest     string
+	Succeeded  bool
+	ReportSeen bool
 }
 
 func computeSteps(p Project, rows int, checkRev sql.NullInt64, checkReady bool, runs projectRuns) Steps {
@@ -254,6 +256,12 @@ func computeSteps(p Project, rows int, checkRev sql.NullInt64, checkReady bool, 
 		st.Training = "blocked"
 	case st.Data == "ready":
 		st.Training = "ready"
+	}
+	switch {
+	case runs.Succeeded && runs.ReportSeen:
+		st.Test = "done"
+	case runs.Succeeded:
+		st.Test = "ready"
 	}
 	return st
 }

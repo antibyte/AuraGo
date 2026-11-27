@@ -216,6 +216,8 @@ type RunRemote struct {
 	OutputsPlanned bool              `json:"outputs_planned,omitempty"` // the manifest files are in Outputs
 	Cleanup        map[string]string `json:"cleanup,omitempty"`         // staged | dataset | notebook → done | deleted | absent | kept | failed
 	GGUF           *GGUFInfo         `json:"gguf,omitempty"`            // verified header of the tuned model
+	Smoke          *SmokeResult      `json:"smoke,omitempty"`           // short generation check of the tuned model (verifying)
+	ReportSeen     bool              `json:"report_seen,omitempty"`     // the report card of this succeeded run was opened
 }
 
 // Step returns the receipt of a step, or nil.
@@ -344,6 +346,8 @@ type RunView struct {
 	Error                 string         `json:"error"`
 	WarningCode           string         `json:"warning_code"`
 	Result                *RunResult     `json:"result"`
+	Smoke                 *SmokeResult   `json:"smoke"`
+	ReportSeen            bool           `json:"report_seen"`
 	Leftovers             []Leftover     `json:"leftovers"`
 	Created               string         `json:"created"`
 	Updated               string         `json:"updated"`
@@ -359,7 +363,11 @@ func (r Run) view(full bool) RunView {
 		EstimateMinutes: rem.EstimateMinutes, SessionTimeoutMinutes: rem.SessionTimeoutMinutes, Deadline: r.Deadline,
 		RemoteStarted: rem.RemoteStarted, Finished: rem.Finished, CancelRequested: r.CancelRequested,
 		ErrorCode: r.ErrorCode, Error: r.Error, WarningCode: rem.WarningCode, Leftovers: r.Leftovers,
-		Created: r.Created, Updated: r.Updated}
+		Created: r.Created, Updated: r.Updated, ReportSeen: rem.ReportSeen}
+	if rem.Smoke != nil {
+		sm := *rem.Smoke
+		v.Smoke = &sm
+	}
 	if v.Live == "" {
 		v.Live = LiveUnknown
 	}

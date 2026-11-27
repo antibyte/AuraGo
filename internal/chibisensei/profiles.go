@@ -114,19 +114,24 @@ type ProfileGGUF struct {
 
 // ProfileSummary is the /meta shape.
 type ProfileSummary struct {
-	ID              string   `json:"id"`
-	DisplayName     string   `json:"display_name"`
-	Status          string   `json:"status"`
-	ParamsB         float64  `json:"params_b"`
-	ContextMax      int      `json:"context_max"`
-	Languages       []string `json:"languages"`
-	TextOnly        bool     `json:"text_only"`
-	SystemRole      string   `json:"system_role"`
-	MethodDefault   string   `json:"method_default"`
-	GGUFEstimatedMB int      `json:"gguf_estimated_mb"`
-	Methods         []string `json:"methods"`     // training methods the profile allows (A32)
-	MaxSeqCap       int      `json:"max_seq_cap"` // largest max_seq_len an override may pick (A32)
-	License         struct {
+	ID              string          `json:"id"`
+	DisplayName     string          `json:"display_name"`
+	Status          string          `json:"status"`
+	ParamsB         float64         `json:"params_b"`
+	ContextMax      int             `json:"context_max"`
+	Languages       []string        `json:"languages"`
+	TextOnly        bool            `json:"text_only"`
+	SystemRole      string          `json:"system_role"`
+	MethodDefault   string          `json:"method_default"`
+	GGUFEstimatedMB int             `json:"gguf_estimated_mb"`
+	Sampling        ProfileSampling `json:"sampling"`
+	MaxNewTokens    struct {
+		Assistant  int `json:"assistant"`
+		Specialist int `json:"specialist"`
+	} `json:"max_new_tokens"`
+	Methods   []string `json:"methods"`     // training methods the profile allows (A32)
+	MaxSeqCap int      `json:"max_seq_cap"` // largest max_seq_len an override may pick (A32)
+	License   struct {
 		ID              string `json:"id"`
 		Name            string `json:"name"`
 		URL             string `json:"url"`
@@ -212,6 +217,8 @@ func (p *Profile) Summary() ProfileSummary {
 		ContextMax: p.Arch.ContextMax, Languages: append([]string{}, p.Arch.Languages...), TextOnly: p.Arch.TextOnly,
 		SystemRole: p.Chat.SystemRole, MethodDefault: p.Training.MethodDefault, GGUFEstimatedMB: p.GGUF.EstimatedMB,
 		Methods: append([]string{}, p.Training.Methods...), MaxSeqCap: p.Training.MaxSeqCap}
+	s.Sampling = p.Sampling
+	s.MaxNewTokens.Assistant, s.MaxNewTokens.Specialist = p.Eval.MaxNewTokensAssistant, p.Eval.MaxNewTokensSpecialist
 	s.License.ID, s.License.Name, s.License.URL = p.License.ID, p.License.Name, p.License.URL
 	s.License.Version = p.License.Version
 	s.License.RequiresConsent = p.License.RequiresConsent

@@ -401,6 +401,30 @@ func TestComputeStepsTraining(t *testing.T) {
 	}
 }
 
+func TestComputeStepsTest(t *testing.T) {
+	p := Project{}
+	p.DataRev, p.GoalText, p.ProfileID, p.Recipe = 3, "g", "gemma3-270m", RecipeAssistant
+	rev := sql.NullInt64{Int64: 3, Valid: true}
+	for _, c := range []struct {
+		name string
+		runs projectRuns
+		want string
+	}{
+		{"todo without a run", projectRuns{}, "todo"},
+		{"todo while running", projectRuns{Latest: RunRunning}, "todo"},
+		{"todo after a failure", projectRuns{Latest: RunFailed}, "todo"},
+		{"ready", projectRuns{Latest: RunSucceeded, Succeeded: true}, "ready"},
+		{"ready after a later failure", projectRuns{Latest: RunFailed, Succeeded: true}, "ready"},
+		{"done", projectRuns{Latest: RunSucceeded, Succeeded: true, ReportSeen: true}, "done"},
+		{"seen flag alone is not enough", projectRuns{Latest: RunFailed, ReportSeen: true}, "todo"},
+	} {
+		st := computeSteps(p, 10, rev, true, c.runs)
+		if st.Test != c.want || st.Use != "todo" {
+			t.Errorf("%s: test %s use %s, want %s", c.name, st.Test, st.Use, c.want)
+		}
+	}
+}
+
 func TestProjectTrainingStepFromStore(t *testing.T) {
 	ctx := context.Background()
 	st := newTestStore(t)
