@@ -172,7 +172,17 @@
             if (bad) throw new RangeError(bad.message + ' (' + bad.field + ')');
             blockCount++;
             fontNeeds();
-            return common(addEntity(SM.blocks.create(def)));
+            var e = addEntity(SM.blocks.create(def)), h = common(e);
+            // highlight(nodeId, timing): pulses one node of a diagram for 1.2 s (the default)
+            h.highlight = function (node, ho) {
+                if (e.block.kind !== 'diagram') throw new RangeError('highlight works on a diagram block; this one is a ' + e.block.kind + '.');
+                var ids = e.block.diagram.nodes.map(function (n) { return n.id; });
+                if (ids.indexOf(node) < 0) throw new RangeError('Unknown node id "' + String(node).slice(0, 40) + '". The node ids of this diagram are: ' + ids.join(', ') + '.');
+                var t = timing(ho, 1.2);
+                e.marks.add(t.start, t.end, { node: node, style: 'pulse' });
+                return h;
+            };
+            return h;
         }
 
         // ---- the API
@@ -224,7 +234,12 @@
         };
         api.icon = function (id, o) { o = o || {}; return addBlock({ kind: 'icon', icon: id, style: o.style, label: o.label }, o, 'center', 'draw'); };
         api.chart = function () { note('not_supported_yet', 'api.chart is not supported yet; the chart is not drawn.'); return common(S.createShape({ id: nextId('chart'), kind: 'rect', x: 0, y: 0, hidden: true })); };
-        api.diagram = function () { note('not_supported_yet', 'api.diagram is not supported yet; the diagram is not drawn.'); return common(S.createShape({ id: nextId('diagram'), kind: 'rect', x: 0, y: 0, hidden: true })); };
+        // api.diagram({layout, nodes, flow}, {at, entry, start, dur, reveals}): the layout defaults to flow.
+        api.diagram = function (spec, o) {
+            var d = spec && typeof spec === 'object' && !Array.isArray(spec) ? Object.assign({}, spec) : spec;
+            if (d && d.layout === undefined) d.layout = 'flow';
+            return addBlock({ kind: 'diagram', diagram: d }, o, 'full', 'draw');
+        };
         api.tween = function (target, props, o) {
             var e = target && target.__entity;
             if (!e) throw new TypeError('api.tween needs a handle returned by api.add, api.text or api.shape.');
