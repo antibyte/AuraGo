@@ -1,0 +1,51 @@
+{
+  "pinout": "ne556",
+  "variants": [
+    {
+      "variant": "",
+      "counts": {
+        "power": 1,
+        "ground": 1,
+        "signal": 12
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "1DISCH",
+          "type": "signal",
+          "ref": "TI SLFS023I, Figure 4-1 and Table 4-1 (page 2)"
+        },
+        {
+          "number": "4",
+          "name": "1RESET",
+          "type": "signal",
+          "ref": "TI SLFS023I, Figure 4-1 and Table 4-1 (page 2)"
+        },
+        {
+          "number": "7",
+          "name": "GND",
+          "type": "ground",
+          "ref": "TI SLFS023I, Figure 4-1 and Table 4-1 (page 2)"
+        },
+        {
+          "number": "8",
+          "name": "2TRIG",
+          "type": "signal",
+          "ref": "TI SLFS023I, Figure 4-1 (page 2); ST Rev 2 pin connections (page 1)"
+        },
+        {
+          "number": "11",
+          "name": "2CONT",
+          "type": "signal",
+          "ref": "TI SLFS023I, Figure 4-1 (page 2); ST Rev 2 pin connections (page 1)"
+        },
+        {
+          "number": "14",
+          "name": "VCC",
+          "type": "power",
+          "ref": "TI SLFS023I, Figure 4-1 and Table 4-1 (page 2)"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "pinout": "sn75176",
+  "variants": [
+    {
+      "variant": "",
+      "counts": {
+        "power": 1,
+        "ground": 1,
+        "signal": 2,
+        "data": 4
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "R",
+          "type": "data",
+          "ref": "TI SLLS101I, Figure 4-1 and Table 4-1 (page 3)"
+        },
+        {
+          "number": "2",
+          "name": "RE",
+          "type": "signal",
+          "ref": "TI SLLS101I, Figure 4-1 and Table 4-1 \"Receive enable (active low)\" (page 3)"
+        },
+        {
+          "number": "3",
+          "name": "DE",
+          "type": "signal",
+          "ref": "TI SLLS101I, Table 4-1 \"Driver enable (active high)\" (page 3)"
+        },
+        {
+          "number": "5",
+          "name": "GND",
+          "type": "ground",
+          "ref": "TI SLLS101I, Figure 4-1 and Table 4-1 (page 3)"
+        },
+        {
+          "number": "6",
+          "name": "A",
+          "type": "data",
+          "ref": "TI SLLS101I, Table 4-1 (page 3); 5.2 footnote, non-inverting (page 4)"
+        },
+        {
+          "number": "8",
+          "name": "VCC",
+          "type": "power",
+          "ref": "TI SLLS101I, Table 4-1 \"Power input, connect to 5V power source\" (page 3)"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "pinout": "lm741",
+  "variants": [
+    {
+      "variant": "",
+      "counts": {
+        "power": 2,
+        "signal": 5,
+        "nc": 1
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "OFFSET NULL 1",
+          "type": "signal",
+          "ref": "TI SNOSC25D, NAB figure and Pin Functions (page 3)"
+        },
+        {
+          "number": "3",
+          "name": "NONINVERTING INPUT",
+          "type": "signal",
+          "ref": "TI SNOSC25D, Pin Functions (page 3)"
+        },
+        {
+          "number": "4",
+          "name": "V-",
+          "type": "power",
+          "ref": "TI SNOSC25D, NAB figure and Pin Functions (page 3)"
+        },
+        {
+          "number": "5",
+          "name": "OFFSET NULL 2",
+          "type": "signal",
+          "ref": "TI SNOSC25D, NAB figure and Pin Functions (page 3); ST Doc ID 5304 Rev 2 \"5 - Offset null 2\" (page 1)"
+        },
+        {
+          "number": "8",
+          "name": "NC",
+          "type": "nc",
+          "ref": "TI SNOSC25D, NAB figure and Pin Functions (page 3)"
+        }
+      ]
+    }
+  ]
+}

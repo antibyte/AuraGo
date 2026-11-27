@@ -1,0 +1,51 @@
+{
+  "pinout": "uln2803",
+  "variants": [
+    {
+      "variant": "",
+      "counts": {
+        "power": 1,
+        "ground": 1,
+        "signal": 16
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "1B",
+          "type": "signal",
+          "ref": "TI SLRS049G, section 6 figure (page 3); ST Doc ID 1536 Rev 3, Figure 2 \"IN 1\" (page 4)"
+        },
+        {
+          "number": "8",
+          "name": "8B",
+          "type": "signal",
+          "ref": "TI SLRS049G, section 6 figure (page 3)"
+        },
+        {
+          "number": "9",
+          "name": "GND",
+          "type": "ground",
+          "ref": "TI SLRS049G, section 6 figure (page 3); TI SLRS049 (1997) page 1; ST Figure 2 \"GND\""
+        },
+        {
+          "number": "10",
+          "name": "COM",
+          "type": "power",
+          "ref": "TI SLRS049G, section 6 figure (page 3) and 9.4.1; ST Figure 2 \"COMMON FREE WHEELING DIODES\""
+        },
+        {
+          "number": "11",
+          "name": "8C",
+          "type": "signal",
+          "ref": "TI SLRS049G, section 6 figure (page 3)"
+        },
+        {
+          "number": "18",
+          "name": "1C",
+          "type": "signal",
+          "ref": "TI SLRS049G, section 6 figure (page 3); ST Figure 2 \"OUT 1\""
+        }
+      ]
+    }
+  ]
+}

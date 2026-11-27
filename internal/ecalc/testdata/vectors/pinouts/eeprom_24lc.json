@@ -1,0 +1,52 @@
+{
+  "pinout": "eeprom_24lc",
+  "variants": [
+    {
+      "variant": "",
+      "counts": {
+        "power": 1,
+        "ground": 1,
+        "signal": 4,
+        "data": 2
+      },
+      "pins": [
+        {
+          "number": "1",
+          "name": "A0",
+          "type": "signal",
+          "ref": "DS20001713P / DS20001189V / DS20001203Y, Table 2-1, PDIP column"
+        },
+        {
+          "number": "4",
+          "name": "VSS",
+          "type": "ground",
+          "ref": "same three tables"
+        },
+        {
+          "number": "5",
+          "name": "SDA",
+          "type": "data",
+          "ref": "same three tables; section 2.2 (open drain)"
+        },
+        {
+          "number": "6",
+          "name": "SCL",
+          "type": "data",
+          "ref": "same three tables"
+        },
+        {
+          "number": "7",
+          "name": "WP",
+          "type": "signal",
+          "ref": "same three tables; section 2.4"
+        },
+        {
+          "number": "8",
+          "name": "VCC",
+          "type": "power",
+          "ref": "same three tables; page-1 Device Selection Tables"
+        }
+      ]
+    }
+  ]
+}

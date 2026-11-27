@@ -226,3 +226,151 @@
     - {number: "26", name: "GPA5", function: {en: "Port A bit 5, bidirectional I/O", de: "Port A Bit 5, bidirektionaler I/O"}, type: io}
     - {number: "27", name: "GPA6", function: {en: "Port A bit 6, bidirectional I/O", de: "Port A Bit 6, bidirektionaler I/O"}, type: io}
     - {number: "28", name: "GPA7", function: {en: "Port A bit 7, output only (datasheet revision D)", de: "Port A Bit 7, nur Ausgang (Datenblatt-Revision D)"}, type: io, notes: {en: "Output only on the MCP23017 (datasheet revision D, 2022): set bit 7 of IODIR to 0. Older revisions listed it as I/O.", de: "Beim MCP23017 nur Ausgang (Datenblatt-Revision D, 2022): Bit 7 in IODIR auf 0 setzen. Ältere Revisionen führten ihn als I/O."}}
+
+- id: ne556
+  kind: pinout
+  category: pinouts
+  group: ics
+  name: {cs: "NE556 (DIP-14)", da: "NE556 (DIP-14)", de: "NE556 (DIP-14)", el: "NE556 (DIP-14)", en: "NE556 (DIP-14)", es: "NE556 (DIP-14)", fr: "NE556 (DIP-14)", hi: "NE556 (DIP-14)", it: "NE556 (DIP-14)", ja: "NE556 (DIP-14)", nl: "NE556 (DIP-14)", no: "NE556 (DIP-14)", pl: "NE556 (DIP-14)", pt: "NE556 (DIP-14)", sv: "NE556 (DIP-14)", zh: "NE556 (DIP-14)"}
+  doc: {en: "Dual precision timer, two NE555-type timers in one package, drawn as the 14-pin PDIP from above.", de: "Doppelter Präzisions-Timer, zwei Timer vom Typ NE555 in einem Gehäuse, gezeichnet als 14-poliges PDIP von oben."}
+  notes: {en: "Two NE555 timers in one package; they share only VCC (pin 14) and GND (pin 7). Timer 1 has pins 1 to 6, timer 2 pins 8 to 13. Both sides run in the same order from the top, DISCH, THRES, CONT, RESET, OUT, TRIG, but timer 2 sits one row lower because VCC takes the top right pin. The pin numbers therefore differ from those of an NE555. Tie the inputs of an unused timer to a fixed level so that it cannot trigger by itself. The NA556, SA556 and SE556 share this drawing in their datasheets.", de: "Zwei NE555-Timer in einem Gehäuse; gemeinsam haben sie nur VCC (Pin 14) und GND (Pin 7). Timer 1 hat die Pins 1 bis 6, Timer 2 die Pins 8 bis 13. Beide Seiten folgen von oben derselben Reihenfolge, DISCH, THRES, CONT, RESET, OUT, TRIG, Timer 2 liegt aber eine Reihe tiefer, weil VCC den Pin oben rechts belegt. Die Pin-Nummern unterscheiden sich daher von denen eines NE555. Die Eingänge eines unbenutzten Timers auf einen festen Pegel legen, damit er nicht von selbst auslöst. NA556, SA556 und SE556 teilen diese Zeichnung in ihren Datenblättern."}
+  tags: ["ne556", "556", "na556", "sa556", "se556", "dual timer", "doppeltimer", "timer", "zeitgeber", "monostable", "monostabil", "astable", "astabil", "dip14", "dip-14", "trig", "thres", "disch"]
+  source: "Texas Instruments NA556, NE556, SA556, SE556 datasheet SLFS023I (March 2025), section 4, Figure 4-1 and Table 4-1; cross-checked against STMicroelectronics NE556, SA556, SE556 datasheet Rev 2 (January 2009), page 1, pin connections"
+  shape:
+    type: dip
+    pins: 14
+  pins:
+    - {number: "1", name: "1DISCH", function: {en: "Timer 1, open-collector output that discharges the timing capacitor", de: "Timer 1, Open-Collector-Ausgang, der den Zeitkondensator entlädt"}, type: signal}
+    - {number: "2", name: "1THRES", function: {en: "Timer 1, threshold input: ends the timing when it rises above 1CONT", de: "Timer 1, Schwellwerteingang: beendet die Zeit, wenn er über 1CONT steigt"}, type: signal}
+    - {number: "3", name: "1CONT", function: {en: "Timer 1, control voltage: sets the comparator thresholds, 2/3 of VCC if not driven; place for a bypass capacitor", de: "Timer 1, Steuerspannung: legt die Komparatorschwellen fest, 2/3 von VCC ohne Ansteuerung; Platz für einen Abblockkondensator"}, type: signal}
+    - {number: "4", name: "1RESET", function: {en: "Timer 1, reset, active low: forces 1OUT and 1DISCH low", de: "Timer 1, Reset, aktiv low: zieht 1OUT und 1DISCH auf low"}, type: signal}
+    - {number: "5", name: "1OUT", function: {en: "Timer 1, output, can carry a high current", de: "Timer 1, Ausgang, hoch belastbar"}, type: signal}
+    - {number: "6", name: "1TRIG", function: {en: "Timer 1, trigger input: starts the timing when it falls below half of 1CONT", de: "Timer 1, Triggereingang: startet die Zeit, wenn er unter die Hälfte von 1CONT fällt"}, type: signal}
+    - {number: "7", name: "GND", function: {en: "Ground, shared by both timers", de: "Masse, gemeinsam für beide Timer"}, type: ground}
+    - {number: "8", name: "2TRIG", function: {en: "Timer 2, trigger input: starts the timing when it falls below half of 2CONT", de: "Timer 2, Triggereingang: startet die Zeit, wenn er unter die Hälfte von 2CONT fällt"}, type: signal}
+    - {number: "9", name: "2OUT", function: {en: "Timer 2, output, can carry a high current", de: "Timer 2, Ausgang, hoch belastbar"}, type: signal}
+    - {number: "10", name: "2RESET", function: {en: "Timer 2, reset, active low: forces 2OUT and 2DISCH low", de: "Timer 2, Reset, aktiv low: zieht 2OUT und 2DISCH auf low"}, type: signal}
+    - {number: "11", name: "2CONT", function: {en: "Timer 2, control voltage: sets the comparator thresholds, 2/3 of VCC if not driven; place for a bypass capacitor", de: "Timer 2, Steuerspannung: legt die Komparatorschwellen fest, 2/3 von VCC ohne Ansteuerung; Platz für einen Abblockkondensator"}, type: signal}
+    - {number: "12", name: "2THRES", function: {en: "Timer 2, threshold input: ends the timing when it rises above 2CONT", de: "Timer 2, Schwellwerteingang: beendet die Zeit, wenn er über 2CONT steigt"}, type: signal}
+    - {number: "13", name: "2DISCH", function: {en: "Timer 2, open-collector output that discharges the timing capacitor", de: "Timer 2, Open-Collector-Ausgang, der den Zeitkondensator entlädt"}, type: signal}
+    - {number: "14", name: "VCC", function: {en: "Supply, 4.5 V to 16 V, shared by both timers", de: "Versorgung, 4,5 V bis 16 V, gemeinsam für beide Timer"}, type: power}
+
+- id: lm741
+  kind: pinout
+  category: pinouts
+  group: ics
+  name: {cs: "LM741 (DIP-8)", da: "LM741 (DIP-8)", de: "LM741 (DIP-8)", el: "LM741 (DIP-8)", en: "LM741 (DIP-8)", es: "LM741 (DIP-8)", fr: "LM741 (DIP-8)", hi: "LM741 (DIP-8)", it: "LM741 (DIP-8)", ja: "LM741 (DIP-8)", nl: "LM741 (DIP-8)", no: "LM741 (DIP-8)", pl: "LM741 (DIP-8)", pt: "LM741 (DIP-8)", sv: "LM741 (DIP-8)", zh: "LM741 (DIP-8)"}
+  doc: {en: "General-purpose operational amplifier with two offset-null pins, drawn as the 8-pin PDIP from above.", de: "Universal-Operationsverstärker mit zwei Offset-Abgleich-Pins, gezeichnet als 8-poliges PDIP von oben."}
+  notes: {en: "Pins 1 and 5 (offset null) are only for trimming the input offset voltage and may stay open when the offset does not matter. Pin 8 is not connected; TI says to leave it floating. The supply is split, typically ±15 V; TI recommends ±10 V to ±18 V for the LM741C (±22 V for the LM741 and LM741A). TI prints both offset pins as OFFSET NULL; they are numbered here as STMicroelectronics numbers them. The UA741 of ST shares this pinout in DIP8.", de: "Pin 1 und 5 (Offset-Abgleich) dienen nur zum Abgleichen der Eingangs-Offsetspannung und dürfen offen bleiben, wenn der Offset keine Rolle spielt. Pin 8 ist nicht angeschlossen; TI empfiehlt, ihn offen zu lassen. Die Versorgung ist symmetrisch, typisch ±15 V; TI empfiehlt ±10 V bis ±18 V für den LM741C (±22 V für LM741 und LM741A). TI nennt beide Offset-Pins OFFSET NULL; sie sind hier so nummeriert wie bei STMicroelectronics. Der UA741 von ST teilt diese Belegung im DIP8."}
+  tags: ["lm741", "741", "ua741", "lm741c", "op-amp", "opamp", "operational amplifier", "operationsverstärker", "offset null", "offset", "dip8", "dip-8"]
+  source: "Texas Instruments LM741 datasheet SNOSC25D (October 2015), section 5, NAB package figure and Pin Functions table; cross-checked against STMicroelectronics UA741 datasheet Doc ID 5304 Rev 2 (May 2009), page 1, pin connections"
+  shape:
+    type: dip
+    pins: 8
+  pins:
+    - {number: "1", name: "OFFSET NULL 1", function: {en: "Offset null: with pin 5, cancels the input offset voltage", de: "Offset-Abgleich: zusammen mit Pin 5 zum Ausgleichen der Eingangs-Offsetspannung"}, type: signal}
+    - {number: "2", name: "INVERTING INPUT", function: {en: "Inverting input", de: "Invertierender Eingang"}, type: signal}
+    - {number: "3", name: "NONINVERTING INPUT", function: {en: "Non-inverting input", de: "Nichtinvertierender Eingang"}, type: signal}
+    - {number: "4", name: "V-", function: {en: "Negative supply", de: "Negative Versorgung"}, type: power}
+    - {number: "5", name: "OFFSET NULL 2", function: {en: "Offset null: with pin 1, cancels the input offset voltage", de: "Offset-Abgleich: zusammen mit Pin 1 zum Ausgleichen der Eingangs-Offsetspannung"}, type: signal}
+    - {number: "6", name: "OUTPUT", function: {en: "Output", de: "Ausgang"}, type: signal}
+    - {number: "7", name: "V+", function: {en: "Positive supply", de: "Positive Versorgung"}, type: power}
+    - {number: "8", name: "NC", function: {en: "Not connected; leave open", de: "Nicht angeschlossen; offen lassen"}, type: nc}
+
+- id: uln2803
+  kind: pinout
+  category: pinouts
+  group: ics
+  name: {cs: "ULN2803A (DIP-18)", da: "ULN2803A (DIP-18)", de: "ULN2803A (DIP-18)", el: "ULN2803A (DIP-18)", en: "ULN2803A (DIP-18)", es: "ULN2803A (DIP-18)", fr: "ULN2803A (DIP-18)", hi: "ULN2803A (DIP-18)", it: "ULN2803A (DIP-18)", ja: "ULN2803A (DIP-18)", nl: "ULN2803A (DIP-18)", no: "ULN2803A (DIP-18)", pl: "ULN2803A (DIP-18)", pt: "ULN2803A (DIP-18)", sv: "ULN2803A (DIP-18)", zh: "ULN2803A (DIP-18)"}
+  doc: {en: "Eight Darlington sink drivers with clamp diodes, drawn as the 18-pin PDIP from above.", de: "Acht Darlington-Lowside-Treiber mit Freilaufdioden, gezeichnet als 18-poliges PDIP von oben."}
+  notes: {en: "Each input nB drives the output nC straight across the package (pin 1 to 18 ... pin 8 to 11), and the outputs only sink current towards GND (pin 9). Pin 10 (COM) joins the cathodes of all eight clamp diodes: for relay or motor coils tie it to the coil supply; with resistive loads it may stay open. The inputs take TTL or CMOS levels at 5 V or 3.3 V; outputs withstand 50 V and sink up to 500 mA per channel. Unlike the ULN2003A (DIP-16), ground is pin 9 and COM pin 10. The ULN2801A, ULN2802A and ULN2804A of ST share this drawing and differ in the input stage. The Pin Functions table in TI's revision G lists the ULN2003A numbers; the pin figure was followed.", de: "Jeder Eingang nB steuert den Ausgang nC direkt gegenüber (Pin 1 zu 18 ... Pin 8 zu 11), und die Ausgänge ziehen den Strom nur nach GND (Pin 9). Pin 10 (COM) verbindet die Kathoden aller acht Freilaufdioden: Bei Relais- oder Motorspulen an die Spulenversorgung legen; bei ohmschen Lasten darf er offen bleiben. Die Eingänge vertragen TTL- oder CMOS-Pegel bei 5 V oder 3,3 V; die Ausgänge halten 50 V aus und ziehen bis zu 500 mA je Kanal. Anders als beim ULN2003A (DIP-16) liegt Masse an Pin 9 und COM an Pin 10. ULN2801A, ULN2802A und ULN2804A von ST teilen diese Zeichnung und unterscheiden sich in der Eingangsstufe. Die Pin-Tabelle in TIs Revision G nennt die Nummern des ULN2003A; gefolgt wurde der Pinzeichnung."}
+  tags: ["uln2803", "uln2803a", "uln2804", "darlington", "driver", "treiber", "relay", "relais", "stepper", "schrittmotor", "clamp diode", "flyback", "freilaufdiode", "com", "dip18", "dip-18"]
+  source: "Texas Instruments ULN2803A datasheet SLRS049G (January 2015), section 6, DW or N package figure, sections 9.4.1 and 9.4.2; cross-checked against TI SLRS049 (February 1997), page 1, and STMicroelectronics ULN2801A to ULN2804A datasheet Doc ID 1536 Rev 3 (November 2012), Figure 2"
+  shape:
+    type: dip
+    pins: 18
+  pins:
+    - {number: "1", name: "1B", function: {en: "Input of channel 1 (Darlington base, through 2.7 kΩ); switches output 1C on pin 18", de: "Eingang von Kanal 1 (Darlington-Basis, über 2,7 kΩ); schaltet Ausgang 1C an Pin 18"}, type: signal}
+    - {number: "2", name: "2B", function: {en: "Input of channel 2; switches 2C on pin 17", de: "Eingang von Kanal 2; schaltet 2C an Pin 17"}, type: signal}
+    - {number: "3", name: "3B", function: {en: "Input of channel 3; switches 3C on pin 16", de: "Eingang von Kanal 3; schaltet 3C an Pin 16"}, type: signal}
+    - {number: "4", name: "4B", function: {en: "Input of channel 4; switches 4C on pin 15", de: "Eingang von Kanal 4; schaltet 4C an Pin 15"}, type: signal}
+    - {number: "5", name: "5B", function: {en: "Input of channel 5; switches 5C on pin 14", de: "Eingang von Kanal 5; schaltet 5C an Pin 14"}, type: signal}
+    - {number: "6", name: "6B", function: {en: "Input of channel 6; switches 6C on pin 13", de: "Eingang von Kanal 6; schaltet 6C an Pin 13"}, type: signal}
+    - {number: "7", name: "7B", function: {en: "Input of channel 7; switches 7C on pin 12", de: "Eingang von Kanal 7; schaltet 7C an Pin 12"}, type: signal}
+    - {number: "8", name: "8B", function: {en: "Input of channel 8; switches 8C on pin 11", de: "Eingang von Kanal 8; schaltet 8C an Pin 11"}, type: signal}
+    - {number: "9", name: "GND", function: {en: "Common emitter of all channels, normally ground", de: "Gemeinsamer Emitter aller Kanäle, normalerweise Masse"}, type: ground}
+    - {number: "10", name: "COM", function: {en: "Common cathode of the clamp diodes", de: "Gemeinsame Kathode der Freilaufdioden"}, type: power, notes: {en: "Tie to the coil supply for inductive loads, so that the diodes catch the kickback; with resistive loads it may stay open.", de: "Bei induktiven Lasten an die Spulenversorgung legen, damit die Dioden die Abschaltspannung abfangen; bei ohmschen Lasten darf er offen bleiben."}}
+    - {number: "11", name: "8C", function: {en: "Output of channel 8 (Darlington collector, open collector, sinks current)", de: "Ausgang von Kanal 8 (Darlington-Kollektor, offener Kollektor, zieht Strom nach Masse)"}, type: signal}
+    - {number: "12", name: "7C", function: {en: "Output of channel 7 (Darlington collector)", de: "Ausgang von Kanal 7 (Darlington-Kollektor)"}, type: signal}
+    - {number: "13", name: "6C", function: {en: "Output of channel 6 (Darlington collector)", de: "Ausgang von Kanal 6 (Darlington-Kollektor)"}, type: signal}
+    - {number: "14", name: "5C", function: {en: "Output of channel 5 (Darlington collector)", de: "Ausgang von Kanal 5 (Darlington-Kollektor)"}, type: signal}
+    - {number: "15", name: "4C", function: {en: "Output of channel 4 (Darlington collector)", de: "Ausgang von Kanal 4 (Darlington-Kollektor)"}, type: signal}
+    - {number: "16", name: "3C", function: {en: "Output of channel 3 (Darlington collector)", de: "Ausgang von Kanal 3 (Darlington-Kollektor)"}, type: signal}
+    - {number: "17", name: "2C", function: {en: "Output of channel 2 (Darlington collector)", de: "Ausgang von Kanal 2 (Darlington-Kollektor)"}, type: signal}
+    - {number: "18", name: "1C", function: {en: "Output of channel 1 (Darlington collector)", de: "Ausgang von Kanal 1 (Darlington-Kollektor)"}, type: signal}
+
+- id: sn75176
+  kind: pinout
+  category: pinouts
+  group: ics
+  name: {cs: "SN75176B (DIP-8)", da: "SN75176B (DIP-8)", de: "SN75176B (DIP-8)", el: "SN75176B (DIP-8)", en: "SN75176B (DIP-8)", es: "SN75176B (DIP-8)", fr: "SN75176B (DIP-8)", hi: "SN75176B (DIP-8)", it: "SN75176B (DIP-8)", ja: "SN75176B (DIP-8)", nl: "SN75176B (DIP-8)", no: "SN75176B (DIP-8)", pl: "SN75176B (DIP-8)", pt: "SN75176B (DIP-8)", sv: "SN75176B (DIP-8)", zh: "SN75176B (DIP-8)"}
+  doc: {en: "RS-485 and RS-422 differential bus transceiver, drawn as the 8-pin PDIP from above.", de: "Differenzieller Bus-Transceiver für RS-485 und RS-422, gezeichnet als 8-poliges PDIP von oben."}
+  notes: {en: "RE (pin 2) and DE (pin 3) have opposite polarity, so tying them together gives one direction pin: high sends, low receives. A is the non-inverting and B the inverting bus line. R (pin 1) and D (pin 4) go to the UART or microcontroller. The part runs from 5 V only (4.75 V to 5.25 V). The SN65176B and the SN75176A of TI have the same pins. The drawing rests on TI's documents only.", de: "RE (Pin 2) und DE (Pin 3) haben entgegengesetzte Polarität; zusammengelegt ergeben sie einen Richtungspin: high sendet, low empfängt. A ist die nichtinvertierende, B die invertierende Busleitung. R (Pin 1) und D (Pin 4) gehen zum UART oder Mikrocontroller. Der Baustein läuft nur an 5 V (4,75 V bis 5,25 V). SN65176B und SN75176A von TI haben dieselben Pins. Die Zeichnung beruht nur auf Unterlagen von TI."}
+  tags: ["sn75176", "sn75176b", "sn65176b", "75176", "rs485", "rs-485", "rs422", "rs-422", "transceiver", "bus", "differential", "differenziell", "uart", "de", "re", "dip8", "dip-8"]
+  source: "Texas Instruments SN65176B, SN75176B datasheet SLLS101I (August 2025), section 4, Figure 4-1 and Table 4-1, section 5.2; layout checked against TI SN75176A datasheet SLLS100C (October 2022), Table 5-1"
+  shape:
+    type: dip
+    pins: 8
+  pins:
+    - {number: "1", name: "R", function: {en: "Receiver output: logic data from the bus, to the UART (RX)", de: "Empfängerausgang: Logikdaten vom Bus, zum UART (RX)"}, type: data}
+    - {number: "2", name: "RE", function: {en: "Receiver enable, active low: low switches R on, high makes it high-impedance", de: "Empfängerfreigabe, aktiv low: low schaltet R ein, high schaltet ihn hochohmig"}, type: signal}
+    - {number: "3", name: "DE", function: {en: "Driver enable, active high: high puts the driver onto the bus", de: "Treiberfreigabe, aktiv high: high schaltet den Treiber auf den Bus"}, type: signal}
+    - {number: "4", name: "D", function: {en: "Driver input: logic data to send, from the UART (TX)", de: "Treibereingang: zu sendende Logikdaten, vom UART (TX)"}, type: data}
+    - {number: "5", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "6", name: "A", function: {en: "Bus line A, non-inverting (RS-485 or RS-422)", de: "Busleitung A, nichtinvertierend (RS-485 oder RS-422)"}, type: data}
+    - {number: "7", name: "B", function: {en: "Bus line B, inverting (RS-485 or RS-422)", de: "Busleitung B, invertierend (RS-485 oder RS-422)"}, type: data}
+    - {number: "8", name: "VCC", function: {en: "Supply, 4.75 V to 5.25 V", de: "Versorgung, 4,75 V bis 5,25 V"}, type: power}
+
+- id: eeprom_24lc
+  kind: pinout
+  category: pinouts
+  group: ics
+  name: {cs: "24LC32A / 24LC64 / 24LC256 (DIP-8)", da: "24LC32A / 24LC64 / 24LC256 (DIP-8)", de: "24LC32A / 24LC64 / 24LC256 (DIP-8)", el: "24LC32A / 24LC64 / 24LC256 (DIP-8)", en: "24LC32A / 24LC64 / 24LC256 (DIP-8)", es: "24LC32A / 24LC64 / 24LC256 (DIP-8)", fr: "24LC32A / 24LC64 / 24LC256 (DIP-8)", hi: "24LC32A / 24LC64 / 24LC256 (DIP-8)", it: "24LC32A / 24LC64 / 24LC256 (DIP-8)", ja: "24LC32A / 24LC64 / 24LC256 (DIP-8)", nl: "24LC32A / 24LC64 / 24LC256 (DIP-8)", no: "24LC32A / 24LC64 / 24LC256 (DIP-8)", pl: "24LC32A / 24LC64 / 24LC256 (DIP-8)", pt: "24LC32A / 24LC64 / 24LC256 (DIP-8)", sv: "24LC32A / 24LC64 / 24LC256 (DIP-8)", zh: "24LC32A / 24LC64 / 24LC256 (DIP-8)"}
+  doc: {en: "I2C serial EEPROM in sizes of 32, 64 and 256 Kbit, drawn as the 8-pin PDIP from above.", de: "Serielles I2C-EEPROM mit 32, 64 und 256 Kbit, gezeichnet als 8-poliges PDIP von oben."}
+  notes: {en: "The three sizes have the same pins in DIP-8. The chip answers to the control code 1010 followed by the levels on A2, A1 and A0, so up to eight chips can share one I2C bus; with A0 to A2 low the 7-bit address is 0x50. SDA is open drain and needs a pull-up to VCC (Microchip: typically 10 kΩ at 100 kHz, 2 kΩ at 400 kHz). Tie WP to VSS to allow writing. Page buffer: 32 bytes (24LC32A, 24LC64), 64 bytes (24LC256). The 24AA and 24FC versions of the same sheets share this pinout and run from 1.7 V.", de: "Die drei Größen haben im DIP-8 dieselben Pins. Der Baustein reagiert auf den Steuercode 1010, gefolgt von den Pegeln an A2, A1 und A0; so teilen sich bis zu acht Bausteine einen I2C-Bus. Mit A0 bis A2 auf low ist die 7-Bit-Adresse 0x50. SDA ist Open Drain und braucht einen Pull-up nach VCC (Microchip: typisch 10 kΩ bei 100 kHz, 2 kΩ bei 400 kHz). Zum Schreiben WP an VSS legen. Seitenpuffer: 32 Byte (24LC32A, 24LC64), 64 Byte (24LC256). Die 24AA- und 24FC-Versionen derselben Datenblätter teilen diese Belegung und laufen ab 1,7 V."}
+  tags: ["24lc256", "24lc64", "24lc32a", "24lc32", "24aa256", "24c256", "eeprom", "i2c", "twi", "serial eeprom", "speicher", "sda", "scl", "wp", "dip8", "dip-8"]
+  source: "Microchip 24AA32A/24LC32A datasheet DS20001713P, 24AA64/24FC64/24LC64 datasheet DS20001189V and 24AA256/24LC256/24FC256 datasheet DS20001203Y, Package Types and Table 2-1 (PDIP column), sections 2.1 to 2.4 and the control code in the device addressing section"
+  shape:
+    type: dip
+    pins: 8
+  pins:
+    - {number: "1", name: "A0", function: {en: "Chip address input A0: with A1 and A2 selects one of eight chips on the bus; tie to VCC or VSS", de: "Chip-Adresseingang A0: wählt mit A1 und A2 einen von acht Bausteinen am Bus; an VCC oder VSS legen"}, type: signal}
+    - {number: "2", name: "A1", function: {en: "Chip address input A1; tie to VCC or VSS", de: "Chip-Adresseingang A1; an VCC oder VSS legen"}, type: signal}
+    - {number: "3", name: "A2", function: {en: "Chip address input A2; tie to VCC or VSS", de: "Chip-Adresseingang A2; an VCC oder VSS legen"}, type: signal}
+    - {number: "4", name: "VSS", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "5", name: "SDA", function: {en: "I2C data, bidirectional, open drain: needs a pull-up resistor to VCC", de: "I2C-Daten, bidirektional, Open Drain: braucht einen Pull-up-Widerstand nach VCC"}, type: data}
+    - {number: "6", name: "SCL", function: {en: "I2C clock input", de: "I2C-Takteingang"}, type: data}
+    - {number: "7", name: "WP", function: {en: "Write protect: VSS allows writing, VCC blocks writing (reading still works); do not leave open", de: "Schreibschutz: VSS erlaubt Schreiben, VCC sperrt es (Lesen geht weiter); nicht offen lassen"}, type: signal}
+    - {number: "8", name: "VCC", function: {en: "Supply, 2.5 V to 5.5 V (24AA and 24FC versions from 1.7 V)", de: "Versorgung, 2,5 V bis 5,5 V (24AA- und 24FC-Versionen ab 1,7 V)"}, type: power}
+
+- id: attiny13a
+  kind: pinout
+  category: pinouts
+  group: ics
+  name: {cs: "ATtiny13A (DIP-8)", da: "ATtiny13A (DIP-8)", de: "ATtiny13A (DIP-8)", el: "ATtiny13A (DIP-8)", en: "ATtiny13A (DIP-8)", es: "ATtiny13A (DIP-8)", fr: "ATtiny13A (DIP-8)", hi: "ATtiny13A (DIP-8)", it: "ATtiny13A (DIP-8)", ja: "ATtiny13A (DIP-8)", nl: "ATtiny13A (DIP-8)", no: "ATtiny13A (DIP-8)", pl: "ATtiny13A (DIP-8)", pt: "ATtiny13A (DIP-8)", sv: "ATtiny13A (DIP-8)", zh: "ATtiny13A (DIP-8)"}
+  doc: {en: "8-bit AVR microcontroller in the 8-pin PDIP, seen from above. The name is the port bit; the function lists what else the pin can do.", de: "8-Bit-AVR-Mikrocontroller im 8-poligen PDIP, von oben gesehen. Der Name ist das Port-Bit; die Funktion nennt, was der Pin außerdem kann."}
+  notes: {en: "In-system programming uses MOSI = PB0 (pin 5), MISO = PB1 (pin 6), SCK = PB2 (pin 7) and RESET (pin 1), as on the ATtiny85. The ATtiny13A has no crystal oscillator: it runs from its internal 9.6/4.8 MHz or 128 kHz oscillator or from an external clock on CLKI (pin 2). Speed grades: 0-4 MHz at 1.8-5.5 V, 0-10 MHz at 2.7-5.5 V, 0-20 MHz at 4.5-5.5 V. Same pin numbers as the ATtiny85, but fewer functions: no crystal pins, no USI (SDA, SCL), no timer 1, no AREF pin, and INT0 is on PB1 (pin 6), not on PB2. The SOIC and SOIJ versions share this drawing.", de: "Die Programmierung im System nutzt MOSI = PB0 (Pin 5), MISO = PB1 (Pin 6), SCK = PB2 (Pin 7) und RESET (Pin 1), wie beim ATtiny85. Der ATtiny13A hat keinen Quarzoszillator: Er läuft mit seinem internen 9,6/4,8-MHz- oder 128-kHz-Oszillator oder mit externem Takt an CLKI (Pin 2). Taktgrenzen: 0-4 MHz bei 1,8-5,5 V, 0-10 MHz bei 2,7-5,5 V, 0-20 MHz bei 4,5-5,5 V. Gleiche Pin-Nummern wie beim ATtiny85, aber weniger Funktionen: keine Quarzpins, keine USI (SDA, SCL), kein Timer 1, kein AREF-Pin, und INT0 liegt an PB1 (Pin 6), nicht an PB2. Die Versionen SOIC und SOIJ teilen diese Zeichnung."}
+  tags: ["attiny13a", "attiny13", "avr", "microcontroller", "mikrocontroller", "mcu", "isp", "dip8", "dip-8", "pb5", "reset", "clki"]
+  source: "Microchip ATtiny13A datasheet DS40002307A (2021), Figure 1-1, section 1.1, Table 6-1, Table 10-3 and Table 17-7"
+  shape:
+    type: dip
+    pins: 8
+  pins:
+    - {number: "1", name: "PB5/RESET", function: {en: "Reset input, active low; ADC0 (analogue input 0), PCINT5, dW (debugWIRE)", de: "Reset-Eingang, aktiv low; ADC0 (Analogeingang 0), PCINT5, dW (debugWIRE)"}, type: signal, notes: {en: "With the RSTDISBL fuse programmed the pin becomes the weak I/O bit PB5; after that the chip can only be programmed in high-voltage serial mode.", de: "Mit programmierter RSTDISBL-Fuse wird der Pin zum schwachen I/O-Bit PB5; danach lässt sich der Chip nur noch im Hochvolt-Seriellmodus programmieren."}}
+    - {number: "2", name: "PB3", function: {en: "Port B bit 3; CLKI (external clock input), ADC3, PCINT3", de: "Port B Bit 3; CLKI (Eingang für externen Takt), ADC3, PCINT3"}, type: io}
+    - {number: "3", name: "PB4", function: {en: "Port B bit 4; ADC2, PCINT4", de: "Port B Bit 4; ADC2, PCINT4"}, type: io}
+    - {number: "4", name: "GND", function: {en: "Ground", de: "Masse"}, type: ground}
+    - {number: "5", name: "PB0", function: {en: "Port B bit 0; MOSI (in-system programming), AIN0, OC0A, PCINT0", de: "Port B Bit 0; MOSI (Programmierung im System), AIN0, OC0A, PCINT0"}, type: io}
+    - {number: "6", name: "PB1", function: {en: "Port B bit 1; MISO (in-system programming), AIN1, OC0B, INT0, PCINT1", de: "Port B Bit 1; MISO (Programmierung im System), AIN1, OC0B, INT0, PCINT1"}, type: io}
+    - {number: "7", name: "PB2", function: {en: "Port B bit 2; SCK (in-system programming), ADC1, T0, PCINT2", de: "Port B Bit 2; SCK (Programmierung im System), ADC1, T0, PCINT2"}, type: io}
+    - {number: "8", name: "VCC", function: {en: "Supply, 1.8 V to 5.5 V", de: "Versorgung, 1,8 V bis 5,5 V"}, type: power}
