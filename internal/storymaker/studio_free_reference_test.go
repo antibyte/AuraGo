@@ -179,3 +179,28 @@ func TestCodeReferencesNameTheSafeArea(t *testing.T) {
 		}
 	}
 }
+
+func TestFreeReferenceTeachesTheBlocks(t *testing.T) {
+	for name, text := range map[string]string{"code.md": codeReference, "code-free.md": codeReferenceFree} {
+		if !strings.Contains(text, "api.diagram") {
+			t.Errorf("%s does not teach api.diagram", name)
+		}
+		if strings.Contains(text, "placeholders") {
+			t.Errorf("%s still calls the blocks placeholders", name)
+		}
+		for _, want := range []string{"## Explainer blocks", "api.icon(", "api.chart(", "api.headline(", "api.list(", "highlight(nodeId, timing)"} {
+			if !strings.Contains(text, want) {
+				t.Errorf("%s lacks %q", name, want)
+			}
+		}
+	}
+	if !strings.Contains(freeMotionExample, "api.diagram(") || !strings.Contains(freeMotionExample, "api.headline(") || !strings.Contains(freeMotionExample, "api.safe()") {
+		t.Error("free-motion.js does not use api.headline, api.diagram and api.safe()")
+	}
+	if lines := strings.Count(freeMotionExample, "\n"); lines >= 40 {
+		t.Errorf("free-motion.js has %d lines, want fewer than 40", lines)
+	}
+	if strings.Count(freeMotionExample, "api.onFrame(") != 1 {
+		t.Error("free-motion.js has not exactly one onFrame accent")
+	}
+}

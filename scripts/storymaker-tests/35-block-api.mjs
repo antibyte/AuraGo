@@ -1,7 +1,9 @@
 // Batch E: the blocks API of a code scene (api.icon, api.diagram, api.chart, api.headline, api.list) and the board tokens.
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 import vm from 'node:vm';
-import { plain, FakeCanvas, loadPlayer } from '../storymaker-test-support.mjs';
+import { root, plain, FakeCanvas, loadPlayer } from '../storymaker-test-support.mjs';
 import { t } from '../storymaker-test-context.mjs';
 
 const { check, near, catalog, files, firewall, bundleScene } = t;
@@ -107,4 +109,19 @@ check('api.headline and api.list: blocks in the full area; lists take at most 4 
     assert.match(fail("export default function scene(api) { api.headline(''); }"), /headline has 1 to 80/);
     const a = frameLog(built, C, 1.0), b = frameLog(built, C, 1.0);
     assert.ok(a.length > 20 && a.join('\n') === b.join('\n'));
+});
+
+check('free-motion.js: the reference example builds in every aspect, its blocks do not overlap and the frames repeat', () => {
+    const source = fs.readFileSync(path.join(root, 'internal/storymaker/reference/free-motion.js'), 'utf8');
+    for (const aspect of ['16:9', '9:16', '1:1']) {
+        const { C, build: run } = runScene(source, { aspect });
+        const built = run();
+        assert.equal(built.duration, 8);
+        assert.deepEqual(plain(built.issues), []);
+        assert.deepEqual(plain(built.entities.map(e => e.block.kind)), ['headline', 'diagram']);
+        const rc = C.render.makeContext({ aspect, fps: 30, palette: { bg: '#fff', bg2: '#eee', fg: '#123456', accent: '#f00', accent2: '#0f0', text: '#000' }, cat: C.scene.indexCatalog(fullCatalog), fontChain: null, fontFamilies: { default: 'F' }, style: { font: 'default' }, safe: catalog.stage.safe }, { rig: files.rig, props: files.props, envs: files.envs }, 1920, 1080);
+        const [h, d] = built.entities.map(e => C.blocks.measure(new FakeCanvas(1920, 1080).ctx, C.scene.evalEntity(e, 7), rc, built.stage, built.stage.baseWindow()).box);
+        assert.ok(h.y + h.h <= d.y + 1e-6 || d.y + d.h <= h.y, aspect + ': headline ' + JSON.stringify(h) + ' overlaps the diagram ' + JSON.stringify(d));
+        for (const time of [0.5, 3, 7]) assert.equal(frameLog(built, C, time).join('\n'), frameLog(run(), C, time).join('\n'));
+    }
 });

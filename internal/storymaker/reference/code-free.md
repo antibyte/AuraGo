@@ -27,7 +27,25 @@ Timings are `{start: seconds, dur: seconds, ease: name}`. The field is dur, not 
 
 Every frame must be a pure function of t and immutable constants. No counters incremented per draw, retained drawing state, Date/performance clocks, Math.random, timers, imports, global objects, document, fetch or raw canvas/context access. Balance save/restore and make drawing choices per call. Never bypass a sandbox or increase deadlines to fix slow code. Use bounded loops; reduce detail when a frame times out.
 
-api.chart and api.diagram are placeholders and do not render. Advanced filters, shader/bloom/blur calls and raw sprite/rig attachments are not part of this API. Use shapes, text and the drawing facade for every effect.
+Advanced filters, shader/bloom/blur calls and raw sprite/rig attachments are not part of this API. Use shapes, text and the drawing facade for every effect.
+
+## Explainer blocks
+
+Blocks are drawn by the same renderer as the storyboard beats. Prefer them to hand-drawn diagrams, charts, lists and headlines. Every call returns a handle with the handle methods above plus highlight(nodeId, timing), and takes the options {at, entry, start, dur}.
+
+- at is full (center for an icon), left, right, top, center, board or {x, y} in safe-area percent. An unknown area throws a RangeError that lists the valid ones. board is the board of the scene's environment, or the right half of the frame when it has none.
+- entry is draw (icons and diagrams), pop, fade or none. start is a second or api.cue(n), default 0. dur defaults to the natural length of the block.
+- A block that fails its limits throws a RangeError whose message names the fix. A scene has at most 32 blocks.
+
+Calls:
+
+- api.icon(id, {at, style, label, entry, start, dur}): id is an exact icon id such as icon.cpu; find it with storymaker_catalog operation search, kind icon and one English word. style is line, badge or card; the label shows on the card style.
+- api.diagram({layout, nodes, flow}, {at, entry, start, dur, reveals}): layout is flow (2-5 nodes), cycle (3-6), hub (the first node in the centre, 2-6 around it), stack (2-5, first node at the bottom) or compare (2 columns). A node is {id, label, icon, points}: id is unique and made of lowercase letters, digits and dashes; label has at most 40 characters, keep it to 3 words; icon is optional; points (compare only) has up to 3 short lines. flow: true moves dots along the arrows. reveals holds one start second per node, for example [api.cue(1), api.cue(2)]; without it the nodes appear one after another over dur. highlight(nodeId, {start, dur}) pulses one node for 1.2 s.
+- api.chart({type, labels, values, unit, title}, {at, entry, start, dur}): type is bar (1-8 values), line (2-24), pie (2-6, no negative values) or counter (exactly 1 value). labels and values have the same length; a label has at most 24 characters, unit 8, title 40.
+- api.headline('One *marked* word', {at, entry, start, dur}): at most 80 characters; the word between asterisks is accented.
+- api.list(['line', ...], {at, entry, start, dur, reveals}): 1-4 lines of at most 40 characters; reveals holds one start second per line.
+
+Put a headline in top and a diagram or chart below it instead of one crowded block, and keep onFrame drawing for small accents on top of the blocks.
 
 ## Draw every motif yourself with g.path and shapes
 
