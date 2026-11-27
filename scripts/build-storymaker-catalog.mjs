@@ -19,7 +19,7 @@ import { validateRasterOutputs as validateOutputs } from '../assets/storymaker/l
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = path.join(root, 'ui', 'img', 'storymaker');
 const langDir = path.join(root, 'ui', 'lang', 'storymaker_catalog');
-const SUBDIRS = ['models', 'rig', 'characters', 'textures', 'props', 'environments', 'sfx', 'thumbs'];
+const SUBDIRS = ['models', 'rig', 'characters', 'textures', 'props', 'environments', 'sfx', 'thumbs', 'icons'];
 
 
 function expectedFiles() {

@@ -128,7 +128,8 @@ export function buildRasterOutputs({prototype=false}={}){
         if(e.kind==='sfx')for(const take of e.takes)put(take.file,legacy.files.get(take.file));
     }
     put('glyphs.json',Buffer.from(legacy.files.get('glyphs.json')));
-    const manifest={...legacy.manifest,schema:'storymaker-catalog/2',entries,files:[]};
+    for(const name of ['lucide.json','LICENSE.txt','NOTICE.txt'])put('icons/'+name,fs.readFileSync(path.join(root,'assets/storymaker/icons',name)));
+    const manifest={...legacy.manifest,schema:'storymaker-catalog/2',icons:{file:'icons/lucide.json'},entries,files:[]};
     for(const [file,value]of files){
         const bytes=Buffer.isBuffer(value)?value:Buffer.from(value),ext=path.extname(file),type=ext==='.png'?'image/png':ext==='.wav'?'audio/wav':ext==='.glb'?'model/gltf-binary':ext==='.txt'?'text/plain':'application/json';
         const meta={path:file,type,bytes:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex')};

@@ -19,6 +19,7 @@ export function validateRasterOutputs({files,manifest,entries,rig}){
   check(m&&m.bytes<=8*1048576,`Oversized file: ${file}`);
   if(m?.type==='image/png')check(m.width===bytes.readUInt32BE(16)&&m.height===bytes.readUInt32BE(20),`Incorrect image dimensions: ${file}`);
  }
+ check(delivery.has(manifest.icons?.file),`Unlisted icons file: ${manifest.icons?.file}`);
  const json=file=>JSON.parse(files.get(file));
  function region(image,where){
   const m=delivery.get(image?.file),r=image?.rect;

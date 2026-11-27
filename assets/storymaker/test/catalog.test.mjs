@@ -154,6 +154,18 @@ test('node scripts/build-storymaker-catalog.mjs --check is green on the committe
   assert.equal(r.status, 0, r.stdout + r.stderr);
 });
 
+test('the delivered catalog names icons/lucide.json and ships LICENSE.txt and NOTICE.txt', () => {
+  const built = buildRasterOutputs();
+  assert.deepEqual(built.manifest.icons, { file: 'icons/lucide.json' });
+  const listed = new Map(built.manifest.files.map(f => [f.path, f]));
+  for (const f of ['icons/lucide.json', 'icons/LICENSE.txt', 'icons/NOTICE.txt']) assert.ok(listed.has(f), f);
+  assert.equal(JSON.parse(built.files.get('icons/lucide.json')).schema, 'storymaker-icons/1');
+  assert.ok(built.files.get('icons/NOTICE.txt').toString().includes('ISC'));
+  assert.deepEqual(validateRasterOutputs(built), []);
+  built.manifest.icons = { file: 'icons/missing.json' };
+  assert.ok(validateRasterOutputs(built).some(p => p.includes('icons/missing.json')));
+});
+
 test('every foreground accent bleeds off the frame edge it reaches in its cell', () => {
   // A near-camera accent that reaches the edge of its atlas cell belongs to that edge of the picture: it has to bleed off
   // it. An accent that stops short of the edge floats inside the frame with a visible cut, which is what the stage curtain
