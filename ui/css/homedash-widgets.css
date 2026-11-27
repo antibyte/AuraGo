@@ -23,11 +23,12 @@
   .hd-widget .hd-title, .hd-widget .hd-state { font-size: 11px; }
   .hd-widget .hd-head > .hd-icon { display: none; } /* 1x1: the title gets the full width */
 }
-/* G13 head economy: the title is the one text that must read, so it gets the row before the icon, the status badge and the state text. One column under 90px (the 83px cells
+/* G13 head economy: the title is the one text that must read, so it gets the row before the icon, the status badge and the state text. One column under 100px (the 96px cells of a desktop dashboard, the 83px cells
    of 768 and 390, the 67px cells of a 960px page) drops the head icon and the status badge (stale, read-only and alert facts stay in the state line, the tone ring and the
    accessible name; the state mark keeps a corner dot, see the state mark block) and takes 6px padding and 11px labels; under 80px the padding is 4px and the family's label tracking a fifth, so "Coffee m..." keeps 8 characters.
-   Two columns of a 960px page (140-159px) drop the head icon and take in the tracking. 96px cells keep icon and badge. */
-@container hd-widget (max-width: 89px) { .hd-widget > .hd-frame { --hd-pad-i: 6px; } .hd-widget .hd-title, .hd-widget .hd-state { font-size: 11px; } .hd-widget .hd-head > .hd-icon { display: none; } }
+   Two columns of a 960px page (140-159px) drop the head icon and take in the tracking. 96px cells drop them in one column and in the one-row 2x1 card (R6a block below). */
+@container hd-widget (max-width: 99px) { .hd-widget .hd-title, .hd-widget .hd-state { font-size: 11px; } .hd-widget .hd-head > .hd-icon { display: none; } }
+@container hd-widget (max-width: 89px) { .hd-widget > .hd-frame { --hd-pad-i: 6px; } }
 @container hd-widget (min-width: 140px) and (max-width: 159px) { .hd-widget .hd-head > .hd-icon { display: none; } .hd-widget .hd-title { letter-spacing: calc(var(--hd-label-tracking) * 0.4); } }
 @container hd-widget (max-width: 79px) { .hd-widget > .hd-frame { --hd-pad-i: 4px; } .hd-widget .hd-title { letter-spacing: calc(var(--hd-label-tracking) * 0.2 - 0.01em); } }
 /* T5 shared painting from card tokens */
@@ -41,11 +42,11 @@
 .hd-mark[data-kind="stale"] { --hd-badge-mask: var(--hd-mask-clock); }
 .hd-mark[data-kind="readonly"] { --hd-badge-mask: var(--hd-mask-lock); }
 .hd-mark[data-kind="alert"] { --hd-badge-mask: var(--hd-mask-alert); background: var(--hd-alert); }
-@container hd-widget (max-width: 89px) {
+@container hd-widget (max-width: 99px) {
   .hd-mark { position: absolute; z-index: 3; inset-block-start: 1px; inset-inline-end: 2px; inline-size: 8px; block-size: 8px; border-radius: var(--hd-radius-pill); -webkit-mask: none; mask: none; pointer-events: none; }
   .hd-mark[data-kind="readonly"] { background: transparent; border: 2px solid var(--hd-ink-muted); }
 }
-@container hd-widget (max-width: 89px) and (max-height: 139px) { .hd-widget .hd-head:has(> .hd-mark:not([hidden])) { padding-inline-end: max(var(--hd-more-pad, 0px), 5px); } } /* the compact card: the title row is the dot row, so a title that fits whole still ends before the dot; a taller card starts the title below it */
+@container hd-widget (max-width: 99px) and (max-height: 139px) { .hd-widget .hd-head:has(> .hd-mark:not([hidden])) { padding-inline-end: max(var(--hd-more-pad, 0px), 5px); } } /* the compact card: the title row is the dot row, so a title that fits whole still ends before the dot; a taller card starts the title below it */
 .hd-widget[data-hd-status="error"] .hd-state { color: var(--hd-alert-ink); }
 .hd-widget[data-hd-status="error"] .hd-state::before { content: ""; display: inline-block; inline-size: 12px; block-size: 12px; margin-inline-end: 4px; vertical-align: -1px;
   background: var(--hd-alert-ink); -webkit-mask: var(--hd-mask-error) center / contain no-repeat; mask: var(--hd-mask-error) center / contain no-repeat; }
@@ -140,6 +141,18 @@
 @container hd-widget (max-height: 139px) and (min-width: 250px) {
   .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"], [data-hd-type="climate"]:is([data-hd-variant="stepper"], [data-hd-variant="scale"])) > .hd-frame {
     grid-template-columns: minmax(calc(var(--hd-head-h) + 8px + var(--hd-title-min) + 20px), max-content) minmax(calc(var(--hd-more-pad, 0px) + 24px), 1fr); } }
+/* R6a: the one-row card at two columns of a 96px cell (204px wide, under 250px). The title keeps 8 characters in every state, so the head icon leaves first (as in the one-column cards), the 12px mark stays
+   after the title (reserved as --hd-mark-room) and the state text takes only what is left: a state text that does not fit in full (hd-widgets.js sets data-hd-cut on .hd-state) leaves the header, visually hidden and
+   kept in the accessible name, and the head takes the whole row (minus the More button). A 3-column card keeps the ellipsis. */
+.hd-widget > .hd-frame:has(> .hd-head > .hd-mark:not([hidden])) { --hd-mark-room: 20px; }
+@container hd-widget (max-height: 139px) and (min-width: 140px) and (max-width: 249px) {
+  .hd-widget .hd-head > .hd-icon { display: none; }
+  .hd-widget[data-hd-type="switch"][data-hd-variant="pill"] .hd-title { min-inline-size: calc(var(--hd-label-size) * 6.2 + 9 * var(--hd-label-tracking)); }
+  .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"], [data-hd-type="climate"]:is([data-hd-variant="stepper"], [data-hd-variant="scale"])) > .hd-frame { --hd-title-min: calc(var(--hd-label-size) * 6.2 + 9 * var(--hd-label-tracking)); grid-template-columns: minmax(calc(var(--hd-title-min) + var(--hd-mark-room, 0px)), 1fr) auto; }
+  .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"], [data-hd-type="climate"]:is([data-hd-variant="stepper"], [data-hd-variant="scale"])) > .hd-frame:has(> .hd-state[data-hd-cut]) { grid-template-columns: minmax(0, 1fr) 0px; column-gap: 0; }
+  .hd-widget:is([data-hd-type="switch"]:is([data-hd-variant="push"], [data-hd-variant="tile"]), [data-hd-type="light"]:is([data-hd-variant="slider"], [data-hd-variant="fader"], [data-hd-variant="tile"]), [data-hd-type="action"], [data-hd-type="select"], [data-hd-type="number"], [data-hd-type="climate"]:is([data-hd-variant="stepper"], [data-hd-variant="scale"])) > .hd-frame:has(> .hd-state[data-hd-cut]) > .hd-head { padding-inline-end: var(--hd-more-pad, 0px); }
+  .hd-widget > .hd-frame > .hd-state[data-hd-cut] { position: absolute; inline-size: 1px; block-size: 1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); }
+}
 /* More button (SCR-M3-2): 44x44 at the top-right frame corner, hidden at 1x1 (and by the hidden attribute, which the base rule keeps winning); the head leaves room for it. */
 .hd-widget > .hd-frame > .hd-more { position: absolute; inset-block-start: 0; inset-inline-end: 0; z-index: 3; display: grid; place-items: center; box-sizing: border-box; inline-size: 44px; block-size: 44px;
   margin: 0; padding: 0; border: 0; background: transparent; color: var(--hd-ink-muted); font: inherit; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
@@ -236,10 +249,10 @@
 .hd-widget:is([data-hd-type="number"], [data-hd-type="light"]) .hd-numeral .hd-num-unit { font-size: max(11px, 0.5em); vertical-align: baseline; margin-inline-start: 0.15em; }
 /* Select: the segmented bar takes the full body width (overrides the H4 260px cap); the picker is full width (primitives). */
 .hd-widget[data-hd-type="select"] .hd-seg { inline-size: 100%; }
-/* G13 picker economy: the value is the one thing the picker shows, so it takes the room before the chevron. One column (under 140px) trims the padding and the gap; under 90px (1x1) the chevron
+/* G13 picker economy: the value is the one thing the picker shows, so it takes the room before the chevron. One column (under 140px) trims the padding and the gap; under 100px (a 96px cell, any height) the chevron
    leaves and the value is centred, the whole tile stays the button (the listbox still opens from it). */
 @container hd-widget (max-width: 139px) { .hd-widget[data-hd-type="select"] .hd-pick { padding-inline: 8px; column-gap: 4px; } }
-@container hd-widget (max-width: 89px) { .hd-widget[data-hd-type="select"] .hd-pick { grid-template-columns: minmax(0, 1fr); padding-inline: 2px; text-align: center; font-size: 12px; } .hd-widget[data-hd-type="select"] .hd-pick > .hd-ico { display: none; } }
+@container hd-widget (max-width: 99px) { .hd-widget[data-hd-type="select"] .hd-pick { grid-template-columns: minmax(0, 1fr); padding-inline: 2px; text-align: center; font-size: 12px; } .hd-widget[data-hd-type="select"] .hd-pick > .hd-ico { display: none; } }
 /* The climate mode bar keeps its four icons and drops the words below 300px (four labels need 260px): the words stay as the accessible names. */
 @container hd-widget (max-width: 299px) { .hd-widget[data-hd-type="climate"] .hd-seg-label { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); } }
 /* Number: stepper centred; slider row = slider and a 5ch numeral with its unit. */
@@ -310,8 +323,8 @@
 .hd-cf-plot { --hd-cf-dot: 12px; --hd-cf-edge: color-mix(in srgb, var(--hd-ok) 78%, var(--hd-ink)); grid-row: 2; position: relative; min-block-size: 24px; border-radius: calc(var(--hd-radius-card) * 0.6); overflow: hidden; background: var(--hd-track); box-shadow: inset 0 0 0 var(--hd-stroke-hair) var(--hd-ink-faint); }
 /* The zone: a tinted area with a solid outline, and a dashed guide along each of its edges across the whole plot (the axes of temperature and humidity, read against the zone). */
 .hd-cf-zone { position: absolute; box-sizing: border-box; inset-inline-start: calc(var(--hd-zx0, 0.4) * 100%); inline-size: calc((var(--hd-zx1, 0.7) - var(--hd-zx0, 0.4)) * 100%);
-  inset-block-end: calc(var(--hd-zy0, 0.3333) * 100%); block-size: calc((var(--hd-zy1, 0.6667) - var(--hd-zy0, 0.3333)) * 100%); border: 1.5px solid var(--hd-cf-edge); border-radius: calc(var(--hd-radius-control) / 2);
-  background: color-mix(in srgb, var(--hd-ok) 38%, transparent); }
+  inset-block-end: calc(var(--hd-zy0, 0.3333) * 100%); block-size: calc((var(--hd-zy1, 0.6667) - var(--hd-zy0, 0.3333)) * 100%); border: 1.5px solid var(--hd-cf-edge); border-radius: 3px;
+  background: color-mix(in srgb, var(--hd-ok) 26%, transparent); }
 .hd-cf-zone::before, .hd-cf-zone::after { content: ""; position: absolute; box-sizing: border-box; pointer-events: none; }
 .hd-cf-zone::before { inset-block: -999px; inset-inline: -1.5px; border-inline: 1px dashed color-mix(in srgb, var(--hd-cf-edge) 55%, transparent); }
 .hd-cf-zone::after { inset-inline: -999px; inset-block: -1.5px; border-block: 1px dashed color-mix(in srgb, var(--hd-cf-edge) 55%, transparent); }

@@ -88,13 +88,13 @@ func hdFitOnly() []string {
 }
 
 // TestDesktopHomeDashWidgetFitBrowser is the G13 survey: every registered widget type x variant in every family at the default and the minimum size on
-// the cells of a lg (960 px), md (768 px) and sm (390 px) page, with realistic long names, plus the palette thumbs at 80 px cells and (extended) every
+// the cells of a lg (960 px), md (768 px) and sm (390 px) page and of a page of 96 px cells (c96, the common desktop cell size), with realistic long names, plus the palette thumbs at 80 px cells and (extended) every
 // allowed size up to 6x4. It measures that the title shows its full name or at least 8 characters, that no header text is cut to 2 characters or fewer,
 // and that no control value or label is cut under 4 characters, that no text box meets a control or another text box, that a stale, read-only or alert tile shows a visible mark (8 px, 3:1 on the card, with a name and a tooltip) and that no body is empty. It writes probes.json and one contact sheet per family and page into HOMEDASH_WF_DIR.
 //
 //	set AURAGO_RUN_BROWSER_SMOKE=1 and HOMEDASH_WF_DIR (default C:\disposable\homedash-m4\g13\before; a directory inside the repository is refused);
 //	HOMEDASH_WF_FAMILIES (comma list, default all four), HOMEDASH_WF_PALETTE (dark or light), HOMEDASH_WF_EXTENDED=0 drops the extended sizes,
-//	HOMEDASH_WF_REPORT_ONLY=1 writes the report without failing, HOMEDASH_WF_SHOW_EXT=1 also puts the extended sizes on the sheet image, HOMEDASH_WF_ONLY=type/variant,... renders only those widgets, HOMEDASH_WF_LAB=1 renders the lab sheets (default size, 96 and 67 px cells, six states; HOMEDASH_WF_ONLY defaults to the climate dial and the G13 variants), HOMEDASH_WF_EXTRA_CSS=file.css injects a stylesheet after the bundle (to try rules before they go into the bundle), HOMEDASH_WF_DUMP=type/variant/WxH[/stale] with HOMEDASH_WF_DUMP_BP=lg logs the element boxes of that tile.
+//	HOMEDASH_WF_BPS=lg,c96 renders only those pages (lg, md, sm, c96, thumb), HOMEDASH_WF_REPORT_ONLY=1 writes the report without failing, HOMEDASH_WF_SHOW_EXT=1 also puts the extended sizes on the sheet image, HOMEDASH_WF_ONLY=type/variant,... renders only those widgets, HOMEDASH_WF_LAB=1 renders the lab sheets (default size, 96 and 67 px cells, six states; HOMEDASH_WF_ONLY defaults to the climate dial and the G13 variants), HOMEDASH_WF_EXTRA_CSS=file.css injects a stylesheet after the bundle (to try rules before they go into the bundle), HOMEDASH_WF_DUMP=type/variant/WxH[/stale] with HOMEDASH_WF_DUMP_BP=lg logs the element boxes of that tile.
 func TestDesktopHomeDashWidgetFitBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	dirRaw := os.Getenv("HOMEDASH_WF_DIR")
@@ -163,7 +163,10 @@ func TestDesktopHomeDashWidgetFitBrowser(t *testing.T) {
 			t.Fatalf("inject HOMEDASH_WF_EXTRA_CSS: %v", err)
 		}
 	}
-	bps, only := []string{"lg", "md", "sm", "thumb"}, hdFitOnly()
+	bps, only := []string{"lg", "md", "sm", "c96", "thumb"}, hdFitOnly()
+	if raw := strings.TrimSpace(os.Getenv("HOMEDASH_WF_BPS")); raw != "" {
+		bps = strings.Split(raw, ",")
+	}
 	if os.Getenv("HOMEDASH_WF_LAB") == "1" { // lab sheets: the G13 variants at their default size, 96 px and 67 px cells, one sheet per family; measured but never failing
 		bps, reportOnly, extended = []string{"lab96", "lab67"}, true, false
 		if len(only) == 0 {

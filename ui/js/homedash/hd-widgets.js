@@ -97,6 +97,21 @@
         const inst = { update: instance.update.bind(instance), resize: typeof instance.resize === 'function' ? instance.resize.bind(instance) : noop, destroy: typeof instance.destroy === 'function' ? instance.destroy.bind(instance) : noop };
 
         const moreBtn = o.moreLabel ? frame.el.querySelector('.hd-more') : null;   // o.moreWhen(p) shows it per bound entity; without moreWhen it always shows
+        // A state text that does not fit its header cell in full leaves the header (R6a): the one-row cards hide the cut text visually (data-hd-cut, the style rules decide where) and the title gets the row;
+        // it stays in the accessibility tree. Measured only when the inputs change (text, size, width, mark, More button, font state), never on every entity update.
+        const stateBox = frame.el.querySelector('.hd-state'), stateInk = frame.el.querySelector('.hd-state-text');
+        let fitKey = '', lastPx = 0;
+        function fitState() {
+            if (!stateBox || !stateInk || destroyed || typeof stateBox.getClientRects !== 'function' || typeof getComputedStyle !== 'function') return;   // a DOM without layout (the Node tests) has nothing to measure
+            const key = [stateInk.textContent, wrapper.getAttribute('data-hd-size'), lastPx, mark.getAttribute('data-kind'), moreBtn && moreBtn.hasAttribute('hidden'), typeof document !== 'undefined' && document.fonts ? document.fonts.status : ''].join('|');
+            if (key === fitKey) return;
+            setAttr(stateBox, 'data-hd-cut', null);
+            if (!stateBox.getClientRects().length) return;   // not laid out yet: measure on the next update or resize
+            const cs = getComputedStyle(stateBox), room = stateBox.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+            if (stateInk.getBoundingClientRect().width > room + 0.5) setAttr(stateBox, 'data-hd-cut', '');
+            fitKey = key;
+        }
+        if (typeof document !== 'undefined' && document.fonts && document.fonts.status === 'loading') document.fonts.ready.then(() => { fitKey = ''; fitState(); });
         function update() {
             if (destroyed) return;
             const entities = {};
@@ -109,6 +124,7 @@
             writeTone(p); writeState(p);
             if (moreBtn) setAttr(moreBtn, 'hidden', mode !== 'view' || (typeof o.moreWhen === 'function' && !o.moreWhen(p)));
             inst.update({ mode, entities });
+            fitState();
         }
         function applyMode() {
             const inert = mode === 'design' || mode === 'thumb';
@@ -119,7 +135,7 @@
             setAttr(wrapper, 'data-hd-motion', mode === 'thumb' ? 'none' : null);
         }
         function setMode(m) { if (destroyed) return; mode = m; applyMode(); update(); }
-        function resize(size) { if (destroyed) return; setAttr(wrapper, 'data-hd-size', sizeText(size)); inst.resize(size); }
+        function resize(size) { if (destroyed) return; setAttr(wrapper, 'data-hd-size', sizeText(size)); inst.resize(size); lastPx = size && size.px ? Math.round(size.px.width) : 0; fitState(); }
         function destroy() {
             if (destroyed) return; destroyed = true;
             resources.dispose(); inst.destroy(); frame.destroy(); wrapper.remove();

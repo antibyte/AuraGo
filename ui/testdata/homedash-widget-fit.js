@@ -6,7 +6,7 @@
     const fit = window.hdFit = { ready: false, error: '', errors: [] };
     for (const m of (window.hdFitEarlyErrors || [])) fit.errors.push(String(m));
     window.addEventListener('error', e => { fit.errors.push(String(e.message)); });
-    const OFF = ['stale', 'readonly', 'alert'], GAP = 12, BPS = { lg: { width: 960, cols: 12 }, md: { width: 768, cols: 8 }, sm: { width: 390, cols: 4 } };
+    const OFF = ['stale', 'readonly', 'alert'], GAP = 12, BPS = { lg: { width: 960, cols: 12 }, md: { width: 768, cols: 8 }, sm: { width: 390, cols: 4 }, c96: { width: 1500, cols: 12, cell: 96 } };
     const NAMES = { switch: 'Coffee machine', light: 'Reading light', action: 'Movie night', select: 'Living room heater mode', number: 'Living room volume', climate: 'Living room temperature',
         gauge: 'Living room humidity', temperature: 'Living room temperature', sensor: 'Kitchen power consumption', entity: 'Living room temperature' };
     const TEXT = [['title', '.hd-title'], ['sub', '.hd-sub'], ['state', '.hd-state-text'], ['numeral', '.hd-numeral'], ['label', '.hd-push-label'], ['ctl', '.hd-pick-label, .hd-seg-label, .hd-step-value']];
@@ -203,7 +203,7 @@
     }
     // Lab sheets (bp 'lab96', 'lab67'): square cells of that many px, whatever the page width.
     const LAB_STATES = ['on', 'pending', 'stale', 'readonly', 'alert', 'unavailable'], labCell = bp => { const m = /^lab(\d+)$/.exec(bp); return m ? Number(m[1]) : 0; };
-    const pxFor = (bp, size) => { const c = labCell(bp); if (c) return { width: size.w * c + (size.w - 1) * GAP, height: size.h * c + (size.h - 1) * GAP, colW: c, rowH: c }; const b = BPS[bp], colW = (b.width - 2 * GAP - (b.cols - 1) * GAP) / b.cols, rowH = clamp(colW, 56, 180);
+    const pxFor = (bp, size) => { const c = labCell(bp) || (BPS[bp] && BPS[bp].cell) || 0; if (c) return { width: size.w * c + (size.w - 1) * GAP, height: size.h * c + (size.h - 1) * GAP, colW: c, rowH: c }; const b = BPS[bp], colW = (b.width - 2 * GAP - (b.cols - 1) * GAP) / b.cols, rowH = clamp(colW, 56, 180);
         return { width: Math.round((size.w * colW + (size.w - 1) * GAP) * 100) / 100, height: Math.round((size.h * rowH + (size.h - 1) * GAP) * 100) / 100, colW: Math.round(colW * 100) / 100, rowH: Math.round(rowH * 100) / 100 }; };
 
     // render({family, palette, bp: 'lg'|'md'|'sm'|'thumb', extended}) rebuilds the sheet and returns the tile reports.
@@ -211,7 +211,7 @@
         family = o.family || 'glass';
         for (const [k, v] of Object.entries({ 'data-hd-family': family, 'data-hd-palette': o.palette || 'dark', 'data-hd-scheme': o.palette === 'light' ? 'light' : 'dark', 'data-hd-motion': 'none' })) root.setAttribute(k, v);
         root.replaceChildren();
-        const heading = el('h1', 'fit-title', 'widget fit: family=' + family + ' palette=' + (o.palette || 'dark') + ' page=' + o.bp + (o.bp === 'thumb' ? ' (palette thumb, 80 px cells)' : labCell(o.bp) ? ' (lab sheet, default size, ' + labCell(o.bp) + ' px cells, states: normal, pending, stale, read-only, alert, unavailable)' : ' ' + BPS[o.bp].width + ' px'));
+        const heading = el('h1', 'fit-title', 'widget fit: family=' + family + ' palette=' + (o.palette || 'dark') + ' page=' + o.bp + (o.bp === 'thumb' ? ' (palette thumb, 80 px cells)' : o.bp === 'c96' ? ' (96 px cells, the common desktop cell size)' : labCell(o.bp) ? ' (lab sheet, default size, ' + labCell(o.bp) + ' px cells, states: normal, pending, stale, read-only, alert, unavailable)' : ' ' + BPS[o.bp].width + ' px'));
         const sheet = el('div', 'fit-tiles'), ext = el('div', 'fit-tiles fit-ext');
         root.appendChild(heading); root.appendChild(sheet); root.appendChild(el('h1', 'fit-title fit-ext-title', 'extended sizes (measured, not on the sheet image)')); root.appendChild(ext);
         const jobs = [], hosts = [];
