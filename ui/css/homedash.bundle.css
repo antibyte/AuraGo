@@ -1749,8 +1749,8 @@
 .hd-widget > .hd-frame { background: var(--hd-card-bg); border: var(--hd-card-border); border-radius: var(--hd-radius-card); box-shadow: var(--hd-shadow-card); overflow: hidden; }
 .hd-widget[data-hd-status="unavailable"] > .hd-frame { border: var(--hd-dash-unavail); }
 .hd-widget[data-hd-tone="crit"] > .hd-frame::before { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: var(--hd-ring-alert); pointer-events: none; z-index: 2; }
-/* State mark (hd-widgets.js writes span.hd-mark in the head: data-kind alert, readonly or stale, with the fact as accessible name and tooltip). From 90px wide it is the 12px glyph after the title;
-   in a card under 90px wide (the head icon is gone there) it is an 8px dot in the top-right corner: solid for stale and alert, a ring for read-only. The dot sits above the ink of the title row
+/* State mark (hd-widgets.js writes span.hd-mark in the head: data-kind alert, readonly or stale, with the fact as accessible name and tooltip). From 100px wide it is the 12px glyph after the title;
+   in a card up to 99px wide (the head icon is gone there) it is an 8px dot in the top-right corner: solid for stale and alert, a ring for read-only. The dot sits above the ink of the title row
    (rows 1-9 of the card; the ink starts at row 6 in a compact frame): a cut title ends in the ellipsis on the baseline, under the dot, and a title that fits whole keeps 5px free so it ends before the dot. */
 .hd-mark { display: block; flex: none; box-sizing: border-box; inline-size: 12px; block-size: 12px; background: var(--hd-ink-muted); -webkit-mask: var(--hd-badge-mask) center / contain no-repeat; mask: var(--hd-badge-mask) center / contain no-repeat; }
 .hd-mark[data-kind="stale"] { --hd-badge-mask: var(--hd-mask-clock); }

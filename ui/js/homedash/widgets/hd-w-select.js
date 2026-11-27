@@ -81,9 +81,11 @@
                 const options = C.options(e, CAP), sig = JSON.stringify(options), natural = api.variant === 'list' || options.length > capacity() ? 'list' : 'segmented';
                 if (sig !== optSig) { optSig = sig; squeezed = false; }
                 const want = natural === 'segmented' && squeezed ? 'list' : natural;
-                if (want !== kind) { const doc = api.body.ownerDocument, had = !!part && !!doc && typeof api.body.contains === 'function' && !!doc.activeElement && doc.activeElement !== api.body && api.body.contains(doc.activeElement); if (part) part.destroy(); part = want === 'list' ? list(api, ctx) : segmented(api, ctx); kind = want; if (had) part.focus(); }
+                let refocus = false;
+                if (want !== kind) { const doc = api.body.ownerDocument, had = !!part && !!doc && typeof api.body.contains === 'function' && !!doc.activeElement && doc.activeElement !== api.body && api.body.contains(doc.activeElement); if (part) part.destroy(); part = want === 'list' ? list(api, ctx) : segmented(api, ctx); kind = want; refocus = had; }
                 api.setTone(e && e.tone ? e.tone : null);
                 part.update(e, options);
+                if (refocus) part.focus();   // after update: the segmented control is built there, so focus has a control to land on
                 if (kind === 'segmented' && !squeezed && cramped()) { squeezed = true; this.update(view); return; }
                 const v = valueOf(e);
                 api.setStatus(C.statusText(api, e, v !== null ? v : e && e.text && e.text !== 'unknown' ? e.text : F.DASH, { cap: CAP }));

@@ -92,18 +92,20 @@ func hdFitOnly() []string {
 // allowed size up to 6x4. It measures that the title shows its full name or at least 8 characters, that no header text is cut to 2 characters or fewer,
 // and that no control value or label is cut under 4 characters, that no text box meets a control or another text box, that a stale, read-only or alert tile shows a visible mark (8 px, 3:1 on the card, with a name and a tooltip) and that no body is empty. It writes probes.json and one contact sheet per family and page into HOMEDASH_WF_DIR.
 //
-//	set AURAGO_RUN_BROWSER_SMOKE=1 and HOMEDASH_WF_DIR (default C:\disposable\homedash-m4\g13\before; a directory inside the repository is refused);
+//	set AURAGO_RUN_BROWSER_SMOKE=1; HOMEDASH_WF_DIR writes the contact sheets and probes.json there (a directory inside the repository is refused); without it (CI) the probes run against a temp dir and no sheet image is written;
 //	HOMEDASH_WF_FAMILIES (comma list, default all four), HOMEDASH_WF_PALETTE (dark or light), HOMEDASH_WF_EXTENDED=0 drops the extended sizes,
 //	HOMEDASH_WF_BPS=lg,c96 renders only those pages (lg, md, sm, c96, thumb), HOMEDASH_WF_REPORT_ONLY=1 writes the report without failing, HOMEDASH_WF_SHOW_EXT=1 also puts the extended sizes on the sheet image, HOMEDASH_WF_ONLY=type/variant,... renders only those widgets, HOMEDASH_WF_LAB=1 renders the lab sheets (default size, 96 and 67 px cells, six states; HOMEDASH_WF_ONLY defaults to the climate dial and the G13 variants), HOMEDASH_WF_EXTRA_CSS=file.css injects a stylesheet after the bundle (to try rules before they go into the bundle), HOMEDASH_WF_DUMP=type/variant/WxH[/stale] with HOMEDASH_WF_DUMP_BP=lg logs the element boxes of that tile.
 func TestDesktopHomeDashWidgetFitBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
+	// Without HOMEDASH_WF_DIR (CI) the survey is a probe-only regression gate: the report goes to a temp dir and no sheet images are written.
 	dirRaw := os.Getenv("HOMEDASH_WF_DIR")
-	if dirRaw == "" {
-		dirRaw = `C:\disposable\homedash-m4\g13\before`
-	}
-	outDir := hdSafeOutDir(t, dirRaw)
-	if err := os.MkdirAll(outDir, 0o755); err != nil {
-		t.Fatalf("create %s: %v", outDir, err)
+	writeSheets := dirRaw != ""
+	outDir := t.TempDir()
+	if writeSheets {
+		outDir = hdSafeOutDir(t, dirRaw)
+		if err := os.MkdirAll(outDir, 0o755); err != nil {
+			t.Fatalf("create %s: %v", outDir, err)
+		}
 	}
 	families := []string{"glass", "tactile", "minimal", "instrument"}
 	if raw := strings.TrimSpace(os.Getenv("HOMEDASH_WF_FAMILIES")); raw != "" {
@@ -192,6 +194,9 @@ func TestDesktopHomeDashWidgetFitBrowser(t *testing.T) {
 						t.Logf("dump %s %s %s: %s", spec, family, bp, dump.Value.Str())
 					}
 				}
+			}
+			if !writeSheets {
+				continue
 			}
 			height := int(rendered.Sheet.Y+rendered.Sheet.Height) + 40
 			if err := page.SetViewport(&proto.EmulationSetDeviceMetricsOverride{Width: 1500, Height: height, DeviceScaleFactor: 1}); err != nil {

@@ -221,6 +221,9 @@ jobs:
     env:
       AURAGO_RUN_BROWSER_SMOKE: '1'
       AURAGO_BROWSER_MUTE_AUDIO: '1'
+      # The HomeDash designer D11 budget (no long task over 50 ms, at least 90 frames in a 60-widget drag) is wall-clock sensitive: it is enforced on
+      # developer machines and only reported (logged) on a shared CI runner.
+      HOMEDASH_M4_PERF: log
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -253,6 +256,10 @@ jobs:
           echo "CHROME_BIN=$browser" >> "$GITHUB_ENV"
       - name: Run UI browser tests
         run: go test ./ui -v -p 1 -count=1 -timeout=30m -run '${{ matrix.run }}' -skip '${{ matrix.skip }}'
+      # The HomeDash live browser test lives in internal/server (the shard selectors above only cover ./ui); one shard runs it so it runs once per workflow.
+      - name: Run HomeDash live Home Assistant browser test
+        if: matrix.name == 'Desktop H-R'
+        run: go test ./internal/server -v -p 1 -count=1 -timeout=15m -run '^TestDesktopHomeDashLiveHABrowser$'
 
   go-race:
     name: Go race tests (${{ matrix.name }})

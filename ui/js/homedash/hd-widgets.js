@@ -74,7 +74,7 @@
         }, { mode: { get: () => mode, enumerable: true } }));
 
         const currentPrimary = () => (def.bindings.length ? fns.entity(def.bindings[0]) || null : null);
-        // The state mark (G13): a stale, read-only or alert widget shows a mark at every size, the 12 px glyph in the head or, in a card under 90 px wide, an 8 px dot in the corner.
+        // The state mark (G13): a stale, read-only or alert widget shows a mark at every size, the 12 px glyph in the head or, in a card under 100 px wide (container width up to 99 px), an 8 px dot in the corner.
         // It names the fact (accessible name and tooltip); the head icon and the state line may be gone at small sizes. Alert wins over read-only, read-only over stale.
         const mark = el('span', { class: 'hd-mark', role: 'img', hidden: '' });
         frame.head.appendChild(mark);

@@ -6,6 +6,7 @@ import (
 	"go/token"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -23,7 +24,10 @@ func TestUIBrowserCIShardsCoverEveryTest(t *testing.T) {
 					Include []struct{ Name, Run, Skip string } `yaml:"include"`
 				} `yaml:"matrix"`
 			} `yaml:"strategy"`
-			Steps []struct{ Run string } `yaml:"steps"`
+			Steps []struct {
+				Run string `yaml:"run"`
+				If  string `yaml:"if"`
+			} `yaml:"steps"`
 		} `yaml:"jobs"`
 	}
 	if err := yaml.Unmarshal([]byte(readRepoFile(t, ".github/workflows/security-gates.yml")), &workflow); err != nil {
@@ -40,6 +44,26 @@ func TestUIBrowserCIShardsCoverEveryTest(t *testing.T) {
 	}
 	if !usesSelectors {
 		t.Fatal("UI test command does not apply both matrix selectors")
+	}
+	// TestDesktopHomeDashLiveHABrowser lives in internal/server, outside the ./ui shard walk: exactly one shard must run it by name, and the HomeDash
+	// designer's wall-clock perf budget is only logged on the shared runner.
+	liveHA := 0
+	for _, step := range job.Steps {
+		if strings.Contains(step.Run, "go test ./internal/server") && strings.Contains(step.Run, "^TestDesktopHomeDashLiveHABrowser$") {
+			liveHA++
+			if !strings.HasPrefix(step.If, "matrix.name == ") {
+				t.Errorf("the HomeDash live HA browser step must run in one named shard, got if %q", step.If)
+			}
+		}
+	}
+	if liveHA != 1 {
+		t.Errorf("the ui-browser job runs the HomeDash live HA browser test in %d steps, want exactly 1", liveHA)
+	}
+	if !slices.Contains(topLevelGoTestNames(t, "internal/server"), "TestDesktopHomeDashLiveHABrowser") {
+		t.Error("TestDesktopHomeDashLiveHABrowser disappeared from internal/server; update the CI step")
+	}
+	if job.Env["HOMEDASH_M4_PERF"] != "log" {
+		t.Error("the ui-browser job must set HOMEDASH_M4_PERF=log (the D11 budget is wall-clock sensitive on a shared runner)")
 	}
 	type selection struct {
 		run, skip *regexp.Regexp

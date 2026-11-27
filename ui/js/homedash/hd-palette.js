@@ -18,23 +18,25 @@
             if (items.length) out.push(Object.freeze({ category: g.category, items: Object.freeze(items) })); }
         return Object.freeze(out);
     }
-    const entInit = () => Object.freeze({ q: '', source: '', kind: '', area: '', items: Object.freeze([]), total: 0, offset: 0, loading: false, error: '', seq: 0, sources: Object.freeze([]), areas: Object.freeze([]) });
+    const entInit = () => Object.freeze({ q: '', source: '', kind: '', area: '', items: Object.freeze([]), total: 0, offset: 0, srv: 0, loading: false, error: '', seq: 0, sources: Object.freeze([]), areas: Object.freeze([]) });
     const nx = (s, p) => Object.freeze(Object.assign({}, s, p));
+    // srv counts the rows the server has handed out (the next page offset); items can hold more, because the first page of a search also carries the localized system hits (answer.extra) that sit outside the server's paging.
     // Entity list state. filter resets the list (seq+1); more asks the next page; loaded/failed of an older seq are ignored; a page with no new
     // rows ends paging; areas accumulate across filters so the area select keeps its options.
     function entReduce(s, a) {
         switch (a && a.type) {
             case 'filter': { const f = {}; for (const k of FILTERS) f[k] = typeof a[k] === 'string' ? (k === 'q' ? Array.from(a[k].trim()).slice(0, 100).join('') : a[k]) : s[k];
                 if (!a.force && s.seq > 0 && FILTERS.every(k => f[k] === s[k])) return s;
-                return nx(s, Object.assign(f, { items: Object.freeze([]), total: 0, offset: 0, loading: true, error: '', seq: s.seq + 1 })); }
-            case 'more': return s.loading || s.error || s.items.length >= s.total ? s : nx(s, { offset: s.items.length, loading: true, seq: s.seq + 1 });
+                return nx(s, Object.assign(f, { items: Object.freeze([]), total: 0, offset: 0, srv: 0, loading: true, error: '', seq: s.seq + 1 })); }
+            case 'more': return s.loading || s.error || s.items.length >= s.total ? s : nx(s, { offset: s.srv, loading: true, seq: s.seq + 1 });
             case 'retry': return nx(s, { loading: true, error: '', seq: s.seq + 1 });
             case 'loaded': { if (a.seq !== s.seq) return s; const ans = a.answer || {}, seen = new Set(s.offset ? s.items.map(e => e.id) : []);
                 const fresh = (Array.isArray(ans.entities) ? ans.entities : []).filter(e => e && typeof e.id === 'string' && !seen.has(e.id) && seen.add(e.id));
                 const items = (s.offset ? s.items : []).concat(fresh), total = fresh.length ? Math.max(items.length, Number(ans.total) || 0) : items.length;
+                const got = Array.isArray(ans.entities) ? ans.entities.length : 0, srv = (s.offset ? s.srv : 0) + Math.max(0, got - (Number(ans.extra) || 0));
                 const areas = [...new Set(s.areas.concat(items.map(e => (typeof e.area === 'string' ? e.area : '')).filter(Boolean)))].sort();
                 const sources = Array.isArray(ans.sources) ? [...new Set(ans.sources.map(x => (x && typeof x.source === 'string' ? x.source : '')).filter(Boolean))] : s.sources;
-                return nx(s, { items: Object.freeze(items), total, loading: false, error: '', areas: Object.freeze(areas), sources: Object.freeze(sources) }); }
+                return nx(s, { items: Object.freeze(items), total, srv, loading: false, error: '', areas: Object.freeze(areas), sources: Object.freeze(sources) }); }
             case 'failed': return a.seq !== s.seq ? s : nx(s, { loading: false, error: a.code || 'network' });
             default: return s;
         }
@@ -129,7 +131,7 @@
             return Promise.all([main].concat(ids.map(id => Promise.resolve().then(() => api.entities(Object.assign(entRequest(s), { q: id, limit: 1 }))).catch(() => null)))).then(all => {
                 const first = all[0] || {}, have = new Set((Array.isArray(first.entities) ? first.entities : []).map(e => e && e.id)), extra = [];
                 for (const a of all.slice(1)) for (const e of a && Array.isArray(a.entities) ? a.entities : []) if (e && e.id && !have.has(e.id) && !extra.some(x => x.id === e.id)) extra.push(e);
-                return extra.length ? Object.assign({}, first, { entities: extra.concat(Array.isArray(first.entities) ? first.entities : []), total: (Number(first.total) || 0) + extra.length }) : first;
+                return extra.length ? Object.assign({}, first, { entities: extra.concat(Array.isArray(first.entities) ? first.entities : []), total: (Number(first.total) || 0) + extra.length, extra: extra.length }) : first;
             });
         }
         function load() {

@@ -1030,8 +1030,8 @@ func hdSaveSteps() []hdDesignerStep {
 			}
 			// D11: a drag or resize on a page with 60 widgets keeps one rAF per frame, writes only changed items and shows no long task (over 50 ms) while the
 			// pointer is down and at the release, with at least 90 frames in the 2 s drag (a 60 Hz page paints at most 120; the 75% floor leaves room for a
-			// busy host and still fails the old 40-90). The budget is enforced by default. HOMEDASH_M4_PERF=log only logs the misses: use it on a host that
-			// is overloaded by other processes (a long task is a wall-clock measure, so a loaded CPU stretches every layout); the numbers stay in the log.
+			// busy host and still fails the old 40-90). The budget is enforced by default on developer machines. HOMEDASH_M4_PERF=log only logs the misses: the CI
+			// ui-browser job sets it, and so should any host overloaded by other processes (a long task is a wall-clock measure, so a shared or loaded CPU stretches every layout); the numbers stay in the log.
 			var miss []string
 			if len(res.Down) > 0 {
 				miss = append(miss, fmt.Sprintf("long tasks while the pointer is down: %v", res.Down))
