@@ -69,3 +69,17 @@ check('block beats: the needs hold the block fonts and a broken block is reporte
     const codes = issuesOf(broken).filter(i => i.path.includes('/beats/')).map(i => i.path.replace('/scenes/0/beats/', '') + ' ' + i.code);
     assert.deepEqual(codes, ['0/icon unknown_asset', '1/data missing_field', '2/data invalid_value', '3/at unknown_spot']);
 });
+
+check('block beats: a dropped block still uses up its number, as in Go, and the legacy chart is counted', () => {
+    const oneNode = { layout: 'flow', nodes: [{ id: 'a', label: 'A' }] };
+    const out = compileScene([{ do: 'show', diagram: oneNode, at: 'full', entry: 'draw' }, { do: 'show', diagram: flow, at: 'full', entry: 'draw' },
+        { do: 'highlight', target: 'diagram-2.srv', style: 'pulse' }]);
+    const [d] = blocksOf(out);
+    assert.equal(blocksOf(out).length, 1, 'the first diagram has one node and is dropped');
+    assert.equal(d.id, 'diagram-2');
+    assert.equal(d.marks.list.length, 1);
+    assert.equal(issuesOf(out, 'unknown_name').length, 0);
+    const data = { labels: ['a'], values: [1] };
+    const charts = compileScene([{ do: 'chart', chart: 'bar', data, at: 'right' }, { do: 'show', chart: 'bar', data, at: 'full', entry: 'fade' }]);
+    assert.deepEqual(plain(blocksOf(charts).map(b => b.id)), ['chart-1', 'chart-2']);
+});

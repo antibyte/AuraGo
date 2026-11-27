@@ -176,8 +176,9 @@ func actorRanks(cast []CastMember, actors []Actor) []int {
 }
 
 // deriveShowIDs returns, aligned with sc.Beats, the instance id a show beat without an id
-// would get (<item-slug>-<n>), and "" for every other beat. It skips ids already taken by props
-// and by beats with an explicit id, so ids stay unique.
+// would get (<item-slug>-<n>), and "" for every other beat. The legacy chart beat counts as a
+// show chart, as in the player. It skips ids already taken by props and by beats with an
+// explicit id, so ids stay unique.
 func deriveShowIDs(sc *Scene) []string {
 	if len(sc.Beats) == 0 {
 		return nil
@@ -196,10 +197,13 @@ func deriveShowIDs(sc *Scene) []string {
 	counters := map[string]int{}
 	out := make([]string, len(sc.Beats))
 	for j, b := range sc.Beats {
-		if b.Do != "show" || b.ID != "" {
+		if (b.Do != "show" && b.Do != "chart") || b.ID != "" {
 			continue
 		}
 		slug := showSlug(b)
+		if b.Do == "chart" {
+			slug = "chart"
+		}
 		n := counters[slug] + 1
 		id := slug + "-" + strconv.Itoa(n)
 		for used[id] {

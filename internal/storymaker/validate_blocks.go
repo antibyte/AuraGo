@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"unicode"
+	"unicode/utf16"
 )
 
 // Block limits repeat ui/js/storymaker/blocks.js (LAYOUTS, CHARTS, ICON_STYLES, LIST_MAX, POINTS_MAX); change both together.
@@ -23,6 +25,9 @@ const (
 	blockChartTitle   = 40
 	blockNodeLabelMax = 40
 )
+
+// jsLen counts UTF-16 units, as String.length does in blocks.js, so Go and the player refuse the same texts.
+func jsLen(s string) int { return len(utf16.Encode([]rune(s))) }
 
 // blockKind says which block a show beat makes: icon, diagram, chart, headline or list, or "" for an item or a plain text.
 func blockKind(b *Beat) string {
@@ -62,7 +67,10 @@ func (v *validator) block(bb string, b *Beat, kind string, refs *sceneRefs) {
 	case "chart":
 		v.chartBlock(bb, b)
 	case "headline":
-		if n := runeLen(b.Text); n > blockHeadlineMax {
+		if strings.TrimSpace(strings.ReplaceAll(b.Text, "*", "")) == "" {
+			v.errorf(CodeInvalidValue, bb+"/text", "The headline has no word to show.", "Write a short headline.")
+		}
+		if n := jsLen(b.Text); n > blockHeadlineMax {
 			v.errorf(CodeLimitExceeded, bb+"/text", fmt.Sprintf("The headline has %d characters; the limit is %d.", n, blockHeadlineMax), "Shorten the headline.")
 		}
 		if n := strings.Count(b.Text, "*"); n != 0 && n != 2 {
@@ -75,9 +83,12 @@ func (v *validator) block(bb string, b *Beat, kind string, refs *sceneRefs) {
 				continue
 			}
 			lines++
-			if runeLen(line) > blockListLineMax {
-				v.warnf(CodeInvalidValue, bb+"/text", fmt.Sprintf("A list line has %d characters; more than %d does not fit.", runeLen(line), blockListLineMax), "Shorten the line.")
+			if n := jsLen(strings.TrimRightFunc(line, unicode.IsSpace)); n > blockListLineMax {
+				v.errorf(CodeLimitExceeded, bb+"/text", fmt.Sprintf("A list line has %d characters; the limit is %d.", n, blockListLineMax), "Shorten the line.")
 			}
+		}
+		if lines == 0 {
+			v.errorf(CodeInvalidValue, bb+"/text", "The list has no line to show.", "Write one to four lines, one per line break.")
 		}
 		if lines > blockListMax {
 			v.errorf(CodeLimitExceeded, bb+"/text", fmt.Sprintf("The list has %d lines; the limit is %d.", lines, blockListMax), "Keep at most 4 lines, one per line break.")
@@ -90,8 +101,9 @@ func (v *validator) iconBlock(bb string, b *Beat) {
 	if b.Style != "" && !containsName(iconStyles, b.Style) {
 		v.errorf(CodeInvalidValue, bb+"/style", fmt.Sprintf("An icon style is line, badge or card, not %q.", clip(b.Style, 20)), `Use "style": "card".`)
 	}
-	if b.Text != "" && b.Style != "card" {
-		v.warnf(CodeInvalidValue, bb+"/text", "Only the card style of an icon shows a label.", `Use "style": "card", or remove "text".`)
+	// A text next to an icon is its card label, whatever the style.
+	if n := jsLen(b.Text); n > blockNodeLabelMax {
+		v.errorf(CodeLimitExceeded, bb+"/text", fmt.Sprintf("The icon label has %d characters; the limit is %d.", n, blockNodeLabelMax), "Use one or two words.")
 	}
 }
 
@@ -145,15 +157,15 @@ func (v *validator) chartBlock(bb string, b *Beat) {
 		}
 	}
 	for k, l := range d.Labels {
-		if runeLen(l) > blockChartLabel {
-			v.warnf(CodeInvalidValue, fmt.Sprintf("%s/data/labels/%d", bb, k), fmt.Sprintf("A chart label has %d characters; more than %d does not fit.", runeLen(l), blockChartLabel), "Shorten the label.")
+		if n := jsLen(l); n > blockChartLabel {
+			v.errorf(CodeLimitExceeded, fmt.Sprintf("%s/data/labels/%d", bb, k), fmt.Sprintf("A chart label has %d characters; the limit is %d.", n, blockChartLabel), "Shorten the label.")
 		}
 	}
-	if runeLen(d.Unit) > blockChartUnit {
-		v.warnf(CodeInvalidValue, bb+"/data/unit", fmt.Sprintf("A chart unit longer than %d characters does not fit.", blockChartUnit), `Use a short unit such as "%".`)
+	if jsLen(d.Unit) > blockChartUnit {
+		v.errorf(CodeLimitExceeded, bb+"/data/unit", fmt.Sprintf("A chart unit longer than %d characters does not fit.", blockChartUnit), `Use a short unit such as "%".`)
 	}
-	if runeLen(d.Title) > blockChartTitle {
-		v.warnf(CodeInvalidValue, bb+"/data/title", fmt.Sprintf("A chart title longer than %d characters does not fit.", blockChartTitle), "Shorten the title.")
+	if jsLen(d.Title) > blockChartTitle {
+		v.errorf(CodeLimitExceeded, bb+"/data/title", fmt.Sprintf("A chart title longer than %d characters does not fit.", blockChartTitle), "Shorten the title.")
 	}
 }
 
@@ -177,7 +189,7 @@ func (v *validator) diagramBlock(bb string, b *Beat, refs *sceneRefs) {
 		default:
 			seen[n.ID] = true
 		}
-		switch l := runeLen(n.Label); {
+		switch l := jsLen(n.Label); {
 		case strings.TrimSpace(n.Label) == "":
 			v.errorf(CodeMissingField, np+"/label", "A diagram node needs a label.", `Add "label": "Server".`)
 		case l > blockNodeLabelMax:
@@ -185,6 +197,11 @@ func (v *validator) diagramBlock(bb string, b *Beat, refs *sceneRefs) {
 		}
 		if n.Icon != "" {
 			v.checkIcon(np+"/icon", n.Icon)
+		}
+		for k, pt := range n.Points {
+			if l := jsLen(pt); l < 1 || l > blockNodeLabelMax {
+				v.errorf(CodeLimitExceeded, fmt.Sprintf("%s/points/%d", np, k), fmt.Sprintf("A point has %d characters; it needs 1 to %d.", l, blockNodeLabelMax), "Use a short, non-empty point.")
+			}
 		}
 		switch {
 		case len(n.Points) > blockPointsMax:

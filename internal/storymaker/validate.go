@@ -500,7 +500,7 @@ func (v *validator) refsOf(sc *Scene, env string) *sceneRefs {
 	}
 	derived := deriveShowIDs(sc)
 	for j, b := range sc.Beats {
-		if b.Do != "show" {
+		if b.Do != "show" && b.Do != "chart" {
 			continue
 		}
 		id := b.ID

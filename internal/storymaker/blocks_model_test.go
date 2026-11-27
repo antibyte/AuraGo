@@ -36,3 +36,15 @@ func TestDecodeStoryKeepsDiagrams(t *testing.T) {
 		t.Fatalf("BlockAreas = %v", BlockAreas)
 	}
 }
+
+// The player numbers the legacy chart beat like a show chart (beats-blocks.js: instanceId("chart")), so Go must too.
+func TestDeriveShowIDsCountsLegacyCharts(t *testing.T) {
+	data := `"data":{"labels":["a"],"values":[1]}`
+	s := mustDecode(t, `{"schema":"storymaker/1","title":"B","format":{"aspect":"16:9","fps":30},"style":{"palette":"sunny","font":"default","captions":true},"cast":[],"scenes":[{"id":"s1","narration":"x","beats":[
+ {"do":"chart","chart":"bar",`+data+`,"at":"right"},
+ {"do":"show","chart":"bar",`+data+`,"at":"full","entry":"fade"},
+ {"do":"chart","chart":"bar",`+data+`,"at":"left"}]}]}`)
+	if got, want := deriveShowIDs(&s.Scenes[0]), []string{"chart-1", "chart-2", "chart-3"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("show ids = %v, want %v", got, want)
+	}
+}

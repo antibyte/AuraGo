@@ -65,6 +65,8 @@
     // shown. h = {warn, beatPath, instanceId, register}. The timing is set by reveals() when the beat is scheduled.
     function target(c, b, j, h) {
         var kind = b.do === 'chart' ? 'chart' : kindOf(b);
+        // The instance id comes first, as in Go's deriveShowIDs: a beat that is dropped still uses up its number.
+        var id = h.instanceId(slugOf(b, kind), b.id);
         if (kind === 'chart' && (b.data === undefined || b.data === null)) {
             h.warn('warning', h.beatPath(j, 'data'), 'missing_field', 'A chart needs data {labels, values}.');
             return null;
@@ -80,7 +82,7 @@
             h.warn('warning', h.beatPath(j, 'at'), 'unknown_spot', 'Unknown block area ' + JSON.stringify(at) + '; the player uses "full".');
             area = SM.blocks.area(c.stage, c.env, c.variant, 'full');
         }
-        var def = defOf(b, kind, h.instanceId(slugOf(b, kind), b.id));
+        var def = defOf(b, kind, id);
         def.area = area;
         def.hidden = true;
         def.entry = b.entry || (kind === 'icon' || kind === 'diagram' ? 'draw' : 'fade');
