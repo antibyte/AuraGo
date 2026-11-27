@@ -15,7 +15,7 @@ function runScene(source, name, extra) {
     const C = ctx.StorymakerCore;
     const plan = C.planTiming(extra && extra.story || firewall, {}, catalog);
     const sceneId = extra && extra.id || 's3';
-    const opts = { sceneId, index: plan.scenes[sceneId].index, catalog, aspect: '16:9', width: 1920, height: 1080, fps: 30, cues: plan.scenes[sceneId].cues, palette: plan.palette, families: plan.fontFamilies, styleFont: 'default', safe: catalog.stage.safe };
+    const opts = { sceneId, index: plan.scenes[sceneId].index, catalog, aspect: extra && extra.aspect || '16:9', width: 1920, height: 1080, fps: 30, cues: plan.scenes[sceneId].cues, palette: plan.palette, families: plan.fontFamilies, styleFont: 'default', safe: catalog.stage.safe };
     return { ctx, C, build: () => C.codescene.build(ctx.self.__smScene, opts) };
 }
 
@@ -56,6 +56,16 @@ check('code scene API on the shared fixture s3.js', () => {
     assert.deepEqual(plain(more.issues.map(i => i.code)), ['not_supported_yet', 'not_supported_yet'], 'api.chart and the grow tween report not_supported_yet');
     near(more.camera.zoom.at(1), 1.5, 1e-9);
     assert.equal(more.duration, Math.max(2, 1.3) + 0.5, 'without api.duration: the end of the last motion + 0.5 s');
+});
+
+check('code scene API: api.safe() returns the safe box of the format, as a fresh object each call', () => {
+    const src = `export default function scene(api) {
+      const a = api.safe(); a.x = 0; a.w = 1;
+      api.text(JSON.stringify(api.safe()), 'title');
+    }`;
+    const box = aspect => JSON.parse(runScene(src, 'safe', { aspect }).build().entities[0].text);
+    assert.deepEqual(box('9:16'), { x: 691, y: 125, w: 493, h: 581 });
+    assert.deepEqual(box('16:9'), { x: 96, y: 54, w: 1728, h: 803 });
 });
 
 check('code scene API: api.random is seeded, api.cue maps to cue times, errors name the fix', () => {

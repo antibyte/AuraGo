@@ -1,6 +1,6 @@
 // Storymaker player: the code-scene API. A code scene is `export default function scene(api)` bundled into a classic
 // script; it runs once, in its own worker, to build a timeline of tracks (like a GSAP master timeline), and every frame
-// evaluates that timeline. API: duration, add, text, shape, tween, camera, random(seed), cue(n), onFrame(fn); chart and
+// evaluates that timeline. API: duration, safe, add, text, shape, tween, camera, random(seed), cue(n), onFrame(fn); chart and
 // diagram exist and report not_supported_yet in phase 1. Handle methods take {start, dur, ease}; `start` is seconds
 // (or api.cue(n)) from the scene start (the start of the entry transition, like cues and beats). Positions are spot
 // names or {x, y} in percent of the safe area. Errors are thrown with a message that names the fix.
@@ -149,6 +149,8 @@
             if (sec <= 0 || sec > MAX_DURATION) throw new RangeError('duration must be between 0 and ' + MAX_DURATION + ' seconds, got ' + sec);
             state.duration = sec;
         };
+        // api.safe() = {x, y, w, h}: the drawing area of this format in design pixels, above the captions (a new object per call).
+        api.safe = function () { return SM.stage.safeBox(opts.aspect); };
         api.add = function (id, o) {
             o = o || {};
             var entry = cat.byId[id];
