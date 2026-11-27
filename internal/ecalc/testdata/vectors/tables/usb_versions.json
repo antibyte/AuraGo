@@ -1,0 +1,25 @@
+{
+  "table": "usb_versions",
+  "cells": [
+    {"key": "USB Low Speed (USB 1.x and USB 2.0)", "column": "rate", "want": 1500000, "ref": "USB 2.0 specification section 4.2.1 (1.5 Mb/s) = USB 3.2 specification section 1.1 = TI SLVAF82B section 2.1"},
+    {"key": "USB Full Speed (USB 1.x and USB 2.0)", "column": "rate", "want": 12000000, "ref": "USB 2.0 specification section 4.2.1 (12 Mb/s) = TI SLVAF82B section 2.1"},
+    {"key": "USB Full Speed (USB 1.x and USB 2.0)", "column": "year", "want": 1996, "ref": "USB 2.0 specification revision history: USB 1.0 released January 15, 1996 (USB 1.1 September 23, 1998)"},
+    {"key": "USB 2.0 High Speed", "column": "rate", "want": 480000000, "ref": "USB 2.0 specification section 1.1 and 4.2.1 (480 Mb/s) = USB 3.2 specification section 1.1 = TI SLVAF82B section 3.1"},
+    {"key": "USB 2.0 High Speed", "column": "marketing", "want": "Hi-Speed USB", "ref": "USB-IF Logo Usage Guidelines p. 6 = Integrators List Marketing Name Guidance = TI SLVAF82B Table 1-1"},
+    {"key": "USB 3.2 Gen 1 (Gen 1x1)", "column": "rate", "want": 5000000000, "ref": "USB 3.2 specification section 3.2.1.1 and Table 3-1 (5.0 Gbps) = TI SLVAF82B Table 1-1 (5Gbps)"},
+    {"key": "USB 3.2 Gen 1 (Gen 1x1)", "column": "coding", "want": "8b/10b", "ref": "USB 3.2 specification section 3.2.1.1 and 4.4.11: 8b/10b at 5 Gbps"},
+    {"key": "USB 3.2 Gen 1x2", "column": "rate", "want": 10000000000, "ref": "USB 3.2 specification glossary (Gen X x Y, Y lanes) and section 4.4.11 (doubled for Gen 1x2) = TI SLVAF82B Table 1-1: 2 x 5 Gbps"},
+    {"key": "USB 3.2 Gen 1x2", "column": "lane_rate", "want": 5000000000, "ref": "USB 3.2 specification glossary: Gen 1 lane is 5.0 Gbps"},
+    {"key": "USB 3.2 Gen 2 (Gen 2x1)", "column": "coding", "want": "128b/132b", "ref": "USB 3.2 specification section 3.2.1.2 and 4.4.11: 128b/132b at 10 Gbps"},
+    {"key": "USB 3.2 Gen 2 (Gen 2x1)", "column": "year", "want": 2013, "ref": "USB 3.2 specification section 1.1 (in 2013 USB 3.1, 10 Gbps) and revision history (USB 3.1 Rev 1.0 July 26, 2013)"},
+    {"key": "USB 3.2 Gen 2x2", "column": "rate", "want": 20000000000, "ref": "USB 3.2 specification section 1.1 and 4.4.11 = usb.org USB 3.2 page (two lanes of 10Gbps = 20Gbps) = TI SLVAF82B Table 1-1"},
+    {"key": "USB 3.2 Gen 2x2", "column": "year", "want": 2017, "ref": "USB 3.2 specification revision history: USB 3.2 Rev 1.0 September 22, 2017"},
+    {"key": "USB4 20 Gbit/s (Gen 2x2)", "column": "coding", "want": "64b/66b (Reed-Solomon FEC can be switched on)", "ref": "USB4 specification section 4.3.1.2 (64b/66b for Gen 2) and section 4.3.1.6 (RS-FEC)"},
+    {"key": "USB4 40 Gbit/s (Gen 3x2)", "column": "lane_rate", "want": 20000000000, "ref": "USB4 specification glossary and section 2.2 (Gen 3 = 20 Gbps per lane); p. 17 (40G USB4 = Gen 3)"},
+    {"key": "USB4 40 Gbit/s (Gen 3x2)", "column": "marketing", "want": "USB 40Gbps", "ref": "USB-IF Data Performance Language Usage Guidelines (January 2024) = USB Type-C language guidelines (2023) = Integrators List Marketing Name Guidance"},
+    {"key": "USB4 Version 2.0, 80 Gbit/s (Gen 4, symmetric)", "column": "rate", "want": 80000000000, "ref": "USB4 specification section 2 (80 Gbps Gen 4 x 2) = usb.org USB4 page (up to 80 Gbps over 80 Gbps certified cables)"},
+    {"key": "USB4 Version 2.0, 80 Gbit/s (Gen 4, symmetric)", "column": "year", "want": 2022, "ref": "USB4 specification release history: Version 2.0 October 2022 (Gen 4 80G and asymmetric links)"},
+    {"key": "USB4 Version 2.0, asymmetric 120/40 Gbit/s (Gen 4)", "column": "rate", "want": 120000000000, "ref": "USB4 specification p. 15-16 (asymmetric link, 3 Tx + 1 Rx, Gen 4 only) and Table 9-19 (40/120 and 120/40 Gbps): 3 x 40 Gbit/s"},
+    {"key": "USB4 Version 2.0, asymmetric 120/40 Gbit/s (Gen 4)", "column": "marketing", "want": "– (no name of its own; the guidelines end at USB 80Gbps)", "ref": "USB-IF Data Performance Language Usage Guidelines (January 2024) and Performance Logo Usage Guidelines (January 2026) list five rates only, 5 to 80 Gbps"}
+  ]
+}
