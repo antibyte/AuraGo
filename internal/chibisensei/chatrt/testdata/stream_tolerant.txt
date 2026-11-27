@@ -1,0 +1,13 @@
+event: ping
+: keep-alive comment
+id: 7
+data:{"choices":[{"finish_reason":null,"index":0,"delta":{"reasoning_content":"thinking about it"}}]}
+
+data:{"choices":[{"delta":{"content":"Hel"}}]}
+this line is not part of the protocol
+data: {not json
+data: {"choices":[{"delta":{"content":"lo"}}]}
+{"choices":[{"delta":{"content":" there"},"finish_reason":null}]}
+data: {"choices":[{"finish_reason":"length","delta":{}}]}
+data: {"choices":[],"timings":{"prompt_n":12,"predicted_n":3,"predicted_per_second":4.5}}
+data: [DONE]

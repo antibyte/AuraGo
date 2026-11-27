@@ -257,6 +257,7 @@ func NetworkClientInventory() []NetworkClientUse {
 		{Path: "internal/dockerutil/", Classification: "local-docker-engine-control-for-aurago-owned-services", AllowsLocalNet: true},
 		{Path: "internal/rtlsdr/", Classification: "owned-unix-socket-receiver-and-managed-docker-image", AllowsLocalNet: true},
 		{Path: "internal/embeddings/", Classification: "pinned-model-runtime-download-and-managed-local-sidecar", AllowsLocalNet: true, Credentialed: true},
+		{Path: "internal/chibisensei/chatrt/", Classification: "pinned-llama-cpp-runtime-download-and-authenticated-loopback-chat-child", AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/onnxrt/", Classification: "fixed-pinned-runtime-and-model-download-https-only-redirects"},
 		{Path: "internal/fritzbox/", Classification: "local-home-lab", AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/huggingface/", Classification: "configured-huggingface-api", Credentialed: true},
