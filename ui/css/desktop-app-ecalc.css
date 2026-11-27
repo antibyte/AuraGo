@@ -260,6 +260,11 @@
 .ec-table tbody tr:hover > * { background: var(--vd-mat-hover, var(--vd-theme-control-hover)); }
 .ec-table tbody tr[data-match="true"] > * { background: var(--vd-mat-selected, var(--vd-theme-accent-soft)); color: var(--vd-mat-selected-text, inherit); font-weight: 600; }
 .ec-table tbody tr[data-match="true"] > :first-child { box-shadow: inset 3px 0 0 var(--vd-accent); }
+.ec-table td[data-symbol="true"] { white-space: nowrap; }
+.ec-sym-pair { display: inline-flex; align-items: center; gap: 18px; }
+.ec-sym-fig { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; }
+.ec-sym { display: block; flex: none; color: var(--vd-text); overflow: visible; }
+.ec-sym-std { color: var(--vd-theme-muted); font-size: 10px; letter-spacing: 0.04em; }
 .ec-table-empty td { padding: 18px 12px; color: var(--vd-theme-muted); text-align: center; white-space: normal; }
 .ec-th { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
 .ec-table th[data-num="true"] .ec-th { align-items: flex-end; }

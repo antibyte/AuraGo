@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"aurago/internal/ecalc"
 	"io/fs"
 	"regexp"
 	"strings"
@@ -386,5 +387,44 @@ func TestECalcLaunchHookIsWired(t *testing.T) {
 				t.Errorf("%s is missing %q", file, marker)
 			}
 		}
+	}
+}
+
+// The symbol list of the Go loader (ecalc.SymbolIDs, the ids a table column of dim "symbol" accepts) is the key list of the
+// SYMBOLS object of ecalc-symbols.js, in the same order; every symbol carries a bounding box for the table page.
+func TestECalcSymbolIDsMatchTheLibrary(t *testing.T) {
+	t.Parallel()
+	source := ecalcScripts(t)["ecalc-symbols.js"]
+	start := strings.Index(source, "const SYMBOLS = {")
+	end := strings.Index(source[max(start, 0):], "\n    };")
+	if start < 0 || end < 0 {
+		t.Fatal("ecalc-symbols.js: the SYMBOLS object was not found")
+	}
+	var keys []string
+	for _, m := range regexp.MustCompile(`(?m)^        (\w+): \{`).FindAllStringSubmatch(source[start:start+end], -1) {
+		keys = append(keys, m[1])
+	}
+	if strings.Join(keys, " ") != strings.Join(ecalc.SymbolIDs, " ") {
+		t.Errorf("SYMBOLS keys %v differ from ecalc.SymbolIDs %v", keys, ecalc.SymbolIDs)
+	}
+	if got := len(regexp.MustCompile(`(?m)(?:\{ |^ +)box: `).FindAllString(source[start:start+end], -1)); got != len(keys) {
+		t.Errorf("%d of %d symbols have a box", got, len(keys))
+	}
+}
+
+// A symbol column draws every cell twice, IEC and ANSI, from the symbol library with a tight viewBox and an accessible name.
+func TestECalcTablePageDrawsSymbolColumns(t *testing.T) {
+	t.Parallel()
+	page := ecalcScripts(t)["ecalc-table-page.js"]
+	for _, marker := range []string{
+		"column.dim !== 'symbol'", "Symbols.symbolMarkup(part, standard)", "Symbols.box(id)", "Symbols.sample(id)", "symbolFigure(id, 'iec') + symbolFigure(id, 'ansi')",
+		`role="img"`, "aria-label", "columns[at].dim === 'symbol'",
+	} {
+		if !strings.Contains(page, marker) {
+			t.Errorf("ecalc-table-page.js is missing %q", marker)
+		}
+	}
+	if !strings.Contains(ecalcScripts(t)["ecalc-tables.js"], "const isNumeric = column =>") {
+		t.Error("ecalc-tables.js must refuse every non-numeric column")
 	}
 }

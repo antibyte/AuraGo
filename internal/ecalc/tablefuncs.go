@@ -102,7 +102,7 @@ func resolveTableCall(call *Node, refs map[string]string, tables map[string]*Tab
 		case ci < 0:
 			return nil, nil, fmt.Errorf("table %q has no column %q", t.ID, id)
 		case !t.Columns[ci].Numeric():
-			return nil, nil, fmt.Errorf("column %q of table %q is text, %s needs numeric columns", id, t.ID, call.Name)
+			return nil, nil, fmt.Errorf("column %q of table %q is %s, %s needs numeric columns", id, t.ID, t.Columns[ci].Dim, call.Name)
 		default:
 			cols = append(cols, ci)
 		}

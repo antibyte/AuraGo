@@ -37,62 +37,72 @@
 
     const SYMBOLS = {
         resistor: {
+            box: [0, -0.5, 3, 0.5],
             pins: twoPins,
             draw: standard => (standard === 'ansi'
                 ? path('M0 0H10L14 -8L22 8L30 -8L38 8L46 -8L50 0H60')
                 : path('M0 0H10M50 0H60') + '<rect x="10" y="-7" width="40" height="14"/>')
         },
-        capacitor: { pins: twoPins, draw: () => path('M0 0H27M33 0H60') + path('M27 -12V12M33 -12V12') },
+        capacitor: { box: [0, -0.7, 3, 0.7], pins: twoPins, draw: () => path('M0 0H27M33 0H60') + path('M27 -12V12M33 -12V12') },
         polarized: {
+            box: [0, -0.7, 3, 0.7],
             pins: twoPins,
             draw: standard => path('M0 0H27M37 0H60') + path('M27 -12V12') + (standard === 'ansi' ? path('M33 -12Q41 0 33 12') : '<rect x="33" y="-12" width="4" height="24"/>') + plus(19, -9)
         },
-        inductor: { pins: twoPins, draw: () => path('M0 0H10M50 0H60') + path('M10 0a5 5 0 0 1 10 0a5 5 0 0 1 10 0a5 5 0 0 1 10 0a5 5 0 0 1 10 0') },
-        diode: { pins: twoPins, draw: diodeBase },
-        led: { pins: twoPins, draw: () => diodeBase() + path('M26 -14L36 -26') + head(36, -26, 10, -12, 7, 3) + path('M35 -10L45 -22') + head(45, -22, 10, -12, 7, 3) },
-        zener: { pins: twoPins, draw: () => path('M0 0H22M38 0H60') + path('M22 -10L38 0L22 10Z') + path('M42 -14L38 -10V10L34 14') },
-        crystal: { pins: twoPins, draw: () => path('M0 0H22M38 0H60') + path('M22 -12V12M38 -12V12') + '<rect x="26" y="-8" width="8" height="16"/>' },
-        fuse: { pins: twoPins, draw: () => path('M0 0H10M50 0H60') + '<rect x="10" y="-7" width="40" height="14"/>' + path('M10 0H50') },
+        inductor: { box: [0, -0.5, 3, 0.1], pins: twoPins, draw: () => path('M0 0H10M50 0H60') + path('M10 0a5 5 0 0 1 10 0a5 5 0 0 1 10 0a5 5 0 0 1 10 0a5 5 0 0 1 10 0') },
+        diode: { box: [0, -0.7, 3, 0.7], pins: twoPins, draw: diodeBase },
+        led: { box: [0, -1.5, 3, 0.7], pins: twoPins, draw: () => diodeBase() + path('M26 -14L36 -26') + head(36, -26, 10, -12, 7, 3) + path('M35 -10L45 -22') + head(45, -22, 10, -12, 7, 3) },
+        zener: { box: [0, -0.9, 3, 0.9], pins: twoPins, draw: () => path('M0 0H22M38 0H60') + path('M22 -10L38 0L22 10Z') + path('M42 -14L38 -10V10L34 14') },
+        crystal: { box: [0, -0.7, 3, 0.7], pins: twoPins, draw: () => path('M0 0H22M38 0H60') + path('M22 -12V12M38 -12V12') + '<rect x="26" y="-8" width="8" height="16"/>' },
+        fuse: { box: [0, -0.5, 3, 0.5], pins: twoPins, draw: () => path('M0 0H10M50 0H60') + '<rect x="10" y="-7" width="40" height="14"/>' + path('M10 0H50') },
         // SPST switch, drawn open: pins a (0,0) and b (3,0); the blade lifts off the contact at b.
         switch: {
+            box: [0, -0.9, 3, 0.2],
             pins: twoPins,
             draw: () => path('M0 0H15M45 0H60') + path('M15 0L42 -15') + '<circle cx="15" cy="0" r="2.5"/><circle cx="45" cy="0" r="2.5"/>'
         },
         // Potentiometer, four grid units wide: pins a (0,0), b (4,0) and the wiper w (2,-2) above the body (flip puts it below).
         pot: {
+            box: [0, -2.1, 4, 0.5],
             pins: () => ({ a: [0, 0], b: [4, 0], w: [2, -2] }),
             draw: standard => (standard === 'ansi'
                 ? path('M0 0H10L16 -8L28 8L40 -8L52 8L64 -8L70 0H80')
                 : path('M0 0H10M70 0H80') + '<rect x="10" y="-7" width="60" height="14"/>') + path('M40 -40V-16') + head(40, -8, 0, 1, 8, 3.5)
         },
-        source: { pins: twoPins, draw: (standard, part) => path('M0 0H16M44 0H60') + '<circle cx="30" cy="0" r="14"/>' + upright(part, 22, 0, plus(0, 0)) + upright(part, 38, 0, path('M-3 0h6')) },
-        acsource: { pins: twoPins, draw: () => path('M0 0H16M44 0H60') + '<circle cx="30" cy="0" r="14"/>' + path('M21 0Q25.5 -9 30 0T39 0') },
-        isource: { pins: twoPins, draw: () => path('M0 0H16M44 0H60') + '<circle cx="30" cy="0" r="14"/>' + path('M21 0H38') + head(40, 0, 1, 0, 7, 4) },
-        battery: { pins: twoPins, draw: () => path('M0 0H20M40 0H60') + path('M20 -12V12M26 -7V7M34 -12V12M40 -7V7') },
-        meter: { pins: twoPins, draw: (standard, part) => path('M0 0H16M44 0H60') + '<circle cx="30" cy="0" r="14"/>' + upright(part, 30, 0, '<text x="0" y="4.5" text-anchor="middle" class="ec-sch-text" stroke="none" fill="currentColor">' + escape(part.text || 'V') + '</text>') },
-        ground: { pins: () => ({ g: [0, 0] }), draw: () => path('M0 0V10M-12 10H12M-8 15H8M-4 20H4') },
-        antenna: { pins: () => ({ a: [0, 0] }), draw: () => path('M0 0V-26M-13 -44L0 -26L13 -44') },
+        source: { box: [0, -0.8, 3, 0.8], pins: twoPins, draw: (standard, part) => path('M0 0H16M44 0H60') + '<circle cx="30" cy="0" r="14"/>' + upright(part, 22, 0, plus(0, 0)) + upright(part, 38, 0, path('M-3 0h6')) },
+        acsource: { box: [0, -0.8, 3, 0.8], pins: twoPins, draw: () => path('M0 0H16M44 0H60') + '<circle cx="30" cy="0" r="14"/>' + path('M21 0Q25.5 -9 30 0T39 0') },
+        isource: { box: [0, -0.8, 3, 0.8], pins: twoPins, draw: () => path('M0 0H16M44 0H60') + '<circle cx="30" cy="0" r="14"/>' + path('M21 0H38') + head(40, 0, 1, 0, 7, 4) },
+        battery: { box: [0, -0.7, 3, 0.7], pins: twoPins, draw: () => path('M0 0H20M40 0H60') + path('M20 -12V12M26 -7V7M34 -12V12M40 -7V7') },
+        meter: { box: [0, -0.8, 3, 0.8], pins: twoPins, draw: (standard, part) => path('M0 0H16M44 0H60') + '<circle cx="30" cy="0" r="14"/>' + upright(part, 30, 0, '<text x="0" y="4.5" text-anchor="middle" class="ec-sch-text" stroke="none" fill="currentColor">' + escape(part.text || 'V') + '</text>') },
+        ground: { box: [-0.7, 0, 0.7, 1.1], pins: () => ({ g: [0, 0] }), draw: () => path('M0 0V10M-12 10H12M-8 15H8M-4 20H4') },
+        antenna: { box: [-0.8, -2.3, 0.8, 0], pins: () => ({ a: [0, 0] }), draw: () => path('M0 0V-26M-13 -44L0 -26L13 -44') },
         npn: {
+            box: [0, -2.1, 3, 2.1],
             pins: threePins,
             draw: () => path('M0 0H34M34 -16V16M34 -8L60 -24V-40M34 8L60 24V40') + head(56, 21.5, 26, 16, 8, 3.5)
         },
         pnp: {
+            box: [0, -2.1, 3, 2.1],
             pins: threePins,
             draw: () => path('M0 0H34M34 -16V16M34 -8L60 -24V-40M34 8L60 24V40') + head(40, 12.3, -26, -16, 8, 3.5)
         },
         nmos: {
+            box: [0, -2.1, 3, 2.1],
             pins: fetPins,
             draw: () => path('M0 0H24M24 -14V14M30 -16V-9M30 -4V4M30 9V16M30 -12H60V-40M30 12H60V40M30 0H46V12') + head(32, 0, -1, 0, 7, 3.5)
         },
         pmos: {
+            box: [0, -2.1, 3, 2.1],
             pins: fetPins,
             draw: () => path('M0 0H24M24 -14V14M30 -16V-9M30 -4V4M30 9V16M30 -12H60V-40M30 12H60V40M30 0H46V12') + head(44, 0, 1, 0, 7, 3.5)
         },
         opamp: {
+            box: [0, -2.1, 5, 2.1],
             pins: () => ({ inn: [0, -1], inp: [0, 1], out: [5, 0] }),
             draw: () => path('M20 -40L20 40L100 0Z') + path('M0 -20H20M0 20H20') + path('M26 -20h8') + plus(30, 20)
         },
         transformer: {
+            box: [0, -0.2, 4, 3.2],
             pins: () => ({ p1: [0, 0], p2: [0, 3], s1: [4, 0], s2: [4, 3] }),
             draw: () => path('M0 0H22M0 60H22M80 0H58M80 60H58') + path('M22 0a7.5 7.5 0 0 0 0 15a7.5 7.5 0 0 0 0 15a7.5 7.5 0 0 0 0 15a7.5 7.5 0 0 0 0 15')
                 + path('M58 0a7.5 7.5 0 0 1 0 15a7.5 7.5 0 0 1 0 15a7.5 7.5 0 0 1 0 15a7.5 7.5 0 0 1 0 15') + path('M36 0V60M44 0V60')
@@ -100,6 +110,9 @@
         // A generic IC box: part.w and part.h in grid units (the box without its pin stubs), part.pins [{n, s: 'l'|'r', y}]
         // with y in grid units from the top edge, part.text the title. Pin points sit at the outer ends of the stubs.
         ic: {
+            // The box depends on the part (its size and pin stubs); sample is a part that shows the symbol in a table.
+            box: part => [0, -0.6, (part.w || 2) + 2, (part.h || 2) + 0.2],
+            sample: { w: 2, h: 2, text: 'IC', pins: [{ n: '1', s: 'l', y: 0.5 }, { n: '2', s: 'l', y: 1.5 }, { n: '3', s: 'r', y: 0.5 }, { n: '4', s: 'r', y: 1.5 }] },
             pins: part => {
                 const out = {};
                 for (const pin of part.pins || []) out[pin.n] = [pin.s === 'r' ? part.w + 2 : 0, pin.y];
@@ -161,5 +174,15 @@
         return '<svg class="ec-sch" viewBox="0 0 ' + width + ' ' + height + '" role="img" aria-label="' + escape(label) + '" focusable="false" preserveAspectRatio="xMidYMid meet" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' + body + '</svg>';
     }
 
-    window.ECalcSymbols = { GRID: G, names: () => Object.keys(SYMBOLS), pins: (sym, part) => (SYMBOLS[sym] ? SYMBOLS[sym].pins(part || {}) : null), pinPoint, symbolMarkup: (part, standard) => partMarkup(part, standard), svg };
+    // The bounding box [x0, y0, x1, y1] of a symbol in its own frame, in grid units, with room for the stroke; null for an unknown symbol.
+    function box(sym, part) {
+        const symbol = SYMBOLS[sym];
+        if (!symbol) return null;
+        return typeof symbol.box === 'function' ? symbol.box(part || symbol.sample || {}) : symbol.box.slice();
+    }
+
+    // A part that shows the symbol on its own (the library has no size for an IC box, so it brings a sample).
+    const sample = sym => Object.assign({ sym, x: 0, y: 0 }, SYMBOLS[sym] && SYMBOLS[sym].sample);
+
+    window.ECalcSymbols = { GRID: G, names: () => Object.keys(SYMBOLS), box, sample, pins: (sym, part) => (SYMBOLS[sym] ? SYMBOLS[sym].pins(part || {}) : null), pinPoint, symbolMarkup: (part, standard) => partMarkup(part, standard), svg };
 })();

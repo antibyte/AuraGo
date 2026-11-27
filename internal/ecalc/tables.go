@@ -18,6 +18,8 @@ import (
 const (
 	// textDim is the dimension of a column that holds text.
 	textDim = "text"
+	// symbolDim is the dimension of a column whose cells name a schematic symbol (SymbolIDs).
+	symbolDim = "symbol"
 	// tablesCategory and codesCategory are the categories of the table and code items.
 	tablesCategory = "tables"
 	codesCategory  = "codes"
@@ -28,7 +30,7 @@ const (
 // tableGroups are the list sections of the table rail, in display order.
 var tableGroups = []string{"conductors", "components", "materials", "general"}
 
-// Column is one column of a table. Dim is a dimension of units.yaml or "text". Unit is the unit of the cells in the YAML
+// Column is one column of a table. Dim is a dimension of units.yaml, "text" or "symbol". Unit is the unit of the cells in the YAML
 // and the default display unit ("" = the base symbol with automatic prefixes); Units lists the display units the page
 // offers (the semantics of the units list of a variable).
 type Column struct {
@@ -43,8 +45,8 @@ type Column struct {
 	unit *Unit
 }
 
-// Numeric reports whether the column holds numbers (every dimension except text).
-func (c *Column) Numeric() bool { return c.Dim != textDim }
+// Numeric reports whether the column holds numbers (every dimension except text and symbol).
+func (c *Column) Numeric() bool { return c.Dim != textDim && c.Dim != symbolDim }
 
 // ToSI converts a number written in the unit of the column (Unit, "" = SI already) to SI.
 func (c *Column) ToSI(x float64) float64 {
@@ -411,12 +413,12 @@ func (l *loader) columns(fail func(string, ...any), text func(string, Text, []st
 		}
 		seen[col.ID] = true
 		text(what+": name", col.Name, docLocales)
-		if col.Dim == textDim {
+		if col.Dim == textDim || col.Dim == symbolDim {
 			if col.Unit != "" || len(col.Units) > 0 {
-				fail("%s: a text column has no unit", what)
+				fail("%s: a %s column has no unit", what, col.Dim)
 			}
 		} else if col.dim = l.units.Dim(col.Dim); col.dim == nil {
-			fail("%s: unknown dimension %q (a dimension of units.yaml, or %s)", what, col.Dim, textDim)
+			fail("%s: unknown dimension %q (a dimension of units.yaml, %s or %s)", what, col.Dim, textDim, symbolDim)
 		} else {
 			if col.Unit != "" {
 				switch un := col.dim.Unit(col.Unit); {
@@ -474,6 +476,17 @@ func nullCell() Cell { return Cell{Num: math.NaN(), Null: true} }
 func readCell(fail func(string, ...any), text func(string, Text, []string), where string, col *Column, n *yaml.Node) Cell {
 	if n.Kind == yaml.ScalarNode && n.Tag == "!!null" {
 		return nullCell()
+	}
+	if col.Dim == symbolDim {
+		if n.Kind != yaml.ScalarNode || n.Tag != "!!str" {
+			fail("%s: a symbol column needs the id of a symbol as a string, or null (line %d)", where, n.Line)
+			return nullCell()
+		}
+		if !IsSymbolID(n.Value) {
+			fail("%s: unknown symbol %q (one of %s)", where, n.Value, strings.Join(SymbolIDs, ", "))
+			return nullCell()
+		}
+		return Cell{Num: math.NaN(), Text: Text{"en": n.Value}}
 	}
 	if !col.Numeric() {
 		switch {

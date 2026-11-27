@@ -11,6 +11,8 @@
    A column whose cells are all empty carries no verified data: it is not shown (and not filtered, sorted or copied) and a line
    under the table says how many columns are hidden. The unit shown in a column is remembered per table and column
    (ECalcStore units under the table id).
+   A column with dim "symbol" holds the id of a schematic symbol of ECalcSymbols; its cell draws the IEC and the ANSI symbol side by
+   side, while filter, sort and copy use the id.
    "Copy table" puts the visible rows, in the shown units, on the clipboard as tab-separated text.
    options: {item, units, store, t, icon, uid, decimalComma, schematics, getItem, onFavorite} (the options object of every
    page creator, see ecalc-shell.js); returns {el, layout, refresh, focusFilter, dispose}.
@@ -53,7 +55,7 @@
         const { item: table, units, store, t, icon, uid } = options;
         const Page = window.ECalcCalcPage;
         const columns = table.columns || [], rows = table.rows || [];
-        const numeric = columns.map(column => column.dim !== 'text');
+        const numeric = columns.map(column => column.dim !== 'text' && column.dim !== 'symbol');
         // The columns that have at least one cell (all of them when there are no rows or no column has a cell).
         const filled = columns.map((column, index) => index).filter(index => rows.some(row => row[index] !== null && row[index] !== undefined));
         const shownColumns = rows.length && filled.length ? filled : columns.map((column, index) => index);
@@ -80,6 +82,19 @@
             const found = units.options(column.dim).find(option => option.id === id);
             return found ? found.label : '';
         };
+        // A symbol column draws its cell twice, in the IEC and in the ANSI style, each as a small SVG with a tight viewBox (the box of
+        // the symbol in ECalcSymbols) and its own accessible name; an id the library does not know stays plain text.
+        const SYMBOL_SCALE = 0.7; // drawn pixels per schematic pixel
+        const symbolFigure = (id, standard) => {
+            const Symbols = window.ECalcSymbols, part = Symbols.sample(id), box = Symbols.box(id);
+            const G = Symbols.GRID, width = (box[2] - box[0]) * G, height = (box[3] - box[1]) * G, label = id + ' ' + standard.toUpperCase();
+            return '<span class="ec-sym-fig"><svg class="ec-sym" data-standard="' + standard + '" viewBox="' + [box[0] * G, box[1] * G, width, height].join(' ') + '" width="' + Math.round(width * SYMBOL_SCALE) + '" height="' + Math.round(height * SYMBOL_SCALE)
+                + '" role="img" aria-label="' + esc(label) + '" focusable="false" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' + Symbols.symbolMarkup(part, standard) + '</svg>'
+                + '<span class="ec-sym-std" aria-hidden="true">' + standard.toUpperCase() + '</span></span>';
+        };
+        const symbolCell = id => (window.ECalcSymbols && window.ECalcSymbols.box(id) ? '<span class="ec-sym-pair">' + symbolFigure(id, 'iec') + symbolFigure(id, 'ansi') + '</span>' : esc(id));
+        const cellMarkup = (column, value, text) => (column.dim === 'symbol' && typeof value === 'string' ? symbolCell(value) : esc(text));
+
         function cellText(column, value) {
             if (value === null || value === undefined) return NO_VALUE;
             if (typeof value === 'string') return value;
@@ -170,7 +185,7 @@
             computeView();
             bodyEl.innerHTML = shown.length ? shown.map(index => '<tr data-row="' + index + '">' + shownColumns.map(at => {
                 const value = rows[index][at], tag = at === keyIndex ? 'th scope="row"' : 'td';
-                return '<' + tag + (numeric[at] ? ' data-num="true"' : '') + (value === null ? ' data-empty="true"' : '') + '>' + esc(texts[index][at]) + '</' + (at === keyIndex ? 'th' : 'td') + '>';
+                return '<' + tag + (numeric[at] ? ' data-num="true"' : '') + (value === null ? ' data-empty="true"' : '') + (columns[at].dim === 'symbol' ? ' data-symbol="true"' : '') + '>' + cellMarkup(columns[at], value, texts[index][at]) + '</' + (at === keyIndex ? 'th' : 'td') + '>';
             }).join('') + '</tr>').join('') : '<tr class="ec-table-empty"><td colspan="' + Math.max(shownColumns.length, 1) + '">' + esc(t('desktop.ecalc_table_no_rows')) + '</td></tr>';
             countEl.textContent = query.trim() ? t('desktop.ecalc_table_rows_filtered', { shown: shown.length, total: rows.length }) : t('desktop.ecalc_table_rows', { total: rows.length });
             paintMatch(false);

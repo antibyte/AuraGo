@@ -455,3 +455,96 @@ func TestTablePrimitives(t *testing.T) {
 		t.Errorf("FindRow within 1e-9 = %d, want 2", i)
 	}
 }
+
+// symbolTable is a small table whose first column draws a schematic symbol of the library (dim symbol).
+var symbolTable = strings.ReplaceAll(`- id: t_sym
+  kind: table
+  category: tables
+  group: general
+  name: NAME16
+  doc: {en: "Doc.", de: "Doku."}
+  notes: {en: "Note.", de: "Hinweis."}
+  tags: [test]
+  source: "Textbook"
+  key: name
+  columns:
+    - {id: sym, name: {en: Symbol, de: Symbol}, dim: symbol}
+    - {id: name, name: {en: Name, de: Name}, dim: text}
+    - {id: val, name: {en: Value, de: Wert}, dim: ratio}
+  rows:
+    - [resistor, "Resistor", 1]
+    - [opamp, "Op-amp", 2]
+    - [null, "none", 3]
+`, "NAME16", flow16("T"))
+
+func TestSymbolColumnLoadsAsIDText(t *testing.T) {
+	tbl := loadTable(t, symbolTable)
+	c := tbl.Columns[0]
+	if c.Dim != "symbol" || c.Numeric() {
+		t.Errorf("column sym = %+v, want a non-numeric symbol column", c)
+	}
+	if got := tbl.CellText(0, 0, "de"); got != "resistor" {
+		t.Errorf("symbol cell text = %q, want the id", got)
+	}
+	if got := tbl.Rows[1][0].Text["en"]; got != "opamp" {
+		t.Errorf("symbol cell = %+v", tbl.Rows[1][0])
+	}
+	if !tbl.Rows[2][0].Null {
+		t.Error("a null symbol cell stays null")
+	}
+	if len(SymbolIDs) != 25 || SymbolIDs[0] != "resistor" || SymbolIDs[24] != "ic" {
+		t.Errorf("SymbolIDs = %v", SymbolIDs)
+	}
+}
+
+func TestLoadRejectsBrokenSymbolColumns(t *testing.T) {
+	cases := []struct{ name, old, new, want string }{
+		{"unknown symbol", `[opamp, "Op-amp", 2]`, `[opamp2, "Op-amp", 2]`, `row 2, column sym: unknown symbol "opamp2"`},
+		{"number as symbol", `[resistor, "Resistor", 1]`, `[5, "Resistor", 1]`, "row 1, column sym"},
+		{"symbol with a unit", `dim: symbol}`, `dim: symbol, unit: mm2}`, "a symbol column has no unit"},
+		{"unknown dimension names symbol", `dim: ratio}`, `dim: speed}`, "or symbol"},
+	}
+	for _, c := range cases {
+		_, err := Load(treeFS(t, map[string]string{"tables/t.yaml": mutate(t, symbolTable, c.old, c.new)}))
+		if err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: error = %v, want it to contain %q", c.name, err, c.want)
+		}
+	}
+}
+
+func TestTableFunctionsRefuseSymbolColumns(t *testing.T) {
+	tbl := loadTable(t, symbolTable)
+	if v := tbl.Lookup("sym", 1); !math.IsNaN(v) {
+		t.Errorf("Lookup of a symbol column = %v, want NaN", v)
+	}
+	if v := tbl.LookupGE("val", 1, "sym"); !math.IsNaN(v) {
+		t.Errorf("LookupGE with a symbol output = %v, want NaN", v)
+	}
+	if v := tbl.Interp("val", "sym", 1.5); !math.IsNaN(v) {
+		t.Errorf("Interp of a symbol column = %v, want NaN", v)
+	}
+	if i := tbl.FindRow(tbl.ColumnIndex("sym"), 1); i != -1 {
+		t.Errorf("FindRow on a symbol column = %d, want -1", i)
+	}
+}
+
+// The agent reads a symbol cell as its id, like a text cell.
+func TestQueryTableAnswersASymbolCellAsItsID(t *testing.T) {
+	cat, err := Load(treeFS(t, map[string]string{"tables/t.yaml": symbolTable}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := cat.QueryTable("t_sym", TableRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Columns[0].Dim != "symbol" || res.Columns[0].Unit != "" {
+		t.Errorf("column = %+v", res.Columns[0])
+	}
+	if got := derefAll(res.Rows[0]); strings.Join(got, "|") != "resistor|Resistor|1" {
+		t.Errorf("row 0 = %v", got)
+	}
+	if res.Rows[1][0] == nil || *res.Rows[1][0] != "opamp" || res.Rows[2][0] != nil || res.SI[0][0] != nil {
+		t.Errorf("rows = %v, si %v", res.Rows, res.SI[0])
+	}
+}

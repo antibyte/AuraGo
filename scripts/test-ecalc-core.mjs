@@ -183,6 +183,16 @@ assert.equal(core.tables.findRow('t_fix', 'x', 4.0000000001), 2, 'findRow matche
 assert.equal(core.tables.findRow('t_fix', 'x', 5), -1, 'findRow gives -1 without a row');
 assert.throws(() => core.tables.findRow('t_fix', 'n', 1), error => error.code === 'eval', 'findRow refuses a text column');
 assert.throws(() => core.tables.findRow('t_nowhere', 'x', 1), error => error.code === 'eval', 'findRow refuses an unknown table');
+// A symbol column (dim "symbol", the id of a schematic symbol) is no number column: the table functions refuse it like text.
+core.tables.register([{ kind: 'table', id: 't_sym', key: 'v', columns: [{ id: 'v', dim: 'ratio' }, { id: 's', dim: 'symbol' }], rows: [[1, 'resistor'], [2, 'npn']] },
+    { kind: 'table', id: 't_symkey', key: 's', columns: [{ id: 's', dim: 'symbol' }, { id: 'v', dim: 'ratio' }], rows: [['resistor', 1], ['npn', 2]] }]);
+assert.throws(() => core.tables.lookup('t_sym', 's', 1), error => error.code === 'eval' && /symbol/.test(error.message), 'lookup refuses a symbol column');
+assert.throws(() => core.tables.lookupGe('t_sym', 'v', 1, 's'), error => error.code === 'eval', 'lookup_ge refuses a symbol output column');
+assert.throws(() => core.tables.interp('t_sym', 'v', 's', 1.5), error => error.code === 'eval', 'interp refuses a symbol column');
+assert.throws(() => core.tables.findRow('t_sym', 's', 1), error => error.code === 'eval', 'findRow refuses a symbol column');
+assert.throws(() => core.tables.lookup('t_symkey', 'v', 1), error => error.code === 'eval' && /symbol key column/.test(error.message), 'lookup refuses a symbol key column');
+assert.equal(core.tables.lookup('t_sym', 'v', 2), 2, 'a numeric column of a table with a symbol column still works');
+count += 6;
 count += 5;
 
 // ---- tables/*.json: the cells and lookups of every table of the catalog (the Go twin: TestTableVectors) -----------------

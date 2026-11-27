@@ -78,6 +78,8 @@ const ecalcTablesFixturePatch = `j => {
 			rows: [['Kupfer', 1.72e-8], ['Aluminium', 2.82e-8], ['Gold', 2.44e-8]] }),
 		table('fx_ascii', 'general', 'Fixture: ASCII', { key: 'char', columns: [col('char', 'Zeichen', 'text'), col('dec', 'Code', 'integer', 'dec', ['dec', 'hex', 'bin', 'oct'])],
 			rows: [['A', 65], ['B', 66], ['a', 97], ['0', 48]] }),
+		table('fx_symbols', 'general', 'Fixture: Symbole', { key: 'name', columns: [col('name', 'Name', 'text'), col('sym', 'Symbol', 'symbol')],
+			rows: [['Widerstand', 'resistor'], ['Transistor', 'npn'], ['Baustein', 'ic'], ['Unbekannt', null]] }),
 		table('fx_wide', 'general', 'Fixture: Strombelastbarkeitsumrechnungsfaktoren', { key: 'n', columns: [col('n', 'Zeile', 'number')].concat(wideColumns),
 			rows: Array.from({ length: 5 }, (_, r) => [r + 1].concat(wideColumns.map((c, i) => (r + 1) * (i + 1)))) }),
 		table('fx_misc', 'misc', 'Fixture: Sonstiges', { key: 'a', columns: [col('a', 'A', 'number'), col('b', 'B', 'length', 'mil')], rows: [[1, 2.54e-4], [2, 5.08e-5]] }),
@@ -202,7 +204,7 @@ func TestDesktopECalcTablesBrowser(t *testing.T) {
 	page.MustElement(`.ec-rail-btn[data-rail="tables"]`).MustClick()
 	f.Wait(`()=>!!document.querySelector('.ec-item[data-id="fx_awg"]')`)
 	list := page.MustEval(`()=>JSON.stringify([...document.querySelectorAll('.ec-items > li')].map(li=>li.classList.contains('ec-group')?'# '+li.textContent:li.querySelector('.ec-item').dataset.id))`).Str()
-	wantList := fmt.Sprintf(`["# %s","fx_ampacity","fx_ampacity_al","fx_awg","# %s","fx_long","fx_plain","fx_ascii","fx_wide","# misc","fx_misc"]`, words["desktop.ecalc_group_conductors"], words["desktop.ecalc_group_general"])
+	wantList := fmt.Sprintf(`["# %s","fx_ampacity","fx_ampacity_al","fx_awg","# %s","fx_long","fx_plain","fx_ascii","fx_symbols","fx_wide","# misc","fx_misc"]`, words["desktop.ecalc_group_conductors"], words["desktop.ecalc_group_general"])
 	if list != wantList {
 		t.Fatalf("the Tables list is %s, want %s", list, wantList)
 	}
@@ -497,6 +499,23 @@ func TestDesktopECalcTablesBrowser(t *testing.T) {
 	page.MustElement(`[data-action="copy"]`).MustClick()
 	f.Wait(`()=>window.copied!==null`)
 	same("the copied text names the number system", strings.Split(page.MustEval(`()=>window.copied`).Str(), "\n")[:2], []string{"Zeichen\tCode [oct]", "a\t0o141"})
+	// A symbol column draws its cell twice, in the IEC and in the ANSI style, each as an SVG with an accessible name and a viewBox
+	// that fits the symbol; sorting, filtering and copying use the id.
+	openTable("fx_symbols")
+	same("symbol cells hold the IEC and the ANSI drawing with names", page.MustEval(`()=>JSON.stringify([...document.querySelectorAll('tbody tr')].map(tr=>[...tr.querySelectorAll('td[data-symbol] svg')].map(s=>s.getAttribute('aria-label')+'|'+s.getAttribute('role')+'|'+(s.querySelectorAll('path,rect,circle').length>0))))`).Str(),
+		`[["resistor IEC|img|true","resistor ANSI|img|true"],["npn IEC|img|true","npn ANSI|img|true"],["ic IEC|img|true","ic ANSI|img|true"],[]]`)
+	same("the drawings differ in size and fit their symbol", page.MustEval(`()=>{const w=[...document.querySelectorAll('tbody tr')].slice(0,3).map(tr=>tr.querySelector('td[data-symbol] svg').getBoundingClientRect());return JSON.stringify([w[0].width>0&&w[0].height>0,w[1].height>w[0].height,w[2].width>w[0].width]);}`).Str(), `[true,true,true]`)
+	same("the empty symbol cell is a dash", page.MustEval(`()=>document.querySelector('tbody tr[data-row="3"] td[data-symbol]').textContent`).Str(), "—")
+	filter = page.MustElement(".ec-filter-input")
+	filter.MustInput("npn")
+	f.Wait(`()=>document.querySelectorAll('tbody tr[data-row]').length===1`)
+	same("the filter reads the symbol id", read().Order, []string{"1"})
+	filter.MustType(input.Escape)
+	f.Wait(`()=>document.querySelectorAll('tbody tr[data-row]').length===4`)
+	page.MustEval(`()=>{window.copied=null;}`)
+	page.MustElement(`[data-action="copy"]`).MustClick()
+	f.Wait(`()=>window.copied!==null`)
+	same("the copied text holds the symbol ids", strings.Split(page.MustEval(`()=>window.copied`).Str(), "\n")[:3], []string{"Name\tSymbol", "Widerstand\tresistor", "Transistor\tnpn"})
 	// A table wider than the window scrolls inside its own area: neither the page nor the (narrow) list moves sideways, and the
 	// long name of the table does not widen the list.
 	openTable("fx_wide")

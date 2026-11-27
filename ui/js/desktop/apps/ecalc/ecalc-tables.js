@@ -4,9 +4,10 @@
    against the shared vectors.
 
    A table item is {id, key, columns[{id, dim, unit, ...}], rows[[cell]]}: a cell of a numeric column is a number in SI
-   units or null (empty), a cell of a text column (dim "text") is a string or null. The shell calls register(items) once
+   units or null (empty), a cell of a text column (dim "text") is a string or null, and so is that of a symbol column (dim "symbol", the id of a
+   schematic symbol). The shell calls register(items) once
    the catalog has loaded (every item that is not a table is skipped; a table registered again replaces the old one).
-   Table and column arguments name a table id and a column id; an unknown table, an unknown column and a text column
+   Table and column arguments name a table id and a column id; an unknown table, an unknown column and a text or symbol column
    throw an error with code 'eval', which the solver turns into NaN for the quantity. */
 (function () {
     'use strict';
@@ -50,11 +51,14 @@
         return found;
     }
 
+    // A column holds numbers unless it is text or a schematic symbol.
+    const isNumeric = column => column.dim !== 'text' && column.dim !== 'symbol';
+
     // The index of a numeric column of a table.
     function numericColumn(t, id) {
         if (!t.index.has(id)) throw fail('table ' + t.id + ' has no column ' + id);
         const i = t.index.get(id);
-        if (t.columns[i].dim === 'text') throw fail('column ' + id + ' of table ' + t.id + ' is text');
+        if (!isNumeric(t.columns[i])) throw fail('column ' + id + ' of table ' + t.id + ' is ' + t.columns[i].dim);
         return i;
     }
 
@@ -78,7 +82,7 @@
     // lookup(T, C, key): the value of column C in the row whose key column equals key; NaN when no row matches or the cell is empty.
     function lookup(id, columnId, key) {
         const t = table(id), c = numericColumn(t, columnId);
-        if (t.columns[t.keyIndex].dim === 'text') throw fail('table ' + t.id + ' has a text key column, lookup needs a numeric key');
+        if (!isNumeric(t.columns[t.keyIndex])) throw fail('table ' + t.id + ' has a ' + t.columns[t.keyIndex].dim + ' key column, lookup needs a numeric key');
         const row = rowOf(t, t.keyIndex, key);
         return row < 0 ? NaN : cellValue(t, row, c);
     }
