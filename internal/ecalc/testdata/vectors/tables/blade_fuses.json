@@ -1,0 +1,24 @@
+{
+  "_doc": "Vectors of blade_fuses. Rated currents are in A; text cells are the English text. The colours come from the maker catalogues named in each ref (ISO 8820-3 itself was not read).",
+  "table": "blade_fuses",
+  "cells": [
+    {"key": "std_10", "column": "rating", "want": 10, "ref": "10 A is red in the standard code: all five makers' documents (Littelfuse 2005 catalogue and aftermarket page, Bussmann 2018, OptiFuse, HELLA, MTA)"},
+    {"key": "std_10", "column": "colour", "want": "red", "ref": "Littelfuse ATO 257 colour code = Bussmann ATC-10/ATM-10 = OptiFuse APR = HELLA = MTA uniVAL; Littelfuse 2025 datasheet swatch red"},
+    {"key": "std_7_5", "column": "colour", "want": "brown", "ref": "7.5 A brown in the standard code: all five makers; Littelfuse MINI/ATOF 2024/2025 swatch brown"},
+    {"key": "std_30", "column": "colour", "want": "green", "ref": "30 A green in the standard code: all five makers"},
+    {"key": "std_35", "column": "colour", "want": "blue-green", "ref": "Littelfuse 2005, Bussmann ATC-35 and OptiFuse APR/APM name it blue-green; HELLA says dark green; Littelfuse ATOF 2025 swatch is a darker blue-green"},
+    {"key": "std_35", "column": "formats", "want": "mini, regular", "ref": "35 A as Mini: OptiFuse APM-35A and HELLA; regular: Littelfuse ATOF, Bussmann, OptiFuse, HELLA (not at MTA)"},
+    {"key": "std_5", "column": "formats", "want": "micro2, micro3, LP mini, mini, regular", "ref": "Micro2: Littelfuse 327 + Bussmann ATR-5 + OptiFuse APT; Micro3: Littelfuse 337 + OptiFuse ANK; LP mini: Bussmann ATM-LP, OptiFuse APS, HELLA"},
+    {"key": "std_40", "column": "colour", "want": "orange", "ref": "40 A orange in the standard code: Littelfuse, Bussmann ATC-40, OptiFuse APR, HELLA, MTA"},
+    {"key": "std_40", "column": "formats", "want": "regular", "ref": "40 A only as regular blade fuse: Littelfuse ATOF 0287040, Bussmann, OptiFuse APR, HELLA"},
+    {"key": "maxi_35", "column": "colour", "want": "brown", "ref": "35 A MAXI brown: Littelfuse 2005 catalogue (299) and Bussmann MAX-35 agree; Littelfuse 299 2025 swatch brown"},
+    {"key": "maxi_35", "column": "rating", "want": 35, "ref": "35 A MAXI: Littelfuse 299 series ratings 20 to 80 A including 35 A, Bussmann MAX-35"},
+    {"key": "maxi_30", "column": "colour", "want": "green", "ref": "30 A MAXI green: all five makers"},
+    {"key": "maxi_50", "column": "colour", "want": "red", "ref": "50 A MAXI red: all five makers"},
+    {"key": "maxi_70", "column": "colour", "want": "tan (beige)", "ref": "70 A MAXI tan: Littelfuse 299, Bussmann MAX-70, OptiFuse APX; beige at MTA maxiVAL; HELLA gives brown (the only dissent)"},
+    {"key": "maxi_100", "column": "rating", "want": 100, "ref": "100 A MAXI violet: MTA maxiVAL and OptiFuse APX; Bussmann MAX-100ID only as indicating type; not at Littelfuse (299 ends at 80 A) or HELLA"},
+    {"key": "maxi_100", "column": "colour", "want": "violet", "ref": "MTA maxiVAL and OptiFuse APX violet; Bussmann MAX-100ID purple"},
+    {"key": "std_1", "column": "remark", "want": "Bussmann also lists a 1 A Mini (ATM-1); only one maker, so not listed as Mini", "ref": "Bussmann catalogue 1007 (2018) ATM-1; no second maker lists a 1 A Mini"}
+  ],
+  "lookups": []
+}
