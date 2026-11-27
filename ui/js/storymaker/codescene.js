@@ -1,7 +1,7 @@
 // Storymaker player: the code-scene API. A code scene is `export default function scene(api)` bundled into a classic
 // script; it runs once, in its own worker, to build a timeline of tracks (like a GSAP master timeline), and every frame
-// evaluates that timeline. API: duration, safe, add, text, shape, tween, camera, random(seed), cue(n), onFrame(fn); chart and
-// diagram exist and report not_supported_yet in phase 1. Handle methods take {start, dur, ease}; `start` is seconds
+// evaluates that timeline. API: duration, safe, add, text, shape, icon, diagram, chart, headline, list (blocks, SM.blocks), tween, camera, random(seed), cue(n), onFrame(fn).
+// Handle methods take {start, dur, ease}; `start` is seconds
 // (or api.cue(n)) from the scene start (the start of the entry transition, like cues and beats). Positions are spot
 // names or {x, y} in percent of the safe area. Errors are thrown with a message that names the fix.
 // Classic script; publishes StorymakerCore.codescene.
@@ -233,7 +233,7 @@
             return common(addEntity(S.createShape({ id: nextId('shape'), kind: kind, x: pos.x, y: pos.y, w: o.w, h: o.h, color: o.fill || o.color, stroke: o.stroke })));
         };
         api.icon = function (id, o) { o = o || {}; return addBlock({ kind: 'icon', icon: id, style: o.style, label: o.label }, o, 'center', 'draw'); };
-        api.chart = function () { note('not_supported_yet', 'api.chart is not supported yet; the chart is not drawn.'); return common(S.createShape({ id: nextId('chart'), kind: 'rect', x: 0, y: 0, hidden: true })); };
+        api.chart = function (spec, o) { return addBlock({ kind: 'chart', chart: spec }, o, 'full', 'fade'); };
         // api.diagram({layout, nodes, flow}, {at, entry, start, dur, reveals}): the layout defaults to flow.
         api.diagram = function (spec, o) {
             var d = spec && typeof spec === 'object' && !Array.isArray(spec) ? Object.assign({}, spec) : spec;
@@ -248,7 +248,6 @@
             Object.keys(props).forEach(function (key) {
                 var field = Object.prototype.hasOwnProperty.call(TWEEN_PROPS, key) ? TWEEN_PROPS[key] : undefined;
                 if (!field) {
-                    if (key === 'grow') { note('not_supported_yet', 'The tween property "grow" belongs to charts, which are not supported yet.'); return; }
                     throw new RangeError('Unknown tween property "' + key + '". Use ' + Object.keys(TWEEN_PROPS).join(', ') + '.');
                 }
                 var to = finite(props[key], key), track = e[field];

@@ -77,3 +77,11 @@ check('api.diagram: highlight and the layout limits name the fix', () => {
     assert.match(fail("export default function scene(api) { api.diagram({ layout: 'flow', nodes: [{ id: 'a', label: 'A', icon: 'icon.nope' }, { id: 'b', label: 'B' }] }); }"), /icon\.nope.*storymaker_catalog/);
     assert.equal(fail(`export default function scene(api) { api.diagram({ nodes: ${nodes(3)} }); }`), '', 'the layout defaults to flow');
 });
+
+check('api.chart: a counter chart is a block; bad values name the fix', () => {
+    const e = build("export default function scene(api) { api.chart({ type: 'counter', labels: ['Users'], values: [42], unit: '%', title: 'Growth' }); }").entities[0];
+    assert.equal(e.block.kind, 'chart'); assert.equal(e.block.chart.values[0], 42); assert.equal(e.entry, 'fade'); near(e.dur, 1.2, 1e-9);
+    assert.match(fail("export default function scene(api) { api.chart({ type: 'bar', labels: ['a'], values: [1, 2] }); }"), /same length/);
+    assert.match(fail("export default function scene(api) { api.chart({ type: 'donut', labels: [], values: [] }); }"), /"donut".*bar, line, pie, counter/);
+    assert.match(fail("export default function scene(api) { api.chart('bar', { labels: ['a'], values: [1] }); }"), /chart \{type, labels, values\}/);
+});
