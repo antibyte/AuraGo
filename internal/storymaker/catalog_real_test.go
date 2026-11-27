@@ -88,3 +88,19 @@ func TestRealCatalogValidatesTheFixtureStories(t *testing.T) {
 		}
 	}
 }
+
+// The guide tells the model to point at "board". Every environment of the real catalog must accept that target in every format.
+func TestRealCatalogEveryEnvironmentAcceptsTheBoardTarget(t *testing.T) {
+	cat := loadReal(t)
+	for _, env := range cat.Names("environment") {
+		for _, aspect := range []string{"16:9", "9:16", "1:1"} {
+			s := mustDecode(t, `{"schema":"storymaker/1","title":"T","format":{"aspect":"`+aspect+`","fps":30},`+
+				`"style":{"palette":"sunny","font":"default","captions":true},`+
+				`"cast":[{"id":"anna","name":"Anna","character":"char.office-woman-1"}],`+
+				`"scenes":[{"id":"s1","environment":"`+env+`","actors":[{"cast":"anna","at":"left"}],"beats":[{"do":"gesture","who":"anna","gesture":"point","target":"board"}]}]}`)
+			if is := findIssue(Validate(&s, cat, DefaultLimits()), CodeUnknownName, SeverityError, "/scenes/0/beats/0/target"); is != nil {
+				t.Errorf("%s %s: target board is refused: %s", env, aspect, is.Message)
+			}
+		}
+	}
+}

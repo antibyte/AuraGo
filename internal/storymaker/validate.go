@@ -1134,10 +1134,13 @@ func (v *validator) show(bb string, b *Beat, refs *sceneRefs, explicit map[strin
 	}
 }
 
+// BoardTarget names the board area of the environment as a beat target. The player aims at the centre of that area.
+const BoardTarget = "board"
+
 // checkTarget validates a beat target: a cast id, an instance id, an item id of the scene, a
-// spot or "camera".
+// spot, "camera" or "board" (every environment has a board area, also without a board spot).
 func (v *validator) checkTarget(path, target string, refs *sceneRefs) {
-	if target == "camera" {
+	if target == "camera" || target == BoardTarget {
 		return
 	}
 	if _, ok := v.cast[target]; ok {

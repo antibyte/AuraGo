@@ -4329,6 +4329,10 @@
                 var reach = e.type === 'actor' ? ACTOR_REACH * depth * (e.baseScale || 1) : (e.type === 'prop' ? 70 * depth : 0);
                 return { x: e.x.at(t), y: e.y.at(t) - reach };
             }
+            if (ref === 'board') {   // every environment has a board: aim at the centre of the area that a block on the board fills
+                var a = SM.blocks.area(stage, c.env, c.variant, 'board');
+                if (a) return { x: a.x + a.w / 2, y: a.y + a.h / 2 };
+            }
             var s = typeof ref === 'string' ? stage.spot(ref) : null;
             return s ? { x: s.x, y: s.y - 150 } : null;
         }

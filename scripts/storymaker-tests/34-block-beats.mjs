@@ -1,6 +1,6 @@
 // Batch D5: storyboard beats that show icons, diagrams, charts, headlines and lists, and the highlight of a diagram node.
 import assert from 'node:assert/strict';
-import { plain } from '../storymaker-test-support.mjs';
+import { plain, realCatalog } from '../storymaker-test-support.mjs';
 import { t } from '../storymaker-test-context.mjs';
 
 const { check, near, catalog } = t;
@@ -82,4 +82,17 @@ check('block beats: a dropped block still uses up its number, as in Go, and the 
     const data = { labels: ['a'], values: [1] };
     const charts = compileScene([{ do: 'chart', chart: 'bar', data, at: 'right' }, { do: 'show', chart: 'bar', data, at: 'full', entry: 'fade' }]);
     assert.deepEqual(plain(blocksOf(charts).map(b => b.id)), ['chart-1', 'chart-2']);
+});
+
+check('block beats: a beat that aims at "board" aims at the centre of the board area in every real environment', () => {
+    const real = realCatalog();
+    for (const env of real.entries.filter(e => e.kind === 'environment')) {
+        for (const aspect of ['16:9', '9:16']) {
+            const out = SM.compile({ schema: 'storymaker/1', format: { aspect }, cast: [], scenes: [{ id: 'a', environment: env.id, narration: 'Eins zwei drei.', beats: [{ do: 'show', text: 'Hallo Welt', style: 'headline', at: 'board', entry: 'none' }, { do: 'camera', op: 'pan', target: 'board' }] }] }, {}, real);
+            const sc = out.timeline.scenes[0], block = blocksOf(out)[0], last = track => track.segs[track.segs.length - 1];
+            assert.ok(block && sc.camera.cx.segs.length, env.id + ' ' + aspect + ': the block and the pan exist');
+            near(last(sc.camera.cx).to, block.x.init, 1e-6, env.id + ' ' + aspect + ' cx');
+            near(last(sc.camera.cy).to, block.y.init, 1e-6, env.id + ' ' + aspect + ' cy');
+        }
+    }
 });
