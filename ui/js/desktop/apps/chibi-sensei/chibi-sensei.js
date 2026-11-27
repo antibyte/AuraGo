@@ -1,6 +1,6 @@
 // Chibi Sensei window: the composition root. It owns the per-window instance (the state the other modules read and the bus they
 // listen to), the start (meta call, state cards), the project list mount, the project layout (top bar, banners, step rail, main
-// area, Sensei panel), step routing, the project event stream with its fan-out, the 2.5 s poll of active jobs and of the active run, the run list, the read-only
+// area, Sensei panel), step routing (Test through P.test, Use through the later state of P.training), the project event stream with its fan-out, the 2.5 s poll of active jobs and of the active run, the run list, the read-only
 // policy and the close guard. The step rail and the Sensei panel come from P.steps (derive, createRail, createPanel). Loaded last; publishes window.ChibiSenseiApp = {render, dispose, open}. Classic script.
 (function () {
     'use strict';
@@ -346,6 +346,7 @@
         if (id === 'goal') { if (P.need(inst, 'projects')) view = P.projects.createGoal(inst); }
         else if (id === 'data') { if (P.need(inst, 'data')) view = P.data.create(inst); }
         else if (id === 'training') { if (P.need(inst, 'training')) view = P.training.create(inst); }
+        else if (id === 'test') { if (P.need(inst, 'test')) view = P.test.create(inst); }
         else if (P.need(inst, 'training')) view = P.training.createLater(inst, id);
         if (view) {
             inst.parts.view = view;

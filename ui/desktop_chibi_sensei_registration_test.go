@@ -10,7 +10,7 @@ import (
 
 // chibiSenseiModules is the load order of the app: the shared core first, the composition root last. A module that does not exist
 // yet (later batches add them) is skipped, so the test holds in every batch.
-var chibiSenseiModules = []string{"core", "api", "mascot", "projects", "steps", "table", "data", "generate", "training", "chart", "run"}
+var chibiSenseiModules = []string{"core", "api", "mascot", "projects", "steps", "table", "data", "generate", "training", "chart", "run", "chat", "test"}
 
 func TestDesktopChibiSenseiRegistration(t *testing.T) {
 	t.Parallel()

@@ -40,7 +40,7 @@
         },
         'chibi-sensei': {
             styles: appStyles('/css/desktop-app-chibi-sensei.css'),
-            scripts: ['/js/desktop/apps/chibi-sensei/chibi-sensei-core.js', '/js/desktop/apps/chibi-sensei/chibi-sensei-api.js', '/js/desktop/apps/chibi-sensei/chibi-sensei-mascot.js', '/js/desktop/apps/chibi-sensei/chibi-sensei-projects.js', '/js/desktop/apps/chibi-sensei/chibi-sensei-steps.js', '/js/desktop/apps/chibi-sensei/chibi-sensei-table.js', '/js/desktop/apps/chibi-sensei/chibi-sensei-data.js', '/js/desktop/apps/chibi-sensei/chibi-sensei-generate.js', '/js/desktop/apps/chibi-sensei/chibi-sensei-training.js', '/js/desktop/apps/chibi-sensei/chibi-sensei-chart.js', '/js/desktop/apps/chibi-sensei/chibi-sensei-run.js', '/js/desktop/apps/chibi-sensei/chibi-sensei.js']
+            scripts: ['/js/desktop/apps/chibi-sensei/chibi-sensei-core.js', '/js/desktop/apps/chibi-sensei/chibi-sensei-api.js', '/js/desktop/apps/chibi-sensei/chibi-sensei-mascot.js', '/js/desktop/apps/chibi-sensei/chibi-sensei-projects.js', '/js/desktop/apps/chibi-sensei/chibi-sensei-steps.js', '/js/desktop/apps/chibi-sensei/chibi-sensei-table.js', '/js/desktop/apps/chibi-sensei/chibi-sensei-data.js', '/js/desktop/apps/chibi-sensei/chibi-sensei-generate.js', '/js/desktop/apps/chibi-sensei/chibi-sensei-training.js', '/js/desktop/apps/chibi-sensei/chibi-sensei-chart.js', '/js/desktop/apps/chibi-sensei/chibi-sensei-run.js', '/js/desktop/apps/chibi-sensei/chibi-sensei-chat.js', '/js/desktop/apps/chibi-sensei/chibi-sensei-test.js', '/js/desktop/apps/chibi-sensei/chibi-sensei.js']
         },
         'minigolf': {
             styles: appStyles('/css/desktop-app-minigolf.css'),

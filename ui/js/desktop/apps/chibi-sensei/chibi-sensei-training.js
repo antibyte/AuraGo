@@ -2,7 +2,7 @@
 // switches the missing Kaggle settings on by flag name, the text that tells others what to ask for), the preset cards, the
 // advanced overrides, the license acceptance and the start: prepare, a confirmation built from the server's answer, then the
 // start with the plan token (plan_expired prepares again in the same dialog). The run monitor is P.run (chibi-sensei-run.js),
-// mounted when present. Also the "comes later" state of the Test and Use steps. Pure helpers are exported for the Node test.
+// mounted when present. Also the "comes later" state of the Use step. Pure helpers are exported for the Node test.
 // Classic script, publishes P.training.
 (function () {
     'use strict';
@@ -14,7 +14,7 @@
         balanced: { name: 'chibi_sensei.training.preset_balanced', desc: 'chibi_sensei.training.preset_balanced_desc' },
         thorough: { name: 'chibi_sensei.training.preset_thorough', desc: 'chibi_sensei.training.preset_thorough_desc' }
     };
-    const LATER_KEYS = { test: 'chibi_sensei.later.test_text', use: 'chibi_sensei.later.use_text' };
+    const LATER_KEYS = { use: 'chibi_sensei.later.use_text' };
     const REFRESH_MS = 1000;
     const PREFLIGHT_REFRESH_MS = 5000;
     const GROUPS = ['data', 'kaggle', 'account', 'quota', 'storage', 'license'];
@@ -887,13 +887,13 @@
         };
     }
 
-    // Test and Use: a short state card; the mascot rests.
+    // Use only (Test has its own module, P.test): a short state card; the mascot rests.
     function createLater(inst, step) {
         const { el } = P;
         const t = inst.t;
         const art = P.mascot ? P.mascot.create({ size: 88, mood: 'idle' }).el : null;
         const node = el('section', { class: 'csn-later', role: 'status', dataset: { csn: 'later', step: step } },
-            art, el('h2', { text: t('chibi_sensei.later.title') }), el('p', { text: t(LATER_KEYS[step] || LATER_KEYS.test) }));
+            art, el('h2', { text: t('chibi_sensei.later.title') }), el('p', { text: t(LATER_KEYS[step] || LATER_KEYS.use) }));
         return { el: node, dispose() {} };
     }
 

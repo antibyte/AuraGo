@@ -46,8 +46,8 @@ func TestChibiSenseiSourcesAreSafeAndSmall(t *testing.T) {
 		"EventSource": regexp.MustCompile(`new\s+(window\.)?EventSource`),
 	}
 	sources := chibiSenseiAppSources(t)
-	if len(sources) != 12 {
-		t.Fatalf("found %d chibi-sensei scripts, want exactly 12", len(sources))
+	if len(sources) != 14 {
+		t.Fatalf("found %d chibi-sensei scripts, want exactly 14", len(sources))
 	}
 	const apiPath = "js/desktop/apps/chibi-sensei/chibi-sensei-api.js"
 	for path, source := range sources {

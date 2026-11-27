@@ -208,6 +208,56 @@
     const isNum = v => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
     const orMissing = (t, v, fn) => (isNum(v) ? fn(Number(v)) : t('chibi_sensei.run.value_missing'));
 
+    const el = P.el;
+
+    // fillReport(t, box, run, report) paints the result of a succeeded run into box: steps, losses, exact match, label accuracy with
+    // its table, perplexity, the small-sample note, the GPU and the run warning. Shared by the run monitor and the Test step.
+    function fillReport(t, box, run, report) {
+        const line = (text, name) => box.appendChild(el('p', { text, dataset: name ? { csn: name } : null }));
+        const res = run.result || {}, rep = report || {};
+        const dec = v => P.format.decimal(v, 3);
+        const miss = v => orMissing(t, v, dec);
+        const share = v => orMissing(t, v, P.format.share);
+        box.appendChild(el('h4', { text: t('chibi_sensei.run.result_title') }));
+        if (isNum(res.steps)) line(t('chibi_sensei.run.result_steps', { steps: P.format.number(res.steps), epochs: P.format.decimal(res.epochs, 1) }));
+        if (isNum(res.train_loss)) line(t('chibi_sensei.run.train_loss', { value: dec(res.train_loss) }));
+        const loss = rep.loss || { base: res.eval_loss_base, tuned: res.eval_loss_tuned };
+        if (isNum(loss.base) || isNum(loss.tuned)) {
+            line(t('chibi_sensei.run.eval_loss', { base: miss(loss.base), tuned: miss(loss.tuned) }));
+            line(t('chibi_sensei.run.loss_help'));
+        }
+        if (rep.exact_match) line(t('chibi_sensei.run.exact', { base: share(rep.exact_match.base), tuned: share(rep.exact_match.tuned), n: P.format.number(rep.exact_match.n) }));
+        if (rep.label_accuracy) {
+            const acc = rep.label_accuracy;
+            line(t('chibi_sensei.run.labels', { base: share(acc.base), tuned: share(acc.tuned), n: P.format.number(acc.n) }));
+            const grid = confusionBox(t, acc);
+            if (grid) box.appendChild(grid);
+        }
+        if (rep.perplexity && (isNum(rep.perplexity.base) || isNum(rep.perplexity.tuned))) line(t('chibi_sensei.run.perplexity', { base: miss(rep.perplexity.base), tuned: miss(rep.perplexity.tuned) }));
+        if (rep.small_sample) line(t('chibi_sensei.run.small_sample', { n: P.format.number(rep.samples) }));
+        if (res.gpu) line(t('chibi_sensei.run.gpu_used', { name: String(res.gpu).slice(0, 80) }));
+        if (run.warning_code) {
+            const key = WARNING_KEYS[run.warning_code] || WARNING_KEYS.unknown;
+            box.appendChild(el('div', { class: 'csn-note', dataset: { csn: 'run-warning', tone: 'warn' } }, el('strong', { text: t('chibi_sensei.run.warning_title') }), el('p', { text: t(key) })));
+        }
+    }
+
+    // The label table: one block per model, rows are the expected labels, the last column counts answers that match no label.
+    function confusionBox(t, acc) {
+        const parts = [['base', 'chibi_sensei.run.confusion_base'], ['tuned', 'chibi_sensei.run.confusion_tuned']].map(pair => ({ data: confusion(acc, pair[0]), title: t(pair[1]) })).filter(p => p.data);
+        if (!parts.length) return null;
+        const box = el('details', { class: 'csn-advanced', dataset: { csn: 'run-confusion' } }, el('summary', { text: t('chibi_sensei.run.confusion_title') }), el('p', { class: 'csn-muted', text: t('chibi_sensei.run.confusion_help') }));
+        parts.forEach(part => {
+            const head = el('tr', null, el('th', { scope: 'col', text: t('chibi_sensei.run.confusion_expected') }));
+            part.data.labels.forEach(l => head.appendChild(el('th', { scope: 'col', text: l })));
+            head.appendChild(el('th', { scope: 'col', dataset: { csn: 'confusion-none' }, text: t('chibi_sensei.run.confusion_none') }));
+            const body = el('tbody');
+            part.data.rows.forEach(row => body.appendChild(el('tr', null, el('th', { scope: 'row', text: row.label }), row.cells.map(c => el('td', { text: P.format.number(c) })))));
+            box.appendChild(el('div', { class: 'csn-confusion-wrap' }, el('table', { class: 'csn-confusion', dataset: { csn: 'confusion' } }, el('caption', { text: part.title }), el('thead', null, head), body)));
+        });
+        return box;
+    }
+
     function createArea(inst) {
         const { el } = P;
         const t = inst.t;
@@ -534,7 +584,7 @@
             const sig = JSON.stringify([run.state, run.error_code, run.error, run.warning_code, run.result, detail.report]);
             rebuild('result', result, sig, box => {
                 const line = (text, name) => box.appendChild(el('p', { text, dataset: name ? { csn: name } : null }));
-                if (run.state === 'succeeded') fillSuccess(box, line);
+                if (run.state === 'succeeded') fillReport(t, box, run, detail.report);
                 else if (run.state === 'failed') {
                     const f = failText(t, run.error_code);
                     box.appendChild(el('h4', { text: t('chibi_sensei.run.failed_title') }));
@@ -544,51 +594,6 @@
                     if (run.error) box.appendChild(el('code', { class: 'csn-detail', text: String(run.error).slice(0, 300) }));
                 } else line(t('chibi_sensei.run.cancelled_text'));
             });
-        }
-
-        function fillSuccess(box, line) {
-            const run = detail.run, res = run.result || {}, rep = detail.report || {};
-            const dec = v => P.format.decimal(v, 3);
-            const miss = v => orMissing(t, v, dec);
-            const share = v => orMissing(t, v, P.format.share);
-            box.appendChild(el('h4', { text: t('chibi_sensei.run.result_title') }));
-            if (isNum(res.steps)) line(t('chibi_sensei.run.result_steps', { steps: P.format.number(res.steps), epochs: P.format.decimal(res.epochs, 1) }));
-            if (isNum(res.train_loss)) line(t('chibi_sensei.run.train_loss', { value: dec(res.train_loss) }));
-            const loss = rep.loss || { base: res.eval_loss_base, tuned: res.eval_loss_tuned };
-            if (isNum(loss.base) || isNum(loss.tuned)) {
-                line(t('chibi_sensei.run.eval_loss', { base: miss(loss.base), tuned: miss(loss.tuned) }));
-                line(t('chibi_sensei.run.loss_help'));
-            }
-            if (rep.exact_match) line(t('chibi_sensei.run.exact', { base: share(rep.exact_match.base), tuned: share(rep.exact_match.tuned), n: P.format.number(rep.exact_match.n) }));
-            if (rep.label_accuracy) {
-                const acc = rep.label_accuracy;
-                line(t('chibi_sensei.run.labels', { base: share(acc.base), tuned: share(acc.tuned), n: P.format.number(acc.n) }));
-                const grid = confusionBox(acc);
-                if (grid) box.appendChild(grid);
-            }
-            if (rep.perplexity && (isNum(rep.perplexity.base) || isNum(rep.perplexity.tuned))) line(t('chibi_sensei.run.perplexity', { base: miss(rep.perplexity.base), tuned: miss(rep.perplexity.tuned) }));
-            if (rep.small_sample) line(t('chibi_sensei.run.small_sample', { n: P.format.number(rep.samples) }));
-            if (res.gpu) line(t('chibi_sensei.run.gpu_used', { name: String(res.gpu).slice(0, 80) }));
-            if (run.warning_code) {
-                const key = WARNING_KEYS[run.warning_code] || WARNING_KEYS.unknown;
-                box.appendChild(el('div', { class: 'csn-note', dataset: { csn: 'run-warning', tone: 'warn' } }, el('strong', { text: t('chibi_sensei.run.warning_title') }), el('p', { text: t(key) })));
-            }
-        }
-
-        // The label table: one block per model, rows are the expected labels, the last column counts answers that match no label.
-        function confusionBox(acc) {
-            const parts = [['base', 'chibi_sensei.run.confusion_base'], ['tuned', 'chibi_sensei.run.confusion_tuned']].map(pair => ({ data: confusion(acc, pair[0]), title: t(pair[1]) })).filter(p => p.data);
-            if (!parts.length) return null;
-            const box = el('details', { class: 'csn-advanced', dataset: { csn: 'run-confusion' } }, el('summary', { text: t('chibi_sensei.run.confusion_title') }), el('p', { class: 'csn-muted', text: t('chibi_sensei.run.confusion_help') }));
-            parts.forEach(part => {
-                const head = el('tr', null, el('th', { scope: 'col', text: t('chibi_sensei.run.confusion_expected') }));
-                part.data.labels.forEach(l => head.appendChild(el('th', { scope: 'col', text: l })));
-                head.appendChild(el('th', { scope: 'col', dataset: { csn: 'confusion-none' }, text: t('chibi_sensei.run.confusion_none') }));
-                const body = el('tbody');
-                part.data.rows.forEach(row => body.appendChild(el('tr', null, el('th', { scope: 'row', text: row.label }), row.cells.map(c => el('td', { text: P.format.number(c) })))));
-                box.appendChild(el('div', { class: 'csn-confusion-wrap' }, el('table', { class: 'csn-confusion', dataset: { csn: 'confusion' } }, el('caption', { text: part.title }), el('thead', null, head), body)));
-            });
-            return box;
         }
 
         function paintChart() {
@@ -703,5 +708,5 @@
         };
     }
 
-    P.run = { createArea, timeline, reachedPhase, mergeMetrics, elapsedSeconds, liveNote, metricsReloadDue, eventText, failText, confusion, PHASES, STAGES };
+    P.run = { createArea, fillReport, timeline, reachedPhase, mergeMetrics, elapsedSeconds, liveNote, metricsReloadDue, eventText, failText, confusion, PHASES, STAGES };
 })();

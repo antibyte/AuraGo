@@ -6,7 +6,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 
 const root = path.resolve(import.meta.dirname, '..');
-const files = ['chibi-sensei-core.js', 'chibi-sensei-api.js', 'chibi-sensei-mascot.js', 'chibi-sensei-steps.js', 'chibi-sensei-table.js', 'chibi-sensei-projects.js', 'chibi-sensei-training.js', 'chibi-sensei-chart.js', 'chibi-sensei-run.js'];
+const files = ['chibi-sensei-core.js', 'chibi-sensei-api.js', 'chibi-sensei-mascot.js', 'chibi-sensei-steps.js', 'chibi-sensei-table.js', 'chibi-sensei-projects.js', 'chibi-sensei-training.js', 'chibi-sensei-chart.js', 'chibi-sensei-run.js', 'chibi-sensei-chat.js', 'chibi-sensei-test.js'];
 const read = file => fs.readFileSync(path.join(root, 'ui/js/desktop/apps/chibi-sensei', file), 'utf8');
 const plain = value => JSON.parse(JSON.stringify(value));
 let checks = 0;
@@ -342,5 +342,120 @@ chat = await runChat(async () => streamResponse([sseBody('event: delta\ndata: {"
 ok(chat.result.error && chat.result.error.code === 'connection_lost' && chat.events.length === 1, 'chat: (d) a stream that ends without end');
 chat = await runChat(async () => streamResponse([sseBody('event: delta\ndata: {"target":"provider","text":"x"}\n\nevent: end\ndata: {}\n\n')], 'text/event-stream'));
 eq(chat.events, [], 'chat: (e) an unknown target is not forwarded');
+
+// ---- chat reducer, conversation, limits (P3) ------------------------------------------------------------------------------
+const K = P.chat;
+const LIM = { max_turns: 20, max_chars: 16000 };
+const act = (state, ...actions) => actions.reduce((acc, a) => K.reduce(acc, a), state);
+const ev = (type, target, rest) => ({ type: 'event', ev: Object.assign({ type, target }, rest || {}) });
+let cs = act(K.initialState(), { type: 'send', text: ' hi ' });
+ok(cs.streaming && cs.turns.length === 1 && cs.turns[0].user === 'hi' && cs.turns[0].answers.base === null && cs.turns[0].answers.tuned.state === 'waiting', 'chat: send without compare has no base answer');
+const withBase = act(K.initialState(), { type: 'compare', on: true }, { type: 'send', text: 'hi' });
+ok(withBase.turns[0].answers.base.state === 'waiting' && withBase.turns[0].answers.tuned.state === 'waiting', 'chat: send with compare starts both answers');
+ok(K.reduce(cs, { type: 'send', text: 'again' }) === cs, 'chat: send while streaming changes nothing');
+ok(K.reduce(K.initialState(), { type: 'send', text: '  ' }).turns.length === 0, 'chat: an empty send is ignored');
+cs = act(cs, ev('status', 'tuned', { state: 'loading' }));
+eq(cs.turns[0].answers.tuned.state, 'loading', 'chat: status loading');
+cs = act(cs, ev('status', 'tuned', { state: 'generating' }), ev('delta', 'tuned', { text: 'Ha' }), ev('delta', 'tuned', { text: 'llo' }));
+ok(cs.turns[0].answers.tuned.state === 'streaming' && cs.turns[0].answers.tuned.text === 'Hallo' && cs.turns[0].started, 'chat: two deltas concatenate');
+cs = act(cs, ev('delta', 'tuned', { text: 42 }));
+eq(cs.turns[0].answers.tuned.text, 'Hallo', 'chat: a delta without a string is dropped');
+ok(K.reduce(cs, ev('delta', 'base', { text: 'x' })) === cs, 'chat: an event for a target without an answer changes nothing');
+cs = act(cs, ev('done', 'tuned', { finish_reason: 'stop', prompt_tokens: 3, completion_tokens: 5, ms: 40, tok_s: 12.5, backend: 'cpu', extra: 1 }));
+eq(cs.turns[0].answers.tuned.stats, { finish_reason: 'stop', prompt_tokens: 3, completion_tokens: 5, ms: 40, tok_s: 12.5, backend: 'cpu' }, 'chat: done stores the stats');
+ok(K.reduce(cs, ev('delta', 'tuned', { text: 'late' })) === cs, 'chat: a final answer takes no more events');
+const cancelled = act(act(K.initialState(), { type: 'send', text: 'x' }), ev('error', 'tuned', { code: 'cancelled' }));
+ok(cancelled.turns[0].answers.tuned.state === 'stopped', 'chat: the error cancelled is a stop, not a failure');
+const strange = act(act(K.initialState(), { type: 'send', text: 'x' }), ev('error', 'tuned', { code: 'weird_code' }));
+ok(strange.turns[0].answers.tuned.state === 'error' && strange.turns[0].answers.tuned.code === 'unknown', 'chat: a strange error code becomes unknown');
+const known = act(act(K.initialState(), { type: 'send', text: 'x' }), ev('error', 'tuned', { code: 'context_exceeded' }));
+eq(known.turns[0].answers.tuned.code, 'context_exceeded', 'chat: a known error code is kept');
+const inherited = act(act(K.initialState(), { type: 'send', text: 'x' }), ev('error', 'tuned', { code: 'constructor' }));
+eq(inherited.turns[0].answers.tuned.code, 'unknown', 'chat: an inherited name is not an error code');
+const lost = act(act(K.initialState(), { type: 'send', text: 'x' }), ev('delta', 'tuned', { text: 'ab' }), { type: 'close', ended: false, aborted: false, error: { code: 'network' } });
+ok(!lost.streaming && lost.turns[0].answers.tuned.state === 'error' && lost.turns[0].answers.tuned.code === 'connection_lost' && lost.turns[0].answers.tuned.text === 'ab', 'chat: close without end turns in-flight answers into connection_lost');
+const aborted = act(act(K.initialState(), { type: 'send', text: 'x' }), ev('delta', 'tuned', { text: 'ab' }), { type: 'close', ended: false, aborted: true, error: null });
+ok(aborted.turns[0].answers.tuned.state === 'stopped' && !aborted.streaming, 'chat: close aborted gives stopped');
+const early = act(K.initialState(), { type: 'send', text: 'first' }, { type: 'close', ended: false, aborted: false, error: { code: 'runtime_busy', status: 409 } });
+ok(early.turns.length === 0 && early.draft === 'first' && early.notice.code === 'runtime_busy' && !early.streaming, 'chat: an error before the stream removes the turn, restores the draft and sets the notice');
+const typed = act(K.initialState(), { type: 'send', text: 'first' }, { type: 'draft', text: 'second' }, { type: 'close', ended: false, aborted: false, error: { code: 'x' } });
+eq(typed.draft, 'second', 'chat: a restored draft never overwrites what the user typed meanwhile');
+const busyChat = act(K.initialState(), { type: 'send', text: 'x' });
+ok(K.reduce(busyChat, { type: 'new_chat' }) === busyChat, 'chat: new_chat is ignored while streaming');
+const midChat = act(K.initialState(), { type: 'send', text: 'x' }, ev('delta', 'tuned', { text: 'a' }), ev('done', 'tuned', {}), { type: 'close', ended: true, aborted: false, error: null }, { type: 'compare', on: true });
+ok(midChat.compare && midChat.compareFrom === 1, 'chat: compare on mid-chat sets compareFrom');
+const cleared = act(midChat, { type: 'new_chat' });
+ok(cleared.turns.length === 0 && cleared.compareFrom === -1 && cleared.compare, 'chat: new_chat keeps the compare switch and drops the turns');
+
+const done1 = (state, user, tuned, base) => {
+    let x = act(state, { type: 'send', text: user }, ev('delta', 'tuned', { text: tuned }), ev('done', 'tuned', {}));
+    if (base !== undefined) x = act(x, ev('delta', 'base', { text: base }), ev('done', 'base', {}));
+    return act(x, { type: 'close', ended: true, aborted: false, error: null });
+};
+let conv = act(K.initialState(), { type: 'system', text: ' Be brief ' });
+conv = done1(conv, 'q1', 'a1');
+eq(K.conversation(conv, 'tuned'), [{ role: 'system', content: 'Be brief' }, { role: 'user', content: 'q1' }, { role: 'assistant', content: 'a1' }], 'conversation: a leading system prompt');
+let failedTurn = act(K.initialState(), { type: 'send', text: 'q1' }, ev('error', 'tuned', { code: 'generation_failed' }), { type: 'close', ended: true, aborted: false, error: null });
+failedTurn = done1(failedTurn, 'q2', 'a2');
+eq(K.conversation(failedTurn, 'tuned'), [{ role: 'user', content: 'q2' }, { role: 'assistant', content: 'a2' }], 'conversation: a turn with a failed tuned answer is left out');
+let mixed = done1(K.initialState(), 'q1', 'a1');
+mixed = act(mixed, { type: 'compare', on: true });
+mixed = done1(mixed, 'q2', 'a2', 'b2');
+eq(K.conversation(mixed, 'base'), [{ role: 'user', content: 'q2' }, { role: 'assistant', content: 'b2' }], 'conversation: base skips the turns without a base answer');
+eq(K.conversation(mixed, 'tuned').length, 4, 'conversation: tuned keeps both turns');
+const partial = act(K.initialState(), { type: 'send', text: 'q' }, ev('delta', 'tuned', { text: 'half' }), { type: 'close', ended: false, aborted: true, error: null });
+eq(K.conversation(partial, 'tuned'), [{ role: 'user', content: 'q' }, { role: 'assistant', content: 'half' }], 'conversation: a stopped answer with text is kept');
+ok(!K.usable({ state: 'stopped', text: '  ' }) && !K.usable({ state: 'error', text: 'x' }) && K.usable({ state: 'done', text: 'x' }), 'usable: only final answers with text');
+
+eq(K.canSend(K.initialState(), LIM, '   '), { ok: false, reasonKey: '' }, 'canSend: empty text has no reason');
+eq(K.canSend(busyChat, LIM, 'y').reasonKey, 'chibi_sensei.chat.busy', 'canSend: busy while streaming');
+let long = K.initialState();
+for (let i = 0; i < 20; i++) long = done1(long, 'q' + i, 'a' + i);
+eq(K.canSend(long, LIM, 'one more'), { ok: false, reasonKey: 'chibi_sensei.chat.limit_turns', vars: { max: 20 } }, 'canSend: 20 usable turns are the limit');
+ok(K.canSend(K.initialState(), LIM, '😀'.repeat(16000)).ok, 'canSend: 16000 code points pass');
+eq(K.canSend(K.initialState(), LIM, '😀'.repeat(16001)).reasonKey, 'chibi_sensei.chat.limit_chars', 'canSend: 16001 code points are too many (code points, not UTF-16 units)');
+const body = K.requestBody(mixed, 'run-1', ' next ', {});
+eq(body.targets.map(x => x.kind), ['tuned', 'base'], 'requestBody: targets in order');
+ok(body.targets.every(x => x.messages[x.messages.length - 1].role === 'user' && x.messages[x.messages.length - 1].content === 'next') && body.run_id === 'run-1', 'requestBody: every conversation ends with the new user message');
+ok(!('sampling' in body) && K.requestBody(mixed, 'r', 'x', { top_k: 5 }).sampling.top_k === 5, 'requestBody: sampling only when set');
+
+// ---- sampling, runtime view, answer view ----------------------------------------------------------------------------------
+eq(K.validateSampling({ temperature: '0,7' }, 1024), { sampling: { temperature: 0.7 }, issues: [] }, 'sampling: a decimal comma');
+eq(K.validateSampling({ temperature: '', top_p: ' ', top_k: '', max_tokens: '', seed: '5' }, 1024), { sampling: {}, issues: [] }, 'sampling: empty fields and the seed are left out');
+eq(K.validateSampling({ top_p: '0' }, 1024).issues, [{ field: 'top_p', min: 0.01, max: 1 }], 'sampling: top_p of 0 is an issue');
+eq(K.validateSampling({ top_k: '201' }, 1024).issues, [{ field: 'top_k', min: 0, max: 200 }], 'sampling: top_k above 200');
+eq(K.validateSampling({ max_tokens: '1025' }, 1024).issues, [{ field: 'max_tokens', min: 1, max: 1024 }], 'sampling: max_tokens above the cap');
+ok(K.validateSampling({ top_k: '2.5' }, 1024).issues.length === 1 && K.validateSampling({ temperature: '2.1' }, 1024).issues.length === 1 && K.validateSampling({ temperature: 'abc' }, 1024).issues.length === 1, 'sampling: fractions, range and text are issues');
+eq(K.validateSampling({ temperature: '2', top_p: '1', top_k: '0', max_tokens: '1' }, 1024).sampling, { temperature: 2, top_p: 1, top_k: 0, max_tokens: 1 }, 'sampling: the limits themselves pass');
+const rv = (rt, admin, readonly) => plain(K.runtimeView(rt, admin, readonly));
+eq([rv({ state: 'not_installed', instances: [] }, true, false).card, rv({ state: 'not_installed', instances: [] }, false, false).card], ['install', 'ask'], 'runtimeView: install for an admin, ask for everyone else');
+const readyView = rv({ state: 'ready', instances: [{}] }, false, false);
+ok(readyView.composer && readyView.canStop && readyView.card === null, 'runtimeView: ready has the composer and no card');
+ok(!rv({ state: 'ready', instances: [] }, false, false).canStop, 'runtimeView: nothing to stop without instances');
+eq(['installing', 'disabled', 'unsupported', 'failed'].map(state => rv({ state, instances: [] }, true, false).card), ['installing', 'disabled', 'unsupported', 'failed'], 'runtimeView: one card per state');
+const roView = rv({ state: 'not_installed', instances: [] }, true, true);
+ok(!roView.installEnabled && roView.installReasonKey === 'chibi_sensei.readonly_banner', 'runtimeView: read-only blocks the install with its reason');
+ok(rv(undefined, false, false).state === 'loading' && rv(null, false, false).state === 'error' && !rv(undefined, false, false).composer, 'runtimeView: undefined is loading, null is error');
+eq(['waiting', 'loading', 'streaming'].map(x => plain(K.answerView({ state: x })).state), ['streaming', 'streaming', 'streaming'], 'answerView: the three live states');
+eq(['waiting', 'loading', 'streaming'].map(x => plain(K.answerView({ state: x })).phase), ['waiting', 'loading', 'generating'], 'answerView: the phases');
+eq(['done', 'stopped', 'error'].map(x => plain(K.answerView({ state: x })).state), ['done', 'stopped', 'error'], 'answerView: final states');
+
+// ---- test step helpers ---------------------------------------------------------------------------------------------------------
+const TS = P.test;
+eq(TS.succeededRuns([{ id: 'a', state: 'failed' }, { id: 'b', state: 'succeeded', created: '2026-11-01T10:00:00Z' }, { id: 'c', state: 'succeeded', created: '2026-10-01T10:00:00Z', finished: '2026-11-05T10:00:00Z' }, null]).map(r => r.id), ['c', 'b'], 'succeededRuns: filters and sorts newest first');
+eq(TS.smokeLine(null), null, 'smokeLine: null');
+eq(TS.smokeLine({ state: 'ok', ms: 812 }), { key: 'chibi_sensei.test.smoke_ok', vars: { time: '812 ms' }, tone: '' }, 'smokeLine: ok');
+eq(TS.smokeLine({ state: 'failed' }).tone, 'warn', 'smokeLine: failed is a warning');
+eq(['runtime_not_installed', 'runtime_busy', 'runtime_disabled', 'new_code'].map(code => TS.smokeLine({ state: 'skipped', code }).key),
+    ['chibi_sensei.test.smoke_skipped_installed', 'chibi_sensei.test.smoke_skipped_busy', 'chibi_sensei.test.smoke_skipped_disabled', 'chibi_sensei.test.smoke_skipped'], 'smokeLine: skip codes');
+eq(TS.smokeLine({ state: 'skipped', code: 'constructor' }).key, 'chibi_sensei.test.smoke_skipped', 'smokeLine: an inherited name is not a code');
+eq(['missing', 'skipped', 'invalid', 'something'].map(reason => TS.modelLine('base', { available: false, reason }).key),
+    ['chibi_sensei.test.base_missing', 'chibi_sensei.test.base_skipped', 'chibi_sensei.test.base_invalid', 'chibi_sensei.test.base_missing'], 'modelLine: base reasons, unknown counts as missing');
+eq(TS.modelLine('tuned', { available: true, bytes: 2048 }).key, 'chibi_sensei.test.tuned_ready', 'modelLine: tuned ready');
+eq(TS.modelLine('tuned', { available: false, reason: 'invalid' }).key, 'chibi_sensei.test.tuned_invalid', 'modelLine: tuned invalid');
+eq([TS.baseReasonKey('skipped'), TS.baseReasonKey('nope')], ['chibi_sensei.test.base_skipped', 'chibi_sensei.test.base_missing'], 'baseReasonKey');
+eq(TS.promptOf({ prompt_messages: [{ role: 'system', content: 'S' }, { role: 'user', content: 'U' }] }), { system: 'S', user: 'U' }, 'promptOf: system and user');
+eq(TS.promptOf({ prompt_messages: [{ role: 'user', content: 'u1' }, { role: 'assistant', content: 'a1' }, { role: 'user', content: 'u2' }] }), { system: '', user: 'u2' }, 'promptOf: the last user message of a multi-turn prompt');
+eq(TS.promptOf({ prompt_messages: null, prompt_text: 'plain' }), { system: '', user: 'plain' }, 'promptOf: a text prompt');
 
 console.log('chibi-sensei model: ok (' + checks + ' checks)');

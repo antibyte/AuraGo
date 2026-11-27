@@ -1121,8 +1121,10 @@ var desktopLocalI18nHelpers = map[string]localI18nHelper{
 	"js/desktop/apps/chibi-sensei/chibi-sensei-training.js": {name: "t", prefix: "chibi_sensei."},
 	"js/desktop/apps/chibi-sensei/chibi-sensei-chart.js":    {name: "t", prefix: "chibi_sensei."},
 	"js/desktop/apps/chibi-sensei/chibi-sensei-run.js":      {name: "t", prefix: "chibi_sensei."},
+	"js/desktop/apps/chibi-sensei/chibi-sensei-chat.js":     {name: "t", prefix: "chibi_sensei."},
+	"js/desktop/apps/chibi-sensei/chibi-sensei-test.js":     {name: "t", prefix: "chibi_sensei."},
 	"js/desktop/apps/chibi-sensei/chibi-sensei.js":          {name: "t", prefix: "chibi_sensei."},
-	"cfg/ruview.js":                                         {name: "tr", prefix: "ruview."},
+	"cfg/ruview.js": {name: "tr", prefix: "ruview."},
 }
 
 // desktopDynamicI18nPrefixes registers locale key prefixes that the Desktop
