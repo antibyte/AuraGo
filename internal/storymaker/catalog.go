@@ -197,6 +197,10 @@ type Catalog struct {
 
 	glyphs     *Glyphs // nil when the manifest names no glyphs file
 	glyphsFile string
+
+	icons     []Icon // sorted by ID; empty when the manifest names no icons file
+	iconIdx   map[string]int
+	iconsFile string
 }
 
 type catalogFile struct {
@@ -205,6 +209,7 @@ type catalogFile struct {
 	Stage    Stage             `json:"stage"`
 	Rig      RigRef            `json:"rig"`
 	Glyphs   *glyphsRef        `json:"glyphs"`
+	Icons    *iconsRef         `json:"icons"`
 	Fonts    []Font            `json:"fonts"`
 	Palettes []Palette         `json:"palettes"`
 	Entries  []json.RawMessage `json:"entries"`
@@ -332,6 +337,9 @@ func LoadCatalog(fsys fs.FS, path string) (*Catalog, error) {
 	}
 	if m.Glyphs != nil {
 		c.loadGlyphs(fsys, path, m.Glyphs.File, bad)
+	}
+	if m.Icons != nil {
+		c.loadIcons(fsys, path, m.Icons.File, bad)
 	}
 	c.checkFiles(bad)
 

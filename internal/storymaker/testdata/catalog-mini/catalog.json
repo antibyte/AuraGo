@@ -1,6 +1,7 @@
 {"schema":"storymaker-catalog/1","version":"mini00000000",
  "stage":{"width":1920,"height":1080,"safe":{"x":5,"y":5,"w":90,"h":90}},
  "rig":{"id":"rig.human/1","file":"rig/human.json"},
+ "icons":{"file":"icons.json"},
  "fonts":[{"name":"default","family":"Storymaker Default","weight":400,"file":"/fonts/placeholder.woff2","licence":"OFL-1.1"}],
  "palettes":[{"id":"palette.sunny","name":"sunny","name_key":"storymaker.catalog.palette_sunny","tokens":{"bg":"#fff7e6","bg2":"#ffe0a3","fg":"#1f2a44","accent":"#ff7a45","accent2":"#36cfc9","text":"#1f2a44","outline":"#1f2a44"}}],
  "entries":[

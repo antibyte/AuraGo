@@ -70,6 +70,7 @@ func TestCatalogCharacterAliases(t *testing.T) {
 	if err := json.Unmarshal(raw, &doc); err != nil {
 		t.Fatal(err)
 	}
+	delete(doc, "icons") // this fixture serves catalog.json alone
 	var character map[string]any
 	for _, value := range doc["entries"].([]any) {
 		entry := value.(map[string]any)

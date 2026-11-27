@@ -1,6 +1,7 @@
 package storymaker
 
 import (
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -129,7 +130,11 @@ func TestLoadCatalogReadsGlyphsFromItsFolder(t *testing.T) {
 	named := miniWith(t, func(s string) string {
 		return strings.Replace(s, `"rig":{`, `"glyphs":{"file":"glyphs.json"},"rig":{`, 1)
 	})
-	fsys := fstest.MapFS{"img/catalog.json": {Data: named}, "img/glyphs.json": {Data: []byte(glyphsFixture)}}
+	icons, err := os.ReadFile("testdata/catalog-mini/icons.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fsys := fstest.MapFS{"img/catalog.json": {Data: named}, "img/glyphs.json": {Data: []byte(glyphsFixture)}, "img/icons.json": {Data: icons}}
 	c, err := LoadCatalog(fsys, "img/catalog.json")
 	if err != nil {
 		t.Fatal(err)

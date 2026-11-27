@@ -868,6 +868,9 @@ func (run *renderRun) snapshot() (*Snapshot, error) {
 	if glyphs := cat.GlyphsFile(); glyphs != "" {
 		files[glyphs] = true
 	}
+	if icons := cat.IconsFile(); icons != "" {
+		files[icons] = true
+	}
 	for _, e := range cat.Entries() {
 		if e.File != "" && e.Kind != "sfx" { // the page never reads WAVs
 			files[e.File] = true
