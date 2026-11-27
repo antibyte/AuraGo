@@ -319,6 +319,75 @@
         return JSON.stringify([st.id, st.x, st.y, st.alpha, st.scale, st.rot, st.block, st.w, st.h, st.surface, st.t0, st.dur, st.entry, st.reveals, st.mark, st.highlight || null, moving ? st.time : 0]);
     }
 
+    // ---- path length
+
+    var lengthCache = Object.create(null), lengthCount = 0;
+    var ARGS = { M: 2, L: 2, H: 1, V: 1, C: 6, S: 4, Q: 4, T: 2, A: 7 };
+
+    // pathLength(d) = the approximate length of an SVG path string in its own units: lines exactly, cubic and quadratic curves by the
+    // mean of their chord and control polygon, arcs by their chord and radius. It reveals every stroke of an icon in step. Cached.
+    function pathLength(d) {
+        if (typeof d !== 'string') return 0;
+        if (lengthCache[d] !== undefined) return lengthCache[d];
+        var s = d, n = s.length, i = 0, total = 0, cmd = '', x = 0, y = 0, sx = 0, sy = 0, bad = false;
+        function skip() { while (i < n && (s.charCodeAt(i) <= 32 || s.charCodeAt(i) === 44)) i++; }
+        function digits() { var c; while (i < n && (c = s.charCodeAt(i)) >= 48 && c <= 57) i++; }
+        function num() {
+            skip();
+            var a = i, j;
+            if (s.charAt(i) === '-' || s.charAt(i) === '+') i++;
+            digits();
+            if (s.charAt(i) === '.') { i++; digits(); }
+            if (i > a && (s.charAt(i) === 'e' || s.charAt(i) === 'E')) {
+                j = i + 1;
+                if (s.charAt(j) === '-' || s.charAt(j) === '+') j++;
+                if (s.charCodeAt(j) >= 48 && s.charCodeAt(j) <= 57) { i = j; digits(); }
+            }
+            return i > a ? parseFloat(s.substring(a, i)) : NaN;
+        }
+        function flag() { skip(); var c = s.charAt(i); if (c === '0' || c === '1') { i++; return +c; } return NaN; }
+        while (i < n && !bad) {
+            skip();
+            if (i >= n) break;
+            var ch = s.charAt(i), up;
+            if ((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z')) {
+                cmd = ch;
+                i++;
+                if (ch === 'Z' || ch === 'z') { total += Math.hypot(sx - x, sy - y); x = sx; y = sy; continue; }
+            }
+            up = cmd.toUpperCase();
+            if (!ARGS[up]) break;
+            var a = [], rel = cmd !== up, k, v;
+            for (k = 0; k < ARGS[up]; k++) {
+                v = up === 'A' && (k === 3 || k === 4) ? flag() : num();
+                if (v !== v) { bad = true; break; }
+                a.push(v);
+            }
+            if (bad) break;
+            var ox = rel ? x : 0, oy = rel ? y : 0, nx = x, ny = y, chord, poly;
+            if (up === 'H') nx = ox + a[0];
+            else if (up === 'V') ny = oy + a[0];
+            else { nx = ox + a[ARGS[up] - 2]; ny = oy + a[ARGS[up] - 1]; }
+            chord = Math.hypot(nx - x, ny - y);
+            if (up === 'M') { sx = nx; sy = ny; cmd = rel ? 'l' : 'L'; }
+            else if (up === 'C') { poly = Math.hypot(ox + a[0] - x, oy + a[1] - y) + Math.hypot(a[2] - a[0], a[3] - a[1]) + Math.hypot(nx - ox - a[2], ny - oy - a[3]); total += (chord + poly) / 2; }
+            else if (up === 'S') { poly = Math.hypot(ox + a[0] - x, oy + a[1] - y) + Math.hypot(nx - ox - a[0], ny - oy - a[1]); total += (chord + poly) / 2; }
+            else if (up === 'Q') { poly = Math.hypot(ox + a[0] - x, oy + a[1] - y) + Math.hypot(nx - ox - a[0], ny - oy - a[1]); total += (2 * chord + poly) / 3; }
+            else if (up === 'A') {
+                var r = (Math.abs(a[0]) + Math.abs(a[1])) / 2, half = chord / 2;
+                if (!(r > 0)) total += chord;
+                else if (half >= r) total += Math.PI * half;
+                else total += r * (a[3] === 1 ? 2 * Math.PI - 2 * Math.asin(half / r) : 2 * Math.asin(half / r));
+            } else total += chord;
+            x = nx;
+            y = ny;
+        }
+        if (lengthCount > 2000) { lengthCache = Object.create(null); lengthCount = 0; }
+        lengthCount++;
+        lengthCache[d] = total;
+        return total;
+    }
+
     // ---- serialize and revive
 
     function trackOut(track) {
@@ -449,6 +518,6 @@
         POINTS_MAX: POINTS_MAX, MAX_BLOCKS: MAX_BLOCKS, LABEL_BASE: 0.034, LABEL_MIN: 0.026, ITEM_SPAN: ITEM_SPAN, WORD_SPAN: WORD_SPAN,
         FLOW_PERIOD: FLOW_PERIOD, BOARD_RECTS: BOARD_RECTS, isBoard: isBoard, area: area, check: check, create: create,
         revealSeconds: revealSeconds, itemProgress: itemProgress, serialize: serialize, revive: revive,
-        itemCount: itemCount, lines: lines, parseHeadline: parseHeadline, layout: layout, layoutNodes: layoutNodes, measure: measure, cacheKey: cacheKey
+        itemCount: itemCount, lines: lines, parseHeadline: parseHeadline, layout: layout, layoutNodes: layoutNodes, measure: measure, cacheKey: cacheKey, pathLength: pathLength
     };
 })(typeof globalThis !== 'undefined' ? globalThis : self);

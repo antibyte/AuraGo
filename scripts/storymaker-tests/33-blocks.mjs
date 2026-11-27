@@ -168,7 +168,7 @@ check('blocks: every icon draws, one stroke per path and one fill per fill, and 
 
 check('blocks: entry draw reveals the strokes with a dash and ends without one', () => {
     const def = { id: 'i', kind: 'icon', icon: 'icon.cpu', style: 'line', entry: 'draw' };
-    assert.ok(paint(def, timeFor(0.5)).includes('setLineDash([48,96])'));
+    assert.ok(paint(def, timeFor(0.5)).some(l => l.startsWith('setLineDash([') && l !== 'setLineDash([])'), 'a partial dash while the stroke grows');
     assert.ok(paint(def, 5).includes('setLineDash([])'));
     assert.ok(!paint(def, 5).some(l => l.startsWith('setLineDash([') && l !== 'setLineDash([])'));
     assert.equal(paint(def, 0).filter(l => l.startsWith('stroke(')).length, 0, 'nothing is drawn before the reveal starts');
@@ -541,4 +541,44 @@ check('blocks: an icon path named like an Object property draws as a path', () =
     const odd = SM.scene.indexCatalog({ ...t.catalog, icon_data: { schema: 'storymaker-icons/1', icons: [{ id: 'icon.odd', paths: ['constructor', 'toString'], tags: [] }] } });
     const log = paint({ id: 'i', kind: 'icon', icon: 'icon.odd', style: 'line' }, 5, { cat: odd });
     assert.deepEqual(log.filter(l => l.startsWith('stroke(')), ['stroke(path(constructor))', 'stroke(path(toString))']);
+});
+
+// ---- C14: even stroke reveal, list items slide in from the left
+
+check('blocks: pathLength measures lines exactly and curves and arcs approximately', () => {
+    const len = d => B.pathLength(d);
+    near(len('M0 0L10 0'), 10, 1e-9);
+    near(len('M0 0l-3-4'), 5, 1e-9, 'relative, packed signs');
+    near(len('M0 0h10v10z'), 20 + Math.hypot(10, 10), 1e-9, 'h, v and the closing line');
+    near(len('M0 0L1.5.5'), Math.hypot(1.5, 0.5), 1e-9, 'packed decimals');
+    const circle = len('M0 10A10 10 0 1 0 20 10A10 10 0 1 0 0 10Z');
+    assert.ok(Math.abs(circle - 62.8) <= 0.05 * 62.8, 'circle ' + circle);
+    const curve = len('M0 0C0 10 10 10 10 0');
+    assert.ok(curve > 10 && curve < 30, 'cubic ' + curve);
+    assert.equal(len('M0 0A5 5 0 01 10 0'), len('M0 0A5 5 0 0 1 10 0'), 'packed arc flags');
+    assert.equal(len(''), 0);
+    assert.equal(len('constructor'), 0);
+    assert.equal(len(null), 0);
+});
+
+check('blocks: every stroke of an icon is revealed by the same share of its own length', () => {
+    const log = paint({ id: 'i', kind: 'icon', icon: 'icon.cpu', style: 'line', entry: 'draw' }, timeFor(0.5), { cat: realCat });
+    const strokes = [];
+    log.forEach((l, i) => {
+        const m = /^stroke\(path\((.*)\)\)$/.exec(l);
+        if (m) strokes.push({ d: m[1], dash: log[i - 1].slice(13, -2).split(',').map(Number) });
+    });
+    assert.ok(strokes.length >= 3, 'the icon has several strokes');
+    for (const s of strokes) {
+        const len = B.pathLength(s.d);
+        near(s.dash[1], len, 0.001, s.d);
+        near(s.dash[0], len * 0.5, 0.001, s.d);
+    }
+    assert.ok(new Set(strokes.map(s => s.dash[1])).size > 1, 'the strokes differ in length, so do their dashes');
+});
+
+check('blocks: list items slide in from the left', () => {
+    const def = { id: 'l', kind: 'list', text: 'Laden\nRechnen', dur: 2 };
+    const xOf = (time, s) => parseFloat(paint(def, time).find(l => l.startsWith('fillText(' + s + ',')).slice(10 + s.length).split(',')[0]);
+    assert.ok(xOf(timeFor(0.3), 'Laden') < xOf(5, 'Laden'), 'the first line is left of its final place while it slides');
 });

@@ -99,7 +99,7 @@
             paint: function () {
                 var y = -height / 2;
                 lab.lines.forEach(function (lines, k) {
-                    var p = B.itemProgress(st, k), mid = y + heights[k] / 2, dx = (1 - p) * px * 1.2;
+                    var p = B.itemProgress(st, k), mid = y + heights[k] / 2, dx = -(1 - p) * px * 1.2;
                     y += heights[k];
                     if (!(p > 0)) return;
                     ctx.globalAlpha = c.alpha * p;

@@ -8,7 +8,6 @@
     var SM = root.StorymakerCore || (root.StorymakerCore = {});
     var B = SM.blocks;
 
-    var DASH = 96;   // the dash that reveals a stroke: a dash of DASH * p and a gap of DASH, in 24-grid units for icons
     var PANEL_ALPHA = 0.94, PANEL_RADIUS = 0.02;
     var pathCache = Object.create(null), pathCount = 0;
 
@@ -84,7 +83,7 @@
 
     // ---- icons
 
-    // glyph(c, icon, cx, cy, size, color, p): the strokes of an icon on the 24 grid, line width 2 * size / 24, revealed to p.
+    // glyph(c, icon, cx, cy, size, color, p): the strokes of an icon on the 24 grid, line width 2 * size / 24, each revealed to p of its length.
     function glyph(c, icon, cx, cy, size, color, p) {
         if (!icon || !(p > 0.001)) return;
         var ctx = c.ctx, fills = icon.fills || [];
@@ -96,9 +95,10 @@
         ctx.lineWidth = 2;
         ctx.strokeStyle = color;
         ctx.fillStyle = color;
-        ctx.setLineDash(p < 1 ? [r3(DASH * p), DASH] : []);
         for (var i = 0; i < icon.paths.length; i++) {
-            var path = pathOf(icon.paths[i]);
+            var path = pathOf(icon.paths[i]), len = Math.max(B.pathLength(icon.paths[i]), 0.01);
+            // a dash of p of the stroke's own length and a gap of its whole length: every stroke of the icon finishes together
+            ctx.setLineDash(p < 1 ? [r3(len * p), r3(len)] : []);
             if (fills.indexOf(icon.paths[i]) >= 0) { ctx.globalAlpha = c.alpha * p; ctx.fill(path); ctx.globalAlpha = c.alpha; }
             ctx.stroke(path);
         }
