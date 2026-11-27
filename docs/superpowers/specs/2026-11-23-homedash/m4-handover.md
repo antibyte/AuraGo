@@ -19,10 +19,15 @@ Built and gated locally. Not pushed, not deployed. The gate verdicts are the lea
 - **Localized system names** (G20): `E.names`. Search finds a system entity by its localized and by its raw name.
 - **Widgets**: the seven variants that were empty placeholders are built: climate stepper and scale, gauge bar and tank, temperature thermometer and comfort, sensor icon. Small-size rules for all families (G13). Climate commands (dial, stepper, scale) and the server's expected states for climate.
 - **Security review (review S1, S2, import and clipboard)**: import is refused above 512 KiB before reading, is parsed as untrusted JSON, and is checked against the count limits before anything is placed (over 12 pages, over 120 widgets on a page, over 400 widgets, too many layout rows). The clipboard is decoded as untrusted. Text reaches the DOM only through `textContent`.
-- **Gates and probes**: pixel-truth contrast, occluded and offscreen text recorded as skips (never passes), infrastructure failures listed apart, one language end to end (G15), and a repository guard for output directories.
+- **Gates and probes**: pixel-truth contrast, occluded and offscreen text recorded as skips (never passes), infrastructure failures listed apart, one language end to end (G15), and a repository guard for output directories. Partly covered text is measured outside open overlays, and scroll clipping is told apart from window clipping.
 
 Commits since `147dcade4`, newest first (hash, date, subject; dates as given by the lead):
 
+- `a23759599` 2026-11-27, the gate measures visible text it used to skip as occluded (round 8)
+- `7c59b4f14` 2026-11-27 04:54, voxel field borders hold 3:1, cards align, import paths on their own line (round 7)
+- `fc4ee0494` 2026-11-27 04:13, CI runs the widget survey and the live HA test, select keeps focus, device paging complete (Batch F review)
+- `930b71ab8` 2026-11-27 02:28, widgets keep their titles at 96 px cells, comfort zone is an area (round 6)
+- `2bcc78664` 2026-11-27 02:19, M4 guides and this hand-over (F4, F5)
 - `6e85e0c38` 2026-11-27 01:59, server confirms climate commands, live test (round 6)
 - `2ce751121` 2026-11-27 01:49, climate dial commands, comfort zone (round 5)
 - `af2e45cbd` 2026-11-27 01:04, seven placeholder widgets built, values never cut, state marks (round 4)
@@ -122,9 +127,16 @@ Browser tests (Chrome; `AURAGO_RUN_BROWSER_SMOKE=1`; build the test binary from 
 
 Environment knobs of the gate and the designer test (full list in the engine guide): `HOMEDASH_M4_SHOTS`, `HOMEDASH_M4_DIR`, `HOMEDASH_M4_LANG` (`en` or `de`), `HOMEDASH_M4_STATES`, `HOMEDASH_M4_VARIANTS`, `HOMEDASH_M4_DPRS`, `HOMEDASH_M4_DEADLINE`, `HOMEDASH_M4_F1_STEPS`, `HOMEDASH_M4_PERF=log`. Output directories are checked by `hdSafeOutDir`, which refuses a path at or under the directory that holds `go.mod`.
 
+### CI
+
+- CI runs `TestDesktopHomeDashWidgetFitBrowser` without `HOMEDASH_WF_DIR`: probes only, in a temp dir, no sheets.
+- The ui-browser job runs `TestDesktopHomeDashLiveHABrowser` once, in the Desktop H-R shard.
+- The ui-browser job sets `HOMEDASH_M4_PERF=log`: the D11 budget is enforced on developer machines and logged in CI.
+- `internal/audit/ui_browser_ci_test.go` checks all three.
+
 ## Gate runs
 
-Directories under `C:\disposable\homedash-m4\`. Dates for the E-S, E-T, E-F, de and g16 rows are the lead's times (local time). The `g13`, `g13b` and `r5\lab` rows use the `generated` stamps of their `probes.json` (UTC). Verdicts are the lead's, from the gate notes (`gate-r1.md`, `gate-r3.md`, `review-e.md`).
+Directories under `C:\disposable\homedash-m4\`. Dates for the E-S, E-T, E-F, de, final and r7 rows are the lead's times (local time). The `g13`, `g13b` and `r5\lab` rows use the `generated` stamps of their `probes.json` (UTC). Verdicts are the lead's, from the gate notes (`gate-r1.md`, `gate-r3.md`, `review-e.md`).
 
 | Directory | What it holds | Date |
 | --- | --- | --- |
@@ -137,19 +149,43 @@ Directories under `C:\disposable\homedash-m4\`. Dates for the E-S, E-T, E-F, de 
 | `g13\before`, `g13\after`, `g13\lab-before`, `g13\lab-after` | G13 widget fit before and after, and the lab sheets (UTC) | 2026-11-26 22:56 to 23:11 UTC |
 | `g13b\before`, `g13b\after`, `g13b\after-light`, `g13b\t1` to `g13b\t10` | G13 second round (after and light), and the step runs `t1` to `t10` (UTC) | 2026-11-26 23:21 to 2026-11-27 00:01 UTC |
 | `r5\lab\dark`, `r5\lab\light` | lab sheets in both schemes (UTC) | 2026-11-27 ~01:45 local (00:38 UTC) |
+| `final-et` | E-T, 16 variants at 1x and 2x, `HOMEDASH_M4_SHOTS=all`; `probes.json`, `index.html`, `ET-<variant>-1x/2x.png` sheets, `ES-*`, `EF.png` | 2026-11-27 ~02:30-03:48 |
+| `de-preview` | German pass (`HOMEDASH_M4_LANG=de`) on fruity light and dark, 68 states | 2026-11-27 ~03:54 |
+| `final-wf` | widget fit survey, dark and light (`probes-dark.json`, `probes-light.json`, 40 sheets) | 2026-11-27 ~03:56 |
+| `r7\et`, `r7\et3`, `r7\et4` | round 7 re-runs: voxel_world, green_slime and electronic_dreams at 1x and 2x (`r7\et`); fruity-light, fruity-dark and standard at 1x (`r7\et3`); fruity-light German states 12 and 31 (`r7\et4`) | 2026-11-27 ~04:45 |
 
-Final gate run: (lead fills in)
+Final gate run and round 7:
+
+- `final-et` covered 1156 states with 0 infra. 52 states failed with 53 lines, in three variants:
+  - voxel_world: field borders at 2.24:1 against the field surface. This is a real finding. The material's inset bevel darkens the surface. Fixed in round 7 with the material token `--vd-mat-field-edge-mix` (60 % by default, 80 % for voxel_world).
+  - green_slime 24-page-tabs-menu: the page tab context menu half covered the "Second" label. A probe artifact.
+  - electronic_dreams 21 and 27: palette scroll clipping at the window edge was read as outside the window. A probe artifact.
+- In round 7 the probe changed in two ways. It measures text outside open overlays (context menu, window menu popover, sheet, entity picker popover, toast); theme decorations do not count. Outside-window uses the text as clipped by its scrolling ancestors, with a new check that fails when a scroller itself ends below the window.
+- Re-runs after round 7 had 0 failures and 0 infra: the three variants at 1x and 2x (204 rows), fruity-light, fruity-dark and standard at 1x (170 rows), and the German states 12 and 31. The occluded skip counts did not change (52 and 109).
+- `de-preview`: 68 states, 0 failures.
+- `final-wf`: 8532 tiles per palette, 0 failures on every page (lg, md, sm, c96, thumb).
+- Round 7 also fixed two layout points from the German review. Palette, inspector variant and look family cards start their content at the top, so a wrapped label no longer shifts the neighbour's title. Import issue paths sit on their own line under the message.
+
+Final verification at `7c59b4f14` (logs in `final-verify`):
+
+- `npm run test:homedash` 528/528, `npm run check:ui` PASS, `go vet` of ui, internal/server, internal/audit and internal/homedash clean.
+- `go test ./internal/homedash/...` 181 passed; `go test ./internal/server -run '(?i)homedash'` 46 passed.
+- `go test ./internal/audit` and `go test ./ui` (no browser): only base failures. Besides the ones under Open items, `TestVirtualDesktopFirstPartyJSFilesStayBelowLineBudget` fails on files this branch does not touch (audio player, code studio, software store, synth studio, ecalc, notes; byte-identical to main).
+- Browser: `TestDesktopHomeDashDesignerBrowser` (D11 budget enforced, first run), `...WidgetFitBrowser` (CI mode), `...Browser`, `...ControlsBrowser`, `...ControlLabBrowser` and `TestDesktopHomeDashLiveHABrowser` PASS. The gates test skips without `HOMEDASH_M4_SHOTS`, as designed.
+- Full sweep, 16 variants at 1x: 612 states, 0 infra, 0 failures.
+
+Round 8 (`a23759599`, sweep in `r8\et`): that sweep still skipped 236 visible text rows as occluded: the selection chip, "Delete widget", the drag avatar, an entity state and four labels. The chip and the avatar are `pointer-events: none`, and transparent layers (the dock scroller's hover headroom, sheet and inspector feet) lay over the rest. The probe now tests visual occlusion: it makes the element hit-testable for the check and looks through elements that paint nothing at the point. Sweep after: 612 states, 0 infra, 0 failures, lowest text contrast 4.53. Skips left: the chip under the drawer scrim in state 28 (one per variant, intended) and one green_slime help line outside the inspector's scroll clip (offscreen).
 
 ## Open items
 
 - M3 D14: live Home Assistant acceptance by the user, or a local HA demo container with the user's OK (`C:\disposable\homedash-plan\m3-decisions.md`). The live-handler step is covered by `TestDesktopHomeDashLiveHABrowser`; the live acceptance itself is still open.
 - M3 D10: the HA service policy allowlist question. The user must answer it before the covers and locks widgets (M5 W3). Not M4 D10 (import/export).
-- Base failures that are not ours: `TestFrontend_JS_NoLiteralTranslationFallbacks` (code-studio bundle) and `TestDesktopStoreStartI18n`.
+- Base failures that are not ours: `TestFrontend_JS_NoLiteralTranslationFallbacks` (code-studio bundle) and `TestDesktopStoreStartI18n`; and `TestLinkedGoModulesHaveGPL3CompatibleLicenses` in `internal/audit` (stale row `github.com/gobwas/pool` in `licences/linked-go-modules.tsv`; go.mod and licences are unchanged on this branch).
 - GitNexus index was unusable during execution, so impact analysis could not be run through it for the edits in this milestone.
 - Light slider at 2x1 on lg has a 40 px track; it is narrower than the other sliders.
+- Desktop shell, not HomeDash: in the dock shell, `.vd-dock-scroll` keeps 64 px of transparent hover headroom above the dock (`desktop-base.css`, margin-top -64px / padding-top 64px; removed only for coarse pointers). It lies over the bottom edge of windows above the dock and may swallow clicks there (e.g. the inspector's "Delete widget"). Not verified by a click test.
+- Polish follow-up: the climate dial at 3x3 shows the mode twice, in the mode bar and in the state line under it.
 - M5 widget types need `homedash.widget.<type>.name` and `homedash.widget.<type>.desc` in all 16 locales, and every icon they use needs a `homedash.icon.<name>` key (31 exist today).
-- The widget fit test and its fixture (`ui/desktop_homedash_widget_fit_test.go`, `ui/testdata/homedash-widget-fit.js`) were modified in the working tree and not committed when this file was written.
-- A leftover headless Chrome from the gate runs (PID 51984, lead note) is still running. Ask the user before stopping it.
 
 ## Status
 
