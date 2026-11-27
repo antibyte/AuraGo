@@ -168,3 +168,14 @@ func TestFreeMotionExampleBundlesWithinTheAgentLimit(t *testing.T) {
 		}
 	}
 }
+
+func TestCodeReferencesNameTheSafeArea(t *testing.T) {
+	for name, text := range map[string]string{"code.md": codeReference, "code-free.md": codeReferenceFree} {
+		if strings.Contains(text, "710..1210") {
+			t.Errorf("%s still names the fixed range x=710..1210", name)
+		}
+		if !strings.Contains(text, "api.safe()") {
+			t.Errorf("%s does not name api.safe()", name)
+		}
+	}
+}
