@@ -22,10 +22,19 @@ func handleDesktopShortcuts(s *Server) http.HandlerFunc {
 		switch r.Method {
 		case http.MethodPost:
 			var body struct {
-				AppID string `json:"app_id"`
+				AppID       string `json:"app_id"`
+				DashboardID string `json:"dashboard_id"`
 			}
 			if err := decodeDesktopJSON(w, r, &body, desktopSmallJSONBodyLimit); err != nil {
 				jsonError(w, "Invalid JSON", http.StatusBadRequest)
+				return
+			}
+			if body.DashboardID != "" {
+				if body.AppID != "" {
+					jsonError(w, "send either app_id or dashboard_id", http.StatusBadRequest)
+					return
+				}
+				s.handleAddDashboardShortcut(w, r, svc, hub, body.DashboardID)
 				return
 			}
 			if err := svc.AddDesktopAppShortcut(r.Context(), body.AppID, desktop.SourceUser); err != nil {

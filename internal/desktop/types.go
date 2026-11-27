@@ -19,6 +19,7 @@ const (
 	WidgetTypeCustom        = "custom"
 	ShortcutTargetApp       = "app"
 	ShortcutTargetDirectory = "directory"
+	ShortcutTargetDashboard = "dashboard"
 )
 
 // Config describes the runtime settings needed by the desktop service.

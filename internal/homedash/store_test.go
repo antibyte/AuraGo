@@ -266,3 +266,29 @@ func TestStoreCreatePairingDropsExpiredRows(t *testing.T) {
 		t.Fatalf("pairing rows left: %d %v", n, err)
 	}
 }
+
+func TestStoreDashboardNames(t *testing.T) {
+	st, _, _ := openTestStore(t)
+	ctx := context.Background()
+	a, err := st.CreateDashboard(ctx, storeDoc("a"), SavedByUser)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bdoc := storeDoc("b")
+	bdoc.Name = "Küche"
+	b, err := st.CreateDashboard(ctx, bdoc, SavedByUser)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := st.DashboardNames(ctx, []string{a.ID, b.ID, "d_zzzzzzzzzzzz"})
+	if err != nil || len(got) != 2 || got[a.ID] != "Board" || got[b.ID] != "Küche" {
+		t.Fatalf("names = %v, %v", got, err)
+	}
+	if _, ok := got["d_zzzzzzzzzzzz"]; ok {
+		t.Fatal("unknown id must be absent")
+	}
+	empty, err := st.DashboardNames(ctx, nil)
+	if err != nil || empty == nil || len(empty) != 0 {
+		t.Fatalf("empty input = %v, %v", empty, err)
+	}
+}

@@ -36,6 +36,7 @@ func handleDesktopBootstrap(s *Server) http.HandlerFunc {
 			return
 		}
 		s.enrichDesktopBootstrap(&payload)
+		s.projectDashboardShortcuts(r, &payload)
 		payload = filterDesktopBootstrap(s, r, payload)
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(payload)

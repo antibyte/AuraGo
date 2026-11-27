@@ -235,6 +235,33 @@ func (s *Store) ListDashboards(ctx context.Context) ([]DashboardSummary, error) 
 	return out, rows.Err()
 }
 
+// DashboardNames returns id -> name for the dashboards that exist among ids. It reads only the
+// name column (no document parsing); unknown ids are absent from the map.
+func (s *Store) DashboardNames(ctx context.Context, ids []string) (map[string]string, error) {
+	out := make(map[string]string, len(ids))
+	if len(ids) == 0 {
+		return out, nil
+	}
+	marks := strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",")
+	args := make([]any, len(ids))
+	for i, id := range ids {
+		args[i] = id
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT id, name FROM hd_dashboards WHERE id IN (`+marks+`)`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, name string
+		if err := rows.Scan(&id, &name); err != nil {
+			return nil, err
+		}
+		out[id] = name
+	}
+	return out, rows.Err()
+}
+
 // Revisions lists the kept revisions of a dashboard, newest first.
 func (s *Store) Revisions(ctx context.Context, id string) ([]RevisionInfo, error) {
 	var n int

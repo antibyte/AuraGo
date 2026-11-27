@@ -221,6 +221,7 @@ func handleDesktopWS(s *Server) http.HandlerFunc {
 		lastPolicy := s.desktopSerialPolicy(r)
 		if bootstrap, err := svc.Bootstrap(r.Context()); err == nil {
 			s.enrichDesktopBootstrap(&bootstrap)
+			s.projectDashboardShortcuts(r, &bootstrap)
 			bootstrap = filterDesktopBootstrap(s, r, bootstrap)
 			_ = conn.WriteJSON(map[string]interface{}{"type": "welcome", "payload": bootstrap})
 		}

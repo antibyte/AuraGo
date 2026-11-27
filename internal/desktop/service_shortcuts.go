@@ -2,10 +2,107 @@ package desktop
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 )
+
+// dashboardTargetIDRe is the id shape of a dashboard shortcut target (checked again by the server).
+var dashboardTargetIDRe = regexp.MustCompile(`^[a-z0-9_-]{1,64}$`)
+
+// DashboardShortcutID is the shortcut id of a HomeDash dashboard.
+func DashboardShortcutID(dashboardID string) string { return "dashboard-" + dashboardID }
+
+// AddDesktopDashboardShortcut pins a HomeDash dashboard to the desktop. The caller has already
+// validated the dashboard and passes its current name.
+func (s *Service) AddDesktopDashboardShortcut(ctx context.Context, dashboardID, name, source string) (Shortcut, error) {
+	if err := s.ensureReady(ctx); err != nil {
+		return Shortcut{}, err
+	}
+	if s.Config().ReadOnly {
+		return Shortcut{}, fmt.Errorf("virtual desktop is read-only")
+	}
+	dashboardID = strings.ToLower(strings.TrimSpace(dashboardID))
+	shortcut := Shortcut{
+		ID:         DashboardShortcutID(dashboardID),
+		TargetType: ShortcutTargetDashboard,
+		TargetID:   dashboardID,
+		Name:       name,
+		Icon:       "homedash",
+	}
+	if err := s.upsertDesktopShortcut(ctx, shortcut, source); err != nil {
+		return Shortcut{}, err
+	}
+	shorts, err := s.listShortcuts(ctx)
+	if err != nil {
+		return Shortcut{}, err
+	}
+	for _, sc := range shorts {
+		if sc.ID == shortcut.ID {
+			return sc, nil
+		}
+	}
+	return shortcut, nil
+}
+
+// RenameTargetShortcuts sets the label of every shortcut for the target. It reads first and
+// writes only when a name differs, so ordinary autosaves take no write lock.
+func (s *Service) RenameTargetShortcuts(ctx context.Context, targetType, targetID, name, source string) (bool, error) {
+	if err := s.ensureReady(ctx); err != nil {
+		return false, err
+	}
+	if s.Config().ReadOnly {
+		return false, nil
+	}
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return false, nil
+	}
+	db := s.getDB()
+	var current string
+	err := db.QueryRowContext(ctx, `SELECT name FROM desktop_shortcuts WHERE target_type = ? AND target_id = ? AND name <> ? LIMIT 1`,
+		targetType, targetID, name).Scan(&current)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("read desktop shortcut name: %w", err)
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	res, err := db.ExecContext(ctx, `UPDATE desktop_shortcuts SET name = ?, updated_at = ? WHERE target_type = ? AND target_id = ? AND name <> ?`,
+		name, now, targetType, targetID, name)
+	if err != nil {
+		return false, fmt.Errorf("rename desktop shortcut: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return false, nil
+	}
+	_ = s.Audit(ctx, "rename_shortcut", targetType+"-"+targetID, map[string]interface{}{"name": name}, source)
+	s.InvalidateShortcuts()
+	return true, nil
+}
+
+// RemoveTargetShortcuts deletes every shortcut for the target and reports whether any existed.
+func (s *Service) RemoveTargetShortcuts(ctx context.Context, targetType, targetID, source string) (bool, error) {
+	if err := s.ensureReady(ctx); err != nil {
+		return false, err
+	}
+	if s.Config().ReadOnly {
+		return false, nil
+	}
+	res, err := s.getDB().ExecContext(ctx, `DELETE FROM desktop_shortcuts WHERE target_type = ? AND target_id = ?`, targetType, targetID)
+	if err != nil {
+		return false, fmt.Errorf("remove desktop shortcuts: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return false, nil
+	}
+	_ = s.Audit(ctx, "remove_shortcut", targetType+"-"+targetID, map[string]interface{}{}, source)
+	s.InvalidateShortcuts()
+	return true, nil
+}
 
 // AddDesktopAppShortcut pins an existing built-in or installed app to the desktop.
 func (s *Service) AddDesktopAppShortcut(ctx context.Context, appID, source string) error {
@@ -64,8 +161,11 @@ func (s *Service) upsertDesktopShortcut(ctx context.Context, shortcut Shortcut, 
 	if shortcut.ID == "" {
 		return fmt.Errorf("desktop shortcut id is required")
 	}
-	if shortcut.TargetType != ShortcutTargetApp && shortcut.TargetType != ShortcutTargetDirectory {
+	if shortcut.TargetType != ShortcutTargetApp && shortcut.TargetType != ShortcutTargetDirectory && shortcut.TargetType != ShortcutTargetDashboard {
 		return fmt.Errorf("unsupported desktop shortcut target type")
+	}
+	if shortcut.TargetType == ShortcutTargetDashboard && !dashboardTargetIDRe.MatchString(shortcut.TargetID) {
+		return fmt.Errorf("desktop shortcut dashboard id is invalid")
 	}
 	if shortcut.TargetType == ShortcutTargetApp && shortcut.TargetID == "" {
 		return fmt.Errorf("desktop shortcut app id is required")

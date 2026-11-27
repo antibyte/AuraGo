@@ -262,6 +262,7 @@ func (h *hdRequest) updateDashboard() {
 		h.fail(err)
 		return
 	}
+	h.s.syncDashboardShortcutName(h.r.Context(), saved.ID, saved.Name)
 	homeDashWriteOK(h.w, http.StatusOK, map[string]any{"dashboard": saved, "warnings": homeDashNonNil(rep.Warnings)})
 }
 
@@ -283,6 +284,7 @@ func (h *hdRequest) deleteDashboard() {
 		h.svc.hub.RevokeDevice(dev, homedash.CloseDeviceRevoked)
 	}
 	h.svc.hub.DashboardChanged(id, 0, 0)
+	h.s.dropDashboardShortcut(h.r.Context(), id)
 	homeDashWriteOK(h.w, http.StatusOK, map[string]any{"id": id})
 }
 
@@ -388,6 +390,7 @@ func (h *hdRequest) restoreDashboard() {
 		h.fail(err)
 		return
 	}
+	h.s.syncDashboardShortcutName(ctx, saved.ID, saved.Name)
 	homeDashWriteOK(h.w, http.StatusOK, map[string]any{"dashboard": saved, "warnings": homeDashNonNil(rep.Warnings)})
 }
 
