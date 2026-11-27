@@ -15,6 +15,7 @@ EIA-198, IEC 60086, IEC 61960) were not read; catalogue abstracts, previews and 
 | battery_formats | typical | 10 | 9 |
 | dc_barrel_connectors | transcribed standard + typical | 9 | 7 |
 | blade_fuses | transcribed maker colour code (5 makers; ISO 8820-3 not read) | 23 | 7 |
+| level_shifters | transcribed datasheet and application-note facts | 10 | 21 |
 
 ## UNVERIFIED cells
 - Barrel connectors: EIAJ-05 inner diameter (4.4 vs Lumberg 4.3 mm); the 2.5×0.7 row (single source).

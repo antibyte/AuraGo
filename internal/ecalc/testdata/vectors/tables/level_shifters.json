@@ -1,0 +1,23 @@
+{
+  "_doc": "Vectors of level_shifters. Data rates are in bit/s (SI of the datarate dimension); text cells are the English text. Empty cells (null) have no cross-checked source.",
+  "table": "level_shifters",
+  "cells": [
+    {"key": "txs0108e", "column": "rate_pp", "want": 110000000, "ref": "TI TXS0108E data sheet SCES642L Features and Timing Requirements (VCCA 3.3 V, VCCB 5 V: 110 Mbps push-pull) = TI SLYY165A buying guide (110 Mbps)"},
+    {"key": "txs0108e", "column": "rate_od", "want": 1200000, "ref": "TI TXS0108E data sheet SCES642L Features and Timing Requirements (1.2 Mbps open-drain)"},
+    {"key": "txs0108e", "column": "open_drain", "want": "yes", "ref": "TI TXS0108E data sheet and TI SCEA044: TXS type for open-drain and I2C, smart pull-ups 4 kOhm / 40 kOhm"},
+    {"key": "txb0108", "column": "rate_pp", "want": 100000000, "ref": "TI TXB0108 data sheet SCES643L Timing Requirements (100 Mbps) = TI SLYY165A (100 Mbps)"},
+    {"key": "txb0108", "column": "open_drain", "want": "no", "ref": "TI TXB0108 data sheet section 7.1 (can only translate push-pull CMOS outputs) = TI SCEA043 (not for open-drain, use TXS for I2C)"},
+    {"key": "txb0108", "column": "rate_od", "want": null, "ref": "TXB0108 does not support open-drain, so there is no open-drain rate"},
+    {"key": "lvc1t45", "column": "rate_pp", "want": 420000000, "ref": "TI SN74LVC1T45 SCES515N Features = Nexperia 74LVC1T45 Rev. 10 Features = TI SLYY165A (420 Mbps, 3.3 V to 5 V)"},
+    {"key": "lvc1t45", "column": "open_drain", "want": null, "ref": "No maker states it; a direction-controlled buffer cannot pass a bidirectional open-drain bus by design (our own reasoning), so the cell is empty"},
+    {"key": "lvc8t245", "column": "rate_pp", "want": null, "ref": "Nexperia 74LVC8T245 Rev. 7 gives 420 Mbps, TI SLYY165A gives 320 Mbps, the TI SN74LVC8T245 data sheet none: no agreed figure"},
+    {"key": "pca9306", "column": "rate_od", "want": null, "ref": "TI SCPS113O (more than 100 MHz) and NXP Rev. 9.5 (generally more than 2 MHz) disagree"},
+    {"key": "pca9306", "column": "push_pull", "want": "one-way only", "ref": "TI PCA9306 SCPS113O section 9.2.2.1 = NXP PCA9306 Rev. 9.5: with a totem-pole output the data must be unidirectional"},
+    {"key": "mosfet", "column": "rate_od", "want": 400000, "ref": "NXP AN10441 Rev. 01 (2007) = Nexperia AN10441 Rev. 2 (2020) section 2: Standard-mode 100 kbit/s and Fast-mode 400 kbit/s, not Hs-mode"},
+    {"key": "mosfet", "column": "push_pull", "want": null, "ref": "AN10441 covers open-drain I2C only; no source for push-pull"},
+    {"key": "divider", "column": "open_drain", "want": null, "ref": "Microchip DS41285A Tip 12 describes the one-way divider; no maker states open-drain use, empty cell"},
+    {"key": "ttl_in", "column": "supply_b", "want": "VCC 4.5–5.5 V", "ref": "TI SN74AHCT125 SCLS264R section 5.2 = Nexperia 74AHC_AHCT125 Rev. 9 Table 5 = TI SN74HCT125 SCLS069G: VCC 4.5 to 5.5 V"},
+    {"key": "lvc_5vt", "column": "supply_b", "want": "driving logic up to 5.5 V (input limit)", "ref": "TI SN74LVC125A SCAS290T Features (inputs accept voltages to 5.5 V) = Nexperia 74LVC125A Rev. 12 Features"}
+  ],
+  "lookups": []
+}
