@@ -6244,6 +6244,36 @@
             return h;
         }
 
+        // ---- blocks: icon, diagram, chart, headline and list share the storyboard renderer (SM.blocks)
+        var BLOCK_ENTRIES = ['draw', 'pop', 'fade', 'slide', 'none'], blockCount = 0;
+        function fontNeeds() {
+            var font = opts.styleFont || 'default';
+            (cat.fonts || []).forEach(function (f) { if (f.name === font && (f.weight === 600 || f.weight === 700)) state.needs['font:' + f.name + '/' + f.weight] = true; });
+        }
+        // addBlock(def, o, at, entry): o = {at, entry, start, dur, reveals}; the defaults are the area and the entry of the kind.
+        function addBlock(def, o, at, entry) {
+            o = o || {};
+            if (blockCount >= SM.blocks.MAX_BLOCKS) throw new RangeError('A scene has at most ' + SM.blocks.MAX_BLOCKS + ' blocks. Remove some or merge them into one diagram or list.');
+            var where = o.at === undefined || o.at === null ? at : o.at;
+            var area = SM.blocks.area(stage, boardEnv, opts.variant, where);
+            if (!area) throw new RangeError('Unknown area ' + JSON.stringify(where) + '. Use ' + SM.blocks.AREAS.join(', ') + ' or {x, y} in percent.');
+            var how = o.entry === undefined ? entry : o.entry;
+            if (BLOCK_ENTRIES.indexOf(how) < 0) throw new RangeError('Unknown entry "' + how + '". Use ' + BLOCK_ENTRIES.join(', ') + '.');
+            var t = timing({ start: o.start, dur: o.dur }, SM.blocks.revealSeconds(def));
+            Object.keys(def).forEach(function (k) { if (def[k] === undefined) delete def[k]; });   // SM.blocks.create copies fields through JSON
+            def.id = nextId(def.kind);
+            def.area = area;
+            def.t0 = t.start;
+            def.dur = t.dur;
+            def.entry = how;
+            if (o.reveals !== undefined) def.reveals = o.reveals;
+            var bad = SM.blocks.check(def, cat);
+            if (bad) throw new RangeError(bad.message + ' (' + bad.field + ')');
+            blockCount++;
+            fontNeeds();
+            return common(addEntity(SM.blocks.create(def)));
+        }
+
         // ---- the API
         var api = {};
         api.duration = function (sec) {
@@ -6291,6 +6321,7 @@
             var pos = place(o.at, 'shape');
             return common(addEntity(S.createShape({ id: nextId('shape'), kind: kind, x: pos.x, y: pos.y, w: o.w, h: o.h, color: o.fill || o.color, stroke: o.stroke })));
         };
+        api.icon = function (id, o) { o = o || {}; return addBlock({ kind: 'icon', icon: id, style: o.style, label: o.label }, o, 'center', 'draw'); };
         api.chart = function () { note('not_supported_yet', 'api.chart is not supported yet; the chart is not drawn.'); return common(S.createShape({ id: nextId('chart'), kind: 'rect', x: 0, y: 0, hidden: true })); };
         api.diagram = function () { note('not_supported_yet', 'api.diagram is not supported yet; the diagram is not drawn.'); return common(S.createShape({ id: nextId('diagram'), kind: 'rect', x: 0, y: 0, hidden: true })); };
         api.tween = function (target, props, o) {
