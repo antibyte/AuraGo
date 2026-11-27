@@ -121,3 +121,6 @@ internal/virtualcomputers/patches/*.patch text eol=lf whitespace=-blank-at-eol,-
 internal/chibisensei/trainer/** text eol=lf
 internal/chibisensei/testdata/** text eol=lf
 internal/chibisensei/chatrt/testdata/** text eol=lf
+
+assets/storymaker/icons/*.txt text eol=lf
+ui/img/storymaker/icons/*.txt text eol=lf

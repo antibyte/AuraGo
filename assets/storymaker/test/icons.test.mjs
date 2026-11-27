@@ -3,7 +3,12 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { nodesToPaths, fmt } from '../lib/icons.mjs';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { nodesToPaths, fmt, PATH_CHARS, CATEGORIES, LUCIDE_INTEGRITY } from '../lib/icons.mjs';
+
+const iconsDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'icons');
 
 test('every node kind converts to path data on the 24 grid', () => {
   const one = (node) => nodesToPaths([node]).paths[0];
@@ -24,4 +29,42 @@ test('a fill attribute other than none goes to fills, a transform throws', () =>
   assert.deepEqual(r.fills, ['M4 5A1 1 0 1 0 6 5A1 1 0 1 0 4 5Z']);
   assert.throws(() => nodesToPaths([['path', { d: 'M1 1', transform: 'rotate(5)' }]]), /transform/);
   assert.throws(() => nodesToPaths([['text', {}]]), /text/);
+});
+
+test('the committed icon data is complete', () => {
+  const allow = JSON.parse(fs.readFileSync(path.join(iconsDir, 'allow-list.json'), 'utf8'));
+  assert.equal(allow.schema, 'storymaker-icon-allow-list/1');
+  assert.deepEqual(Object.keys(allow.categories), CATEGORIES);
+  const raw = fs.readFileSync(path.join(iconsDir, 'lucide.json'), 'utf8');
+  assert.ok(raw.length <= 256 * 1024, 'at most 256 KB');
+  assert.ok(!raw.includes('\r'), 'LF only');
+  const data = JSON.parse(raw);
+  assert.equal(data.schema, 'storymaker-icons/1');
+  assert.equal(data.source, 'lucide-static@1.82.0');
+  assert.equal(data.grid, 24);
+  assert.equal(data.stroke, 2);
+  const ids = data.icons.map((i) => i.id);
+  assert.deepEqual(ids, [...ids].sort(), 'sorted by id');
+  assert.equal(new Set(ids).size, ids.length, 'no duplicate id');
+  assert.ok(ids.length >= 490 && ids.length <= 530, `count ${ids.length}`);
+  const byId = new Map(data.icons.map((i) => [i.id, i]));
+  const wanted = new Set();
+  for (const [cat, list] of Object.entries(allow.categories)) {
+    for (const name of list) {
+      wanted.add(`icon.${name}`);
+      const icon = byId.get(`icon.${name}`);
+      assert.ok(icon, `icon.${name} is missing`);
+      assert.ok(icon.tags.includes(cat), `icon.${name} lacks the tag ${cat}`);
+    }
+  }
+  assert.deepEqual(ids, [...wanted].sort());
+  for (const icon of data.icons) {
+    assert.ok(icon.paths.length >= 1 && icon.paths.length <= 40, icon.id);
+    assert.ok(icon.tags.length <= 32, icon.id);
+    for (const p of [...icon.paths, ...(icon.fills ?? [])]) assert.ok(p.length <= 2000 && PATH_CHARS.test(p), `${icon.id}: ${p}`);
+  }
+  const notice = fs.readFileSync(path.join(iconsDir, 'NOTICE.txt'), 'utf8');
+  assert.ok(notice.includes('ISC') && notice.includes('MIT') && notice.includes(LUCIDE_INTEGRITY));
+  assert.ok(notice.includes(`${ids.length} icons`));
+  assert.ok(fs.readFileSync(path.join(iconsDir, 'LICENSE.txt'), 'utf8').includes('ISC License'));
 });
