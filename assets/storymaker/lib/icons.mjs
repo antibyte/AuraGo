@@ -41,10 +41,11 @@ function nodeToPath([tag, attrs]) {
         case 'ellipse': return ellipse(num(attrs, 'cx', tag), num(attrs, 'cy', tag), num(attrs, 'rx', tag), num(attrs, 'ry', tag));
         case 'rect': {
             const x = num(attrs, 'x', tag), y = num(attrs, 'y', tag), w = num(attrs, 'width', tag), h = num(attrs, 'height', tag);
-            let rx = attrs.rx === undefined ? undefined : num(attrs, 'rx', tag);
-            let ry = attrs.ry === undefined ? undefined : num(attrs, 'ry', tag);
-            rx = Math.min(rx ?? ry ?? 0, w / 2);
-            ry = Math.min(ry ?? rx ?? 0, h / 2);
+            // Each radius defaults to the other one as written, then each is clamped to its own half side.
+            const rawRx = attrs.rx === undefined ? undefined : num(attrs, 'rx', tag);
+            const rawRy = attrs.ry === undefined ? undefined : num(attrs, 'ry', tag);
+            const rx = Math.min(rawRx ?? rawRy ?? 0, w / 2);
+            const ry = Math.min(rawRy ?? rawRx ?? 0, h / 2);
             if (!rx && !ry) return `M${fmt(x)} ${fmt(y)}H${fmt(x + w)}V${fmt(y + h)}H${fmt(x)}Z`;
             const a = `A${fmt(rx)} ${fmt(ry)} 0 0 1 `;
             return `M${fmt(x + rx)} ${fmt(y)}H${fmt(x + w - rx)}${a}${fmt(x + w)} ${fmt(y + ry)}V${fmt(y + h - ry)}${a}${fmt(x + w - rx)} ${fmt(y + h)}H${fmt(x + rx)}${a}${fmt(x)} ${fmt(y + h - ry)}V${fmt(y + ry)}${a}${fmt(x + rx)} ${fmt(y)}Z`;
@@ -73,10 +74,18 @@ const label = (name) => name.split('-');
 // allowList: {schema, source, categories: {name: [ids]}} -> {json, notice, count, problems}
 export function buildIconData(pkgDir, allowList) {
     const read = (f) => fs.readFileSync(path.join(pkgDir, f), 'utf8');
+    // The notice names the pinned version and integrity, so the package must be that version.
+    const problems = [];
+    try {
+        const meta = JSON.parse(read('package.json'));
+        if (meta.name !== 'lucide-static' || meta.version !== LUCIDE_VERSION) {
+            problems.push(`package.json is ${meta.name}@${meta.version}, expected ${LUCIDE_SOURCE}`);
+        }
+    } catch (e) { problems.push(`package.json cannot be read: ${e.message}`); }
+    if (problems.length) return { json: '', notice: '', count: 0, problems, license: '' };
     const nodes = JSON.parse(read('icon-nodes.json'));
     const tags = JSON.parse(read('tags.json'));
     const license = read('LICENSE').replace(/\r\n/g, '\n');
-    const problems = [];
     const cats = new Map();
     if (allowList.schema !== ALLOW_LIST_SCHEMA) problems.push(`allow-list schema is ${allowList.schema}`);
     for (const cat of CATEGORIES) for (const id of allowList.categories?.[cat] ?? []) {

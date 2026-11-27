@@ -26,7 +26,7 @@ func storymakerEnumValues(node map[string]interface{}) []string {
 	return out
 }
 
-func TestStorymakerFreeSchemasOfferNoCatalogSearchNoCastAndCodeScenesOnly(t *testing.T) {
+func TestStorymakerFreeSchemasOfferIconSearchNoCastAndCodeScenesOnly(t *testing.T) {
 	names := StorymakerNames{}
 	if got := StorymakerPhaseToolSchemasFor(storymaker.ModeFree, storymaker.PhaseCast, false, names); len(got) != 0 {
 		t.Fatalf("a free project has no cast phase, got %d tools", len(got))

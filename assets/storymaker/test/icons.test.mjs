@@ -4,9 +4,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { nodesToPaths, fmt, PATH_CHARS, CATEGORIES, LUCIDE_INTEGRITY } from '../lib/icons.mjs';
+import { nodesToPaths, buildIconData, fmt, PATH_CHARS, CATEGORIES, LUCIDE_INTEGRITY, LUCIDE_VERSION } from '../lib/icons.mjs';
 
 const iconsDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'icons');
 
@@ -67,4 +68,27 @@ test('the committed icon data is complete', () => {
   assert.ok(notice.includes('ISC') && notice.includes('MIT') && notice.includes(LUCIDE_INTEGRITY));
   assert.ok(notice.includes(`${ids.length} icons`));
   assert.ok(fs.readFileSync(path.join(iconsDir, 'LICENSE.txt'), 'utf8').includes('ISC License'));
+});
+
+test('a rect corner radius defaults to the raw other radius before clamping', () => {
+  const d = nodesToPaths([['rect', { x: '0', y: '0', width: '20', height: '40', rx: '30' }]]).paths[0];
+  assert.equal(d, 'M10 0H10A10 20 0 0 1 20 20V20A10 20 0 0 1 10 40H10A10 20 0 0 1 0 20V20A10 20 0 0 1 10 0Z');
+  const e = nodesToPaths([['rect', { x: '0', y: '0', width: '20', height: '40', ry: '30' }]]).paths[0];
+  assert.ok(e.startsWith('M10 0H10A10 20 0 0 1'), e);
+});
+
+test('the icon build refuses a package that is not lucide-static at the pinned version', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sm-icons-'));
+  try {
+    const allow = { schema: 'storymaker-icon-allow-list/1', categories: {} };
+    for (const [name, version] of [['lucide-static', '1.81.0'], ['lucide-other', LUCIDE_VERSION]]) {
+      fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ name, version }));
+      const built = buildIconData(dir, allow);
+      assert.ok(built.problems.some((p) => p.includes('package.json')), `${name}@${version}: ${built.problems}`);
+    }
+    fs.writeFileSync(path.join(dir, 'package.json'), '{}');
+    assert.ok(buildIconData(dir, allow).problems.length > 0, 'a package without a name');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
