@@ -1,6 +1,7 @@
 /* Runenpfad journal story: the speakers and graphs of Edda's chronicle round. DOM-free data only.
  * Virtual speakers without a body in the room (journal, lore, core; opened through RunenpfadDialogue.openVirtual), the two epilogue
- * folk (Edda, Gundar), the observatory chapter of the brass helper (meeting automaton_hall) and the core's last question.
+ * folk (Edda, Gundar), the observatory chapter of the brass helper (meeting automaton_hall, whose last line depends on the core's answer) and the core's last question. Round 11 adds the two
+ * recruits Asta and Leif; the dragon chapter lines of Edda, Cog and the recruits are in ember-story-folk.js.
  * Appends to RunenpfadNpcStory (after folk-story.js) and RunenpfadNpcs.NPCS. Graphs marked `virtual: true` have no meeting start:
  * dialogue.js counts all their nodes as reachable. Texts are in the locale files (runenpfad.npc.<npc>.<node>[.c<n>]). */
 (function (root) {
@@ -80,7 +81,11 @@
     };
 
     // ---- the brass helper's chapter in the wardens' hall: Cog opens the observatory ----
+    // The core's last line depends on the answer given in the observatory (obs.answer 1..3); the plain `done` stays for older saves.
     if (GRAPHS.automaton) MEETINGS.push({ id: 'automaton_hall', npcId: 'automaton', levels: [], starts: [
+        { if: { flag: 'obs.done', flagMin: { 'obs.answer': 3 } }, to: 'done_3' },
+        { if: { flag: 'obs.done', flagMin: { 'obs.answer': 2 }, not: { flagMin: { 'obs.answer': 3 } } }, to: 'done_2' },
+        { if: { flag: 'obs.done', flagMin: { 'obs.answer': 1 }, not: { flagMin: { 'obs.answer': 2 } } }, to: 'done_1' },
         { if: { flag: 'obs.done' }, to: 'done' },
         { if: { flag: 'obs.open' }, to: 'wait' },
         { to: 'call' }] });
@@ -97,8 +102,44 @@
             { text: FAREWELL, to: null }] },
         // "Click. The gear has stopped. The sum is closed. ..."
         done: { mood: 'happy', marker: 'heart', choices: [
+            { text: FAREWELL, to: null }] },
+        // "Click. The gear has stopped. Cog heard the core's last line: 'Someone catches her. One walker is two.' Whirr. Cog thinks it is the best sum the core ever made. Cog can stop counting. Cog would like to learn dice."
+        done_1: { mood: 'happy', marker: 'heart', choices: [
+            { text: FAREWELL, to: null }] },
+        // "Click. The gear has stopped. The core's last line was: 'Kept by walking. Rest is not safety.' Whirr. Cog has been practising walking since. Cog is bad at it. Cog can stop counting. Cog would like to learn dice."
+        done_2: { mood: 'happy', marker: 'heart', choices: [
+            { text: FAREWELL, to: null }] },
+        // "Click. The gear has stopped. The core's last line was: 'Line one was wrong. Error noted.' Whirr. Cog thinks that is how a core says sorry. Cog can stop counting. Cog would like to learn dice."
+        done_3: { mood: 'happy', marker: 'heart', choices: [
             { text: FAREWELL, to: null }] }
     });
+
+    // ---- the two recruits of the epilogue (Asta and Leif, standing in the hall after the observatory) ----
+    MEETINGS.push(
+        { id: 'recruit_f_home', npcId: 'recruit_f', levels: [], starts: [{ to: 'hello' }] },
+        { id: 'recruit_m_home', npcId: 'recruit_m', levels: [], starts: [{ to: 'hello' }] });
+    GRAPHS.recruit_f = {
+        nodes: {
+            // "I am Asta. Edda says a warden counts waystones, so I count them twice, in case she counted wrong. She does not like it when I say that. I say it anyway."
+            hello: { marker: 'talk', choices: [
+                { to: 'how' },   // "How does one become a warden?"
+                { text: FAREWELL, to: null }] },
+            // "You walk. That is the whole secret, Edda says, and then she sends me to the Whisperwood and back. Twice. Because of the counting."
+            how: { choices: [
+                { text: FAREWELL, to: null }] }
+        }
+    };
+    GRAPHS.recruit_m = {
+        nodes: {
+            // "I am Leif. I carry Asta's counting stick. It is an honour. It is also very heavy. Do not tell Asta I said heavy."
+            hello: { marker: 'talk', choices: [
+                { to: 'day' },   // "What does a recruit do all day?"
+                { text: FAREWELL, to: null }] },
+            // "Count, carry, sweep the hall, and look as if we are not afraid of the bell. Edda says looking brave is half of being brave. The other half is carrying the stick."
+            day: { choices: [
+                { text: FAREWELL, to: null }] }
+        }
+    };
 
     // ---- Gundar, the dice player in the tavern ----
     MEETINGS.push({ id: 'gambler_home', npcId: 'gambler', levels: [], starts: [{ to: 'hello' }] });

@@ -11,7 +11,9 @@
         witch: ['td-folk-story-a', 0], wizard: ['td-folk-story-a', 1], merchant: ['td-folk-story-a', 2], chief: ['td-folk-story-a', 3],
         seer: ['td-folk-story-b', 0], alchemist: ['td-folk-story-b', 1], villager_f: ['td-folk-story-b', 2], villager_m: ['td-folk-story-b', 3],
         // Epilogue sheet: Edda, the two recruits and Gundar (the NPC definitions of Edda and Gundar live in journal-story.js).
-        edda: ['td-folk-epilogue', 0], recruit_f: ['td-folk-epilogue', 1], recruit_m: ['td-folk-epilogue', 2], gambler: ['td-folk-epilogue', 3]
+        edda: ['td-folk-epilogue', 0], recruit_f: ['td-folk-epilogue', 1], recruit_m: ['td-folk-epilogue', 2], gambler: ['td-folk-epilogue', 3],
+        // Round 11 (the ember dragon chapter): the deeps sheet. Pip has no portrait sheet; the dialogue window shows the monogram.
+        mira: ['td-folk-deep', 0], nokk: ['td-folk-deep', 1], pip: ['td-folk-deep', 2], bram: ['td-folk-deep', 3]
     };
 
     // Ids that stand around without a dialogue (no talk prompt).
@@ -27,13 +29,18 @@
         elder: { faction: null, color: '#e6c27a', offers: [] },
         innkeeper: { faction: null, color: '#f59e6b', offers: ['meal', 'potion'] },
         smith: { faction: null, color: '#94a3b8', offers: [] },
-        shopkeeper: { faction: null, color: '#86d6a0', offers: ['potion', 'map_charm', 'lucky_amulet', 'rune_attune'] },
+        shopkeeper: { faction: null, color: '#86d6a0', offers: ['potion', 'map_charm', 'lucky_amulet', 'rune_attune', 'turnip', 'ham', 'frostberry', 'honey'] },
         bard: { faction: null, color: '#f0abfc', offers: [] },
         hermit: { faction: 'coven', color: '#a8a29e', offers: [] },
         barkeep: { faction: 'kobolds', color: '#fb7185', offers: ['potion', 'lucky_amulet'], fallback: { pack: 'monsters-animals-animated', anim: 'goblin_idle' } },
         scribe: { faction: 'circle', color: '#fcd34d', offers: ['map_charm', 'rune_magnet'] },
         climber: { faction: 'circle', color: '#7dd3fc', offers: [] },
-        automaton: { faction: 'coven', color: '#d6a35c', offers: [], fallback: { pack: 'robots-drones-animated', anim: 'service_robot_idle' } }
+        automaton: { faction: 'coven', color: '#d6a35c', offers: [], fallback: { pack: 'robots-drones-animated', anim: 'service_robot_idle' } },
+        // Round 11: Mira (Tilda's daughter), the kobold refugees Nokk and Pip, Bram the old miner.
+        mira: { faction: null, color: '#f9c38a', offers: [], height: 58 },
+        nokk: { faction: 'kobolds', color: '#f87171', offers: [], fallback: { pack: 'monsters-animals-animated', anim: 'goblin_idle' } },
+        pip: { faction: 'kobolds', color: '#fb923c', offers: [], height: 62, fallback: { pack: 'monsters-animals-animated', anim: 'goblin_idle' } },
+        bram: { faction: null, color: '#a3a3a3', offers: [] }
     };
 
     const AMBIENT_COLORS = { patron: '#d6a35c', child: '#fde68a', villager_f: '#f9a8d4', villager_m: '#93c5fd', recruit_f: '#fda4af', recruit_m: '#a5b4fc' };
@@ -44,13 +51,15 @@
             const f = FOLK[id];
             const fb = f.fallback || HUMAN;
             defs[id] = {
-                faction: f.faction, nameKey: 'runenpfad.npc.' + id + '.name', titleKey: 'runenpfad.npc.' + id + '.title', color: f.color, height: 74,
+                faction: f.faction, nameKey: 'runenpfad.npc.' + id + '.name', titleKey: 'runenpfad.npc.' + id + '.title', color: f.color, height: f.height || 74,
                 fallback: { pack: fb.pack, anim: fb.anim, tint: f.fallback ? null : f.color }, offers: f.offers.slice(), duelCoins: 0
             };
         });
         AMBIENT.concat(RECRUITS).forEach(function (id) {
+            // The recruits are named people (Asta and Leif) since round 11; the other ambient villagers share one name.
+            const own = RECRUITS.indexOf(id) >= 0 ? id : 'ambient';
             defs[id] = {
-                faction: null, nameKey: 'runenpfad.npc.ambient.name', titleKey: 'runenpfad.npc.ambient.title', color: AMBIENT_COLORS[id], height: id === 'child' ? 58 : 74,
+                faction: null, nameKey: 'runenpfad.npc.' + own + '.name', titleKey: 'runenpfad.npc.' + own + '.title', color: AMBIENT_COLORS[id], height: id === 'child' ? 58 : 74,
                 fallback: { pack: HUMAN.pack, anim: HUMAN.anim, tint: AMBIENT_COLORS[id] }, offers: [], duelCoins: 0
             };
         });
