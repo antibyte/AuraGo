@@ -219,8 +219,22 @@ func (c *Calculator) SolvableSets() [][]string {
 		}
 	}
 	var out [][]string
-	if c.DOF < 1 || c.DOF > len(inputs) {
+	if c.DOF < 0 || c.DOF > len(inputs) {
 		return out
+	}
+	if c.DOF == 0 {
+		// Choices are the only inputs: exactly one, empty set, when the constants determine every variable.
+		known := map[string]bool{}
+		for k := range consts {
+			known[k] = true
+		}
+		c.propagate(known, func(target, Expr) {})
+		for _, v := range c.Vars {
+			if !known[v.ID] {
+				return out
+			}
+		}
+		return [][]string{{}}
 	}
 	idx := make([]int, c.DOF)
 	var pick func(pos, start int)

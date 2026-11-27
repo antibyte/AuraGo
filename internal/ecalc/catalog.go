@@ -753,6 +753,11 @@ func (l *loader) calculator(file string, r *rawCalc) *Calculator {
 		}
 	}
 	switch {
+	case c.DOF == 0 && inputs > 0:
+		fail("dof 0 is only for calculators without input variables, but %d variables can be inputs", inputs)
+	case c.DOF == 0 && len(c.Choices) == 0:
+		fail("dof 0 needs at least one choice, because the choices are the only inputs")
+	case c.DOF == 0:
 	case c.DOF < 1:
 		fail("dof must be at least 1")
 	case inputs < c.DOF:

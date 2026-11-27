@@ -633,4 +633,37 @@ for (const item of calculators) {
     count += 8;
 }
 
+// ---- dof 0: a calculator whose only inputs are choices (the Go twin: dof0_test.go levelCalc) ------------------------------
+{
+    const S = core.solve, auto = () => '';
+    const option = (id, consts) => ({ id, name: id, consts });
+    const levels = {
+        id: 't_levels', kind: 'calculator', dof: 0, sets: [[]],
+        vars: [{ id: 'nmh', dim: 'voltage', label: 'NM_H', input: false }, { id: 'nml', dim: 'voltage', label: 'NM_L', input: false }],
+        choices: [
+            { id: 'drv', name: 'Driver', default: 'a', options: [option('a', { voh: 4.9, vol: 0.1 }), option('b', { voh: 2.4, vol: 0.4 })] },
+            { id: 'rcv', name: 'Receiver', default: 'a', options: [option('a', { vih: 2.0, vil: 0.8 }), option('b', { vih: 3.5, vil: 1.5 })] }
+        ],
+        rules: [{ target: 'nmh', alts: ['voh - vih'] }, { target: 'nml', alts: ['vil - vol'] }],
+        derived: [{ id: 'voh_shown', dim: 'voltage', alts: ['voh'] }, { id: 'vil_shown', dim: 'voltage', alts: ['vil'] }],
+        checks: [{ when: 'nmh < 0', warn: 'No high margin.' }], formula: []
+    };
+    for (const [drv, rcv, nmh, nml, voh, vil, warnings] of [['a', 'a', 2.9, 0.7, 4.9, 0.8, []], ['b', 'b', -1.1, 1.1, 2.4, 1.5, [0]], ['a', 'b', 1.4, 1.4, 4.9, 1.5, []], ['b', 'a', 0.4, 0.4, 2.4, 0.8, []]]) {
+        const res = S.solve(levels, {}, { drv, rcv }, units);
+        same(res.values.nmh, nmh, `${drv}/${rcv} nmh`); same(res.values.nml, nml, `${drv}/${rcv} nml`);
+        same(res.values.voh_shown, voh, `${drv}/${rcv} voh`); same(res.values.vil_shown, vil, `${drv}/${rcv} vil`);
+        eq(res.errors, {}, `${drv}/${rcv} has no errors`);
+        eq(res.warnings, warnings, `${drv}/${rcv} warnings`);
+        count += 6;
+    }
+    const state = S.defaultState(levels, units, auto);
+    eq(state, { inputs: {}, recency: [], locked: [], choices: { drv: 'a', rcv: 'a' } });
+    eq(S.restoreState(levels, { inputs: {}, recency: [], locked: [], choices: { drv: 'b', rcv: 'zzz' } }, units, auto).choices, { drv: 'b', rcv: 'a' }, 'a stored choice state restores');
+    eq(S.restoreState(levels, { inputs: { x: '1 V' }, choices: {} }, units, auto), state, 'a stored input of a calculator without inputs falls back to the defaults');
+    eq(S.readInputs(levels, state, units, auto), { values: {}, errors: {} });
+    assert.equal(S.applyEdit(levels, state, 'nmh', '1 V', units, auto, {}), state, 'nothing to edit');
+    assert.equal(S.chooseInputs(levels.sets, [], 'nmh', []), null, 'no set holds a computed variable');
+    count += 5;
+}
+
 console.log(`ecalc core tests: ${count} cases ok`);

@@ -218,6 +218,8 @@
     // that becomes an input keeps the value it showed. Returns the new state (the argument is not changed), or the
     // very same `state` object when the edit is refused (a locked field would have to give way).
     function applyEdit(calc, state, edited, raw, units, unitOf, lastValues) {
+        // A calculator without input variables (dof 0) has nothing to edit.
+        if (!calc.dof || !(calc.sets || []).length) return state;
         const chosen = chooseInputs(calc.sets, state.recency, edited, state.locked);
         if (!chosen) return state;
         const inputs = {};

@@ -108,6 +108,8 @@
         const { units, store, t, icon, uid } = options;
         const calc = options.item || options.calc;
         const header = options.header && typeof options.header === 'object' ? options.header : null;
+        // A calculator whose only inputs are its choices (dof 0): every variable is a read-only result, so no field can be locked.
+        const choicesOnly = calc.dof === 0 && !calc.vars.some(v => v.input !== false);
         const varById = new Map(calc.vars.map(v => [v.id, v]));
         const derivedById = new Map(calc.derived.map(item => [item.id, item]));
         const spec = !header && calc.schematic && options.schematics && options.schematics[calc.schematic] ? options.schematics[calc.schematic] : null;
@@ -182,7 +184,7 @@
             }
             return '<div class="ec-field" role="group" data-var="' + esc(v.id) + '" data-state="input" data-dim="' + esc(v.dim) + '"' + (v.list ? ' data-list="true"' : '') + ' aria-labelledby="' + id + '-label">'
                 + '<div class="ec-field-head"><label class="ec-field-label" id="' + id + '-label" for="' + id + '" title="' + esc(v.name || '') + '">' + Typeset.labelHTML(v.label || v.id) + '</label>'
-                + '<button type="button" class="ec-lock" aria-pressed="false" data-action="lock">' + icon('lock') + '</button></div>'
+                + (choicesOnly ? '' : '<button type="button" class="ec-lock" aria-pressed="false" data-action="lock">' + icon('lock') + '</button>') + '</div>'
                 + '<div class="ec-field-row"><input class="ec-input" id="' + id + '" type="text" inputmode="' + (isRadix(v) ? 'text' : 'decimal') + '" maxlength="' + units.maxLength(!!v.list) + '" autocomplete="off" spellcheck="false" autocapitalize="off" aria-describedby="' + id + '-msg">' + unit + '</div>'
                 + '<div class="ec-field-msg" id="' + id + '-msg" aria-live="polite"></div></div>';
         }
@@ -266,11 +268,13 @@
             refs.root.dataset.unused = unused ? 'true' : 'false';
             if (unused) refs.root.title = t('desktop.ecalc_unused_field'); else refs.root.removeAttribute('title');
             refs.root.dataset.locked = locked ? 'true' : 'false';
-            refs.lock.hidden = !isInput;
-            refs.lock.setAttribute('aria-pressed', locked ? 'true' : 'false');
-            const lockLabel = locked ? t('desktop.ecalc_unlock') : t('desktop.ecalc_lock');
-            refs.lock.setAttribute('aria-label', lockLabel);
-            refs.lock.title = lockLabel;
+            if (refs.lock) {
+                refs.lock.hidden = !isInput;
+                refs.lock.setAttribute('aria-pressed', locked ? 'true' : 'false');
+                const lockLabel = locked ? t('desktop.ecalc_unlock') : t('desktop.ecalc_lock');
+                refs.lock.setAttribute('aria-label', lockLabel);
+                refs.lock.title = lockLabel;
+            }
             refs.input.readOnly = v.input === false;
             refs.input.setAttribute('aria-invalid', code && code !== 'undetermined' ? 'true' : 'false');
             refs.msg.textContent = errorText(code);
