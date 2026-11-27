@@ -50,7 +50,7 @@ die Seite. Mit `virtual_desktop.readonly` an kannst du ansehen, aber nichts bear
 Beim Start eines Films wählst du, woher die Bilder kommen:
 
 - **Aus Vorlagen** baut den Film aus dem eingebauten Katalog: Figuren, Requisiten, Umgebungen und Szenen mit Lippen-Sync.
-- **Frei erstellen** lässt den Agenten alles selbst zeichnen und animieren, über Code-Szenen. Es gibt keine Katalog-Figuren oder -Requisiten. Die Erzählstimme spricht aus dem Off, eine Code-Szene hat kein Lippen-Sync, und der Code einer Szene ist auf 8 KiB begrenzt.
+- **Frei erstellen** lässt den Agenten alles selbst zeichnen und animieren, über Code-Szenen. Es gibt keine Katalog-Figuren oder -Requisiten. Die Erzählstimme spricht aus dem Off, eine Code-Szene hat kein Lippen-Sync, und der Code einer Szene ist auf 8 KiB begrenzt. Ein freier Film zeichnet jetzt auf eine Tafel und kann Icons und die Erklär-Blöcke nutzen (siehe [Erklär-Blöcke](#erklär-blöcke)).
 
 Die Wahl fällt beim Anlegen des Projekts, auf dem Startbildschirm und im Chat-Werkzeug (`mode`: `catalog` oder `free`), und sie bleibt am Projekt: „Überarbeiten“ arbeitet auf dieselbe Weise weiter. Freie Projekte tragen in der Projektliste die Markierung „Frei“. Ein freier Film erreicht höchstens `ready_unverified`, weil das Layout in Code-Szenen nicht gemessen wird.
 
@@ -106,7 +106,7 @@ geprüft; ein Treffer bekommt eine optionale Korrekturrunde und blockiert das Er
 | Ergebnis | Was es bedeutet |
 | --- | --- |
 | Deine Geschichte ist fertig. Bitte sieh sie dir einmal an. | Szenen, Requisiten, Timing und, wenn der Browser die Kompilierprüfung ausgeführt hat, das Layout wurden geprüft. |
-| Deine Geschichte ist teilweise fertig. | Manche Szenen brauchen noch Arbeit, und gültige Szenen sind gespeichert. Das Überarbeiten-Feld ist vorbefüllt, um sie fertigzustellen. Ein Timeout oder ein Modellfehler endet hier ebenfalls. |
+| Deine Geschichte ist teilweise fertig. | Manche Szenen brauchen noch Arbeit, und gültige Szenen sind gespeichert. Das Überarbeiten-Feld ist vorbefüllt, um sie fertigzustellen. Ein Timeout oder ein Modellfehler endet hier ebenfalls. Eine Szene, die der Autor nie gefüllt hat, bekommt statt eines leeren Bildes eine Tafel mit ihrem Kernsatz; die Karte führt sie als `scene_fallback`, und der Film bleibt teilweise fertig. |
 | Der Agent konnte diese Geschichte nicht schreiben. | Es wurde keine Dramaturgie gespeichert. Die Karte nennt die Art des Fehlers in einer Zeile. |
 
 Sieh dir jeden Film einmal an. Wenn die Kompilierprüfung läuft, meldet die Layout-Prüfung Untertitel über den Füßen einer Figur, zu kleine Requisiten, Teile außerhalb des Bildes und eine Figur, die eine Requisite oder einen Text verdeckt. Ein Film gilt nur dann als `ready`, wenn kein Prüfpunkt offen ist. Szenen, die einander ähneln (drei oder mehr hintereinander), werden als `scenes_look_alike` gemeldet. Die Ergebniskarte verlinkt den Kontaktbogen der letzten Prüfung. Ein
@@ -127,6 +127,18 @@ wurden; die Chat-Antwort auf `status` nennt dieselben drei Listen.
 - In Code-Szenen: mehr als 3 Sekunden ohne sichtbare Veränderung (`dead_stretch`) oder ein leeres erstes Bild (`first_frame_empty`). Hinweis.
 
 Hinweise blockieren das Ergebnis nie. Die Flackerprüfung hat eine Zeitgrenze. Kann sie nicht jedes Bild rechtzeitig prüfen, bleibt die Prüfung offen (`flash_unverified`), und der Film gilt nicht als `ready`. Exportierst du selbst, ist jeder Bildbefund eine Warnung; keiner davon stoppt den Export.
+
+### Erklär-Blöcke
+
+Der Autor erklärt mit fertigen Blöcken statt mit losen Requisiten. Ein Block ist ein **Icon** (Linie, Plakette oder Karte mit Beschriftung), ein **Diagramm** (Ablauf, Kreislauf, Nabe, Stapel oder Vergleich), ein **Chart** (Balken, Linie, Kreis oder eine einzelne Zahl), eine **Überschrift** oder eine **Liste** mit höchstens vier Zeilen. Knoten und Listenzeilen erscheinen bei den Worten des Sprechtexts, die sie nennen, der Autor kann einen Knoten pulsieren lassen, und in einem Vorlagen-Film zeigt die Figur auf die Tafel. Ein Block steht in einem Bereich des Bildes: voll, links, rechts, oben, Mitte oder die Tafel der Umgebung.
+
+Die Umgebung **Tafel** (`env.board`) ist eine gezeichnete Papier- oder Schiefertafel für Blöcke, die das Bild füllen. Ein freier Film beginnt jede Szene darauf und kann in Code-Szenen dieselben Blöcke nutzen (`api.icon`, `api.diagram`, `api.chart`, `api.headline`, `api.list`). Die Icons stammen aus dem Lucide-Satz (rund 500 Icons, ISC-Lizenz). Sie liegen der App bei und werden lokal gezeichnet; aus dem Internet wird nichts geladen.
+
+Die Prüfung kennt dazu diese Befunde. Hinweise blockieren das Ergebnis nie:
+
+- Ein Block, der zu klein zum Lesen ist (`block_too_small`). Der Agent muss ihn beheben.
+- Fünf oder mehr Szenen und keine zeigt einen Block (`no_blocks`), oder dieselbe Art Block in drei Szenen hintereinander (`block_repeat`). Hinweis.
+- Eine Diagramm-Beschriftung mit mehr als drei Wörtern oder eine Überschrift mit mehr als acht (`label_long`). Hinweis.
 
 **Keine Stimme.** Ein Auftrag auf einer Maschine ohne fertige Stimme läuft trotzdem fertig. Der Sprechtext bleibt in
 der Geschichte, und jede Szene bekommt einen kurzen Text im Bild. Um zu exportieren, richte eine Stimme ein und drücke

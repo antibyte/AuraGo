@@ -50,7 +50,7 @@ or the page. With `virtual_desktop.readonly` on, you can watch but not edit, sav
 When you start a film, choose how its pictures come about:
 
 - **From templates** builds the film from the built-in catalog: people, props, environments and scenes with lip-sync.
-- **Create freely** lets the agent draw and animate everything itself in code scenes. There are no catalog people or props. The narrator speaks off-screen, a code scene has no lip-sync, and one scene's code is limited to 8 KiB.
+- **Create freely** lets the agent draw and animate everything itself in code scenes. There are no catalog people or props. The narrator speaks off-screen, a code scene has no lip-sync, and one scene's code is limited to 8 KiB. A free film now draws on a board and can use icons and the explainer blocks (see [Explainer blocks](#explainer-blocks)).
 
 The choice is made when the project is created, on the start screen and in the chat tool (`mode`: `catalog` or `free`), and it stays with the project: "Revise" keeps working in the same way. Free projects carry a "Free" marker in the project list. A free film is reported as `ready_unverified` at best, because the layout inside code scenes is not measured.
 
@@ -107,7 +107,7 @@ and never blocks the outcome.
 | Outcome | What it means |
 | --- | --- |
 | Your story is ready. Please watch it once. | Scenes, assets and timing were checked, and the layout too when the browser ran the compile check. |
-| Your story is partly done. | Some scenes still need work, and valid scenes are saved. The revise field is prefilled to finish them. A timeout or a model error ends here too. |
+| Your story is partly done. | Some scenes still need work, and valid scenes are saved. The revise field is prefilled to finish them. A timeout or a model error ends here too. A scene the author never filled gets a board with its key sentence instead of an empty frame; the card lists it as `scene_fallback` and the film stays partly done. |
 | The agent could not write this story. | No outline was saved. The card names the kind of failure in one line. |
 
 Watch every film once: when the compile check runs, the layout run flags captions over an actor's feet, props that are too small, boxes outside the frame and an actor that hides a prop or a text. A film reads `ready` only when no check is left open. Scenes that look alike (three or more in a row) are flagged as `scenes_look_alike`. The job card links the contact sheet of the last check. A film may
@@ -128,6 +128,18 @@ gives the same three lists.
 - In code scenes: more than 3 seconds without any visible change (`dead_stretch`), or an empty first frame (`first_frame_empty`). Advice.
 
 Advice never blocks the outcome. The flash check has a time limit. If it cannot test every frame in time, the check stays open (`flash_unverified`) and the film does not read `ready`. When you export yourself, every picture finding is a warning, so none of them stops the export.
+
+### Explainer blocks
+
+The author explains with ready-made blocks instead of loose props. A block is an **icon** (line, badge or card with a label), a **diagram** (flow, cycle, hub, stack or compare), a **chart** (bar, line, pie or one counter), a **headline** or a **list** of at most four lines. Diagram nodes and list lines appear on the words of the narration that name them, the author can pulse one node, and in a template film the character points at the board. A block sits on one area of the frame: full, left, right, top, center or the board of the environment.
+
+The environment **Board** (`env.board`) is a drawn paper or slate board for blocks that fill the frame. A free film starts every scene on it, and it can now use the same blocks in code scenes (`api.icon`, `api.diagram`, `api.chart`, `api.headline`, `api.list`). Icons come from the Lucide set (about 500 icons, ISC licence). They ship with the app and are drawn locally; nothing is loaded from the Internet.
+
+The check adds these findings. Advice never blocks the outcome:
+
+- A block that is too small to read (`block_too_small`). The agent must fix it.
+- Five or more scenes and none shows a block (`no_blocks`), or the same kind of block in three scenes in a row (`block_repeat`). Advice.
+- A diagram label of more than three words or a headline of more than eight (`label_long`). Advice.
 
 **No voice.** A job on a box with no ready voice still finishes. The narration text stays in the
 story, and each scene gets a short on-screen text. To export, either install a voice and press
