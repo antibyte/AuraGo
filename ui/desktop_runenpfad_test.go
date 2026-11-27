@@ -68,7 +68,7 @@ func TestRunenpfadRegistration(t *testing.T) {
 		path string
 		want []string
 	}{
-		{"js/desktop/core/module-loader.js", []string{"runenpfad", "/css/desktop-app-runenpfad.css", "/js/desktop/apps/runenpfad/levels.js", "/js/desktop/apps/runenpfad/app.js", "/js/desktop/apps/runenpfad/fx.js", "/js/desktop/apps/runenpfad/biomes.js", "/js/desktop/apps/runenpfad/backdrops.js", "/js/desktop/apps/runenpfad/backdrops-biomes.js", "/js/desktop/apps/runenpfad/parallax-art.js", "/js/desktop/apps/runenpfad/atmosphere.js", "/js/desktop/apps/runenpfad/behaviors.js", "/js/desktop/apps/runenpfad/variety.js", "/js/desktop/apps/runenpfad/profile.js", "/js/desktop/apps/runenpfad/physics.js", "/js/desktop/apps/runenpfad/combat.js", "/js/desktop/apps/runenpfad/bosses.js", "/js/desktop/apps/runenpfad/zones.js", "/js/desktop/apps/runenpfad/gauntlets.js", "/js/desktop/apps/runenpfad/audio-dsp.js", "/js/desktop/apps/runenpfad/music-voices.js", "/js/desktop/apps/runenpfad/music.js", "/js/desktop/apps/runenpfad/music-scores.js", "/js/desktop/apps/runenpfad/decor.js", "/js/desktop/apps/runenpfad/actors.js", "/js/desktop/apps/runenpfad/stage-art.js", "/js/desktop/apps/runenpfad/postfx.js", "/js/desktop/apps/runenpfad/hud.js", "/js/desktop/apps/runenpfad/npcs.js", "/js/desktop/apps/runenpfad/npc-story.js", "/js/desktop/apps/runenpfad/npc-story-late.js", "/js/desktop/apps/runenpfad/dialogue.js", "/js/desktop/apps/runenpfad/trade.js", "/js/desktop/apps/runenpfad/duel-patterns.js", "/js/desktop/apps/runenpfad/duel.js", "/js/desktop/apps/runenpfad/npc-view.js", "/js/desktop/apps/runenpfad/duel-view.js", "/js/desktop/apps/runenpfad/dialogue-ui.js", "/js/desktop/apps/runenpfad/place-rooms.js", "/js/desktop/apps/runenpfad/interior-mobs.js", "/js/desktop/apps/runenpfad/interior-bosses.js", "/js/desktop/apps/runenpfad/interior-things.js", "/js/desktop/apps/runenpfad/interior.js", "/js/desktop/apps/runenpfad/places.js", "/js/desktop/apps/runenpfad/folk.js", "/js/desktop/apps/runenpfad/folk-story.js", "/js/desktop/apps/runenpfad/journal-story.js", "/js/desktop/apps/runenpfad/village-rooms.js", "/js/desktop/apps/runenpfad/place-rooms-deep.js","/js/desktop/apps/runenpfad/village.js", "/js/desktop/apps/runenpfad/cutscenes.js", "/js/desktop/apps/runenpfad/chronicle.js", "/js/desktop/apps/runenpfad/dice.js", "/js/desktop/apps/runenpfad/bounties.js", "/js/desktop/apps/runenpfad/place-music.js", "/js/desktop/apps/runenpfad/story-music.js", "/js/desktop/apps/runenpfad/place-view.js", "/js/desktop/apps/runenpfad/interior-bake.js", "/js/desktop/apps/runenpfad/interior-things-view.js", "/js/desktop/apps/runenpfad/interior-view.js", "/js/desktop/apps/runenpfad/cutscene-view.js", "/js/desktop/apps/runenpfad/worldmap-ui.js", "/js/desktop/apps/runenpfad/cutscene-ui.js", "/js/desktop/apps/runenpfad/games-ui.js", "/js/desktop/apps/runenpfad/audio-mix.js", "/js/desktop/apps/runenpfad/sfx-rooms.js", "/js/desktop/apps/runenpfad/camera-rig.js", "/js/desktop/apps/runenpfad/feel-fx.js", "/js/desktop/apps/runenpfad/props-art.js", "/js/desktop/apps/runenpfad/gamepad.js"}},
+		{"js/desktop/core/module-loader.js", []string{"runenpfad", "/css/desktop-app-runenpfad.css", "/js/desktop/apps/runenpfad/levels.js", "/js/desktop/apps/runenpfad/app.js", "/js/desktop/apps/runenpfad/fx.js", "/js/desktop/apps/runenpfad/biomes.js", "/js/desktop/apps/runenpfad/backdrops.js", "/js/desktop/apps/runenpfad/backdrops-biomes.js", "/js/desktop/apps/runenpfad/parallax-art.js", "/js/desktop/apps/runenpfad/atmosphere.js", "/js/desktop/apps/runenpfad/behaviors.js", "/js/desktop/apps/runenpfad/variety.js", "/js/desktop/apps/runenpfad/profile.js", "/js/desktop/apps/runenpfad/physics.js", "/js/desktop/apps/runenpfad/combat.js", "/js/desktop/apps/runenpfad/bosses.js", "/js/desktop/apps/runenpfad/zones.js", "/js/desktop/apps/runenpfad/gauntlets.js", "/js/desktop/apps/runenpfad/audio-dsp.js", "/js/desktop/apps/runenpfad/music-voices.js", "/js/desktop/apps/runenpfad/music.js", "/js/desktop/apps/runenpfad/music-scores.js", "/js/desktop/apps/runenpfad/decor.js", "/js/desktop/apps/runenpfad/actors.js", "/js/desktop/apps/runenpfad/stage-art.js", "/js/desktop/apps/runenpfad/postfx.js", "/js/desktop/apps/runenpfad/hud.js", "/js/desktop/apps/runenpfad/npcs.js", "/js/desktop/apps/runenpfad/npc-story.js", "/js/desktop/apps/runenpfad/npc-story-late.js", "/js/desktop/apps/runenpfad/dialogue.js", "/js/desktop/apps/runenpfad/trade.js", "/js/desktop/apps/runenpfad/duel-patterns.js", "/js/desktop/apps/runenpfad/duel.js", "/js/desktop/apps/runenpfad/npc-view.js", "/js/desktop/apps/runenpfad/duel-view.js", "/js/desktop/apps/runenpfad/dialogue-ui.js", "/js/desktop/apps/runenpfad/place-rooms.js", "/js/desktop/apps/runenpfad/interior-mobs.js", "/js/desktop/apps/runenpfad/interior-bosses.js", "/js/desktop/apps/runenpfad/interior-things.js", "/js/desktop/apps/runenpfad/interior.js", "/js/desktop/apps/runenpfad/places.js", "/js/desktop/apps/runenpfad/folk.js", "/js/desktop/apps/runenpfad/folk-story.js", "/js/desktop/apps/runenpfad/journal-story.js", "/js/desktop/apps/runenpfad/village-rooms.js", "/js/desktop/apps/runenpfad/place-rooms-deep.js", "/js/desktop/apps/runenpfad/village.js", "/js/desktop/apps/runenpfad/cutscenes.js", "/js/desktop/apps/runenpfad/chronicle.js", "/js/desktop/apps/runenpfad/dice.js", "/js/desktop/apps/runenpfad/bounties.js", "/js/desktop/apps/runenpfad/place-music.js", "/js/desktop/apps/runenpfad/story-music.js", "/js/desktop/apps/runenpfad/place-view.js", "/js/desktop/apps/runenpfad/interior-bake.js", "/js/desktop/apps/runenpfad/interior-things-view.js", "/js/desktop/apps/runenpfad/interior-view.js", "/js/desktop/apps/runenpfad/cutscene-view.js", "/js/desktop/apps/runenpfad/worldmap-ui.js", "/js/desktop/apps/runenpfad/cutscene-ui.js", "/js/desktop/apps/runenpfad/games-ui.js", "/js/desktop/apps/runenpfad/audio-mix.js", "/js/desktop/apps/runenpfad/sfx-rooms.js", "/js/desktop/apps/runenpfad/camera-rig.js", "/js/desktop/apps/runenpfad/feel-fx.js", "/js/desktop/apps/runenpfad/props-art.js", "/js/desktop/apps/runenpfad/gamepad.js", "/js/desktop/apps/runenpfad/deep-mobs.js", "/js/desktop/apps/runenpfad/brandur.js", "/js/desktop/apps/runenpfad/ember-story.js", "/js/desktop/apps/runenpfad/ember-story-folk.js", "/js/desktop/apps/runenpfad/deeps-rooms.js", "/js/desktop/apps/runenpfad/ember.js", "/js/desktop/apps/runenpfad/crafts.js", "/js/desktop/apps/runenpfad/sfx-deeps.js", "/js/desktop/apps/runenpfad/deeps-music.js", "/js/desktop/apps/runenpfad/brandur-view.js", "/js/desktop/apps/runenpfad/deeps-map-view.js", "/js/desktop/apps/runenpfad/crafts-ui.js"}},
 		{"js/desktop/core/menus-and-routing.js", []string{"if (appId === 'runenpfad')", "RunenpfadApp.render"}},
 		{"js/desktop/core/desktop-foundation.js", []string{"runenpfad: '/img/runenpfad/icon.svg'", "runenpfad: 'RunenpfadApp'"}},
 		{"js/desktop/core/window-shell-runtime.js", []string{"runenpfad: { width: 1180, height: 740 }"}},
@@ -114,6 +114,18 @@ func TestRunenpfadRegistration(t *testing.T) {
 		{"js/desktop/apps/runenpfad/dice.js", []string{"RunenpfadDice", "stakes", "reroll"}},
 		{"js/desktop/apps/runenpfad/bounties.js", []string{"RunenpfadBounties", "offers", "track"}},
 		{"js/desktop/apps/runenpfad/games-ui.js", []string{"RunenpfadGamesUi", "createElement", "rp-games"}},
+		{"js/desktop/apps/runenpfad/ember.js", []string{"RunenpfadEmber", "stepHub"}},
+		{"js/desktop/apps/runenpfad/brandur.js", []string{"RunenpfadBrandur"}},
+		{"js/desktop/apps/runenpfad/deep-mobs.js", []string{"RunenpfadDeepMobs"}},
+		{"js/desktop/apps/runenpfad/deeps-rooms.js", []string{"RunenpfadDeepsRooms"}},
+		{"js/desktop/apps/runenpfad/crafts.js", []string{"RunenpfadCrafts"}},
+		{"js/desktop/apps/runenpfad/crafts-ui.js", []string{"RunenpfadCraftsUi", "createElement"}},
+		{"js/desktop/apps/runenpfad/brandur-view.js", []string{"RunenpfadBrandurView"}},
+		{"js/desktop/apps/runenpfad/deeps-map-view.js", []string{"RunenpfadDeepsMapView"}},
+		{"js/desktop/apps/runenpfad/sfx-deeps.js", []string{"RunenpfadSfx"}},
+		{"js/desktop/apps/runenpfad/deeps-music.js", []string{"RunenpfadDeepsMusic"}},
+		{"js/desktop/apps/runenpfad/ember-story.js", []string{"RunenpfadNpcStory"}},
+		{"js/desktop/apps/runenpfad/ember-story-folk.js", []string{"RunenpfadNpcStory"}},
 		{"js/desktop/apps/runenpfad/app.js", []string{"RunenpfadApp", "/api/game-maker/asset-packs/"}},
 	}
 	for _, tc := range checks {
@@ -531,6 +543,45 @@ func TestDesktopRunenpfadBrowser(t *testing.T) {
 	page.MustWait(`()=>document.querySelector('.rp-app')?.dataset.rpScene === 'interior'`)
 	page.MustEval(`()=>document.querySelector('.rp-app').__runenpfad.leavePlace()`)
 	page.MustWait(`()=>document.querySelector('.rp-app')?.dataset.rpScene === 'hub'`)
+	// The ember deeps: step 2 of the chapter opens the cave door and the lair holds Brandur.
+	page.MustEval(`()=>{
+		const sim = document.querySelector('.rp-app').__runenpfad.getSim();
+		window.__rpSeenBackup = (sim.profile.seen || []).slice();
+		sim.profile.seen = window.__rpSeenBackup.concat(['dr_night', 'dr_tremor']);
+		return new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+	}`)
+	if !page.MustEval(`()=>document.querySelector('.rp-app').__runenpfad.enterPlace('deeps')`).Bool() {
+		t.Fatal("enterPlace('deeps') did not enter the deeps at chapter step 2")
+	}
+	page.MustWait(`()=>document.querySelector('.rp-app')?.dataset.rpScene === 'interior'`)
+	page.MustEval(`()=>{
+		const sim = document.querySelector('.rp-app').__runenpfad.getSim();
+		window.RunenpfadInterior.enterRoom(sim, sim.interior, 'dp_lair', 'a');
+	}`)
+	// The wake scene may open as an overlay; skip it.
+	page.MustEval(`()=>new Promise(r => setTimeout(r, 400))`)
+	if page.MustEval(`()=>!!document.querySelector('.rp-cut')`).Bool() {
+		page.MustEval(`()=>document.querySelector('.rp-cut-skip').click()`)
+		page.MustWait(`()=>!document.querySelector('.rp-cut')`)
+	}
+	if !page.MustEval(`()=>{
+		const sim = document.querySelector('.rp-app').__runenpfad.getSim();
+		return !!(sim.interior && sim.interior.mobs && sim.interior.mobs.some(m => m.kind === 'brandur'));
+	}`).Bool() {
+		t.Fatal("the lair did not spawn a brandur mob")
+	}
+	page.MustEval(`()=>new Promise(r => setTimeout(r, 300))`)
+	if page.MustEval(`()=>!!document.querySelector('.rp-cut')`).Bool() {
+		page.MustEval(`()=>document.querySelector('.rp-cut-skip').click()`)
+		page.MustWait(`()=>!document.querySelector('.rp-cut')`)
+	}
+	page.MustEval(`()=>document.querySelector('.rp-app').__runenpfad.leavePlace()`)
+	page.MustWait(`()=>document.querySelector('.rp-app')?.dataset.rpScene === 'hub'`)
+	page.MustEval(`()=>{
+		const sim = document.querySelector('.rp-app').__runenpfad.getSim();
+		sim.profile.seen = window.__rpSeenBackup;
+		return new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+	}`)
 	page.MustEval(`()=>document.querySelector('.rp-app').__runenpfad.playCutscene('after_1')`)
 	page.MustWait(`()=>{ const c = document.querySelector('.rp-app').__runenpfad.getCutscene(); return !!c && c.open && !!document.querySelector('.rp-cut'); }`)
 	page.MustEval(`()=>document.querySelector('.rp-cut-skip').click()`)

@@ -483,7 +483,7 @@ check('the validator rejects a broken room for each new rule', () => {
         assert.ok(re.test(text), String(re) + ' missing in:\n' + text);
     });
     assert.equal(Rooms.PROP_DEFS['tdp-mech.p0'].solid, true);
-    assert.equal(Object.keys(Rooms.PROP_DEFS).length, 112);
+    assert.equal(Object.keys(Rooms.PROP_DEFS).length, 176);
     delete Rooms.ROOMS.t_room;
     delete Rooms.PLACES.t_place;
     assert.equal(Rooms.validate().length, baseline, 'test rooms leave no trace');

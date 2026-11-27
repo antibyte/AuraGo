@@ -11,7 +11,7 @@ sandbox.globalThis = sandbox;
 sandbox.fetch = () => Promise.reject(new Error('offline test'));
 vm.createContext(sandbox);
 const load = (rel) => vm.runInContext(fs.readFileSync(path.join(root, 'ui/js/desktop/apps/runenpfad', rel), 'utf8'), sandbox, { filename: rel });
-['biomes.js', 'fx.js', 'physics.js', 'behaviors.js', 'bosses.js', 'audio-dsp.js', 'sfx.js', 'sfx-rooms.js', 'audio-mix.js', 'audio.js', 'music-voices.js', 'music.js', 'music-scores.js', 'duel-music.js', 'place-music.js', 'story-music.js'].forEach(load);
+['biomes.js', 'fx.js', 'physics.js', 'behaviors.js', 'bosses.js', 'audio-dsp.js', 'sfx.js', 'sfx-rooms.js', 'sfx-deeps.js', 'audio-mix.js', 'audio.js', 'music-voices.js', 'music.js', 'music-scores.js', 'duel-music.js', 'place-music.js', 'story-music.js', 'deeps-music.js'].forEach(load);
 const Mix = sandbox.RunenpfadAudioMix;
 const Audio = sandbox.RunenpfadAudio;
 const Sfx = sandbox.RunenpfadSfx;
@@ -814,7 +814,7 @@ assert.equal(PlaceMusic.themeFor(interiorSim('in_obs')), 'in_obs');
     assert.ok(!Music.intensityFor(guardianSim(null)).bossAlive, 'no guardian, no boss drama');
     assert.equal(Music.themeIdFor(guardianSim({ state: 'chase' }), true), 'in_obs', 'the place theme keeps playing during the guardian fight');
 }
-['audio-dsp.js', 'sfx.js', 'sfx-rooms.js', 'audio-mix.js', 'audio.js', 'music-voices.js', 'music.js', 'music-scores.js', 'duel-music.js', 'place-music.js', 'story-music.js'].forEach((rel) => {
+['audio-dsp.js', 'sfx.js', 'sfx-rooms.js', 'sfx-deeps.js', 'audio-mix.js', 'audio.js', 'music-voices.js', 'music.js', 'music-scores.js', 'duel-music.js', 'place-music.js', 'story-music.js', 'deeps-music.js'].forEach((rel) => {
     const src = fs.readFileSync(path.join(root, 'ui/js/desktop/apps/runenpfad', rel), 'utf8');
     assert.ok(!src.includes('Math.random') && !src.includes('Date.now'), rel + ' stays deterministic');
     assert.ok(!/https?:\/\//.test(src), rel + ' has no URL strings');

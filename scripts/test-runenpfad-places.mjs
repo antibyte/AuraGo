@@ -73,7 +73,7 @@ function enter(sim, placeId) {
 // ---- (a) data ----
 check('rooms validate', () => {
     assert.equal(JSON.stringify(Rooms.validate()), "[]");
-    assert.equal(Object.keys(Rooms.PROP_DEFS).length, 112);
+    assert.equal(Object.keys(Rooms.PROP_DEFS).length, 176);
     ['hermit_hut', 'beast_den', 'kobold_den', 'crystal_grotto', 'nomad_tent', 'sun_tomb', 'summit_hut', 'ice_cave', 'brass_lab', 'boiler_room'].forEach((id) => {
         assert.ok(Rooms.PLACES[id], id);
     });
@@ -510,8 +510,8 @@ check('hub stage', () => {
     assert.equal(stage.mod, null, 'no rune trial');
     for (let tx = 1; tx < stage.widthTiles - 1; tx++) assert.ok(stage.solidMap[tx + ',13'], 'ground at tile ' + tx);
     // doors: four buildings and the rune arch, left to right, at least 9 tiles apart
-    deq(stage.doors.map((d) => d.placeId), ['tavern', 'shop', 'hall', 'smithy', 'arch']);
-    deq(stage.doors.map((d) => d.kind), ['house', 'house', 'house', 'house', 'arch']);
+    deq(stage.doors.map((d) => d.placeId), ['edda_house', 'tavern', 'shop', 'hall', 'smithy', 'arch']);
+    deq(stage.doors.map((d) => d.kind), ['house', 'house', 'house', 'house', 'house', 'arch']);
     for (let i = 1; i < stage.doors.length; i++) assert.ok(stage.doors[i].x - stage.doors[i - 1].x >= 9 * 48, 'door spacing ' + i);
     const fac = (id) => stage.doors.filter((d) => d.placeId === id)[0].facade;
     deq(JSON.parse(JSON.stringify(fac('tavern'))), { clip: 'fac-village-a.f0', h: 257, dx: 3 });
@@ -522,7 +522,8 @@ check('hub stage', () => {
     // decor and ambient villagers
     const clips = stage.hubProps.map((p) => p.clip);
     for (let i = 0; i < 8; i++) assert.ok(clips.includes('vil-props.p' + i), 'prop p' + i);
-    assert.ok(clips.includes('fac-village-b.f1') && clips.includes('fac-village-b.f3'), 'cottage and well');
+    assert.ok(clips.includes('fac-village-b.f3') && clips.includes('fac-deep.f2'), 'well and barn');
+    deq(JSON.parse(JSON.stringify(fac('edda_house'))).clip, 'fac-deep.f3');
     stage.hubProps.forEach((p) => { assert.ok(p.x > 0 && p.x < stage.width && p.y === stage.groundY && p.h > 0 && typeof p.flip === 'boolean'); });
     deq(stage.barks.map((b) => b.sheet), ['npc-villager', 'npc-guard']);
     stage.barks.forEach((b) => assert.ok(b.lines.length >= 3 && b.near === false && b.line === 0));
@@ -543,8 +544,8 @@ check('hub simulation: walk the whole street', () => {
         assert.equal(sim.state, 'playing');
         assert.equal(sim.player.hp, maxHp);
     }
-    assert.ok(sim.player.x > sim.stage.doors[4].x, 'walked past the arch');
-    deq(near, ['tavern', 'shop', 'hall', 'smithy', 'arch']);
+    assert.ok(sim.player.x > sim.stage.doors.find((d) => d.kind === 'arch').x, 'walked past the arch');
+    deq(near, ['edda_house', 'tavern', 'shop', 'hall', 'smithy', 'arch']);
     assert.equal(sim.interior, null);
     assert.equal(sim.uiRequest, null, 'walking past never enters');
     assert.equal(sim.earnedStars, 0);
@@ -591,7 +592,7 @@ check('enter each village place and leave again', () => {
 check('rune arch opens the world map', () => {
     for (const key of ['e', 'up']) {
         const sim = hubSim();
-        const door = sim.stage.doors[4];
+        const door = sim.stage.doors.find((d) => d.kind === 'arch');
         sim.player.x = door.x;
         sim.player.y = door.y;
         sim.player.vx = 0;
@@ -1131,7 +1132,8 @@ check('hall: task board, Cog after the finale, Edda and the recruits after the o
     standBy(sim, girl);
     tick(sim, {}, 2);
     tick(sim, { talkPressed: 'e' });
-    assert.ok(!sim.encounter, 'recruits only stand around');
+    assert.ok(sim.encounter && sim.encounter.npcId === 'recruit_f', 'the recruits talk now');
+    Dialogue.close(sim);
 });
 
 check('tavern: Gundar sits at his dice table', () => {
