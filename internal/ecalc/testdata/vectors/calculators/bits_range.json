@@ -1,0 +1,29 @@
+{
+  "calc": "bits_range",
+  "sets": [
+    {"values": {"n": 8, "vmax": 255, "count": 256, "smin": -128, "smax": 127, "bits": 8}, "ref": "hand: n = 8: V_max = 2^8 - 1 = 255, count 2^8 = 256, S_min = -2^7 = -128, S_max = 2^7 - 1 = 127, 8 bits (Go spec: uint8 0 to 255, int8 -128 to 127)"},
+    {"values": {"n": 16, "vmax": 65535, "count": 65536, "smin": -32768, "smax": 32767, "bits": 16}, "ref": "hand: n = 16: V_max = 65535, count 65536, S_min = -32768, S_max = 32767 (Go spec: uint16, int16)"},
+    {"values": {"n": 32, "vmax": 4294967295, "count": 4294967296, "smin": -2147483648, "smax": 2147483647, "bits": 32}, "ref": "hand: n = 32: V_max = 4294967295, count 4294967296, S_min = -2147483648, S_max = 2147483647 (Go spec: uint32, int32)"},
+    {"values": {"n": 53, "vmax": 9007199254740991, "count": 9007199254740992, "smin": -4503599627370496, "smax": 4503599627370495, "bits": 53}, "ref": "hand: n = 53: V_max = 2^53 - 1 = 9007199254740991 (ECMA-262 Number.MAX_SAFE_INTEGER), count 2^53, S_min = -2^52, S_max = 2^52 - 1"},
+    {"values": {"n": 1, "vmax": 1, "count": 2, "smin": -1, "smax": 0, "bits": 1}, "ref": "hand: n = 1: V_max = 2^1 - 1 = 1, count 2, S_min = -2^0 = -1, S_max = 2^0 - 1 = 0"},
+    {"values": {"n": 64, "vmax": 18446744073709552000, "count": 18446744073709552000, "smin": -9223372036854776000, "smax": 9223372036854776000, "bits": 64}, "ref": "hand: n = 64: count 2^64 and S_min -2^63 are exact powers of two; 2^64 - 1 and 2^63 - 1 round to 2^64 and 2^63 in a double (Go spec: uint64 max ...615, int64 max ...807)"},
+    {"values": {"n": 8, "vmax": 255, "count": 256, "smin": -128, "smax": 127, "bits": 8}, "ref": "hand: V_max = 255: n = ln(256) / ln(2) = 8, 2^8 - 1 = 255 so 8 bits"},
+    {"values": {"n": 9.967226258835993, "vmax": 1000, "count": 1000.9999999999994, "smin": -500.4999999999997, "smax": 499.4999999999997, "bits": 10}, "ref": "hand: V_max = 1000: n = ln(1001) / ln(2) = 6.90875477931522 / 0.6931471805599453 = 9.9672..., 10 bits because 2^10 - 1 = 1023 >= 1000 and 2^9 - 1 = 511 < 1000"},
+    {"values": {"n": 16, "vmax": 65535, "count": 65536, "smin": -32768, "smax": 32767, "bits": 16}, "ref": "hand: V_max = 65535: n = ln(65536) / ln(2) = 16, 16 bits"},
+    {"values": {"n": 31.00000000067181, "vmax": 2147483648, "count": 2147483649.0000057, "smin": -1073741824.5000029, "smax": 1073741823.5000029, "bits": 32}, "ref": "hand: V_max = 2^31: n = log2(2^31 + 1) = 31.0000000006718, 32 bits because 2^31 - 1 < 2^31 (a value 2^31 needs bit 32)"},
+    {"values": {"n": 29, "vmax": 536870911, "count": 536870912, "smin": -268435456, "smax": 268435455, "bits": 29}, "ref": "hand: V_max = 2^29 - 1 = 536870911: n = 29 (to double rounding), 29 bits"},
+    {"values": {"n": 53, "vmax": 9007199254740991, "count": 9007199254740992, "smin": -4503599627370496, "smax": 4503599627370495, "bits": 53}, "ref": "hand: V_max = 2^53 - 1: n = log2(2^53) = 53, 53 bits"},
+    {"values": {"n": 32, "vmax": 4294967295, "count": 4294967296, "smin": -2147483648, "smax": 2147483647, "bits": 32}, "ref": "hand: V_max = 2^32 - 1: n = 32, 32 bits"},
+    {"values": {"n": 9.5, "vmax": 723.0773439350247, "count": 724.0773439350247, "smin": -362.03867196751236, "smax": 361.03867196751236, "bits": 10}, "ref": "hand: n = 9.5 (not whole): V_max = 2^9.5 - 1 = 723.077, count 724.077, S_min = -2^8.5, S_max = 2^8.5 - 1, 10 bits because 2^10 - 1 = 1023 >= 723.08 and 2^9 - 1 = 511 < 723.08"}
+  ],
+  "solve": [
+    {"inputs": {"n": 8}, "expect": {"vmax": 255, "count": 256, "smin": -128, "smax": 127, "bits": 8}, "errors": {}, "warnings": [], "ref": "hand: the defaults, 8 bits: 0 ... 255 and -128 ... 127; no warning"},
+    {"inputs": {"n": 64}, "expect": {"count": 18446744073709552000, "smin": -9223372036854776000, "bits": 64}, "errors": {}, "warnings": [0], "ref": "hand: above 53 bits the n > 53 check (index 0) fires; 2^64 and -2^63 stay exact; vmax equals 2^round(n) - 1, so the not-whole check is silent"},
+    {"inputs": {"n": 54}, "expect": {"count": 18014398509481984, "smin": -9007199254740992}, "errors": {}, "warnings": [0], "ref": "hand: n = 54 > 53 fires check 0; 2^54 = 18014398509481984, -2^53 = -9007199254740992"},
+    {"inputs": {"vmax": 1000}, "expect": {"n": 9.967226258835993, "vmax": 1000, "count": 1000.9999999999994, "smin": -500.4999999999997, "smax": 499.4999999999997, "bits": 10}, "errors": {}, "warnings": [1], "ref": "hand: V_max + 1 = 1001 is not a power of two: n = 9.9672..., check 1 (not whole) fires, 10 bits"},
+    {"inputs": {"vmax": 100}, "expect": {"bits": 7}, "errors": {}, "warnings": [1], "ref": "hand: V_max = 100 needs 7 bits (2^7 - 1 = 127 >= 100, 2^6 - 1 = 63 < 100); n = ln(101) / ln(2) = 6.658 is not whole, check 1 fires"},
+    {"inputs": {"vmax": 4503599627370496}, "expect": {"n": 52, "bits": 53}, "errors": {}, "warnings": [1], "ref": "hand: V_max = 2^52: n = log2(2^52 + 1) = 52 + 3.2e-16, which a double stores as 52; 2^52 - 1 < 2^52 so 53 bits, and 2^52 - 1 != V_max fires check 1"},
+    {"inputs": {"n": 0.5}, "expect": {"count": 1.4142135623730951, "bits": 1}, "errors": {}, "warnings": [1, 2], "ref": "hand: n = 0.5: V_max = 2^0.5 - 1 = 0.4142 is not 2^0 - 1 (check 1) and n < 1 (check 2); count = sqrt(2); a value of 0.41 still needs 1 bit (2^1 - 1 = 1 >= 0.41)"},
+    {"inputs": {"vmax": 255}, "expect": {"n": 8, "bits": 8}, "errors": {}, "warnings": [], "ref": "hand: V_max = 255 = 2^8 - 1: n = 8, no warning"}
+  ]
+}

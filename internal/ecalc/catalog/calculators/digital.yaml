@@ -354,3 +354,30 @@
     - {when: "nml < 0", warn: {en: "LOW is not reliably recognised: V_OL(max) of the driver is above V_IL(max) of the receiver.", de: "LOW wird nicht sicher erkannt: V_OL(max) des Treibers liegt über V_IL(max) des Empfängers."}}
     - {when: "vdd > vimax", warn: {en: "Over-voltage: the driver's HIGH level can reach its supply, which is above the highest input voltage the receiver allows. Use a level shifter or a 5-V-tolerant input (such as 74LVC).", de: "Überspannung: Der HIGH-Pegel des Treibers kann seine Versorgungsspannung erreichen und liegt damit über der höchsten zulässigen Eingangsspannung des Empfängers. Einen Pegelwandler oder einen 5-V-toleranten Eingang (etwa 74LVC) verwenden."}}
   formula: ["nmh = voh - vih", "nml = vil - vol"]
+
+- id: bits_range
+  kind: calculator
+  category: digital
+  name: {cs: "Bity a rozsah hodnot", da: "Bits og værdiområde", de: "Bits und Wertebereich", el: "Bit και εύρος τιμών", en: "Bits and value range", es: "Bits y rango de valores", fr: "Bits et plage de valeurs", hi: "बिट और मान सीमा", it: "Bit e intervallo di valori", ja: "ビット数と値の範囲", nl: "Bits en waardebereik", no: "Biter og verdiområde", pl: "Bity i zakres wartości", pt: "Bits e intervalo de valores", sv: "Bitar och värdeområde", zh: "位数与取值范围"}
+  doc:
+    en: "The value range of an n-bit binary number: the largest unsigned value is 2^n − 1, there are 2^n distinct values, and the signed two's complement range is −2^(n−1) … 2^(n−1) − 1. Enter the number of bits n to get the ranges, or the largest value to get n; 'Bits needed' is the whole number of bits that holds that value (for a value that is not 2^k − 1, n itself is not whole). Example: 8 bits give 0 … 255 or −128 … 127, 16 bits 0 … 65 535, 32 bits 0 … 4 294 967 295. ECalc computes with IEEE 754 double-precision numbers, which hold every integer exactly only up to 2^53 − 1 (9 007 199 254 740 991): above 53 bits the results are rounded (a 64-bit unsigned maximum shows as 18 446 744 073 709 551 616 instead of …615), although 2^n and −2^(n−1) stay exact. The variable n is not restricted to whole numbers so that a value such as 1000 can show that it needs 9.97 bits."
+    de: "Der Wertebereich einer n-Bit-Binärzahl: Der größte vorzeichenlose Wert ist 2^n − 1, es gibt 2^n verschiedene Werte, und der vorzeichenbehaftete Bereich im Zweierkomplement ist −2^(n−1) … 2^(n−1) − 1. Die Bitzahl n eingeben, um die Bereiche zu erhalten, oder den größten Wert, um n zu erhalten; „Benötigte Bits“ ist die ganze Bitzahl, die diesen Wert aufnimmt (bei einem Wert, der nicht 2^k − 1 ist, ist n selbst keine ganze Zahl). Beispiel: 8 Bit ergeben 0 … 255 oder −128 … 127, 16 Bit 0 … 65 535, 32 Bit 0 … 4 294 967 295. ECalc rechnet mit IEEE-754-Gleitkommazahlen doppelter Genauigkeit, die jede ganze Zahl nur bis 2^53 − 1 (9 007 199 254 740 991) exakt darstellen: Über 53 Bit sind die Ergebnisse gerundet (das 64-Bit-Maximum ohne Vorzeichen erscheint als 18 446 744 073 709 551 616 statt …615), 2^n und −2^(n−1) bleiben aber exakt. Die Variable n ist nicht auf ganze Zahlen beschränkt, damit ein Wert wie 1000 zeigen kann, dass er 9,97 Bit braucht."
+  tags: [bits, bit width, value range, unsigned, signed, two's complement, integer range, uint8, int16, uint32, int64, max value, number of bits, bitbreite, wertebereich, vorzeichenlos, vorzeichenbehaftet, zweierkomplement, ganzzahlbereich, bitanzahl]
+  source: "ISO/IEC 9899:2011 (C11, committee draft N1570) §7.20.1.1 exact-width integer types (two's complement, no padding bits) and §7.20.2.1 their limits (INTN_MIN −2^(N−1), INTN_MAX 2^(N−1) − 1, UINTN_MAX 2^N − 1); The Go Programming Language Specification, 'Numeric types' (ranges of uint8 … uint64 and int8 … int64, float64 as IEEE 754 64-bit); ECMA-262 §21.1.2.6 Number.MAX_SAFE_INTEGER (2^53 − 1)"
+  vars:
+    n: {dim: number, label: n, name: {en: "Number of bits", de: "Anzahl der Bits"}, default: 8}
+    vmax: {dim: number, label: V_max, name: {en: "Largest unsigned value", de: "Größter vorzeichenloser Wert"}}
+  dof: 1
+  rules:
+    vmax: ["2^n-1"]
+    n: ["if(2^round(ln(vmax+1)/ln(2))-1==vmax, round(ln(vmax+1)/ln(2)), ln(vmax+1)/ln(2))"]
+  derived:
+    count: {dim: number, label: 2^n, name: {en: "Number of distinct values", de: "Anzahl der verschiedenen Werte"}, expr: "2^n"}
+    smin: {dim: number, label: S_min, name: {en: "Smallest signed value (two's complement)", de: "Kleinster vorzeichenbehafteter Wert (Zweierkomplement)"}, expr: "-2^(n-1)"}
+    smax: {dim: number, label: S_max, name: {en: "Largest signed value (two's complement)", de: "Größter vorzeichenbehafteter Wert (Zweierkomplement)"}, expr: "2^(n-1)-1"}
+    bits: {dim: number, label: Bits, name: {en: "Bits needed for the largest value", de: "Benötigte Bits für den größten Wert"}, expr: "ceil(n-1e-9)+(2^ceil(n-1e-9)-1<vmax)"}
+  checks:
+    - {when: "n > 53", warn: {en: "Above 53 bits the values are no longer exact: ECalc computes with IEEE 754 double-precision numbers, which hold every integer only up to 2^53 − 1 (9 007 199 254 740 991).", de: "Über 53 Bit sind die Werte nicht mehr exakt: ECalc rechnet mit IEEE-754-Gleitkommazahlen doppelter Genauigkeit, die jede ganze Zahl nur bis 2^53 − 1 (9 007 199 254 740 991) darstellen."}}
+    - {when: "2^round(n)-1 != vmax", warn: {en: "V_max + 1 is not a power of two, so n is not a whole number: a value of this size needs the next whole number of bits (see 'Bits needed').", de: "V_max + 1 ist keine Zweierpotenz, n ist daher keine ganze Zahl: Ein Wert dieser Größe braucht die nächste ganze Bitzahl (siehe „Benötigte Bits“)."}}
+    - {when: "n < 1", warn: {en: "A signed two's complement number needs at least 1 bit.", de: "Eine vorzeichenbehaftete Zahl im Zweierkomplement braucht mindestens 1 Bit."}}
+  formula: ["vmax = 2^n - 1", "n = ln(vmax + 1) / ln(2)", "count = 2^n", "smin = -2^(n-1)", "smax = 2^(n-1) - 1"]
