@@ -3,6 +3,7 @@ package storymaker
 import (
 	_ "embed"
 	"encoding/json"
+	"regexp"
 	"strings"
 	"sync"
 	"unicode"
@@ -104,8 +105,12 @@ func addUmlautFix(list []UmlautFix, fix UmlautFix) []UmlautFix {
 	return append(list, fix)
 }
 
-// repairText restores the umlauts of one text in the job's language and remembers what it repaired for the call's answer.
+// closingMarker is the {/n} that a model sometimes writes after a cue phrase; the format has no such marker, so no text keeps it.
+var closingMarker = regexp.MustCompile(`\{/\d+\}`)
+
+// repairText removes closing markers in every language, then restores the umlauts of one text in the job's language and remembers what it repaired for the call's answer.
 func (s *Studio) repairText(text string) string {
+	text = closingMarker.ReplaceAllString(text, "")
 	fixed, fixes := RepairUmlauts(text, s.job.Language)
 	for _, f := range fixes {
 		s.pendingRepairs = addUmlautFix(s.pendingRepairs, f)
