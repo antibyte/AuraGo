@@ -190,7 +190,7 @@
     // nodeLayout(c, node, box, px, compare): where the icon and the text of one node go; the label is fitted at px or smaller.
     function nodeLayout(c, node, box, px, compare) {
         var icons = c.rc.cat && c.rc.cat.icons, icon = node.icon && icons ? icons[node.icon] : null, m = Math.min(box.w, box.h), pad = 0.1 * m, o = { box: box, icon: icon, pad: pad, gs: 0 };
-        if (compare) { o.mode = 'compare'; o.gs = icon ? 0.12 * box.h : 0; o.fit = fit(c, node.label, 700, box.w - pad * 2 - (icon ? o.gs + pad : 0), 2, px); }
+        if (compare) { o.mode = 'compare'; o.gs = icon ? 0.12 * box.h : 0; return compareLayout(c, node, o, px); }
         else if (icon && box.w >= box.h * 1.5) { o.mode = 'side'; o.gs = 0.56 * box.h; o.fit = fit(c, node.label, 600, box.w - pad * 3 - o.gs, 2, px); }
         else if (icon) {
             o.mode = 'top';
@@ -200,11 +200,21 @@
             if (o.gs < 0.3 * box.h) { o.gs = 0; o.mode = 'plain'; o.icon = null; o.fit = fit(c, node.label, 600, box.w * 0.86, 3, px); }
         }
         else { o.mode = 'plain'; o.fit = fit(c, node.label, 600, box.w * 0.86, 3, px); }
-        if (compare) {
-            var pts = (node.points || []).map(function (s) { return fit(c, s, 500, box.w - pad * 3.2, 2, Math.max(c.floor, o.fit.px * 0.8)); });
-            o.points = pts;
-        }
         return o;
+    }
+
+    // compareLayout(c, node, o, px): the header and the points of a compare node, shrunk together (down to the label floor) until
+    // the padding, the header, the divider and every point fit the node height.
+    function compareLayout(c, node, o, px) {
+        var box = o.box, pad = o.pad, hw = box.w - pad * 2 - (o.icon ? o.gs + pad : 0);
+        for (;;) {
+            o.fit = fit(c, node.label, 700, hw, 2, px);
+            o.points = (node.points || []).map(function (s) { return fit(c, s, 500, box.w - pad * 3.2, 2, Math.max(c.floor, o.fit.px * 0.8)); });
+            var need = pad * 2 + Math.max(o.gs, o.fit.lines.length * o.fit.px * 1.2);
+            o.points.forEach(function (pt) { need += pad * 0.5 + pt.lines.length * pt.px * 1.2; });
+            if (need <= box.h || o.fit.px <= c.floor) return o;
+            px = Math.max(c.floor, o.fit.px * 0.94);
+        }
     }
 
     function paintNode(c, o, node, p, lw, accent, mark) {
@@ -392,51 +402,6 @@
         };
     }
 
-    // piePlan: a donut with a legend; the slices sweep clockwise from the top while p grows.
-    function piePlan(c, f) {
-        var st = c.st, ch = st.block.chart, vals = ch.values, n = vals.length, p = B.itemProgress(st, 0), ctx = c.ctx, sum = 0;
-        vals.forEach(function (v) { sum += v; });
-        var wide = f.x1 - f.x0 > (f.y1 - f.top) * 1.35, R = wide ? Math.min((f.y1 - f.top) / 2, (f.x1 - f.x0) * 0.3) : Math.min((f.x1 - f.x0) / 2, (f.y1 - f.top) * 0.36);
-        var rows = ch.labels.map(function (l, k) { return String(l) + ' ' + Math.round(100 * vals[k] / sum) + '%'; });
-        var lab = fitSet(c, rows, 600, wide ? f.x1 - f.x0 - R * 2.45 - c.base * 1.4 : f.x1 - f.x0 - c.base * 1.4, 1, c.base), rowH = lab.px * 1.9;
-        // the donut and its legend are centred as one group
-        var rowsW = Math.max.apply(null, rows.map(function (s) { return widthOf(c, s, 600, lab.px); })) + lab.px * 1.3;
-        var cx = wide ? f.x0 + (f.x1 - f.x0 - R * 2.45 - rowsW) / 2 + R : (f.x0 + f.x1) / 2, cy = wide ? (f.top + f.y1) / 2 : f.top + R, r = R * 0.58;
-        var legendX = wide ? cx + R * 1.45 : (f.x0 + f.x1 - rowsW) / 2, legendTop = wide ? 0 : cy + R + R * 0.2;
-        var top = wide ? cy - n * rowH / 2 : legendTop, tint = function (k) { return [c.col.accent, c.col.accent2, c.col.ink][k % 3]; };
-        return {
-            box: f.box, labelPx: lab.px,
-            paint: function () {
-                f.title();
-                var a0 = -Math.PI / 2, sweep = a0 + 2 * Math.PI * p;
-                vals.forEach(function (v, k) {
-                    var a1 = a0 + 2 * Math.PI * v / sum, end = Math.min(a1, sweep);
-                    if (end > a0) {
-                        ctx.globalAlpha = c.alpha * (k < 3 ? 1 : 0.55);
-                        ctx.fillStyle = tint(k);
-                        ctx.strokeStyle = c.col.base;
-                        ctx.lineWidth = f.lw * 0.8;
-                        ctx.lineJoin = 'round';
-                        ctx.beginPath();
-                        ctx.arc(cx, cy, R, a0, end);
-                        ctx.arc(cx, cy, r, end, a0, true);
-                        ctx.closePath();
-                        ctx.fill();
-                        ctx.stroke();
-                    }
-                    var show = clamp((p - 0.3) / 0.7, 0, 1), y = top + rowH * (k + 0.5);
-                    ctx.globalAlpha = c.alpha * show * (k < 3 ? 1 : 0.55);
-                    ctx.fillStyle = tint(k);
-                    SM.text.roundRect(ctx, legendX, y - lab.px * 0.4, lab.px * 0.8, lab.px * 0.8, lab.px * 0.2);
-                    ctx.fill();
-                    ctx.globalAlpha = c.alpha * show;
-                    printLines(c, lab.lines[k], legendX + lab.px * 1.3, y, lab.px, 600, c.col.ink, 'left');
-                    a0 = a1;
-                });
-            }
-        };
-    }
-
     // counterPlan: one big number that counts up to its value.
     function counterPlan(c, f) {
         var st = c.st, ch = st.block.chart, v = ch.values[0], p = B.itemProgress(st, 0), whole = v.toFixed(decimals(v)) + unitText(ch.unit);
@@ -461,7 +426,7 @@
         f.lw = Math.max(3, Math.min(st.w, st.h) * 0.008);
         f.unit = unitText(ch.unit);
         f.title = function () { if (title) printLines(c, title.lines, 0, -st.h / 2 + pad + title.px * 0.6, title.px, 700, c.col.ink, 'center'); };
-        var plan = ch.type === 'pie' ? piePlan(c, f) : (ch.type === 'counter' ? counterPlan(c, f) : axisPlan(c, f));
+        var plan = ch.type === 'pie' ? B.piePlan(c, f) : (ch.type === 'counter' ? counterPlan(c, f) : axisPlan(c, f));
         if (title) plan.labelPx = Math.min(plan.labelPx || title.px, title.px);
         return plan;
     }
@@ -508,32 +473,7 @@
         };
     }
 
-    // listPlan: up to four lines with an accent bullet, each sliding in from the left in order.
-    function listPlan(c) {
-        var st = c.st, rows = B.lines(st.block.text), n = rows.length, ctx = c.ctx;
-        var lab = fitSet(c, rows, 600, st.w * 0.9 - c.base, 2, clamp(st.h / (n * 2), c.base, c.base * 1.8)), px = lab.px;
-        var heights = lab.lines.map(function (l) { return l.length * px * 1.2 + px * 0.7; }), height = heights.reduce(function (a, b) { return a + b; }, 0);
-        var width = Math.max.apply(null, lab.lines.map(function (l) { return Math.max.apply(null, l.map(function (s) { return widthOf(c, s, 600, px); })); })) + px * 0.9;
-        return {
-            box: { x: -width / 2, y: -height / 2, w: width, h: height }, labelPx: px,
-            paint: function () {
-                var y = -height / 2;
-                lab.lines.forEach(function (lines, k) {
-                    var p = B.itemProgress(st, k), mid = y + heights[k] / 2, dx = (1 - p) * px * 1.2;
-                    y += heights[k];
-                    if (!(p > 0)) return;
-                    ctx.globalAlpha = c.alpha * p;
-                    ctx.fillStyle = c.col.accent;
-                    ctx.beginPath();
-                    ctx.arc(-width / 2 + px * 0.2 + dx, mid, px * 0.2, 0, Math.PI * 2);
-                    ctx.fill();
-                    printLines(c, lines, -width / 2 + px * 0.9 + dx, mid, px, 600, c.col.ink, 'left');
-                });
-            }
-        };
-    }
-
-    var PLANS = { icon: iconPlan, diagram: diagramPlan, chart: chartPlan, headline: headlinePlan, list: listPlan };
+    var PLANS = { icon: iconPlan, diagram: diagramPlan, chart: chartPlan, headline: headlinePlan, list: function (c) { return B.listPlan(c); } };
 
     // plan(ctx, st, rc, stage) = {box, labelPx, paint} of an evaluated block state, box in design pixels around the block centre at
     // scale 1 and labelPx in design pixels, or null for a kind without a painter. It draws nothing until paint() runs.
@@ -588,6 +528,8 @@
         ctx.globalAlpha = 1;
     }
 
+    // the helpers that blocks-plans.js builds the pie and list plans from
+    B.kit = { fit: fit, fitSet: fitSet, printLines: printLines, widthOf: widthOf, clamp: clamp };
     B.draw = draw;
     B.drawBoard = drawBoard;
     B.plan = plan;

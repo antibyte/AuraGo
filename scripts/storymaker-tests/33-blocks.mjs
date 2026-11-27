@@ -456,3 +456,57 @@ check('blocks: a long card label shrinks instead of breaking mid-word', () => {
     const texts = log.filter(l => l.startsWith('fillText(')).map(l => l.slice(9).split(',')[0]);
     assert.deepEqual(texts, ['Warteschlangen'], 'the whole word is on one line: ' + texts.join('|'));
 });
+
+// ---- C12: pie legend, list and compare fit narrow areas
+
+// fitted(def, aspect, at) = {area, plan, texts}: the plan box and every painted text as {s, x, y, px} in block coordinates
+function fitted(def, aspect, at) {
+    const W = aspect === '9:16' ? 1080 : 1920, H = aspect === '9:16' ? 1920 : 1080;
+    const stage = SM.stage.create({ aspect, width: W, height: H }), rc = rcOf(W, H, aspect), area = B.area(stage, null, 'day', at);
+    const st = SM.scene.evalEntity(B.create({ t0: 0, dur: 1, ...def, area }), 5), cv = new FakeCanvas(W, H);
+    const pl = B.plan(cv.ctx, st, rc, stage);
+    B.draw(cv.ctx, st, rc, stage, stage.baseWindow());
+    let px = 0;
+    const texts = [];
+    for (const l of cv.ctx.log) {
+        if (l.startsWith('set font=')) px = parseFloat(/(\d+(?:\.\d+)?)px/.exec(l)[1]);
+        const m = /^fillText\((.*),(-?[\d.]+),(-?[\d.]+)\)$/.exec(l);
+        if (m) texts.push({ s: m[1], x: +m[2], y: +m[3], px });
+    }
+    return { area, st, plan: pl, texts };
+}
+const insideArea = (r, what) => {
+    const { box } = r.plan, hw = r.area.w / 2, hh = r.area.h / 2;
+    assert.ok(box.x >= -hw - 1e-6 && box.y >= -hh - 1e-6 && box.x + box.w <= hw + 1e-6 && box.y + box.h <= hh + 1e-6, what + ': plan box ' + JSON.stringify(box));
+    for (const x of r.texts) assert.ok(x.y - x.px / 2 >= -hh - 0.5 && x.y + x.px / 2 <= hh + 0.5, what + ': text "' + x.s + '" at y ' + x.y + ' (' + x.px + 'px) leaves +-' + hh);
+};
+const CASES = [['16:9', 'right'], ['9:16', 'top']];
+
+check('blocks: pie legends fit the area for 4 and 6 slices at 16:9 right and 9:16 top', () => {
+    for (const [aspect, at] of CASES) for (const n of [4, 6]) {
+        const values = Array.from({ length: n }, (_, i) => i + 1);
+        insideArea(fitted(chartDef('pie', values, { labels: values.map((_, i) => 'Anteil ' + i) }), aspect, at), 'pie ' + n + ' ' + aspect + ' ' + at);
+    }
+});
+
+check('blocks: a list of two-line items stays in the area, at its label floor or above', () => {
+    const text = ['Erster Punkt mit einem langen Satz', 'Zweiter Punkt mit einem langen Satz', 'Dritter Punkt mit einem langen Satz', 'Vierter Punkt mit einem langen Satz'].join('\n');
+    for (const [aspect, at] of CASES) {
+        const r = fitted({ id: 'l', kind: 'list', text }, aspect, at);
+        insideArea(r, 'list ' + aspect + ' ' + at);
+        assert.ok(r.plan.labelPx > 0);
+    }
+});
+
+check('blocks: a compare diagram with two-line headers and three two-line points keeps its text inside each node', () => {
+    const node = (id, k) => ({ id, label: 'Kopfzeile ' + k + ' mit mehr Text', points: ['Erster langer Punkt ' + k, 'Zweiter langer Punkt ' + k, 'Dritter langer Punkt ' + k] });
+    for (const [aspect, at] of CASES) {
+        const r = fitted({ id: 'd', kind: 'diagram', diagram: { layout: 'compare', nodes: [node('a', 1), node('b', 2)] } }, aspect, at);
+        insideArea(r, 'compare ' + aspect + ' ' + at);
+        const boxes = B.layout('compare', 2, r.area.w, r.area.h).boxes;
+        for (const x of r.texts) {
+            const b = boxes.find(o => x.x >= o.x && x.x <= o.x + o.w);
+            assert.ok(b && x.y - x.px / 2 >= b.y - 0.5 && x.y + x.px / 2 <= b.y + b.h + 0.5, 'compare ' + aspect + ': "' + x.s + '" y ' + x.y + ' outside its node ' + JSON.stringify(b));
+        }
+    }
+});
