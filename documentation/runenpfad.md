@@ -125,6 +125,75 @@ A duel moves the fight into a close-up arena. The screen wipes into a flat floor
 - **Weak spot.** If you ask Brass how to stop the mech while your coven standing is `+2` or higher, and you have finished his gear quest, he reveals a loose seam. The boss then starts with a fifth less health.
 - **Epilogue.** Beating the citadel boss on level 25 shows an epilogue line, friendly, feared or neutral, based on your reputation. Each faction at `+2` or higher pays 50 coins, once per save.
 
+## The Ember Wyrm
+
+Under Pathrest, where the road begins, something older than the village is waking. The first wardens built the village on top of a sleeping dragon, and the hall bell was their way of keeping him asleep. Since the road's light has been reaching his roots, the ground has started to tremble, and the bell has cracked.
+
+The chapter unfolds over the campaign. It ends in a choice that is yours: you decide his fate.
+
+- **Unlocking.** The first signs come after you win level 5 (the end of world 1). The well steams, the lanterns flicker and the villagers talk about the ground. Runa opens the hall archive.
+- **The night of the roar.** After you win level 10 (the end of world 2), a roar wakes Pathrest. The barn burns, the bell cracks and some folk shelter in the tavern. Tilda's daughter Mira has gone down the well. The well is now a door to the deeps.
+- **Fighting him.** Brandur waits at the bottom of the deeps. Once he falls, the choice is yours.
+
+### The Ember Deeps
+
+The deeps are a cave system under the village, with twelve rooms on three tiers. You enter them through the well door in Pathrest. Each tier has its own look:
+
+- **Old galleries** (mine tunnels): a rope ladder, rails with carts and a lever gate, an abandoned kobold camp, and a collapsed side gallery behind cracks.
+- **Root halls** (dark roots and crystal): a brazier puzzle that must be lit in order, a root bridge over a void with dart traps, and the old wardens' hall with three tablets.
+- **Ember ground** (lava and steam): channels of lava that you cannot walk through (flying creatures can cross them), steam vents, a drakeling nest and Brandur's lair.
+
+The rooms you have visited appear on a small map in the corner of the screen. Edda's map table in her study shows the whole cave. A lever on the root bridge opens a one-way shortcut back to the first gallery.
+
+### Fighting Brandur
+
+Brandur sleeps at the centre of his lair, between four sleep-rune pillars. He wakes when you come close, or when you strike him while he sleeps (that first hit does no damage). The camera pulls back to show you both, and his health bar sits at the bottom of the screen.
+
+- **Scales.** While he is awake, your hits do only a quarter of their damage. Do not waste your time on the scales.
+- **Pillars.** Light a pillar at its brazier and it burns for 8 seconds. Light all four at once while he is awake and on the ground, and he falls drowsy for 5 seconds. Drowsy, he is stunned and your hits do 150 % damage. Then the pillars go out and must be lit again.
+- **Breath.** A cone of fire in front of him, shown as a red wedge while he prepares it. Step out of the cone when it fires. Fire patches stay on the ground for a few seconds afterwards. Frostberry Tea makes them harmless.
+- **Tail sweep.** Behind him and to his sides. Stay in front of him, or keep your distance.
+- **Stomp.** Marks appear near you, and stalactites fall on them a moment later. Leave the marks.
+- **Second phase** (two thirds of his health): he takes off and cannot be hit in the air. His shadow follows you, so move out of the way before he lands. He also buffets you back, which puts out any lit pillars, and roars to summon up to two drakelings.
+- **Third phase** (a third of his health): lava vents erupt in marked rows, and his breath sweeps twice.
+- **Protection.** A dragon-scale shield from the forge halves the damage of his breath.
+- **Dodging.** Every move is announced by a tell of at least 0.7 seconds. A dash makes you invulnerable while it lasts, so use it to get out of a tell.
+
+### Cooking
+
+The tavern kitchen has a hearth. Pick two ingredients to cook a meal. You can have one meal ready at a time. A level or endless run uses it up, so a meal cooked in Pathrest waits for your next visit to the deeps.
+
+| Ingredients | Meal | Effect |
+| --- | --- | --- |
+| Ham and turnip | Hearty Stew | +1 heart for the run |
+| Frostberry and honey | Frostberry Tea | Fire patches do no damage |
+| Turnip and honey | Miner's Broth | Dash recharges faster |
+
+Tilda sells all four ingredients in the shop, for roughly 4 to 6 coins each. Her prices move with your reputation.
+
+### The Forge
+
+The smithy has a forge, and forging is a timing game. A needle swings across a bar. Strike when it is in the middle. You get three strikes, and two good ones succeed. Each good strike makes the needle a little faster. A failed attempt keeps your items.
+
+- **Dragon-scale shield** (needs a dragon scale from the drakeling nest, and costs 40 coins). It halves the damage of Brandur's breath.
+- **Mended bell** (needs the bell bronze from the old galleries). See below.
+
+### The Bell
+
+The hall bell is in the tower above the hall, and it cracked on the night of the roar. Interact with it at any time to ring it. A cracked bell rattles, while a mended one tolls clear. Mend it at the forge with the bell bronze.
+
+### Wardens' Tablets
+
+The first wardens left six stone tablets. They tell of the founding, the twins, the greed, the song, the bell, and the oath to walk the road together. Two are in the hall archive, where a shelf puzzle opens a hidden niche. The hint says to follow the way the sun walks. Three are in the wardens' hall of the deeps, and one is in the hoard. Reading a tablet adds it to the chronicle, under Edda's journal. The list appears once you have found the first tablet or the chapter has started.
+
+### Edda's Cottage
+
+Edda's cottage stands at the far end of the village, and its door is open from the start. It has three rooms:
+
+- **Home.** Two letters from Edda, which you can read.
+- **Study.** Edda's map table shows the whole deeps map. Her desk is locked, and the desk key lies in the wardens' hall of the deeps.
+- **Attic.** An old trunk holds the room key for the locked room upstairs in the tavern, where Edda kept her old travel chest.
+
 ## Controls
 
 | Action | Keys |
