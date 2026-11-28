@@ -32,7 +32,7 @@ async officeQR=>{
     await app.state.save();await app.act('saveAs');check(app.path==='Documents/copy.xlsx','Save As path');await app.state.load(app.path);check(app.state.aux.images.length===1,'Save As image reopen');
     const source=await(await fetch('/api/desktop/office/workbook?representation=editor-v2&path='+encodeURIComponent(app.path))).json(),persistedImage=source.images[0].data;
     app.session.suspend();app.state.images.update(app.state.aux.images[0].id,{x:31});await wait(750);
-    const draft=await OfficeSession.draft('get',location.origin+':'+app.path,undefined,'sheets');check(draft?.snapshot.images[0].x===31,'Image recovery draft');
+    const draftEntry=(await OfficeSession.drafts('sheets')).find(item=>item.path===app.path),draft=draftEntry?await OfficeSession.draft('get',draftEntry.key,undefined,'sheets'):null;check(draft?.snapshot.images[0].x===31,'Image recovery draft');
     const reopenPath=app.path;SheetsApp.dispose('test');SheetsApp.render(document.getElementById('host'),'test',{...sheetsContext,path:reopenPath});
     await until(()=>SheetsApp.instances.get('test')?.session&&SheetsApp.instances.get('test').state.aux.images?.[0]?.x===31);
     app=SheetsApp.instances.get('test');app.session.suspend();
@@ -41,6 +41,7 @@ async officeQR=>{
     check(conflicted&&app.state.aux.images[0].x===31&&app.session.dirty,'Image conflict lost draft');
     SheetsApp.dispose('test');SheetsApp.render(document.getElementById('host'),'test',{...sheetsContext,path:reopenPath,readonly:true});await until(()=>!!SheetsApp.instances.get('test')?.session);
     app=SheetsApp.instances.get('test');const count=app.state.aux.images.length,revision=app.session.revision;
+    check(!document.querySelector('[data-action="more"]').disabled,'Readonly overflow menu must stay reachable');
     app.state.images.remove(app.state.aux.images[0].id);check(app.state.aux.images.length===count&&app.session.revision===revision,'Readonly image delete');
     let refused=false;try{await app.state.images.add(new File([],'image.png',{type:'image/png'}))}catch(_){refused=true}check(refused,'Readonly image insertion');
     check(sheetErrors.length===0,sheetErrors.join('\n'));SheetsApp.dispose('test');return persistedImage;

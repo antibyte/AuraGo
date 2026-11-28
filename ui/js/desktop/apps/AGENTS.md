@@ -5043,10 +5043,50 @@ registration lives in `internal/desktop/types.go`.
   newer edits. Save As and recovery copies preserve the original source bytes.
   Shared OfficeSession autosaves at 800 ms / five seconds and owns IndexedDB
   drafts separately for Writer and Sheets. Dispose all document resources.
+- Plain-HTTP LAN installs have neither `crypto.randomUUID` nor
+  `navigator.clipboard`. Use `SheetsData.uuid()` (getRandomValues fallback) for
+  every ID, including the vendor action plugin, and treat clipboard reads as
+  optional; Univer's copy id remains the paste fallback. Save As probes the
+  destination with `HEAD`: a missing file uses `If-None-Match: *`, an existing
+  file is replaced with its `If-Match` after the dialog's overwrite confirmation.
+  A normal load reports `Saved`; only template, recovery and CSV loads start dirty.
+- Preserved (`readonly`) charts, preserved images and `conditions_preserved`
+  workbooks lock structural edits up front and name `structure_locked` in the
+  notice; the Format panel replaces the conditional-formatting controls with the
+  limitation hint. The action plugin never rewrites a readonly chart. Structural
+  transforms drop editable charts whose range collapses below 2×2 or whose series
+  become `#REF!` inside the same undo entry, and clear `aux.print` when its sheet
+  is removed. Replace follows the search that produced the visible matches (never
+  the current field), keeps numeric cells numeric, and refuses an empty query.
+  Verify `TestDesktopSheetsLockedWorkbookBrowser` and the app browser checks.
+- A CSV import runs before the open document is released: cancelling the dialog
+  keeps the workbook and a retry reopens it. CSV parsing caps at 200k cells and
+  reports the localized import limit. Chart creation stops at 256 and an
+  empty chart range is rejected before the patch. IndexedDB draft opens and
+  transactions fail closed after eight seconds (blocked second tabs included).
+  Informational notices (limitations, "copy saved") hide Retry/Save As and never
+  replace a conflict notice. Read-only keeps the overflow menu (print/export)
+  reachable and the document menu has no fake rename; Save As filters the
+  current macro extension. A pending note field belongs to logout inspection,
+  `save`, `guard` and print/export commits. Borders/Fill open the format panel,
+  Paste Special shows the data panel with its view state. Verify
+  `TestDesktopSheetsCsvCancelBrowser` and the locked-workbook check.
+- Sheets drafts are keyed by `origin:path#windowId`; two windows on one file
+  cannot overwrite each other. Recovery lists drafts by path (the `path` index,
+  DB version 2), restores the newest and deletes that entry after the next
+  successful save. `sourceData` stays in the draft only for macro workbooks and
+  structurally locked files (or hyperlink/table resources); plain workbooks
+  rebuild from the snapshot. `OfficeSession.drafts` strips
+  `snapshot`/`sourceData` and reports a size. Chart series cache on
+  `state.dataRevision` + the data range/series, so selection, scroll and
+  geometry do not walk chart ranges; the status bar sums only up to 50k cells
+  and otherwise repeats the selection size. Verify the app browser chart-cache
+  and large-workbook `refreshMs` checks.
 - Use native chart/print mutations on the same undo stack. Charts remain real
   OOXML charts; unsupported chart types and workbook references are preserved
   and guarded. AI only proposes bounded changes to the explicit selection;
-  apply once through native undo, and reject stale revisions.
+  apply once through native undo, and reject stale revisions. The assist
+  endpoint requires `desktop:read`; applying is a separate native edit.
 - The sheet stays light in every desktop theme. Use shared desktop menu/icons,
   16 desktop locales, local fonts and a <900px overlay inspector. Print/export
   captures current edits and waits for calculation, without moving selection.
@@ -6095,7 +6135,7 @@ registration lives in `internal/desktop/types.go`.
 
 - `node scripts/test-sheets-data.mjs`, `node scripts/test-writer-session.mjs`
 - `node scripts/build-sheets-vendor.js --check`
-- `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run 'TestDesktopSheets(Engine|App)Browser' -count=1`
+- `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run 'TestDesktopSheets(Engine|App|LockedWorkbook|CsvCancel)Browser' -count=1`
 - `AURAGO_RUN_BROWSER_SMOKE=1 AURAGO_SHEETS_MATRIX=1 go test ./ui -run '^TestDesktopAuroraBrowser$' -count=1` (18 theme/density/size screenshots)
 
 - `go test ./ui/ -run TestDesktopFeeling`

@@ -39,7 +39,7 @@ func handleDesktopNativeWorkbook(s *Server, w http.ResponseWriter, r *http.Reque
 		return
 	}
 	w.Header().Set("Cache-Control", "no-store")
-	if r.Method == http.MethodGet {
+	if r.Method == http.MethodGet || r.Method == http.MethodHead {
 		data, entry, err := svc.ReadFileBytes(r.Context(), path)
 		if err != nil {
 			code := 400
@@ -49,13 +49,16 @@ func handleDesktopNativeWorkbook(s *Server, w http.ResponseWriter, r *http.Reque
 			jsonError(w, err.Error(), code)
 			return
 		}
+		w.Header().Set("ETag", fmt.Sprintf("%q", officeVersionForEntry(entry, data).ETag))
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method == http.MethodHead {
+			return
+		}
 		doc, err := office.DecodeEditorWorkbook(data)
 		if err != nil {
 			jsonError(w, err.Error(), 400)
 			return
 		}
-		w.Header().Set("ETag", fmt.Sprintf("%q", officeVersionForEntry(entry, data).ETag))
-		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(struct {
 			office.WorkbookEditorDocument
 			SourceData []byte `json:"source_data"`
@@ -281,7 +284,8 @@ func sheetsAssistPrompt(body sheetsAssistRequest) (string, string, error) {
 }
 func handleDesktopSheetsAssist(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !requireDesktopPermission(s, w, r, desktopScopeWrite) {
+		// The assistant only proposes cells; applying them is a separate native edit.
+		if !requireDesktopPermission(s, w, r, desktopScopeRead) {
 			return
 		}
 		if r.Method != http.MethodPost {

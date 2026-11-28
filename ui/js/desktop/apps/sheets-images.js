@@ -39,7 +39,7 @@
                         const move={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[event.key];if(!move)return;
                         const value=(state.aux.images||[]).find(entry=>entry.id===image.id);if(!value||value.readonly)return;
                         event.preventDefault();event.stopPropagation();
-                        if(event.shiftKey)update(image.id,scaledSize(value,1+(move[0]||move[1])*4/value.width));
+                        if(event.shiftKey){const delta=move[0]||move[1],basis=move[0]?value.width:value.height;update(image.id,scaledSize(value,1+delta*4/basis));}
                         else update(image.id,{x:(value.x||0)+move[0],y:(value.y||0)+move[1]});
                     },{signal:life.signal});
                     remove.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();removeImage(image.id);},{signal:life.signal});
@@ -79,7 +79,7 @@
             if(!file||file.type!=='image/png'||file.size>10*1024*1024)throw Error(state.tr('import_failed'));
             const bytes=new Uint8Array(await file.arrayBuffer());if(signal.aborted||state.signal!==signal||state.revision!==revision||state.book.getActiveSheet().getSheetId()!==sheet||state.selected().getA1Notation().split(':')[0]!==anchor)throw Error(label('stale'));
             let binary='';for(let offset=0;offset<bytes.length;offset+=32768)binary+=String.fromCharCode(...bytes.subarray(offset,offset+32768));
-            const image={id:crypto.randomUUID(),sheet,anchor,x:0,y:0,width:Math.round(options.width||240),height:Math.round(options.height||240),mime:'image/png',data:btoa(binary),alt:label('title')};
+            const image={id:SheetsData.uuid(),sheet,anchor,x:0,y:0,width:Math.round(options.width||240),height:Math.round(options.height||240),mime:'image/png',data:btoa(binary),alt:label('title')};
             if(!Number.isFinite(image.width)||!Number.isFinite(image.height)||image.width<1||image.width>4096||image.height<1||image.height>4096||(state.aux.images||[]).length>=256||(state.aux.images||[]).reduce((total,item)=>total+(item.data?.length||0)*.75,bytes.length)>16*1024*1024)throw Error(state.tr('import_failed'));
             const next=structuredClone(state.aux);next.images||=[];next.images.push(image);selectedID=image.id;state.setAux(next);state.refresh();return image.id;
         }
