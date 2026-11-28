@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -16,7 +17,23 @@ import (
 	"aurago/internal/ecalc"
 
 	"github.com/go-rod/rod"
+	"github.com/go-rod/rod/lib/launcher"
 )
+
+// ecalcBrowserBudget is the page budget of the ECalc browser tests that walk the whole catalog (every schematic, every
+// pinout in every variant and view). It grows with the catalog: 170 seconds ran out at phase 5 on a loaded machine.
+const ecalcBrowserBudget = 360 * time.Second
+
+// ecalcLongBrowser keeps the test browser alive for the ECalc page budget. The shared launcher (launchSmokeBrowser) stops
+// every smoke browser after 180 seconds; this tweak replaces only the launch context of the ECalc browsers, and the stop
+// function of the shared launcher still kills the process when the test ends.
+func ecalcLongBrowser(t *testing.T) func(*launcher.Launcher) {
+	return func(l *launcher.Launcher) {
+		ctx, cancel := context.WithTimeout(context.Background(), ecalcBrowserBudget+30*time.Second)
+		t.Cleanup(cancel)
+		l.Context(ctx)
+	}
+}
 
 // ecalcBrowserFixture is the fixture desktop of the ECalc browser tests of phase 3 (tables, code pages): the real desktop
 // shell of the bundle with the fixture API of testdata/aurora-fixture.js, the German words of the desktop, and the
@@ -70,9 +87,9 @@ func newECalcBrowserFixture(t *testing.T, patch string) *ecalcBrowserFixture {
 	mux.HandleFunc("/fixture-apps", func(w http.ResponseWriter, r *http.Request) { json.NewEncoder(w).Encode(desktop.BuiltinApps()) })
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
-	// The page budget is 170 seconds (a loaded machine needs far more than the 90 the first drafts had); the browser itself is
-	// stopped after 180 (newSmokeBrowserWith).
-	page := newSmokeBrowser(t).MustPage(server.URL + "/fixture").Timeout(170 * time.Second)
+	// The page budget is ecalcBrowserBudget (a loaded machine needs far more than the 90 seconds the first drafts had); the
+	// browser lives as long (ecalcLongBrowser).
+	page := newSmokeBrowserWith(t, ecalcLongBrowser(t)).MustPage(server.URL + "/fixture").Timeout(ecalcBrowserBudget)
 	t.Cleanup(func() { _ = page.Close() })
 	page.MustWaitLoad()
 	page.MustSetViewport(1366, 900, 1, false)
