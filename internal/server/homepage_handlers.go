@@ -150,6 +150,19 @@ func handleHomepageSiteByID(s *Server) http.HandlerFunc {
 		case (reconcile || statusAction != "") && r.Method != http.MethodPost:
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
+		case !reconcile && statusAction == "" && !events && r.Method == http.MethodDelete:
+			deletion, delErr := tools.DeleteHomepageSite(homepageConfigFromServer(s), s.HomepageRegistryDB, id, "user", s.Logger)
+			switch {
+			case delErr == nil:
+				_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "success", "deleted": deletion})
+			case errors.Is(delErr, tools.ErrHomepageSiteNotFound):
+				jsonError(w, "site not found", http.StatusNotFound)
+			case errors.Is(delErr, tools.ErrHomepageSiteNested), errors.Is(delErr, tools.ErrHomepageSiteFolderUnsafe):
+				jsonError(w, delErr.Error(), http.StatusConflict)
+			default:
+				jsonError(w, delErr.Error(), http.StatusInternalServerError)
+			}
+			return
 		case !reconcile && statusAction == "" && r.Method != http.MethodGet:
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return

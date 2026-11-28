@@ -10,7 +10,9 @@
     function render(container, windowId, context) {
         dispose(windowId);
 
-        const { esc, api, t, iconMarkup, notify, confirmDialog } = context;
+        const { esc, api, t, iconMarkup, confirmDialog } = context;
+        /* The desktop toast reads {title, message}; a bare string would show no text. */
+        const notify = (message, ...rest) => typeof context.notify === 'function' ? context.notify(typeof message === 'string' ? { title: t('homepage_studio.welcome_heading'), message } : message, ...rest) : undefined;
         const readonly = !!context.readonly;
 
         /* t(k, p) treats its second argument as a placeholder map, so a string

@@ -168,7 +168,7 @@
         async function deleteEntry(id) {
             if (!id || deps.readonly) return;
             const confirmed = typeof deps.confirmDialog === 'function'
-                ? await deps.confirmDialog(t('homepage_studio.history_delete_confirm'))
+                ? await deps.confirmDialog(t('homepage_studio.history_delete'), t('homepage_studio.history_delete_confirm'))
                 : false;
             if (!confirmed) return;
             try {

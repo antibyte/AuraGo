@@ -20,10 +20,25 @@ func (e *homepageOverlapError) Unwrap() error { return errHomepageProjectOverlap
 // It is a variable so tests can force both modes.
 var homepageFoldsCase = runtime.GOOS == "windows" || runtime.GOOS == "darwin"
 
-// homepageFoldDir folds case only on case-insensitive platforms.
+// homepageStripsTrailingDots reports whether the host file system ignores trailing dots and
+// spaces per path segment (Win32), so "site." names the folder "site". Tests can force it.
+var homepageStripsTrailingDots = runtime.GOOS == "windows"
+
+// homepageFoldDir folds case on case-insensitive platforms and, where the host strips
+// trailing dots and spaces, folds those per segment as well.
 func homepageFoldDir(dir string) string {
 	if homepageFoldsCase {
-		return strings.ToLower(dir)
+		dir = strings.ToLower(dir)
+	}
+	if homepageStripsTrailingDots {
+		parts := strings.Split(dir, "/")
+		for i, p := range parts {
+			if p == "." || p == ".." {
+				continue
+			}
+			parts[i] = strings.TrimRight(p, ". ")
+		}
+		dir = strings.Join(parts, "/")
 	}
 	return dir
 }

@@ -356,6 +356,55 @@ func TestHandleHomepageSitesListDetailAndReconcile(t *testing.T) {
 	}
 }
 
+func TestHandleHomepageSiteDelete(t *testing.T) {
+	db, err := tools.InitHomepageRegistryDB(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+	defer db.Close()
+	workspace := t.TempDir()
+	cfg := &config.Config{}
+	cfg.Homepage.WorkspacePath = workspace
+	homepageCfg := tools.HomepageConfig{WorkspacePath: workspace}
+	os.MkdirAll(filepath.Join(workspace, "site-a"), 0o755)
+	os.WriteFile(filepath.Join(workspace, "site-a", "index.html"), []byte("x"), 0o644)
+	proj, err := tools.EnsureHomepageProjectForDir(db, homepageCfg, filepath.Join(workspace, "site-a"), "site-a", "html")
+	if err != nil {
+		t.Fatalf("ensure project: %v", err)
+	}
+	s := &Server{HomepageRegistryDB: db, Cfg: cfg, Logger: slog.Default()}
+	path := "/api/homepage/sites/" + strconv.FormatInt(proj.ID, 10)
+	call := func(method, p string) *httptest.ResponseRecorder {
+		rec := httptest.NewRecorder()
+		handleHomepageSiteByID(s)(rec, httptest.NewRequest(method, p, nil))
+		return rec
+	}
+	if rec := call(http.MethodPut, path); rec.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("PUT = %d", rec.Code)
+	}
+	if rec := call(http.MethodDelete, path+"/events"); rec.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("DELETE events = %d", rec.Code)
+	}
+	if rec := call(http.MethodDelete, "/api/homepage/sites/99999"); rec.Code != http.StatusNotFound {
+		t.Fatalf("unknown = %d", rec.Code)
+	}
+	rec := call(http.MethodDelete, path)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"deleted"`) || !strings.Contains(rec.Body.String(), `"folder_removed":true`) {
+		t.Fatalf("delete = %d: %s", rec.Code, rec.Body.String())
+	}
+	if _, err := os.Stat(filepath.Join(workspace, "site-a")); !os.IsNotExist(err) {
+		t.Fatalf("folder still there: %v", err)
+	}
+	if rec := call(http.MethodGet, path); rec.Code != http.StatusNotFound {
+		t.Fatalf("GET after delete = %d", rec.Code)
+	}
+	list := httptest.NewRecorder()
+	handleHomepageSites(s)(list, httptest.NewRequest(http.MethodGet, "/api/homepage/sites", nil))
+	if strings.Contains(list.Body.String(), `"site-a"`) {
+		t.Fatalf("site still listed: %s", list.Body.String())
+	}
+}
+
 func TestHandleHomepageSiteArchiveAndRestore(t *testing.T) {
 	db, err := tools.InitHomepageRegistryDB(filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {

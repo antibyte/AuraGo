@@ -31,7 +31,9 @@ The workspace root itself is intentionally not a new project.
 Provenance distinguishes agent_created, adopted and unknown. Legacy dates,
 actors and reasons are not invented. Missing local directories and archived
 entries retain their known locations and history. Registry delete archives a
-record rather than cascading its history.
+record rather than cascading its history. The agent's `homepage_registry` delete
+only archives; permanent deletion is available only to the user in Homepage
+Studio (see below).
 
 ## Site boundaries and identity
 
@@ -135,6 +137,24 @@ told to work on that site and to pass `managed_site_id` on its calls. Selecting 
 design for a project in Studio runs as the journaled operation `apply_design`
 (actor `user`, source `homepage_studio`) with a known reason and a revision. The
 agent cannot call `apply_design`; it writes `DESIGN.md` with `write_file` instead.
+
+### Archive, restore and delete in Studio
+
+Archiving a site in Homepage Studio sets its status to archived. Its files,
+locations and history are kept, and the events `site_archived` and
+`site_restored` record the change with actor `user`. Restore is refused when an
+active site now lies inside or around the archived site's folder.
+
+Delete is available only to the user in Homepage Studio; the agent has no delete
+operation. It permanently removes the site's project folder in the workspace and
+every registry row of that site: revisions with file snapshots, events, history
+notes, deploy targets, deployments, remote observations and state. It cannot be
+undone. Pages already published on Netlify or Vercel stay online. Delete is
+refused when another registered site (any status) lies inside or contains the
+folder, including spellings that name the same folder on Windows (case, trailing
+dots or spaces), or when the folder is outside this workspace. If the folder cannot
+be removed, the registry entry is left unchanged. Because the site's own events
+are removed, the deletion is recorded in the AuraGo log rather than in the ledger.
 
 ## Deployment and observation
 

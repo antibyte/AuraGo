@@ -467,6 +467,10 @@ func TestHomepageStudioNewTranslations(t *testing.T) {
 		"homepage_studio.sites_archived",
 		"homepage_studio.sites_restore",
 		"homepage_studio.sites_restore_error",
+		"homepage_studio.sites_delete",
+		"homepage_studio.sites_delete_confirm",
+		"homepage_studio.sites_delete_error",
+		"homepage_studio.sites_deleted",
 		"homepage_studio.sites_drift_clean",
 		"homepage_studio.sites_drift_not_deployed",
 		"homepage_studio.readonly_hint",
@@ -1036,6 +1040,33 @@ func TestHomepageStudioAnnotateWiring(t *testing.T) {
 	}
 }
 
+func TestHomepageStudioSitesDeleteMarkers(t *testing.T) {
+	t.Parallel()
+	sites := readDesktopAssetText(t, "js/desktop/apps/homepage-studio-sites.js")
+	confirm := strings.Index(sites, "deps.confirmDialog(t('homepage_studio.sites_delete'), t('homepage_studio.sites_delete_confirm'")
+	request := strings.Index(sites, "{ method: 'DELETE' }")
+	if confirm < 0 || request < 0 || confirm > request {
+		t.Fatalf("delete must ask for confirmation before the DELETE request (confirm=%d request=%d)", confirm, request)
+	}
+	main := readDesktopAssetText(t, "js/desktop/apps/homepage-studio.js")
+	if !strings.Contains(main, "{ title: t('homepage_studio.welcome_heading'), message }") {
+		t.Error("studio must wrap bare notify strings into {title, message}")
+	}
+	if !strings.Contains(readDesktopAssetText(t, "js/desktop/apps/homepage-studio-history.js"), "deps.confirmDialog(t('homepage_studio.history_delete'), t('homepage_studio.history_delete_confirm'))") {
+		t.Error("history delete must pass title and message to confirmDialog")
+	}
+	for _, marker := range []string{
+		"data-hp-site-delete=",
+		"homepage_studio.sites_deleted",
+		"homepage_studio.sites_delete_error",
+		"onSiteSelected(0, null)",
+	} {
+		if !strings.Contains(sites, marker) {
+			t.Errorf("sites module missing marker %q", marker)
+		}
+	}
+}
+
 func TestHomepageStudioSitesArchiveRestoreMarkers(t *testing.T) {
 	t.Parallel()
 	sites := readDesktopAssetText(t, "js/desktop/apps/homepage-studio-sites.js")
@@ -1043,7 +1074,7 @@ func TestHomepageStudioSitesArchiveRestoreMarkers(t *testing.T) {
 		"'/' + action, { method: 'POST' }",
 		"data-hp-site-status=\"restore\"",
 		"data-hp-site-status=\"archive\"",
-		"deps.confirmDialog(t('homepage_studio.sites_archive_confirm'))",
+		"deps.confirmDialog(t('homepage_studio.sites_archive'), t('homepage_studio.sites_archive_confirm'))",
 		"homepage_studio.sites_archived",
 		"'homepage_studio.sites_' + action + '_error'",
 	} {

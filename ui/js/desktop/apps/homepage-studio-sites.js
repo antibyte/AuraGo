@@ -250,7 +250,7 @@
             if (!Number.isFinite(id) || id <= 0 || state.reconciling === id || deps.readonly) return;
             if (action === 'archive') {
                 const confirmed = typeof deps.confirmDialog === 'function'
-                    ? await deps.confirmDialog(t('homepage_studio.sites_archive_confirm'))
+                    ? await deps.confirmDialog(t('homepage_studio.sites_archive'), t('homepage_studio.sites_archive_confirm'))
                     : false;
                 if (!confirmed || isDisposed()) return;
             }
@@ -268,6 +268,37 @@
                 if (onSiteSelected && state.selectedId === id) onSiteSelected(id, state.details.get(id) || null);
             } catch (err) {
                 if (!isDisposed()) notify((err && err.message) || t('homepage_studio.sites_' + action + '_error'));
+            } finally {
+                state.reconciling = 0;
+                if (!isDisposed()) render();
+            }
+        }
+
+        /* Delete removes the site completely (folder, registry rows, history). Only
+           the user can do this from Studio; the agent can only archive. */
+        async function deleteSite(id, btn) {
+            id = Number(id);
+            if (!Number.isFinite(id) || id <= 0 || state.reconciling === id || deps.readonly) return;
+            const site = state.details.get(id) || state.sites.find(item => Number(item.id) === id) || {};
+            const folder = site.project_dir || site.name || '#' + id;
+            const confirmed = typeof deps.confirmDialog === 'function'
+                ? await deps.confirmDialog(t('homepage_studio.sites_delete'), t('homepage_studio.sites_delete_confirm', { folder }))
+                : false;
+            if (!confirmed || isDisposed()) return;
+            state.reconciling = id;
+            if (btn) btn.disabled = true;
+            try {
+                await deps.api('/api/desktop/integrations/homepage/sites/' + encodeURIComponent(String(id)), { method: 'DELETE' });
+                if (isDisposed()) return;
+                state.sites = state.sites.filter(item => Number(item.id) !== id);
+                state.details.delete(id);
+                const wasSelected = state.selectedId === id;
+                if (wasSelected) state.selectedId = 0;
+                render();
+                if (wasSelected && onSiteSelected) onSiteSelected(0, null);
+                notify(t('homepage_studio.sites_deleted'));
+            } catch (err) {
+                if (!isDisposed()) notify((err && err.message) || t('homepage_studio.sites_delete_error'));
             } finally {
                 state.reconciling = 0;
                 if (!isDisposed()) render();
@@ -372,6 +403,7 @@
                         ${site.status === 'archived'
                             ? `<button type="button" class="vd-hp-btn" data-hp-site-status="restore" data-hp-site-id="${esc(String(site.id))}"><span>${esc(t('homepage_studio.sites_restore'))}</span></button>`
                             : `<button type="button" class="vd-hp-btn" data-hp-site-status="archive" data-hp-site-id="${esc(String(site.id))}"><span>${esc(t('homepage_studio.sites_archive'))}</span></button>`}
+                        <button type="button" class="vd-hp-btn" data-hp-site-delete="${esc(String(site.id))}"><span>${esc(t('homepage_studio.sites_delete'))}</span></button>
                     </div>`);
             }
             parts.push('</div>');
@@ -458,6 +490,9 @@
             });
             container.querySelectorAll('[data-hp-site-status]').forEach(btn => {
                 btn.addEventListener('click', () => setSiteStatus(Number(btn.getAttribute('data-hp-site-id')), btn.getAttribute('data-hp-site-status'), btn));
+            });
+            container.querySelectorAll('[data-hp-site-delete]').forEach(btn => {
+                btn.addEventListener('click', () => deleteSite(Number(btn.getAttribute('data-hp-site-delete')), btn));
             });
             container.querySelectorAll('[data-hp-copy]').forEach(btn => {
                 btn.addEventListener('click', event => {
