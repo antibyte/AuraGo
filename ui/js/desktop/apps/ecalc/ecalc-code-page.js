@@ -858,7 +858,12 @@
         }
         function fromCode() {
             st.last = 'code';
-            ctx.run(() => codes.decode(item, st.code, units), 'code');
+            const out = ctx.run(() => codes.decode(item, st.code, units), 'code');
+            // A week code has one date to show (the Monday); a letter code has none.
+            if (out.result) {
+                const start = out.result.fields.find(field => field.id === 'week_start');
+                st.date = start ? start.text : '';
+            }
             sync();
             ctx.persist();
         }
