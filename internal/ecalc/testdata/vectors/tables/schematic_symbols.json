@@ -1,19 +1,19 @@
 {
   "table": "schematic_symbols",
   "cells": [
-    {"key": "resistor", "column": "name", "want": "Resistor", "ref": "IS 12032-4 (IEC 617-4:1983) section 1 resistors: 04-01-01"},
-    {"key": "resistor", "column": "iec_ref", "want": "04-01-01 (preferred: rectangle), 04-01-02 (other form: zigzag)", "ref": "IS 12032 part 4 p. 3: 04-01-01 preferred form, 04-01-02 other form"},
-    {"key": "polarized", "column": "iec_ref", "want": "04-02-05 (preferred: two straight plates + \"+\"), 04-02-06 (other form: negative plate curved + \"+\")", "ref": "IS 12032 part 4 p. 4: 04-02-05 and 04-02-06 polarized capacitor"},
-    {"key": "zener", "column": "iec_ref", "want": "05-03-06 (cathode bar with one short stub; qualifier 05-02-03)", "ref": "IS 12032 part 5 pp. 3-4: 05-02-03 unidirectional breakdown effect, 05-03-06 breakdown diode"},
-    {"key": "fuse", "column": "iec_ref", "want": "07-21-01 (rectangle, line through it lengthwise)", "ref": "IS 12032 part 7 p. 31: 07-21-01 fuse, general symbol = NEETS module 3 p. AIII-8 (IEC marker)"},
-    {"key": "source", "column": "iec_ref", "want": "02-16-02 (ideal voltage source: circle, line through it along the conductor)", "ref": "IS 12032 part 2 p. 21: 02-16-02 ideal voltage source"},
-    {"key": "isource", "column": "iec_ref", "want": "02-16-01 (ideal current source: circle, line across the conductor)", "ref": "IS 12032 part 2 p. 21: 02-16-01 ideal current source"},
-    {"key": "battery", "column": "iec_ref", "want": "06-15-01 (cell), 06-15-02 (battery, form 1)", "ref": "IS 12032 part 6 p. 18: 06-15-01 primary cell (longer line positive), 06-15-02 battery"},
-    {"key": "ground", "column": "iec_ref", "want": "02-15-01 (earth, general symbol)", "ref": "IS 12032 part 2 p. 20: 02-15-01 earth, general symbol"},
-    {"key": "opamp", "column": "iec_ref", "want": "13-04-02 (rectangle with ▷ and ∞, inputs − and +)", "ref": "IS 12032 part 13 p. 4: 13-04-02 high gain differential amplifier (operational amplifier)"},
-    {"key": "acsource", "column": "iec_ref", "want": null, "ref": "no IEC AC-source symbol found in the IEC parts read (UNVERIFIED, empty)"},
-    {"key": "antenna", "column": "iec_ref", "want": null, "ref": "IS 2032-16:1972 shows a trident, the current IEC form was not read (UNVERIFIED, empty)"},
-    {"key": "ic", "column": "iec_ref", "want": null, "ref": "a generic IC box is a drawing convention, not a standard symbol"},
-    {"key": "ic", "column": "name", "want": "Integrated circuit (generic box)", "ref": "ECalc convention (no standard symbol)"}
+    {"key": "Resistor", "column": "name", "want": "Resistor", "ref": "IS 12032-4 (IEC 617-4:1983) section 1 resistors: 04-01-01"},
+    {"key": "Resistor", "column": "iec_ref", "want": "04-01-01 (preferred: rectangle), 04-01-02 (other form: zigzag)", "ref": "IS 12032 part 4 p. 3: 04-01-01 preferred form, 04-01-02 other form"},
+    {"key": "Polarised (electrolytic) capacitor", "column": "iec_ref", "want": "04-02-05 (preferred: two straight plates + \"+\"), 04-02-06 (other form: negative plate curved + \"+\")", "ref": "IS 12032 part 4 p. 4: 04-02-05 and 04-02-06 polarized capacitor"},
+    {"key": "Zener diode", "column": "iec_ref", "want": "05-03-06 (cathode bar with one short stub; qualifier 05-02-03)", "ref": "IS 12032 part 5 pp. 3-4: 05-02-03 unidirectional breakdown effect, 05-03-06 breakdown diode"},
+    {"key": "Fuse", "column": "iec_ref", "want": "07-21-01 (rectangle, line through it lengthwise)", "ref": "IS 12032 part 7 p. 31: 07-21-01 fuse, general symbol = NEETS module 3 p. AIII-8 (IEC marker)"},
+    {"key": "DC voltage source", "column": "iec_ref", "want": "02-16-02 (ideal voltage source: circle, line through it along the conductor)", "ref": "IS 12032 part 2 p. 21: 02-16-02 ideal voltage source"},
+    {"key": "Current source", "column": "iec_ref", "want": "02-16-01 (ideal current source: circle, line across the conductor)", "ref": "IS 12032 part 2 p. 21: 02-16-01 ideal current source"},
+    {"key": "Battery", "column": "iec_ref", "want": "06-15-01 (cell), 06-15-02 (battery, form 1)", "ref": "IS 12032 part 6 p. 18: 06-15-01 primary cell (longer line positive), 06-15-02 battery"},
+    {"key": "Ground (earth)", "column": "iec_ref", "want": "02-15-01 (earth, general symbol)", "ref": "IS 12032 part 2 p. 20: 02-15-01 earth, general symbol"},
+    {"key": "Operational amplifier", "column": "iec_ref", "want": "13-04-02 (rectangle with ▷ and ∞, inputs − and +)", "ref": "IS 12032 part 13 p. 4: 13-04-02 high gain differential amplifier (operational amplifier)"},
+    {"key": "AC voltage source", "column": "iec_ref", "want": null, "ref": "no IEC AC-source symbol found in the IEC parts read (UNVERIFIED, empty)"},
+    {"key": "Antenna", "column": "iec_ref", "want": null, "ref": "IS 2032-16:1972 shows a trident, the current IEC form was not read (UNVERIFIED, empty)"},
+    {"key": "Integrated circuit (generic box)", "column": "iec_ref", "want": null, "ref": "a generic IC box is a drawing convention, not a standard symbol"},
+    {"key": "Integrated circuit (generic box)", "column": "name", "want": "Integrated circuit (generic box)", "ref": "ECalc convention (no standard symbol)"}
   ]
 }

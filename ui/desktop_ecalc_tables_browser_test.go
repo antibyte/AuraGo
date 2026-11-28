@@ -503,7 +503,7 @@ func TestDesktopECalcTablesBrowser(t *testing.T) {
 	// that fits the symbol; sorting, filtering and copying use the id.
 	openTable("fx_symbols")
 	same("symbol cells hold the IEC and the ANSI drawing with names", page.MustEval(`()=>JSON.stringify([...document.querySelectorAll('tbody tr')].map(tr=>[...tr.querySelectorAll('td[data-symbol] svg')].map(s=>s.getAttribute('aria-label')+'|'+s.getAttribute('role')+'|'+(s.querySelectorAll('path,rect,circle').length>0))))`).Str(),
-		`[["resistor IEC|img|true","resistor ANSI|img|true"],["npn IEC|img|true","npn ANSI|img|true"],["ic IEC|img|true","ic ANSI|img|true"],[]]`)
+		`[["Widerstand IEC|img|true","Widerstand ANSI|img|true"],["Transistor IEC|img|true","Transistor ANSI|img|true"],["Baustein IEC|img|true","Baustein ANSI|img|true"],[]]`)
 	same("the drawings differ in size and fit their symbol", page.MustEval(`()=>{const w=[...document.querySelectorAll('tbody tr')].slice(0,3).map(tr=>tr.querySelector('td[data-symbol] svg').getBoundingClientRect());return JSON.stringify([w[0].width>0&&w[0].height>0,w[1].height>w[0].height,w[2].width>w[0].width]);}`).Str(), `[true,true,true]`)
 	same("the empty symbol cell is a dash", page.MustEval(`()=>document.querySelector('tbody tr[data-row="3"] td[data-symbol]').textContent`).Str(), "—")
 	filter = page.MustElement(".ec-filter-input")

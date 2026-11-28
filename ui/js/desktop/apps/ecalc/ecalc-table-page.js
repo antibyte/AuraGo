@@ -85,15 +85,18 @@
         // A symbol column draws its cell twice, in the IEC and in the ANSI style, each as a small SVG with a tight viewBox (the box of
         // the symbol in ECalcSymbols) and its own accessible name; an id the library does not know stays plain text.
         const SYMBOL_SCALE = 0.7; // drawn pixels per schematic pixel
-        const symbolFigure = (id, standard) => {
+        const symbolFigure = (id, standard, name) => {
             const Symbols = window.ECalcSymbols, part = Symbols.sample(id), box = Symbols.box(id);
-            const G = Symbols.GRID, width = (box[2] - box[0]) * G, height = (box[3] - box[1]) * G, label = id + ' ' + standard.toUpperCase();
+            const G = Symbols.GRID, width = (box[2] - box[0]) * G, height = (box[3] - box[1]) * G, label = (name || id) + ' ' + standard.toUpperCase();
             return '<span class="ec-sym-fig"><svg class="ec-sym" data-standard="' + standard + '" viewBox="' + [box[0] * G, box[1] * G, width, height].join(' ') + '" width="' + Math.round(width * SYMBOL_SCALE) + '" height="' + Math.round(height * SYMBOL_SCALE)
                 + '" role="img" aria-label="' + esc(label) + '" focusable="false" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' + Symbols.symbolMarkup(part, standard) + '</svg>'
                 + '<span class="ec-sym-std" aria-hidden="true">' + standard.toUpperCase() + '</span></span>';
         };
-        const symbolCell = id => (window.ECalcSymbols && window.ECalcSymbols.box(id) ? '<span class="ec-sym-pair">' + symbolFigure(id, 'iec') + symbolFigure(id, 'ansi') + '</span>' : esc(id));
-        const cellMarkup = (column, value, text) => (column.dim === 'symbol' && typeof value === 'string' ? symbolCell(value) : esc(text));
+        // The accessible name of a drawing is the text of the row's key cell when the key is not the symbol column (the name of the part in the
+        // language of the page), otherwise the library id.
+        const symbolCell = (id, name) => (window.ECalcSymbols && window.ECalcSymbols.box(id) ? '<span class="ec-sym-pair">' + symbolFigure(id, 'iec', name) + symbolFigure(id, 'ansi', name) + '</span>' : esc(id));
+        const cellMarkup = (column, value, text, name) => (column.dim === 'symbol' && typeof value === 'string' ? symbolCell(value, name) : esc(text));
+        const rowName = index => (columns[keyIndex].dim !== 'symbol' && rows[index][keyIndex] !== null && rows[index][keyIndex] !== undefined ? texts[index][keyIndex] : '');
 
         function cellText(column, value) {
             if (value === null || value === undefined) return NO_VALUE;
@@ -185,7 +188,7 @@
             computeView();
             bodyEl.innerHTML = shown.length ? shown.map(index => '<tr data-row="' + index + '">' + shownColumns.map(at => {
                 const value = rows[index][at], tag = at === keyIndex ? 'th scope="row"' : 'td';
-                return '<' + tag + (numeric[at] ? ' data-num="true"' : '') + (value === null ? ' data-empty="true"' : '') + (columns[at].dim === 'symbol' ? ' data-symbol="true"' : '') + '>' + cellMarkup(columns[at], value, texts[index][at]) + '</' + (at === keyIndex ? 'th' : 'td') + '>';
+                return '<' + tag + (numeric[at] ? ' data-num="true"' : '') + (value === null ? ' data-empty="true"' : '') + (columns[at].dim === 'symbol' ? ' data-symbol="true"' : '') + '>' + cellMarkup(columns[at], value, texts[index][at], rowName(index)) + '</' + (at === keyIndex ? 'th' : 'td') + '>';
             }).join('') + '</tr>').join('') : '<tr class="ec-table-empty"><td colspan="' + Math.max(shownColumns.length, 1) + '">' + esc(t('desktop.ecalc_table_no_rows')) + '</td></tr>';
             countEl.textContent = query.trim() ? t('desktop.ecalc_table_rows_filtered', { shown: shown.length, total: rows.length }) : t('desktop.ecalc_table_rows', { total: rows.length });
             paintMatch(false);

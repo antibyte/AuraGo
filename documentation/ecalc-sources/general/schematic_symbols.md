@@ -245,9 +245,9 @@ and EN 60617-4:1996 previews: none found. DOE-HDBK-1016/1-93: page did not expos
   transformer): each IEC number was read in IS 12032 and the US counterpart seen in Commons/NEETS as listed in `check`.
 
 ## Notes (en / de)
-- en: IEC 60617 is the international standard (in Germany DIN EN 60617); IEEE 315 / ANSI Y32.2 was the US standard and
-  has been inactive since 2019 without replacement. de: IEC 60617 ist die internationale Norm (in Deutschland
-  DIN EN 60617); IEEE 315 / ANSI Y32.2 war die US-Norm und ist seit 2019 ohne Nachfolger zurückgezogen.
+- en: IEC 60617 is the international standard (in Germany DIN EN 60617); IEEE 315 / ANSI Y32.2 was the US standard.
+  de: IEC 60617 ist die internationale Norm (in Deutschland DIN EN 60617); IEEE 315 / ANSI Y32.2 war die US-Norm.
+  (The statement that IEEE 315 is inactive since 2019 had no source in this research and is not shipped.)
 - en: Both standards accept several forms for some parts; never mix two forms of the same part in one diagram. de: Beide
   Normen lassen für manche Bauteile mehrere Formen zu; im selben Schaltplan nie zwei Formen desselben Bauteils
   mischen.
@@ -272,7 +272,7 @@ UNVERIFIED:
   ECalc's current Z is one accepted form.
 
 ## Shipped table (deviations from the research record)
-- Columns shipped: `symbol` (dim `symbol`: the library id, the page draws IEC and ANSI side by side), `name`, `function`, `iec_ref` (IEC 617 item number without the "IEC 617-x" prefix), `difference`. The research columns `ieee_ref` (clause numbers taken only from Wikimedia file names, one non-authoritative source), `differs`, `ecalc` and `check` are not shipped; the cross-check is in this record.
+- Columns shipped: `name` (the key column, so that row headers and the accessible names of the drawings are the part names in the page language), `symbol` (dim `symbol`: the library id, the page draws IEC and ANSI side by side), `function`, `iec_ref` (IEC 617 item number without the "IEC 617-x" prefix), `difference`. The research columns `ieee_ref` (clause numbers taken only from Wikimedia file names, one non-authoritative source), `differs`, `ecalc` and `check` are not shipped; the cross-check is in this record.
 - `iec_ref` is null (UNVERIFIED) for `acsource` (no IEC form read), `antenna` (IS 2032-16:1972 shows a trident, current form not read) and `ic` (no standard symbol).
 - The `difference` text of `fuse`, `switch`, `source`, `isource`, `polarized`, `antenna` and `opamp` says what ECalc draws. The opamp row says that IEC 60617 draws a rectangle with the amplifier sign and the infinity sign while ECalc shows the triangle in both modes.
 - The `difference` of `polarized` reads "curved towards the straight plate" because the ANSI drawing was corrected (see below).

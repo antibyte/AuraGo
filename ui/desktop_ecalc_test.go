@@ -417,7 +417,7 @@ func TestECalcTablePageDrawsSymbolColumns(t *testing.T) {
 	t.Parallel()
 	page := ecalcScripts(t)["ecalc-table-page.js"]
 	for _, marker := range []string{
-		"column.dim !== 'symbol'", "Symbols.symbolMarkup(part, standard)", "Symbols.box(id)", "Symbols.sample(id)", "symbolFigure(id, 'iec') + symbolFigure(id, 'ansi')",
+		"column.dim !== 'symbol'", "Symbols.symbolMarkup(part, standard)", "Symbols.box(id)", "Symbols.sample(id)", "symbolFigure(id, 'iec', name) + symbolFigure(id, 'ansi', name)",
 		`role="img"`, "aria-label", "columns[at].dim === 'symbol'",
 	} {
 		if !strings.Contains(page, marker) {
