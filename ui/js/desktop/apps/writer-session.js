@@ -47,13 +47,22 @@
         };
     }
     const databases = new Map();
+    const draftTimeout = 8000;
     function openDrafts(namespace = 'writer') {
         if (!['writer','sheets','notes','synth-studio','layerling'].includes(namespace)) throw new Error('Invalid office draft namespace');
         if (!databases.has(namespace)) databases.set(namespace, new Promise((resolve, reject) => {
-            const request = indexedDB.open('aurago.' + namespace + '.drafts.v1', 1);
-            request.onupgradeneeded = () => request.result.createObjectStore('documents', { keyPath: 'key' });
-            request.onsuccess = () => resolve(request.result);
+            const request = indexedDB.open('aurago.' + namespace + '.drafts.v1', 2);
+            request.onupgradeneeded = () => {
+                const db = request.result;
+                if (!db.objectStoreNames.contains('documents')) db.createObjectStore('documents', { keyPath: 'key' });
+                const store = request.transaction.objectStore('documents');
+                if (!store.indexNames.contains('path')) store.createIndex('path', 'path');
+            };
+            request.onsuccess = () => { const db = request.result; db.onversionchange = () => db.close(); resolve(db); };
             request.onerror = () => { databases.delete(namespace); reject(request.error); };
+            // A second tab holding an old version can block the open forever; fail closed so
+            // recovery checks and autosave drafts degrade to "unavailable" instead of hanging.
+            request.onblocked = () => { databases.delete(namespace); reject(new Error('Draft database is blocked')); };
         }));
         return databases.get(namespace);
     }
@@ -63,26 +72,39 @@
             const tx = db.transaction('documents', operation === 'get' ? 'readonly' : 'readwrite');
             const store = tx.objectStore('documents');
             const request = operation === 'put' ? store.put({ ...value, key }) : operation === 'deleteIf' ? store.get(key) : store[operation](key);
+            let settled = false;
+            const finish = (fn, result) => { if (settled) return; settled = true; clearTimeout(timer); fn(result); };
+            const timer = setTimeout(() => {
+                try { tx.abort(); } catch (_) {}
+                finish(reject, new Error('Draft operation timed out'));
+            }, draftTimeout);
             if(operation==='deleteIf') request.onsuccess=()=>{if(request.result?.id===value.id)store.delete(key);};
-            tx.oncomplete = () => resolve(request.result);
-            tx.onerror = () => reject(tx.error);
-            tx.onabort = () => reject(tx.error || new Error('Draft transaction aborted'));
+            tx.oncomplete = () => finish(resolve, request.result);
+            tx.onerror = () => finish(reject, tx.error);
+            tx.onabort = () => finish(reject, tx.error || new Error('Draft transaction aborted'));
         });
     }
     // Every draft of a namespace, newest first, without its document bytes:
-    // {key, id, path, updated, revision, etag, size}.
-    async function drafts(namespace = 'writer') {
+    // {key, id, path, updated, revision, etag, size}. A path uses the index so
+    // recovery only reads the drafts of the requested document.
+    async function drafts(namespace = 'writer', path = '') {
         const db = await openDrafts(namespace);
         return new Promise((resolve, reject) => {
-            const found = [], request = db.transaction('documents', 'readonly').objectStore('documents').openCursor();
+            const store = db.transaction('documents', 'readonly').objectStore('documents');
+            const indexed = !!path && store.indexNames.contains('path');
+            const found = [], request = (indexed ? store.index('path') : store).openCursor(indexed ? IDBKeyRange.only(path) : undefined);
+            let settled = false;
+            const finish = (fn, result) => { if (settled) return; settled = true; clearTimeout(timer); fn(result); };
+            const timer = setTimeout(() => finish(reject, new Error('Draft listing timed out')), draftTimeout);
             request.onsuccess = () => {
                 const cursor = request.result;
-                if (!cursor) { resolve(found.sort((a, b) => (b.updated || 0) - (a.updated || 0))); return; }
-                const {bytes, ...rest} = cursor.value;
+                if (!cursor) { finish(resolve, found.sort((a, b) => (b.updated || 0) - (a.updated || 0))); return; }
+                if (!indexed && path && cursor.value.path !== path) { cursor.continue(); return; }
+                const {bytes,snapshot,sourceData,...rest} = cursor.value;
                 found.push({...rest, size: bytes?.byteLength || 0});
                 cursor.continue();
             };
-            request.onerror = () => reject(request.error);
+            request.onerror = () => finish(reject, request.error);
         });
     }
     window.OfficeSession = { create, draft, drafts };

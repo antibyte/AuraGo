@@ -542,7 +542,7 @@ func TestDesktopSessionActionsSheetsPendingEditsBrowser(t *testing.T) {
 			};
 			SheetsApp.instances.get('test').book.getActiveSheet().getRange('A3').setValue('preserved after failed save');
 		}`)
-		page.MustEval(`async()=>{sheetSessionChoices=['save'];window.sheetFailedSaveResult=await AuraDesktopSessionActions.requestLogout();window.sheetFailedSaveDraft=await OfficeSession.draft('get',location.origin+':'+SheetsApp.instances.get('test').path,undefined,'sheets');}`)
+		page.MustEval(`async()=>{sheetSessionChoices=['save'];window.sheetFailedSaveResult=await AuraDesktopSessionActions.requestLogout();const entries=await OfficeSession.drafts('sheets'),entry=entries.find(item=>item.path===SheetsApp.instances.get('test').path);window.sheetFailedSaveDraft=entry?await OfficeSession.draft('get',entry.key,undefined,'sheets'):null;}`)
 		if !page.MustEval(`()=>sheetFailedSaveResult===false&&sheetSessionLogouts===2&&!!SheetsApp.instances.get('test').book&&SheetsApp.instances.get('test').session.dirty&&SheetsApp.instances.get('test').book.getActiveSheet().getRange('A3').getRawValue()==='preserved after failed save'&&!!sheetFailedSaveDraft?.snapshot?.workbook&&sheetSessionProblems.includes('save_failed')`).Bool() {
 			t.Fatalf("a failed Sheets PATCH did not leave the document and recoverable draft intact: %s", page.MustEval(`()=>JSON.stringify({result:sheetFailedSaveResult,logouts:sheetSessionLogouts,dirty:SheetsApp.instances.get('test')?.session?.dirty,value:SheetsApp.instances.get('test')?.book?.getActiveSheet().getRange('A3').getRawValue(),draft:!!sheetFailedSaveDraft,revision:sheetFailedSaveDraft?.revision,path:sheetFailedSaveDraft?.path,problems:sheetSessionProblems,errors:sheetErrors})`).Str())
 		}

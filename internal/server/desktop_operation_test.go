@@ -52,6 +52,20 @@ func TestDesktopReadonlyOperationMatrix(t *testing.T) {
 	}
 }
 
+func TestDesktopSheetsAssistIsReadOnly(t *testing.T) {
+	r := httptest.NewRequest(http.MethodPost, "/api/desktop/office/workbook/assist", nil)
+	if got := desktopRequestOperation(r); got != desktopRead {
+		t.Fatalf("assist operation = %v, want read", got)
+	}
+	s, readToken, _ := testDesktopPermissionServer(t)
+	s.Cfg.VirtualDesktop.ReadOnly = true
+	r.Header.Set("Authorization", "Bearer "+readToken)
+	w := httptest.NewRecorder()
+	if !requireDesktopOperation(s, w, r, desktopScopeRead, desktopRequestOperation(r)) {
+		t.Fatalf("read-only desktop rejected the sheets assist: %d %s", w.Code, w.Body.String())
+	}
+}
+
 func TestDesktopReadonlyAlsoAppliesToAuthenticatedBrowser(t *testing.T) {
 	s, _, _ := testDesktopPermissionServer(t)
 	s.Cfg.VirtualDesktop.ReadOnly = true

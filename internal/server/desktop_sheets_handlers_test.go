@@ -44,6 +44,15 @@ func TestDesktopSheetsNativeWorkbook(t *testing.T) {
 	if read.Code != 200 {
 		t.Fatalf("read: %d %s", read.Code, read.Body)
 	}
+	head := request("HEAD", "", "", nil)
+	if head.Code != 200 || head.Header().Get("ETag") != etag || head.Body.Len() != 0 {
+		t.Fatalf("head: %d %q body=%d", head.Code, head.Header().Get("ETag"), head.Body.Len())
+	}
+	missing := httptest.NewRecorder()
+	handleDesktopOfficeWorkbook(s)(missing, httptest.NewRequest("HEAD", "/api/desktop/office/workbook?representation=editor-v2&path=Documents/missing.xlsx", nil))
+	if missing.Code != 404 {
+		t.Fatalf("missing head: %d %s", missing.Code, missing.Body)
+	}
 	if r := request("PATCH", "If-None-Match", "*", patch); r.Code != 412 {
 		t.Fatalf("create collision: %d", r.Code)
 	}
