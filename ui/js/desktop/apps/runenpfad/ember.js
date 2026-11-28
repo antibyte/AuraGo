@@ -168,6 +168,9 @@
         sim.mealHp = true;
     }
 
+    // Max hearts from the hero stats plus the stew heart (use when a run rebuilds maxHp from heroStats).
+    function maxHpFor(sim) { return sim.stats.maxHp + (sim.mealHp ? 1 : 0); }
+
     function setMeal(sim, kind) {
         const n = N();
         if (!sim || !n || !MEALS[kind] || mealOf(sim)) return false;
@@ -218,6 +221,7 @@
         spareLethal: spareLethal,
         maxHpBonus: maxHpBonus,
         mealOf: mealOf,
+        maxHpFor: maxHpFor,
         setMeal: setMeal,
         onStageStart: onStageStart,
         ringBell: ringBell

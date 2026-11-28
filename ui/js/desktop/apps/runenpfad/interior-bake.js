@@ -52,7 +52,7 @@
         if (ch === '~') return 4;
         return ch === ',' ? 3 : 2;
     }
-    function isFloor(k) { return k >= 2; }
+    function isFloor(k) { return k === 2 || k === 3; }
 
     // Ids of the sheets a room draws, used to re-bake once more of them have loaded.
     function sheetsOf(room) {
@@ -349,7 +349,7 @@
 
     // Soft shadows on floor cells next to walls: strongest under the north wall.
     function contactShadows(g, map, cols, rows) {
-        const wallish = function (cx, cy) { return !isFloor(kindAt(map, cx, cy)); };
+        const wallish = function (cx, cy) { return kindAt(map, cx, cy) <= 1; };
         for (let cy = 0; cy < rows; cy++) {
             for (let cx = 0; cx < cols; cx++) {
                 if (!isFloor(kindAt(map, cx, cy))) continue;

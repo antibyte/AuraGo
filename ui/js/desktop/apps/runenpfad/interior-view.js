@@ -426,7 +426,19 @@
             let alpha = 1;
             if (dead) alpha = clamp(1 - ((m.deadT || 0) - 0.12) / 0.45, 0, 1);
             if (alpha <= 0.01) return;
-            const lift = FLYERS[m.kind] && !dead ? 16 + (f.reduced ? 0 : Math.sin(f.t * 6 + m.x) * 4) : 0;
+            const hop = m.hop && !dead && m.hop.k >= 0 && m.hop.k <= 1 ? m.hop : null; // emberling hop: arc over a ground shadow, landing ring
+            if (hop) {
+                ctx.save();
+                ctx.strokeStyle = 'rgba(255, 150, 90, 0.8)';
+                ctx.fillStyle = 'rgba(255, 90, 50, 0.2)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.ellipse(hop.tx, hop.ty - 2, 24, 15, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                ctx.restore();
+            }
+            const lift = FLYERS[m.kind] && !dead ? 16 + (f.reduced ? 0 : Math.sin(f.t * 6 + m.x) * 4) : (hop ? Math.sin(hop.k * Math.PI) * 22 : 0);
             shadow(m.x, m.y, r * 1.1 * (1 - lift / 90), 0.32 * alpha);
             const clip = mobSheet(m.kind) + '.' + (dead ? 'death' : m.state === 'tell' ? 'tell' : m.state === 'attack' ? 'attack' : m.state === 'hurt' ? 'hurt' : 'move');
             const flash = m.hurtT > 0 && !dead ? Math.min(0.85, m.hurtT * 6) : 0;

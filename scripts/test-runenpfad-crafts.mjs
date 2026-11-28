@@ -655,4 +655,22 @@ check('the old windows still work and craft state is not a dice round', () => {
     assert.equal(ui.isOpen(), false);
 });
 
+check('the archive tablets 1 and 2 are given once each', () => {
+    const sim = houseSim('hall', undefined, 'hall_archive', 'x');
+    const it = sim.interior;
+    const bits = () => Npcs.getFlag(sim, 'dr.tabs');
+    assert.equal(bits(), 0);
+    const signs = ['tab_1', 'tab_2'].map((n) => thingsOf(it, 'sign').filter((t) => t.node === n)[0]);
+    signs.forEach((t, i) => {
+        const ev = use(sim, it, t);
+        assert.ok(ev.some((e) => e.type === 'in_tablet' && e.detail.tablet === i + 1 && e.detail.first), 'tablet ' + (i + 1) + ' first read');
+        closeTalk(sim);
+        assert.equal(bits() & (1 << i), 1 << i);
+    });
+    assert.equal(bits(), 3);
+    const again = use(sim, it, signs[0]);
+    assert.ok(!again.some((e) => e.type === 'in_tablet'), 'no second gift');
+    assert.equal(bits(), 3);
+});
+
 console.log('runenpfad crafts: ' + passed + ' checks passed');

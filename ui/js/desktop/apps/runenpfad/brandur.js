@@ -304,6 +304,7 @@
         if (id === 'breath') {
             dr.breath.live = true;
             dr.breath.t = 0;
+            dr.breath.dur = m.phase >= 3 ? MOVES.breath.atk3 : MOVES.breath.atk; // the sweep covers the whole live time
         } else if (id === 'stomp') {
             stompMarks(sim, it, m);
         } else if (id === 'takeoff') {
@@ -398,7 +399,7 @@
         const t = m.t;
         if (t < AIR.follow) {
             const dx = h.x - dr.shadow.x;
-            const dy = (it.hero.y) - dr.shadow.y;
+            const dy = h.y - dr.shadow.y;
             const d = Math.hypot(dx, dy);
             const step = Math.min(d, AIR.speed * dt);
             if (d > 0.001) {
@@ -673,7 +674,7 @@
     function brandurMob(it) { return it.mobs.filter(function (o) { return o.kind === 'brandur'; })[0] || null; }
 
     function roomSetup(sim, it, lay) {
-        if (!it.room || !it.room.def || it.room.def.guardian !== 'brandur') return;
+        if (!it.room || !it.room.def || it.room.def.guardian !== 'brandur') { it.lair = null; return; } // the interior object is reused across rooms
         const fate = fateIndex(sim);
         const m = brandurMob(it);
         it.lair = null;

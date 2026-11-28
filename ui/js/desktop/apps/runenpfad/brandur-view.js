@@ -114,9 +114,11 @@
 
         // ---- sheets ----
 
+        function inLair(iv) { return !!(iv && iv.room && iv.room.def && iv.room.def.guardian === 'brandur'); }
+
         function hasBrandur(iv) {
             if (!iv) return false;
-            if (iv.lair) return true;
+            if (iv.lair && inLair(iv)) return true;
             if (iv.room && iv.room.def && iv.room.def.guardian === 'brandur') return true;
             return list(iv.mobs).some(owns);
         }
@@ -526,7 +528,7 @@
             try {
                 const mobs = list(iv.mobs).filter(owns);
                 mobs.forEach(function (m) { if (m.state !== 'air') out.push({ y: m.y, o: { mob: m } }); });
-                const lair = iv.lair;
+                const lair = inLair(iv) ? iv.lair : null;
                 if (lair && lair.fate && lair.fate !== 'none' && !mobs.some(function (m) { return m.state === 'dead'; })) out.push({ y: num(lair.y, 0), o: { lair: lair } });
             } catch (err) { /* ignore */ }
             return out;
@@ -712,7 +714,7 @@
                     }
                     return { x: m.x, y: m.y + FOOT_DY - 140, top: top, bar: !!(iv.guardian && iv.guardian.kind === 'brandur') };
                 }
-                const l = iv && iv.lair;
+                const l = inLair(iv) ? iv.lair : null;
                 if (l && l.fate && iv.hero && Math.hypot(l.x - iv.hero.x, l.y - iv.hero.y) < 8 * CELL) return { x: l.x, y: l.y + FOOT_DY - 140, bar: false };
             } catch (err) { /* ignore */ }
             return null;

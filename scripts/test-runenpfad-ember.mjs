@@ -306,6 +306,12 @@ check('meals: hub keeps, level consumes, stew heart, broth dash', () => {
     assert.equal(Npcs.getFlag(cook, 'dr.meal'), 1);
     assert.equal(Ember.setMeal(cook, 'broth'), false);
 
+    // a workshop purchase rebuilds maxHp from heroStats (app.js); the stew heart stays
+    cook.stats = Sim.heroStats(cook.heroId, cook.profile);
+    cook.player.maxHp = Ember.maxHpFor(cook);
+    cook.player.hp = Math.min(cook.player.maxHp, cook.player.hp + 1);
+    assert.equal(cook.player.maxHp, base + 1, 'stew heart survives the rebuild');
+
     const tea = hubSim({ npcFlags: { 'dr.meal': 2 } });
     assert.equal(Ember.mealOf(tea), 'tea');
     assert.equal(tea.player.maxHp, base);

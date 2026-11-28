@@ -620,7 +620,7 @@
                             sim.profile.coins = ex.coins;
                             sim.profile.upgrades = ex.upgrades;
                             sim.stats = Sim.heroStats(sim.heroId, profile);
-                            sim.player.maxHp = sim.stats.maxHp;
+                            sim.player.maxHp = sim.stats.maxHp + (sim.mealHp ? 1 : 0); // the stew heart survives the rebuild
                             sim.player.hp = Math.min(sim.player.maxHp, sim.player.hp + 1);
                             sim.player.potions = Math.max(sim.player.potions, sim.stats.potions);
                         }
