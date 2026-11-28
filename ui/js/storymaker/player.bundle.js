@@ -2824,7 +2824,7 @@
     // ---- areas
 
     // area(stage, env, variant, at) = {x, y, w, h, surface} in design pixels, or null for an unknown name. at is a name of
-    // AREAS or {x, y} in percent of the safe area.
+    // AREAS or {x, y} in percent of the 5-95 % picture area (not api.safe(), which stops above the captions).
     function area(stage, env, variant, at) {
         var S0 = SM.stage.safeBox(stage.aspect), v = variant === 'night' ? 'night' : 'day';
         // safeBox is centred; an environment whose focus_x moves the cropped slice moves the safe box with it.
@@ -6145,7 +6145,7 @@
 // evaluates that timeline. API: duration, safe, add, text, shape, icon, diagram, chart, headline, list (blocks, SM.blocks), tween, camera, random(seed), cue(n), onFrame(fn).
 // Handle methods take {start, dur, ease}; `start` is seconds
 // (or api.cue(n)) from the scene start (the start of the entry transition, like cues and beats). Positions are spot
-// names or {x, y} in percent of the safe area. Errors are thrown with a message that names the fix.
+// names or {x, y} in percent of the 5-95 % picture area (not api.safe()). Errors are thrown with a message that names the fix.
 // Classic script; publishes StorymakerCore.codescene.
 (function (root) {
     'use strict';

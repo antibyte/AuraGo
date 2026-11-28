@@ -3,7 +3,7 @@
 // evaluates that timeline. API: duration, safe, add, text, shape, icon, diagram, chart, headline, list (blocks, SM.blocks), tween, camera, random(seed), cue(n), onFrame(fn).
 // Handle methods take {start, dur, ease}; `start` is seconds
 // (or api.cue(n)) from the scene start (the start of the entry transition, like cues and beats). Positions are spot
-// names or {x, y} in percent of the safe area. Errors are thrown with a message that names the fix.
+// names or {x, y} in percent of the 5-95 % picture area (not api.safe()). Errors are thrown with a message that names the fix.
 // Classic script; publishes StorymakerCore.codescene.
 (function (root) {
     'use strict';

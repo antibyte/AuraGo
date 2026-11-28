@@ -43,7 +43,7 @@
     // ---- areas
 
     // area(stage, env, variant, at) = {x, y, w, h, surface} in design pixels, or null for an unknown name. at is a name of
-    // AREAS or {x, y} in percent of the safe area.
+    // AREAS or {x, y} in percent of the 5-95 % picture area (not api.safe(), which stops above the captions).
     function area(stage, env, variant, at) {
         var S0 = SM.stage.safeBox(stage.aspect), v = variant === 'night' ? 'night' : 'day';
         // safeBox is centred; an environment whose focus_x moves the cropped slice moves the safe box with it.

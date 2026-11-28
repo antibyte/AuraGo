@@ -18,7 +18,7 @@ api.tween(handle, {opacity, x, y, scale, rotation, width, height}, timing)
 api.camera.zoom(factor, timing), api.camera.pan(at, timing), api.camera.shake(amount, timing)
 api.random('seed') returns a seeded random function: call it while building, never in onFrame.
 api.onFrame(function (t, g) { ... }): g.save, restore, translate, rotate, scale, alpha, fill, stroke, rect, strokeRect, circle, line, path(svgPath, 'fill', 'stroke' or 'both'), text(text, x, y, {size, weight, align, color}).
-at is left, center, right or {x, y} in percent of the safe area; blocks also take full, top, board.
+at is left, center, right or {x, y} in percent of the frame, not api.safe(); blocks also take full, top, board.
 Blocks return a handle plus highlight(nodeId, timing). Options {at, entry, start, dur}; entry is draw, pop, fade or none.
 api.icon(id, {style, label}): style is line, badge or card; find ids with storymaker_catalog operation search, kind icon, one English word.
 api.diagram({layout, nodes, flow}, {reveals}): layout is flow (2-5 nodes), cycle (3-6), hub (centre + 2-6), stack (2-5) or compare (2); node {id, label, icon, points (compare, up to 3)}; flow: true animates the arrows.
