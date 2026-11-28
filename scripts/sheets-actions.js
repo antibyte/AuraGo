@@ -4,27 +4,6 @@ import { SheetInterceptorService, AFTER_CELL_EDIT, EffectRefRangId, handleDefaul
 import { ISheetClipboardService } from '@univerjs/sheets-ui';
 import { deserializeRangeWithSheet, serializeRange, serializeRangeWithSheet } from '@univerjs/engine-formula';
 
-// crypto.randomUUID only exists in a secure context, which a plain-HTTP LAN install is not.
-function uuid() {
-    const c = globalThis.crypto;
-    if (c && typeof c.randomUUID === 'function') return c.randomUUID();
-    const bytes = new Uint8Array(16);
-    if (c && typeof c.getRandomValues === 'function') c.getRandomValues(bytes);
-    else for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
-    bytes[6] = (bytes[6] & 15) | 64;
-    bytes[8] = (bytes[8] & 63) | 128;
-    const hex = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
-    return hex.slice(0, 8) + '-' + hex.slice(8, 12) + '-' + hex.slice(12, 16) + '-' + hex.slice(16, 20) + '-' + hex.slice(20);
-}
-function chartRangeUsable(ref) {
-    try {
-        const { range } = deserializeRangeWithSheet(ref);
-        return range.endRow > range.startRow && range.endColumn > range.startColumn;
-    } catch (_) {
-        return false;
-    }
-}
-
 // Host-owned charts, images and print settings share the editor's undo stack.
 class AuraSheetsActions extends Plugin {
     static pluginName = 'AURAGO_SHEETS_ACTIONS';
@@ -51,24 +30,15 @@ class AuraSheetsActions extends Plugin {
             const transform=(ref,qualified=false)=>{if(!ref)return ref;const parsed=deserializeRangeWithSheet(ref);if(qualified&&parsed.sheetName!==oldName)return ref;if(rename)return serializeRangeWithSheet(p.name,parsed.range);if(remove)return '#REF!';const range=handleDefaultRangeChangeWithEffectRefCommands(parsed.range,command);return range?(qualified?serializeRangeWithSheet(parsed.sheetName,range):serializeRange(range)):'#REF!';};
             if(!copy){
                 after.charts=after.charts.filter(c=>!(remove&&c.sheet===p.subUnitId));
-                for(const c of after.charts){
-                    // Preserved charts keep their references: the server rejects every change to them.
-                    if(c.readonly)continue;
-                    if(c.sheet===p.subUnitId&&structure){c.range=transform(c.range);const anchor=transform(c.anchor);if(anchor!=='#REF!')c.anchor=anchor.split(':')[0];}
-                    for(const s of c.series||[])for(const key of ['name','categories','values'])if(s[key]?.includes('!'))s[key]=transform(s[key],true);
-                }
-                // A chart whose data range collapsed or lost its sheet cannot be written back; drop it
-                // inside the same undo step instead of leaving an unsaveable workbook behind.
-                const broken=c=>(c.series||[]).some(s=>['name','categories','values'].some(key=>s[key]==='#REF!'));
-                after.charts=after.charts.filter(c=>c.readonly||(!broken(c)&&(!c.range||chartRangeUsable(c.range))));
+                for(const c of after.charts){if(c.sheet===p.subUnitId&&structure){c.range=transform(c.range);const anchor=transform(c.anchor);if(anchor!=='#REF!')c.anchor=anchor.split(':')[0];}for(const s of c.series||[])for(const key of ['name','categories','values'])if(s[key]?.includes('!'))s[key]=transform(s[key],true);}
+                after.charts=after.charts.filter(c=>c.range!=='#REF!');
             }
             if(Array.isArray(after.images)){
-                if(copy)after.images.push(...before.images.filter(image=>image.sheet===p.subUnitId).map(image=>({...image,id:uuid(),sheet:p.targetSubUnitId})));
+                if(copy)after.images.push(...before.images.filter(image=>image.sheet===p.subUnitId).map(image=>({...image,id:crypto.randomUUID(),sheet:p.targetSubUnitId})));
                 after.images=after.images.filter(image=>!(remove&&image.sheet===p.subUnitId));
                 for(const image of after.images)if(image.sheet===p.subUnitId&&structure)image.anchor=transform(image.anchor).split(':')[0];
                 after.images=after.images.filter(image=>image.anchor!=='#REF!');
             }
-            if(remove&&after.print&&after.print.sheet===p.subUnitId)after.print={};
             if(JSON.stringify(before)===JSON.stringify(after))return {undos:[],redos:[]};
             return {undos:[{id:mutation,params:{unitId:p.unitId,value:before}}],redos:[{id:mutation,params:{unitId:p.unitId,value:after}}]};
         }}));

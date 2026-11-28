@@ -597,6 +597,16 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 		page.Timeout(30*time.Second).MustWait(`id=>{const s=golfFixture.inspect();return !s.loading&&s.course===id&&s.graphics?.geometries>0&&s.graphics?.triangles>0}`, course.ID)
 		page.Timeout(15*time.Second).MustWait(`look=>{const g=golfFixture.inspect().graphics;return g.look===look&&g.props>0&&g.env===true}`, course.World)
 		worldsSeen[course.World] = true
+		if course.World == "moon" {
+			if !page.MustEval(`()=>{const sky=golfFixture.inspect().graphics?.sky;return !!sky&&sky.stars>=1000&&sky.sparks>0&&sky.meteors>=2}`).Bool() {
+				t.Fatalf("%s: the moon sky has no stars, sparkles or shooting stars: %s", course.ID, page.MustEval(`()=>JSON.stringify(golfFixture.inspect().graphics?.sky)`).Str())
+			}
+			if page.MustEval(`()=>{const g=golfFixture.inspect().graphics;const motion=g.tier!=='low'&&!matchMedia('(prefers-reduced-motion: reduce)').matches;return g.sky.meteorOn!==motion}`).Bool() {
+				t.Fatalf("%s: shooting stars do not follow the motion preference: %s", course.ID, page.MustEval(`()=>JSON.stringify(golfFixture.inspect().graphics?.sky)`).Str())
+			}
+		} else if !page.MustEval(`()=>{const sky=golfFixture.inspect().graphics?.sky;return !!sky&&sky.stars===0&&sky.meteors===0}`).Bool() {
+			t.Fatalf("%s: the %s sky carries moon effects: %s", course.ID, course.World, page.MustEval(`()=>JSON.stringify(golfFixture.inspect().graphics?.sky)`).Str())
+		}
 		if course.World != "pirate" {
 			if !page.MustEval(`()=>{const sl=golfFixture.inspect().graphics?.seaLife;return !!sl&&sl.active===false&&sl.drawCalls===0}`).Bool() {
 				t.Fatalf("%s: sea life stayed active outside Pirate Bay: %s", course.ID, page.MustEval(`()=>JSON.stringify(golfFixture.inspect().graphics?.seaLife)`).Str())

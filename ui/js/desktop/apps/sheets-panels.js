@@ -1,7 +1,7 @@
 (function(){
     'use strict';
     function create(state){
-        const {esc,tr,root,find}=state,life=new AbortController();let left='',right='',matches=[],matchIndex=-1,suggestion=null,assistLife=null,highlights=[],searchState=null;
+        const {esc,tr,root,find}=state,life=new AbortController();let left='',right='',matches=[],matchIndex=-1,suggestion=null,assistLife=null,highlights=[];
         const field=(label,name,type='text',value='')=>'<label class="sheets-field"><span>'+esc(tr(label))+'</span><input data-field="'+name+'" type="'+type+'" value="'+esc(value)+'"></label>';
         const select=(label,name,options,value)=>'<label class="sheets-field"><span>'+esc(tr(label))+'</span><select data-field="'+name+'">'+options.map(([v,k])=>'<option value="'+esc(v)+'"'+(v===value?' selected':'')+'>'+esc(tr(k))+'</option>').join('')+'</select></label>';
         const button=(key,label=key)=>'<button type="button" data-panel-action="'+key+'">'+esc(tr(label))+'</button>';
@@ -27,7 +27,7 @@
         function showRight(key){
             right=key;
             if(key==='format'){
-                const r=state.selected(),style=r.getCellStyleData()||{},noteSheet=sheet().getSheetId(),noteCell=r.getA1Notation().split(':')[0];
+                const r=state.selected(),style=r.getCellStyleData()||{};
                 container('right',key,'<div class="sheets-selection-pill">'+esc(r.getA1Notation())+'</div>'+section('text',
                     field('font_color','fontColor','color',style.cl?.rgb||'#26374b')+field('fill_color','fillColor','color',style.bg?.rgb||'#ffffff')+
                     select('vertical_alignment','vertical',[['top','align_top'],['middle','align_middle'],['bottom','align_bottom']],'middle')+
@@ -35,8 +35,8 @@
                     buttons(['setBorder','wrap','unmerge','clearFormat']))+
                     section('number_format',field('number_format','pattern','text',r.getNumberFormat()||'General')+buttons(['setNumberFormat','decimalLess','decimalMore']))+
                     section('dimensions',field('row_height','rowHeight','number','26')+field('column_width','columnWidth','number','112')+buttons(['setRowHeight','setColumnWidth','autoFitRows','autoFitColumns']))+
-                    section('conditional_format',state.conditionsLocked?'<p class="sheets-hint">'+esc(tr('conditions_preserved'))+'</p>':select('condition','cfCondition',[['greater','greater_than'],['less','less_than'],['equal','equal_to'],['contains','contains']],'greater')+field('value','cfValue','text','0')+field('fill_color','cfColor','color','#dcefe6')+buttons(['addCondition','clearConditions']))+
-                    section('notes','<textarea data-field="note" data-note-sheet="'+esc(noteSheet)+'" data-note-cell="'+esc(noteCell)+'" rows="4" aria-label="'+esc(tr('notes'))+'">'+esc(r.getNote()?.note||'')+'</textarea>'+buttons(['setNote','deleteNote'])));
+                    section('conditional_format',select('condition','cfCondition',[['greater','greater_than'],['less','less_than'],['equal','equal_to'],['contains','contains']],'greater')+field('value','cfValue','text','0')+field('fill_color','cfColor','color','#dcefe6')+buttons(['addCondition','clearConditions']))+
+                    section('notes','<textarea data-field="note" rows="4" aria-label="'+esc(tr('notes'))+'">'+esc(r.getNote()?.note||'')+'</textarea>'+buttons(['setNote','deleteNote'])));
             }else if(key==='data'){
                 const selected=state.selection(),columns=Array.from({length:Math.min(100,selected.endColumn-selected.startColumn+1)},(_,i)=>[String(selected.startColumn+i),SheetsData.columnName(selected.startColumn+i)]);
                 container('right',key,section('sort',select('column','sortColumn',columns)+select('order','sortOrder',[['asc','ascending'],['desc','descending']],'asc')+select('then_by','sortSecond',[['','none'],...columns])+select('order','sortSecondOrder',[['asc','ascending'],['desc','descending']],'asc')+buttons(['sort']))+
@@ -69,15 +69,14 @@
             clearHighlights();const host=find('[data-formula-hints]');host.hidden=!text.startsWith('=');if(host.hidden)return;
             const prefix=/([A-Z][A-Z0-9_.]*)$/i.exec(text)?.[1]||'',called=/([A-Z][A-Z0-9_.]*)\([^()]*$/i.exec(text)?.[1]?.toUpperCase(),suggestions=prefix?Object.keys(functions).filter(name=>name.startsWith(prefix.toUpperCase())).slice(0,6):[];
             host.innerHTML=suggestions.map(name=>'<button data-function="'+name+'">'+name+'</button>').join('')+(called&&functions[called]!==undefined?'<span>'+called+'('+esc(functions[called])+')</span>':'');
-            const refs=text.replace(/"(?:[^"]|"")*"/g,'').match(/\$?[A-Z]{1,3}\$?\d+(?::\$?[A-Z]{1,3}\$?\d+)?(?!\s*\()/g)||[];
+            const refs=text.replace(/"(?:[^"]|"")*"/g,'').match(/\$?[A-Z]{1,3}\$?\d+(?::\$?[A-Z]{1,3}\$?\d+)?/g)||[];
             refs.slice(0,8).forEach((ref,i)=>{try{highlights.push(sheet().highlightRanges([sheet().getRange(ref.replaceAll('$',''))],{stroke:['#5089d6','#d78754','#8e67be','#52a18a'][i%4],fill:'transparent'}));}catch(_){}});
         }
         function search(){
-            const query=value('query');matches=[];matchIndex=-1;searchState=null;if(!query)return renderMatches();
-            const sensitive=checked('case'),whole=checked('whole'),inFormulas=value('searchIn')==='formulas',needle=sensitive?query:query.toLocaleLowerCase(state.locale),book=state.book.save(),ids=value('scope')==='book'?book.sheetOrder:[sheet().getSheetId()];
-            searchState={query,sensitive,whole,inFormulas};
+            const query=value('query');matches=[];matchIndex=-1;if(!query)return renderMatches();
+            const sensitive=checked('case'),whole=checked('whole'),needle=sensitive?query:query.toLocaleLowerCase(state.locale),book=state.book.save(),ids=value('scope')==='book'?book.sheetOrder:[sheet().getSheetId()];
             searchRows: for(const id of ids)for(const [row,cols]of Object.entries(book.sheets[id].cellData))for(const [column,cell]of Object.entries(cols)){
-                if(!cell)continue;const range=state.book.getSheetBySheetId(id).getRange(+row,+column),source=String(inFormulas?(range.getFormula()||''):(range.getValue()??'')),text=sensitive?source:source.toLocaleLowerCase(state.locale);
+                if(!cell)continue;const range=state.book.getSheetBySheetId(id).getRange(+row,+column),source=String(value('searchIn')==='formulas'?(range.getFormula()||''):(range.getValue()??'')),text=sensitive?source:source.toLocaleLowerCase(state.locale);
                 if(whole?text===needle:text.includes(needle)){matches.push({sheet:id,row:+row,column:+column,text:source});if(matches.length>=10000)break searchRows;}
             }
             if(matches.length){matchIndex=0;goMatch();}renderMatches();
@@ -89,18 +88,9 @@
         }
         async function replaceMatches(all){
             if(state.readonly)return;
-            // Replace follows the search that produced the visible matches, not the current field
-            // contents: a cleared query would otherwise become an empty regex and rewrite every
-            // character boundary of the matched cells.
-            if(!searchState||!searchState.query)throw Error(tr('no_matches'));
-            const targets=all?matches:[matches[matchIndex]].filter(Boolean),regex=new RegExp(searchState.query.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),searchState.sensitive?'g':'gi');
+            const targets=all?matches:[matches[matchIndex]].filter(Boolean),regex=new RegExp(value('query').replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),checked('case')?'g':'gi');
             const grouped=new Map();for(const m of targets){const active=state.book.getSheetBySheetId(m.sheet),r=active.getRange(m.row,m.column),cell=structuredClone(r.getCellData()||{});
-                if(searchState.inFormulas&&cell.f)cell.f=cell.f.replace(regex,()=>value('replacement'));else {
-                    const text=String(r.getRawValue()??'').replace(regex,()=>value('replacement'));
-                    if(cell.t===2){const parsed=SheetsData.parseInput(text,state.locale);if(parsed.t===2&&typeof parsed.v==='number'){cell.v=parsed.v;cell.t=2;}else{cell.v=text;cell.t=1;}}
-                    else{cell.v=text;cell.t=1;}
-                    delete cell.f;delete cell.si;
-                }
+                if(value('searchIn')==='formulas'&&cell.f)cell.f=cell.f.replace(regex,()=>value('replacement'));else {cell.v=String(r.getRawValue()??'').replace(regex,()=>value('replacement'));cell.t=1;delete cell.f;delete cell.si;}
                 if(!grouped.has(m.sheet))grouped.set(m.sheet,{});const values=grouped.get(m.sheet);(values[m.row]??={})[m.column]=cell;
             }
             for(const [id,values]of grouped)await state.api.executeCommand('sheet.command.set-range-values',{unitId:state.book.getId(),subUnitId:id,value:values});
@@ -134,19 +124,15 @@
             range.setValues(matrix);suggestion=null;const host=root.querySelector('[data-ai-result]');if(host)host.textContent=tr('applied');
         }
         let clipboard=null;
-        // The async clipboard API is missing on a plain-HTTP LAN install. Copy still records the
-        // cells locally, and paste falls back to Univer's own copy id instead of throwing.
-        async function clipboardText(){try{return await navigator.clipboard?.readText?.()||'';}catch(_){return '';}}
-        async function clipboardItems(){try{return await navigator.clipboard?.read?.()||[];}catch(_){return [];}}
-        async function copy(cut=false){const range=state.selected();range.activate();const cells=structuredClone(range.getCellDatas()),formulas=range.getFormulas();cells.forEach((row,r)=>row.forEach((cell,c)=>{if(cell?.si){cell.f=formulas[r][c];delete cell.si;}}));await state.clipboard[cut?'cut':'copy']();clipboard={cells,source:range.getRange(),sheet:sheet().getSheetId(),cut,text:await clipboardText()};}
+        async function copy(cut=false){const range=state.selected();range.activate();const cells=structuredClone(range.getCellDatas()),formulas=range.getFormulas();cells.forEach((row,r)=>row.forEach((cell,c)=>{if(cell?.si){cell.f=formulas[r][c];delete cell.si;}}));await state.clipboard[cut?'cut':'copy']();clipboard={cells,source:range.getRange(),sheet:sheet().getSheetId(),cut,text:await navigator.clipboard.readText()};}
         async function paste(kind='all'){
             const start=state.selection(),active=sheet();state.selected().activate();
             if(kind!=='transpose'){
                 const type=({values:'special-paste-value',formulas:'special-paste-formula',format:'special-paste-format'})[kind]||'default-paste';
-                const entries=await clipboardItems();if(entries.length){await state.clipboard.paste(entries[0],type);return;}
+                const entries=await navigator.clipboard.read();if(entries.length){await state.clipboard.paste(entries[0],type);return;}
                 const id=state.clipboard.copyContentCache().getLastCopyId();if(id){await state.clipboard.pasteByCopyId(id,type);return;}return;
             }
-            const text=await clipboardText(),internal=clipboard&&(text===''||clipboard.text===text);
+            const text=await navigator.clipboard.readText(),internal=clipboard&&clipboard.text===text;
             if(internal&&clipboard.cut)throw Error(tr('transpose_copy_first'));
             const source=internal?structuredClone(clipboard.cells):SheetsData.parseCSV(text,'\t').map(row=>row.map(v=>SheetsData.parseInput(v,state.locale)));
             const width=source.reduce((n,row)=>Math.max(n,row.length),0);if(!width||!source.length)return;
@@ -165,7 +151,6 @@
             if(key==='askAI'){await askAI();return;}if(key==='cancelAI'){assistLife?.abort();return;}
             if(key==='printNow'){await print();return;}
             if(state.readonly)return;
-            if((key==='addCondition'||key==='clearConditions')&&state.conditionsLocked)throw Error(tr('conditions_preserved'));
             if(key==='replaceOne'||key==='replaceAll'){await replaceMatches(key==='replaceAll');return;}
             if(key==='cut'){await copy(true);return;}
             if(key==='paste'||key.startsWith('paste')){await paste(({pasteValues:'values',pasteFormulas:'formulas',pasteFormat:'format',pasteTranspose:'transpose'})[key]||'all');return;}
@@ -206,7 +191,7 @@
             if(key==='deleteSheet'&&state.book.getSheets().length>1&&await state.confirmKey('delete_sheet_confirm'))state.book.deleteSheet(active);
             if(key==='showAllSheets')state.book.getSheets().forEach(s=>s.showSheet());
             if(key==='nameRange'){const name=value('rangeName');if(!/^[A-Za-z_][A-Za-z0-9_.]*$/.test(name))throw Error(tr('invalid_name'));state.book.insertDefinedName(name,"'"+active.getSheetName().replaceAll("'","''")+"'!"+r.getA1Notation());showLeft('navigation');}
-            if(key.startsWith('template')){await state.save();const kind=key.slice(8).toLowerCase();await state.load('Documents/'+kind+'-'+SheetsData.uuid().slice(0,6)+'.xlsx',kind);return;}
+            if(key.startsWith('template')){await state.save();const kind=key.slice(8).toLowerCase();await state.load('Documents/'+kind+'-'+crypto.randomUUID().slice(0,6)+'.xlsx',kind);return;}
             if(key==='addChart'){state.charts.add(value('newChartType'));showRight('chart');}
             if(key==='updateChart'){state.charts.update({type:value('chartType'),title:value('chartTitle'),range:value('chartRange'),legend:checked('chartLegend'),x_title:value('chartXTitle'),y_title:value('chartYTitle'),colors:[value('chartColor'),'#68a294','#e0aa62','#9979b9']});}
             if(key==='removeChart'){state.charts.remove();showRight('chart');}
@@ -232,7 +217,7 @@
                 return '<figure style="left:'+x+'px;top:'+y+'px;width:'+c.width+'px;height:'+c.height+'px"><figcaption>'+esc(c.title)+'</figcaption><img src="'+canvas.toDataURL()+'"></figure>';
             }).join('');
             const pageWidth=(config.paper==='letter'?(config.orientation==='landscape'?279.4:215.9):(config.orientation==='landscape'?297:210))-30,scale=config.scaling==='fit'?Math.min(1,pageWidth*96/25.4/width):1;
-            await window.AuraDesktopPrint.printHTML({html:'<!doctype html><html><head><meta charset="utf-8"><title>'+esc(state.path.split('/').pop())+'</title><link rel="stylesheet" href="/css/desktop-app-sheets.css"><style>@page{size:'+config.paper+' '+config.orientation+';margin:15mm}body{margin:0;font:11pt Arial;color:#202d3e}.print-sheet{position:relative;zoom:'+scale+';width:'+width+'px;overflow:hidden}table{border-collapse:collapse}td{border:1px solid #dce2e9}thead{display:table-header-group}tr{break-inside:avoid}figure{position:absolute;box-sizing:border-box;margin:0;padding:12px;background:white;border:1px solid #e0e5eb;border-radius:6px;overflow:hidden}figure img{width:100%;height:calc(100% - 26px);object-fit:contain}figcaption{height:26px;font-weight:600}</style></head><body><section class="print-sheet">'+table.outerHTML+charts+(state.images?.printHTML(bounds)||'')+'</section></body></html>',title:tr('print'),documentTitle:state.path.split('/').pop(),failureMessage:tr('print_failed'),className:'sheets-print-frame',signal:state.signal});
+            await window.AuraDesktopPrint.printHTML({html:'<!doctype html><html><head><meta charset="utf-8"><title>'+esc(state.path.split('/').pop())+'</title><link rel="stylesheet" href="/css/desktop-app-sheets.css"><style>@page{size:'+config.paper+' '+config.orientation+';margin:15mm}body{margin:0;font:11pt Arial;color:#202d3e}.print-sheet{position:relative;zoom:'+scale+';width:'+width+'px;overflow:hidden}table{border-collapse:collapse}td{border:1px solid #dce2e9}thead{display:table-header-group}tr{break-inside:avoid}figure{position:absolute;box-sizing:border-box;margin:0;padding:12px;background:white;border:1px solid #e0e5eb;border-radius:6px;overflow:hidden}figure img{width:100%;height:calc(100% - 26px);object-fit:contain}figcaption{height:26px;font-weight:600}</style></head><body><section class="print-sheet">'+table.outerHTML+charts+(state.images?.printHTML(bounds)||'')+'</section></body></html>',title:tr('print'),failureMessage:tr('print_failed'),className:'sheets-print-frame',signal:state.signal});
         }
         root.addEventListener('click',event=>{
             const target=event.target.closest('[data-panel-action]');if(target){event.preventDefault();action(target.dataset.panelAction).catch(state.fail);}
@@ -246,7 +231,7 @@
             state.run(()=>{if(key==='fontColor')return state.format('cl',{rgb:event.target.value});if(key==='fillColor')return state.format('bg',{rgb:event.target.value});if(key==='vertical')return state.format('vt',{top:1,middle:2,bottom:3}[event.target.value]);});
         },{signal:life.signal});
         root.addEventListener('input',event=>{if(event.target.dataset.field==='functionQuery')listFunctions(event.target.value);},{signal:life.signal});
-        return {showLeft,showRight,action,formulaHints,refresh(){const pill=root.querySelector('.sheets-selection-pill');if(pill)pill.textContent=state.selected().getA1Notation();const name=root.querySelector('[data-field="sheetName"]'),active=state.book?sheet():null;if(name&&active&&document.activeElement!==name)name.value=active.getSheetName();if(suggestion&&state.revision!==suggestion.source_revision){const b=root.querySelector('[data-panel-action="applyAI"]');if(b)b.disabled=true;}},dispose(){life.abort();assistLife?.abort();clearHighlights();}};
+        return {showLeft,showRight,action,formulaHints,refresh(){const pill=root.querySelector('.sheets-selection-pill');if(pill)pill.textContent=state.selected().getA1Notation();if(suggestion&&state.revision!==suggestion.source_revision){const b=root.querySelector('[data-panel-action="applyAI"]');if(b)b.disabled=true;}},dispose(){life.abort();assistLife?.abort();clearHighlights();}};
     }
     window.SheetsPanels={create};
 })();

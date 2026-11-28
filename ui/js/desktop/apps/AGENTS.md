@@ -982,7 +982,10 @@ Retained ImageGen artwork belongs to `assets/pinball/`.
 - P2 renderer modules: `minigolf-looks.js` (pure data: `LOOKS`, `TIERS`,
   `lookOf()` reading the manifest `world`, `placementMatrix()`),
   `minigolf-camera.js` (pure intro-flight maths), `minigolf-sky.js` (per-look sky
-  dome, moon stars and Earth, `createEnvironment()` PMREM), `minigolf-water.js`
+  dome, `createEnvironment()` PMREM, and for the moon a seeded 1,250-star field with
+  a galactic band, colour tints, high-tier twinkling with diffraction spikes, three
+  GPU-timed shooting stars and an Earth with drifting clouds, night-side city lights
+  and an ocean glint), `minigolf-water.js`
   (open disc and the `water-shore` material), `minigolf-props.js` (kit materials
   from glTF extras, `buildProps()` instancing, the shared shader clock) and
   `minigolf-fx.js` (fixed particle pools, ball trail, rings, fireworks).
@@ -990,6 +993,12 @@ Retained ImageGen artwork belongs to `assets/pinball/`.
   loads courses, runs the composer and exposes the public API. New modules import
   only `three`, `minigolf-shared.js` and each other; the pure parts are covered by
   `scripts/test-minigolf-look.mjs`.
+- Moon sky effects are data-driven from `LOOKS.moon.sky` (`stars`, `galaxy`, `bandPole`,
+  `galaxyCore`, `meteors`, `earth`). The whole sky freezes with `golfTime`; `setReduced(true)`
+  additionally hides the shooting stars, and the `low` tier keeps the static sky without
+  twinkle/sparkle or shooting stars (its `twinkle`/`motion` flags). `scene.stats().sky`
+  exposes `{stars, sparks, meteors, activeMeteors, meteorOn, reduced}`; the browser smoke
+  checks the moon field and that Pirate Bay and Temple keep a clear sky.
 - Pirate Bay sea life (`world === 'pirate'` only; `low` tier drops and clears it,
   switching to `temple`/`moon` clears it): `minigolf-sealife-paths.js` (DOM- and
   three-free deterministic contour loops, superellipse shore clearance, boids
@@ -1214,7 +1223,8 @@ Retained ImageGen artwork belongs to `assets/pinball/`.
   `no-preference` only for its first intro check, resets it, and then requires that
   later loads under reduced motion start no flight. It loads the finale of each world of manifest v2
   (`pirate-06`, `temple-12`, `moon-18`; `AURAGO_MINIGOLF_ALL_COURSES=1` loads all 18) through the menus
-  (`graphics.look` equals the world id, props and environment present) and checks that the ball rests on its tee
+  (`graphics.look` equals the world id, props and environment present; the moon sky reports
+  stars, sparkles and shooting stars and follows the motion preference) and checks that the ball rests on its tee
   floor, which proves that the collision came from the GLB; the world cards are `full,pirate,temple,moon,practice`. `AURAGO_MINIGOLF_BENCHMARK=1`
   logs 240-frame 1920×1080 measurements per tier (run with `go test -v`).
   Browser/GPU measurements and human listening remain separate acceptance steps.
@@ -5033,50 +5043,10 @@ registration lives in `internal/desktop/types.go`.
   newer edits. Save As and recovery copies preserve the original source bytes.
   Shared OfficeSession autosaves at 800 ms / five seconds and owns IndexedDB
   drafts separately for Writer and Sheets. Dispose all document resources.
-- Plain-HTTP LAN installs have neither `crypto.randomUUID` nor
-  `navigator.clipboard`. Use `SheetsData.uuid()` (getRandomValues fallback) for
-  every ID, including the vendor action plugin, and treat clipboard reads as
-  optional; Univer's copy id remains the paste fallback. Save As probes the
-  destination with `HEAD`: a missing file uses `If-None-Match: *`, an existing
-  file is replaced with its `If-Match` after the dialog's overwrite confirmation.
-  A normal load reports `Saved`; only template, recovery and CSV loads start dirty.
-- Preserved (`readonly`) charts, preserved images and `conditions_preserved`
-  workbooks lock structural edits up front and name `structure_locked` in the
-  notice; the Format panel replaces the conditional-formatting controls with the
-  limitation hint. The action plugin never rewrites a readonly chart. Structural
-  transforms drop editable charts whose range collapses below 2×2 or whose series
-  become `#REF!` inside the same undo entry, and clear `aux.print` when its sheet
-  is removed. Replace follows the search that produced the visible matches (never
-  the current field), keeps numeric cells numeric, and refuses an empty query.
-  Verify `TestDesktopSheetsLockedWorkbookBrowser` and the app browser checks.
-- A CSV import runs before the open document is released: cancelling the dialog
-  keeps the workbook and a retry reopens it. CSV parsing caps at 200k cells and
-  reports the localized import limit. Chart creation stops at 256 and an
-  empty chart range is rejected before the patch. IndexedDB draft opens and
-  transactions fail closed after eight seconds (blocked second tabs included).
-  Informational notices (limitations, "copy saved") hide Retry/Save As and never
-  replace a conflict notice. Read-only keeps the overflow menu (print/export)
-  reachable and the document menu has no fake rename; Save As filters the
-  current macro extension. A pending note field belongs to logout inspection,
-  `save`, `guard` and print/export commits. Borders/Fill open the format panel,
-  Paste Special shows the data panel with its view state. Verify
-  `TestDesktopSheetsCsvCancelBrowser` and the locked-workbook check.
-- Sheets drafts are keyed by `origin:path#windowId`; two windows on one file
-  cannot overwrite each other. Recovery lists drafts by path (the `path` index,
-  DB version 2), restores the newest and deletes that entry after the next
-  successful save. `sourceData` stays in the draft only for macro workbooks and
-  structurally locked files (or hyperlink/table resources); plain workbooks
-  rebuild from the snapshot. `OfficeSession.drafts` strips
-  `snapshot`/`sourceData` and reports a size. Chart series cache on
-  `state.dataRevision` + the data range/series, so selection, scroll and
-  geometry do not walk chart ranges; the status bar sums only up to 50k cells
-  and otherwise repeats the selection size. Verify the app browser chart-cache
-  and large-workbook `refreshMs` checks.
 - Use native chart/print mutations on the same undo stack. Charts remain real
   OOXML charts; unsupported chart types and workbook references are preserved
   and guarded. AI only proposes bounded changes to the explicit selection;
-  apply once through native undo, and reject stale revisions. The assist
-  endpoint requires `desktop:read`; applying is a separate native edit.
+  apply once through native undo, and reject stale revisions.
 - The sheet stays light in every desktop theme. Use shared desktop menu/icons,
   16 desktop locales, local fonts and a <900px overlay inspector. Print/export
   captures current edits and waits for calculation, without moving selection.
@@ -6125,7 +6095,7 @@ registration lives in `internal/desktop/types.go`.
 
 - `node scripts/test-sheets-data.mjs`, `node scripts/test-writer-session.mjs`
 - `node scripts/build-sheets-vendor.js --check`
-- `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run 'TestDesktopSheets(Engine|App|LockedWorkbook|CsvCancel)Browser' -count=1`
+- `AURAGO_RUN_BROWSER_SMOKE=1 go test ./ui -run 'TestDesktopSheets(Engine|App)Browser' -count=1`
 - `AURAGO_RUN_BROWSER_SMOKE=1 AURAGO_SHEETS_MATRIX=1 go test ./ui -run '^TestDesktopAuroraBrowser$' -count=1` (18 theme/density/size screenshots)
 
 - `go test ./ui/ -run TestDesktopFeeling`

@@ -272,6 +272,7 @@ export function createScene(host, options) {
         }
         const next = cfg();
         sky?.setTier(next); water?.setTier(next); fx.setTier(next); seaLife.setTier(level);
+        sky?.setReduced(reduced);
         shaderState.golfMotion.value = next.motion && !reduced ? 1 : 0;
         if (props && course && props.scatter !== next.scatter) void rebuildProps();
         resize();
@@ -541,6 +542,7 @@ export function createScene(host, options) {
         overview = overviewFor(next);
         applyLook();
         sky = createSky(look, cfg(), shaderState); scene.add(sky.group);
+        sky.setReduced(reduced);
         water = createWater(look, cfg(), shaderState, overview.waterRadius); scene.add(water.group);
         if (lookId === 'pirate') seaLife.configure({ course: next, look, waterRadius: overview.waterRadius, tier: tier() });
         else seaLife.clear();
@@ -798,6 +800,7 @@ export function createScene(host, options) {
         setReducedMotion(value) {
             reduced = !!value;
             fx.setReduced(reduced);
+            sky?.setReduced(reduced);
             shaderState.golfMotion.value = cfg().motion && !reduced ? 1 : 0;
             if (reduced) { skipIntro(); orbit = null; popTime = Infinity; ballScale = 1; ball.scale.setScalar(1); shakeRest = 0; shakeStrength = 0; }
         },
@@ -805,7 +808,7 @@ export function createScene(host, options) {
         stats() { const effects = fx.stats(); return { fps: governor.fps, triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, particles: effects.particles, quality, tier: tier(), geometries: renderer.info.memory.geometries, preview: preview?.points?.length || 0,
             look: lookId, props: props?.instances || 0, env: !!scene.environment, intro: !!intro, trail: effects.trail,
             aimDots: aimDots.visible ? aimCount : 0, cupGlow: cupGlow.visible, flagLift, orbit: !!orbit, tween: !!camTween, userZoomed, shake: shakeRest, ballScale,
-            seaLife: seaLife.stats(),
+            seaLife: seaLife.stats(), sky: sky?.stats?.(),
             camera: { position: camera.position.toArray(), target: controls.target.toArray(), ball: ball.position.toArray(), projectedBall: ball.position.clone().project(camera).toArray(), distance: camera.position.distanceTo(controls.target) } }; },
         dispose() {
             if (disposed) return; disposed = true; generation++; request?.abort(); seaAbort.abort(); observer.disconnect(); controls.dispose();

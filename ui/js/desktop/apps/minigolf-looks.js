@@ -40,7 +40,7 @@ export const LOOKS = deepFreeze({
     moon: {
         exposure: 1.05,
         background: 0x050816,
-        sky: { zenith: 0x02040d, horizon: 0x0b1030, below: 0x02040d, sun: 0xcfe0ff, clouds: 0, cloudColor: 0x000000, haze: 0, silhouette: 0, silhouetteColor: 0x000000, stars: 1, earth: true },
+        sky: { zenith: 0x02040d, horizon: 0x0b1030, below: 0x02040d, sun: 0xcfe0ff, clouds: 0, cloudColor: 0x000000, haze: 0, silhouette: 0, silhouetteColor: 0x000000, stars: 1, earth: true, meteors: 3, galaxy: .92, bandPole: [.42, .72, -.55], galaxyCore: [.28, .62, .73] },
         fog: null,
         sun: { color: 0xd6e4ff, intensity: 2.4, direction: [-.86, .42, .28] },
         rim: { color: 0x7fb4ff, intensity: .9, direction: [.6, .35, -.72] },

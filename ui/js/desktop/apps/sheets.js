@@ -4,7 +4,7 @@
     let enginePromise;
     const escapeHTML=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const basename=path=>String(path).split('/').pop();
-    const newPath=()=> 'Documents/untitled-'+SheetsData.uuid().slice(0,8)+'.xlsx';
+    const newPath=()=> 'Documents/untitled-'+crypto.randomUUID().slice(0,8)+'.xlsx';
     const endpoint=path=>'/api/desktop/office/workbook?representation=editor-v2&path='+encodeURIComponent(path);
     async function responseOK(response) {
         if(response.ok)return response;
@@ -27,7 +27,7 @@
         // The overflow menu carries the actions that stay out of the toolbar: printing, exports and sheet options.
         const moreItem=(action,label,icon)=>'<button type="button" data-action="'+action+'">'+(ctx.iconMarkup?.(icon,'','sheets-icon',16,'action')||'')+'<span>'+esc(tr(label))+'</span></button>';
         host.innerHTML='<div class="sheets-app"><header class="sheets-documentbar"><div class="sheets-document"><button class="sheets-document-name" data-action="document"><span data-name></span><span aria-hidden="true">⌄</span></button><span data-save-state role="status" aria-live="polite">'+esc(tr('loading'))+'</span></div><nav class="sheets-views">'+viewButton('navigation','navigation','☷','navigation')+viewButton('search','find','⌕','search')+'<span class="sheets-divider"></span>'+viewButton('format','format','A','format')+viewButton('data','data','▦','data')+viewButton('chart','chart','▥','chart')+viewButton('assist','assist','✦','assist')+'</nav></header>'+
-            '<div class="sheets-document-menu" data-document-menu hidden><strong data-location></strong><button data-action="saveAs">'+esc(tr('save_as'))+'</button><button data-action="save">'+esc(tr('save'))+'</button></div>'+
+            '<div class="sheets-document-menu" data-document-menu hidden><strong data-location></strong><button data-action="rename">'+esc(tr('rename'))+'</button><button data-action="saveAs">'+esc(tr('save_as'))+'</button><button data-action="save">'+esc(tr('save'))+'</button></div>'+
             '<div class="sheets-toolbar" role="toolbar" aria-label="'+esc(tr('format'))+'"><div class="sheets-toolgroup">'+button('undo','undo','↶')+button('redo','redo','↷')+'</div><div class="sheets-toolgroup sheets-fonts"><select data-format="font" aria-label="'+esc(tr('font'))+'">'+['Arial','Calibri','Carlito','Geist','Georgia','Times New Roman','Courier New'].map(name=>'<option>'+name+'</option>').join('')+'</select><input data-format="size" type="number" min="1" max="200" step=".5" value="11" aria-label="'+esc(tr('size'))+'"></div><div class="sheets-toolgroup">'+button('bold','bold','B')+button('italic','italic','I')+button('underline','underline','U')+'</div><div class="sheets-toolgroup"><select data-format="number" aria-label="'+esc(tr('number_format'))+'">'+[['General','general'],['0.00','format_number'],['0.00%','format_percent'],['#,##0.00 "€"','format_currency'],['yyyy-mm-dd','format_date'],['@','format_text']].map(([v,k])=>'<option value="'+esc(v)+'">'+esc(tr(k))+'</option>').join('')+'</select></div><div class="sheets-toolgroup">'+button('left','align_left','≡',alignIcon('left'))+button('center','align_center','≡',alignIcon('center'))+button('right','align_right','≡',alignIcon('right'))+'</div><div class="sheets-toolgroup">'+button('borders','format_borders','▦')+button('fill','fill_color','▰')+button('merge','merge_cells','↔')+'</div>'+button('more','more','•••')+'</div>'+
             '<div class="sheets-more-menu" data-more-menu hidden>'+moreItem('print','printNow','printer')+moreItem('xlsx','download_xlsx','download')+moreItem('csv','export_csv','download')+moreItem('sheetMenu','sheet_options','list')+'</div>'+
             '<div class="sheets-formula-line"><input data-address aria-label="'+esc(tr('address'))+'" value="A1" spellcheck="false"><button data-action="function" class="sheets-fx" title="'+esc(tr('function_assistant'))+'">ƒx</button><div class="sheets-formula-wrap"><textarea data-formula rows="1" spellcheck="false" aria-label="'+esc(tr('formula'))+'"></textarea>'+button('expandFormula','expand_formula','⌄')+'<div data-formula-hints class="sheets-formula-hints" hidden></div></div><span data-formula-actions hidden>'+button('cancelFormula','cancel','×')+button('commitFormula','apply','✓')+'</span></div>'+
@@ -38,12 +38,11 @@
         const lifecycle=new AbortController();
         let documentLife=new AbortController(),engine,api,book,lib,queue,bridge,panels,chartView,imageView;
         let path=ctx.path||newPath(),etag=null,loading=true,disposed=false,generation=0,leftPanel='',rightPanel='',refreshTimer;
-        let aux={charts:[],images:[],print:{}},operations=[],loadingFailed=false,structuralLocked=false,conditionsLocked=false,formulaTarget=null,formulaChanged=false,pin=null,lastDraft=null,recoveredKey=null,recoveredId=null,backupTimer,backupDeadline,sourceData=null,recoveryConflict=false,nativeEdit=null,sessionEditRevision=0,dataRevision=0,sessionSaving=false,sessionCommitDepth=0,nativeEditCommitPending=false,formulaCommitPending=false;
+        let aux={charts:[],images:[],print:{}},operations=[],loadingFailed=false,structuralLocked=false,formulaTarget=null,formulaChanged=false,pin=null,lastDraft=null,backupTimer,backupDeadline,sourceData=null,recoveryConflict=false,nativeEdit=null,sessionEditRevision=0,sessionSaving=false,sessionCommitDepth=0,nativeEditCommitPending=false,formulaCommitPending=false;
         const disposables=[],locale=document.documentElement.lang||'en';
         const state={ctx,esc,tr,root,find,locale,act,notice,fail,refresh,run,selected,selection,commitFormula,snapshot,prepareOutput,
             get api(){return api;},get book(){return book;},get charts(){return chartView;},get images(){return imageView;},get lib(){return lib;},get readonly(){return !!ctx.readonly;},
-            get conditionsLocked(){return conditionsLocked;},
-            get revision(){return queue?.revision||0;},get dataRevision(){return dataRevision;},get signal(){return documentLife.signal;},get aux(){return aux;},
+            get revision(){return queue?.revision||0;},get signal(){return documentLife.signal;},get aux(){return aux;},
             setAux(value){if(!ctx.readonly)bridge.commit(value,book.getId());},
             format(type,value){return api.executeCommand('sheet.command.set-style',{unitId:book.getId(),subUnitId:sheet().getSheetId(),style:{type,value}});},
             get clipboard(){return bridge.clipboard();},
@@ -55,7 +54,7 @@
         const instance={act,dispose:cleanup,get api(){return api;},get book(){return book;},get session(){return queue;},get path(){return path;},get state(){return state;}};
         instances.set(windowId,instance);
         const sessionRevision=()=>JSON.stringify([generation,sessionEditRevision]);
-        const sessionDirty=()=>!!(queue?.dirty||queue?.pending||formulaChanged||nativeEdit||book?.isCellEditing?.()||notePending());
+        const sessionDirty=()=>!!(queue?.dirty||queue?.pending||formulaChanged||nativeEdit||book?.isCellEditing?.());
         function blockSessionEdit(event){
             if(!sessionSaving)return;
             event.preventDefault();event.stopImmediatePropagation();
@@ -81,7 +80,7 @@
                 sessionSaving=true;root.setAttribute('aria-busy','true');
                 try{
                     sessionCommitDepth++;
-                    try{await book.endEditingAsync(true);commitFormula();commitNote();}
+                    try{await book.endEditingAsync(true);commitFormula();}
                     finally{sessionCommitDepth--;}
                     if(sessionRevision()!==expected)return false;
                     await save();
@@ -89,20 +88,16 @@
                 }finally{sessionSaving=false;root.removeAttribute('aria-busy');}
             }
         });
-        function notice(text,error=false,actions=true){if(disposed)return;const bar=find('[data-notice]');bar.hidden=!text;bar.dataset.error=String(error);find('[data-notice-text]').textContent=text||'';find('[data-notice] [data-action="retry"]').hidden=!actions;find('[data-notice] [data-action="saveAs"]').hidden=!actions||loadingFailed;}
+        function notice(text,error=false){if(disposed)return;find('[data-notice-text]').textContent=text||'';find('[data-notice]').hidden=!text;find('[data-notice]').dataset.error=String(error);}
         function fail(error){if(error?.name!=='AbortError'&&!disposed)notice(error?.status===412?tr('conflict'):(error?.message||String(error)),true);}
         function sheet(){return book?.getActiveSheet();}
         function selection(){return sheet()?.getActiveRange()?.getRange()||(pin&&pin.sheet===sheet()?.getSheetId()?pin.range:null)||{startRow:0,endRow:0,startColumn:0,endColumn:0};}
         function selected(){return sheet()?.getRange(selection());}
         function pinSelection(){if(book)pin={sheet:sheet().getSheetId(),range:sheet().getActiveRange()?.getRange()||selection()};}
         function run(fn){if(!book||loading||ctx.readonly)return;try{const result=fn();if(result?.catch)result.catch(fail);refreshSoon();return result;}catch(error){fail(error);}}
-        // One draft per window: two windows on the same file must not overwrite each other.
-        function draftKey(){return location.origin+':'+path+'#'+windowId;}
+        function draftKey(){return location.origin+':'+path;}
         async function backup(value,revision){
-            // The original package bytes only matter for macro workbooks and files with
-            // unsupported parts; plain workbooks rebuild from the snapshot.
-            const keepSource=/\.xlsm$/i.test(path)||structuralLocked||(value.workbook?.resources||[]).some(resource=>resource.name==='SHEET_HYPERLINK_PLUGIN'||resource.name==='SHEET_TABLE_PLUGIN');
-            const entry={id:SheetsData.uuid(),snapshot:value,revision,etag,path,sourceData:keepSource?sourceData:null,updated:Date.now()};
+            const entry={id:crypto.randomUUID(),snapshot:value,revision,etag,path,sourceData,updated:Date.now()};
             try{await OfficeSession.draft('put',draftKey(),entry,'sheets');lastDraft=entry;return true;}catch(_){notice(tr('draft_unavailable'),true);return false;}
         }
         function scheduleBackup(){
@@ -129,27 +124,13 @@
         }
         function makeQueue(){
             queue=OfficeSession.create({readonly:ctx.readonly,serialize:()=>snapshot(),backup,write,
-                clearBackup:async()=>{
-                    const key=draftKey(),draft=await OfficeSession.draft('get',key,undefined,'sheets').catch(()=>null);
-                    if(draft?.id===lastDraft?.id)await OfficeSession.draft('delete',key,undefined,'sheets').catch(()=>{});
-                    if(recoveredKey&&recoveredId){const old=await OfficeSession.draft('get',recoveredKey,undefined,'sheets').catch(()=>null);if(old?.id===recoveredId)await OfficeSession.draft('delete',recoveredKey,undefined,'sheets').catch(()=>{});recoveredKey=recoveredId=null;}
-                },
+                clearBackup:async()=>{const key=draftKey(),draft=await OfficeSession.draft('get',key,undefined,'sheets').catch(()=>null);if(draft?.id===lastDraft?.id)await OfficeSession.draft('delete',key,undefined,'sheets').catch(()=>{});},
                 onState:value=>{find('[data-save-state]').textContent=tr(value.error?'save_failed':value.saving?'saving':value.dirty?'unsaved':'saved');find('[data-save-state]').dataset.state=value.error?'error':value.dirty?'dirty':'saved';if(value.error)fail(value.error);}
             });
         }
         async function load(target,template){
             const token=++generation;
-            // Import a CSV before releasing the open document: cancelling the dialog must leave
-            // the current workbook untouched instead of showing a load failure. A failed previous
-            // load leaves its controller aborted; the dialog needs a live signal for its fetch.
-            if(documentLife.signal.aborted)documentLife=new AbortController();
-            let preloaded=null,preloadedPath=null;
-            if(!template&&/\.csv$/i.test(target)){
-                preloaded=await window.SheetsData.importCSV(state,target);
-                if(!preloaded||disposed||token!==generation)return;
-                preloadedPath=target.replace(/\.csv$/i,'')+'-import-'+SheetsData.uuid().slice(0,6)+'.xlsx';
-            }
-            releaseDocument();documentLife=new AbortController();path=preloadedPath||target;etag=null;sourceData=null;recoveryConflict=false;nativeEdit=null;loading=true;loadingFailed=false;operations=[];lastDraft=null;recoveredKey=null;recoveredId=null;pin=null;formulaTarget=null;formulaChanged=false;structuralLocked=false;conditionsLocked=false;dataRevision=0;
+            releaseDocument();documentLife=new AbortController();path=target;etag=null;sourceData=null;recoveryConflict=false;nativeEdit=null;loading=true;loadingFailed=false;operations=[];lastDraft=null;pin=null;formulaTarget=null;formulaChanged=false;
             aux={charts:[],images:[],print:{}};mount.replaceChildren();find('[data-charts]').replaceChildren();
             find('[data-name]').textContent=basename(path);find('[data-location]').textContent=path;find('[data-loading]').hidden=false;find('[data-loading]').dataset.state='loading';find('[data-load-status]').textContent=tr('loading');find('[data-load-actions]').hidden=true;notice('');
             find('[data-save-state]').textContent=tr('loading');find('[data-save-state]').dataset.state='loading';find('[data-notice] [data-action="saveAs"]').hidden=true;
@@ -158,33 +139,21 @@
                 enginePromise ||= import(window.AuraLazyAssets.versionedURL('/js/vendor/sheets/engine.js')).catch(error=>{enginePromise=null;throw error;});lib=await enginePromise;
                 let doc;
                 if(template)doc=window.SheetsData.template(template,tr);
-                else if(preloaded)doc=preloaded;
-                else if(/\.csv$/i.test(target)){doc=await window.SheetsData.importCSV(state,target);if(!doc)throw new DOMException('Cancelled','AbortError');path=target.replace(/\.csv$/i,'')+'-import-'+SheetsData.uuid().slice(0,6)+'.xlsx';}
+                else if(/\.csv$/i.test(target)){doc=await window.SheetsData.importCSV(state,target);if(!doc)throw new DOMException('Cancelled','AbortError');path=target.replace(/\.csv$/i,'')+'-import-'+crypto.randomUUID().slice(0,6)+'.xlsx';}
                 else {const response=await responseOK(await fetch(endpoint(target),{signal:documentLife.signal,cache:'no-store'}));etag=response.headers.get('ETag');doc=await response.json();sourceData=doc.source_data||null;}
                 if(disposed||token!==generation)return;
                 if(doc?.schema_version!==2||!doc.workbook?.sheetOrder?.length)throw Error(tr('import_failed'));
-                let recovery=null,recoveryKey=null;
-                const draftEntries=await OfficeSession.drafts('sheets',path).catch(()=>[]);
-                for(const candidate of draftEntries.filter(entry=>entry.path===path).sort((a,b)=>(b.updated||0)-(a.updated||0))){
-                    const entry=await OfficeSession.draft('get',candidate.key,undefined,'sheets').catch(()=>null);
-                    if(entry&&entry.path===path){recovery=entry;recoveryKey=candidate.key;break;}
-                }
+                const recovery=await OfficeSession.draft('get',draftKey(),undefined,'sheets').catch(()=>null);
                 let restored=false;
                 if(recovery&&!ctx.readonly&&await ctx.confirmDialog(tr('restore_draft'))){
                     restored=true;
-                    doc.workbook=recovery.snapshot.workbook;doc.charts=recovery.snapshot.charts;doc.images=recovery.snapshot.images??doc.images;operations=recovery.snapshot.operations||[];recoveredKey=recoveryKey;recoveredId=recovery.id;
+                    doc.workbook=recovery.snapshot.workbook;doc.charts=recovery.snapshot.charts;doc.images=recovery.snapshot.images??doc.images;operations=recovery.snapshot.operations||[];lastDraft=recovery;
                     if(recovery.etag!==etag&&recovery.etag){recoveryConflict=true;sourceData=recovery.sourceData||null;notice(tr('draft_conflict'),true);}
                     else sourceData=recovery.sourceData||sourceData;
                 }
                 if(disposed||token!==generation)return;
                 aux={charts:doc.charts||[],images:doc.images||[],print:doc.workbook.custom?.auragoPrint||{}};
-                // Preserved charts and images cannot follow structural edits; the server rejects every
-                // change to them. Lock structure up front instead of failing the next save.
-                structuralLocked=!!doc.structural_locked||aux.charts.some(chart=>chart.readonly)||aux.images.some(image=>image.readonly);
-                conditionsLocked=(doc.limitations||[]).includes('conditions_preserved');
-                if(conditionsLocked)structuralLocked=true;
-                const limitations=[...(doc.limitations||[])];
-                if(structuralLocked&&!limitations.includes('structure_locked'))limitations.push('structure_locked');
+                structuralLocked=!!doc.structural_locked;
                 const localeName=({de:'de-DE',es:'es-ES',fr:'fr-FR',it:'it-IT',ja:'ja-JP',pl:'pl-PL',pt:'pt-BR',zh:'zh-CN'})[locale.split('-')[0]]||'en-US',localeID=localeName.replace('-','');
                 const created=lib.createUniver({locale:localeID,locales:{[localeID]:localeName==='en-US'&&!locale.startsWith('en')?SheetsData.nativeLocale(lib.locales[localeName],tr,locale):lib.locales[localeName]},logLevel:4,presets:[
                     lib.UniverSheetsCorePreset({container:mount,header:false,toolbar:false,formulaBar:false,footer:false,contextMenu:!ctx.showContextMenu,disableAutoFocus:true,workerURL:window.AuraLazyAssets.versionedURL('/js/vendor/sheets/worker.js'),customFontFamily:['Geist','Carlito'],formula:{initialFormulaComputing:0,function:[lib.averageAlias]}}),
@@ -201,15 +170,11 @@
                 doc.workbook.id='sheets-'+windowId;doc.workbook.locale=localeID;
                 book=api.createWorkbook(doc.workbook);book.setEditable(!ctx.readonly);book.setNumfmtLocal(locale.split('-')[0]==='zh'?'zh_CN':locale.replace('-','_'));
                 panels=window.SheetsPanels.create(state);chartView=window.SheetsCharts.create(state);imageView=window.SheetsImages.create(state);
-                // A new document starts with closed panels; stale panel DOM from the previous document
-                // would stay visible but inert and invert the view toggles.
-                leftPanel='';rightPanel='';panels.showLeft('');panels.showRight('');syncViewState();
                 loading=false;makeQueue();
-                if(!template&&!restored&&!/\.csv$/i.test(target)){find('[data-save-state]').textContent=tr('saved');find('[data-save-state]').dataset.state='saved';}
                 disposables.push(api.addEvent(api.Event.BeforeSheetEditEnd,event=>{nativeEditCommitPending=!!event.isConfirm;nativeEdit=event.isConfirm?{row:event.row,column:event.column,text:event.value.toPlainText().replace(/\r?\n$/,'')}:null;}));
                 const structureTypes={'sheet.mutation.insert-row':'insertRows','sheet.mutation.remove-rows':'deleteRows','sheet.mutation.insert-col':'insertColumns','sheet.mutation.remove-col':'deleteColumns'};
                 disposables.push(api.addEvent(api.Event.BeforeCommandExecute,event=>{
-                    if(structuralLocked&&(/sheet\.(command|mutation)\.(insert-row|insert-col|remove-row|remove-col|set-worksheet-name|remove-sheet|insert-sheet|copy-sheet|move-range|move-rows|move-cols|delete-range-move-left|delete-range-move-up|insert-range-move-down|insert-range-move-right|reorder-range|set-worksheet-order)/.test(event.id))){event.cancel=true;notice(tr('structure_locked'),true,false);}
+                    if(structuralLocked&&(/sheet\.(command|mutation)\.(insert-row|insert-col|remove-row|remove-col|set-worksheet-name|remove-sheet|insert-sheet|copy-sheet|move-range|move-rows|move-cols)/.test(event.id))){event.cancel=true;notice(tr('structure_locked'),true);}
                     if(event.id==='sheet.command.copy-sheet'){
                         const images=aux.images||[],copies=images.filter(image=>image.sheet===(event.params?.subUnitId||sheet().getSheetId()));
                         if(images.length+copies.length>256||[...images,...copies].reduce((total,image)=>total+(image.data?.length||0)*.75,0)>16*1024*1024){event.cancel=true;notice(ctx.t('desktop.qr_image_copy_limit'),true);}
@@ -217,7 +182,6 @@
                 }));
                 disposables.push(api.addEvent(api.Event.CommandExecuted,event=>{
                     if(loading||disposed)return;
-                    if(event.type===2&&!event.id.startsWith('doc.')&&event.id!=='aurago.mutation.sheets-state')dataRevision++;
                     if(event.type===2&&!event.options?.applyFormulaCalculationResult&&!event.options?.onlyLocal&&!/^(formula|doc)\.|sheet\.mutation\.(set-formula|set-array-formula)/.test(event.id)){
                         const kind=structureTypes[event.id],p=event.params;
                         if(kind&&p?.range){const rows=/Rows$/.test(kind);operations.push({type:kind,sheet:p.subUnitId,index:rows?p.range.startRow:p.range.startColumn,count:rows?p.range.endRow-p.range.startRow+1:p.range.endColumn-p.range.startColumn+1});}
@@ -235,7 +199,7 @@
                 find('[data-name]').textContent=basename(path);find('[data-location]').textContent=path;find('[data-loading]').hidden=true;
                 find('[data-notice] [data-action="saveAs"]').hidden=false;
                 ctx.updateWindowContext?.(windowId,{path});refresh();renderMenus();
-                if(limitations.length&&(find('[data-notice]').hidden||find('[data-notice]').dataset.error!=='true'))notice(limitations.map(key=>tr(key)).join(' · '),false,false);
+                if(doc.limitations?.length)notice(doc.limitations.map(key=>tr(key)).join(' · '));
             }catch(error){
                 if(token!==generation||disposed)return;
                 releaseDocument();loading=false;loadingFailed=true;
@@ -271,13 +235,10 @@
             for(const [key,val]of Object.entries({bold:style?.bl===1,italic:style?.it===1,underline:style?.ul?.s===1,left:style?.ht===1,center:style?.ht===2,right:style?.ht===3}))find('[data-action="'+key+'"]').setAttribute('aria-pressed',String(val));
             syncViewState();
             for(const [key,value]of Object.entries({font:style?.ff||'Arial',size:style?.fs||11,number:style?.n?.pattern||'General'})){const input=find('[data-format="'+key+'"]');if(document.activeElement!==input)input.value=value;}
-            const rows=r.endRow-r.startRow+1,cols=r.endColumn-r.startColumn+1,area=rows*cols;
+            const rows=r.endRow-r.startRow+1,cols=r.endColumn-r.startColumn+1;
             find('[data-selection]').textContent=tr('selection_size',{rows,columns:cols});
-            // Above 50k cells the status bar only repeats the selection size; summing a huge
-            // range on every 40 ms refresh would stall the editor during drag selection.
-            let stats=tr('selection_size',{rows,columns:cols});
-            if(area<=50000){const values=range.getRawValues().flat(),numbers=values.filter(v=>typeof v==='number'&&Number.isFinite(v)),nf=new Intl.NumberFormat(locale,{maximumFractionDigits:6});stats=(numbers.length?tr('status_sum')+' '+nf.format(numbers.reduce((a,b)=>a+b,0))+'   '+tr('status_avg')+' '+nf.format(numbers.reduce((a,b)=>a+b,0)/numbers.length)+'   ':'')+tr('status_count')+' '+nf.format(values.filter(v=>v!==null&&v!==undefined&&v!=='').length);}
-            find('[data-stats]').textContent=stats;
+            const values=rows*cols<=200000?range.getRawValues().flat():Object.entries(active.getSheet().getSnapshot().cellData||{}).filter(([row])=>+row>=r.startRow&&+row<=r.endRow).flatMap(([,cells])=>Object.entries(cells).filter(([col])=>+col>=r.startColumn&&+col<=r.endColumn).map(([,cell])=>cell?.v)),numbers=values.filter(v=>typeof v==='number'&&Number.isFinite(v)),nf=new Intl.NumberFormat(locale,{maximumFractionDigits:6});
+            find('[data-stats]').textContent=(numbers.length?tr('status_sum')+' '+nf.format(numbers.reduce((a,b)=>a+b,0))+'   '+tr('status_avg')+' '+nf.format(numbers.reduce((a,b)=>a+b,0)/numbers.length)+'   ':'')+tr('status_count')+' '+nf.format(values.filter(v=>v!==null&&v!==undefined&&v!=='').length);
             find('[data-zoom]').textContent=Math.round(active.getZoom()*100)+'%';
             const tabs=book.getSheets().map(s=>({id:s.getSheetId(),name:s.getSheetName()})),signature=JSON.stringify([tabs,active.getSheetId()]);
             if(find('[data-tabs]').dataset.signature!==signature){find('[data-tabs]').dataset.signature=signature;find('[data-tabs]').innerHTML=tabs.map(s=>'<button type="button" role="tab" data-sheet="'+esc(s.id)+'" aria-selected="'+(s.id===active.getSheetId())+'">'+esc(s.name)+'</button>').join('');}
@@ -293,39 +254,25 @@
             formulaChanged=false;formulaTarget=null;find('[data-formula-actions]').hidden=true;find('[data-formula-hints]').hidden=true;
         }
         function cancelFormula(){formulaChanged=false;formulaTarget=null;find('[data-formula-actions]').hidden=true;find('[data-formula-hints]').hidden=true;find('[data-formula]').blur();refresh();}
-        function noteField(){return find('[data-field="note"]');}
-        function noteTarget(){const field=noteField();if(!field||!book)return null;try{return book.getSheetBySheetId(field.dataset.noteSheet)?.getRange(field.dataset.noteCell)||null;}catch(_){return null;}}
-        function notePending(){const field=noteField(),target=noteTarget();if(!field||!target)return false;try{return field.value!==(target.getNote()?.note||'');}catch(_){return false;}}
-        function commitNote(){if(ctx.readonly)return;const field=noteField(),target=noteTarget();if(!field||!target)return;try{if(field.value!==(target.getNote()?.note||''))target.createOrUpdateNote({note:field.value,width:220,height:140,show:false});}catch(_){}}
-        async function save(){if(book)await book.endEditingAsync(true);commitFormula();commitNote();if(queue)await queue.save();}
+        async function save(){if(book)await book.endEditingAsync(true);commitFormula();if(queue)await queue.save();}
         async function saveAs(){
             if(!book||ctx.readonly)return;
             await book.endEditingAsync(true);commitFormula();queue.suspend();
             try{
                 if(queue.pending)await queue.pending.catch(()=>{});
-                const picked=await ctx.saveFileDialog({title:tr('save_as'),initialPath:path.includes('/')?path.slice(0,path.lastIndexOf('/')):'',defaultName:basename(path),filters:[{label:'Excel',extensions:/\.xlsm$/i.test(path)?['.xlsm']:['.xlsx']}]});if(!picked)return;
+                const picked=await ctx.saveFileDialog({title:tr('save_as'),initialPath:path.slice(0,path.lastIndexOf('/')),defaultName:basename(path),filters:[{label:'Excel',extensions:['.xlsx','.xlsm']}]});if(!picked)return;
                 const target=typeof picked==='string'?picked:picked.path;if(!target)return;
-                // Overwriting an existing copy needs its version, otherwise the server treats the
-                // save as a create and answers 412 even after the dialog confirmed the overwrite.
-                let expected=target===path?etag:null;
-                if(target!==path){
-                    const probe=await fetch(endpoint(target),{method:'HEAD',credentials:'same-origin',cache:'no-store',signal:documentLife.signal});
-                    if(probe.ok){
-                        expected=probe.headers.get('ETag');
-                        if(!expected){const error=new Error(tr('conflict'));error.status=412;throw error;}
-                    }else if(probe.status!==404)await responseOK(probe);
-                }
-                const value=snapshot(),revision=queue.revision,saved=await write(value,target,expected);
-                if(queue.revision!==revision){notice(tr('copy_saved_new_changes'),false,false);return;}
+                const value=snapshot(),revision=queue.revision,saved=await write(value,target,target===path?etag:null);
+                if(queue.revision!==revision){notice(tr('copy_saved_new_changes'));return;}
                 path=target;etag=saved.etag;sourceData=saved.sourceData||sourceData;recoveryConflict=false;operations=[];queue.dispose();makeQueue();find('[data-name]').textContent=basename(path);find('[data-location]').textContent=path;ctx.updateWindowContext?.(windowId,{path});notice('');
             }finally{queue.resume();}
         }
         async function guard(){
-            if(!queue||ctx.readonly)return true;await book.endEditingAsync(true);commitFormula();commitNote();if(!queue.dirty&&!queue.pending)return true;
-            try{await save();return !queue.dirty;}catch(error){fail(error);return !!await ctx.confirmDialog(tr('discard_changes'));}
+            if(!queue||ctx.readonly)return true;await book.endEditingAsync(true);commitFormula();if(!queue.dirty&&!queue.pending)return true;
+            try{await save();return true;}catch(error){fail(error);return !!await ctx.confirmDialog(tr('discard_changes'));}
         }
         async function prepareOutput(){
-            await book.endEditingAsync(true);commitFormula();commitNote();const revision=queue.revision;
+            await book.endEditingAsync(true);commitFormula();const revision=queue.revision;
             await new Promise((resolve,reject)=>{let done=false;const finish=error=>{if(done)return;done=true;clearTimeout(timer);event.dispose();error?reject(error):resolve();};const event=api.getFormula().calculationEnd(()=>finish());const timer=setTimeout(()=>finish(new Error(tr('calculation_timeout'))),10000);api.getFormula().executeCalculation();});
             if(queue.revision!==revision)throw Error(tr('snapshot_changed'));
             return snapshot();
@@ -347,18 +294,14 @@
                 if(action==='document'){find('[data-document-menu]').hidden=!find('[data-document-menu]').hidden;return;}
                 if(action==='more'){const menu=find('[data-more-menu]');menu.hidden=!menu.hidden;positionMoreMenu();return;}
                 if(action==='retry'){if(loadingFailed)await load(path);else await save();return;}
-                if(action==='save'){await save();return;}if(action==='saveAs'){await saveAs();return;}
+                if(action==='save'){await save();return;}if(action==='saveAs'||action==='rename'){await saveAs();return;}
                 if(action==='new'){if(await guard())await load(newPath(),'blank');return;}
                 if(action==='open'){if(!await guard())return;const result=await ctx.openFileDialog({title:tr('open'),filters:[{label:'Excel / CSV',extensions:['.xlsx','.xlsm','.csv']}]});if(result)await load(typeof result==='string'?result:result.path);return;}
                 if(!book||loading)return;
                 if(action==='qr'){await insertQR();return;}
                 if(action==='chartSelected'){rightPanel='chart';panels.showRight('chart');syncViewState();return;}
-                // Borders and fill open the format panel even when it is already visible; the
-                // toolbar buttons are not view toggles.
-                if(action==='borders'||action==='fill'){pinSelection();rightPanel='format';panels.showRight('format');syncViewState();return;}
-                if(action==='pasteSpecial'){rightPanel='data';panels.showRight('data');syncViewState();return;}
-                if(['navigation','search','format','data','chart','assist','function','sheetMenu'].includes(action)){
-                    pinSelection();const left=['navigation','search'].includes(action),key=({function:'function',sheetMenu:'sheets'})[action]||action;
+                if(['navigation','search','format','data','chart','assist','function','borders','fill','sheetMenu'].includes(action)){
+                    pinSelection();const left=['navigation','search'].includes(action),key=({borders:'format',fill:'format',function:'function',sheetMenu:'sheets'})[action]||action;
                     if(left){leftPanel=leftPanel===key?'':key;panels.showLeft(leftPanel);}else{rightPanel=rightPanel===key?'':key;panels.showRight(rightPanel);}syncViewState();return;
                 }
                 if(action==='closeLeft'){leftPanel='';panels.showLeft('');syncViewState();return;}if(action==='closeRight'){rightPanel='';panels.showRight('');syncViewState();return;}
@@ -442,7 +385,7 @@
             const format={b:'bold',i:'italic',u:'underline'}[key];
             if(format){event.preventDefault();event.stopPropagation();act(format);}
         },{signal:lifecycle.signal,capture:true});
-        if(ctx.readonly){find('[data-formula]').readOnly=true;root.querySelectorAll('.sheets-toolbar button:not([data-action="more"]),.sheets-toolbar input,.sheets-toolbar select,[data-action="addSheet"]').forEach(control=>control.disabled=true);}
+        if(ctx.readonly){find('[data-formula]').readOnly=true;root.querySelectorAll('.sheets-toolbar button,.sheets-toolbar input,.sheets-toolbar select,[data-action="addSheet"]').forEach(control=>control.disabled=true);}
         const resize=new ResizeObserver(()=>{root.dataset.narrow=String(root.clientWidth<900);chartView?.position();imageView?.position();positionMoreMenu();});resize.observe(root);
         window.addEventListener('beforeunload',event=>{if(queue?.dirty){event.preventDefault();event.returnValue='';}},{signal:lifecycle.signal});
         function releaseDocument(){

@@ -1,7 +1,7 @@
 (function(){
     'use strict';
     function create(state){
-        const layer=state.find('[data-charts]'),items=new Map(),life=new AbortController();let selectedID=null,computed=0;
+        const layer=state.find('[data-charts]'),items=new Map(),life=new AbortController();let selectedID=null;
         const palette=['#467caf','#68a294','#e0aa62','#9979b9','#cf7880'];
         function sourceValues(ref){
             const match=/^=?('(?:[^']|'')*'|[^!]+)!([$A-Z0-9:]+)$/i.exec(ref||'');
@@ -42,9 +42,6 @@
         }
         function refresh(){
             if(life.signal.aborted||!state.book)return;
-            const active=state.book.getActiveSheet();
-            if(!active)return;
-            if(selectedID&&!state.aux.charts.some(chart=>chart.id===selectedID&&chart.sheet===active.getSheetId()))selectedID=null;
             const alive=new Set(state.aux.charts.map(c=>c.id));
             for(const [id,item]of items)if(!alive.has(id)){item.chart?.destroy();item.element.remove();items.delete(id);}
             for(const spec of state.aux.charts){
@@ -52,7 +49,7 @@
                 if(!item){
                     const element=document.createElement('section');element.className='sheets-chart';element.dataset.chartId=spec.id;element.tabIndex=0;element.setAttribute('aria-label',spec.title||state.tr('chart'));
                     element.innerHTML='<div class="sheets-chart-drag" data-chart-drag><span></span><button type="button" data-chart-settings aria-label="'+state.esc(state.tr('chart_settings'))+'">•••</button></div><div class="sheets-chart-surface"><canvas></canvas></div><button type="button" class="sheets-chart-resize" data-chart-resize aria-label="'+state.esc(state.tr('resize_chart'))+'"></button>';
-                    layer.append(element);item={element,chart:null,signature:'',data:null,dataKey:''};items.set(spec.id,item);
+                    layer.append(element);item={element,chart:null,signature:''};items.set(spec.id,item);
                     element.addEventListener('pointerdown',event=>pointerDown(event,spec.id),{signal:life.signal});
                     element.addEventListener('keydown',event=>{if(event.key==='Delete'&&!state.readonly){event.preventDefault();remove(spec.id);}if(event.key==='Enter'){select(spec.id);state.act('chartSelected');}},{signal:life.signal});
                     element.querySelector('[data-chart-settings]').addEventListener('click',()=>{select(spec.id);state.act('chartSelected');},{signal:life.signal});
@@ -60,11 +57,7 @@
                 item.element.classList.toggle('is-selected',selectedID===spec.id);item.element.querySelector('[data-chart-drag] span').textContent=spec.title;
                 item.element.querySelector('[data-chart-resize]').hidden=state.readonly||spec.readonly;
                 if(spec.readonly){item.element.querySelector('.sheets-chart-surface').textContent=state.tr('chart_preserved');continue;}
-                // Recompute the series only when the sheet values or the data range changed;
-                // selection, scroll and geometry updates must not walk the chart range again.
-                const dataKey=JSON.stringify([state.dataRevision,spec.sheet,spec.range,spec.series,spec.colors]);
-                let data=item.data;
-                if(item.dataKey!==dataKey){try{data=chartData(spec);computed++;item.data=data;item.dataKey=dataKey;}catch(_){continue;}}
+                let data;try{data=chartData(spec);}catch(_){continue;}
                 const signature=JSON.stringify([spec.type,spec.title,spec.legend,spec.x_title,spec.y_title,data]);
                 if(signature!==item.signature&&window.Chart){
                     item.chart?.destroy();
@@ -79,7 +72,7 @@
         }
         function select(id){selectedID=id;for(const [key,item]of items)item.element.classList.toggle('is-selected',key===id);}
         function pointerDown(event,id){
-            select(id);if(event.button!==0)return;if(state.readonly)return;
+            select(id);if(state.readonly)return;
             const spec=state.aux.charts.find(c=>c.id===id);if(!spec||spec.readonly)return;
             const resize=event.target.closest('[data-chart-resize]'),drag=event.target.closest('[data-chart-drag]');if(!resize&&!drag||event.target.closest('[data-chart-settings]'))return;
             event.preventDefault();event.stopPropagation();const element=items.get(id).element,startX=event.clientX,startY=event.clientY,zoom=state.book.getActiveSheet().getZoom();let dx=0,dy=0;
@@ -97,15 +90,14 @@
             element.addEventListener('pointermove',move);element.addEventListener('pointerup',finish);element.addEventListener('pointercancel',cancel);life.signal.addEventListener('abort',cancel,{once:true});
         }
         function add(type='column'){
-            if((state.aux.charts||[]).length>=256){state.notice(state.tr('chart_limit'),true);return;}
             const range=state.selected(),r=range.getRange();if(r.endColumn<=r.startColumn||r.endRow<=r.startRow){state.notice(state.tr('chart_select_range'),true);return;}
-            const id=SheetsData.uuid(),anchor=SheetsData.columnName(r.endColumn+2)+(r.startRow+1),next=structuredClone(state.aux);
+            const id=crypto.randomUUID(),anchor=SheetsData.columnName(r.endColumn+2)+(r.startRow+1),next=structuredClone(state.aux);
             next.charts.push({id,sheet:state.book.getActiveSheet().getSheetId(),type,title:state.tr('chart'),range:range.getA1Notation(),anchor,x:0,y:0,width:480,height:290,legend:true,colors:palette});
             selectedID=id;state.setAux(next);state.refresh();return id;
         }
-        function update(changes){if('range' in changes&&!changes.range)throw Error(state.tr('chart_select_range'));if(changes.range){const range=state.book.getActiveSheet().getRange(changes.range).getRange();if(range.endColumn<=range.startColumn||range.endRow<=range.startRow||range.endColumn-range.startColumn>127||range.endRow-range.startRow>100000)throw Error(state.tr('chart_select_range'));}if(!selectedID)return;const next=structuredClone(state.aux),chart=next.charts.find(c=>c.id===selectedID);if(!chart||chart.readonly)return;Object.assign(chart,changes);state.setAux(next);}
+        function update(changes){if(changes.range){const range=state.book.getActiveSheet().getRange(changes.range).getRange();if(range.endColumn<=range.startColumn||range.endRow<=range.startRow||range.endColumn-range.startColumn>127||range.endRow-range.startRow>100000)throw Error(state.tr('chart_select_range'));}if(!selectedID)return;const next=structuredClone(state.aux),chart=next.charts.find(c=>c.id===selectedID);if(!chart||chart.readonly)return;Object.assign(chart,changes);state.setAux(next);}
         function remove(id=selectedID){if(state.readonly)return;const next=structuredClone(state.aux);next.charts=next.charts.filter(c=>c.id!==id||c.readonly);state.setAux(next);selectedID=null;state.refresh();}
-        return {refresh,position,add,update,remove,select,get selected(){return state.aux.charts.find(c=>c.id===selectedID);},get computed(){return computed;},dispose(){life.abort();for(const item of items.values()){item.chart?.destroy();item.element.remove();}items.clear();}};
+        return {refresh,position,add,update,remove,select,get selected(){return state.aux.charts.find(c=>c.id===selectedID);},dispose(){life.abort();for(const item of items.values()){item.chart?.destroy();item.element.remove();}items.clear();}};
     }
     window.SheetsCharts={create};
 })();

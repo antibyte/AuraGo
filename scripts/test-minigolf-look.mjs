@@ -15,6 +15,17 @@ for (const id of LOOK_IDS) {
 }
 assert.equal(LOOKS.moon.water.mode, 'void');
 assert.equal(LOOKS.moon.fog, null);
+// The moon sky carries its own effect data: a galactic band, clustered stars and shooting stars.
+assert.ok(LOOKS.moon.sky.galaxy > 0 && LOOKS.moon.sky.galaxy <= 1, 'moon galactic band strength');
+assert.equal(LOOKS.moon.sky.bandPole.length, 3, 'moon galactic pole');
+const poleLength = Math.hypot(...LOOKS.moon.sky.bandPole);
+assert.ok(poleLength > 0.9 && poleLength < 1.1, 'moon galactic pole is a direction');
+assert.ok(Math.hypot(...LOOKS.moon.sky.galaxyCore) > 0.9, 'moon galactic core is a direction');
+assert.ok(LOOKS.moon.sky.meteors >= 2, 'moon shooting stars');
+for (const id of ['pirate', 'temple']) {
+    assert.ok(!LOOKS[id].sky.galaxy, `${id} has no galactic band`);
+    assert.ok(!LOOKS[id].sky.meteors, `${id} has no shooting stars`);
+}
 
 // The world id of a manifest v2 course is its look; anything else, the P1/P2 world ids included, falls back to pirate.
 for (const id of LOOK_IDS) assert.equal(lookOf({ world: id }), id, `${id} is its own look`);

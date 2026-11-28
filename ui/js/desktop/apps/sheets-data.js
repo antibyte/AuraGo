@@ -1,16 +1,5 @@
 (function(){
     'use strict';
-    // crypto.randomUUID only exists in a secure context, which a plain-HTTP LAN install is not.
-    function uuid(){
-        const c=typeof crypto!=='undefined'?crypto:null;
-        if(c&&typeof c.randomUUID==='function')return c.randomUUID();
-        const bytes=new Uint8Array(16);
-        if(c&&typeof c.getRandomValues==='function')c.getRandomValues(bytes);
-        else for(let i=0;i<bytes.length;i++)bytes[i]=Math.floor(Math.random()*256);
-        bytes[6]=(bytes[6]&15)|64;bytes[8]=(bytes[8]&63)|128;
-        const hex=Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
-        return hex.slice(0,8)+'-'+hex.slice(8,12)+'-'+hex.slice(12,16)+'-'+hex.slice(16,20)+'-'+hex.slice(20);
-    }
     function columnName(index){let name='';for(let n=index+1;n>0;n=Math.floor((n-1)/26))name=String.fromCharCode(65+(n-1)%26)+name;return name;}
     function normalizeFormula(value){
         return value.replace(/"(?:[^"]|"")*"|'(?:[^']|'')*'|\bAVG(?=\s*\()/gi,match=>/^AVG$/i.test(match)?'AVERAGE':match);
@@ -51,13 +40,13 @@
         }
         if(quoted)throw Error('csv_invalid');
         if(cell!==''||row.length){row.push(cell);rows.push(row);}
-        if(rows.reduce((sum,row)=>sum+row.length,0)>200000)throw Error('import_limit');
+        if(rows.reduce((sum,row)=>sum+row.length,0)>1000000)throw Error('import_limit');
         return rows;
     }
     function template(kind,tr){
-        const id='sheet-'+uuid().slice(0,8),name=tr(kind==='blank'?'sheet':'template_'+kind);
+        const id='sheet-'+crypto.randomUUID().slice(0,8),name=tr(kind==='blank'?'sheet':'template_'+kind);
         const sheet={id,name,rowCount:1000,columnCount:26,defaultRowHeight:26,defaultColumnWidth:112,cellData:{},rowData:{},columnData:{0:{w:210}},mergeData:[],freeze:{xSplit:0,ySplit:0,startRow:-1,startColumn:-1},zoomRatio:1,showGridlines:1,rowHeader:{width:48},columnHeader:{height:26}};
-        const book={id:uuid(),name,appVersion:'1.0.4',locale:'enUS',sheetOrder:[id],sheets:{[id]:sheet},styles:{
+        const book={id:crypto.randomUUID(),name,appVersion:'1.0.4',locale:'enUS',sheetOrder:[id],sheets:{[id]:sheet},styles:{
             title:{ff:'Arial',fs:24,bl:1,cl:{rgb:'#20364f'}},
             subtitle:{ff:'Arial',fs:10,cl:{rgb:'#6d7c91'}},
             header:{ff:'Arial',fs:11,bl:1,cl:{rgb:'#ffffff'},bg:{rgb:'#365f85'},vt:2},
@@ -74,7 +63,7 @@
             row(3,['category','planned','actual','difference','notes'].map(tr),'header');sheet.rowData[3]={h:32};
             [['housing',1250,1250],['food',420,385],['transport',140,118],['leisure',180,205],['savings',350,350]].forEach(([key,planned,actual],i)=>row(i+4,[tr(key),planned,actual,'=B'+(i+5)+'-C'+(i+5),'']));
             row(10,[tr('total'),'=SUM(B5:B9)','=SUM(C5:C9)','=B11-C11',''],'total');sheet.rowData[10]={h:34};
-            doc.charts=[{id:uuid(),sheet:id,type:'column',title:tr('template_budget'),range:'A4:C9',anchor:'F4',x:12,y:0,width:340,height:270,legend:true,colors:['#467caf','#b5cbdc']}];
+            doc.charts=[{id:crypto.randomUUID(),sheet:id,type:'column',title:tr('template_budget'),range:'A4:C9',anchor:'F4',x:12,y:0,width:340,height:270,legend:true,colors:['#467caf','#b5cbdc']}];
         }else if(kind==='project'){
             row(3,['task','owner','start_date','due_date','progress'].map(tr),'header');
             ['planning','implementation','review','delivery'].forEach((key,i)=>row(i+4,[tr(key),'','','',i===0?1:0]));
@@ -100,7 +89,7 @@
                 const width=Math.max(0,...rows.slice(0,25).map(row=>row.length));types=Array.from({length:width},(_,i)=>types[i]||'auto');
                 dialog.querySelector('[data-preview]').innerHTML='<table><thead><tr>'+types.map((v,i)=>'<th><select data-type="'+i+'"><option value="auto"'+(v==='auto'?' selected':'')+'>'+state.esc(state.tr('automatic'))+'</option><option value="text"'+(v==='text'?' selected':'')+'>'+state.esc(state.tr('format_text'))+'</option></select></th>').join('')+'</tr></thead><tbody>'+rows.slice(0,12).map(row=>'<tr>'+types.map((_,i)=>'<td>'+state.esc(row[i]||'')+'</td>').join('')+'</tr>').join('')+'</tbody></table>';
                 dialog.querySelector('[data-error]').textContent='';failed=false;
-            }catch(error){failed=true;dialog.querySelector('[data-error]').textContent=state.tr(error.message==='csv_invalid'||error.message==='import_limit'?error.message:'import_failed');}
+            }catch(error){failed=true;dialog.querySelector('[data-error]').textContent=state.tr(error.message==='csv_invalid'?'csv_invalid':'import_failed');}
         };
         const sample=new TextDecoder().decode(bytes.slice(0,10000)).split(/\r?\n/)[0],candidate=[',',';','\t','|'].sort((a,b)=>sample.split(b).length-sample.split(a).length)[0];dialog.querySelector('[data-delimiter]').value=candidate;
         dialog.addEventListener('change',event=>{if(event.target.dataset.type!==undefined)types[+event.target.dataset.type]=event.target.value;else preview();});
@@ -141,9 +130,9 @@
         if(out['sheets-note-ui'])out['sheets-note-ui']={note:{placeholder:tr('notes')},rightClick:{addNote:tr('setNote'),deleteNote:tr('deleteNote'),toggleNote:tr('notes')}};
         if(out.sheets?.autoFill)out.sheets.autoFill={copy:tr('copy'),series:tr('ai_continue'),formatOnly:tr('pasteFormat'),noFormat:tr('pasteValues')};
         if(out['sheets-ui']?.button)Object.assign(out['sheets-ui'].button,{confirm:tr('ok'),cancel:tr('cancel'),close:tr('close'),insert:tr('insert'),prevPage:tr('searchPrevious'),nextPage:tr('searchNext')});
-        if(out.ui?.textEditor)out.ui.textEditor={...out.ui.textEditor,formulaError:tr('english_formulas'),rangeError:tr('invalid_range')};
+        if(out.ui?.textEditor)out.ui.textEditor={formulaError:tr('english_formulas'),rangeError:tr('invalid_range')};
         if(out['sheets-filter'])out['sheets-filter']={command:{'not-valid-filter-range':tr('invalid_range')},msg:{'filter-header-forbidden':tr('structure_locked')}};
         return out;
     }
-    window.SheetsData={columnName,normalizeFormula,parseInput,parseCSV,template,importCSV,nativeLocale,uuid};
+    window.SheetsData={columnName,normalizeFormula,parseInput,parseCSV,template,importCSV,nativeLocale};
 })();

@@ -152,10 +152,12 @@ teleporter, a cannon).
 - **Jungle Temple:** a carved stone head as the hero prop, totems, torches, lianas,
   ferns, a waterfall, a sun wheel and a stone gate. A low, large orange sun,
   a peach-to-petrol evening sky with a haze band and a jungle silhouette.
-- **Moon Station:** the island floats in space above a starfield, with the Earth
-  in the sky. A habitat as the hero prop, a dish antenna that turns, a rover, solar
-  panels, landing pads, neon posts and craters. There is no open water: a ball that
-  falls over an open edge or into a pit leaves the course and counts as out of bounds.
+- **Moon Station:** the island floats in space above a starfield with a Milky Way
+  band, twinkling stars and occasional shooting stars. The Earth hangs in the sky
+  with drifting clouds, an ocean glint and city lights on its night side. A habitat
+  as the hero prop, a dish antenna that turns, a rover, solar panels, landing pads,
+  neon posts and craters. There is no open water: a ball that falls over an open
+  edge or into a pit leaves the course and counts as out of bounds.
 - **Island:** the island surface runs 6 cm under the lane, also over hills and
   steep bends. The gaps under the jumps are a trench of water on Pirate Bay and
   Jungle Temple and a chasm into space on Moon Station. Ponds are their own
@@ -281,7 +283,7 @@ more, and at least 12 seconds after the last change.
 | Shadows | none (blob shadow under the ball) | 1024 px, PCF | 2048 px, PCF |
 | Bloom | off | on, half resolution | on, half resolution |
 | Environment map | on | on | on |
-| Sky | gradient, sun, Earth; no clouds or twinkle | + clouds | + star twinkle |
+| Sky | gradient, sun, Earth; no clouds, twinkle or shooting stars | + clouds, shooting stars | + colourful star twinkle and sparkles |
 | Water | static gradient and shore foam | animated | + glints |
 | Scatter props | off | on | on |
 | Sea life (Pirate Bay) | off | medium (10 sharks, 6 schools, turtles, mantas, whale, jellies) | full (15 sharks, 11 schools, turtles, mantas, whale, jellies) |
@@ -529,7 +531,9 @@ The smoke loads one course per world through the normal menus (the finales
 `pirate-06`, `temple-12` and `moon-18`; `AURAGO_MINIGOLF_ALL_COURSES=1` loads all 18, which
 takes a good deal longer) and checks each course's look (equal to its world), props and
 environment, that the ball rests on the tee floor (the collision from the GLB is in
-place), and that the intro flight starts and then ends after `skipIntro`. The headless Chrome used here
+place), and that the intro flight starts and then ends after `skipIntro`. On Moon
+Station it also checks the starfield and shooting stars and that they follow the motion
+preference; Pirate Bay and Jungle Temple must keep a clear sky. The headless Chrome used here
 reports `prefers-reduced-motion: reduce`, so the smoke emulates `no-preference`
 for the first course to see the flight, then resets the emulation. Later loads
 under reduced motion must start no flight.
