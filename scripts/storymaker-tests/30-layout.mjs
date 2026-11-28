@@ -135,3 +135,15 @@ check('layout: a code scene measures its blocks under the code camera, holds aft
     assert.deepEqual(plain(bad.code.blocks), []);
     assert.deepEqual(plain(run(null).code.blocks), []);
 });
+
+check('layout: a code scene with an exit fade is held while its blocks are visible', () => {
+    const two = film();
+    two.scenes.push({ id: 's2', kind: 'code', narration: 'Ein Code.' });
+    const area = SM.blocks.area(SM.stage.create({ aspect: '16:9' }), null, 'day', 'center');
+    const icon = SM.blocks.create({ id: 'icon-1', kind: 'icon', icon: 'icon.cpu', area, t0: 0, dur: 0.8, entry: 'fade' });
+    icon.alpha.add(7, 7.8, 0, 'linear');   // fadeOut({ start: 7, dur: 0.8 }) in an 8 s scene
+    const tl = SM.compile(two, {}, t.catalog, { codeScenes: { s2: { duration: 8, blocks: SM.blocks.serialize([icon], null) } } }).timeline;
+    const code = SM.layout.measure(tl, renderAssets())[1];
+    assert.ok(code.hold_s < 7, 'the hold frame lies before the fade, not at ' + code.hold_s);
+    assert.equal(code.blocks.length, 1, 'the block is measured');
+});

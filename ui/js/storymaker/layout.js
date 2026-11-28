@@ -15,6 +15,34 @@
 
     function round4(v) { return Math.round(v * 10000) / 10000; }
 
+    // exits(e): the segments of the alpha track that fade the entity out (they end below VISIBLE).
+    function exits(e) { return e.alpha && e.alpha.segs ? e.alpha.segs.filter(function (g) { return g.to < VISIBLE && g.t0 > 0; }) : []; }
+
+    // shownEnd(e): SM.scene.entityEnd without the exit fades: the hold must not wait for the moment the blocks are gone.
+    function shownEnd(e) {
+        var end = SM.scene.entityEnd(e), gone = exits(e);
+        if (!gone.length) return end;
+        var plain = Object.create(e);
+        plain.alpha = Object.create(e.alpha);
+        plain.alpha.segs = e.alpha.segs.filter(function (g) { return gone.indexOf(g) < 0; });
+        return Math.min(end, SM.scene.entityEnd(plain));
+    }
+
+    // beforeExit(entities, t): t, or the start of the latest exit fade before t when no entity is visible at t.
+    function beforeExit(entities, t) {
+        var start = t;
+        for (var guard = 0; guard < 64; guard++) {
+            var seen = false, back = -1;
+            for (var i = 0; i < entities.length; i++) {
+                if (SM.scene.evalEntity(entities[i], start).alpha > VISIBLE) seen = true;
+                exits(entities[i]).forEach(function (g) { if (g.t0 < start && g.t0 > back) back = g.t0; });
+            }
+            if (seen || back < 0) return seen ? start : t;
+            start = back;
+        }
+        return t;
+    }
+
     // holdSeconds(timeline, index): the scene-local time of the sample, clamped to the last frame in which the scene is the
     // one on screen (the next scene's entry transition overlaps its end).
     // A code scene has no stage entities of the storyboard: it is sampled at the larger of 70 % of its length and half a second
@@ -27,8 +55,8 @@
         var limit = Math.max(0, (lastFrame - sc.start_frame) / fps);
         if (sc.kind === 'code') {
             var held = sc.codeLayout ? sc.codeLayout.entities : [];
-            for (var h = 0; h < held.length; h++) { var he = SM.scene.entityEnd(held[h]); if (he > last) last = he; }
-            return Math.min(Math.max(CODE_HOLD_SHARE * (sc.end_frame - sc.start_frame) / fps, last + HOLD_AFTER), limit);
+            for (var h = 0; h < held.length; h++) { var he = shownEnd(held[h]); if (he > last) last = he; }
+            return beforeExit(held, Math.min(Math.max(CODE_HOLD_SHARE * (sc.end_frame - sc.start_frame) / fps, last + HOLD_AFTER), limit));
         }
         for (var k = 0; k < sc.entities.length; k++) { var end = SM.scene.entityEnd(sc.entities[k]); if (end > last) last = end; }
         return Math.min(last + HOLD_AFTER, limit);
