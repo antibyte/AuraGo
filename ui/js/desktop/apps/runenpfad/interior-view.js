@@ -744,11 +744,16 @@
             const visH = (vh - f.oy) / f.s;
             // Boss framing: lean towards the dragon and keep the arena's top rows below the boss bar.
             const fo = DV && DV.focus ? DV.focus(iv) : null;
-            const barPx = fo && fo.bar ? 64 : 0;
+            const barPx = 0; // the boss bar sits at the bottom of the view, so the top needs no allowance
             const fx = fo ? iv.hero.x + (fo.x - iv.hero.x) * 0.3 : iv.hero.x;
             const fy = fo ? iv.hero.y - 20 + (fo.y - (iv.hero.y - 20)) * 0.4 : iv.hero.y - 20;
             const tx = room.w <= visW ? (room.w - visW) / 2 : clamp(fx - visW / 2, 0, room.w - visW);
-            const ty = room.h <= visH ? (room.h - visH) / 2 : clamp(fy - visH / 2, -barPx / f.s, room.h - visH);
+            let wy = fy - visH / 2;
+            if (fo && fo.bar && fo.top != null) { // put the drawn head just below the HUD inset, unless that pushes the hero into the bottom boss bar
+                const topY = fo.top - 8 / f.s;
+                if (topY >= iv.hero.y - visH + 2.5 * CELL) wy = topY;
+            }
+            const ty = room.h <= visH ? (room.h - visH) / 2 : clamp(wy, -barPx / f.s, room.h - visH);
             if (!cam.ready || cam.for !== room) {
                 cam.x = tx;
                 cam.y = ty;
@@ -769,7 +774,7 @@
             const room = iv.room;
             const dpr = Math.min(2, root.devicePixelRatio || 1);
             const s = viewScale(room, vh);
-            const f = { s: s, t: frame.nowSec, reduced: !!frame.reducedMotion, oy: topInset(vh) };
+            const f = { s: s, t: frame.nowSec, reduced: !!frame.reducedMotion, oy: topInset(vh), vh: vh };
             resetRequests();
             askLive(sim);
             ensureBake(room);

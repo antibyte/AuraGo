@@ -16,7 +16,6 @@
     const DROWSY_T = 5;
     const BAR_W = 380;
     const BAR_H = 12;
-    const BAR_GAP = 8;
     const PHASE_COLOR = { 1: '#d9892f', 2: '#e0603c', 3: '#c0262c' };
     const WARN = '255, 84, 64';
     const WARN_EDGE = '255, 170, 140';
@@ -653,7 +652,7 @@
                 if (!g) return false;
                 const w = Math.min(BAR_W, vw * 0.7);
                 const x = (vw - w) / 2;
-                const y = inset + BAR_GAP + 16;
+                const y = (f && f.vh > 0 ? f.vh : inset + 300) - 24 - BAR_H - 18; // classic bottom boss bar: pips below, name and drowsy timer above
                 const maxHp = Math.max(1, num(g.maxHp, num(g.hp, 1)));
                 const frac = clamp(num(g.hp, maxHp) / maxHp, 0, 1);
                 const phase = g.dr && g.dr.phase ? g.dr.phase : (g.phase || 1);
@@ -684,7 +683,7 @@
                 }
                 if (g.state === 'drowsy') {
                     const left = clamp(num(g.dr && g.dr.drowsy, 0) / DROWSY_T, 0, 1);
-                    const by = y + BAR_H + 24;
+                    const by = y - 32;
                     ctx.fillStyle = 'rgba(8, 6, 14, 0.82)';
                     ctx.fillRect(x + w * 0.2, by, w * 0.6, 7);
                     ctx.fillStyle = '#9fe8ff';
@@ -703,7 +702,16 @@
         function focus(iv) {
             try {
                 const m = list(iv && iv.mobs).filter(owns).filter(function (q) { return q.state !== 'dead'; })[0];
-                if (m) return { x: m.x, y: m.y + FOOT_DY - 140, bar: !!(iv.guardian && iv.guardian.kind === 'brandur') };
+                if (m) {
+                    let top = null; // top of the drawn sprite (ground poses only), room px
+                    if (m.state !== 'air') {
+                        const clip = groundClip(m);
+                        const c = h.art && h.art.clips ? h.art.clips[clip] : null;
+                        const fr = c && c.sheet && c.sheet.frames ? c.sheet.frames[c.frames[0]] : null;
+                        top = m.y + FOOT_DY + (fr && fr[5] < 0 ? fr[5] : -320 / bodyScale(clip)) * bodyScale(clip);
+                    }
+                    return { x: m.x, y: m.y + FOOT_DY - 140, top: top, bar: !!(iv.guardian && iv.guardian.kind === 'brandur') };
+                }
                 const l = iv && iv.lair;
                 if (l && l.fate && iv.hero && Math.hypot(l.x - iv.hero.x, l.y - iv.hero.y) < 8 * CELL) return { x: l.x, y: l.y + FOOT_DY - 140, bar: false };
             } catch (err) { /* ignore */ }

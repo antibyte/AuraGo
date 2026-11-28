@@ -47,16 +47,41 @@
         }
     }
 
-    // Steam jets with lava blurps: a hiss, a brown puff and n bubble pops (rising soft chirps with a wet pop).
+    // One continuous noise source with a sustained envelope (fast attack, flat sustain, smooth release) and an optional filter sweep.
+    // The builder's own noise envelope decays at once, which would turn a hiss into a burst.
+    function sustained(b, t, d, peak, color, type, f0, f1, q, atk, rel) {
+        const ac = b.ac;
+        const src = b.keep(ac.createBufferSource());
+        src.buffer = (b.dsp && b.dsp.getNoise(ac, color)) || b.noise;
+        src.loop = true;
+        const f = b.keep(ac.createBiquadFilter());
+        f.type = type;
+        f.Q.value = q;
+        f.frequency.setValueAtTime(f0, t);
+        f.frequency.linearRampToValueAtTime(f1, t + d);
+        const g = b.keep(ac.createGain());
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.linearRampToValueAtTime(peak, t + atk);
+        g.gain.setValueAtTime(peak, t + d - rel);
+        g.gain.linearRampToValueAtTime(0.0001, t + d);
+        src.connect(f);
+        f.connect(g);
+        g.connect(b.dest);
+        src.start(t, 0.3);
+        src.stop(t + d + 0.02);
+        b.touch(t + d);
+    }
+
+    // Steam vent: one continuous pressurised hiss (pink noise high-passed from 1.8 up to 3.2 kHz, 0.08 s attack, sustain, 0.4 s release, no
+    // tremolo), a short brown puff at the onset, and at most two deep lava blurps well after the hiss peak.
     function steamBlurps(b, t, g, sr, o, d, n, hiss) {
-        b.n(t, d, g * 0.55 * hiss, { color: 'pink', type: 'highpass', f0: 1700 * sr, q: 0.6, atk: 0.04 });
-        b.n(t, d * 0.9, g * 0.22 * hiss, { color: 'white', type: 'highpass', f0: 5200, q: 0.6, atk: 0.1 });
-        b.n(t, d * 0.7, g * 0.4, { color: 'brown', type: 'lowpass', f0: 380, f1: 160, q: 0.8, atk: 0.05 });
-        for (let i = 0; i < n; i++) {
-            const at = t + 0.05 + jit(o, i + 3) * (d - 0.2);
-            const f = (150 + jit(o, i + 20) * 200) * sr;
-            b.o('sine', f, f * 2.3, at, 0.07, g * (0.3 + jit(o, i + 40) * 0.25), { atk: 0.006 });
-            b.n(at + 0.05, 0.03, g * 0.3, { color: 'brown', type: 'lowpass', f0: 900, q: 0.8, atk: 0.002 });
+        sustained(b, t, d, g * 0.9 * hiss, 'pink', 'highpass', 1800 * sr, 3200 * sr, 0.6, 0.08, 0.4);
+        sustained(b, t, d, g * 0.3 * hiss, 'white', 'highpass', 4000, 6000, 0.5, 0.1, 0.4);
+        b.n(t, 0.15, g * 0.5, { color: 'brown', type: 'lowpass', f0: 600, f1: 200, q: 0.8, atk: 0.005 });
+        for (let i = 0; i < Math.min(2, n); i++) {
+            const at = t + 0.55 + i * 0.4;
+            const f = (90 + jit(o, i + 20) * 40) * sr;
+            b.o('sine', f, f * 1.8, at, 0.16, g * 0.35, { atk: 0.015 });
         }
     }
 
@@ -165,8 +190,8 @@
             b.n(t, 0.8, g * 0.3, { color: 'white', type: 'highpass', f0: 3000, q: 0.5, atk: 0.55 });
             beats(b, t + 0.1, g * 0.4, sr, o, 2, 0.34, 0.6, 0);
         }),
-        // Vents: steam hiss with lava blurps (ten wet pops).
-        dp_a_vents: wrap(function (b, t, g, sr, o) { steamBlurps(b, t, g, sr, o, 1.1, 10, 1); }),
+        // Vents: a strong steam hiss with four deep lava blurps.
+        dp_a_vents: wrap(function (b, t, g, sr, o) { steamBlurps(b, t, g, sr, o, 1.3, 2, 1); }),
         dp_t_vents: wrap(function (b, t, g, sr, o) {
             b.n(t, 0.8, g * 0.5, { color: 'pink', type: 'highpass', f0: 1400 * sr, f1: 3600 * sr, q: 0.6, atk: 0.55 });
             b.o('sine', 70 * sr, 130 * sr, t, 0.8, g * 0.3, { atk: 0.5 });
@@ -306,15 +331,24 @@
                 b.n(at, 0.014 + jit(o, i + 30) * 0.01, g * (0.2 + jit(o, i + 60) * 0.4) * (1 - (at - t) / 1.1), { color: 'crackle', type: 'bandpass', f0: 1500 + jit(o, i + 90) * 2200, q: 4, to: out });
             }
         }),
-        // Mended bell: one clear, long toll (a dark bell model, a slightly detuned pair of partials for the beating shimmer and a deep hum) with a quiet strike.
+        // Mended bell: a big bronze bell struck low (about 170 Hz). Inharmonic partials as in a church bell (hum an octave below, prime,
+        // minor-third tierce, fifth, nominal, upper partials), each slightly detuned for beating, the higher ones dying first over about 5 s;
+        // a sharp metallic clapper transient and two quiet room echoes. No plucked or synthetic tone.
         dp_bell_toll: wrap(function (b, t, g, sr, o) {
-            b.model('darkbell', t, 0.78 * sr, g * 0.85, 3.4);
-            [[343, 3.0], [686, 2.2], [1031, 1.5]].forEach(function (p, i) {
-                b.o('sine', p[0] * sr * (1 + (jit(o, i) - 0.5) * 0.004), 0, t, p[1], g * 0.2 / (1 + i * 0.6), { atk: 0.004 });
+            const f = 170 * sr;
+            const P = [[0.5, 1.0, 5.5], [1.0, 0.8, 5.0], [1.2, 0.7, 4.0], [1.5, 0.4, 3.0], [2.0, 0.6, 3.5], [2.5, 0.25, 2.2], [3.0, 0.3, 1.8], [4.0, 0.2, 1.2], [5.4, 0.12, 0.8]];
+            [0, 0.085, 0.17].forEach(function (dly, k) {
+                const lv = k === 0 ? 1 : 0.16 / k;
+                P.forEach(function (p, i) {
+                    const det = 1 + (jit(o, i + k * 11) - 0.5) * 0.006;
+                    b.o('sine', f * p[0] * det, 0, t + dly, p[2] * (k ? 0.7 : 1), g * 0.3 * p[1] * lv, { atk: 0.002 });
+                    if (k === 0 && i > 0 && i < 6) b.o('sine', f * p[0] * (det + 0.0035), 0, t, p[2] * 0.8, g * 0.12 * p[1], { atk: 0.002 });
+                });
             });
-            b.o('sine', 114 * sr, 0, t, 3.2, g * 0.3, { atk: 0.01 });
-            b.n(t, 0.04, g * 0.35, { color: 'brown', type: 'lowpass', f0: 900, q: 0.8, atk: 0.002 });
-            b.bell(1372 * sr, t + 0.01, 1.4, g * 0.1);
+            b.model('darkbell', t, 0.75 * sr, g * 0.35, 3.0);
+            b.n(t, 0.03, g * 0.9, { color: 'crackle', type: 'highpass', f0: 2200 });
+            b.n(t, 0.12, g * 0.5, { color: 'white', type: 'bandpass', f0: 3400, q: 1.2, atk: 0.001 });
+            b.model('anvil', t, 0.5 * sr, g * 0.2, 0.4);
         }),
         // Slain: the last breath (a long falling wheeze), a final deep boom and cinders crackling out.
         dp_slain: wrap(function (b, t, g, sr, o) {
