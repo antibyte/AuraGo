@@ -1,6 +1,6 @@
 // Batch C: SM.blocks, the player's icon, diagram, chart, headline and list blocks and the env.board backdrop.
 import assert from 'node:assert/strict';
-import { plain, FakeCanvas, digest, readJSON, renderAssets } from '../storymaker-test-support.mjs';
+import { plain, FakeCanvas, digest, readJSON, renderAssets, makeContext, fontPx } from '../storymaker-test-support.mjs';
 import { t } from '../storymaker-test-context.mjs';
 
 const { check, near } = t;
@@ -609,4 +609,18 @@ check('blocks: serialize keeps what revive accepts, 70 camera shakes and 70 mark
     assert.equal(back.entities.length, 1);
     const many = Array.from({ length: 40 }, (_, k) => B.create({ id: 'text-' + k, kind: 'headline', text: 'Hi', area: { x: 0, y: 0, w: 800, h: 200, surface: 'panel' } }));
     assert.equal(B.revive(JSON.parse(JSON.stringify(B.serialize(many, null))), cat).entities.length, 32);
+});
+
+check('blocks: a long CJK headline breaks between characters and its box fits the area in 16:9 and 9:16', () => {
+    const jp = 'ファイアウォールはネットワークの入口で不正な通信を止めて安全を守りますよ。', plainText = 'Kurz';
+    assert.equal([...jp].length, 37);
+    for (const [aspect, W, H] of [['16:9', 1920, 1080], ['9:16', 1080, 1920]]) {
+        const stage = SM.stage.create({ aspect, width: W, height: H }), rc = rcOf(W, H), area = B.area(stage, null, 'day', 'full');
+        const wide = (str, font) => [...String(str)].reduce((w, ch) => w + (ch.codePointAt(0) > 0x2e80 ? 1 : 0.5) * fontPx(font), 0);   // a CJK glyph is about one em
+        const box = def => B.measure(makeContext({ width: W, height: H }, { measure: wide }), SM.scene.evalEntity(B.create({ ...def, area, t0: 0, dur: 1 }), 5), rc, stage, stage.baseWindow()).box;
+        const b = box({ id: 'h', kind: 'headline', text: jp });
+        assert.ok(b.w <= area.w + 1e-6, aspect + ': the box is ' + b.w.toFixed(0) + ' wide in an area ' + area.w.toFixed(0));
+        assert.ok(b.h <= area.h + 1e-6, aspect + ': the box is ' + b.h.toFixed(0) + ' high in an area ' + area.h.toFixed(0));
+        assert.ok(box({ id: 'h', kind: 'headline', text: plainText }).w < area.w * 0.5, 'a short headline keeps its bounds');
+    }
 });

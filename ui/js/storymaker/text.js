@@ -229,5 +229,5 @@
         return Math.max(full * 0.25, Math.min(full, w));
     }
 
-    SM.text = { fontString: fontString, wrap: wrap, balance: balance, breakWord: breakWord, layout: layoutDir, draw: draw, maxWidthFor: maxWidthFor, roundRect: roundRect };
+    SM.text = { fontString: fontString, wrap: wrap, cjkParts: cjkParts, balance: balance, breakWord: breakWord, layout: layoutDir, draw: draw, maxWidthFor: maxWidthFor, roundRect: roundRect };
 })(typeof globalThis !== 'undefined' ? globalThis : self);

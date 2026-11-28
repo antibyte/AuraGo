@@ -1810,7 +1810,7 @@
         return Math.max(full * 0.25, Math.min(full, w));
     }
 
-    SM.text = { fontString: fontString, wrap: wrap, balance: balance, breakWord: breakWord, layout: layoutDir, draw: draw, maxWidthFor: maxWidthFor, roundRect: roundRect };
+    SM.text = { fontString: fontString, wrap: wrap, cjkParts: cjkParts, balance: balance, breakWord: breakWord, layout: layoutDir, draw: draw, maxWidthFor: maxWidthFor, roundRect: roundRect };
 })(typeof globalThis !== 'undefined' ? globalThis : self);
 
 ;
@@ -3754,18 +3754,24 @@
 
     // ---- headline and list
 
-    // headlinePlan: the words wrap into rows, centred; each word rises into place in its turn, the marked word gets a marker.
+    // headlinePlan: the words wrap into rows, centred; each word rises into place in its turn, the marked word gets a marker. A word
+    // of CJK text has no spaces, so it breaks between its characters (SM.ranges.cjkBreak keeps a closing mark off a line start).
     function headlinePlan(c) {
-        var st = c.st, hp = B.parseHeadline(st.block.text), words = hp.words, ctx = c.ctx, px = Math.min(c.base * 2.4, st.h * 0.4), rows, ww;
+        var st = c.st, hp = B.parseHeadline(st.block.text), words = hp.words, ctx = c.ctx, px = Math.min(c.base * 2.4, st.h * 0.4), rows, segs;
         var rtl = SM.ranges.dirOf(st.block.text) === 'rtl', maxW = st.w * 0.94;
+        // pieces: every word as its break units; a unit after the first of a word follows it without a space
+        var pieces = [];
+        words.forEach(function (w, k) { SM.text.cjkParts(w).forEach(function (p, i, all) { pieces.push({ k: k, text: p, first: i === 0, last: i === all.length - 1 }); }); });
         for (;;) {
-            ww = words.map(function (w) { return widthOf(c, w, 700, px); });
             var space = widthOf(c, ' ', 700, px), row = null;
+            segs = pieces.map(function (p) { return { k: p.k, text: p.text, first: p.first, last: p.last, w: widthOf(c, p.text, 700, px) }; });
             rows = [];
-            words.forEach(function (w, k) {
-                if (!row || row.w + space + ww[k] > maxW) rows.push(row = { ix: [], w: -space });
-                row.ix.push(k);
-                row.w += space + ww[k];
+            segs.forEach(function (g, i) {
+                var gap = g.first ? space : 0;
+                if (!row || row.w + gap + g.w > maxW) { rows.push(row = { ix: [], w: 0 }); gap = 0; }
+                g.gap = gap;
+                row.ix.push(i);
+                row.w += gap + g.w;
             });
             if ((rows.length <= 3 && rows.every(function (r) { return r.w <= maxW; }) && rows.length * px * 1.25 <= st.h) || px <= c.floor * 1.5) break;
             px = Math.max(c.floor * 1.5, px * 0.94);
@@ -3774,20 +3780,23 @@
         return {
             box: { x: -width / 2, y: -height / 2, w: width, h: height }, labelPx: px,
             paint: function () {
-                var space = widthOf(c, ' ', 700, px);
                 rows.forEach(function (r, i) {
-                    var x = -r.w / 2, y = -height / 2 + lh * (i + 0.5), order = rtl ? r.ix.slice().reverse() : r.ix;
-                    order.forEach(function (k) {
-                        var p = B.itemProgress(st, k), cx = x + ww[k] / 2;
-                        x += ww[k] + space;
+                    var x = -r.w / 2, y = -height / 2 + lh * (i + 0.5), order = rtl ? r.ix.slice().reverse() : r.ix, prev = null;
+                    order.forEach(function (n) {
+                        var g = segs[n];
+                        if (prev) x += rtl ? prev.gap : g.gap;   // the space belongs to the unit that follows it in reading order
+                        prev = g;
+                        var p = B.itemProgress(st, g.k), cx = x + g.w / 2;
+                        x += g.w;
                         if (!(p > 0)) return;
-                        if (k === hp.mark) {
+                        if (g.k === hp.mark) {
                             ctx.globalAlpha = c.alpha * 0.5 * p;
                             ctx.fillStyle = c.col.accent;
-                            ctx.fillRect(cx - ww[k] / 2 - px * 0.1, y + px * 0.02, (ww[k] + px * 0.2) * p, px * 0.46);
+                            var padL = g.first ? px * 0.1 : 0, padR = g.last ? px * 0.1 : 0;
+                            ctx.fillRect(cx - g.w / 2 - padL, y + px * 0.02, (g.w + padL + padR) * p, px * 0.46);
                         }
                         ctx.globalAlpha = c.alpha * p;
-                        printLines(c, [words[k]], cx, y + (1 - p) * px * 0.35, px, 700, c.col.ink, 'center');
+                        printLines(c, [g.text], cx, y + (1 - p) * px * 0.35, px, 700, c.col.ink, 'center');
                     });
                 });
             }

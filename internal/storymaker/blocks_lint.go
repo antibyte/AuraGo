@@ -117,7 +117,7 @@ func lintBlockLabels(sc *Scene, i int) []Issue {
 		switch blockKind(b) {
 		case "diagram":
 			for k, n := range b.Diagram.Nodes {
-				if words := len(strings.Fields(n.Label)); words > blocksNodeWords {
+				if words := WordCount(n.Label); words > blocksNodeWords {
 					out = append(out, Issue{
 						Severity: SeverityWarning, SceneID: sc.ID, Path: jp("scenes", i, "beats", j, "diagram", "nodes", k, "label"), Code: CodeLabelLong,
 						Message: fmt.Sprintf("The node label %q has %d words; a label reads best with at most %d.", clip(n.Label, 40), words, blocksNodeWords),
@@ -126,7 +126,7 @@ func lintBlockLabels(sc *Scene, i int) []Issue {
 				}
 			}
 		case "headline":
-			if words := len(strings.Fields(strings.ReplaceAll(b.Text, "*", ""))); words > blocksHeadlineMax {
+			if words := WordCount(strings.ReplaceAll(b.Text, "*", "")); words > blocksHeadlineMax {
 				out = append(out, Issue{
 					Severity: SeverityWarning, SceneID: sc.ID, Path: jp("scenes", i, "beats", j, "text"), Code: CodeLabelLong,
 					Message: fmt.Sprintf("The headline has %d words; a headline reads best with at most %d.", words, blocksHeadlineMax),

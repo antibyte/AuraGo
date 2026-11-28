@@ -16,7 +16,7 @@ const (
 
 // FallbackHeadline is the key sentence of a scene for the fallback board: the narration without markers (the title when
 // that is empty) up to its first sentence end, at most 8 words, without a trailing comma or dash. A sentence end is
-// . ! ? : ; or the CJK forms of them followed by white space or the end of the text; a final ? or ! stays. One token is cut to
+// . ! ? : ; followed by white space or the end of the text, or the full-width forms of them (。！？．；：) anywhere; a final ? or ! stays. One token is cut to
 // 40 characters, and the words are dropped from the end until the headline fits the 80 UTF-16 units of a headline block (jsLen, as the validator counts).
 // An empty result means there is nothing to show.
 func FallbackHeadline(narration, title string) string {
@@ -27,7 +27,8 @@ func FallbackHeadline(narration, title string) string {
 	text = strings.ReplaceAll(text, "*", "")
 	runes := []rune(text)
 	for i, r := range runes {
-		if !strings.ContainsRune(".!?:;。！？", r) || (i+1 < len(runes) && !unicode.IsSpace(runes[i+1])) {
+		// The CJK forms need no white space after them: CJK text has none between sentences.
+		if !strings.ContainsRune(".!?:;。！？．；：", r) || (!strings.ContainsRune("。！？．；：", r) && i+1 < len(runes) && !unicode.IsSpace(runes[i+1])) {
 			continue
 		}
 		runes = runes[:i]

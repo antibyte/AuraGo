@@ -21,6 +21,9 @@ func TestFallbackHeadline(t *testing.T) {
 		{"{1}", "Titel", "Titel"},
 		{"", "", ""},
 		{"Eine *markierte* Aussage.", "Titel", "Eine markierte Aussage"},
+		{"最初の文です。二番目の文です。", "Titel", "最初の文です"},
+		{"本当ですか？はい、そうです。", "Titel", "本当ですか？"},
+		{"Version 3.5 です。", "Titel", "Version 3.5 です"},
 	} {
 		if got := FallbackHeadline(tc.narration, tc.title); got != tc.want {
 			t.Errorf("FallbackHeadline(%q, %q) = %q, want %q", tc.narration, tc.title, got, tc.want)

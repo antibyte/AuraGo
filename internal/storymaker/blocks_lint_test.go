@@ -73,6 +73,16 @@ func TestLintBlocks(t *testing.T) {
 		t.Errorf("long labels: %v %+v", codesOf(got), got)
 	}
 
+	// Text without spaces is counted like the narration does: a run of n CJK characters is ceil(n/2) words.
+	cjk := flowScene("s1")
+	cjk.Beats[0].Diagram.Nodes[0].Label = "ファイアウォール機能"
+	cjk.Beats = append(cjk.Beats, Beat{Do: "show", Text: "ファイアウォールはネットワークの入口で不正な通信を止めて安全を守りますよ", Style: "headline", At: SpotAt("top")},
+		Beat{Do: "show", Text: "不正な通信を止める", Style: "headline", At: SpotAt("top")})
+	got = LintBlocks(&Story{Scenes: []Scene{cjk}}, nil)
+	if len(got) != 2 || got[0].Code != CodeLabelLong || got[0].Path != "/scenes/0/beats/0/diagram/nodes/0/label" || got[1].Code != CodeLabelLong || got[1].Path != "/scenes/0/beats/1/text" {
+		t.Errorf("long CJK labels: %v %+v", codesOf(got), got)
+	}
+
 	// All of them are warnings and advice.
 	all := append(LintBlocks(five, nil), LintBlocks(rep, nil)...)
 	all = append(all, LintBlocks(&Story{Scenes: []Scene{long}}, nil)...)
