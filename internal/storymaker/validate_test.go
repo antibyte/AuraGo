@@ -542,6 +542,12 @@ func TestValidateGlyphMissing(t *testing.T) {
 		{"silent narration with a say without text", true, `{"id":"s1","silent":true,"narration":"` + thai + `",` + bareSay + `}`, ""},
 		{"code scene narration with captions on", true, `{"id":"s1","kind":"code","narration":"` + thai + `"}`, "/scenes/0/narration"},
 		{"code scene narration with captions off", false, `{"id":"s1","kind":"code","narration":"` + thai + `"}`, ""},
+		{"diagram node label", true, `{"id":"s1","beats":[{"do":"show","diagram":{"layout":"flow","nodes":[{"id":"a","label":"Ok"},{"id":"b","label":"` + thai + `"}]},"at":"full","entry":"fade"}]}`, "/scenes/0/beats/0/diagram/nodes/1/label"},
+		{"diagram node point", true, `{"id":"s1","beats":[{"do":"show","diagram":{"layout":"compare","nodes":[{"id":"a","label":"A","points":["` + thai + `"]},{"id":"b","label":"B"}]},"at":"full","entry":"fade"}]}`, "/scenes/0/beats/0/diagram/nodes/0/points/0"},
+		{"chart label", true, `{"id":"s1","beats":[{"do":"show","chart":"bar","data":{"labels":["a","` + thai + `"],"values":[1,2]},"at":"full","entry":"fade"}]}`, "/scenes/0/beats/0/data/labels/1"},
+		{"chart unit", true, `{"id":"s1","beats":[{"do":"show","chart":"bar","data":{"labels":["a"],"values":[1],"unit":"` + thai + `"},"at":"full","entry":"fade"}]}`, "/scenes/0/beats/0/data/unit"},
+		{"chart title", true, `{"id":"s1","beats":[{"do":"show","chart":"bar","data":{"labels":["a"],"values":[1],"title":"` + thai + `"},"at":"full","entry":"fade"}]}`, "/scenes/0/beats/0/data/title"},
+		{"legacy chart beat text", true, `{"id":"s1","beats":[{"do":"chart","chart":"bar","text":"` + thai + `","data":{"labels":["a"],"values":[1]},"at":"full"}]}`, "/scenes/0/beats/0/text"},
 		{"code scene strings stay unchecked", true, `{"id":"s1","kind":"code","beats":[{"do":"show","text":"` + thai + `","at":"center","entry":"fade"}]}`, ""},
 	}
 	for _, tc := range cases {

@@ -172,8 +172,28 @@ func (v *validator) glyphs() {
 			continue
 		}
 		for j := range sc.Beats {
-			if b := &sc.Beats[j]; b.Do == "show" || b.Do == "say" {
-				check(jp("scenes", i, "beats", j)+"/text", b.Text)
+			b := &sc.Beats[j]
+			bp := jp("scenes", i, "beats", j)
+			if b.Do == "show" || b.Do == "say" || b.Do == "chart" {
+				check(bp+"/text", b.Text)
+			}
+			if b.Do != "show" && b.Do != "chart" {
+				continue
+			}
+			if b.Diagram != nil {
+				for k, n := range b.Diagram.Nodes {
+					check(bp+"/diagram/nodes/"+strconv.Itoa(k)+"/label", n.Label)
+					for m, p := range n.Points {
+						check(bp+"/diagram/nodes/"+strconv.Itoa(k)+"/points/"+strconv.Itoa(m), p)
+					}
+				}
+			}
+			if b.Data != nil {
+				for k, l := range b.Data.Labels {
+					check(bp+"/data/labels/"+strconv.Itoa(k), l)
+				}
+				check(bp+"/data/unit", b.Data.Unit)
+				check(bp+"/data/title", b.Data.Title)
 			}
 		}
 	}
