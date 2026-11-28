@@ -36382,7 +36382,7 @@
       "name": "Twisted-pair cable categories (Cat 5 … Cat 8)",
       "name_en": "Twisted-pair cable categories (Cat 5 … Cat 8)",
       "doc": "Twisted-pair cable categories Cat 5 to Cat 8 with the matching ISO/IEC 11801 class, the frequency the category is specified to, the usual construction and connector, the specified channel length and the channel length over which the BASE-T Ethernet variants (100BASE-TX to 40GBASE-T) run.",
-      "notes": "A category describes components (cable, connector), a class describes the installed channel or link. TIA uses categories for both; ISO/IEC 11801 uses classes for links and channels. A channel is only as good as its weakest part: Cat 7/7A cable with RJ45 jacks or Cat 6A patch cords performs as Cat 6A, and higher classes support all applications of lower classes. The reach columns are channel lengths: a 100 m channel is 90 m of solid installation cable, 10 m of cords and up to four connections (ISO/IEC 11801:2002 text quoted in ISO/IEC JTC 1/SC 25/WG 3 N 638); a Category 8 channel is 30 m with 2 connectors. In the reach columns \"–\" means not specified for this category (checked), an empty cell means not verified, and \"(limited)\" means the reach depends on alien crosstalk and must be tested in the field (Cat 6 at 10GBASE-T: about 37 m expected, up to 55 m depending on alien crosstalk, longer needs mitigation; Cat 5e at 5GBASE-T only in defined use cases). Cat 7, 7A and 8.2 are not RJ45 connectors (TERA, GG45); with RJ45 parts the channel only reaches the level of those parts. IEEE 802.3 itself was not readable: the reaches rest on the IEEE task-force objectives (802.3an, 802.3bz, 802.3bq), the TIA liaison tutorial and maker documents; 1000BASE-T and 100BASE-TX on Cat 5 follow the maker and test-equipment documents. The construction column gives the usual construction, not a rule (U/UTP unshielded, F/UTP overall foil, S/FTP overall braid and a foil around each pair). PoE (IEEE 802.3af/at/bt) is not limited per category here: the read sources give no such limits, but higher categories heat less in bundles, so Cat 6A or better is recommended for 4-pair PoE. The limits of the standards themselves are not listed: the full texts of TIA-568.2-E and ISO/IEC 11801-1 are paywalled and were not read.",
+      "notes": "A category describes components (cable, connector), a class describes the installed channel or link. TIA uses categories for both; ISO/IEC 11801 uses classes for links and channels. A channel is only as good as its weakest part: Cat 7/7A cable with RJ45 jacks or Cat 6A patch cords performs as Cat 6A, and higher classes support all applications of lower classes. The reach columns are channel lengths: a 100 m channel is 90 m of solid installation cable, 10 m of cords and up to four connections (ISO/IEC 11801:2002 text quoted in ISO/IEC JTC 1/SC 25/WG 3 N 638); a Category 8 channel is 30 m with 2 connectors. In the reach columns \"–\" means not specified for this category (checked), an empty cell means not verified, and \"(limited)\" means the reach depends on alien crosstalk and must be tested in the field (Cat 6 at 10GBASE-T: about 37 m expected, up to 55 m depending on alien crosstalk, longer needs mitigation; Cat 5e at 5GBASE-T only in defined use cases). Cat 7, 7A and 8.2 are not RJ45 connectors (TERA, GG45); with RJ45 parts the channel only reaches the level of those parts. IEEE 802.3 itself was not readable: the reaches rest on the IEEE task-force objectives (802.3an, 802.3bz, 802.3bq), the TIA liaison tutorial and maker documents; 1000BASE-T and 100BASE-TX on Cat 5 follow the maker and test-equipment documents. The construction cell of Cat 5 is empty because no maker document for plain Cat 5 was found (only a 1995 quick reference that is not from a maker). The construction column gives the usual construction, not a rule (U/UTP unshielded, F/UTP overall foil, S/FTP overall braid and a foil around each pair). PoE (IEEE 802.3af/at/bt) is not limited per category here: the read sources give no such limits, but higher categories heat less in bundles, so Cat 6A or better is recommended for 4-pair PoE. The limits of the standards themselves are not listed: the full texts of TIA-568.2-E and ISO/IEC 11801-1 are paywalled and were not read.",
       "tags": [
         "ethernet",
         "cat5",
@@ -36947,7 +36947,7 @@
       "name": "Schematic symbols (IEC and ANSI)",
       "name_en": "Schematic symbols (IEC and ANSI)",
       "doc": "The 25 schematic symbols of ECalc's own library, drawn in the IEC style and in the ANSI style side by side, with the name, what the part does, the IEC 617 item number where it was read and where the two standards differ.",
-      "notes": "IEC 60617 is the international standard (in Germany DIN EN 60617); IEEE 315 / ANSI Y32.2 was the US standard and has been inactive since 2019 without replacement. The IEC side was read in the IEC 617 parts of 1978 to 1983 through their identical Indian adoptions IS 12032 (parts 2, 4, 5, 6, 7, 8 and 13); the item numbers (for example 04-01-01) are those of that edition, the IEC 60617 database itself was not reachable, so current database numbers and any later changes are not covered. The ANSI side was read in the US Navy NEETS modules 3, 7 and 8, which reproduce pages laid out as IEEE 315; IEEE 315 itself was not read, so no IEEE clause numbers are given. Both standards accept several forms for some parts: never mix two forms of the same part in one diagram, and expect datasheets to mix styles. ECalc draws one form per standard; where the standards agree it draws the same symbol. Differences that ECalc does not draw are named in the last column: the op-amp is a rectangle with the amplifier sign and ∞ in IEC 60617, but ECalc shows the triangle in both modes; the US fuse is usually an S-shaped curve, the IEC switch has no circles at its contacts, and US drawings often put an envelope circle around transistors. The antenna and the AC source have no IEC form that was read.",
+      "notes": "IEC 60617 is the international standard (in Germany DIN EN 60617); IEEE 315 / ANSI Y32.2 was the US standard. The IEC side was read in the IEC 617 parts of 1978 to 1983 through their identical Indian adoptions IS 12032 (parts 2, 4, 5, 6, 7, 8 and 13); the item numbers (for example 04-01-01) are those of that edition, the IEC 60617 database itself was not reachable, so current database numbers and any later changes are not covered. The ANSI side was read in the US Navy NEETS modules 3, 7 and 8, which reproduce pages laid out as IEEE 315; IEEE 315 itself was not read, so no IEEE clause numbers are given. Both standards accept several forms for some parts: never mix two forms of the same part in one diagram, and expect datasheets to mix styles. ECalc draws one form per standard; where the standards agree it draws the same symbol. Differences that ECalc does not draw are named in the last column: the op-amp is a rectangle with the amplifier sign and ∞ in IEC 60617, but ECalc shows the triangle in both modes; the US fuse is usually an S-shaped curve, the IEC switch has no circles at its contacts, and US drawings often put an envelope circle around transistors. The antenna and the AC source have no IEC form that was read.",
       "tags": [
         "schematic",
         "symbol",
@@ -36982,20 +36982,20 @@
       "source": "IEC 617 (1978 to 1983) as the identical Indian adoptions IS 12032 parts 2, 4, 5, 6, 7, 8 and 13 and IS 2032 part XVI (aerials), Public.Resource.Org on archive.org; US Navy NEETS modules 3, 7 and 8 (the IEEE 315 appendix of module 3); the IEC 60617 database and IEEE 315 / ANSI Y32.2 themselves were not read; en.wikipedia \"Electronic symbol\" and de.wikipedia articles as secondary checks",
       "guide": true,
       "mains": false,
-      "key": "symbol",
+      "key": "name",
       "columns": [
         {
-          "id": "symbol",
-          "name": "Symbol (IEC | ANSI)",
-          "dim": "symbol",
+          "id": "name",
+          "name": "Name",
+          "dim": "text",
           "unit": "",
           "units": [],
           "label": ""
         },
         {
-          "id": "name",
-          "name": "Name",
-          "dim": "text",
+          "id": "symbol",
+          "name": "Symbol (IEC | ANSI)",
+          "dim": "symbol",
           "unit": "",
           "units": [],
           "label": ""
@@ -37027,176 +37027,176 @@
       ],
       "rows": [
         [
-          "resistor",
           "Resistor",
+          "resistor",
           "Limits current; U = R·I",
           "04-01-01 (preferred: rectangle), 04-01-02 (other form: zigzag)",
           "IEC: rectangle. ANSI: zigzag (IEEE 315 also has a rectangle form that must carry an identification)"
         ],
         [
-          "capacitor",
           "Capacitor",
+          "capacitor",
           "Stores charge; blocks DC, passes AC",
           "04-02-01 (preferred: two straight plates), 04-02-02 (other form: one plate curved)",
           "Same in both: two parallel plates. Both also allow one curved plate (outer or low-potential electrode)"
         ],
         [
-          "polarized",
           "Polarised (electrolytic) capacitor",
+          "polarized",
           "Large capacitance; must be connected with the right polarity",
           "04-02-05 (preferred: two straight plates + \"+\"), 04-02-06 (other form: negative plate curved + \"+\")",
           "IEC: two straight plates, \"+\" at the positive plate. ANSI: usually the negative plate curved towards the straight plate, \"+\" at the straight plate (IEEE 315 also allows the IEC form)"
         ],
         [
-          "inductor",
           "Inductor (coil)",
+          "inductor",
           "Stores energy in a magnetic field; opposes changes of current",
           "04-03-01 (preferred: half-circles), 04-03-02 (other form: filled rectangle); core line 04-03-03",
           "Same in both: a row of half-circles (US drawings also use loops). IEC also allows a filled rectangle"
         ],
         [
-          "diode",
           "Diode",
+          "diode",
           "Conducts in one direction only (anode → cathode)",
           "05-03-01",
           "Same in both: triangle pointing to a bar (cathode). US drawings often fill the triangle"
         ],
         [
-          "led",
           "Light-emitting diode (LED)",
+          "led",
           "Diode that emits light when forward-biased",
           "05-03-02",
           "Same in both: diode with two arrows pointing away"
         ],
         [
-          "zener",
           "Zener diode",
+          "zener",
           "Conducts in reverse above its breakdown voltage; voltage reference/regulator",
           "05-03-06 (cathode bar with one short stub; qualifier 05-02-03)",
           "IEC: cathode bar with one short stub at one end, bent back towards the anode. ANSI: bar bent at both ends in opposite directions (Z shape); US documents also show other variants"
         ],
         [
-          "crystal",
           "Quartz crystal",
+          "crystal",
           "Resonator with a very stable frequency",
           "04-07-01",
           "Same in both: rectangle between two electrode plates"
         ],
         [
-          "fuse",
           "Fuse",
+          "fuse",
           "Melts and opens the circuit on overcurrent",
           "07-21-01 (rectangle, line through it lengthwise)",
           "IEC: rectangle with a line through it. ANSI: the same symbol is allowed (ECalc draws it in both modes); typical US drawings use an S-shaped curve"
         ],
         [
-          "switch",
           "Switch (make contact)",
+          "switch",
           "Opens or closes a circuit",
           "07-02-01 (form 1, no circles), 07-02-02 (form 2, hinge circle)",
           "Same symbol in both (inclined blade). IEC draws no circles (a hinge circle is allowed); US drawings often show open circles at both contacts (ECalc draws them in both modes)"
         ],
         [
-          "pot",
           "Potentiometer",
+          "pot",
           "Adjustable voltage divider; the wiper taps the resistance",
           "04-01-07 (rectangle, wiper arrow)",
           "IEC: rectangle with the wiper arrow. ANSI: zigzag with the wiper arrow"
         ],
         [
-          "source",
           "DC voltage source",
+          "source",
           "Ideal source of constant voltage",
           "02-16-02 (ideal voltage source: circle, line through it along the conductor)",
           "IEC: circle crossed by the conductor (line along the leads); polarity added outside. US textbooks: circle with + and − inside (a textbook convention; IEEE 315 itself uses the battery as the general DC source)"
         ],
         [
-          "acsource",
           "AC voltage source",
+          "acsource",
           "Source of sinusoidal alternating voltage",
           null,
           "ECalc draws a circle with a sine wave in both modes; no IEC form was read"
         ],
         [
-          "isource",
           "Current source",
+          "isource",
           "Ideal source of constant current",
           "02-16-01 (ideal current source: circle, line across the conductor)",
           "IEC: circle with a line across, perpendicular to the leads (ECalc adds the reference direction a → b as an arrow on the lead). US: circle with an arrow inside in the current direction"
         ],
         [
-          "battery",
           "Battery",
+          "battery",
           "Chemical DC source; the long line is the positive pole",
           "06-15-01 (cell), 06-15-02 (battery, form 1)",
           "Same in both: long thin line = +, short line = − (IEC: the short line may be thicker)"
         ],
         [
-          "meter",
           "Meter (voltmeter, ammeter)",
+          "meter",
           "Indicates a measured quantity; the letter names it (V, A, Ω …)",
           "08-01-01 (indicating instrument), 08-02-01 (voltmeter)",
           "Same in both: circle with the unit letter"
         ],
         [
-          "ground",
           "Ground (earth)",
+          "ground",
           "Common reference potential, 0 V",
           "02-15-01 (earth, general symbol)",
           "Same in both: stem with three lines getting shorter"
         ],
         [
-          "antenna",
           "Antenna",
+          "antenna",
           "Radiates or receives radio waves",
           null,
           "Same in ECalc: a V on a stem (the US \"antenna – general\"); older IEC drawings (IS 2032-16 of 1972) show a trident, the current IEC form was not read"
         ],
         [
-          "npn",
           "NPN transistor",
+          "npn",
           "Bipolar transistor; a small base current controls the collector current",
           "05-05-02 (NPN, shown with envelope); base symbol 05-05-01 without circle",
           "Same symbol: emitter arrow points outward. US drawings usually add the envelope circle (optional in ANSI Y32.2); IEC usually without"
         ],
         [
-          "pnp",
           "PNP transistor",
+          "pnp",
           "Bipolar transistor with reversed polarities; emitter arrow points in",
           "05-05-01",
           "Same symbol: emitter arrow points towards the base. Envelope circle as for NPN"
         ],
         [
-          "nmos",
           "N-channel MOSFET (enhancement)",
+          "nmos",
           "Voltage-controlled switch/amplifier; conducts when the gate is positive",
           "05-05-12 / 05-05-14 (broken channel, substrate arrow inward, substrate tied to source)",
           "Same in both: broken channel line, substrate arrow pointing to the channel"
         ],
         [
-          "pmos",
           "P-channel MOSFET (enhancement)",
+          "pmos",
           "As the N-channel type with reversed polarities; conducts when the gate is negative",
           "05-05-11 / 05-05-13 (substrate arrow outward)",
           "Same in both: as N-channel, substrate arrow pointing away from the channel"
         ],
         [
-          "opamp",
           "Operational amplifier",
+          "opamp",
           "Very high-gain differential amplifier; the circuit around it sets the function",
           "13-04-02 (rectangle with ▷ and ∞, inputs − and +)",
           "IEC 60617 draws a rectangle with the amplifier sign ▷ and ∞ inside, inputs marked − and +. ANSI/US: triangle pointing to the output. ECalc shows the triangle in both modes"
         ],
         [
-          "transformer",
           "Transformer",
+          "transformer",
           "Transfers AC energy between windings; turns ratio sets the voltage ratio",
           "06-09-02 (form 2: windings as half-circles, core per 04-03-03), 06-09-01 (form 1: two circles)",
           "Same in both: two windings with core lines between. IEC also allows two overlapping circles (single-line diagrams)"
         ],
         [
-          "ic",
           "Integrated circuit (generic box)",
+          "ic",
           "Any IC drawn as a box with numbered/named pins",
           null,
           "Same in both: a rectangle with pin stubs and names (drawing convention, not a standardised symbol)"
@@ -41556,7 +41556,7 @@
         "2448",
         "lot"
       ],
-      "source": "IEC 60062:2016 clause 8 (date code system) and IEC 60062:2004 clauses 6.1.1 and 6.2.1, read in the identical GOST IEC 60062-2014 (IDT); ISO 8601-1:2019 (week calendar); ECIA NIGP 117 date code marking guideline; Texas Instruments device marking conventions (SNOA039C); Microchip MCP6001 data sheet; onsemi 1N4001 data sheet; Vishay Dale product marking (document 30327); TDK film capacitor marking and ordering code system; Vishay SMF body marking (document 98534)",
+      "source": "IEC 60062:2004 clauses 6.1.1 and 6.2.1, read in the identical GOST IEC 60062-2014 (IDT) (the 2016 edition has the date codes in clause 8 per its contents page); ISO 8601-1:2019 (week calendar); ECIA NIGP 117 date code marking guideline; Texas Instruments device marking conventions (SNOA039C); Microchip MCP6001 data sheet; onsemi 1N4001 data sheet; Vishay Dale product marking (document 30327); TDK film capacitor marking and ordering code system; Vishay SMF body marking (document 98534)",
       "data": {
         "first_year": 1970,
         "last_year": 2049,
