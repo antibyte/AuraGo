@@ -323,8 +323,12 @@ func TestLookAlikeIssuesCodeSceneGetsTheCodeFix(t *testing.T) {
 	if got = LookAlikeIssues(run(true, false, false)); len(got) != 1 || strings.Contains(got[0].Fix, "put_code") {
 		t.Fatalf("a code scene outside the pair: %+v", got)
 	}
-	if got = LookAlikeIssues(run(false, true, false)); len(got) != 1 || !strings.Contains(got[0].Fix, "put_code") {
-		t.Fatalf("a code scene as the predecessor: %+v", got)
+	if got = LookAlikeIssues(run(false, true, false)); len(got) != 1 || strings.Contains(got[0].Fix, "put_code") || !strings.Contains(got[0].Fix, "framing") {
+		t.Fatalf("the scene to change is a storyboard scene, whatever its predecessor is: %+v", got)
+	}
+	// A longer run changes every second scene from the third: each kind gets its own advice.
+	if got = LookAlikeIssues(run(false, false, true, false, false)); len(got) != 1 || !strings.Contains(got[0].Fix, "put_code") || !strings.Contains(got[0].Fix, "framing") {
+		t.Fatalf("a mixed run: %+v", got)
 	}
 }
 

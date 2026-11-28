@@ -204,17 +204,27 @@ func LookAlikeIssues(stills []StillInfo) []Issue {
 		for i, s := range run {
 			ids[i] = s.SceneID
 		}
-		var change []string
-		codeScene := false
+		// The advice follows the kind of the scene that is to change, not of its neighbour.
+		var board, code []string
 		for i := 2; i < len(run); i += 2 {
-			change = append(change, run[i].SceneID)
-			codeScene = codeScene || run[i].Code || run[i-1].Code
+			if run[i].Code {
+				code = append(code, run[i].SceneID)
+			} else {
+				board = append(board, run[i].SceneID)
+			}
 		}
-		fix := fmt.Sprintf(`Change scene %s so it differs from its neighbours: another environment with "transition":"wipe", a framing such as {"camera":{"framing":"medium"}}, and the actor on the other side ("at":"right" or "left") with the whole actors list.`,
-			strings.Join(change, " and "))
-		if codeScene {
+		const codeAdvice = "another block layout, motif or position in its source (put_code)"
+		var fix string
+		if len(board) > 0 {
+			fix = fmt.Sprintf(`Change scene %s so it differs from its neighbours: another environment with "transition":"wipe", a framing such as {"camera":{"framing":"medium"}}, and the actor on the other side ("at":"right" or "left") with the whole actors list.`,
+				strings.Join(board, " and "))
+		}
+		switch {
+		case len(code) > 0 && len(board) > 0:
+			fix += fmt.Sprintf(" Scene %s is a code scene with no environment, camera or actors: give it %s.", strings.Join(code, " and "), codeAdvice)
+		case len(code) > 0:
 			// A code scene has no environment, camera or actors: only its own source changes the picture.
-			fix = "Give this scene its own picture: another block layout, motif or position in its source (put_code)."
+			fix = "Give this scene its own picture: " + codeAdvice + "."
 		}
 		out = append(out, Issue{
 			Severity: SeverityWarning, SceneID: run[2].SceneID, Path: jp("scenes", run[2].Index), Code: CodeScenesLookAlike,
